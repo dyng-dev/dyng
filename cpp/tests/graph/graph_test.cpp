@@ -8,6 +8,7 @@
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/csr.hpp>
+#include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/edge_list.hpp>
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
@@ -17,6 +18,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <random>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -314,3 +316,35 @@ TEST(GraphTranspose, OpenmpEqualsSequential) {
 }
 
 }  // namespace
+
+TEST(Graph, ImpossibleAllocationsAreOutOfMemoryErrors) {
+  // Every exception that leaves dynG derives from dyng::error (PLAN Section 4.7.3): host
+  // allocation failures (std::bad_alloc, std::length_error) become out_of_memory_error.
+  using graph64 = dyng::graph<std::int64_t, std::int64_t, std::int32_t>;
+  const auto res = dyng::resources::sequential();
+  dyng::edge_list<std::int64_t, std::int32_t> huge;
+  huge.num_vertices = std::int64_t{1} << 62;  // 2^62 + 1 row offsets cannot be allocated
+  huge.num_weights = 1;
+  try {
+    (void)graph64::from_edges(res, huge.view());
+    FAIL() << "from_edges with 2^62 vertices did not throw";
+  } catch (const dyng::out_of_memory_error& e) {
+    EXPECT_NE(std::string(e.what()).find("graph::from_edges"), std::string::npos) << e.what();
+    EXPECT_NE(std::string(e.what()).find("4611686018427387904 vertices"), std::string::npos)
+        << e.what();
+  }
+
+  graph64 small = graph64::from_edges(res, dyng::edge_list<std::int64_t, std::int32_t>{}.view());
+  EXPECT_THROW(small.reserve(res, std::int64_t{1} << 62), dyng::out_of_memory_error);
+
+  dyng::edge_batch<std::int64_t, std::int32_t> batch(1);
+  EXPECT_THROW(batch.reserve(std::size_t{1} << 62, 0), dyng::out_of_memory_error);
+  // Vertex growth to 2^40 vertices: the new row offsets (8 TiB) cannot be allocated.
+  dyng::graph_properties props;
+  props.semantics.allow_vertex_growth = true;
+  graph64 grow =
+      graph64::from_edges(res, dyng::edge_list<std::int64_t, std::int32_t>{}.view(), props);
+  dyng::edge_batch<std::int64_t, std::int32_t> far(0);
+  far.insert_edge(0, std::int64_t{1} << 40, {});
+  EXPECT_THROW((void)grow.apply(res, far.view()), dyng::out_of_memory_error);
+}

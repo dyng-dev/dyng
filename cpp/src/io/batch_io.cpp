@@ -7,6 +7,7 @@
  * @brief Legacy MOSP batch files (insert.txt / delete.txt).
  */
 #include "io/io_instantiate.hpp"
+#include "util/allocation.hpp"
 #include "util/parser.hpp"
 #include "util/text_writer.hpp"
 
@@ -25,7 +26,7 @@ namespace dyng::io {
 template <typename vertex_t, typename weight_t>
 edge_batch<vertex_t, weight_t> read_legacy_batch(const std::string& insert_path,
                                                  const std::string& delete_path,
-                                                 const legacy_batch_options& options) {
+                                                 const legacy_batch_options& options) try {
   static_assert(std::is_integral_v<weight_t>, "read_legacy_batch needs integral weights");
   DYNG_EXPECTS(options.num_weights >= 0, "legacy_batch_options::num_weights must be >= 0, got ",
                options.num_weights);
@@ -94,10 +95,11 @@ edge_batch<vertex_t, weight_t> read_legacy_batch(const std::string& insert_path,
   }
   return batch;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_legacy_batch (", insert_path, ", ", delete_path, ")")
 
 template <typename vertex_t, typename weight_t>
 void write_legacy_batch(const std::string& insert_path, const std::string& delete_path,
-                        const edge_batch_view<vertex_t, weight_t>& batch) {
+                        const edge_batch_view<vertex_t, weight_t>& batch) try {
   const std::size_t num_inserts = batch.insert_src.size();
   const auto k_count = static_cast<std::size_t>(batch.num_weights);
   DYNG_EXPECTS(batch.insert_vertices.empty() && batch.delete_vertices.empty(),
@@ -133,6 +135,7 @@ void write_legacy_batch(const std::string& insert_path, const std::string& delet
   inserts.close();
   deletes.close();
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_legacy_batch (", insert_path, ", ", delete_path, ")")
 
 #define DYNG_INSTANTIATE_BATCH_IO(V, W)                                                     \
   template edge_batch<V, W> read_legacy_batch<V, W>(const std::string&, const std::string&, \

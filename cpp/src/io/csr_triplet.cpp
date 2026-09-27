@@ -7,6 +7,7 @@
  * @brief The MOSP text CSR reader and writer.
  */
 #include "graph/instantiate.hpp"
+#include "util/allocation.hpp"
 #include "util/concurrent.hpp"
 #include "util/parser.hpp"
 #include "util/text_writer.hpp"
@@ -157,7 +158,7 @@ value_lines<weight_t> read_values(const std::string& path, std::size_t m, int nu
 // ColInd, then Values) are exactly those of reading the files one after the other.
 template <typename vertex_t, typename edge_t, typename weight_t>
 csr<vertex_t, edge_t, weight_t> read_csr_triplet(const std::string& prefix,
-                                                 const csr_triplet_options& options) {
+                                                 const csr_triplet_options& options) try {
   static_assert(std::is_integral_v<weight_t>, "read_csr_triplet needs integral weights");
   DYNG_EXPECTS(options.num_weights >= 0, "csr_triplet_options::num_weights must be >= 0, got ",
                options.num_weights);
@@ -224,10 +225,11 @@ csr<vertex_t, edge_t, weight_t> read_csr_triplet(const std::string& prefix,
   }
   return out;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_csr_triplet (", prefix, ")")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void write_csr_triplet(const std::string& prefix,
-                       const csr_view<vertex_t, edge_t, weight_t>& graph) {
+                       const csr_view<vertex_t, edge_t, weight_t>& graph) try {
   const std::size_t m = graph.col_ind.size();
   const auto k_count = static_cast<std::size_t>(graph.num_weights);
   DYNG_EXPECTS(graph.num_weights >= 0 && graph.weights.size() == m * k_count,
@@ -261,6 +263,7 @@ void write_csr_triplet(const std::string& prefix,
   cols.close();
   values.close();
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_csr_triplet (", prefix, ")")
 
 #define DYNG_INSTANTIATE_CSR_TRIPLET(V, E, W)                                                      \
   template csr<V, E, W> read_csr_triplet<V, E, W>(const std::string&, const csr_triplet_options&); \

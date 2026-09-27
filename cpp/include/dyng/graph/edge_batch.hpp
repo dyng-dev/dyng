@@ -13,6 +13,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
+#include <new>
+#include <stdexcept>
 #include <vector>
 
 /**
@@ -109,37 +111,58 @@ class edge_batch {
    * @param[in] v       Destination.
    * @param[in] weights Its num_weights() weights (host memory).
    * @throws invalid_argument_error if `weights` does not hold num_weights() values.
+   * @throws out_of_memory_error    if the arrays cannot grow.
    */
   void insert_edge(vertex_t u, vertex_t v, array_view<const weight_t> weights) {
     DYNG_EXPECTS(weights.size() == static_cast<std::size_t>(num_weights_),
                  "edge_batch::insert_edge got ", weights.size(), " weights, expected ",
                  num_weights_);
-    insert_src_.push_back(u);
-    insert_dst_.push_back(v);
-    insert_weights_.insert(insert_weights_.end(), weights.begin(), weights.end());
+    try {
+      insert_src_.push_back(u);
+      insert_dst_.push_back(v);
+      insert_weights_.insert(insert_weights_.end(), weights.begin(), weights.end());
+    } catch (const std::bad_alloc& e) {
+      detail::throw_host_allocation_failure("edge_batch::insert_edge", e.what());
+    } catch (const std::length_error& e) {
+      detail::throw_host_allocation_failure("edge_batch::insert_edge", e.what());
+    }
   }
 
   /**
    * @brief Add an edge deletion.
    * @param[in] u Source.
    * @param[in] v Destination.
+   * @throws out_of_memory_error if the arrays cannot grow.
    */
   void delete_edge(vertex_t u, vertex_t v) {
-    delete_src_.push_back(u);
-    delete_dst_.push_back(v);
+    try {
+      delete_src_.push_back(u);
+      delete_dst_.push_back(v);
+    } catch (const std::bad_alloc& e) {
+      detail::throw_host_allocation_failure("edge_batch::delete_edge", e.what());
+    } catch (const std::length_error& e) {
+      detail::throw_host_allocation_failure("edge_batch::delete_edge", e.what());
+    }
   }
 
   /**
    * @brief Reserve capacity.
    * @param[in] insertions Expected number of insertions.
    * @param[in] deletions  Expected number of deletions.
+   * @throws out_of_memory_error if the capacity cannot be allocated.
    */
   void reserve(std::size_t insertions, std::size_t deletions) {
-    insert_src_.reserve(insertions);
-    insert_dst_.reserve(insertions);
-    insert_weights_.reserve(insertions * static_cast<std::size_t>(num_weights_));
-    delete_src_.reserve(deletions);
-    delete_dst_.reserve(deletions);
+    try {
+      insert_src_.reserve(insertions);
+      insert_dst_.reserve(insertions);
+      insert_weights_.reserve(insertions * static_cast<std::size_t>(num_weights_));
+      delete_src_.reserve(deletions);
+      delete_dst_.reserve(deletions);
+    } catch (const std::bad_alloc& e) {
+      detail::throw_host_allocation_failure("edge_batch::reserve", e.what());
+    } catch (const std::length_error& e) {
+      detail::throw_host_allocation_failure("edge_batch::reserve", e.what());
+    }
   }
 
   /**

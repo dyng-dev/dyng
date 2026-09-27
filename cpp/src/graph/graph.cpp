@@ -7,6 +7,7 @@
 #include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
+#include "util/allocation.hpp"
 
 #include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
@@ -46,7 +47,7 @@ void expect_supported_layout(const graph_properties& props) {
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-graph<vertex_t, edge_t, weight_t>::graph(const graph_properties& props)
+graph<vertex_t, edge_t, weight_t>::graph(const graph_properties& props) try
     : impl_(std::make_unique<impl_type>()) {
   expect_supported_layout(props);
   DYNG_EXPECTS(props.num_weights >= 0, "graph_properties::num_weights must be >= 0, got ",
@@ -58,6 +59,7 @@ graph<vertex_t, edge_t, weight_t>::graph(const graph_properties& props)
     impl_->in = impl_->out;
   }
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph (empty graph)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t>::graph(std::unique_ptr<impl_type> impl) noexcept
@@ -88,7 +90,8 @@ graph<vertex_t, edge_t, weight_t>::impl() const {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_edges(
-    const resources& res, edge_list_view<vertex_t, weight_t> edges, const graph_properties& props) {
+    const resources& res, edge_list_view<vertex_t, weight_t> edges,
+    const graph_properties& props) try {
   expect_host_backend(res, "graph::from_edges");
   expect_supported_layout(props);
   auto impl = std::make_unique<impl_type>();
@@ -100,10 +103,13 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_edges(
   }
   return graph(std::move(impl));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::from_edges (", edges.num_vertices, " vertices, ",
+                                  edges.num_edges(), " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_csr(
-    const resources& res, csr_view<vertex_t, edge_t, weight_t> csr, const graph_properties& props) {
+    const resources& res, csr_view<vertex_t, edge_t, weight_t> csr,
+    const graph_properties& props) try {
   expect_host_backend(res, "graph::from_csr");
   expect_supported_layout(props);
   auto impl = std::make_unique<impl_type>();
@@ -115,16 +121,20 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_csr(
   }
   return graph(std::move(impl));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::from_csr (", csr.num_vertices(), " vertices, ",
+                                  csr.num_edges(), " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::clone(
-    const resources& res) const {
+    const resources& res) const try {
   expect_host_backend(res, "graph::clone");
   return graph(std::make_unique<impl_type>(impl()));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::clone (", num_vertices(), " vertices, ", num_edges(),
+                                  " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void graph<vertex_t, edge_t, weight_t>::reserve(const resources& res, edge_t edge_capacity) {
+void graph<vertex_t, edge_t, weight_t>::reserve(const resources& res, edge_t edge_capacity) try {
   expect_host_backend(res, "graph::reserve");
   DYNG_EXPECTS(edge_capacity >= 0, "graph::reserve: negative capacity ", edge_capacity);
   auto& state = impl();
@@ -137,6 +147,7 @@ void graph<vertex_t, edge_t, weight_t>::reserve(const resources& res, edge_t edg
     state.in.weights.reserve(m * k);
   }
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::reserve (", edge_capacity, " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t graph<vertex_t, edge_t, weight_t>::num_vertices() const noexcept {
@@ -204,19 +215,21 @@ apply_summary graph<vertex_t, edge_t, weight_t>::apply(
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 typename graph<vertex_t, edge_t, weight_t>::csr_type graph<vertex_t, edge_t, weight_t>::to_csr(
-    const resources& res) const {
+    const resources& res) const try {
   expect_host_backend(res, "graph::to_csr");
   return impl().out;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::to_csr (", num_edges(), " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) const {
+void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) const try {
   expect_host_backend(res, "graph::check_integrity");
   const std::string violation = detail::integrity_violation(impl());
   if (!violation.empty()) {
     DYNG_FAIL("graph integrity: ", violation);
   }
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::check_integrity")
 
 namespace detail {
 
@@ -229,7 +242,7 @@ std::uint64_t next_graph_state_id() noexcept {
 template <typename vertex_t, typename edge_t, typename weight_t>
 apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
                                   const edge_batch_view<vertex_t, weight_t>& batch,
-                                  apply_delta<vertex_t>* delta) {
+                                  apply_delta<vertex_t>* delta) try {
   expect_host_backend(res, "graph::apply");
   auto& state = g.impl();
   scoped_stage stage(res, "graph.apply");
@@ -243,6 +256,9 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
   state.state_id = next_graph_state_id();
   return summary;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::apply (", g.num_vertices(), " vertices, ", g.num_edges(),
+                                  " edges; batch of ", batch.num_insertions(), " insertions, ",
+                                  batch.num_deletions(), " deletions)")
 
 }  // namespace detail
 

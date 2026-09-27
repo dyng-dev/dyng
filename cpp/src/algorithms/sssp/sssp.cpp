@@ -17,6 +17,7 @@
 #include "algorithms/sssp/problem.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
+#include "util/allocation.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
@@ -513,7 +514,7 @@ memory_space result<vertex_t, distance_t>::space() const noexcept {
 }
 
 template <typename vertex_t, typename distance_t>
-result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources& res) const {
+result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources& res) const try {
   DYNG_EXPECTS(impl_ != nullptr, "sssp::result: use of a moved-from result");
   detail::expect_cpu_backend(res, "sssp::result::clone");
   auto copy = std::make_unique<state_type>();
@@ -527,13 +528,15 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
   copy->ws.reserve(static_cast<std::int64_t>(copy->distances.size()));
   return result(std::move(copy));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::result::clone (", impl_ ? impl_->distances.size() : 0,
+                                  " vertices)")
 
 template <typename vertex_t, typename distance_t>
 template <typename edge_t, typename weight_t>
 result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
     const resources& res, const graph<vertex_t, edge_t, weight_t>& g, vertex_t source,
     array_view<const distance_t> distances, array_view<const vertex_t> parents, bool canonicalize,
-    const options& opt) {
+    const options& opt) try {
   static_assert(std::is_same_v<distance_t, std::int64_t>, "sssp: distance_t must be int64_t");
   detail::expect_cpu_backend(res, "sssp::result::from_arrays");
   detail::expect_options(opt);
@@ -585,6 +588,7 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
   }
   return result(std::move(state));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::result::from_arrays (", g.num_vertices(), " vertices)")
 
 // ------------------------------------------------------------------------------------------------
 // compute / update
@@ -592,7 +596,7 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-                         vertex_t source, const options& opt) {
+                         vertex_t source, const options& opt) try {
   detail::expect_cpu_backend(res, "sssp::compute");
   scoped_stage stage(res, "sssp.compute");
   detail::expect_options(opt);
@@ -630,10 +634,12 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   detail::run_compute_engine(res, run);
   return detail::sssp_access::make(std::move(state));
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::compute (", g.num_vertices(), " vertices, ", g.num_edges(),
+                                  " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result<vertex_t>& r) {
+             const edge_batch_view<vertex_t, weight_t>& batch, result<vertex_t>& r) try {
   scoped_stage stage(res, "sssp.update");
   stats out;
   detail::sssp_participant<vertex_t, edge_t, weight_t, std::int64_t> participant(r, out);
@@ -641,6 +647,9 @@ stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
   detail::run_update(res, g, batch, participants, 1, "sssp.commit");
   return out;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::update (", g.num_vertices(), " vertices, ", g.num_edges(),
+                                  " edges; batch of ", batch.num_insertions(), " insertions, ",
+                                  batch.num_deletions(), " deletions)")
 
 // ------------------------------------------------------------------------------------------------
 // Explicit instantiations (PLAN Section 4.4.3)

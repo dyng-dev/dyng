@@ -13,6 +13,7 @@
  * stopped at a premature end of file).
  */
 #include "io/io_instantiate.hpp"
+#include "util/allocation.hpp"
 #include "util/parser.hpp"
 #include "util/rng.hpp"
 #include "util/text_writer.hpp"
@@ -65,7 +66,7 @@ struct raw_edge {
 
 template <typename vertex_t, typename weight_t>
 edge_list<vertex_t, weight_t> read_matrix_market(const std::string& path,
-                                                 const matrix_market_options& options) {
+                                                 const matrix_market_options& options) try {
   static_assert(std::is_integral_v<weight_t>, "read_matrix_market needs integral weights");
   const std::string text = detail::read_file(path);
   detail::text_scanner scanner(text, path);
@@ -290,10 +291,11 @@ edge_list<vertex_t, weight_t> read_matrix_market(const std::string& path,
   }
   return out;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_matrix_market (", path, ")")
 
 template <typename vertex_t, typename weight_t>
 void write_matrix_market(const std::string& path, const edge_list_view<vertex_t, weight_t>& edges,
-                         int weight_column) {
+                         int weight_column) try {
   const std::size_t m = edges.src.size();
   const auto k_count = static_cast<std::size_t>(edges.num_weights);
   DYNG_EXPECTS(edges.dst.size() == m && edges.weights.size() == m * k_count,
@@ -327,6 +329,7 @@ void write_matrix_market(const std::string& path, const edge_list_view<vertex_t,
   }
   out.close();
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_matrix_market (", path, ")")
 
 #define DYNG_INSTANTIATE_MATRIX_MARKET(V, W)                                       \
   template edge_list<V, W> read_matrix_market<V, W>(const std::string&,            \

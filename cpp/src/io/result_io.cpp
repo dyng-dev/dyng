@@ -7,6 +7,7 @@
  * @brief Distance and SSSP-tree files in the MOSP formats.
  */
 #include "io/io_instantiate.hpp"
+#include "util/allocation.hpp"
 #include "util/parser.hpp"
 #include "util/text_writer.hpp"
 
@@ -75,7 +76,7 @@ void expect_host_array(const array_view<const value_t>& values, const char* what
 }  // namespace
 
 template <typename distance_t>
-void write_distances(const std::string& path, array_view<const distance_t> distances) {
+void write_distances(const std::string& path, array_view<const distance_t> distances) try {
   expect_host_array(distances, "write_distances");
   detail::text_writer out(path);
   const distance_t unreachable = infinite_distance<distance_t>() / 2;
@@ -91,9 +92,10 @@ void write_distances(const std::string& path, array_view<const distance_t> dista
   }
   out.close();
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_distances (", path, ")")
 
 template <typename vertex_t>
-void write_parents(const std::string& path, array_view<const vertex_t> parents) {
+void write_parents(const std::string& path, array_view<const vertex_t> parents) try {
   expect_host_array(parents, "write_parents");
   detail::text_writer out(path);
   for (std::size_t v = 0; v < parents.size(); ++v) {
@@ -104,9 +106,10 @@ void write_parents(const std::string& path, array_view<const vertex_t> parents) 
   }
   out.close();
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_parents (", path, ")")
 
 template <typename distance_t>
-std::vector<distance_t> read_distances(const std::string& path, std::int64_t num_vertices) {
+std::vector<distance_t> read_distances(const std::string& path, std::int64_t num_vertices) try {
   return read_vertex_values<distance_t>(
       path, num_vertices, infinite_distance<distance_t>(),
       [](const detail::text_scanner& scanner, const detail::token& tok) {
@@ -117,15 +120,17 @@ std::vector<distance_t> read_distances(const std::string& path, std::int64_t num
                                                  detail::max_as_int64<distance_t>(), "distance");
       });
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_distances (", path, ", ", num_vertices, " vertices)")
 
 template <typename vertex_t>
-std::vector<vertex_t> read_parents(const std::string& path, std::int64_t num_vertices) {
+std::vector<vertex_t> read_parents(const std::string& path, std::int64_t num_vertices) try {
   return read_vertex_values<vertex_t>(
       path, num_vertices, invalid_id<vertex_t>(),
       [num_vertices](const detail::text_scanner& scanner, const detail::token& tok) {
         return detail::parse_integer<vertex_t>(scanner, tok, -1, num_vertices - 1, "parent");
       });
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_parents (", path, ", ", num_vertices, " vertices)")
 
 #define DYNG_INSTANTIATE_DISTANCE_IO(D)                                      \
   template void write_distances<D>(const std::string&, array_view<const D>); \

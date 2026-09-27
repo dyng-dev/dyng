@@ -15,6 +15,8 @@
 
 #include <cstddef>
 #include <initializer_list>
+#include <new>
+#include <stdexcept>
 #include <vector>
 
 namespace dyng {
@@ -70,13 +72,20 @@ struct edge_list {
    * @param[in] v Destination.
    * @param[in] w Its num_weights weights.
    * @throws invalid_argument_error if `w` does not hold num_weights values.
+   * @throws out_of_memory_error    if the arrays cannot grow.
    */
   void add_edge(vertex_t u, vertex_t v, std::initializer_list<weight_t> w = {}) {
     DYNG_EXPECTS(w.size() == static_cast<std::size_t>(num_weights), "edge_list::add_edge got ",
                  w.size(), " weights, expected ", num_weights);
-    src.push_back(u);
-    dst.push_back(v);
-    weights.insert(weights.end(), w.begin(), w.end());
+    try {
+      src.push_back(u);
+      dst.push_back(v);
+      weights.insert(weights.end(), w.begin(), w.end());
+    } catch (const std::bad_alloc& e) {
+      detail::throw_host_allocation_failure("edge_list::add_edge", e.what());
+    } catch (const std::length_error& e) {
+      detail::throw_host_allocation_failure("edge_list::add_edge", e.what());
+    }
   }
 
   /**

@@ -9,6 +9,7 @@
  * for invalid arguments.
  */
 #include "graph/instantiate.hpp"
+#include "util/allocation.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
@@ -26,7 +27,7 @@ namespace dyng::testing {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 sssp_tree<vertex_t> dijkstra(const csr_view<vertex_t, edge_t, weight_t>& out, vertex_t source,
-                             int objective) {
+                             int objective) try {
   const vertex_t n = out.num_vertices();
   DYNG_EXPECTS(out.row_ptr.empty() || is_host_accessible(out.row_ptr.space()),
                "testing::dijkstra: the graph must be in host memory");
@@ -68,6 +69,7 @@ sssp_tree<vertex_t> dijkstra(const csr_view<vertex_t, edge_t, weight_t>& out, ve
   }
   return tree;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("testing::dijkstra (", out.num_vertices(), " vertices)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 sssp_tree<vertex_t> dijkstra(const graph<vertex_t, edge_t, weight_t>& g, vertex_t source,

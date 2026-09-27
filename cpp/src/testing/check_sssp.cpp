@@ -11,6 +11,7 @@
  * exceptions for invalid arguments.
  */
 #include "graph/instantiate.hpp"
+#include "util/allocation.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
@@ -38,7 +39,8 @@ std::string sssp_tree_check::summary() const {
 template <typename vertex_t, typename edge_t, typename weight_t>
 sssp_tree_check check_sssp_tree(const csr_view<vertex_t, edge_t, weight_t>& out, vertex_t source,
                                 array_view<const std::int64_t> distances,
-                                array_view<const vertex_t> parents, const check_sssp_options& opt) {
+                                array_view<const vertex_t> parents,
+                                const check_sssp_options& opt) try {
   const auto n = static_cast<std::size_t>(out.num_vertices());
   DYNG_EXPECTS(distances.size() == n && parents.size() == n,
                "testing::check_sssp_tree: ", distances.size(), " distances and ", parents.size(),
@@ -128,6 +130,7 @@ sssp_tree_check check_sssp_tree(const csr_view<vertex_t, edge_t, weight_t>& out,
   }
   return check;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("testing::check_sssp_tree (", out.num_vertices(), " vertices)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 sssp_tree_check check_sssp_tree(const graph<vertex_t, edge_t, weight_t>& g, vertex_t source,

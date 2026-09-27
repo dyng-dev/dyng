@@ -318,6 +318,31 @@ TEST_P(SsspBackend, ResultOfAnotherGraphIsStale) {
   EXPECT_NO_THROW((void)dyng::sssp::update(res_, copy, empty.view(), rc));
 }
 
+TEST_P(SsspBackend, ImpossibleGrowthIsAnOutOfMemoryError) {
+  // Vertex growth to 2^40 vertices cannot be allocated: sssp::update reports it as
+  // out_of_memory_error (a dyng::error), not as std::bad_alloc.
+  using graph64 = dyng::graph<std::int64_t, std::int64_t, std::int32_t>;
+  dyng::edge_list<std::int64_t, std::int32_t> list;
+  list.num_vertices = 2;
+  list.num_weights = 1;
+  list.add_edge(0, 1, {1});
+  const auto g0 = graph64::from_edges(res_, list.view(), dyng::graph_properties::mosp_compatible());
+  auto g = g0.clone(res_);
+  auto r = dyng::sssp::compute(res_, g, std::int64_t{0});
+  dyng::edge_batch<std::int64_t, std::int32_t> far;
+  far.insert_edge(1, std::int64_t{1} << 40, {1});
+  try {
+    (void)dyng::sssp::update(res_, g, far.view(), r);
+    FAIL() << "growth to 2^40 vertices did not throw";
+  } catch (const dyng::out_of_memory_error& e) {
+    EXPECT_NE(std::string(e.what()).find("graph::apply"), std::string::npos) << e.what();
+  }
+  // Nothing was applied: the failure happened while the new graph was built.
+  EXPECT_EQ(g.version(), 0u);
+  EXPECT_NO_THROW(
+      (void)dyng::sssp::update(res_, g, dyng::edge_batch<std::int64_t, std::int32_t>{}.view(), r));
+}
+
 TEST_P(SsspBackend, InvalidBatchChangesNothing) {
   auto g = make_graph(res_, 3, {{0, 1, 1}, {1, 2, 1}});
   result_t r = dyng::sssp::compute(res_, g, 0);

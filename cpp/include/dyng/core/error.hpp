@@ -6,7 +6,8 @@
  * @ingroup core
  *
  * Every exception thrown by dynG derives from dyng::error, which derives from
- * std::runtime_error. Library code never calls exit() or abort() and never reports errors by
+ * std::runtime_error. Host allocation failures (std::bad_alloc, and std::length_error from sizing
+ * a container) are reported as out_of_memory_error at the library's entry points. Library code never calls exit() or abort() and never reports errors by
  * printing; it throws one of the types below (PLAN Section 4.7.3).
  */
 #pragma once
@@ -207,6 +208,18 @@ template <typename error_t, typename... args_t>
   out << " (" << source_basename(file) << ":" << line << ")";
   throw error_t(out.str());
 }
+
+/**
+ * @brief Report a failed host allocation (std::bad_alloc, or std::length_error from sizing a
+ *        standard container beyond its max_size()) as out_of_memory_error.
+ *
+ * The public entry points of the library catch those two standard exceptions and call this, so
+ * every exception that leaves dynG derives from dyng::error (PLAN Section 4.7.3).
+ * @param[in] context What was being done, with the sizes involved.
+ * @param[in] cause   The standard exception's what().
+ * @throws out_of_memory_error Always.
+ */
+[[noreturn]] void throw_host_allocation_failure(const std::string& context, const char* cause);
 
 }  // namespace detail
 }  // namespace dyng

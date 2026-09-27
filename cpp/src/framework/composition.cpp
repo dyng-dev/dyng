@@ -10,6 +10,7 @@
  */
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
+#include "util/allocation.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -24,7 +25,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
                          const edge_batch_view<vertex_t, weight_t>& batch,
                          update_participant<vertex_t, edge_t, weight_t>* const* participants,
-                         std::size_t count, std::string_view commit_stage) {
+                         std::size_t count, std::string_view commit_stage) try {
   DYNG_EXPECTS(count == 0 || participants != nullptr, "run_update: no participant array");
   for (std::size_t i = 0; i < count; ++i) {
     DYNG_EXPECTS(participants[i] != nullptr, "run_update: participant ", i, " is null");
@@ -61,6 +62,9 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
   }
   return summary;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("dyng::update (", g.num_vertices(), " vertices, ", g.num_edges(),
+                                  " edges; batch of ", batch.num_insertions(), " insertions, ",
+                                  batch.num_deletions(), " deletions; ", count, " result(s))")
 
 #define DYNG_INSTANTIATE_RUN_UPDATE(V, E, W)                           \
   template apply_summary run_update<V, E, W>(                          \

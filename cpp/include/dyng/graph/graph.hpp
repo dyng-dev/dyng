@@ -137,10 +137,20 @@ class graph {
   [[nodiscard]] graph clone(const resources& res) const;
 
   /**
-   * @brief Pre-size the storage for `edge_capacity` edges, so later batches do not reallocate.
-   * @param[in] res           Execution resources.
+   * @brief Pre-size the current storage (out-edges and, if stored, in-edges) for `edge_capacity`
+   *        edges.
+   *
+   * In this release reserve() only sizes the storage the graph holds now: the host apply() is the
+   * straight port of MOSP's applyChangeBatch(), which builds a new CSR per batch, so the first
+   * apply() after reserve() allocates new arrays and the reserved capacity is released. It gives
+   * no guarantee against reallocation until the resident apply replaces the port (invariant I9
+   * exempts the port until then; PLAN Section 4.5.5).
+   * @param[in] res           Execution resources (a host backend).
    * @param[in] edge_capacity Expected maximum number of stored edges.
-   * @throws invalid_argument_error if `edge_capacity` is negative.
+   * @throws invalid_argument_error if `edge_capacity` is negative or the graph was moved from.
+   * @throws not_supported_error    if `res` is a device backend.
+   * @throws out_of_memory_error    if the storage cannot be allocated.
+   * @sync
    */
   void reserve(const resources& res, edge_t edge_capacity);
 
