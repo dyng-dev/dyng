@@ -1,7 +1,11 @@
 # Reserving `dyng` on PyPI (checkpoint A3)
 
-Approved on 2026-09-27 (see `GOVERNANCE.md`). The package and the workflow are ready; the
-account-level steps below must be done by the lead maintainer.
+Approved on 2026-09-27 (see `GOVERNANCE.md`). **Done on 2026-09-27:** `dyng` 0.0.1 is on
+[PyPI](https://pypi.org/project/dyng/0.0.1/) and [TestPyPI](https://test.pypi.org/project/dyng/0.0.1/)
+(uploaded 16:26 UTC by `release.yml`, run for tag `v0.0.1` at commit `15a6051`). The first run
+of the workflow failed in the TestPyPI publish step (the reviewers read `invalid-publisher` in
+its log: the pending trusted publisher did not match yet); a second run five minutes later
+published to both indexes. The steps below are kept as the record of what was set up.
 
 ## What is published
 
@@ -19,7 +23,7 @@ python -m build --outdir /tmp/dyng-dist tools/name_reservation
 twine check --strict /tmp/dyng-dist/*
 ```
 
-## One-time setup (lead maintainer)
+## One-time setup (lead maintainer; done 2026-09-27)
 
 1. On GitHub, in `dyng-dev/dyng` → Settings → Environments, create the environments
    **`testpypi`** and **`pypi`** (optionally with "required reviewers" for `pypi`).

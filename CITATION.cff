@@ -5,8 +5,8 @@ message: >-
 type: software
 title: "dynG: dynamic graph and hypergraph updates on GPUs"
 abstract: >-
-  dynG is a C++/CUDA library with Python bindings that keeps the results of graph and
-  hypergraph algorithms up to date while the structure changes in batches, without
+  dynG is a C++17/CUDA library (Python bindings planned) that keeps the results of graph
+  and hypergraph algorithms up to date while the structure changes in batches, without
   recomputing from scratch. It unifies the research codes of DynaMOSP, DynLP,
   ESCHER/ESCHER+, H-SOSP and TruCy/DynTruCy.
 authors:
