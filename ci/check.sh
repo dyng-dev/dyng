@@ -21,12 +21,13 @@
 #   reuse      reuse lint (SPDX headers in every file)
 #   provenance ci/provenance_check.py: every file naming an original's symbol carries
 #              '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3)
-#   harness    python -m py_compile on parity/*.py and ci/*.py, and pytest parity/tests (the
-#              smoke tests of the parity harness; pytest is in environment.yml)
+#   harness    python -m py_compile on parity/*.py and ci/*.py, and pytest parity/tests ci/tests
+#              (the smoke tests of the parity harness and the tests of the CI scripts; pytest is
+#              in environment.yml)
 #   docs       ci/docs.sh: Doxygen on the public headers with warnings as errors and the
 #              convention check ci/doxygen_coverage.py, then the Sphinx site with warnings as
-#              errors and the internal link check (skipped if doxygen is missing; fails if the
-#              Sphinx packages of environment.yml are missing)
+#              errors and ci/docs_links.py (repository URLs, the site's anchors) (skipped if
+#              doxygen is missing; fails if the Sphinx packages of environment.yml are missing)
 #   precommit  pre-commit run --all-files (skipped if pre-commit is missing)
 #   parity     only with --parity (or DYNG_CHECK_PARITY=1): configure and build the `parity`
 #              preset and run `ctest -L parity`, the byte-for-byte replay of the golden corpus
@@ -45,7 +46,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,40p' "${BASH_SOURCE[0]}"
+      sed -n '5,41p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -153,7 +154,7 @@ fi
 
 if ! skipped harness; then
   step "parity harness (Python): compile and smoke tests"
-  if python3 -m py_compile parity/*.py ci/*.py && python3 -m pytest -q parity/tests; then
+  if python3 -m py_compile parity/*.py ci/*.py && python3 -m pytest -q parity/tests ci/tests; then
     echo "harness: OK"
   else
     failed+=("harness")
@@ -161,7 +162,7 @@ if ! skipped harness; then
 fi
 
 if ! skipped docs; then
-  step "docs (Doxygen and the Sphinx site, warnings as errors; internal links)"
+  step "docs (Doxygen and the Sphinx site, warnings as errors; repository links and anchors)"
   if command -v doxygen >/dev/null 2>&1; then
     if ci/docs.sh; then
       echo "docs: OK"

@@ -11,9 +11,9 @@ same file.
 Environment variables:
   DYNG_DOXYGEN_OUTPUT       Doxygen output directory (default build/doxygen, relative to the
                             repository root); its xml/ subdirectory feeds Breathe.
-  DYNG_LINKCHECK_EXTERNAL   1 = the linkcheck builder also checks http(s) links (off by default:
-                            CI checks internal links only, so the gate never depends on the
-                            network).
+  DYNG_LINKCHECK_EXTERNAL   1 = ci/docs.sh also runs the linkcheck builder on the external
+                            http(s) links (the weekly job of docs.yml); off by default, so the
+                            gate never depends on the network.
 """
 
 from __future__ import annotations
@@ -140,12 +140,51 @@ html_context = {
 html_show_sourcelink = False
 html_copy_source = False
 
+# Pages that only include another file (changelog.md -> CHANGELOG.md, developer/parity.md ->
+# parity/README.md, adr/index.md -> adr/README.md): "Edit this page" opens the included file,
+# which holds the text, instead of the two-line stub.
+_INCLUDE_RE = re.compile(r"^(?:`{3,}|:{3,})\{include\}\s+(\S+)\s*$", re.MULTILINE)
+
+
+def _edit_included_source(app, pagename, templatename, context, doctree):  # noqa: ANN001, ANN201
+    source = DOCS_DIR / f"{pagename}.md"
+    if doctree is None or not source.is_file():
+        return
+    includes = _INCLUDE_RE.findall(source.read_text(encoding="utf-8"))
+    if len(includes) != 1:
+        return
+    target = (source.parent / includes[0]).resolve().relative_to(REPO_ROOT).as_posix()
+    url = f"https://github.com/dyng-dev/dyng/edit/{html_context['github_version']}/{target}"
+    context["get_edit_provider_and_url"] = lambda: ("GitHub", url)
+
+
+def setup(app):  # noqa: ANN001, ANN201 (Sphinx's interface)
+    # After the theme's own html-page-context handler (priority 500), which sets the default.
+    app.connect("html-page-context", _edit_included_source, priority=900)
+
 # -- Link check ------------------------------------------------------------------------------------
 
-# Internal links (documents, anchors, local files) are always checked. External links only with
-# DYNG_LINKCHECK_EXTERNAL=1, because the gate must not depend on the network or on rate limits.
+# The linkcheck builder runs only with DYNG_LINKCHECK_EXTERNAL=1 (ci/docs.sh; the weekly job of
+# docs.yml) and checks the external links. Links within the site are checked by the -W -n build
+# (MyST reference resolution), links to repository files and the site's anchors by
+# ci/docs_links.py. Never checked: pages that exist only for a logged-in owner or return 404 to
+# anonymous clients (settings, "new" forms, package management), and the documentation host that
+# is connected only at checkpoint A4; they are click paths, not references.
 if os.environ.get("DYNG_LINKCHECK_EXTERNAL", "0") != "1":
     linkcheck_ignore = [r"https?://.*"]
+else:
+    linkcheck_ignore = [
+        r"https://github\.com/(organizations/)?dyng-dev(/dyng)?/settings.*",
+        r"https://github\.com/dyng-dev/dyng/(issues|discussions)/new.*",
+        r"https://github\.com/dyng-dev/dyng/security/advisories/new.*",
+        r"https://(test\.)?pypi\.org/manage/.*",
+        r"https://app\.readthedocs\.org.*",
+        r"https://dyng\.readthedocs\.io.*",
+    ]
 linkcheck_timeout = 30
 linkcheck_retries = 2
+linkcheck_workers = 8
+# GitHub rate-limits anonymous clients; wait at most a minute per host instead of the default
+# five, so the weekly job stays well inside its timeout.
+linkcheck_rate_limit_timeout = 60.0
 linkcheck_anchors_ignore_for_url = [r"https://github\.com/.*"]

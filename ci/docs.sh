@@ -15,10 +15,13 @@
 #    compute() and update()).
 # 2. The Sphinx site (MyST pages + Breathe over the Doxygen XML) with warnings as errors and
 #    nitpicky references: every page in a toctree, every cross-reference and C++ name resolved.
-#    Output: $DYNG_DOCS_OUTPUT/html.
-# 3. The link check of internal links (documents, anchors, local files) with the linkcheck
-#    builder. External links are checked only with DYNG_LINKCHECK_EXTERNAL=1 (docs/conf.py), so
-#    the gate never depends on the network.
+#    This is also the check of the site's own links: a Markdown link or {doc} to a missing page,
+#    heading or local file is a MyST warning, so an error. Output: $DYNG_DOCS_OUTPUT/html.
+# 3. ci/docs_links.py, the links the Sphinx build cannot see: every GitHub URL of this repository
+#    (github.com/dyng-dev/dyng/blob|tree/main/<path>, the way pages link files outside docs/) in
+#    the tracked files must name an existing path, and every relative link of the built HTML an
+#    existing file and #anchor. With DYNG_LINKCHECK_EXTERNAL=1 (the weekly job of docs.yml) the
+#    Sphinx linkcheck builder also checks the external links; the gate never needs the network.
 #
 # Needs a configured build tree for the generated version.hpp / config.hpp (default:
 # build/cpu-only, from `cmake --preset cpu-only`; override with DYNG_BUILD_DIR) and, for steps 2
@@ -33,7 +36,7 @@ for arg in "$@"; do
     --doxygen-only) sphinx=0 ;;
     --no-linkcheck) linkcheck=0 ;;
     -h | --help)
-      sed -n '5,26p' "${BASH_SOURCE[0]}"
+      sed -n '5,29p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -79,6 +82,9 @@ python3 -m sphinx -b html "${sphinx_opts[@]}" docs "${docs_output}/html"
 echo "Documentation site written to ${docs_output}/html/index.html"
 
 if [ "${linkcheck}" = "1" ]; then
-  python3 -m sphinx -b linkcheck "${sphinx_opts[@]}" docs "${docs_output}/linkcheck"
-  echo "Link check: OK (${docs_output}/linkcheck/output.txt)"
+  python3 ci/docs_links.py --html "${docs_output}/html"
+  if [ "${DYNG_LINKCHECK_EXTERNAL:-0}" = "1" ]; then
+    python3 -m sphinx -b linkcheck "${sphinx_opts[@]}" docs "${docs_output}/linkcheck"
+    echo "External link check: OK (${docs_output}/linkcheck/output.txt)"
+  fi
 fi

@@ -3,7 +3,7 @@
 #
 # The documentation site (PLAN Sections 8.8 and 9.2) on GitHub-hosted runners: Doxygen on the
 # public headers, the Sphinx site (MyST + pydata-sphinx-theme + Breathe) with warnings as errors,
-# and the internal link check, all through ci/docs.sh, the same command as the local gate. The
+# and ci/docs_links.py (links to repository files, the site's anchors), all through ci/docs.sh, the same command as the local gate. The
 # tools come from environment.yml (the exact versions of the local environment and of
 # .readthedocs.yaml), installed with micromamba. The built site is uploaded as the artifact
 # `docs-html` (open index.html after downloading it); hosting on Read the Docs starts at approval
@@ -59,7 +59,7 @@ jobs:
           python -c "import breathe, myst_parser, pydata_sphinx_theme as t; print('breathe', breathe.__version__, '| myst-parser', myst_parser.__version__, '| pydata-sphinx-theme', t.__version__)"
       - name: Configure (generates version.hpp / config.hpp; nothing is compiled)
         run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF -DDYNG_BUILD_EXAMPLES=OFF -DDYNG_BUILD_TOOLS=OFF
-      - name: Doxygen, Sphinx (-W) and the internal link check
+      - name: Doxygen, Sphinx (-W) and the repository-link and anchor check
         run: ci/docs.sh
       - name: Upload the site
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
