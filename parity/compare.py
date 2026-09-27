@@ -179,6 +179,36 @@ def replay_original(ref: Path, golden: Path, meta: dict, tmp: Path, env: dict) -
     return bad
 
 
+def portable_path(path: Path | str) -> str:
+    """A path for the committed records: relative to the repository, or under $DYNG_SCRATCH,
+    never an absolute personal path (PLAN Section 3.4: no personal paths in the repository)."""
+    p = Path(path).resolve()
+    scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
+    for base, label in [(REPO, None), (scratch.resolve(), "$DYNG_SCRATCH")]:
+        try:
+            rel = p.relative_to(base).as_posix()
+        except ValueError:
+            continue
+        return rel if label is None else f"{label}/{rel}"
+    if p.is_relative_to(Path.home()):
+        return f"<outside the repository>/{p.name}"
+    return p.as_posix()
+
+
+def host_info() -> dict:
+    """The machine, without its host name: CPU model and logical CPU count."""
+    model = platform.processor()
+    try:
+        for line in open("/proc/cpuinfo"):
+            if line.startswith("model name"):
+                model = line.split(":", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    return {"cpu": model, "logical_cpus": os.cpu_count(), "kernel": platform.release(),
+            "python": platform.python_version()}
+
+
 def build_info(exe: Path) -> dict:
     """Build type and compiler of the CMake tree that contains exe (walks up to CMakeCache.txt)."""
     info: dict = {}
@@ -191,7 +221,7 @@ def build_info(exe: Path) -> dict:
                 name = line.split(":", 1)[0]
                 if name in keys and "=" in line:
                     info[name] = line.split("=", 1)[1]
-            info["build_dir"] = str(d)
+            info["build_dir"] = portable_path(d)
             break
     if "CMAKE_CXX_COMPILER" in info:
         rc, out = run([info["CMAKE_CXX_COMPILER"], "--version"], dict(os.environ))
@@ -242,7 +272,13 @@ def main() -> int:
     if args.driver == "compat":
         if args.exe is None or not args.exe.is_file():
             parser.error("--exe <dyng-compat-mosp> is required for driver compat")
-        configs = [c for c in args.configs.split(",") if c]
+        configs = [c.strip() for c in args.configs.split(",") if c.strip()]
+        if not configs:
+            parser.error("--configs selects no configuration")
+        for c in configs:
+            backend, _, threads = c.partition(":")
+            if backend not in ("sequential", "openmp") or (threads and not threads.isdigit()):
+                parser.error(f"--configs: '{c}' is not sequential or openmp[:<threads>]")
     else:
         if args.ref is None or not (args.ref / "bin" / "mosp").is_file():
             parser.error("--ref <scratch copy with bin/mosp> is required for driver original")
@@ -253,8 +289,16 @@ def main() -> int:
         env.setdefault("CUDA_VISIBLE_DEVICES", "1")
         env.setdefault("OMP_NUM_THREADS", "4")
 
-    groups = [g for g in args.groups.split(",") if g]
+    groups = [g.strip() for g in args.groups.split(",") if g.strip()]
+    unknown = sorted(set(groups) - set(golden_set["groups"]))
+    if unknown:
+        parser.error(f"--groups: unknown group(s) {', '.join(unknown)}; the corpus has "
+                     f"{', '.join(golden_set['groups'])}")
     cases = sorted(c for c in golden_set["cases"] if not groups or c.split("/")[0] in groups)
+    if not cases:
+        # A filter that selects nothing must never read as "ALL EQUAL".
+        print("compare.py: no case selected", file=sys.stderr)
+        return 1
     work = Path(tempfile.mkdtemp(prefix="dyng-compare-", dir=scratch / "runs"
                                  if (scratch / "runs").is_dir() else None))
 
@@ -312,9 +356,10 @@ def main() -> int:
             "reference": {"name": golden_set["reference"], "commit": golden_set["commit"]},
             "port": {"repository": "dyng", "commit": git_head()},
             "driver": args.driver,
-            "executable": str(args.exe or args.ref),
-            "build": build_info(args.exe) if args.exe else {"reference_copy": str(args.ref)},
-            "host": {"machine": platform.node(), "python": platform.python_version()},
+            "executable": portable_path(args.exe or args.ref),
+            "build": (build_info(args.exe) if args.exe
+                      else {"reference_copy": portable_path(args.ref)}),
+            "host": host_info(),
             "goldens": {"manifest_sha256": golden_set["manifest_sha256"],
                         "cases": golden_set["num_cases"], "files": golden_set["num_files"]},
             "tolerance": "none: byte equality of every compared file; invalidated counters equal",
