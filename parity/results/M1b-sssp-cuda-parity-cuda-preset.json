@@ -1,0 +1,116 @@
+{
+ "schema": 1,
+ "algorithm": "sssp",
+ "label": "M1b step 3: sssp on cuda (fused engine) vs the goldens of MOSP-OpenMP c352151 (= MOSP-CUDA e220ee2 on every case), parity-cuda preset, GPU 1",
+ "date": "2026-09-27T23:52:26Z",
+ "reference": {
+  "name": "MOSP-OpenMP",
+  "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
+ },
+ "port": {
+  "repository": "dyng",
+  "commit": "b59de86c93d6ef737cad2dbe976286ba52cda7d4"
+ },
+ "driver": "compat",
+ "executable": "build/parity-cuda/tools/compat/dyng-compat-mosp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+  "CMAKE_CXX_FLAGS": "",
+  "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "DYNG_ENABLE_CUDA": "ON",
+  "DYNG_ENABLE_OPENMP": "ON",
+  "build_dir": "build/parity-cuda",
+  "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64",
+  "python": "3.12.14"
+ },
+ "goldens": {
+  "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+  "cases": 495,
+  "files": 11799
+ },
+ "tolerance": "none: byte equality of every compared file; invalidated counters equal",
+ "configs": [
+  "cuda"
+ ],
+ "matrix": {
+  "testcases": {
+   "cuda": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   }
+  },
+  "regressions": {
+   "cuda": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   }
+  },
+  "thesis": {
+   "cuda": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   }
+  },
+  "escher": {
+   "cuda": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   }
+  },
+  "fixtures": {
+   "cuda": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   }
+  },
+  "sosp": {
+   "cuda": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   }
+  },
+  "large_weights": {
+   "cuda": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   }
+  },
+  "packing": {
+   "cuda": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   }
+  },
+  "stress": {
+   "cuda": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   }
+  },
+  "noncanonical": {
+   "cuda": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   }
+  }
+ },
+ "passed": true
+}

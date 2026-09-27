@@ -220,3 +220,41 @@ for g in roadNet-PA roadNet-CA rgg road_usa_g; do
       --exe build/parity/tools/compat/dyng-compat-mosp --graph $g --runs 21 --enforce-gates
 done
 ```
+
+## 6. Step sssp-cuda: `sssp` (CUDA) against MOSP-CUDA@e220ee2
+
+### 6.1 Byte parity (golden replay on cuda; `M1b-sssp-cuda-parity-cuda-preset.json`)
+
+`parity/compare.py --configs cuda` through `dyng-compat-mosp --backend cuda` (parity-cuda preset:
+Release, host `-O3`, nvcc `-O3 -lineinfo -fmad=true`, sm_86; CUDA 13.1; RTX A5000, GPU 1), port
+`b59de86`: **495 / 495 cases byte-identical** (`compute` = `mospPrep init`, `update` = `mosp`
+from the golden initial trees incl. the 107 non-canonical ones, the updated CSR, and the
+`invalidated` counter of every objective). The goldens are MOSP-OpenMP@c352151's; MOSP-CUDA
+e220ee2 produces the same files on every case (the one-off cross-check,
+`M1a-crosscheck-mosp-cuda-e220ee2.json`), so this is byte parity with MOSP-CUDA.
+
+### 6.2 The fused kernel's resources (PLAN 8.6 kernel checks)
+
+`cuobjdump --dump-resource-usage` (sm_86):
+
+| Kernel | REG | STACK | SHARED | CONSTANT[0] (parameters) |
+|---|---:|---:|---:|---:|
+| MOSP-CUDA `sospPersistentKernel` (unpatched `bin/mosp`) | 59 | 0 | 0 | 616 |
+| dynG `sssp_persistent_kernel<int32, int32, int32>` (parity-cuda `libdyng.so`) | 59 | 0 | 0 | 616 |
+| dynG `sssp_persistent_kernel<int32, int64, int32>` | 60 | 0 | 0 | 616 |
+| dynG `sssp_persistent_kernel<int64, int64, int32>` | 64 | 0 | 0 | 624 |
+
+Same registers for the original's types, so the same occupancy and the same cooperative grid
+(the blocks per SM come from the occupancy API on both sides; 256 threads per block). The SASS of
+the int32 instantiation has about 190 more instructions than the original's (2,560 vs 2,368),
+from the `affected` count in the unpack pass (ADR 0017 item 1); the search loops are unchanged.
+The int64 instantiations stay within 64 registers (4 blocks of 256 threads per SM on sm_86).
+
+### 6.3 A first A/B (not the gate record)
+
+roadNet-PA, `perf_ab.py run --backend cuda --runs 5` (GPU 0, exclusive perf lock), ratio dynG /
+MOSP-CUDA of the medians: SOSP region per objective 0.98-1.00x (4.6-9.4 ms; host times of the same
+scope on both sides, dynG's CUDA-event time within 0.01 ms of its host time), apply 0.55-0.60x,
+end to end 0.82-0.84x, for the 50K safe, 50K unsafe and 10K local batches; outputs byte-identical
+and `invalidated` equal in every run. The gate record (four graphs, >= 20 runs because the
+per-objective regions are under 10 ms on roadNet-PA) follows in the next step.
