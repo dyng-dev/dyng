@@ -22,8 +22,8 @@ xdg-open build/docs/html/index.html
    files. External links are checked only with `DYNG_LINKCHECK_EXTERNAL=1`, so the gate never
    depends on the network.
 
-Options: `ci/docs.sh --doxygen-only` runs step 1 (what `lint.yml`, the CMake target
-`docs-doxygen` and Read the Docs' pre-build use); `--no-linkcheck` skips step 3. The build
+Options: `ci/docs.sh --doxygen-only` runs step 1 (what the CMake target `docs-doxygen` and
+Read the Docs' pre-build use); `--no-linkcheck` skips step 3. The build
 directory is `DYNG_BUILD_DIR` (default `build/cpu-only`), the output `DYNG_DOCS_OUTPUT`
 (default `build/docs`).
 

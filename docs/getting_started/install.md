@@ -37,8 +37,9 @@ Presets (`cmake --list-presets`):
 | `asan`, `tsan` | host sanitizers (AddressSanitizer + UBSan; ThreadSanitizer with OpenMP off) |
 | `parity` | the flags of the original research codes, for parity and performance runs |
 
-`ci/check.sh` runs the whole local gate (formatting, the `cpu-only` and `dev` presets, naming
-checks, REUSE, the documentation build and pre-commit); CI runs the same steps.
+`ci/check.sh` runs the whole local gate (formatting, the `cpu-only` and `dev` presets, the
+clang-tidy naming checks, REUSE, the documentation build and pre-commit); the hosted workflows
+`lint`, `cpu` and `docs` run the same steps on every pull request.
 
 ## Use dynG from CMake
 

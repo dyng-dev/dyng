@@ -12,8 +12,10 @@
 # left out on purpose (recorded in docs/developer/retrospectives/M1a.md): the parity preset must
 # build with the compiler the originals were built with (the system g++ that
 # parity/build_reference.sh uses), and conda's activation scripts would replace CC/CXX for every
-# build. clang-format is pinned to the same version as .pre-commit-config.yaml, Doxygen to the
-# version lint.yml downloads, and CMake to the range CI installs, so the local gate and CI agree.
+# build. clang-format is pinned to the same version as .pre-commit-config.yaml and CMake to the
+# range CI installs with pip (ci/github_meta_check.py checks that the workflows agree); docs.yml
+# (Doxygen, Sphinx) and the `tidy` job of lint.yml (clang-tidy) install this file itself, so the
+# local gate and CI agree.
 # The documentation tools are pinned exactly: .github/workflows/docs.yml and .readthedocs.yaml
 # install this file, so the site is built with the same versions everywhere (ci/docs.sh).
 # Breathe 5.0 supports Sphinx < 9, hence Sphinx 8.2.

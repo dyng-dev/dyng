@@ -17,9 +17,10 @@ on:
 permissions:
   contents: read
 
+# Superseded pull-request runs are cancelled; runs on main always finish.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/cpm
@@ -29,6 +30,7 @@ jobs:
   build-and-test:
     name: ${{ matrix.preset }} / ${{ matrix.compiler }} / openmp=${{ matrix.openmp }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:

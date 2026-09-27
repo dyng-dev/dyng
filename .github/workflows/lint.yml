@@ -1,11 +1,12 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Formatting and licensing checks (PLAN Section 8.8): pre-commit (clang-format, ruff, whitespace,
-# REUSE, codespell, provenance headers), the Doxygen check of the public headers
-# (`ci/docs.sh --doxygen-only`; docs.yml builds the whole documentation site) and the smoke
-# tests of the Python parity harness. Mirrors the `format`, `reuse`,
-# `precommit` and `docs` steps of ci/check.sh (clang-format and REUSE run as pre-commit hooks).
+# Formatting, licensing and naming checks (PLAN Sections 8.7 and 8.8): pre-commit (clang-format,
+# ruff, whitespace, REUSE, codespell, provenance headers, actionlint, zizmor, the .github checks)
+# plus the SHA-to-tag check of the action pins (network), the clang-tidy naming rules, the smoke
+# tests of the Python parity harness and the name-reservation package. Mirrors the `format`,
+# `reuse`, `provenance`, `precommit`, `tidy` and `harness` steps of ci/check.sh (clang-format and
+# REUSE run as pre-commit hooks). The Doxygen check runs in docs.yml (job `site`, ci/docs.sh).
 name: lint
 
 on:
@@ -17,13 +18,16 @@ on:
 permissions:
   contents: read
 
+# Superseded pull-request runs are cancelled; runs on main always finish (every commit of main
+# gets a complete status).
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   pre-commit:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -40,40 +44,52 @@ jobs:
         run: python -m pip install pre-commit
       - name: pre-commit run --all-files
         run: pre-commit run --all-files --show-diff-on-failure
+      # Every action SHA must be the commit of the tag in its version comment (git ls-remote;
+      # the pre-commit hook checks the pin format offline only).
+      - name: Action pins match their version tags
+        run: |
+          python -m pip install pyyaml==6.0.3
+          python ci/github_meta_check.py --verify-pins
 
-  doxygen:
+  # The clang-tidy naming rules of ADR 0004: the `tidy` step of ci/check.sh, with the clang-tidy
+  # of environment.yml (micromamba, as in docs.yml). A configure is enough (compile_commands.json
+  # and the generated headers); nothing is compiled.
+  tidy:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -el {0}  # a login shell activates the micromamba environment
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - name: Week (the cached environment is re-solved weekly, like a local env update)
+        id: week
+        run: echo "week=$(date -u +%G-W%V)" >> "${GITHUB_OUTPUT}"
+      - name: Install the tools of environment.yml
+        uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39  # v3.2.1
         with:
-          python-version: "3.12"
-      # The same Doxygen as the local gate (environment.yml pins doxygen=1.18.0). Ubuntu 24.04's
-      # apt Doxygen 1.9.8 reports false "parameters ... are not documented" errors on documented
-      # namespace functions, which made this job fail while ci/check.sh passed.
-      - name: Install tools (Doxygen 1.18.0, SHA-256 checked)
+          micromamba-version: 2.9.0-0
+          environment-file: environment.yml
+          cache-environment: true
+          cache-environment-key: environment-${{ steps.week.outputs.week }}-
+          post-cleanup: all
+      - name: clang-tidy version
+        run: clang-tidy --version
+      - name: Configure (compile_commands.json and the generated headers; nothing is compiled)
+        run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF -DDYNG_BUILD_EXAMPLES=OFF -DDYNG_BUILD_TOOLS=OFF
+      - name: clang-tidy naming rules (ci/check.sh, step tidy)
         env:
-          DOXYGEN_URL: https://github.com/doxygen/doxygen/releases/download/Release_1_18_0/doxygen-1.18.0.linux.bin.tar.gz
-          DOXYGEN_SHA256: 14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90
-        run: |
-          curl -fsSLo "${RUNNER_TEMP}/doxygen.tar.gz" "${DOXYGEN_URL}"
-          echo "${DOXYGEN_SHA256}  ${RUNNER_TEMP}/doxygen.tar.gz" | sha256sum --check --strict
-          tar -xzf "${RUNNER_TEMP}/doxygen.tar.gz" -C "${RUNNER_TEMP}"
-          echo "${RUNNER_TEMP}/doxygen-1.18.0/bin" >> "${GITHUB_PATH}"
-          python -m pip install "cmake>=3.30,<4.5" ninja
-      - name: Doxygen version
-        run: doxygen --version
-      - name: Configure (generates version.hpp / config.hpp)
-        run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF
-      - name: Doxygen, warnings as errors
-        run: ci/docs.sh --doxygen-only
+          DYNG_CHECK_ONLY: tidy
+          DYNG_CHECK_PRESETS: cpu-only
+        run: ci/check.sh
 
   # The parity harness and CI scripts (Python): they compile, and the smoke tests of
   # parity/tests pass (no goldens or originals needed). ruff runs in the pre-commit job.
   harness:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -90,6 +106,7 @@ jobs:
 
   name-reservation:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:

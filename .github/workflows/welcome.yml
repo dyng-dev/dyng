@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# GitHub's first-interaction welcome (PLAN Section 10.2: "bots, deliberately few"): one comment
+# on a person's first issue and first pull request, pointing to the contributor guide. Not a
+# required check.
+#
+# Pull requests from forks get a read-only token under `pull_request`, so the comment needs
+# `pull_request_target`. That trigger is safe here only because this workflow never checks out,
+# builds or runs anything from the pull request: it has no `actions/checkout` and no `run:` step,
+# and ci/github_meta_check.py rejects `pull_request_target` in any workflow that has either.
+name: welcome
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:  # zizmor: ignore[dangerous-triggers] no checkout, no run step (see above)
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  greet:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write         # comment on the first issue
+      pull-requests: write  # comment on the first pull request
+    steps:
+      - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d  # v3.1.0
+        with:
+          issue_message: |
+            Thank you for opening your first issue in dynG! A maintainer will look at it soon
+            (we aim for a first answer within a week). While you wait: questions are also
+            welcome in [Discussions](https://github.com/dyng-dev/dyng/discussions), and
+            security problems are reported privately
+            ([SECURITY.md](https://github.com/dyng-dev/dyng/blob/main/SECURITY.md)).
+          pr_message: |
+            Thank you for your first pull request to dynG! A few pointers while it waits for a
+            review:
+
+            - [CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md)
+              explains the process; `ci/check.sh` runs the same checks as CI on your machine.
+            - Every commit needs a DCO sign-off (`git commit -s`); if the **DCO** check fails,
+              CONTRIBUTING.md says how to fix it without rewriting your branch.
+            - The workflows of a first-time contributor start after a maintainer approves them.
+            - Labels and good first issues:
+              [docs/developer/labels.md](https://github.com/dyng-dev/dyng/blob/main/docs/developer/labels.md).

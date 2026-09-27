@@ -5,8 +5,8 @@
 # Build and check the documentation (PLAN Sections 9.1 and 9.2). The documented command:
 #
 #   ci/docs.sh                  # all three steps
-#   ci/docs.sh --doxygen-only   # step 1 only (lint.yml, the CMake target docs-doxygen, and the
-#                               # pre-build step of .readthedocs.yaml, which builds Sphinx itself)
+#   ci/docs.sh --doxygen-only   # step 1 only (the CMake target docs-doxygen, and the pre-build
+#                               # step of .readthedocs.yaml, which builds Sphinx itself)
 #   ci/docs.sh --no-linkcheck   # steps 1 and 2
 #
 # 1. Doxygen on the public headers with warnings as errors (every public entity documented, every

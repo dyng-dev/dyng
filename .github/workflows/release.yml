@@ -31,6 +31,7 @@ jobs:
   build:
     name: Build distributions
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     outputs:
       version: ${{ steps.select.outputs.version }}
       prerelease: ${{ steps.select.outputs.prerelease }}
@@ -100,6 +101,7 @@ jobs:
     name: Publish to TestPyPI
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     environment:
       name: testpypi
       url: https://test.pypi.org/p/dyng
@@ -120,6 +122,7 @@ jobs:
     needs: [build, publish-testpypi]
     if: needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     environment:
       name: pypi
       url: https://pypi.org/p/dyng

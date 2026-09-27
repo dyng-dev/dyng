@@ -201,14 +201,15 @@ Required checks (the job names as they appear in a pull request's checks list):
 
 | Workflow | Check names |
 |---|---|
-| `lint.yml` | `pre-commit`, `doxygen`, `harness`, `name-reservation` |
+| `lint.yml` | `pre-commit`, `tidy`, `harness`, `name-reservation` |
 | `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF` |
 | `docs.yml` | `site` (not `external-links`, which runs only weekly and on demand) |
 | DCO app | `DCO` |
 
 Do **not** require checks of workflows that run only for some files (`labels.yml`), only on
-tags (`release.yml`) or only on a schedule (the `external-links` job of `docs.yml`): a required
-check that never runs blocks every pull request. When a
+tags (`release.yml`), only on some events (`welcome.yml`, the first-interaction greeting) or
+only on a schedule (the `external-links` job of `docs.yml`): a required check that never runs
+blocks every pull request. When a
 workflow is added (`cuda-build`, `python`, `api-check`; PLAN Section 8.8) or a job of the
 `cpu` matrix is renamed, update this list and the ruleset in the same pull request.
 

@@ -2,19 +2,22 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# The local CPU gate (PLAN Section 8.8): run before every commit. CI runs the same steps.
+# The local CPU gate (PLAN Section 8.8): run before every commit. CI runs the same steps, split
+# over the hosted workflows (see the end of this comment).
 #
 #   ci/check.sh                   # cpu-only and dev presets, clang-format, REUSE, Doxygen, pre-commit
 #   ci/check.sh --parity          # ... and the golden parity replay (parity preset, needs goldens)
 #   DYNG_CHECK_PRESETS=dev ci/check.sh
 #   DYNG_CHECK_SKIP="precommit docs" ci/check.sh
+#   DYNG_CHECK_ONLY="tidy" ci/check.sh    # only the named steps (the hosted `tidy` job)
 #
-# Steps (each can be skipped by name in DYNG_CHECK_SKIP):
+# Steps (each can be skipped by name in DYNG_CHECK_SKIP, or selected with DYNG_CHECK_ONLY):
 #   format     clang-format --dry-run --Werror on all tracked C++/CUDA sources
 #   build      configure, build and `ctest -L cpu` for every preset in DYNG_CHECK_PRESETS
 #   tidy       clang-tidy with only the naming rules of ADR 0004 (readability-identifier-naming)
 #              on the library sources and the public headers they include; needs the
-#              compile_commands.json of a preset built above (skipped if clang-tidy is missing)
+#              compile_commands.json of a preset configured above (skipped if clang-tidy is
+#              missing, except in CI)
 #   reuse      reuse lint (SPDX headers in every file)
 #   provenance ci/provenance_check.py: every file naming an original's symbol carries
 #              '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3)
@@ -31,9 +34,10 @@
 #              parity/build_reference.sh and parity/export_goldens.py (parity/README.md). With
 #              --parity, missing goldens are an error, not a skip.
 #
-# The GitHub workflows mirror these steps: cpu.yml runs `build`, lint.yml runs `precommit`
-# (which includes clang-format and REUSE), the Doxygen part of `docs` and the name-reservation
-# package check, and docs.yml runs `docs`.
+# The GitHub workflows mirror these steps: cpu.yml runs `build`; lint.yml runs `precommit`
+# (which includes clang-format, REUSE and provenance), `harness`, `tidy` (on a configured
+# cpu-only tree) and the name-reservation package check; docs.yml runs `docs`. Only `parity`
+# (it needs the goldens, which are not in the repository) runs locally only.
 set -euo pipefail
 
 run_parity="${DYNG_CHECK_PARITY:-0}"
@@ -41,7 +45,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,36p' "${BASH_SOURCE[0]}"
+      sed -n '5,40p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -62,10 +66,11 @@ fi
 
 presets="${DYNG_CHECK_PRESETS:-cpu-only dev}"
 skip=" ${DYNG_CHECK_SKIP:-} "
+only=" ${DYNG_CHECK_ONLY:-} "
 failed=()
 
 step() { printf '\n==> %s\n' "$*"; }
-skipped() { [[ "${skip}" == *" $1 "* ]]; }
+skipped() { [[ "${skip}" == *" $1 "* ]] || { [ -n "${DYNG_CHECK_ONLY:-}" ] && [[ "${only}" != *" $1 "* ]]; }; }
 
 if ! skipped format; then
   step "clang-format ($(clang-format --version | head -n1))"
@@ -99,7 +104,12 @@ if ! skipped tidy; then
     fi
   done
   if ! command -v clang-tidy >/dev/null 2>&1; then
-    echo "clang-tidy not found; skipped"
+    if [ -n "${CI:-}" ]; then
+      echo "clang-tidy not found (in CI the step must run)"
+      failed+=("tidy")
+    else
+      echo "clang-tidy not found; skipped"
+    fi
   elif [ -z "${tidy_db}" ]; then
     echo "no compile_commands.json (build step skipped?)"
     failed+=("tidy")

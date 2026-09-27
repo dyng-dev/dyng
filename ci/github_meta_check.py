@@ -18,11 +18,15 @@ Checked (PLAN Sections 8.9 and 10.1-10.2; docs/developer/labels.md):
 * ``.github/PULL_REQUEST_TEMPLATE.md``: the review checklist of PLAN Section 8.9 is present.
 * ``.github/workflows/*.yml`` (least privilege and pinning, PLAN Section 8.8): a top-level
   ``permissions`` block that grants nothing beyond ``read`` (write permissions only per job);
-  no ``pull_request_target`` trigger; every ``uses:`` of a remote action pinned to a full
-  40-character commit SHA with a ``# vX.Y.Z`` comment naming the tag; every
-  ``actions/checkout`` step with ``persist-credentials: false``; no ``${{ }}`` expression in a
-  ``run:`` script other than ``matrix.*``, ``env.*`` and ``runner.*`` (pass values through
+  ``pull_request_target`` only in a workflow that neither checks out nor runs anything (the
+  first-interaction greeter); every job with a ``timeout-minutes``; every ``uses:`` of a remote
+  action pinned to a full 40-character commit SHA with a ``# vX.Y.Z`` comment naming the tag;
+  every ``actions/checkout`` step with ``persist-credentials: false``; no ``${{ }}`` expression
+  in a ``run:`` script other than ``matrix.*``, ``env.*`` and ``runner.*`` (pass values through
   ``env:`` instead). actionlint and zizmor (pre-commit hooks) check the rest.
+* Tool versions that dependabot cannot update: every ``micromamba-version`` of the workflows is
+  the same, and every CMake requirement a workflow installs with pip equals the one of
+  ``environment.yml``.
 
 Usage::
 
@@ -330,10 +334,21 @@ def check_workflow(name: str, text: str) -> list[str]:
         return [f"{name}: not valid YAML ({exc})"]
     if not isinstance(workflow, dict):
         return [f"{name}: expected a mapping"]
-    if "pull_request_target" in _triggers(workflow):
+    jobs = workflow.get("jobs")
+    steps = [
+        step
+        for job in (jobs.values() if isinstance(jobs, dict) else [])
+        if isinstance(job, dict)
+        for step in job.get("steps") or []
+        if isinstance(step, dict)
+    ]
+    runs_code = any(
+        "run" in step or str(step.get("uses", "")).startswith("actions/checkout@") for step in steps
+    )
+    if "pull_request_target" in _triggers(workflow) and (runs_code or not steps):
         errors.append(
-            f"{name}: pull_request_target runs fork code with a privileged token "
-            "(PLAN Section 8.8); use pull_request"
+            f"{name}: pull_request_target runs with a privileged token (PLAN Section 8.8); it is "
+            "allowed only in a workflow without checkout and without run steps; use pull_request"
         )
     perms = workflow.get("permissions")
     if perms is None:
@@ -358,12 +373,16 @@ def check_workflow(name: str, text: str) -> list[str]:
             errors.append(f"{name}:{n}: '{ref}' is not pinned to a full commit SHA")
         elif not comment or not VERSION_RE.match(comment):
             errors.append(f"{name}:{n}: '{ref}' needs a '# vX.Y.Z' comment naming its tag")
-    jobs = workflow.get("jobs")
     if not isinstance(jobs, dict) or not jobs:
         return errors + [f"{name}: no jobs"]
     for job_id, job in jobs.items():
         if not isinstance(job, dict):
             continue
+        if "uses" not in job and "timeout-minutes" not in job:
+            errors.append(
+                f"{name} jobs.{job_id}: no 'timeout-minutes' (a hung step would hold the runner "
+                "for GitHub's 6-hour default)"
+            )
         for i, step in enumerate(job.get("steps") or []):
             if not isinstance(step, dict):
                 continue
@@ -384,6 +403,38 @@ def check_workflow(name: str, text: str) -> list[str]:
                             f"{where}: '${{{{ {expr} }}}}' is expanded into the script; "
                             "pass it through 'env:' instead"
                         )
+    return errors
+
+
+MICROMAMBA_RE = re.compile(r"^\s*micromamba-version:\s*(\S+)\s*$", re.MULTILINE)
+CMAKE_SPEC_RE = re.compile(r"[\"']?(cmake[<>=!~][^\"'\s]*)[\"']?")
+
+
+def check_tool_pins(workflows: dict[str, str], environment: str) -> list[str]:
+    """Return the errors of tool versions pinned in several files (dependabot updates none)."""
+    errors: list[str] = []
+    micromamba = {
+        (name, version)
+        for name, text in workflows.items()
+        for version in MICROMAMBA_RE.findall(text)
+    }
+    if len({version for _, version in micromamba}) > 1:
+        errors.append(
+            "tool pins: different micromamba-version values: "
+            + ", ".join(f"{n}={v}" for n, v in sorted(micromamba))
+        )
+    env_cmake = re.findall(r"^\s*-\s*(cmake[<>=!~]\S*)\s*$", environment, re.MULTILINE)
+    if len(env_cmake) != 1:
+        return errors + ["tool pins: environment.yml has no single 'cmake' requirement"]
+    for name, text in sorted(workflows.items()):
+        for line in text.splitlines():
+            if "pip install" not in line:
+                continue
+            for spec in CMAKE_SPEC_RE.findall(line):
+                if spec != env_cmake[0]:
+                    errors.append(
+                        f"tool pins: {name} installs '{spec}', environment.yml has '{env_cmake[0]}'"
+                    )
     return errors
 
 
@@ -451,8 +502,10 @@ def check_repository(root: Path) -> list[str]:
     workflows = sorted((gh / "workflows").glob("*.y*ml"))
     if not workflows:
         errors.append("workflows: no workflow files")
-    for path in workflows:
-        errors += check_workflow(f"workflows/{path.name}", path.read_text(encoding="utf-8"))
+    texts = {f"workflows/{path.name}": path.read_text(encoding="utf-8") for path in workflows}
+    for name, text in texts.items():
+        errors += check_workflow(name, text)
+    errors += check_tool_pins(texts, (root / "environment.yml").read_text(encoding="utf-8"))
     return errors
 
 
@@ -569,6 +622,42 @@ def self_test(root: Path) -> list[str]:
                 "run: ci/docs.sh\n", "run: echo ${{ github.event.pull_request.title }}\n", 1
             ),
         ),
+    )
+    expect(
+        "a job without timeout-minutes",
+        check_workflow("w", docs.replace("    timeout-minutes: 30\n", "", 1)),
+    )
+    welcome = (gh / "workflows" / "welcome.yml").read_text(encoding="utf-8")
+    greeter = "      - uses: actions/first-interaction@"
+    assert greeter in welcome and not check_workflow("w", welcome), "self-test fixture moved"
+    expect(
+        "pull_request_target with a checkout",
+        check_workflow(
+            "w",
+            welcome.replace(
+                greeter,
+                f"      - uses: {checkout}\n        with:\n          persist-credentials: false\n"
+                + greeter,
+            ),
+        ),
+    )
+    expect(
+        "pull_request_target with a run step",
+        check_workflow("w", welcome.replace(greeter, "      - run: make\n" + greeter)),
+    )
+    environment = (root / "environment.yml").read_text(encoding="utf-8")
+    cpu = (gh / "workflows" / "cpu.yml").read_text(encoding="utf-8")
+    assert "micromamba-version: 2.9.0-0" in docs and "cmake>=" in cpu, "self-test fixture moved"
+    expect(
+        "two micromamba versions",
+        check_tool_pins(
+            {"a": docs, "b": docs.replace("version: 2.9.0-0", "version: 2.8.0-0")},
+            environment,
+        ),
+    )
+    expect(
+        "a CMake requirement that differs from environment.yml",
+        check_tool_pins({"cpu": re.sub(r"cmake>=[^\"']*", "cmake>=3.28", cpu)}, environment),
     )
     return failures
 
