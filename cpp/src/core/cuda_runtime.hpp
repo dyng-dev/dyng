@@ -149,8 +149,8 @@ class cuda_event_timer {
  private:
   [[maybe_unused]] int device_ = -1;  // unused in builds without CUDA
   [[maybe_unused]] stream_ref stream_;
-  void* start_ = nullptr;
-  void* stop_ = nullptr;
+  [[maybe_unused]] void* start_ = nullptr;  // unused in builds without CUDA
+  [[maybe_unused]] void* stop_ = nullptr;
 };
 
 }  // namespace dyng::detail

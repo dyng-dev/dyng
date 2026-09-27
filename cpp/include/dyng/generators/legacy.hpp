@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP-OpenMP@c352151:headers/changeGenerator.h (ChangeMode, ChangeGeneratorOptions,
+// generateChangeBatch)
 /**
  * @file legacy.hpp
  * @brief generators::legacy: bit-exact reproductions of the original repositories' generators
@@ -59,12 +61,11 @@ struct mosp_change_options {
   std::int32_t weight_min = 1;                        ///< --wmin: smallest drawn weight (>= 1)
   std::int32_t weight_max = 100;                      ///< --wmax: largest drawn weight
   std::uint32_t seed = 1;                             ///< --seed: std::mt19937 seed
-  /// --local: > 0 draws every endpoint within this many hops (ignoring direction) of a random
-  /// centre vertex, giving a local batch.
-  std::int64_t local_hops = 0;
-  /// --safe: drop deletions that would disconnect a vertex reachable from `source`.
-  bool safe_deletions = false;
-  std::int64_t source = 0;  ///< --source: the source of the trees and of the safe filter
+  std::int64_t local_hops = 0;  ///< --local: if positive, every endpoint lies within this many
+                                ///< hops (ignoring direction) of a random centre (a local batch)
+  bool safe_deletions = false;  ///< --safe: drop deletions that would disconnect a vertex that is
+                                ///< reachable from `source`
+  std::int64_t source = 0;      ///< --source: the source of the trees and of the safe filter
 };
 
 /**
@@ -91,8 +92,8 @@ struct mosp_change_report {
 };
 
 /**
- * @brief MOSP's change generator (generateChangeBatch of MOSP-OpenMP@c352151 and
- *        MOSP-CUDA@e220ee2, the same code; `mospPrep changes`), bit-exact for a fixed seed.
+ * @brief MOSP's change generator (generateChangeBatch of MOSP-OpenMP c352151 and MOSP-CUDA
+ *        e220ee2, the same code; `mospPrep changes`), bit-exact for a fixed seed.
  *
  * The batch has one weight per objective of `graph` (all of its columns) and follows MOSP's file
  * order: the insertions, then the re-weighted edges (as insertions), then the deletions. Written

@@ -1,12 +1,15 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# dyng_add_test(NAME <name> SOURCES <files...> [LABELS <labels...>] [LIBRARIES <targets...>])
+# dyng_add_test(NAME <name> SOURCES <files...> [LABELS <labels...>] [LIBRARIES <targets...>]
+#               [TEST_PREFIX <prefix>])
 #
 # Builds one GoogleTest executable <name> linked against dyng::dyng and GTest::gtest_main and
 # registers its test cases with CTest (gtest_discover_tests), each carrying LABELS (lower case:
 # cpu, gpu, slow, parity, sanitize, and the algorithm name; PLAN Section 4.4.1). The default
-# label is "cpu".
+# label is "cpu". TEST_PREFIX is prepended to the CTest names; an executable that compiles the
+# same suites as another one (the CUDA builds of the shared algorithm suites) needs it, because
+# CTest test names must be unique.
 #
 # Every test runs with DYNG_TEST_ENVIRONMENT (default OMP_WAIT_POLICY=PASSIVE): OpenMP worker
 # threads otherwise spin between parallel regions, and `ctest -j` runs many OpenMP tests at once,
@@ -25,7 +28,7 @@ set(DYNG_TEST_ENVIRONMENT
 )
 
 function(dyng_add_test)
-  cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME" "SOURCES;LABELS;LIBRARIES")
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME;TEST_PREFIX" "SOURCES;LABELS;LIBRARIES")
   if(NOT arg_NAME OR NOT arg_SOURCES)
     message(FATAL_ERROR "dyng_add_test: NAME and SOURCES are required")
   endif()
@@ -46,6 +49,7 @@ function(dyng_add_test)
   gtest_discover_tests(
     ${arg_NAME}
     DISCOVERY_MODE PRE_TEST
+    TEST_PREFIX "${arg_TEST_PREFIX}"
     PROPERTIES LABELS "${arg_LABELS}" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
   )
 endfunction()

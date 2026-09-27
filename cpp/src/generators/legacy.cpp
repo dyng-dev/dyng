@@ -185,7 +185,7 @@ edge_batch<vertex_t, weight_t> mosp_changes(const csr_view<vertex_t, edge_t, wei
   detail::build_from_csr_host(input, graph_properties::mosp_compatible(), graph);
   const std::int64_t n = graph.num_vertices();
   const int num_objectives = graph.num_weights;
-  const auto K = static_cast<std::size_t>(num_objectives);
+  const auto num_columns = static_cast<std::size_t>(num_objectives);
   DYNG_EXPECTS(n >= 2 && num_objectives > 0 && options.num_changes >= 0 &&
                    options.weight_min <= options.weight_max && options.weight_min >= 1 &&
                    options.source >= 0 && options.source < n,
@@ -341,9 +341,9 @@ edge_batch<vertex_t, weight_t> mosp_changes(const csr_view<vertex_t, edge_t, wei
 
   // --- Weights ------------------------------------------------------------------------------------
   const std::size_t m = graph.col_ind.size();
-  std::vector<std::int64_t> below_average(K, options.weight_max);
+  std::vector<std::int64_t> below_average(num_columns, options.weight_max);
   if (mode == mosp_change_mode::targeted && m > 0) {
-    for (std::size_t k = 0; k < K; ++k) {
+    for (std::size_t k = 0; k < num_columns; ++k) {
       double sum = 0;
       for (std::size_t e = 0; e < m; ++e) {
         sum += static_cast<double>(graph.weights[k * m + e]);
@@ -355,21 +355,21 @@ edge_batch<vertex_t, weight_t> mosp_changes(const csr_view<vertex_t, edge_t, wei
   }
   edge_batch<vertex_t, weight_t> batch(num_objectives);
   batch.reserve(insert_edges.size() + reweight_edges.size(), delete_edges.size());
-  std::vector<weight_t> w(K);
+  std::vector<weight_t> w(num_columns);
   for (const auto& [u, v] : insert_edges) {
-    for (std::size_t k = 0; k < K; ++k) {
+    for (std::size_t k = 0; k < num_columns; ++k) {
       w[k] = static_cast<weight_t>(mode == mosp_change_mode::targeted
                                        ? draw(rng, options.weight_min, below_average[k])
                                        : weight_draw());
     }
-    batch.insert_edge(u, v, array_view<const weight_t>(w.data(), K));
+    batch.insert_edge(u, v, array_view<const weight_t>(w.data(), num_columns));
   }
   for (const auto& [u, v] : reweight_edges) {
     auto e = static_cast<std::size_t>(graph.row_ptr[static_cast<std::size_t>(u)]);
     while (graph.col_ind[e] != v) {
       ++e;
     }
-    for (std::size_t k = 0; k < K; ++k) {
+    for (std::size_t k = 0; k < num_columns; ++k) {
       if (mode == mosp_change_mode::increase) {
         // Increases saturate at the largest valid weight (2^31 - 1), as MOSP-OpenMP's.
         w[k] = static_cast<weight_t>(
@@ -379,7 +379,7 @@ edge_batch<vertex_t, weight_t> mosp_changes(const csr_view<vertex_t, edge_t, wei
         w[k] = static_cast<weight_t>(weight_draw());
       }
     }
-    batch.insert_edge(u, v, array_view<const weight_t>(w.data(), K));
+    batch.insert_edge(u, v, array_view<const weight_t>(w.data(), num_columns));
   }
   for (const auto& [u, v] : delete_edges) {
     batch.delete_edge(u, v);

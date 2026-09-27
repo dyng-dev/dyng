@@ -82,6 +82,7 @@ if(DYNG_ENABLE_CUDA)
             algorithms/sssp/sssp_fixture_test.cpp algorithms/sssp/sssp_cuda_test.cpp
     LABELS gpu sssp
     LIBRARIES dyng::testing
+    TEST_PREFIX "cuda."
   )
   target_compile_definitions(
     dyng_sssp_cuda_tests PRIVATE DYNG_TEST_CUDA=1 DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
