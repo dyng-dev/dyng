@@ -10,6 +10,7 @@
  * Usage:
  *   dyng-compat-mosp --graph <csrPrefix> --changes <dir> --init <dir> [options]
  *   dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K] [--backend b] [--threads t]
+ *   dyng-compat-mosp changes <csrPrefix> <outDir> [the options of `mospPrep changes`]
  *
  * Update mode reads the inputs of `mosp` (the CSR text files <prefix>{RowPtr,ColInd,Values}.txt,
  * <changes>/insert.txt and delete.txt, and the initial trees <init>/obj<k>/distancesOriginal.txt
@@ -18,7 +19,10 @@
  * writes <out>/obj<k>/distancesUpdated.txt and SSSPTreeUpdated.txt, byte-compatible with `mosp`.
  * The combined graph of the MOSP update (Steps 2-3) belongs to the mosp algorithm (0.2) and is not
  * written. Init mode writes <outDir>/obj<k>/distancesOriginal.txt and SSSPTreeOriginal.txt with
- * sssp::compute(), byte-compatible with `mospPrep init` (Dijkstra with lowest-id ties).
+ * sssp::compute(), byte-compatible with `mospPrep init` (Dijkstra with lowest-id ties). Changes
+ * mode is `mospPrep changes` (--changes N --ins PCT --mode M --local HOPS --safe --seed S
+ * --source s --wmin a --wmax b) on generators::legacy::mosp_changes(): the same insert.txt,
+ * delete.txt and report line.
  *
  * Options (update mode; the `mosp` options keep their names):
  *   -k <K>               objectives to use (default: all of the graph; required without edges)
@@ -63,6 +67,7 @@
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/generators/legacy.hpp>
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/io/batch_io.hpp>
@@ -77,6 +82,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <exception>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -129,7 +135,11 @@ void usage() {
                "                        [--device d]\n"
                "       dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K]\n"
                "                        [--backend sequential|openmp|cuda] [--threads t]\n"
-               "                        [--device d]\n";
+               "                        [--device d]\n"
+               "       dyng-compat-mosp changes <csrPrefix> <outDir> [--changes N] [--ins PCT]\n"
+               "                        [--mode uniform|targeted|reweight|increase]\n"
+               "                        [--local HOPS] [--safe] [--seed S] [--source s]\n"
+               "                        [--wmin a] [--wmax b]\n";
 }
 
 /// Strict integer parsing (the CUDA driver's rule: the whole token must be a number in range).
@@ -259,6 +269,66 @@ int run_init(int argc, char** argv) {
                             dyng::host_view(host_array(res, r.parents())));
     std::cout << "compute obj" << k << ": " << ms << " ms\n";
   }
+  return 0;
+}
+
+/// `mospPrep changes <csrPrefix> <outDir> [options]`: generators::legacy::mosp_changes(), written
+/// as <outDir>/insert.txt and delete.txt with the report line "changes: ..." (the same flags and
+/// output as the original's tool).
+int run_changes(int argc, char** argv) {
+  if (argc < 4) {
+    throw usage_error("changes needs <csrPrefix> <outDir>");
+  }
+  const std::string prefix = argv[2];
+  const std::string out_dir = argv[3];
+  dyng::generators::legacy::mosp_change_options opt;
+  for (int i = 4; i < argc; ++i) {
+    const std::string_view a = argv[i];
+    if (a == "--safe") {
+      opt.safe_deletions = true;
+      continue;
+    }
+    if (i + 1 >= argc) {
+      throw usage_error(std::string(a) + " needs a value");
+    }
+    const std::string_view value = argv[++i];
+    if (a == "--changes") {
+      opt.num_changes = parse_int<std::int64_t>(value, a, 0, INT32_MAX);
+    } else if (a == "--ins") {
+      opt.insertion_percentage = std::stod(std::string(value));
+    } else if (a == "--mode") {
+      using mode = dyng::generators::legacy::mosp_change_mode;
+      if (value == "uniform") {
+        opt.mode = mode::uniform;
+      } else if (value == "targeted") {
+        opt.mode = mode::targeted;
+      } else if (value == "reweight") {
+        opt.mode = mode::reweight;
+      } else if (value == "increase") {
+        opt.mode = mode::increase;
+      } else {
+        throw usage_error("--mode: expected uniform, targeted, reweight or increase");
+      }
+    } else if (a == "--local") {
+      opt.local_hops = parse_int<std::int64_t>(value, a, 0, INT32_MAX);
+    } else if (a == "--seed") {
+      opt.seed = parse_int<std::uint32_t>(value, a, 0, UINT32_MAX);
+    } else if (a == "--source") {
+      opt.source = parse_int<std::int64_t>(value, a, 0, INT32_MAX);
+    } else if (a == "--wmin") {
+      opt.weight_min = parse_int<std::int32_t>(value, a, 1, INT32_MAX);
+    } else if (a == "--wmax") {
+      opt.weight_max = parse_int<std::int32_t>(value, a, 1, INT32_MAX);
+    } else {
+      throw usage_error("unknown option: " + std::string(a));
+    }
+  }
+  const auto csr = read_graph(prefix, 0);
+  dyng::generators::legacy::mosp_change_report report;
+  const auto batch = dyng::generators::legacy::mosp_changes(csr.view(), opt, &report);
+  std::filesystem::create_directories(out_dir);
+  dyng::io::write_legacy_batch(out_dir + "/insert.txt", out_dir + "/delete.txt", batch.view());
+  std::cout << "changes: " << report.summary() << "\n";
   return 0;
 }
 
@@ -560,6 +630,9 @@ int main(int argc, char** argv) {
   try {
     if (argc >= 2 && std::string_view(argv[1]) == "init") {
       return run_init(argc, argv);
+    }
+    if (argc >= 2 && std::string_view(argv[1]) == "changes") {
+      return run_changes(argc, argv);
     }
     return run_update(argc, argv);
   } catch (const usage_error& e) {

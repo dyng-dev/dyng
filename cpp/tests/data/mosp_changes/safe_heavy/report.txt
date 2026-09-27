@@ -1,0 +1,1 @@
+inserts=160 reweights=0 deletes=1027 (safe: kept 1027 of 1440 after 2 rounds)

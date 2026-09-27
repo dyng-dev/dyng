@@ -1,0 +1,1 @@
+inserts=0 reweights=30 deletes=0 local centre=296 hops=6 region=85 vertices
