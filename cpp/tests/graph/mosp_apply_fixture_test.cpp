@@ -11,6 +11,7 @@
  */
 #include "graph/graph_impl.hpp"
 #include "support/data_paths.hpp"
+#include "support/gtest_helpers.hpp"
 
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/graph.hpp>
@@ -51,7 +52,7 @@ class MospApplyFixture : public ::testing::Test {};
 using graph_types = ::testing::Types<dyng::graph<std::int32_t, std::int32_t, std::int32_t>,
                                      dyng::graph<std::int32_t, std::int64_t, std::int32_t>,
                                      dyng::graph<std::int64_t, std::int64_t, std::int32_t>>;
-TYPED_TEST_SUITE(MospApplyFixture, graph_types);
+TYPED_TEST_SUITE(MospApplyFixture, graph_types, dyng::test::type_index_name);
 
 TYPED_TEST(MospApplyFixture, UpdatedCsrIsByteEqualToApplyChangeBatch) {
   using graph_t = TypeParam;

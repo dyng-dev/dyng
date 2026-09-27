@@ -87,7 +87,7 @@ class SsspMospFixture : public ::testing::Test {};
 using graph_types = ::testing::Types<dyng::graph<std::int32_t, std::int32_t, std::int32_t>,
                                      dyng::graph<std::int32_t, std::int64_t, std::int32_t>,
                                      dyng::graph<std::int64_t, std::int64_t, std::int32_t>>;
-TYPED_TEST_SUITE(SsspMospFixture, graph_types);
+TYPED_TEST_SUITE(SsspMospFixture, graph_types, dyng::test::type_index_name);
 
 TYPED_TEST(SsspMospFixture, ComputeAndUpdateAreByteEqualToTheOriginal) {
   using graph_t = TypeParam;

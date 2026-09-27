@@ -6,6 +6,7 @@
  *        randomized comparison with an independent row-list model.
  */
 #include "graph/graph_impl.hpp"
+#include "support/gtest_helpers.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
@@ -318,7 +319,10 @@ model_result model_apply(model_rows& rows, int K, const graph_properties& props,
   const auto do_deletes = [&] {
     for (auto [u, v] : eff_del) {
       auto& row = rows[static_cast<std::size_t>(u)];
-      auto it = std::find_if(row.begin(), row.end(), [&](const model_edge& e) { return e.v == v; });
+      // A structured binding cannot be captured in C++17: copy it first.
+      const auto head = v;
+      auto it =
+          std::find_if(row.begin(), row.end(), [&](const model_edge& e) { return e.v == head; });
       if (it == row.end()) {
         ++result.summary.ignored_deletions;
       } else {
@@ -329,7 +333,8 @@ model_result model_apply(model_rows& rows, int K, const graph_properties& props,
   };
   const auto do_inserts = [&] {
     for (std::size_t i = 0; i < eff_ins.size(); ++i) {
-      auto [u, v] = eff_ins[i];
+      const auto u = eff_ins[i].first;
+      const auto v = eff_ins[i].second;
       auto& row = rows[static_cast<std::size_t>(u)];
       auto it = std::find_if(row.begin(), row.end(), [&](const model_edge& e) { return e.v == v; });
       if (it == row.end()) {
@@ -359,7 +364,8 @@ model_result model_apply(model_rows& rows, int K, const graph_properties& props,
   result.summary.inserted_vertices = n_after - static_cast<std::int64_t>(before.size());
   result.summary.num_vertices_after = n_after;
   // First occurrence before vs after.
-  for (auto [u, v] : eff_ins) {
+  for (const auto& [u, head] : eff_ins) {
+    const auto v = head;  // captured below: a structured binding cannot be captured in C++17
     std::vector<std::uint8_t> flags(static_cast<std::size_t>(K), 0);
     if (u < static_cast<std::int64_t>(before.size())) {
       const auto& old_row = before[static_cast<std::size_t>(u)];
@@ -386,7 +392,7 @@ class GraphApplyRandom : public ::testing::Test {};
 using graph_types = ::testing::Types<dyng::graph<std::int32_t, std::int32_t, std::int32_t>,
                                      dyng::graph<std::int32_t, std::int64_t, std::int32_t>,
                                      dyng::graph<std::int64_t, std::int64_t, std::int32_t>>;
-TYPED_TEST_SUITE(GraphApplyRandom, graph_types);
+TYPED_TEST_SUITE(GraphApplyRandom, graph_types, dyng::test::type_index_name);
 
 TYPED_TEST(GraphApplyRandom, MatchesRowListModel) {
   using graph_t = TypeParam;

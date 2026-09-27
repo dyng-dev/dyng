@@ -36,8 +36,8 @@ and RAFT, but it is **not affiliated** with either project.
 
 ## Building from source
 
-Requirements: Linux, a C++17 compiler (GCC >= 11 or Clang >= 15), CMake >= 3.30, Ninja, and
-optionally OpenMP. The CUDA backends (CUDA >= 12.4) arrive in a later milestone; no GPU is
+Requirements: Linux, a C++17 compiler (GCC >= 11 or Clang >= 15; CI builds with GCC 12/13 and
+Clang 17/18), CMake >= 3.30, Ninja, and optionally OpenMP. The CUDA backends (CUDA >= 12.4) arrive in a later milestone; no GPU is
 needed today.
 
 ```bash

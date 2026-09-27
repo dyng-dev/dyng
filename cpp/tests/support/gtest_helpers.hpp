@@ -51,6 +51,16 @@ inline resources make_resources(backend b, int num_threads = 0) {
   return resources::sequential();
 }
 
+/// Name generator for typed test suites: the type's index, as GoogleTest's default. Passing it
+/// explicitly keeps TYPED_TEST_SUITE(suite, types, name_generator) valid C++17: with only two
+/// arguments the macro's variadic part is empty, which Clang reports as a C++20 extension.
+struct type_index_name {
+  template <typename type_t>
+  static std::string GetName(int index) {  // NOLINT(readability-identifier-naming): gtest API
+    return std::to_string(index);
+  }
+};
+
 /// Name printer for value-parameterized tests over backends.
 struct backend_name {
   std::string operator()(const ::testing::TestParamInfo<backend>& info) const {

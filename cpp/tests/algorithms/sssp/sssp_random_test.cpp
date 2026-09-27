@@ -353,7 +353,7 @@ class SsspRandom : public ::testing::Test {};
 using graph_types = ::testing::Types<dyng::graph<std::int32_t, std::int32_t, std::int32_t>,
                                      dyng::graph<std::int32_t, std::int64_t, std::int32_t>,
                                      dyng::graph<std::int64_t, std::int64_t, std::int32_t>>;
-TYPED_TEST_SUITE(SsspRandom, graph_types);
+TYPED_TEST_SUITE(SsspRandom, graph_types, dyng::test::type_index_name);
 
 template <typename graph_t>
 void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
