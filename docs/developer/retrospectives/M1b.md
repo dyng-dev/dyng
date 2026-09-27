@@ -105,3 +105,86 @@ the `parity` and `dev` presets.
   default policy, as in M1a).
 - Next steps of M1b: CUDA core, resident device graph, the fused kernel, the CUDA gates, the
   `edge_t` benchmark (ADR 0009), `ci/gpu_local.sh`, `cuda-build.yml`.
+
+## Step 2: CUDA core (cuda-core, 2026-09-27)
+
+Goal: the CUDA foundation the fused sssp kernel and the resident device graph build on (PLAN
+4.6, 4.7.1-4.7.3, 7.1-7.4, 7.8, 8.8): the CUDA build, `resources::cuda()`, streams, the
+CCCL-shaped memory resources, device buffers, errors, device error flags, `warm_up()`, device
+workspaces, the GPU gate and the compile-only CI.
+
+### Done
+
+- **Build.** `DYNG_ENABLE_CUDA` (ON when a CUDA compiler is found; the presets pin it),
+  `cmake/cuda_architectures.cmake` (`native`, `release` per toolkit, or an explicit list; CUDA >=
+  12.4 enforced; set before `enable_language(CUDA)` and any target), nvcc using the same host
+  compiler, shared cudart, `cuda_std_17`, `--extended-lambda --expt-relaxed-constexpr`,
+  `-lineinfo` in RelWithDebInfo and with `DYNG_CUDA_LINEINFO`, `DYNG_CUDA_DEBUG_SYNC` (Debug).
+  `.cu` files enter a module through `CUDA_SOURCES`; host files that call the runtime are
+  ordinary sources guarded by `#if DYNG_HAS_CUDA`, so the CPU builds and clang-tidy see them.
+  Host code keeps `-Wall -Wextra -Wpedantic -Werror`; nvcc runs with `--Werror=all-warnings` and
+  `-Xcompiler=-Wall,-Wextra,-Werror`. Public headers stay host-only (the self-containment test
+  still compiles them with g++ in the CUDA builds).
+- **Presets:** `dev-cuda` (native), `release-cuda` (release list), `parity-cuda` (sm_86,
+  `-O3 -lineinfo -fmad=true`, MOSP-CUDA's flags), `sanitize-cuda`, `ci-cuda12`, `ci-cuda13`;
+  the CPU presets pin `DYNG_ENABLE_CUDA=OFF`.
+- **Core (ADR 0016).** `resources::cuda(device, stream)` (device validated, properties recorded
+  once incl. cooperative launch and SM count, a test hook to force the cooperative flag off),
+  `scoped_device` on every enqueuing call, `synchronize()`, `warm_up()` through a kernel registry
+  (`DYNG_REGISTER_KERNEL`); `backend_available(cuda)` checks for a visible device.
+  `cuda_async_memory_resource` (own `cudaMemPool_t`, unlimited release threshold, 256-byte
+  alignment, `used_bytes()` / `reserved_bytes()`), `default_device_memory_resource(device)`
+  (per device, never destroyed), `pinned_host_memory_resource`; copies between every pair of
+  spaces through `cudaMemcpyAsync` on the handle's stream and device; `DYNG_CUDA_TRY`,
+  `DYNG_CUDA_TRY_NO_THROW`, `DYNG_CHECK_KERNEL(stream)`; `device_error_flags` (+ `.cuh` raise);
+  `fill_async` kernels (7 explicit instantiations); `scratch_buffer<T>` for device workspaces;
+  CCCL 3.x adapters in both directions (ADR 0003).
+- **Tests** (`dyng_cuda_tests`, label `gpu`, 27 tests): resources and device record, invalid
+  devices, user streams, current-device preservation across calls and copies (two GPUs), memory
+  resource rules, warm-up of every registered kernel, pools (stream-ordered reuse without new
+  reservations, OOM recovery), pinned memory, device buffers (round trips, resize, move, pinned
+  staging, kernel writes), every fill instantiation, error macros and their messages, launch
+  failures, the device error word and its exception mapping, the CCCL adapters, device
+  workspaces (reuse, zero allocations in steady state counted through a counting resource,
+  growth, release by `release_workspaces()`, `set_memory_resource()` and the last handle). The
+  CPU tests adapt to CUDA builds (the default backend becomes `cuda`).
+- **Gates.** `ci/gpu_local.sh` (dev-cuda build, `ctest -L gpu` on GPU 1, `ctest -L cpu` of the
+  CUDA build, compute-sanitizer memcheck with leak check, clang-tidy with the CUDA build's
+  compile database, a Markdown summary, optional PR comment). `ci/build_cuda.sh` and
+  `.github/workflows/cuda-build.yml` (compile-only in `nvidia/cuda` 13.1.1, 13.3.1 and 12.9.2
+  devel containers; per-kernel registers / stack / shared memory per architecture and the
+  library size in the job summary).
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| PLAN 7.4: `dev` is the native-architecture CUDA build | `dev` stays CPU-only (pinned); CUDA builds are `dev-cuda`, `release-cuda`, `parity-cuda`, `sanitize-cuda`, `ci-cuda12/13` (ADR 0016 item 9) | the CPU gate (`ci/check.sh`, `cpu.yml`) must not depend on an installed toolkit, and the Step 1 OpenMP gates stay on the unchanged `parity` build |
+| PLAN 4.7.3: `DYNG_CHECK_KERNEL()` | `DYNG_CHECK_KERNEL(stream)` | the debug synchronization must be per stream; the stream-less form would need `cudaDeviceSynchronize`, which PLAN 4.6 rule 7 forbids |
+| PLAN 4.2: `util/cuda_check.cuh`, `core/memory_cuda.cu` | `util/cuda_check.hpp`, `core/memory_cuda.cpp`, `core/cuda_runtime.cpp` | they need only the runtime API, so by the naming table (`.cuh` / `.cu` = needs nvcc) they are host files; the host compiler checks them with `-Wpedantic` |
+| PLAN 4.7.2: built-in resources | + `default_device_memory_resource(device)`, `default_pinned_host_memory_resource()`, `cuda_async_memory_resource::used_bytes()` / `reserved_bytes()`, equality operators on the built-in resources | a default resource must outlive every buffer (process-wide, never destroyed); the memory report and the I9 tests need the pool counters; the CCCL concept requires equality |
+| PLAN 4.7.1: "host staging is owned by resources" | the handle carries a staging resource (pinned for CUDA); staging buffers live in workspaces | pinned allocation is slow and synchronous: buffers must be allocated once, which the workspace pool already guarantees |
+| PLAN 8.8 `cuda-build.yml`: latest 12.x and 13.x | + CUDA 13.1.1, the development toolkit | the only toolkit that is also built and tested on the development machine |
+
+### Lessons
+
+1. **Test the CUDA 12 path locally even without a CUDA 12 machine.** A conda toolkit (CUDA 12.9
+   in an existing environment, used read-only with `CUDAHOSTCXX=/usr/bin/g++`) showed that the
+   CCCL 2.x of CUDA 12 lacks the 3.x memory-resource concept; the adapters are now guarded, and
+   `ci-cuda12` builds with `-Werror` and its GPU tests pass on the CUDA 12.9 runtime.
+2. **compute-sanitizer counts failed API calls as errors.** Tests that make calls fail on purpose
+   are grouped in the suite `CudaApiErrors`, which the gate runs without API-error reporting;
+   every other test must be free of API errors too.
+3. **CUDA 13 reports an oversized block as `cudaErrorInvalidValue`** (CUDA 12:
+   `cudaErrorInvalidConfiguration`); tests should not pin launch-error codes.
+
+### Open items
+
+- The profiler's `device_ms` from CUDA events (PLAN 4.7.5) is not wired yet; the CUDA gate step
+  needs it (or `perf_ab.py`'s own event timing) for regions under 10 ms.
+- `engine::automatic`'s use of the recorded cooperative-launch flag, the co-resident block count
+  (per kernel, from the occupancy API) and the fused kernel are the next step; so are the
+  resident device graph, the CUDA A/B, the `edge_t` benchmark (ADR 0009) and the sssp page.
+- `cuda-build.yml` has not run on GitHub yet (the repository is not pushed); CUDA 13.3.1 was not
+  built locally.
+

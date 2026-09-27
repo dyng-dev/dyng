@@ -75,9 +75,29 @@ Before 0.1.0 anything may change.
   requested form.
 - The OpenMP A/B on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa with the PLAN 8.6 gates
   (`parity/results/M1b.md`); `perf_ab.py` gates `end_to_end` and `apply` at 1.10x.
+- CUDA core (ADRs 0003 and 0016): `DYNG_ENABLE_CUDA=ON` builds (`cmake/cuda_architectures.cmake`:
+  `native` for development, the release list per toolkit, CUDA >= 12.4), the presets `dev-cuda`,
+  `release-cuda`, `parity-cuda`, `sanitize-cuda`, `ci-cuda12` and `ci-cuda13`;
+  `resources::cuda(device, stream)` with the device's capabilities recorded once, a device guard
+  on every call, `synchronize()` and `warm_up()` (context, every library kernel through the kernel
+  registry, stream and pool); `cuda_async_memory_resource` (own stream-ordered pool, the default
+  through `default_device_memory_resource()`) and `pinned_host_memory_resource`; device
+  `buffer<T>` and copies between every pair of spaces; the private `DYNG_CUDA_TRY`,
+  `DYNG_CUDA_TRY_NO_THROW`, `DYNG_CHECK_KERNEL`, the sticky device error word, the fill kernels,
+  CCCL 3.x memory-resource adapters and device workspaces (`scratch_buffer`) in the pool of ADR
+  0015.
+- `ci/gpu_local.sh` (the local GPU gate: `ctest -L gpu` on GPU 1, the CPU tests of the CUDA build,
+  compute-sanitizer memcheck, clang-tidy on the CUDA branches), `ci/build_cuda.sh` and the
+  compile-only workflow `cuda-build.yml` (CUDA 13.1.1, 13.3.1 and 12.9.2 containers, register
+  and library-size report).
 
 ### Changed
 
+- The CPU presets (`dev`, `release`, `relwithdebinfo`, `parity`) pin `DYNG_ENABLE_CUDA=OFF`; a
+  build without a preset enables CUDA when a CUDA compiler is found. With CUDA built and a device
+  visible, `default_backend()` is `cuda`.
+- `resources::set_memory_resource()` on a CUDA handle accepts device and managed resources; the
+  host sanitizer flags apply to host code only.
 - The host transposition runs in parallel on the OpenMP backend (same, deterministic result).
 - `io::read_csr_triplet` reads its three files concurrently (same result and the same first
   error as reading them one after the other); `dyng-compat-mosp` reads and writes its files

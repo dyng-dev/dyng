@@ -37,8 +37,8 @@ and RAFT, but it is **not affiliated** with either project.
 ## Building from source
 
 Requirements: Linux, a C++17 compiler (GCC >= 11 or Clang >= 15; CI builds with GCC 12/13 and
-Clang 17/18), CMake >= 3.30, Ninja, and optionally OpenMP. The CUDA backends (CUDA >= 12.4) arrive in a later milestone; no GPU is
-needed today.
+Clang 17/18), CMake >= 3.30, Ninja, and optionally OpenMP and the CUDA toolkit (>= 12.4; an
+sm_75 or newer GPU to run the CUDA backend). No GPU is needed for the CPU backends.
 
 ```bash
 git clone https://github.com/dyng-dev/dyng.git
@@ -55,6 +55,10 @@ ci/check.sh                              # the full local gate: format, cpu-only
 
 Other presets: `cpu-only` (Release, CPU backends), `release`, `relwithdebinfo`, `asan`, `tsan`
 and `parity` (the flags of the original research codes, used for parity and performance runs).
+The CUDA builds are `dev-cuda` (the GPUs of your machine), `release-cuda` (the release
+architecture list), `parity-cuda`, `sanitize-cuda` and the compile-only `ci-cuda12` / `ci-cuda13`;
+`ci/gpu_local.sh` builds `dev-cuda` and runs the GPU tests, compute-sanitizer and the CPU tests
+of the CUDA build.
 The Doxygen check of the public headers is `ci/docs.sh` (or the target `docs-doxygen`).
 
 ### Run the example

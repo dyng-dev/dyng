@@ -9,12 +9,14 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 |---|---|---|
 | [0001](0001-name.md) | Name: dynG | Accepted |
 | [0002](0002-license-and-credit.md) | License and credit | Accepted |
+| [0003](0003-language-and-toolkit-floors.md) | Language and toolkit floors (C++17, CUDA >= 12.4, sm_75, CCCL 3.x memory-resource shape) | Accepted |
 | [0004](0004-naming.md) | Naming conventions | Accepted |
 | [0006](0006-algorithm-contract.md) | Algorithm contract | Proposed (M1a draft) |
 | [0010](0010-batch-and-graph-semantics.md) | Batch and graph semantics | Proposed (M1a draft) |
 | [0013](0013-parity-and-goldens.md) | Parity and goldens | Proposed (M1a draft) |
 | [0014](0014-approval-checkpoints.md) | Approval checkpoints | Accepted |
 | [0015](0015-workspace-sharing.md) | Workspace sharing (scratch memory owned by `resources`) | Proposed (M1b) |
+| [0016](0016-cuda-execution-resources.md) | CUDA execution resources (streams, memory, errors, warm-up) | Proposed (M1b) |
 
-Planned (PLAN Section 12.3): 0003 language and toolkit floors, 0005 layout, 0007 framework,
+Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0009 default index types, 0011 Python, 0012 versioning and stability.

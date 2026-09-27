@@ -19,6 +19,13 @@ ci/check.sh                           # the full local gate, run it before openi
 ci/check.sh --parity                  # ... plus the golden parity replay (see parity/README.md)
 ```
 
+With a CUDA toolkit (>= 12.4) and a GPU, the CUDA backend has its own presets and gate:
+
+```bash
+cmake --preset dev-cuda && cmake --build --preset dev-cuda && ctest --preset dev-cuda -L gpu
+ci/gpu_local.sh                       # the GPU gate: gpu and cpu tests, compute-sanitizer, clang-tidy
+```
+
 `ci/check.sh --help` lists its steps (format, build and tests, clang-tidy naming, REUSE, Doxygen,
 pre-commit, parity); `DYNG_CHECK_SKIP="precommit"` skips a step by name.
 
