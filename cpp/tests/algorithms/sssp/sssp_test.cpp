@@ -391,6 +391,9 @@ TEST_P(SsspBackend, ResultOfAnotherGraphIsStale) {
 }
 
 TEST_P(SsspBackend, ImpossibleGrowthIsAnOutOfMemoryError) {
+  if (DYNG_TEST_SANITIZED) {
+    GTEST_SKIP() << "sanitizer allocators abort on impossible allocations instead of throwing";
+  }
   // Vertex growth to 2^40 vertices cannot be allocated: sssp::update reports it as
   // out_of_memory_error (a dyng::error), not as std::bad_alloc.
   using graph64 = dyng::graph<std::int64_t, std::int64_t, std::int32_t>;

@@ -4,6 +4,8 @@
  * @file graph_test.cpp
  * @brief graph construction, properties, views, transposition and integrity.
  */
+#include "support/gtest_helpers.hpp"
+
 #include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
@@ -339,6 +341,11 @@ TEST(Graph, ImpossibleAllocationsAreOutOfMemoryErrors) {
 
   dyng::edge_batch<std::int64_t, std::int32_t> batch(1);
   EXPECT_THROW(batch.reserve(std::size_t{1} << 62, 0), dyng::out_of_memory_error);
+  if (DYNG_TEST_SANITIZED) {
+    // The sizes above exceed max_size() (std::length_error); a merely impossible size (8 TiB)
+    // makes the sanitizer allocators abort instead of throwing std::bad_alloc.
+    return;
+  }
   // Vertex growth to 2^40 vertices: the new row offsets (8 TiB) cannot be allocated.
   dyng::graph_properties props;
   props.semantics.allow_vertex_growth = true;
