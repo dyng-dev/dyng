@@ -97,8 +97,8 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
                                csr<vertex_t, edge_t, weight_t>& updated,
                                apply_delta<vertex_t>* delta) {
   const batch_semantics& semantics = props.semantics;
-  const int K = original.num_weights;
-  const auto k_count = static_cast<std::size_t>(K);
+  const int num_objectives = original.num_weights;
+  const auto k_count = static_cast<std::size_t>(num_objectives);
   const std::int64_t n = original.num_vertices();
   const std::size_t m = original.col_ind.size();
   const std::size_t num_inserts = batch.insert_src.size();
@@ -115,11 +115,11 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
   DYNG_EXPECTS(batch.delete_dst.size() == num_deletes, "the batch has ", num_deletes,
                " deletion sources but ", batch.delete_dst.size(), " destinations");
   if (num_inserts > 0) {
-    DYNG_EXPECTS(batch.num_weights == K, "the batch has ", batch.num_weights,
-                 " weights per insertion but the graph has ", K, " weight columns");
+    DYNG_EXPECTS(batch.num_weights == num_objectives, "the batch has ", batch.num_weights,
+                 " weights per insertion but the graph has ", num_objectives, " weight columns");
     DYNG_EXPECTS(batch.insert_weights.size() == num_inserts * k_count, "the batch has ",
                  batch.insert_weights.size(), " insertion weights, expected ", num_inserts, " x ",
-                 K);
+                 num_objectives);
   }
   expect_host(batch.insert_src, "edge_batch_view::insert_src");
   expect_host(batch.insert_dst, "edge_batch_view::insert_dst");
@@ -305,7 +305,7 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
 
   // --- Assemble the updated CSR ------------------------------------------------------------------
   updated = csr<vertex_t, edge_t, weight_t>();
-  updated.num_weights = K;
+  updated.num_weights = num_objectives;
   updated.row_ptr.assign(rows + 1, edge_t{0});
   std::int64_t total = 0;
   for (std::size_t u = 0; u < rows; ++u) {
@@ -374,7 +374,7 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
   // Compare the final weight of (u,v) with its weight in the original graph (first occurrence of
   // v in row u in both), as applyChangeBatch() does.
   if (delta != nullptr) {
-    delta->num_weights = K;
+    delta->num_weights = num_objectives;
     delta->insert_src = ins_from;
     delta->insert_dst = ins_to;
     delta->weight_increased.assign(num_ins * k_count, 0);
@@ -633,13 +633,15 @@ void build_from_edges_host(const edge_list_view<vertex_t, weight_t>& edges,
                            const graph_properties& props, csr<vertex_t, edge_t, weight_t>& out) {
   const std::size_t count = edges.src.size();
   const std::int64_t n = edges.num_vertices;
-  const int K = edges.num_weights;
+  const int num_objectives = edges.num_weights;
   DYNG_EXPECTS(n >= 0, "edge_list_view::num_vertices must be >= 0, got ", n);
-  DYNG_EXPECTS(K >= 0, "edge_list_view::num_weights must be >= 0, got ", K);
+  DYNG_EXPECTS(num_objectives >= 0, "edge_list_view::num_weights must be >= 0, got ",
+               num_objectives);
   DYNG_EXPECTS(edges.dst.size() == count, "the edge list has ", count, " sources but ",
                edges.dst.size(), " destinations");
-  DYNG_EXPECTS(edges.weights.size() == count * static_cast<std::size_t>(K), "the edge list has ",
-               edges.weights.size(), " weights, expected ", count, " x ", K);
+  DYNG_EXPECTS(edges.weights.size() == count * static_cast<std::size_t>(num_objectives),
+               "the edge list has ", edges.weights.size(), " weights, expected ", count, " x ",
+               num_objectives);
   expect_host(edges.src, "edge_list_view::src");
   expect_host(edges.dst, "edge_list_view::dst");
   expect_host(edges.weights, "edge_list_view::weights");
@@ -667,9 +669,9 @@ void build_from_edges_host(const edge_list_view<vertex_t, weight_t>& edges,
       index.push_back(i);
     }
   }
-  const auto k_count = static_cast<std::size_t>(K);
+  const auto k_count = static_cast<std::size_t>(num_objectives);
   build_rows(
-      n, K, src, dst, index, props,
+      n, num_objectives, src, dst, index, props,
       [&](std::size_t i, std::size_t k) { return edges.weights[i * k_count + k]; }, out);
 }
 
@@ -679,9 +681,9 @@ void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
   expect_host(input.row_ptr, "csr_view::row_ptr");
   expect_host(input.col_ind, "csr_view::col_ind");
   expect_host(input.weights, "csr_view::weights");
-  const int K = input.num_weights;
+  const int num_objectives = input.num_weights;
   const std::size_t m = input.col_ind.size();
-  DYNG_EXPECTS(K >= 0, "csr_view::num_weights must be >= 0, got ", K);
+  DYNG_EXPECTS(num_objectives >= 0, "csr_view::num_weights must be >= 0, got ", num_objectives);
   DYNG_EXPECTS(!input.row_ptr.empty() || m == 0, "csr_view::row_ptr is empty but there are ", m,
                " edges");
   const std::int64_t n = input.num_vertices();
@@ -695,8 +697,8 @@ void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
                  "csr row_ptr[n] = ", input.row_ptr[static_cast<std::size_t>(n)],
                  " does not match the ", m, " column indices");
   }
-  DYNG_EXPECTS(input.weights.size() == m * static_cast<std::size_t>(K), "csr has ",
-               input.weights.size(), " weights, expected ", K, " x ", m);
+  DYNG_EXPECTS(input.weights.size() == m * static_cast<std::size_t>(num_objectives), "csr has ",
+               input.weights.size(), " weights, expected ", num_objectives, " x ", m);
   std::vector<vertex_t> src(m);
   std::vector<vertex_t> dst(m);
   for (std::size_t u = 0; u < static_cast<std::size_t>(n); ++u) {
@@ -737,7 +739,7 @@ void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
     index.push_back(e);
   }
   build_rows(
-      n, K, kept_src, kept_dst, index, props,
+      n, num_objectives, kept_src, kept_dst, index, props,
       [&](std::size_t e, std::size_t k) { return input.weights[k * m + e]; }, out);
 }
 

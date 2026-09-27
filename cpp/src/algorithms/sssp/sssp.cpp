@@ -377,9 +377,9 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
     changes_.changed_from = delta.delete_src;
     changes_.changed_to = delta.delete_dst;
     const std::size_t num_ins = delta.insert_src.size();
-    const auto K = static_cast<std::size_t>(delta.num_weights);
+    const auto num_objectives = static_cast<std::size_t>(delta.num_weights);
     for (std::size_t i = 0; i < num_ins; ++i) {
-      if (delta.weight_increased[i * K + static_cast<std::size_t>(k)] != 0) {
+      if (delta.weight_increased[i * num_objectives + static_cast<std::size_t>(k)] != 0) {
         changes_.changed_from.push_back(delta.insert_src[i]);
         changes_.changed_to.push_back(delta.insert_dst[i]);
       }
