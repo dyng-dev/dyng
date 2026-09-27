@@ -109,6 +109,18 @@ The update of a shortest-path tree (DynaMOSP's SOSP update) maps onto the templa
 A small case: the graph 0 -> 1 (4), 0 -> 2 (1), 2 -> 1 (2), 1 -> 3 (1), source 0. The tree has
 dist = (0, 3, 1, 4) with 1 reached through 2. The batch deletes 2 -> 1 and inserts 2 -> 3 (1).
 
+```{figure} sssp_update_example.svg
+:alt: Two drawings of the four-vertex graph. Before the batch, the tree edges are 0 to 2, 2 to 1
+  and 1 to 3, with distances 0, 3, 1, 4. After the batch, edge 2 to 1 is deleted and edge 2 to 3
+  inserted; vertices 1 and 3 were invalidated and repaired, and the tree edges are 0 to 1, 0 to 2
+  and 2 to 3, with distances 0, 4, 1, 2.
+
+The worked example: the shortest-path tree before the batch (left) and after `update()` (right).
+Deleting the tree edge 2 -> 1 invalidates the subtree {1, 3}; seeding repairs vertex 1 through
+0 and vertex 3 through the inserted edge 2 -> 3. `d` is the distance, `p` the parent. This is
+the program of {doc}`../getting_started/first_update_cpp`.
+```
+
 1. Step 0 validates both changes; the commit applies them.
 2. identify_affected: the deleted edge 2 -> 1 was a tree edge, so vertex 1 and its subtree {3}
    are invalidated.
