@@ -14,6 +14,9 @@
 # parity/build_reference.sh uses), and conda's activation scripts would replace CC/CXX for every
 # build. clang-format is pinned to the same version as .pre-commit-config.yaml, Doxygen to the
 # version lint.yml downloads, and CMake to the range CI installs, so the local gate and CI agree.
+# The documentation tools are pinned exactly: .github/workflows/docs.yml and .readthedocs.yaml
+# install this file, so the site is built with the same versions everywhere (ci/docs.sh).
+# Breathe 5.0 supports Sphinx < 9, hence Sphinx 8.2.
 name: dyng-dev
 channels:
   - conda-forge
@@ -25,6 +28,15 @@ dependencies:
   - clang-format=22.1.8
   - clang-tools=22.1.8
   - doxygen=1.18.0
+  # documentation site (PLAN Section 9.2)
+  - sphinx=8.2.3
+  - myst-parser=5.1.0
+  - linkify-it-py=2.2.0
+  - pydata-sphinx-theme=0.22.0
+  - breathe=5.0.0
+  - sphinx-copybutton=0.5.2
+  - sphinx-design=0.7.0
+  - sphinxcontrib-bibtex=2.7.0
   - pre-commit
   - reuse
   - pytest
