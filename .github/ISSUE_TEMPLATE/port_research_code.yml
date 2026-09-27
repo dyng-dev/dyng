@@ -10,9 +10,15 @@ body:
       value: |
         A port keeps the original's behaviour exactly: it starts as a straight port with a
         provenance header on every file and parity goldens exported from the pinned original,
-        followed by one pull request per refactor (PLAN Section 6.3; the process is described in
+        followed by one pull request per refactor (the process is described in
         [CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md)). If the
         algorithm itself is new to dynG, please also describe it with the "New algorithm" form.
+
+        Code written by others needs its copyright holders' consent: an open-source license
+        that allows redistribution under Apache-2.0 (the code then keeps its original copyright
+        and license notices, and is recorded in
+        [docs/developer/provenance.md](https://github.com/dyng-dev/dyng/blob/main/docs/developer/provenance.md)),
+        or, for code without a license, the written agreement of every copyright holder.
   - type: input
     id: repository
     attributes:
@@ -39,15 +45,15 @@ body:
     id: license
     attributes:
       label: License of the origin
-      description: The SPDX identifier of the origin's license (it must allow redistribution under Apache-2.0).
-      placeholder: Apache-2.0, MIT, BSD-3-Clause, ...
+      description: The SPDX identifier of the origin's license, or "none" if it has no license (then the authors' written agreement is needed, below).
+      placeholder: Apache-2.0, MIT, BSD-3-Clause, none
     validations:
       required: true
   - type: textarea
     id: authors
     attributes:
       label: Authors and permission
-      description: Who wrote the code, and are you one of them? If not, how do the authors agree to the port?
+      description: Who holds copyright in the code (every author, and their employer if it owns the rights), and are you one of them? For code without a license, how has each of them agreed in writing to its publication under Apache-2.0?
     validations:
       required: true
   - type: textarea
@@ -88,7 +94,7 @@ body:
     attributes:
       label: Before submitting
       options:
-        - label: The origin's license allows redistribution of derived code under Apache-2.0.
+        - label: The origin's license, or the written agreement of all its copyright holders, allows publishing the derived code under Apache-2.0, keeping any notices the license requires.
           required: true
         - label: I read "Adding an algorithm or porting research code" in CONTRIBUTING.md.
           required: true

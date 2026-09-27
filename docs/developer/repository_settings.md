@@ -21,7 +21,7 @@ required; Appendix E and `GOVERNANCE.md` record the decisions.
 | 4 | Pull requests: squash merges only | now | |
 | 5 | Actions: permissions, SHA pinning, fork approval | now | |
 | 6 | Security: private vulnerability reporting, Dependabot, secret scanning | now | |
-| 7 | The DCO app | now | |
+| 7 | The DCO app and web sign-off | now | |
 | 8 | Labels | after the M4 merge | |
 | 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | |
 | 10 | Ruleset for release tags | now | |
@@ -144,7 +144,7 @@ avatar → **Settings** → **Notifications** → **Security alerts**.
 
 Docs: <https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/configuring-private-vulnerability-reporting-for-a-repository>.
 
-## 7. The DCO app
+## 7. The DCO app and web sign-off
 
 External contributors sign off their commits (CONTRIBUTING.md); the DCO app checks every pull
 request and reports a check named **DCO**. `.github/dco.yml` exempts members of `dyng-dev`.
@@ -155,6 +155,16 @@ request and reports a check named **DCO**. `.github/dco.yml` exempts members of 
 3. Select **Only select repositories** → choose **dyng-dev/dyng** → **Install**.
 4. After the next pull request, the check **DCO** appears; add it to the required checks
    (step 9).
+5. So that contributors who fix a typo in GitHub's web editor pass the check: Settings →
+   **General** → in the first section (below **Template repository**) tick **Require
+   contributors to sign off on web-based commits**. GitHub then adds the `Signed-off-by` line
+   to every commit made in the web interface (CONTRIBUTING.md says so).
+
+`.github/dco.yml` also allows *remediation commits*: a contributor who forgot the sign-off
+during a review adds an empty signed-off commit instead of rewriting the branch
+(CONTRIBUTING.md, "Fixing a missing sign-off").
+
+Docs: <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-the-commit-signoff-policy-for-your-repository>.
 
 ## 8. Labels
 

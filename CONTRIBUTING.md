@@ -56,6 +56,7 @@ should take less than 15 minutes.
 ```bash
 git clone https://github.com/<your-user>/dyng.git   # your fork (see "Pull requests")
 cd dyng
+git remote add upstream https://github.com/dyng-dev/dyng.git   # the main repository
 conda env create -f environment.yml   # once: the dyng-dev env (CMake, Ninja, clang-format,
                                       # clang-tidy, Doxygen, pre-commit, reuse, pytest, ...)
 source scripts/dev_env.sh             # every shell: activates dyng-dev (and nvcc if installed)
@@ -64,6 +65,20 @@ pre-commit install                    # once per clone: format, license and spel
 
 After `environment.yml` changes, run `conda env update -f environment.yml`. Tool versions are
 pinned in `environment.yml` and `.pre-commit-config.yaml` and are the same in CI.
+
+`scripts/dev_env.sh` also exports a few locations. Their defaults follow the lead maintainer's
+machine; set the variable before sourcing the script to put things elsewhere:
+
+| Variable | Default | What lives there |
+|---|---|---|
+| `DYNG_SCRATCH` | `~/Projects/dyng-work` | the persistent work area of the parity harness: reference builds, goldens, benchmark inputs (a few GB once you run parity) |
+| `CPM_SOURCE_CACHE` | `$DYNG_SCRATCH/cpm-cache` | downloads of the build dependencies (GoogleTest, CPM.cmake), shared by all build trees; created by the first configure |
+| `DYNG_CUDA_HOME` | `/usr/local/cuda-13.1`, else `/usr/local/cuda` | the CUDA toolkit whose `nvcc` is put on `PATH` (only if it exists) |
+| `DYNG_CONDA_ENV` | `dyng-dev` | the conda environment to activate |
+
+For example `export DYNG_SCRATCH=~/.cache/dyng` in your shell profile. The parity harness also
+reads `DYNG_ORIGINALS_DIR` (default `~/Projects`), the directory with your clones of the original
+research repositories ([below](#parity-with-the-original-research-codes)).
 
 ## Build
 
@@ -101,13 +116,15 @@ select what runs where:
 | `slow` | long randomized or large-input tests |
 | a module name (`core`, `graph`, `io`, `sssp`, ...) | select one module: `ctest --preset dev -L sssp` |
 
-Before you open a pull request, run the full local gate. It is what CI runs:
+Before you open a pull request, run the full local gate. The hosted workflows `lint`, `cpu`
+and `docs` run the same steps on every pull request (only the parity replay runs locally):
 
 ```bash
 ci/check.sh            # clang-format, cpu-only + dev builds and `ctest -L cpu`, clang-tidy
                        # naming rules, REUSE, provenance headers, the Python harness tests,
-                       # the Doxygen check, pre-commit
-ci/check.sh --help     # the steps; DYNG_CHECK_SKIP="precommit" skips a step by name
+                       # the documentation build, pre-commit
+ci/check.sh --help     # the steps; DYNG_CHECK_SKIP="precommit" skips a step by name,
+                       # DYNG_CHECK_ONLY="tidy" runs only the named steps
 ```
 
 Algorithms are tested against an **oracle** (a from-scratch recomputation, or a reference
@@ -123,13 +140,16 @@ original from a `git archive` copy, exports its outputs as goldens and replays t
 dynG:
 
 ```bash
+git clone https://github.com/SMShovan/MOSP-OpenMP.git ~/Projects/MOSP-OpenMP   # once
 parity/build_reference.sh MOSP-OpenMP    # scratch copy of the pinned original, built
 parity/export_goldens.py                 # the golden corpus, outside the repository
 ci/check.sh --parity                     # the gate plus `ctest --preset parity -L parity`
 ```
 
-The goldens and reference builds live in `$DYNG_SCRATCH` (set by `scripts/dev_env.sh`), never
-in the repository. A pull request that changes a ported algorithm needs a green parity run; if
+The harness only reads the original (with `git archive`), from `$DYNG_ORIGINALS_DIR/<name>`
+(default `~/Projects/<name>`; the clone URL of each original is the `upstream` field of
+`parity/references.toml`). The goldens and reference builds live in `$DYNG_SCRATCH` (see
+[the table above](#set-up-a-development-environment)), never in the repository. A pull request that changes a ported algorithm needs a green parity run; if
 you cannot run it (it needs the original's datasets and, for CUDA ports, a GPU), a maintainer
 runs it for you. Never weaken a parity check to make it pass: a difference is either a bug or a
 documented, accepted deviation (an ADR and the algorithm page's "Differences from the paper").
@@ -169,8 +189,14 @@ pull request how you measured any performance claim.
   (`ci/provenance_check.py` checks it):
   `// Derived from <repo>@<commit>:<path>`.
 - **Dependencies:** a new dependency needs a justification in the pull request, a compatible
-  license, and should be optional where possible. Third-party code is never copied into the
-  repository; it is fetched at a pinned version.
+  license, and should be optional where possible. Dependencies are fetched at a pinned version,
+  not copied into the repository.
+- **Code written by others:** avoid copying it. If it cannot be avoided, the code goes to
+  `third_party/<name>/`, **keeps its original copyright and license notices** (its own
+  `SPDX-FileCopyrightText` and `SPDX-License-Identifier`, or a `REUSE.toml` annotation, and the
+  license text in `LICENSES/`), gets a `NOTICE` line if its license requires one, and is
+  recorded in [docs/developer/provenance.md](docs/developer/provenance.md). The dynG header
+  above is only for code whose copyright belongs to The dynG Authors.
 - **GitHub Actions workflows** (`.github/workflows/`): logic goes into `ci/*.sh` so that CI and
   local runs are the same. Pin every action to a full commit SHA with its tag in a comment
   (`uses: actions/checkout@<40-hex SHA>  # v7.0.1`) and check the pair with
@@ -196,14 +222,16 @@ pull request how you measured any performance claim.
 
   ```bash
   cmake --preset cpu-only       # once, for the generated version.hpp / config.hpp
-  ci/docs.sh                    # Doxygen + checks, the Sphinx site with -W, the internal link check
+  ci/docs.sh                    # Doxygen + checks, the Sphinx site with -W, the link check
   # open build/docs/html/index.html
   ```
 
   Step 1 runs Doxygen with warnings as errors and then `ci/doxygen_coverage.py`, which fail on
   undocumented public API; step 2 builds the site (Sphinx, MyST, pydata-sphinx-theme, Breathe)
-  with warnings as errors, so every page must be in a toctree and every reference must
-  resolve; step 3 checks the internal links. `ci/docs.sh --doxygen-only` runs step 1 only.
+  with warnings as errors, so every page must be in a toctree and every reference and link
+  between pages must resolve; step 3 (`ci/docs.sh`'s link check) checks the links to repository
+  files (`https://github.com/dyng-dev/dyng/blob/main/<path>`) and the anchors of the built
+  pages. `ci/docs.sh --doxygen-only` runs step 1 only.
   `ci/check.sh` and `.github/workflows/docs.yml` run the same command.
 - User documentation lives in [docs/](docs/) as MyST Markdown (no reStructuredText needed),
   organised as tutorials, how-to guides, concepts (explanation), reference and developer pages;
@@ -216,11 +244,22 @@ pull request how you measured any performance claim.
 
 ## Commits
 
+Two kinds of message matter, and only one of them reaches `main`:
+
+- **The commits on your branch** are what reviewers read while the pull request is open. Their
+  subject line is `<area>: <what changed>` in the imperative, at most about 72 characters, for
+  example `io: reject batches with out-of-range ids`. Areas are the top-level parts of the
+  repository (`core`, `graph`, `io`, `sssp`, `parity`, `ci`, `build`, `docs`, `tests`,
+  `github`, ...).
+- **The pull request title** becomes the one commit on `main`: pull requests are
+  squash-merged, and the title is the subject of the squashed commit. It follows
+  [Conventional Commits](https://www.conventionalcommits.org/), for example
+  `fix(io): reject batches with out-of-range ids`
+  ([Pull requests and review](#pull-requests-and-review)).
+
+For every commit on your branch:
+
 - One logical change per commit, and a history that builds at every commit.
-- The subject line is `<area>: <what changed>` in the imperative, at most about 72 characters,
-  for example `io: reject batches with out-of-range ids` or `sssp: time the tree import`.
-  Areas are the top-level parts of the repository (`core`, `graph`, `io`, `sssp`, `parity`,
-  `ci`, `build`, `docs`, `tests`, `github`, ...).
 - The body (wrapped at 72) says **why** the change is made and anything a reviewer should know.
 - Use `Co-authored-by:` trailers to credit co-authors, including AI assistants that wrote a
   significant part of the change.
@@ -229,31 +268,61 @@ pull request how you measured any performance claim.
 ## Developer Certificate of Origin (DCO)
 
 dynG accepts contributions under the
-[Developer Certificate of Origin 1.1](https://developercertificate.org/). There is no CLA:
+[Developer Certificate of Origin 1.1](https://developercertificate.org/) (DCO). There is no CLA:
 Apache-2.0 section 5 makes contributions "inbound = outbound". By adding a sign-off line to a
-commit you certify that you wrote the change, or otherwise have the right to submit it under
-the project's license:
+commit you certify **all four statements of the DCO 1.1** (read the full text at the link):
+
+- (a) you created the contribution and have the right to submit it under the project's open
+  source license; or
+- (b) it is based on earlier work that, to the best of your knowledge, is covered by an
+  appropriate open source license that lets you submit it, with your modifications, under the
+  same license (unless you are permitted to submit it under a different one); or
+- (c) it was given to you by someone who certified (a), (b) or (c), and you have not modified
+  it; and
+- (d) you understand and agree that the project and the contribution are **public**, and that a
+  record of the contribution, **including all personal information you submit with it and your
+  sign-off (your name and e-mail address)**, is kept indefinitely and may be redistributed.
 
 ```text
 Signed-off-by: Your Name <your.email@example.org>
 ```
 
 `git commit -s` adds this line with your git `user.name` and `user.email` (use your real name
-and an address you can be reached at). The DCO check on every pull request fails if a commit of
-an **external contributor** is not signed off; members of the `dyng-dev` organization are
-exempt (`.github/dco.yml`). To fix a missing sign-off on your branch:
+and an address you can be reached at). The **DCO** check on every pull request fails if a commit
+of an **external contributor** is not signed off; members of the `dyng-dev` organization are
+exempt (`.github/dco.yml`). Commits made in GitHub's web editor are signed off automatically.
 
-```bash
-git rebase --signoff main       # adds the sign-off to every commit of your branch
-git push --force-with-lease
-```
+**Fixing a missing sign-off.**
+
+- *Before a review has started* (or when a maintainer asks for it), rewrite your branch:
+
+  ```bash
+  git fetch upstream
+  git rebase --signoff upstream/main   # adds the sign-off to every commit of your branch
+  git push --force-with-lease
+  ```
+
+- *During a review*, do not rewrite the branch: add a **remediation commit**, an empty commit
+  that signs off the earlier ones (`.github/dco.yml` enables this). One line per commit that
+  lacks the sign-off, with that commit's full SHA, then your own sign-off:
+
+  ```bash
+  git commit --allow-empty -s -m "DCO Remediation Commit for Your Name <your.email@example.org>" \
+    -m "I, Your Name <your.email@example.org>, hereby add my Signed-off-by to this commit: <sha1>
+  I, Your Name <your.email@example.org>, hereby add my Signed-off-by to this commit: <sha2>"
+  git push
+  ```
+
+  The name and address must be the ones of the commits you sign off. The DCO check's details
+  page on the pull request lists the commits and shows the same instructions.
 
 ## Pull requests and review
 
 **Process.**
 
-1. Fork `dyng-dev/dyng`, create a branch from `main` (`fix-io-bounds`, `feat-kcore`, ...), and
-   make your change with tests and documentation.
+1. Fork `dyng-dev/dyng`, create a branch from the latest `upstream/main`
+   (`git fetch upstream && git switch -c fix-io-bounds upstream/main`), and make your change
+   with tests and documentation.
 2. Run `ci/check.sh` locally, and add an entry to the `Unreleased` section of
    [CHANGELOG.md](CHANGELOG.md) for any user-visible change.
 3. Open a pull request against `main` and fill in the template's checklist. Draft pull requests
@@ -261,12 +330,15 @@ git push --force-with-lease
 4. CI runs the required checks (`lint`, `cpu`, `docs`, and later `cuda-build`, `python` and
    `api-check`). Workflows of first-time contributors start after a maintainer approves them.
 5. A maintainer reviews. Address comments with new commits (do not force-push during a review
-   unless asked); the pull request is **squash-merged**, so the title becomes the commit
-   subject on `main`.
+   unless asked); to catch up with `main`, use the pull request's **Update branch** button or
+   merge `upstream/main` into your branch. The pull request is **squash-merged**, so the title
+   becomes the commit subject on `main`.
 
-**Rules** (PLAN Section 8.9):
+**Rules:**
 
-- **Everything goes through a pull request**, including the maintainers' own work.
+- **Everything goes through a pull request**, including the maintainers' own work. (Until the
+  `main` ruleset is active, the lead maintainer still pushes milestone work directly; see
+  [GOVERNANCE.md](GOVERNANCE.md#reviews-and-merges).)
 - **Titles** follow [Conventional Commits](https://www.conventionalcommits.org/):
   `feat(sssp): ...`, `fix(io): ...`, `perf(cycle_count): ...`, `docs: ...`, `test: ...`,
   `build: ...`, `ci: ...`, `refactor: ...`, `chore: ...`. A breaking change adds `!`
@@ -282,7 +354,7 @@ git push --force-with-lease
 |---|---|
 | kernel or hot path | a benchmark comparison (`ci:bench`); a `--resource-usage` diff for fused kernels |
 | ported algorithm | a green `parity` run on the GPU machine (a maintainer can run it for you) |
-| public API | the `api-change` label, a CHANGELOG entry, updated docs, an ADR if significant, and the API review checklist |
+| public API | the `api-change` label, a CHANGELOG entry, updated docs, an ADR if significant, and the [API review checklist](docs/developer/api_review_checklist.md) |
 | framework or operators (internal-stable) | an ADR; every in-tree algorithm and tutorial stays green |
 | new algorithm | a discussed `new_algorithm` issue, the scaffold, a declared maturity, a CODEOWNERS entry |
 | new dependency | a justification, a checked license, optional where possible |
@@ -296,10 +368,11 @@ git push --force-with-lease
 
 1. **Open an issue first**: the *New algorithm* form (problem, update model, family, backends,
    static counterpart, oracle, paper) or the *Port research code* form (origin repository and
-   commit, license, parity plan). A maintainer confirms that it fits the library.
+   commit, license or the authors' permission, parity plan). A maintainer confirms that it fits
+   the library.
 2. **Decide the family:** a per-element value that converges (distances, labels) is a
    *fixed-point* algorithm; a global count (cycles, triads) is an *aggregate-delta* algorithm.
-3. **Create the files of an algorithm** (PLAN Section 4.8): the public header
+3. **Create the files of an algorithm**: the public header
    `cpp/include/dyng/<algo>.hpp`, the implementation folder `cpp/src/algorithms/<algo>/`
    (`manifest.toml`, `CMakeLists.txt`, the sequential reference backend first, then OpenMP and
    CUDA), tests under `cpp/tests/algorithms/<algo>/`, an example under `examples/`, the page
@@ -309,7 +382,11 @@ git push --force-with-lease
    M3).
 4. **Ports** keep the original's behaviour exactly: first a straight port with the provenance
    header and parity goldens, then one pull request per refactor, each still passing parity
-   (PLAN Section 6.3).
+   ([parity/README.md](parity/README.md)). Code you did not write yourself needs the copyright
+   holders' license or written permission: an open-source license that allows redistribution
+   under Apache-2.0 (MIT, BSD and Apache-2.0 code also keeps its original copyright and license
+   notices, see [Style](#style)), or the written agreement of every copyright holder, recorded
+   in [docs/developer/provenance.md](docs/developer/provenance.md).
 5. New algorithms usually start as `experimental` (sequential backend, tests, a docs page with
    the problem, the template mapping and the limitations, one example).
 
