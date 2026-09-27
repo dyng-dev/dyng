@@ -40,3 +40,29 @@ if(DYNG_BUILD_TESTS)
     endforeach()
   endforeach()
 endif()
+
+if(DYNG_BUILD_TESTS AND DYNG_BUILD_PARITY_TESTS)
+  # Golden replay against the pinned original (PLAN Section 8.3; CTest label "parity"): every case
+  # of the golden corpus, sequential and OpenMP with 1, 4 and 16 threads, byte for byte. The
+  # goldens live outside the repository ($DYNG_SCRATCH/goldens, parity/export_goldens.py); without
+  # them the test is skipped (exit code 77).
+  find_package(Python3 3.11 REQUIRED COMPONENTS Interpreter)
+  set(DYNG_GOLDENS_DIR
+      "$ENV{DYNG_SCRATCH}/goldens"
+      CACHE PATH "Directory of the golden sets (default: \$DYNG_SCRATCH/goldens)"
+  )
+  if(DYNG_GOLDENS_DIR STREQUAL "/goldens")
+    set(DYNG_GOLDENS_DIR "$ENV{HOME}/Projects/dyng-work/goldens")
+  endif()
+  add_test(
+    NAME parity.sssp.mosp_openmp_c352151
+    COMMAND
+      ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/parity/compare.py --exe
+      $<TARGET_FILE:dyng-compat-mosp> --goldens ${DYNG_GOLDENS_DIR}/sssp --jobs 8 --json
+      ${CMAKE_CURRENT_BINARY_DIR}/parity-sssp.json
+  )
+  set_tests_properties(
+    parity.sssp.mosp_openmp_c352151 PROPERTIES LABELS "parity;sssp" SKIP_RETURN_CODE 77 TIMEOUT
+                                               1800
+  )
+endif()
