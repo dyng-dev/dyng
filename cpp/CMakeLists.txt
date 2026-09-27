@@ -140,7 +140,11 @@ dyng_add_module(
   CUDA_SOURCES src/util/device_fill.cu
 )
 
-dyng_add_module(NAME graph SOURCES src/graph/apply_host.cpp src/graph/graph.cpp)
+dyng_add_module(
+  NAME graph
+  SOURCES src/graph/apply_host.cpp src/graph/graph.cpp
+  CUDA_SOURCES src/graph/device_graph.cu
+)
 
 dyng_add_module(
   NAME io

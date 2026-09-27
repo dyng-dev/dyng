@@ -59,6 +59,22 @@ memory_resource_ref resources_access::staging_memory(const resources& res) noexc
   return res.state_->staging;
 }
 
+int resources_access::host_threads(const resources& res) noexcept {
+  switch (res.state_->kind) {
+    case backend::openmp:
+      return res.state_->num_threads > 0 ? res.state_->num_threads : 1;
+    case backend::cuda:
+#if DYNG_HAS_OPENMP
+      return omp_get_max_threads() > 0 ? omp_get_max_threads() : 1;
+#else
+      return 1;
+#endif
+    case backend::sequential:
+      break;
+  }
+  return 1;
+}
+
 }  // namespace detail
 
 namespace {

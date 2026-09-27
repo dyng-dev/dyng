@@ -4,11 +4,13 @@
  * @file graph.cpp
  * @brief graph<V,E,W> member functions and their explicit instantiations.
  */
+#include "core/resources_access.hpp"
 #include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
 #include "util/allocation.hpp"
 
+#include <dyng/config.hpp>
 #include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -19,23 +21,23 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace dyng {
 
 namespace {
 
-void expect_host_backend(const resources& res, const char* what) {
-  if (res.get_backend() == backend::cuda) {
-    throw not_supported_error(std::string("dyng: ") + what +
-                              ": the device-resident graph arrives with the CUDA backend (M1b); "
-                              "use resources::sequential() or resources::openmp()");
-  }
+/// Threads for the host-side work (transposition, apply, CSR checks).
+int host_threads(const resources& res) {
+  return detail::resources_access::host_threads(res);
 }
 
-/// Threads for the host transposition: the OpenMP backend's count, 1 otherwise.
-int host_threads(const resources& res) {
-  return res.get_backend() == backend::openmp ? res.num_threads() : 1;
+/// Record the placement of a new graph (PLAN Section 4.6 rule 5).
+template <typename impl_t>
+void set_home(impl_t& impl, const resources& res) {
+  impl.home = res.get_backend();
+  impl.home_device = res.get_backend() == backend::cuda ? res.device() : -1;
 }
 
 void expect_supported_layout(const graph_properties& props) {
@@ -90,12 +92,12 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_edges(
     const resources& res, edge_list_view<vertex_t, weight_t> edges,
     const graph_properties& props) try {
-  expect_host_backend(res, "graph::from_edges");
   expect_supported_layout(props);
   scoped_stage stage(res, "graph.build");
   auto impl = std::make_unique<impl_type>();
   impl->props = props;
   impl->build_threads = host_threads(res);
+  set_home(*impl, res);
   detail::build_from_edges_host(edges, props, impl->out);
   impl->props.num_weights = impl->out.num_weights;
   return graph(std::move(impl));
@@ -107,12 +109,12 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_csr(
     const resources& res, csr_view<vertex_t, edge_t, weight_t> csr,
     const graph_properties& props) try {
-  expect_host_backend(res, "graph::from_csr");
   expect_supported_layout(props);
   scoped_stage stage(res, "graph.build");
   auto impl = std::make_unique<impl_type>();
   impl->props = props;
   impl->build_threads = host_threads(res);
+  set_home(*impl, res);
   detail::build_from_csr_host(csr, props, impl->out, impl->build_threads);
   impl->props.num_weights = impl->out.num_weights;
   return graph(std::move(impl));
@@ -123,12 +125,12 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::from_csr (", csr.num_vertices(), " ver
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_csr(
     const resources& res, csr_type&& csr, const graph_properties& props) try {
-  expect_host_backend(res, "graph::from_csr");
   expect_supported_layout(props);
   scoped_stage stage(res, "graph.build");
   auto impl = std::make_unique<impl_type>();
   impl->props = props;
   impl->build_threads = host_threads(res);
+  set_home(*impl, res);
   detail::build_from_csr_host(csr.view(), props, impl->out, impl->build_threads, &csr);
   impl->props.num_weights = impl->out.num_weights;
   return graph(std::move(impl));
@@ -139,15 +141,17 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::from_csr (", csr.num_vertices(), " ver
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::clone(
     const resources& res) const try {
-  expect_host_backend(res, "graph::clone");
-  return graph(std::make_unique<impl_type>(impl()));
+  auto copy = std::make_unique<impl_type>(impl());
+  copy->build_threads = host_threads(res);
+  set_home(*copy, res);  // the copy belongs to the backend of `res` (its device copy is rebuilt)
+  return graph(std::move(copy));
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::clone (", num_vertices(), " vertices, ", num_edges(),
                                   " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void graph<vertex_t, edge_t, weight_t>::reserve(const resources& res, edge_t edge_capacity) try {
-  expect_host_backend(res, "graph::reserve");
+  (void)res;  // the host storage (also of a CUDA graph, whose device copy is rebuilt per state)
   DYNG_EXPECTS(edge_capacity >= 0, "graph::reserve: negative capacity ", edge_capacity);
   auto& state = impl();
   const auto m = static_cast<std::size_t>(edge_capacity);
@@ -194,7 +198,7 @@ bool graph<vertex_t, edge_t, weight_t>::has_transposed() const noexcept {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 memory_space graph<vertex_t, edge_t, weight_t>::space() const noexcept {
-  return memory_space::host;
+  return impl_ && impl_->home == backend::cuda ? memory_space::device : memory_space::host;
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -229,14 +233,14 @@ apply_summary graph<vertex_t, edge_t, weight_t>::apply(
 template <typename vertex_t, typename edge_t, typename weight_t>
 typename graph<vertex_t, edge_t, weight_t>::csr_type graph<vertex_t, edge_t, weight_t>::to_csr(
     const resources& res) const try {
-  expect_host_backend(res, "graph::to_csr");
+  (void)res;  // the host CSR is the authoritative copy on every backend in this release
   return impl().out;
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::to_csr (", num_edges(), " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) const try {
-  expect_host_backend(res, "graph::check_integrity");
+  (void)res;  // checks the host storage
   const std::string violation = detail::integrity_violation(impl());
   if (!violation.empty()) {
     DYNG_FAIL("graph integrity: ", violation);
@@ -245,6 +249,16 @@ void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) co
 DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::check_integrity")
 
 namespace detail {
+
+#if !DYNG_HAS_CUDA
+template <typename vertex_t, typename edge_t, typename weight_t>
+void build_device_graph(const resources& /*res*/, const csr<vertex_t, edge_t, weight_t>& /*host*/,
+                        device_graph<vertex_t, edge_t, weight_t>& /*out*/) {
+  throw not_supported_error(
+      "dyng: the cuda backend is not built (configure with "
+      "DYNG_ENABLE_CUDA=ON)");
+}
+#endif
 
 std::uint64_t next_graph_state_id() noexcept {
   // Starts at 1, so the 0 of a moved-from graph or result never matches.
@@ -256,14 +270,14 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
                                   const edge_batch_view<vertex_t, weight_t>& batch,
                                   apply_delta<vertex_t>* delta) try {
-  expect_host_backend(res, "graph::apply");
   auto& state = g.impl();
   scoped_stage stage(res, "graph.apply");
   csr<vertex_t, edge_t, weight_t> updated;
   const apply_summary summary =
       apply_batch_host(state.out, batch, state.props, updated, delta, host_threads(res));
   state.out = std::move(updated);
-  state.drop_in_edges();  // rebuilt on first use (graph_access::view, graph::view)
+  state.drop_in_edges();      // rebuilt on first use (graph_access::view, graph::view)
+  state.drop_device_edges();  // uploaded again on first use (graph_access::device)
   ++state.version;
   state.state_id = next_graph_state_id();
   return summary;
@@ -278,7 +292,9 @@ graph_impl<vertex_t, edge_t, weight_t>::graph_impl(const graph_impl& other)
       version(other.version),
       state_id(other.state_id),
       out(other.out),
-      build_threads(other.build_threads) {
+      build_threads(other.build_threads),
+      home(other.home),
+      home_device(other.home_device) {
   const std::lock_guard<std::mutex> lock(other.in_mutex_);
   if (other.in_built_.load(std::memory_order_acquire)) {
     in_ = other.in_;
@@ -306,6 +322,63 @@ void graph_impl<vertex_t, edge_t, weight_t>::drop_in_edges() noexcept {
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+const typename graph_impl<vertex_t, edge_t, weight_t>::device_type&
+graph_impl<vertex_t, edge_t, weight_t>::device_edges(const resources& res) const {
+  if (!device_built_.load(std::memory_order_acquire)) {
+    const std::lock_guard<std::mutex> lock(device_mutex_);
+    if (!device_built_.load(std::memory_order_relaxed)) {
+      scoped_stage stage(res, "graph.upload");
+      auto built = std::make_unique<device_type>();
+      build_device_graph(res, out, *built);
+      device_ = std::move(built);
+      device_built_.store(true, std::memory_order_release);
+    }
+  }
+  return *device_;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void graph_impl<vertex_t, edge_t, weight_t>::drop_device_edges() noexcept {
+  device_built_.store(false, std::memory_order_release);
+  device_.reset();
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void graph_access::expect_placement(const resources& res,
+                                    const graph<vertex_t, edge_t, weight_t>& g, const char* what) {
+  const auto& state = g.impl();
+  const backend b = res.get_backend();
+  if (b == backend::cuda) {
+    DYNG_EXPECTS(state.home == backend::cuda && state.home_device == res.device(), what,
+                 ": the graph was built for ", to_string(state.home),
+                 state.home == backend::cuda ? " on CUDA device " : "",
+                 state.home == backend::cuda ? std::to_string(state.home_device) : std::string(),
+                 " but the resources are cuda on device ", res.device(),
+                 "; build the graph with these resources or copy it with g.clone(res)");
+  } else {
+    DYNG_EXPECTS(state.home != backend::cuda, what, ": the graph is resident on CUDA device ",
+                 state.home_device, " but the resources are ", to_string(b),
+                 "; copy it with g.clone(res)");
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+const device_graph<vertex_t, edge_t, weight_t>& graph_access::device(
+    const resources& res, const graph<vertex_t, edge_t, weight_t>& g) {
+  expect_placement(res, g, "graph (device copy)");
+  return g.impl().device_edges(res);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void graph_access::prepare(const resources& res, const graph<vertex_t, edge_t, weight_t>& g) {
+  if (res.get_backend() == backend::cuda) {
+    (void)device(res, g);
+  } else {
+    (void)view(res, g);
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 graph_view<vertex_t, edge_t, weight_t> graph_access::view(
     const resources& res, const graph<vertex_t, edge_t, weight_t>& g) {
   const auto& state = g.impl();
@@ -318,12 +391,17 @@ graph_view<vertex_t, edge_t, weight_t> graph_access::view(
 
 }  // namespace detail
 
-#define DYNG_INSTANTIATE_GRAPH(V, E, W)                                                    \
-  template class detail::graph_impl<V, E, W>;                                              \
-  template graph_view<V, E, W> detail::graph_access::view<V, E, W>(const resources&,       \
-                                                                   const graph<V, E, W>&); \
-  template class graph<V, E, W>;                                                           \
-  template apply_summary detail::graph_access::apply<V, E, W>(                             \
+#define DYNG_INSTANTIATE_GRAPH(V, E, W)                                                          \
+  template class detail::graph_impl<V, E, W>;                                                    \
+  template graph_view<V, E, W> detail::graph_access::view<V, E, W>(const resources&,             \
+                                                                   const graph<V, E, W>&);       \
+  template const detail::device_graph<V, E, W>& detail::graph_access::device<V, E, W>(           \
+      const resources&, const graph<V, E, W>&);                                                  \
+  template void detail::graph_access::prepare<V, E, W>(const resources&, const graph<V, E, W>&); \
+  template void detail::graph_access::expect_placement<V, E, W>(                                 \
+      const resources&, const graph<V, E, W>&, const char*);                                     \
+  template class graph<V, E, W>;                                                                 \
+  template apply_summary detail::graph_access::apply<V, E, W>(                                   \
       const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, detail::apply_delta<V>*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
 #undef DYNG_INSTANTIATE_GRAPH

@@ -54,6 +54,16 @@ struct resources_access {
    * @return The pinned host resource for the CUDA backend, the host resource otherwise.
    */
   static memory_resource_ref staging_memory(const resources& res) noexcept;
+
+  /**
+   * @brief Host threads for the host-side work of a call (graph builds and applies, tree imports
+   *        and checks): the thread count of an OpenMP handle, the OpenMP default for a CUDA handle
+   *        (its host work runs next to the device; 1 without OpenMP), 1 for the sequential
+   *        backend.
+   * @param[in] res The handle.
+   * @return The thread count (>= 1).
+   */
+  static int host_threads(const resources& res) noexcept;
 };
 
 }  // namespace dyng::detail
