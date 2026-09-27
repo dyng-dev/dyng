@@ -44,4 +44,6 @@ foreach(_dyng_test dyng_graph_tests dyng_io_tests)
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 endforeach()
 
+dyng_add_test(NAME dyng_testing_tests SOURCES testing/oracle_test.cpp LABELS cpu testing LIBRARIES dyng::testing)
+
 add_subdirectory(api)

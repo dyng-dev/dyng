@@ -110,3 +110,22 @@ dyng_add_module(NAME framework SOURCES src/framework/composition.cpp)
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
 add_subdirectory(src/algorithms)
+
+# dyng::testing: host-only oracles for users and the test suites (PLAN Section 5.8). It shares no
+# code with the algorithms it checks.
+add_library(dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp)
+add_library(dyng::testing ALIAS dyng_testing)
+set_target_properties(
+  dyng_testing
+  PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    OUTPUT_NAME dyng_testing
+    EXPORT_NAME testing
+    POSITION_INDEPENDENT_CODE ON
+)
+target_compile_features(dyng_testing PUBLIC cxx_std_17)
+target_link_libraries(dyng_testing PUBLIC dyng)
+target_include_directories(dyng_testing PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+dyng_set_warnings(dyng_testing)
+dyng_enable_sanitizers(dyng_testing)
