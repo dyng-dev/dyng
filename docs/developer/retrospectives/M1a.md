@@ -152,3 +152,111 @@ milestone summary and the re-estimate of the roadmap.
 - The text CSR reader is ~35 % slower than MOSP's (sequential vs three files in parallel). It is
   outside every timed region; parallel parsing can come with the shared parser (CycleEnum
   `from_chars` + threads) in M2.
+
+## Step 3: `sssp` on the CPU backends (2026-09-27)
+
+### Done
+
+- Public API (`<dyng/sssp.hpp>`, PLAN Section 5.1): `options`, `stats` (derived from the new
+  `update_stats` in `<dyng/core/stats.hpp>`), the opaque move-only `result` (distances, parents,
+  options, graph version, workspace; `clone`, `set_options`, `from_arrays` with canonicalization
+  and `validate_inputs`), `compute()` and `update()`; `stale_result_error` when the result does
+  not match the graph's version. `<dyng/update.hpp>`: `dyng::update(res, g, batch, results...)`
+  and `dyng::update_each(res, g, batch, list)` over `detail::run_update()` (all before-apply work
+  on G_t, one commit, all updates on G_{t+1}; a result that fails after the commit is poisoned).
+- OpenMP backend (`cpp/src/algorithms/sssp/openmp.cpp`): MOSP-OpenMP@c352151 `sospUpdateCpu` /
+  `sospFromScratchCpu` ported straight into the hooks identify_affected / seed / loop / finalize
+  (provenance header; `util/list_gather.hpp` from `listGather.h`). Sequential backend
+  (`sequential.cpp`): `sequentialSOSPUpdate` adapted into the same hooks; `compute()` runs the
+  same loop from the source. Profiler stages `sssp.compute`, `sssp.reset`, `sssp.update`,
+  `sssp.prepare`, `sssp.commit`, `sssp.identify_affected`, `sssp.seed`, `sssp.loop`,
+  `sssp.finalize` (`update.commit` for the multi-result update).
+- `dyng::testing` (installed target `dyng::testing`): `dijkstra()` and `check_sssp_tree()`
+  (ports of `dijkstraCsrGraph` and `checkSospTree`; in-edges rebuilt locally).
+- Tests (60 new CTest cases; 181 on `dev`): hand cases, the regressions (count-to-infinity
+  n = 6 seeds 621705 / 250813: d(1) = 90; the ESCHER 4-vertex case d = 100, 101; ties;
+  delete-all), randomized differential tests (5 shapes x 3 scenarios x 3 index types, 3-5
+  batches, both backends bit-equal, canonical check against Dijkstra and against a fresh
+  compute), stale-result and validation tests, and byte parity with MOSP-OpenMP@c352151 on 34
+  fixture cases (every objective, sequential and OpenMP with 1/2/4 threads, 3 index types;
+  `invalidated` equal to the original's counter). The fixtures (39 KB,
+  `cpp/tests/data/mosp_sssp`) come from `parity/fixtures/sssp/make_sssp_fixtures.sh`, which first
+  checks that four original implementations agree byte for byte (`mosp`, `parallelSOSPUpdate`,
+  `sequentialSOSPUpdate`, `mospPrep expected`). Two mutations (no root marking in the OpenMP
+  invalidation; no children walk in the sequential one) each fail dozens of tests.
+- `tools/compat/dyng-compat-mosp` (drop-in clone of the per-objective part of MOSP's `mosp`
+  driver and of `mospPrep init`; CTest compares its files with the fixtures),
+  `examples/cpp/sssp_update.cpp` (run by CTest), `parity/timed_regions/sssp.toml`,
+  ADR 0006 (draft), `docs/algorithms/sssp.md`, the sssp manifest.
+- Green: `dev` 181/181, `cpu-only`, `asan` (all pass), `tsan` (OpenMP off, see below), a build
+  with `DYNG_ENABLE_OPENMP=OFF` (162/162), Doxygen, REUSE, clang-format.
+
+### Informal check on roadNet-CA (K = 3, `changes_50000_50`, 28 threads pinned, perf lock)
+
+Not the M1a A/B deliverable (that belongs to the parity step), but a regression check of the port:
+
+- `dyng-compat-mosp` (parity preset) and the original `mosp` (-O3, git-archive copy) write
+  **byte-identical** `obj<k>/distancesUpdated.txt` and `SSSPTreeUpdated.txt`, with equal
+  `invalidated` counters (1651102 / 1105903 / 1007744). `sssp::compute` on both backends writes
+  files byte-identical to MOSP-OpenMP's `mospPrep init` for all three objectives.
+- Per-objective SOSP region (median of 7 alternating runs, ms): original 35.3 / 23.5 / 22.5,
+  dynG 27.8 / 23.5 / 22.6. Before the parallel transposition dynG's first objective was about 17 %
+  slower (37.9 vs 32.5) although the kernel is at parity: with `OMP_WAIT_POLICY=active` both
+  were equal (23.7 vs 25.5 / 22.4 vs 22.6 / 22.2 vs 22.0). The cause was idle cores: dynG
+  transposed the graph sequentially inside `graph.apply`, MOSP builds its reverse graph in parallel
+  right before the first objective. The transposition is now parallel on the OpenMP backend
+  (deterministic, identical result), which also cut `graph.apply` from about 135 ms to about
+  110 ms (MOSP: apply 82 ms + prepare 114 ms).
+- Also found: the workspace lists of a fresh result took their first-touch page faults inside the
+  timed region of every objective (MOSP shares one workspace across objectives, so only its first
+  objective pays them). `reserve()` now touches the pages once, at compute / from_arrays / clone.
+- The sequential compute takes about 0.55 s per objective on roadNet-CA (MOSP's Dijkstra in
+  `mospPrep init`: about 0.55 s); the OpenMP compute about 60 ms.
+- End to end, dynG is slower (about 1.7 s vs 1.2 s) because it reads the graph and the 2K tree
+  files one after another (the original reads them concurrently; see Step 2's open item) and
+  validates the imported trees.
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| Section 5.1: `dyng::update(res, g, batch, results...)` only | also `dyng::update_each(res, g, batch, array_view<result_t* const>)` | the number of objectives is a run-time value (the compat driver, later `mosp`); a variadic pack cannot hold it |
+| `result::get_options() const noexcept` | not `noexcept`: throws `invalid_argument_error` for a moved-from result | a moved-from result has no options to return |
+| `update_stats::affected` (undefined) | vertices whose distance or parent changed (deterministic); the OpenMP unpack pass counts it (one reduction added to the straight port) | C1 needs `affected == 0` for an empty batch; the count is exact and backend-independent |
+| `engine_used` | OpenMP reports `engine::fused` (the ported paper engine), sequential `engine::operators` (hook-by-hook) | the CPU backends have no engine option; the two values tell the tier apart |
+| sequential backend = `sequentialSOSPUpdate` adapted | its classification of weight increases is the graph's (`apply_delta`, MOSP `applyChangeBatch` semantics) and per-round candidate flags are generation stamps | one classification for all backends keeps `invalidated` identical across backends and equal to `mospUpdate`; the original's per-round `vector<bool>(n)` is O(n) per round |
+| sequential `compute` from `sospFromScratch*` | the static enactor: the same re-scan loop from the source (reset -> seed_static -> loop -> finalize) | it is the framework's compute path and stays independent of `testing::dijkstra`; 0.55 s on roadNet-CA is acceptable for the reference backend |
+| `validate_inputs`: "rooted at the source, no parent cycle" | also distance range, unreachable vertices without parents, reachable vertices with reachable parents; parent ids are always range-checked (memory safety), with or without validation | MOSP tolerated some of these silently; imported trees are the only way a corrupt tree can enter |
+| the graph's in-edges | sssp requires `store_transposed` (throws otherwise) | building a transposition per call would hide a large cost |
+| `instantiate.{cpp,cu}` per algorithm (Section 4.8) | explicit instantiations at the end of `sssp.cpp`, `sequential.cpp`, `openmp.cpp` | each file instantiates what it defines; a separate file would need the definitions in a header |
+| `@paper @cite dynamosp2025` | `@paper` with the keys in text | `@cite` needs `CITE_BIB_FILES` and `bibtex`, which the environment does not have |
+| examples compiled against the installed package (Section 9.6) | compiled in-tree (`examples/cpp/CMakeLists.txt`) and run by CTest | the install test with `find_package` was done in Step 1; an installed-package example build belongs to the CI setup (M4) |
+| `tsan` preset with OpenMP | `tsan` builds with `DYNG_ENABLE_OPENMP=OFF` | GCC's libgomp is not instrumented: every OpenMP barrier and reduction is reported as a race (verified). OpenMP race checking needs Archer (clang + llvm-openmp), not in the environment |
+| sssp in the parity step | `parity/timed_regions/sssp.toml` and `parity/fixtures/sssp/` written here | the timing map must exist before the port (Section 6.3 step 3); the byte-parity fixtures were needed by the tests |
+| graph module | parallel deterministic transposition for the OpenMP backend | found by the roadNet-CA check above |
+
+### Notes for the next steps
+
+- Parity harness: `dyng-compat-mosp` (built by the `dev` and `parity` presets) reads the `mosp`
+  inputs and writes the same `obj<k>` files; its RESULT line and `--timing` CSV map to MOSP's stages
+  as `parity/timed_regions/sssp.toml` describes. `parity/fixtures/sssp/make_sssp_fixtures.sh` can be
+  folded into the golden export (like the graph/io script); its archive is
+  `$DYNG_SCRATCH/runs/sssp-fixtures` (12 MB, with a built `mosp`, `mospPrep` and the two exporters).
+- **The initial trees under `$DYNG_SCRATCH/datasets/mosp/*/init` are not canonical** (they differ
+  from MOSP-OpenMP's `mospPrep init` in some parents, e.g. vertex 902 of roadNet-CA objective 0:
+  959 vs 907; they were prepared with another tool). Without `--canonicalize` both `mosp` and
+  `dyng-compat-mosp` keep the parents of untouched vertices, so their outputs still agree byte for
+  byte, but golden trees that are meant to equal Dijkstra should be regenerated with
+  `mospPrep init` (or both sides run with `--canonicalize`).
+- The OpenMP A/B should keep the same thread placement for both sides
+  (`OMP_PROC_BIND=close OMP_PLACES=cores`, 28 threads) and report the wait policy; the first
+  objective is sensitive to how busy the cores were just before it.
+- `mospTest sosp` (148 cases) is not in the committed fixtures; the parity step exports it.
+
+### Open items
+
+- End-to-end time on large graphs is dominated by text parsing done sequentially (graph and 2K
+  tree files); parallel parsing is planned with the shared parser (M2).
+- Each sssp result owns a workspace (about 38 bytes per vertex); K results on one graph use K
+  workspaces, where MOSP shares one. `mosp` (0.2) should share.
+- OpenMP race checking (Archer) is not set up; see the tsan row above.
