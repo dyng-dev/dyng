@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of sssp (PLAN Sections 6.3 step 3 and 8.6): each timer of the original ->
+# the dynG profiler stages whose host times are summed to match it. The performance gate compares
+# medians of these sums (>= 5 runs, A/B/A/B, parity preset, 28 threads pinned with
+# OMP_PROC_BIND=close OMP_PLACES=cores, under the perf lock).
+#
+# dynG stage names: sssp.update > { sssp.prepare, sssp.commit > graph.apply, sssp.identify_affected,
+# sssp.seed, sssp.loop, sssp.finalize }; with dyng::update / update_each the commit is
+# "update.commit" and the per-result stages repeat once per result, in result order.
+
+[reference.mosp_openmp]
+repo = "MOSP-OpenMP"
+commit = "c352151"
+driver = "bin/mosp (stage timer CSV via --timing; per-objective report lines)"
+port_driver = "dyng-compat-mosp (tools/compat/mosp)"
+
+# The gated region: one objective's SOSP update, sospUpdateCpu() (pack the old tree, roots and
+# chain-walk invalidation, insertion heads, pull pass, near-far propagation, unpack).
+[[region]]
+name = "sosp_update"
+original = "obj<k>/sosp_update_compute"
+port = ["sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"]
+gate = "compute"         # <= 1.05 x the original median (<= 1.10 x below 10 ms)
+note = """
+One value per objective. dyng-compat-mosp reports it as `obj<k> SOSP update <ms>` and sums the
+objectives as `sosp_ms` in its RESULT line. The port's finalize also counts `affected` (vertices
+whose distance or parent changed) inside the unpack pass.
+"""
+
+# Applying the batch. MOSP times applyChangeBatch() alone as "apply_batch" and builds the reverse
+# graph and the objective-major weight columns in "prepare"; dynG's graph.apply does both (the
+# graph stores objective-major columns and the in-edges), so the two original stages map to one.
+[[region]]
+name = "apply"
+original = ["apply_batch", "prepare"]
+port = ["update.commit"]   # sssp.commit for a single sssp::update
+gate = "end_to_end"
+note = """
+The largest weight and the weight sum per objective are computed by mospUpdate() between
+"apply_batch" and "prepare", outside both stages; dynG times them as sssp.prepare (end to end
+only).
+"""
+
+[[region]]
+name = "end_to_end"
+original = "TOTAL_end_to_end"
+port = ["total.end_to_end"]  # written by dyng-compat-mosp next to the profiler rows
+gate = "end_to_end"          # <= 1.10 x; from M1b
+note = """
+Includes reading the text inputs and writing the outputs. The original reads the batch and the 2K
+tree files concurrently; dynG reads them one after the other (M1a; see the retrospective). The
+combined graph (Steps 2-3 of the MOSP update, "combined_graph_compute") belongs to the mosp
+algorithm (0.2) and is excluded from both sides when the sssp port is compared.
+"""
+
+# Logged only (not parity targets, PLAN Section 8.3): iterations, epochs, pushes. The invalidated
+# counter is deterministic and must be equal.
+[counters]
+equal = ["invalidated"]
+logged = ["iterations", "epochs", "pushes"]

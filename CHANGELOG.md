@@ -34,7 +34,23 @@ Before 0.1.0 anything may change.
   (`docs/api/file_formats.md`).
 - Byte-parity fixtures for the updated CSR, its transposition and the weight-increase flags
   against MOSP-OpenMP@c352151 (`parity/fixtures/graph_io/`).
+- `sssp`: `compute()` and `update()` on the sequential backend (MOSP's `sequentialSOSPUpdate`
+  adapted into hooks) and the OpenMP backend (MOSP-OpenMP's `sospUpdateCpu` /
+  `sospFromScratchCpu` ported straight); canonical trees identical across backends and
+  byte-identical to MOSP-OpenMP@c352151 on the test corpus; `result::from_arrays` with
+  canonicalization and `validate_inputs`; `stale_result_error` detection
+  (`docs/algorithms/sssp.md`, ADR 0006).
+- `update_stats`, and `dyng::update(res, g, batch, results...)` / `dyng::update_each()` to apply a
+  batch once for several results.
+- `dyng::testing` (installed target): `dijkstra()` with lowest-id ties and `check_sssp_tree()`.
+- `tools/compat/dyng-compat-mosp` (drop-in clone of the per-objective part of MOSP's `mosp`
+  driver and of `mospPrep init`), the `sssp_update` example, `parity/timed_regions/sssp.toml`
+  and the sssp byte-parity fixtures (`parity/fixtures/sssp/`).
 - A pure-Python name-reservation package `dyng` 0.0.1 (`tools/name_reservation/`) and the
   Trusted Publishing workflow `release.yml`.
+
+### Changed
+
+- The host transposition runs in parallel on the OpenMP backend (same, deterministic result).
 
 [Unreleased]: https://github.com/dyng-dev/dyng/commits/main

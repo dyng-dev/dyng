@@ -461,4 +461,24 @@ TEST(SsspComposition, RejectsDuplicatesAndStaleResultsBeforeApplying) {
   EXPECT_EQ(a.graph_version(), 1u);
 }
 
+// The quickstart of README.md.
+TEST_P(SsspBackend, ReadmeQuickstart) {
+  dyng::edge_list<std::int32_t, std::int32_t> edges;
+  edges.num_vertices = 4;
+  edges.num_weights = 1;
+  edges.add_edge(0, 1, {4});
+  edges.add_edge(0, 2, {1});
+  edges.add_edge(2, 1, {2});
+  edges.add_edge(1, 3, {1});
+  auto g = dyng::graph<std::int32_t, std::int64_t, std::int32_t>::from_edges(res_, edges.view());
+  auto tree = dyng::sssp::compute(res_, g, 0);
+  dyng::edge_batch<std::int32_t, std::int32_t> batch;
+  batch.delete_edge(2, 1);
+  batch.insert_edge(2, 3, {1});
+  const dyng::sssp::stats st = dyng::sssp::update(res_, g, batch.view(), tree);
+  EXPECT_EQ(distances_of(tree), (std::vector<std::int64_t>{0, 4, 1, 2}));
+  EXPECT_EQ(parents_of(tree), (std::vector<std::int32_t>{-1, 0, 0, 2}));
+  EXPECT_EQ(st.invalidated, 2);
+}
+
 }  // namespace

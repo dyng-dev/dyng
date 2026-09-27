@@ -19,7 +19,7 @@ counting, triad counting, label propagation.
 | Area | State |
 |---|---|
 | Core (resources, backends, memory, arrays, errors, logging, profiler) | in progress (M1a) |
-| `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), CPU | in progress (M1a) |
+| `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working, byte parity with MOSP-OpenMP on the test corpus (M1a) |
 | `sssp` on CUDA | planned (M1b) |
 | `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1) |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
@@ -67,12 +67,27 @@ target_link_libraries(my_app PRIVATE dyng::dyng)
 
 int main() {
   auto res = dyng::resources::openmp(8);   // or resources::sequential()
-  dyng::profiler prof;
-  res.attach_profiler(&prof);              // stages are recorded as "<algo>.<hook>"
-  dyng::buffer<std::int64_t> distances(res, 1000);
-  // Algorithms (dyng::sssp::compute / update, ...) are being added in milestone M1a.
+  dyng::edge_list<std::int32_t, std::int32_t> edges;
+  edges.num_vertices = 4;
+  edges.num_weights = 1;
+  edges.add_edge(0, 1, {4});
+  edges.add_edge(0, 2, {1});
+  edges.add_edge(2, 1, {2});
+  edges.add_edge(1, 3, {1});
+  auto g = dyng::graph<std::int32_t, std::int64_t, std::int32_t>::from_edges(res, edges.view());
+
+  auto tree = dyng::sssp::compute(res, g, /*source=*/0);    // canonical tree: lowest-id ties
+  dyng::edge_batch<std::int32_t, std::int32_t> batch;
+  batch.delete_edge(2, 1);
+  batch.insert_edge(2, 3, {1});
+  dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), tree);  // applies the batch
+  // tree.distances() == {0, 4, 1, 2}, tree.parents() == {-1, 0, 0, 2}; st.invalidated == 2
 }
 ```
+
+`examples/cpp/sssp_update.cpp` runs the same steps on MOSP's text files, and
+`dyng-compat-mosp` (`tools/compat`) reproduces the output files of MOSP-OpenMP's `mosp` driver
+for parity runs.
 
 ## How to cite
 
