@@ -60,3 +60,10 @@ milestone summary and the re-estimate of the roadmap.
   Evolution Representation with Application to Triad Counting", with S. Bhowmick as co-author);
   confirm the published title and author list.
 - The TruCy/DynTruCy IEEE TC paper is recorded as submitted (2026); update when accepted.
+
+### Process note
+
+- Commit `dc56e9f` ("test: skip the impossible-allocation test under sanitizers") also contains
+  `.github/dependabot.yml`, the `name-reservation` job of `lint.yml` and the first version of
+  this retrospective, because they were staged together by mistake. History is not rewritten;
+  this note records it.
