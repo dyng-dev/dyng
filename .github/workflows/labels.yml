@@ -30,8 +30,8 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
-      issues: read
+      contents: read  # check out .github/labels.yml
+      issues: read    # read the existing labels to compute the diff
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -47,8 +47,8 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
-      issues: write
+      contents: read  # check out .github/labels.yml
+      issues: write   # create and update labels (the only write permission of this workflow)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
