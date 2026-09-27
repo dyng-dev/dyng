@@ -156,6 +156,38 @@ void cuda_copy_bytes(void* dst, const void* src, std::size_t bytes, stream_ref s
   DYNG_CUDA_TRY(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDefault, native(stream)));
 }
 
+cuda_event_timer::cuda_event_timer(int device, stream_ref stream)
+    : device_(device), stream_(stream) {
+  const scoped_device guard(device);
+  cudaEvent_t start = nullptr;
+  cudaEvent_t stop = nullptr;
+  DYNG_CUDA_TRY(cudaEventCreate(&start));
+  start_ = start;
+  DYNG_CUDA_TRY(cudaEventCreate(&stop));
+  stop_ = stop;
+  DYNG_CUDA_TRY(cudaEventRecord(start, native(stream)));
+}
+
+cuda_event_timer::~cuda_event_timer() {
+  if (start_ != nullptr) {
+    DYNG_CUDA_TRY_NO_THROW(cudaEventDestroy(static_cast<cudaEvent_t>(start_)));
+  }
+  if (stop_ != nullptr) {
+    DYNG_CUDA_TRY_NO_THROW(cudaEventDestroy(static_cast<cudaEvent_t>(stop_)));
+  }
+}
+
+double cuda_event_timer::stop() {
+  const scoped_device guard(device_);
+  const auto start = static_cast<cudaEvent_t>(start_);
+  const auto stop = static_cast<cudaEvent_t>(stop_);
+  DYNG_CUDA_TRY(cudaEventRecord(stop, native(stream_)));
+  DYNG_CUDA_TRY(cudaEventSynchronize(stop));
+  float ms = 0.0F;
+  DYNG_CUDA_TRY(cudaEventElapsedTime(&ms, start, stop));
+  return static_cast<double>(ms);
+}
+
 }  // namespace dyng::detail
 
 #else  // !DYNG_HAS_CUDA
@@ -194,6 +226,16 @@ std::size_t cuda_warm_up(int /*device*/, stream_ref /*stream*/, memory_resource_
 
 void cuda_copy_bytes(void* /*dst*/, const void* /*src*/, std::size_t /*bytes*/,
                      stream_ref /*stream*/, int /*device*/) {
+  cuda_not_built();
+}
+
+cuda_event_timer::cuda_event_timer(int /*device*/, stream_ref /*stream*/) {
+  cuda_not_built();
+}
+
+cuda_event_timer::~cuda_event_timer() = default;
+
+double cuda_event_timer::stop() {
   cuda_not_built();
 }
 

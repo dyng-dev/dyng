@@ -114,4 +114,43 @@ std::size_t cuda_warm_up(int device, stream_ref stream, memory_resource_ref memo
  */
 void cuda_copy_bytes(void* dst, const void* src, std::size_t bytes, stream_ref stream, int device);
 
+/**
+ * @brief Times the work of a stream between two points with a pair of CUDA events (the device
+ *        side of a profiler stage, profiler_options::cuda_events; PLAN Section 4.7.5).
+ *
+ * The constructor creates both events and records the first on the stream; stop() records the
+ * second, waits for it and returns the elapsed device time.
+ */
+class cuda_event_timer {
+ public:
+  /**
+   * @brief Create the events and record the start on `stream`.
+   * @param[in] device Device of the stream (>= 0; made current for the calls).
+   * @param[in] stream The stream whose work is timed.
+   * @throws cuda_error          if the runtime reports an error.
+   * @throws not_supported_error if CUDA is not built.
+   */
+  cuda_event_timer(int device, stream_ref stream);
+  cuda_event_timer(const cuda_event_timer&) = delete;             ///< not copyable
+  cuda_event_timer& operator=(const cuda_event_timer&) = delete;  ///< not copyable
+  cuda_event_timer(cuda_event_timer&&) = delete;                  ///< not movable
+  cuda_event_timer& operator=(cuda_event_timer&&) = delete;       ///< not movable
+  /// @brief Destroy the events.
+  ~cuda_event_timer();
+
+  /**
+   * @brief Record the end on the stream, wait for it and return the elapsed time.
+   * @return Milliseconds of device time between the two events.
+   * @throws cuda_error if the runtime reports an error.
+   * @sync Waits for the stream up to the second event.
+   */
+  double stop();
+
+ private:
+  [[maybe_unused]] int device_ = -1;  // unused in builds without CUDA
+  [[maybe_unused]] stream_ref stream_;
+  void* start_ = nullptr;
+  void* stop_ = nullptr;
+};
+
 }  // namespace dyng::detail
