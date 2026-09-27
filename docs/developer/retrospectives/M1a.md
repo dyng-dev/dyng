@@ -413,8 +413,9 @@ Not the M1a A/B deliverable (that belongs to the parity step), but a regression 
 
 M1a was carried out in five implementation steps, all on 2026-09-27: bootstrap (Step 1), graph
 container and I/O (Step 2), `sssp` on the CPU backends (Step 3), the parity harness (Step 4),
-close-out (Step 5). The repository has about 45 commits on `main`, no remote, and is small (about 1 MB
-of tracked files, of which 121 KB are the committed test fixtures).
+close-out (Step 5). The repository has 42 commits on `main` (pushed to `dyng-dev/dyng` by the
+orchestrator, never by an implementation step) and is small (about 1 MB of tracked files, of
+which 121 KB are the committed test fixtures).
 
 | Area | Size (lines, tracked) |
 |---|---:|
@@ -574,9 +575,10 @@ For **M4** (hosted CI and release):
 
 For **the author** (no action blocks M1b):
 
-7. Push the repository to `dyng-dev/dyng`, then push tag `v0.0.1` to publish the name
-   reservation (the orchestrator pushes; the tag is the author's call). Enable private
-   vulnerability reporting (Settings -> Security), as `SECURITY.md` promises.
+7. After `main` is pushed to `dyng-dev/dyng` (the orchestrator pushes; `origin/main` was at
+   `15a6051` when Step 5 ended), push tag `v0.0.1` to publish the name reservation (the tag is
+   the author's call). Enable private vulnerability reporting (Settings -> Security), as
+   `SECURITY.md` promises.
 8. Confirm the facts listed under Step 1 "Open items for the author" (placeholder-identity
    commits, funding lines, the ESCHER IPDPS 2026 title and author list, the TruCy paper status,
    S M Ferdous's affiliation).
