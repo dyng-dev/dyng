@@ -55,3 +55,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # Issue forms, labels, CODEOWNERS and the PR template are validated by GitHub only after a
+      # push; this checks them (and, with --self-test, that broken inputs are rejected) locally.
+      - id: github-meta
+        name: .github metadata (issue forms, labels, CODEOWNERS, PR template)
+        entry: python3 ci/github_meta_check.py --self-test
+        language: python
+        additional_dependencies: ["pyyaml==6.0.3"]
+        pass_filenames: false
+        files: ^(\.github/|ci/github_meta_check\.py$)
