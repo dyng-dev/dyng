@@ -104,3 +104,5 @@ dyng_add_module(
     src/io/matrix_market.cpp
     src/io/result_io.cpp
 )
+
+dyng_add_module(NAME framework SOURCES src/framework/composition.cpp)

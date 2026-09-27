@@ -23,6 +23,7 @@
 #include <dyng/core/memory.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/stats.hpp>
 #include <dyng/core/stream.hpp>
 #include <dyng/core/types.hpp>
 #include <dyng/graph/apply_summary.hpp>
@@ -36,4 +37,5 @@
 #include <dyng/io/csr_triplet.hpp>
 #include <dyng/io/matrix_market.hpp>
 #include <dyng/io/result_io.hpp>
+#include <dyng/update.hpp>
 #include <dyng/version.hpp>
