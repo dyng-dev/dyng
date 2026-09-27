@@ -49,7 +49,7 @@ Before 0.1.0 anything may change.
 - The parity harness (`parity/`, ADR 0013): `references.toml` (MOSP-OpenMP c352151, MOSP-CUDA
   e220ee2 and their baseline SHAs), `build_reference.sh` (verified `git archive` scratch copies,
   unpatched and patched, archive-build check), additive export tools, `export_goldens.py` (the
-  388-case sssp golden corpus with the originals cross-checked, reproducible export),
+  sssp golden corpus, now 495 cases, with the originals cross-checked, reproducible export),
   `goldens.toml`, `compare.py` (CTest label `parity`), `perf_ab.py` (A/B/A/B under the perf
   lock), and the M1a parity certificate `parity/results/M1a.md`.
 - `dyng-compat-mosp --write-graph` writes the updated graph in MOSP's CSR text format.
@@ -63,11 +63,41 @@ Before 0.1.0 anything may change.
 - The M1a retrospective with the acceptance record and a re-estimate of the roadmap
   (`docs/developer/retrospectives/M1a.md`).
 
+- `legacy_batch_options::mosp_lenient` (MOSP's accept/reject rules for batch files; used by
+  `dyng-compat-mosp`), `sssp::stats::packed_parents` on both CPU backends, and the golden group
+  `noncanonical` (107 cases with perturbed tie parents; 495 golden cases in total).
+- `ci/provenance_check.py` (provenance headers of ported files), ruff lint and format for the
+  Python harness, smoke tests of the harness (`parity/tests`), Clang 17/18 jobs in `cpu.yml`.
+
 ### Changed
 
 - The host transposition runs in parallel on the OpenMP backend (same, deterministic result).
 - `io::read_csr_triplet` reads its three files concurrently (same result and the same first
   error as reading them one after the other); `dyng-compat-mosp` reads and writes its files
   concurrently, like the original driver. dynG now links `Threads::Threads` privately.
+- `sssp`: the sequential backend uses the tie rule of `sospUpdateCpu` (an improved vertex offers
+  its (distance, id) pair) instead of the re-scan of `sequentialSOSPUpdate`, so both backends
+  return the same tree also from non-canonical input trees (ADR 0006); the documentation states
+  the tie rule.
+- A failed (poisoned) `sssp::result` now throws on every use, not only on `update()`; both
+  backends report a parent cycle of an imported tree.
+- Results also record the identity of the graph state, so a result used with another graph (or
+  a reassigned graph variable) throws `stale_result_error` (ADR 0006).
+- `resources` moves share the handle like copies; the log sink is called without the logging
+  lock; host allocation failures leave the library as `out_of_memory_error`.
+- The OpenMP performance A/B loads its regions from `parity/timed_regions/sssp.toml`, counts the
+  moved first-touch cost, maps the original's `prepare` and end-to-end timers completely, and
+  works under `flock(1)`; `build_reference.sh` keeps its logs and fingerprints each build.
+- Tests run with `OMP_WAIT_POLICY=PASSIVE`; the lint workflow uses Doxygen 1.18.0, as
+  `environment.yml` (now pinned) does.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/commits/main
+## [0.0.1] - 2026-09-27
+
+### Added
+
+- The PyPI name reservation: a pure-Python placeholder package `dyng` 0.0.1
+  (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
+  Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
+
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.0.1...main
+[0.0.1]: https://github.com/dyng-dev/dyng/tree/v0.0.1
