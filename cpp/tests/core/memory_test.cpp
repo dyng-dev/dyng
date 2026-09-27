@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+#include "support/gtest_helpers.hpp"
+
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
 #include <dyng/core/stream.hpp>
@@ -81,6 +83,9 @@ TEST(HostMemoryResource, RejectsBadAlignment) {
 }
 
 TEST(HostMemoryResource, HugeAllocationThrowsOutOfMemory) {
+  if (DYNG_TEST_SANITIZED) {
+    GTEST_SKIP() << "sanitizer allocators abort on impossible allocations instead of throwing";
+  }
   dyng::host_memory_resource mr;
   EXPECT_THROW((void)mr.allocate_sync(std::size_t{1} << 62, 64), dyng::out_of_memory_error);
 }

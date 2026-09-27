@@ -15,6 +15,18 @@
 #include <string>
 #include <vector>
 
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#define DYNG_TEST_SANITIZED 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+#define DYNG_TEST_SANITIZED 1
+#endif
+#endif
+#ifndef DYNG_TEST_SANITIZED
+/// 1 when the test is built with AddressSanitizer or ThreadSanitizer, else 0.
+#define DYNG_TEST_SANITIZED 0
+#endif
+
 namespace dyng::test {
 
 /// The host backends compiled into this build (sequential always, openmp if built).
