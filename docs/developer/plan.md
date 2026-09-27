@@ -169,9 +169,13 @@ about 3x to the plan's figures:
 | M4 infrastructure | 1-2 | 1-3 days | 3-5 days | first hosted runs; DCO app and rulesets (author) |
 | M5 Python, CLI, docs | 2-3 | 5-8 days | 2-3 weeks | nanobind + scikit-build-core, stubs, TestPyPI release candidate |
 | **0.1.0** | **12-17** | **about 4-6 weeks** | **about 7-10 weeks** | |
+| 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 1.5-2 weeks | 3-4 weeks | the GPU runner decision (O11); wheel sizes |
+| 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 3-4 weeks | 6-8 weeks | the staged CBST merge; memory within 1.05x; performance on the 2M-hyperedge suites |
+| 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 3-4 weeks | 6-8 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
+| **Up to 0.3.0** | **about 32-47** | **about 12-16 weeks** | **about 22-30 weeks** | |
 
-After 0.1 the plan's figures stand until the next retrospective: 0.1.x about 4-6 more weeks,
-0.2 about 8-12, 0.3 about 8-12.
+The calendar column assumes the author reviews at each gate within a few days. The estimate is
+revisited in the M1b and M3 retrospectives.
 
 ## 5. Risks
 
