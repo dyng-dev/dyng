@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP-CUDA@e220ee2:src/csrGraph.cu (TextScanner, readIntFile, parseInteger)
 /**
  * @file parser.hpp
  * @brief Strict text scanning for the readers: whole-file reads, tokens with line and column,
  *        range-checked integer parsing, io_error with path:line:column.
  *
- * The scanning follows the MOSP readers (Derived from MOSP-CUDA@e220ee2:src/csrGraph.cu, the
- * TextScanner / readIntFile / parseInteger helpers), generalized: a token is a maximal run of
+ * The scanning follows the MOSP readers (the TextScanner / readIntFile / parseInteger helpers
+ * named in the provenance line above), generalized: a token is a maximal run of
  * characters other than space, tab, carriage return and newline, and must parse COMPLETELY as a
  * decimal integer (optional leading '-', no '+', no trailing characters), so "12abc" or "1.5" is
  * an error instead of being split into two values.

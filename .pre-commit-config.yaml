@@ -38,3 +38,12 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
+  - repo: local
+    hooks:
+      # Ported files carry '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3).
+      - id: provenance
+        name: provenance headers of ported files
+        entry: python3 ci/provenance_check.py
+        language: system
+        pass_filenames: false
+        always_run: true

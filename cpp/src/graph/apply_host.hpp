@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP-OpenMP@c352151:headers/csrGraph.h (applyChangeBatch, transposeCsrGraph)
 /**
  * @file apply_host.hpp
  * @brief Host batch application: a new compact CSR per batch (MOSP applyChangeBatch semantics).

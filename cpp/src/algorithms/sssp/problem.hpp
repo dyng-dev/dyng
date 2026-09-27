@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP-OpenMP@c352151:headers/sospUpdateCpu.h (SospWorkspace, HostCsr, HostChanges,
+// SospStats, defaultDelta, DISTANCE_INF)
 /**
  * @file problem.hpp
  * @brief The sssp problem: state, workspace, per-objective inputs and the hook enactors shared by

@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP-OpenMP@c352151:src/mospUpdate.cpp (canonicalizeTree, the per-objective
+// preparation of mospUpdate) and src/sospUpdateCpu.cpp (SospWorkspace::reserve / nextGeneration,
+// defaultDelta, the choosePacking precondition)
 /**
  * @file sssp.cpp
  * @brief sssp: argument validation, version checks, backend dispatch and result bookkeeping

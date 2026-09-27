@@ -16,6 +16,8 @@
 #              on the library sources and the public headers they include; needs the
 #              compile_commands.json of a preset built above (skipped if clang-tidy is missing)
 #   reuse      reuse lint (SPDX headers in every file)
+#   provenance ci/provenance_check.py: every file naming an original's symbol carries
+#              '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3)
 #   docs       ci/docs.sh: Doxygen on the public headers with warnings as errors, then the
 #              convention check ci/doxygen_coverage.py (skipped if doxygen is missing)
 #   precommit  pre-commit run --all-files (skipped if pre-commit is missing)
@@ -34,7 +36,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,29p' "${BASH_SOURCE[0]}"
+      sed -n '5,31p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -122,6 +124,15 @@ if ! skipped reuse; then
     fi
   else
     echo "reuse not found; skipped"
+  fi
+fi
+
+if ! skipped provenance; then
+  step "provenance headers"
+  if python3 ci/provenance_check.py; then
+    :
+  else
+    failed+=("provenance")
   fi
 fi
 

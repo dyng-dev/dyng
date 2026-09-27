@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP-OpenMP@c352151:src/mosp.cpp (the `mosp` driver: options, concurrent reads
+// and writes, report lines) and src/mospPrep.cpp (`mospPrep init`)
 /**
  * @file mosp_compat.cpp
  * @brief dyng-compat-mosp: a drop-in clone of the SOSP part of MOSP-OpenMP's `mosp` driver and of
