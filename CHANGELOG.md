@@ -46,11 +46,21 @@ Before 0.1.0 anything may change.
 - `tools/compat/dyng-compat-mosp` (drop-in clone of the per-objective part of MOSP's `mosp`
   driver and of `mospPrep init`), the `sssp_update` example, `parity/timed_regions/sssp.toml`
   and the sssp byte-parity fixtures (`parity/fixtures/sssp/`).
+- The parity harness (`parity/`, ADR 0013): `references.toml` (MOSP-OpenMP c352151, MOSP-CUDA
+  e220ee2 and their baseline SHAs), `build_reference.sh` (verified `git archive` scratch copies,
+  unpatched and patched, archive-build check), additive export tools, `export_goldens.py` (the
+  388-case sssp golden corpus with the originals cross-checked, reproducible export),
+  `goldens.toml`, `compare.py` (CTest label `parity`), `perf_ab.py` (A/B/A/B under the perf
+  lock), and the M1a parity certificate `parity/results/M1a.md`.
+- `dyng-compat-mosp --write-graph` writes the updated graph in MOSP's CSR text format.
 - A pure-Python name-reservation package `dyng` 0.0.1 (`tools/name_reservation/`) and the
   Trusted Publishing workflow `release.yml`.
 
 ### Changed
 
 - The host transposition runs in parallel on the OpenMP backend (same, deterministic result).
+- `io::read_csr_triplet` reads its three files concurrently (same result and the same first
+  error as reading them one after the other); `dyng-compat-mosp` reads and writes its files
+  concurrently, like the original driver. dynG now links `Threads::Threads` privately.
 
 [Unreleased]: https://github.com/dyng-dev/dyng/commits/main

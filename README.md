@@ -19,7 +19,7 @@ counting, triad counting, label propagation.
 | Area | State |
 |---|---|
 | Core (resources, backends, memory, arrays, errors, logging, profiler) | in progress (M1a) |
-| `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working, byte parity with MOSP-OpenMP on the test corpus (M1a) |
+| `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working; byte-identical to MOSP-OpenMP@c352151 on its 388-case golden corpus ([parity certificate](parity/results/M1a.md)) |
 | `sssp` on CUDA | planned (M1b) |
 | `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1) |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
@@ -87,7 +87,9 @@ int main() {
 
 `examples/cpp/sssp_update.cpp` runs the same steps on MOSP's text files, and
 `dyng-compat-mosp` (`tools/compat`) reproduces the output files of MOSP-OpenMP's `mosp` driver
-for parity runs.
+for parity runs. The parity harness (`parity/`, see its [README](parity/README.md)) builds the
+pinned originals from `git archive` copies, exports their golden outputs and replays them against
+dynG byte for byte.
 
 ## How to cite
 
