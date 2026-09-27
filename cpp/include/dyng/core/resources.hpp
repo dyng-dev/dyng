@@ -11,6 +11,7 @@
 #include <dyng/core/memory.hpp>
 #include <dyng/core/stream.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 
@@ -20,6 +21,7 @@ class profiler;
 
 namespace detail {
 struct resources_state;
+struct resources_access;
 }  // namespace detail
 
 /**
@@ -44,6 +46,14 @@ enum class copy_policy : std::uint8_t {
  * thread count on its own.
  * A moved-from handle stays valid: moving shares the handle like a copy (the source keeps it), so
  * no accessor ever meets an empty handle.
+ *
+ * **Scratch memory.** The handle also caches the engines' workspaces (scratch memory such as the
+ * frontier lists of sssp): a compute() or update() leases one from the handle, sizes it once and
+ * returns it, so results that run one after another through the same handle (for example the K
+ * objectives updated by dyng::update_each()) share one workspace, and a steady-state update
+ * allocates no scratch memory (ADR 0015). Calls that run concurrently on copies of one handle get
+ * distinct workspaces. The cache lives as long as the last copy of the handle, or until
+ * release_workspaces().
  * @ingroup core
  */
 class resources {
@@ -147,6 +157,8 @@ class resources {
 
   /**
    * @brief Replace the memory resource (affects every copy of this handle).
+   *
+   * The cached workspaces are released first (they were allocated from the previous resource).
    * @param[in] mr The new resource; must outlive every allocation made through it.
    * @throws invalid_argument_error if the resource's space does not suit the backend (host
    *                                backends need a host-accessible space).
@@ -178,6 +190,20 @@ class resources {
   [[nodiscard]] profiler* get_profiler() const noexcept;
 
   /**
+   * @brief Free the cached workspaces that are not in use (affects every copy).
+   *
+   * The next compute() or update() through the handle sizes a new workspace (allocates). Safe to
+   * call while another thread uses the handle: a workspace in use returns to the cache afterwards.
+   */
+  void release_workspaces() const noexcept;
+
+  /**
+   * @brief The scratch memory the handle caches (shared by every copy).
+   * @return Bytes held by the cached workspaces that are not in use right now.
+   */
+  [[nodiscard]] std::size_t workspace_bytes() const;
+
+  /**
    * @brief Initialise the backend ahead of timed work (CUDA: create the context, load kernels).
    *
    * A no-op for host backends.
@@ -196,6 +222,7 @@ class resources {
   void synchronize() const;
 
  private:
+  friend struct detail::resources_access;
   explicit resources(std::shared_ptr<detail::resources_state> state) noexcept;
   std::shared_ptr<detail::resources_state> state_;
 };

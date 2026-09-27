@@ -4,6 +4,8 @@
  * @file resources.cpp
  * @brief The resources handle.
  */
+#include "framework/workspace.hpp"
+
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
@@ -27,7 +29,12 @@ struct resources_state {
   memory_resource_ref memory{default_host_memory_resource()};  ///< allocations
   copy_policy copies = copy_policy::allow;                     ///< implicit-copy policy
   profiler* attached_profiler = nullptr;                       ///< not owned
+  workspace_pool workspaces;  ///< engine scratch shared by every result run through the handle
 };
+
+workspace_pool& resources_access::workspaces(const resources& res) noexcept {
+  return res.state_->workspaces;
+}
 
 }  // namespace detail
 
@@ -127,6 +134,7 @@ void resources::set_memory_resource(memory_resource_ref mr) {
     DYNG_EXPECTS(is_host_accessible(mr.space()),
                  "a host backend needs a host-accessible memory resource");
   }
+  state_->workspaces.release_idle();
   state_->memory = mr;
 }
 
@@ -144,6 +152,14 @@ void resources::attach_profiler(profiler* p) noexcept {
 
 profiler* resources::get_profiler() const noexcept {
   return state_->attached_profiler;
+}
+
+void resources::release_workspaces() const noexcept {
+  state_->workspaces.release_idle();
+}
+
+std::size_t resources::workspace_bytes() const {
+  return state_->workspaces.statistics().idle_bytes;
 }
 
 void resources::warm_up() const {}

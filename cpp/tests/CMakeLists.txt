@@ -39,7 +39,8 @@ dyng_add_test(
   LABELS cpu graph
 )
 dyng_add_test(NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp LABELS cpu io)
-foreach(_dyng_test dyng_graph_tests dyng_io_tests)
+dyng_add_test(NAME dyng_framework_tests SOURCES framework/workspace_test.cpp LABELS cpu framework)
+foreach(_dyng_test dyng_graph_tests dyng_io_tests dyng_framework_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 endforeach()
