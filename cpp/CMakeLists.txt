@@ -92,4 +92,15 @@ dyng_add_module(
     "${PROJECT_BINARY_DIR}/cpp/generated/references_bib.cpp"
 )
 
+dyng_add_module(NAME util SOURCES src/util/parser.cpp src/util/text_writer.cpp)
+
 dyng_add_module(NAME graph SOURCES src/graph/apply_host.cpp src/graph/graph.cpp)
+
+dyng_add_module(
+  NAME io
+  SOURCES
+    src/io/batch_io.cpp
+    src/io/csr_triplet.cpp
+    src/io/matrix_market.cpp
+    src/io/result_io.cpp
+)

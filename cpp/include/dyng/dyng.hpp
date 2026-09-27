@@ -32,4 +32,8 @@
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/graph/graph_view.hpp>
+#include <dyng/io/batch_io.hpp>
+#include <dyng/io/csr_triplet.hpp>
+#include <dyng/io/matrix_market.hpp>
+#include <dyng/io/result_io.hpp>
 #include <dyng/version.hpp>
