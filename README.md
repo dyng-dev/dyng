@@ -18,7 +18,8 @@ counting, triad counting, label propagation.
 
 | Area | State |
 |---|---|
-| Core (resources, backends, memory, arrays, errors, logging, profiler) | in progress (M1a) |
+| Core (resources, backends, memory, arrays, errors, logging, profiler) | host parts working (M1a); device memory and streams in M1b |
+| Graph container (compact rows, MOSP batch semantics) and MOSP-format I/O | working; the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` |
 | `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working; byte-identical to MOSP-OpenMP@c352151 on its 388-case golden corpus ([parity certificate](parity/results/M1a.md)) |
 | `sssp` on CUDA | planned (M1b) |
 | `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1) |
@@ -47,13 +48,43 @@ source scripts/dev_env.sh                # activates it and sets DYNG_SCRATCH (a
 
 cmake --preset dev                       # Debug, tests on, warnings as errors
 cmake --build --preset dev
-ctest --preset dev
+ctest --preset dev                       # unit, randomized and fixture-parity tests (no GPU)
 
-ci/check.sh                              # the full local gate: cpu-only + dev presets, format, REUSE, docs
+ci/check.sh                              # the full local gate: format, cpu-only + dev presets, REUSE, docs
 ```
 
 Other presets: `cpu-only` (Release, CPU backends), `release`, `relwithdebinfo`, `asan`, `tsan`
-and `parity` (the flags of the original research codes, used for performance comparisons).
+and `parity` (the flags of the original research codes, used for parity and performance runs).
+The Doxygen check of the public headers is `ci/docs.sh` (or the target `docs-doxygen`).
+
+### Run the example
+
+`examples/cpp/sssp_update.cpp` reads a graph in MOSP's CSR text format, computes a
+shortest-path tree, applies a batch with `sssp::update()` and writes the updated tree in MOSP's
+file format (CTest checks that the file equals the original's output):
+
+```bash
+case=cpp/tests/data/mosp_graph_io/testCase0
+mkdir -p out
+build/dev/examples/cpp/sssp_update $case/graphCsr $case/insert.txt $case/delete.txt out openmp
+# +0 -1 edges, invalidated 0, affected 2, engine fused   (then the profiler's stage CSV)
+cmp out/SSSPTreeUpdated.txt cpp/tests/data/mosp_sssp/testCase0/updated/obj0/SSSPTreeUpdated.txt
+```
+
+### Run the parity check
+
+The parity harness ([parity/README.md](parity/README.md)) builds the pinned original
+MOSP-OpenMP@c352151 from a `git archive` copy in `$DYNG_SCRATCH`, exports its golden outputs
+(388 cases, about 150 MB, outside the repository) and replays them against dynG byte for byte on
+every CPU backend:
+
+```bash
+parity/build_reference.sh MOSP-OpenMP    # scratch copy of the pinned original, built (MOSP-CUDA needs nvcc)
+parity/export_goldens.py                 # the sssp golden corpus in $DYNG_SCRATCH/goldens
+ci/check.sh --parity                     # the gate plus `ctest --preset parity -L parity`
+```
+
+The committed record of the last run is the [M1a parity certificate](parity/results/M1a.md).
 
 ## Using the library from C++
 
@@ -86,10 +117,8 @@ int main() {
 ```
 
 `examples/cpp/sssp_update.cpp` runs the same steps on MOSP's text files, and
-`dyng-compat-mosp` (`tools/compat`) reproduces the output files of MOSP-OpenMP's `mosp` driver
-for parity runs. The parity harness (`parity/`, see its [README](parity/README.md)) builds the
-pinned originals from `git archive` copies, exports their golden outputs and replays them against
-dynG byte for byte.
+`dyng-compat-mosp` (`tools/compat`, built by the `dev` and `parity` presets) reproduces the
+output files of MOSP-OpenMP's `mosp` driver for parity runs.
 
 ## How to cite
 
