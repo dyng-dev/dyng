@@ -35,16 +35,18 @@
  *   --backend <b>        sequential | openmp (default openmp if built)
  *   --threads <t>        OpenMP threads (default: the OpenMP default)
  *
- * Report lines (without --quiet): the inputs, `obj<k>   SOSP update <ms> (invalidated ...)` and
- * `obj<k>   result import <ms>, workspace <ms>, pretouch <ms>` (the from_arrays stages that
- * parity/timed_regions/sssp.toml maps to parts of the original's "prepare" and obj0 region).
+ * Report lines (without --quiet): the inputs, `obj<k>   SOSP update <ms> (invalidated ...)`,
+ * `graph  read graph <ms>, read changes and trees <ms>, build <ms>` and `obj<k>   result import <ms>, workspace <ms>, validate <ms>` (the
+ * from_arrays stages; parity/timed_regions/sssp.toml maps import and workspace to parts of the
+ * original's "prepare").
  *
  * Summary line (stable format):
  *   RESULT sosp_ms=<a> apply_ms=<b> end_to_end_ms=<c> threads=<t>
  * where (a) is the sum over the objectives of the stages that correspond to MOSP's
  * `obj<k>/sosp_update_compute` region (sospUpdateCpu): sssp.identify_affected + sssp.seed +
  * sssp.loop + sssp.finalize (parity/timed_regions/sssp.toml), (b) the commit (batch applied once,
- * with the transposition), and (c) the whole run, from reading the inputs to writing the outputs.
+ * with the transposition of the updated graph), and (c) the whole run, from reading the inputs to
+ * writing the outputs.
  */
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -67,10 +69,10 @@
 #include <functional>
 #include <iostream>
 #include <map>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -209,8 +211,9 @@ int run_init(int argc, char** argv) {
     }
   }
   const dyng::resources res = make_resources(opt);
-  const auto csr = read_graph(prefix, opt.K);
-  const graph_t g = graph_t::from_csr(res, csr.view(), dyng::graph_properties::mosp_compatible());
+  auto csr = read_graph(prefix, opt.K);
+  const graph_t g =
+      graph_t::from_csr(res, std::move(csr), dyng::graph_properties::mosp_compatible());
   const int K = opt.K > 0 ? std::min(opt.K, g.num_weights()) : g.num_weights();
   for (int k = 0; k < K; ++k) {
     dyng::sssp::options sssp_options;
@@ -283,8 +286,12 @@ int run_update(int argc, char** argv) {
   dyng::profiler prof;
 
   // --- Inputs ---------------------------------------------------------------------------------
+  // The setup (graph and result builds) is recorded by its own profiler, the update by `prof`.
+  dyng::profiler setup_prof;
+  res.attach_profiler(&setup_prof);
   auto t = clock_type::now();
-  const auto csr = read_graph(opt.graph, opt.K);
+  auto csr = read_graph(opt.graph, opt.K);
+  const double read_graph_ms = ms_since(t);
   const vertex_t n = csr.num_vertices();
   const int KG = csr.num_weights;
   const int K = opt.K > 0 ? std::min(opt.K, KG) : KG;
@@ -315,47 +322,36 @@ int run_update(int argc, char** argv) {
       trees[i] = dyng::io::read_parents<vertex_t>(dir + "/SSSPTreeOriginal.txt", n);
     });
   }
+  auto t_reads = clock_type::now();
   run_concurrently(reads);
-  graph_t g = graph_t::from_csr(res, csr.view(), dyng::graph_properties::mosp_compatible());
+  const double read_rest_ms = ms_since(t_reads);
+  // The graph takes over the CSR's arrays (a MOSP CSR is already in its final form); its in-edges
+  // are built on first use, i.e. for the updated graph inside the commit, as `mosp` builds its
+  // reverse graph once in "prepare".
+  graph_t g = graph_t::from_csr(res, std::move(csr), dyng::graph_properties::mosp_compatible());
   const double load_ms = ms_since(t);
 
-  // The initial trees become results (checked with validate_inputs; not timed by `mosp`).
+  // The initial trees become results (checked with validate_inputs; not timed by `mosp`). The
+  // builds run one after another, each parallel inside, and share the scratch memory of `res`
+  // (sized by the first one; ADR 0015). Their stages (sssp.import, sssp.workspace,
+  // sssp.validate, ...) are recorded per objective, in objective order, for the timed-region map
+  // (parity/timed_regions/sssp.toml).
   t = clock_type::now();
-  // The K results are built concurrently (from_arrays only reads the graph; PLAN Section 4.7.4).
-  // Each build has its own resources handle and profiler (a profiler is not thread-safe), so the
-  // stages of from_arrays (sssp.import, sssp.workspace, sssp.workspace.pretouch, ...) are
-  // recorded per objective for the timed-region map (parity/timed_regions/sssp.toml).
-  std::vector<std::optional<result_t>> built(static_cast<std::size_t>(K));
-  std::vector<dyng::profiler> build_profilers(static_cast<std::size_t>(K));
-  std::vector<dyng::resources> build_res;
-  for (int k = 0; k < K; ++k) {
-    build_res.push_back(make_resources(opt));
-    build_res.back().attach_profiler(&build_profilers[static_cast<std::size_t>(k)]);
-  }
-  std::vector<std::function<void()>> builds;
-  for (int k = 0; k < K; ++k) {
-    builds.emplace_back([&, k] {
-      const auto i = static_cast<std::size_t>(k);
-      dyng::sssp::options sssp_options;
-      sssp_options.objective = k;
-      sssp_options.delta = opt.delta;
-      sssp_options.validate_inputs = opt.validate;
-      built[i].emplace(result_t::from_arrays(build_res[i], g, opt.source, dyng::host_view(dists[i]),
-                                             dyng::host_view(trees[i]), opt.canonicalize,
-                                             sssp_options));
-    });
-  }
-  run_concurrently(builds);
-  for (dyng::resources& r : build_res) {
-    r.attach_profiler(nullptr);
-  }
   std::vector<result_t> results;
   results.reserve(static_cast<std::size_t>(K));
-  for (auto& r : built) {
-    results.push_back(std::move(*r));
+  for (int k = 0; k < K; ++k) {
+    const auto i = static_cast<std::size_t>(k);
+    dyng::sssp::options sssp_options;
+    sssp_options.objective = k;
+    sssp_options.delta = opt.delta;
+    sssp_options.validate_inputs = opt.validate;
+    results.push_back(result_t::from_arrays(res, g, opt.source, dyng::host_view(dists[i]),
+                                            dyng::host_view(trees[i]), opt.canonicalize,
+                                            sssp_options));
+    dists[i] = {};
+    trees[i] = {};
   }
-  dists.clear();
-  trees.clear();
+  res.attach_profiler(nullptr);
   const double canonicalize_ms = ms_since(t);
 
   // --- Update (the batch is applied once) -----------------------------------------------------
@@ -432,22 +428,30 @@ int run_update(int argc, char** argv) {
           static_cast<long long>(s.iterations), static_cast<long long>(s.epochs),
           static_cast<long long>(s.pushes));
     }
+    std::map<std::string, std::vector<double>> setup;
+    for (const dyng::stage_sample& s : setup_prof.samples()) {
+      setup[s.name].push_back(s.host_ms);
+    }
+    const auto sample = [&setup](const char* name, int k) {
+      const std::vector<double>& v = setup[name];
+      return static_cast<std::size_t>(k) < v.size() ? v[static_cast<std::size_t>(k)] : 0.0;
+    };
+    std::printf("graph  read graph %.1f ms, read changes and trees %.1f ms, build %.3f ms\n",
+                read_graph_ms, read_rest_ms, setup_prof.total_host_ms("graph.build"));
     for (int k = 0; k < K; ++k) {
-      const dyng::profiler& p = build_profilers[static_cast<std::size_t>(k)];
-      std::printf("obj%d   result import %.3f ms, workspace %.3f ms, pretouch %.3f ms\n", k,
-                  p.total_host_ms("sssp.import"), p.total_host_ms("sssp.workspace"),
-                  p.total_host_ms("sssp.workspace.pretouch"));
+      std::printf("obj%d   result import %.3f ms, workspace %.3f ms, validate %.3f ms\n", k,
+                  sample("sssp.import", k), sample("sssp.workspace", k),
+                  sample("sssp.validate", k));
     }
   }
   bool timing_written = true;
   if (!opt.timing.empty()) {
     std::ofstream csv(opt.timing);
     prof.write_csv(csv);  // the update: one sample per stage and objective, in objective order
-    // The result builds (from_arrays), objective by objective, then the whole run.
-    for (const dyng::profiler& p : build_profilers) {
-      for (const dyng::stage_sample& s : p.samples()) {
-        csv << "stage," << s.name << ',' << s.host_ms << '\n';
-      }
+    // The setup: the graph build and the result builds (from_arrays), objective by objective,
+    // then the whole run.
+    for (const dyng::stage_sample& s : setup_prof.samples()) {
+      csv << "stage," << s.name << ',' << s.host_ms << '\n';
     }
     csv << "stage,total.end_to_end," << end_to_end << '\n';
     timing_written = static_cast<bool>(csv);
