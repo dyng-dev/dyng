@@ -67,6 +67,7 @@ if(DYNG_ENABLE_CUDA)
       cuda/cuda_memory_test.cpp
       cuda/cuda_resources_test.cpp
       cuda/cuda_test_kernels.cu
+      cuda/cuda_workspace_test.cpp
     LABELS gpu core
   )
   target_include_directories(dyng_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")

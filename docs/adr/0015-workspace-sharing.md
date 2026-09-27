@@ -102,3 +102,10 @@ one handle) stay safe; the design carries over to device memory.
   side, where scratch belongs to a stream and a memory resource, i.e. to `resources`.
 - **Keeping per-result workspaces and pre-touching them** (M1a): moves cost out of the timed
   region instead of removing it, and keeps K times the memory.
+
+## Update (M1b Step 2, CUDA core)
+
+The device side is in place (ADR 0016 item 8): a CUDA handle's pool leases workspaces whose
+arrays (`detail::scratch_buffer<T>`) live in the handle's device memory resource, ordered on its
+stream; the tests `CudaWorkspace.*` check reuse, no allocation in steady state, growth, and the
+release through `release_workspaces()`, `set_memory_resource()` and the last copy of the handle.
