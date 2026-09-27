@@ -20,6 +20,14 @@ Before 0.1.0 anything may change.
   `docs/developer/labels.md`), `ci/github_meta_check.py` (a pre-commit hook),
   `.readthedocs.yaml` (not connected yet) and the repository settings guide
   (`docs/developer/repository_settings.md`).
+- Documentation site (M4): Sphinx + MyST + pydata-sphinx-theme + Breathe over the Doxygen XML,
+  in the Diataxis sections (getting started, tutorials, how-to guides, explanation including
+  the update model, reference with the curated C++ API and file formats, developer pages with
+  the ADRs, retrospectives and the parity guide); a landing page, "How to cite" from
+  `docs/references.bib`, the public roadmap (`docs/roadmap.md`) and the short plan
+  (`docs/developer/plan.md`). `ci/docs.sh` builds it with warnings as errors and checks internal
+  links (`--doxygen-only` for the Doxygen check alone); the `docs` workflow builds it on hosted
+  runners from `environment.yml` (which now pins the Sphinx tools) and uploads the site.
 - Build system: CMake >= 3.30 with presets `dev`, `release`, `relwithdebinfo`, `cpu-only`,
   `asan`, `tsan` and `parity`; the `dyng-dev` conda environment (`environment.yml`) and
   `scripts/dev_env.sh`; install and export of `dyng::dyng` for `find_package(dyng)`.
