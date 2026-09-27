@@ -76,11 +76,12 @@
     {
       "name": "tsan",
       "displayName": "tsan",
-      "description": "Host ThreadSanitizer",
+      "description": "Host ThreadSanitizer (OpenMP off: GCC's libgomp is not instrumented, so every OpenMP barrier and reduction would be reported; OpenMP race checks need Archer)",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "DYNG_ENABLE_CUDA": "OFF",
+        "DYNG_ENABLE_OPENMP": "OFF",
         "DYNG_BUILD_TESTS": "ON",
         "DYNG_SANITIZE": "thread",
         "DYNG_WARNINGS_AS_ERRORS": "ON"
