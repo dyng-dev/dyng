@@ -138,7 +138,9 @@ def run(cmd: list[str], cwd: Path | None = None, env: dict | None = None) -> str
         text=True,
     )
     if proc.returncode != 0:
-        raise ExportError(f"{' '.join(map(str, cmd))} failed ({proc.returncode}):\n{proc.stdout[-3000:]}")
+        raise ExportError(
+            f"{' '.join(map(str, cmd))} failed ({proc.returncode}):\n{proc.stdout[-3000:]}"
+        )
     return proc.stdout
 
 
@@ -167,9 +169,18 @@ def collect(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Case]:
     if "noncanonical" in wanted:
         for c in cases:
             if c.group in NONCANONICAL_BASES:
-                derived.append(Case("noncanonical", f"{c.group}__{c.name}", c.graph, c.insert,
-                                    c.delete, f"{c.origin}; initial trees with perturbed tie "
-                                    "parents", k=c.k, perturb=True))
+                derived.append(
+                    Case(
+                        "noncanonical",
+                        f"{c.group}__{c.name}",
+                        c.graph,
+                        c.insert,
+                        c.delete,
+                        f"{c.origin}; initial trees with perturbed tie parents",
+                        k=c.k,
+                        perturb=True,
+                    )
+                )
     return [c for c in cases if c.group in wanted] + derived
 
 
@@ -185,52 +196,102 @@ def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Cas
         return work
 
     def mosptest_case(group: str, name: str, d: Path, origin: str) -> Case:
-        return Case(group, name, d / "graph" / "graphCsr", d / "changes" / "insert.txt",
-                    d / "changes" / "delete.txt", origin, mosptest_init=d / "init")
+        return Case(
+            group,
+            name,
+            d / "graph" / "graphCsr",
+            d / "changes" / "insert.txt",
+            d / "changes" / "delete.txt",
+            origin,
+            mosptest_init=d / "init",
+        )
 
     if "testcases" in groups:
         for i in range(10):
             d = ref / "tests" / f"testCase{i}"
-            cases.append(Case("testcases", f"testCase{i}", d / "originalGraph" / "graphCsr",
-                              d / "changedEdges" / "insert.txt", d / "changedEdges" / "delete.txt",
-                              f"tests/testCase{i} (generateTestCases, tracked)",
-                              tracked_expected=(TESTCASE_OBJECTIVE[i], d / "expected")))
+            cases.append(
+                Case(
+                    "testcases",
+                    f"testCase{i}",
+                    d / "originalGraph" / "graphCsr",
+                    d / "changedEdges" / "insert.txt",
+                    d / "changedEdges" / "delete.txt",
+                    f"tests/testCase{i} (generateTestCases, tracked)",
+                    tracked_expected=(TESTCASE_OBJECTIVE[i], d / "expected"),
+                )
+            )
     if "regressions" in groups:
         work = mosp_test("regressions")
         for i in range(3):
-            cases.append(mosptest_case("regressions", f"c2i_{i}", work / f"regression_{i}" / "case",
-                                       f"mospTest --seed 1 --only regressions: regression_{i}"))
+            cases.append(
+                mosptest_case(
+                    "regressions",
+                    f"c2i_{i}",
+                    work / f"regression_{i}" / "case",
+                    f"mospTest --seed 1 --only regressions: regression_{i}",
+                )
+            )
     if "thesis" in groups:
         work = mosp_test("thesis-example")
-        cases.append(mosptest_case("thesis", "thesis_example", work / "thesis-example",
-                                   "mospTest --only thesis-example"))
+        cases.append(
+            mosptest_case(
+                "thesis",
+                "thesis_example",
+                work / "thesis-example",
+                "mospTest --only thesis-example",
+            )
+        )
     if "escher" in groups:
         data = REPO / "cpp" / "tests" / "data" / "mosp_sssp"
         for name in ["escher_disconnect", "escher_delete_all", "escher_ties", "ties_k2"]:
             d = data / name / "input"
-            cases.append(Case("escher", name, d / "graphCsr", d / "insert.txt", d / "delete.txt",
-                              f"cpp/tests/data/mosp_sssp/{name}/input (hand-written)",
-                              k=1 if name == "escher_delete_all" else None))
+            cases.append(
+                Case(
+                    "escher",
+                    name,
+                    d / "graphCsr",
+                    d / "insert.txt",
+                    d / "delete.txt",
+                    f"cpp/tests/data/mosp_sssp/{name}/input (hand-written)",
+                    k=1 if name == "escher_delete_all" else None,
+                )
+            )
     if "fixtures" in groups:
         data = REPO / "cpp" / "tests" / "data" / "mosp_graph_io"
-        names = [n for n in (data / "cases.txt").read_text().split() if not n.startswith("testCase")]
+        names = [
+            n for n in (data / "cases.txt").read_text().split() if not n.startswith("testCase")
+        ]
         for name in names:
             d = data / name
-            cases.append(Case("fixtures", name, d / "graphCsr", d / "insert.txt", d / "delete.txt",
-                              f"cpp/tests/data/mosp_graph_io/{name}"))
+            cases.append(
+                Case(
+                    "fixtures",
+                    name,
+                    d / "graphCsr",
+                    d / "insert.txt",
+                    d / "delete.txt",
+                    f"cpp/tests/data/mosp_graph_io/{name}",
+                )
+            )
     if "sosp" in groups:
         work = mosp_test("sosp")
         found = sorted(p.parent.parent for p in work.glob("*/*/graph/graphCsrRowPtr.txt"))
         for d in found:
             name = f"{d.parent.name}__{d.name}"
-            cases.append(mosptest_case("sosp", name, d,
-                                       f"mospTest --seed 1 --only sosp: {d.parent.name}/{d.name}"))
+            cases.append(
+                mosptest_case(
+                    "sosp", name, d, f"mospTest --seed 1 --only sosp: {d.parent.name}/{d.name}"
+                )
+            )
     if "large_weights" in groups:
         work = mosp_test("large-weights")
         for kind in ["safe", "unsafe"]:
             d = work / f"large-weights-{kind}"
-            cases.append(mosptest_case("large_weights", kind, d,
-                                       f"mospTest --seed 1 --only large-weights: {kind}"))
+            cases.append(
+                mosptest_case(
+                    "large_weights", kind, d, f"mospTest --seed 1 --only large-weights: {kind}"
+                )
+            )
     if "packing" in groups:
         cases.extend(packing_cases(raw / "packing"))
     if "stress" in groups:
@@ -242,11 +303,16 @@ def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Cas
                 raise ExportError(f"{program} {seed} did not pass:\n{out[-2000:]}")
             for i in range(100):
                 d = cwd / program / f"run{i}"
-                cases.append(Case("stress", f"{program}_{seed}_run{i:02d}",
-                                  d / "originalGraph" / "graphCsr",
-                                  d / "changedEdges" / "insert.txt",
-                                  d / "changedEdges" / "delete.txt",
-                                  f"bin/{program} {seed}: run{i}"))
+                cases.append(
+                    Case(
+                        "stress",
+                        f"{program}_{seed}_run{i:02d}",
+                        d / "originalGraph" / "graphCsr",
+                        d / "changedEdges" / "insert.txt",
+                        d / "changedEdges" / "delete.txt",
+                        f"bin/{program} {seed}: run{i}",
+                    )
+                )
     return cases
 
 
@@ -268,26 +334,53 @@ def packing_cases(root: Path) -> list[Case]:
     """The packing-boundary constructions of mospTest (checkPipeline only there, no files)."""
     cases = []
 
-    def path_case(name: str, n: int, w: int, back_edge: bool, insert: tuple[int, int, int],
-                  origin: str) -> Case:
+    def path_case(
+        name: str, n: int, w: int, back_edge: bool, insert: tuple[int, int, int], origin: str
+    ) -> Case:
         d = root / name
         rows = [[(u + 1, w)] if u + 1 < n else ([(1, w)] if back_edge else []) for u in range(n)]
         write_csr(d / "graphCsr", n, rows)
-        (d / "insert.txt").write_text("%d %d %d\n" % insert)
+        (d / "insert.txt").write_text("{} {} {}\n".format(*insert))
         (d / "delete.txt").write_text("")
-        return Case("packing", name, d / "graphCsr", d / "insert.txt", d / "delete.txt", origin, k=1)
+        return Case(
+            "packing", name, d / "graphCsr", d / "insert.txt", d / "delete.txt", origin, k=1
+        )
 
     n = (1 << 16) + 1
-    cases.append(path_case("openmp_path", n, INT_MAX, False, (n - 1, 1, INT_MAX),
-                           "MOSP-OpenMP mospTest runPackingBoundary: path n = 2^16 + 1, "
-                           "weights 2^31 - 1, insert n-1 -> 1"))
+    cases.append(
+        path_case(
+            "openmp_path",
+            n,
+            INT_MAX,
+            False,
+            (n - 1, 1, INT_MAX),
+            "MOSP-OpenMP mospTest runPackingBoundary: path n = 2^16 + 1, "
+            "weights 2^31 - 1, insert n-1 -> 1",
+        )
+    )
     n, w = (1 << 17) - 1, (1 << 30) + (1 << 14)
-    cases.append(path_case("cuda_pull", n, w, False, (n - 1, 1, w),
-                           "MOSP-CUDA mospTest runPackingBoundary 'pull': path n = 2^17 - 1, "
-                           "W = 2^30 + 2^14, insert n-1 -> 1"))
-    cases.append(path_case("cuda_push", n, w, True, (n - 2, n - 1, w - 1),
-                           "MOSP-CUDA mospTest runPackingBoundary 'push': path with back edge "
-                           "n-1 -> 1, insert n-2 -> n-1 (W - 1)"))
+    cases.append(
+        path_case(
+            "cuda_pull",
+            n,
+            w,
+            False,
+            (n - 1, 1, w),
+            "MOSP-CUDA mospTest runPackingBoundary 'pull': path n = 2^17 - 1, "
+            "W = 2^30 + 2^14, insert n-1 -> 1",
+        )
+    )
+    cases.append(
+        path_case(
+            "cuda_push",
+            n,
+            w,
+            True,
+            (n - 2, n - 1, w - 1),
+            "MOSP-CUDA mospTest runPackingBoundary 'push': path with back edge "
+            "n-1 -> 1, insert n-2 -> n-1 (W - 1)",
+        )
+    )
     return cases
 
 
@@ -309,8 +402,11 @@ def perturb_initial_trees(prefix: Path, canonical: Path, out: Path, k: int, name
     """
     rows = [int(x) for x in Path(f"{prefix}RowPtr.txt").read_text().split()]
     cols = [int(x) for x in Path(f"{prefix}ColInd.txt").read_text().split()]
-    values = [line.split() for line in Path(f"{prefix}Values.txt").read_text().splitlines()
-              if line.strip()]
+    values = [
+        line.split()
+        for line in Path(f"{prefix}Values.txt").read_text().splitlines()
+        if line.strip()
+    ]
     n = len(rows) - 1
     rng = random.Random(int(hashlib.sha256(name.encode()).hexdigest()[:16], 16))
     changed = []
@@ -336,8 +432,9 @@ def perturb_initial_trees(prefix: Path, canonical: Path, out: Path, k: int, name
                 count += p != parents[v]
                 parents[v] = p
         # SSSPTreeOriginal.txt format: "<vertex> <parent>" per line (writeParents).
-        (dst / "SSSPTreeOriginal.txt").write_text("".join(f"{v} {p}\n" for v, p in
-                                                          enumerate(parents)))
+        (dst / "SSSPTreeOriginal.txt").write_text(
+            "".join(f"{v} {p}\n" for v, p in enumerate(parents))
+        )
         changed.append(count)
     return changed
 
@@ -353,7 +450,7 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
     (dst / "input").mkdir(parents=True)
     tmp.mkdir(parents=True)
     for f in CSR_FILES:
-        shutil.copyfile(f"{case.graph}{f[len('graphCsr'):]}", dst / "input" / f)
+        shutil.copyfile(f"{case.graph}{f[len('graphCsr') :]}", dst / "input" / f)
     shutil.copyfile(case.insert, dst / "input" / "insert.txt")
     shutil.copyfile(case.delete, dst / "input" / "delete.txt")
     prefix = dst / "input" / "graphCsr"
@@ -367,8 +464,7 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
     perturbed: list[int] = []
     if case.perturb:
         run([bin_dir / "mospPrep", "init", prefix, dst / "init_canonical", "-k", str(k)], env=env)
-        perturbed = perturb_initial_trees(prefix, dst / "init_canonical", dst / "init", k,
-                                          case.rel)
+        perturbed = perturb_initial_trees(prefix, dst / "init_canonical", dst / "init", k, case.rel)
         if sum(perturbed) == 0:
             shutil.rmtree(dst, ignore_errors=True)
             shutil.rmtree(tmp, ignore_errors=True)
@@ -382,8 +478,23 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
             same(a / "tree.txt", b / "SSSPTreeOriginal.txt", f"{case.rel} mospTest init")
 
     # The reference update: the in-memory driver with the original's own validation.
-    log = run([bin_dir / "mosp", "--graph", prefix, "--changes", dst / "input", "--init",
-               dst / "init", "-k", str(k), "--out", tmp / "mosp", "--validate"], env=env)
+    log = run(
+        [
+            bin_dir / "mosp",
+            "--graph",
+            prefix,
+            "--changes",
+            dst / "input",
+            "--init",
+            dst / "init",
+            "-k",
+            str(k),
+            "--out",
+            tmp / "mosp",
+            "--validate",
+        ],
+        env=env,
+    )
     if "FAIL" in log or "VALIDATE" not in log:
         raise ExportError(f"{case.rel}: mosp --validate did not pass:\n{log}")
     invalidated = {int(o): int(v) for o, v in INVALIDATED.findall(log)}
@@ -391,19 +502,33 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
         raise ExportError(f"{case.rel}: no invalidated counters in the mosp report:\n{log}")
 
     # Cross-check the originals: file-based OpenMP and sequential updates, and Dijkstra.
-    run([bin_dir / "mospPrep", "expected", prefix, dst / "input", tmp / "expected", "-k", str(k)],
-        env=env)
+    run(
+        [bin_dir / "mospPrep", "expected", prefix, dst / "input", tmp / "expected", "-k", str(k)],
+        env=env,
+    )
     for obj in range(k):
         upd = tmp / "mosp" / f"obj{obj}"
         init = dst / "init" / f"obj{obj}"
         # sequentialSOSPUpdate re-scans in-neighbours and picks lowest-id ties: it agrees with
         # sospUpdateCpu only from canonical trees (ADR 0006).
-        for impl in (["parallel"] if case.perturb else ["sequential", "parallel"]):
+        for impl in ["parallel"] if case.perturb else ["sequential", "parallel"]:
             o = tmp / impl / f"obj{obj}"
-            run([tools / "export_sssp", impl, prefix, init / "distancesOriginal.txt",
-                 init / "SSSPTreeOriginal.txt", dst / "input" / "insert.txt",
-                 dst / "input" / "delete.txt", str(obj), "0", o / "distances.txt",
-                 o / "tree.txt"], env=env)
+            run(
+                [
+                    tools / "export_sssp",
+                    impl,
+                    prefix,
+                    init / "distancesOriginal.txt",
+                    init / "SSSPTreeOriginal.txt",
+                    dst / "input" / "insert.txt",
+                    dst / "input" / "delete.txt",
+                    str(obj),
+                    "0",
+                    o / "distances.txt",
+                    o / "tree.txt",
+                ],
+                env=env,
+            )
             same(upd / "distancesUpdated.txt", o / "distances.txt", f"{case.rel} obj{obj} {impl}")
             same(upd / "SSSPTreeUpdated.txt", o / "tree.txt", f"{case.rel} obj{obj} {impl}")
         exp = tmp / "expected" / f"obj{obj}"
@@ -415,12 +540,14 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
             shutil.copyfile(upd / f, dst / "updated" / f"obj{obj}" / f)
     if case.tracked_expected is not None:
         obj, exp = case.tracked_expected
-        pairs = [("distancesOriginal.txt", dst / "init" / f"obj{obj}" / "distancesOriginal.txt"),
-                 ("SSSPTreeOriginal.txt", dst / "init" / f"obj{obj}" / "SSSPTreeOriginal.txt"),
-                 ("distancesUpdated.txt", dst / "updated" / f"obj{obj}" / "distancesUpdated.txt"),
-                 ("SSSPTreeUpdated.txt", dst / "updated" / f"obj{obj}" / "SSSPTreeUpdated.txt"),
-                 ("distancesSospUpdate.txt", dst / "updated" / f"obj{obj}" / "distancesUpdated.txt"),
-                 ("SSSPTreeSospUpdate.txt", dst / "updated" / f"obj{obj}" / "SSSPTreeUpdated.txt")]
+        pairs = [
+            ("distancesOriginal.txt", dst / "init" / f"obj{obj}" / "distancesOriginal.txt"),
+            ("SSSPTreeOriginal.txt", dst / "init" / f"obj{obj}" / "SSSPTreeOriginal.txt"),
+            ("distancesUpdated.txt", dst / "updated" / f"obj{obj}" / "distancesUpdated.txt"),
+            ("SSSPTreeUpdated.txt", dst / "updated" / f"obj{obj}" / "SSSPTreeUpdated.txt"),
+            ("distancesSospUpdate.txt", dst / "updated" / f"obj{obj}" / "distancesUpdated.txt"),
+            ("SSSPTreeSospUpdate.txt", dst / "updated" / f"obj{obj}" / "SSSPTreeUpdated.txt"),
+        ]
         for tracked, golden in pairs:
             same(exp / tracked, golden, f"{case.rel} tracked expected/{tracked}")
     (dst / "combined").mkdir()
@@ -429,8 +556,17 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
 
     # The updated CSR (applyChangeBatch + writeCsrGraph) and the weight-increase bits.
     (dst / "applied").mkdir()
-    run([tools / "export_graph_io", "apply", prefix, dst / "input" / "insert.txt",
-         dst / "input" / "delete.txt", dst / "applied" / "graphCsr"], env=env)
+    run(
+        [
+            tools / "export_graph_io",
+            "apply",
+            prefix,
+            dst / "input" / "insert.txt",
+            dst / "input" / "delete.txt",
+            dst / "applied" / "graphCsr",
+        ],
+        env=env,
+    )
     for f in (dst / "applied").glob("graphCsrTransposed*"):
         f.unlink()
 
@@ -490,8 +626,10 @@ def write_toml(out: Path, metas: list[dict], manifest_sha: str, n_files: int) ->
         by_group[group] = by_group.get(group, 0) + 1
         digest, files, size = case_digest(out / meta["case"])
         total += size
-        rows.append(f'"{meta["case"]}" = {{ k = {meta["num_objectives"]}, files = {files}, '
-                    f'sha256 = "{digest}" }}\n')
+        rows.append(
+            f'"{meta["case"]}" = {{ k = {meta["num_objectives"]}, files = {files}, '
+            f'sha256 = "{digest}" }}\n'
+        )
     head = f"""# SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -528,8 +666,17 @@ def reference_dir(scratch: Path, fresh: bool) -> Path:
     if fresh:
         cmd.append("--fresh")
     run(cmd + [REFERENCE])
-    out = run([REPO / "parity" / "build_reference.sh", "--variant", "patched", "--scratch",
-               scratch, "--print-dir", REFERENCE])
+    out = run(
+        [
+            REPO / "parity" / "build_reference.sh",
+            "--variant",
+            "patched",
+            "--scratch",
+            scratch,
+            "--print-dir",
+            REFERENCE,
+        ]
+    )
     return Path(out.strip().splitlines()[-1])
 
 
@@ -563,15 +710,20 @@ def export(ref: Path, out: Path, groups: list[str], jobs: int) -> tuple[list[dic
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--scratch", type=Path,
-                        default=Path(os.environ.get("DYNG_SCRATCH",
-                                                    Path.home() / "Projects" / "dyng-work")))
+    parser.add_argument(
+        "--scratch",
+        type=Path,
+        default=Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work")),
+    )
     parser.add_argument("--out", type=Path, help="default: <scratch>/goldens/sssp")
     parser.add_argument("--jobs", type=int, default=8)
     parser.add_argument("--groups", default=",".join(GROUPS))
     parser.add_argument("--no-toml", action="store_true", help="do not write parity/goldens.toml")
-    parser.add_argument("--twice", action="store_true",
-                        help="export again from a fresh archive copy and require equal manifests")
+    parser.add_argument(
+        "--twice",
+        action="store_true",
+        help="export again from a fresh archive copy and require equal manifests",
+    )
     args = parser.parse_args()
     groups = [g for g in args.groups.split(",") if g]
     unknown = set(groups) - set(GROUPS)
@@ -596,8 +748,13 @@ def main() -> int:
             ref2 = reference_dir(second_scratch, fresh=True)
             _, sha2, _ = export(ref2, second_scratch / "goldens" / "sssp", groups, args.jobs)
             if sha2 != manifest_sha:
-                subprocess.run(["diff", out / "MANIFEST.sha256",
-                                second_scratch / "goldens" / "sssp" / "MANIFEST.sha256"])
+                subprocess.run(
+                    [
+                        "diff",
+                        out / "MANIFEST.sha256",
+                        second_scratch / "goldens" / "sssp" / "MANIFEST.sha256",
+                    ]
+                )
                 print("SECOND EXPORT DIFFERS", file=sys.stderr)
                 return 1
             print(f"second export from a fresh archive copy: identical manifest ({sha2})")

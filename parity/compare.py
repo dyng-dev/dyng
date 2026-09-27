@@ -16,8 +16,9 @@ driver "compat" (dynG, through tools/compat/dyng-compat-mosp), per configuration
   * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute;
     init_canonical/ for the noncanonical group, whose init/ holds perturbed tie parents)
   * `dyng-compat-mosp` update == updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt, from the
-    golden initial trees (without --canonicalize, like `mosp`), and its `--write-graph` output == applied/graphCsr{RowPtr,ColInd,Values}.txt
-    (graph::apply under mosp_compatible() vs applyChangeBatch + writeCsrGraph)
+    golden initial trees (without --canonicalize, like `mosp`), and its `--write-graph` output
+    == applied/graphCsr{RowPtr,ColInd,Values}.txt (graph::apply under mosp_compatible() vs
+    applyChangeBatch + writeCsrGraph)
   * the invalidated counter of every objective == case.json (the original's counter)
 
 driver "original" (another original, e.g. MOSP-CUDA@e220ee2 for the one-off cross-check of PLAN
@@ -67,8 +68,10 @@ def verify_goldens(root: Path, golden_set: dict) -> None:
     text = manifest.read_text()
     got = hashlib.sha256(text.encode()).hexdigest()
     if got != golden_set["manifest_sha256"]:
-        raise SystemExit(f"{manifest}: SHA-256 {got} != parity/goldens.toml "
-                         f"{golden_set['manifest_sha256']} (re-export or update the toml)")
+        raise SystemExit(
+            f"{manifest}: SHA-256 {got} != parity/goldens.toml "
+            f"{golden_set['manifest_sha256']} (re-export or update the toml)"
+        )
     per_case: dict[str, list[tuple[PurePosixPath, str]]] = {}
     listed = set()
     for line in text.splitlines():
@@ -78,8 +81,11 @@ def verify_goldens(root: Path, golden_set: dict) -> None:
             raise SystemExit(f"golden file changed: {root / rel}")
         parts = PurePosixPath(rel).parts
         per_case.setdefault("/".join(parts[:2]), []).append((PurePosixPath(*parts[2:]), digest))
-    on_disk = {p.relative_to(root).as_posix() for p in root.rglob("*")
-               if p.is_file() and p.name != "MANIFEST.sha256"}
+    on_disk = {
+        p.relative_to(root).as_posix()
+        for p in root.rglob("*")
+        if p.is_file() and p.name != "MANIFEST.sha256"
+    }
     if on_disk != listed:
         extra = sorted(on_disk ^ listed)[:5]
         raise SystemExit(f"goldens and MANIFEST.sha256 disagree on the file list: {extra}")
@@ -93,8 +99,9 @@ def verify_goldens(root: Path, golden_set: dict) -> None:
 
 
 def run(cmd: list, env: dict) -> tuple[int, str]:
-    proc = subprocess.run([str(c) for c in cmd], env=env, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, text=True)
+    proc = subprocess.run(
+        [str(c) for c in cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
     return proc.returncode, proc.stdout
 
 
@@ -115,8 +122,11 @@ def check_counters(log: str, want: list[int]) -> list[str]:
 
 
 def tree_pairs(out: Path, golden: Path, sub: str, names: list[str], k: int) -> list:
-    return [(out / f"obj{o}" / f, golden / sub / f"obj{o}" / f, f"{sub}/obj{o}/{f}")
-            for o in range(k) for f in names]
+    return [
+        (out / f"obj{o}" / f, golden / sub / f"obj{o}" / f, f"{sub}/obj{o}/{f}")
+        for o in range(k)
+        for f in names
+    ]
 
 
 def canonical_init(golden: Path) -> str:
@@ -124,7 +134,9 @@ def canonical_init(golden: Path) -> str:
     return "init_canonical" if (golden / "init_canonical").is_dir() else "init"
 
 
-def replay_compat(exe: Path, golden: Path, meta: dict, config: str, tmp: Path, env: dict) -> list[str]:
+def replay_compat(
+    exe: Path, golden: Path, meta: dict, config: str, tmp: Path, env: dict
+) -> list[str]:
     k = meta["num_objectives"]
     backend, _, threads = config.partition(":")
     extra = ["--backend", backend] + (["--threads", threads] if threads else [])
@@ -132,17 +144,44 @@ def replay_compat(exe: Path, golden: Path, meta: dict, config: str, tmp: Path, e
     rc, log = run([exe, "init", golden / "input" / "graphCsr", tmp / "init", "-k", k, *extra], env)
     if rc != 0:
         return [f"init failed ({rc}): {log[-500:]}"]
-    bad += compare_files(tree_pairs(tmp / "init", golden, canonical_init(golden),
-                                    ["distancesOriginal.txt", "SSSPTreeOriginal.txt"], k))
-    rc, log = run([exe, "--graph", golden / "input" / "graphCsr", "--changes", golden / "input",
-                   "--init", golden / "init", "-k", k, "--out", tmp / "updated",
-                   "--write-graph", tmp / "applied" / "graphCsr", *extra], env)
+    bad += compare_files(
+        tree_pairs(
+            tmp / "init",
+            golden,
+            canonical_init(golden),
+            ["distancesOriginal.txt", "SSSPTreeOriginal.txt"],
+            k,
+        )
+    )
+    rc, log = run(
+        [
+            exe,
+            "--graph",
+            golden / "input" / "graphCsr",
+            "--changes",
+            golden / "input",
+            "--init",
+            golden / "init",
+            "-k",
+            k,
+            "--out",
+            tmp / "updated",
+            "--write-graph",
+            tmp / "applied" / "graphCsr",
+            *extra,
+        ],
+        env,
+    )
     if rc != 0:
         return bad + [f"update failed ({rc}): {log[-500:]}"]
-    bad += compare_files(tree_pairs(tmp / "updated", golden, "updated",
-                                    ["distancesUpdated.txt", "SSSPTreeUpdated.txt"], k))
-    bad += compare_files([(tmp / "applied" / f, golden / "applied" / f, f"applied/{f}")
-                          for f in CSR])
+    bad += compare_files(
+        tree_pairs(
+            tmp / "updated", golden, "updated", ["distancesUpdated.txt", "SSSPTreeUpdated.txt"], k
+        )
+    )
+    bad += compare_files(
+        [(tmp / "applied" / f, golden / "applied" / f, f"applied/{f}") for f in CSR]
+    )
     bad += check_counters(log, meta["invalidated"])
     return bad
 
@@ -152,30 +191,69 @@ def replay_original(ref: Path, golden: Path, meta: dict, tmp: Path, env: dict) -
     bad = []
     # Without -k (MOSP-CUDA's mospPrep has no -k; every graph of the corpus has edges, so K is
     # the graph's number of weight columns).
-    rc, log = run([ref / "bin" / "mospPrep", "init", golden / "input" / "graphCsr", tmp / "init"],
-                  env)
+    rc, log = run(
+        [ref / "bin" / "mospPrep", "init", golden / "input" / "graphCsr", tmp / "init"], env
+    )
     if rc != 0:
         return [f"mospPrep init failed ({rc}): {log[-500:]}"]
-    bad += compare_files(tree_pairs(tmp / "init", golden, canonical_init(golden),
-                                    ["distancesOriginal.txt", "SSSPTreeOriginal.txt"], k))
-    rc, log = run([ref / "bin" / "mosp", "--graph", golden / "input" / "graphCsr", "--changes",
-                   golden / "input", "--init", golden / "init", "-k", k, "--out",
-                   tmp / "updated"], env)
+    bad += compare_files(
+        tree_pairs(
+            tmp / "init",
+            golden,
+            canonical_init(golden),
+            ["distancesOriginal.txt", "SSSPTreeOriginal.txt"],
+            k,
+        )
+    )
+    rc, log = run(
+        [
+            ref / "bin" / "mosp",
+            "--graph",
+            golden / "input" / "graphCsr",
+            "--changes",
+            golden / "input",
+            "--init",
+            golden / "init",
+            "-k",
+            k,
+            "--out",
+            tmp / "updated",
+        ],
+        env,
+    )
     if rc != 0:
         return bad + [f"mosp failed ({rc}): {log[-500:]}"]
-    bad += compare_files(tree_pairs(tmp / "updated", golden, "updated",
-                                    ["distancesUpdated.txt", "SSSPTreeUpdated.txt"], k))
-    bad += compare_files([(tmp / "updated" / "combinedGraph" / f, golden / "combined" / f,
-                           f"combined/{f}")
-                          for f in ["distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"]])
+    bad += compare_files(
+        tree_pairs(
+            tmp / "updated", golden, "updated", ["distancesUpdated.txt", "SSSPTreeUpdated.txt"], k
+        )
+    )
+    bad += compare_files(
+        [
+            (tmp / "updated" / "combinedGraph" / f, golden / "combined" / f, f"combined/{f}")
+            for f in ["distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"]
+        ]
+    )
     bad += check_counters(log, meta["invalidated"])
-    rc, log = run([ref / "parity_export" / "bin" / "export_graph_io", "apply",
-                   golden / "input" / "graphCsr", golden / "input" / "insert.txt",
-                   golden / "input" / "delete.txt", tmp / "applied" / "graphCsr"], env)
+    rc, log = run(
+        [
+            ref / "parity_export" / "bin" / "export_graph_io",
+            "apply",
+            golden / "input" / "graphCsr",
+            golden / "input" / "insert.txt",
+            golden / "input" / "delete.txt",
+            tmp / "applied" / "graphCsr",
+        ],
+        env,
+    )
     if rc != 0:
         return bad + [f"export_graph_io apply failed ({rc}): {log[-500:]}"]
-    bad += compare_files([(tmp / "applied" / f, golden / "applied" / f, f"applied/{f}")
-                          for f in CSR + ["graphCsrWeightIncrease.txt"]])
+    bad += compare_files(
+        [
+            (tmp / "applied" / f, golden / "applied" / f, f"applied/{f}")
+            for f in CSR + ["graphCsrWeightIncrease.txt"]
+        ]
+    )
     return bad
 
 
@@ -205,8 +283,12 @@ def host_info() -> dict:
                 break
     except OSError:
         pass
-    return {"cpu": model, "logical_cpus": os.cpu_count(), "kernel": platform.release(),
-            "python": platform.python_version()}
+    return {
+        "cpu": model,
+        "logical_cpus": os.cpu_count(),
+        "kernel": platform.release(),
+        "python": platform.python_version(),
+    }
 
 
 def build_info(exe: Path) -> dict:
@@ -215,8 +297,14 @@ def build_info(exe: Path) -> dict:
     for d in exe.resolve().parents:
         cache = d / "CMakeCache.txt"
         if cache.is_file():
-            keys = {"CMAKE_BUILD_TYPE", "CMAKE_CXX_COMPILER", "CMAKE_CXX_FLAGS",
-                    "CMAKE_CXX_FLAGS_RELEASE", "DYNG_ENABLE_OPENMP", "CMAKE_CXX_COMPILER_VERSION"}
+            keys = {
+                "CMAKE_BUILD_TYPE",
+                "CMAKE_CXX_COMPILER",
+                "CMAKE_CXX_FLAGS",
+                "CMAKE_CXX_FLAGS_RELEASE",
+                "DYNG_ENABLE_OPENMP",
+                "CMAKE_CXX_COMPILER_VERSION",
+            }
             for line in cache.read_text().splitlines():
                 name = line.split(":", 1)[0]
                 if name in keys and "=" in line:
@@ -246,26 +334,36 @@ def main() -> int:
     parser.add_argument("--driver", choices=["compat", "original"], default="compat")
     parser.add_argument("--exe", type=Path, help="dyng-compat-mosp (driver compat)")
     parser.add_argument("--ref", type=Path, help="scratch copy of an original (driver original)")
-    parser.add_argument("--configs", default="sequential,openmp:1,openmp:4,openmp:16",
-                        help="driver compat: backend[:threads] list")
+    parser.add_argument(
+        "--configs",
+        default="sequential,openmp:1,openmp:4,openmp:16",
+        help="driver compat: backend[:threads] list",
+    )
     parser.add_argument("--groups", default="", help="restrict to these groups (comma list)")
     parser.add_argument("--jobs", type=int, default=8)
     parser.add_argument("--json", type=Path, help="write the result matrix here")
     parser.add_argument("--label", default="", help="free text stored in the JSON")
-    parser.add_argument("--skip-verify", action="store_true",
-                        help="do not re-hash the goldens (they were verified by an earlier run)")
+    parser.add_argument(
+        "--skip-verify",
+        action="store_true",
+        help="do not re-hash the goldens (they were verified by an earlier run)",
+    )
     args = parser.parse_args()
 
     toml = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
     golden_set = toml["sets"]["sssp"]
     if not (args.goldens / "MANIFEST.sha256").is_file():
-        print(f"goldens not found under {args.goldens}; run parity/export_goldens.py "
-              "(skipping)", file=sys.stderr)
+        print(
+            f"goldens not found under {args.goldens}; run parity/export_goldens.py (skipping)",
+            file=sys.stderr,
+        )
         return SKIP
     if not args.skip_verify:
         verify_goldens(args.goldens, golden_set)
-        print(f"goldens verified: {golden_set['num_cases']} cases, {golden_set['num_files']} files, "
-              f"manifest {golden_set['manifest_sha256'][:16]}")
+        print(
+            f"goldens verified: {golden_set['num_cases']} cases, {golden_set['num_files']} files, "
+            f"manifest {golden_set['manifest_sha256'][:16]}"
+        )
 
     env = dict(os.environ)
     env.setdefault("OMP_WAIT_POLICY", "passive")  # many small processes share the cores
@@ -292,15 +390,20 @@ def main() -> int:
     groups = [g.strip() for g in args.groups.split(",") if g.strip()]
     unknown = sorted(set(groups) - set(golden_set["groups"]))
     if unknown:
-        parser.error(f"--groups: unknown group(s) {', '.join(unknown)}; the corpus has "
-                     f"{', '.join(golden_set['groups'])}")
+        parser.error(
+            f"--groups: unknown group(s) {', '.join(unknown)}; the corpus has "
+            f"{', '.join(golden_set['groups'])}"
+        )
     cases = sorted(c for c in golden_set["cases"] if not groups or c.split("/")[0] in groups)
     if not cases:
         # A filter that selects nothing must never read as "ALL EQUAL".
         print("compare.py: no case selected", file=sys.stderr)
         return 1
-    work = Path(tempfile.mkdtemp(prefix="dyng-compare-", dir=scratch / "runs"
-                                 if (scratch / "runs").is_dir() else None))
+    work = Path(
+        tempfile.mkdtemp(
+            prefix="dyng-compare-", dir=scratch / "runs" if (scratch / "runs").is_dir() else None
+        )
+    )
 
     def job(case: str, config: str) -> tuple[str, str, list[str]]:
         golden = args.goldens / case
@@ -323,7 +426,8 @@ def main() -> int:
             for fut in concurrent.futures.as_completed(futures):
                 case, config, bad = fut.result()
                 cell = matrix.setdefault(case.split("/")[0], {}).setdefault(
-                    config, {"cases": 0, "pass": 0, "fail": []})
+                    config, {"cases": 0, "pass": 0, "fail": []}
+                )
                 cell["cases"] += 1
                 if bad:
                     cell["fail"].append({"case": case, "problems": bad[:10]})
@@ -335,7 +439,7 @@ def main() -> int:
 
     # Report.
     order = [g for g in golden_set["groups"] if g in matrix]
-    print(f"\n| group | cases | " + " | ".join(configs) + " |")
+    print("\n| group | cases | " + " | ".join(configs) + " |")
     print("|---|---:|" + "---:|" * len(configs))
     for g in order:
         n = matrix[g][configs[0]]["cases"]
@@ -352,16 +456,20 @@ def main() -> int:
             "schema": 1,
             "algorithm": "sssp",
             "label": args.label,
-            "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "reference": {"name": golden_set["reference"], "commit": golden_set["commit"]},
             "port": {"repository": "dyng", "commit": git_head()},
             "driver": args.driver,
             "executable": portable_path(args.exe or args.ref),
-            "build": (build_info(args.exe) if args.exe
-                      else {"reference_copy": portable_path(args.ref)}),
+            "build": (
+                build_info(args.exe) if args.exe else {"reference_copy": portable_path(args.ref)}
+            ),
             "host": host_info(),
-            "goldens": {"manifest_sha256": golden_set["manifest_sha256"],
-                        "cases": golden_set["num_cases"], "files": golden_set["num_files"]},
+            "goldens": {
+                "manifest_sha256": golden_set["manifest_sha256"],
+                "cases": golden_set["num_cases"],
+                "files": golden_set["num_files"],
+            },
             "tolerance": "none: byte equality of every compared file; invalidated counters equal",
             "configs": configs,
             "matrix": {g: matrix[g] for g in order},
@@ -369,8 +477,10 @@ def main() -> int:
         }
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(result, indent=1) + "\n")
-    print(f"\n{'ALL EQUAL' if not failures else f'{len(failures)} MISMATCHES'}: "
-          f"{total} cases x {len(configs)} configurations")
+    print(
+        f"\n{'ALL EQUAL' if not failures else f'{len(failures)} MISMATCHES'}: "
+        f"{total} cases x {len(configs)} configurations"
+    )
     return 0 if not failures else 1
 
 

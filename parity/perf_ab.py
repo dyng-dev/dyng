@@ -45,7 +45,6 @@ import json
 import os
 import platform
 import re
-import shutil
 import statistics
 import subprocess
 import sys
@@ -68,8 +67,16 @@ THREADS = re.compile(r"threads[= ](\d+)")
 
 
 def reference_copy() -> Path:
-    out = subprocess.check_output([REPO / "parity" / "build_reference.sh", "--variant",
-                                   "unpatched", "--print-dir", "MOSP-OpenMP"], text=True)
+    out = subprocess.check_output(
+        [
+            REPO / "parity" / "build_reference.sh",
+            "--variant",
+            "unpatched",
+            "--print-dir",
+            "MOSP-OpenMP",
+        ],
+        text=True,
+    )
     return Path(out.strip().splitlines()[-1])
 
 
@@ -91,12 +98,52 @@ def prepare(args: argparse.Namespace) -> int:
     env = dict(os.environ, OMP_NUM_THREADS="28", OMP_PROC_BIND="close", OMP_PLACES="cores")
     steps = [
         ("init", ["init", prefix, dst / "init"]),
-        (BATCHES["unsafe50k"], ["changes", prefix, dst / BATCHES["unsafe50k"], "--changes",
-                                "50000", "--ins", "50", "--seed", "777"]),
-        (BATCHES["safe50k"], ["changes", prefix, dst / BATCHES["safe50k"], "--changes", "50000",
-                              "--ins", "50", "--seed", "777", "--safe"]),
-        (BATCHES["local10k"], ["changes", prefix, dst / BATCHES["local10k"], "--changes", "10000",
-                               "--ins", "50", "--seed", "777", "--local", str(args.hops), "--safe"]),
+        (
+            BATCHES["unsafe50k"],
+            [
+                "changes",
+                prefix,
+                dst / BATCHES["unsafe50k"],
+                "--changes",
+                "50000",
+                "--ins",
+                "50",
+                "--seed",
+                "777",
+            ],
+        ),
+        (
+            BATCHES["safe50k"],
+            [
+                "changes",
+                prefix,
+                dst / BATCHES["safe50k"],
+                "--changes",
+                "50000",
+                "--ins",
+                "50",
+                "--seed",
+                "777",
+                "--safe",
+            ],
+        ),
+        (
+            BATCHES["local10k"],
+            [
+                "changes",
+                prefix,
+                dst / BATCHES["local10k"],
+                "--changes",
+                "10000",
+                "--ins",
+                "50",
+                "--seed",
+                "777",
+                "--local",
+                str(args.hops),
+                "--safe",
+            ],
+        ),
     ]
     for name, cmd in steps:
         if (dst / name).is_dir() and not args.force:
@@ -131,8 +178,9 @@ def loadavg() -> float:
 
 
 def run_one(cmd: list, env: dict) -> str:
-    proc = subprocess.run([str(c) for c in cmd], env=env, stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT, text=True)
+    proc = subprocess.run(
+        [str(c) for c in cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
     if proc.returncode != 0:
         raise SystemExit(f"{' '.join(map(str, cmd))} failed:\n{proc.stdout[-2000:]}")
     return proc.stdout
@@ -179,8 +227,9 @@ def run(args: argparse.Namespace) -> int:
     if not (data / "init").is_dir():
         raise SystemExit(f"{data}: run `parity/perf_ab.py prepare --graph {args.graph}` first")
     k = len(list((data / "init").glob("obj*")))
-    env = dict(os.environ, OMP_NUM_THREADS=str(args.threads), OMP_PROC_BIND="close",
-               OMP_PLACES="cores")
+    env = dict(
+        os.environ, OMP_NUM_THREADS=str(args.threads), OMP_PROC_BIND="close", OMP_PLACES="cores"
+    )
     for var in ["OMP_WAIT_POLICY", "GOMP_SPINCOUNT", "OMP_DYNAMIC"]:
         env.pop(var, None)
     for item in args.env:  # extra settings for BOTH sides, e.g. OMP_WAIT_POLICY=active
@@ -191,8 +240,14 @@ def run(args: argparse.Namespace) -> int:
     with perf_lock(SCRATCH / "perf.lock"):
         for batch in batches:
             changes = data / BATCHES[batch]
-            common = ["--graph", data / "csr" / "graphCsr", "--changes", changes, "--init",
-                      data / "init"]
+            common = [
+                "--graph",
+                data / "csr" / "graphCsr",
+                "--changes",
+                changes,
+                "--init",
+                data / "init",
+            ]
             # Correctness guard: both write their outputs once; the files must be identical.
             with tempfile.TemporaryDirectory(prefix="dyng-perf-", dir=SCRATCH / "runs") as t:
                 t = Path(t)
@@ -200,32 +255,42 @@ def run(args: argparse.Namespace) -> int:
                 run_one([exe, *common, "--out", t / "B"], env)
                 for o in range(k):
                     for f in ["distancesUpdated.txt", "SSSPTreeUpdated.txt"]:
-                        if not filecmp.cmp(t / "A" / f"obj{o}" / f, t / "B" / f"obj{o}" / f,
-                                           shallow=False):
-                            raise SystemExit(f"{batch}: obj{o}/{f} differs between the original "
-                                             "and the port")
+                        if not filecmp.cmp(
+                            t / "A" / f"obj{o}" / f, t / "B" / f"obj{o}" / f, shallow=False
+                        ):
+                            raise SystemExit(
+                                f"{batch}: obj{o}/{f} differs between the original and the port"
+                            )
             print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
             samples = {"original": [], "port": []}
             loads = []
             for r in range(args.runs):
-                for side, cmd in [("original", [mosp, *common, "--no-output"]),
-                                  ("port", [exe, *common, "--no-output"])]:
+                for side, cmd in [
+                    ("original", [mosp, *common, "--no-output"]),
+                    ("port", [exe, *common, "--no-output"]),
+                ]:
                     before = loadavg()
                     log = run_one(cmd, env)
                     loads.append((before, loadavg()))
                     samples[side].append(parse(log, side, k))
-                print(f"{batch} round {r + 1}/{args.runs}: original sosp "
-                      f"{sum(samples['original'][-1]['sosp']):.1f} ms, port "
-                      f"{sum(samples['port'][-1]['sosp']):.1f} ms", flush=True)
+                print(
+                    f"{batch} round {r + 1}/{args.runs}: original sosp "
+                    f"{sum(samples['original'][-1]['sosp']):.1f} ms, port "
+                    f"{sum(samples['port'][-1]['sosp']):.1f} ms",
+                    flush=True,
+                )
             results[batch] = summarize(samples, k, loads)
     report(results, k, args)
     return 0
 
 
 def summarize(samples: dict, k: int, loads: list) -> dict:
-    out = {"regions": [], "invalidated": {}, "threads": {},
-           "load_average": {"min": min(min(p) for p in loads),
-                            "max": max(max(p) for p in loads)}}
+    out = {
+        "regions": [],
+        "invalidated": {},
+        "threads": {},
+        "load_average": {"min": min(min(p) for p in loads), "max": max(max(p) for p in loads)},
+    }
     for side in ["original", "port"]:
         out["invalidated"][side] = samples[side][0]["invalidated"]
         out["threads"][side] = samples[side][0]["threads"]
@@ -234,9 +299,16 @@ def summarize(samples: dict, k: int, loads: list) -> dict:
         a = [pick(s) for s in samples["original"]]
         b = [pick(s) for s in samples["port"]]
         ma, mb = median(a), median(b)
-        entry = {"region": name, "original_ms": ma, "port_ms": mb, "ratio": mb / ma,
-                 "original_spread": spread(a), "port_spread": spread(b),
-                 "original_samples": a, "port_samples": b}
+        entry = {
+            "region": name,
+            "original_ms": ma,
+            "port_ms": mb,
+            "ratio": mb / ma,
+            "original_spread": spread(a),
+            "port_spread": spread(b),
+            "original_samples": a,
+            "port_samples": b,
+        }
         if gated:
             entry["gate"] = gate(ma)
             entry["within_gate"] = mb / ma <= gate(ma)
@@ -252,24 +324,33 @@ def summarize(samples: dict, k: int, loads: list) -> dict:
 
 
 def report(results: dict, k: int, args: argparse.Namespace) -> None:
-    lines = [f"| batch | region | original (ms) | dynG (ms) | ratio | gate | spread A / B |",
-             "|---|---|---:|---:|---:|---|---|"]
+    lines = [
+        "| batch | region | original (ms) | dynG (ms) | ratio | gate | spread A / B |",
+        "|---|---|---:|---:|---:|---|---|",
+    ]
     for batch, res in results.items():
         for e in res["regions"]:
-            g = (f"<= {e['gate']:.2f} {'ok' if e['within_gate'] else 'EXCEEDED'}"
-                 if "gate" in e else "-")
+            g = (
+                f"<= {e['gate']:.2f} {'ok' if e['within_gate'] else 'EXCEEDED'}"
+                if "gate" in e
+                else "-"
+            )
             flag = " (noisy)" if e["noisy"] else ""
-            lines.append(f"| {batch} | {e['region']} | {e['original_ms']:.2f} | "
-                         f"{e['port_ms']:.2f} | {e['ratio']:.3f} | {g} | "
-                         f"{e['original_spread'] * 100:.0f} % / {e['port_spread'] * 100:.0f} %"
-                         f"{flag} |")
+            lines.append(
+                f"| {batch} | {e['region']} | {e['original_ms']:.2f} | "
+                f"{e['port_ms']:.2f} | {e['ratio']:.3f} | {g} | "
+                f"{e['original_spread'] * 100:.0f} % / {e['port_spread'] * 100:.0f} %"
+                f"{flag} |"
+            )
     print("\n".join(lines))
     for batch, res in results.items():
         inv = res["invalidated"]
         same = inv["original"] == inv["port"]
-        print(f"{batch}: invalidated original {inv['original']} port {inv['port']} "
-              f"({'equal' if same else 'DIFFERENT'}); threads {res['threads']}; "
-              f"load average {res['load_average']['min']:.1f}-{res['load_average']['max']:.1f}")
+        print(
+            f"{batch}: invalidated original {inv['original']} port {inv['port']} "
+            f"({'equal' if same else 'DIFFERENT'}); threads {res['threads']}; "
+            f"load average {res['load_average']['min']:.1f}-{res['load_average']['max']:.1f}"
+        )
     if args.json:
         head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
         dirty = subprocess.run(["git", "-C", REPO, "diff", "--quiet", "HEAD"]).returncode != 0
@@ -277,20 +358,28 @@ def report(results: dict, k: int, args: argparse.Namespace) -> None:
             "schema": 1,
             "algorithm": "sssp",
             "backend": "openmp",
-            "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "graph": args.graph,
-            "reference": {"name": "MOSP-OpenMP", "commit": COMMIT, "variant": "unpatched",
-                          "binary": str(reference_copy() / "bin" / "mosp")},
+            "reference": {
+                "name": "MOSP-OpenMP",
+                "commit": COMMIT,
+                "variant": "unpatched",
+                "binary": str(reference_copy() / "bin" / "mosp"),
+            },
             "port": {"commit": head + ("+dirty" if dirty else ""), "binary": str(args.exe)},
-            "protocol": {"runs": args.runs, "order": "A/B/A/B (original first)",
-                         "threads": args.threads,
-                         "env": " ".join(["OMP_PROC_BIND=close", "OMP_PLACES=cores", *args.env]),
-                         "lock": "perf.lock",
-                         "statistic": "median", "outputs": "--no-output on both"},
-            "host": {"machine": platform.node(), "cpu": cpu_model(),
-                     "kernel": platform.release()},
+            "protocol": {
+                "runs": args.runs,
+                "order": "A/B/A/B (original first)",
+                "threads": args.threads,
+                "env": " ".join(["OMP_PROC_BIND=close", "OMP_PLACES=cores", *args.env]),
+                "lock": "perf.lock",
+                "statistic": "median",
+                "outputs": "--no-output on both",
+            },
+            "host": {"machine": platform.node(), "cpu": cpu_model(), "kernel": platform.release()},
             "inputs_sha256": (SCRATCH / "bench" / "mosp" / args.graph / "INPUTS.sha256")
-            .read_text().splitlines(),
+            .read_text()
+            .splitlines(),
             "results": results,
         }
         args.json.parent.mkdir(parents=True, exist_ok=True)
@@ -320,8 +409,13 @@ def main() -> int:
     r.add_argument("--runs", type=int, default=7)
     r.add_argument("--threads", type=int, default=28)
     r.add_argument("--json", type=Path)
-    r.add_argument("--env", action="append", default=[], metavar="VAR=VALUE",
-                   help="extra environment for both sides (repeatable)")
+    r.add_argument(
+        "--env",
+        action="append",
+        default=[],
+        metavar="VAR=VALUE",
+        help="extra environment for both sides (repeatable)",
+    )
     args = parser.parse_args()
     if args.command == "run" and args.runs < 5:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")

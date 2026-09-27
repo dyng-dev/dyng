@@ -31,21 +31,45 @@ SUFFIXES = (".hpp", ".cpp", ".cuh", ".cu", ".h")
 # Identifiers of the originals (MOSP-OpenMP@c352151, MOSP-CUDA@e220ee2 for M1a). Extend this list
 # when a port of another repository lands.
 SYMBOLS = [
-    "sospUpdateCpu", "sospFromScratchCpu", "sospUpdateGpu", "sequentialSOSPUpdate",
-    "SospWorkspace", "nextGeneration", "defaultDelta", "choosePacking", "canonicalizeTree",
-    "mospUpdate", "applyChangeBatch", "updateGraphCSR", "transposeCsrGraph", "readChangeBatch",
-    "readCsrGraph", "readIntFile", "readValuesFile", "writeCsrGraph", "runConcurrently",
-    "ListGather", "TextWriter", "TextScanner", "mtxToCsr", "dijkstraCsrGraph", "checkSospTree",
-    "combinedGraphSospCpu", "buildHostGraph",
+    "sospUpdateCpu",
+    "sospFromScratchCpu",
+    "sospUpdateGpu",
+    "sequentialSOSPUpdate",
+    "SospWorkspace",
+    "nextGeneration",
+    "defaultDelta",
+    "choosePacking",
+    "canonicalizeTree",
+    "mospUpdate",
+    "applyChangeBatch",
+    "updateGraphCSR",
+    "transposeCsrGraph",
+    "readChangeBatch",
+    "readCsrGraph",
+    "readIntFile",
+    "readValuesFile",
+    "writeCsrGraph",
+    "runConcurrently",
+    "ListGather",
+    "TextWriter",
+    "TextScanner",
+    "mtxToCsr",
+    "dijkstraCsrGraph",
+    "checkSospTree",
+    "combinedGraphSospCpu",
+    "buildHostGraph",
 ]
-PINNED = re.compile(r"\b(MOSP-OpenMP|MOSP-CUDA|MOSP_ESCHER|ESCHER-GPU|LabelPropagation-CUDA|"
-                    r"CycleEnumeration-GPU)@[0-9a-f]{7,40}")
+PINNED = re.compile(
+    r"\b(MOSP-OpenMP|MOSP-CUDA|MOSP_ESCHER|ESCHER-GPU|LabelPropagation-CUDA|"
+    r"CycleEnumeration-GPU)@[0-9a-f]{7,40}"
+)
 SYMBOL = re.compile(r"\b(" + "|".join(SYMBOLS) + r")\b")
 HEADER = re.compile(r"^// Derived from [A-Za-z_-]+@[0-9a-f]{7,40}:", re.M)
 
 # Files that name an original without copying its code: path -> reason.
 NOT_DERIVED = {
     "cpp/include/dyng/sssp.hpp": "public API; documents the semantics the port reproduces",
+    "cpp/include/dyng/graph/graph.hpp": "public API; documents the MOSP apply it ports",
     "cpp/include/dyng/graph/graph_properties.hpp": "public API; names the MOSP semantics preset",
     "cpp/include/dyng/io/batch_io.hpp": "public API of batch_io.cpp (which carries the header)",
     "cpp/include/dyng/io/csr_triplet.hpp": "public API of csr_triplet.cpp (header there)",
@@ -74,8 +98,10 @@ def main() -> int:
             continue
         missing.append((path, names_original.group(0)))
     for path, what in missing:
-        print(f"{path}: names '{what}' of an original but has no '// Derived from <repo>@<sha>:"
-              "<path>' line (add it, or list the file in NOT_DERIVED with a reason)")
+        print(
+            f"{path}: names '{what}' of an original but has no '// Derived from <repo>@<sha>:"
+            "<path>' line (add it, or list the file in NOT_DERIVED with a reason)"
+        )
     for path in stale:
         print(f"{path}: listed in NOT_DERIVED but names no original any more (remove the entry)")
     if missing or stale:

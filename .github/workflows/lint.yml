@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Formatting and licensing checks (PLAN Section 8.8): pre-commit (clang-format, whitespace,
-# REUSE, codespell) and the Doxygen check of the public headers. Mirrors the `format`, `reuse`,
+# Formatting and licensing checks (PLAN Section 8.8): pre-commit (clang-format, ruff, whitespace,
+# REUSE, codespell, provenance headers), the Doxygen check of the public headers and the smoke
+# tests of the Python parity harness. Mirrors the `format`, `reuse`,
 # `precommit` and `docs` steps of ci/check.sh (clang-format and REUSE run as pre-commit hooks).
 name: lint
 
@@ -63,6 +64,22 @@ jobs:
         run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF
       - name: Doxygen, warnings as errors
         run: ci/docs.sh
+
+  # The parity harness and CI scripts (Python): they compile, and the smoke tests of
+  # parity/tests pass (no goldens or originals needed). ruff runs in the pre-commit job.
+  harness:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Compile the scripts
+        run: python -m py_compile parity/*.py ci/*.py
+      - name: Smoke tests of the parity harness
+        run: |
+          python -m pip install pytest
+          python -m pytest -q parity/tests
 
   name-reservation:
     runs-on: ubuntu-24.04

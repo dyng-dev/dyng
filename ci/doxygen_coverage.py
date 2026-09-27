@@ -111,21 +111,32 @@ def main(argv: list[str]) -> int:
                 continue  # deleted special members (non-copyable, non-movable) need no text
             if not text_of(member.find("briefdescription")):
                 problems.append(f"{at}: {name}::{mname} has no @brief")
-            if member.get("kind") == "function" and takes_resources(member) and not (
-                name == "dyng::resources" and mname in ("resources", "operator=")
+            if (
+                member.get("kind") == "function"
+                and takes_resources(member)
+                and not (name == "dyng::resources" and mname in ("resources", "operator="))
             ):
                 titles = {text_of(t) for t in member.iter("title")}
                 qualified = text_of(member.find("qualifiedname")) or f"{name}::{mname}"
                 if "Synchronization:" not in titles:
                     problems.append(f"{at}: {qualified} takes resources but has no @sync / @async")
-                throws = [pl for pl in member.iter("parameterlist") if pl.get("kind") == "exception"]
+                throws = [
+                    pl for pl in member.iter("parameterlist") if pl.get("kind") == "exception"
+                ]
                 noexcept = "noexcept" in text_of(member.find("argsstring"))
                 if not throws and not noexcept:
-                    problems.append(f"{at}: {qualified} takes resources but documents no @throws "
-                                    "(and is not noexcept)")
-            if kind == "group" and member.get("kind") == "function" and mname in (
-                "compute",
-                "update",
+                    problems.append(
+                        f"{at}: {qualified} takes resources but documents no @throws "
+                        "(and is not noexcept)"
+                    )
+            if (
+                kind == "group"
+                and member.get("kind") == "function"
+                and mname
+                in (
+                    "compute",
+                    "update",
+                )
             ):
                 qualified = text_of(member.find("qualifiedname"))
                 namespace = qualified.rsplit("::", 1)[0]

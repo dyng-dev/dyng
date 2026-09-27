@@ -38,6 +38,14 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]  # not the Markdown code blocks (a published README among them)
   - repo: local
     hooks:
       # Ported files carry '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3).

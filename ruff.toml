@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Python linting and formatting (PLAN Section 8.7: ruff lint + format), for the harness scripts
+# (ci/, parity/) and the Python packages. Run through pre-commit.
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[format]
+quote-style = "double"

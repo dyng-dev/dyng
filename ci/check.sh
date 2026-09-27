@@ -18,6 +18,8 @@
 #   reuse      reuse lint (SPDX headers in every file)
 #   provenance ci/provenance_check.py: every file naming an original's symbol carries
 #              '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3)
+#   harness    python -m py_compile on parity/*.py and ci/*.py, and pytest parity/tests (the
+#              smoke tests of the parity harness; pytest is in environment.yml)
 #   docs       ci/docs.sh: Doxygen on the public headers with warnings as errors, then the
 #              convention check ci/doxygen_coverage.py (skipped if doxygen is missing)
 #   precommit  pre-commit run --all-files (skipped if pre-commit is missing)
@@ -36,7 +38,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,31p' "${BASH_SOURCE[0]}"
+      sed -n '5,33p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -133,6 +135,15 @@ if ! skipped provenance; then
     :
   else
     failed+=("provenance")
+  fi
+fi
+
+if ! skipped harness; then
+  step "parity harness (Python): compile and smoke tests"
+  if python3 -m py_compile parity/*.py ci/*.py && python3 -m pytest -q parity/tests; then
+    echo "harness: OK"
+  else
+    failed+=("harness")
   fi
 fi
 

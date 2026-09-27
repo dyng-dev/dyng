@@ -1,0 +1,101 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+"""Smoke tests of the parity harness scripts (run in lint.yml and ci/check.sh; no goldens, no
+builds, no originals needed): every script imports and parses its options, compare.py refuses
+selections that would compare nothing, and the pure helpers behave."""
+
+from __future__ import annotations
+
+import importlib.util
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[2]
+SCRIPTS = ["parity/compare.py", "parity/export_goldens.py", "parity/perf_ab.py"]
+
+
+def load(rel: str):
+    path = REPO / rel
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[path.stem] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("script", SCRIPTS)
+def test_help(script: str) -> None:
+    proc = subprocess.run([sys.executable, REPO / script, "--help"], capture_output=True, text=True)
+    assert proc.returncode == 0, proc.stderr
+    assert "usage" in proc.stdout
+
+
+def test_compare_skips_without_goldens(tmp_path: Path) -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            REPO / "parity/compare.py",
+            "--goldens",
+            tmp_path,
+            "--exe",
+            sys.executable,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 77, proc.stdout + proc.stderr
+
+
+def test_compare_rejects_empty_selections(tmp_path: Path) -> None:
+    # A fake corpus with a manifest, so the selection is checked (--skip-verify: not hashed).
+    (tmp_path / "MANIFEST.sha256").write_text("")
+    base = [sys.executable, REPO / "parity/compare.py", "--goldens", tmp_path, "--skip-verify"]
+    unknown = subprocess.run(
+        [*base, "--exe", sys.executable, "--groups", "sosp_typo"], capture_output=True, text=True
+    )
+    assert unknown.returncode == 2 and "unknown group" in unknown.stderr
+    empty = subprocess.run(
+        [*base, "--exe", sys.executable, "--configs", ","], capture_output=True, text=True
+    )
+    assert empty.returncode == 2 and "no configuration" in empty.stderr
+    bad = subprocess.run(
+        [*base, "--exe", sys.executable, "--configs", "cuda:2"], capture_output=True, text=True
+    )
+    assert bad.returncode == 2
+
+
+def test_portable_path_hides_personal_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    compare = load("parity/compare.py")
+    assert compare.portable_path(REPO / "build" / "dev") == "build/dev"
+    monkeypatch.setenv("DYNG_SCRATCH", "/data/work")
+    assert compare.portable_path("/data/work/ref/X@1/patched") == "$DYNG_SCRATCH/ref/X@1/patched"
+    host = compare.host_info()
+    assert "machine" not in host and host["logical_cpus"]
+
+
+def test_perturbed_trees_are_valid_and_seeded(tmp_path: Path) -> None:
+    exporter = load("parity/export_goldens.py")
+    # 0 -> 1 (1), 0 -> 2 (1), 1 -> 3 (1), 2 -> 3 (1): vertex 3 has two tight parents.
+    prefix = tmp_path / "graphCsr"
+    Path(f"{prefix}RowPtr.txt").write_text("0\n2\n3\n4\n4\n")
+    Path(f"{prefix}ColInd.txt").write_text("1\n2\n3\n3\n")
+    Path(f"{prefix}Values.txt").write_text("1\n1\n1\n1\n")
+    canonical = tmp_path / "canonical" / "obj0"
+    canonical.mkdir(parents=True)
+    (canonical / "distancesOriginal.txt").write_text("0 0\n1 1\n2 1\n3 2\n")
+    (canonical / "SSSPTreeOriginal.txt").write_text("0 -1\n1 0\n2 0\n3 1\n")
+    outs = []
+    for name in ["a", "b", "c", "d", "e", "f"]:
+        out = tmp_path / name
+        changed = exporter.perturb_initial_trees(prefix, tmp_path / "canonical", out, 1, name)
+        tree = (out / "obj0" / "SSSPTreeOriginal.txt").read_text()
+        assert tree.startswith("0 -1\n1 0\n2 0\n3 ")  # only the tie of vertex 3 may change
+        assert tree.splitlines()[3] in ("3 1", "3 2")
+        assert changed == [0 if tree.endswith("3 1\n") else 1]
+        again = exporter.perturb_initial_trees(prefix, tmp_path / "canonical", out, 1, name)
+        assert again == changed  # seeded by the case name
+        outs.append(tree)
+    assert len(set(outs)) == 2  # both tight parents occur
