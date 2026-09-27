@@ -1,0 +1,3 @@
+obj0 invalidated 20
+obj1 invalidated 21
+obj2 invalidated 16

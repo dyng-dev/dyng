@@ -44,6 +44,15 @@ foreach(_dyng_test dyng_graph_tests dyng_io_tests)
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 endforeach()
 
+dyng_add_test(
+  NAME dyng_sssp_tests
+  SOURCES algorithms/sssp/sssp_test.cpp algorithms/sssp/sssp_random_test.cpp
+          algorithms/sssp/sssp_fixture_test.cpp
+  LABELS cpu sssp
+  LIBRARIES dyng::testing
+)
+target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+
 dyng_add_test(NAME dyng_testing_tests SOURCES testing/oracle_test.cpp LABELS cpu testing LIBRARIES dyng::testing)
 
 add_subdirectory(api)
