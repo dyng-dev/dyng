@@ -70,9 +70,11 @@ jobs:
           else
             prerelease=false
           fi
-          echo "project_dir=${project_dir}" >> "${GITHUB_OUTPUT}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
-          echo "prerelease=${prerelease}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "project_dir=${project_dir}"
+            echo "version=${version}"
+            echo "prerelease=${prerelease}"
+          } >> "${GITHUB_OUTPUT}"
       - name: Build sdist and wheel
         run: python -m build --outdir dist "${{ steps.select.outputs.project_dir }}"
       - name: Check metadata
