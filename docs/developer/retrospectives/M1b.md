@@ -187,3 +187,98 @@ workspaces, the GPU gate and the compile-only CI.
   resident device graph, the CUDA A/B, the `edge_t` benchmark (ADR 0009) and the sssp page.
 - `cuda-build.yml` has not run on GitHub yet (the repository is not pushed); CUDA 13.3.1 was not
   built locally.
+
+## Step 3: the CUDA sssp engine (sssp-cuda, 2026-09-27)
+
+Goal: port MOSP-CUDA@e220ee2's SOSP engine verbatim behind the fused engine of the CUDA backend,
+with the resident device graph (the batch still applied on the host), compute / from_arrays /
+device results, engine selection, `generators::legacy` for MOSP's change generator, and the CUDA
+side of the harness (`dyng-compat-mosp`, `compare.py`, `perf_ab.py`) (PLAN 4.5.4, 5.1, 6.3,
+6.4.1, 6.4.2; ADR 0017).
+
+### Done
+
+- **Fused engine** (`cpp/src/algorithms/sssp/fused.cuh`, `cuda.cu`): `sospPersistentKernel` and
+  the host side of `sospUpdateGpu()` / `sospFromScratchGpu()` with mechanical changes only
+  (names, templates on the index types, dyng streams, scratch buffers from the handle's pool,
+  exceptions). The int32 instantiation compiles to the original's 59 registers and 616 bytes of
+  parameters (`cuobjdump --dump-resource-usage` of `bin/mosp` and of the parity-cuda
+  `libdyng.so`), so the occupancy-derived grid is the same. Two additions outside the search:
+  the deterministic `affected` counter in the unpack pass (about 190 more SASS instructions, all
+  in the unpack pass) and a host-side parent-cycle check on the control block.
+- **Engine selection** before anything is changed: `automatic` / `fused` need the recorded
+  cooperative-launch flag, else `not_supported_error` naming the host backends; `operators`
+  throws (0.2). Tested with the forced flag (`resources_access::force_cooperative_launch`).
+- **Resident device graph** (`cpp/src/graph/device_graph.{hpp,cu}`, from `uploadDeviceGraph`):
+  a graph built with CUDA resources keeps its host CSR and a device copy per state (out- and
+  in-edges, objective-major columns), uploaded on first use and inside the commit
+  (`graph.upload`); placement by backend class with `clone(res)` to move graphs and results.
+- **sssp on CUDA:** compute, update (the per-objective change lists from the commit's
+  per-(insertion, objective) byte classification, uploaded in `sssp.changes`), `from_arrays`
+  (host or device arrays, checked on the host, uploaded), `clone` across host and device, device
+  result arrays; stats as in PLAN 5.1 (`engine_used = fused`).
+- **Profiler:** `profiler_options::cuda_events` fills `device_ms` from CUDA events.
+- **generators::legacy::mosp_changes()** (MOSP-OpenMP's generator, the same code as MOSP-CUDA's):
+  15 committed fixture cases made by both originals' `mospPrep changes` are reproduced byte for
+  byte for every index type; `dyng-compat-mosp changes` reproduces all twelve benchmark batches of
+  the four gate graphs (seed 777) byte for byte.
+- **Harness:** `dyng-compat-mosp --backend cuda` (warm-up first, CUDA-event rows in the timing
+  CSV, download before writing), `compare.py --configs cuda`, CTest
+  `parity.sssp.mosp_cuda_e220ee2`, `perf_ab.py run --backend cuda`, the completed
+  `[reference.mosp_cuda]` map in `parity/timed_regions/sssp.toml`, and a golden-corpus step in
+  `ci/gpu_local.sh`.
+- **Tests:** `dyng_sssp_cuda_tests` (label `gpu`): the shared suites `sssp_test.cpp`,
+  `sssp_random_test.cpp` and `sssp_fixture_test.cpp` compiled with `DYNG_TEST_CUDA=1` (the hand
+  cases and the 34 MOSP fixtures byte-exact on cuda; randomized cross-backend equality cuda =
+  openmp = sequential against Dijkstra and `check_sssp_tree(require_canonical)`, for all three
+  index types, canonical and perturbed input trees), plus `sssp_cuda_test.cpp`: the forced
+  no-cooperative-launch path, `engine::operators`, placement and clones, the device copy per
+  state, device and host inputs of `from_arrays`, an overflowing imported tree (poisoned result),
+  the packing boundary n = 2^17 - 1 (pull, push and compute), the 320 x 320 large-weight fallback
+  (weights 2 * 10^9 with ties, and random up to 2^31 - 1), steady-state allocations (an update
+  allocates exactly what the upload of the new graph state allocates), profiler device times,
+  kernel registration. `dyng_generators_tests` (label `cpu`).
+
+### Measured
+
+- Golden corpus on cuda (`compare.py --configs cuda`, parity-cuda preset): **495 / 495
+  byte-identical**, every group, `invalidated` equal.
+- A first CUDA A/B (roadNet-PA, 5 alternating runs, GPU 0, not the gate record): SOSP region per
+  objective 0.98-1.00x of MOSP-CUDA, apply 0.55-0.60x, end to end 0.82-0.84x; outputs
+  byte-identical, `invalidated` equal in every run. The gate record (four graphs, >= 20 runs) is
+  the next step's.
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| PLAN 5.1: `compute` "@async on CUDA" | `compute` synchronizes once (ADR 0017 item 7) | the workspace's stamp generation, which the next run must continue from, is known only after the kernel (as in `sospFromScratchGpu`) |
+| PLAN 4.2 file names (`graph/transpose.cu`, `algorithms/sssp/kernels.cuh`, `instantiate.cu`) | `graph/device_graph.{hpp,cu}`; `algorithms/sssp/fused.cuh` + `cuda.cu` (instantiations in `cuda.cu`) | the device graph is a single port of `uploadDeviceGraph` (upload + device transposition); the fused engine has no separate kernels besides the persistent one |
+| PLAN 4.7.5 stage names `sssp.identify_affected` ... `sssp.finalize` | on cuda one stage, `sssp.enact_fused`, replaces them | Tier B replaces those hooks by one launch; `sssp.changes` (upload of the change lists) is a sub-stage of the update |
+| PLAN 8.6: regions < 10 ms "timed with CUDA events or nsys kernel sums" | the CUDA gate compares host times of the same scope (the original's timer is host time up to its synchronization); dynG's CUDA-event time is recorded next to it | the original has no device timer; comparing dynG's device time with the original's host time would favour dynG |
+| PLAN 4.6 rule 5 (placement) | enforced by backend class: sequential and openmp share host graphs; a CUDA graph keeps a host CSR as well | the host apply is the straight port (device apply later); the CPU backends have always shared the host storage |
+| — | the kernel counts `affected` and the host checks for a parent cycle; `stats::packed_parents` may differ between cuda and the host engines right at the packing limit | `affected` is part of `update_stats`; a cycle would otherwise give a silent wrong tree; the two originals choose the packing slightly differently and each port stays byte-equal to its original |
+| PLAN 5.8 `generators::legacy` over graphs | `mosp_changes(csr_view, options, report*)` | MOSP's generator reads a CSR; a view needs no resources and works for any placement (`g.to_csr(res).view()`) |
+| — | `dyng-compat-mosp changes` (the `mospPrep changes` flags) | a drop-in check of the generator on the benchmark batches |
+
+### Lessons
+
+1. **A template over the index types costs nothing when the int32 instantiation is the
+   original's code:** 59 registers on both sides. Additions belong outside the hot loops (the
+   `affected` count lives in the unpack pass only).
+2. **Report lines are an interface.** The harness regex expects `(invalidated N,` first in the
+   per-objective line; the first CUDA replay "failed" 495 cases on a reordered line while every
+   file was equal. New fields go at the end.
+3. **Compile shared suites twice instead of parameterizing across labels.** One source per suite,
+   a `DYNG_TEST_CUDA` build of it in the `gpu` executable, keeps the `cpu` label free of GPU work
+   and runs every hand case on cuda.
+
+### Open items
+
+- The CUDA performance gates (four graphs, three batches, >= 20 runs, `parity/results/M1b.md`),
+  the `edge_t` benchmark with ADR 0009, and the `cuda-build.yml` check on GitHub are the next
+  steps. If the gate needs device-side times of the original for regions under 10 ms, nsys kernel
+  sums of `sospPersistentKernel` are the only source (not wired into `perf_ab.py`).
+- A CUDA graph keeps a host copy of its CSR (memory) and uploads each new state; the device
+  apply (PLAN 6.4.1) replaces both later.
+- `compute()` on cuda is synchronous (ADR 0017 item 7).

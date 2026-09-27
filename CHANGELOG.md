@@ -90,8 +90,33 @@ Before 0.1.0 anything may change.
   compute-sanitizer memcheck, clang-tidy on the CUDA branches), `ci/build_cuda.sh` and the
   compile-only workflow `cuda-build.yml` (CUDA 13.1.1, 13.3.1 and 12.9.2 containers, register
   and library-size report).
+- `sssp` on the CUDA backend (ADR 0017): MOSP-CUDA@e220ee2's persistent cooperative kernel ported
+  verbatim as the fused engine (`options::cuda_engine`: `automatic` / `fused`;
+  `not_supported_error` without cooperative launch, `operators` in 0.2); `compute()`,
+  `update()`, `from_arrays()` (host or device arrays) and `clone()` across host and device;
+  result arrays in device memory. Byte-identical to MOSP-CUDA on all 495 golden cases; the CUDA
+  test executable `dyng_sssp_cuda_tests` (label `gpu`) runs the shared sssp suites on cuda and
+  compares cuda with the host backends on randomized inputs.
+- Graphs built with CUDA resources: a resident device copy per graph state (out- and in-edges,
+  objective-major weight columns; the in-edges built on the device as MOSP-CUDA's
+  `uploadDeviceGraph` does), uploaded on first use and inside the commit of `dyng::update`.
+- `profiler_options::cuda_events`: device times of profiler stages from CUDA events.
+- `generators::legacy::mosp_changes()`: MOSP's change generator (`mospPrep changes`), bit-exact for
+  fixed seeds, with committed fixtures from both originals; `dyng-compat-mosp changes`.
+- `dyng-compat-mosp --backend cuda [--device d]` (CUDA-event times in its `--timing` CSV),
+  `compare.py --configs cuda`, the CTest golden replay `parity.sssp.mosp_cuda_e220ee2`, and
+  `perf_ab.py run --backend cuda` against the unpatched MOSP-CUDA; `ci/gpu_local.sh` replays the
+  golden corpus on cuda.
 
 ### Changed
+
+- Placement (PLAN 4.6 rule 5): a graph belongs to the backend of the resources that built it;
+  sssp on resources of the other kind (host backends versus cuda) throws `invalid_argument_error`
+  instead of copying, and `graph::clone(res)` / `result::clone(res)` move a graph or a result.
+  `graph::from_*`, `clone`, `reserve`, `apply`, `to_csr` and `check_integrity` accept CUDA
+  resources; `graph::space()` is `device` for a CUDA graph.
+- `dyng::testing::check_sssp_tree(g, r)` copies a device result to the host first.
+- The host-side work of a call with CUDA resources uses the OpenMP threads.
 
 - The CPU presets (`dev`, `release`, `relwithdebinfo`, `parity`) pin `DYNG_ENABLE_CUDA=OFF`; a
   build without a preset enables CUDA when a CUDA compiler is found. With CUDA built and a device

@@ -52,6 +52,13 @@ identify_affected -> seed -> { FP: loop until is_converged } -> finalize
 `compute()` is the static enactor: `sssp.reset` -> `sssp.seed` (the source) -> `sssp.loop` ->
 `sssp.finalize`, inside `sssp.compute`. `update()` runs inside `sssp.update`.
 
+On the CUDA backend the four hooks from `identify_affected` to `finalize` are one fused engine
+(Tier B, PLAN 4.5.4): MOSP-CUDA's persistent cooperative kernel, one launch per objective, profiler
+stage `sssp.enact_fused`. The framework still owns everything around it: `sssp.prepare` on G_t,
+the commit (`graph.apply` on the host, then `graph.upload`: the updated graph is uploaded and its
+in-edges are built on the device, once for all results), `sssp.workspace` and `sssp.changes` (the
+objective's change list, built on the host from the commit's classification and uploaded).
+
 The four Chapter 3 challenges: (i) affected set: subtree invalidation below changed tree edges
 (this replaces the thesis' "best current in-neighbour" rule, which counts to infinity); (ii)
 propagation scope: only vertices whose distance decreased are expanded; distances only
@@ -62,7 +69,7 @@ compact CSR with stored in-edges and objective-major weight columns.
 ## 3. API
 
 ```cpp
-auto res = dyng::resources::openmp(28);              // or resources::sequential()
+auto res = dyng::resources::openmp(28);              // or resources::sequential(), resources::cuda()
 auto g = dyng::graph<std::int32_t, std::int32_t, std::int32_t>::from_csr(
     res, csr.view(), dyng::graph_properties::mosp_compatible());
 auto tree = dyng::sssp::compute(res, g, /*source=*/0);
@@ -75,7 +82,7 @@ auto [s0, s1] = dyng::update(res, g, batch.view(), tree0, tree1);
 |---|---|---|
 | `delta` | 0 (automatic) | near-far bucket width: max(1, 32 * average weight / average out-degree) of the graph before the batch |
 | `objective` | 0 | the weight column (fixed at compute) |
-| `cuda_engine` | automatic | CUDA engine (M1b); ignored on the CPU |
+| `cuda_engine` | automatic | CUDA engine: `automatic` and `fused` run the persistent cooperative kernel and throw `not_supported_error` on a device without cooperative launch (the operators engine that would be the fallback arrives in 0.2); `operators` throws in 0.1; ignored on the CPU |
 | `validate_inputs` | true | O(n) checks of trees adopted with `result::from_arrays()` |
 
 Python: planned (M5).
@@ -86,11 +93,32 @@ Python: planned (M5).
 |---|---|---|
 | sequential | hook-by-hook reference (`engine::operators`) | `sequentialSOSPUpdate` adapted (Step 2 with `sospUpdateCpu`'s push rule) |
 | openmp | the ported paper engine (`engine::fused`) | `sospUpdateCpu` / `sospFromScratchCpu` ported straight |
-| cuda | M1b | `sospUpdateGpu` (persistent cooperative kernel) |
+| cuda | the ported paper engine (`engine::fused`): one persistent cooperative kernel | `sospUpdateGpu` / `sospFromScratchGpu` ported verbatim (`cuda.cu`, `fused.cuh`) |
 
 All backends return identical trees, from canonical and non-canonical input trees alike (the
-randomized test `NonCanonicalInputTreesAgreeOnEveryBackend` perturbs tie parents); `invalidated`
-and `affected` are deterministic, `iterations`, `epochs` and `pushes` depend on the schedule.
+randomized test `NonCanonicalInputTreesAgreeOnEveryBackend` perturbs tie parents; the CUDA test
+executable runs it with cuda next to the host backends); `invalidated` and `affected` are
+deterministic, `iterations`, `epochs` and `pushes` depend on the schedule. One counter differs by
+origin: right at the packing limit MOSP-CUDA packs (distance, parent) when (n - 1) * max weight
+fits next to the parent bits, MOSP-OpenMP only when one more edge fits too, so
+`stats::packed_parents` can differ between cuda and the host backends there (the packing-boundary
+cases n = 2^17 - 1; the trees are equal).
+
+**The CUDA backend.** A graph belongs to the backend of the resources that built it (PLAN 4.6
+rule 5): sssp on CUDA resources needs a graph built with them (or `g.clone(cuda_res)`), and a
+host graph with CUDA resources, or the reverse, is an `invalid_argument_error` instead of a
+silent copy. Such a graph keeps its CSR in host memory in this release (a batch is applied on the
+host, as MOSP-CUDA's `applyChangeBatch` does) and a device copy of the current state (out- and
+in-edges, one weight column per objective), uploaded on first use and again inside the commit of
+every update, as MOSP-CUDA uploads the updated graph once per batch. Results keep their arrays in
+device memory (`r.space() == memory_space::device`; copy them with `dyng::to_vector(res,
+r.distances())`), `r.clone(res)` moves a result between host and device, and
+`result::from_arrays()` accepts host or device arrays (checked on the host, then uploaded).
+`compute()` and `update()` synchronize the stream once (the kernel's control block is read). The
+scratch memory is the device workspace of the handle's pool (ADR 0015), the kernel's grid is the
+co-resident block count of each kernel instantiation (occupancy API), and `resources::warm_up()`
+loads the kernels ahead of timed work. Engine selection, placement and the device graph are
+recorded in ADR 0017.
 
 ## 5. Performance notes
 
@@ -115,6 +143,15 @@ overload takes over the arrays without a copy. On the OpenMP backend the batch's
 the checks of `from_csr()` and the validation of imported trees (`validate_inputs`) run in
 parallel, with results and messages identical to the sequential ones.
 
+**CUDA.** MOSP-CUDA's timer `obj<k>/sosp_update_gpu` is the host time of `sospUpdateGpu()` up
+to its final synchronization; dynG's `sssp.enact_fused` has the same scope and also records its
+device time with CUDA events (`profiler_options::cuda_events`). The kernel is the original's
+code: its int32 instantiation uses 59 registers and 616 bytes of parameters, like the original
+(`cuobjdump --dump-resource-usage`), so the co-resident grid that the occupancy API gives the
+cooperative launch is the same. A first A/B on roadNet-PA (parity-cuda preset, GPU 0, 5 alternating runs; the full gate
+record follows in `parity/results/M1b.md`) gave 0.98-1.00x per objective, 0.55-0.60x for the apply
+region (dynG's host apply is parallel) and 0.82-0.84x end to end, with byte-identical outputs.
+
 **Measured against the originals** (OpenMP, 28 threads pinned, medians of 21 alternating runs,
 `parity/results/M1b.md`): every objective's SOSP region, the apply region and the end-to-end time
 of `dyng-compat-mosp` against MOSP-OpenMP@c352151's `mosp` on roadNet-PA, roadNet-CA,
@@ -135,11 +172,17 @@ Byte-identical outputs and equal `invalidated` counters in every run; details in
 - Integer weights of at least 1 only (zero or negative weights are rejected).
 - The graph must store its in-edges (`graph_properties::store_transposed`, the default).
 - Distances must fit 62 bits ((n - 1) * max weight); beyond that `compute` and `update` throw.
-- A tree imported with `validate_inputs = false` must be a shortest-path tree of the graph. Both
-  engines still reject a parent cycle that no root of the batch breaks (the same check and
-  message; the batch is already applied, so the result is then poisoned and every later use of it
-  throws `stale_result_error` until it is recomputed); other corrupt inputs (for example wrong
-  distances) give undefined, though memory-safe, results.
+- A tree imported with `validate_inputs = false` must be a shortest-path tree of the graph. All
+  engines still reject a parent cycle that no root of the batch breaks (the CUDA engine sees it
+  when pointer jumping is still active after ceil(log2 n) + 1 rounds, which needs at least one
+  deletion or weight increase in the batch; the batch is already applied, so the result is then
+  poisoned and every later use of it throws `stale_result_error` until it is recomputed), and the
+  CUDA engine rejects a distance outside [0, (n - 1) * max weight] (MOSP-CUDA's "the initial tree
+  does not belong to this graph"); other corrupt inputs (for example wrong distances) give
+  undefined, though memory-safe, results.
+- CUDA: the device must support cooperative launch (every GPU since Pascal does); the operators
+  engine that runs without it arrives in 0.2. A graph built with CUDA resources keeps a host copy
+  of its CSR as well as the device copy (the device apply comes later).
 
 ## 7. Differences from the paper
 
@@ -163,6 +206,17 @@ worklist without an iteration cap or a reachability pass, and ties go to the low
 | `checkSospTree` | `testing::check_sssp_tree` |
 | `ListGather` | `detail::list_gather` (`cpp/src/util/list_gather.hpp`) |
 | `mosp` driver (per-objective part) | `tools/compat` `dyng-compat-mosp` |
+
+| MOSP-CUDA@e220ee2 | dynG |
+|---|---|
+| `sospUpdateGpu`, `sospPersistentKernel` | `sssp::update` on `resources::cuda` (`cuda.cu`, `fused.cuh`: `sssp_persistent_kernel`) |
+| `sospFromScratchGpu` | `sssp::compute` on `resources::cuda` |
+| `SospWorkspace` (`gridBlocks` from the occupancy API) | `detail::sssp_cuda_workspace`, leased from the pool of `resources` |
+| `DeviceGraph`, `uploadDeviceGraph` (reverse CSR built on the device) | the device copy of a CUDA graph (`graph/device_graph.{hpp,cu}`, stage `graph.upload`) |
+| `DeviceChanges` (per-objective change lists, `weightIncreaseMask`) | stage `sssp.changes`: the lists built from `detail::apply_delta` and uploaded |
+| `setenv("CUDA_MODULE_LOADING", "EAGER")` | `resources::warm_up()` |
+| `ScopedStage` with `cudaDeviceSynchronize` | `profiler` stages; `profiler_options::cuda_events` for device times |
+| `mospPrep changes` (`generateChangeBatch`) | `generators::legacy::mosp_changes()`; `dyng-compat-mosp changes` |
 
 ## 9. How to cite
 

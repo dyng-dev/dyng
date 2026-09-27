@@ -17,6 +17,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0014](0014-approval-checkpoints.md) | Approval checkpoints | Accepted |
 | [0015](0015-workspace-sharing.md) | Workspace sharing (scratch memory owned by `resources`) | Proposed (M1b) |
 | [0016](0016-cuda-execution-resources.md) | CUDA execution resources (streams, memory, errors, warm-up) | Proposed (M1b) |
+| [0017](0017-cuda-sssp-engine-and-placement.md) | The CUDA sssp engine, engine selection, placement and the resident device graph | Proposed (M1b) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0009 default index types, 0011 Python, 0012 versioning and stability.
