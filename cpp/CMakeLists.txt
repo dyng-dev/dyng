@@ -91,3 +91,5 @@ dyng_add_module(
     src/core/version.cpp
     "${PROJECT_BINARY_DIR}/cpp/generated/references_bib.cpp"
 )
+
+dyng_add_module(NAME graph SOURCES src/graph/apply_host.cpp src/graph/graph.cpp)

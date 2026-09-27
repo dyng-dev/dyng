@@ -25,4 +25,11 @@
 #include <dyng/core/resources.hpp>
 #include <dyng/core/stream.hpp>
 #include <dyng/core/types.hpp>
+#include <dyng/graph/apply_summary.hpp>
+#include <dyng/graph/csr.hpp>
+#include <dyng/graph/edge_batch.hpp>
+#include <dyng/graph/edge_list.hpp>
+#include <dyng/graph/graph.hpp>
+#include <dyng/graph/graph_properties.hpp>
+#include <dyng/graph/graph_view.hpp>
 #include <dyng/version.hpp>

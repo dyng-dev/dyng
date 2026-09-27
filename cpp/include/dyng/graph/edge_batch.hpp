@@ -1,0 +1,252 @@
+// SPDX-FileCopyrightText: 2026 The dynG Authors
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * @file edge_batch.hpp
+ * @brief edge_batch_view<V,W> (non-owning) and edge_batch<V,W> (owning builder).
+ * @ingroup batch
+ */
+#pragma once
+
+#include <dyng/core/array_view.hpp>
+#include <dyng/core/error.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <initializer_list>
+#include <vector>
+
+/**
+ * @defgroup batch Batches
+ * @brief Edge batches: the changes applied to a graph by graph::apply() and update().
+ */
+
+namespace dyng {
+
+/**
+ * @brief A non-owning batch of changes. An empty array means "none of this kind".
+ *
+ * How the batch is interpreted (upsert, deletions first, self-loops, ...) is a property of the
+ * graph it is applied to (graph_properties::semantics), not of the batch.
+ *
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Weight type.
+ * @ingroup batch
+ */
+template <typename vertex_t, typename weight_t>
+struct edge_batch_view {
+  array_view<const vertex_t> insert_src;       ///< source of each insertion
+  array_view<const vertex_t> insert_dst;       ///< destination of each insertion
+  array_view<const weight_t> insert_weights;   ///< num_weights per insertion, insertion-major
+  array_view<const vertex_t> delete_src;       ///< source of each deletion
+  array_view<const vertex_t> delete_dst;       ///< destination of each deletion
+  array_view<const vertex_t> insert_vertices;  ///< new vertices (0.3, DynLP)
+  array_view<const std::int8_t> insert_vertex_labels;  ///< optional labels of new vertices
+  array_view<const vertex_t> delete_vertices;          ///< removed vertices (0.3, DynLP)
+  int num_weights = 1;                                 ///< weights per insertion
+
+  /**
+   * @brief Number of edge insertions.
+   * @return insert_src.size().
+   */
+  [[nodiscard]] std::size_t num_insertions() const noexcept {
+    return insert_src.size();
+  }
+
+  /**
+   * @brief Number of edge deletions.
+   * @return delete_src.size().
+   */
+  [[nodiscard]] std::size_t num_deletions() const noexcept {
+    return delete_src.size();
+  }
+
+  /**
+   * @brief Whether the batch has no operation at all.
+   * @return True if every array is empty.
+   */
+  [[nodiscard]] bool empty() const noexcept {
+    return insert_src.empty() && delete_src.empty() && insert_vertices.empty() &&
+           delete_vertices.empty();
+  }
+};
+
+/**
+ * @brief An owning host batch with a builder interface.
+ *
+ * Operations keep the order in which they were added; the order matters (the last insertion of
+ * a pair wins under upsert semantics).
+ *
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Weight type.
+ * @ingroup batch
+ */
+template <typename vertex_t, typename weight_t>
+class edge_batch {
+ public:
+  /**
+   * @brief An empty batch.
+   * @param[in] num_weights Weights per insertion (the number of objectives of the graph).
+   * @throws invalid_argument_error if `num_weights` is negative.
+   */
+  explicit edge_batch(int num_weights = 1) : num_weights_(num_weights) {
+    DYNG_EXPECTS(num_weights >= 0, "edge_batch: num_weights must be >= 0, got ", num_weights);
+  }
+
+  /**
+   * @brief Add an edge insertion (or an upsert of an existing edge).
+   * @param[in] u       Source.
+   * @param[in] v       Destination.
+   * @param[in] weights Its num_weights() weights.
+   * @throws invalid_argument_error if `weights` does not hold num_weights() values.
+   */
+  void insert_edge(vertex_t u, vertex_t v, std::initializer_list<weight_t> weights) {
+    insert_edge(u, v, array_view<const weight_t>(weights.begin(), weights.size()));
+  }
+
+  /**
+   * @brief Add an edge insertion (or an upsert of an existing edge).
+   * @param[in] u       Source.
+   * @param[in] v       Destination.
+   * @param[in] weights Its num_weights() weights (host memory).
+   * @throws invalid_argument_error if `weights` does not hold num_weights() values.
+   */
+  void insert_edge(vertex_t u, vertex_t v, array_view<const weight_t> weights) {
+    DYNG_EXPECTS(weights.size() == static_cast<std::size_t>(num_weights_),
+                 "edge_batch::insert_edge got ", weights.size(), " weights, expected ",
+                 num_weights_);
+    insert_src_.push_back(u);
+    insert_dst_.push_back(v);
+    insert_weights_.insert(insert_weights_.end(), weights.begin(), weights.end());
+  }
+
+  /**
+   * @brief Add an edge deletion.
+   * @param[in] u Source.
+   * @param[in] v Destination.
+   */
+  void delete_edge(vertex_t u, vertex_t v) {
+    delete_src_.push_back(u);
+    delete_dst_.push_back(v);
+  }
+
+  /**
+   * @brief Reserve capacity.
+   * @param[in] insertions Expected number of insertions.
+   * @param[in] deletions  Expected number of deletions.
+   */
+  void reserve(std::size_t insertions, std::size_t deletions) {
+    insert_src_.reserve(insertions);
+    insert_dst_.reserve(insertions);
+    insert_weights_.reserve(insertions * static_cast<std::size_t>(num_weights_));
+    delete_src_.reserve(deletions);
+    delete_dst_.reserve(deletions);
+  }
+
+  /**
+   * @brief Remove every operation (keeps num_weights() and the capacity).
+   */
+  void clear() noexcept {
+    insert_src_.clear();
+    insert_dst_.clear();
+    insert_weights_.clear();
+    delete_src_.clear();
+    delete_dst_.clear();
+  }
+
+  /**
+   * @brief Weights per insertion.
+   * @return The value given at construction.
+   */
+  [[nodiscard]] int num_weights() const noexcept {
+    return num_weights_;
+  }
+
+  /**
+   * @brief Number of edge insertions.
+   * @return The insertion count.
+   */
+  [[nodiscard]] std::size_t num_insertions() const noexcept {
+    return insert_src_.size();
+  }
+
+  /**
+   * @brief Number of edge deletions.
+   * @return The deletion count.
+   */
+  [[nodiscard]] std::size_t num_deletions() const noexcept {
+    return delete_src_.size();
+  }
+
+  /**
+   * @brief Whether the batch is empty.
+   * @return True if it has no operation.
+   */
+  [[nodiscard]] bool empty() const noexcept {
+    return insert_src_.empty() && delete_src_.empty();
+  }
+
+  /**
+   * @brief Sources of the insertions.
+   * @return The array, in insertion order.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& insert_src() const noexcept {
+    return insert_src_;
+  }
+
+  /**
+   * @brief Destinations of the insertions.
+   * @return The array, in insertion order.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& insert_dst() const noexcept {
+    return insert_dst_;
+  }
+
+  /**
+   * @brief Weights of the insertions, num_weights() per insertion.
+   * @return The insertion-major array.
+   */
+  [[nodiscard]] const std::vector<weight_t>& insert_weights() const noexcept {
+    return insert_weights_;
+  }
+
+  /**
+   * @brief Sources of the deletions.
+   * @return The array, in deletion order.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& delete_src() const noexcept {
+    return delete_src_;
+  }
+
+  /**
+   * @brief Destinations of the deletions.
+   * @return The array, in deletion order.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& delete_dst() const noexcept {
+    return delete_dst_;
+  }
+
+  /**
+   * @brief A read-only view of the batch.
+   * @return A host edge_batch_view; valid while this batch is alive and unmodified.
+   */
+  [[nodiscard]] edge_batch_view<vertex_t, weight_t> view() const noexcept {
+    edge_batch_view<vertex_t, weight_t> out;
+    out.insert_src = host_view(insert_src_);
+    out.insert_dst = host_view(insert_dst_);
+    out.insert_weights = host_view(insert_weights_);
+    out.delete_src = host_view(delete_src_);
+    out.delete_dst = host_view(delete_dst_);
+    out.num_weights = num_weights_;
+    return out;
+  }
+
+ private:
+  int num_weights_;
+  std::vector<vertex_t> insert_src_;
+  std::vector<vertex_t> insert_dst_;
+  std::vector<weight_t> insert_weights_;
+  std::vector<vertex_t> delete_src_;
+  std::vector<vertex_t> delete_dst_;
+};
+
+}  // namespace dyng
