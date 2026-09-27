@@ -4,7 +4,8 @@
 # Timed-region map of sssp (PLAN Sections 6.3 step 3 and 8.6): each timer of the original ->
 # the dynG profiler stages whose host times are summed to match it. The performance gate compares
 # medians of these sums (>= 5 runs, A/B/A/B, parity preset, 28 threads pinned with
-# OMP_PROC_BIND=close OMP_PLACES=cores, under the perf lock).
+# OMP_PROC_BIND=close OMP_PLACES=cores, under the perf lock). parity/perf_ab.py implements it
+# for the OpenMP backend by parsing the "obj<k> SOSP update <ms>" report lines of both drivers.
 #
 # dynG stage names: sssp.update > { sssp.prepare, sssp.commit > graph.apply, sssp.identify_affected,
 # sssp.seed, sssp.loop, sssp.finalize }; with dyng::update / update_each the commit is
@@ -55,8 +56,41 @@ combined graph (Steps 2-3 of the MOSP update, "combined_graph_compute") belongs 
 algorithm (0.2) and is excluded from both sides when the sssp port is compared.
 """
 
-# Logged only (not parity targets, PLAN Section 8.3): iterations, epochs, pushes. The invalidated
-# counter is deterministic and must be equal.
+# Measured in M1a (parity/results/M1a.md): the per-objective region depends on how the K results
+# share scratch memory. MOSP's mospUpdate() uses ONE SospWorkspace for all objectives (its first
+# objective touches the pages, the later ones reuse them); each dynG sssp::result owns its
+# workspace, touched when the result is created. dynG's obj0 is therefore faster and obj1..K-1
+# slightly slower than the original's; the sum over the objectives is the robust comparison until
+# results can share a workspace (open item for M1b / mosp 0.2).
+
+# --- MOSP-CUDA (M1b; draft, written before the CUDA port as PLAN Section 6.3 step 3 asks) ------
+[reference.mosp_cuda]
+repo = "MOSP-CUDA"
+commit = "e220ee2"
+driver = "bin/mosp (ScopedStage with CUDA events; CUDA_MODULE_LOADING=EAGER)"
+port_driver = "dyng-compat-mosp --backend cuda (M1b)"
+
+[[reference.mosp_cuda.region]]
+name = "sosp_update"
+original = "obj<k>/sosp_update_gpu"          # device time (CUDA events) of sospUpdateGpu()
+port = ["sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"]  # device_ms
+gate = "compute"                             # <= 1.05 x; <= 1.10 x below 10 ms with >= 20 runs
+
+[[reference.mosp_cuda.region]]
+name = "apply"
+original = ["apply_batch_host", "upload"]
+port = ["update.commit"]
+gate = "end_to_end"
+
+[[reference.mosp_cuda.region]]
+name = "end_to_end"
+original = "TOTAL_end_to_end"               # includes cuda_context_init and the combined graph
+port = ["total.end_to_end"]
+gate = "end_to_end"
+note = "exclude combined_graph_gpu (mosp, 0.2) and compare the context init separately"
+
+# Logged only (not parity targets, PLAN Section 8.3): iterations, epochs, pushes (and MOSP-CUDA's
+# jump rounds). The invalidated counter is deterministic and must be equal.
 [counters]
 equal = ["invalidated"]
 logged = ["iterations", "epochs", "pushes"]

@@ -1,0 +1,704 @@
+{
+ "schema": 1,
+ "algorithm": "sssp",
+ "backend": "openmp",
+ "date": "2026-09-27T18:35:31Z",
+ "graph": "roadNet-CA",
+ "reference": {
+  "name": "MOSP-OpenMP",
+  "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+  "variant": "unpatched",
+  "binary": "/home/sskg8/Projects/dyng-work/ref/MOSP-OpenMP@c352151/unpatched/bin/mosp"
+ },
+ "port": {
+  "commit": "93e60f86b3f159bea5a613a76ddaa53a3f12dbd1",
+  "binary": "build/parity/tools/compat/dyng-compat-mosp"
+ },
+ "protocol": {
+  "runs": 9,
+  "order": "A/B/A/B (original first)",
+  "threads": 28,
+  "env": "OMP_PROC_BIND=close OMP_PLACES=cores",
+  "lock": "perf.lock",
+  "statistic": "median",
+  "outputs": "--no-output on both"
+ },
+ "host": {
+  "machine": "rs4fj2xp3",
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "kernel": "6.1.0-52-amd64"
+ },
+ "inputs_sha256": [
+  "966eb2f0e570784119cca02c40d451dba1228c444b0c6148385f7c0489f8fe78  changes_50000_50/delete.txt",
+  "aa83613347d1c6febeb06a06552b21b010dbfafc27a4a1a18b20abcad13cf273  changes_50000_50/insert.txt",
+  "b76c87ff03ead5d3883246cae64db3bbdb2ffd62059d7a18b2aa0423f7cbe7fc  changes_50000_50_safe/delete.txt",
+  "aa83613347d1c6febeb06a06552b21b010dbfafc27a4a1a18b20abcad13cf273  changes_50000_50_safe/insert.txt",
+  "0a01bd4d6440f792c8c2682e8eb5fcf56740c05ffda999900e1c523d8b423e2b  changes_local_10000_50_safe/delete.txt",
+  "177e8036a996189285d4e52da482b169d36ccdc486cefbce2b87f5aa2ed25844  changes_local_10000_50_safe/insert.txt",
+  "40b48ba4fe165708321064ecc792de2d7de92f154313249c387d53b8b5f002d7  csr/graphCsrColInd.txt",
+  "d72d6af99511677c43f368c9a0c34439c67a6f338bd0e4235e4ecf05ca2e7b1d  csr/graphCsrRowPtr.txt",
+  "1766cacfd7e467135d94653363d18df22b4756ab0fbd28ff03eb86431400d892  csr/graphCsrValues.txt",
+  "2b6c21443e555d7c115cb666f4dd9d6164fb863e236f3968ae7076878e8b2bbc  init/obj0/SSSPTreeOriginal.txt",
+  "0962f5f303b60fd9bdac23532c3f0853ead7dc951c041ac3bd350e01dd1a11c0  init/obj0/distancesOriginal.txt",
+  "d8a5dc5227b5a0856767c7d5df6046ea9fdfe959b237950c4f3a7e729265998c  init/obj1/SSSPTreeOriginal.txt",
+  "f0991b9d18ac5acb5f5128ad3d21a16979d93c8dbaba1b953bba14ca45cf67a9  init/obj1/distancesOriginal.txt",
+  "98a53310608fec31900742ee99caaaba2636efd65e2cacb92890c5bac10dc687  init/obj2/SSSPTreeOriginal.txt",
+  "6958d05a2a4d71196cea3a0e1b246ee7a82468e349223b800d8f7f8eb5d6ca8d  init/obj2/distancesOriginal.txt"
+ ],
+ "results": {
+  "safe50k": {
+   "regions": [
+    {
+     "region": "sosp obj0",
+     "original_ms": 31.503,
+     "port_ms": 25.424,
+     "ratio": 0.8070342507062819,
+     "original_spread": 0.22067739580357432,
+     "port_spread": 0.06635462555066084,
+     "original_samples": [
+      29.22,
+      33.755,
+      34.902,
+      33.19,
+      31.503,
+      31.293,
+      34.86,
+      27.95,
+      28.426
+     ],
+     "port_samples": [
+      25.183,
+      25.382,
+      25.871,
+      24.575,
+      26.002,
+      25.424,
+      25.362,
+      25.628,
+      26.262
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "sosp obj1",
+     "original_ms": 20.866,
+     "port_ms": 21.602,
+     "ratio": 1.0352726924182882,
+     "original_spread": 0.09690405444263404,
+     "port_spread": 0.06666049439866668,
+     "original_samples": [
+      20.477,
+      20.661,
+      20.878,
+      20.974,
+      22.452,
+      21.845,
+      20.866,
+      20.43,
+      20.577
+     ],
+     "port_samples": [
+      21.618,
+      21.602,
+      21.723,
+      20.292,
+      21.435,
+      21.586,
+      21.585,
+      21.732,
+      21.703
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "region": "sosp obj2",
+     "original_ms": 20.235,
+     "port_ms": 21.452,
+     "ratio": 1.0601433160365703,
+     "original_spread": 0.06874227823078816,
+     "port_spread": 0.075936975573373,
+     "original_samples": [
+      20.27,
+      20.25,
+      20.16,
+      20.15,
+      21.403,
+      21.169,
+      20.159,
+      20.235,
+      20.012
+     ],
+     "port_samples": [
+      21.729,
+      21.296,
+      21.424,
+      20.1,
+      21.452,
+      21.458,
+      21.501,
+      21.452,
+      21.299
+     ],
+     "gate": 1.05,
+     "within_gate": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp total",
+     "original_ms": 74.314,
+     "port_ms": 68.53,
+     "ratio": 0.9221680975320936,
+     "original_spread": 0.09856823747880619,
+     "port_spread": 0.06270246607325254,
+     "original_samples": [
+      69.967,
+      74.666,
+      75.94,
+      74.314,
+      75.358,
+      74.307,
+      75.88499999999999,
+      68.615,
+      69.015
+     ],
+     "port_samples": [
+      68.53,
+      68.28,
+      69.018,
+      64.967,
+      68.889,
+      68.46799999999999,
+      68.44800000000001,
+      68.812,
+      69.264
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": false
+    },
+    {
+     "region": "apply (batch + reverse graph)",
+     "original_ms": 139.2,
+     "port_ms": 107.2,
+     "ratio": 0.7701149425287357,
+     "original_spread": 0.03735632183908038,
+     "port_spread": 0.03171641791044781,
+     "original_samples": [
+      137.10000000000002,
+      139.2,
+      142.0,
+      140.60000000000002,
+      137.4,
+      140.0,
+      141.0,
+      136.8,
+      138.8
+     ],
+     "port_samples": [
+      105.1,
+      107.5,
+      107.4,
+      106.8,
+      108.5,
+      108.2,
+      106.7,
+      107.2,
+      105.7
+     ],
+     "noisy": false
+    },
+    {
+     "region": "end to end",
+     "original_ms": 692.205,
+     "port_ms": 876.617,
+     "ratio": 1.2664124067292202,
+     "original_spread": 0.26683569173871907,
+     "port_spread": 0.012147836512410781,
+     "original_samples": [
+      704.281,
+      705.054,
+      542.102,
+      690.881,
+      692.205,
+      726.807,
+      642.326,
+      713.243,
+      558.861
+     ],
+     "port_samples": [
+      876.193,
+      876.037,
+      876.771,
+      871.816,
+      875.831,
+      882.465,
+      880.953,
+      880.65,
+      876.617
+     ],
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     1651121,
+     1105632,
+     1022434
+    ],
+    "port": [
+     1651121,
+     1105632,
+     1022434
+    ]
+   },
+   "threads": {
+    "original": 28,
+    "port": 28
+   },
+   "load_average": {
+    "min": 8.7724609375,
+    "max": 10.3125
+   }
+  },
+  "unsafe50k": {
+   "regions": [
+    {
+     "region": "sosp obj0",
+     "original_ms": 29.995,
+     "port_ms": 24.748,
+     "ratio": 0.8250708451408568,
+     "original_spread": 0.27551258543090523,
+     "port_spread": 0.0564085986746404,
+     "original_samples": [
+      28.281,
+      36.545,
+      29.533,
+      35.052,
+      29.454,
+      34.922,
+      29.995,
+      34.284,
+      28.892
+     ],
+     "port_samples": [
+      25.692,
+      24.748,
+      24.296,
+      24.709,
+      24.361,
+      24.827,
+      24.621,
+      25.24,
+      24.777
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "sosp obj1",
+     "original_ms": 21.007,
+     "port_ms": 21.694,
+     "ratio": 1.0327033845860902,
+     "original_spread": 0.10520302756224119,
+     "port_spread": 0.014427952429243055,
+     "original_samples": [
+      21.064,
+      22.533,
+      21.156,
+      21.844,
+      20.323,
+      20.978,
+      21.007,
+      20.667,
+      20.531
+     ],
+     "port_samples": [
+      21.803,
+      21.786,
+      21.633,
+      21.694,
+      21.527,
+      21.636,
+      21.825,
+      21.84,
+      21.61
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "sosp obj2",
+     "original_ms": 20.317,
+     "port_ms": 21.484,
+     "ratio": 1.0574395826155436,
+     "original_spread": 0.06930157011369778,
+     "port_spread": 0.012986408490039094,
+     "original_samples": [
+      20.501,
+      21.373,
+      20.228,
+      21.636,
+      20.325,
+      20.284,
+      20.317,
+      20.314,
+      20.244
+     ],
+     "port_samples": [
+      21.473,
+      21.494,
+      21.469,
+      21.443,
+      21.392,
+      21.577,
+      21.556,
+      21.484,
+      21.671
+     ],
+     "gate": 1.05,
+     "within_gate": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp total",
+     "original_ms": 71.319,
+     "port_ms": 68.028,
+     "ratio": 0.9538552138981198,
+     "original_spread": 0.15120795299990192,
+     "port_spread": 0.024813312165578912,
+     "original_samples": [
+      69.846,
+      80.45100000000001,
+      70.917,
+      78.532,
+      70.102,
+      76.184,
+      71.319,
+      75.265,
+      69.667
+     ],
+     "port_samples": [
+      68.968,
+      68.028,
+      67.398,
+      67.846,
+      67.28,
+      68.04,
+      68.002,
+      68.564,
+      68.05799999999999
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "apply (batch + reverse graph)",
+     "original_ms": 138.2,
+     "port_ms": 103.6,
+     "ratio": 0.7496382054992764,
+     "original_spread": 0.029667149059334055,
+     "port_spread": 0.04729729729729722,
+     "original_samples": [
+      137.7,
+      138.2,
+      138.39999999999998,
+      140.89999999999998,
+      138.5,
+      138.8,
+      136.8,
+      137.7,
+      137.8
+     ],
+     "port_samples": [
+      107.8,
+      103.5,
+      103.7,
+      103.5,
+      103.8,
+      103.2,
+      104.1,
+      103.6,
+      102.9
+     ],
+     "noisy": false
+    },
+    {
+     "region": "end to end",
+     "original_ms": 686.739,
+     "port_ms": 872.975,
+     "ratio": 1.2711889087411665,
+     "original_spread": 0.26094047374621215,
+     "port_spread": 0.010028924081445626,
+     "original_samples": [
+      701.272,
+      688.431,
+      554.996,
+      649.002,
+      606.348,
+      567.958,
+      695.792,
+      686.739,
+      734.194
+     ],
+     "port_samples": [
+      876.979,
+      873.189,
+      871.049,
+      868.224,
+      872.975,
+      868.726,
+      873.354,
+      870.734,
+      873.317
+     ],
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     1651536,
+     1106633,
+     1023496
+    ],
+    "port": [
+     1651536,
+     1106633,
+     1023496
+    ]
+   },
+   "threads": {
+    "original": 28,
+    "port": 28
+   },
+   "load_average": {
+    "min": 8.03173828125,
+    "max": 9.56640625
+   }
+  },
+  "local10k": {
+   "regions": [
+    {
+     "region": "sosp obj0",
+     "original_ms": 12.973,
+     "port_ms": 11.039,
+     "ratio": 0.8509211439142834,
+     "original_spread": 0.26108070608186235,
+     "port_spread": 0.2717637467161881,
+     "original_samples": [
+      12.973,
+      15.506,
+      14.914,
+      12.643,
+      14.545,
+      12.712,
+      13.529,
+      12.119,
+      12.915
+     ],
+     "port_samples": [
+      10.911,
+      10.816,
+      11.039,
+      10.95,
+      13.732,
+      10.732,
+      11.117,
+      11.182,
+      11.049
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "sosp obj1",
+     "original_ms": 10.056,
+     "port_ms": 8.308,
+     "ratio": 0.8261734287987271,
+     "original_spread": 0.16885441527446307,
+     "port_spread": 0.23736157920077028,
+     "original_samples": [
+      9.743,
+      10.47,
+      10.056,
+      8.772,
+      10.131,
+      9.334,
+      10.157,
+      9.574,
+      10.124
+     ],
+     "port_samples": [
+      8.252,
+      8.371,
+      8.303,
+      8.445,
+      10.208,
+      8.236,
+      8.441,
+      8.266,
+      8.308
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "sosp obj2",
+     "original_ms": 9.151,
+     "port_ms": 8.861,
+     "ratio": 0.9683094743743854,
+     "original_spread": 0.09671074199541031,
+     "port_spread": 0.228303803182485,
+     "original_samples": [
+      9.274,
+      9.253,
+      9.08,
+      8.514,
+      9.151,
+      8.985,
+      9.399,
+      8.889,
+      9.38
+     ],
+     "port_samples": [
+      8.925,
+      8.84,
+      8.767,
+      8.861,
+      10.774,
+      8.859,
+      8.912,
+      9.009,
+      8.751
+     ],
+     "gate": 1.1,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "sosp total",
+     "original_ms": 32.419,
+     "port_ms": 28.109,
+     "ratio": 0.8670532712298344,
+     "original_spread": 0.16348437644591127,
+     "port_spread": 0.24501049485929774,
+     "original_samples": [
+      31.990000000000002,
+      35.229,
+      34.05,
+      29.929000000000002,
+      33.827,
+      31.031,
+      33.085,
+      30.582,
+      32.419
+     ],
+     "port_samples": [
+      28.088,
+      28.027,
+      28.109,
+      28.256,
+      34.714,
+      27.826999999999998,
+      28.470000000000002,
+      28.457,
+      28.107999999999997
+     ],
+     "gate": 1.05,
+     "within_gate": true,
+     "noisy": true
+    },
+    {
+     "region": "apply (batch + reverse graph)",
+     "original_ms": 126.0,
+     "port_ms": 84.9,
+     "ratio": 0.6738095238095239,
+     "original_spread": 0.03888888888888893,
+     "port_spread": 0.044758539458186065,
+     "original_samples": [
+      126.0,
+      126.69999999999999,
+      126.39999999999999,
+      125.30000000000001,
+      126.0,
+      126.0,
+      127.0,
+      124.5,
+      122.1
+     ],
+     "port_samples": [
+      85.4,
+      84.3,
+      84.0,
+      84.9,
+      87.8,
+      85.0,
+      84.8,
+      85.0,
+      84.2
+     ],
+     "noisy": false
+    },
+    {
+     "region": "end to end",
+     "original_ms": 595.709,
+     "port_ms": 814.246,
+     "ratio": 1.3668519360963156,
+     "original_spread": 0.34510641940947684,
+     "port_spread": 0.01932339857979043,
+     "original_samples": [
+      697.109,
+      666.527,
+      497.967,
+      564.26,
+      616.686,
+      595.709,
+      491.526,
+      611.4,
+      494.296
+     ],
+     "port_samples": [
+      810.372,
+      810.978,
+      813.475,
+      814.246,
+      826.106,
+      810.392,
+      814.379,
+      815.186,
+      817.94
+     ],
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     97792,
+     65160,
+     89277
+    ],
+    "port": [
+     97792,
+     65160,
+     89277
+    ]
+   },
+   "threads": {
+    "original": 28,
+    "port": 28
+   },
+   "load_average": {
+    "min": 7.62841796875,
+    "max": 10.7607421875
+   }
+  }
+ }
+}

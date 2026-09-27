@@ -1,0 +1,242 @@
+{
+ "schema": 1,
+ "algorithm": "sssp",
+ "label": "M1a: dynG sssp (parity preset, -O3) against the MOSP-OpenMP@c352151 goldens",
+ "date": "2026-09-27T18:32:53Z",
+ "reference": {
+  "name": "MOSP-OpenMP",
+  "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
+ },
+ "port": {
+  "repository": "dyng",
+  "commit": "93e60f86b3f159bea5a613a76ddaa53a3f12dbd1"
+ },
+ "driver": "compat",
+ "executable": "build/parity/tools/compat/dyng-compat-mosp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+  "CMAKE_CXX_FLAGS": "",
+  "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+  "DYNG_ENABLE_OPENMP": "ON",
+  "build_dir": "/home/sskg8/Projects/dyng/build/parity",
+  "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+ },
+ "host": {
+  "machine": "rs4fj2xp3",
+  "python": "3.12.14"
+ },
+ "goldens": {
+  "manifest_sha256": "78b658553362f77686571dc5f21c28667809580a33983354a982912c54591c26",
+  "cases": 388,
+  "files": 8620
+ },
+ "tolerance": "none: byte equality of every compared file; invalidated counters equal",
+ "configs": [
+  "sequential",
+  "openmp:1",
+  "openmp:4",
+  "openmp:16"
+ ],
+ "matrix": {
+  "testcases": {
+   "sequential": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   }
+  },
+  "regressions": {
+   "sequential": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   }
+  },
+  "thesis": {
+   "sequential": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   }
+  },
+  "escher": {
+   "openmp:4": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   },
+   "sequential": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   }
+  },
+  "fixtures": {
+   "openmp:4": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   },
+   "sequential": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   }
+  },
+  "sosp": {
+   "openmp:1": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   },
+   "sequential": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   }
+  },
+  "large_weights": {
+   "openmp:1": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "sequential": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   }
+  },
+  "packing": {
+   "sequential": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   }
+  },
+  "stress": {
+   "sequential": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   }
+  }
+ },
+ "passed": true
+}
