@@ -162,6 +162,7 @@ def setup(app):  # noqa: ANN001, ANN201 (Sphinx's interface)
     # After the theme's own html-page-context handler (priority 500), which sets the default.
     app.connect("html-page-context", _edit_included_source, priority=900)
 
+
 # -- Link check ------------------------------------------------------------------------------------
 
 # The linkcheck builder runs only with DYNG_LINKCHECK_EXTERNAL=1 (ci/docs.sh; the weekly job of
