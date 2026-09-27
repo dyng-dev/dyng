@@ -30,6 +30,8 @@
  */
 #pragma once
 
+#include "framework/workspace.hpp"
+
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
@@ -67,8 +69,9 @@ template <typename vertex_t>
 struct sssp_changes {
   /// Edges (from[i], to[i]) that were deleted or whose weight increased; the head of such an edge
   /// is a root if the edge is its tree edge.
-  std::vector<vertex_t> changed_from;
-  std::vector<vertex_t> changed_to;        ///< heads of the changed edges
+  const vertex_t* changed_from = nullptr;
+  const vertex_t* changed_to = nullptr;    ///< heads of the changed edges
+  std::size_t num_changed = 0;             ///< number of changed edges
   const vertex_t* insert_heads = nullptr;  ///< heads of the insertions (distance may decrease)
   std::size_t num_insert_heads = 0;        ///< number of insertion heads
 };
@@ -86,15 +89,19 @@ struct sssp_counters {
 };
 
 /**
- * @brief Scratch space of the engines, reserved once per result and reused by every update.
+ * @brief Scratch space of the engines: leased from the workspace pool of the resources handle for
+ *        one run and shared by every result run through that handle (ADR 0015).
  *
- * The OpenMP fields are MOSP-OpenMP's SospWorkspace; the sequential fields replace the per-call
- * vectors of sequentialSOSPUpdate().
+ * The OpenMP fields are MOSP-OpenMP's SospWorkspace, which mospUpdate() reserves once and shares
+ * across the K objectives; the sequential fields replace the per-call vectors of
+ * sequentialSOSPUpdate(). Nothing in it carries information from one run to the next, except the
+ * generation counter of the stamps, which lives here with the stamps it describes; `in_far` is all
+ * zero between runs (a failed run's workspace is discarded by its lease).
  *
  * @tparam vertex_t Vertex id type.
  */
 template <typename vertex_t>
-struct sssp_workspace {
+struct sssp_workspace final : pooled_workspace {
   std::int64_t capacity = 0;  ///< vertices the arrays are sized for
   int generation = 0;         ///< stamp generation (stamps deduplicate list insertions)
 
@@ -121,6 +128,10 @@ struct sssp_workspace {
   std::vector<std::int64_t> old_distance;  ///< saved distance of each touched vertex
   std::vector<vertex_t> old_parent;        ///< saved parent of each touched vertex
 
+  // --- the change lists of one objective (update) ---
+  std::vector<vertex_t> changed_from;  ///< tails of the deleted and weight-increased edges
+  std::vector<vertex_t> changed_to;    ///< heads of the deleted and weight-increased edges
+
   /**
    * @brief Size the arrays for `requested` vertices (no-op if large enough; MOSP semantics:
    *        the per-vertex arrays are assigned, the frontier lists only reserved).
@@ -129,21 +140,16 @@ struct sssp_workspace {
   void reserve(std::int64_t requested);
 
   /**
-   * @brief Touch every page of the six frontier lists once (assign + clear), so that the first
-   *        update of this result does not take their page faults inside its timed phases.
-   *
-   * MOSP-OpenMP shares one workspace across the K objectives, so only its first objective pays
-   * these faults, inside its `obj0/sosp_update_compute` region; each dynG result owns its
-   * workspace and pays them here, outside the region (profiler stage sssp.workspace.pretouch,
-   * which parity/perf_ab.py adds back to objective 0; parity/timed_regions/sssp.toml).
-   */
-  void pretouch_lists();
-
-  /**
    * @brief A fresh stamp generation.
    * @return The new generation (> 0).
    */
   int next_generation();
+
+  /**
+   * @brief The memory the workspace holds.
+   * @return Bytes of every array's capacity.
+   */
+  [[nodiscard]] std::size_t bytes() const noexcept override;
 };
 
 /**
@@ -160,7 +166,6 @@ struct sssp_state {
   bool poisoned = false;              ///< a failed update left the arrays inconsistent
   std::vector<distance_t> distances;  ///< distances, infinite_distance() if unreachable
   std::vector<vertex_t> parents;      ///< parents, -1 for none
-  sssp_workspace<vertex_t> ws;        ///< engine scratch
 };
 
 /**
@@ -279,7 +284,7 @@ struct sssp_run {
   std::int64_t max_weight = 1;                      ///< largest weight before or after the batch
   std::int64_t* distances = nullptr;                ///< in: old tree; out: new tree
   vertex_t* parents = nullptr;                      ///< in: old tree; out: new tree
-  sssp_workspace<vertex_t>* ws = nullptr;           ///< scratch
+  sssp_workspace<vertex_t>* ws = nullptr;           ///< scratch (leased from the pool)
   sssp_counters counters;                           ///< out
 };
 

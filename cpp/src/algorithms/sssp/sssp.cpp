@@ -59,25 +59,30 @@ void sssp_workspace<vertex_t>::reserve(std::int64_t requested) {
 }
 
 template <typename vertex_t>
-void sssp_workspace<vertex_t>::pretouch_lists() {
-  const auto n = static_cast<std::size_t>(capacity);
-  for (std::vector<vertex_t>* list : {&near_a, &near_b, &far, &far2, &candidates, &frontier}) {
-    // assign + clear keeps the capacity and writes every page once.
-    list->assign(n, vertex_t{0});
-    list->clear();
+std::size_t sssp_workspace<vertex_t>::bytes() const noexcept {
+  const auto bytes_of = [](const auto& v) { return v.capacity() * sizeof(v[0]); };
+  std::size_t total = bytes_of(packed) + bytes_of(stamp) + bytes_of(in_far) + bytes_of(state) +
+                      bytes_of(old_distance);
+  for (const std::vector<vertex_t>* list :
+       {&near_a, &near_b, &far, &far2, &candidates, &frontier, &saved_parents, &child_start,
+        &children, &invalid, &affected, &candidate_list, &touched, &old_parent, &changed_from,
+        &changed_to}) {
+    total += bytes_of(*list);
   }
+  return total;
 }
 
-/// The workspace of a new result: reserved (MOSP semantics) and its frontier lists pre-touched,
-/// each in its own profiler stage (the parity harness accounts for both; sssp.toml).
+/// Lease the workspace of the handle's pool and size it for `n` vertices (profiler stage
+/// sssp.workspace; a no-op once the pooled workspace is large enough, ADR 0015). MOSP reserves its
+/// one SospWorkspace in mospUpdate()'s "prepare"; the frontier lists are only reserved, so their
+/// pages are first touched by the first run that uses them, as in the original.
 template <typename vertex_t>
-void prepare_workspace(const resources& res, sssp_workspace<vertex_t>& ws, std::int64_t n) {
-  {
-    scoped_stage stage(res, "sssp.workspace");
-    ws.reserve(n);
-  }
-  scoped_stage stage(res, "sssp.workspace.pretouch");
-  ws.pretouch_lists();
+workspace_pool::lease<sssp_workspace<vertex_t>> lease_workspace(const resources& res,
+                                                                std::int64_t n) {
+  scoped_stage stage(res, "sssp.workspace");
+  auto ws = resources_access::workspaces(res).acquire<sssp_workspace<vertex_t>>();
+  ws->reserve(n);
+  return ws;
 }
 
 template <typename vertex_t>
@@ -220,18 +225,24 @@ column_summary summarize_column(const resources& res, array_view<const weight_t>
   return column_summary{largest, sum, bad == m ? -1 : bad};
 }
 
+/// One objective's view of the graph. The in-edges are built (graph_access::view) only when
+/// `with_in_edges`; otherwise the in-edge pointers stay null.
 template <typename vertex_t, typename edge_t, typename weight_t>
-sssp_graph<vertex_t, edge_t, weight_t> objective_graph(const graph<vertex_t, edge_t, weight_t>& g,
-                                                       int objective) {
-  const auto view = g.view();
+sssp_graph<vertex_t, edge_t, weight_t> objective_graph(const resources& res,
+                                                       const graph<vertex_t, edge_t, weight_t>& g,
+                                                       int objective, bool with_in_edges = true) {
   sssp_graph<vertex_t, edge_t, weight_t> out;
-  out.num_vertices = view.num_vertices();
-  out.out_row_ptr = view.out.row_ptr.data();
-  out.out_col_ind = view.out.col_ind.data();
-  out.out_weights = view.out.weight_column(objective).data();
-  out.in_row_ptr = view.in.row_ptr.data();
-  out.in_col_ind = view.in.col_ind.data();
-  out.in_weights = view.in.weight_column(objective).data();
+  const auto out_edges = graph_access::out_view(g);
+  out.num_vertices = out_edges.num_vertices();
+  out.out_row_ptr = out_edges.row_ptr.data();
+  out.out_col_ind = out_edges.col_ind.data();
+  out.out_weights = out_edges.weight_column(objective).data();
+  if (with_in_edges) {
+    const auto view = graph_access::view(res, g);
+    out.in_row_ptr = view.in.row_ptr.data();
+    out.in_col_ind = view.in.col_ind.data();
+    out.in_weights = view.in.weight_column(objective).data();
+  }
   return out;
 }
 
@@ -276,10 +287,11 @@ void canonicalize_tree(const sssp_graph<vertex_t, edge_t, weight_t>& g, vertex_t
   }
 }
 
-/// The O(n) checks of options::validate_inputs (rooted at the source, no parent cycle).
+/// The O(n) checks of options::validate_inputs (rooted at the source, no parent cycle), one vertex
+/// after the other; throws the message of the first violation in vertex order.
 template <typename vertex_t>
-void validate_tree(vertex_t source, const std::vector<std::int64_t>& distances,
-                   const std::vector<vertex_t>& parents, std::int64_t bound) {
+void validate_tree_sequential(vertex_t source, const std::vector<std::int64_t>& distances,
+                              const std::vector<vertex_t>& parents, std::int64_t bound) {
   const auto n = static_cast<std::int64_t>(distances.size());
   const auto s = static_cast<std::size_t>(source);
   DYNG_EXPECTS(distances[s] == 0, "sssp: the source ", source, " must have distance 0, got ",
@@ -325,6 +337,108 @@ void validate_tree(vertex_t source, const std::vector<std::int64_t>& distances,
       state[static_cast<std::size_t>(x)] = 2;
     }
   }
+}
+
+/// validate_tree_sequential() with OpenMP: the same checks in parallel (per-vertex conditions,
+/// then a chain walk that marks every vertex whose parent chain reaches the source, as the OpenMP
+/// engine's invalidation does). A valid tree passes without the sequential pass; on any violation
+/// the sequential checks run and throw, so the message does not depend on the thread count.
+template <typename vertex_t>
+void validate_tree(const resources& res, vertex_t source,
+                   const std::vector<std::int64_t>& distances, const std::vector<vertex_t>& parents,
+                   std::int64_t bound, std::vector<char>& scratch) {
+#if DYNG_HAS_OPENMP
+  const auto n = static_cast<std::int64_t>(distances.size());
+  if (res.get_backend() == backend::openmp && n >= 4096) {
+    const int threads = std::max(1, res.num_threads());
+    const std::int64_t* d = distances.data();
+    const vertex_t* p = parents.data();
+    bool bad = d[source] != 0 || p[source] != -1;
+#pragma omp parallel for num_threads(threads) schedule(static) reduction(|| : bad)
+    for (std::int64_t v = 0; v < n; ++v) {
+      const std::int64_t dv = d[v];
+      const vertex_t pv = p[v];
+      if (dv >= sssp_infinity / 2) {
+        bad = bad || pv != -1;
+      } else if (dv < 0 || dv > bound) {
+        bad = true;
+      } else if (v != static_cast<std::int64_t>(source)) {
+        bad = bad || pv < 0 || d[pv] >= sssp_infinity / 2;
+      }
+    }
+    if (!bad) {
+      // 0 unknown, 1 rooted. Every reachable vertex has a reachable parent now, so a walk from a
+      // reachable vertex either meets a rooted vertex (the source first of all) or cycles; a walk
+      // longer than n steps means a cycle. Concurrent walks over a shared path write the same
+      // state, so relaxed atomics suffice.
+      scratch.assign(static_cast<std::size_t>(n), 0);
+      char* state = scratch.data();
+      state[source] = 1;
+      int cyclic = 0;
+      auto load_state = [state](vertex_t v) {
+        return __atomic_load_n(&state[v], __ATOMIC_RELAXED);
+      };
+#pragma omp parallel for num_threads(threads) schedule(dynamic, 1024)
+      for (std::int64_t v = 0; v < n; ++v) {
+        if (d[v] >= sssp_infinity / 2 || load_state(static_cast<vertex_t>(v)) != 0 ||
+            __atomic_load_n(&cyclic, __ATOMIC_RELAXED) != 0) {
+          continue;
+        }
+        auto u = static_cast<vertex_t>(v);
+        std::int64_t steps = 0;
+        while (load_state(u) == 0 && steps <= n) {
+          u = p[u];
+          ++steps;
+        }
+        if (steps > n) {
+          __atomic_store_n(&cyclic, 1, __ATOMIC_RELAXED);
+          continue;
+        }
+        for (u = static_cast<vertex_t>(v); load_state(u) == 0; u = p[u]) {
+          __atomic_store_n(&state[u], char{1}, __ATOMIC_RELAXED);
+        }
+      }
+      if (cyclic == 0) {
+        return;
+      }
+    }
+  }
+#else
+  (void)res;
+  (void)scratch;
+#endif
+  validate_tree_sequential(source, distances, parents, bound);
+}
+
+/// The always-on part of importing a tree (from_arrays): distances at or above half of MOSP's
+/// DISTANCE_INF become sssp_infinity (MOSP writes and reads them as "INF"), and every parent id
+/// must lie in [-1, n) (memory safety of the engines, with or without validate_inputs). In
+/// parallel on the OpenMP backend; the error names the first bad vertex either way.
+template <typename vertex_t>
+void normalize_imported_tree(const resources& res, std::vector<std::int64_t>& distances,
+                             const std::vector<vertex_t>& parents) {
+  const auto n = static_cast<std::int64_t>(distances.size());
+  std::int64_t* d = distances.data();
+  const vertex_t* p = parents.data();
+  std::int64_t first_bad = n;
+  const int threads = res.get_backend() == backend::openmp ? std::max(1, res.num_threads()) : 1;
+#if DYNG_HAS_OPENMP
+#pragma omp parallel for num_threads(threads) if (threads > 1 && n >= 65536) schedule(static) \
+    reduction(min : first_bad)
+#else
+  (void)threads;
+#endif
+  for (std::int64_t v = 0; v < n; ++v) {
+    if (d[v] >= sssp_infinity / 2) {
+      d[v] = sssp_infinity;
+    }
+    if ((p[v] < -1 || p[v] >= n) && v < first_bad) {
+      first_bad = v;
+    }
+  }
+  DYNG_EXPECTS(first_bad == n, "sssp::result::from_arrays: vertex ", first_bad, " has parent ",
+               first_bad < n ? static_cast<std::int64_t>(p[first_bad]) : 0, ", outside [-1, ", n,
+               ")");
 }
 
 /// The participant of one sssp result in run_update() (and dyng::update()).
@@ -397,8 +511,7 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
             max_id, std::max<std::int64_t>(batch.insert_src[i], batch.insert_dst[i]));
       }
     }
-    const auto view = g.view();
-    const column_summary column = summarize_column(res, view.out.weight_column(k));
+    const column_summary column = summarize_column(res, graph_access::out_view(g).weight_column(k));
     max_weight_ = std::max(largest, column.max_weight);
     const std::int64_t n = g.num_vertices();
     const std::int64_t m = g.num_edges();
@@ -426,30 +539,42 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
                  "sssp::update: distances up to ", max_weight_, " * ", n - 1,
                  " do not fit in 62 bits");
 
+    // The scratch memory of the engines, shared with the other results run through `res` (the K
+    // objectives of dyng::update_each() use one workspace one after the other, as MOSP's
+    // mospUpdate() shares its SospWorkspace; ADR 0015).
+    auto ws = lease_workspace<vertex_t>(res, static_cast<std::int64_t>(n));
+
     // The change list of objective k: every deletion, then every insertion that raised the
-    // objective's weight; the insertion heads are the heads of all insertions.
-    changes_.changed_from = delta.delete_src;
-    changes_.changed_to = delta.delete_dst;
+    // objective's weight; the insertion heads are the heads of all insertions. Kept in the
+    // workspace, whose capacity is reused from batch to batch.
+    std::vector<vertex_t>& changed_from = ws->changed_from;
+    std::vector<vertex_t>& changed_to = ws->changed_to;
+    changed_from.assign(delta.delete_src.begin(), delta.delete_src.end());
+    changed_to.assign(delta.delete_dst.begin(), delta.delete_dst.end());
     const std::size_t num_ins = delta.insert_src.size();
     const auto num_objectives = static_cast<std::size_t>(delta.num_weights);
     for (std::size_t i = 0; i < num_ins; ++i) {
       if (delta.weight_increased[i * num_objectives + static_cast<std::size_t>(k)] != 0) {
-        changes_.changed_from.push_back(delta.insert_src[i]);
-        changes_.changed_to.push_back(delta.insert_dst[i]);
+        changed_from.push_back(delta.insert_src[i]);
+        changed_to.push_back(delta.insert_dst[i]);
       }
     }
-    changes_.insert_heads = delta.insert_dst.data();
-    changes_.num_insert_heads = delta.insert_dst.size();
+    sssp_changes<vertex_t> changes;
+    changes.changed_from = changed_from.data();
+    changes.changed_to = changed_to.data();
+    changes.num_changed = changed_to.size();
+    changes.insert_heads = delta.insert_dst.data();
+    changes.num_insert_heads = delta.insert_dst.size();
 
     sssp_run<vertex_t, edge_t, weight_t> run;
-    run.graph = objective_graph(g, k);
-    run.changes = &changes_;
+    run.graph = objective_graph(res, g, k);
+    run.changes = &changes;
     run.source = st.source;
     run.delta = delta_;
     run.max_weight = max_weight_;
     run.distances = st.distances.data();
     run.parents = st.parents.data();
-    run.ws = &st.ws;
+    run.ws = &ws.get();
     run_update_engine(res, run);
 
     sssp::stats s;
@@ -481,7 +606,6 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
   sssp_state<vertex_t, distance_t>* state_ = nullptr;
   std::int64_t max_weight_ = 1;
   std::int64_t delta_ = 1;
-  sssp_changes<vertex_t> changes_;
 };
 
 }  // namespace
@@ -574,7 +698,8 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
   copy->poisoned = impl_->poisoned;
   copy->distances = impl_->distances;
   copy->parents = impl_->parents;
-  detail::prepare_workspace(res, copy->ws, static_cast<std::int64_t>(copy->distances.size()));
+  // Size the handle's pooled workspace now, so the first update through `res` allocates nothing.
+  (void)detail::lease_workspace<vertex_t>(res, static_cast<std::int64_t>(copy->distances.size()));
   return result(std::move(copy));
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::result::clone (", impl_ ? impl_->distances.size() : 0,
@@ -600,9 +725,8 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
   DYNG_EXPECTS(
       n == 0 || (is_host_accessible(distances.space()) && is_host_accessible(parents.space())),
       "sssp::result::from_arrays: the arrays must be in host memory");
-  const auto view = g.view();
   const detail::column_summary column =
-      detail::summarize_column(res, view.out.weight_column(opt.objective));
+      detail::summarize_column(res, detail::graph_access::out_view(g).weight_column(opt.objective));
   DYNG_EXPECTS(column.first_bad < 0, "sssp::result::from_arrays: edge ", column.first_bad,
                " has a weight below 1 in objective ", opt.objective);
 
@@ -616,30 +740,23 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
     scoped_stage stage(res, "sssp.import");
     state->distances.assign(distances.begin(), distances.end());
     state->parents.assign(parents.begin(), parents.end());
-    for (std::int64_t v = 0; v < n; ++v) {
-      auto& d = state->distances[static_cast<std::size_t>(v)];
-      if (d >= detail::sssp_infinity / 2) {
-        d = detail::sssp_infinity;  // MOSP writes and reads these as "INF"
-      }
-      // Always checked (memory safety of the engines), with or without validate_inputs.
-      const vertex_t p = state->parents[static_cast<std::size_t>(v)];
-      DYNG_EXPECTS(p >= -1 && p < n, "sssp::result::from_arrays: vertex ", v, " has parent ", p,
-                   ", outside [-1, ", n, ")");
-    }
+    detail::normalize_imported_tree(res, state->distances, state->parents);
   }
   if (canonicalize) {
     scoped_stage stage(res, "sssp.canonicalize");
-    detail::canonicalize_tree(detail::objective_graph(g, opt.objective), source, state->distances,
-                              state->parents);
+    detail::canonicalize_tree(detail::objective_graph(res, g, opt.objective, false), source,
+                              state->distances, state->parents);
   }
-  detail::prepare_workspace(res, state->ws, n);  // the engines' workspace, once (invariant I9)
+  // The engines' scratch: the handle's pooled workspace, sized once for every result run through
+  // `res` (ADR 0015); its state array is also the scratch of the parallel validation.
+  auto ws = detail::lease_workspace<vertex_t>(res, n);
   if (opt.validate_inputs) {
     scoped_stage stage(res, "sssp.validate");
     DYNG_EXPECTS(detail::sssp_distances_fit(n, column.max_weight),
                  "sssp::result::from_arrays: distances up to ", column.max_weight, " * ", n - 1,
                  " do not fit in 62 bits");
-    detail::validate_tree(source, state->distances, state->parents,
-                          column.max_weight * std::max<std::int64_t>(n - 1, 1));
+    detail::validate_tree(res, source, state->distances, state->parents,
+                          column.max_weight * std::max<std::int64_t>(n - 1, 1), ws->state);
   }
   return result(std::move(state));
 }
@@ -659,9 +776,8 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   const std::int64_t n = g.num_vertices();
   DYNG_EXPECTS(source >= 0 && source < n, "sssp::compute: source ", source, " is out of range [0, ",
                n, ")");
-  const auto view = g.view();
   const detail::column_summary column =
-      detail::summarize_column(res, view.out.weight_column(opt.objective));
+      detail::summarize_column(res, detail::graph_access::out_view(g).weight_column(opt.objective));
   DYNG_EXPECTS(column.first_bad < 0, "sssp::compute: edge ", column.first_bad,
                " has a weight below 1 in objective ", opt.objective,
                "; sssp needs weights in [1, 2^31 - 1]");
@@ -675,10 +791,13 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   state->graph_state = detail::graph_access::impl(g).state_id;
   state->distances.assign(static_cast<std::size_t>(n), detail::sssp_infinity);
   state->parents.assign(static_cast<std::size_t>(n), vertex_t{-1});
-  detail::prepare_workspace(res, state->ws, n);
+  auto ws = detail::lease_workspace<vertex_t>(res, n);  // the handle's pooled scratch (ADR 0015)
 
   detail::sssp_run<vertex_t, edge_t, weight_t> run;
-  run.graph = detail::objective_graph(g, opt.objective);
+  // The OpenMP engine computes from scratch with pushes only; the sequential engine also reads
+  // the in-edges.
+  run.graph =
+      detail::objective_graph(res, g, opt.objective, res.get_backend() == backend::sequential);
   run.source = source;
   run.delta = opt.delta > 0 ? opt.delta
                             : detail::sssp_default_delta(std::max<std::int64_t>(g.num_edges(), 1),
@@ -686,7 +805,7 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   run.max_weight = column.max_weight;
   run.distances = state->distances.data();
   run.parents = state->parents.data();
-  run.ws = &state->ws;
+  run.ws = &ws.get();
   detail::run_compute_engine(res, run);
   return detail::sssp_access::make(std::move(state));
 }

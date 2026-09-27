@@ -30,8 +30,8 @@
  * compute() runs the same loop from the source (reset -> seed_static -> loop -> finalize).
  *
  * Changes from the original: the hook structure; the children lists and all other scratch arrays
- * live in the result's workspace (reserved once); the classification of weight increases is the
- * graph's (MOSP applyChangeBatch semantics, identical for both backends) instead of the
+ * live in the pooled workspace (reserved once, ADR 0015); the classification of weight increases
+ * is the graph's (MOSP applyChangeBatch semantics, identical for both backends) instead of the
  * adjacency-list scan of the original; a parent cycle in an imported tree is reported as the
  * OpenMP engine reports it. And the tie rule of Step 2 (decided after the M1a review): the original
  * re-scans all in-neighbours of every candidate and adopts a lower-id tight parent even when the
@@ -61,8 +61,8 @@ class sequential_problem {
   explicit sequential_problem(sssp_run<vertex_t, edge_t, weight_t>& run)
       : run_(run), ws_(*run.ws), n_(static_cast<std::int64_t>(run.graph.num_vertices)) {
     ws_.reserve(n_);
-    // The sequential engine's own arrays, sized on its first run for this result (the OpenMP
-    // engine does not need them).
+    // The sequential engine's own arrays, sized on the workspace's first run (the OpenMP engine
+    // does not need them).
     if (ws_.child_start.size() < static_cast<std::size_t>(n_) + 1) {
       ws_.child_start.assign(static_cast<std::size_t>(n_) + 1, vertex_t{0});
     }
@@ -112,7 +112,7 @@ class sequential_problem {
     // v (parent[v] == u).
     std::vector<vertex_t>& invalidated = ws_.invalid;
     invalidated.clear();
-    for (std::size_t i = 0; i < changes.changed_to.size(); ++i) {
+    for (std::size_t i = 0; i < changes.num_changed; ++i) {
       const vertex_t u = changes.changed_from[i];
       const vertex_t v = changes.changed_to[i];
       if (parent[v] == u && !is_invalid(v)) {
@@ -120,7 +120,7 @@ class sequential_problem {
         invalidated.push_back(v);
       }
     }
-    if (!changes.changed_to.empty()) {
+    if (changes.num_changed > 0) {
       expect_no_rootless_cycle(is_invalid);
     }
     if (!invalidated.empty()) {

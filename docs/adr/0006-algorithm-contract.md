@@ -21,9 +21,9 @@ contract is frozen with `cycle_count` in M3.
    `compute()` (for sssp: the source and `objective`) cannot change later; tunables (for sssp:
    `delta`, `cuda_engine`, `validate_inputs`) change with `result::set_options()`.
 3. **`result`** is opaque (pimpl) and move-only; `clone(res)` is the deep copy. It owns the
-   property arrays, the options, the **graph version** it matches and the engines' **workspace**,
-   which is reserved when the result is created (compute, from_arrays, clone) and reused by
-   every update. Accessors return `array_view`s. `result::from_arrays()` adopts an existing
+   property arrays, the options and the **graph version** it matches. (M1a: also the engines'
+   workspace. Since M1b the scratch memory belongs to the `resources` handle and is leased per
+   run, so results run through one handle share it; ADR 0015.) Accessors return `array_view`s. `result::from_arrays()` adopts an existing
    result (for sssp: trees read from MOSP's files), optionally canonicalizing it, and validates it
    when `options.validate_inputs` is set.
 4. **`compute(res, container, inputs..., options) -> result`** never mutates the container.
@@ -112,13 +112,12 @@ are.
   framework's composition (`run_update(ctx, g, batch, problems...)`).
 - `update_each()` is an addition to the plan's Section 5.1 sketch, needed because the number of
   objectives is known only at run time.
-- Each sssp result owns its workspace (about 38 bytes per vertex for the OpenMP engine), so K
-  results use K workspaces where MOSP-OpenMP shares one; `mosp` (0.2) will share one across its
-  objectives. The M1a OpenMP A/B measured the cost (`parity/results/M1a.md`): objectives 1 and 2
-  run at 1.03-1.06x of the original, the sum over the objectives at 0.92-0.95x, and a throw-away
-  shared workspace brought objectives 1 and 2 to 0.97-1.03x. **Open for M1b:** how results on
-  one graph share scratch memory (through `resources`, or a workspace argument of
-  `update_each`); the answer becomes part of this contract before the M3 freeze.
+- (M1a) Each sssp result owned its workspace (about 38 bytes per vertex for the OpenMP engine),
+  so K results used K workspaces where MOSP-OpenMP shares one; the M1a OpenMP A/B measured the
+  cost (`parity/results/M1a.md`). **Decided in M1b (ADR 0015):** the `resources` handle owns a
+  workspace pool; `compute()` and `update()` lease a workspace per engine run, so the K
+  objectives of `update_each()` share one, as in MOSP, and a steady-state update allocates no
+  scratch memory.
 - The contract is exercised by one algorithm so far (sssp, two CPU backends); M2 (`cycle_count`,
   an aggregate-delta algorithm with oracle kind `compute`) is the second user, and M3 accepts
   this ADR only after both run through the extracted framework.
@@ -126,5 +125,6 @@ are.
 ## Alternatives rejected
 
 Passing the parameters again on every `update()` (state and parameters could disagree); a
-`session` class (the result already owns its workspace); letting users call `g.apply()` and then
+`session` class (the result already owns its state, and scratch memory belongs to `resources`,
+ADR 0015); letting users call `g.apply()` and then
 `update()` (the library could not enforce the G_t / G_{t+1} order that counting algorithms need).

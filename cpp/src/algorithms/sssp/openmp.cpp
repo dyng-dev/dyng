@@ -29,8 +29,9 @@
  * Mechanical changes only: names (snake_case), templates on the index types, namespace
  * dyng::detail, exceptions (invalid_argument_error) instead of `bool` + `cerr`, no globals, the
  * thread count of `resources` on every parallel region (`num_threads`) instead of the global
- * OpenMP setting, the workspace owned by the result and reserved once, the phases split into the
- * hooks identify_affected / seed / loop / finalize, and one added counter in the unpack pass
+ * OpenMP setting, the workspace leased from the pool of `resources` and reserved once (shared by
+ * the objectives, as MOSP shares its SospWorkspace; ADR 0015), the phases split into the hooks
+ * identify_affected / seed / loop / finalize, and one added counter in the unpack pass
  * (`affected`: vertices whose distance or parent changed).
  */
 #include "algorithms/sssp/problem.hpp"
@@ -221,10 +222,10 @@ class openmp_problem {
     // ---- Step 1: roots and subtree invalidation. ----
     ws_.candidates.clear();
     const int generation = ws_.next_generation();
-    const auto num_changed = static_cast<std::int64_t>(changes.changed_to.size());
+    const auto num_changed = static_cast<std::int64_t>(changes.num_changed);
     if (num_changed > 0) {
-      const vertex_t* changed_from = changes.changed_from.data();
-      const vertex_t* changed_to = changes.changed_to.data();
+      const vertex_t* changed_from = changes.changed_from;
+      const vertex_t* changed_to = changes.changed_to;
 #pragma omp parallel for num_threads(threads_) schedule(static)
       for (std::int64_t i = 0; i < num_changed; ++i) {
         const vertex_t v = changed_to[i];

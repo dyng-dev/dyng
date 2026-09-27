@@ -48,11 +48,12 @@ endforeach()
 dyng_add_test(
   NAME dyng_sssp_tests
   SOURCES algorithms/sssp/sssp_test.cpp algorithms/sssp/sssp_random_test.cpp
-          algorithms/sssp/sssp_fixture_test.cpp
+          algorithms/sssp/sssp_fixture_test.cpp algorithms/sssp/sssp_workspace_test.cpp
   LABELS cpu sssp
   LIBRARIES dyng::testing
 )
 target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
 dyng_add_test(NAME dyng_testing_tests SOURCES testing/oracle_test.cpp LABELS cpu testing LIBRARIES dyng::testing)
 

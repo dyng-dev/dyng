@@ -100,8 +100,13 @@ namespace dyng::sssp {
 /**
  * @brief A shortest-path tree kept up to date by update() (opaque, move-only).
  *
- * The result owns its distance and parent arrays, its options, the graph version it matches and
- * the reusable workspace of the incremental engines (reserved once).
+ * The result owns its distance and parent arrays, its options and the graph version it matches.
+ * The scratch memory of the engines is not part of it: compute() and update() lease the
+ * workspace of the resources handle they run with (sized once, then reused), so results computed
+ * and updated through one handle, such as the K objectives of dyng::update_each(), share one
+ * workspace as MOSP's objectives share one, and a steady-state update allocates no scratch memory
+ * (ADR 0015). The results stay independent: nothing in the workspace carries over from one run to
+ * the next.
  *
  * @tparam vertex_t   Vertex id type (int32_t or int64_t).
  * @tparam distance_t Distance type (int64_t).
@@ -125,7 +130,7 @@ class result {
 
   result(const result&) = delete;             ///< not copyable: use clone()
   result& operator=(const result&) = delete;  ///< not copyable: use clone()
-  ~result();                                  ///< releases the arrays and the workspace
+  ~result();                                  ///< releases the arrays
 
   /**
    * @brief The source vertex.
@@ -182,7 +187,10 @@ class result {
   [[nodiscard]] memory_space space() const noexcept;
 
   /**
-   * @brief A deep copy (arrays, options, version; a fresh workspace).
+   * @brief A deep copy (arrays, options, version).
+   *
+   * Also sizes the pooled workspace of `res` for the graph (a no-op if it is large enough), so the
+   * first update of the copy through `res` allocates no scratch memory.
    * @param[in] res Execution resources of the copy.
    * @return The copy.
    * @throws invalid_argument_error for a moved-from result.
@@ -205,7 +213,10 @@ class result {
    * without a parent, distances in [0, (n - 1) * max weight] or unreachable (>=
    * infinite_distance() / 2, stored as infinite_distance()), unreachable vertices without a
    * parent, every other vertex with a reachable parent, and no parent cycle (every chain ends at
-   * the source). The caller guarantees that the tree is a shortest-path tree of `g`.
+   * the source); on the OpenMP backend the checks run in parallel and report the same first
+   * problem as the sequential ones. The caller guarantees that the tree is a shortest-path tree
+   * of `g`. Also sizes the pooled workspace of `res` for the graph (once for all results built
+   * through `res`; ADR 0015).
    *
    * @tparam edge_t   Edge offset type of the graph.
    * @tparam weight_t Weight type of the graph.
