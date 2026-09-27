@@ -183,6 +183,9 @@ def run(args: argparse.Namespace) -> int:
                OMP_PLACES="cores")
     for var in ["OMP_WAIT_POLICY", "GOMP_SPINCOUNT", "OMP_DYNAMIC"]:
         env.pop(var, None)
+    for item in args.env:  # extra settings for BOTH sides, e.g. OMP_WAIT_POLICY=active
+        key, _, value = item.partition("=")
+        env[key] = value
     batches = [b for b in args.batches.split(",") if b]
     results = {}
     with perf_lock(SCRATCH / "perf.lock"):
@@ -281,7 +284,8 @@ def report(results: dict, k: int, args: argparse.Namespace) -> None:
             "port": {"commit": head + ("+dirty" if dirty else ""), "binary": str(args.exe)},
             "protocol": {"runs": args.runs, "order": "A/B/A/B (original first)",
                          "threads": args.threads,
-                         "env": "OMP_PROC_BIND=close OMP_PLACES=cores", "lock": "perf.lock",
+                         "env": " ".join(["OMP_PROC_BIND=close", "OMP_PLACES=cores", *args.env]),
+                         "lock": "perf.lock",
                          "statistic": "median", "outputs": "--no-output on both"},
             "host": {"machine": platform.node(), "cpu": cpu_model(),
                      "kernel": platform.release()},
@@ -316,6 +320,8 @@ def main() -> int:
     r.add_argument("--runs", type=int, default=7)
     r.add_argument("--threads", type=int, default=28)
     r.add_argument("--json", type=Path)
+    r.add_argument("--env", action="append", default=[], metavar="VAR=VALUE",
+                   help="extra environment for both sides (repeatable)")
     args = parser.parse_args()
     if args.command == "run" and args.runs < 5:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
