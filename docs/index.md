@@ -46,13 +46,14 @@ your own CMake project; {doc}`getting_started/first_update_cpp` runs a first upd
 
 ## A first update in C++
 
-```cpp
-#include <dyng/dyng.hpp>
+From `examples/cpp/first_update.cpp`, which CTest builds and runs
+({doc}`getting_started/first_update_cpp`):
 
-auto res = dyng::resources::openmp();                      // or resources::sequential()
-auto g = dyng::graph<std::int32_t, std::int64_t, std::int32_t>::from_edges(res, edges.view());
-auto tree = dyng::sssp::compute(res, g, /*source=*/0);     // the static result
-dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), tree);  // applies the batch
+```{literalinclude} ../examples/cpp/first_update.cpp
+:language: cpp
+:start-at: "auto res ="
+:end-at: "// applies the batch"
+:dedent: 2
 ```
 
 ## How to cite

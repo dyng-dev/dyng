@@ -63,14 +63,17 @@ next to the case:
 
 ```bash
 case=cpp/tests/data/mosp_graph_io/testCase0
-mkdir -p out
-build/dev/examples/cpp/sssp_update $case/graphCsr $case/insert.txt $case/delete.txt out openmp
-cmp out/SSSPTreeUpdated.txt cpp/tests/data/mosp_sssp/testCase0/updated/obj0/SSSPTreeUpdated.txt
-cmp out/distancesUpdated.txt cpp/tests/data/mosp_sssp/testCase0/updated/obj0/distancesUpdated.txt
+expected=cpp/tests/data/mosp_sssp/testCase0/updated/obj0
+for backend in sequential openmp; do
+  mkdir -p out/$backend
+  build/dev/examples/cpp/sssp_update $case/graphCsr $case/insert.txt $case/delete.txt out/$backend $backend
+  cmp out/$backend/SSSPTreeUpdated.txt $expected/SSSPTreeUpdated.txt
+  cmp out/$backend/distancesUpdated.txt $expected/distancesUpdated.txt
+done
 ```
 
-`cmp` prints nothing: the files are identical. CTest runs the same comparison
-(`ctest --preset dev -R example.sssp_update`).
+`cmp` prints nothing: the files are identical. CTest runs the same comparisons, both files on
+every CPU backend (`ctest --preset dev -R example.sssp_update`).
 
 ## What you learned
 

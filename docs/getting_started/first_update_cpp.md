@@ -1,37 +1,19 @@
 # A first update in C++
 
 This program builds a four-vertex graph, computes shortest paths from vertex 0, and then applies
-a batch with `sssp::update()`, which changes the graph **and** brings the result up to date.
+a batch with `sssp::update()`, which changes the graph **and** brings the result up to date. It
+is `examples/cpp/first_update.cpp`: the `dev` build compiles it, and CTest runs it on every CPU
+backend and checks that it prints exactly this:
 
-```cpp
-#include <dyng/dyng.hpp>
+```text
+invalidated 2, affected 2
+distances 0 4 1 2
+parents -1 0 0 2
+```
 
-#include <cstdint>
-#include <cstdio>
-
-int main() {
-  auto res = dyng::resources::openmp(8);   // or dyng::resources::sequential()
-
-  dyng::edge_list<std::int32_t, std::int32_t> edges;
-  edges.num_vertices = 4;
-  edges.num_weights = 1;
-  edges.add_edge(0, 1, {4});
-  edges.add_edge(0, 2, {1});
-  edges.add_edge(2, 1, {2});
-  edges.add_edge(1, 3, {1});
-  auto g = dyng::graph<std::int32_t, std::int64_t, std::int32_t>::from_edges(res, edges.view());
-
-  auto tree = dyng::sssp::compute(res, g, /*source=*/0);   // canonical tree: lowest-id ties
-
-  dyng::edge_batch<std::int32_t, std::int32_t> batch;
-  batch.delete_edge(2, 1);
-  batch.insert_edge(2, 3, {1});
-  dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), tree);
-
-  // tree.distances() == {0, 4, 1, 2}, tree.parents() == {-1, 0, 0, 2}
-  std::printf("invalidated %lld, affected %lld\n", static_cast<long long>(st.invalidated),
-              static_cast<long long>(st.affected));
-}
+```{literalinclude} ../../examples/cpp/first_update.cpp
+:language: cpp
+:start-at: "#include <dyng/dyng.hpp>"
 ```
 
 What happened:
