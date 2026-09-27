@@ -170,7 +170,11 @@ def setup(app):  # noqa: ANN001, ANN201 (Sphinx's interface)
 # (MyST reference resolution), links to repository files and the site's anchors by
 # ci/docs_links.py. Never checked: pages that exist only for a logged-in owner or return 404 to
 # anonymous clients (settings, "new" forms, package management), and the documentation host that
-# is connected only at checkpoint A4; they are click paths, not references.
+# is connected only at checkpoint A4; they are click paths, not references. Links to repository
+# files on main (blob/tree/edit/raw) are also left to ci/docs_links.py, which checks each path
+# against the checked-out tree on every build: fetching them adds dozens of requests to GitHub's
+# anonymous rate limit (HTTP 429 made the weekly job flaky) and they would 404 for files a branch
+# adds before it reaches main.
 if os.environ.get("DYNG_LINKCHECK_EXTERNAL", "0") != "1":
     linkcheck_ignore = [r"https?://.*"]
 else:
@@ -178,6 +182,7 @@ else:
         r"https://github\.com/(organizations/)?dyng-dev(/dyng)?/settings.*",
         r"https://github\.com/dyng-dev/dyng/(issues|discussions)/new.*",
         r"https://github\.com/dyng-dev/dyng/security/advisories/new.*",
+        r"https://github\.com/dyng-dev/dyng/(blob|tree|edit|raw)/main/.*",
         r"https://(test\.)?pypi\.org/manage/.*",
         r"https://app\.readthedocs\.org.*",
         r"https://dyng\.readthedocs\.io.*",
