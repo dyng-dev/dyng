@@ -4,7 +4,7 @@
 """Performance A/B of the sssp port against the original (PLAN Sections 6.3 step 7, 8.5, 8.6).
 
     parity/perf_ab.py prepare [--graph roadNet-CA] [--hops 160]
-    parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp [--runs 7]
+    parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--batches safe50k,unsafe50k,local10k]
                           [--json parity/results/M1a-perf-openmp-roadNet-CA.json]
 
@@ -19,25 +19,33 @@ prepare  builds the benchmark inputs with the UNPATCHED original's own tool, exa
          mospPrep mtx2csr) is taken from $DYNG_SCRATCH/datasets/mosp/<graph>/csr by a symlink and
          is not copied.
 
-run      alternates the original (A: the unpatched copy's bin/mosp) and the port (B:
-         dyng-compat-mosp, parity preset) A/B/A/B for --runs rounds per batch, under the exclusive
-         lock $DYNG_SCRATCH/perf.lock (flock(2); do NOT wrap this script in flock(1), it takes the
-         lock itself), with OMP_NUM_THREADS=28 OMP_PROC_BIND=close OMP_PLACES=cores for both, and
-         compares medians. Timed regions (parity/timed_regions/sssp.toml):
-           sosp obj<k>  original "obj<k> SOSP update" (sospUpdateCpu) vs the port's
-                        identify_affected + seed + loop + finalize for objective k
-           sosp total   the sum over the K objectives
-           apply        original apply_batch + prepare (reverse graph) vs the port's update.commit
-           end to end   the RESULT lines (reading inputs to writing outputs; --no-output on both)
-         Before the timed rounds of each batch, both write their outputs once and the files must be
-         byte-identical (a correctness guard; not timed). Load average and the run-to-run spread
-         are recorded; a spread above 10 % is flagged (PLAN Section 8.6: flagged, not failed).
+run      rebuilds (idempotently) and verifies the unpatched copy, checks that --exe comes from a
+         parity-preset build tree, then alternates the original (A: bin/mosp) and the port (B:
+         dyng-compat-mosp --timing) A/B/A/B for --runs rounds per batch under the exclusive lock
+         $DYNG_SCRATCH/perf.lock, with OMP_NUM_THREADS=28 OMP_PROC_BIND=close OMP_PLACES=cores
+         for both, and compares medians region by region. The regions are LOADED from
+         parity/timed_regions/sssp.toml ([[reference.mosp_openmp.region]]): the original's side
+         from its report lines, the port's side from the profiler stages of its --timing CSV.
+         Before the timed rounds of each batch, both write their outputs once and the files must
+         be byte-identical; in every timed round the invalidated counters of every objective must
+         be equal (both are correctness guards: a failure exits non-zero). Load average and the
+         run-to-run spread are recorded; a spread above 10 % is flagged (PLAN Section 8.6). A
+         gated region whose original median is below 10 ms needs >= 20 runs; with fewer, its
+         verdict is marked provisional. --enforce-gates (M1b on) exits non-zero on an exceeded
+         gate.
+
+The perf lock. The machine's convention is `flock $DYNG_SCRATCH/perf.lock <command>`, and this
+script also takes the lock itself. Both work: the script sees in /proc/locks that an ancestor
+process (flock(1)) holds the lock and runs under it; DYNG_PERF_LOCK_HELD=1 or --no-lock say so
+explicitly. Otherwise it waits at most --lock-timeout seconds (default 3 hours) and then fails
+with a message, instead of waiting forever.
 """
 
 from __future__ import annotations
 
 import argparse
 import contextlib
+import csv
 import datetime
 import fcntl
 import filecmp
@@ -49,83 +57,440 @@ import statistics
 import subprocess
 import sys
 import tempfile
+import time
+import tomllib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCRATCH = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
 COMMIT = "c35215135341d5b5d1553458afe4b2226edc38fb"
+REFERENCE = "MOSP-OpenMP"
+REGION_MAP = REPO / "parity" / "timed_regions" / "sssp.toml"
 BATCHES = {
     "safe50k": "changes_50000_50_safe",
     "unsafe50k": "changes_50000_50",
     "local10k": "changes_local_10000_50_safe",
 }
+# The report lines of the original's bin/mosp that sssp.toml may name in original_report.
 OBJ = re.compile(r"^obj(\d+)\s+SOSP update ([0-9.]+) ms \(invalidated (\d+),", re.M)
-ORIG_HOST = re.compile(r"apply batch ([0-9.]+) ms, prepare ([0-9.]+) ms")
-PORT_HOST = re.compile(r"apply batch ([0-9.]+) ms")
-E2E = re.compile(r"end_to_end_ms=([0-9.]+)")
+REPORT = {
+    "apply batch": re.compile(r"apply batch ([0-9.]+) ms"),
+    "prepare": re.compile(r"prepare ([0-9.]+) ms"),
+    "end_to_end_ms": re.compile(r"end_to_end_ms=([0-9.]+)"),
+    "comb combined graph + SOSP": re.compile(r"^comb\s+combined graph \+ SOSP ([0-9.]+) ms", re.M),
+}
+PER_OBJECTIVE_REPORT = "obj<k> SOSP update"
+PORT_INVALIDATED = re.compile(r"^counter,sssp\.invalidated\.obj(\d+),(\d+)$", re.M)
 THREADS = re.compile(r"threads[= ](\d+)")
+PARITY_PRESET = {
+    "CMAKE_BUILD_TYPE": "Release",
+    "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+    "DYNG_BUILD_PARITY_TESTS": "ON",
+    "DYNG_ENABLE_OPENMP": "ON",
+}
+SHORT_REGION_MS = 10.0
+SHORT_REGION_RUNS = 20
+
+
+# --- Helpers ------------------------------------------------------------------------------------
+
+
+def portable_path(path: Path | str) -> str:
+    """Relative to the repository or $DYNG_SCRATCH; never a personal absolute path."""
+    p = Path(path).resolve()
+    for base, label in [(REPO, None), (SCRATCH.resolve(), "$DYNG_SCRATCH")]:
+        try:
+            rel = p.relative_to(base).as_posix()
+        except ValueError:
+            continue
+        return rel if label is None else f"{label}/{rel}"
+    return f"<outside the repository>/{p.name}" if p.is_relative_to(Path.home()) else str(p)
+
+
+def build_reference(*extra: str) -> str:
+    cmd = [REPO / "parity" / "build_reference.sh", "--variant", "unpatched", *extra, REFERENCE]
+    return subprocess.check_output([str(c) for c in cmd], text=True)
 
 
 def reference_copy() -> Path:
-    out = subprocess.check_output(
-        [
-            REPO / "parity" / "build_reference.sh",
-            "--variant",
-            "unpatched",
-            "--print-dir",
-            "MOSP-OpenMP",
-        ],
-        text=True,
-    )
-    return Path(out.strip().splitlines()[-1])
+    return Path(build_reference("--print-dir").strip().splitlines()[-1])
 
 
 def check_call(cmd: list, **kw) -> None:
     subprocess.run([str(c) for c in cmd], check=True, **kw)
 
 
+def cpu_model() -> str:
+    with contextlib.suppress(OSError):
+        for line in open("/proc/cpuinfo"):
+            if line.startswith("model name"):
+                return line.split(":", 1)[1].strip()
+    return platform.processor()
+
+
+def cmake_cache(exe: Path) -> tuple[Path | None, dict]:
+    """The CMakeCache.txt entries of the build tree that contains exe."""
+    for d in exe.resolve().parents:
+        cache = d / "CMakeCache.txt"
+        if cache.is_file():
+            entries = {}
+            for line in cache.read_text().splitlines():
+                if line and not line.startswith(("#", "//")) and "=" in line and ":" in line:
+                    key, value = line.split("=", 1)
+                    entries[key.split(":", 1)[0]] = value
+            return d, entries
+    return None, {}
+
+
+def port_build(exe: Path) -> dict:
+    tree, cache = cmake_cache(exe)
+    keys = [
+        "CMAKE_BUILD_TYPE",
+        "CMAKE_CXX_FLAGS",
+        "CMAKE_CXX_FLAGS_RELEASE",
+        "CMAKE_CXX_COMPILER",
+        "DYNG_BUILD_PARITY_TESTS",
+        "DYNG_ENABLE_OPENMP",
+    ]
+    info = {k: cache.get(k) for k in keys}
+    info["build_dir"] = portable_path(tree) if tree else None
+    if cache.get("CMAKE_CXX_COMPILER"):
+        with contextlib.suppress(OSError, subprocess.CalledProcessError):
+            version = subprocess.check_output([cache["CMAKE_CXX_COMPILER"], "--version"], text=True)
+            info["compiler"] = version.splitlines()[0]
+    info["parity_preset"] = all(cache.get(k) == v for k, v in PARITY_PRESET.items())
+    return info
+
+
+# --- The perf lock -------------------------------------------------------------------------------
+
+
+def lock_holders(path: Path) -> set[int]:
+    """PIDs holding a flock on `path` (from /proc/locks; empty if unknown)."""
+    try:
+        st = path.stat()
+        text = Path("/proc/locks").read_text()
+    except OSError:
+        return set()
+    holders = set()
+    for line in text.splitlines():
+        parts = line.split()
+        # "1: FLOCK  ADVISORY  WRITE 12345 08:02:1234567 0 EOF" (blocked waiters have "->").
+        if len(parts) >= 6 and parts[1] == "FLOCK" and "->" not in parts[1]:
+            try:
+                major, minor, inode = parts[5].split(":")
+                pid = int(parts[4])
+            except ValueError:
+                continue
+            if int(inode) == st.st_ino and os.makedev(int(major, 16), int(minor, 16)) == st.st_dev:
+                holders.add(pid)
+    return holders
+
+
+def ancestors() -> set[int]:
+    pids, pid = set(), os.getpid()
+    while pid > 1:
+        pids.add(pid)
+        try:
+            stat = Path(f"/proc/{pid}/stat").read_text()
+            pid = int(stat.rsplit(")", 1)[1].split()[1])
+        except (OSError, ValueError, IndexError):
+            break
+    return pids
+
+
+@contextlib.contextmanager
+def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
+    """Hold the exclusive perf lock, or run under an ancestor's (flock(1)) hold of it."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if skip or os.environ.get("DYNG_PERF_LOCK_HELD") == "1":
+        print(f"{path}: held by the caller (DYNG_PERF_LOCK_HELD=1 / --no-lock)", flush=True)
+        yield
+        return
+    with open(path, "a") as f:
+        deadline = time.monotonic() + timeout
+        announced = False
+        while True:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                held_by_ancestor = lock_holders(path) & ancestors()
+                if held_by_ancestor:
+                    print(
+                        f"{path}: held by an ancestor process {sorted(held_by_ancestor)} "
+                        "(flock(1)); running under that lock",
+                        flush=True,
+                    )
+                    yield
+                    return
+                if time.monotonic() >= deadline:
+                    raise SystemExit(
+                        f"{path}: still locked by another measurement after {timeout:.0f} s; "
+                        "try again later (if flock(1) around this script holds it, set "
+                        "DYNG_PERF_LOCK_HELD=1 or pass --no-lock)"
+                    ) from None
+                if not announced:
+                    print(
+                        f"waiting for {path} (held by {sorted(lock_holders(path))}) ...", flush=True
+                    )
+                    announced = True
+                time.sleep(1.0)
+        try:
+            yield
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+
+
+# --- The region map ------------------------------------------------------------------------------
+
+
+def load_regions() -> list[dict]:
+    """The OpenMP regions of sssp.toml, checked against what this script can measure."""
+    doc = tomllib.loads(REGION_MAP.read_text())
+    regions = doc["reference"]["mosp_openmp"]["region"]
+    known = set(REPORT) | {PER_OBJECTIVE_REPORT}
+    names = [r["name"] for r in regions]
+    for required in ["sosp_update", "apply", "end_to_end"]:
+        if required not in names:
+            raise SystemExit(f"{REGION_MAP}: region '{required}' is missing")
+    for r in regions:
+        for key in r.get("original_report", []) + r.get("original_report_subtract", []):
+            if key not in known:
+                raise SystemExit(
+                    f"{REGION_MAP}: region {r['name']}: perf_ab.py cannot parse the "
+                    f"original's report line '{key}' (known: {sorted(known)})"
+                )
+        if r["gate"] not in ("compute", "end_to_end", "none"):
+            raise SystemExit(f"{REGION_MAP}: region {r['name']}: unknown gate '{r['gate']}'")
+        if not r.get("port"):
+            raise SystemExit(f"{REGION_MAP}: region {r['name']}: no port stages")
+    return regions
+
+
+# --- One run of each side ----------------------------------------------------------------------
+
+
+def run_one(cmd: list, env: dict) -> str:
+    proc = subprocess.run(
+        [str(c) for c in cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    if proc.returncode != 0:
+        raise SystemExit(f"{' '.join(map(str, cmd))} failed:\n{proc.stdout[-2000:]}")
+    return proc.stdout
+
+
+def parse_original(log: str, k: int) -> dict:
+    objs = {int(o): (float(ms), int(inv)) for o, ms, inv in OBJ.findall(log)}
+    if sorted(objs) != list(range(k)):
+        raise SystemExit(f"cannot parse the per-objective lines of the original:\n{log}")
+    values = {}
+    for key, pattern in REPORT.items():
+        m = pattern.search(log)
+        if m is None:
+            raise SystemExit(f"cannot find '{key}' in the original's report:\n{log}")
+        values[key] = float(m.group(1))
+    threads = [int(t) for t in THREADS.findall(log)]
+    return {
+        "objectives": [objs[o][0] for o in range(k)],
+        "invalidated": [objs[o][1] for o in range(k)],
+        "report": values,
+        "threads": threads[-1] if threads else None,
+    }
+
+
+def parse_port(log: str, timing: Path, k: int) -> dict:
+    stages: dict[str, list[float]] = {}
+    text = timing.read_text()
+    for row in csv.reader(text.splitlines()[1:]):
+        if len(row) == 3 and row[0] == "stage":
+            stages.setdefault(row[1], []).append(float(row[2]))
+    invalidated = {int(o): int(v) for o, v in PORT_INVALIDATED.findall(text)}
+    if sorted(invalidated) != list(range(k)):
+        raise SystemExit(f"cannot find the port's invalidated counters in {timing}")
+    threads = [int(t) for t in THREADS.findall(log)]
+    return {
+        "stages": stages,
+        "invalidated": [invalidated[o] for o in range(k)],
+        "threads": threads[-1] if threads else None,
+    }
+
+
+def stage_sum(port: dict, names: list[str], sample: int | None = None) -> float:
+    total = 0.0
+    for name in names:
+        samples = port["stages"].get(name)
+        if not samples:
+            raise SystemExit(f"the port recorded no stage '{name}' (sssp.toml)")
+        total += samples[sample] if sample is not None else sum(samples)
+    return total
+
+
+def original_value(orig: dict, region: dict, k: int | None) -> float:
+    total = 0.0
+    for key in region.get("original_report", []):
+        if key == PER_OBJECTIVE_REPORT:
+            total += orig["objectives"][k] if k is not None else sum(orig["objectives"])
+        else:
+            total += orig["report"][key]
+    for key in region.get("original_report_subtract", []):
+        total -= orig["report"][key]
+    return total
+
+
+def port_value(port: dict, region: dict, k: int | None, first_touch: bool = False) -> float:
+    total = stage_sum(port, region["port"], k)
+    if region.get("port_all_results"):
+        total += stage_sum(port, region["port_all_results"])
+    extra0 = list(region.get("port_result0", []))
+    if first_touch:
+        extra0 += ["sssp.workspace.pretouch"]
+    if extra0:
+        total += stage_sum(port, extra0, 0)
+    return total
+
+
+# --- Statistics and report -------------------------------------------------------------------------
+
+
+def spread(xs: list[float]) -> float:
+    """Relative spread: (max - min) / median."""
+    m = statistics.median(xs)
+    return (max(xs) - min(xs)) / m if m > 0 else 0.0
+
+
+def gate_limit(original_ms: float) -> float:
+    return 1.05 if original_ms >= SHORT_REGION_MS else 1.10
+
+
+def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list) -> dict:
+    out = {
+        "regions": [],
+        "invalidated": {},
+        "threads": {},
+        "load_average": {"min": min(min(p) for p in loads), "max": max(max(p) for p in loads)},
+    }
+    out["invalidated"]["original"] = samples["original"][0]["invalidated"]
+    out["invalidated"]["port"] = samples["port"][0]["invalidated"]
+    out["invalidated"]["equal_in_every_sample"] = all(
+        a["invalidated"] == b["invalidated"]
+        for a, b in zip(samples["original"], samples["port"], strict=True)
+    )
+    for side in ["original", "port"]:
+        out["threads"][side] = samples[side][0]["threads"]
+
+    def entry(name: str, a: list[float], b: list[float], gate: str, reading: str) -> None:
+        ma, mb = statistics.median(a), statistics.median(b)
+        e = {
+            "region": name,
+            "reading": reading,
+            "original_ms": ma,
+            "port_ms": mb,
+            "ratio": mb / ma if ma > 0 else float("nan"),
+            "original_spread": spread(a),
+            "port_spread": spread(b),
+            "original_samples": a,
+            "port_samples": b,
+            "gate_kind": gate,
+        }
+        if gate == "compute":
+            e["gate"] = gate_limit(ma)
+            e["within_gate"] = e["ratio"] <= e["gate"]
+            e["provisional"] = ma < SHORT_REGION_MS and runs < SHORT_REGION_RUNS
+        e["noisy"] = e["original_spread"] > 0.10 or e["port_spread"] > 0.10
+        out["regions"].append(e)
+
+    for region in regions:
+        gate = region["gate"]
+        if region.get("per_objective"):
+            for o in range(k):
+                a = [original_value(s, region, o) for s in samples["original"]]
+                b = [port_value(s, region, o) for s in samples["port"]]
+                if o == 0:
+                    # The original's objective 0 pays the first touch of the shared frontier
+                    # lists; the port pays it outside the region (sssp.toml, sosp_update).
+                    counted = [port_value(s, region, 0, first_touch=True) for s in samples["port"]]
+                    entry(
+                        f"{region['name']} obj0",
+                        a,
+                        b,
+                        "none",
+                        "as measured (first touch outside the port's region)",
+                    )
+                    entry(f"{region['name']} obj0", a, counted, gate, "first touch counted")
+                else:
+                    entry(f"{region['name']} obj{o}", a, b, gate, "as measured")
+        else:
+            a = [original_value(s, region, None) for s in samples["original"]]
+            b = [port_value(s, region, None) for s in samples["port"]]
+            entry(
+                region["name"],
+                a,
+                b,
+                gate if gate == "compute" else "none",
+                "as measured" if gate == "none" else f"{gate} gate (from M1b)",
+            )
+    return out
+
+
+def report(results: dict) -> list[str]:
+    lines = [
+        "| batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B |",
+        "|---|---|---|---:|---:|---:|---|---|",
+    ]
+    for batch, res in results.items():
+        for e in res["regions"]:
+            if "gate" in e:
+                verdict = "ok" if e["within_gate"] else "EXCEEDED"
+                if e.get("provisional"):
+                    verdict += " (provisional: < 20 runs)"
+                g = f"<= {e['gate']:.2f} {verdict}"
+            else:
+                g = "-"
+            flag = " (noisy)" if e["noisy"] else ""
+            lines.append(
+                f"| {batch} | {e['region']} | {e['reading']} | {e['original_ms']:.2f} | "
+                f"{e['port_ms']:.2f} | {e['ratio']:.3f} | {g} | "
+                f"{e['original_spread'] * 100:.0f} % / {e['port_spread'] * 100:.0f} %"
+                f"{flag} |"
+            )
+    print("\n".join(lines))
+    for batch, res in results.items():
+        inv = res["invalidated"]
+        print(
+            f"{batch}: invalidated original {inv['original']} port {inv['port']} "
+            f"({'equal in every sample' if inv['equal_in_every_sample'] else 'DIFFERENT'}); "
+            f"threads {res['threads']}; load average {res['load_average']['min']:.1f}-"
+            f"{res['load_average']['max']:.1f}"
+        )
+    return lines
+
+
+# --- Commands --------------------------------------------------------------------------------------
+
+
 def prepare(args: argparse.Namespace) -> int:
     ref = reference_copy()
-    check_call([REPO / "parity" / "build_reference.sh", "--variant", "unpatched", "MOSP-OpenMP"])
+    build_reference()
     prep = ref / "bin" / "mospPrep"
     src = SCRATCH / "datasets" / "mosp" / args.graph / "csr"
     dst = SCRATCH / "bench" / "mosp" / args.graph
     dst.mkdir(parents=True, exist_ok=True)
-    csr = dst / "csr"
-    if not csr.exists():
-        csr.symlink_to(src, target_is_directory=True)
-    prefix = csr / "graphCsr"
+    csr_dir = dst / "csr"
+    if not csr_dir.exists():
+        csr_dir.symlink_to(src, target_is_directory=True)
+    prefix = csr_dir / "graphCsr"
     env = dict(os.environ, OMP_NUM_THREADS="28", OMP_PROC_BIND="close", OMP_PLACES="cores")
+    common = ["--ins", "50", "--seed", "777"]
     steps = [
         ("init", ["init", prefix, dst / "init"]),
         (
             BATCHES["unsafe50k"],
-            [
-                "changes",
-                prefix,
-                dst / BATCHES["unsafe50k"],
-                "--changes",
-                "50000",
-                "--ins",
-                "50",
-                "--seed",
-                "777",
-            ],
+            ["changes", prefix, dst / BATCHES["unsafe50k"], "--changes", "50000", *common],
         ),
         (
             BATCHES["safe50k"],
-            [
-                "changes",
-                prefix,
-                dst / BATCHES["safe50k"],
-                "--changes",
-                "50000",
-                "--ins",
-                "50",
-                "--seed",
-                "777",
-                "--safe",
-            ],
+            ["changes", prefix, dst / BATCHES["safe50k"], "--changes", "50000", *common, "--safe"],
         ),
         (
             BATCHES["local10k"],
@@ -135,10 +500,7 @@ def prepare(args: argparse.Namespace) -> int:
                 dst / BATCHES["local10k"],
                 "--changes",
                 "10000",
-                "--ins",
-                "50",
-                "--seed",
-                "777",
+                *common,
                 "--local",
                 str(args.hops),
                 "--safe",
@@ -153,7 +515,7 @@ def prepare(args: argparse.Namespace) -> int:
         check_call([prep, *cmd], env=env)
     # Record what was prepared (sizes and SHA-256 of the inputs) for the results file.
     lines = []
-    for p in sorted(set(dst.rglob("*.txt")) | set(csr.glob("*.txt"))):
+    for p in sorted(set(dst.rglob("*.txt")) | set(csr_dir.glob("*.txt"))):
         digest = subprocess.check_output(["sha256sum", p], text=True).split()[0]
         lines.append(f"{digest}  {p.relative_to(dst)}")
     (dst / "INPUTS.sha256").write_text("\n".join(lines) + "\n")
@@ -161,68 +523,21 @@ def prepare(args: argparse.Namespace) -> int:
     return 0
 
 
-@contextlib.contextmanager
-def perf_lock(path: Path):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a") as f:
-        print(f"waiting for {path} ...", flush=True)
-        fcntl.flock(f, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
-
-
-def loadavg() -> float:
-    return os.getloadavg()[0]
-
-
-def run_one(cmd: list, env: dict) -> str:
-    proc = subprocess.run(
-        [str(c) for c in cmd], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-    )
-    if proc.returncode != 0:
-        raise SystemExit(f"{' '.join(map(str, cmd))} failed:\n{proc.stdout[-2000:]}")
-    return proc.stdout
-
-
-def parse(log: str, side: str, k: int) -> dict:
-    objs = {int(o): (float(ms), int(inv)) for o, ms, inv in OBJ.findall(log)}
-    if sorted(objs) != list(range(k)):
-        raise SystemExit(f"cannot parse the per-objective lines of {side}:\n{log}")
-    if side == "original":
-        m = ORIG_HOST.search(log)
-        apply_ms = float(m.group(1)) + float(m.group(2))
-    else:
-        apply_ms = float(PORT_HOST.search(log).group(1))
-    threads = [int(t) for t in THREADS.findall(log)]
-    return {
-        "sosp": [objs[o][0] for o in range(k)],
-        "invalidated": [objs[o][1] for o in range(k)],
-        "apply": apply_ms,
-        "end_to_end": float(E2E.search(log).group(1)),
-        "threads": threads[-1] if threads else None,
-    }
-
-
-def median(xs: list[float]) -> float:
-    return statistics.median(xs)
-
-
-def spread(xs: list[float]) -> float:
-    """Relative spread: (max - min) / median."""
-    m = median(xs)
-    return (max(xs) - min(xs)) / m if m > 0 else 0.0
-
-
-def gate(original_ms: float) -> float:
-    return 1.05 if original_ms >= 10.0 else 1.10
-
-
 def run(args: argparse.Namespace) -> int:
+    regions = load_regions()
+    exe = args.exe.resolve()
+    build = port_build(exe)
+    if not build["parity_preset"] and not args.allow_non_parity_build:
+        raise SystemExit(
+            f"{exe} is not from a parity-preset build tree ({build}); the gates are "
+            "defined on the parity preset (pass --allow-non-parity-build for an "
+            "experiment, whose record says so)"
+        )
+    # Rebuild (idempotent) and verify the unpatched copy before timing it.
+    build_reference()
     ref = reference_copy()
     mosp = ref / "bin" / "mosp"
-    exe = args.exe.resolve()
+    marker = ref / ".dyng-reference"
     data = SCRATCH / "bench" / "mosp" / args.graph
     if not (data / "init").is_dir():
         raise SystemExit(f"{data}: run `parity/perf_ab.py prepare --graph {args.graph}` first")
@@ -236,163 +551,124 @@ def run(args: argparse.Namespace) -> int:
         key, _, value = item.partition("=")
         env[key] = value
     batches = [b for b in args.batches.split(",") if b]
+    unknown = [b for b in batches if b not in BATCHES]
+    if unknown or not batches:
+        raise SystemExit(f"--batches: unknown or empty ({unknown}); known: {sorted(BATCHES)}")
     results = {}
-    with perf_lock(SCRATCH / "perf.lock"):
-        for batch in batches:
-            changes = data / BATCHES[batch]
-            common = [
-                "--graph",
-                data / "csr" / "graphCsr",
-                "--changes",
-                changes,
-                "--init",
-                data / "init",
-            ]
-            # Correctness guard: both write their outputs once; the files must be identical.
-            with tempfile.TemporaryDirectory(prefix="dyng-perf-", dir=SCRATCH / "runs") as t:
-                t = Path(t)
-                run_one([mosp, *common, "--out", t / "A"], env)
-                run_one([exe, *common, "--out", t / "B"], env)
+    failures = []
+    work = Path(tempfile.mkdtemp(prefix="dyng-perf-", dir=SCRATCH / "runs"))
+    try:
+        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for batch in batches:
+                changes = data / BATCHES[batch]
+                common = [
+                    "--graph",
+                    data / "csr" / "graphCsr",
+                    "--changes",
+                    changes,
+                    "--init",
+                    data / "init",
+                ]
+                # Correctness guard: both write their outputs once; the files must be identical.
+                run_one([mosp, *common, "--out", work / "A"], env)
+                run_one([exe, *common, "--out", work / "B"], env)
                 for o in range(k):
                     for f in ["distancesUpdated.txt", "SSSPTreeUpdated.txt"]:
                         if not filecmp.cmp(
-                            t / "A" / f"obj{o}" / f, t / "B" / f"obj{o}" / f, shallow=False
+                            work / "A" / f"obj{o}" / f, work / "B" / f"obj{o}" / f, shallow=False
                         ):
                             raise SystemExit(
                                 f"{batch}: obj{o}/{f} differs between the original and the port"
                             )
-            print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
-            samples = {"original": [], "port": []}
-            loads = []
-            for r in range(args.runs):
-                for side, cmd in [
-                    ("original", [mosp, *common, "--no-output"]),
-                    ("port", [exe, *common, "--no-output"]),
-                ]:
-                    before = loadavg()
-                    log = run_one(cmd, env)
-                    loads.append((before, loadavg()))
-                    samples[side].append(parse(log, side, k))
-                print(
-                    f"{batch} round {r + 1}/{args.runs}: original sosp "
-                    f"{sum(samples['original'][-1]['sosp']):.1f} ms, port "
-                    f"{sum(samples['port'][-1]['sosp']):.1f} ms",
-                    flush=True,
-                )
-            results[batch] = summarize(samples, k, loads)
-    report(results, k, args)
+                print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
+                samples: dict[str, list] = {"original": [], "port": []}
+                loads = []
+                timing = work / "timing.csv"
+                for r in range(args.runs):
+                    before = os.getloadavg()[0]
+                    orig = parse_original(run_one([mosp, *common, "--no-output"], env), k)
+                    log = run_one([exe, *common, "--no-output", "--timing", timing], env)
+                    port = parse_port(log, timing, k)
+                    loads.append((before, os.getloadavg()[0]))
+                    samples["original"].append(orig)
+                    samples["port"].append(port)
+                    if orig["invalidated"] != port["invalidated"]:
+                        failures.append(
+                            f"{batch} round {r + 1}: invalidated original "
+                            f"{orig['invalidated']} != port {port['invalidated']}"
+                        )
+                    print(
+                        f"{batch} round {r + 1}/{args.runs}: SOSP original "
+                        f"{sum(orig['objectives']):.1f} ms, port "
+                        f"{sum(stage_sum(port, regions[0]['port'], o) for o in range(k)):.1f}"
+                        " ms",
+                        flush=True,
+                    )
+                results[batch] = summarize(regions, samples, k, args.runs, loads)
+    finally:
+        with contextlib.suppress(OSError):
+            subprocess.run(["rm", "-rf", str(work)], check=False)
+    report(results)
+    exceeded = [
+        f"{b}: {e['region']} ({e['reading']}) {e['ratio']:.3f} > {e['gate']:.2f}"
+        for b, res in results.items()
+        for e in res["regions"]
+        if "gate" in e and not e["within_gate"]
+    ]
+    if args.json:
+        write_json(args, results, build, ref, marker, regions)
+    for f in failures:
+        print(f"CORRECTNESS: {f}", file=sys.stderr)
+    if failures:
+        return 1
+    if exceeded:
+        print("gate exceeded: " + "; ".join(exceeded))
+        if args.enforce_gates:
+            return 1
     return 0
 
 
-def summarize(samples: dict, k: int, loads: list) -> dict:
-    out = {
-        "regions": [],
-        "invalidated": {},
-        "threads": {},
-        "load_average": {"min": min(min(p) for p in loads), "max": max(max(p) for p in loads)},
+def write_json(args, results, build, ref, marker, regions) -> None:
+    head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
+    dirty = subprocess.run(["git", "-C", REPO, "diff", "--quiet", "HEAD"]).returncode != 0
+    doc = {
+        "schema": 2,
+        "algorithm": "sssp",
+        "backend": "openmp",
+        "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "graph": args.graph,
+        "reference": {
+            "name": REFERENCE,
+            "commit": COMMIT,
+            "variant": "unpatched",
+            "binary": portable_path(ref / "bin" / "mosp"),
+            "build": marker.read_text() if marker.is_file() else None,
+        },
+        "port": {
+            "commit": head + ("+dirty" if dirty else ""),
+            "binary": portable_path(args.exe),
+            "build": build,
+        },
+        "region_map": {"file": portable_path(REGION_MAP), "regions": [r["name"] for r in regions]},
+        "protocol": {
+            "runs": args.runs,
+            "order": "A/B/A/B (original first)",
+            "threads": args.threads,
+            "env": " ".join(["OMP_PROC_BIND=close", "OMP_PLACES=cores", *args.env]),
+            "lock": "perf.lock",
+            "statistic": "median",
+            "outputs": "--no-output on both",
+            "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
+        },
+        "host": {"cpu": cpu_model(), "logical_cpus": os.cpu_count(), "kernel": platform.release()},
+        "inputs_sha256": (SCRATCH / "bench" / "mosp" / args.graph / "INPUTS.sha256")
+        .read_text()
+        .splitlines(),
+        "results": results,
     }
-    for side in ["original", "port"]:
-        out["invalidated"][side] = samples[side][0]["invalidated"]
-        out["threads"][side] = samples[side][0]["threads"]
-
-    def region(name: str, pick, gated: bool) -> None:
-        a = [pick(s) for s in samples["original"]]
-        b = [pick(s) for s in samples["port"]]
-        ma, mb = median(a), median(b)
-        entry = {
-            "region": name,
-            "original_ms": ma,
-            "port_ms": mb,
-            "ratio": mb / ma,
-            "original_spread": spread(a),
-            "port_spread": spread(b),
-            "original_samples": a,
-            "port_samples": b,
-        }
-        if gated:
-            entry["gate"] = gate(ma)
-            entry["within_gate"] = mb / ma <= gate(ma)
-        entry["noisy"] = spread(a) > 0.10 or spread(b) > 0.10
-        out["regions"].append(entry)
-
-    for o in range(k):
-        region(f"sosp obj{o}", lambda s, o=o: s["sosp"][o], True)
-    region("sosp total", lambda s: sum(s["sosp"]), True)
-    region("apply (batch + reverse graph)", lambda s: s["apply"], False)
-    region("end to end", lambda s: s["end_to_end"], False)
-    return out
-
-
-def report(results: dict, k: int, args: argparse.Namespace) -> None:
-    lines = [
-        "| batch | region | original (ms) | dynG (ms) | ratio | gate | spread A / B |",
-        "|---|---|---:|---:|---:|---|---|",
-    ]
-    for batch, res in results.items():
-        for e in res["regions"]:
-            g = (
-                f"<= {e['gate']:.2f} {'ok' if e['within_gate'] else 'EXCEEDED'}"
-                if "gate" in e
-                else "-"
-            )
-            flag = " (noisy)" if e["noisy"] else ""
-            lines.append(
-                f"| {batch} | {e['region']} | {e['original_ms']:.2f} | "
-                f"{e['port_ms']:.2f} | {e['ratio']:.3f} | {g} | "
-                f"{e['original_spread'] * 100:.0f} % / {e['port_spread'] * 100:.0f} %"
-                f"{flag} |"
-            )
-    print("\n".join(lines))
-    for batch, res in results.items():
-        inv = res["invalidated"]
-        same = inv["original"] == inv["port"]
-        print(
-            f"{batch}: invalidated original {inv['original']} port {inv['port']} "
-            f"({'equal' if same else 'DIFFERENT'}); threads {res['threads']}; "
-            f"load average {res['load_average']['min']:.1f}-{res['load_average']['max']:.1f}"
-        )
-    if args.json:
-        head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
-        dirty = subprocess.run(["git", "-C", REPO, "diff", "--quiet", "HEAD"]).returncode != 0
-        doc = {
-            "schema": 1,
-            "algorithm": "sssp",
-            "backend": "openmp",
-            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "graph": args.graph,
-            "reference": {
-                "name": "MOSP-OpenMP",
-                "commit": COMMIT,
-                "variant": "unpatched",
-                "binary": str(reference_copy() / "bin" / "mosp"),
-            },
-            "port": {"commit": head + ("+dirty" if dirty else ""), "binary": str(args.exe)},
-            "protocol": {
-                "runs": args.runs,
-                "order": "A/B/A/B (original first)",
-                "threads": args.threads,
-                "env": " ".join(["OMP_PROC_BIND=close", "OMP_PLACES=cores", *args.env]),
-                "lock": "perf.lock",
-                "statistic": "median",
-                "outputs": "--no-output on both",
-            },
-            "host": {"machine": platform.node(), "cpu": cpu_model(), "kernel": platform.release()},
-            "inputs_sha256": (SCRATCH / "bench" / "mosp" / args.graph / "INPUTS.sha256")
-            .read_text()
-            .splitlines(),
-            "results": results,
-        }
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(json.dumps(doc, indent=1) + "\n")
-        print(f"wrote {args.json}")
-
-
-def cpu_model() -> str:
-    with contextlib.suppress(OSError):
-        for line in open("/proc/cpuinfo"):
-            if line.startswith("model name"):
-                return line.split(":", 1)[1].strip()
-    return platform.processor()
+    args.json.parent.mkdir(parents=True, exist_ok=True)
+    args.json.write_text(json.dumps(doc, indent=1) + "\n")
+    print(f"wrote {args.json}")
 
 
 def main() -> int:
@@ -406,7 +682,7 @@ def main() -> int:
     r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
     r.add_argument("--graph", default="roadNet-CA")
     r.add_argument("--batches", default="safe50k,unsafe50k,local10k")
-    r.add_argument("--runs", type=int, default=7)
+    r.add_argument("--runs", type=int, default=21)
     r.add_argument("--threads", type=int, default=28)
     r.add_argument("--json", type=Path)
     r.add_argument(
@@ -415,6 +691,22 @@ def main() -> int:
         default=[],
         metavar="VAR=VALUE",
         help="extra environment for both sides (repeatable)",
+    )
+    r.add_argument(
+        "--no-lock",
+        action="store_true",
+        help="the caller holds $DYNG_SCRATCH/perf.lock (same as DYNG_PERF_LOCK_HELD=1)",
+    )
+    r.add_argument("--lock-timeout", type=float, default=3 * 3600.0, metavar="SECONDS")
+    r.add_argument(
+        "--allow-non-parity-build",
+        action="store_true",
+        help="time an --exe that is not from the parity preset (an experiment)",
+    )
+    r.add_argument(
+        "--enforce-gates",
+        action="store_true",
+        help="exit 1 if a gated region exceeds its limit (the gates bind from M1b)",
     )
     args = parser.parse_args()
     if args.command == "run" and args.runs < 5:

@@ -1,67 +1,122 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Timed-region map of sssp (PLAN Sections 6.3 step 3 and 8.6): each timer of the original ->
-# the dynG profiler stages whose host times are summed to match it. The performance gate compares
-# medians of these sums (>= 5 runs, A/B/A/B, parity preset, 28 threads pinned with
-# OMP_PROC_BIND=close OMP_PLACES=cores, under the perf lock). parity/perf_ab.py implements it
-# for the OpenMP backend by parsing the "obj<k> SOSP update <ms>" report lines of both drivers.
+# Timed-region map of sssp (PLAN Sections 6.3 step 3 and 8.6): each timer of the original -> the
+# dynG profiler stages whose host times are summed to match it. This file is the definition of
+# the regions: parity/perf_ab.py LOADS it (the `original_report` keys it parses from the
+# original's report lines, the `port*` stage lists it sums from dyng-compat-mosp's --timing CSV)
+# and refuses to run if a region it reports is missing here or a key is unknown to it.
+#
+# Protocol of the gate (PLAN 8.6): medians of >= 5 runs (>= 20 when the original's median of a
+# gated region is below 10 ms; otherwise the verdict is marked provisional), A/B/A/B, parity
+# preset, 28 threads pinned with OMP_PROC_BIND=close OMP_PLACES=cores, under the perf lock.
 #
 # dynG stage names: sssp.update > { sssp.prepare, sssp.commit > graph.apply, sssp.identify_affected,
 # sssp.seed, sssp.loop, sssp.finalize }; with dyng::update / update_each the commit is
-# "update.commit" and the per-result stages repeat once per result, in result order.
+# "update.commit" and the per-result stages repeat once per result, in result order. Building a
+# result with from_arrays records sssp.import, [sssp.canonicalize], sssp.workspace,
+# sssp.workspace.pretouch and [sssp.validate]; dyng-compat-mosp writes them after the update's
+# stages, one set per objective in objective order.
+#
+# Field meanings (per region):
+#   original                  the original's stage names (its ScopedStage / --timing CSV names)
+#   original_report           the report lines of bin/mosp that perf_ab.py parses for them
+#   original_report_subtract  report values subtracted from the original's side
+#   per_objective             one value per objective k: the k-th sample of every `port` stage
+#   port                      dynG stages of the update (summed; k-th sample if per_objective)
+#   port_result0              from_arrays stages of objective 0's result only (sample 0)
+#   port_all_results          from_arrays stages summed over the K results
+#   gate                      "compute" (<= 1.05x; <= 1.10x below 10 ms), "end_to_end" (<= 1.10x,
+#                             from M1b), or "none" (reported only)
 
 [reference.mosp_openmp]
 repo = "MOSP-OpenMP"
 commit = "c352151"
-driver = "bin/mosp (stage timer CSV via --timing; per-objective report lines)"
-port_driver = "dyng-compat-mosp (tools/compat/mosp)"
+driver = "bin/mosp of the UNPATCHED copy (report lines; the same timers as its --timing CSV)"
+port_driver = "dyng-compat-mosp (tools/compat/mosp), parity preset, --timing <csv>"
 
-# The gated region: one objective's SOSP update, sospUpdateCpu() (pack the old tree, roots and
-# chain-walk invalidation, insertion heads, pull pass, near-far propagation, unpack).
-[[region]]
+# One objective's SOSP update, sospUpdateCpu() (pack the old tree, roots and chain-walk
+# invalidation, insertion heads, pull pass, near-far propagation, unpack). THE gated region: one
+# comparison per objective, as PLAN 6.4.2 defines it (never on the sum).
+[[reference.mosp_openmp.region]]
 name = "sosp_update"
-original = "obj<k>/sosp_update_compute"
+per_objective = true
+original = ["obj<k>/sosp_update_compute"]
+original_report = ["obj<k> SOSP update"]
 port = ["sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"]
-gate = "compute"         # <= 1.05 x the original median (<= 1.10 x below 10 ms)
+gate = "compute"
 note = """
-One value per objective. dyng-compat-mosp reports it as `obj<k> SOSP update <ms>` and sums the
-objectives as `sosp_ms` in its RESULT line. The port's finalize also counts `affected` (vertices
-whose distance or parent changed) inside the unpack pass.
+The port's finalize also counts `affected` (vertices whose distance or parent changed) inside the
+unpack pass.
+
+Moved cost (first touch). mospUpdate() uses ONE SospWorkspace for the K objectives; its
+reserve() only reserves the six frontier lists (near, next near, far, far rebuild, candidates,
+frontier; 6 x n x 4 bytes, about 47 MB on roadNet-CA), so objective 0's region pays their
+first-touch page faults and objectives 1..K-1 reuse the touched pages. Each dynG result owns its
+workspace, and from_arrays touches the lists once (stage sssp.workspace.pretouch) OUTSIDE the
+region, for every objective. perf_ab.py therefore reports objective 0 twice: "as measured" and
+"first touch counted" (+ sssp.workspace.pretouch of objective 0's result, which is measured while
+the K results are built concurrently, so it is an upper bound). The gate verdict of objective 0
+uses the counted value; objectives 1..K-1 compare warm pages on both sides. Removing the move
+needs results that share one workspace (open for M1b, ADR 0013).
 """
 
-# Applying the batch. MOSP times applyChangeBatch() alone as "apply_batch" and builds the reverse
-# graph and the objective-major weight columns in "prepare"; dynG's graph.apply does both (the
-# graph stores objective-major columns and the in-edges), so the two original stages map to one.
-[[region]]
+# The sum over the objectives: reported for orientation only. It is NOT a gate reading (PLAN
+# 6.4.2 compares each objective); it hides a slower objective behind a faster one.
+[[reference.mosp_openmp.region]]
+name = "sosp_total"
+per_objective = false
+original = ["obj<k>/sosp_update_compute (all k)"]
+original_report = ["obj<k> SOSP update"]
+port = ["sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"]
+port_result0 = ["sssp.workspace.pretouch"]
+gate = "none"
+note = "Includes objective 0's first-touch cost on both sides (see sosp_update)."
+
+# Applying the batch plus the original's "prepare". mospUpdate() times applyChangeBatch() as
+# "apply_batch", then "prepare", which holds buildHostGraph() (the reverse graph and the
+# objective-major weight columns) AND sospWorkspace.reserve(n) (packed, stamp, inFar, state
+# assigned, about 28 MB), the copies of the K initial trees into the result (distances.assign,
+# parents.assign: K x n x 12 bytes, about 71 MB), and combinedDistances / combinedParent.resize(n).
+# dynG's update.commit does the graph work (graph.apply builds the new CSR, its transposition and
+# the objective-major columns); the tree copies and the workspace are done by from_arrays, outside
+# the update, so they are added to the port's side here: every result's sssp.import (the K tree
+# copies) and objective 0's sssp.workspace (the one reserve the original does).
+[[reference.mosp_openmp.region]]
 name = "apply"
+per_objective = false
 original = ["apply_batch", "prepare"]
-port = ["update.commit"]   # sssp.commit for a single sssp::update
-gate = "end_to_end"
+original_report = ["apply batch", "prepare"]
+port = ["update.commit"]
+port_all_results = ["sssp.import"]
+port_result0 = ["sssp.workspace"]
+gate = "none"          # "end_to_end" from M1b
 note = """
-The largest weight and the weight sum per objective are computed by mospUpdate() between
-"apply_batch" and "prepare", outside both stages; dynG times them as sssp.prepare (end to end
-only).
+Still only on the original's side: combinedDistances.resize(n) and combinedParent.resize(n)
+(24 bytes per vertex zero-filled, about 47 MB on roadNet-CA, a few ms), which belong to the mosp
+combined step (0.2). sssp.import also checks the parent ranges and normalizes INF, which the
+original's assign does not; both biases are small and go in opposite directions. The largest
+weight and the weight sum per objective are computed by mospUpdate() between "apply_batch" and
+"prepare", outside both stages; dynG times them as sssp.prepare (end to end only).
 """
 
-[[region]]
+[[reference.mosp_openmp.region]]
 name = "end_to_end"
-original = "TOTAL_end_to_end"
+per_objective = false
+original = ["TOTAL_end_to_end", "- combined_graph_compute"]
+original_report = ["end_to_end_ms"]
+original_report_subtract = ["comb combined graph + SOSP"]
 port = ["total.end_to_end"]  # written by dyng-compat-mosp next to the profiler rows
-gate = "end_to_end"          # <= 1.10 x; from M1b
+gate = "none"                # "end_to_end" (<= 1.10 x) from M1b
 note = """
-Includes reading the text inputs and writing the outputs. The original reads the batch and the 2K
-tree files concurrently; dynG reads them one after the other (M1a; see the retrospective). The
-combined graph (Steps 2-3 of the MOSP update, "combined_graph_compute") belongs to the mosp
-algorithm (0.2) and is excluded from both sides when the sssp port is compared.
+Reading the text inputs to writing the outputs (--no-output on both, so nothing is written). Both
+read the batch and the 2K tree files concurrently (runConcurrently / run_concurrently). The
+original's TOTAL_end_to_end includes the combined graph and its SOSP (Steps 2-3 of the MOSP
+update, "combined_graph_compute", reported as "comb combined graph + SOSP"), which belongs to the
+mosp algorithm (0.2): perf_ab.py subtracts it from the original's side. The port's figure
+includes building the K results (import, workspace, validation), which `mosp` does inside its
+"canonicalize"-free load and "prepare" stages.
 """
-
-# Measured in M1a (parity/results/M1a.md): the per-objective region depends on how the K results
-# share scratch memory. MOSP's mospUpdate() uses ONE SospWorkspace for all objectives (its first
-# objective touches the pages, the later ones reuse them); each dynG sssp::result owns its
-# workspace, touched when the result is created. dynG's obj0 is therefore faster and obj1..K-1
-# slightly slower than the original's; the sum over the objectives is the robust comparison until
-# results can share a workspace (open item for M1b / mosp 0.2).
 
 # --- MOSP-CUDA (M1b; draft, written before the CUDA port as PLAN Section 6.3 step 3 asks) ------
 [reference.mosp_cuda]
@@ -72,25 +127,28 @@ port_driver = "dyng-compat-mosp --backend cuda (M1b)"
 
 [[reference.mosp_cuda.region]]
 name = "sosp_update"
-original = "obj<k>/sosp_update_gpu"          # device time (CUDA events) of sospUpdateGpu()
+per_objective = true
+original = ["obj<k>/sosp_update_gpu"]        # device time (CUDA events) of sospUpdateGpu()
 port = ["sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"]  # device_ms
 gate = "compute"                             # <= 1.05 x; <= 1.10 x below 10 ms with >= 20 runs
 
 [[reference.mosp_cuda.region]]
 name = "apply"
+per_objective = false
 original = ["apply_batch_host", "upload"]
 port = ["update.commit"]
 gate = "end_to_end"
 
 [[reference.mosp_cuda.region]]
 name = "end_to_end"
-original = "TOTAL_end_to_end"               # includes cuda_context_init and the combined graph
+per_objective = false
+original = ["TOTAL_end_to_end", "- combined_graph_gpu"]  # it includes cuda_context_init too
 port = ["total.end_to_end"]
 gate = "end_to_end"
 note = "exclude combined_graph_gpu (mosp, 0.2) and compare the context init separately"
 
 # Logged only (not parity targets, PLAN Section 8.3): iterations, epochs, pushes (and MOSP-CUDA's
-# jump rounds). The invalidated counter is deterministic and must be equal.
+# jump rounds). The invalidated counter is deterministic and must be equal in every sample.
 [counters]
 equal = ["invalidated"]
 logged = ["iterations", "epochs", "pushes"]

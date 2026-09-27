@@ -25,11 +25,12 @@ $DYNG_SCRATCH/
 | `build_reference.sh` | `git archive` the pinned commit into `ref/<name>@<commit7>/{unpatched,patched}`, verify the copy against the archive, build it, apply the additive export patch (patched only), write the archive-build check; `--test` runs the original's own tests |
 | `export_patches/<repo>/build.sh` | the additive export patch: builds the exporters of `exporters/` against the copy's unchanged sources |
 | `exporters/mosp/` | `export_graph_io` (generators, `applyChangeBatch`) and `export_sssp` (file-based SOSP updates) |
-| `export_goldens.py` | writes the `sssp` golden set from MOSP-OpenMP@c352151 (388 cases) after cross-checking the original implementations; `--twice` re-exports from a fresh copy and compares |
+| `export_goldens.py` | writes the `sssp` golden set from MOSP-OpenMP@c352151 (495 cases, including 107 with non-canonical initial trees) after cross-checking the original implementations; `--twice` re-exports from a fresh copy and compares |
 | `goldens.toml` | GENERATED manifest: the SHA-256 of each golden set's `MANIFEST.sha256` and one digest per case |
 | `compare.py` | verifies the goldens, then replays every case through `tools/compat` (dynG) or through another original's copy, byte for byte |
-| `timed_regions/<algo>.toml` | the original's timers -> dynG profiler stages (written before each port) |
+| `timed_regions/<algo>.toml` | the original's timers -> dynG profiler stages (written before each port); `perf_ab.py` loads it |
 | `perf_ab.py` | `prepare` the benchmark inputs with the original's own tool; `run` the A/B/A/B comparison under the perf lock |
+| `tests/` | smoke tests of the scripts (pytest; run by `ci/check.sh` and `lint.yml`) |
 | `fixtures/` | scripts that regenerate the small committed test fixtures (`cpp/tests/data`) from the same scratch copies |
 | `results/` | the committed parity certificates and performance records, one per milestone |
 
@@ -44,11 +45,17 @@ ctest --preset parity -L parity                   # golden replay (skipped witho
 parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp --json out.json
 parity/compare.py --driver original --ref "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/patched"
 parity/perf_ab.py prepare                         # roadNet-CA inputs, as the original's bench/prepare.sh
-parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp --runs 9 --json out.json
+flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py run \
+    --exe build/parity/tools/compat/dyng-compat-mosp --runs 21 --json out.json
 ```
 
-`perf_ab.py run` takes `$DYNG_SCRATCH/perf.lock` itself (flock(2)); do not wrap it in
-`flock(1)` on the same file. CUDA references run on GPU 1 (`CUDA_VISIBLE_DEVICES`) unless set.
+`perf_ab.py run` takes `$DYNG_SCRATCH/perf.lock` itself; under the machine's convention
+`flock "$DYNG_SCRATCH/perf.lock" <command>` it sees in `/proc/locks` that its `flock(1)` ancestor
+holds the lock and runs under it (`DYNG_PERF_LOCK_HELD=1` or `--no-lock` say so explicitly). A
+lock held by another measurement is waited for at most `--lock-timeout` seconds. It times only
+a `parity`-preset build (`--allow-non-parity-build` marks an experiment) and exits non-zero if
+the deterministic counters differ in any round. CUDA references run on GPU 1
+(`CUDA_VISIBLE_DEVICES`) unless set.
 
 ## Rules
 

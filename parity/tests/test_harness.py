@@ -99,3 +99,61 @@ def test_perturbed_trees_are_valid_and_seeded(tmp_path: Path) -> None:
         assert again == changed  # seeded by the case name
         outs.append(tree)
     assert len(set(outs)) == 2  # both tight parents occur
+
+
+def _lock_script(lock: Path) -> str:
+    return (
+        f"import sys; sys.path.insert(0, {str(REPO / 'parity')!r}); import perf_ab\n"
+        "from pathlib import Path\n"
+        f"with perf_ab.perf_lock(Path({str(lock)!r}), timeout=2): print('ran')\n"
+    )
+
+
+def test_perf_lock_runs_under_flock1(tmp_path: Path) -> None:
+    # The machine's convention: `flock perf.lock <command>`; the script must not wait for the
+    # lock its own ancestor holds (it used to hang forever).
+    lock = tmp_path / "perf.lock"
+    proc = subprocess.run(
+        ["flock", lock, sys.executable, "-c", _lock_script(lock)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0 and "ran" in proc.stdout, proc.stdout + proc.stderr
+    assert "ancestor" in proc.stdout
+
+
+def test_perf_lock_times_out_on_another_holder(tmp_path: Path) -> None:
+    lock = tmp_path / "perf.lock"
+    lock.touch()
+    holder = subprocess.Popen(["flock", lock, "sleep", "30"])
+    try:
+        for _ in range(100):  # wait until the other process holds the lock
+            probe = subprocess.run(["flock", "-n", lock, "true"])
+            if probe.returncode != 0:
+                break
+        proc = subprocess.run(
+            [sys.executable, "-c", _lock_script(lock)], capture_output=True, text=True, timeout=60
+        )
+        assert proc.returncode != 0 and "still locked" in proc.stderr, proc.stdout + proc.stderr
+        held = subprocess.run(
+            [sys.executable, "-c", _lock_script(lock)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env={"DYNG_PERF_LOCK_HELD": "1", "PATH": "/usr/bin:/bin"},
+        )
+        assert held.returncode == 0 and "ran" in held.stdout
+    finally:
+        holder.kill()
+        holder.wait()
+
+
+def test_region_map_loads() -> None:
+    perf = load("parity/perf_ab.py")
+    regions = perf.load_regions()
+    names = [r["name"] for r in regions]
+    assert names[:2] == ["sosp_update", "sosp_total"] and "end_to_end" in names
+    by_name = {r["name"]: r for r in regions}
+    assert by_name["sosp_update"]["gate"] == "compute" and by_name["sosp_total"]["gate"] == "none"
+    assert by_name["end_to_end"]["original_report_subtract"] == ["comb combined graph + SOSP"]
