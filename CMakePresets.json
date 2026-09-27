@@ -24,7 +24,8 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "DYNG_BUILD_TESTS": "ON",
         "DYNG_WARNINGS_AS_ERRORS": "ON",
-        "DYNG_DEBUG_BUDGETS": "ON"
+        "DYNG_DEBUG_BUDGETS": "ON",
+        "DYNG_BUILD_COMPAT_TOOLS": "ON"
       }
     },
     {
@@ -95,6 +96,7 @@
         "CMAKE_CXX_FLAGS_RELEASE": "-O3",
         "DYNG_BUILD_TESTS": "ON",
         "DYNG_BUILD_PARITY_TESTS": "ON",
+        "DYNG_BUILD_COMPAT_TOOLS": "ON",
         "DYNG_ENABLE_OPENMP": "ON"
       }
     }

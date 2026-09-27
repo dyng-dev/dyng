@@ -57,7 +57,7 @@ option(DYNG_DEBUG_BUDGETS "Allocation and synchronization counters (invariant I9
 if(DYNG_ENABLE_CUDA)
   message(FATAL_ERROR "DYNG_ENABLE_CUDA=ON: the CUDA backends are not implemented yet (milestone M1b)")
 endif()
-foreach(_dyng_unavailable DYNG_BUILD_PYTHON DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS DYNG_BUILD_COMPAT_TOOLS)
+foreach(_dyng_unavailable DYNG_BUILD_PYTHON DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS)
   if(${_dyng_unavailable})
     message(WARNING "${_dyng_unavailable}=ON has no effect yet (added in a later milestone)")
   endif()
@@ -84,6 +84,14 @@ add_subdirectory(cpp)
 if(DYNG_BUILD_TESTS)
   enable_testing()
   add_subdirectory(cpp/tests)
+endif()
+
+if(DYNG_BUILD_EXAMPLES)
+  add_subdirectory(examples/cpp)
+endif()
+
+if(DYNG_BUILD_COMPAT_TOOLS)
+  add_subdirectory(tools/compat)
 endif()
 
 if(DYNG_INSTALL)
