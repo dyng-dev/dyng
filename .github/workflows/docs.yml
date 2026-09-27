@@ -3,11 +3,11 @@
 #
 # The documentation site (PLAN Sections 8.8 and 9.2) on GitHub-hosted runners: Doxygen on the
 # public headers, the Sphinx site (MyST + pydata-sphinx-theme + Breathe) with warnings as errors,
-# and ci/docs_links.py (links to repository files, the site's anchors), all through ci/docs.sh, the same command as the local gate. The
-# tools come from environment.yml (the exact versions of the local environment and of
-# .readthedocs.yaml), installed with micromamba. The built site is uploaded as the artifact
-# `docs-html` (open index.html after downloading it); hosting on Read the Docs starts at approval
-# checkpoint A4 (docs/developer/repository_settings.md).
+# and ci/docs_links.py (links to repository files, the site's anchors), all through ci/docs.sh,
+# the same command as the local gate. The tools come from environment.yml (the exact versions
+# of the local environment and of .readthedocs.yaml), installed with micromamba. The built site
+# is uploaded as the artifact `docs-html` (open index.html after downloading it); hosting on
+# Read the Docs starts at approval checkpoint A4 (docs/developer/repository_settings.md).
 #
 # The external links (GitHub, PyPI, papers) are checked weekly and on demand only, in a job that
 # is not a required check: their availability is not a property of a pull request.
