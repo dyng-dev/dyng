@@ -42,6 +42,8 @@ enum class copy_policy : std::uint8_t {
  * handle; for independent settings create a new resources object (PLAN Section 4.7.4).
  * The library never creates streams, sets environment variables, or changes the global OpenMP
  * thread count on its own.
+ * A moved-from handle stays valid: moving shares the handle like a copy (the source keeps it), so
+ * no accessor ever meets an empty handle.
  * @ingroup core
  */
 class resources {
@@ -77,6 +79,35 @@ class resources {
    * @throws not_supported_error if the library was built without CUDA (always, before M1b).
    */
   [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {});
+
+  /**
+   * @brief Share the handle of `other` (a cheap copy; settings stay shared).
+   * @param[in] other The handle to share.
+   */
+  resources(const resources& other) noexcept;
+
+  /**
+   * @brief Share the handle of `other`; `other` keeps it and stays valid (a move is a copy).
+   * @param[in] other The handle to share.
+   */
+  resources(resources&& other) noexcept;
+
+  /**
+   * @brief Share the handle of `other` (a cheap copy; settings stay shared).
+   * @param[in] other The handle to share.
+   * @return `*this`.
+   */
+  resources& operator=(const resources& other) noexcept;
+
+  /**
+   * @brief Share the handle of `other`; `other` keeps it and stays valid (a move is a copy).
+   * @param[in] other The handle to share.
+   * @return `*this`.
+   */
+  resources& operator=(resources&& other) noexcept;
+
+  /// @brief Release this reference to the shared handle.
+  ~resources();
 
   /**
    * @brief The backend.

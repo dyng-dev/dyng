@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <string>
+#include <utility>
 
 #if DYNG_HAS_OPENMP
 #include <omp.h>
@@ -110,6 +111,30 @@ TEST(Resources, CopiesShareOneHandle) {
   // A new object is independent.
   const auto c = dyng::resources::sequential();
   EXPECT_EQ(c.get_copy_policy(), dyng::copy_policy::allow);
+}
+
+TEST(Resources, MovedFromStaysValid) {
+  auto res = dyng::resources::sequential();
+  dyng::profiler prof;
+  res.attach_profiler(&prof);
+  const dyng::resources moved(std::move(res));
+  // A move shares the handle like a copy: the source keeps working (no null handle).
+  // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move): the point of the test
+  EXPECT_EQ(res.get_backend(), dyng::backend::sequential);
+  EXPECT_EQ(res.num_threads(), 1);
+  EXPECT_EQ(res.get_profiler(), &prof);
+  EXPECT_EQ(moved.get_profiler(), &prof);
+
+  auto target = dyng::resources::sequential();
+  target = std::move(moved);  // NOLINT(performance-move-const-arg): const, so this copies
+  auto other = dyng::resources::sequential();
+  dyng::resources assigned = dyng::resources::sequential();
+  assigned = std::move(other);
+  // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move): the point of the test
+  EXPECT_EQ(other.get_backend(), dyng::backend::sequential);
+  EXPECT_EQ(other.memory().space(), dyng::memory_space::host);
+  EXPECT_EQ(target.get_profiler(), &prof);
+  res.attach_profiler(nullptr);
 }
 
 TEST(Resources, MemoryResourceMustSuitBackend) {

@@ -52,6 +52,21 @@ resources::resources() : resources(make_default()) {}
 resources::resources(std::shared_ptr<detail::resources_state> state) noexcept
     : state_(std::move(state)) {}
 
+// A move copies the shared_ptr instead of stealing it: a moved-from handle must stay usable,
+// since every accessor is noexcept and has no precondition.
+resources::resources(const resources& other) noexcept = default;
+
+resources::resources(resources&& other) noexcept : state_(other.state_) {}
+
+resources& resources::operator=(const resources& other) noexcept = default;
+
+resources& resources::operator=(resources&& other) noexcept {
+  state_ = other.state_;
+  return *this;
+}
+
+resources::~resources() = default;
+
 resources resources::sequential() {
   auto state = std::make_shared<detail::resources_state>();
   state->kind = backend::sequential;
