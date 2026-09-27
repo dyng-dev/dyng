@@ -11,7 +11,10 @@ missing @param / @return. This script reads its XML output and additionally requ
     to a group (@ingroup / @defgroup); members of a class inherit the group of their class;
   * every documented entity has a one-line @brief (a non-empty brief description);
   * compute() and update() of every algorithm namespace carry @backends and @determinism, and
-    @paper for the published algorithms (all algorithms ported so far are published).
+    @paper for the published algorithms (all algorithms ported so far are published);
+  * every function that takes a `resources` (the functions that do backend work, CUDA-capable
+    from M1b) carries @sync or @async and documents its exceptions: at least one @throws, or
+    `noexcept` (the copy and move operations of `resources` itself are exempt).
 
 Usage: ci/doxygen_coverage.py <doxygen-xml-dir>
 """
@@ -29,6 +32,15 @@ IGNORED_NAMESPACES = {"std"}
 
 def text_of(node: ET.Element | None) -> str:
     return "" if node is None else "".join(node.itertext()).strip()
+
+
+def takes_resources(member: ET.Element) -> bool:
+    """Whether a function has a parameter of type (const) dyng::resources&."""
+    for param in member.findall("param"):
+        ptype = text_of(param.find("type")).replace(" ", "")
+        if ptype in ("constresources&", "resources&", "constdyng::resources&", "dyng::resources&"):
+            return True
+    return False
 
 
 def main(argv: list[str]) -> int:
@@ -99,6 +111,18 @@ def main(argv: list[str]) -> int:
                 continue  # deleted special members (non-copyable, non-movable) need no text
             if not text_of(member.find("briefdescription")):
                 problems.append(f"{at}: {name}::{mname} has no @brief")
+            if member.get("kind") == "function" and takes_resources(member) and not (
+                name == "dyng::resources" and mname in ("resources", "operator=")
+            ):
+                titles = {text_of(t) for t in member.iter("title")}
+                qualified = text_of(member.find("qualifiedname")) or f"{name}::{mname}"
+                if "Synchronization:" not in titles:
+                    problems.append(f"{at}: {qualified} takes resources but has no @sync / @async")
+                throws = [pl for pl in member.iter("parameterlist") if pl.get("kind") == "exception"]
+                noexcept = "noexcept" in text_of(member.find("argsstring"))
+                if not throws and not noexcept:
+                    problems.append(f"{at}: {qualified} takes resources but documents no @throws "
+                                    "(and is not noexcept)")
             if kind == "group" and member.get("kind") == "function" and mname in (
                 "compute",
                 "update",

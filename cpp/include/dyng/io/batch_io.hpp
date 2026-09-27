@@ -21,11 +21,15 @@ namespace dyng::io {
 struct legacy_batch_options {
   int num_weights = 1;             ///< weights per insertion line (K of the graph), >= 0
   std::int64_t num_vertices = -1;  ///< ids must be < num_vertices; -1: only ids >= 0 are checked
-  /// MOSP's accept/reject rules (readChangeBatch of MOSP-OpenMP@c352151 / MOSP-CUDA@e220ee2)
-  /// instead of dynG's stricter ones: integers after the first 2 + K of an insertion line and
-  /// after the first 2 of a deletion line are read and ignored, and a deletion line with a single
-  /// integer is skipped. The compatibility driver dyng-compat-mosp sets it (PLAN Section 8.3:
-  /// equal input-rejection semantics); ADR 0010 records why the default is strict.
+  /**
+   * @brief MOSP's accept/reject rules instead of dynG's stricter ones.
+   *
+   * As readChangeBatch() of MOSP-OpenMP\@c352151 / MOSP-CUDA\@e220ee2: integers after the first
+   * 2 + K of an insertion line and after the first 2 of a deletion line are read and ignored,
+   * and a deletion line with a single integer is skipped. The compatibility driver
+   * dyng-compat-mosp sets it (PLAN Section 8.3: equal input-rejection semantics); ADR 0010
+   * records why the default is strict.
+   */
   bool mosp_lenient = false;
 };
 
@@ -48,6 +52,7 @@ struct legacy_batch_options {
  * @return The batch.
  * @throws io_error               if a file is missing or malformed (with path, line and column).
  * @throws invalid_argument_error if the options are invalid.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t, typename weight_t>
@@ -65,6 +70,7 @@ template <typename vertex_t, typename weight_t>
  * @param[in] batch       The batch (host memory; vertex operations are not representable).
  * @throws io_error               if a file cannot be written.
  * @throws invalid_argument_error if the batch has vertex operations or inconsistent sizes.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t, typename weight_t>

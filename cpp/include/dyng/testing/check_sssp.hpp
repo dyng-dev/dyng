@@ -73,6 +73,7 @@ struct sssp_tree_check {
  * @return The findings.
  * @throws invalid_argument_error if the array sizes differ from the vertex count or the objective
  *         is out of range.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup testing
  */
@@ -95,6 +96,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @param[in] opt       Objective and mode.
  * @return The findings.
  * @throws invalid_argument_error on size or objective mismatches.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup testing
  */
@@ -115,6 +117,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @param[in] require_canonical Parents must be the lowest-id tight in-neighbours.
  * @return The findings.
  * @throws invalid_argument_error on size mismatches or a moved-from result.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup testing
  */

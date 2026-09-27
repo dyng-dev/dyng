@@ -83,6 +83,7 @@ struct matrix_market_options {
  * @throws io_error                if the file cannot be read or is malformed (with path, line and
  *                                 column).
  * @throws invalid_argument_error  if the options are invalid.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t, typename weight_t>
@@ -102,6 +103,7 @@ template <typename vertex_t, typename weight_t>
  * @param[in] weight_column The weight column to write (ignored for num_weights == 0).
  * @throws io_error               if the file cannot be written.
  * @throws invalid_argument_error if `weight_column` is out of range or the arrays disagree.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t, typename weight_t>

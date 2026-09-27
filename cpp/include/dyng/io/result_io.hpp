@@ -26,6 +26,7 @@ namespace dyng::io {
  * @param[in] distances One distance per vertex (host memory).
  * @throws io_error               if the file cannot be written.
  * @throws invalid_argument_error if the array is not host-accessible.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename distance_t>
@@ -41,6 +42,7 @@ void write_distances(const std::string& path, array_view<const distance_t> dista
  * @param[in] parents One parent per vertex, -1 for none (host memory).
  * @throws io_error               if the file cannot be written.
  * @throws invalid_argument_error if the array is not host-accessible.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t>
@@ -57,6 +59,7 @@ void write_parents(const std::string& path, array_view<const vertex_t> parents);
  * @param[in] num_vertices Number of vertices.
  * @return The distances, indexed by vertex.
  * @throws io_error if the file is missing or malformed (with path, line and column).
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename distance_t>
@@ -73,6 +76,7 @@ template <typename distance_t>
  * @param[in] num_vertices Number of vertices.
  * @return The parents, indexed by vertex (-1 for none).
  * @throws io_error if the file is missing or malformed (with path, line and column).
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t>

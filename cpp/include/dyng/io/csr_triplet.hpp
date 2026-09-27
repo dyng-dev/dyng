@@ -44,6 +44,7 @@ struct csr_triplet_options {
  * @return The CSR (objective-major weights).
  * @throws io_error               if a file is missing or malformed (with path, line and column).
  * @throws invalid_argument_error if `options.num_weights` is negative.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -59,6 +60,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @param[in] graph  The CSR (host memory), e.g. graph::view().out or csr::view().
  * @throws io_error               if a file cannot be written.
  * @throws invalid_argument_error if the view is not host-accessible or its sizes disagree.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
 template <typename vertex_t, typename edge_t, typename weight_t>

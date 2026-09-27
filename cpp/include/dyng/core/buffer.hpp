@@ -81,6 +81,8 @@ class buffer {
    * @param[in] res  Resources providing the memory resource, stream and device.
    * @param[in] size Number of elements.
    * @throws out_of_memory_error if the allocation fails.
+   * @async The allocation is ordered on the stream of `res` (host memory resources allocate
+   *        before returning).
    */
   buffer(const resources& res, size_type size)
       : buffer(size, res.stream(), res.memory(), res.device()) {}

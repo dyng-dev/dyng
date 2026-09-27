@@ -160,6 +160,9 @@ struct stats_of {
  * @throws stale_result_error     if a result does not match `g` (its version, or the graph state
  *         it was computed on).
  * @throws invalid_argument_error if a result is passed twice or the batch is invalid.
+ * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
+ *         result (a device backend before M1b, vertex operations before 0.3).
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup core
  */
@@ -203,6 +206,9 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  *         it was computed on).
  * @throws invalid_argument_error if a pointer is null or a result is listed twice, or the batch
  *         is invalid.
+ * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
+ *         result (a device backend before M1b, vertex operations before 0.3).
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup core
  */

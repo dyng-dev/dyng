@@ -65,6 +65,7 @@ class graph {
    * @brief An empty graph (no vertices) with the given properties.
    * @param[in] props The properties (see graph_properties).
    * @throws not_supported_error if `props.layout` is not row_layout::compact.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
    */
   explicit graph(const graph_properties& props = {});
 
@@ -84,6 +85,7 @@ class graph {
    * @throws invalid_argument_error if an id is out of range, the arrays disagree in size, or a
    *         self-loop is present under self_loop::error.
    * @throws not_supported_error    for a device backend or a layout other than compact.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
   [[nodiscard]] static graph from_edges(const resources& res,
@@ -105,6 +107,7 @@ class graph {
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed.
    * @throws not_supported_error    for a device backend or a layout other than compact.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
   [[nodiscard]] static graph from_csr(const resources& res,
@@ -132,6 +135,9 @@ class graph {
    * @brief A deep copy (same properties, storage and version).
    * @param[in] res Execution resources of the copy.
    * @return The copy.
+   * @throws invalid_argument_error for a moved-from graph.
+   * @throws not_supported_error    for a device backend.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
   [[nodiscard]] graph clone(const resources& res) const;
@@ -221,6 +227,7 @@ class graph {
    * @throws invalid_argument_error if an id is negative or out of range (without vertex growth),
    *         the weights do not match num_weights(), or a semantics rule says error.
    * @throws not_supported_error    for vertex insertions or deletions (planned for 0.3).
+   * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
@@ -229,6 +236,9 @@ class graph {
    * @brief A host copy of the out-edges.
    * @param[in] res Execution resources.
    * @return The out-edge CSR with objective-major weights.
+   * @throws invalid_argument_error for a moved-from graph.
+   * @throws not_supported_error    for a device backend.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
   [[nodiscard]] csr_type to_csr(const resources& res) const;

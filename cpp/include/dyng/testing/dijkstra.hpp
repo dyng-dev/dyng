@@ -43,6 +43,7 @@ struct sssp_tree {
  * @param[in] objective The weight column.
  * @return The canonical tree; all vertices unreachable if `source` is out of range.
  * @throws invalid_argument_error if `objective` is out of range or the view is not on the host.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup testing
  */
@@ -60,6 +61,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @param[in] objective The weight column.
  * @return The canonical tree.
  * @throws invalid_argument_error if `objective` is out of range.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup testing
  */

@@ -207,6 +207,8 @@ class scoped_stage {
    * @param[in] res  Resources; must outlive the scoped_stage.
    * @param[in] name Stage name `<algo>.<hook>[.<sub>]`.
    * @throws invalid_argument_error if a profiler is attached and `name` is invalid.
+   * @sync With profiler_options::sync_stages the resources are synchronized first; otherwise
+   *       only a host timestamp is taken.
    */
   scoped_stage(const resources& res, std::string_view name);
 

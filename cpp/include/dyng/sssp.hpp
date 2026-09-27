@@ -219,6 +219,7 @@ class result {
    * @return The result, matching `g.version()`.
    * @throws invalid_argument_error if a check fails or the options are invalid.
    * @throws not_supported_error    for a device backend.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
   template <typename edge_t, typename weight_t>
@@ -255,6 +256,7 @@ class result {
  *         objective is below 1, the graph stores no in-edges, or distances could exceed 62 bits.
  * @throws not_supported_error    if the backend of `res` is not available for sssp (cuda before
  *         M1b).
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @backends sequential, openmp
  * @determinism Bit-exact across backends and runs: the Dijkstra tree with lowest-id ties.
@@ -295,6 +297,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *         for a tree imported without validation, if the tree has a parent cycle (then the graph
  *         was updated and `r` is left unusable).
  * @throws not_supported_error    if the backend of `res` is not available for sssp.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @backends sequential, openmp
  * @determinism Bit-exact across backends and runs (distances, parents, `invalidated`,
