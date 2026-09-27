@@ -7,20 +7,24 @@
 #   conda env update -f environment.yml      # after this file changes
 #   source scripts/dev_env.sh                # activates the env, adds nvcc and DYNG_SCRATCH
 #
-# The host C++ compiler is the system GCC (>= 11); the CUDA toolkit is the system one
-# (/usr/local/cuda-13.1 on the development machine). Neither is installed here, to keep the
-# environment small. clang-format is pinned to the same version as .pre-commit-config.yaml.
+# The host C++ compiler is the system GCC (>= 11; GCC 12.2 on the development machine) and the
+# CUDA toolkit is the system one (/usr/local/cuda-13.1). PLAN Section 4.2 lists gxx 12 here; it is
+# left out on purpose (recorded in docs/developer/retrospectives/M1a.md): the parity preset must
+# build with the compiler the originals were built with (the system g++ that
+# parity/build_reference.sh uses), and conda's activation scripts would replace CC/CXX for every
+# build. clang-format is pinned to the same version as .pre-commit-config.yaml, Doxygen to the
+# version lint.yml downloads, and CMake to the range CI installs, so the local gate and CI agree.
 name: dyng-dev
 channels:
   - conda-forge
   - nodefaults
 dependencies:
   - python=3.12
-  - cmake>=3.30
+  - cmake>=3.30,<4.5
   - ninja
   - clang-format=22.1.8
   - clang-tools=22.1.8
-  - doxygen
+  - doxygen=1.18.0
   - pre-commit
   - reuse
   - pytest

@@ -44,11 +44,21 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install tools
+      # The same Doxygen as the local gate (environment.yml pins doxygen=1.18.0). Ubuntu 24.04's
+      # apt Doxygen 1.9.8 reports false "parameters ... are not documented" errors on documented
+      # namespace functions, which made this job fail while ci/check.sh passed.
+      - name: Install tools (Doxygen 1.18.0, SHA-256 checked)
+        env:
+          DOXYGEN_URL: https://github.com/doxygen/doxygen/releases/download/Release_1_18_0/doxygen-1.18.0.linux.bin.tar.gz
+          DOXYGEN_SHA256: 14fa81bdc34171edb5f1f02b1d60e74802f0439b77fa44e592565d517d72df90
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends doxygen
-          python -m pip install "cmake>=3.30" ninja
+          curl -fsSLo "${RUNNER_TEMP}/doxygen.tar.gz" "${DOXYGEN_URL}"
+          echo "${DOXYGEN_SHA256}  ${RUNNER_TEMP}/doxygen.tar.gz" | sha256sum --check --strict
+          tar -xzf "${RUNNER_TEMP}/doxygen.tar.gz" -C "${RUNNER_TEMP}"
+          echo "${RUNNER_TEMP}/doxygen-1.18.0/bin" >> "${GITHUB_PATH}"
+          python -m pip install "cmake>=3.30,<4.5" ninja
+      - name: Doxygen version
+        run: doxygen --version
       - name: Configure (generates version.hpp / config.hpp)
         run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF
       - name: Doxygen, warnings as errors
