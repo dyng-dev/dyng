@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Code owners (PLAN Section 8.9, rule 6). GitHub requests a review from the owners of every file
+# a pull request changes; with the `main` ruleset's "Require review from Code Owners" (enabled
+# once there is a second maintainer, docs/developer/repository_settings.md) their approval is
+# required. The LAST matching pattern wins, so the catch-all comes first. Owners need write
+# access to the repository. Maintainers and their areas: MAINTAINERS.md.
+
+# Everything, until more maintainers join.
+*                                   @SMShovan
+
+# --- Core and framework (hand-written) --------------------------------------------------------
+/cpp/include/dyng/                  @SMShovan
+/cpp/src/core/                      @SMShovan
+/cpp/src/framework/                 @SMShovan
+/CMakeLists.txt                     @SMShovan
+/CMakePresets.json                  @SMShovan
+/cmake/                             @SMShovan
+/parity/                            @SMShovan
+/.github/                           @SMShovan
+/ci/                                @SMShovan
+/LICENSE                            @SMShovan
+/NOTICE                             @SMShovan
+/CITATION.cff                       @SMShovan
+/GOVERNANCE.md                      @SMShovan
+/MAINTAINERS.md                     @SMShovan
+
+# --- Algorithms --------------------------------------------------------------------------------
+# One block per algorithm: its implementation folder, public header, tests and docs page. Paper
+# co-authors can be added as reviewers of their algorithm when they accept. From milestone M3 on,
+# scripts/regen.py generates this block from cpp/src/algorithms/<algo>/manifest.toml
+# (`maintainers`); until then it is edited by hand.
+/cpp/src/algorithms/sssp/           @SMShovan
+/cpp/include/dyng/sssp.hpp          @SMShovan
+/cpp/tests/algorithms/sssp/         @SMShovan
+/docs/algorithms/sssp.md            @SMShovan
