@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Formatting and licensing checks (PLAN Section 8.8): pre-commit (clang-format, whitespace,
-# REUSE, codespell) and the Doxygen check of the public headers.
+# REUSE, codespell) and the Doxygen check of the public headers. Mirrors the `format`, `reuse`,
+# `precommit` and `docs` steps of ci/check.sh (clang-format and REUSE run as pre-commit hooks).
 name: lint
 
 on:

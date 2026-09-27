@@ -3,6 +3,8 @@
 #
 # CPU build and tests on GitHub-hosted runners (PLAN Section 8.8): the cpu-only (Release) and
 # dev (Debug) presets with GCC, OpenMP on and off, `ctest -L cpu`. No GPU is needed.
+# Mirrors the `build` step of ci/check.sh. The `parity` step (ci/check.sh --parity) is not run
+# here: the golden corpus lives outside the repository until it is published as a release asset.
 name: cpu
 
 on:

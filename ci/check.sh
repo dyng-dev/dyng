@@ -5,16 +5,44 @@
 # The local CPU gate (PLAN Section 8.8): run before every commit. CI runs the same steps.
 #
 #   ci/check.sh                   # cpu-only and dev presets, clang-format, REUSE, Doxygen, pre-commit
+#   ci/check.sh --parity          # ... and the golden parity replay (parity preset, needs goldens)
 #   DYNG_CHECK_PRESETS=dev ci/check.sh
 #   DYNG_CHECK_SKIP="precommit docs" ci/check.sh
 #
 # Steps (each can be skipped by name in DYNG_CHECK_SKIP):
-#   build      configure, build and `ctest -L cpu` for every preset in DYNG_CHECK_PRESETS
 #   format     clang-format --dry-run --Werror on all tracked C++/CUDA sources
+#   build      configure, build and `ctest -L cpu` for every preset in DYNG_CHECK_PRESETS
+#   tidy       clang-tidy with only the naming rules of ADR 0004 (readability-identifier-naming)
+#              on the library sources and the public headers they include; needs the
+#              compile_commands.json of a preset built above (skipped if clang-tidy is missing)
 #   reuse      reuse lint (SPDX headers in every file)
-#   docs       Doxygen on the public headers with warnings as errors (skipped if doxygen is missing)
+#   docs       ci/docs.sh: Doxygen on the public headers with warnings as errors, then the
+#              convention check ci/doxygen_coverage.py (skipped if doxygen is missing)
 #   precommit  pre-commit run --all-files (skipped if pre-commit is missing)
+#   parity     only with --parity (or DYNG_CHECK_PARITY=1): configure and build the `parity`
+#              preset and run `ctest -L parity`, the byte-for-byte replay of the golden corpus
+#              (PLAN Section 8.3). The goldens are not in the repository: create them first with
+#              parity/build_reference.sh and parity/export_goldens.py (parity/README.md). With
+#              --parity, missing goldens are an error, not a skip.
+#
+# The GitHub workflows mirror these steps: cpu.yml runs `build`, lint.yml runs `precommit`
+# (which includes clang-format and REUSE), `docs` and the name-reservation package check.
 set -euo pipefail
+
+run_parity="${DYNG_CHECK_PARITY:-0}"
+for arg in "$@"; do
+  case "${arg}" in
+    --parity) run_parity=1 ;;
+    -h | --help)
+      sed -n '5,29p' "${BASH_SOURCE[0]}"
+      exit 0
+      ;;
+    *)
+      echo "ci/check.sh: unknown argument '${arg}' (try --help)" >&2
+      exit 2
+      ;;
+  esac
+done
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_root}"
@@ -32,6 +60,16 @@ failed=()
 step() { printf '\n==> %s\n' "$*"; }
 skipped() { [[ "${skip}" == *" $1 "* ]]; }
 
+if ! skipped format; then
+  step "clang-format ($(clang-format --version | head -n1))"
+  mapfile -t sources < <(git ls-files '*.hpp' '*.cpp' '*.cuh' '*.cu' '*.h')
+  if [ "${#sources[@]}" -eq 0 ] || clang-format --dry-run --Werror "${sources[@]}"; then
+    echo "clang-format: OK"
+  else
+    failed+=("format")
+  fi
+fi
+
 if ! skipped build; then
   for preset in ${presets}; do
     step "preset ${preset}: configure, build, test (label cpu)"
@@ -44,13 +82,32 @@ if ! skipped build; then
   done
 fi
 
-if ! skipped format; then
-  step "clang-format ($(clang-format --version | head -n1))"
-  mapfile -t sources < <(git ls-files '*.hpp' '*.cpp' '*.cuh' '*.cu' '*.h')
-  if [ "${#sources[@]}" -eq 0 ] || clang-format --dry-run --Werror "${sources[@]}"; then
-    echo "clang-format: OK"
+if ! skipped tidy; then
+  step "clang-tidy (naming rules, library sources)"
+  tidy_db=""
+  for preset in ${presets}; do
+    if [ -f "build/${preset}/compile_commands.json" ]; then
+      tidy_db="build/${preset}"
+      break
+    fi
+  done
+  if ! command -v clang-tidy >/dev/null 2>&1; then
+    echo "clang-tidy not found; skipped"
+  elif [ -z "${tidy_db}" ]; then
+    echo "no compile_commands.json (build step skipped?)"
+    failed+=("tidy")
   else
-    failed+=("format")
+    # The conda clang-tidy ships without clang's resource headers (stddef.h, ...); GCC's builtin
+    # include directory stands in for them. libstdc++ 12's get_temporary_buffer is deprecated
+    # for clang (not for GCC); that diagnostic is not ours.
+    gcc_include="$("${CXX:-g++}" -print-file-name=include)"
+    if git ls-files 'cpp/src/*.cpp' | xargs -r -n 1 -P "$(nproc)" clang-tidy -p "${tidy_db}" \
+      --quiet --checks='-*,readability-identifier-naming' --warnings-as-errors='*' \
+      "--extra-arg=-isystem${gcc_include}" --extra-arg=-Wno-deprecated-declarations; then
+      echo "clang-tidy: OK"
+    else
+      failed+=("tidy")
+    fi
   fi
 fi
 
@@ -91,6 +148,20 @@ if ! skipped precommit; then
     fi
   else
     echo "pre-commit not found; skipped"
+  fi
+fi
+
+if [ "${run_parity}" = "1" ] && ! skipped parity; then
+  step "parity preset: golden replay (ctest -L parity)"
+  goldens="${DYNG_GOLDENS_DIR:-${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}/goldens}"
+  if [ ! -f "${goldens}/sssp/MANIFEST.sha256" ]; then
+    echo "no goldens in ${goldens}/sssp: run parity/build_reference.sh and parity/export_goldens.py"
+    failed+=("parity:no-goldens")
+  elif cmake --preset parity -DDYNG_GOLDENS_DIR="${goldens}" && cmake --build --preset parity &&
+    ctest --preset parity -L parity; then
+    echo "parity: OK"
+  else
+    failed+=("parity")
   fi
 fi
 
