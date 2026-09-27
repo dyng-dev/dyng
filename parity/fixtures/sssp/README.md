@@ -34,5 +34,5 @@ Section 6.3 for the CPU implementations.
 `tools/compat` (the drop-in driver `dyng-compat-mosp` writes the same files).
 
 The script is deterministic: running it again leaves `git status` clean. The fixtures (about
-39 KB) are the small committed subset of the parity harness; the full golden corpus (388 cases,
+39 KB) are the small committed subset of the parity harness; the full golden corpus (495 cases,
 outside the repository) is described in `parity/README.md`.

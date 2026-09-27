@@ -1,6 +1,6 @@
 # M1a parity certificate: `sssp` (CPU) against MOSP-OpenMP@c352151
 
-Date: 2026-09-27. Format: PLAN Section 8.3 ("Parity certificate"). The machine-readable records
+Date: 2026-09-27 (re-recorded after the independent review of M1a; see the retrospective, Step 6). Format: PLAN Section 8.3 ("Parity certificate"). The machine-readable records
 are next to this file:
 
 | File | Content |
@@ -8,7 +8,7 @@ are next to this file:
 | `M1a-sssp-parity-preset.json` | golden replay, `parity` preset (Release, `-O3`) |
 | `M1a-sssp-dev-preset.json` | golden replay, `dev` preset (Debug) |
 | `M1a-crosscheck-mosp-cuda-e220ee2.json` | one-off cross-check of the two originals |
-| `M1a-perf-openmp-roadNet-CA.json` | OpenMP performance A/B (default OpenMP wait policy) |
+| `M1a-perf-openmp-roadNet-CA.json` | OpenMP performance A/B (default OpenMP wait policy; schema 2, after the review) |
 | `M1a-perf-openmp-roadNet-CA-active-wait.json` | the same with `OMP_WAIT_POLICY=active` on both sides |
 
 ## 1. What was compared
@@ -17,9 +17,9 @@ are next to this file:
 |---|---|
 | Original (reference) | MOSP-OpenMP `c35215135341d5b5d1553458afe4b2226edc38fb` (baseline tag `baseline-2026-09` = `7284f50`), built from a `git archive` copy by `parity/build_reference.sh` (unpatched for performance, patched = unpatched + additive exporters for goldens) |
 | Second original | MOSP-CUDA `e220ee20d1b0948ece3df135a02d1b898264c22f` (`baseline-2026-09` = `ac29545`), CUDA 13.1 (V13.1.115), driver 590.48.01, sm_86 |
-| Port | dynG `93e60f8` (`sssp` sequential and OpenMP backends, `graph::apply` under `graph_properties::mosp_compatible()`), driven by `tools/compat/dyng-compat-mosp` |
+| Port | dynG at the commit recorded in each JSON (golden replays `e8ff5f5`, performance `06d1fc1`; the sssp engines are unchanged since `416c171`) (`sssp` sequential and OpenMP backends, `graph::apply` under `graph_properties::mosp_compatible()`), driven by `tools/compat/dyng-compat-mosp` |
 | Toolchain | GCC 12.2.0 (Debian 12.2.0-14+deb12u1) for both; the original with its Makefile (`-std=c++17 -O3 -fopenmp`), dynG with the `parity` preset (`-O3`) and the `dev` preset (Debug, `-Werror`) |
-| Goldens | `$DYNG_SCRATCH/goldens/sssp`: 388 cases, 8,620 files, 144 MB; `MANIFEST.sha256` = `78b658553362f77686571dc5f21c28667809580a33983354a982912c54591c26`; one SHA-256 per case in `parity/goldens.toml`. `compare.py` re-hashed every file before comparing |
+| Goldens | `$DYNG_SCRATCH/goldens/sssp`: 495 cases, 11,799 files, 184 MB; `MANIFEST.sha256` = `668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd`; one SHA-256 per case in `parity/goldens.toml`. `compare.py` re-hashed every file before comparing |
 | Tolerance | none: byte equality of every compared file; `invalidated` counters equal (PLAN Section 8.3). `iterations`, `epochs`, `pushes` are logged only |
 
 ### The golden corpus (`parity/export_goldens.py`)
@@ -35,8 +35,9 @@ are next to this file:
 | `large_weights` | 2 | `mospTest --only large-weights`: 320 x 320 grid, weights up to 2^31 - 1 (the distance-only fallback), safe and unsafe |
 | `packing` | 3 | the packing boundaries of both originals' `mospTest` (n = 2^16 + 1 with weights 2^31 - 1; n = 2^17 - 1 pull and push) |
 | `stress` | 200 | `stressTest 1` and `parallelStressTest 2` (100 cases each) |
+| `noncanonical` | 107 | the inputs of `testcases`, `regressions`, `escher`, `fixtures` and `sosp` with **non-canonical** initial trees: `mospPrep init`, then every vertex with several tight in-neighbours takes a random one (seeded by the case name; 75 base cases without any tie are skipped); the goldens are what `mosp` (no `--canonicalize`) computes. Added after the review: the 388 canonical cases could not detect a tie-rule difference between the backends |
 
-Per case: the initial trees (`mospPrep init`), the updated trees and the `invalidated` counters
+Per case: the initial trees (`mospPrep init`; for `noncanonical` the perturbed trees, with `mospPrep init` in `init_canonical/` for the `compute` comparison), the updated trees and the `invalidated` counters
 (`mosp --validate`), the updated CSR and weight-increase bits (`applyChangeBatch` +
 `writeCsrGraph`), and the combined graph (kept for `mosp`, 0.2).
 
@@ -57,7 +58,8 @@ counters, for every objective.
 | large_weights | 2 | 2/2 | 2/2 | 2/2 | 2/2 |
 | packing | 3 | 3/3 | 3/3 | 3/3 | 3/3 |
 | stress | 200 | 200/200 | 200/200 | 200/200 | 200/200 |
-| **all** | **388** | **388/388** | **388/388** | **388/388** | **388/388** |
+| noncanonical | 107 | 107/107 | 107/107 | 107/107 | 107/107 |
+| **all** | **495** | **495/495** | **495/495** | **495/495** | **495/495** |
 
 The same matrix holds for the `parity` preset and for the `dev` preset. The committed test
 suite (`ctest -L cpu`) additionally runs 34 fixture cases on 3 index-type combinations and
@@ -69,8 +71,12 @@ randomized cross-checks against `testing::dijkstra` + `check_sssp_tree(require_c
   sospUpdateCpu) == `parallelSOSPUpdate` == `sequentialSOSPUpdate` == `mospPrep expected`
   (Dijkstra on the updated graph), byte for byte, every objective; the initial trees that
   `mospTest` wrote == `mospPrep init`; for `tests/testCase0..9` the expected files tracked in the
-  commit (`distances/SSSPTree{Original,Updated,SospUpdate}.txt`) == the goldens.
-- **Old MOSP-CUDA == old MOSP-OpenMP** (one-off, 388/388 cases, RTX A5000 GPU 1): MOSP-CUDA's
+  commit (`distances/SSSPTree{Original,Updated,SospUpdate}.txt`) == the goldens. For the
+  `noncanonical` group only `mosp` == `parallelSOSPUpdate` (both `sospUpdateCpu`) and the
+  distances of `mospPrep expected` are required: `sequentialSOSPUpdate` and Dijkstra choose
+  lowest-id tie parents where `sospUpdateCpu` keeps the input's; the original
+  `sequentialSOSPUpdate` differs from `mosp` on 59 of the group's 298 objectives (ADR 0006).
+- **Old MOSP-CUDA == old MOSP-OpenMP** (one-off, 495/495 cases including the 107 non-canonical ones, RTX A5000 GPU 1): MOSP-CUDA's
   `mospPrep init`, `mosp` (updated trees, combined graph and MOSP costs, `invalidated` counters)
   and its `applyChangeBatch` (updated CSR and weight-increase bits, through the CUDA build of the
   graph/io exporter) are byte-identical to the MOSP-OpenMP goldens. No difference between the two
@@ -80,7 +86,7 @@ randomized cross-checks against `testing::dijkstra` + `check_sssp_tree(require_c
 
 | Check | Result |
 |---|---|
-| Goldens exported twice from two fresh archive copies (`export_goldens.py --twice`) | identical `MANIFEST.sha256` |
+| Goldens exported twice from two fresh archive copies (`export_goldens.py --twice`) | identical `MANIFEST.sha256` (388 cases); after the review both reference copies were rebuilt `--fresh` and a new export of all 495 cases reproduced the committed manifest |
 | The originals' repositories after all builds and exports | `git status` clean, HEAD at c352151 / e220ee2 (checked by `build_reference.sh` before and after each build) |
 | Scratch copies equal to the archive (content and executable bit of every tracked file) | yes, for all four copies; the patched copies differ only by the added `parity_export/` directory |
 | Archive-build check | both originals build from the archive alone: no gitlinks, no absolute paths needed (MOSP-CUDA's README mentions `/usr/local/cuda` as an example only); external inputs listed in `references.toml` |
@@ -91,73 +97,95 @@ randomized cross-checks against `testing::dijkstra` + `check_sssp_tree(require_c
 
 ## 5. Performance A/B (OpenMP, roadNet-CA; recorded, gated from M1b)
 
-Protocol: `parity/perf_ab.py run --runs 9`; the unpatched original's `bin/mosp` (A) and
-`dyng-compat-mosp` of the `parity` preset (B) alternate A/B/A/B under the exclusive
-`perf.lock`; 28 threads, `OMP_PROC_BIND=close OMP_PLACES=cores` on both; medians; `--no-output`
-on both. Before the timed rounds of each batch both wrote their trees once: byte-identical.
-Inputs: `perf_ab.py prepare`, i.e. the original's `bench/prepare.sh` with its own `mospPrep`:
-the roadNet-CA CSR (n = 1,971,281, m = 5,533,214, K = 3 weights in [1, 100], seed 12345),
-`mospPrep init`, 50K batches with 50 % insertions and seed 777 (unsafe; safe = 23,319 of 25,000
-deletions kept), and the 10K local batch (160 hops, 120,604 vertices, safe). The SHA-256 of
-every input is in the JSON. Load average during the runs: 7.6-10.8 (a shared lab machine).
+This section was re-measured after the M1a review (see the retrospective, Step 6): the first
+record read the gate on the sum over the objectives, left a moved first-touch cost outside the
+port's region, compared the original's whole `prepare` with the port's graph work only, and
+included the original's combined graph in its end-to-end figure. Its claims "SOSP at parity or
+faster (0.87-0.95x)" and "apply 23-33 % faster" are withdrawn.
 
-Timed regions (`parity/timed_regions/sssp.toml`): per objective, the original's
-`obj<k> SOSP update` (`sospUpdateCpu`) against dynG's `sssp.identify_affected + seed + loop +
-finalize`.
+Protocol: `flock $DYNG_SCRATCH/perf.lock parity/perf_ab.py run --runs 21` at dynG `06d1fc1`
+(clean tree); the unpatched original's `bin/mosp` (A, rebuilt and verified before timing; build
+fingerprint in the JSON) and `dyng-compat-mosp` of the `parity` preset (B) alternate A/B/A/B;
+28 threads, `OMP_PROC_BIND=close OMP_PLACES=cores` on both; medians of 21 runs (so the regions
+under 10 ms are not provisional); `--no-output` on both. Before the timed rounds of each batch
+both wrote their trees once: byte-identical; the `invalidated` counters were equal in every one
+of the 63 rounds. Inputs: `perf_ab.py prepare`, i.e. the original's `bench/prepare.sh` with its
+own `mospPrep`: the roadNet-CA CSR (n = 1,971,281, m = 5,533,214, K = 3 weights in [1, 100],
+seed 12345), `mospPrep init`, 50K batches with 50 % insertions and seed 777 (unsafe; safe =
+23,319 of 25,000 deletions kept), and the 10K local batch (160 hops, 120,604 vertices, safe).
+The SHA-256 of every input is in the JSON. Load average during the runs: 3.0-5.3.
 
-| Batch | Region | Original (ms) | dynG (ms) | Ratio | Gate (from M1b) | Spread A / B |
-|---|---|---:|---:|---:|---|---|
-| safe 50K | SOSP obj0 | 31.50 | 25.42 | 0.807 | <= 1.05 | 22 % / 7 % |
-| | SOSP obj1 | 20.87 | 21.60 | 1.035 | <= 1.05 | 10 % / 7 % |
-| | SOSP obj2 | 20.23 | 21.45 | **1.060** | <= 1.05 | 7 % / 8 % |
-| | **SOSP, 3 objectives** | 74.31 | 68.53 | **0.922** | <= 1.05 | 10 % / 6 % |
-| | apply (+ reverse graph) | 139.20 | 107.20 | 0.770 | - | 4 % / 3 % |
-| | end to end | 692.21 | 876.62 | 1.266 | <= 1.10 (M1b) | 27 % / 1 % |
-| unsafe 50K | SOSP obj0 | 30.00 | 24.75 | 0.825 | <= 1.05 | 28 % / 6 % |
-| | SOSP obj1 | 21.01 | 21.69 | 1.033 | <= 1.05 | 11 % / 1 % |
-| | SOSP obj2 | 20.32 | 21.48 | **1.057** | <= 1.05 | 7 % / 1 % |
-| | **SOSP, 3 objectives** | 71.32 | 68.03 | **0.954** | <= 1.05 | 15 % / 2 % |
-| | apply (+ reverse graph) | 138.20 | 103.60 | 0.750 | - | 3 % / 5 % |
-| | end to end | 686.74 | 872.98 | 1.271 | <= 1.10 (M1b) | 26 % / 1 % |
-| local 10K | SOSP obj0 | 12.97 | 11.04 | 0.851 | <= 1.05 | 26 % / 27 % |
-| | SOSP obj1 | 10.06 | 8.31 | 0.826 | <= 1.05 | 17 % / 24 % |
-| | SOSP obj2 | 9.15 | 8.86 | 0.968 | <= 1.10 | 10 % / 23 % |
-| | **SOSP, 3 objectives** | 32.42 | 28.11 | **0.867** | <= 1.05 | 16 % / 25 % |
-| | apply (+ reverse graph) | 126.00 | 84.90 | 0.674 | - | 4 % / 4 % |
-| | end to end | 595.71 | 814.25 | 1.367 | <= 1.10 (M1b) | 35 % / 2 % |
+Timed regions: loaded by `perf_ab.py` from `parity/timed_regions/sssp.toml`:
 
-`invalidated` was equal on every batch and objective (safe 1,651,121 / 1,105,632 / 1,022,434;
-unsafe 1,651,536 / 1,106,633 / 1,023,496; local 97,792 / 65,160 / 89,277).
+- `sosp_update` (gated per objective, PLAN 6.4.2): the original's `obj<k> SOSP update`
+  (`sospUpdateCpu`) against dynG's `sssp.identify_affected + seed + loop + finalize` for
+  objective k. Objective 0 twice: *as measured*, and *first touch counted*: + the
+  `sssp.workspace.pretouch` stage of objective 0's result. MOSP's objective 0 pays the first
+  touch of its shared frontier lists inside the region; each dynG result touches its own lists
+  when it is created. The gate uses the counted value.
+- `sosp_total`: the sum over the objectives, including objective 0's first touch on both sides;
+  reported, **not a gate**.
+- `apply`: the original's `apply batch` + `prepare` against dynG's `update.commit` + the K
+  `sssp.import` stages (the tree copies, which `mospUpdate` does inside `prepare`) + objective
+  0's `sssp.workspace` (the one workspace reserve of `prepare`).
+- `end_to_end`: the original's `end_to_end_ms` minus its `comb combined graph + SOSP` (the
+  `mosp` step, 0.2) against dynG's whole run.
+
+| Batch | Region | Reading | Original (ms) | dynG (ms) | Ratio | Gate (from M1b) | Spread A / B |
+|---|---|---|---:|---:|---:|---|---|
+| safe 50K | sosp_update obj0 | as measured (first touch outside the port's region) | 31.72 | 25.80 | 0.813 | - | 24 % / 8 % |
+|  | sosp_update obj0 | first touch counted | 31.72 | 34.71 | **1.094** | <= 1.05 **exceeded** | 24 % / 7 % |
+|  | sosp_update obj1 | as measured | 21.03 | 21.50 | 1.023 | <= 1.05 ok | 10 % / 2 % |
+|  | sosp_update obj2 | as measured | 20.44 | 21.21 | 1.038 | <= 1.05 ok | 9 % / 3 % |
+|  | sosp_total | as measured | 74.38 | 77.30 | 1.039 | - | 13 % / 3 % |
+|  | apply | as measured | 138.30 | 128.82 | 0.931 | - | 9 % / 5 % |
+|  | end_to_end | as measured | 678.34 | 884.47 | 1.304 | - | 31 % / 1 % |
+| unsafe 50K | sosp_update obj0 | as measured (first touch outside the port's region) | 31.21 | 24.52 | 0.786 | - | 28 % / 10 % |
+|  | sosp_update obj0 | first touch counted | 31.21 | 33.52 | **1.074** | <= 1.05 **exceeded** | 28 % / 8 % |
+|  | sosp_update obj1 | as measured | 21.19 | 20.19 | 0.953 | <= 1.05 ok | 9 % / 4 % |
+|  | sosp_update obj2 | as measured | 20.36 | 20.06 | 0.986 | <= 1.05 ok | 9 % / 3 % |
+|  | sosp_total | as measured | 73.46 | 73.88 | 1.006 | - | 16 % / 3 % |
+|  | apply | as measured | 140.30 | 131.57 | 0.938 | - | 9 % / 6 % |
+|  | end_to_end | as measured | 645.82 | 879.46 | 1.362 | - | 35 % / 2 % |
+| local 10K | sosp_update obj0 | as measured (first touch outside the port's region) | 13.78 | 10.81 | 0.784 | - | 37 % / 7 % |
+|  | sosp_update obj0 | first touch counted | 13.78 | 19.79 | **1.436** | <= 1.05 **exceeded** | 37 % / 8 % |
+|  | sosp_update obj1 | as measured | 10.15 | 8.24 | 0.812 | <= 1.05 ok | 22 % / 5 % |
+|  | sosp_update obj2 | as measured | 9.34 | 8.76 | 0.938 | <= 1.10 ok | 21 % / 4 % |
+|  | sosp_total | as measured | 33.78 | 36.76 | 1.088 | - | 25 % / 6 % |
+|  | apply | as measured | 126.10 | 108.58 | 0.861 | - | 11 % / 7 % |
+|  | end_to_end | as measured | 581.12 | 816.62 | 1.405 | - | 38 % / 1 % |
+
+`invalidated` was equal on every batch, objective and round (safe 1,651,121 / 1,105,632 /
+1,022,434; unsafe 1,651,536 / 1,106,633 / 1,023,496; local 97,792 / 65,160 / 89,277).
 
 ### Findings
 
-1. **The SOSP compute is at parity or faster**: the sum over the three objectives is
-   0.87-0.95x of the original on all three batches (and 0.96 / 1.01 / 0.87 with
-   `OMP_WAIT_POLICY=active`, the second JSON).
-2. **Objectives 1 and 2 of the 50K batches are 3-6 % slower, objective 0 is 15-20 % faster.** The
-   original shares ONE workspace (about 38 bytes per vertex) across its K SOSP updates; dynG gives
-   each `sssp::result` its own, touched at creation (Step 3). The original's first objective
-   therefore pays for touching its workspace and the later ones reuse warm pages; dynG's
-   objectives each start on a workspace of their own. Experiment (not committed): with the three
-   results sharing one workspace, dynG's objectives 1 and 2 dropped by 0.3-0.5 ms to
-   0.97-1.03x of the original (unsafe 21.24 / 21.17 ms vs 21.89 / 21.41 ms) and objective 0 to
-   0.70-0.73x. The per-objective gate of M1b is therefore sensitive to the workspace-sharing
-   decision; sharing one workspace among results (as `mosp`, 0.2, needs anyway) is recorded as an
-   open item in the retrospective. No change to the engine was needed.
-3. **Apply is 23-33 % faster** (parallel transposition, Step 3).
-4. **End to end is 1.27-1.37x of the original** (gate <= 1.10 from M1b; the original's figure also
-   includes its combined-graph step, about 24 ms, which the `sssp` port does not run). Phase
-   breakdown of one unsafe run (ms, original vs dynG): reading the CSR 230-380 vs 300; batch and
-   trees 75-81 vs 122; building the graph object `graph::from_csr` (copy + transposition of the
-   *loaded* graph, which the original never builds) - vs 213; importing and validating the three
-   trees (`from_arrays` with `validate_inputs`) - vs 66; apply 137 vs 103; SOSP 72 vs 65. This
-   step already removed the largest cause: reading was sequential in dynG (1.27 s -> 0.63 s by
-   reading the three CSR files and the batch and tree files concurrently, like the original's
-   `runConcurrently`, see the retrospective). The rest is `from_csr` building a transposition that
-   `apply` rebuilds anyway, and the tree validation; both are M1b items.
-5. The original's own phases vary much more between runs than dynG's (e.g. reading the CSR
-   230-380 ms), which is why several spreads are flagged above 10 %. Such runs are flagged, not
-   failed (PLAN Section 8.6).
+1. **The per-objective gate is not met for objective 0 once its first-touch cost is counted**
+   (1.07-1.09x on the 50K batches, 1.44x on the local batch), and objectives 1 and 2 are within
+   the gate in this run (0.81-1.04x; earlier runs measured up to 1.063x for objective 2 of the
+   50K batches, so they are close to the limit). The kernel itself is not slower: objective 0 as
+   measured is 0.79-0.81x. The difference is where scratch memory is touched: MOSP shares one
+   workspace across the K objectives and objective 0 touches only the pages its frontiers
+   actually use; each dynG result owns a workspace and touches all six lists (about 47 MB on
+   roadNet-CA) when it is created, about 9 ms per result, measured while the three results are
+   built concurrently. The counted figure is therefore an upper bound, and a large one for the
+   local batch, whose small frontiers touch few pages in the original. The fix is not a timing
+   convention but results that share one workspace (an M1b blocker, ADR 0013); until then no
+   parity claim is made for the SOSP region.
+2. **The sum over the objectives** (not a gate) is 1.01-1.09x with the first touch on both sides.
+3. **Apply is 0.86-0.94x** once the original's `prepare` is mapped completely (the reviewers'
+   independent estimate from a stand-alone reproduction: 0.91-0.96x). The combined-graph resize
+   left inside the original's `prepare` (a few ms) is the only known remaining asymmetry.
+4. **End to end is 1.30-1.41x** with the original's combined graph subtracted (gate <= 1.10 from
+   M1b). The causes found in M1a stand: `graph::from_csr` builds a transposition of the loaded
+   graph (about 210 ms) that `apply` rebuilds anyway, and `from_arrays` validates and imports the
+   trees; both are M1b items.
+5. The original's own phases vary much more between runs than dynG's (spreads above 10 % are
+   flagged in the JSON, not failed; PLAN Section 8.6).
+6. With `OMP_WAIT_POLICY=active` on both sides (second JSON): objective 0 as measured is 0.82-0.92x and 1.28-1.65x with the
+   first touch counted (the original's objective 0 is faster when its threads spin, so the moved
+   cost weighs more); objectives 1 and 2 are 0.85-1.00x; apply 0.89-0.97x; end to end
+   1.31-1.37x. Load average 3.5-10.9.
 
 ## 6. Reproduce
 
@@ -168,5 +196,6 @@ parity/export_goldens.py --twice                    # goldens + second export fr
 cmake --preset parity && cmake --build --preset parity
 ctest --preset parity -L parity                     # or: parity/compare.py --exe ...
 parity/compare.py --driver original --ref "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/patched"
-parity/perf_ab.py prepare && parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp --runs 9
+parity/perf_ab.py prepare
+flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp --runs 21
 ```

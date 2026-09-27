@@ -17,5 +17,5 @@ repository is only read with `git archive`). Its exporter `parity_export/bin/exp
 
 The consumer is `cpp/tests/graph/mosp_apply_fixture_test.cpp` (CTest labels `cpu graph`). The
 script is deterministic: running it again leaves `git status` clean. The fixtures are the small
-committed subset of the parity harness; the full golden corpus (388 cases, outside the
+committed subset of the parity harness; the full golden corpus (495 cases, outside the
 repository) is described in `parity/README.md`.

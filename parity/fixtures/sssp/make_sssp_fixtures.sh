@@ -16,7 +16,7 @@
 # four original implementations agree byte for byte: `mosp`, the file-based OpenMP update
 # (parallelSOSPUpdate), the legacy sequential update (sequentialSOSPUpdate) and Dijkstra on the
 # updated graph (`mospPrep expected`); `mosp --validate` must pass as well. The full golden corpus
-# (388 cases) is parity/export_goldens.py; these fixtures are its small committed subset.
+# (495 cases) is parity/export_goldens.py; these fixtures are its small committed subset.
 #
 # The script is deterministic: running it again must leave `git status` clean.
 set -euo pipefail
