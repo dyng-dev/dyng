@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+#include <dyng/config.hpp>
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/copy.hpp>
 #include <dyng/core/resources.hpp>
@@ -97,6 +98,9 @@ TEST(Copy, ToVectorAndCopyOnHost) {
 }
 
 TEST(Copy, DeviceCopiesAreNotSupportedWithoutCuda) {
+  if (DYNG_HAS_CUDA) {
+    GTEST_SKIP() << "CUDA is built (device copies are covered by the gpu tests)";
+  }
   const auto res = dyng::resources::sequential();
   std::vector<int> fake(2);
   auto dev = dyng::device_view(fake.data(), fake.size());

@@ -89,6 +89,9 @@ TEST(Resources, OpenmpNotBuiltThrows) {
 }
 
 TEST(Resources, CudaNotBuiltThrowsNotSupported) {
+  if (DYNG_HAS_CUDA) {
+    GTEST_SKIP() << "CUDA is built (covered by the gpu tests)";
+  }
   EXPECT_THROW((void)dyng::resources::cuda(), dyng::not_supported_error);
   try {
     (void)dyng::resources::cuda(0);

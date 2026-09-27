@@ -35,7 +35,7 @@ template <typename value_t>
   std::vector<std::remove_const_t<value_t>> out(src.size());
   if (!src.empty()) {
     detail::copy_bytes(out.data(), memory_space::host, src.data(), src.space(), src.size_bytes(),
-                       res.stream());
+                       res.stream(), res.device());
     if (!is_host_accessible(src.space())) {
       res.synchronize();
     }
@@ -61,7 +61,7 @@ void copy(const resources& res, array_view<const value_t> src, array_view<value_
                " elements but destination has ", dst.size());
   if (!src.empty()) {
     detail::copy_bytes(dst.data(), dst.space(), src.data(), src.space(), src.size_bytes(),
-                       res.stream());
+                       res.stream(), res.device());
   }
 }
 
@@ -87,7 +87,7 @@ template <typename value_t>
   buffer<std::remove_const_t<value_t>> out(res, src.size());
   if (!src.empty()) {
     detail::copy_bytes(out.data(), out.space(), src.data(), src.space(), src.size_bytes(),
-                       res.stream());
+                       res.stream(), res.device());
   }
   return out;
 }

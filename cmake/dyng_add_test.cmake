@@ -12,6 +12,10 @@
 # threads otherwise spin between parallel regions, and `ctest -j` runs many OpenMP tests at once,
 # each with one thread per core; on a 4-core runner that made `ctest -j4` about 40x slower than a
 # serial run. Passive waiting leaves the results unchanged (tests never measure time).
+#
+# Executables with a "gpu" label are listed (one path per line) in
+# <build>/gpu_test_executables.txt by dyng_write_gpu_test_list(), for ci/gpu_local.sh's
+# compute-sanitizer pass.
 
 include(GoogleTest)
 
@@ -36,9 +40,22 @@ function(dyng_add_test)
   target_compile_features(${arg_NAME} PRIVATE cxx_std_17)
   dyng_set_warnings(${arg_NAME})
   dyng_enable_sanitizers(${arg_NAME})
+  if("gpu" IN_LIST arg_LABELS)
+    set_property(GLOBAL APPEND PROPERTY DYNG_GPU_TEST_TARGETS ${arg_NAME})
+  endif()
   gtest_discover_tests(
     ${arg_NAME}
     DISCOVERY_MODE PRE_TEST
     PROPERTIES LABELS "${arg_LABELS}" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
   )
+endfunction()
+
+# Write <build>/gpu_test_executables.txt: the executables of every test added with LABELS gpu.
+function(dyng_write_gpu_test_list)
+  get_property(_targets GLOBAL PROPERTY DYNG_GPU_TEST_TARGETS)
+  set(_content "")
+  foreach(_target IN LISTS _targets)
+    string(APPEND _content "$<TARGET_FILE:${_target}>\n")
+  endforeach()
+  file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/gpu_test_executables.txt" CONTENT "${_content}")
 endfunction()

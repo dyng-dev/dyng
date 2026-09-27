@@ -54,16 +54,50 @@ target_link_libraries(dyng PRIVATE Threads::Threads)
 if(DYNG_ENABLE_OPENMP)
   target_link_libraries(dyng PRIVATE OpenMP::OpenMP_CXX)
 endif()
+if(DYNG_ENABLE_CUDA)
+  target_link_libraries(dyng PRIVATE CUDA::cudart)
+endif()
 dyng_set_warnings(dyng)
 dyng_enable_sanitizers(dyng)
 
-# dyng_add_module(NAME <module> SOURCES <files...>)
+# dyng_set_cuda_options(<target>)
+#   The CUDA compile options of a library or test target (PLAN Section 7.3): C++17, extended
+#   lambdas and relaxed constexpr as PRIVATE flags, -lineinfo in RelWithDebInfo (and with
+#   DYNG_CUDA_LINEINFO), no separable compilation (cooperative launch does not need -rdc), the
+#   CUDA_DEBUG_SYNC define of DYNG_CHECK_KERNEL, and the CUDA runtime for .cpp files that call it.
+function(dyng_set_cuda_options target)
+  if(NOT DYNG_ENABLE_CUDA)
+    return()
+  endif()
+  target_compile_features(${target} PRIVATE cuda_std_17)
+  target_compile_options(
+    ${target}
+    PRIVATE "$<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda;--expt-relaxed-constexpr>"
+            "$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-lineinfo>"
+  )
+  if(DYNG_CUDA_LINEINFO)
+    target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>)
+  endif()
+  if(DYNG_CUDA_DEBUG_SYNC)
+    target_compile_definitions(${target} PRIVATE DYNG_CUDA_DEBUG_SYNC=1)
+  endif()
+  set_target_properties(${target} PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
+  target_link_libraries(${target} PRIVATE CUDA::cudart)
+endfunction()
+
+# dyng_add_module(NAME <module> SOURCES <files...> [CUDA_SOURCES <files...>])
 #   Creates the private OBJECT library dyng_<module> with the library's include directories,
-#   warnings and OpenMP flags, and adds its objects to libdyng.
+#   warnings, OpenMP and CUDA flags, and adds its objects to libdyng. CUDA_SOURCES (.cu files) are
+#   compiled only when DYNG_ENABLE_CUDA is ON. Host files that call the CUDA runtime are ordinary
+#   SOURCES whose body is guarded by `#if DYNG_HAS_CUDA`, so every build (and clang-tidy) sees them.
 function(dyng_add_module)
-  cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME" "SOURCES")
+  cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME" "SOURCES;CUDA_SOURCES")
   set(target dyng_${arg_NAME})
-  add_library(${target} OBJECT ${arg_SOURCES})
+  set(_sources ${arg_SOURCES})
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _sources ${arg_CUDA_SOURCES})
+  endif()
+  add_library(${target} OBJECT ${_sources})
   set_target_properties(${target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
   target_compile_features(${target} PRIVATE cxx_std_17)
   target_include_directories(
@@ -76,6 +110,7 @@ function(dyng_add_module)
   endif()
   dyng_set_warnings(${target})
   dyng_enable_sanitizers(${target})
+  dyng_set_cuda_options(${target})
   target_sources(dyng PRIVATE $<TARGET_OBJECTS:${target}>)
 endfunction()
 
@@ -84,16 +119,26 @@ dyng_add_module(
   SOURCES
     src/core/backend.cpp
     src/core/citation.cpp
+    src/core/cuda_runtime.cpp
     src/core/error.cpp
     src/core/logging.cpp
     src/core/memory.cpp
+    src/core/memory_cuda.cpp
     src/core/profiler.cpp
     src/core/resources.cpp
     src/core/version.cpp
     "${PROJECT_BINARY_DIR}/cpp/generated/references_bib.cpp"
 )
 
-dyng_add_module(NAME util SOURCES src/util/parser.cpp src/util/text_writer.cpp)
+dyng_add_module(
+  NAME util
+  SOURCES
+    src/util/device_error_flags.cpp
+    src/util/kernel_registry.cpp
+    src/util/parser.cpp
+    src/util/text_writer.cpp
+  CUDA_SOURCES src/util/device_fill.cu
+)
 
 dyng_add_module(NAME graph SOURCES src/graph/apply_host.cpp src/graph/graph.cpp)
 

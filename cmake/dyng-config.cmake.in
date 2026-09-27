@@ -22,7 +22,7 @@ endif()
 if(dyng_HAS_OPENMP AND NOT dyng_SHARED)
   find_dependency(OpenMP COMPONENTS CXX)
 endif()
-if(dyng_HAS_CUDA)
+if(dyng_HAS_CUDA AND NOT dyng_SHARED)
   find_dependency(CUDAToolkit)
 endif()
 

@@ -30,10 +30,13 @@ namespace detail {
  * @param[in]  src_space Memory space of `src`.
  * @param[in]  bytes     Number of bytes.
  * @param[in]  stream    Stream the copy is ordered on (device copies).
+ * @param[in]  device    CUDA device the stream belongs to (made current for the copy; the
+ *                       per-thread default stream is per device), or -1 for the current device.
  * @throws not_supported_error if a device space is involved and CUDA is not built.
+ * @throws cuda_error          if the CUDA runtime reports an error.
  */
 void copy_bytes(void* dst, memory_space dst_space, const void* src, memory_space src_space,
-                std::size_t bytes, stream_ref stream);
+                std::size_t bytes, stream_ref stream, int device = -1);
 
 }  // namespace detail
 
@@ -236,7 +239,8 @@ class buffer {
     buffer next(new_size, stream_, mr_, device_);
     const size_type keep = std::min(size_, new_size);
     if (keep > 0) {
-      detail::copy_bytes(next.data_, next.space(), data_, space(), keep * sizeof(value_t), stream_);
+      detail::copy_bytes(next.data_, next.space(), data_, space(), keep * sizeof(value_t), stream_,
+                         device_);
     }
     *this = std::move(next);
   }

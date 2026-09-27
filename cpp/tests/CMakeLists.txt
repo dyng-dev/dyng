@@ -57,4 +57,22 @@ target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/sr
 
 dyng_add_test(NAME dyng_testing_tests SOURCES testing/oracle_test.cpp LABELS cpu testing LIBRARIES dyng::testing)
 
+# CUDA core (label gpu; each test skips when no device is visible). ci/gpu_local.sh runs them on
+# GPU 1 and under compute-sanitizer memcheck.
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_cuda_tests
+    SOURCES
+      cuda/cuda_error_test.cpp
+      cuda/cuda_memory_test.cpp
+      cuda/cuda_resources_test.cpp
+      cuda/cuda_test_kernels.cu
+    LABELS gpu core
+  )
+  target_include_directories(dyng_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_cuda_tests)
+endif()
+
 add_subdirectory(api)
+
+dyng_write_gpu_test_list()

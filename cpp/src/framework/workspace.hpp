@@ -20,12 +20,15 @@
  * A lease that ends while an exception propagates discards its workspace (a failed run may leave
  * flags set that the next run relies on being clear); the next lease creates a fresh one.
  *
- * Device workspaces (CUDA backend) follow the same pattern: they allocate from the handle's
- * memory resource on its stream when sized and free there when destroyed, so the pool must be
- * emptied before its memory resource goes away (resources::set_memory_resource() does that; the
- * default resources outlive every handle).
+ * Device workspaces (CUDA backend; their arrays are detail::scratch_buffer, see
+ * framework/scratch_buffer.hpp) follow the same pattern: they allocate from the handle's memory
+ * resource on its stream when sized and free there when destroyed, so the pool must be emptied
+ * before its memory resource goes away (resources::set_memory_resource() does that; the default
+ * resources outlive every handle).
  */
 #pragma once
+
+#include "core/resources_access.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -37,10 +40,6 @@
 #include <typeinfo>
 #include <utility>
 #include <vector>
-
-namespace dyng {
-class resources;
-}  // namespace dyng
 
 namespace dyng::detail {
 
@@ -207,18 +206,6 @@ class workspace_pool {
   std::uint64_t created_ = 0;
   std::uint64_t discarded_ = 0;
   std::uint64_t leases_ = 0;
-};
-
-/**
- * @brief Internal access to the parts of a resources handle that are not public.
- */
-struct resources_access {
-  /**
-   * @brief The workspace pool of a handle (shared by all its copies).
-   * @param[in] res The handle.
-   * @return Its pool.
-   */
-  static workspace_pool& workspaces(const resources& res) noexcept;
 };
 
 }  // namespace dyng::detail

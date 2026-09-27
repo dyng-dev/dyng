@@ -83,10 +83,21 @@ class resources {
 
   /**
    * @brief The CUDA backend on one device and stream.
+   *
+   * Records the device's capabilities once (cooperative launch, multiprocessor count), which the
+   * engines read instead of querying the device on every call. Memory comes from the device's
+   * default resource (default_device_memory_resource(): a stream-ordered cudaMallocAsync pool);
+   * host staging buffers from default_pinned_host_memory_resource(). The library never creates
+   * streams: all work is ordered on `stream`, which must outlive every copy of the handle and
+   * every buffer allocated through it. Every call that enqueues work makes `device` current for
+   * its duration and restores the caller's current device.
    * @param[in] device CUDA device ordinal.
-   * @param[in] stream Stream for all work; the default is the per-thread default stream.
+   * @param[in] stream Stream for all work, created on `device`; the default is the per-thread
+   *                   default stream (`cudaStreamPerThread`), never the legacy stream.
    * @return New resources for backend::cuda.
-   * @throws not_supported_error if the library was built without CUDA (always, before M1b).
+   * @throws not_supported_error    if the library was built without CUDA, or no device is visible.
+   * @throws invalid_argument_error if `device` is not a visible device.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    */
   [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {});
 
@@ -151,7 +162,8 @@ class resources {
 
   /**
    * @brief The memory resource used for library allocations.
-   * @return A reference to the current resource (the default host resource for host backends).
+   * @return A reference to the current resource (the default host resource for host backends,
+   *         default_device_memory_resource(device()) for cuda).
    */
   [[nodiscard]] memory_resource_ref memory() const noexcept;
 
@@ -161,7 +173,8 @@ class resources {
    * The cached workspaces are released first (they were allocated from the previous resource).
    * @param[in] mr The new resource; must outlive every allocation made through it.
    * @throws invalid_argument_error if the resource's space does not suit the backend (host
-   *                                backends need a host-accessible space).
+   *                                backends need a host-accessible space, cuda a device or
+   *                                managed space).
    */
   void set_memory_resource(memory_resource_ref mr);
 
@@ -204,9 +217,12 @@ class resources {
   [[nodiscard]] std::size_t workspace_bytes() const;
 
   /**
-   * @brief Initialise the backend ahead of timed work (CUDA: create the context, load kernels).
+   * @brief Initialise the backend ahead of timed work.
    *
-   * A no-op for host backends.
+   * CUDA: creates the device's context, loads every kernel of the library (under lazy module
+   * loading, the CUDA default, each kernel would otherwise be loaded inside its first call), and
+   * primes the stream and the memory resource. This replaces setting CUDA_MODULE_LOADING=EAGER in
+   * the environment, which a library must not do. A no-op for host backends.
    * @throws cuda_error if the CUDA runtime reports an error.
    * @sync
    */

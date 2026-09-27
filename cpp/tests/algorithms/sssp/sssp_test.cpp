@@ -589,7 +589,12 @@ TEST(SsspResult, OptionsCloneAndMove) {
 TEST(SsspResult, DeviceBackendIsNotSupportedYet) {
   const auto res = dyng::resources::sequential();
   auto g = make_graph(res, 2, {{0, 1, 1}});
-  EXPECT_THROW((void)dyng::resources::cuda(), dyng::error);
+  if (!dyng::backend_available(dyng::backend::cuda)) {
+    EXPECT_THROW((void)dyng::resources::cuda(), dyng::error);
+    return;
+  }
+  const auto cuda = dyng::resources::cuda();
+  EXPECT_THROW((void)dyng::sssp::compute(cuda, g, 0), dyng::not_supported_error);
 }
 
 TEST(SsspProfiler, StagesFollowTheHookNames) {
