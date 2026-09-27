@@ -4,6 +4,7 @@
 
 dynG follows a **lead-maintainer** model while it has fewer than three active maintainers.
 
+- **Maintainers** are listed, with their areas, in [MAINTAINERS.md](MAINTAINERS.md).
 - **Lead maintainer:** S M Shovan. The lead maintainer owns releases, merges to `main`, and
   breaks ties.
 - **Algorithm maintainers** (optional): the co-authors of an algorithm's papers may review
