@@ -442,6 +442,41 @@ TEST(SsspOpenmp, CyclicTreeWithoutValidationIsReportedAndPoisonsTheResult) {
   EXPECT_THROW((void)dyng::sssp::update(res, g, empty.view(), r), dyng::stale_result_error);
 }
 
+TEST_P(SsspBackend, CorruptImportedTreeIsReportedAndPoisonsTheResult) {
+  // A tree imported without validation with the parent cycle 1 <-> 2; the deleted edge 0 -> 1 is
+  // not a tree edge, so no root breaks the cycle. Both backends must report it (the same error)
+  // instead of returning a wrong tree, and the result must stay unusable afterwards.
+  auto g = make_graph(res_, 4, {{0, 1, 1}, {1, 2, 1}, {2, 1, 1}, {2, 3, 1}});
+  const std::vector<std::int64_t> d{0, 1, 2, 3};
+  const std::vector<std::int32_t> p{-1, 2, 1, 2};
+  dyng::sssp::options opt;
+  opt.validate_inputs = false;
+  result_t r =
+      result_t::from_arrays(res_, g, 0, dyng::host_view(d), dyng::host_view(p), false, opt);
+  batch_t b;
+  b.delete_edge(0, 1);
+  try {
+    (void)dyng::sssp::update(res_, g, b.view(), r);
+    FAIL() << "a parent cycle in the imported tree was not reported";
+  } catch (const dyng::stale_result_error&) {
+    FAIL() << "expected invalid_argument_error, got stale_result_error";
+  } catch (const dyng::invalid_argument_error& e) {
+    EXPECT_NE(std::string(e.what()).find("parent cycle"), std::string::npos) << e.what();
+  }
+  EXPECT_EQ(g.version(), 1u);  // the batch was applied before the engine ran
+  // Poisoned: every later use throws until the result is rebuilt (PLAN Section 4.7.3).
+  EXPECT_THROW((void)r.distances(), dyng::stale_result_error);
+  EXPECT_THROW((void)r.parents(), dyng::stale_result_error);
+  EXPECT_THROW((void)r.get_options(), dyng::stale_result_error);
+  EXPECT_THROW(r.set_options(opt), dyng::stale_result_error);
+  EXPECT_THROW((void)r.clone(res_), dyng::stale_result_error);
+  const batch_t empty;
+  EXPECT_THROW((void)dyng::sssp::update(res_, g, empty.view(), r), dyng::stale_result_error);
+  // Rebuilding makes it usable again.
+  r = dyng::sssp::compute(res_, g, 0);
+  EXPECT_EQ(distances_of(r), (std::vector<std::int64_t>{0, inf, inf, inf}));
+}
+
 TEST(SsspResult, OptionsCloneAndMove) {
   const auto res = dyng::resources::sequential();
   auto g = make_graph(res, 3, {{0, 1, 1}, {1, 2, 1}});

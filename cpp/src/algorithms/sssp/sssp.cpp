@@ -115,6 +115,22 @@ void expect_cpu_backend(const resources& res, const char* what) {
   }
 }
 
+}  // namespace
+
+/// A failed update leaves the arrays inconsistent: every later use throws until the result is
+/// rebuilt (PLAN Section 4.7.3).
+template <typename vertex_t, typename distance_t>
+void expect_not_poisoned(const sssp_state<vertex_t, distance_t>& state, const char* what) {
+  if (state.poisoned) {
+    throw stale_result_error(concat_message(
+        "dyng: ", what,
+        ": the result was left unusable by a failed update; recompute it with sssp::compute() "
+        "(or import a valid tree with sssp::result::from_arrays())"));
+  }
+}
+
+namespace {
+
 void expect_options(const sssp::options& opt) {
   DYNG_EXPECTS(opt.delta >= 0, "sssp: options.delta must be >= 0 (0 = automatic), got ", opt.delta);
   DYNG_EXPECTS(opt.objective >= 0, "sssp: options.objective must be >= 0, got ", opt.objective);
@@ -298,11 +314,7 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
   void before_apply(const resources& res, const graph_type& g, const batch_type& batch) override {
     expect_cpu_backend(res, "sssp::update");
     state_ = &sssp_access::state(result_);
-    if (state_->poisoned) {
-      throw stale_result_error(
-          "dyng: sssp::update: the result was left unusable by a failed update; recompute it "
-          "with sssp::compute()");
-    }
+    expect_not_poisoned(*state_, "sssp::update");
     if (state_->version != g.version()) {
       throw stale_result_error(detail::concat_message(
           "dyng: sssp::update: the result matches graph version ", state_->version,
@@ -478,24 +490,28 @@ vertex_t result<vertex_t, distance_t>::source() const noexcept {
 template <typename vertex_t, typename distance_t>
 array_view<const distance_t> result<vertex_t, distance_t>::distances() const {
   DYNG_EXPECTS(impl_ != nullptr, "sssp::result: use of a moved-from result");
+  detail::expect_not_poisoned(*impl_, "sssp::result::distances");
   return host_view(impl_->distances);
 }
 
 template <typename vertex_t, typename distance_t>
 array_view<const vertex_t> result<vertex_t, distance_t>::parents() const {
   DYNG_EXPECTS(impl_ != nullptr, "sssp::result: use of a moved-from result");
+  detail::expect_not_poisoned(*impl_, "sssp::result::parents");
   return host_view(impl_->parents);
 }
 
 template <typename vertex_t, typename distance_t>
 const options& result<vertex_t, distance_t>::get_options() const {
   DYNG_EXPECTS(impl_ != nullptr, "sssp::result: use of a moved-from result");
+  detail::expect_not_poisoned(*impl_, "sssp::result::get_options");
   return impl_->opt;
 }
 
 template <typename vertex_t, typename distance_t>
 void result<vertex_t, distance_t>::set_options(const options& opt) {
   DYNG_EXPECTS(impl_ != nullptr, "sssp::result: use of a moved-from result");
+  detail::expect_not_poisoned(*impl_, "sssp::result::set_options");
   detail::expect_options(opt);
   DYNG_EXPECTS(opt.objective == impl_->opt.objective,
                "sssp::result::set_options: the objective is fixed at compute() (",
@@ -516,6 +532,7 @@ memory_space result<vertex_t, distance_t>::space() const noexcept {
 template <typename vertex_t, typename distance_t>
 result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources& res) const try {
   DYNG_EXPECTS(impl_ != nullptr, "sssp::result: use of a moved-from result");
+  detail::expect_not_poisoned(*impl_, "sssp::result::clone");
   detail::expect_cpu_backend(res, "sssp::result::clone");
   auto copy = std::make_unique<state_type>();
   copy->source = impl_->source;

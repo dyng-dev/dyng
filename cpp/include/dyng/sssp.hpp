@@ -123,6 +123,7 @@ class result {
    * @return One distance per vertex (host memory); infinite_distance<distance_t>() for vertices
    *         that cannot be reached. Valid until the next update() of this result.
    * @throws invalid_argument_error for a moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
   [[nodiscard]] array_view<const distance_t> distances() const;
 
@@ -131,6 +132,7 @@ class result {
    * @return One parent per vertex (host memory): the lowest-id in-neighbour on a shortest path;
    *         -1 for the source and unreachable vertices. Valid until the next update().
    * @throws invalid_argument_error for a moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
   [[nodiscard]] array_view<const vertex_t> parents() const;
 
@@ -138,13 +140,16 @@ class result {
    * @brief The options.
    * @return The options given at compute() or from_arrays(), as changed by set_options().
    * @throws invalid_argument_error for a moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
   [[nodiscard]] const options& get_options() const;
 
   /**
    * @brief Change the tunables (delta, cuda_engine, validate_inputs).
    * @param[in] opt The new options; `objective` must stay the same.
-   * @throws invalid_argument_error if `opt.objective` differs or `opt.delta` is negative.
+   * @throws invalid_argument_error if `opt.objective` differs or `opt.delta` is negative, or for a
+   *         moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
   void set_options(const options& opt);
 
@@ -165,6 +170,9 @@ class result {
    * @param[in] res Execution resources of the copy.
    * @return The copy.
    * @throws invalid_argument_error for a moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
+   * @throws not_supported_error    if the backend of `res` is not available for sssp.
+   * @throws out_of_memory_error    if the copy cannot be allocated.
    * @sync
    */
   [[nodiscard]] result clone(const resources& res) const;

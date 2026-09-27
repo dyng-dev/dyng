@@ -32,7 +32,11 @@ contract is frozen with `cycle_count` in M3.
    or if the result was computed on another graph state (see *Graph identity* below).
    Validation (batch ids and weights, the result's version) happens before the container changes
    (strong guarantee). An error after the commit, which only corrupt imported inputs can cause,
-   leaves the result *poisoned*: later updates throw `stale_result_error` until it is recomputed.
+   leaves the result *poisoned*: every later use of it (`update()`, `distances()`, `parents()`,
+   the options, `clone()`) throws `stale_result_error` until it is recomputed (PLAN Section
+   4.7.3); only the `noexcept` queries `source()` and `graph_version()` still answer. Both CPU
+   backends detect the only such error, a parent cycle in an imported tree that no root of the
+   batch breaks, with the same check and message.
 6. **Several results on one graph** go through `dyng::update(res, g, batch, r1, r2, ...)` (a
    tuple of stats) or `dyng::update_each(res, g, batch, list)` (a run-time list, e.g. the K
    objectives of a multi-objective graph). Both run every result's before-apply work on G_t, one

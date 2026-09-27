@@ -87,9 +87,11 @@ touched at compute / from_arrays). Each result owns a workspace of about 38 byte
 - Integer weights of at least 1 only (zero or negative weights are rejected).
 - The graph must store its in-edges (`graph_properties::store_transposed`, the default).
 - Distances must fit 62 bits ((n - 1) * max weight); beyond that `compute` and `update` throw.
-- A tree imported with `validate_inputs = false` must be a shortest-path tree of the graph; the
-  OpenMP engine still rejects a parent cycle (the result is then poisoned), the sequential engine
-  does not detect every corrupt input.
+- A tree imported with `validate_inputs = false` must be a shortest-path tree of the graph. Both
+  engines still reject a parent cycle that no root of the batch breaks (the same check and
+  message; the batch is already applied, so the result is then poisoned and every later use of it
+  throws `stale_result_error` until it is recomputed); other corrupt inputs (for example wrong
+  distances) give undefined, though memory-safe, results.
 
 ## 7. Differences from the paper
 

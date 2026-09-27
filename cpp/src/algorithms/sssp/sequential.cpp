@@ -108,6 +108,9 @@ class sequential_problem {
         invalidated.push_back(v);
       }
     }
+    if (!changes.changed_to.empty()) {
+      expect_no_rootless_cycle(is_invalid);
+    }
     if (!invalidated.empty()) {
       // Children lists of the tree, then a traversal from the roots.
       std::vector<vertex_t>& child_start = ws_.child_start;
@@ -230,6 +233,34 @@ class sequential_problem {
   }
 
  private:
+  /// A corrupt imported tree (validate_inputs off) may have a parent cycle. The OpenMP engine's
+  /// chain walk reports a cycle that no root breaks; the same check here, so both backends throw
+  /// the same invalid_argument_error on the same inputs (and neither returns a wrong tree).
+  template <typename is_root_t>
+  void expect_no_rootless_cycle(const is_root_t& is_root) {
+    const vertex_t* parent = run_.parents;
+    // 0 unknown, 1 on the current walk, 2 done (ws_.state is free until save() runs).
+    char* color = ws_.state.data();
+    std::vector<vertex_t>& path = ws_.affected;
+    bool cyclic = false;
+    for (std::int64_t v = 0; v < n_ && !cyclic; ++v) {
+      path.clear();
+      auto u = static_cast<vertex_t>(v);
+      while (u >= 0 && color[u] == 0 && !is_root(u)) {
+        color[u] = 1;
+        path.push_back(u);
+        u = parent[u];
+      }
+      cyclic = u >= 0 && color[u] == 1;
+      for (const vertex_t x : path) {
+        color[x] = 2;
+      }
+    }
+    std::fill(color, color + n_, char{0});
+    path.clear();
+    DYNG_EXPECTS(!cyclic, "sssp: the input shortest-path tree has a parent cycle");
+  }
+
   /// Remember the values of `v` before its first change (for `affected`).
   void save(vertex_t v) {
     if (!count_changes_) {
