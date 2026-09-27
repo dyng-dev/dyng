@@ -103,8 +103,9 @@ struct batch_semantics {
 struct graph_properties {
   bool directed = true;          ///< false: stored symmetric; a batch edge (u,v) changes both
   bool store_transposed = true;  ///< keep the in-edges (CSC); sssp, mosp and cycle_count need them
-  /// Number of weight columns (objectives); 0 for an unweighted graph. graph::from_edges() and
-  /// graph::from_csr() take the number of columns from their input and overwrite this field.
+  /** @brief Number of weight columns (objectives); 0 for an unweighted graph. graph::from_edges()
+   *         and graph::from_csr() take the number of columns from their input and overwrite this
+   *         field. */
   int num_weights = 1;
   row_layout layout = row_layout::compact;           ///< storage layout of the rows
   double headroom = 0.125;                           ///< spare capacity for row_layout::slack
