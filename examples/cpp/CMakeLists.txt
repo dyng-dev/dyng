@@ -29,6 +29,6 @@ if(DYNG_BUILD_TESTS)
     set_tests_properties(example.sssp_update.${_backend}.matches_original
                          PROPERTIES DEPENDS example.sssp_update.${_backend})
     set_tests_properties(example.sssp_update.${_backend} example.sssp_update.${_backend}.matches_original
-                         PROPERTIES LABELS "cpu;sssp;examples")
+                         PROPERTIES LABELS "cpu;sssp;examples" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
   endforeach()
 endif()

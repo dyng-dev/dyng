@@ -7,8 +7,18 @@
 # registers its test cases with CTest (gtest_discover_tests), each carrying LABELS (lower case:
 # cpu, gpu, slow, parity, sanitize, and the algorithm name; PLAN Section 4.4.1). The default
 # label is "cpu".
+#
+# Every test runs with DYNG_TEST_ENVIRONMENT (default OMP_WAIT_POLICY=PASSIVE): OpenMP worker
+# threads otherwise spin between parallel regions, and `ctest -j` runs many OpenMP tests at once,
+# each with one thread per core; on a 4-core runner that made `ctest -j4` about 40x slower than a
+# serial run. Passive waiting leaves the results unchanged (tests never measure time).
 
 include(GoogleTest)
+
+set(DYNG_TEST_ENVIRONMENT
+    "OMP_WAIT_POLICY=PASSIVE"
+    CACHE STRING "Environment (VAR=value;...) of every CTest test"
+)
 
 function(dyng_add_test)
   cmake_parse_arguments(PARSE_ARGV 0 arg "" "NAME" "SOURCES;LABELS;LIBRARIES")
@@ -29,6 +39,6 @@ function(dyng_add_test)
   gtest_discover_tests(
     ${arg_NAME}
     DISCOVERY_MODE PRE_TEST
-    PROPERTIES LABELS "${arg_LABELS}"
+    PROPERTIES LABELS "${arg_LABELS}" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
   )
 endfunction()

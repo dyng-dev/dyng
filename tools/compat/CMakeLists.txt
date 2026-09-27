@@ -36,7 +36,8 @@ if(DYNG_BUILD_TESTS)
           -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_name}.${_backend} -P
           ${CMAKE_CURRENT_SOURCE_DIR}/mosp/run_and_compare.cmake
       )
-      set_tests_properties(${_test} PROPERTIES LABELS "cpu;sssp;compat")
+      set_tests_properties(${_test} PROPERTIES LABELS "cpu;sssp;compat" ENVIRONMENT
+                                               "${DYNG_TEST_ENVIRONMENT}")
     endforeach()
   endforeach()
 endif()
