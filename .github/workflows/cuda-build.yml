@@ -1,0 +1,72 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Compile-only CUDA builds on GitHub-hosted runners (PLAN Section 8.8): no GPU is needed and no
+# test is run. Inside NVIDIA's CUDA devel containers (the latest CUDA 13 and 12 toolkits, PLAN
+# Section 7.8), ci/build_cuda.sh builds the ci-cuda13 / ci-cuda12 preset for the release
+# architecture list with warnings as errors (library, all index-type instantiations, tests,
+# tools), then reports every kernel's registers, stack and shared memory per architecture and the
+# library size (the wheel size budget of PLAN Section 7.7) in the job summary.
+#
+# Local equivalent (the development machine has CUDA 13.1; ci-cuda12 was checked with the conda
+# CUDA 12.9 toolkit):
+#   ci/build_cuda.sh ci-cuda13
+#   CUDACXX=<cuda-12>/bin/nvcc CUDAHOSTCXX=/usr/bin/g++ ci/build_cuda.sh ci-cuda12
+# The GPU tests run on the author's machine: ci/gpu_local.sh.
+name: cuda-build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: CUDA ${{ matrix.cuda }} (${{ matrix.preset }})
+    runs-on: ubuntu-24.04
+    container:
+      image: nvidia/cuda:${{ matrix.cuda }}-devel-ubuntu24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The toolkit of the development and performance machine (CUDA 13.1).
+          - cuda: "13.1.1"
+            preset: ci-cuda13
+          # The latest CUDA 13 toolkit.
+          - cuda: "13.3.1"
+            preset: ci-cuda13
+          # The latest CUDA 12 toolkit (CUDA 12.x is supported from 12.4, PLAN Section 7.1).
+          - cuda: "12.9.2"
+            preset: ci-cuda12
+    env:
+      CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/cpm
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+    steps:
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git g++ python3 python3-venv
+          python3 -m venv /opt/tools
+          /opt/tools/bin/pip install "cmake>=3.30,<4.5" ninja
+          echo "/opt/tools/bin" >> "${GITHUB_PATH}"
+          echo "CXX=g++" >> "${GITHUB_ENV}"
+          echo "CUDACXX=/usr/local/cuda/bin/nvcc" >> "${GITHUB_ENV}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Cache CPM downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-cuda-${{ hashFiles('cmake/CPM.cmake', 'cmake/package-lock.cmake') }}
+      - name: Compile (release architectures, warnings as errors) and report
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          ci/build_cuda.sh ${{ matrix.preset }}
