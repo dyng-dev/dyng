@@ -330,6 +330,35 @@ TEST(ResultIo, MospValidationCases) {
   EXPECT_EQ(e.line(), 2);
 }
 
+// The one-pass reader and the strict reader accept the same texts and give the same values:
+// separators, carriage returns, blank lines, a missing final line break, "-0", and every
+// rejection is reported by the strict reader with its location.
+TEST(ResultIo, FastAndStrictReadersAgree) {
+  temp_dir tmp;
+  const std::int64_t inf = dyng::infinite_distance<std::int64_t>();
+  const auto distances = [&](const std::string& text) {
+    write_text(tmp.path("d.txt"), text);
+    return dyng::io::read_distances<std::int64_t>(tmp.path("d.txt"), 3);
+  };
+  const auto parents = [&](const std::string& text) {
+    write_text(tmp.path("p.txt"), text);
+    return dyng::io::read_parents<std::int32_t>(tmp.path("p.txt"), 3);
+  };
+  EXPECT_EQ(distances(" 0 0\r\n\t1\t4 \r\n\n\n2  INF"), (std::vector<std::int64_t>{0, 4, inf}));
+  EXPECT_EQ(distances("2 -0\n1 INF\t\n0 9\n"), (std::vector<std::int64_t>{9, inf, 0}));
+  EXPECT_EQ(parents("1 0\r\n0 -1\r\n2 1"), (std::vector<std::int32_t>{-1, 0, 1}));
+  for (const char* text :
+       {"0 0\n1 4\n2 INFx\n", "0 0\n1 4\n2 +5\n", "0 0\n1 4x\n2 5\n", "0 0\n1 4\n2 5 \t6\n",
+        "0 0\n1 99999999999999999999\n2 5\n", "0x 0\n1 4\n2 5\n"}) {
+    SCOPED_TRACE(text);
+    const auto e = expect_io_error([&] { (void)distances(text); });
+    EXPECT_GT(e.line(), 0);  // the strict reader located it
+  }
+  const auto e = expect_io_error([&] { (void)parents("0 -1\n1 0\n2 3\n"); });
+  EXPECT_EQ(e.line(), 3);
+  EXPECT_EQ(e.column(), 3);
+}
+
 TEST(ResultIo, WritersAreMospFormat) {
   temp_dir tmp;
   const std::int64_t inf = dyng::infinite_distance<std::int64_t>();

@@ -22,6 +22,7 @@
 #include <limits>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace dyng::io {
@@ -84,16 +85,20 @@ std::vector<vertex_t> read_col_ind(const std::string& path, std::int64_t n, std:
   return col_ind;
 }
 
-/// The edge-major weights of Values and K.
+/// The weights of Values (objective-major: column c holds line i at c * lines + i) and K.
 template <typename weight_t>
 struct value_lines {
-  std::vector<weight_t> edge_major;  ///< lines * K weights, line by line
-  std::size_t lines = 0;             ///< non-blank lines
-  int num_weights = 0;               ///< K (0: no non-blank line)
+  std::vector<weight_t> weights;  ///< K columns of `lines` weights each
+  std::size_t lines = 0;          ///< non-blank lines
+  int num_weights = 0;            ///< K (0: no non-blank line)
 };
 
 /// Values: one line of K weights per edge. With `m` = SIZE_MAX the line count is not checked
 /// against m (the concurrent pass, which does not know m yet); the caller checks it afterwards.
+/// The weights are written straight into their objective-major columns (the graph's layout), so no
+/// conversion pass is needed: the column stride is the number of lines, known in advance when `m`
+/// is given and otherwise bounded by the number of line breaks (the columns are moved together at
+/// the end if blank lines made the bound too large).
 template <typename weight_t>
 value_lines<weight_t> read_values(const std::string& path, std::size_t m, int num_weights) {
   constexpr std::size_t unknown = std::numeric_limits<std::size_t>::max();
@@ -103,35 +108,42 @@ value_lines<weight_t> read_values(const std::string& path, std::size_t m, int nu
   detail::token tok;
   int k_count = num_weights;
   const auto weight_max = detail::max_as_int64<weight_t>();
+  std::size_t stride = 0;      // column stride of out.weights (0: not allocated yet)
+  std::vector<weight_t> line;  // the weights of the current line
   while (scanner.next_line()) {
-    int on_line = 0;
+    line.clear();
     while (scanner.next_in_line(tok)) {
-      if (k_count > 0 && on_line == k_count) {
+      if (k_count > 0 && static_cast<int>(line.size()) == k_count) {
         scanner.fail(tok, "more than " + std::to_string(k_count) + " weights on the line");
       }
-      out.edge_major.push_back(
-          detail::parse_integer<weight_t>(scanner, tok, 1, weight_max, "weight"));
-      ++on_line;
+      line.push_back(detail::parse_integer<weight_t>(scanner, tok, 1, weight_max, "weight"));
     }
+    const auto on_line = static_cast<int>(line.size());
     if (on_line == 0) {
       continue;
     }
     if (k_count == 0) {
       k_count = on_line;
-      if (m != unknown) {
-        out.edge_major.reserve(m * static_cast<std::size_t>(k_count));
-      } else {
-        // One weight line per newline at most: a cheap upper bound for the concurrent pass.
-        const auto newlines =
-            static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n') + 1);
-        out.edge_major.reserve(newlines * static_cast<std::size_t>(k_count));
-      }
     } else if (on_line != k_count) {
       scanner.fail_line(std::to_string(on_line) + " weights on the line, expected " +
                         std::to_string(k_count));
     }
     if (++out.lines > m) {
       scanner.fail_line("more weight lines than the " + std::to_string(m) + " edges");
+    }
+    if (stride == 0) {
+      // Every non-blank line ends with a line break, except possibly the last one.
+      stride = m != unknown ? m
+                            : static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n')) +
+                                  (text.back() != '\n' ? 1 : 0);
+      out.weights.resize(stride * static_cast<std::size_t>(k_count));
+    }
+    const std::size_t row = out.lines - 1;
+    if (row >= stride) {
+      DYNG_FAIL("read_csr_triplet: more weight lines than line breaks in ", path);
+    }
+    for (std::size_t c = 0; c < line.size(); ++c) {
+      out.weights[c * stride + row] = line[c];
     }
   }
   if (m != unknown && out.lines != m) {
@@ -143,6 +155,14 @@ value_lines<weight_t> read_values(const std::string& path, std::size_t m, int nu
     detail::throw_io_error(path, 0, 0,
                            "the graph has no edges, so the number of weight columns cannot be "
                            "inferred; set csr_triplet_options::num_weights");
+  }
+  if (stride > out.lines) {  // blank lines: close the gaps between the columns
+    for (std::size_t c = 1; c < static_cast<std::size_t>(k_count); ++c) {
+      std::copy(out.weights.begin() + static_cast<std::ptrdiff_t>(c * stride),
+                out.weights.begin() + static_cast<std::ptrdiff_t>(c * stride + out.lines),
+                out.weights.begin() + static_cast<std::ptrdiff_t>(c * out.lines));
+    }
+    out.weights.resize(out.lines * static_cast<std::size_t>(k_count));
   }
   out.num_weights = k_count;
   return out;
@@ -170,6 +190,7 @@ csr<vertex_t, edge_t, weight_t> read_csr_triplet(const std::string& prefix,
   csr<vertex_t, edge_t, weight_t> out;
   std::vector<vertex_t> cols;
   bool cols_ok = false;
+  std::int64_t max_col = -1;  // the range check against n needs RowPtr; done afterwards
   value_lines<weight_t> values;
   bool values_ok = false;
   detail::run_concurrently({
@@ -181,8 +202,10 @@ csr<vertex_t, edge_t, weight_t> read_csr_triplet(const std::string& prefix,
           detail::token tok;
           cols.reserve(static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n') + 1));
           while (scanner.next_token(tok)) {
-            cols.push_back(detail::parse_integer<vertex_t>(
-                scanner, tok, 0, detail::max_as_int64<vertex_t>(), "column index"));
+            const vertex_t v = detail::parse_integer<vertex_t>(
+                scanner, tok, 0, detail::max_as_int64<vertex_t>(), "column index");
+            max_col = std::max<std::int64_t>(max_col, v);
+            cols.push_back(v);
           }
           cols_ok = true;
         } catch (const io_error&) {
@@ -201,28 +224,14 @@ csr<vertex_t, edge_t, weight_t> read_csr_triplet(const std::string& prefix,
   const auto n = static_cast<std::int64_t>(out.row_ptr.size() - 1);
   const auto m = static_cast<std::size_t>(out.row_ptr.back());
 
-  cols_ok = cols_ok && cols.size() == m;
-  if (cols_ok) {
-    for (const vertex_t v : cols) {
-      if (static_cast<std::int64_t>(v) >= n) {
-        cols_ok = false;
-        break;
-      }
-    }
-  }
+  cols_ok = cols_ok && cols.size() == m && max_col < n;
   out.col_ind = cols_ok ? std::move(cols) : read_col_ind<vertex_t>(cols_path, n, m);
 
   if (!values_ok || values.lines != m || values.num_weights == 0) {
     values = read_values<weight_t>(values_path, m, options.num_weights);  // throws the error
   }
   out.num_weights = values.num_weights;
-  const auto k = static_cast<std::size_t>(values.num_weights);
-  out.weights.resize(m * k);
-  for (std::size_t e = 0; e < m; ++e) {
-    for (std::size_t c = 0; c < k; ++c) {
-      out.weights[c * m + e] = values.edge_major[e * k + c];
-    }
-  }
+  out.weights = std::move(values.weights);  // objective-major already
   return out;
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_csr_triplet (", prefix, ")")

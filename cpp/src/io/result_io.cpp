@@ -16,26 +16,110 @@
 #include <dyng/core/types.hpp>
 #include <dyng/io/result_io.hpp>
 
+#include <algorithm>
+#include <charconv>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <vector>
 
 namespace dyng::io {
 
 namespace {
 
-/// Reads "v x" lines; `parse_value` turns the second token into a value. Every vertex exactly
-/// once.
+/// The separators of the strict scanner inside a line.
+inline bool is_blank(char c) noexcept {
+  return c == ' ' || c == '\t' || c == '\r';
+}
+
+/// Parse the integer token at `p` in one pass: std::from_chars, and the token must end right after
+/// the number (at a blank, a line break or the end), which is exactly the strict rule "the whole
+/// token is one integer representable in std::int64_t" (detail::parse_int64).
+inline const char* parse_token_int64(const char* p, const char* end, std::int64_t& value) noexcept {
+  const auto result = std::from_chars(p, end, value);
+  if (result.ec != std::errc() ||
+      (result.ptr < end && !is_blank(*result.ptr) && *result.ptr != '\n')) {
+    return nullptr;
+  }
+  return result.ptr;
+}
+
+/// One pass over a well-formed "v x" file (MOSP's readDistances / readParents way: std::from_chars
+/// straight on the text). It accepts exactly what the strict reader accepts or gives up: any
+/// irregularity (a malformed or out-of-range token, a missing, extra or repeated entry) returns
+/// false, and the caller runs the strict reader, which reports the first problem with its line and
+/// column. `parse_value(p, end, value)` parses the second token and returns the position after
+/// it, or nullptr.
 template <typename value_t, typename parse_value_t>
+bool read_vertex_values_fast(const std::string& text, std::int64_t num_vertices,
+                             std::vector<value_t>& values, std::vector<char>& seen,
+                             const parse_value_t& parse_value) {
+  const char* p = text.data();
+  const char* const end = p + text.size();
+  std::int64_t listed = 0;
+  while (p < end) {
+    while (p < end && is_blank(*p)) {
+      ++p;
+    }
+    if (p == end) {
+      break;
+    }
+    if (*p == '\n') {
+      ++p;
+      continue;
+    }
+    std::int64_t v = 0;
+    p = parse_token_int64(p, end, v);
+    if (p == nullptr || v < 0 || v >= num_vertices || seen[static_cast<std::size_t>(v)] != 0) {
+      return false;
+    }
+    while (p < end && is_blank(*p)) {
+      ++p;
+    }
+    if (p == end || *p == '\n') {
+      return false;
+    }
+    value_t value{};
+    p = parse_value(p, end, value);
+    if (p == nullptr) {
+      return false;
+    }
+    while (p < end && is_blank(*p)) {
+      ++p;
+    }
+    if (p < end) {
+      if (*p != '\n') {
+        return false;  // a third token
+      }
+      ++p;
+    }
+    seen[static_cast<std::size_t>(v)] = 1;
+    values[static_cast<std::size_t>(v)] = value;
+    ++listed;
+  }
+  return listed == num_vertices;
+}
+
+/// Reads "v x" lines; `parse_value` turns the second token into a value. Every vertex exactly
+/// once. `parse_fast(p, end, value)` is the same rule for the fast pass (nullptr: give up).
+template <typename value_t, typename parse_value_t, typename parse_fast_t>
 std::vector<value_t> read_vertex_values(const std::string& path, std::int64_t num_vertices,
-                                        value_t unset, const parse_value_t& parse_value) {
+                                        value_t unset, const parse_value_t& parse_value,
+                                        const parse_fast_t& parse_fast) {
   DYNG_EXPECTS(num_vertices >= 0, "num_vertices must be >= 0, got ", num_vertices);
   const std::string text = detail::read_file(path);
-  detail::text_scanner scanner(text, path);
   std::vector<value_t> values(static_cast<std::size_t>(num_vertices), unset);
   std::vector<char> seen(static_cast<std::size_t>(num_vertices), 0);
+  if (read_vertex_values_fast(text, num_vertices, values, seen, parse_fast)) {
+    return values;
+  }
+  // The strict pass: the same rules token by token, with the location of the first problem.
+  std::fill(values.begin(), values.end(), unset);
+  std::fill(seen.begin(), seen.end(), char{0});
+  detail::text_scanner scanner(text, path);
   std::int64_t listed = 0;
   detail::token vertex_token;
   detail::token value_token;
@@ -118,6 +202,20 @@ std::vector<distance_t> read_distances(const std::string& path, std::int64_t num
         }
         return detail::parse_integer<distance_t>(scanner, tok, 0,
                                                  detail::max_as_int64<distance_t>(), "distance");
+      },
+      [](const char* p, const char* end, distance_t& value) -> const char* {
+        if (end - p >= 3 && p[0] == 'I' && p[1] == 'N' && p[2] == 'F' &&
+            (end - p == 3 || is_blank(p[3]) || p[3] == '\n')) {
+          value = infinite_distance<distance_t>();
+          return p + 3;
+        }
+        std::int64_t parsed = 0;
+        p = parse_token_int64(p, end, parsed);
+        if (p == nullptr || parsed < 0 || parsed > detail::max_as_int64<distance_t>()) {
+          return nullptr;
+        }
+        value = static_cast<distance_t>(parsed);
+        return p;
       });
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_distances (", path, ", ", num_vertices, " vertices)")
@@ -128,6 +226,15 @@ std::vector<vertex_t> read_parents(const std::string& path, std::int64_t num_ver
       path, num_vertices, invalid_id<vertex_t>(),
       [num_vertices](const detail::text_scanner& scanner, const detail::token& tok) {
         return detail::parse_integer<vertex_t>(scanner, tok, -1, num_vertices - 1, "parent");
+      },
+      [num_vertices](const char* p, const char* end, vertex_t& value) -> const char* {
+        std::int64_t parsed = 0;
+        p = parse_token_int64(p, end, parsed);
+        if (p == nullptr || parsed < -1 || parsed > num_vertices - 1) {
+          return nullptr;
+        }
+        value = static_cast<vertex_t>(parsed);
+        return p;
       });
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_parents (", path, ", ", num_vertices, " vertices)")
