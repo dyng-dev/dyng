@@ -26,6 +26,8 @@
  *   --no-validate-inputs skip the O(n) checks of the initial trees (dynG checks by default)
  *   --out <dir>          output directory (default mosp-output)
  *   --no-output          do not write the result files
+ *   --write-graph <p>    also write the updated graph as <p>{RowPtr,ColInd,Values}.txt (the format
+ *                        of MOSP's writeCsrGraph; for the parity harness, not timed)
  *   --timing <csv>       write the profiler stages and counters (kind,name,value)
  *   --quiet              print only the summary line
  *   --backend <b>        sequential | openmp (default openmp if built)
@@ -56,8 +58,10 @@
 #include <cstdio>
 #include <exception>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -79,6 +83,7 @@ struct options {
   std::string out = "mosp-output";
   std::string timing;
   std::string backend;
+  std::string write_graph;
   int K = 0;
   int threads = 0;
   vertex_t source = 0;
@@ -98,7 +103,7 @@ void usage() {
   std::cerr << "usage: dyng-compat-mosp --graph <csrPrefix> --changes <dir> --init <dir>\n"
                "                        [-k K] [--source s] [--delta D] [--canonicalize]\n"
                "                        [--no-validate-inputs] [--out dir] [--no-output]\n"
-               "                        [--timing file.csv] [--quiet]\n"
+               "                        [--write-graph prefix] [--timing file.csv] [--quiet]\n"
                "                        [--backend sequential|openmp] [--threads t]\n"
                "       dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K]\n"
                "                        [--backend sequential|openmp] [--threads t]\n";
@@ -114,6 +119,30 @@ int_t parse_int(std::string_view text, std::string_view flag, int_t lo, int_t hi
                       std::to_string(hi) + "], got '" + std::string(text) + "'");
   }
   return value;
+}
+
+/// MOSP's runConcurrently(): the jobs run on the threads of an OpenMP parallel region (placed on
+/// distinct cores under OMP_PROC_BIND / OMP_PLACES; std::thread workers would inherit the single
+/// core the initial thread is pinned to). The first failing job's exception (in job order) is
+/// rethrown after all jobs finished.
+void run_concurrently(const std::vector<std::function<void()>>& jobs) {
+  const auto count = static_cast<int>(jobs.size());
+  std::vector<std::exception_ptr> errors(jobs.size());
+#ifdef _OPENMP
+#pragma omp parallel for schedule(dynamic, 1) num_threads(count)
+#endif
+  for (int i = 0; i < count; ++i) {
+    try {
+      jobs[static_cast<std::size_t>(i)]();
+    } catch (...) {
+      errors[static_cast<std::size_t>(i)] = std::current_exception();
+    }
+  }
+  for (const std::exception_ptr& e : errors) {
+    if (e) {
+      std::rethrow_exception(e);
+    }
+  }
 }
 
 double ms_since(clock_type::time_point start) {
@@ -211,6 +240,8 @@ options parse_update_options(int argc, char** argv) {
       opt.out = std::string(next());
     } else if (a == "--timing") {
       opt.timing = std::string(next());
+    } else if (a == "--write-graph") {
+      opt.write_graph = std::string(next());
     } else if (a == "--backend") {
       opt.backend = std::string(next());
     } else if (a == "-k") {
@@ -248,9 +279,8 @@ int run_update(int argc, char** argv) {
   // --- Inputs ---------------------------------------------------------------------------------
   auto t = clock_type::now();
   const auto csr = read_graph(opt.graph, opt.K);
-  graph_t g = graph_t::from_csr(res, csr.view(), dyng::graph_properties::mosp_compatible());
-  const vertex_t n = g.num_vertices();
-  const int KG = g.num_weights();
+  const vertex_t n = csr.num_vertices();
+  const int KG = csr.num_weights;
   const int K = opt.K > 0 ? std::min(opt.K, KG) : KG;
   if (K <= 0 || opt.source >= n) {
     throw usage_error("invalid MOSP update input (K = " + std::to_string(K) + ", source " +
@@ -259,27 +289,55 @@ int run_update(int argc, char** argv) {
   dyng::io::legacy_batch_options batch_options;
   batch_options.num_weights = KG;
   batch_options.num_vertices = n;
-  const auto batch = dyng::io::read_legacy_batch<vertex_t, weight_t>(
-      opt.changes + "/insert.txt", opt.changes + "/delete.txt", batch_options);
-  std::vector<result_t> results;
-  results.reserve(static_cast<std::size_t>(K));
-  double canonicalize_ms = 0;
-  double load_ms = ms_since(t);
+  // Like `mosp` (runConcurrently), the batch and the 2K tree files are read concurrently.
+  dyng::edge_batch<vertex_t, weight_t> batch;
+  std::vector<std::vector<std::int64_t>> dists(static_cast<std::size_t>(K));
+  std::vector<std::vector<vertex_t>> trees(static_cast<std::size_t>(K));
+  std::vector<std::function<void()>> reads;
+  reads.emplace_back([&] {
+    batch = dyng::io::read_legacy_batch<vertex_t, weight_t>(
+        opt.changes + "/insert.txt", opt.changes + "/delete.txt", batch_options);
+  });
   for (int k = 0; k < K; ++k) {
     const std::string dir = opt.init + "/obj" + std::to_string(k);
-    t = clock_type::now();
-    const auto dist = dyng::io::read_distances<std::int64_t>(dir + "/distancesOriginal.txt", n);
-    const auto tree = dyng::io::read_parents<vertex_t>(dir + "/SSSPTreeOriginal.txt", n);
-    load_ms += ms_since(t);
-    t = clock_type::now();
-    dyng::sssp::options sssp_options;
-    sssp_options.objective = k;
-    sssp_options.delta = opt.delta;
-    sssp_options.validate_inputs = opt.validate;
-    results.push_back(result_t::from_arrays(res, g, opt.source, dyng::host_view(dist),
-                                            dyng::host_view(tree), opt.canonicalize, sssp_options));
-    canonicalize_ms += ms_since(t);
+    const auto i = static_cast<std::size_t>(k);
+    reads.emplace_back([&, dir, i] {
+      dists[i] = dyng::io::read_distances<std::int64_t>(dir + "/distancesOriginal.txt", n);
+    });
+    reads.emplace_back([&, dir, i] {
+      trees[i] = dyng::io::read_parents<vertex_t>(dir + "/SSSPTreeOriginal.txt", n);
+    });
   }
+  run_concurrently(reads);
+  graph_t g = graph_t::from_csr(res, csr.view(), dyng::graph_properties::mosp_compatible());
+  const double load_ms = ms_since(t);
+
+  // The initial trees become results (checked with validate_inputs; not timed by `mosp`).
+  t = clock_type::now();
+  // The K results are built concurrently (from_arrays only reads the graph; PLAN Section 4.7.4).
+  std::vector<std::optional<result_t>> built(static_cast<std::size_t>(K));
+  std::vector<std::function<void()>> builds;
+  for (int k = 0; k < K; ++k) {
+    builds.emplace_back([&, k] {
+      const auto i = static_cast<std::size_t>(k);
+      dyng::sssp::options sssp_options;
+      sssp_options.objective = k;
+      sssp_options.delta = opt.delta;
+      sssp_options.validate_inputs = opt.validate;
+      built[i].emplace(result_t::from_arrays(res, g, opt.source, dyng::host_view(dists[i]),
+                                             dyng::host_view(trees[i]), opt.canonicalize,
+                                             sssp_options));
+    });
+  }
+  run_concurrently(builds);
+  std::vector<result_t> results;
+  results.reserve(static_cast<std::size_t>(K));
+  for (auto& r : built) {
+    results.push_back(std::move(*r));
+  }
+  dists.clear();
+  trees.clear();
+  const double canonicalize_ms = ms_since(t);
 
   // --- Update (the batch is applied once) -----------------------------------------------------
   std::vector<result_t*> pointers;
@@ -319,15 +377,22 @@ int run_update(int argc, char** argv) {
   double write_ms = 0;
   if (opt.write_output) {
     t = clock_type::now();
+    std::vector<std::function<void()>> writes;  // concurrently, like `mosp`
     for (int k = 0; k < K; ++k) {
       const std::string dir = opt.out + "/obj" + std::to_string(k);
       const result_t& r = results[static_cast<std::size_t>(k)];
-      dyng::io::write_distances(dir + "/distancesUpdated.txt", r.distances());
-      dyng::io::write_parents(dir + "/SSSPTreeUpdated.txt", r.parents());
+      writes.emplace_back(
+          [dir, &r] { dyng::io::write_distances(dir + "/distancesUpdated.txt", r.distances()); });
+      writes.emplace_back(
+          [dir, &r] { dyng::io::write_parents(dir + "/SSSPTreeUpdated.txt", r.parents()); });
     }
+    run_concurrently(writes);
     write_ms = ms_since(t);
   }
   const double end_to_end = ms_since(start);
+  if (!opt.write_graph.empty()) {
+    dyng::io::write_csr_triplet(opt.write_graph, g.view().out);
+  }
 
   // --- Report ---------------------------------------------------------------------------------
   if (!opt.quiet) {
