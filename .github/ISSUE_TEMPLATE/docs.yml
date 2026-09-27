@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+name: Documentation
+description: Something in the documentation is wrong, unclear, missing or broken.
+labels: ["documentation", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping to improve the documentation! Small fixes (typos, broken links)
+        can also go straight into a pull request, without an issue.
+  - type: input
+    id: location
+    attributes:
+      label: Page or file
+      description: The URL of the page, or the path in the repository (for example `docs/algorithms/sssp.md` or a header in `cpp/include/dyng/`).
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of problem
+      options:
+        - wrong or outdated
+        - unclear or hard to follow
+        - missing (a topic, an example or an API description)
+        - broken link, rendering or formatting
+        - an example or code snippet does not work
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is wrong or missing, and what did you expect to find?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested change
+      description: If you know how to fix it, describe or write the new text.
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you like to open a pull request for it?
+      options:
+        - "yes"
+        - "no"
+    validations:
+      required: true

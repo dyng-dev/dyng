@@ -1,0 +1,94 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+name: Port research code
+description: Propose porting an existing research implementation of a dynamic algorithm into dynG.
+title: "[port] "
+labels: ["port", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A port keeps the original's behaviour exactly: it starts as a straight port with a
+        provenance header on every file and parity goldens exported from the pinned original,
+        followed by one pull request per refactor (PLAN Section 6.3; the process is described in
+        [CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md)). If the
+        algorithm itself is new to dynG, please also describe it with the "New algorithm" form.
+  - type: input
+    id: repository
+    attributes:
+      label: Origin repository
+      description: The URL of the repository that contains the research code.
+      placeholder: https://github.com/<owner>/<repo>
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Pinned commit
+      description: The full commit SHA the port (and its parity goldens) will be based on.
+    validations:
+      required: true
+  - type: textarea
+    id: paths
+    attributes:
+      label: Files to port
+      description: The paths in the origin repository that the port will be derived from.
+    validations:
+      required: true
+  - type: input
+    id: license
+    attributes:
+      label: License of the origin
+      description: The SPDX identifier of the origin's license (it must allow redistribution under Apache-2.0).
+      placeholder: Apache-2.0, MIT, BSD-3-Clause, ...
+    validations:
+      required: true
+  - type: textarea
+    id: authors
+    attributes:
+      label: Authors and permission
+      description: Who wrote the code, and are you one of them? If not, how do the authors agree to the port?
+    validations:
+      required: true
+  - type: textarea
+    id: paper
+    attributes:
+      label: Paper
+      description: The publication(s) the code implements (citation, DOI or arXiv link).
+  - type: input
+    id: target
+    attributes:
+      label: Target dynG module
+      description: The new or existing dynG algorithm this becomes (snake_case).
+      placeholder: dynamic_kcore
+    validations:
+      required: true
+  - type: textarea
+    id: parity-plan
+    attributes:
+      label: Parity plan
+      description: |
+        Which outputs of the original are compared with dynG (distances, counts, output files),
+        whether they must be byte-identical or equal within a stated tolerance (and why), how
+        the golden inputs are generated, and which datasets are needed.
+    validations:
+      required: true
+  - type: textarea
+    id: deviations
+    attributes:
+      label: Known bugs or deviations of the original
+      description: Differences between the paper and the code, known bugs, nondeterminism, hard-coded limits.
+  - type: textarea
+    id: performance
+    attributes:
+      label: Performance baseline
+      description: The benchmarks of the original that the port should match (datasets, batch sizes, timed region).
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: The origin's license allows redistribution of derived code under Apache-2.0.
+          required: true
+        - label: I read "Adding an algorithm or porting research code" in CONTRIBUTING.md.
+          required: true

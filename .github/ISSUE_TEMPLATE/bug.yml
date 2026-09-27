@@ -1,0 +1,125 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+name: Bug report
+description: A wrong result, a crash, a build failure or another defect.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please **do not report security vulnerabilities here**;
+        follow [SECURITY.md](https://github.com/dyng-dev/dyng/blob/main/SECURITY.md) instead.
+        Questions are best asked in [Discussions](https://github.com/dyng-dev/dyng/discussions).
+        A minimal reproducer (the smallest input and the exact call or command) is the most
+        useful thing you can give us.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+      placeholder: |
+        After sssp::update() with the batch below, distance[7] is 12, but compute() on the
+        updated graph gives 11.
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal reproducer
+      description: |
+        The smallest program, Python snippet or command line that shows the problem, and the
+        input files (attach small files, or say how to generate them). Markdown is rendered.
+      placeholder: |
+        ```bash
+        build/dev/examples/cpp/sssp_update graphCsr insert.txt delete.txt out openmp
+        ```
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of dynG is affected?
+      options:
+        - sssp
+        - cycle_count
+        - mosp
+        - triad_count
+        - label_propagation
+        - hyper_sssp
+        - core, graph or hypergraph containers
+        - I/O (file formats)
+        - Python package
+        - command-line tools
+        - build or installation
+        - other or not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      description: Which backends show the problem? (select all that apply)
+      multiple: true
+      options:
+        - sequential
+        - openmp
+        - cuda
+        - not applicable (build, I/O, ...)
+        - not tested
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: dynG version or commit
+      description: The output of `git rev-parse --short HEAD`, or the installed version (`pip show dyng`).
+      placeholder: "0.1.0, or main at 1a2b3c4"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you get dynG?
+      options:
+        - built from source (CMake preset)
+        - pip wheel
+        - conda package
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Fill in what applies. For CUDA problems the GPU, driver and CUDA versions matter most.
+      value: |
+        - OS:
+        - Compiler and version (gcc --version / clang --version):
+        - CMake version and preset:
+        - CUDA version (nvcc --version):
+        - GPU model and driver (nvidia-smi):
+        - Python version (for the Python package):
+    validations:
+      required: true
+  - type: input
+    id: dataset
+    attributes:
+      label: Dataset
+      description: If the problem needs a specific graph, name it and give a link or the generator and seed.
+      placeholder: "roadNet-CA (SNAP), 5% insertions, seed 12345"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output and logs
+      description: Error messages, stack traces or sanitizer reports. This is rendered as a code block.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go to SECURITY.md).
+          required: true

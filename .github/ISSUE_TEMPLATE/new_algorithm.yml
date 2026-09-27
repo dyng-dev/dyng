@@ -1,0 +1,131 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+name: New algorithm
+description: Propose a new dynamic (batch-update) algorithm for dynG, before writing the code.
+title: "[new algorithm] "
+labels: ["new-algorithm", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Every new algorithm starts with this form (PLAN Section 11.6), so that we can agree on
+        the problem, the update model and the testing strategy before you write code. See
+        "Adding an algorithm or porting research code" in
+        [CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md) and the
+        [roadmap](https://github.com/dyng-dev/dyng/blob/main/docs/roadmap.md) for algorithms that
+        are open to contributors (for example dynamic k-core, connected components, PageRank,
+        time-window cycle updates, temporal or incident-vertex triads, open h-motifs).
+        To port existing research code, use the "Port research code" form instead.
+  - type: input
+    id: name
+    attributes:
+      label: Algorithm name
+      description: The proposed module name, in snake_case (it becomes `dyng::<name>` and `dyng.<name>`).
+      placeholder: dynamic_kcore
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is computed? The input (graph or hypergraph, weights, parameters) and the output (per vertex, per edge, a global count, ...).
+    validations:
+      required: true
+  - type: textarea
+    id: update-model
+    attributes:
+      label: Update model
+      description: |
+        What a batch contains (edge insertions, deletions, weight changes, hyperedges, vertex
+        arrivals, ...) and how the result is updated without recomputing from scratch: which
+        elements are affected by a change, and how far the effect propagates.
+    validations:
+      required: true
+  - type: dropdown
+    id: family
+    attributes:
+      label: Family
+      description: A per-element value that converges (distances, labels, core numbers) is a fixed-point algorithm; a global count (cycles, triads) is an aggregate-delta algorithm.
+      options:
+        - fixed point
+        - aggregate delta
+        - not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: container
+    attributes:
+      label: Container
+      options:
+        - graph
+        - hypergraph
+        - both
+    validations:
+      required: true
+  - type: dropdown
+    id: backends
+    attributes:
+      label: Backends you plan to implement
+      description: The sequential backend is required (it is the reference); OpenMP and CUDA are optional.
+      multiple: true
+      options:
+        - sequential
+        - openmp
+        - cuda
+    validations:
+      required: true
+  - type: textarea
+    id: static-counterpart
+    attributes:
+      label: Static counterpart
+      description: How `compute()` solves the problem from scratch (algorithm and complexity).
+    validations:
+      required: true
+  - type: textarea
+    id: oracle
+    attributes:
+      label: Oracle (how correctness is tested)
+      description: |
+        How the tests decide that an update is correct: equality with a recomputation
+        ("update chain == compute"), a reference implementation, or a tolerance (and why).
+    validations:
+      required: true
+  - type: textarea
+    id: paper
+    attributes:
+      label: Paper
+      description: The publication behind the algorithm (citation, DOI or arXiv link), if any.
+  - type: textarea
+    id: existing-code
+    attributes:
+      label: Existing implementation
+      description: A link to an existing implementation, its license, and whether you are its author.
+  - type: dropdown
+    id: maturity
+    attributes:
+      label: Target maturity for the first merge
+      description: "`experimental`: sequential backend, tests, docs page, one example. `stable`: also CUDA, benchmarks, Python binding and a maintainer."
+      options:
+        - experimental
+        - stable
+    validations:
+      required: true
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Will you implement it?
+      options:
+        - "yes"
+        - "yes, with guidance"
+        - "no, this is a suggestion"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues, discussions and the roadmap for this algorithm.
+          required: true
+        - label: I read "Adding an algorithm or porting research code" in CONTRIBUTING.md.
+          required: true
