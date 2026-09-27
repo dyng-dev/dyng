@@ -142,7 +142,7 @@ Settings → sidebar section **Security and quality** → **Advanced Security**:
 To receive the reports, make sure your notification settings deliver security alerts: your
 avatar → **Settings** → **Notifications** → **Security alerts**.
 
-Docs: <https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/configuring-private-vulnerability-reporting-for-a-repository>.
+Docs: <https://docs.github.com/en/code-security/how-tos/report-and-fix-vulnerabilities/configure-vulnerability-reporting/configure-for-a-repository>.
 
 ## 7. The DCO app and web sign-off
 
