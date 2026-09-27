@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -95,7 +96,7 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
                                const edge_batch_view<vertex_t, weight_t>& batch,
                                const graph_properties& props,
                                csr<vertex_t, edge_t, weight_t>& updated,
-                               apply_delta<vertex_t>* delta) {
+                               apply_delta<vertex_t>* delta, int threads) {
   const batch_semantics& semantics = props.semantics;
   const int num_objectives = original.num_weights;
   const auto k_count = static_cast<std::size_t>(num_objectives);
@@ -304,67 +305,94 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
   }
 
   // --- Assemble the updated CSR ------------------------------------------------------------------
+  // Every row lands at the same place whatever the thread count: the degrees are computed per row,
+  // the offsets by a prefix sum, and each row (or run of unchanged rows) is copied to its offset.
+  // With the OpenMP backend the three passes run in parallel; the result is identical.
   updated = csr<vertex_t, edge_t, weight_t>();
   updated.num_weights = num_objectives;
   updated.row_ptr.assign(rows + 1, edge_t{0});
+  const auto row_count = static_cast<std::int64_t>(rows);
+  std::vector<std::int64_t> degree(rows, 0);
+  std::int64_t* deg = degree.data();
+  const bool parallel = threads > 1 && row_count >= 65536;
+  (void)parallel;
+#if DYNG_HAS_OPENMP
+#pragma omp parallel for num_threads(threads) if (parallel) schedule(static)
+#endif
+  for (std::int64_t u = 0; u < row_count; ++u) {
+    const std::int64_t index = row_index[static_cast<std::size_t>(u)];
+    std::int64_t d = 0;
+    if (index >= 0) {
+      for (const auto& entry : changed_contents[static_cast<std::size_t>(index)]) {
+        d += entry.alive ? 1 : 0;
+      }
+    } else if (u < n) {
+      d = static_cast<std::int64_t>(original.row_ptr[static_cast<std::size_t>(u) + 1]) -
+          static_cast<std::int64_t>(original.row_ptr[static_cast<std::size_t>(u)]);
+    }
+    deg[u] = d;
+  }
   std::int64_t total = 0;
   for (std::size_t u = 0; u < rows; ++u) {
-    std::int64_t degree = 0;
-    if (row_index[u] >= 0) {
-      for (const auto& entry : changed_contents[static_cast<std::size_t>(row_index[u])]) {
-        degree += entry.alive ? 1 : 0;
-      }
-    } else if (static_cast<std::int64_t>(u) < n) {
-      degree = static_cast<std::int64_t>(original.row_ptr[u + 1]) -
-               static_cast<std::int64_t>(original.row_ptr[u]);
-    }
-    total += degree;
+    total += degree[u];
     updated.row_ptr[u + 1] = checked_edge_count<edge_t>(total);
   }
   const auto m_new = static_cast<std::size_t>(total);
   updated.col_ind.resize(m_new);
   updated.weights.resize(m_new * k_count);
-  for (std::size_t u = 0; u < rows; ++u) {
-    auto out = static_cast<std::size_t>(updated.row_ptr[u]);
-    if (row_index[u] < 0) {
-      if (static_cast<std::int64_t>(u) >= n) {
+  const edge_t* new_row = updated.row_ptr.data();
+  vertex_t* new_col = updated.col_ind.data();
+  weight_t* new_weights = updated.weights.data();
+  // Rows are handed out in blocks; inside a block a maximal run of unchanged rows is contiguous in
+  // both graphs and copied at once (the weight columns are objective-major, so a per-row copy
+  // would cost K calls per row).
+  constexpr std::int64_t block = 4096;
+  const std::int64_t blocks = (row_count + block - 1) / block;
+#if DYNG_HAS_OPENMP
+#pragma omp parallel for num_threads(threads) if (parallel) schedule(dynamic, 16)
+#endif
+  for (std::int64_t b = 0; b < blocks; ++b) {
+    const std::int64_t first = b * block;
+    const std::int64_t stop = std::min(row_count, first + block);
+    for (std::int64_t u = first; u < stop; ++u) {
+      auto out = static_cast<std::size_t>(new_row[u]);
+      const std::int64_t index = row_index[static_cast<std::size_t>(u)];
+      if (index < 0) {
+        if (u >= n) {
+          continue;
+        }
+        std::int64_t last = u + 1;
+        while (last < stop && last < n && row_index[static_cast<std::size_t>(last)] < 0) {
+          ++last;
+        }
+        const auto begin = static_cast<std::size_t>(original.row_ptr[static_cast<std::size_t>(u)]);
+        const auto end = static_cast<std::size_t>(original.row_ptr[static_cast<std::size_t>(last)]);
+        std::copy(original.col_ind.data() + begin, original.col_ind.data() + end, new_col + out);
+        for (std::size_t k = 0; k < k_count; ++k) {
+          const auto* column = original.weights.data() + k * m;
+          std::copy(column + begin, column + end, new_weights + k * m_new + out);
+        }
+        u = last - 1;
         continue;
       }
-      // A maximal run of unchanged rows [u, last) is contiguous in both graphs: copy it at once
-      // (the weight columns are objective-major, so a per-row copy would cost K calls per row).
-      std::size_t last = u + 1;
-      while (last < rows && static_cast<std::int64_t>(last) < n && row_index[last] < 0) {
-        ++last;
-      }
-      const auto begin = static_cast<std::size_t>(original.row_ptr[u]);
-      const auto end = static_cast<std::size_t>(original.row_ptr[last]);
-      std::copy(original.col_ind.begin() + static_cast<std::ptrdiff_t>(begin),
-                original.col_ind.begin() + static_cast<std::ptrdiff_t>(end),
-                updated.col_ind.begin() + static_cast<std::ptrdiff_t>(out));
-      for (std::size_t k = 0; k < k_count; ++k) {
-        const auto* column = original.weights.data() + k * m;
-        std::copy(column + begin, column + end, updated.weights.data() + k * m_new + out);
-      }
-      u = last - 1;
-      continue;
-    }
-    for (const auto& entry : changed_contents[static_cast<std::size_t>(row_index[u])]) {
-      if (!entry.alive) {
-        continue;
-      }
-      updated.col_ind[out] = entry.vertex;
-      if (entry.slot >= 0) {
-        const auto e = static_cast<std::size_t>(entry.slot);
-        for (std::size_t k = 0; k < k_count; ++k) {
-          updated.weights[k * m_new + out] = original.weights[k * m + e];
+      for (const auto& entry : changed_contents[static_cast<std::size_t>(index)]) {
+        if (!entry.alive) {
+          continue;
         }
-      } else {
-        const std::size_t i = ins_weights[static_cast<std::size_t>(-entry.slot - 1)];
-        for (std::size_t k = 0; k < k_count; ++k) {
-          updated.weights[k * m_new + out] = batch.insert_weights[i * k_count + k];
+        new_col[out] = entry.vertex;
+        if (entry.slot >= 0) {
+          const auto e = static_cast<std::size_t>(entry.slot);
+          for (std::size_t k = 0; k < k_count; ++k) {
+            new_weights[k * m_new + out] = original.weights[k * m + e];
+          }
+        } else {
+          const std::size_t i = ins_weights[static_cast<std::size_t>(-entry.slot - 1)];
+          for (std::size_t k = 0; k < k_count; ++k) {
+            new_weights[k * m_new + out] = batch.insert_weights[i * k_count + k];
+          }
         }
+        ++out;
       }
-      ++out;
     }
   }
   summary.inserted_vertices = n_after - n;
@@ -437,8 +465,10 @@ void transpose_parallel(const csr<vertex_t, edge_t, weight_t>& graph,
   const auto m = static_cast<std::int64_t>(graph.col_ind.size());
   const vertex_t* col = graph.col_ind.data();
   const edge_t* row = graph.row_ptr.data();
-  std::vector<vertex_t> source(static_cast<std::size_t>(m));
-  vertex_t* src = source.data();
+  // Scratch arrays are left uninitialized (every entry is written below, in parallel), so their
+  // pages are first touched by the threads instead of by one zero-filling thread.
+  std::unique_ptr<vertex_t[]> source(new vertex_t[static_cast<std::size_t>(m)]);
+  vertex_t* src = source.get();
   edge_t* counts = reverse.row_ptr.data();
 #pragma omp parallel num_threads(threads)
   {
@@ -460,9 +490,9 @@ void transpose_parallel(const csr<vertex_t, edge_t, weight_t>& graph,
   reverse.col_ind.resize(static_cast<std::size_t>(m));
   reverse.weights.resize(static_cast<std::size_t>(m) * k_count);
   std::vector<edge_t> cursor(reverse.row_ptr.begin(), reverse.row_ptr.end() - 1);
-  std::vector<edge_t> edge_of(static_cast<std::size_t>(m));
+  std::unique_ptr<edge_t[]> edge_of(new edge_t[static_cast<std::size_t>(m)]);
   edge_t* next = cursor.data();
-  edge_t* slot = edge_of.data();
+  edge_t* slot = edge_of.get();
   const edge_t* in_row = reverse.row_ptr.data();
   vertex_t* in_col = reverse.col_ind.data();
 #pragma omp parallel num_threads(threads)
@@ -675,9 +705,93 @@ void build_from_edges_host(const edge_list_view<vertex_t, weight_t>& edges,
       [&](std::size_t i, std::size_t k) { return edges.weights[i * k_count + k]; }, out);
 }
 
+namespace {
+
+/// What one pass over a CSR finds: whether it is well formed and whether its rows already are
+/// what the properties ask for.
+struct csr_scan {
+  bool malformed = false;      ///< an offset or a column index is invalid
+  bool self_loops = false;     ///< some row u lists u
+  bool non_decreasing = true;  ///< every row is sorted (equal neighbours allowed)
+  bool increasing = true;      ///< every row is sorted without repeated neighbours
+};
+
+/// One pass over the rows (in parallel with more than one thread); reads only in-bounds entries.
+template <typename vertex_t, typename edge_t, typename weight_t>
+csr_scan scan_csr(const csr_view<vertex_t, edge_t, weight_t>& input, int threads) {
+  const std::int64_t n = input.num_vertices();
+  const auto m = static_cast<std::int64_t>(input.col_ind.size());
+  const edge_t* row = input.row_ptr.data();
+  const vertex_t* col = input.col_ind.data();
+  bool malformed = n > 0 && (row[0] != 0 || static_cast<std::int64_t>(row[n]) != m);
+  bool self_loops = false;
+  bool non_decreasing = true;
+  bool increasing = true;
+#if DYNG_HAS_OPENMP
+#pragma omp parallel for num_threads(threads) if (threads > 1 && m >= 65536) schedule(static) \
+    reduction(|| : malformed, self_loops) reduction(&& : non_decreasing, increasing)
+#else
+  (void)threads;
+#endif
+  for (std::int64_t u = 0; u < n; ++u) {
+    const auto begin = static_cast<std::int64_t>(row[u]);
+    const auto end = static_cast<std::int64_t>(row[u + 1]);
+    if (begin < 0 || end < begin || end > m) {
+      malformed = true;
+      continue;
+    }
+    for (std::int64_t e = begin; e < end; ++e) {
+      const vertex_t v = col[e];
+      if (v < 0 || v >= n) {
+        malformed = true;
+        break;
+      }
+      self_loops = self_loops || static_cast<std::int64_t>(v) == u;
+      if (e > begin) {
+        non_decreasing = non_decreasing && col[e - 1] <= v;
+        increasing = increasing && col[e - 1] < v;
+      }
+    }
+  }
+  return csr_scan{malformed, self_loops, non_decreasing, increasing};
+}
+
+/// Whether building the graph from a well-formed CSR would reproduce it unchanged: a directed
+/// graph whose self-loops (if any) are kept, and whose rows already have the requested order and
+/// no parallel edges where they are forbidden (build_rows() then keeps every row as it is).
+bool csr_is_final(const csr_scan& scan, const graph_properties& props) {
+  if (!props.directed ||
+      (scan.self_loops && props.semantics.on_self_loop != batch_semantics::self_loop::keep)) {
+    return false;
+  }
+  if (props.parallel_edges == multi_edges::allow) {
+    return props.order == row_order::append || scan.non_decreasing;
+  }
+  return scan.increasing;  // forbid: rows without repeats; sorted rows are also in append order
+}
+
+/// Parallel copy of `count` values (first touch spread over the threads).
+template <typename value_t>
+void copy_parallel(const value_t* from, std::size_t count, std::vector<value_t>& to, int threads) {
+  to.resize(count);
+  value_t* out = to.data();
+  const auto size = static_cast<std::int64_t>(count);
+#if DYNG_HAS_OPENMP
+#pragma omp parallel for num_threads(threads) if (threads > 1 && size >= 65536) schedule(static)
+#else
+  (void)threads;
+#endif
+  for (std::int64_t i = 0; i < size; ++i) {
+    out[i] = from[i];
+  }
+}
+
+}  // namespace
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
-                         const graph_properties& props, csr<vertex_t, edge_t, weight_t>& out) {
+                         const graph_properties& props, csr<vertex_t, edge_t, weight_t>& out,
+                         int threads, csr<vertex_t, edge_t, weight_t>* movable) {
   expect_host(input.row_ptr, "csr_view::row_ptr");
   expect_host(input.col_ind, "csr_view::col_ind");
   expect_host(input.weights, "csr_view::weights");
@@ -687,6 +801,29 @@ void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
   DYNG_EXPECTS(!input.row_ptr.empty() || m == 0, "csr_view::row_ptr is empty but there are ", m,
                " edges");
   const std::int64_t n = input.num_vertices();
+  // Fast path: one (parallel) pass; a CSR that is well formed and already final is copied (or
+  // moved) as it is. Anything else takes the general path below, whose checks report the first
+  // problem exactly as before.
+  const csr_scan scan = scan_csr(input, threads);
+  const bool weights_match = input.weights.size() == m * static_cast<std::size_t>(num_objectives);
+  if (weights_match && !scan.malformed && csr_is_final(scan, props)) {
+    out = csr<vertex_t, edge_t, weight_t>();
+    out.num_weights = num_objectives;
+    if (movable != nullptr) {
+      out.row_ptr = std::move(movable->row_ptr);
+      out.col_ind = std::move(movable->col_ind);
+      out.weights = std::move(movable->weights);
+      *movable = csr<vertex_t, edge_t, weight_t>();
+    } else {
+      copy_parallel(input.row_ptr.data(), input.row_ptr.size(), out.row_ptr, threads);
+      copy_parallel(input.col_ind.data(), m, out.col_ind, threads);
+      copy_parallel(input.weights.data(), input.weights.size(), out.weights, threads);
+    }
+    if (out.row_ptr.empty()) {
+      out.row_ptr.assign(1, edge_t{0});
+    }
+    return;
+  }
   if (!input.row_ptr.empty()) {
     DYNG_EXPECTS(input.row_ptr[0] == 0, "csr row_ptr[0] must be 0, got ", input.row_ptr[0]);
     for (std::size_t u = 0; u < static_cast<std::size_t>(n); ++u) {
@@ -829,11 +966,12 @@ std::string integrity_violation(const graph_impl<vertex_t, edge_t, weight_t>& im
       return "an undirected graph is not stored symmetric";
     }
   }
-  if (impl.props.store_transposed) {
+  if (impl.props.store_transposed && impl.has_in_edges()) {  // not built: nothing stored yet
     csr<vertex_t, edge_t, weight_t> reverse;
     transpose_host(g, reverse);
-    if (reverse.row_ptr != impl.in.row_ptr || reverse.col_ind != impl.in.col_ind ||
-        reverse.weights != impl.in.weights || reverse.num_weights != impl.in.num_weights) {
+    const csr<vertex_t, edge_t, weight_t>& in = impl.in_edges(1);
+    if (reverse.row_ptr != in.row_ptr || reverse.col_ind != in.col_ind ||
+        reverse.weights != in.weights || reverse.num_weights != in.num_weights) {
       return "the stored in-edges are not the transpose of the out-edges";
     }
   }
@@ -847,12 +985,12 @@ std::string integrity_violation(const graph_impl<vertex_t, edge_t, weight_t>& im
 #define DYNG_INSTANTIATE_APPLY_HOST(V, E, W)                                                     \
   template apply_summary apply_batch_host<V, E, W>(                                              \
       const csr<V, E, W>&, const edge_batch_view<V, W>&, const graph_properties&, csr<V, E, W>&, \
-      apply_delta<V>*);                                                                          \
+      apply_delta<V>*, int);                                                                     \
   template void transpose_host<V, E, W>(const csr<V, E, W>&, csr<V, E, W>&, int);                \
   template void build_from_edges_host<V, E, W>(const edge_list_view<V, W>&,                      \
                                                const graph_properties&, csr<V, E, W>&);          \
   template void build_from_csr_host<V, E, W>(const csr_view<V, E, W>&, const graph_properties&,  \
-                                             csr<V, E, W>&);                                     \
+                                             csr<V, E, W>&, int, csr<V, E, W>*);                 \
   template std::string integrity_violation<V, E, W>(const graph_impl<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_HOST)
 #undef DYNG_INSTANTIATE_APPLY_HOST

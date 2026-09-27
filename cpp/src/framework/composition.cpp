@@ -44,6 +44,9 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
   {
     scoped_stage stage(res, commit_stage);
     summary = graph_access::apply(res, g, batch, &delta);
+    // The in-edges of G_{t+1} are built once here, inside the commit, for every participant (the
+    // graph builds them lazily; MOSP builds its reverse graph in "prepare", before the objectives).
+    (void)graph_access::view(res, g);
   }
   // Steps 1b and 2 on G_{t+1}. A failing participant is poisoned; the others still run.
   std::exception_ptr first_error;

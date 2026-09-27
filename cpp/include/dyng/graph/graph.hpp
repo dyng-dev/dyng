@@ -99,7 +99,8 @@ class graph {
    * Under row_order::sorted rows are stably sorted; under multi_edges::forbid duplicates are
    * merged as in from_edges(). Self-loops follow `props.semantics.on_self_loop`. For an
    * undirected graph the CSR must already be symmetric (each direction stored). The number of
-   * weight columns is taken from `csr`.
+   * weight columns is taken from `csr`. The in-edges (`props.store_transposed`) are built on
+   * first use, not here (the same holds for from_edges() and after apply()).
    *
    * @param[in] res   Execution resources (a host backend).
    * @param[in] csr   The out-edge CSR (host memory, objective-major weights).
@@ -112,6 +113,27 @@ class graph {
    */
   [[nodiscard]] static graph from_csr(const resources& res,
                                       csr_view<vertex_t, edge_t, weight_t> csr,
+                                      const graph_properties& props = {});
+
+  /**
+   * @brief Build a graph from a CSR it may take over (the out-edges).
+   *
+   * The same graph as from_csr(res, csr.view(), props). When the CSR already is what `props` ask
+   * for (directed, self-loops kept or absent, rows in the requested order and without forbidden
+   * parallel edges; for example any CSR under graph_properties::mosp_compatible()), its arrays
+   * are moved into the graph instead of copied; `csr` is then left empty. Otherwise it is left
+   * unchanged.
+   *
+   * @param[in]     res   Execution resources (a host backend).
+   * @param[in,out] csr   The out-edge CSR (objective-major weights).
+   * @param[in]     props The properties of the new graph.
+   * @return The graph at version 0.
+   * @throws invalid_argument_error if the CSR is malformed.
+   * @throws not_supported_error    for a device backend or a layout other than compact.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
+   * @sync
+   */
+  [[nodiscard]] static graph from_csr(const resources& res, csr_type&& csr,
                                       const graph_properties& props = {});
 
   /**
@@ -210,15 +232,21 @@ class graph {
 
   /**
    * @brief A read-only description of the storage at the current version.
+   *
+   * If the in-edges are stored but not built yet for this version (they are built on first use),
+   * this call builds them (with the thread count of the resources that built the graph); it is
+   * safe to call concurrently with other read-only calls.
    * @return The view; invalidated by the next apply().
+   * @throws out_of_memory_error if the in-edges must be built and memory cannot be allocated.
    */
   [[nodiscard]] view_type view() const;
 
   /**
    * @brief Apply a batch to the structure (and weights) of the graph.
    *
-   * The batch is interpreted under `properties().semantics` (see batch_semantics). Results
-   * computed on the previous version become stale (their update() throws stale_result_error);
+   * The batch is interpreted under `properties().semantics` (see batch_semantics). The in-edges
+   * of the new version are built on first use. Results computed on the previous version become
+   * stale (their update() throws stale_result_error);
    * use the algorithms' update() to apply a batch and keep a result current.
    *
    * @param[in] res   Execution resources (a host backend).

@@ -29,6 +29,8 @@ namespace dyng::detail {
  * @param[in]  props    Properties of the graph (direction, row order, semantics).
  * @param[out] updated  The out-edge CSR after the batch (must not alias `original`).
  * @param[out] delta    The effective changes and the weight-increase flags (may be nullptr).
+ * @param[in]  threads  OpenMP threads for assembling the updated CSR (1 = sequential; the result
+ *                      is the same for every thread count).
  * @return The counters of the batch.
  * @throws invalid_argument_error on malformed batches or a semantics rule that says error.
  * @throws not_supported_error    for vertex insertions or deletions.
@@ -39,7 +41,7 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
                                const edge_batch_view<vertex_t, weight_t>& batch,
                                const graph_properties& props,
                                csr<vertex_t, edge_t, weight_t>& updated,
-                               apply_delta<vertex_t>* delta);
+                               apply_delta<vertex_t>* delta, int threads = 1);
 
 /**
  * @brief The reverse graph: row v lists u for every edge u -> v (with its weights).
@@ -69,16 +71,24 @@ void build_from_edges_host(const edge_list_view<vertex_t, weight_t>& edges,
 
 /**
  * @brief Build a compact out-edge CSR from a CSR (see graph::from_csr).
+ *
+ * A well-formed CSR that already is what the properties ask for (directed, self-loops kept or
+ * absent, rows in the requested order and without forbidden parallel edges) is taken as it is:
+ * copied in parallel, or moved from `movable`. Otherwise the rows are rebuilt.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
- * @param[in]  input The input CSR (host memory).
- * @param[in]  props The properties of the graph.
- * @param[out] out   The CSR.
+ * @param[in]     input   The input CSR (host memory).
+ * @param[in]     props   The properties of the graph.
+ * @param[out]    out     The CSR.
+ * @param[in]     threads OpenMP threads for the checks and the copy (1 = sequential).
+ * @param[in,out] movable The owner of the arrays `input` views, or nullptr; if given and the CSR
+ *                        is taken as it is, its arrays are moved into `out` (it is left empty).
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
-                         const graph_properties& props, csr<vertex_t, edge_t, weight_t>& out);
+                         const graph_properties& props, csr<vertex_t, edge_t, weight_t>& out,
+                         int threads = 1, csr<vertex_t, edge_t, weight_t>* movable = nullptr);
 
 /**
  * @brief Check the invariants of a stored graph; returns a description of the first violation.
