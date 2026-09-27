@@ -1,0 +1,128 @@
+cff-version: 1.2.0
+message: >-
+  If you use dynG in your work, please cite the software as below, and also the paper
+  behind each algorithm you use (listed under references; see the README table).
+type: software
+title: "dynG: dynamic graph and hypergraph updates on GPUs"
+abstract: >-
+  dynG is a C++/CUDA library with Python bindings that keeps the results of graph and
+  hypergraph algorithms up to date while the structure changes in batches, without
+  recomputing from scratch. It unifies the research codes of DynaMOSP, DynLP,
+  ESCHER/ESCHER+, H-SOSP and TruCy/DynTruCy.
+authors:
+  - family-names: Shovan
+    given-names: S M
+    affiliation: Missouri University of Science and Technology
+license: Apache-2.0
+repository-code: "https://github.com/dyng-dev/dyng"
+url: "https://github.com/dyng-dev/dyng"
+version: 0.1.0.dev0
+keywords:
+  - dynamic graph
+  - batch update
+  - GPU
+  - CUDA
+  - hypergraph
+  - shortest paths
+  - cycle counting
+  - triad counting
+  - label propagation
+preferred-citation:
+  type: software
+  title: "dynG: dynamic graph and hypergraph updates on GPUs"
+  authors:
+    - family-names: Shovan
+      given-names: S M
+      affiliation: Missouri University of Science and Technology
+  license: Apache-2.0
+  repository-code: "https://github.com/dyng-dev/dyng"
+  url: "https://github.com/dyng-dev/dyng"
+references:
+  - type: conference-paper
+    title: "DynaMOSP: A Parallel Multi-Objective Shortest Path Update Algorithm for Fully Dynamic Networks"
+    authors:
+      - family-names: Shovan
+        given-names: S M
+      - family-names: Khanda
+        given-names: Arindam
+      - family-names: Das
+        given-names: Sajal K.
+    collection-title: "IEEE International Parallel and Distributed Processing Symposium (IPDPS)"
+    year: 2025
+  - type: article
+    title: "Parallel Multi-Objective Shortest Path Update Algorithm in Large Dynamic Networks"
+    authors:
+      - family-names: Shovan
+        given-names: S M
+      - family-names: Khanda
+        given-names: Arindam
+      - family-names: Das
+        given-names: Sajal K.
+    journal: "IEEE Transactions on Parallel and Distributed Systems"
+    volume: 36
+    issue: "5"
+    start: 932
+    end: 944
+    year: 2025
+  - type: conference-paper
+    title: "ESCHER: An Efficient and Scalable GPU Data Structure for Dynamic Hypergraph Triad Counting"
+    authors:
+      - family-names: Shovan
+        given-names: S M
+      - family-names: Khanda
+        given-names: Arindam
+      - family-names: Das
+        given-names: Sajal K.
+    collection-title: "IEEE International Parallel and Distributed Processing Symposium (IPDPS)"
+    year: 2026
+  - type: article
+    title: "ESCHER+: Memory-Efficient Dynamic Hypergraph Evolution on GPU"
+    authors:
+      - family-names: Shovan
+        given-names: S M
+      - family-names: Khanda
+        given-names: Arindam
+      - family-names: Das
+        given-names: Sajal K.
+    journal: "IEEE Transactions on Knowledge and Data Engineering"
+    year: 2026
+  - type: conference-paper
+    title: "DynLP: Parallel Dynamic Batch Update for Graph-based Label Propagation in Semi-Supervised Learning"
+    authors:
+      - family-names: Shovan
+        given-names: S M
+      - family-names: Ferdous
+        given-names: S M
+      - family-names: Khanda
+        given-names: Arindam
+      - family-names: Das
+        given-names: Sajal K.
+    collection-title: "ACM International Conference on Supercomputing (ICS)"
+    year: 2026
+  - type: conference-paper
+    title: "Parallel Shortest Hyperpath Update in Large Dynamic Hypergraphs"
+    authors:
+      - family-names: Khanda
+        given-names: Arindam
+      - family-names: Shovan
+        given-names: S M
+      - family-names: Bhowmick
+        given-names: Sanjukta
+      - family-names: Das
+        given-names: Sajal K.
+    collection-title: "Workshop on Irregular Applications: Architectures and Algorithms (IA3), SC26 Workshops"
+    year: 2026
+  - type: article
+    title: "TruCy: GPU-Accelerated Cycle Enumeration for Large-Scale Static and Dynamic Networks"
+    authors:
+      - family-names: Khanda
+        given-names: Arindam
+      - family-names: Shovan
+        given-names: S M
+      - family-names: Satpathy
+        given-names: Anurag
+      - family-names: Das
+        given-names: Sajal K.
+    journal: "IEEE Transactions on Computers"
+    status: submitted
+    year: 2026
