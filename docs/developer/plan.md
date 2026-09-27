@@ -1,10 +1,12 @@
 # Plan: the short roadmap
 
-This is the living plan of dynG in short form (PLAN Section 0.3): what the library is, the
-decisions it rests on, the milestones with their exit criteria, the risks and the open
-decisions. The full planning record (the design of every module, the per-algorithm migration
-plans, the review history) is the approved planning document of 2026-09-27; as each milestone
-starts, the part it needs moves into a design page under `docs/developer/`. Decisions that
+This is the living plan of dynG in short form: what the library is, the decisions it rests on,
+the milestones with their exit criteria, the risks and the open decisions. The full planning
+record (the design of every module, the per-algorithm migration plans, the review history) is
+the approved planning document of 2026-09-27, which is not published; as each milestone starts,
+the part it needs moves into a design page under `docs/developer/`. Maintainer records (the
+ADRs, the retrospectives, the repository-settings guide, comments in the workflows) cite it as
+"PLAN Section N"; contributor documentation does not depend on it. Decisions that
 change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in the milestone
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
@@ -57,12 +59,13 @@ sections), one style and one test kit. Each is enforced by code, tests or review
 
 ### Non-goals for 0.x
 
-Distributed memory and multi-GPU; HIP or SYCL backends; a general static analytics library
-(Gunrock and cuGraph exist); graph databases or persistence; floating-point weights for shortest
-paths; reproducing paper claims the code never implemented (the kappa-truncated TruCy search,
-incident-vertex and temporal triads, the insert-only MOSP of thesis Chapter 5, open h-motifs:
-these are roadmap items and the docs say plainly that they are missing); kNN graph construction
-(a Python recipe instead); a C API before 1.0.
+Distributed memory and multi-GPU; HIP or SYCL backends (the maintainers will not build these; a
+contributor-led proposal is welcome, see the end of Section 3); a general static analytics
+library (Gunrock and cuGraph exist); graph databases or persistence; floating-point weights for
+shortest paths; reproducing paper claims the code never implemented (the kappa-truncated TruCy
+search, incident-vertex and temporal triads, the insert-only MOSP of thesis Chapter 5, open
+h-motifs: these are roadmap items and the docs say plainly that they are missing); kNN graph
+construction (a Python recipe instead); a C API before 1.0.
 
 ### Success criteria
 
@@ -120,7 +123,7 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 
 | Milestone | Deliverables | Exit criteria | Status |
 |---|---|---|---|
-| **M0** Decisions and drafts | LICENSE, NOTICE, CITATION.cff, AUTHORS, README, provenance; the 0.0.1 package and its workflow | drafts reviewed; A1 and A3 answered | done |
+| **M0** Decisions and drafts | LICENSE, NOTICE, CITATION.cff, AUTHORS, README; the 0.0.1 package and its workflow; the provenance record | drafts reviewed; A1 and A3 answered | done (the provenance record, {doc}`provenance`, was written in M4; the NOTICE wording awaits the author's confirmation, O3 below) |
 | **M1a** Walking skeleton: CPU `sssp` | repository, presets, minimal core, `graph` (compact rows, MOSP semantics), MOSP I/O, `sssp` sequential + OpenMP, parity harness (first slice), `ci/check.sh`, `cpu.yml`, ADRs 0001/0002/0004/0006/0010/0013 | byte-identical to MOSP-OpenMP@c352151 on the small corpus; updated CSR byte-equal to `applyChangeBatch`; OpenMP A/B recorded; a retrospective with a re-estimate | **done** (495/495 golden cases byte-identical on every CPU backend) |
 | **M1b** CUDA `sssp` (fused) + performance harness | CUDA build, streams, CCCL-shaped memory resources, device buffers; resident device graph; the persistent cooperative kernel behind `enact_fused`; `generators::legacy`; `parity/perf_ab.py`; the `edge_t` benchmark (ADR 0009) | byte parity with MOSP-CUDA@e220ee2 and CUDA = OpenMP = sequential; the performance gate on roadNet-PA/CA, rgg_n_2_20_s0, road_usa | in progress |
 | **M2** `cycle_count` (parallel with M1b) | sorted-rows / set-semantics preset, the CycleEnum parser, static Johnson and the update on 3 backends, work queue, ported tests, randomized parity suites | bit-identical histograms on the golden corpus; generator identity; performance gate (DD, GitHub, Twitch, COLLAB); two recorded mutations fail | not started |
@@ -172,7 +175,7 @@ After 0.1 the plan's figures stand until the next retrospective: 0.1.x about 4-6
 
 ## 5. Risks
 
-The risks that shape the plan (PLAN Section 12.1 has all 23), with their mitigations:
+The risks that shape the plan (the planning record lists 23), with their mitigations:
 
 | Risk | Mitigation |
 |---|---|
@@ -199,7 +202,8 @@ Each has a recommended default, so work proceeds; it is recorded as an ADR when 
 | O27 | oracle of approximate algorithms | a converged reference within a tolerance derived from the stopping rule | M3 (kit), M10 |
 | O18 | governance | lead maintainer until three active maintainers | M4 |
 | O15 | changelog mechanics | hand-edited `Unreleased` until merge conflicts hurt | M4 |
-| — | milestone merges | through pull requests (PLAN 8.9), or pushed directly to `main` with a ruleset bypass (recorded in `GOVERNANCE.md`) | M4 |
+| — | milestone merges | through pull requests (the review rules of `CONTRIBUTING.md`), or pushed directly to `main` with a ruleset bypass (recorded in `GOVERNANCE.md`, which notes the interim practice) | M4 |
+| O3 | the NOTICE institution line and years | "developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors" (the draft in `NOTICE`) | before 0.1.0 |
 | O23, O28, O7 | Python floor, wheel scheme, CPU wheel | Python 3.12; CPU `dyng` + CUDA plugins; a CPU wheel from 0.1 | M5 |
 | O14 | docs hosting | Read the Docs after A4 (GitHub Pages as the fallback) | M6 |
 | O8, O17 | CUDA wheels, oldest GPU | 0.1.x as plugins; sm_75 | M6 |

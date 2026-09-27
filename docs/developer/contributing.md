@@ -12,7 +12,9 @@ root, where GitHub shows it next to every issue and pull request. It covers:
   ported files;
 - Doxygen conventions and the documentation build ({doc}`documentation`);
 - commit messages, the Developer Certificate of Origin (DCO) sign-off for external contributors;
-- the pull-request process and review rules, and how to add an algorithm or port research code.
+- the pull-request process and review rules (with the {doc}`api_review_checklist` for public API
+  changes), and how to add an algorithm or port research code (with the provenance rules,
+  {doc}`provenance`).
 
 The community files next to it: the
 [Code of Conduct](https://github.com/dyng-dev/dyng/blob/main/CODE_OF_CONDUCT.md) (Contributor

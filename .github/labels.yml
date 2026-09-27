@@ -35,7 +35,7 @@
   description: "Parity with the original research codes: differences, regressions, goldens"
 - name: "api-change"
   color: "#b60205"
-  description: "Changes the public C++ or Python API: CHANGELOG, docs and API review checklist"
+  description: "Changes the public C++ or Python API: CHANGELOG, docs, docs/developer/api_review_checklist.md"
 - name: "security"
   color: "#ee0701"
   description: "Hardening work; report vulnerabilities privately (SECURITY.md), not in issues"

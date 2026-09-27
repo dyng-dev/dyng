@@ -9,9 +9,11 @@ body:
     attributes:
       value: |
         Public API changes are reviewed before implementation: they need a CHANGELOG entry,
-        updated documentation, the API review checklist, and an ADR if the change is
-        significant (PLAN Sections 5.9 and 8.9). Until 0.1.0 the API is not frozen, but changes
-        are still discussed here first.
+        updated documentation, the
+        [API review checklist](https://github.com/dyng-dev/dyng/blob/main/docs/developer/api_review_checklist.md),
+        and an ADR if the change is significant ("Pull requests and review" in
+        [CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md)). Until
+        0.1.0 the API is not frozen, but changes are still discussed here first.
   - type: dropdown
     id: surface
     attributes:

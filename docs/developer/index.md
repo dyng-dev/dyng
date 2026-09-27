@@ -10,14 +10,16 @@ built the way it is. Start with the contributor guide, `CONTRIBUTING.md`
 
 plan
 contributing
+api_review_checklist
 documentation
 parity
+provenance
 labels
 repository_settings
 pypi_name_reservation
 retrospectives/index
 ```
 
-Planned design pages (PLAN Section 0.3), each written when the milestone that needs it starts:
-architecture, style guide, framework guide (internal-stable, M3), API guidelines and review
-checklist, performance rules, CI, packaging, release process, provenance, Python gaps.
+Planned design pages, each written when the milestone that needs it starts: architecture,
+style guide, framework guide (internal-stable, M3), API guidelines, performance rules, CI,
+packaging, release process, Python gaps.

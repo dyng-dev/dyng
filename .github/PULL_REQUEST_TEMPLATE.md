@@ -47,12 +47,12 @@ Closes #
 - [ ] **Headers:** SPDX header on every new file; `// Derived from <repo>@<commit>:<path>` on
       every ported file.
 
-### Also required for some kinds of change (PLAN Section 8.9)
+### Also required for some kinds of change (CONTRIBUTING.md, "Pull requests and review")
 
 - [ ] Kernel or hot path: benchmark table; `--resource-usage` diff for fused kernels.
 - [ ] Ported algorithm: `parity` run on the GPU machine.
 - [ ] Public API: `api-change` label, CHANGELOG entry, docs, an ADR if significant, the API
-      review checklist.
+      review checklist (`docs/developer/api_review_checklist.md`).
 - [ ] Framework or operators: an ADR; every in-tree algorithm and tutorial stays green.
 - [ ] New algorithm: discussed `new_algorithm` issue, scaffold used, maturity declared,
       CODEOWNERS entry.
