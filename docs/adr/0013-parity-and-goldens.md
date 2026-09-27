@@ -78,4 +78,6 @@ of MOSP-CUDA@e220ee2 against MOSP-OpenMP.
 - An export patch that is not purely additive, or a golden that needs a patched timing path, is
   a change of this ADR and must be recorded.
 - Until the goldens are published as a release asset (M4), the `parity` CTest label is run on
-  the author's machine only; CI runs the committed fixture subset.
+  the author's machine only (`ci/check.sh --parity`, which fails rather than skips when the
+  goldens are missing); CI runs the committed fixture subset (`cpp/tests/data`, 121 KB: the
+  apply, mtx2csr and sssp fixtures, compared byte for byte in `ctest -L cpu`).

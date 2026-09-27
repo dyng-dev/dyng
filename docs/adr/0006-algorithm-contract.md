@@ -60,7 +60,14 @@ contract is frozen with `cycle_count` in M3.
   objectives is known only at run time.
 - Each sssp result owns its workspace (about 38 bytes per vertex for the OpenMP engine), so K
   results use K workspaces where MOSP-OpenMP shares one; `mosp` (0.2) will share one across its
-  objectives.
+  objectives. The M1a OpenMP A/B measured the cost (`parity/results/M1a.md`): objectives 1 and 2
+  run at 1.03-1.06x of the original, the sum over the objectives at 0.92-0.95x, and a throw-away
+  shared workspace brought objectives 1 and 2 to 0.97-1.03x. **Open for M1b:** how results on
+  one graph share scratch memory (through `resources`, or a workspace argument of
+  `update_each`); the answer becomes part of this contract before the M3 freeze.
+- The contract is exercised by one algorithm so far (sssp, two CPU backends); M2 (`cycle_count`,
+  an aggregate-delta algorithm with oracle kind `compute`) is the second user, and M3 accepts
+  this ADR only after both run through the extracted framework.
 
 ## Alternatives rejected
 

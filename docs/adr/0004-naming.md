@@ -49,3 +49,18 @@ The rules of PLAN Section 4.4.1, enforced by clang-format, clang-tidy
   may define macros named `major` and `minor`.
 - Code ported from the originals is renamed on the way in; the mapping from original names is
   kept on each algorithm's documentation page.
+
+## Notes (M1a close-out, 2026-09-27)
+
+These notes record how the decision is enforced at the end of M1a; they do not change it.
+
+- `ci/check.sh` runs clang-tidy with only `readability-identifier-naming` (the `tidy` step) on
+  every library source under `cpp/src` and the public headers it includes, with warnings as
+  errors. The other checks listed in `.clang-tidy` (bugprone, performance, modernize) are
+  advisory until M4 wires clang-tidy into the hosted CI.
+- Test and tool sources are not checked by the `tidy` step: GoogleTest requires PascalCase
+  fixtures, and the compat driver and the parity tests keep MOSP's `K` (number of objectives) so
+  that they read side by side with the original. Library code uses `num_objectives`.
+- Ported code is renamed on the way in, including locals (for example `K` became
+  `num_objectives` in `cpp/src/graph/apply_host.cpp`); comments that quote the original keep its
+  names.
