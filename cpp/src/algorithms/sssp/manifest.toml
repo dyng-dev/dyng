@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The sssp manifest (PLAN Section 4.8). scripts/regen.py (M3) reads it; CMake does not.
+name        = "sssp"
+title       = "Dynamic single-source shortest paths"
+family      = "fixed_point"
+container   = "graph"
+tier        = "custom_engine"
+maturity    = "experimental"            # stable once the CUDA backend and the Python binding exist
+backends    = ["sequential", "openmp"]  # cuda in M1b
+determinism = "bitwise"
+oracle      = "compute"
+graph_requirements = { multi_edges = "any", row_order = "any", store_transposed = true }
+cite        = ["dynamosp2025", "dynamosptpds2025"]
+maintainers = ["SMShovan"]
+origin      = [ { repo = "MOSP-OpenMP", commit = "c352151", paths = ["src/sospUpdateCpu.cpp", "src/sequentialSOSPUpdate.cpp", "headers/listGather.h"] } ]
+
+[performance]
+compute_tolerance    = 1.05
+end_to_end_tolerance = 1.10

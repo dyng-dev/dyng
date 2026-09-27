@@ -37,5 +37,6 @@
 #include <dyng/io/csr_triplet.hpp>
 #include <dyng/io/matrix_market.hpp>
 #include <dyng/io/result_io.hpp>
+#include <dyng/sssp.hpp>
 #include <dyng/update.hpp>
 #include <dyng/version.hpp>

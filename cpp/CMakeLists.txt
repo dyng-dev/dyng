@@ -106,3 +106,7 @@ dyng_add_module(
 )
 
 dyng_add_module(NAME framework SOURCES src/framework/composition.cpp)
+
+# Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
+include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
+add_subdirectory(src/algorithms)
