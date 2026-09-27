@@ -630,7 +630,13 @@ def run(args: argparse.Namespace) -> int:
 
 def write_json(args, results, build, ref, marker, regions) -> None:
     head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
-    dirty = subprocess.run(["git", "-C", REPO, "diff", "--quiet", "HEAD"]).returncode != 0
+    # The records this script writes (parity/results/) do not make the measured code dirty.
+    dirty = (
+        subprocess.run(
+            ["git", "-C", REPO, "diff", "--quiet", "HEAD", "--", ".", ":(exclude)parity/results"]
+        ).returncode
+        != 0
+    )
     doc = {
         "schema": 2,
         "algorithm": "sssp",
