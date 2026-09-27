@@ -13,15 +13,21 @@
 #   2. checks that the copy still equals the archive (content, type and executable bit of every
 #      tracked file), so the copy is exactly the pinned commit plus build products and, for
 #      "patched", additive files;
-#   3. builds it with the original build system (`build` in references.toml), log in
-#      <name>@<commit7>/<variant>.build.log;
+#   3. builds it with the original build system (`build` in references.toml) and the host
+#      compiler `cxx` of references.toml (exported as CXX, so the Makefile's `CXX ?= g++` and the
+#      export patch cannot pick up another compiler from the environment), appending to the log
+#      <name>@<commit7>/<variant>.build.log (a header per run; earlier runs, and so the compile
+#      lines of the first build, are kept);
 #   4. for "patched": runs parity/export_patches/<export_patch>/build.sh <copy> (additive only);
 #   5. writes the archive-build check <name>@<commit7>/archive-check.txt: gitlinks that the archive
 #      leaves out, files of the original's working tree that are not in the archive (local-only
 #      inputs), absolute paths in tracked files, and the external inputs of references.toml.
 #
 # Variants: "unpatched" (performance baselines) and "patched" (goldens). The script is idempotent:
-# a second run re-verifies the copies and lets make find that nothing is out of date.
+# a second run re-verifies the copies and lets make find that nothing is out of date. The copy's
+# .dyng-reference records the build fingerprint (build command, build_env, compiler and version,
+# and nvcc's version where the build names one); if any of them changed since the copy was built,
+# make would keep the old binaries, so the script stops and asks for --fresh.
 #
 # Options:
 #   --variant unpatched|patched|both   (default both)
@@ -46,7 +52,7 @@ scratch="${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}"
 names=()
 
 usage() {
-  sed -n '5,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '5,41p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-2}"
 }
 
@@ -124,6 +130,21 @@ sys.exit(1 if bad else 0)
 ' "$3"
 }
 
+build_fingerprint() { # <build command> <cxx> [build_env...]: one "key=value" line per item
+  local build="$1" cxx="$2" nvcc
+  shift 2
+  echo "build=${build}"
+  echo "build_env=$*"
+  echo "cxx=$(command -v "${cxx}" || echo "${cxx} (not found)")"
+  echo "cxx_version=$("${cxx}" --version 2>/dev/null | head -n 1)"
+  nvcc="$(sed -nE 's/.*NVCC=([^ ]+).*/\1/p' <<<"${build}")"
+  if [ -n "${nvcc}" ]; then
+    echo "nvcc_version=$("${nvcc}" --version 2>/dev/null | tail -n 1)"
+  else
+    echo "nvcc_version=none"
+  fi
+}
+
 origin_state() { # <origin>: HEAD + status, to prove the original was not touched
   git -C "$1" rev-parse HEAD
   git -C "$1" status --porcelain=v1 --untracked-files=all
@@ -161,6 +182,23 @@ build_copy() { # <name> <variant>
     echo "${dir} was exported from another archive; use --fresh" >&2
     return 1
   fi
+  # The build fingerprint: what make cannot see.
+  local build cxx env_args=() fingerprint
+  build="$(field "${name}" build)"
+  build="${build//\{jobs\}/${jobs}}"
+  cxx="$(field "${name}" cxx)"
+  cxx="${cxx:-g++}"
+  mapfile -t env_args < <(field "${name}" build_env | sed "/^$/d")
+  fingerprint="$(build_fingerprint "${build}" "${cxx}" ${env_args[@]+"${env_args[@]}"})"
+  if [ -f "${dir}/.dyng-reference" ] &&
+    [ "$(grep -E '^(build|build_env|cxx|cxx_version|nvcc_version)=' "${dir}/.dyng-reference")" != \
+      "${fingerprint}" ]; then
+    echo "${dir} was built with another build command or toolchain:" >&2
+    diff <(grep -E '^(build|build_env|cxx|cxx_version|nvcc_version)=' "${dir}/.dyng-reference") \
+      <(echo "${fingerprint}") >&2 || true
+    echo "make would keep the old binaries; rebuild with --fresh" >&2
+    return 1
+  fi
   if [ ! -f "${dir}/.dyng-reference" ]; then
     rm -rf "${dir}"
     mkdir -p "${dir}"
@@ -171,6 +209,7 @@ build_copy() { # <name> <variant>
       echo "variant=${var}"
       echo "archive_sha256=${archive_sha}"
       echo "exported=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      echo "${fingerprint}"
     } >"${dir}/.dyng-reference"
   fi
 
@@ -180,14 +219,16 @@ build_copy() { # <name> <variant>
     return 1
   fi
 
-  # 3. Build with the original build system.
-  local build env_args=()
-  build="$(field "${name}" build)"
-  build="${build//\{jobs\}/${jobs}}"
-  mapfile -t env_args < <(field "${name}" build_env | sed "/^$/d")
+  # 3. Build with the original build system (the log is appended to, never truncated).
   mkdir -p "${base}"
-  echo "    build: ${build}"
-  if ! (cd "${dir}" && env ${env_args[@]+"${env_args[@]}"} bash -c "${build}") >"${log}" 2>&1; then
+  echo "    build: CXX=${cxx} ${build}"
+  {
+    echo
+    echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) build_reference.sh: CXX=${cxx} ${build}"
+    echo "${fingerprint}" | sed 's/^/=== /'
+  } >>"${log}"
+  if ! (cd "${dir}" && env CXX="${cxx}" ${env_args[@]+"${env_args[@]}"} bash -c "${build}") \
+    >>"${log}" 2>&1; then
     tail -n 30 "${log}" >&2
     echo "build failed: ${log}" >&2
     return 1
@@ -196,7 +237,8 @@ build_copy() { # <name> <variant>
   # 4. Additive export patch (patched copy only).
   patch="$(field "${name}" export_patch)"
   if [ "${var}" = patched ] && [ -n "${patch}" ]; then
-    if ! "${repo_root}/parity/export_patches/${patch}/build.sh" "${dir}" >>"${log}" 2>&1; then
+    if ! env CXX="${cxx}" "${repo_root}/parity/export_patches/${patch}/build.sh" "${dir}" \
+      >>"${log}" 2>&1; then
       tail -n 30 "${log}" >&2
       echo "export patch failed: ${log}" >&2
       return 1

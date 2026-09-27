@@ -20,6 +20,7 @@
 #   baseline_commit full SHA of that tag, recorded here because local tags do not travel (R22)
 #   build           build command, run inside the copy; {jobs} is replaced by the job count
 #   build_env       extra environment for the build (VAR=value strings)
+#   cxx             the host C++ compiler, exported as CXX for the build and the export patch
 #   run_env         environment every run of the reference needs
 #   export_patch    directory under parity/export_patches/ applied to the PATCHED copy only;
 #                   its build.sh receives the copy's path. "" = no patch (patched == unpatched)
@@ -38,6 +39,7 @@ baseline_tag = "baseline-2026-09"
 baseline_commit = "7284f5005e694eaa3466fd29bc0d12f7cf505a28"
 build = "make -j{jobs} all stressTest parallelStressTest"
 build_env = []
+cxx = "/usr/bin/g++"
 run_env = []
 export_patch = "MOSP-OpenMP"
 smoke_test = "make test TEST_THREADS=4"
@@ -65,6 +67,7 @@ baseline_tag = "baseline-2026-09"
 baseline_commit = "ac29545c6ff21a05901cd124ce6760644a129263"
 build = "make -j{jobs} all stressTest parallelStressTest NVCC=/usr/local/cuda-13.1/bin/nvcc"
 build_env = []
+cxx = "/usr/bin/g++"
 run_env = ["CUDA_MODULE_LOADING=EAGER"]
 export_patch = "MOSP-CUDA"
 smoke_test = "make test NVCC=/usr/local/cuda-13.1/bin/nvcc"
