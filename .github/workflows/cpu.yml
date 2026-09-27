@@ -1,0 +1,62 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# CPU build and tests on GitHub-hosted runners (PLAN Section 8.8): the cpu-only (Release) and
+# dev (Debug) presets with GCC, OpenMP on and off, `ctest -L cpu`. No GPU is needed.
+name: cpu
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/cpm
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.preset }} / gcc-${{ matrix.gcc }} / openmp=${{ matrix.openmp }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [cpu-only, dev]
+        gcc: ["12", "13"]
+        openmp: ["ON"]
+        include:
+          - preset: cpu-only
+            gcc: "13"
+            openmp: "OFF"
+    env:
+      CC: gcc-${{ matrix.gcc }}
+      CXX: g++-${{ matrix.gcc }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install compiler and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends g++-${{ matrix.gcc }}
+          python -m pip install "cmake>=3.30" ninja
+      - name: Cache CPM downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-${{ runner.os }}-${{ hashFiles('cmake/CPM.cmake', 'cmake/package-lock.cmake') }}
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }} -DDYNG_ENABLE_OPENMP=${{ matrix.openmp }}
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }} -L cpu

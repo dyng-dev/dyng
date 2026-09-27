@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Doxygen on the public headers (PLAN Section 9.1). Run from the repository root through
+# ci/docs.sh, which sets DYNG_DOXYGEN_OUTPUT and DYNG_GENERATED_INCLUDE. Warnings are errors:
+# every public entity needs @brief, @param/@tparam, @return and @throws where they apply.
+# The Sphinx/Breathe site (M5) consumes the XML output.
+
+PROJECT_NAME           = dynG
+PROJECT_BRIEF          = "dynamic graph and hypergraph updates on GPUs"
+OUTPUT_DIRECTORY       = $(DYNG_DOXYGEN_OUTPUT)
+INPUT                  = cpp/include/dyng $(DYNG_GENERATED_INCLUDE)
+FILE_PATTERNS          = *.hpp
+RECURSIVE              = YES
+STRIP_FROM_PATH        = cpp/include $(DYNG_GENERATED_INCLUDE)
+STRIP_FROM_INC_PATH    = cpp/include $(DYNG_GENERATED_INCLUDE)
+EXCLUDE_SYMBOLS        = dyng::detail dyng::detail::* detail
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+HIDE_UNDOC_MEMBERS     = NO
+BUILTIN_STL_SUPPORT    = YES
+JAVADOC_AUTOBRIEF      = NO
+MARKDOWN_SUPPORT       = YES
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_XML           = YES
+ALIASES                = "sync=@par Synchronization:^^Blocks until the work has completed (synchronous)." \
+                         "async=@par Synchronization:^^Stream-ordered; returns before the work completes (asynchronous)." \
+                         "backends=@par Backends:^^" \
+                         "determinism=@par Determinism:^^" \
+                         "paper=@par Paper:^^"
