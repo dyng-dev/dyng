@@ -34,3 +34,5 @@ __pycache__/
 *.pdf
 /datasets/cache/
 /parity/goldens/
+# ...except the tiny test fixtures (cpp/tests/data stays < 1 MB in total)
+!/cpp/tests/data/**/*.mtx
