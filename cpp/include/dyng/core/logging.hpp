@@ -56,8 +56,11 @@ void set_log_level(log_level level) noexcept;
 
 /**
  * @brief Replace the log sink.
- * @param[in] sink The new sink; an empty function restores the default stderr sink. The sink may
- *                 be called from any thread, one call at a time.
+ * The sink is called without any library lock held, so it may itself log or call other dynG
+ * functions, and it may be called concurrently from several threads (it must be thread-safe, or
+ * serialize itself). A call that is running when the sink is replaced finishes with the old sink.
+ * @param[in] sink The new sink; an empty function restores the default stderr sink (which writes
+ *                 whole lines under its own lock).
  * @ingroup core
  */
 void set_log_sink(log_sink sink);

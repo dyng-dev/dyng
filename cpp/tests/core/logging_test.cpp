@@ -5,6 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <future>
 #include <string>
 #include <utility>
 #include <vector>
@@ -74,4 +76,40 @@ TEST_F(Logging, EmptySinkRestoresDefault) {
   dyng::set_log_sink({});
   dyng::set_log_level(dyng::log_level::off);
   EXPECT_NO_THROW(dyng::log_message(dyng::log_level::error, "not printed"));
+}
+
+TEST_F(Logging, SinkMayLogAgain) {
+  // A sink that logs (for example a forwarding sink whose handler calls back into dynG) must not
+  // deadlock: the sink runs without the library's lock.
+  dyng::set_log_level(dyng::log_level::info);
+  int depth = 0;
+  dyng::set_log_sink([this, &depth](dyng::log_level level, std::string_view message) {
+    captured_.emplace_back(level, std::string(message));
+    if (depth++ == 0) {
+      dyng::log_message(dyng::log_level::info, "nested");
+    }
+  });
+  auto logged =
+      std::async(std::launch::async, [] { dyng::log_message(dyng::log_level::warn, "outer"); });
+  ASSERT_EQ(logged.wait_for(std::chrono::seconds(10)), std::future_status::ready)
+      << "a sink that logs deadlocked";
+  logged.get();
+  ASSERT_EQ(captured_.size(), 2U);
+  EXPECT_EQ(captured_[0].second, "outer");
+  EXPECT_EQ(captured_[1].second, "nested");
+}
+
+TEST_F(Logging, SinkMayReplaceItself) {
+  dyng::set_log_level(dyng::log_level::info);
+  dyng::set_log_sink([this](dyng::log_level level, std::string_view message) {
+    captured_.emplace_back(level, std::string(message));
+    dyng::set_log_sink([this](dyng::log_level, std::string_view) {
+      captured_.emplace_back(dyng::log_level::error, "second sink");
+    });
+  });
+  dyng::log_message(dyng::log_level::info, "first");
+  dyng::log_message(dyng::log_level::info, "again");
+  ASSERT_EQ(captured_.size(), 2U);
+  EXPECT_EQ(captured_[0].second, "first");
+  EXPECT_EQ(captured_[1].second, "second sink");
 }

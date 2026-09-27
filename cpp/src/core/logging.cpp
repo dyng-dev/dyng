@@ -11,6 +11,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -36,9 +37,12 @@ std::atomic<log_level>& level_storage() noexcept {
   return level;
 }
 
+// The sink is held through a shared_ptr: log_message() copies the pointer under the mutex and
+// calls the sink after unlocking, so a sink may log again (or take other locks, such as the
+// Python GIL) without deadlocking on this mutex. A sink replaced while a call runs finishes it.
 struct sink_storage {
   std::mutex mutex;
-  log_sink sink;
+  std::shared_ptr<const log_sink> sink;
 };
 
 sink_storage& sink_state() {
@@ -47,6 +51,9 @@ sink_storage& sink_state() {
 }
 
 void default_sink(log_level level, std::string_view message) {
+  // One line per message; its own mutex keeps concurrent lines whole.
+  static std::mutex stderr_mutex;
+  std::scoped_lock lock(stderr_mutex);
   std::cerr << "[dyng] " << to_string(level) << ": " << message << '\n';
 }
 
@@ -62,8 +69,11 @@ log_level get_log_level() noexcept {
 
 void set_log_sink(log_sink sink) {
   auto& state = sink_state();
+  std::shared_ptr<const log_sink> next =
+      sink ? std::make_shared<const log_sink>(std::move(sink)) : nullptr;
   std::scoped_lock lock(state.mutex);
-  state.sink = std::move(sink);
+  state.sink.swap(next);
+  // `next` (the old sink) is released after unlocking.
 }
 
 bool log_enabled(log_level level) noexcept {
@@ -75,9 +85,14 @@ void log_message(log_level level, std::string_view message) {
     return;
   }
   auto& state = sink_state();
-  std::scoped_lock lock(state.mutex);
-  if (state.sink) {
-    state.sink(level, message);
+  std::shared_ptr<const log_sink> sink;
+  {
+    std::scoped_lock lock(state.mutex);
+    sink = state.sink;
+  }
+  // Called without holding the mutex (the sink may re-enter the library).
+  if (sink) {
+    (*sink)(level, message);
   } else {
     default_sink(level, message);
   }
