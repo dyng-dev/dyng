@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The documentation site (PLAN Sections 8.8 and 9.2) on GitHub-hosted runners: Doxygen on the
+# public headers, the Sphinx site (MyST + pydata-sphinx-theme + Breathe) with warnings as errors,
+# and the internal link check, all through ci/docs.sh, the same command as the local gate. The
+# tools come from environment.yml (the exact versions of the local environment and of
+# .readthedocs.yaml), installed with micromamba. The built site is uploaded as the artifact
+# `docs-html` (open index.html after downloading it); hosting on Read the Docs starts at approval
+# checkpoint A4 (docs/developer/repository_settings.md).
+#
+# The external links (GitHub, PyPI, papers) are checked weekly and on demand only, in a job that
+# is not a required check: their availability is not a property of a pull request.
+name: docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"  # Mondays 05:17 UTC: the external link check
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  site:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -el {0}  # a login shell activates the micromamba environment
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the tools of environment.yml
+        uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39  # v3.2.1
+        with:
+          micromamba-version: 2.9.0-0
+          environment-file: environment.yml
+          cache-environment: true
+          post-cleanup: all
+      - name: Tool versions
+        run: |
+          doxygen --version
+          python -m sphinx --version
+          python -c "import breathe, myst_parser, pydata_sphinx_theme as t; print('breathe', breathe.__version__, '| myst-parser', myst_parser.__version__, '| pydata-sphinx-theme', t.__version__)"
+      - name: Configure (generates version.hpp / config.hpp; nothing is compiled)
+        run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF -DDYNG_BUILD_EXAMPLES=OFF -DDYNG_BUILD_TOOLS=OFF
+      - name: Doxygen, Sphinx (-W) and the internal link check
+        run: ci/docs.sh
+      - name: Upload the site
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: docs-html
+          path: build/docs/html
+          if-no-files-found: error
+          retention-days: 14
+
+  external-links:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the tools of environment.yml
+        uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39  # v3.2.1
+        with:
+          micromamba-version: 2.9.0-0
+          environment-file: environment.yml
+          cache-environment: true
+          post-cleanup: all
+      - name: Configure (generates version.hpp / config.hpp; nothing is compiled)
+        run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF -DDYNG_BUILD_EXAMPLES=OFF -DDYNG_BUILD_TOOLS=OFF
+      - name: Link check including external links
+        env:
+          DYNG_LINKCHECK_EXTERNAL: "1"
+        run: ci/docs.sh
