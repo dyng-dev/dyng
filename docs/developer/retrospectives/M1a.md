@@ -141,6 +141,12 @@ milestone summary and the re-estimate of the roadmap.
 - Distance / tree files: `io::read_distances<std::int64_t>`, `io::read_parents<vertex_t>`,
   `io::write_distances`, `io::write_parents` are byte-compatible with MOSP.
 
+### Process note
+
+- The fresh-clone run of `ci/check.sh` caught two fixture inputs that the repository-wide `*.mtx`
+  ignore rule had hidden (commit `208a593` exempts `cpp/tests/data`). Always run the gate in a
+  fresh clone before reporting a step as done.
+
 ### Open items
 
 - The text CSR reader is ~35 % slower than MOSP's (sequential vs three files in parallel). It is
