@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from MOSP-CUDA@e220ee2:src/csrGraph.cu (readCsrGraph, readIntFile, readValuesFile) and
-// MOSP-OpenMP@c352151:src/csrGraph.cpp (writeCsrGraph)
+// MOSP-OpenMP@c352151:src/csrGraph.cpp (writeCsrGraph, runConcurrently)
 /**
  * @file csr_triplet.cpp
  * @brief The MOSP text CSR reader and writer.
  */
 #include "graph/instantiate.hpp"
+#include "util/concurrent.hpp"
 #include "util/parser.hpp"
 #include "util/text_writer.hpp"
 
@@ -14,6 +15,7 @@
 #include <dyng/core/memory.hpp>
 #include <dyng/io/csr_triplet.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -23,115 +25,201 @@
 
 namespace dyng::io {
 
+namespace {
+
+// The strict readers of the three files, one after the other: the reference semantics, and the
+// error path of read_csr_triplet() (which re-runs them to report the exact first error).
+
+/// RowPtr: n + 1 non-decreasing offsets from 0.
+template <typename vertex_t, typename edge_t>
+std::vector<edge_t> read_row_ptr(const std::string& path) {
+  std::vector<edge_t> row_ptr;
+  const std::string text = detail::read_file(path);
+  detail::text_scanner scanner(text, path);
+  detail::token tok;
+  while (scanner.next_token(tok)) {
+    const auto value = detail::parse_integer<edge_t>(scanner, tok, 0,
+                                                     detail::max_as_int64<edge_t>(), "row offset");
+    if (row_ptr.empty() && value != 0) {
+      scanner.fail(tok, "the first row offset must be 0");
+    }
+    if (!row_ptr.empty() && value < row_ptr.back()) {
+      scanner.fail(tok, "row offsets must not decrease (" + std::to_string(value) + " after " +
+                            std::to_string(row_ptr.back()) + ")");
+    }
+    row_ptr.push_back(value);
+  }
+  if (row_ptr.size() < 2) {
+    detail::throw_io_error(path, 0, 0, "a CSR needs at least 2 row offsets (one vertex)");
+  }
+  if (static_cast<std::int64_t>(row_ptr.size() - 1) > detail::max_as_int64<vertex_t>()) {
+    detail::throw_io_error(path, 0, 0, "too many vertices for the vertex id type");
+  }
+  return row_ptr;
+}
+
+/// ColInd: m neighbours in [0, n).
+template <typename vertex_t>
+std::vector<vertex_t> read_col_ind(const std::string& path, std::int64_t n, std::size_t m) {
+  std::vector<vertex_t> col_ind;
+  const std::string text = detail::read_file(path);
+  detail::text_scanner scanner(text, path);
+  detail::token tok;
+  col_ind.reserve(m);
+  while (scanner.next_token(tok)) {
+    if (col_ind.size() == m) {
+      scanner.fail(tok, "more column indices than the " + std::to_string(m) +
+                            " edges announced by the row offsets");
+    }
+    col_ind.push_back(detail::parse_integer<vertex_t>(scanner, tok, 0, n - 1, "column index"));
+  }
+  if (col_ind.size() != m) {
+    detail::throw_io_error(path, 0, 0,
+                           std::to_string(col_ind.size()) +
+                               " column indices, but the row "
+                               "offsets announce " +
+                               std::to_string(m) + " edges");
+  }
+  return col_ind;
+}
+
+/// The edge-major weights of Values and K.
+template <typename weight_t>
+struct value_lines {
+  std::vector<weight_t> edge_major;  ///< lines * K weights, line by line
+  std::size_t lines = 0;             ///< non-blank lines
+  int num_weights = 0;               ///< K (0: no non-blank line)
+};
+
+/// Values: one line of K weights per edge. With `m` = SIZE_MAX the line count is not checked
+/// against m (the concurrent pass, which does not know m yet); the caller checks it afterwards.
+template <typename weight_t>
+value_lines<weight_t> read_values(const std::string& path, std::size_t m, int num_weights) {
+  constexpr std::size_t unknown = std::numeric_limits<std::size_t>::max();
+  value_lines<weight_t> out;
+  const std::string text = detail::read_file(path);
+  detail::text_scanner scanner(text, path);
+  detail::token tok;
+  int k_count = num_weights;
+  const auto weight_max = detail::max_as_int64<weight_t>();
+  while (scanner.next_line()) {
+    int on_line = 0;
+    while (scanner.next_in_line(tok)) {
+      if (k_count > 0 && on_line == k_count) {
+        scanner.fail(tok, "more than " + std::to_string(k_count) + " weights on the line");
+      }
+      out.edge_major.push_back(
+          detail::parse_integer<weight_t>(scanner, tok, 1, weight_max, "weight"));
+      ++on_line;
+    }
+    if (on_line == 0) {
+      continue;
+    }
+    if (k_count == 0) {
+      k_count = on_line;
+      if (m != unknown) {
+        out.edge_major.reserve(m * static_cast<std::size_t>(k_count));
+      } else {
+        // One weight line per newline at most: a cheap upper bound for the concurrent pass.
+        const auto newlines =
+            static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n') + 1);
+        out.edge_major.reserve(newlines * static_cast<std::size_t>(k_count));
+      }
+    } else if (on_line != k_count) {
+      scanner.fail_line(std::to_string(on_line) + " weights on the line, expected " +
+                        std::to_string(k_count));
+    }
+    if (++out.lines > m) {
+      scanner.fail_line("more weight lines than the " + std::to_string(m) + " edges");
+    }
+  }
+  if (m != unknown && out.lines != m) {
+    detail::throw_io_error(path, 0, 0,
+                           std::to_string(out.lines) + " weight lines, but the graph has " +
+                               std::to_string(m) + " edges");
+  }
+  if (m != unknown && k_count == 0) {
+    detail::throw_io_error(path, 0, 0,
+                           "the graph has no edges, so the number of weight columns cannot be "
+                           "inferred; set csr_triplet_options::num_weights");
+  }
+  out.num_weights = k_count;
+  return out;
+}
+
+}  // namespace
+
+// The three files are read and parsed concurrently, as MOSP's readCsrGraph() does
+// (detail::run_concurrently, a port of runConcurrently). The concurrent pass cannot check what
+// depends on another file (the column range needs n, the counts need m); those checks run
+// afterwards, and on ANY problem the strict
+// sequential readers above run again, so the result and the first reported error (RowPtr, then
+// ColInd, then Values) are exactly those of reading the files one after the other.
 template <typename vertex_t, typename edge_t, typename weight_t>
 csr<vertex_t, edge_t, weight_t> read_csr_triplet(const std::string& prefix,
                                                  const csr_triplet_options& options) {
   static_assert(std::is_integral_v<weight_t>, "read_csr_triplet needs integral weights");
   DYNG_EXPECTS(options.num_weights >= 0, "csr_triplet_options::num_weights must be >= 0, got ",
                options.num_weights);
-  csr<vertex_t, edge_t, weight_t> out;
-  detail::token tok;
+  constexpr std::size_t unknown = std::numeric_limits<std::size_t>::max();
+  const std::string rows_path = prefix + "RowPtr.txt";
+  const std::string cols_path = prefix + "ColInd.txt";
+  const std::string values_path = prefix + "Values.txt";
 
-  // --- RowPtr: n + 1 non-decreasing offsets from 0 ------------------------------------------------
-  {
-    const std::string path = prefix + "RowPtr.txt";
-    const std::string text = detail::read_file(path);
-    detail::text_scanner scanner(text, path);
-    while (scanner.next_token(tok)) {
-      const auto value = detail::parse_integer<edge_t>(
-          scanner, tok, 0, detail::max_as_int64<edge_t>(), "row offset");
-      if (out.row_ptr.empty() && value != 0) {
-        scanner.fail(tok, "the first row offset must be 0");
-      }
-      if (!out.row_ptr.empty() && value < out.row_ptr.back()) {
-        scanner.fail(tok, "row offsets must not decrease (" + std::to_string(value) + " after " +
-                              std::to_string(out.row_ptr.back()) + ")");
-      }
-      out.row_ptr.push_back(value);
-    }
-    if (out.row_ptr.size() < 2) {
-      detail::throw_io_error(path, 0, 0, "a CSR needs at least 2 row offsets (one vertex)");
-    }
-    if (static_cast<std::int64_t>(out.row_ptr.size() - 1) > detail::max_as_int64<vertex_t>()) {
-      detail::throw_io_error(path, 0, 0, "too many vertices for the vertex id type");
-    }
-  }
+  csr<vertex_t, edge_t, weight_t> out;
+  std::vector<vertex_t> cols;
+  bool cols_ok = false;
+  value_lines<weight_t> values;
+  bool values_ok = false;
+  detail::run_concurrently({
+      [&] { out.row_ptr = read_row_ptr<vertex_t, edge_t>(rows_path); },
+      [&] {
+        try {
+          const std::string text = detail::read_file(cols_path);
+          detail::text_scanner scanner(text, cols_path);
+          detail::token tok;
+          cols.reserve(static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n') + 1));
+          while (scanner.next_token(tok)) {
+            cols.push_back(detail::parse_integer<vertex_t>(
+                scanner, tok, 0, detail::max_as_int64<vertex_t>(), "column index"));
+          }
+          cols_ok = true;
+        } catch (const io_error&) {
+          cols_ok = false;  // the strict reader reports it (after any RowPtr error)
+        }
+      },
+      [&] {
+        try {
+          values = read_values<weight_t>(values_path, unknown, options.num_weights);
+          values_ok = true;
+        } catch (const io_error&) {
+          values_ok = false;
+        }
+      },
+  });  // rethrows a RowPtr error (the only job that throws io_error)
   const auto n = static_cast<std::int64_t>(out.row_ptr.size() - 1);
   const auto m = static_cast<std::size_t>(out.row_ptr.back());
 
-  // --- ColInd: m neighbours in [0, n) -------------------------------------------------------------
-  {
-    const std::string path = prefix + "ColInd.txt";
-    const std::string text = detail::read_file(path);
-    detail::text_scanner scanner(text, path);
-    out.col_ind.reserve(m);
-    while (scanner.next_token(tok)) {
-      if (out.col_ind.size() == m) {
-        scanner.fail(tok, "more column indices than the " + std::to_string(m) +
-                              " edges announced by the row offsets");
+  cols_ok = cols_ok && cols.size() == m;
+  if (cols_ok) {
+    for (const vertex_t v : cols) {
+      if (static_cast<std::int64_t>(v) >= n) {
+        cols_ok = false;
+        break;
       }
-      out.col_ind.push_back(
-          detail::parse_integer<vertex_t>(scanner, tok, 0, n - 1, "column index"));
-    }
-    if (out.col_ind.size() != m) {
-      detail::throw_io_error(path, 0, 0,
-                             std::to_string(out.col_ind.size()) +
-                                 " column indices, but the row "
-                                 "offsets announce " +
-                                 std::to_string(m) + " edges");
     }
   }
+  out.col_ind = cols_ok ? std::move(cols) : read_col_ind<vertex_t>(cols_path, n, m);
 
-  // --- Values: one line of K weights per edge ------------------------------------------------------
-  {
-    const std::string path = prefix + "Values.txt";
-    const std::string text = detail::read_file(path);
-    detail::text_scanner scanner(text, path);
-    int k_count = options.num_weights;
-    std::vector<weight_t> edge_major;
-    std::size_t lines = 0;
-    const auto weight_max = detail::max_as_int64<weight_t>();
-    while (scanner.next_line()) {
-      int on_line = 0;
-      while (scanner.next_in_line(tok)) {
-        if (k_count > 0 && on_line == k_count) {
-          scanner.fail(tok, "more than " + std::to_string(k_count) + " weights on the line");
-        }
-        edge_major.push_back(
-            detail::parse_integer<weight_t>(scanner, tok, 1, weight_max, "weight"));
-        ++on_line;
-      }
-      if (on_line == 0) {
-        continue;
-      }
-      if (k_count == 0) {
-        k_count = on_line;
-        edge_major.reserve(m * static_cast<std::size_t>(k_count));
-      } else if (on_line != k_count) {
-        scanner.fail_line(std::to_string(on_line) + " weights on the line, expected " +
-                          std::to_string(k_count));
-      }
-      if (++lines > m) {
-        scanner.fail_line("more weight lines than the " + std::to_string(m) + " edges");
-      }
-    }
-    if (lines != m) {
-      detail::throw_io_error(path, 0, 0,
-                             std::to_string(lines) + " weight lines, but the graph has " +
-                                 std::to_string(m) + " edges");
-    }
-    if (k_count == 0) {
-      detail::throw_io_error(path, 0, 0,
-                             "the graph has no edges, so the number of weight columns cannot be "
-                             "inferred; set csr_triplet_options::num_weights");
-    }
-    out.num_weights = k_count;
-    const auto k = static_cast<std::size_t>(k_count);
-    out.weights.resize(m * k);
-    for (std::size_t e = 0; e < m; ++e) {
-      for (std::size_t c = 0; c < k; ++c) {
-        out.weights[c * m + e] = edge_major[e * k + c];
-      }
+  if (!values_ok || values.lines != m || values.num_weights == 0) {
+    values = read_values<weight_t>(values_path, m, options.num_weights);  // throws the error
+  }
+  out.num_weights = values.num_weights;
+  const auto k = static_cast<std::size_t>(values.num_weights);
+  out.weights.resize(m * k);
+  for (std::size_t e = 0; e < m; ++e) {
+    for (std::size_t c = 0; c < k; ++c) {
+      out.weights[c * m + e] = values.edge_major[e * k + c];
     }
   }
   return out;

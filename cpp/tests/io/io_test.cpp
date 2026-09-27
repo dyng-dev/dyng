@@ -122,6 +122,53 @@ TEST_F(CsrTriplet, RejectsStructuralErrors) {
                dyng::invalid_argument_error);
 }
 
+// The three files are parsed concurrently; the reported error must still be the first one in
+// file order (RowPtr, ColInd, Values) with the exact location, as if read one after the other.
+TEST_F(CsrTriplet, ReportsTheFirstErrorInFileOrder) {
+  using dyng::io::read_csr_triplet;
+  const auto read = [](const std::string& prefix) {
+    return expect_io_error(
+        [&] { (void)read_csr_triplet<std::int32_t, std::int32_t, std::int32_t>(prefix); });
+  };
+  // Every file is wrong: the RowPtr error wins.
+  auto e = read(write_graph("0\n2\n1\n2\n", "4 5\n2 x\n", "1\n9\n"));
+  EXPECT_EQ(e.path(), tmp_.path("g0/graphCsrRowPtr.txt"));
+  EXPECT_EQ(e.line(), 3);
+  // ColInd and Values are wrong: the ColInd error, with the range [0, n - 1] of the row offsets.
+  e = read(write_graph("0\n1\n2\n2\n", "4 5\n2 x\n", "1\n3\n"));
+  EXPECT_EQ(e.path(), tmp_.path("g1/graphCsrColInd.txt"));
+  EXPECT_EQ(e.line(), 2);
+  EXPECT_EQ(e.column(), 1);
+  EXPECT_NE(std::string(e.what()).find("[0, 2]"), std::string::npos) << e.what();
+  // One column index too many: reported at the extra token.
+  e = read(write_graph("0\n1\n2\n2\n", "4 5\n2 7\n", "1\n2\n0\n"));
+  EXPECT_EQ(e.path(), tmp_.path("g2/graphCsrColInd.txt"));
+  EXPECT_EQ(e.line(), 3);
+  // One weight line too many: reported at that line, although its weights parse.
+  e = read(write_graph("0\n1\n2\n2\n", "4 5\n2 7\n1 1\n"));
+  EXPECT_EQ(e.path(), tmp_.path("g3/graphCsrValues.txt"));
+  EXPECT_EQ(e.line(), 3);
+  // A larger valid graph read concurrently equals the expected arrays.
+  std::string rows = "0\n";
+  std::string cols;
+  std::string values;
+  for (int v = 0; v < 1000; ++v) {
+    rows += std::to_string(v + 1) + "\n";
+    cols += std::to_string((v * 7 + 1) % 1000) + "\n";
+    values += std::to_string(v + 1) + " " + std::to_string(1000 - v) + "\n";
+  }
+  rows += "1000\n";
+  const auto c =
+      read_csr_triplet<std::int32_t, std::int32_t, std::int32_t>(write_graph(rows, values, cols));
+  ASSERT_EQ(c.num_vertices(), 1001);
+  ASSERT_EQ(c.num_edges(), 1000);
+  for (int e2 = 0; e2 < 1000; ++e2) {
+    EXPECT_EQ(c.col_ind[static_cast<std::size_t>(e2)], (e2 * 7 + 1) % 1000);
+    EXPECT_EQ(c.weights[static_cast<std::size_t>(e2)], e2 + 1);
+    EXPECT_EQ(c.weights[static_cast<std::size_t>(1000 + e2)], 1000 - e2);
+  }
+}
+
 TEST_F(CsrTriplet, BlankLinesAndCarriageReturnsAreAccepted) {
   const auto prefix = write_graph("0\r\n1 \n\n2\n2\n", "\n4 5\r\n\n 2\t7 \n\n", "1\n\n2");
   const auto c = dyng::io::read_csr_triplet<std::int32_t, std::int32_t, std::int32_t>(prefix);

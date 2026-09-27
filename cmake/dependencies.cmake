@@ -10,6 +10,10 @@ if(DYNG_ENABLE_OPENMP)
   find_package(OpenMP REQUIRED COMPONENTS CXX)
 endif()
 
+# Threads: the text readers parse files concurrently (std::async). Linked PRIVATELY into dyng.
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 # Test-only dependencies.
 if(DYNG_BUILD_TESTS)
   include("${CMAKE_CURRENT_LIST_DIR}/CPM.cmake")

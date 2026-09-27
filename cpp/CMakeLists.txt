@@ -50,6 +50,7 @@ target_include_directories(
     $<BUILD_INTERFACE:${DYNG_GENERATED_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+target_link_libraries(dyng PRIVATE Threads::Threads)
 if(DYNG_ENABLE_OPENMP)
   target_link_libraries(dyng PRIVATE OpenMP::OpenMP_CXX)
 endif()
