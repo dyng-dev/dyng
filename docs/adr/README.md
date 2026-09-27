@@ -10,8 +10,9 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0001](0001-name.md) | Name: dynG | Accepted |
 | [0002](0002-license-and-credit.md) | License and credit | Accepted |
 | [0004](0004-naming.md) | Naming conventions | Accepted |
+| [0010](0010-batch-and-graph-semantics.md) | Batch and graph semantics | Proposed (M1a draft) |
 | [0014](0014-approval-checkpoints.md) | Approval checkpoints | Accepted |
 
 Planned (PLAN Section 12.3): 0003 language and toolkit floors, 0005 layout, 0006 algorithm
-contract, 0007 framework, 0008 backends, 0009 default index types, 0010 batch and graph
-semantics, 0011 Python, 0012 versioning and stability, 0013 parity and goldens.
+contract, 0007 framework, 0008 backends, 0009 default index types, 0011 Python, 0012 versioning
+and stability, 0013 parity and goldens.
