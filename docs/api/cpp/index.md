@@ -19,5 +19,6 @@ testing
 ```
 
 The conventions every entry follows (a one-line brief, every parameter and exception, the
-synchronization, backends, determinism and paper paragraphs) are PLAN Section 9.1; Doxygen runs
+synchronization, backends, determinism and paper paragraphs) are in "Documentation and Doxygen" of
+[CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md); Doxygen runs
 with warnings as errors and `ci/doxygen_coverage.py` checks the rest.

@@ -52,7 +52,8 @@ of `sssp` and the project infrastructure (this site, CI, community files) are be
 
 ## Not planned
 
-- Distributed memory or multi-GPU; HIP or SYCL backends.
+- Distributed memory, multi-GPU, and HIP or SYCL backends: the maintainers will not build them,
+  but a contributor-led proposal is welcome (below).
 - A general static graph analytics library: static `compute()` exists as the baseline and the
   oracle, not as a competitor to cuGraph or Gunrock.
 - Graph databases, persistence and transactions.
@@ -66,9 +67,11 @@ of `sssp` and the project infrastructure (this site, CI, community files) are be
 
 ## Open to contributors
 
-Each of these starts with the
+Each algorithm below starts with the
 [new algorithm](https://github.com/dyng-dev/dyng/issues/new?template=new_algorithm.yml) issue
-form, and the `good first issue` labels mark smaller entry points ({doc}`developer/labels`):
+form, and a backend with the
+[feature request](https://github.com/dyng-dev/dyng/issues/new?template=feature.yml) form; the
+`good first issue` labels mark smaller entry points ({doc}`developer/labels`):
 
 - the kappa-truncated cycle search, as an explicitly approximate mode;
 - time-window and temporal cycle *updates*;
@@ -76,4 +79,6 @@ form, and the `good first issue` labels mark smaller entry points ({doc}`develop
 - incident-vertex and temporal triads (THyMe+); open h-motifs;
 - new dynamic algorithms: k-core, connected components, PageRank, BFS;
 - an OpenMP backend for an algorithm that has only a sequential one; new file readers;
-- a HIP backend, and multi-GPU if a research need appears.
+- a HIP backend (a new backend tag next to `sequential`, `openmp` and `cuda`), and multi-GPU if a
+  research need appears: the maintainers review and maintain a contributor-led backend, but will
+  not write one.

@@ -13,7 +13,7 @@ run_parity
 build_the_docs
 ```
 
-Planned (PLAN Section 9.2), written with the code they describe: streams and memory (with an
+Planned, written with the code they describe: streams and memory (with an
 RMM pool), reproduce a paper, use from PyTorch or CuPy, **add an algorithm**, **port research
 code**, add an operator, add a backend, add a file format, benchmark and read the performance
 gates, debug CUDA (sanitizers, NVTX), and release.

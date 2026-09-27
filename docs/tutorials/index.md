@@ -8,7 +8,7 @@ Lessons that take you through a complete task, step by step.
 sssp_mosp_files
 ```
 
-Planned (PLAN Section 9.2), each written when its code exists:
+Planned, each written when its code exists:
 
 | Tutorial | Release |
 |---|---|

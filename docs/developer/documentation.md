@@ -8,7 +8,7 @@ The site follows the Diataxis structure. Put a page where its reader looks for i
 | `docs/tutorials/` | tutorials | teaches by doing a complete task, step by step |
 | `docs/how_to/` | how-to guides | solves one task for a reader who knows the basics |
 | `docs/concepts/` | explanation | explains a design and the reasons for it |
-| `docs/algorithms/` | reference | one page per algorithm, with the nine required sections (PLAN Section 9.5) |
+| `docs/algorithms/` | reference | one page per algorithm, with the nine required sections (see `docs/algorithms/sssp.md`) |
 | `docs/api/` | reference | the C++ API (generated), file formats |
 | `docs/developer/` | developer | the plan, design pages, guides for maintainers, retrospectives |
 | `docs/adr/` | decisions | one ADR per decision (`NNNN-title.md`) |
@@ -40,7 +40,7 @@ The site follows the Diataxis structure. Put a page where its reader looks for i
 `docs/api/cpp/` has one page per Doxygen group (`@defgroup` / `@ingroup`), rendered with
 `doxygengroup`. A new public header must belong to a group; a new group needs a page there
 (the build warns about a group without a page). The documentation of every entity comes from the
-header's Doxygen comments, written to the conventions of PLAN Section 9.1 (a one-line `@brief`,
+header's Doxygen comments, written to the conventions of CONTRIBUTING.md (a one-line `@brief`,
 every parameter and exception, `@sync` / `@async`, and `@backends`, `@determinism`, `@paper` on
 `compute()` and `update()`); Doxygen runs with warnings as errors and
 `ci/doxygen_coverage.py` checks the rest.

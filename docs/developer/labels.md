@@ -1,7 +1,7 @@
 # Labels
 
 Issues and pull requests are labelled by **kind**, **status**, **area** and **backend**, and
-contributors find work through the **good-first-issue** labels (PLAN Section 10.2). The labels
+contributors find work through the **good-first-issue** labels. The labels
 are defined in `.github/labels.yml`, the single source of truth: the `labels` workflow
 (`.github/workflows/labels.yml`) applies that file to the repository on every push to `main`
 that changes it, and shows the changes as a dry run on pull requests. To add, change or rename
@@ -12,7 +12,10 @@ every label an issue form applies is defined.
 
 ## Kind
 
-Exactly one kind per issue; the issue forms set it.
+Every issue has at least one kind, and the issue forms set it. Most issues have exactly one;
+`port`, `parity` and `api-change` say *what* is affected and may come on top of another kind
+(the *Parity regression* form sets `bug` and `parity`; a maintainer may add `api-change` to an
+`enhancement`).
 
 | Label | Meaning | Set by |
 |---|---|---|
@@ -24,7 +27,7 @@ Exactly one kind per issue; the issue forms set it.
 | `new-algorithm` | a new dynamic algorithm | *New algorithm* form |
 | `port` | porting research code into dynG | *Port research code* form |
 | `parity` | parity with the original research codes | *Parity regression* form, maintainers |
-| `api-change` | changes the public C++ or Python API; required on such pull requests (PLAN Section 8.9) | *API change* form, maintainers |
+| `api-change` | changes the public C++ or Python API; required on such pull requests, with the {doc}`api_review_checklist` | *API change* form, maintainers |
 | `security` | hardening work (vulnerabilities are reported privately, see SECURITY.md) | maintainers |
 | `dependencies`, `github_actions` | dependency updates | dependabot |
 
@@ -54,8 +57,8 @@ why those two keep GitHub's standard names.
 | `good-first-issue:docs` | documentation | a how-to guide, an example, a clarified page |
 | `help wanted` | larger tasks | where outside help is welcome; see the roadmap |
 
-At every release the maintainers curate a backlog of good first issues. The seeds (PLAN Section
-10.2): StatHyper-style Ops; a CPU incremental `triad_count`; an OpenMP `label_propagation`;
+At every release the maintainers curate a backlog of good first issues. The seeds:
+StatHyper-style Ops; a CPU incremental `triad_count`; an OpenMP `label_propagation`;
 time-window cycle updates; the temporal and incident-vertex triads; a dynamic k-core or
 connected-components algorithm as a new example of the fixed-point template.
 
@@ -64,7 +67,7 @@ connected-components algorithm as a new example of the fixed-point template.
 | Label | Effect |
 |---|---|
 | `ci:gpu` | run the GPU tests for this pull request (`ci/gpu_local.sh` on the lab machine; later the `gpu-test` workflow) |
-| `ci:bench` | run the benchmark comparison against `main` and attach the table (PLAN Section 8.9: required for kernel and hot-path changes) |
+| `ci:bench` | run the benchmark comparison against `main` and attach the table (required for kernel and hot-path changes) |
 
 Only maintainers add these labels: they start work on the maintainers' hardware, which must
 never run code from a fork without a review.

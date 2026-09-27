@@ -11,6 +11,6 @@ enforced by [.github/CODEOWNERS](.github/CODEOWNERS).
 The Community Moderators of the [Code of Conduct](CODE_OF_CONDUCT.md) are the maintainers
 listed here.
 
-**Algorithm maintainers** (optional; PLAN Section 10.1): the co-authors of an algorithm's
+**Algorithm maintainers** (optional): the co-authors of an algorithm's
 papers (see [AUTHORS.md](AUTHORS.md)) may be added here, and as reviewers of that algorithm's
 folders in CODEOWNERS, when they accept.

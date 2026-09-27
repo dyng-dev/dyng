@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Every new algorithm starts with this form (PLAN Section 11.6), so that we can agree on
+        Every new algorithm starts with this form, so that we can agree on
         the problem, the update model and the testing strategy before you write code. See
         "Adding an algorithm or porting research code" in
         [CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md) and the

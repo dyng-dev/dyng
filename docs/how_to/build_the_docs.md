@@ -15,7 +15,7 @@ xdg-open build/docs/html/index.html
 (`.github/workflows/docs.yml`):
 
 1. **Doxygen** on the public headers with warnings as errors, then `ci/doxygen_coverage.py`
-   (the conventions of PLAN Section 9.1). The XML goes to `build/doxygen/xml`.
+   (the Doxygen conventions of CONTRIBUTING.md). The XML goes to `build/doxygen/xml`.
 2. **Sphinx** (`sphinx-build -W --keep-going -n`): every page must be in a toctree, every
    cross-reference and every C++ name must resolve. This is also the check of the links between
    pages: a Markdown link or `{doc}` to a missing page, heading or local file is an error.
