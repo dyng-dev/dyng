@@ -67,3 +67,14 @@ is read.
 - `graph_properties::num_weights` is used only by constructors without input data
   (`with_capacity`, 0.3); `from_edges` / `from_csr` take the number of weight columns from their
   input and store it there.
+- **Legacy batch files (added after the M1a review).** `io::read_legacy_batch()` is stricter
+  than MOSP's `readChangeBatch()` by default: extra integers on an insertion line (after
+  `u v w1 .. wK`) or a deletion line (after `u v`), and a deletion line with a single integer,
+  are `io_error`s, because a silently ignored token usually means a wrong K or a corrupt file.
+  PLAN Section 8.3 requires the MOSP compatibility path to keep MOSP's input-rejection semantics,
+  so `legacy_batch_options::mosp_lenient` restores MOSP's decisions (extras read and ignored,
+  one-integer deletion lines skipped, ranges checked only on the kept values) and
+  `dyng-compat-mosp` sets it; a cross-check against `bin/mosp` on hand-made files gives the same
+  accept/reject decision and the same trees. In both modes a token must be a whole decimal
+  integer; MOSP splits a glued token such as `5-6` into `5` and `-6`, dynG rejects it (the only
+  remaining difference, for malformed files only).

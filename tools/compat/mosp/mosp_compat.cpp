@@ -291,6 +291,7 @@ int run_update(int argc, char** argv) {
   dyng::io::legacy_batch_options batch_options;
   batch_options.num_weights = KG;
   batch_options.num_vertices = n;
+  batch_options.mosp_lenient = true;  // `mosp`'s accept/reject decisions (PLAN Section 8.3)
   // Like `mosp` (runConcurrently), the batch and the 2K tree files are read concurrently.
   dyng::edge_batch<vertex_t, weight_t> batch;
   std::vector<std::vector<std::int64_t>> dists(static_cast<std::size_t>(K));

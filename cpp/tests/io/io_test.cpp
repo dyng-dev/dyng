@@ -213,13 +213,14 @@ class LegacyBatch : public ::testing::Test {
  protected:
   dyng::edge_batch<std::int32_t, std::int32_t> read(const std::string& insert,
                                                     const std::string& remove = "0 1\n", int k = 2,
-                                                    std::int64_t n = 3) {
+                                                    std::int64_t n = 3, bool lenient = false) {
     const std::string dir = tmp_.path("c" + std::to_string(count_++));
     write_text(dir + "/insert.txt", insert);
     write_text(dir + "/delete.txt", remove);
     dyng::io::legacy_batch_options options;
     options.num_weights = k;
     options.num_vertices = n;
+    options.mosp_lenient = lenient;
     return dyng::io::read_legacy_batch<std::int32_t, std::int32_t>(dir + "/insert.txt",
                                                                    dir + "/delete.txt", options);
   }
@@ -253,6 +254,26 @@ TEST_F(LegacyBatch, StricterThanMosp) {
   EXPECT_THROW((void)read("# comment\n"), dyng::io_error);  // no comments
   const auto e = expect_io_error([&] { (void)read("0 1 1 1\n\n1 x 1 1\n"); });
   EXPECT_EQ(e.line(), 3);
+  EXPECT_EQ(e.column(), 3);
+}
+
+TEST_F(LegacyBatch, MospLenientKeepsReadChangeBatchDecisions) {
+  // MOSP-OpenMP@c352151 readChangeBatch: extra integers are read and ignored, a deletion line with
+  // one integer is skipped; everything else is rejected as in the strict mode.
+  const auto b = read("2 0 1 2 3 -7\n", "0\n0 1 2\n1 2 99 -4\n", 2, 3, true);
+  EXPECT_EQ(b.num_insertions(), 1u);
+  EXPECT_EQ(b.insert_src(), (std::vector<std::int32_t>{2}));
+  EXPECT_EQ(b.insert_weights(), (std::vector<std::int32_t>{1, 2}));
+  EXPECT_EQ(b.delete_src(), (std::vector<std::int32_t>{0, 1}));
+  EXPECT_EQ(b.delete_dst(), (std::vector<std::int32_t>{1, 2}));
+  EXPECT_THROW((void)read("2 0 1\n", "", 2, 3, true), dyng::io_error);      // missing weight
+  EXPECT_THROW((void)read("2 0 1 2 x\n", "", 2, 3, true), dyng::io_error);  // not an integer
+  EXPECT_THROW((void)read("", "0 3 1\n", 2, 3, true), dyng::io_error);      // out of range
+  EXPECT_THROW((void)read("", "-1 2\n", 2, 3, true), dyng::io_error);       // negative id
+  EXPECT_THROW((void)read("", "0 1 1.5\n", 2, 3, true), dyng::io_error);    // not an integer
+  EXPECT_NO_THROW((void)read("", "7\n", 2, 3, true));  // one integer, even out of range: skipped
+  const auto e = expect_io_error([&] { (void)read("", "0 1\n2 5 0\n", 2, 3, true); });
+  EXPECT_EQ(e.line(), 2);
   EXPECT_EQ(e.column(), 3);
 }
 

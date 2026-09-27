@@ -21,6 +21,12 @@ namespace dyng::io {
 struct legacy_batch_options {
   int num_weights = 1;             ///< weights per insertion line (K of the graph), >= 0
   std::int64_t num_vertices = -1;  ///< ids must be < num_vertices; -1: only ids >= 0 are checked
+  /// MOSP's accept/reject rules (readChangeBatch of MOSP-OpenMP@c352151 / MOSP-CUDA@e220ee2)
+  /// instead of dynG's stricter ones: integers after the first 2 + K of an insertion line and
+  /// after the first 2 of a deletion line are read and ignored, and a deletion line with a single
+  /// integer is skipped. The compatibility driver dyng-compat-mosp sets it (PLAN Section 8.3:
+  /// equal input-rejection semantics); ADR 0010 records why the default is strict.
+  bool mosp_lenient = false;
 };
 
 /**
@@ -28,9 +34,11 @@ struct legacy_batch_options {
  *
  * Each non-blank line of the insert file holds exactly 2 + K integers "u v w1 .. wK", and each
  * non-blank line of the delete file exactly 2 integers "u v"; ids are 0-based and must lie in
- * [0, num_vertices), weights in [1, max(weight_t)] (MOSP readChangeBatch()). dynG is stricter
- * than MOSP in two places: extra tokens on a line and delete lines with fewer than two tokens are
- * errors (MOSP ignored them). Operations keep file order.
+ * [0, num_vertices), weights in [1, max(weight_t)] (MOSP readChangeBatch()). By default dynG is
+ * stricter than MOSP in three places: extra integers on an insertion or a deletion line, and a
+ * deletion line with a single integer, are errors (MOSP ignores them);
+ * `options.mosp_lenient` restores MOSP's decisions. In both modes every token must be a whole
+ * decimal integer ("12abc" is an error, as in MOSP). Operations keep file order.
  *
  * @tparam vertex_t Vertex id type.
  * @tparam weight_t Weight type (integral).

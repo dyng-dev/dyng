@@ -15,6 +15,7 @@
 #include <dyng/core/memory.hpp>
 #include <dyng/io/batch_io.hpp>
 
+#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -48,10 +49,16 @@ edge_batch<vertex_t, weight_t> read_legacy_batch(const std::string& insert_path,
       std::size_t count = 0;
       vertex_t ends[2] = {0, 0};
       while (scanner.next_in_line(tok)) {
-        if (count == expected) {
-          scanner.fail(tok, "an insertion line holds exactly " + std::to_string(expected) +
-                                " integers 'u v w1 .. wK' (K = " +
-                                std::to_string(options.num_weights) + ")");
+        if (count >= expected) {
+          if (!options.mosp_lenient) {
+            scanner.fail(tok, "an insertion line holds exactly " + std::to_string(expected) +
+                                  " integers 'u v w1 .. wK' (K = " +
+                                  std::to_string(options.num_weights) + ")");
+          }
+          // MOSP's readChangeBatch reads the extra integers and ignores them.
+          (void)detail::parse_integer<std::int64_t>(scanner, tok, INT64_MIN, INT64_MAX, "integer");
+          ++count;
+          continue;
         }
         if (count < 2) {
           ends[count] = detail::parse_integer<vertex_t>(scanner, tok, 0, id_max, "vertex id");
@@ -64,7 +71,7 @@ edge_batch<vertex_t, weight_t> read_legacy_batch(const std::string& insert_path,
       if (count == 0) {
         continue;
       }
-      if (count != expected) {
+      if (count < expected || (count != expected && !options.mosp_lenient)) {
         scanner.fail_line("an insertion line holds exactly " + std::to_string(expected) +
                           " integers 'u v w1 .. wK' (K = " + std::to_string(options.num_weights) +
                           "), found " + std::to_string(count));
@@ -78,16 +85,43 @@ edge_batch<vertex_t, weight_t> read_legacy_batch(const std::string& insert_path,
     while (scanner.next_line()) {
       std::size_t count = 0;
       vertex_t ends[2] = {0, 0};
+      std::int64_t values[2] = {0, 0};  // lenient mode: the first two integers
+      detail::token pending[2] = {};    // ... and their tokens (for the error location)
       while (scanner.next_in_line(tok)) {
-        if (count == 2) {
-          scanner.fail(tok, "a deletion line holds exactly 2 integers 'u v'");
+        if (count >= 2) {
+          if (!options.mosp_lenient) {
+            scanner.fail(tok, "a deletion line holds exactly 2 integers 'u v'");
+          }
+          // MOSP's readChangeBatch reads the extra integers and ignores them.
+          (void)detail::parse_integer<std::int64_t>(scanner, tok, INT64_MIN, INT64_MAX, "integer");
+          ++count;
+          continue;
+        }
+        if (options.mosp_lenient) {
+          // MOSP checks the range only for lines it keeps (a line with one integer is ignored).
+          const auto value =
+              detail::parse_integer<std::int64_t>(scanner, tok, INT64_MIN, INT64_MAX, "vertex id");
+          pending[count] = tok;
+          values[count++] = value;
+          continue;
         }
         ends[count++] = detail::parse_integer<vertex_t>(scanner, tok, 0, id_max, "vertex id");
       }
       if (count == 0) {
         continue;
       }
-      if (count != 2) {
+      if (options.mosp_lenient) {
+        if (count == 1) {
+          continue;  // "shorter lines are ignored" (MOSP readChangeBatch)
+        }
+        for (int i = 0; i < 2; ++i) {
+          if (values[i] < 0 || values[i] > id_max) {
+            scanner.fail(pending[i], "vertex id " + std::to_string(values[i]) +
+                                         " is out of range [0, " + std::to_string(id_max) + "]");
+          }
+          ends[i] = static_cast<vertex_t>(values[i]);
+        }
+      } else if (count != 2) {
         scanner.fail_line("a deletion line holds exactly 2 integers 'u v'");
       }
       batch.delete_edge(ends[0], ends[1]);
