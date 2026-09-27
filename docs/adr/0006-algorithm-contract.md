@@ -28,7 +28,8 @@ contract is frozen with `cycle_count` in M3.
    when `options.validate_inputs` is set.
 4. **`compute(res, container, inputs..., options) -> result`** never mutates the container.
 5. **`update(res, container&, batch, result&) -> stats` applies the batch and updates the result
-   in one call.** It throws `stale_result_error` if `result.graph_version() != g.version()`.
+   in one call.** It throws `stale_result_error` if `result.graph_version() != g.version()`,
+   or if the result was computed on another graph state (see *Graph identity* below).
    Validation (batch ids and weights, the result's version) happens before the container changes
    (strong guarantee). An error after the commit, which only corrupt imported inputs can cause,
    leaves the result *poisoned*: later updates throw `stale_result_error` until it is recomputed.
@@ -48,6 +49,22 @@ contract is frozen with `cycle_count` in M3.
    parent ties) identical on every backend.
 9. **Backends:** the sequential backend is mandatory; a missing backend throws
    `not_supported_error` naming the available ones.
+
+### Graph identity (added after the M1a review)
+
+PLAN Sections 5.1 and 5.2 define the version as "+1 per applied batch", starting at 0. Every
+graph therefore starts at version 0, and a check of the version alone accepted a result of graph
+A in `update(res, B, batch, r)` whenever B had the same vertex count and version, and a result
+kept across a reassignment `g = graph::from_edges(...)`; the update then returned a tree that was
+silently wrong. The version keeps its plan meaning (a per-graph counter, +1 per applied batch,
+reported by `graph::version()` and `result::graph_version()`), and the graph state additionally
+carries a **process-wide unique state identifier** (`detail::graph_impl::state_id`, never 0):
+every construction and every applied batch draws a new one, `clone()` copies it (the content is
+identical), moves keep it. A result records the identifier of the state it matches and `update()`
+checks both. So a result may be updated on a clone of its graph, but not on another graph, nor on
+a reassigned graph variable, nor on a clone that has since diverged. The identifier is internal
+(not part of the public API or the Python bindings); only the extra `stale_result_error` cases
+are.
 
 ## Consequences
 

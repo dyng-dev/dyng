@@ -258,8 +258,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @param[in,out] r     Result of compute() or of a previous update() on `g`.
  * @return Counters of this update; `invalidated` and `affected` are deterministic, `iterations`,
  *         `epochs` and `pushes` are not.
- * @throws stale_result_error     if r.graph_version() != g.version(), or `r` was left unusable by
- *         a failed update.
+ * @throws stale_result_error     if r.graph_version() != g.version(), `r` was computed on another
+ *         graph (or on an earlier state of a graph variable that was reassigned since), or `r` was
+ *         left unusable by a failed update.
  * @throws invalid_argument_error if a batch id or weight is invalid (nothing is changed); or, only
  *         for a tree imported without validation, if the tree has a parent cycle (then the graph
  *         was updated and `r` is left unusable).

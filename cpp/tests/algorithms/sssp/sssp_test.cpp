@@ -283,6 +283,41 @@ TEST_P(SsspBackend, StaleResultIsDetected) {
   EXPECT_NO_THROW((void)dyng::sssp::update(res_, g, b.view(), r));
 }
 
+TEST_P(SsspBackend, ResultOfAnotherGraphIsStale) {
+  // Two different graphs at the same version (0) with the same vertex count.
+  auto a = make_graph(res_, 3, {{0, 1, 1}, {1, 2, 1}});
+  auto b = make_graph(res_, 3, {{0, 2, 5}, {2, 1, 5}});
+  ASSERT_EQ(a.version(), b.version());
+  result_t ra = dyng::sssp::compute(res_, a, 0);
+  const batch_t empty;
+  EXPECT_THROW((void)dyng::sssp::update(res_, b, empty.view(), ra), dyng::stale_result_error);
+  EXPECT_THROW((void)dyng::update(res_, b, empty.view(), ra), dyng::stale_result_error);
+  EXPECT_EQ(b.version(), 0u);  // rejected before the batch was applied
+
+  // A graph variable reassigned while a result is kept (the new graph is at version 0 again).
+  result_t old = dyng::sssp::compute(res_, a, 0);
+  a = make_graph(res_, 3, {{0, 2, 5}, {2, 1, 5}});
+  EXPECT_THROW((void)dyng::sssp::update(res_, a, empty.view(), old), dyng::stale_result_error);
+
+  // A clone has the same content, so a result of the original may be updated on the clone; after
+  // that, the original and the clone are different states.
+  auto g = make_graph(res_, 3, {{0, 1, 1}, {1, 2, 1}});
+  result_t r = dyng::sssp::compute(res_, g, 0);
+  auto copy = g.clone(res_);
+  batch_t insert;
+  insert.insert_edge(0, 2, {1});
+  EXPECT_NO_THROW((void)dyng::sssp::update(res_, copy, insert.view(), r));
+  EXPECT_EQ(r.distances()[2], 1);
+  batch_t other;
+  other.insert_edge(1, 0, {1});
+  (void)g.apply(res_, other.view());
+  ASSERT_EQ(g.version(), copy.version());  // both at version 1, different content
+  EXPECT_THROW((void)dyng::sssp::update(res_, g, empty.view(), r), dyng::stale_result_error);
+  // result::clone() keeps the graph it matches.
+  result_t rc = r.clone(res_);
+  EXPECT_NO_THROW((void)dyng::sssp::update(res_, copy, empty.view(), rc));
+}
+
 TEST_P(SsspBackend, InvalidBatchChangesNothing) {
   auto g = make_graph(res_, 3, {{0, 1, 1}, {1, 2, 1}});
   result_t r = dyng::sssp::compute(res_, g, 0);

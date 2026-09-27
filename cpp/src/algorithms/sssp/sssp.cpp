@@ -309,6 +309,12 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
           " (the graph was changed without updating this result; recompute it, or update all "
           "results together with dyng::update(res, g, batch, results...))"));
     }
+    if (state_->graph_state != graph_access::impl(g).state_id) {
+      throw stale_result_error(detail::concat_message(
+          "dyng: sssp::update: the result was computed on another graph (or on an earlier state "
+          "of a graph variable that was reassigned since), although both are at version ",
+          g.version(), "; recompute it on this graph"));
+    }
     const sssp::options& opt = state_->opt;
     expect_graph(g, opt, "sssp::update");
     DYNG_EXPECTS(static_cast<std::int64_t>(state_->distances.size()) ==
@@ -415,6 +421,7 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
     s.packed_parents = run.counters.packed_parents;
     out_ = s;
     st.version = g.version();
+    st.graph_state = graph_access::impl(g).state_id;
   }
 
   void poison() noexcept override {
@@ -513,6 +520,7 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
   copy->source = impl_->source;
   copy->opt = impl_->opt;
   copy->version = impl_->version;
+  copy->graph_state = impl_->graph_state;
   copy->poisoned = impl_->poisoned;
   copy->distances = impl_->distances;
   copy->parents = impl_->parents;
@@ -550,6 +558,7 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
   state->source = source;
   state->opt = opt;
   state->version = g.version();
+  state->graph_state = detail::graph_access::impl(g).state_id;
   state->distances.assign(distances.begin(), distances.end());
   state->parents.assign(parents.begin(), parents.end());
   for (std::int64_t v = 0; v < n; ++v) {
@@ -604,6 +613,7 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   state->source = source;
   state->opt = opt;
   state->version = g.version();
+  state->graph_state = detail::graph_access::impl(g).state_id;
   state->distances.assign(static_cast<std::size_t>(n), detail::sssp_infinity);
   state->parents.assign(static_cast<std::size_t>(n), vertex_t{-1});
 

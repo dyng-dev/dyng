@@ -144,6 +144,7 @@ struct sssp_state {
   vertex_t source = 0;                ///< source vertex
   sssp::options opt;                  ///< options
   std::uint64_t version = 0;          ///< graph version matched
+  std::uint64_t graph_state = 0;      ///< state identifier of the graph matched (graph_impl)
   bool poisoned = false;              ///< a failed update left the arrays inconsistent
   std::vector<distance_t> distances;  ///< distances, infinite_distance() if unreachable
   std::vector<vertex_t> parents;      ///< parents, -1 for none

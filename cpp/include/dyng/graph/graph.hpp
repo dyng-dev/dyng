@@ -36,9 +36,12 @@ struct graph_access;
  * @brief A dynamic directed (or symmetric) graph with K weight columns.
  *
  * The graph owns its storage and a version counter that increases by one with every applied
- * batch; results computed on the graph remember the version they match. The storage is resident
- * in the memory space of the resources that created it (host memory in this release; the device
- * layout arrives with the CUDA backend).
+ * batch; results computed on the graph remember the version they match and the identity of the
+ * graph state (a process-wide unique value that every construction and every batch renews and
+ * clone() copies), so a result is detected as stale when it is used with another graph, or with
+ * a graph variable that was reassigned since, even if the version counters are equal. The storage
+ * is resident in the memory space of the resources that created it (host memory in this release;
+ * the device layout arrives with the CUDA backend).
  *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
  * and (int64, int64, int32) (PLAN Section 4.4.3).

@@ -49,6 +49,17 @@ struct apply_delta {
 };
 
 /**
+ * @brief A process-wide unique identifier for a graph state (never 0).
+ *
+ * Every graph construction and every applied batch draws a new one; clone() copies it (the
+ * content is identical). Results remember the identifier of the state they match, so a result is
+ * detected as stale when it is used with another graph or with a graph variable that was
+ * reassigned, even when the two per-graph version counters happen to be equal.
+ * @return A value never returned before in this process.
+ */
+std::uint64_t next_graph_state_id() noexcept;
+
+/**
  * @brief The state behind graph<V,E,W>: properties, version and host CSR storage.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
@@ -57,10 +68,11 @@ struct apply_delta {
 template <typename vertex_t, typename edge_t, typename weight_t>
 class graph_impl {
  public:
-  graph_properties props;               ///< properties (num_weights as stored)
-  std::uint64_t version = 0;            ///< +1 per applied batch
-  csr<vertex_t, edge_t, weight_t> out;  ///< out-edges
-  csr<vertex_t, edge_t, weight_t> in;   ///< in-edges (valid if props.store_transposed)
+  graph_properties props;                          ///< properties (num_weights as stored)
+  std::uint64_t version = 0;                       ///< +1 per applied batch
+  std::uint64_t state_id = next_graph_state_id();  ///< unique per state; copied by clone()
+  csr<vertex_t, edge_t, weight_t> out;             ///< out-edges
+  csr<vertex_t, edge_t, weight_t> in;              ///< in-edges (valid if props.store_transposed)
 };
 
 /**

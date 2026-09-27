@@ -157,7 +157,8 @@ struct stats_of {
  * @param[in]     batch   The batch.
  * @param[in,out] results The results to update.
  * @return One stats object per result, in order.
- * @throws stale_result_error     if a result does not match `g.version()`.
+ * @throws stale_result_error     if a result does not match `g` (its version, or the graph state
+ *         it was computed on).
  * @throws invalid_argument_error if a result is passed twice or the batch is invalid.
  * @sync
  * @ingroup core
@@ -198,7 +199,8 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  * @param[in]     batch   The batch.
  * @param[in,out] results Pointers to the results to update (host memory, none null).
  * @return One stats object per result, in order.
- * @throws stale_result_error     if a result does not match `g.version()`.
+ * @throws stale_result_error     if a result does not match `g` (its version, or the graph state
+ *         it was computed on).
  * @throws invalid_argument_error if a pointer is null or a result is listed twice, or the batch
  *         is invalid.
  * @sync

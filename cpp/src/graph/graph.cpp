@@ -13,6 +13,8 @@
 #include <dyng/core/profiler.hpp>
 #include <dyng/graph/graph.hpp>
 
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -218,6 +220,12 @@ void graph<vertex_t, edge_t, weight_t>::check_integrity(const resources& res) co
 
 namespace detail {
 
+std::uint64_t next_graph_state_id() noexcept {
+  // Starts at 1, so the 0 of a moved-from graph or result never matches.
+  static std::atomic<std::uint64_t> counter{0};
+  return counter.fetch_add(1, std::memory_order_relaxed) + 1;
+}
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
                                   const edge_batch_view<vertex_t, weight_t>& batch,
@@ -232,6 +240,7 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
     transpose_host(state.out, state.in, host_threads(res));
   }
   ++state.version;
+  state.state_id = next_graph_state_id();
   return summary;
 }
 
