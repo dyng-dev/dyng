@@ -50,9 +50,42 @@ contract is frozen with `cycle_count` in M3.
 8. **Oracle kind per algorithm** (manifest field `oracle`): `compute` for exact algorithms
    (`update ∘ … ∘ update == compute`, bit for bit where the determinism level is `bitwise`), or
    `reference` for approximate ones. sssp is `compute` + `bitwise`: canonical trees (lowest-id
-   parent ties) identical on every backend.
+   parent ties) identical on every backend. The oracle holds from a canonical start (every
+   `compute()` result, `from_arrays(..., canonicalize = true)`); see *Tie rule* below for trees
+   adopted with `canonicalize = false`.
 9. **Backends:** the sequential backend is mandatory; a missing backend throws
    `not_supported_error` naming the available ones.
+
+### Tie rule of sssp (added after the M1a review)
+
+`sssp::result::from_arrays(..., canonicalize = false)` adopts a valid shortest-path tree whose
+tie parents need not be the lowest ids (MOSP's `mosp` driver works on such trees, and the
+roadNet-CA dataset trees are such trees). The two update rules of the original then disagree:
+`sospUpdateCpu` (MOSP-OpenMP) and `sospUpdateGpu` (MOSP-CUDA) only let a vertex adopt a smaller
+(distance, parent id) pair offered by a vertex whose distance decreased, while the legacy
+`sequentialSOSPUpdate` re-scans all in-neighbours of every candidate and also switches to a
+lower-id tight parent that did not improve. The M1a sequential backend inherited the second rule,
+so it disagreed with the OpenMP backend (and with `mosp`) on 26 of about 570 such random cases
+and on roadNet-CA (1-2 parent lines per objective), and the documented postcondition
+"update equals compute exactly" was false for such trees.
+
+**Decision:** one rule for every backend, the push rule of `sospUpdateCpu` / `sospUpdateGpu`,
+because that is what the paper engines and the `mosp` driver compute and what the CUDA port
+(M1b) will reproduce. The sequential backend keeps the seed pull pass (identical in both
+originals) and applies the push rule round by round in Step 2, and in the distance-only mode
+(`stats::packed_parents == false`) it recovers every parent with the lowest-id rule, as the
+OpenMP unpack does. Consequences: (a) every backend returns the same tree on every valid input
+tree; (b) from a canonical tree, `update()` equals `compute()` exactly (the conformance oracle);
+(c) from a non-canonical tree, the distances equal `compute()`'s and the tree is a valid
+shortest-path tree, but kept tie parents can differ from `compute()`'s (documented in
+`<dyng/sssp.hpp>` and `docs/algorithms/sssp.md`); (d) dynG's sequential backend no longer equals
+the original `sequentialSOSPUpdate` on non-canonical trees (on canonical trees, and so on every
+golden case, all three originals and both dynG backends agree). The rejected alternative, to
+require canonical input trees (canonicalize always, or reject non-canonical trees), would have
+broken byte parity with `mosp` on the MOSP datasets. Tests: `NonCanonicalInputTreesAgreeOnEveryBackend`
+(random tie perturbations, canonicalize = false, both backends), the review's hand case, and a
+distance-only case; the golden group `noncanonical` (parity/goldens.toml) replays perturbed trees
+against `mosp`.
 
 ### Graph identity (added after the M1a review)
 

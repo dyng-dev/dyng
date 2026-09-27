@@ -91,6 +91,19 @@ bool sssp_distances_fit(std::int64_t num_vertices, std::int64_t max_weight) {
   return weight <= output_max / hops;
 }
 
+bool sssp_packs_parents(std::int64_t num_vertices, std::int64_t max_weight) {
+  // make_packing(n, bound + weight) of openmp.cpp (MOSP's choosePacking), without the engine.
+  const auto weight = static_cast<std::uint64_t>(std::max<std::int64_t>(max_weight, 1));
+  const auto hops = static_cast<std::uint64_t>(std::max<std::int64_t>(num_vertices - 1, 1));
+  int bits = 1;
+  while ((1ULL << bits) - 1 < static_cast<std::uint64_t>(num_vertices)) {
+    ++bits;
+  }
+  const std::uint64_t max_distance = (~0ULL >> bits) - 1;
+  const std::uint64_t largest_candidate = weight * hops + weight;
+  return weight <= max_distance / hops && largest_candidate <= max_distance;
+}
+
 template <typename vertex_t, typename distance_t>
 sssp_state<vertex_t, distance_t>& sssp_access::state(sssp::result<vertex_t, distance_t>& r) {
   DYNG_EXPECTS(r.impl_ != nullptr, "sssp::result: use of a moved-from result");

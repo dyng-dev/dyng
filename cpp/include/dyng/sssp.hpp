@@ -28,8 +28,22 @@
  * update() applies a batch of edge insertions, deletions and weight changes to the graph and
  * brings the tree up to date incrementally. Step 1 invalidates the subtrees below deleted or
  * weight-increased tree edges and pulls each invalidated vertex's best in-neighbour; Step 2
- * relaxes outward until no distance decreases. The result always equals compute() on the new
- * graph, bit for bit, on every backend.
+ * relaxes outward until no distance decreases. Every backend returns the same tree, bit for bit.
+ *
+ * Tie rule (the rule of MOSP-OpenMP's sospUpdateCpu and MOSP-CUDA's sospUpdateGpu): a vertex's
+ * parent changes only when the vertex is re-evaluated. update() re-evaluates the vertices of the
+ * invalidated subtrees and the insertion heads, which take their best (distance, lowest parent
+ * id) pair over all in-neighbours, and the out-neighbours x of every vertex a whose distance
+ * decreased, which adopt (d(a) + w(a,x), a) if that pair is smaller than their own. Other
+ * vertices keep their parents. Hence:
+ *   - from a canonical tree (from compute(), or from_arrays() with canonicalize = true), update()
+ *     equals compute() on the new graph exactly;
+ *   - from a valid tree whose tie parents are not the lowest ids (from_arrays() with
+ *     canonicalize = false, like MOSP's dataset trees), the distances equal compute()'s and the
+ *     tree is a valid shortest-path tree, but kept tie parents can differ from compute()'s;
+ *   - in the distance-only mode (stats::packed_parents == false: (n - 1) * max weight does not
+ *     fit next to the parent ids in 64 bits) every parent is recovered with the lowest-id rule
+ *     after the search, so update() equals compute() on every input.
  */
 
 namespace dyng::sssp {
@@ -66,9 +80,10 @@ struct stats : update_stats {
   std::int64_t epochs = 0;
   /// Schedule-dependent: vertex expansions of the Step 2 loop.
   std::int64_t pushes = 0;
-  /// Deterministic: false if distances did not fit next to the parent ids in 64-bit words and the
-  /// distance-only fallback recovered the parents after the search (OpenMP backend; always true on
-  /// the sequential backend, which needs no packing).
+  /// Deterministic: false if distances do not fit next to the parent ids in 64-bit words, so the
+  /// OpenMP engine kept distances only and recovered every parent with the lowest-id rule after
+  /// the search. The sequential engine reports the same value and applies the same recovery, so
+  /// both backends return the same tree.
   bool packed_parents = true;
 };
 
@@ -129,8 +144,9 @@ class result {
 
   /**
    * @brief The parents (the tree).
-   * @return One parent per vertex (host memory): the lowest-id in-neighbour on a shortest path;
-   *         -1 for the source and unreachable vertices. Valid until the next update().
+   * @return One parent per vertex (host memory): an in-neighbour on a shortest path, the lowest-id
+   *         one unless kept from a non-canonical input tree (see the tie rule of @ref sssp); -1
+   *         for the source and unreachable vertices. Valid until the next update().
    * @throws invalid_argument_error for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
@@ -182,9 +198,12 @@ class result {
    *
    * With `canonicalize`, every parent is replaced by the lowest-id in-neighbour u with
    * dist[u] + w(u,v) == dist[v] (MOSP's canonicalizeTree()), so that later updates produce the
-   * canonical tree. With `opt.validate_inputs` the tree is checked in O(n): array sizes, source
-   * at distance 0 without a parent, distances in [0, (n - 1) * max weight] or unreachable
-   * (>= infinite_distance() / 2, stored as infinite_distance()), unreachable vertices without a
+   * canonical tree (equal to compute()). Without it the parents are kept as given, as MOSP's
+   * `mosp` driver keeps them; later updates then keep the tie parents of the vertices they do not
+   * re-evaluate (the tie rule of @ref sssp), identically on every backend. With
+   * `opt.validate_inputs` the tree is checked in O(n): array sizes, source at distance 0
+   * without a parent, distances in [0, (n - 1) * max weight] or unreachable (>=
+   * infinite_distance() / 2, stored as infinite_distance()), unreachable vertices without a
    * parent, every other vertex with a reachable parent, and no parent cycle (every chain ends at
    * the source). The caller guarantees that the tree is a shortest-path tree of `g`.
    *
@@ -195,7 +214,7 @@ class result {
    * @param[in] source       The source vertex.
    * @param[in] distances    One distance per vertex (host memory).
    * @param[in] parents      One parent per vertex, -1 for none (host memory).
-   * @param[in] canonicalize Apply the lowest-id tie rule to the parents.
+   * @param[in] canonicalize Apply the lowest-id tie rule to the parents (default true).
    * @param[in] opt          Options (objective = the weight column the tree belongs to).
    * @return The result, matching `g.version()`.
    * @throws invalid_argument_error if a check fails or the options are invalid.
@@ -254,8 +273,11 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * The batch is applied under `g.properties().semantics` (for graph_properties::mosp_compatible()
  * exactly as MOSP's applyChangeBatch()). Step 1 invalidates the subtrees below deleted or
  * weight-increased tree edges and pulls each invalidated vertex's and each insertion head's best
- * in-neighbour; Step 2 relaxes outward until no distance decreases. Postcondition: `r` equals
- * compute(res, g, r.source(), r.get_options()) exactly.
+ * in-neighbour; Step 2 relaxes outward until no distance decreases. Postcondition: the distances
+ * of `r` equal those of compute(res, g, r.source(), r.get_options()), and `r` is a shortest-path
+ * tree of the new graph; if `r` was canonical before the call (it came from compute(), from
+ * from_arrays() with canonicalize = true, or from updates of such a result) it equals that
+ * compute() exactly (see the tie rule of @ref sssp for trees adopted with canonicalize = false).
  *
  * @tparam vertex_t Vertex id type (int32_t or int64_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).
@@ -275,7 +297,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws not_supported_error    if the backend of `res` is not available for sssp.
  * @sync
  * @backends sequential, openmp
- * @determinism Bit-exact across backends: equals compute(res, g, r.source()) with lowest-id ties.
+ * @determinism Bit-exact across backends and runs (distances, parents, `invalidated`,
+ *              `affected`), for canonical and non-canonical input trees alike.
  * @paper DynaMOSP (IPDPS 2025; IEEE TPDS 2025): `dyng::citation("sssp")`, keys dynamosp2025 and
  *        dynamosptpds2025 in docs/references.bib.
  * @ingroup sssp

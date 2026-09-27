@@ -235,6 +235,45 @@ TEST_P(SsspBackend, MultiObjectiveGraphUsesTheChosenColumn) {
   EXPECT_EQ(r1.graph_version(), g.version());
 }
 
+// The distance-only mode recovers every parent with the lowest-id rule after the search (the
+// OpenMP engine's unpack), so even a non-canonical input tree comes out canonical, on every
+// backend.
+TEST_P(SsspBackend, DistanceOnlyFallbackCanonicalizesNonCanonicalInput) {
+  const std::int32_t side = 272;  // n = 73984 > 2^16: 17 parent bits; n * w does not fit next to it
+  const std::int32_t w = 2000000000;
+  std::vector<edge> edges;
+  for (std::int32_t y = 0; y < side; ++y) {
+    for (std::int32_t x = 0; x < side; ++x) {
+      const std::int32_t v = y * side + x;
+      if (x + 1 < side) {
+        edges.push_back({v, v + 1, w});
+      }
+      if (y + 1 < side) {
+        edges.push_back({v, v + side, w});
+      }
+    }
+  }
+  auto g = make_graph(res_, side * side, edges);
+  const result_t canonical = dyng::sssp::compute(res_, g, 0);
+  // Highest-id tight parent instead of the lowest one (the left neighbour instead of the upper).
+  std::vector<std::int32_t> p = parents_of(canonical);
+  for (std::int32_t y = 1; y < side; ++y) {
+    for (std::int32_t x = 1; x < side; ++x) {
+      p[static_cast<std::size_t>(y * side + x)] = y * side + x - 1;
+    }
+  }
+  const std::vector<std::int64_t> d = distances_of(canonical);
+  result_t r = result_t::from_arrays(res_, g, 0, dyng::host_view(d), dyng::host_view(p),
+                                     /*canonicalize=*/false);
+  batch_t b;
+  b.delete_edge(0, 1);
+  const auto st = dyng::sssp::update(res_, g, b.view(), r);
+  EXPECT_FALSE(st.packed_parents);
+  const result_t fresh = dyng::sssp::compute(res_, g, 0);
+  EXPECT_EQ(distances_of(r), distances_of(fresh));
+  EXPECT_EQ(parents_of(r), parents_of(fresh));
+}
+
 // Weights of 2 * 10^9 on a 320 x 320 grid (mospTest runLargeWeightTies): (n - 1) * max weight does
 // not fit next to the parent ids, so the OpenMP engine keeps distances only and recovers the
 // lowest-id parents after the search; most vertices have two tight in-neighbours.
@@ -263,11 +302,44 @@ TEST_P(SsspBackend, DistanceOnlyFallbackKeepsCanonicalParents) {
   }
   b.insert_edge(0, side * side - 1, {w});
   const auto st = dyng::sssp::update(res_, g, b.view(), r);
-  EXPECT_EQ(st.packed_parents, GetParam() == dyng::backend::sequential);
+  // Both backends use the distance-only mode's tie rule (parents recovered after the search).
+  EXPECT_FALSE(st.packed_parents);
   EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
   const result_t fresh = dyng::sssp::compute(res_, g, 0);
   EXPECT_EQ(distances_of(r), distances_of(fresh));
   EXPECT_EQ(parents_of(r), parents_of(fresh));
+}
+
+// The M1a review's hand case: a valid but non-canonical input tree (parent[3] = 2 although 1 is
+// also tight). Inserting 0 -> 4 (weight 1) makes 4 offer vertex 3 another tie at distance 2.
+// sospUpdateCpu (MOSP-OpenMP) and sospUpdateGpu (MOSP-CUDA) keep parent[3] = 2: a vertex only
+// adopts a pair (distance, parent id) smaller than its own from an improved vertex, and 4 > 2.
+// Every dynG backend must do the same (the sequential engine used to re-scan all in-neighbours
+// and switch to 1).
+TEST_P(SsspBackend, NonCanonicalInputTreeKeepsTieParentsLikeMosp) {
+  auto g = make_graph(res_, 5, {{0, 1, 1}, {0, 2, 1}, {1, 3, 1}, {2, 3, 1}, {0, 4, 5}, {4, 3, 1}});
+  const std::vector<std::int64_t> d{0, 1, 1, 2, 5};
+  const std::vector<std::int32_t> p{-1, 0, 0, 2, 0};
+  result_t r = result_t::from_arrays(res_, g, 0, dyng::host_view(d), dyng::host_view(p),
+                                     /*canonicalize=*/false);
+  batch_t b;
+  b.insert_edge(0, 4, {1});
+  const auto st = dyng::sssp::update(res_, g, b.view(), r);
+  EXPECT_EQ(distances_of(r), (std::vector<std::int64_t>{0, 1, 1, 2, 1}));
+  EXPECT_EQ(parents_of(r), (std::vector<std::int32_t>{-1, 0, 0, 2, 0}));
+  EXPECT_EQ(st.affected, 1);  // only vertex 4
+  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r, /*require_canonical=*/false).ok());
+  // compute() gives the canonical tree; the distances agree.
+  const result_t fresh = dyng::sssp::compute(res_, g, 0);
+  EXPECT_EQ(distances_of(fresh), distances_of(r));
+  EXPECT_EQ(parents_of(fresh), (std::vector<std::int32_t>{-1, 0, 0, 1, 0}));
+
+  // With canonicalize = true the input tree is canonical and update() equals compute().
+  auto g2 = make_graph(res_, 5, {{0, 1, 1}, {0, 2, 1}, {1, 3, 1}, {2, 3, 1}, {0, 4, 5}, {4, 3, 1}});
+  result_t c = result_t::from_arrays(res_, g2, 0, dyng::host_view(d), dyng::host_view(p),
+                                     /*canonicalize=*/true);
+  (void)dyng::sssp::update(res_, g2, b.view(), c);
+  EXPECT_EQ(parents_of(c), parents_of(fresh));
 }
 
 TEST_P(SsspBackend, StaleResultIsDetected) {

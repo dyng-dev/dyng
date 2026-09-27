@@ -5,7 +5,8 @@
  * @brief Randomized differential tests of sssp: every update chain equals Dijkstra with lowest-id
  *        ties (testing::check_sssp_tree, canonical mode) and sssp::compute() on the new graph, and
  *        the sequential and OpenMP backends agree bit for bit (distances, parents and the
- *        deterministic counters).
+ *        deterministic counters), also from valid input trees with non-lowest tie parents
+ *        (from_arrays with canonicalize = false).
  *
  * Graph shapes: sparse and dense random graphs, road-like grids, hub-heavy graphs and long chains,
  * with parallel edges and self-loops under graph_properties::mosp_compatible(), simple sorted
@@ -19,7 +20,9 @@
  */
 #include "support/gtest_helpers.hpp"
 
+#include <dyng/core/array_view.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/types.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/edge_list.hpp>
 #include <dyng/graph/graph.hpp>
@@ -300,7 +303,49 @@ struct scenario {
   bool mosp_compatible = true;
   bool directed = true;
   bool growth = false;
+  /// Start from a valid shortest-path tree whose tie parents are random tight in-neighbours
+  /// (not the lowest ids), adopted with from_arrays(canonicalize = false), as MOSP's datasets
+  /// are. The backends must still agree bit for bit (they share sospUpdateCpu's tie rule), the
+  /// distances must equal compute(), and the tree must stay a valid shortest-path tree.
+  bool perturb_ties = false;
 };
+
+/// A valid shortest-path tree of `g` (objective k) with random tight parents instead of the
+/// lowest ids. Weights are >= 1, so every tight parent is strictly closer: the tree is acyclic.
+template <typename vertex_t, typename edge_t, typename weight_t, typename rng_t>
+std::vector<vertex_t> perturb_tie_parents(const dyng::csr<vertex_t, edge_t, weight_t>& g, int k,
+                                          vertex_t source,
+                                          dyng::array_view<const std::int64_t> distances,
+                                          dyng::array_view<const vertex_t> parents, rng_t& rng) {
+  const std::int64_t n = g.num_vertices();
+  const auto m = static_cast<std::size_t>(g.num_edges());
+  std::vector<std::vector<vertex_t>> tight(static_cast<std::size_t>(n));
+  constexpr std::int64_t unreachable = dyng::infinite_distance<std::int64_t>() / 2;
+  for (std::int64_t u = 0; u < n; ++u) {
+    const std::int64_t du = distances[static_cast<std::size_t>(u)];
+    if (du >= unreachable) {
+      continue;
+    }
+    for (edge_t e = g.row_ptr[static_cast<std::size_t>(u)];
+         e < g.row_ptr[static_cast<std::size_t>(u) + 1]; ++e) {
+      const vertex_t v = g.col_ind[static_cast<std::size_t>(e)];
+      const auto w = static_cast<std::int64_t>(
+          g.weights[static_cast<std::size_t>(k) * m + static_cast<std::size_t>(e)]);
+      if (v != source && du + w == distances[static_cast<std::size_t>(v)]) {
+        tight[static_cast<std::size_t>(v)].push_back(static_cast<vertex_t>(u));
+      }
+    }
+  }
+  std::vector<vertex_t> out(parents.begin(), parents.end());
+  for (std::int64_t v = 0; v < n; ++v) {
+    const auto& t = tight[static_cast<std::size_t>(v)];
+    if (!t.empty()) {
+      out[static_cast<std::size_t>(v)] =
+          t[std::uniform_int_distribution<std::size_t>(0, t.size() - 1)(rng)];
+    }
+  }
+  return out;
+}
 
 template <typename graph_t>
 class SsspRandom : public ::testing::Test {};
@@ -352,6 +397,18 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
     ASSERT_TRUE(check.ok()) << "compute on " << dyng::to_string(backends[i]) << ": "
                             << check.summary();
   }
+  if (sc.perturb_ties) {
+    const auto csr = graphs[0].to_csr(res[0]);
+    const auto d = results[0].distances();
+    const std::vector<std::int64_t> distances(d.begin(), d.end());
+    const std::vector<vertex_t> parents = perturb_tie_parents(
+        csr, opt.objective, source, dyng::host_view(distances), results[0].parents(), gen.rng);
+    for (std::size_t i = 0; i < backends.size(); ++i) {
+      results[i] = dyng::sssp::result<vertex_t>::from_arrays(
+          res[i], graphs[i], source, dyng::host_view(distances), dyng::host_view(parents),
+          /*canonicalize=*/false, opt);
+    }
+  }
   const int rounds = static_cast<int>(gen.uniform(3, 5));
   for (int round = 0; round < rounds; ++round) {
     SCOPED_TRACE("batch " + std::to_string(round));
@@ -362,17 +419,22 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
     std::vector<dyng::sssp::stats> st;
     for (std::size_t i = 0; i < backends.size(); ++i) {
       st.push_back(dyng::sssp::update(res[i], graphs[i], b.view(), results[i]));
-      const auto check = dyng::testing::check_sssp_tree(graphs[i], results[i]);
+      // A canonical input tree stays canonical; a perturbed one stays a valid shortest-path tree.
+      const auto check = dyng::testing::check_sssp_tree(graphs[i], results[i],
+                                                        /*require_canonical=*/!sc.perturb_ties);
       ASSERT_TRUE(check.ok()) << "update on " << dyng::to_string(backends[i]) << ": "
                               << check.summary();
-      // update == compute on the new graph, bit for bit.
+      // update == compute on the new graph: bit for bit from a canonical tree; the distances
+      // (and the parents in the distance-only mode) from a perturbed one.
       const auto fresh = dyng::sssp::compute(res[i], graphs[i], source, opt);
       const auto d = results[i].distances();
       const auto fd = fresh.distances();
       ASSERT_TRUE(std::equal(d.begin(), d.end(), fd.begin(), fd.end()));
       const auto pr = results[i].parents();
       const auto fp = fresh.parents();
-      ASSERT_TRUE(std::equal(pr.begin(), pr.end(), fp.begin(), fp.end()));
+      if (!sc.perturb_ties || !st[i].packed_parents) {
+        ASSERT_TRUE(std::equal(pr.begin(), pr.end(), fp.begin(), fp.end()));
+      }
       EXPECT_LE(st[i].affected, static_cast<std::int64_t>(graphs[i].num_vertices()));
       EXPECT_LE(st[i].invalidated, static_cast<std::int64_t>(graphs[i].num_vertices()));
       EXPECT_EQ(results[i].graph_version(), graphs[i].version());
@@ -397,6 +459,19 @@ TYPED_TEST(SsspRandom, MospCompatibleGraphsMatchDijkstraOnEveryBackend) {
   for (const std::uint64_t seed : seeds(1000, 60)) {
     for (const shape s : all_shapes) {
       run_scenario<TypeParam>(seed, s, scenario{true, true, false});
+      if (::testing::Test::HasFatalFailure()) {
+        return;
+      }
+    }
+  }
+}
+
+TYPED_TEST(SsspRandom, NonCanonicalInputTreesAgreeOnEveryBackend) {
+  for (const std::uint64_t seed : seeds(13000, 60)) {
+    for (const shape s : all_shapes) {
+      scenario sc{true, true, false};
+      sc.perturb_ties = true;
+      run_scenario<TypeParam>(seed, s, sc);
       if (::testing::Test::HasFatalFailure()) {
         return;
       }

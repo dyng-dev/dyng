@@ -200,6 +200,18 @@ std::int64_t sssp_default_delta(std::int64_t num_edges, std::int64_t num_vertice
 bool sssp_distances_fit(std::int64_t num_vertices, std::int64_t max_weight);
 
 /**
+ * @brief Whether the OpenMP engine packs (distance, parent) into one 64-bit word (MOSP's
+ *        choosePacking()): the parent needs ceil(log2(n + 1)) bits and the largest candidate
+ *        distance, (n - 1) * max_weight + max_weight, the rest. If not, that engine keeps
+ *        distances only and recovers every parent with the lowest-id rule after the search; the
+ *        sequential engine then does the same, so both return the same tree.
+ * @param[in] num_vertices Number of vertices.
+ * @param[in] max_weight   Largest weight (values below 1 count as 1).
+ * @return true if the parents are packed next to the distances.
+ */
+bool sssp_packs_parents(std::int64_t num_vertices, std::int64_t max_weight);
+
+/**
  * @brief Run one hook inside its profiler stage `sssp.<hook>`.
  * @tparam fn_t Callable.
  * @param[in] res  Resources (profiler).

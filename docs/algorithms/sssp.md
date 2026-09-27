@@ -14,8 +14,24 @@ dist[u] + w(u,v) == dist[v]; -1 for the source and unreachable vertices.
 Update model: a batch of insertions (upserts: an insertion of an existing edge changes its
 weights), deletions and weight changes is applied to the graph under its `batch_semantics`
 (`graph_properties::mosp_compatible()` reproduces MOSP's `applyChangeBatch()`, parallel edges and
-self-loops included), and the tree is brought up to date. Postcondition: the result equals
-`compute()` on the new graph, bit for bit.
+self-loops included), and the tree is brought up to date. Postcondition: the distances equal
+`compute()`'s on the new graph and the tree is a shortest-path tree of it; from a canonical input
+tree (every result of `compute()`, or `from_arrays(..., canonicalize = true)`) the result equals
+`compute()` bit for bit.
+
+**Tie rule** (the rule of MOSP-OpenMP's `sospUpdateCpu` and MOSP-CUDA's `sospUpdateGpu`, on every
+backend): a parent changes only when its vertex is re-evaluated. The vertices of the invalidated
+subtrees and the insertion heads take their best (distance, lowest parent id) over all
+in-neighbours; the out-neighbours x of a vertex a whose distance decreased adopt
+(d(a) + w(a,x), a) if that pair is smaller than their own; all other vertices keep their parents.
+So a tree adopted with `canonicalize = false` whose tie parents are not the lowest ids (MOSP's
+dataset trees are such trees) keeps those parents where the batch does not reach, exactly as the
+original `mosp` driver does; the distances are still those of `compute()`. In the distance-only
+mode (`stats::packed_parents == false`) every parent is recovered with the lowest-id rule after
+the search, so the result equals `compute()` on every input. MOSP-OpenMP's own sequential update
+(`sequentialSOSPUpdate`) re-scans all in-neighbours of every candidate and can pick a lower-id
+tight parent from a vertex that did not improve; dynG's sequential backend follows the rule
+above instead (ADR 0006), so that every backend returns the same tree.
 
 ## 2. Template mapping
 
@@ -30,8 +46,8 @@ identify_affected -> seed -> { FP: loop until is_converged } -> finalize
 | `sssp.commit` | `graph::apply` with the per-edge classification (`apply_delta`): deletions and per-objective weight increases |
 | `sssp.identify_affected` | roots = heads v of deleted or weight-increased edges (u,v) with parent[v] == u; their subtrees are invalidated |
 | `sssp.seed` | invalidated vertices and insertion heads pull their best (distance, lowest id) over their in-neighbours |
-| `sssp.loop` | propagate decreases until no distance changes (near-far worklist on OpenMP; re-scan rounds on the sequential backend) |
-| `sssp.finalize` | unpack distances and parents; count `affected` |
+| `sssp.loop` | propagate decreases until no distance changes (near-far worklist on OpenMP; rounds of the same push rule on the sequential backend) |
+| `sssp.finalize` | unpack distances and parents (the distance-only mode recovers every parent); count `affected` |
 
 `compute()` is the static enactor: `sssp.reset` -> `sssp.seed` (the source) -> `sssp.loop` ->
 `sssp.finalize`, inside `sssp.compute`. `update()` runs inside `sssp.update`.
@@ -68,12 +84,13 @@ Python: planned (M5).
 
 | Backend | Engine | Origin |
 |---|---|---|
-| sequential | hook-by-hook reference (`engine::operators`) | `sequentialSOSPUpdate` adapted |
+| sequential | hook-by-hook reference (`engine::operators`) | `sequentialSOSPUpdate` adapted (Step 2 with `sospUpdateCpu`'s push rule) |
 | openmp | the ported paper engine (`engine::fused`) | `sospUpdateCpu` / `sospFromScratchCpu` ported straight |
 | cuda | M1b | `sospUpdateGpu` (persistent cooperative kernel) |
 
-All backends return identical trees; `invalidated` and `affected` are deterministic,
-`iterations`, `epochs` and `pushes` depend on the schedule.
+All backends return identical trees, from canonical and non-canonical input trees alike (the
+randomized test `NonCanonicalInputTreesAgreeOnEveryBackend` perturbs tie parents); `invalidated`
+and `affected` are deterministic, `iterations`, `epochs` and `pushes` depend on the schedule.
 
 ## 5. Performance notes
 

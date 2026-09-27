@@ -15,21 +15,31 @@
  *     parent[v] == u; the subtree of every root is invalidated (distance infinite, parent -1) by a
  *     traversal of the children lists of the old tree.
  *   - seed: every invalidated vertex, then every insertion head (not the source), re-evaluates
- *     its best (distance, lowest parent id) over its in-neighbours; those whose distance decreased
- *     are affected.
- *   - loop: the candidates of a round are the out-neighbours (not the source) of the affected
- *     vertices; each candidate re-evaluates its in-neighbours and keeps a strictly better pair;
- *     those whose distance decreased are affected in the next round. Distances only decrease, so
- *     the loop terminates without an iteration cap.
- *   - finalize: count the vertices whose distance or parent changed.
+ *     its best (distance, lowest parent id) over its in-neighbours (the pull pass of
+ *     sospUpdateCpu); those whose distance decreased are affected.
+ *   - loop: every affected vertex a offers (d(a) + w(a,x), a) to each out-neighbour x (not the
+ *     source), which adopts the offer if the (distance, parent id) pair is smaller than its own
+ *     (the push rule of sospUpdateCpu's near-far propagation, applied round by round); those whose
+ *     distance decreased are affected in the next round. Distances only decrease, so the loop
+ *     terminates without an iteration cap.
+ *   - finalize: in the distance-only mode of the OpenMP engine (distances do not fit next to the
+ *     parent ids; sssp_packs_parents() is false) every parent is recovered with the lowest-id rule
+ *     over the tight in-edges, as that engine does; then count the vertices whose distance or
+ *     parent changed.
  *
  * compute() runs the same loop from the source (reset -> seed_static -> loop -> finalize).
  *
- * Changes from the original: the hook structure; the per-round `vector<bool>` candidate flags
- * (O(n) per round) are replaced by generation stamps in the workspace; the children lists and all
- * other scratch arrays live in the result's workspace (reserved once); the classification of
- * weight increases is the graph's (MOSP applyChangeBatch semantics, identical for both backends)
- * instead of the adjacency-list scan of the original.
+ * Changes from the original: the hook structure; the children lists and all other scratch arrays
+ * live in the result's workspace (reserved once); the classification of weight increases is the
+ * graph's (MOSP applyChangeBatch semantics, identical for both backends) instead of the
+ * adjacency-list scan of the original; a parent cycle in an imported tree is reported as the
+ * OpenMP engine reports it. And the tie rule of Step 2 (decided after the M1a review): the original
+ * re-scans all in-neighbours of every candidate and adopts a lower-id tight parent even when the
+ * offering vertex did not improve, while sospUpdateCpu (and MOSP-CUDA's sospUpdateGpu) only offer
+ * (d(a) + w, a) from improved vertices a. The two agree on canonical input trees (all goldens)
+ * but not on valid trees with non-lowest tie parents (from_arrays with canonicalize = false);
+ * this backend follows sospUpdateCpu, so every dynG backend returns the same tree on every input
+ * (ADR 0006).
  */
 #include "algorithms/sssp/problem.hpp"
 #include "graph/instantiate.hpp"
@@ -61,6 +71,8 @@ class sequential_problem {
       list->reserve(static_cast<std::size_t>(n_));
     }
     run_.counters = sssp_counters{};
+    packed_parents_ = sssp_packs_parents(n_, run_.max_weight);
+    run_.counters.packed_parents = packed_parents_;
     ws_.touched.clear();
     ws_.old_distance.clear();
     ws_.old_parent.clear();
@@ -176,12 +188,15 @@ class sequential_problem {
 
   // ---- both ------------------------------------------------------------------------------------
 
-  /// Propagate: re-evaluate the out-neighbours of the affected vertices until nothing decreases.
+  /// Propagate: the affected vertices push (distance, parent id) offers to their out-neighbours
+  /// until no distance decreases.
   void loop() {
     const auto& g = run_.graph;
     const vertex_t source = run_.source;
+    std::int64_t* distances = run_.distances;
+    vertex_t* parent = run_.parents;
     int* stamp = ws_.stamp.data();
-    std::vector<vertex_t>& candidates = ws_.candidate_list;
+    std::vector<vertex_t>& next = ws_.candidate_list;
     while (!ws_.affected.empty()) {
       ++run_.counters.iterations;
       if (run_.counters.iterations > n_) {
@@ -189,31 +204,73 @@ class sequential_problem {
         DYNG_FAIL("sssp: the sequential update did not converge");
       }
       run_.counters.pushes += static_cast<std::int64_t>(ws_.affected.size());
-      // Candidates: the out-neighbours of the affected vertices (never the source).
-      const int candidate_generation = ws_.next_generation();
-      candidates.clear();
+      const int next_generation = ws_.next_generation();
+      next.clear();
       for (const vertex_t a : ws_.affected) {
+        const std::int64_t da = distances[a];
+        if (da >= sssp_infinity / 2) {
+          continue;
+        }
         for (edge_t e = g.out_row_ptr[a]; e < g.out_row_ptr[a + 1]; ++e) {
-          const vertex_t w = g.out_col_ind[e];
-          if (w == source || stamp[w] == candidate_generation) {
+          const vertex_t x = g.out_col_ind[e];
+          if (x == source) {
             continue;
           }
-          stamp[w] = candidate_generation;
-          candidates.push_back(w);
+          const std::int64_t offer = da + static_cast<std::int64_t>(g.out_weights[e]);
+          // The packed-word order of sospUpdateCpu: (distance, parent id), lexicographically.
+          if (offer < distances[x] || (offer == distances[x] && a < parent[x])) {
+            const bool decreased = offer < distances[x];
+            save(x);
+            distances[x] = offer;
+            parent[x] = a;
+            if (decreased && stamp[x] != next_generation) {
+              stamp[x] = next_generation;
+              next.push_back(x);
+            }
+          }
         }
       }
-      ws_.affected.clear();
-      affected_generation_ = ws_.next_generation();
-      for (const vertex_t c : candidates) {
-        if (relax(c)) {
-          mark_affected(c);
+      ws_.affected.swap(next);
+    }
+  }
+
+  /// In the distance-only mode, recover every parent with the lowest-id rule; then count the
+  /// vertices whose distance or parent changed.
+  void finalize() {
+    if (!packed_parents_) {
+      recover_parents();
+    }
+    count_affected();
+  }
+
+ private:
+  /// The OpenMP engine's parent recovery of the distance-only mode: every reachable vertex other
+  /// than the source takes the lowest-id in-neighbour u with d(u) + w(u,v) == d(v).
+  void recover_parents() {
+    const auto& g = run_.graph;
+    const std::int64_t* distances = run_.distances;
+    vertex_t* parent = run_.parents;
+    for (std::int64_t v = 0; v < n_; ++v) {
+      vertex_t best = -1;
+      if (v != static_cast<std::int64_t>(run_.source) && distances[v] < sssp_infinity / 2) {
+        for (edge_t e = g.in_row_ptr[v]; e < g.in_row_ptr[v + 1]; ++e) {
+          const vertex_t u = g.in_col_ind[e];
+          if (distances[u] < sssp_infinity / 2 &&
+              distances[u] + static_cast<std::int64_t>(g.in_weights[e]) == distances[v] &&
+              (best < 0 || u < best)) {
+            best = u;
+          }
         }
+      }
+      if (best != parent[v]) {
+        save(static_cast<vertex_t>(v));
+        parent[v] = best;
       }
     }
   }
 
   /// Count the vertices whose distance or parent changed.
-  void finalize() {
+  void count_affected() {
     if (!count_changes_) {
       std::int64_t reachable = 0;
       for (std::int64_t v = 0; v < n_; ++v) {
@@ -232,7 +289,6 @@ class sequential_problem {
     run_.counters.affected = affected;
   }
 
- private:
   /// A corrupt imported tree (validate_inputs off) may have a parent cycle. The OpenMP engine's
   /// chain walk reports a cycle that no root breaks; the same check here, so both backends throw
   /// the same invalid_argument_error on the same inputs (and neither returns a wrong tree).
@@ -324,6 +380,7 @@ class sequential_problem {
   std::int64_t n_;
   int affected_generation_ = 0;
   bool count_changes_ = true;
+  bool packed_parents_ = true;
 };
 
 }  // namespace
