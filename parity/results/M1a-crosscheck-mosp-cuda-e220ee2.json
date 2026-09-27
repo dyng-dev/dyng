@@ -2,28 +2,30 @@
  "schema": 1,
  "algorithm": "sssp",
  "label": "one-off cross-check (PLAN 6.3 step 2): MOSP-CUDA@e220ee2 against the MOSP-OpenMP@c352151 goldens, RTX A5000 (GPU 1)",
- "date": "2026-09-27T18:34:35Z",
+ "date": "2026-09-27T20:04:08Z",
  "reference": {
   "name": "MOSP-OpenMP",
   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
  },
  "port": {
   "repository": "dyng",
-  "commit": "93e60f86b3f159bea5a613a76ddaa53a3f12dbd1"
+  "commit": "e8ff5f5ac376ccdde9bbe036100e36715f0cbfce+dirty"
  },
  "driver": "original",
- "executable": "/home/sskg8/Projects/dyng-work/ref/MOSP-CUDA@e220ee2/patched",
+ "executable": "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/patched",
  "build": {
-  "reference_copy": "/home/sskg8/Projects/dyng-work/ref/MOSP-CUDA@e220ee2/patched"
+  "reference_copy": "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/patched"
  },
  "host": {
-  "machine": "rs4fj2xp3",
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64",
   "python": "3.12.14"
  },
  "goldens": {
-  "manifest_sha256": "78b658553362f77686571dc5f21c28667809580a33983354a982912c54591c26",
-  "cases": 388,
-  "files": 8620
+  "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+  "cases": 495,
+  "files": 11799
  },
  "tolerance": "none: byte equality of every compared file; invalidated counters equal",
  "configs": [
@@ -90,6 +92,13 @@
    "original": {
     "cases": 200,
     "pass": 200,
+    "fail": []
+   }
+  },
+  "noncanonical": {
+   "original": {
+    "cases": 107,
+    "pass": 107,
     "fail": []
    }
   }

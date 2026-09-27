@@ -2,14 +2,14 @@
  "schema": 1,
  "algorithm": "sssp",
  "label": "M1a: dynG sssp (parity preset, -O3) against the MOSP-OpenMP@c352151 goldens",
- "date": "2026-09-27T18:32:53Z",
+ "date": "2026-09-27T20:01:47Z",
  "reference": {
   "name": "MOSP-OpenMP",
   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
  },
  "port": {
   "repository": "dyng",
-  "commit": "93e60f86b3f159bea5a613a76ddaa53a3f12dbd1"
+  "commit": "e8ff5f5ac376ccdde9bbe036100e36715f0cbfce"
  },
  "driver": "compat",
  "executable": "build/parity/tools/compat/dyng-compat-mosp",
@@ -19,17 +19,19 @@
   "CMAKE_CXX_FLAGS": "",
   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
   "DYNG_ENABLE_OPENMP": "ON",
-  "build_dir": "/home/sskg8/Projects/dyng/build/parity",
+  "build_dir": "build/parity",
   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
  },
  "host": {
-  "machine": "rs4fj2xp3",
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64",
   "python": "3.12.14"
  },
  "goldens": {
-  "manifest_sha256": "78b658553362f77686571dc5f21c28667809580a33983354a982912c54591c26",
-  "cases": 388,
-  "files": 8620
+  "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+  "cases": 495,
+  "files": 11799
  },
  "tolerance": "none: byte equality of every compared file; invalidated counters equal",
  "configs": [
@@ -45,12 +47,12 @@
     "pass": 10,
     "fail": []
    },
-   "openmp:1": {
+   "openmp:4": {
     "cases": 10,
     "pass": 10,
     "fail": []
    },
-   "openmp:4": {
+   "openmp:1": {
     "cases": 10,
     "pass": 10,
     "fail": []
@@ -89,12 +91,12 @@
     "pass": 1,
     "fail": []
    },
-   "openmp:1": {
+   "openmp:4": {
     "cases": 1,
     "pass": 1,
     "fail": []
    },
-   "openmp:4": {
+   "openmp:1": {
     "cases": 1,
     "pass": 1,
     "fail": []
@@ -128,17 +130,17 @@
    }
   },
   "fixtures": {
+   "openmp:1": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   },
    "openmp:4": {
     "cases": 17,
     "pass": 17,
     "fail": []
    },
    "sequential": {
-    "cases": 17,
-    "pass": 17,
-    "fail": []
-   },
-   "openmp:1": {
     "cases": 17,
     "pass": 17,
     "fail": []
@@ -150,12 +152,12 @@
    }
   },
   "sosp": {
-   "openmp:1": {
+   "sequential": {
     "cases": 148,
     "pass": 148,
     "fail": []
    },
-   "sequential": {
+   "openmp:1": {
     "cases": 148,
     "pass": 148,
     "fail": []
@@ -216,12 +218,12 @@
    }
   },
   "stress": {
-   "sequential": {
+   "openmp:1": {
     "cases": 200,
     "pass": 200,
     "fail": []
    },
-   "openmp:1": {
+   "sequential": {
     "cases": 200,
     "pass": 200,
     "fail": []
@@ -234,6 +236,28 @@
    "openmp:16": {
     "cases": 200,
     "pass": 200,
+    "fail": []
+   }
+  },
+  "noncanonical": {
+   "sequential": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 107,
+    "pass": 107,
     "fail": []
    }
   }
