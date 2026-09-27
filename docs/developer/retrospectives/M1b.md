@@ -187,4 +187,3 @@ workspaces, the GPU gate and the compile-only CI.
   resident device graph, the CUDA A/B, the `edge_t` benchmark (ADR 0009) and the sssp page.
 - `cuda-build.yml` has not run on GitHub yet (the repository is not pushed); CUDA 13.3.1 was not
   built locally.
-
