@@ -16,11 +16,20 @@ Checked (PLAN Sections 8.9 and 10.1-10.2; docs/developer/labels.md):
   ``@org/team`` or an e-mail address, no syntax GitHub does not support, a catch-all ``*``
   rule, and every anchored path (``/dir/``, ``/file``) exists in the repository.
 * ``.github/PULL_REQUEST_TEMPLATE.md``: the review checklist of PLAN Section 8.9 is present.
+* ``.github/workflows/*.yml`` (least privilege and pinning, PLAN Section 8.8): a top-level
+  ``permissions`` block that grants nothing beyond ``read`` (write permissions only per job);
+  no ``pull_request_target`` trigger; every ``uses:`` of a remote action pinned to a full
+  40-character commit SHA with a ``# vX.Y.Z`` comment naming the tag; every
+  ``actions/checkout`` step with ``persist-credentials: false``; no ``${{ }}`` expression in a
+  ``run:`` script other than ``matrix.*``, ``env.*`` and ``runner.*`` (pass values through
+  ``env:`` instead). actionlint and zizmor (pre-commit hooks) check the rest.
 
 Usage::
 
-    python3 ci/github_meta_check.py              # check the repository
-    python3 ci/github_meta_check.py --self-test  # first prove that broken inputs are rejected
+    python3 ci/github_meta_check.py                # check the repository
+    python3 ci/github_meta_check.py --self-test    # first prove that broken inputs are rejected
+    python3 ci/github_meta_check.py --verify-pins  # also check each action SHA against its
+                                                   # version tag (git ls-remote; needs network)
 
 Needs PyYAML (in the dyng-dev environment; the pre-commit hook installs it).
 """
@@ -30,6 +39,7 @@ from __future__ import annotations
 import argparse
 import copy
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -92,6 +102,14 @@ COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 OWNER_RE = re.compile(
     r"^(@[A-Za-z0-9](?:-?[A-Za-z0-9])*(?:/[A-Za-z0-9._-]+)?|[^@\s]+@[^@\s]+\.[^@\s]+)$"
 )
+# A remote action pinned by SHA with its version tag in a comment:
+#   uses: owner/repo[/path]@<40 hex>  # vX.Y.Z
+USES_RE = re.compile(r"^\s*(?:-\s+)?uses:\s*(\S+?)\s*(?:#\s*(\S+).*)?$")
+PINNED_RE = re.compile(r"^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)(/[^@]+)?@([0-9a-f]{40})$")
+VERSION_RE = re.compile(r"^v\d+(\.\d+)*$")
+EXPRESSION_RE = re.compile(r"\$\{\{\s*(.*?)\s*\}\}")
+# Contexts that an attacker cannot set and that are safe to expand inside a shell script.
+SAFE_RUN_CONTEXTS = ("matrix.", "env.", "runner.")
 
 
 def check_labels(labels: object) -> tuple[list[str], set[str]]:
@@ -291,6 +309,128 @@ def check_pr_template(text: str) -> list[str]:
     ]
 
 
+def _triggers(workflow: dict) -> set[str]:
+    # PyYAML (YAML 1.1) reads the key `on` as the boolean True.
+    on = workflow.get("on", workflow.get(True))
+    if isinstance(on, str):
+        return {on}
+    if isinstance(on, list):
+        return {str(x) for x in on}
+    if isinstance(on, dict):
+        return {str(x) for x in on}
+    return set()
+
+
+def check_workflow(name: str, text: str) -> list[str]:
+    """Return the least-privilege and pinning errors of one workflow file."""
+    errors: list[str] = []
+    try:
+        workflow = yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        return [f"{name}: not valid YAML ({exc})"]
+    if not isinstance(workflow, dict):
+        return [f"{name}: expected a mapping"]
+    if "pull_request_target" in _triggers(workflow):
+        errors.append(
+            f"{name}: pull_request_target runs fork code with a privileged token "
+            "(PLAN Section 8.8); use pull_request"
+        )
+    perms = workflow.get("permissions")
+    if perms is None:
+        errors.append(f"{name}: no top-level 'permissions' (the default token may write)")
+    elif isinstance(perms, str):
+        errors.append(f"{name}: top-level permissions '{perms}'; list the scopes explicitly")
+    elif isinstance(perms, dict):
+        for scope, level in perms.items():
+            if level not in ("read", "none"):
+                errors.append(
+                    f"{name}: top-level permission {scope}: {level}; grant write "
+                    "permissions only to the job that needs them"
+                )
+    for n, line in enumerate(text.splitlines(), start=1):
+        match = USES_RE.match(line)
+        if not match or line.lstrip().startswith("#"):
+            continue
+        ref, comment = match.group(1).strip("'\""), match.group(2)
+        if ref.startswith("./") or ref.startswith("docker://"):
+            continue
+        if not PINNED_RE.match(ref):
+            errors.append(f"{name}:{n}: '{ref}' is not pinned to a full commit SHA")
+        elif not comment or not VERSION_RE.match(comment):
+            errors.append(f"{name}:{n}: '{ref}' needs a '# vX.Y.Z' comment naming its tag")
+    jobs = workflow.get("jobs")
+    if not isinstance(jobs, dict) or not jobs:
+        return errors + [f"{name}: no jobs"]
+    for job_id, job in jobs.items():
+        if not isinstance(job, dict):
+            continue
+        for i, step in enumerate(job.get("steps") or []):
+            if not isinstance(step, dict):
+                continue
+            where = f"{name} jobs.{job_id}.steps[{i}]"
+            uses = str(step.get("uses", ""))
+            if uses.startswith("actions/checkout@"):
+                with_ = step.get("with") or {}
+                if with_.get("persist-credentials") is not False:
+                    errors.append(
+                        f"{where}: actions/checkout needs 'persist-credentials: false' "
+                        "(the token would stay in .git/config)"
+                    )
+            run = step.get("run")
+            if isinstance(run, str):
+                for expr in EXPRESSION_RE.findall(run):
+                    if not expr.startswith(SAFE_RUN_CONTEXTS):
+                        errors.append(
+                            f"{where}: '${{{{ {expr} }}}}' is expanded into the script; "
+                            "pass it through 'env:' instead"
+                        )
+    return errors
+
+
+def pinned_actions(root: Path) -> dict[tuple[str, str], set[str]]:
+    """Return {(owner/repo, version tag): {pinned SHAs}} over every workflow."""
+    pins: dict[tuple[str, str], set[str]] = {}
+    for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = USES_RE.match(line)
+            if not match or not match.group(2):
+                continue
+            pinned = PINNED_RE.match(match.group(1).strip("'\""))
+            if pinned:
+                pins.setdefault((pinned.group(1), match.group(2)), set()).add(pinned.group(3))
+    return pins
+
+
+def verify_pins(root: Path) -> list[str]:
+    """Check with git ls-remote that each pinned SHA is the commit its version tag names."""
+    errors: list[str] = []
+    for (repo, tag), shas in sorted(pinned_actions(root).items()):
+        url = f"https://github.com/{repo}"
+        try:
+            out = subprocess.run(
+                ["git", "ls-remote", url, f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            ).stdout
+        except (OSError, subprocess.SubprocessError) as exc:
+            errors.append(f"pins: git ls-remote {url} failed ({exc})")
+            continue
+        refs = dict(reversed(line.split("\t")) for line in out.splitlines() if "\t" in line)
+        # An annotated tag is peeled ('^{}') to the commit it names.
+        commit = refs.get(f"refs/tags/{tag}^{{}}", refs.get(f"refs/tags/{tag}"))
+        if commit is None:
+            errors.append(f"pins: {repo} has no tag {tag}")
+            continue
+        for sha in sorted(shas):
+            if sha != commit:
+                errors.append(f"pins: {repo}@{sha} is not {tag} ({commit})")
+            else:
+                print(f"github_meta_check: {repo} {tag} = {sha}")
+    return errors
+
+
 def check_repository(root: Path) -> list[str]:
     """Run every check on the files of the repository at `root`."""
     gh = root / ".github"
@@ -308,6 +448,11 @@ def check_repository(root: Path) -> list[str]:
     errors += check_chooser(yaml.safe_load((forms_dir / "config.yml").read_text(encoding="utf-8")))
     errors += check_codeowners((gh / "CODEOWNERS").read_text(encoding="utf-8"), root)
     errors += check_pr_template((gh / "PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8"))
+    workflows = sorted((gh / "workflows").glob("*.y*ml"))
+    if not workflows:
+        errors.append("workflows: no workflow files")
+    for path in workflows:
+        errors += check_workflow(f"workflows/{path.name}", path.read_text(encoding="utf-8"))
     return errors
 
 
@@ -378,6 +523,53 @@ def self_test(root: Path) -> list[str]:
     expect("a missing path", check_codeowners("* @a\n/no/such/dir/ @a\n", root))
     expect("no catch-all rule", check_codeowners("/docs/ @a\n", root))
     expect("a PR template without the DCO item", check_pr_template("- [ ] **Tests:**\n"))
+    docs = (gh / "workflows" / "docs.yml").read_text(encoding="utf-8")
+    checkout = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1"
+    assert checkout in docs and "persist-credentials: false" in docs, "self-test fixture moved"
+    expect(
+        "a workflow without permissions", check_workflow("w", docs.replace("permissions:", "x:"))
+    )
+    expect(
+        "a top-level write permission",
+        check_workflow("w", docs.replace("contents: read", "contents: write", 1)),
+    )
+    expect(
+        "write-all permissions",
+        check_workflow(
+            "w", re.sub(r"(?m)^permissions:\n  contents: read", "permissions: write-all", docs)
+        ),
+    )
+    expect(
+        "a pull_request_target trigger",
+        check_workflow("w", docs.replace("  pull_request:\n", "  pull_request_target:\n")),
+    )
+    expect(
+        "an action pinned to a tag",
+        check_workflow("w", docs.replace(checkout, "actions/checkout@v7.0.1")),
+    )
+    expect(
+        "an abbreviated SHA",
+        check_workflow("w", docs.replace(checkout, "actions/checkout@3d3c42e  # v7.0.1")),
+    )
+    expect(
+        "a pin without its version comment",
+        check_workflow("w", docs.replace(checkout, checkout.split("  #")[0])),
+    )
+    expect(
+        "a checkout that keeps the token",
+        check_workflow(
+            "w", docs.replace("persist-credentials: false", "persist-credentials: true")
+        ),
+    )
+    expect(
+        "an untrusted expression in a script",
+        check_workflow(
+            "w",
+            docs.replace(
+                "run: ci/docs.sh\n", "run: echo ${{ github.event.pull_request.title }}\n", 1
+            ),
+        ),
+    )
     return failures
 
 
@@ -387,16 +579,27 @@ def main() -> int:
         "--self-test", action="store_true", help="first check that broken inputs are rejected"
     )
     parser.add_argument(
+        "--verify-pins",
+        action="store_true",
+        help="also check each pinned action SHA against its version tag (network)",
+    )
+    parser.add_argument(
         "--root", type=Path, default=ROOT, help="repository root (default: this checkout)"
     )
     args = parser.parse_args()
     errors = self_test(args.root) if args.self_test else []
     errors += check_repository(args.root)
+    if args.verify_pins:
+        errors += verify_pins(args.root)
     for error in errors:
         print(f"github_meta_check: {error}", file=sys.stderr)
     if errors:
         return 1
-    print("github_meta_check: OK (labels, issue forms, chooser, CODEOWNERS, PR template)")
+    print(
+        "github_meta_check: OK (labels, issue forms, chooser, CODEOWNERS, PR template, workflows"
+        + (", action pins" if args.verify_pins else "")
+        + ")"
+    )
     return 0
 
 

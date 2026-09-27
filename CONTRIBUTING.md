@@ -171,6 +171,17 @@ pull request how you measured any performance claim.
 - **Dependencies:** a new dependency needs a justification in the pull request, a compatible
   license, and should be optional where possible. Third-party code is never copied into the
   repository; it is fetched at a pinned version.
+- **GitHub Actions workflows** (`.github/workflows/`): logic goes into `ci/*.sh` so that CI and
+  local runs are the same. Pin every action to a full commit SHA with its tag in a comment
+  (`uses: actions/checkout@<40-hex SHA>  # v7.0.1`) and check the pair with
+  `python3 ci/github_meta_check.py --verify-pins` (network); a new action owner also goes into
+  the Actions allow list (`docs/developer/repository_settings.md`, step 5). Least privilege:
+  the top-level `permissions:` grants `read` at most, a job that needs to write asks for it in
+  its own `permissions:` with a comment saying why, `actions/checkout` sets
+  `persist-credentials: false`, `pull_request_target` is not used, and values from outside
+  (event data, step outputs) reach a `run:` script through `env:`, never as `${{ }}` inside
+  the script. The pre-commit hooks `actionlint` (with shellcheck), `zizmor` and `github-meta`
+  check all of this.
 
 ## Documentation and Doxygen
 
