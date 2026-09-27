@@ -44,9 +44,10 @@ cmake --preset parity && cmake --build --preset parity
 ctest --preset parity -L parity                   # golden replay (skipped without goldens)
 parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp --json out.json
 parity/compare.py --driver original --ref "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/patched"
-parity/perf_ab.py prepare                         # roadNet-CA inputs, as the original's bench/prepare.sh
-flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py run \
+parity/perf_ab.py prepare --graph roadNet-CA      # inputs, as the original's bench/prepare.sh
+flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py run --graph roadNet-CA \
     --exe build/parity/tools/compat/dyng-compat-mosp --runs 21 --json out.json
+# graphs of the sssp gate (PLAN 6.4.2): roadNet-PA, roadNet-CA, rgg, road_usa_g
 ```
 
 `perf_ab.py run` takes `$DYNG_SCRATCH/perf.lock` itself; under the machine's convention

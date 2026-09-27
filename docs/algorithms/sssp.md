@@ -96,8 +96,39 @@ and `affected` are deterministic, `iterations`, `epochs` and `pushes` depend on 
 
 The paper-timed region of the original, `obj<k>/sosp_update_compute` (sospUpdateCpu), maps to
 `sssp.identify_affected + sssp.seed + sssp.loop + sssp.finalize` (`parity/timed_regions/sssp.toml`).
-The OpenMP engine allocates nothing after the result is created (the workspace is reserved and
-touched at compute / from_arrays). Each result owns a workspace of about 38 bytes per vertex.
+
+**Scratch memory (ADR 0015).** The engines' workspace (about 38 bytes per vertex: packed words,
+stamps, flags and six frontier lists) belongs to the `resources` handle, not to the result.
+`compute()`, `from_arrays()`, `clone()` and each result's part of `update()` lease it from the
+handle and size it once (profiler stage `sssp.workspace`), so results run through one handle
+share it: the K objectives of `dyng::update_each()` use one workspace one after the other, as
+MOSP's `mospUpdate()` shares its `SospWorkspace`, and a steady-state update allocates no scratch
+memory. Calls that run concurrently on copies of one handle lease distinct workspaces.
+`resources::workspace_bytes()` reports the cached bytes, `resources::release_workspaces()` frees
+them. As in the original, objective 0 of an update first touches the frontier-list pages it uses.
+
+**The graph around it.** A graph built with `from_csr()` / `from_edges()` does not transpose
+itself: the in-edges are built on first use, which for an update is inside the commit, for the
+updated graph only (MOSP builds its reverse graph once, in "prepare"). `from_csr()` takes a CSR
+that already has the requested form (any CSR under `mosp_compatible()`) as it is, and its rvalue
+overload takes over the arrays without a copy. On the OpenMP backend the batch's CSR assembly,
+the checks of `from_csr()` and the validation of imported trees (`validate_inputs`) run in
+parallel, with results and messages identical to the sequential ones.
+
+**Measured against the originals** (OpenMP, 28 threads pinned, medians of 21 alternating runs,
+`parity/results/M1b.md`): every objective's SOSP region, the apply region and the end-to-end time
+of `dyng-compat-mosp` against MOSP-OpenMP@c352151's `mosp` on roadNet-PA, roadNet-CA,
+rgg_n_2_20_s0 and road_usa (50K safe, 50K unsafe, 10K local batches). Ratio dynG / original
+(medians; below 1 is faster), the range over the three batches and the objectives:
+
+| Graph | SOSP region per objective (gate 1.05x) | apply (gate 1.10x) | end to end (gate 1.10x) |
+|---|---|---|---|
+| roadNet-PA | 0.78-0.95x | 0.78-0.91x | 0.80-0.83x |
+| roadNet-CA | 0.81-0.99x | 0.84-0.88x | 0.76x |
+| rgg_n_2_20_s0 | 0.82-1.01x | 0.77-0.80x | 0.83-0.85x |
+| road_usa | 0.84-0.96x | 0.79x | 0.77-0.81x |
+
+Byte-identical outputs and equal `invalidated` counters in every run; details in the record.
 
 ## 6. Limitations
 
@@ -124,7 +155,7 @@ worklist without an iteration cap or a reachability pass, and ties go to the low
 | `sospUpdateCpu` | `sssp::update` on `resources::openmp` (`cpp/src/algorithms/sssp/openmp.cpp`) |
 | `sospFromScratchCpu`, `mospPrep init` / `dijkstraCsrGraph` | `sssp::compute`; `testing::dijkstra` |
 | `sequentialSOSPUpdate` | `sssp::update` on `resources::sequential` (`sequential.cpp`) |
-| `SospWorkspace` | the workspace inside `sssp::result` (reserved once) |
+| `SospWorkspace` (one per `mospUpdate()` call, shared by the objectives) | `detail::sssp_workspace`, leased from the pool of `resources` (one per handle, shared by the results; ADR 0015) |
 | `SospStats` | `sssp::stats` (`invalidated`, `iterations`, `epochs`, `pushes`, `packed_parents`) |
 | `HostChanges` (changed edges, insert heads), `weightIncreaseMask` | `detail::apply_delta` from the commit |
 | `defaultDelta` | `options.delta = 0` |

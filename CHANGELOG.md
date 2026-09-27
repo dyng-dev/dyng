@@ -68,6 +68,13 @@ Before 0.1.0 anything may change.
   `noncanonical` (107 cases with perturbed tie parents; 495 golden cases in total).
 - `ci/provenance_check.py` (provenance headers of ported files), ruff lint and format for the
   Python harness, smoke tests of the harness (`parity/tests`), Clang 17/18 jobs in `cpu.yml`.
+- `resources` owns a workspace pool: `compute()` / `update()` lease the engines' scratch memory
+  from it, so results run through one handle share one workspace (ADR 0015);
+  `resources::release_workspaces()` and `resources::workspace_bytes()`.
+- `graph::from_csr(res, csr&&, props)`: takes over the arrays of a CSR that already has the
+  requested form.
+- The OpenMP A/B on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa with the PLAN 8.6 gates
+  (`parity/results/M1b.md`); `perf_ab.py` gates `end_to_end` and `apply` at 1.10x.
 
 ### Changed
 
@@ -90,6 +97,16 @@ Before 0.1.0 anything may change.
   works under `flock(1)`; `build_reference.sh` keeps its logs and fingerprints each build.
 - Tests run with `OMP_WAIT_POLICY=PASSIVE`; the lint workflow uses Doxygen 1.18.0, as
   `environment.yml` (now pinned) does.
+- `sssp::result` no longer owns a workspace; the M1a pre-touch of every result's frontier lists
+  is removed, and the A/B compares every objective as measured (ADR 0015).
+- Graphs build their in-edges on first use (not at construction, not in `graph::apply()`);
+  `dyng::update()` builds them inside the commit, for the updated graph only.
+- OpenMP backend: `graph::apply()` assembles the new CSR in parallel, `from_csr()` checks in
+  parallel, `sssp::result::from_arrays()` imports and validates in parallel (same results and
+  messages).
+- I/O: files are read with one allocation and one read; distance and tree files are parsed in
+  one pass (the strict reader reports errors); CSR weights are parsed straight into their
+  objective-major columns.
 
 ## [0.0.1] - 2026-09-27
 

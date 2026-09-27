@@ -1,0 +1,266 @@
+{
+ "schema": 1,
+ "algorithm": "sssp",
+ "label": "M1b step cpu-gates, parity preset",
+ "date": "2026-09-27T22:09:26Z",
+ "reference": {
+  "name": "MOSP-OpenMP",
+  "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
+ },
+ "port": {
+  "repository": "dyng",
+  "commit": "79400d2ae0b80bbcbed7899036afdf4872c71740"
+ },
+ "driver": "compat",
+ "executable": "build/parity/tools/compat/dyng-compat-mosp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+  "CMAKE_CXX_FLAGS": "",
+  "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+  "DYNG_ENABLE_OPENMP": "ON",
+  "build_dir": "build/parity",
+  "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64",
+  "python": "3.12.14"
+ },
+ "goldens": {
+  "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+  "cases": 495,
+  "files": 11799
+ },
+ "tolerance": "none: byte equality of every compared file; invalidated counters equal",
+ "configs": [
+  "sequential",
+  "openmp:1",
+  "openmp:4",
+  "openmp:16"
+ ],
+ "matrix": {
+  "testcases": {
+   "sequential": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 10,
+    "pass": 10,
+    "fail": []
+   }
+  },
+  "regressions": {
+   "sequential": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   }
+  },
+  "thesis": {
+   "sequential": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 1,
+    "pass": 1,
+    "fail": []
+   }
+  },
+  "escher": {
+   "openmp:1": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   },
+   "sequential": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
+   }
+  },
+  "fixtures": {
+   "sequential": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 17,
+    "pass": 17,
+    "fail": []
+   }
+  },
+  "sosp": {
+   "sequential": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 148,
+    "pass": 148,
+    "fail": []
+   }
+  },
+  "large_weights": {
+   "openmp:1": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "sequential": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   }
+  },
+  "packing": {
+   "sequential": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   }
+  },
+  "stress": {
+   "sequential": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 200,
+    "pass": 200,
+    "fail": []
+   }
+  },
+  "noncanonical": {
+   "sequential": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "openmp:1": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "openmp:4": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "openmp:16": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   }
+  }
+ },
+ "passed": true
+}
