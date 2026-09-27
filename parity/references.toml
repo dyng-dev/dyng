@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The pinned original repositories of the parity harness (PLAN Sections 6.3 and 8.3, R22).
+#
+# parity/build_reference.sh reads this file. For every reference it exports the pinned commit with
+# `git archive` (the original repository is only read, never built in place and never changed)
+# into
+#     $DYNG_SCRATCH/ref/<name>@<commit>/unpatched   performance baselines
+#     $DYNG_SCRATCH/ref/<name>@<commit>/patched     goldens (unpatched + additive export tools)
+# and builds both with the original build system. $DYNG_SCRATCH is the persistent work area
+# (default $HOME/Projects/dyng-work); never a session-specific temporary directory.
+#
+# Keys of a [[reference]]:
+#   name            directory name of the original under $HOME/Projects (and of the scratch copy)
+#   origin          where the original repository lives on the development machine
+#   upstream        the original's remote (for provenance only; the harness never fetches)
+#   commit          the pinned commit (full SHA): the port must match THIS commit
+#   baseline_tag    local-only tag of the unfixed code that the papers measured (PLAN Section 6.1)
+#   baseline_commit full SHA of that tag, recorded here because local tags do not travel (R22)
+#   build           build command, run inside the copy; {jobs} is replaced by the job count
+#   build_env       extra environment for the build (VAR=value strings)
+#   run_env         environment every run of the reference needs
+#   export_patch    directory under parity/export_patches/ applied to the PATCHED copy only;
+#                   its build.sh receives the copy's path. "" = no patch (patched == unpatched)
+#   smoke_test      the original's own test command, run by `build_reference.sh --test`
+#   gitlinks        submodules / gitlinks that `git archive` leaves out (none here)
+#   external_inputs inputs the archive does not contain (datasets, benchmark inputs)
+#   toolchain       compilers and flags as built here
+schema = 1
+
+[[reference]]
+name = "MOSP-OpenMP"
+origin = "$HOME/Projects/MOSP-OpenMP"
+upstream = "git@github.com:SMShovan/MOSP-OpenMP.git"
+commit = "c35215135341d5b5d1553458afe4b2226edc38fb"
+baseline_tag = "baseline-2026-09"
+baseline_commit = "7284f5005e694eaa3466fd29bc0d12f7cf505a28"
+build = "make -j{jobs} all stressTest parallelStressTest"
+build_env = []
+run_env = []
+export_patch = "MOSP-OpenMP"
+smoke_test = "make test TEST_THREADS=4"
+gitlinks = []
+external_inputs = [
+  "SuiteSparse Matrix Market files for bench/prepare.sh (roadNet-PA, roadNet-CA, rgg_n_2_20_s0, road_usa); the prepared CSR files live under $DYNG_SCRATCH/datasets/mosp/<graph>/csr",
+  "bench/baseline/build.sh archives the tag baseline-2026-09 from the ORIGINAL repository (git -C <repo> archive); it is not available inside an archive copy",
+]
+toolchain = "system g++ 12.2, Makefile defaults: -std=c++17 -Wall -Wextra -O3 -fopenmp"
+notes = """
+The M1a reference of sssp (CPU). Its drivers: bin/mosp (in-memory mospUpdate -> sospUpdateCpu,
+per-objective stage timers, RESULT line), bin/mospPrep (mtx2csr, init, changes, expected),
+bin/mospTest (oracle groups; --work keeps every case on disk), bin/stressTest and
+bin/parallelStressTest (100 random cases each; they write their cases under the working directory).
+The export patch adds two exporter programs (parity/exporters/mosp) linked against the unchanged
+sources; no original file is modified.
+"""
+
+[[reference]]
+name = "MOSP-CUDA"
+origin = "$HOME/Projects/MOSP-CUDA"
+upstream = "git@github.com:SMShovan/MOSP-CUDA.git"
+commit = "e220ee20d1b0948ece3df135a02d1b898264c22f"
+baseline_tag = "baseline-2026-09"
+baseline_commit = "ac29545c6ff21a05901cd124ce6760644a129263"
+build = "make -j{jobs} all stressTest parallelStressTest NVCC=/usr/local/cuda-13.1/bin/nvcc"
+build_env = []
+run_env = ["CUDA_MODULE_LOADING=EAGER"]
+export_patch = "MOSP-CUDA"
+smoke_test = "make test NVCC=/usr/local/cuda-13.1/bin/nvcc"
+gitlinks = []
+external_inputs = [
+  "the same prepared datasets as MOSP-OpenMP ($DYNG_SCRATCH/datasets/mosp)",
+  "bench/baseline/build.sh archives the tag baseline-2026-09 from the ORIGINAL repository",
+]
+toolchain = "CUDA 13.1 nvcc, sm_86, host -O3, -lineinfo, --extended-lambda (Makefile defaults)"
+notes = """
+The M1b reference of sssp (CUDA). In M1a it is used once, for the cross-check
+old MOSP-CUDA == old MOSP-OpenMP on the golden corpus (PLAN Section 6.3 step 2). Its bin/mosp has
+the same command line and output files as MOSP-OpenMP's. The export patch builds the graph/io
+exporter against the CUDA sources (applyChangeBatch of the CUDA repository).
+"""

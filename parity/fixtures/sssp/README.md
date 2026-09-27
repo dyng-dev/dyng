@@ -1,10 +1,11 @@
 # sssp fixtures from MOSP-OpenMP@c352151
 
-`make_sssp_fixtures.sh` regenerates `cpp/tests/data/mosp_sssp/` from the pinned original. The
-original repository is only read with `git archive`; the copy is built out of tree under
-`$DYNG_SCRATCH/runs/sssp-fixtures/` (default `~/Projects/dyng-work`). `export_sssp.cpp` is a
-small driver compiled against the original sources; it calls the original file-based updates
-unchanged (`sequentialSOSPUpdate`, `parallelSOSPUpdate`).
+`make_sssp_fixtures.sh` regenerates `cpp/tests/data/mosp_sssp/` from the pinned original. It uses
+the patched scratch copy that `parity/build_reference.sh` builds under
+`$DYNG_SCRATCH/ref/MOSP-OpenMP@c352151/patched` (default `~/Projects/dyng-work`; the original
+repository is only read with `git archive`). Its exporter `parity_export/bin/export_sssp` (source
+`parity/exporters/mosp/export_sssp.cpp`) calls the original file-based updates unchanged
+(`sequentialSOSPUpdate`, `parallelSOSPUpdate`).
 
 For every case and objective the script writes:
 
@@ -32,7 +33,6 @@ Section 6.3 for the CPU implementations.
 `invalidated` equals the original's counter) and the `compat_mosp.*` CTest cases of
 `tools/compat` (the drop-in driver `dyng-compat-mosp` writes the same files).
 
-The script is deterministic: running it again leaves `git status` clean. The full parity harness
-(`parity/build_reference.sh`, the golden export and the comparison script) supersedes the
-ad-hoc archive directory used here; the fixtures themselves stay as small committed test data
-(about 39 KB).
+The script is deterministic: running it again leaves `git status` clean. The fixtures (about
+39 KB) are the small committed subset of the parity harness; the full golden corpus (388 cases,
+outside the repository) is described in `parity/README.md`.

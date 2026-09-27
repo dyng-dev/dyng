@@ -3,51 +3,35 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Regenerates the committed sssp test fixtures (cpp/tests/data/mosp_sssp) from the pinned original
-# MOSP-OpenMP@c352151. The original repository is only read with `git archive`; the copy is built
-# out of tree under the work directory.
+# MOSP-OpenMP@c352151, using the PATCHED scratch copy that parity/build_reference.sh builds (the
+# original repository is only read with `git archive`).
 #
-#   parity/fixtures/sssp/make_sssp_fixtures.sh [work-dir]
+#   parity/fixtures/sssp/make_sssp_fixtures.sh
 #
-# Environment:
-#   MOSP_OPENMP_REPO  the original repository   (default: $HOME/Projects/MOSP-OpenMP)
-#   DYNG_SCRATCH      persistent work area      (default: $HOME/Projects/dyng-work)
+# Environment: DYNG_SCRATCH (persistent work area, default $HOME/Projects/dyng-work).
 #
 # For every case it writes the initial trees (`mospPrep init`, Dijkstra with lowest-id ties) and
 # the updated trees of the in-memory driver `mosp` (mospUpdate -> sospUpdateCpu), and records the
 # deterministic `invalidated` counter per objective. Before anything is written it checks that
 # four original implementations agree byte for byte: `mosp`, the file-based OpenMP update
 # (parallelSOSPUpdate), the legacy sequential update (sequentialSOSPUpdate) and Dijkstra on the
-# updated graph (`mospPrep expected`); `mosp --validate` must pass as well.
+# updated graph (`mospPrep expected`); `mosp --validate` must pass as well. The full golden corpus
+# (388 cases) is parity/export_goldens.py; these fixtures are its small committed subset.
 #
 # The script is deterministic: running it again must leave `git status` clean.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-commit=c352151
-origin="${MOSP_OPENMP_REPO:-${HOME}/Projects/MOSP-OpenMP}"
-work="${1:-${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}/runs/sssp-fixtures}"
-ref="${work}/MOSP-OpenMP@${commit}"
+scratch="${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}"
 data="${repo_root}/cpp/tests/data"
 out="${data}/mosp_sssp"
-tmp="${work}/tmp"
+tmp="${scratch}/runs/sssp-fixtures-tmp"
 
 # --- 1. Reference copy and tools -------------------------------------------------------------
-if [ ! -f "${ref}/Makefile" ]; then
-  mkdir -p "${ref}"
-  git -C "${origin}" archive "${commit}" | tar -x -C "${ref}"
-fi
-make -C "${ref}" -j8 bin/mosp bin/mospPrep >/dev/null
-src="${ref}/src"
-common=("${src}/csrGraph.cpp" "${src}/read.cpp" "${src}/stageTimer.cpp" "${src}/sospUpdateCpu.cpp")
-g++ -std=c++17 -O2 -fopenmp -I"${ref}/headers" \
-  "${repo_root}/parity/fixtures/graph_io/export_graph_io.cpp" \
-  "${src}/csrGraph.cpp" "${src}/generateGraphCSR.cpp" "${src}/generateChangedEdges.cpp" \
-  "${src}/read.cpp" -o "${work}/export_graph_io"
-g++ -std=c++17 -O2 -fopenmp -I"${ref}/headers" \
-  "${repo_root}/parity/fixtures/sssp/export_sssp.cpp" "${common[@]}" \
-  "${src}/sequentialSOSPUpdate.cpp" "${src}/parallelSOSPUpdate.cpp" -o "${work}/export_sssp"
-generator="${work}/export_graph_io"
-exporter="${work}/export_sssp"
+"${repo_root}/parity/build_reference.sh" --variant patched MOSP-OpenMP >/dev/null
+ref="$("${repo_root}/parity/build_reference.sh" --variant patched --print-dir MOSP-OpenMP)"
+generator="${ref}/parity_export/bin/export_graph_io"
+exporter="${ref}/parity_export/bin/export_sssp"
 mosp="${ref}/bin/mosp"
 prep="${ref}/bin/mospPrep"
 # A fixed thread count: the outputs do not depend on it, the counters recorded here neither.

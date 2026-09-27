@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 //
-// Fixture exporter for the sssp tests. It is compiled against the sources of the PINNED original
-// MOSP-OpenMP@c352151 (a `git archive` copy under $DYNG_SCRATCH; never the original repository)
-// by make_sssp_fixtures.sh, and calls the original file-based SOSP updates unchanged:
+// SOSP exporter of the parity harness. parity/build_reference.sh compiles it into the PATCHED
+// scratch copy of MOSP-OpenMP@c352151 (parity/export_patches/MOSP-OpenMP/build.sh), against the
+// copy's unchanged sources, and it calls the original file-based SOSP updates unchanged:
 //
 //   sequential <csrPrefix> <distIn> <treeIn> <insert> <delete> <objective> <source> <distOut>
 //              <treeOut>
@@ -11,9 +11,10 @@
 //   parallel   <same arguments>
 //              parallelSOSPUpdate (the file-based OpenMP update, sospUpdateCpu inside)
 //
-// The script compares both outputs with the in-memory driver `mosp` (mospUpdate) and with
-// `mospPrep expected` (Dijkstra on the updated graph) before it commits any expected file: the
-// three original implementations must agree byte for byte (PLAN Section 6.3, step 2).
+// parity/export_goldens.py and parity/fixtures/sssp/make_sssp_fixtures.sh compare both outputs
+// with the in-memory driver `mosp` (mospUpdate) and with `mospPrep expected` (Dijkstra on the
+// updated graph) before they write any expected file: the original implementations must agree
+// byte for byte (PLAN Section 6.3, step 2).
 
 #include "parallelSOSPUpdate.h"
 #include "sequentialSOSPUpdate.h"

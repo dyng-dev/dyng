@@ -3,36 +3,23 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Regenerates the committed graph/io test fixtures (cpp/tests/data/mosp_graph_io) from the pinned
-# original MOSP-OpenMP@c352151. The original repository is only read with `git archive`; the copy
-# is built out of tree under the work directory.
+# original MOSP-OpenMP@c352151, using the PATCHED scratch copy that parity/build_reference.sh builds
+# (the original repository is only read with `git archive`).
 #
-#   parity/fixtures/graph_io/make_graph_io_fixtures.sh [work-dir]
+#   parity/fixtures/graph_io/make_graph_io_fixtures.sh
 #
-# Environment:
-#   MOSP_OPENMP_REPO  the original repository   (default: $HOME/Projects/MOSP-OpenMP)
-#   DYNG_SCRATCH      persistent work area      (default: $HOME/Projects/dyng-work)
+# Environment: DYNG_SCRATCH (persistent work area, default $HOME/Projects/dyng-work).
 #
 # The script is deterministic: running it again must leave `git status` clean.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-commit=c352151
-origin="${MOSP_OPENMP_REPO:-${HOME}/Projects/MOSP-OpenMP}"
-work="${1:-${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}/runs/graph-io-fixtures}"
-ref="${work}/MOSP-OpenMP@${commit}"
 out="${repo_root}/cpp/tests/data/mosp_graph_io"
 
 # --- 1. Reference copy and tools -------------------------------------------------------------
-if [ ! -f "${ref}/Makefile" ]; then
-  mkdir -p "${ref}"
-  git -C "${origin}" archive "${commit}" | tar -x -C "${ref}"
-fi
-make -C "${ref}" -j8 bin/mospPrep >/dev/null
-exporter="${work}/export_graph_io"
-g++ -std=c++17 -O2 -fopenmp -I"${ref}/headers" \
-  "${repo_root}/parity/fixtures/graph_io/export_graph_io.cpp" \
-  "${ref}/src/csrGraph.cpp" "${ref}/src/generateGraphCSR.cpp" \
-  "${ref}/src/generateChangedEdges.cpp" "${ref}/src/read.cpp" -o "${exporter}"
+"${repo_root}/parity/build_reference.sh" --variant patched MOSP-OpenMP >/dev/null
+ref="$("${repo_root}/parity/build_reference.sh" --variant patched --print-dir MOSP-OpenMP)"
+exporter="${ref}/parity_export/bin/export_graph_io"
 prep="${ref}/bin/mospPrep"
 
 rm -rf "${out}"

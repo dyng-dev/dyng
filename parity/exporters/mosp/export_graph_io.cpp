@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 //
-// Fixture exporter for the graph/io tests. It is compiled against the sources of the PINNED
-// original MOSP-OpenMP@c352151 (a `git archive` copy under $DYNG_SCRATCH; never the original
-// repository) by make_graph_io_fixtures.sh, and calls the original functions unchanged:
+// Graph/io exporter of the parity harness. parity/build_reference.sh compiles it into the PATCHED
+// scratch copy of a pinned original (parity/export_patches/<repo>/build.sh), against that copy's
+// unchanged sources: MOSP-OpenMP@c352151 (g++) or MOSP-CUDA@e220ee2 (nvcc; the headers are
+// named .cuh there). It never touches the original repository and calls the original functions
+// unchanged:
 //
 //   gen-graph   <prefix> <n> <m> <K> <wmin> <wmax> <seed>
 //               generateGraphCSR (directed)
@@ -17,12 +19,18 @@
 //               weightIncreaseMask) and the reverse graph of the updated graph
 //               <outPrefix>Transposed{RowPtr,ColInd,Values}.txt (transposeCsrGraph).
 //
-// The program is not part of the dynG build; it exists so that the committed expected outputs
-// can be regenerated from the pinned original at any time.
+// The program is not part of the dynG build; it exists so that the goldens and the committed
+// fixtures can be regenerated from the pinned original at any time.
 
+#if __has_include("csrGraph.h")
 #include "csrGraph.h"
 #include "generateChangedEdges.h"
 #include "generateGraphCSR.h"
+#else  // MOSP-CUDA
+#include "csrGraph.cuh"
+#include "generateChangedEdges.cuh"
+#include "generateGraphCSR.cuh"
+#endif
 
 #include <cstdio>
 #include <cstdlib>
