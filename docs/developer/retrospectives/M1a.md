@@ -1,7 +1,8 @@
 # Retrospective: M1a (walking skeleton, CPU `sssp`)
 
-Status: **in progress.** Each implementation step appends its section; the final step adds the
-milestone summary and the re-estimate of the roadmap.
+Status: **complete (2026-09-27).** Steps 1-4 each appended their section; Step 5 (close-out)
+adds its own section, the milestone summary with the acceptance record, the lessons and the
+**re-estimate of the roadmap** (at the end of this file).
 
 ## Step 1: repository bootstrap and M0 drafts (2026-09-27)
 
@@ -362,3 +363,221 @@ Not the M1a A/B deliverable (that belongs to the parity step), but a regression 
 - The per-objective OpenMP gate and the end-to-end gap above (M1b).
 - `perf_ab.py` measures the OpenMP backend only; the sequential backend has no original
   counterpart with timers (`sequentialSOSPUpdate` is a file-based function).
+
+## Step 5: close-out (2026-09-27)
+
+### Done
+
+- **Doxygen conventions checked, not only Doxygen's warnings.** `ci/doxygen_coverage.py` reads
+  Doxygen's XML and requires what Doxygen does not enforce (PLAN Section 9.1): an `@file` brief
+  on every public header, a `@brief` on every public entity, every namespace-scope entity in a
+  group (`@ingroup`), and `@backends`, `@determinism` and `@paper` on the algorithms' `compute()`
+  and `update()`. `ci/docs.sh` runs it after Doxygen (`WARN_AS_ERROR = FAIL_ON_WARNINGS`,
+  `WARN_NO_PARAMDOC = YES`). Both were checked to fail on a removed `@ingroup` and a removed
+  `@backends`. `MULTILINE_CPP_IS_BRIEF = YES` makes a multi-line `///` comment the brief, which
+  is how the headers were written; one field (`graph_properties::num_weights`), whose `///`
+  block Doxygen had merged into the `///<` comment of the field before it, was fixed. The CMake
+  target `docs-doxygen` runs the same check on its build tree.
+- **`ci/check.sh`:** `--parity` (or `DYNG_CHECK_PARITY=1`) configures and builds the `parity`
+  preset and runs `ctest -L parity`, the golden replay; with the flag, missing goldens are an
+  error, not a skip. A new `tidy` step runs clang-tidy with only the naming rules of ADR 0004 on
+  the library sources, with warnings as errors (checked to fail on a CamelCase local). Steps now
+  run in the order format, build, tidy, REUSE, docs, pre-commit, parity; `--help` lists them.
+  `cpu.yml` and `lint.yml` name the steps they mirror.
+- The ported library code's upper-case `K` locals became `num_objectives` (the only naming
+  violations the tidy step found in `cpp/src`).
+- **README:** the quickstart now covers build, tests, running the example (with its expected
+  output and a `cmp` against the original's file) and running the parity check; the status table
+  lists the graph container and I/O.
+- **Community files ahead of M4:** `CODE_OF_CONDUCT.md` (Contributor Covenant 3.0, CC BY-SA 4.0,
+  with the O13 contact), `SECURITY.md`, `SUPPORT.md`; `GOVERNANCE.md` records O13 and the account
+  steps the author has done. The repository is to be public from the start (Appendix E), and PLAN
+  Section 10.1 requires the Code of Conduct before that.
+- **ADRs:** 0004 notes how the naming rules are enforced; 0006 records the measured cost of
+  per-result workspaces and the open M1b question; 0013 names `ci/check.sh --parity`. 0001, 0002,
+  0010 and 0014 were re-read against the repository and needed no change (the Code of Conduct is
+  a third-party text under CC BY-SA 4.0, declared in `REUSE.toml`; everything dynG authors stays
+  Apache-2.0 as ADR 0002 decides).
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| Section 9.1: the conventions are "checked in review" | `ci/doxygen_coverage.py` checks `@brief`, `@ingroup` and the algorithm tags automatically; `@throws` completeness is still checked in review | a script cannot know which exceptions a function throws; everything else is mechanical |
+| `Doxyfile.in` with `CITE_BIB_FILES` | `docs/Doxyfile` without `CITE_BIB_FILES`; `@paper` names the keys in text | bibtex is not in the environment (Step 3); M5 adds the Sphinx site and can add bibtex |
+| deleted special members | not required to have a `@brief` | `= delete` needs no prose; the class brief says whether it is copyable |
+| clang-tidy in CI (Section 8.7) | naming rules only, locally, on `cpp/src` | the conda clang-tidy lacks clang's resource headers (GCC's builtin include directory stands in); the other checks and the hosted job come with M4 |
+| Code of Conduct, SECURITY, SUPPORT in M4 | added now | the repository is public from its first push (Appendix E) |
+
+## Milestone summary
+
+M1a was carried out in five implementation steps, all on 2026-09-27: bootstrap (Step 1), graph
+container and I/O (Step 2), `sssp` on the CPU backends (Step 3), the parity harness (Step 4),
+close-out (Step 5). The repository has about 45 commits on `main`, no remote, and is small (about 1 MB
+of tracked files, of which 121 KB are the committed test fixtures).
+
+| Area | Size (lines, tracked) |
+|---|---:|
+| Library: public headers and sources (`cpp/include`, `cpp/src`) | 9,900 |
+| Tests (`cpp/tests`, without the fixture data) | 4,000 |
+| Parity harness, compat driver, CI and scripts | 3,800 |
+| Documentation (Markdown, ADRs, algorithm and API pages) | 1,900 |
+
+### Acceptance record
+
+| # | Criterion | Evidence | Status |
+|---|---|---|---|
+| 1 | A fresh clone configures, builds (`cpu-only`, `dev`, `-Werror`) and passes all tests with `ci/check.sh` | Step 5 run in a fresh `git clone` (below): all steps green, including `--parity` | met |
+| 2 | sssp sequential and OpenMP byte-identical to MOSP-OpenMP c352151 on the golden corpus; randomized cross-checks against `testing::dijkstra` + `check_sssp_tree(require_canonical)` | 388/388 cases (the 10 generateTestCases cases, the 3 count-to-infinity regressions incl. n = 6 seeds 621705/250813 with d(1) = 90, the ESCHER 4-vertex case, ties, delete-all, the 148 `mospTest sosp` cases, stress, packing, large weights) on sequential and OpenMP 1/4/16 threads, `parity` and `dev` presets (`parity/results/M1a.md`); randomized tests in `ctest -L cpu` | met |
+| 3 | The updated CSR under `mosp_compatible()` byte-equal to `applyChangeBatch` | part of every golden case (388/388) and of the 27 committed apply fixtures (CSR, transposition and weight-increase flags) | met |
+| 4 | Parity harness from scratch; the one-off MOSP-CUDA == MOSP-OpenMP cross-check | `build_reference.sh`, `references.toml`, `export_goldens.py` (`--twice` reproducible), `compare.py`, `timed_regions/sssp.toml`; MOSP-CUDA@e220ee2 == MOSP-OpenMP@c352151 on 388/388 | met |
+| 5 | OpenMP A/B on roadNet-CA recorded; large regressions explained | `parity/results/M1a.md` section 5: SOSP sum 0.87-0.95x; objectives 1-2 up to 1.06x (explained: per-result workspaces); end to end 1.27-1.37x (explained: load-time transposition and tree validation) | met (gates apply from M1b) |
+| 6 | Repository hygiene | README, LICENSE, NOTICE, CITATION.cff (valid CFF 1.2.0), AUTHORS, CHANGELOG, GOVERNANCE, CODE_OF_CONDUCT, SECURITY, SUPPORT, `.clang-format`, pre-commit, REUSE lint clean, Doxygen clean with the convention check, `cpu.yml` / `lint.yml` / `release.yml`, ADRs 0001, 0002, 0004, 0006, 0010, 0013, 0014, the `dyng` 0.0.1 name-reservation package (`python -m build` + `twine check --strict`) | met |
+| 7 | This retrospective with lessons, deviations and a re-estimate | this file | met |
+
+### Final verification (Step 5)
+
+All in a fresh `git clone` of commit `d7fe2a0` (the code as committed; this retrospective and
+the CHANGELOG entry were added after it and re-checked with the lint steps):
+
+| Command | Result |
+|---|---|
+| `ci/check.sh --parity` (1 min 24 s) | all steps passed: clang-format; `cpu-only` 178/178 and `dev` 184/184 (`ctest -L cpu`, `-Werror`); clang-tidy naming; REUSE; Doxygen + convention check; pre-commit; parity preset `ctest -L parity`: 388/388 golden cases byte-identical on sequential and OpenMP 1/4/16 threads (29 s; manifest `78b65855...`) |
+| `ctest --preset asan -L cpu` | 178/178 (2 skipped by design: the impossible allocation under sanitizers, and the "OpenMP not built" test in an OpenMP build) |
+| `python -m build tools/name_reservation` + `twine check --strict` | wheel and sdist of `dyng` 0.0.1 PASSED |
+| `cffconvert --validate` | valid for CFF 1.2.0 |
+
+The `tsan` preset and the build with OpenMP off were last run in Step 4 (160/160 and 163/163);
+Step 5 changed only local names in two library files, so they were not repeated.
+
+### Measured parity and performance (from Step 4)
+
+- **Parity:** byte-identical on 388/388 golden cases for every backend and thread count tried;
+  `invalidated` equal to the original's counter everywhere. The two originals agree with each
+  other on the whole corpus, so a CUDA mismatch in M1b will belong to the port.
+- **Performance (OpenMP, roadNet-CA, 28 threads pinned, 9 alternating rounds):** SOSP summed
+  over the 3 objectives 0.92x (safe 50K), 0.95x (unsafe 50K), 0.87x (local 10K) of the original;
+  apply 0.67-0.77x; per objective 0.81-1.06x; end to end 1.27-1.37x. Details and spreads in
+  `parity/results/M1a.md`.
+
+### Deviations, consolidated
+
+Every deviation is in the table of the step that made it; the ones that matter beyond M1a:
+
+1. **API additions:** `dyng::update_each()` (run-time number of results), `apply_summary::
+   ignored_insertions`, `batch_semantics` default `on_self_loop = keep` (= MOSP), `result::
+   get_options()` not `noexcept` (ADRs 0006, 0010).
+2. **Semantics made explicit:** `update_stats::affected` defined as vertices whose distance or
+   parent changed; the sequential backend uses the graph's weight-increase classification so
+   `invalidated` is identical across backends; stricter parsers than MOSP (same decisions on
+   every well-formed file).
+3. **Build and test layout:** one test executable per module; the Doxygen config is
+   `docs/Doxyfile` driven by `ci/docs.sh`; `DYNG_ENABLE_CUDA` fails until M1b; the `tsan` preset
+   runs without OpenMP (libgomp is not instrumented).
+4. **Parity layout:** additive exporter programs instead of `*.patch` files; goldens only in
+   `$DYNG_SCRATCH` with a two-level manifest; the golden replay as a CTest-registered script;
+   `parity/results/M1a.md` instead of `benchmarks/results/<version>/parity.json` (ADR 0013).
+5. **Performance changes outside the straight port:** a parallel deterministic transposition,
+   workspace pages touched at result creation, concurrent reading on OpenMP threads.
+6. **Ahead of plan:** community files of M4 (Code of Conduct, SECURITY, SUPPORT), the Doxygen
+   convention check, the clang-tidy naming step.
+
+### Lessons
+
+1. **Run the gate in a fresh clone before calling a step done.** A repository-wide `*.mtx`
+   ignore rule hid two fixture inputs (Step 2); only the fresh clone showed it.
+2. **Cross-check the originals before blaming the port.** Four implementations inside
+   MOSP-OpenMP and the whole MOSP-CUDA build agree byte for byte on the corpus; that turned every
+   later mismatch into a dynG bug by construction, and it will do the same for M1b.
+3. **Regenerate inputs with the pinned original's own tools.** The prepared trees under
+   `dyng-work/datasets` were made by an older tool and are not canonical; they would have
+   produced false mismatches in any comparison against Dijkstra.
+4. **The performance differences were in the surroundings, not in the kernels.** Idle cores
+   before the first objective (sequential transposition), first-touch page faults inside the
+   timed region, per-result workspaces, and `std::async` threads inheriting the one-core mask of
+   the pinned initial thread. Each was found only because the timed-region map existed before
+   the port and the A/B alternated runs on the same inputs. Keep that order for every port.
+5. **A shared machine needs many rounds and reported spreads.** The original's own run-to-run
+   spread was 20-35 % on some regions at load average 7-11; nine alternating rounds and the
+   spread in the table made the results readable.
+6. **Doxygen's warnings are not the documentation rules.** Missing groups and missing briefs
+   pass Doxygen; merged `///<` and `///` blocks silently move text. A small XML check closes it.
+7. **Environment gaps are real work items.** clang-tidy without resource headers, no bibtex, no
+   Archer for OpenMP race checks, no actionlint: each needed a workaround or a deferral, and each
+   is recorded here instead of silently skipped.
+8. **Straight ports first, then measured changes.** Every change beyond the straight port
+   (parallel transposition, concurrent reading, touched workspaces) came with a measurement and
+   left parity intact, which made the reviews of Steps 3 and 4 easy.
+
+## Re-estimate of the roadmap
+
+**Measured:** the plan estimated M1a at 2-3 working weeks. With the AI assistant doing the
+coding, all of M1a (repository, core, graph, I/O, two sssp backends, the parity harness with a
+388-case corpus, the performance A/B and the documents) was implemented in five sessions on one
+day. The author's review of M1a has not happened yet and is not included.
+
+**Why the remaining milestones will not scale by the same factor:**
+
+- M1a was the most mechanical milestone: CPU only, one original with good tests, no API design
+  decision that had to be defended across algorithms.
+- Most of M1a's steps went into work that grows with the remaining milestones rather than with
+  their lines of code: the parity harness, the performance investigations and the documentation
+  (Steps 1, 4 and 5 and much of Step 3; the two ported engines are about 900 lines).
+  M1b and every later port add GPU performance gates on a shared, noisy machine (each gate
+  iteration costs at least 9-20 alternating rounds).
+- M3 (framework extraction and the API freeze) and M5 (Python wheel, Sphinx) are design and
+  packaging work with an author sign-off at the end; M4 is the first contact with hosted CI,
+  whose workflows have never run.
+- Author review and account actions are calendar-time bottlenecks that the AI cannot shorten.
+
+The re-estimate therefore applies a speed-up of about 3x to the plan's figures for the remaining
+work (not the 10x or more that M1a alone would suggest), and gives calendar time separately,
+assuming the author reviews at each gate within a few days.
+
+| Milestone | Plan (working weeks) | Re-estimate: focused AI effort | Calendar incl. author gates | Main risk |
+|---|---|---|---|---|
+| M1b CUDA `sssp` (fused) + performance harness | 2 | 3-5 days | 1-1.5 weeks | per-objective gate (1.05x) depends on the workspace-sharing decision; end to end (1.10x) needs a lazy transposition in `from_csr` and parallel tree validation; cooperative-kernel register count |
+| M2 `cycle_count` (3 backends) | 2-3 | 4-6 days | 1-1.5 weeks (parallel with M1b) | the `set()` / sorted-rows preset and the shared parser; performance gate on 4 datasets in both scopes |
+| M3 framework + conformance kit + 0.1 API freeze | 2-3 | 5-8 days | 2-3 weeks | design judgment; parity and performance re-run per commit; API review sign-off by the author |
+| M4 GitHub repository and infrastructure | 1-2 | 1-3 days | 3-5 days (can start now: org and repository exist) | first hosted runs of `cpu`, `lint`, `release`; Doxygen 1.9 (apt) vs 1.18 (conda); DCO app and branch protection (author) |
+| M5 Python CPU wheel, CLI, docs | 2-3 | 5-8 days | 2-3 weeks | nanobind + scikit-build-core, stubs, Sphinx `-W`, TestPyPI release candidate |
+| **0.1.0** | **12-17** (from M0) | **about 4-6 weeks of focused work** | **about 7-10 weeks** | |
+| 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 1.5-2 weeks | 3-4 weeks | GPU runner decision (O11); wheel sizes |
+| 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 3-4 weeks | 6-8 weeks | the staged CBST merge (trace replay for both originals' policies); memory within 1.05x; performance on the 2M-hyperedge suites |
+| 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 3-4 weeks | 6-8 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
+| **Up to 0.3.0** | **about 32-47** | **about 12-16 weeks** | **about 22-30 weeks** | |
+
+**Recommended order now:** start M4 in parallel with M1b (the organization, repository and
+trusted publishers exist, and the first hosted CI run will surface workflow problems early);
+decide the workspace-sharing question at the start of M1b, before the CUDA performance gate; run
+M2 in parallel with M1b where GPU time allows. This estimate is revisited in the M1b and M3
+retrospectives.
+
+## Open items carried forward
+
+For **M1b**:
+
+1. Workspace sharing among results on one graph (per-objective OpenMP gate: objectives 1-2 at
+   1.03-1.06x; the fix is known to work as an experiment).
+2. End to end 1.27-1.37x of the original (gate 1.10x): a `from_csr` that builds the in-edges
+   lazily or takes arrays by value, and a parallel `validate_tree`.
+3. `compare.py` / `perf_ab.py` paths for the CUDA backend (compat `--backend cuda`, CUDA-event
+   timing, GPU 0 for performance).
+
+For **M4** (hosted CI and release):
+
+4. The workflows have never run on GitHub; actionlint is not available locally. The `doxygen`
+   job uses Ubuntu's Doxygen 1.9.8, the local gate 1.18.0.
+5. The goldens are not published (release asset + `fetch_goldens.py`); `ctest -L parity` runs
+   only where `export_goldens.py` has run.
+6. clang-tidy (all configured checks) in a hosted job; OpenMP race checking with Archer.
+
+For **the author** (no action blocks M1b):
+
+7. Push the repository to `dyng-dev/dyng`, then push tag `v0.0.1` to publish the name
+   reservation (the orchestrator pushes; the tag is the author's call). Enable private
+   vulnerability reporting (Settings -> Security), as `SECURITY.md` promises.
+8. Confirm the facts listed under Step 1 "Open items for the author" (placeholder-identity
+   commits, funding lines, the ESCHER IPDPS 2026 title and author list, the TruCy paper status,
+   S M Ferdous's affiliation).
+9. Review this milestone (ADRs 0006, 0010 and 0013 are drafts awaiting acceptance at M3 / 0.1).

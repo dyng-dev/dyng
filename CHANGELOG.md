@@ -55,6 +55,13 @@ Before 0.1.0 anything may change.
 - `dyng-compat-mosp --write-graph` writes the updated graph in MOSP's CSR text format.
 - A pure-Python name-reservation package `dyng` 0.0.1 (`tools/name_reservation/`) and the
   Trusted Publishing workflow `release.yml`.
+- `ci/check.sh --parity` (the golden replay as part of the local gate) and a clang-tidy step
+  with the naming rules of ADR 0004; `ci/doxygen_coverage.py` (a `@brief` on every public
+  entity, every entity in a group, `@backends` / `@determinism` / `@paper` on `compute` and
+  `update`) run by `ci/docs.sh`, also as the CMake target `docs-doxygen`.
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 3.0), `SECURITY.md` and `SUPPORT.md`.
+- The M1a retrospective with the acceptance record and a re-estimate of the roadmap
+  (`docs/developer/retrospectives/M1a.md`).
 
 ### Changed
 
