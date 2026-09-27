@@ -107,7 +107,8 @@ Settings → sidebar **Actions** → **General**:
 
    ```text
    pypa/gh-action-pypi-publish@*,
-   crazy-max/ghaction-github-labeler@*
+   crazy-max/ghaction-github-labeler@*,
+   mamba-org/setup-micromamba@*
    ```
 
    and tick **Require actions to be pinned to a full-length commit SHA** (every workflow in
@@ -202,11 +203,12 @@ Required checks (the job names as they appear in a pull request's checks list):
 |---|---|
 | `lint.yml` | `pre-commit`, `doxygen`, `harness`, `name-reservation` |
 | `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF` |
-| `docs.yml` | every job of the workflow (the names are shown on the pull request) |
+| `docs.yml` | `site` (not `external-links`, which runs only weekly and on demand) |
 | DCO app | `DCO` |
 
-Do **not** require checks of workflows that run only for some files (`labels.yml`) or only on
-tags (`release.yml`): a required check that never runs blocks every pull request. When a
+Do **not** require checks of workflows that run only for some files (`labels.yml`), only on
+tags (`release.yml`) or only on a schedule (the `external-links` job of `docs.yml`): a required
+check that never runs blocks every pull request. When a
 workflow is added (`cuda-build`, `python`, `api-check`; PLAN Section 8.8) or a job of the
 `cpu` matrix is renamed, update this list and the ruleset in the same pull request.
 
