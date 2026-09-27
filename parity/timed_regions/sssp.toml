@@ -34,7 +34,10 @@
 #   per_objective             one value per objective k: the k-th sample of every `port` stage
 #   port                      dynG stages of the update (summed; k-th sample if per_objective)
 #   port_result0              from_arrays stages of objective 0's result only (sample 0)
-#   port_all_results          from_arrays stages summed over the K results
+#   port_all_results          stages summed over every sample (the K results' from_arrays stages
+#                             and, on cuda, the per-objective uploads of the update)
+#   port_device               (cuda) stages whose CUDA-event times are recorded next to the host
+#                             times (reported, not gated)
 #   gate                      "compute" (<= 1.05x; <= 1.10x below 10 ms), "end_to_end" (<= 1.10x,
 #                             from M1b), or "none" (reported only)
 # (port_result0, the from_arrays stages of objective 0's result only, is still understood by
@@ -128,34 +131,90 @@ the input trees, which `mosp` does not validate), which `mosp` does inside its l
 stages.
 """
 
-# --- MOSP-CUDA (M1b; draft, written before the CUDA port as PLAN Section 6.3 step 3 asks) ------
+# --- MOSP-CUDA (M1b) -------------------------------------------------------------------------------
+# Written before the CUDA port as a draft (PLAN Section 6.3 step 3) and completed with it. What the
+# original times (MOSP-CUDA@e220ee2 src/mospUpdate.cu, src/mosp.cu): every MospTimings field is a
+# host wall time (steady_clock); with --timing its ScopedStage adds cudaDeviceSynchronize() at both
+# ends, without it (as timed here: no --timing on the original's side) the stages end with the
+# synchronization of the work they time. The M1a draft's "device time (CUDA events)" was wrong:
+# the original has no device timer.
+#
+# dynG stage names on cuda: sssp.update > { sssp.prepare, sssp.commit > { graph.apply,
+# graph.upload }, sssp.workspace, sssp.changes, sssp.enact_fused }; with dyng::update_each the
+# commit is "update.commit". from_arrays records sssp.import, [sssp.canonicalize], sssp.workspace,
+# [sssp.validate] and sssp.upload. dyng-compat-mosp --backend cuda also writes `device,<stage>,<ms>`
+# rows (CUDA events) for the update's stages.
 [reference.mosp_cuda]
 repo = "MOSP-CUDA"
 commit = "e220ee2"
-driver = "bin/mosp (ScopedStage with CUDA events; CUDA_MODULE_LOADING=EAGER)"
-port_driver = "dyng-compat-mosp --backend cuda (M1b)"
+driver = "bin/mosp of the UNPATCHED copy (report lines), CUDA_MODULE_LOADING=EAGER (its default)"
+port_driver = "dyng-compat-mosp --backend cuda (parity-cuda preset), --timing <csv>"
 
+# One objective's SOSP update, sospUpdateGpu(): SospWorkspace::reserve (a no-op after "upload"),
+# choosePacking, the control block copied in, one cooperative launch of the persistent kernel, the
+# control block copied out, cudaStreamSynchronize. dynG's sssp.enact_fused has exactly this scope
+# (cuda.cu); the per-objective change lists were uploaded before it (sssp.changes), as MOSP-CUDA
+# uploads them in "upload". THE gated region, per objective.
 [[reference.mosp_cuda.region]]
 name = "sosp_update"
 per_objective = true
-original = ["obj<k>/sosp_update_gpu"]        # device time (CUDA events) of sospUpdateGpu()
-port = ["sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"]  # device_ms
-gate = "compute"                             # <= 1.05 x; <= 1.10 x below 10 ms with >= 20 runs
+original = ["obj<k>/sosp_update_gpu"]
+original_report = ["obj<k> SOSP update"]
+port = ["sssp.enact_fused"]
+port_device = ["sssp.enact_fused"]
+gate = "compute"
+note = """
+Host times on both sides (the original has no device timer); dynG's CUDA-event time of the same
+stage is recorded next to it (port_device). Per-objective regions are 1-100 ms on the gate graphs,
+so those under 10 ms need >= 20 runs (PLAN 8.6). The port's kernel adds the `affected` count to the
+unpack pass (a read of the old tree and a warp sum), which the original does not compute.
+"""
 
+[[reference.mosp_cuda.region]]
+name = "sosp_total"
+per_objective = false
+original = ["obj<k>/sosp_update_gpu (all k)"]
+original_report = ["obj<k> SOSP update"]
+port = ["sssp.enact_fused"]
+port_device = ["sssp.enact_fused"]
+gate = "none"
+note = "Orientation only; the gate is per objective."
+
+# Applying the batch on the host plus the original's "upload": uploadDeviceGraph() (out-edges to
+# the device, reverse CSR and weight columns built there), the K initial trees, the insertion heads
+# and the K change lists copied in, sospWorkspace.reserve(n) and combineWorkspace.reserve(n, K)
+# (cudaMalloc of the scratch arrays), cudaDeviceSynchronize. dynG's update.commit holds graph.apply
+# and graph.upload (the same device graph build); the tree uploads (sssp.upload) and the one
+# workspace reserve (the first sssp.workspace) happen in from_arrays, and the change lists are
+# uploaded per objective (sssp.changes), so they are added to the port's side here.
 [[reference.mosp_cuda.region]]
 name = "apply"
 per_objective = false
 original = ["apply_batch_host", "upload"]
+original_report = ["apply batch", "upload"]
 port = ["update.commit"]
+port_all_results = ["sssp.upload", "sssp.workspace", "sssp.changes"]
 gate = "end_to_end"
+note = """
+Only on the original's side: the combined-graph workspace and result arrays (mosp, 0.2). The largest
+weight and weight sum per objective are computed between "apply_batch_host" and "upload" (outside
+both) on the original's side and in sssp.prepare (end to end only) on dynG's.
+"""
 
 [[reference.mosp_cuda.region]]
 name = "end_to_end"
 per_objective = false
-original = ["TOTAL_end_to_end", "- combined_graph_gpu"]  # it includes cuda_context_init too
+original = ["TOTAL_end_to_end", "- combined_graph_gpu"]
+original_report = ["end_to_end_ms"]
+original_report_subtract = ["comb combined graph + SOSP"]
 port = ["total.end_to_end"]
 gate = "end_to_end"
-note = "exclude combined_graph_gpu (mosp, 0.2) and compare the context init separately"
+note = """
+Both include the CUDA context creation (MOSP-CUDA: cudaFree(nullptr) as "cuda_context_init"; dynG:
+resources::cuda() and warm_up(), which also loads every library kernel) and the download of the K
+trees (MOSP's "download"; dynG's to_vector in dyng-compat-mosp). The combined graph and its SOSP
+(Steps 2-3, mosp in 0.2) are subtracted from the original's side, as for MOSP-OpenMP.
+"""
 
 # Logged only (not parity targets, PLAN Section 8.3): iterations, epochs, pushes (and MOSP-CUDA's
 # jump rounds). The invalidated counter is deterministic and must be equal in every sample.

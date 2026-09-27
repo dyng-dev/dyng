@@ -16,10 +16,14 @@
 #   gpu        ctest -L gpu: the CUDA tests
 #   cpu        ctest -L cpu in the same CUDA-enabled build (the default backend becomes cuda there,
 #              so the CPU suites are checked against a CUDA build too)
+#   parity     the sssp golden corpus on the cuda backend (parity/compare.py --configs cuda through
+#              the preset's dyng-compat-mosp): byte parity with MOSP-CUDA e220ee2 on every case;
+#              skipped when the goldens ($DYNG_SCRATCH/goldens, parity/export_goldens.py) or the
+#              compat tool are missing
 #   memcheck   compute-sanitizer --tool memcheck --leak-check full on every executable with gpu
-#              tests. Tests that make CUDA API calls fail on purpose (suite CudaApiErrors) run in a
-#              second pass without API-error reporting; every other test must be free of API
-#              errors as well as of memory errors.
+#              tests (randomized suites with DYNG_TEST_SEEDS=2). Tests that make CUDA API calls
+#              fail on purpose (suite CudaApiErrors) run in a second pass without API-error
+#              reporting; every other test must be free of API errors as well as of memory errors.
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -43,7 +47,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,32p' "${BASH_SOURCE[0]}"
+      sed -n '5,36p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -115,6 +119,19 @@ if ! skipped cpu; then
   fi
 fi
 
+if ! skipped parity; then
+  step "golden corpus on cuda (GPU ${gpu})"
+  compat="${build_dir}/tools/compat/dyng-compat-mosp"
+  if [ ! -f "${DYNG_SCRATCH}/goldens/sssp/MANIFEST.sha256" ] || [ ! -x "${compat}" ]; then
+    echo "goldens or ${compat} missing; skipped"
+    record "parity (cuda goldens)" skipped
+  elif heavy python3 parity/compare.py --exe "${compat}" --configs cuda --jobs 8; then
+    record "parity (cuda goldens)" passed
+  else
+    record "parity (cuda goldens)" FAILED
+  fi
+fi
+
 if ! skipped memcheck; then
   step "compute-sanitizer memcheck (GPU ${gpu})"
   if [ -z "${sanitizer}" ]; then
@@ -130,8 +147,8 @@ if ! skipped memcheck; then
     for exe in "${executables[@]}"; do
       [ -n "${exe}" ] || continue
       echo "--- $(basename "${exe}")"
-      if ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 \
-        "${exe}" --gtest_filter='-CudaApiErrors.*' --gtest_brief=1; then
+      if ! DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool memcheck --leak-check full \
+        --error-exitcode 1 "${exe}" --gtest_filter='-CudaApiErrors.*' --gtest_brief=1; then
         memcheck_ok=0
       fi
       if ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 \

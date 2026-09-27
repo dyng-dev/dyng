@@ -7,6 +7,8 @@
     parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--batches safe50k,unsafe50k,local10k]
                           [--json parity/results/M1b-perf-openmp-roadNet-CA.json]
+    parity/perf_ab.py run --backend cuda --exe build/parity-cuda/tools/compat/dyng-compat-mosp
+                          [--gpu 0] [--runs 21] [--graph roadNet-CA] [--json ...]
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
 roadNet-CA, rgg (rgg_n_2_20_s0) and road_usa_g (road_usa); --hops defaults to the local-batch
@@ -39,6 +41,16 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          the original's median is below 10 ms), "end_to_end" <= 1.10x. --enforce-gates exits
          non-zero on an exceeded gate.
 
+--backend cuda compares dynG's cuda backend (`dyng-compat-mosp --backend cuda`, parity-cuda
+         preset) with the UNPATCHED MOSP-CUDA@e220ee2 (bin/mosp) on the same prepared inputs,
+         with the regions of [[reference.mosp_cuda.region]]. Both run on GPU --gpu (default 0, the
+         performance GPU; CUDA_VISIBLE_DEVICES), MOSP-CUDA with CUDA_MODULE_LOADING=EAGER (its own
+         default), dynG after resources::warm_up(). The per-objective region is the host time of
+         the original's timer (sospUpdateGpu, up to its final synchronization) against the port's
+         stage sssp.enact_fused, which has the same scope; the port's device time (CUDA events)
+         of that stage is recorded next to it (the original has no device timer). The regions
+         under 10 ms need >= 20 runs (PLAN 8.6).
+
 The perf lock. The machine's convention is `flock $DYNG_SCRATCH/perf.lock <command>`, and this
 script also takes the lock itself. Both work: the script sees in /proc/locks that an ancestor
 process (flock(1)) holds the lock and runs under it; DYNG_PERF_LOCK_HELD=1 or --no-lock say so
@@ -68,9 +80,20 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCRATCH = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
-COMMIT = "c35215135341d5b5d1553458afe4b2226edc38fb"
-REFERENCE = "MOSP-OpenMP"
 REGION_MAP = REPO / "parity" / "timed_regions" / "sssp.toml"
+# The original each backend of the port is compared with, and its section of sssp.toml.
+REFERENCES = {
+    "openmp": {
+        "name": "MOSP-OpenMP",
+        "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+        "map": "mosp_openmp",
+    },
+    "cuda": {
+        "name": "MOSP-CUDA",
+        "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+        "map": "mosp_cuda",
+    },
+}
 BATCHES = {
     "safe50k": "changes_50000_50_safe",
     "unsafe50k": "changes_50000_50",
@@ -81,6 +104,9 @@ OBJ = re.compile(r"^obj(\d+)\s+SOSP update ([0-9.]+) ms \(invalidated (\d+),", r
 REPORT = {
     "apply batch": re.compile(r"apply batch ([0-9.]+) ms"),
     "prepare": re.compile(r"prepare ([0-9.]+) ms"),
+    "upload": re.compile(r"upload ([0-9.]+) ms"),
+    "download": re.compile(r"download ([0-9.]+) ms"),
+    "context": re.compile(r"context ([0-9.]+) ms"),
     "end_to_end_ms": re.compile(r"end_to_end_ms=([0-9.]+)"),
     "comb combined graph + SOSP": re.compile(r"^comb\s+combined graph \+ SOSP ([0-9.]+) ms", re.M),
 }
@@ -93,6 +119,14 @@ PARITY_PRESET = {
     "DYNG_BUILD_PARITY_TESTS": "ON",
     "DYNG_ENABLE_OPENMP": "ON",
 }
+# The parity-cuda preset: the parity preset plus MOSP-CUDA's nvcc flags for sm_86.
+PARITY_CUDA_PRESET = {
+    **PARITY_PRESET,
+    "DYNG_ENABLE_CUDA": "ON",
+    "DYNG_CUDA_ARCHITECTURES": "86",
+    "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+}
+PORT_DEVICE = "device"  # the --timing CSV rows with CUDA-event times (dyng-compat-mosp)
 SHORT_REGION_MS = 10.0
 SHORT_REGION_RUNS = 20
 END_TO_END_GATE = 1.10
@@ -115,13 +149,13 @@ def portable_path(path: Path | str) -> str:
     return f"<outside the repository>/{p.name}" if p.is_relative_to(Path.home()) else str(p)
 
 
-def build_reference(*extra: str) -> str:
-    cmd = [REPO / "parity" / "build_reference.sh", "--variant", "unpatched", *extra, REFERENCE]
+def build_reference(name: str, *extra: str) -> str:
+    cmd = [REPO / "parity" / "build_reference.sh", "--variant", "unpatched", *extra, name]
     return subprocess.check_output([str(c) for c in cmd], text=True)
 
 
-def reference_copy() -> Path:
-    return Path(build_reference("--print-dir").strip().splitlines()[-1])
+def reference_copy(name: str) -> Path:
+    return Path(build_reference(name, "--print-dir").strip().splitlines()[-1])
 
 
 def check_call(cmd: list, **kw) -> None:
@@ -150,7 +184,7 @@ def cmake_cache(exe: Path) -> tuple[Path | None, dict]:
     return None, {}
 
 
-def port_build(exe: Path) -> dict:
+def port_build(exe: Path, backend: str = "openmp") -> dict:
     tree, cache = cmake_cache(exe)
     keys = [
         "CMAKE_BUILD_TYPE",
@@ -159,6 +193,10 @@ def port_build(exe: Path) -> dict:
         "CMAKE_CXX_COMPILER",
         "DYNG_BUILD_PARITY_TESTS",
         "DYNG_ENABLE_OPENMP",
+        "DYNG_ENABLE_CUDA",
+        "DYNG_CUDA_ARCHITECTURES",
+        "CMAKE_CUDA_FLAGS_RELEASE",
+        "CMAKE_CUDA_COMPILER",
     ]
     info = {k: cache.get(k) for k in keys}
     info["build_dir"] = portable_path(tree) if tree else None
@@ -166,7 +204,13 @@ def port_build(exe: Path) -> dict:
         with contextlib.suppress(OSError, subprocess.CalledProcessError):
             version = subprocess.check_output([cache["CMAKE_CXX_COMPILER"], "--version"], text=True)
             info["compiler"] = version.splitlines()[0]
-    info["parity_preset"] = all(cache.get(k) == v for k, v in PARITY_PRESET.items())
+    if cache.get("CMAKE_CUDA_COMPILER"):
+        with contextlib.suppress(OSError, subprocess.CalledProcessError):
+            nvcc = cache["CMAKE_CUDA_COMPILER"]
+            version = subprocess.check_output([nvcc, "--version"], text=True)
+            info["cuda_compiler"] = version.strip().splitlines()[-1]
+    preset = PARITY_CUDA_PRESET if backend == "cuda" else PARITY_PRESET
+    info["parity_preset"] = all(cache.get(k) == v for k, v in preset.items())
     return info
 
 
@@ -253,10 +297,10 @@ def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
 # --- The region map ------------------------------------------------------------------------------
 
 
-def load_regions() -> list[dict]:
-    """The OpenMP regions of sssp.toml, checked against what this script can measure."""
+def load_regions(backend: str = "openmp") -> list[dict]:
+    """The regions of sssp.toml for a backend, checked against what this script can measure."""
     doc = tomllib.loads(REGION_MAP.read_text())
-    regions = doc["reference"]["mosp_openmp"]["region"]
+    regions = doc["reference"][REFERENCES[backend]["map"]]["region"]
     known = set(REPORT) | {PER_OBJECTIVE_REPORT}
     names = [r["name"] for r in regions]
     for required in ["sosp_update", "apply", "end_to_end"]:
@@ -288,12 +332,23 @@ def run_one(cmd: list, env: dict) -> str:
     return proc.stdout
 
 
-def parse_original(log: str, k: int) -> dict:
+def report_keys(regions: list[dict]) -> list[str]:
+    """The report lines of the original that the regions read."""
+    keys = []
+    for r in regions:
+        for key in r.get("original_report", []) + r.get("original_report_subtract", []):
+            if key in REPORT and key not in keys:
+                keys.append(key)
+    return keys
+
+
+def parse_original(log: str, k: int, keys: list[str] | None = None) -> dict:
     objs = {int(o): (float(ms), int(inv)) for o, ms, inv in OBJ.findall(log)}
     if sorted(objs) != list(range(k)):
         raise SystemExit(f"cannot parse the per-objective lines of the original:\n{log}")
     values = {}
-    for key, pattern in REPORT.items():
+    for key in keys if keys is not None else list(REPORT):
+        pattern = REPORT[key]
         m = pattern.search(log)
         if m is None:
             raise SystemExit(f"cannot find '{key}' in the original's report:\n{log}")
@@ -309,16 +364,20 @@ def parse_original(log: str, k: int) -> dict:
 
 def parse_port(log: str, timing: Path, k: int) -> dict:
     stages: dict[str, list[float]] = {}
+    device: dict[str, list[float]] = {}
     text = timing.read_text()
     for row in csv.reader(text.splitlines()[1:]):
         if len(row) == 3 and row[0] == "stage":
             stages.setdefault(row[1], []).append(float(row[2]))
+        elif len(row) == 3 and row[0] == PORT_DEVICE:
+            device.setdefault(row[1], []).append(float(row[2]))
     invalidated = {int(o): int(v) for o, v in PORT_INVALIDATED.findall(text)}
     if sorted(invalidated) != list(range(k)):
         raise SystemExit(f"cannot find the port's invalidated counters in {timing}")
     threads = [int(t) for t in THREADS.findall(log)]
     return {
         "stages": stages,
+        "device": device,
         "invalidated": [invalidated[o] for o in range(k)],
         "threads": threads[-1] if threads else None,
     }
@@ -343,6 +402,20 @@ def original_value(orig: dict, region: dict, k: int | None) -> float:
             total += orig["report"][key]
     for key in region.get("original_report_subtract", []):
         total -= orig["report"][key]
+    return total
+
+
+def port_device_value(port: dict, region: dict, k: int | None) -> float | None:
+    """The port's device time (CUDA events) of a region's port_device stages, if recorded."""
+    names = region.get("port_device")
+    if not names:
+        return None
+    total = 0.0
+    for name in names:
+        samples = port.get("device", {}).get(name)
+        if not samples:
+            return None
+        total += samples[k] if k is not None else sum(samples)
     return total
 
 
@@ -386,7 +459,9 @@ def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list
     for side in ["original", "port"]:
         out["threads"][side] = samples[side][0]["threads"]
 
-    def entry(name: str, a: list[float], b: list[float], gate: str, reading: str) -> None:
+    def entry(
+        name: str, a: list[float], b: list[float], gate: str, reading: str, dev: list | None = None
+    ) -> None:
         ma, mb = statistics.median(a), statistics.median(b)
         e = {
             "region": name,
@@ -400,6 +475,9 @@ def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list
             "port_samples": b,
             "gate_kind": gate,
         }
+        if dev and all(x is not None for x in dev):
+            e["port_device_ms"] = statistics.median(dev)
+            e["port_device_samples"] = dev
         if gate in ("compute", "end_to_end"):
             e["gate"] = gate_limit(gate, ma)
             e["within_gate"] = e["ratio"] <= e["gate"]
@@ -414,7 +492,8 @@ def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list
             for o in range(k):
                 a = [original_value(s, region, o) for s in samples["original"]]
                 b = [port_value(s, region, o) for s in samples["port"]]
-                entry(f"{region['name']} obj{o}", a, b, gate, "as measured")
+                dev = [port_device_value(s, region, o) for s in samples["port"]]
+                entry(f"{region['name']} obj{o}", a, b, gate, "as measured", dev)
         else:
             a = [original_value(s, region, None) for s in samples["original"]]
             b = [port_value(s, region, None) for s in samples["port"]]
@@ -424,8 +503,9 @@ def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list
 
 def report(results: dict) -> list[str]:
     lines = [
-        "| batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B |",
-        "|---|---|---|---:|---:|---:|---|---|",
+        "| batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B |"
+        " dynG device (ms) |",
+        "|---|---|---|---:|---:|---:|---|---|---:|",
     ]
     for batch, res in results.items():
         for e in res["regions"]:
@@ -441,7 +521,9 @@ def report(results: dict) -> list[str]:
                 f"| {batch} | {e['region']} | {e['reading']} | {e['original_ms']:.2f} | "
                 f"{e['port_ms']:.2f} | {e['ratio']:.3f} | {g} | "
                 f"{e['original_spread'] * 100:.0f} % / {e['port_spread'] * 100:.0f} %"
-                f"{flag} |"
+                f"{flag} | "
+                + (f"{e['port_device_ms']:.2f}" if "port_device_ms" in e else "-")
+                + " |"
             )
     print("\n".join(lines))
     for batch, res in results.items():
@@ -459,8 +541,11 @@ def report(results: dict) -> list[str]:
 
 
 def prepare(args: argparse.Namespace) -> int:
-    ref = reference_copy()
-    build_reference()
+    # The inputs are always made by MOSP-OpenMP's mospPrep (its bench/prepare.sh); MOSP-CUDA reads
+    # the same files, and its generator is the same code (see generators::legacy).
+    name = REFERENCES["openmp"]["name"]
+    ref = reference_copy(name)
+    build_reference(name)
     prep = ref / "bin" / "mospPrep"
     src = SCRATCH / "datasets" / "mosp" / args.graph / "csr"
     dst = SCRATCH / "bench" / "mosp" / args.graph
@@ -513,18 +598,21 @@ def prepare(args: argparse.Namespace) -> int:
 
 
 def run(args: argparse.Namespace) -> int:
-    regions = load_regions()
+    regions = load_regions(args.backend)
+    keys = report_keys(regions)
+    reference = REFERENCES[args.backend]
     exe = args.exe.resolve()
-    build = port_build(exe)
+    build = port_build(exe, args.backend)
     if not build["parity_preset"] and not args.allow_non_parity_build:
+        preset = "parity-cuda" if args.backend == "cuda" else "parity"
         raise SystemExit(
-            f"{exe} is not from a parity-preset build tree ({build}); the gates are "
-            "defined on the parity preset (pass --allow-non-parity-build for an "
+            f"{exe} is not from a {preset}-preset build tree ({build}); the gates are "
+            f"defined on the {preset} preset (pass --allow-non-parity-build for an "
             "experiment, whose record says so)"
         )
     # Rebuild (idempotent) and verify the unpatched copy before timing it.
-    build_reference()
-    ref = reference_copy()
+    build_reference(reference["name"])
+    ref = reference_copy(reference["name"])
     mosp = ref / "bin" / "mosp"
     marker = ref / ".dyng-reference"
     data = SCRATCH / "bench" / "mosp" / args.graph
@@ -536,6 +624,11 @@ def run(args: argparse.Namespace) -> int:
     )
     for var in ["OMP_WAIT_POLICY", "GOMP_SPINCOUNT", "OMP_DYNAMIC"]:
         env.pop(var, None)
+    port_args: list = []
+    if args.backend == "cuda":
+        env["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+        env["CUDA_MODULE_LOADING"] = "EAGER"  # MOSP-CUDA's own default (setenv, not overwriting)
+        port_args = ["--backend", "cuda"]
     for item in args.env:  # extra settings for BOTH sides, e.g. OMP_WAIT_POLICY=active
         key, _, value = item.partition("=")
         env[key] = value
@@ -560,7 +653,7 @@ def run(args: argparse.Namespace) -> int:
                 ]
                 # Correctness guard: both write their outputs once; the files must be identical.
                 run_one([mosp, *common, "--out", work / "A"], env)
-                run_one([exe, *common, "--out", work / "B"], env)
+                run_one([exe, *common, *port_args, "--out", work / "B"], env)
                 for o in range(k):
                     for f in ["distancesUpdated.txt", "SSSPTreeUpdated.txt"]:
                         if not filecmp.cmp(
@@ -575,8 +668,10 @@ def run(args: argparse.Namespace) -> int:
                 timing = work / "timing.csv"
                 for r in range(args.runs):
                     before = os.getloadavg()[0]
-                    orig = parse_original(run_one([mosp, *common, "--no-output"], env), k)
-                    log = run_one([exe, *common, "--no-output", "--timing", timing], env)
+                    orig = parse_original(run_one([mosp, *common, "--no-output"], env), k, keys)
+                    log = run_one(
+                        [exe, *common, *port_args, "--no-output", "--timing", timing], env
+                    )
                     port = parse_port(log, timing, k)
                     loads.append((before, os.getloadavg()[0]))
                     samples["original"].append(orig)
@@ -605,7 +700,7 @@ def run(args: argparse.Namespace) -> int:
         if "gate" in e and not e["within_gate"]
     ]
     if args.json:
-        write_json(args, results, build, ref, marker, regions)
+        write_json(args, results, build, ref, marker, regions, reference)
     for f in failures:
         print(f"CORRECTNESS: {f}", file=sys.stderr)
     if failures:
@@ -617,7 +712,7 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
-def write_json(args, results, build, ref, marker, regions) -> None:
+def write_json(args, results, build, ref, marker, regions, reference) -> None:
     head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
     # The records this script writes (parity/results/) do not make the measured code dirty.
     dirty = (
@@ -629,12 +724,12 @@ def write_json(args, results, build, ref, marker, regions) -> None:
     doc = {
         "schema": 3,
         "algorithm": "sssp",
-        "backend": "openmp",
+        "backend": args.backend,
         "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "graph": args.graph,
         "reference": {
-            "name": REFERENCE,
-            "commit": COMMIT,
+            "name": reference["name"],
+            "commit": reference["commit"],
             "variant": "unpatched",
             "binary": portable_path(ref / "bin" / "mosp"),
             "build": marker.read_text() if marker.is_file() else None,
@@ -649,7 +744,15 @@ def write_json(args, results, build, ref, marker, regions) -> None:
             "runs": args.runs,
             "order": "A/B/A/B (original first)",
             "threads": args.threads,
-            "env": " ".join(["OMP_PROC_BIND=close", "OMP_PLACES=cores", *args.env]),
+            "env": " ".join(
+                ["OMP_PROC_BIND=close", "OMP_PLACES=cores"]
+                + (
+                    [f"CUDA_VISIBLE_DEVICES={args.gpu}", "CUDA_MODULE_LOADING=EAGER"]
+                    if args.backend == "cuda"
+                    else []
+                )
+                + args.env
+            ),
             "lock": "perf.lock",
             "statistic": "median",
             "outputs": "--no-output on both",
@@ -677,6 +780,13 @@ def main() -> int:
     p.add_argument("--force", action="store_true")
     r = sub.add_parser("run")
     r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
+    r.add_argument(
+        "--backend",
+        choices=sorted(REFERENCES),
+        default="openmp",
+        help="openmp: against MOSP-OpenMP c352151; cuda: against MOSP-CUDA e220ee2",
+    )
+    r.add_argument("--gpu", type=int, default=0, help="--backend cuda: the GPU of both sides")
     r.add_argument("--graph", default="roadNet-CA")
     r.add_argument("--batches", default="safe50k,unsafe50k,local10k")
     r.add_argument("--runs", type=int, default=21)

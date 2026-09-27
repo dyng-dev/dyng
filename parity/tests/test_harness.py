@@ -61,10 +61,41 @@ def test_compare_rejects_empty_selections(tmp_path: Path) -> None:
         [*base, "--exe", sys.executable, "--configs", ","], capture_output=True, text=True
     )
     assert empty.returncode == 2 and "no configuration" in empty.stderr
-    bad = subprocess.run(
-        [*base, "--exe", sys.executable, "--configs", "cuda:2"], capture_output=True, text=True
+    for config in ["gpu:2", "cuda:x", "openmp:four"]:
+        bad = subprocess.run(
+            [*base, "--exe", sys.executable, "--configs", config], capture_output=True, text=True
+        )
+        assert bad.returncode == 2 and "is not sequential" in bad.stderr, config
+
+
+def test_perf_ab_regions_of_both_backends() -> None:
+    perf = load("parity/perf_ab.py")
+    for backend in ["openmp", "cuda"]:
+        regions = perf.load_regions(backend)
+        names = [r["name"] for r in regions]
+        assert {"sosp_update", "apply", "end_to_end"} <= set(names), backend
+        assert set(perf.report_keys(regions)) <= set(perf.REPORT)
+    cuda = {r["name"]: r for r in perf.load_regions("cuda")}
+    assert cuda["sosp_update"]["port"] == ["sssp.enact_fused"]
+    assert perf.report_keys(list(cuda.values())) == [
+        "apply batch",
+        "upload",
+        "end_to_end_ms",
+        "comb combined graph + SOSP",
+    ]
+    log = (
+        "host   context 80.1 ms, read inputs 1.0 ms, canonicalize 0.0 ms, apply batch 12.5 ms, "
+        "upload 30.0 ms, download 4.0 ms, write 0.0 ms\n"
+        "obj0   SOSP update 7.900 ms (invalidated 12, jump rounds 3, iterations 4, epochs 1, "
+        "pushes 9)\n"
+        "comb   combined graph + SOSP 3.000 ms (1 edges, L=1, delta 1, iterations 1, pushes 1)\n"
+        "RESULT gpu_compute_ms=10.900 end_to_end_ms=200.000\n"
     )
-    assert bad.returncode == 2
+    parsed = perf.parse_original(log, 1, perf.report_keys(list(cuda.values())))
+    assert parsed["objectives"] == [7.9] and parsed["invalidated"] == [12]
+    assert parsed["report"]["upload"] == 30.0
+    assert perf.original_value(parsed, cuda["apply"], None) == 42.5
+    assert perf.original_value(parsed, cuda["end_to_end"], None) == 197.0
 
 
 def test_portable_path_hides_personal_paths(monkeypatch: pytest.MonkeyPatch) -> None:

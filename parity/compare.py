@@ -12,7 +12,8 @@ digest must equal the one in parity/goldens.toml. Then every case is replayed wi
 configuration:
 
 driver "compat" (dynG, through tools/compat/dyng-compat-mosp), per configuration
-(sequential, openmp:<threads>):
+(sequential, openmp:<threads>, cuda[:<device>]; the cuda configurations run on
+CUDA_VISIBLE_DEVICES, default GPU 1, the development GPU):
   * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute;
     init_canonical/ for the noncanonical group, whose init/ holds perturbed tie parents)
   * `dyng-compat-mosp` update == updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt, from the
@@ -138,8 +139,11 @@ def replay_compat(
     exe: Path, golden: Path, meta: dict, config: str, tmp: Path, env: dict
 ) -> list[str]:
     k = meta["num_objectives"]
-    backend, _, threads = config.partition(":")
-    extra = ["--backend", backend] + (["--threads", threads] if threads else [])
+    backend, _, number = config.partition(":")
+    if backend == "cuda":
+        extra = ["--backend", "cuda"] + (["--device", number] if number else [])
+    else:
+        extra = ["--backend", backend] + (["--threads", number] if number else [])
     bad = []
     rc, log = run([exe, "init", golden / "input" / "graphCsr", tmp / "init", "-k", k, *extra], env)
     if rc != 0:
@@ -303,6 +307,10 @@ def build_info(exe: Path) -> dict:
                 "CMAKE_CXX_FLAGS",
                 "CMAKE_CXX_FLAGS_RELEASE",
                 "DYNG_ENABLE_OPENMP",
+                "DYNG_ENABLE_CUDA",
+                "DYNG_CUDA_ARCHITECTURES",
+                "CMAKE_CUDA_FLAGS_RELEASE",
+                "CMAKE_CUDA_COMPILER_VERSION",
                 "CMAKE_CXX_COMPILER_VERSION",
             }
             for line in cache.read_text().splitlines():
@@ -337,7 +345,7 @@ def main() -> int:
     parser.add_argument(
         "--configs",
         default="sequential,openmp:1,openmp:4,openmp:16",
-        help="driver compat: backend[:threads] list",
+        help="driver compat: list of sequential, openmp[:threads], cuda[:device]",
     )
     parser.add_argument("--groups", default="", help="restrict to these groups (comma list)")
     parser.add_argument("--jobs", type=int, default=8)
@@ -374,9 +382,13 @@ def main() -> int:
         if not configs:
             parser.error("--configs selects no configuration")
         for c in configs:
-            backend, _, threads = c.partition(":")
-            if backend not in ("sequential", "openmp") or (threads and not threads.isdigit()):
-                parser.error(f"--configs: '{c}' is not sequential or openmp[:<threads>]")
+            backend, _, number = c.partition(":")
+            if backend not in ("sequential", "openmp", "cuda") or (number and not number.isdigit()):
+                parser.error(
+                    f"--configs: '{c}' is not sequential, openmp[:<threads>] or cuda[:<device>]"
+                )
+        if any(c.startswith("cuda") for c in configs):
+            env.setdefault("CUDA_VISIBLE_DEVICES", "1")
     else:
         if args.ref is None or not (args.ref / "bin" / "mosp").is_file():
             parser.error("--ref <scratch copy with bin/mosp> is required for driver original")

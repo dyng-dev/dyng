@@ -32,8 +32,9 @@
  *                        of MOSP's writeCsrGraph; for the parity harness, not timed)
  *   --timing <csv>       write the profiler stages and counters (kind,name,value)
  *   --quiet              print only the summary line
- *   --backend <b>        sequential | openmp (default openmp if built)
+ *   --backend <b>        sequential | openmp | cuda (default openmp if built)
  *   --threads <t>        OpenMP threads (default: the OpenMP default)
+ *   --device <d>         CUDA device of --backend cuda (default 0)
  *
  * Report lines (without --quiet): the inputs, `obj<k>   SOSP update <ms> (invalidated ...)`,
  * `graph  read graph <ms>, read changes and trees <ms>, build <ms>` and `obj<k>   result import <ms>, workspace <ms>, validate <ms>` (the
@@ -42,12 +43,23 @@
  *
  * Summary line (stable format):
  *   RESULT sosp_ms=<a> apply_ms=<b> end_to_end_ms=<c> threads=<t>
- * where (a) is the sum over the objectives of the stages that correspond to MOSP's
- * `obj<k>/sosp_update_compute` region (sospUpdateCpu): sssp.identify_affected + sssp.seed +
- * sssp.loop + sssp.finalize (parity/timed_regions/sssp.toml), (b) the commit (batch applied once,
- * with the transposition of the updated graph), and (c) the whole run, from reading the inputs to
- * writing the outputs.
+ * where (a) is the sum over the objectives of the stages that correspond to MOSP's per-objective
+ * SOSP region (parity/timed_regions/sssp.toml): on the host backends MOSP-OpenMP's
+ * `obj<k>/sosp_update_compute` (sospUpdateCpu) = sssp.identify_affected + sssp.seed + sssp.loop +
+ * sssp.finalize; on cuda MOSP-CUDA's `obj<k>/sosp_update_gpu` (sospUpdateGpu, host wall time up to
+ * the synchronization that ends it) = sssp.enact_fused. (b) is the commit (the batch applied once,
+ * with the transposition of the updated graph, or on cuda its upload and the in-edges built on the
+ * device), and (c) the whole run, from reading the inputs to writing the outputs.
+ *
+ * CUDA backend (MOSP-CUDA's `mosp`): the device is initialized first with resources::warm_up()
+ * (context and eager kernel loading; MOSP-CUDA sets CUDA_MODULE_LOADING=EAGER and times
+ * "cuda_context_init"), the stages are timed with CUDA events as well (profiler_options::
+ * cuda_events), and the --timing CSV gets one `device,<stage>,<ms>` row per stage sample with a
+ * device time, next to the `stage` rows. The per-objective line then reads
+ * `obj<k>   SOSP update <host ms> ms (invalidated ..., device <ms> ms)`. The results are copied to
+ * the host (to_vector; MOSP-CUDA's "download") before they are written.
  */
+#include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
@@ -94,6 +106,7 @@ struct options {
   std::string write_graph;
   int K = 0;
   int threads = 0;
+  int device = 0;
   vertex_t source = 0;
   std::int64_t delta = 0;
   bool canonicalize = false;
@@ -112,9 +125,11 @@ void usage() {
                "                        [-k K] [--source s] [--delta D] [--canonicalize]\n"
                "                        [--no-validate-inputs] [--out dir] [--no-output]\n"
                "                        [--write-graph prefix] [--timing file.csv] [--quiet]\n"
-               "                        [--backend sequential|openmp] [--threads t]\n"
+               "                        [--backend sequential|openmp|cuda] [--threads t]\n"
+               "                        [--device d]\n"
                "       dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K]\n"
-               "                        [--backend sequential|openmp] [--threads t]\n";
+               "                        [--backend sequential|openmp|cuda] [--threads t]\n"
+               "                        [--device d]\n";
 }
 
 /// Strict integer parsing (the CUDA driver's rule: the whole token must be a number in range).
@@ -168,7 +183,21 @@ dyng::resources make_resources(const options& opt) {
   if (b == "openmp") {
     return dyng::resources::openmp(opt.threads);
   }
-  throw usage_error("--backend: expected sequential or openmp, got '" + b + "'");
+  if (b == "cuda") {
+    dyng::resources res = dyng::resources::cuda(opt.device);
+    res.warm_up();  // context and eager kernel loading (MOSP-CUDA: CUDA_MODULE_LOADING=EAGER)
+    return res;
+  }
+  throw usage_error("--backend: expected sequential, openmp or cuda, got '" + b + "'");
+}
+
+/// A host copy of a result array (device arrays of the cuda backend are downloaded).
+template <typename value_t>
+std::vector<value_t> host_array(const dyng::resources& res, dyng::array_view<const value_t> v) {
+  if (dyng::is_host_accessible(v.space())) {
+    return std::vector<value_t>(v.begin(), v.end());
+  }
+  return dyng::to_vector(res, v);
 }
 
 /// Read the CSR; like MOSP, a graph without edges takes K from -k.
@@ -206,6 +235,8 @@ int run_init(int argc, char** argv) {
       opt.backend = std::string(value);
     } else if (a == "--threads") {
       opt.threads = parse_int<int>(value, a, 1, 1 << 16);
+    } else if (a == "--device") {
+      opt.device = parse_int<int>(value, a, 0, 1 << 10);
     } else {
       throw usage_error("unknown option: " + std::string(a));
     }
@@ -222,8 +253,10 @@ int run_init(int argc, char** argv) {
     const result_t r = dyng::sssp::compute(res, g, opt.source, sssp_options);
     const double ms = ms_since(start);
     const std::string dir = out_dir + "/obj" + std::to_string(k);
-    dyng::io::write_distances(dir + "/distancesOriginal.txt", r.distances());
-    dyng::io::write_parents(dir + "/SSSPTreeOriginal.txt", r.parents());
+    dyng::io::write_distances(dir + "/distancesOriginal.txt",
+                              dyng::host_view(host_array(res, r.distances())));
+    dyng::io::write_parents(dir + "/SSSPTreeOriginal.txt",
+                            dyng::host_view(host_array(res, r.parents())));
     std::cout << "compute obj" << k << ": " << ms << " ms\n";
   }
   return 0;
@@ -257,6 +290,8 @@ options parse_update_options(int argc, char** argv) {
       opt.K = parse_int<int>(next(), a, 1, 1 << 20);
     } else if (a == "--threads") {
       opt.threads = parse_int<int>(next(), a, 1, 1 << 16);
+    } else if (a == "--device") {
+      opt.device = parse_int<int>(next(), a, 0, 1 << 10);
     } else if (a == "--source") {
       opt.source = parse_int<vertex_t>(next(), a, 0, INT32_MAX);
     } else if (a == "--delta") {
@@ -282,14 +317,19 @@ options parse_update_options(int argc, char** argv) {
 int run_update(int argc, char** argv) {
   const options opt = parse_update_options(argc, argv);
   const auto start = clock_type::now();
+  auto t = clock_type::now();
   dyng::resources res = make_resources(opt);
-  dyng::profiler prof;
+  const double context_ms = ms_since(t);
+  const bool cuda = res.get_backend() == dyng::backend::cuda;
+  dyng::profiler_options profiling;
+  profiling.cuda_events = cuda;  // device times of the update's stages (CUDA events)
+  dyng::profiler prof(profiling);
 
   // --- Inputs ---------------------------------------------------------------------------------
   // The setup (graph and result builds) is recorded by its own profiler, the update by `prof`.
   dyng::profiler setup_prof;
   res.attach_profiler(&setup_prof);
-  auto t = clock_type::now();
+  t = clock_type::now();
   auto csr = read_graph(opt.graph, opt.K);
   const double read_graph_ms = ms_since(t);
   const vertex_t n = csr.num_vertices();
@@ -370,10 +410,23 @@ int run_update(int argc, char** argv) {
     calls[s.name].push_back(s.host_ms);
   }
   std::vector<double> sosp_ms(static_cast<std::size_t>(K), 0.0);
-  for (const char* stage : {"sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"}) {
+  std::vector<double> sosp_device_ms(static_cast<std::size_t>(K), 0.0);
+  const std::vector<const char*> sosp_stages =
+      cuda ? std::vector<const char*>{"sssp.enact_fused"}
+           : std::vector<const char*>{"sssp.identify_affected", "sssp.seed", "sssp.loop",
+                                      "sssp.finalize"};
+  for (const char* stage : sosp_stages) {
     const std::vector<double>& samples = calls[stage];
     for (std::size_t k = 0; k < samples.size() && k < sosp_ms.size(); ++k) {
       sosp_ms[k] += samples[k];
+    }
+  }
+  if (cuda) {
+    std::size_t k = 0;
+    for (const dyng::stage_sample& s : prof.samples()) {
+      if (s.name == "sssp.enact_fused" && k < sosp_device_ms.size()) {
+        sosp_device_ms[k++] = s.device_ms;
+      }
     }
   }
   double sosp_total = 0;
@@ -389,17 +442,39 @@ int run_update(int argc, char** argv) {
   const double apply_ms = prof.total_host_ms("update.commit");
 
   // --- Outputs --------------------------------------------------------------------------------
+  // The results in host memory (on cuda: MOSP-CUDA's "download", which it does with or without
+  // --no-output).
+  double download_ms = 0;
+  std::vector<std::vector<std::int64_t>> downloaded_d(static_cast<std::size_t>(K));
+  std::vector<std::vector<vertex_t>> downloaded_p(static_cast<std::size_t>(K));
+  if (cuda) {
+    t = clock_type::now();
+    for (int k = 0; k < K; ++k) {
+      const result_t& r = results[static_cast<std::size_t>(k)];
+      downloaded_d[static_cast<std::size_t>(k)] = dyng::to_vector(res, r.distances());
+      downloaded_p[static_cast<std::size_t>(k)] = dyng::to_vector(res, r.parents());
+    }
+    download_ms = ms_since(t);
+  }
+  const auto distances_of = [&](int k) {
+    const auto i = static_cast<std::size_t>(k);
+    return cuda ? dyng::host_view(std::as_const(downloaded_d[i])) : results[i].distances();
+  };
+  const auto parents_of = [&](int k) {
+    const auto i = static_cast<std::size_t>(k);
+    return cuda ? dyng::host_view(std::as_const(downloaded_p[i])) : results[i].parents();
+  };
   double write_ms = 0;
   if (opt.write_output) {
     t = clock_type::now();
     std::vector<std::function<void()>> writes;  // concurrently, like `mosp`
     for (int k = 0; k < K; ++k) {
       const std::string dir = opt.out + "/obj" + std::to_string(k);
-      const result_t& r = results[static_cast<std::size_t>(k)];
+      const dyng::array_view<const std::int64_t> d = distances_of(k);
+      const dyng::array_view<const vertex_t> p = parents_of(k);
       writes.emplace_back(
-          [dir, &r] { dyng::io::write_distances(dir + "/distancesUpdated.txt", r.distances()); });
-      writes.emplace_back(
-          [dir, &r] { dyng::io::write_parents(dir + "/SSSPTreeUpdated.txt", r.parents()); });
+          [dir, d] { dyng::io::write_distances(dir + "/distancesUpdated.txt", d); });
+      writes.emplace_back([dir, p] { dyng::io::write_parents(dir + "/SSSPTreeUpdated.txt", p); });
     }
     run_concurrently(writes);
     write_ms = ms_since(t);
@@ -415,18 +490,24 @@ int run_update(int argc, char** argv) {
                 static_cast<long long>(g.num_edges()), K, batch.num_insertions(),
                 batch.num_deletions());
     std::printf(
-        "host   %s, threads %d, read inputs %.1f ms, canonicalize %.1f ms, apply batch %.1f ms, "
-        "write %.1f ms\n",
-        std::string(dyng::to_string(res.get_backend())).c_str(), res.num_threads(), load_ms,
-        canonicalize_ms, apply_ms, write_ms);
+        "host   %s, threads %d, context %.1f ms, read inputs %.1f ms, canonicalize %.1f ms, "
+        "apply batch %.1f ms, download %.1f ms, write %.1f ms\n",
+        std::string(dyng::to_string(res.get_backend())).c_str(), res.num_threads(), context_ms,
+        load_ms, canonicalize_ms, apply_ms, download_ms, write_ms);
     for (int k = 0; k < K; ++k) {
       const dyng::sssp::stats& s = stats[static_cast<std::size_t>(k)];
+      char device[64] = "";
+      if (cuda) {
+        std::snprintf(device, sizeof(device), ", device %.3f ms",
+                      sosp_device_ms[static_cast<std::size_t>(k)]);
+      }
       std::printf(
           "obj%d   SOSP update %.3f ms (invalidated %lld, iterations %lld, epochs %lld, pushes "
-          "%lld)\n",
+          "%lld, affected %lld, packed %d%s)\n",
           k, sosp_ms[static_cast<std::size_t>(k)], static_cast<long long>(s.invalidated),
           static_cast<long long>(s.iterations), static_cast<long long>(s.epochs),
-          static_cast<long long>(s.pushes));
+          static_cast<long long>(s.pushes), static_cast<long long>(s.affected),
+          s.packed_parents ? 1 : 0, device);
     }
     std::map<std::string, std::vector<double>> setup;
     for (const dyng::stage_sample& s : setup_prof.samples()) {
@@ -454,6 +535,14 @@ int run_update(int argc, char** argv) {
       csv << "stage," << s.name << ',' << s.host_ms << '\n';
     }
     csv << "stage,total.end_to_end," << end_to_end << '\n';
+    csv << "stage,total.context," << context_ms << '\n';
+    csv << "stage,total.download," << download_ms << '\n';
+    // Device times (CUDA events) of the update's stages, one row per sample, in sample order.
+    for (const dyng::stage_sample& s : prof.samples()) {
+      if (s.device_ms > 0.0) {
+        csv << "device," << s.name << ',' << s.device_ms << '\n';
+      }
+    }
     timing_written = static_cast<bool>(csv);
     if (!timing_written) {
       std::cerr << "cannot write " << opt.timing << "\n";
