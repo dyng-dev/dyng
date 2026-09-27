@@ -149,7 +149,8 @@ class graph_impl {
 
   /**
    * @brief The device copy of the current state, uploaded on first use (thread-safe; profiler
-   *        stage graph.upload when it is built).
+   *        stage graph.upload when it is built; the build waits for the stream of `res`, so the
+   *        copy can be read on any stream afterwards).
    *
    * Precondition: home == backend::cuda and `res` is a CUDA handle of home_device.
    * @param[in] res Resources of the CUDA backend (stream and memory resource of the upload).

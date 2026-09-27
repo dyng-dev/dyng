@@ -330,6 +330,9 @@ graph_impl<vertex_t, edge_t, weight_t>::device_edges(const resources& res) const
       scoped_stage stage(res, "graph.upload");
       auto built = std::make_unique<device_type>();
       build_device_graph(res, out, *built);
+      // Complete before any stream reads it (read-only calls may run concurrently on other
+      // streams; MOSP-CUDA's uploadDeviceGraph ends with a synchronization as well).
+      res.synchronize();
       device_ = std::move(built);
       device_built_.store(true, std::memory_order_release);
     }

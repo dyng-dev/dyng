@@ -81,7 +81,8 @@ struct device_graph {
  *        fill run on the device). The weights are uploaded as they are stored, one column per
  *        objective, so MOSP's split kernel (edge-major to objective-major) is not needed.
  *
- * Ordered on the stream of `res` (no synchronization); memory from `res.memory()`.
+ * Ordered on the stream of `res` (no synchronization; graph_impl::device_edges() waits for it);
+ * memory from `res.memory()`.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
