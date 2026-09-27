@@ -2,18 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 """Breathe support for the curated group pages of the C++ API reference.
 
-Two fixes, both needed because the reference is written as one `doxygengroup` page per
-Doxygen group (PLAN Section 9.2) instead of one page per file or namespace:
+Three fixes. The first two are needed because the reference is written as one `doxygengroup`
+page per Doxygen group (docs/developer/documentation.md) instead of one page per file or
+namespace; the third works around the Doxygen version pinned in environment.yml:
 
 1. Scope of free functions (below).
-3. Doxygen 1.18 writes `constexpr` both as an attribute and as the `<type>` of a constexpr
-   constructor; Breathe emits both, and Sphinx cannot parse `constexpr constexpr array_view()`.
-   The duplicate keyword is dropped.
 2. Links to groups and headers. Doxygen links `@ref sssp` to the group and a header name in a
    comment to the header's file page; neither exists on a group page, so Sphinx cannot resolve
    `group__sssp` or `error_8hpp`. They are resolved here to the page that renders the group (for
-   a header: the group it belongs to through its `@file ... @ingroup`). A Doxygen group without a
-   page is reported as a warning, so a new group cannot silently go missing from the reference.
+   a header: the group it belongs to through its `@file ... @ingroup`). A page renders a group
+   when it has a `doxygengroup` directive, written with backticks or colons (both MyST fences).
+   A Doxygen group without a page is reported as a warning, so a new group cannot silently go
+   missing from the reference.
+3. Doxygen 1.18 writes `constexpr` both as an attribute and as the `<type>` of a constexpr
+   constructor; Breathe emits both, and Sphinx cannot parse `constexpr constexpr array_view()`.
+   The duplicate keyword is dropped.
 
 Scope of free functions:
 
@@ -44,7 +47,8 @@ from sphinx.util.nodes import make_refnode
 
 logger = logging.getLogger(__name__)
 _DUPLICATE_CONSTEXPR = re.compile(r"\bconstexpr(\s+constexpr)+\b")
-_GROUP_DIRECTIVE = re.compile(r"^```\{doxygengroup\}\s+(\S+)", re.MULTILINE)
+# A doxygengroup directive in a MyST page: a backtick or a colon fence (colon_fence is enabled).
+_GROUP_DIRECTIVE = re.compile(r"^(?:`{3,}|:{3,})\{doxygengroup\}\s+(\S+)", re.MULTILINE)
 
 
 def _scope_of(node: Any) -> list[str]:
