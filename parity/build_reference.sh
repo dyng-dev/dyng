@@ -37,8 +37,10 @@
 #   --scratch DIR  work area (default $DYNG_SCRATCH, else $HOME/Projects/dyng-work)
 #   --print-dir    only print the copy directory of each name/variant (no export, no build)
 #
-# Environment: DYNG_SCRATCH; CUDA_VISIBLE_DEVICES for --test of CUDA references (default 1, the
-# development GPU of the author's machine).
+# Environment: DYNG_SCRATCH; DYNG_ORIGINALS_DIR, the directory that holds the clones of the
+# originals (default $HOME/Projects; clone one with `git clone <upstream of references.toml>
+# "$DYNG_ORIGINALS_DIR/<name>"`); CUDA_VISIBLE_DEVICES for --test of CUDA references (default 1,
+# the development GPU of the author's machine).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -49,10 +51,12 @@ run_tests=0
 jobs=16
 print_dir=0
 scratch="${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}"
+# references.toml names each clone as $DYNG_ORIGINALS_DIR/<name> (expanded by field below).
+export DYNG_ORIGINALS_DIR="${DYNG_ORIGINALS_DIR:-${HOME}/Projects}"
 names=()
 
 usage() {
-  sed -n '5,41p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '5,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-2}"
 }
 
@@ -165,7 +169,12 @@ build_copy() { # <name> <variant>
   log="${base}/${var}.build.log"
   echo "==> ${name}@${short} (${var}) -> ${dir}"
 
-  [ -d "${origin}/.git" ] || { echo "original repository not found: ${origin}" >&2; return 1; }
+  [ -d "${origin}/.git" ] || {
+    echo "original repository not found: ${origin}" >&2
+    echo "  clone it: git clone $(field "${name}" upstream) \"${origin}\"" >&2
+    echo "  (or set DYNG_ORIGINALS_DIR to the directory that holds the clones)" >&2
+    return 1
+  }
   git -C "${origin}" cat-file -e "${commit}^{commit}" ||
     { echo "${origin} has no commit ${commit}" >&2; return 1; }
   local before after

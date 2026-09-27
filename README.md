@@ -81,6 +81,7 @@ MOSP-OpenMP@c352151 from a `git archive` copy in `$DYNG_SCRATCH`, exports its go
 every CPU backend:
 
 ```bash
+git clone https://github.com/SMShovan/MOSP-OpenMP.git ~/Projects/MOSP-OpenMP   # the original, once
 parity/build_reference.sh MOSP-OpenMP    # scratch copy of the pinned original, built (MOSP-CUDA needs nvcc)
 parity/export_goldens.py                 # the sssp golden corpus in $DYNG_SCRATCH/goldens
 ci/check.sh --parity                     # the gate plus `ctest --preset parity -L parity`
