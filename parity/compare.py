@@ -13,9 +13,10 @@ configuration:
 
 driver "compat" (dynG, through tools/compat/dyng-compat-mosp), per configuration
 (sequential, openmp:<threads>):
-  * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute)
+  * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute;
+    init_canonical/ for the noncanonical group, whose init/ holds perturbed tie parents)
   * `dyng-compat-mosp` update == updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt, from the
-    golden initial trees, and its `--write-graph` output == applied/graphCsr{RowPtr,ColInd,Values}.txt
+    golden initial trees (without --canonicalize, like `mosp`), and its `--write-graph` output == applied/graphCsr{RowPtr,ColInd,Values}.txt
     (graph::apply under mosp_compatible() vs applyChangeBatch + writeCsrGraph)
   * the invalidated counter of every objective == case.json (the original's counter)
 
@@ -118,6 +119,11 @@ def tree_pairs(out: Path, golden: Path, sub: str, names: list[str], k: int) -> l
             for o in range(k) for f in names]
 
 
+def canonical_init(golden: Path) -> str:
+    """The golden directory of the canonical initial trees (compute / mospPrep init)."""
+    return "init_canonical" if (golden / "init_canonical").is_dir() else "init"
+
+
 def replay_compat(exe: Path, golden: Path, meta: dict, config: str, tmp: Path, env: dict) -> list[str]:
     k = meta["num_objectives"]
     backend, _, threads = config.partition(":")
@@ -126,7 +132,7 @@ def replay_compat(exe: Path, golden: Path, meta: dict, config: str, tmp: Path, e
     rc, log = run([exe, "init", golden / "input" / "graphCsr", tmp / "init", "-k", k, *extra], env)
     if rc != 0:
         return [f"init failed ({rc}): {log[-500:]}"]
-    bad += compare_files(tree_pairs(tmp / "init", golden, "init",
+    bad += compare_files(tree_pairs(tmp / "init", golden, canonical_init(golden),
                                     ["distancesOriginal.txt", "SSSPTreeOriginal.txt"], k))
     rc, log = run([exe, "--graph", golden / "input" / "graphCsr", "--changes", golden / "input",
                    "--init", golden / "init", "-k", k, "--out", tmp / "updated",
@@ -150,7 +156,7 @@ def replay_original(ref: Path, golden: Path, meta: dict, tmp: Path, env: dict) -
                   env)
     if rc != 0:
         return [f"mospPrep init failed ({rc}): {log[-500:]}"]
-    bad += compare_files(tree_pairs(tmp / "init", golden, "init",
+    bad += compare_files(tree_pairs(tmp / "init", golden, canonical_init(golden),
                                     ["distancesOriginal.txt", "SSSPTreeOriginal.txt"], k))
     rc, log = run([ref / "bin" / "mosp", "--graph", golden / "input" / "graphCsr", "--changes",
                    golden / "input", "--init", golden / "init", "-k", k, "--out",

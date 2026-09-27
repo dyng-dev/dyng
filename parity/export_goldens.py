@@ -30,11 +30,20 @@ parity/build_reference.sh builds (the originals are never touched):
                         here with the same construction
   stress           200  bin/stressTest 1 and bin/parallelStressTest 2 (100 cases each; the two
                         programs draw the same cases for the same seed, so the second uses seed 2)
+  noncanonical          the inputs of the testcases, regressions, escher, fixtures and sosp
+                        groups with NON-CANONICAL initial trees: bin/mospPrep init, then every
+                        vertex with several tight in-neighbours takes a random one of them as its
+                        parent (seeded by the case name; a valid shortest-path tree whose tie
+                        parents are not the lowest ids, like MOSP's dataset trees). Cases where
+                        no vertex has a tie are skipped. `mosp` (no --canonicalize) keeps the
+                        parents of the vertices the batch does not reach; the goldens record it.
 
 For every case (K objectives, source 0) the goldens are:
 
   input/graphCsr{RowPtr,ColInd,Values}.txt, input/insert.txt, input/delete.txt
-  init/obj<k>/distancesOriginal.txt, SSSPTreeOriginal.txt    bin/mospPrep init (Dijkstra)
+  init/obj<k>/distancesOriginal.txt, SSSPTreeOriginal.txt    bin/mospPrep init (Dijkstra); for
+                                                             noncanonical: the perturbed trees
+  init_canonical/obj<k>/...                                  noncanonical only: mospPrep init
   updated/obj<k>/distancesUpdated.txt, SSSPTreeUpdated.txt   bin/mosp --validate (sospUpdateCpu)
   combined/{distancesCsr,SSSPTreeCsr,mospCosts}.txt          bin/mosp (for mosp, 0.2)
   applied/graphCsr{RowPtr,ColInd,Values}.txt                 applyChangeBatch + writeCsrGraph
@@ -46,7 +55,10 @@ Before a case is written, the originals are cross-checked (PLAN Section 6.3 step
 trees of bin/mosp must equal byte for byte those of parallelSOSPUpdate and sequentialSOSPUpdate
 (the file-based updates) and of `mospPrep expected` (Dijkstra on the updated graph); the initial
 trees written by mospTest (where it writes them) must equal `mospPrep init`; for the testcases the
-tracked expected Dijkstra files of the commit must equal the goldens.
+tracked expected Dijkstra files of the commit must equal the goldens. For the noncanonical group
+only parallelSOSPUpdate (sospUpdateCpu, the rule of every dynG backend) must equal bin/mosp, and
+`mospPrep expected` the distances: sequentialSOSPUpdate and Dijkstra pick lowest-id tie parents
+where sospUpdateCpu keeps the input's (ADR 0006, "Tie rule of sssp").
 
 --twice exports the corpus a second time from a FRESH scratch copy (a new git archive) into a
 temporary work area and requires an identical manifest (PLAN Section 8.3, "the harness is honest").
@@ -60,6 +72,7 @@ import filecmp
 import hashlib
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -82,7 +95,10 @@ GROUPS = [
     "large_weights",
     "packing",
     "stress",
+    "noncanonical",
 ]
+# The groups whose inputs the noncanonical group reuses.
+NONCANONICAL_BASES = ["testcases", "regressions", "escher", "fixtures", "sosp"]
 # generateTestCases: the objective each tracked testCase<i>/expected file belongs to.
 TESTCASE_OBJECTIVE = [0, 1, 2, 0, 1, 0, 1, 2, 0, 0]
 CSR_FILES = ["graphCsrRowPtr.txt", "graphCsrColInd.txt", "graphCsrValues.txt"]
@@ -104,6 +120,7 @@ class Case:
     k: int | None = None
     mosptest_init: Path | None = None  # init/obj<k>/{distances,tree}.txt written by mospTest
     tracked_expected: tuple[int, Path] | None = None  # (objective, testCase expected/ dir)
+    perturb: bool = False  # noncanonical: perturb the tie parents of the initial trees
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -142,6 +159,21 @@ def num_weights(values: Path) -> int:
 
 
 def collect(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Case]:
+    wanted = set(groups)
+    if "noncanonical" in wanted:
+        groups = [g for g in GROUPS if g in wanted or g in NONCANONICAL_BASES]
+    cases = collect_base(ref, raw, groups, env)
+    derived = []
+    if "noncanonical" in wanted:
+        for c in cases:
+            if c.group in NONCANONICAL_BASES:
+                derived.append(Case("noncanonical", f"{c.group}__{c.name}", c.graph, c.insert,
+                                    c.delete, f"{c.origin}; initial trees with perturbed tie "
+                                    "parents", k=c.k, perturb=True))
+    return [c for c in cases if c.group in wanted] + derived
+
+
+def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Case]:
     cases: list[Case] = []
     mosptest = ref / "bin" / "mospTest"
 
@@ -259,10 +291,61 @@ def packing_cases(root: Path) -> list[Case]:
     return cases
 
 
+# --- Non-canonical initial trees -------------------------------------------------------------
+
+
+def read_pairs(path: Path) -> list[str]:
+    """The second column of a 'vertex value' file (distances or parents), as text."""
+    return [line.split()[1] for line in path.read_text().splitlines() if line.strip()]
+
+
+def perturb_initial_trees(prefix: Path, canonical: Path, out: Path, k: int, name: str) -> list[int]:
+    """Copy the canonical trees to `out`, replacing every parent by a random tight in-neighbour.
+
+    Weights are >= 1, so a tight in-neighbour u (dist[u] + w(u,v) == dist[v]) is strictly closer
+    to the source than v and any choice gives an acyclic shortest-path tree. The random stream is
+    seeded by the case name, so the export is reproducible. Returns the number of changed parents
+    per objective.
+    """
+    rows = [int(x) for x in Path(f"{prefix}RowPtr.txt").read_text().split()]
+    cols = [int(x) for x in Path(f"{prefix}ColInd.txt").read_text().split()]
+    values = [line.split() for line in Path(f"{prefix}Values.txt").read_text().splitlines()
+              if line.strip()]
+    n = len(rows) - 1
+    rng = random.Random(int(hashlib.sha256(name.encode()).hexdigest()[:16], 16))
+    changed = []
+    for obj in range(k):
+        src, dst = canonical / f"obj{obj}", out / f"obj{obj}"
+        dst.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src / "distancesOriginal.txt", dst / "distancesOriginal.txt")
+        dist = [None if d == "INF" else int(d) for d in read_pairs(src / "distancesOriginal.txt")]
+        parents = [int(p) for p in read_pairs(src / "SSSPTreeOriginal.txt")]
+        tight: list[list[int]] = [[] for _ in range(n)]
+        for u in range(n):
+            if dist[u] is None:
+                continue
+            for e in range(rows[u], rows[u + 1]):
+                v = cols[e]
+                if v != 0 and dist[v] is not None and dist[u] + int(values[e][obj]) == dist[v]:
+                    tight[v].append(u)
+        count = 0
+        for v in range(n):
+            options = sorted(set(tight[v]))
+            if len(options) > 1:
+                p = options[rng.randrange(len(options))]
+                count += p != parents[v]
+                parents[v] = p
+        # SSSPTreeOriginal.txt format: "<vertex> <parent>" per line (writeParents).
+        (dst / "SSSPTreeOriginal.txt").write_text("".join(f"{v} {p}\n" for v, p in
+                                                          enumerate(parents)))
+        changed.append(count)
+    return changed
+
+
 # --- Export of one case ---------------------------------------------------------------------
 
 
-def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> dict:
+def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> dict | None:
     dst = out / case.group / case.name
     tmp = tmp_root / case.group / case.name
     shutil.rmtree(dst, ignore_errors=True)
@@ -281,7 +364,17 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
     tools = ref / "parity_export" / "bin"
 
     # Initial trees (Dijkstra, lowest-id ties).
-    run([bin_dir / "mospPrep", "init", prefix, dst / "init", "-k", str(k)], env=env)
+    perturbed: list[int] = []
+    if case.perturb:
+        run([bin_dir / "mospPrep", "init", prefix, dst / "init_canonical", "-k", str(k)], env=env)
+        perturbed = perturb_initial_trees(prefix, dst / "init_canonical", dst / "init", k,
+                                          case.rel)
+        if sum(perturbed) == 0:
+            shutil.rmtree(dst, ignore_errors=True)
+            shutil.rmtree(tmp, ignore_errors=True)
+            return None  # no tie anywhere: nothing non-canonical to test
+    else:
+        run([bin_dir / "mospPrep", "init", prefix, dst / "init", "-k", str(k)], env=env)
     if case.mosptest_init is not None:
         for obj in range(k):
             a, b = case.mosptest_init / f"obj{obj}", dst / "init" / f"obj{obj}"
@@ -303,7 +396,9 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
     for obj in range(k):
         upd = tmp / "mosp" / f"obj{obj}"
         init = dst / "init" / f"obj{obj}"
-        for impl in ["sequential", "parallel"]:
+        # sequentialSOSPUpdate re-scans in-neighbours and picks lowest-id ties: it agrees with
+        # sospUpdateCpu only from canonical trees (ADR 0006).
+        for impl in (["parallel"] if case.perturb else ["sequential", "parallel"]):
             o = tmp / impl / f"obj{obj}"
             run([tools / "export_sssp", impl, prefix, init / "distancesOriginal.txt",
                  init / "SSSPTreeOriginal.txt", dst / "input" / "insert.txt",
@@ -312,7 +407,8 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
             same(upd / "distancesUpdated.txt", o / "distances.txt", f"{case.rel} obj{obj} {impl}")
             same(upd / "SSSPTreeUpdated.txt", o / "tree.txt", f"{case.rel} obj{obj} {impl}")
         exp = tmp / "expected" / f"obj{obj}"
-        for f in ["distancesUpdated.txt", "SSSPTreeUpdated.txt"]:
+        # Dijkstra's tree is canonical; from a perturbed tree only the distances must agree.
+        for f in ["distancesUpdated.txt"] + ([] if case.perturb else ["SSSPTreeUpdated.txt"]):
             same(upd / f, exp / f, f"{case.rel} obj{obj} mospPrep expected")
         (dst / "updated" / f"obj{obj}").mkdir(parents=True)
         for f in ["distancesUpdated.txt", "SSSPTreeUpdated.txt"]:
@@ -346,6 +442,9 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
         "source": 0,
         "invalidated": [invalidated[o] for o in range(k)],
     }
+    if case.perturb:
+        meta["init"] = "perturbed tie parents (init_canonical/ holds mospPrep init)"
+        meta["perturbed_parents"] = perturbed
     (dst / "case.json").write_text(json.dumps(meta, indent=1, sort_keys=True) + "\n")
     shutil.rmtree(tmp, ignore_errors=True)
     return meta
@@ -453,7 +552,9 @@ def export(ref: Path, out: Path, groups: list[str], jobs: int) -> tuple[list[dic
         with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
             futures = {pool.submit(export_case, c, ref, out, raw / "tmp", env): c for c in cases}
             for fut in concurrent.futures.as_completed(futures):
-                metas.append(fut.result())
+                meta = fut.result()
+                if meta is not None:
+                    metas.append(meta)
     finally:
         shutil.rmtree(raw, ignore_errors=True)
     manifest_sha, lines = write_manifest(out, metas)

@@ -14,10 +14,10 @@ reference = "MOSP-OpenMP"
 commit = "c35215135341d5b5d1553458afe4b2226edc38fb"
 location = "$DYNG_SCRATCH/goldens/sssp"
 generated_by = "parity/export_goldens.py"
-num_cases = 388
-num_files = 8620
-num_bytes = 143945351
-manifest_sha256 = "78b658553362f77686571dc5f21c28667809580a33983354a982912c54591c26"
+num_cases = 495
+num_files = 11799
+num_bytes = 158040087
+manifest_sha256 = "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd"
 
 [sets.sssp.groups]
 testcases = 10
@@ -29,6 +29,7 @@ sosp = 148
 large_weights = 2
 packing = 3
 stress = 200
+noncanonical = 107
 
 [sets.sssp.cases]
 "escher/escher_delete_all" = { k = 1, files = 17, sha256 = "671b4f47bf91e37ca9006216825a079b79e5c8bf75816b88dc41c99484c0b2f9" }
@@ -54,6 +55,113 @@ stress = 200
 "fixtures/r11" = { k = 2, files = 21, sha256 = "30736e2784b6827fb283f6f9343fe6ec2d6fe4ca35bbc783bc93a43c6177f05c" }
 "large_weights/safe" = { k = 2, files = 21, sha256 = "a6d9cc516204d5e9a10a245be91d72f9396000cdf7134949f562e054e0a18148" }
 "large_weights/unsafe" = { k = 2, files = 21, sha256 = "3b66ceb9c238f29755225ed43dec650122df335d0a95a7b0aadafc76dc4fdd33" }
+"noncanonical/escher__ties_k2" = { k = 2, files = 25, sha256 = "14ce2ef9919ee314e00a501212c38b3a390e52494391d3115b0cc5feeb265ec4" }
+"noncanonical/fixtures__r00" = { k = 3, files = 31, sha256 = "20b4c4b8a06027f2337292c4a6d781b111aa2467a71042c9aef5479b38bb5b9c" }
+"noncanonical/fixtures__r01" = { k = 3, files = 31, sha256 = "76e44913147aaf128349a7146b4fbb72057fec04831d6f0ea301b4e3f0f2f7e4" }
+"noncanonical/fixtures__r02" = { k = 1, files = 19, sha256 = "8b8ce646797ae3d0bf659b6923ea944976fde3862f62c12c42d5df214d53d063" }
+"noncanonical/fixtures__r03" = { k = 2, files = 25, sha256 = "dfc8645a8e2d1ebcd4905e9c5234b6afcd7390011ab4a063ce2dbf0a1644c8c9" }
+"noncanonical/fixtures__r04" = { k = 4, files = 37, sha256 = "219235b0b2495e38cffcaa6da207657aa4f58f69b39630f914e464e24ceffce4" }
+"noncanonical/fixtures__r06" = { k = 3, files = 31, sha256 = "83b095cbf17a5d8837442f6311c247aef7107d3c86473631d1715ccf055b9903" }
+"noncanonical/fixtures__r07" = { k = 1, files = 19, sha256 = "610235700f84da8c0dd0112b296273821410fcc296d1355d81bbd73e1782f346" }
+"noncanonical/fixtures__r10" = { k = 32, files = 205, sha256 = "83c141a3160ddd06fc6cfc031381bae227e10562c6e34b6bf1ffe20be5335a87" }
+"noncanonical/regressions__c2i_1" = { k = 3, files = 31, sha256 = "54769e04936a51b8ea759baddbfe2043d7fdb6e3898191b63f2fb031ba746d57" }
+"noncanonical/sosp__grid-medium_0__deletions-only" = { k = 3, files = 31, sha256 = "549f330083a9659d17256a644a1907e7eeea313a51f3f328f90d882dcc0dbf3d" }
+"noncanonical/sosp__grid-medium_0__disconnecting" = { k = 3, files = 31, sha256 = "30067aaa0ddbc12e363fa761e4aaf462d7090f8d7a3c450e171dcf16b40ab166" }
+"noncanonical/sosp__grid-medium_0__insertions-only" = { k = 3, files = 31, sha256 = "b0d8edcbfe2457d8ec4ba6856c5f36ad2c08fba8d473bfad2ab0025349d68d05" }
+"noncanonical/sosp__grid-medium_0__local" = { k = 3, files = 31, sha256 = "265c7a00545c8b1dd8e9cbc0b9c610b609f7fc5211444eae8d21b2b39fde90fe" }
+"noncanonical/sosp__grid-medium_0__local-reweight" = { k = 3, files = 31, sha256 = "6ecd782d4389d53d980a55d020b758ea2cec78b574178ff4f2f83bdd3973a237" }
+"noncanonical/sosp__grid-medium_0__reweight" = { k = 3, files = 31, sha256 = "9df33758ecc69404828964bde45bf6c779b0855f9d1c0735afb5279cc1881e0b" }
+"noncanonical/sosp__grid-medium_0__targeted" = { k = 3, files = 31, sha256 = "0bc65943fd24c7ffb47155f7c4c0ebc29072a7480f8d051418085c3e9e9c4328" }
+"noncanonical/sosp__grid-medium_0__tree-weight-increases" = { k = 3, files = 31, sha256 = "b2d3fd14d94f38dc550f03cfb3a0cd00e1eb887d84eb9316e6e9d912f432b1ca" }
+"noncanonical/sosp__grid-medium_0__uniform-safe" = { k = 3, files = 31, sha256 = "c69c9b88b8da2ca765bf6bc558acb07d914344ef13caa8caaf3ce566141631f3" }
+"noncanonical/sosp__grid-medium_0__uniform-unsafe" = { k = 3, files = 31, sha256 = "f9fb593de5b9728f9835f16c9fc2d95b34c8b96458ad0ff623a578cff1f9f870" }
+"noncanonical/sosp__grid-medium_2__deletions-only" = { k = 3, files = 31, sha256 = "1f1eeb2b6e67f72897e2764614671035b339a255d245c8d3325eb1c739331bf1" }
+"noncanonical/sosp__grid-medium_2__disconnecting" = { k = 3, files = 31, sha256 = "e0425711bef22958fa506366e05bd21ae96c3d2c96e670966641fd6d15a156cc" }
+"noncanonical/sosp__grid-medium_2__insertions-only" = { k = 3, files = 31, sha256 = "b6c274399832156ba363d7945e2d9d228e892912068b0346e4e35fee2694a6cd" }
+"noncanonical/sosp__grid-medium_2__local" = { k = 3, files = 31, sha256 = "ccde87b6b36974cd70cadc525f7bd58721f3567662b9eac3e6400887c52d2873" }
+"noncanonical/sosp__grid-medium_2__local-reweight" = { k = 3, files = 31, sha256 = "ee09138e2c3ad4439665fd67c26192c1fcffdcafd645a83325eaf173eadd1c90" }
+"noncanonical/sosp__grid-medium_2__reweight" = { k = 3, files = 31, sha256 = "eac27b9444a42dfa4321221adb9d4bdc5b8ba6a62ec2562e8a29aacbd40ba983" }
+"noncanonical/sosp__grid-medium_2__targeted" = { k = 3, files = 31, sha256 = "8f951a85946c48a6d9844154c74037c243cf0497346388e3ed2774c5ae808cca" }
+"noncanonical/sosp__grid-medium_2__tree-weight-increases" = { k = 3, files = 31, sha256 = "ec98895b47c99626fc6ef91f9baf89853e2ccb48e33f5bd880cc43c13eb34c1a" }
+"noncanonical/sosp__grid-medium_2__uniform-safe" = { k = 3, files = 31, sha256 = "9ead463217f63c1586b7ceb497dddf855efad3e288e12b131cc55e2a8b6149ac" }
+"noncanonical/sosp__grid-medium_2__uniform-unsafe" = { k = 3, files = 31, sha256 = "57b8d53e26ced0367a93b8cd73ba8c54ede1c846706ba759f79baed058e32f61" }
+"noncanonical/sosp__grid-small_0__deletions-only" = { k = 2, files = 25, sha256 = "32ad5e6b98c1bc065aa7e9ca33d077fc4b499ba66afc5128978430a74fda9a1a" }
+"noncanonical/sosp__grid-small_0__local" = { k = 2, files = 25, sha256 = "2d2781bb9d1f7991383e0aef5ab754fea85517f313990b4c17fedae971e4ec47" }
+"noncanonical/sosp__grid-small_0__local-reweight" = { k = 2, files = 25, sha256 = "4fddf4927f72409b9723c92def9986726e5d32f6290270c60072b2e012a56338" }
+"noncanonical/sosp__grid-small_0__reweight" = { k = 2, files = 25, sha256 = "3051968cc5446e60edd4cd3b02b8f09d3a8c5688fa3dbf1676b48244fae13649" }
+"noncanonical/sosp__grid-small_0__targeted" = { k = 2, files = 25, sha256 = "a8a025e6ed981785b90a76762121f9330cfb65b3a3797b7d9824bb485e00145e" }
+"noncanonical/sosp__grid-small_0__uniform-unsafe" = { k = 2, files = 25, sha256 = "11feafcb09201f6928ecda34e93d740a7194d5c74e669d71e1a9c4ba2221c20b" }
+"noncanonical/sosp__grid-small_1__deletions-only" = { k = 2, files = 25, sha256 = "c15b2880253a00d6f5b05949c4dfc07510924cad3cea4fbf486ce5e08fff555c" }
+"noncanonical/sosp__grid-small_1__insertions-only" = { k = 2, files = 25, sha256 = "11b136059b2923a4eaba42cefce8388a71e299a1a76b35f1461470e540fc14f5" }
+"noncanonical/sosp__grid-small_1__local" = { k = 2, files = 25, sha256 = "df27b9fb6df6baeb955a0e5c8c60ac435e09bf78f55a479cfe9c5af6efc9589e" }
+"noncanonical/sosp__grid-small_1__reweight" = { k = 2, files = 25, sha256 = "2e3424551854207022db3fd3a2f279053d682f5e2f9cf1656c53b190aa6fc045" }
+"noncanonical/sosp__grid-small_1__uniform-unsafe" = { k = 2, files = 25, sha256 = "1a16d49521d8ed914cea08d98eaa2bb64325d687f91b4e61f7db3e81e481df4e" }
+"noncanonical/sosp__grid-small_2__deletions-only" = { k = 2, files = 25, sha256 = "cf96e3fa60a95c2aaa60e931f02203364dc19dec0436914d89ba1b08036c53ad" }
+"noncanonical/sosp__grid-small_2__disconnecting" = { k = 2, files = 25, sha256 = "65b22d7e60babe82087c4557d883cc7465293ddc2eff3f45705270d4d87fb00c" }
+"noncanonical/sosp__grid-small_2__insertions-only" = { k = 2, files = 25, sha256 = "6ca9e3615ce3cb8877ca0863882a24efcf2d19c7c7af6c391a8992406dfc1033" }
+"noncanonical/sosp__grid-small_2__local" = { k = 2, files = 25, sha256 = "9868bc9c0b5d564f5c36312eff9d6057c3159557e155974741f0972911af0474" }
+"noncanonical/sosp__grid-small_2__local-reweight" = { k = 2, files = 25, sha256 = "0fadefbb1ece8877a486c63085dcb7fdac5e2056fb7035f35f5d13d1bd843761" }
+"noncanonical/sosp__grid-small_2__reweight" = { k = 2, files = 25, sha256 = "ab23736682552d3a12b911eb86639e608179af034614f2da887dc8ac30a87669" }
+"noncanonical/sosp__grid-small_2__targeted" = { k = 2, files = 25, sha256 = "d31deef8ea8ef5fd0f5e1a03b9973643dcd58a39248198256b7930b5b9f3c5d9" }
+"noncanonical/sosp__grid-small_2__tree-weight-increases" = { k = 2, files = 25, sha256 = "fe7c599557022941518c41f01d15d020a43d299ed73a5c7f356245ab6eb33ceb" }
+"noncanonical/sosp__grid-small_2__uniform-safe" = { k = 2, files = 25, sha256 = "a98d2028260319b70a89fbddbca16384b19b1f282fa6da9dcfcd2092dbd2dbbb" }
+"noncanonical/sosp__grid-small_2__uniform-unsafe" = { k = 2, files = 25, sha256 = "741ea282d4126b2a8ec07a622d005b8e51c1c9379a7b327adf243e689da58b8f" }
+"noncanonical/sosp__random-medium_0__deletions-only" = { k = 3, files = 31, sha256 = "319edbac8ca8cbed6118dc6597796bd37a3fc53586c283a018df334153c3c46e" }
+"noncanonical/sosp__random-medium_0__disconnecting" = { k = 3, files = 31, sha256 = "010b53131dcce19b72ca22e71546dfc67a1365bacf729de4e41a7cd39abef50a" }
+"noncanonical/sosp__random-medium_0__insertions-only" = { k = 3, files = 31, sha256 = "5ba60ac44f7d54878c9b24b42c099ba0eb81d2fb15881a60f353cadf5963614e" }
+"noncanonical/sosp__random-medium_0__local" = { k = 3, files = 31, sha256 = "adcb903aacba934a8e9d77248051961d985f5416c018abd25ada333450b821ac" }
+"noncanonical/sosp__random-medium_0__local-reweight" = { k = 3, files = 31, sha256 = "8a948ebb13096ec59cac6ffa831085fca5fe40afbc2f341812786cf199b14382" }
+"noncanonical/sosp__random-medium_0__reweight" = { k = 3, files = 31, sha256 = "082e11e934465932333e6c203aa8760fdf503092bf57c52dcce857f24ad3aa6d" }
+"noncanonical/sosp__random-medium_0__targeted" = { k = 3, files = 31, sha256 = "7ddfd7b0ea96fcfbe5f5e585b968edb5f3416b9b7be4ca61033da488d3a58720" }
+"noncanonical/sosp__random-medium_0__tree-weight-increases" = { k = 3, files = 31, sha256 = "4ed897f1ef44120168fbde8c68f11a4e3e6817ad21b20b8415352613cd990929" }
+"noncanonical/sosp__random-medium_0__uniform-safe" = { k = 3, files = 31, sha256 = "d91e5242de0608383cd151d5359a3be23cfa2b10f51598c3490fc64169ae56e2" }
+"noncanonical/sosp__random-medium_0__uniform-unsafe" = { k = 3, files = 31, sha256 = "6c9ee1a774d795121c9a4db0ab591e39028570da464a427871250d649b154cfd" }
+"noncanonical/sosp__random-medium_1__deletions-only" = { k = 3, files = 31, sha256 = "91edddcd91a45388971f771caffaef669c9f46d210cecc460d4b5a75e8d77c69" }
+"noncanonical/sosp__random-medium_1__disconnecting" = { k = 3, files = 31, sha256 = "c44e40ab456393d61abb645ef59e6bd9ab15c0f10b49bda5ba2ee8b5f2fc86e3" }
+"noncanonical/sosp__random-medium_1__insertions-only" = { k = 3, files = 31, sha256 = "639334e78b8e34b75e29a82c14b5913af7c10d6f3be2e7623d03d03e2642053a" }
+"noncanonical/sosp__random-medium_1__local" = { k = 3, files = 31, sha256 = "deb8db7668d962c2c17e158e92c6e74ea2df5c0b30dd0f1b75081f741b9d6163" }
+"noncanonical/sosp__random-medium_1__local-reweight" = { k = 3, files = 31, sha256 = "0e28c6ead4d1bbec69d18af87f2682128b7f3fbb975aa916b17494982084dbcf" }
+"noncanonical/sosp__random-medium_1__reweight" = { k = 3, files = 31, sha256 = "da27e272ca04f21c426ac5f89a744df8ef44bbe10e5885b7a30a926ca4776119" }
+"noncanonical/sosp__random-medium_1__targeted" = { k = 3, files = 31, sha256 = "9629e477b38ed003d406aacdd0f0c21238473b7773055ba37bfdeab616ea50c1" }
+"noncanonical/sosp__random-medium_1__tree-weight-increases" = { k = 3, files = 31, sha256 = "4074f4c2a9b05b13b5be0bd37a44f0bae8a03734e2f70dc03e266d91d53c9e08" }
+"noncanonical/sosp__random-medium_1__uniform-safe" = { k = 3, files = 31, sha256 = "e9208fa21864db88bce16443240754285f8d41e50e4dcb338525402f8b73f0f7" }
+"noncanonical/sosp__random-medium_1__uniform-unsafe" = { k = 3, files = 31, sha256 = "b81907638cbeeb6fc54905f50b08e86573f46cfb4005007267f8e89d30e69757" }
+"noncanonical/sosp__random-medium_2__deletions-only" = { k = 3, files = 31, sha256 = "cdeb2d763e3cf95ae95e7db21e597a79f2e4d3901b13eb6b50fe09161a459606" }
+"noncanonical/sosp__random-medium_2__disconnecting" = { k = 3, files = 31, sha256 = "26ee75a4e41d1343f1b2d0e21d2a46210c45f607c29d00f343eb25ddb7ed9cec" }
+"noncanonical/sosp__random-medium_2__insertions-only" = { k = 3, files = 31, sha256 = "1ff5d6c2bae821702039536bb7a8132e2a2ee758ea260d7217a09cb946d181ab" }
+"noncanonical/sosp__random-medium_2__local" = { k = 3, files = 31, sha256 = "4b270f561eda1216972a28316a82a294049cda0ed6fc643b31b47e3e24fa29ea" }
+"noncanonical/sosp__random-medium_2__local-reweight" = { k = 3, files = 31, sha256 = "e0e2be1aab43791f40b745ad66f9482170c62b2ca5ecdbbe7774cc17f6d81322" }
+"noncanonical/sosp__random-medium_2__reweight" = { k = 3, files = 31, sha256 = "20b2ebf5d2c2a880b29d07b64bce417eae18c85105ff39332a4acec731994a7d" }
+"noncanonical/sosp__random-medium_2__targeted" = { k = 3, files = 31, sha256 = "4f9bf2f7f3efa8a9f7e75a4f7d0c634238b92a9610f228749340985902276f8f" }
+"noncanonical/sosp__random-medium_2__tree-weight-increases" = { k = 3, files = 31, sha256 = "a99935123832d48442722a8133da53eb4d54f5e6afe73a25db79ee4d0123c85d" }
+"noncanonical/sosp__random-medium_2__uniform-safe" = { k = 3, files = 31, sha256 = "aaa6f3d40cf3482ed5ef0c5cc62ce683626948994c1bf49845cbc0c6ce96a9fd" }
+"noncanonical/sosp__random-medium_2__uniform-unsafe" = { k = 3, files = 31, sha256 = "58be6c03e891b539c3061f20c4892b572cabf9590287671bd19bdc30812bdf60" }
+"noncanonical/sosp__random-small_0__deletions-only" = { k = 2, files = 25, sha256 = "74c3930efbac140a5f6e9c383237fe01a34ec0e1f80aeb7473ca1be1c3680127" }
+"noncanonical/sosp__random-small_0__disconnecting" = { k = 2, files = 25, sha256 = "d2b9ee9ddb9a43fdeb607cb09405453d7ad17101bf4ba36d4da77df620a05d95" }
+"noncanonical/sosp__random-small_0__insertions-only" = { k = 2, files = 25, sha256 = "8bc00f07df87f4cbacdde6a5c5aa584d10089b8b84d662a17e309cd0a9b6802f" }
+"noncanonical/sosp__random-small_0__local-reweight" = { k = 2, files = 25, sha256 = "e0f60003a3905b1bc97dccd8bcb0d492d2b8d7bacccb1a5f6749899a3a4a2743" }
+"noncanonical/sosp__random-small_0__reweight" = { k = 2, files = 25, sha256 = "41bface0e374183c7722dc96f881fcf28d83be2ea49f38f511218f04a45c0282" }
+"noncanonical/sosp__random-small_0__targeted" = { k = 2, files = 25, sha256 = "ab19112ee218ffda367e5563829b56d2786ab733ff1fc6cc882371b428fc5dd2" }
+"noncanonical/sosp__random-small_1__deletions-only" = { k = 2, files = 25, sha256 = "579d7c372760abc61217c0f5fbc32d2ceb0503cad3a29c1aa7e55e8245462ce9" }
+"noncanonical/sosp__random-small_1__disconnecting" = { k = 2, files = 25, sha256 = "c67f10a10e4d62374285332a40e6d027ed34db0bcdd7e8993151cf52f2e0c9f9" }
+"noncanonical/sosp__random-small_1__insertions-only" = { k = 2, files = 25, sha256 = "80cb5ca7912304fa2566070dcc46d70a37c7b382c72a431bd2460212fff7dc39" }
+"noncanonical/sosp__random-small_1__local" = { k = 2, files = 25, sha256 = "22ed146029ff60995655a50d61d60a5a26653afab0685ec797d795758a7d6881" }
+"noncanonical/sosp__random-small_1__local-reweight" = { k = 2, files = 25, sha256 = "f4268ceccd2fdf25d94cea5c26a45fafc330461be6e8744b694de8de6c8b078b" }
+"noncanonical/sosp__random-small_1__reweight" = { k = 2, files = 25, sha256 = "941326a5b35db8dd2e3ba26c688e116ecb4745426ce6dbcbb6b185694cefe916" }
+"noncanonical/sosp__random-small_1__targeted" = { k = 2, files = 25, sha256 = "fee3126df1ddd32d1dfb96bac9da19392b9de91faee940b53b881fddaf016e08" }
+"noncanonical/sosp__random-small_1__tree-weight-increases" = { k = 2, files = 25, sha256 = "02879c19144aac97acc2867b816b4d7f44d5b3e6d6c3f6bd1cdf4ea9418b9e8e" }
+"noncanonical/sosp__random-small_1__uniform-safe" = { k = 2, files = 25, sha256 = "202395d3ffa18705d6ea1d22641f310bddd2fadfa12053dfc3cd59e0502dd400" }
+"noncanonical/sosp__random-small_2__deletions-only" = { k = 2, files = 25, sha256 = "101a781bc682b69d6a78a850b0e38bf4ab189278c8be5d99b0150f87bc1f6ac3" }
+"noncanonical/sosp__random-small_2__disconnecting" = { k = 2, files = 25, sha256 = "bc69ecd3d4612b93b9dfd31da77c6939eb81609913a0d2fa1711a0bb59fc589a" }
+"noncanonical/sosp__random-small_2__insertions-only" = { k = 2, files = 25, sha256 = "0ea7fe67428747c2e1534d18b8875180d2f944227910aa55fba0e7a15a48b2dd" }
+"noncanonical/sosp__random-small_2__local" = { k = 2, files = 25, sha256 = "c118a52e0a6e4c3c4acd939a1eea8601f816e53b6ef8eec08221b2455956fe99" }
+"noncanonical/sosp__random-small_2__local-reweight" = { k = 2, files = 25, sha256 = "7fe9d1f2bc98f5631a0ff7159c5d264baf9c74f411ad26f4442b3d9e0e21b87e" }
+"noncanonical/sosp__random-small_2__reweight" = { k = 2, files = 25, sha256 = "5479da1585a9d9ce3ea916d6fe968bce7374c8f268a3c9c87931be41ab146595" }
+"noncanonical/sosp__random-small_2__targeted" = { k = 2, files = 25, sha256 = "2d96790c9c32ad3659a4818aa98890ce0ecb7175f0b6ca65ffdc8b977b05d4f1" }
+"noncanonical/sosp__random-small_2__tree-weight-increases" = { k = 2, files = 25, sha256 = "dc8a47e1f3909dff5cce5fc19dfe23f0fb2aef748e08acc5b4b2eb69a0b23e70" }
+"noncanonical/sosp__random-small_2__uniform-safe" = { k = 2, files = 25, sha256 = "753d375566acc1f1ae19c8f1c66b351b92a9ed8d8115faee1f334a7f09390366" }
+"noncanonical/testcases__testCase1" = { k = 2, files = 25, sha256 = "1c32d68b7f5d33b94a623f3b70d4b769916eeaac68ddacb4bfa35ba84f9abd9e" }
+"noncanonical/testcases__testCase6" = { k = 2, files = 25, sha256 = "6b707afed8162b342bac580e4d35667a3b75bec043e663bc0687b65b1fa974e5" }
 "packing/cuda_pull" = { k = 1, files = 17, sha256 = "d720b231a968db44f8dbd6956f27473871d5a2a247f4f7a607219cc15a4bedda" }
 "packing/cuda_push" = { k = 1, files = 17, sha256 = "bae586a0b0ebbf3b060006d492b33d494cd4265436546fde7027fe9d99f229cf" }
 "packing/openmp_path" = { k = 1, files = 17, sha256 = "7dd20a0eb083671dcff1f38541814b30474b3407799d8623c33bbbf004277bce" }
