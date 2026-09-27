@@ -122,10 +122,22 @@ struct sssp_workspace {
   std::vector<vertex_t> old_parent;        ///< saved parent of each touched vertex
 
   /**
-   * @brief Size the arrays for `requested` vertices (no-op if large enough; MOSP semantics).
+   * @brief Size the arrays for `requested` vertices (no-op if large enough; MOSP semantics:
+   *        the per-vertex arrays are assigned, the frontier lists only reserved).
    * @param[in] requested Number of vertices.
    */
   void reserve(std::int64_t requested);
+
+  /**
+   * @brief Touch every page of the six frontier lists once (assign + clear), so that the first
+   *        update of this result does not take their page faults inside its timed phases.
+   *
+   * MOSP-OpenMP shares one workspace across the K objectives, so only its first objective pays
+   * these faults, inside its `obj0/sosp_update_compute` region; each dynG result owns its
+   * workspace and pays them here, outside the region (profiler stage sssp.workspace.pretouch,
+   * which parity/perf_ab.py adds back to objective 0; parity/timed_regions/sssp.toml).
+   */
+  void pretouch_lists();
 
   /**
    * @brief A fresh stamp generation.

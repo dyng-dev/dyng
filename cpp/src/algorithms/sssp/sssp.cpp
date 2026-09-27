@@ -51,14 +51,33 @@ void sssp_workspace<vertex_t>::reserve(std::int64_t requested) {
   in_far.assign(n, 0);
   state.assign(n, 0);
   for (std::vector<vertex_t>* list : {&near_a, &near_b, &far, &far2, &candidates, &frontier}) {
-    // assign + clear keeps the capacity and touches every page once here, so the first update
-    // does not take the page faults inside its timed phases (MOSP-OpenMP shares one workspace
-    // across the K objectives, so only its first objective pays them).
-    list->assign(n, vertex_t{0});
     list->clear();
+    list->reserve(n);
   }
   capacity = requested;
   generation = 0;
+}
+
+template <typename vertex_t>
+void sssp_workspace<vertex_t>::pretouch_lists() {
+  const auto n = static_cast<std::size_t>(capacity);
+  for (std::vector<vertex_t>* list : {&near_a, &near_b, &far, &far2, &candidates, &frontier}) {
+    // assign + clear keeps the capacity and writes every page once.
+    list->assign(n, vertex_t{0});
+    list->clear();
+  }
+}
+
+/// The workspace of a new result: reserved (MOSP semantics) and its frontier lists pre-touched,
+/// each in its own profiler stage (the parity harness accounts for both; sssp.toml).
+template <typename vertex_t>
+void prepare_workspace(const resources& res, sssp_workspace<vertex_t>& ws, std::int64_t n) {
+  {
+    scoped_stage stage(res, "sssp.workspace");
+    ws.reserve(n);
+  }
+  scoped_stage stage(res, "sssp.workspace.pretouch");
+  ws.pretouch_lists();
 }
 
 template <typename vertex_t>
@@ -555,7 +574,7 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
   copy->poisoned = impl_->poisoned;
   copy->distances = impl_->distances;
   copy->parents = impl_->parents;
-  copy->ws.reserve(static_cast<std::int64_t>(copy->distances.size()));
+  detail::prepare_workspace(res, copy->ws, static_cast<std::int64_t>(copy->distances.size()));
   return result(std::move(copy));
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::result::clone (", impl_ ? impl_->distances.size() : 0,
@@ -592,24 +611,30 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
   state->opt = opt;
   state->version = g.version();
   state->graph_state = detail::graph_access::impl(g).state_id;
-  state->distances.assign(distances.begin(), distances.end());
-  state->parents.assign(parents.begin(), parents.end());
-  for (std::int64_t v = 0; v < n; ++v) {
-    auto& d = state->distances[static_cast<std::size_t>(v)];
-    if (d >= detail::sssp_infinity / 2) {
-      d = detail::sssp_infinity;  // MOSP writes and reads these as "INF"
+  {
+    // The tree copy (MOSP's mospUpdate copies the initial trees inside its "prepare" stage).
+    scoped_stage stage(res, "sssp.import");
+    state->distances.assign(distances.begin(), distances.end());
+    state->parents.assign(parents.begin(), parents.end());
+    for (std::int64_t v = 0; v < n; ++v) {
+      auto& d = state->distances[static_cast<std::size_t>(v)];
+      if (d >= detail::sssp_infinity / 2) {
+        d = detail::sssp_infinity;  // MOSP writes and reads these as "INF"
+      }
+      // Always checked (memory safety of the engines), with or without validate_inputs.
+      const vertex_t p = state->parents[static_cast<std::size_t>(v)];
+      DYNG_EXPECTS(p >= -1 && p < n, "sssp::result::from_arrays: vertex ", v, " has parent ", p,
+                   ", outside [-1, ", n, ")");
     }
-    // Always checked (memory safety of the engines), with or without validate_inputs.
-    const vertex_t p = state->parents[static_cast<std::size_t>(v)];
-    DYNG_EXPECTS(p >= -1 && p < n, "sssp::result::from_arrays: vertex ", v, " has parent ", p,
-                 ", outside [-1, ", n, ")");
   }
   if (canonicalize) {
+    scoped_stage stage(res, "sssp.canonicalize");
     detail::canonicalize_tree(detail::objective_graph(g, opt.objective), source, state->distances,
                               state->parents);
   }
-  state->ws.reserve(n);  // the engines' workspace, once (invariant I9)
+  detail::prepare_workspace(res, state->ws, n);  // the engines' workspace, once (invariant I9)
   if (opt.validate_inputs) {
+    scoped_stage stage(res, "sssp.validate");
     DYNG_EXPECTS(detail::sssp_distances_fit(n, column.max_weight),
                  "sssp::result::from_arrays: distances up to ", column.max_weight, " * ", n - 1,
                  " do not fit in 62 bits");
@@ -650,6 +675,7 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   state->graph_state = detail::graph_access::impl(g).state_id;
   state->distances.assign(static_cast<std::size_t>(n), detail::sssp_infinity);
   state->parents.assign(static_cast<std::size_t>(n), vertex_t{-1});
+  detail::prepare_workspace(res, state->ws, n);
 
   detail::sssp_run<vertex_t, edge_t, weight_t> run;
   run.graph = detail::objective_graph(g, opt.objective);
