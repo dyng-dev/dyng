@@ -33,6 +33,13 @@ Before 0.1.0 anything may change.
   before proposing a new action release; pre-commit runs `actionlint` (with shellcheck) and
   `zizmor` on the workflows, and `ci/github_meta_check.py` enforces the least-privilege and
   SHA-pinning rules (`--verify-pins` checks each SHA against its version tag).
+- Contributor infrastructure after review (M4): a hosted clang-tidy naming job (`tidy` in
+  `lint.yml`; `DYNG_CHECK_ONLY` in `ci/check.sh`), the action pins verified in CI, timeouts on
+  every job, the first-interaction `welcome` workflow; `ci/docs_links.py` checks links to
+  repository files and the site's anchors; `examples/cpp/first_update.cpp` (run by CTest, quoted
+  by the docs); `DYNG_ORIGINALS_DIR` for the parity harness; the API review checklist and the
+  provenance record (`docs/developer/`); a Code of Conduct escalation path and GOVERNANCE
+  contacts.
 - Build system: CMake >= 3.30 with presets `dev`, `release`, `relwithdebinfo`, `cpu-only`,
   `asan`, `tsan` and `parity`; the `dyng-dev` conda environment (`environment.yml`) and
   `scripts/dev_env.sh`; install and export of `dyng::dyng` for `find_package(dyng)`.
