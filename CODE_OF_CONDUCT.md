@@ -46,7 +46,9 @@ We agree to restrict the following behaviors in our community. Instances, threat
 
 Tensions can occur between community members even when they are trying their best to collaborate. Not every conflict represents a code of conduct violation, and this Code of Conduct reinforces encouraged behaviors and norms that can help avoid conflicts and minimize harm.
 
-When an incident does occur, it is important to report it promptly. To report a possible violation, **e-mail the lead maintainer at sm.shovan@gmail.com** (the project contact listed in GOVERNANCE.md). Reports are read only by the Community Moderators, who are the maintainers listed in MAINTAINERS.md; if a report concerns a moderator, that person takes no part in handling it.
+When an incident does occur, it is important to report it promptly. To report a possible violation, **e-mail the lead maintainer at sm.shovan@gmail.com** (see "Contacts" in GOVERNANCE.md). Reports are read only by the Community Moderators, who are the maintainers listed in MAINTAINERS.md; if a report concerns a moderator, that person takes no part in handling it.
+
+**If your report concerns the lead maintainer:** while the lead maintainer is the only Community Moderator, nobody else in the project can take it. For conduct on GitHub (issues, pull requests, discussions, comments, commits), report it to GitHub, which acts independently of the project: use **Report content** in the menu of the comment or **Block or report** on the user's profile ([GitHub's guide to reporting abuse](https://docs.github.com/en/communities/maintaining-your-safety-on-github/reporting-abuse-or-spam)). A second moderator, and a second contact, will be added together with the second maintainer.
 
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing witnesses and other participants. Community Moderators will keep investigation and enforcement actions as transparent as possible while prioritizing safety and confidentiality. In order to honor these values, enforcement actions are carried out in private with the involved parties, but communicating to the whole community may be part of a mutually agreed upon resolution.
 
@@ -82,7 +84,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Attribution
 
-This Code of Conduct is adapted from the Contributor Covenant, version 3.0, permanently available at [https://www.contributor-covenant.org/version/3/0/](https://www.contributor-covenant.org/version/3/0/).
+This Code of Conduct is adapted from the Contributor Covenant, version 3.0 (the reporting contact and the escalation paragraph for reports about the lead maintainer are ours), permanently available at [https://www.contributor-covenant.org/version/3/0/](https://www.contributor-covenant.org/version/3/0/).
 
 Contributor Covenant is stewarded by the Organization for Ethical Source and licensed under CC BY-SA 4.0. To view a copy of this license, visit [https://creativecommons.org/licenses/by-sa/4.0/](https://creativecommons.org/licenses/by-sa/4.0/)
 
