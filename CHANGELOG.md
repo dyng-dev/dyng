@@ -28,6 +28,11 @@ Before 0.1.0 anything may change.
   (`docs/developer/plan.md`). `ci/docs.sh` builds it with warnings as errors and checks internal
   links (`--doxygen-only` for the Doxygen check alone); the `docs` workflow builds it on hosted
   runners from `environment.yml` (which now pins the Sphinx tools) and uploads the site.
+- Workflow hardening (M4): every `actions/checkout` sets `persist-credentials: false`,
+  `release.yml` passes step outputs to its scripts through `env:`, dependabot waits 7 days
+  before proposing a new action release; pre-commit runs `actionlint` (with shellcheck) and
+  `zizmor` on the workflows, and `ci/github_meta_check.py` enforces the least-privilege and
+  SHA-pinning rules (`--verify-pins` checks each SHA against its version tag).
 - Build system: CMake >= 3.30 with presets `dev`, `release`, `relwithdebinfo`, `cpu-only`,
   `asan`, `tsan` and `parity`; the `dyng-dev` conda environment (`environment.yml`) and
   `scripts/dev_env.sh`; install and export of `dyng::dyng` for `find_package(dyng)`.
