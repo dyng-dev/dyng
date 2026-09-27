@@ -350,7 +350,7 @@ def port_value(port: dict, region: dict, k: int | None, first_touch: bool = Fals
     return total
 
 
-# --- Statistics and report -------------------------------------------------------------------------
+# --- Statistics and report -------------------------------------------------------------------
 
 
 def spread(xs: list[float]) -> float:
@@ -466,7 +466,7 @@ def report(results: dict) -> list[str]:
     return lines
 
 
-# --- Commands --------------------------------------------------------------------------------------
+# --- Commands ----------------------------------------------------------------------------------
 
 
 def prepare(args: argparse.Namespace) -> int:
