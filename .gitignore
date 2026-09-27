@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+
+# Build trees (presets write to build/<preset>)
+/build/
+/build-*/
+/out/
+/_skbuild/
+/dist/
+*.egg-info/
+CMakeUserPresets.json
+compile_commands.json
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Never commit datasets, goldens payloads, papers or profiles
+*.mtx
+*.mtx.gz
+*.dgc
+*.nsys-rep
+*.ncu-rep
+*.pdf
+/datasets/cache/
+/parity/goldens/

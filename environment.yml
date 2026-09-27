@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Development environment for dynG (CPU build, formatting, docs tooling, Python packaging).
+#
+#   conda env create -f environment.yml      # first time
+#   conda env update -f environment.yml      # after this file changes
+#   source scripts/dev_env.sh                # activates the env, adds nvcc and DYNG_SCRATCH
+#
+# The host C++ compiler is the system GCC (>= 11); the CUDA toolkit is the system one
+# (/usr/local/cuda-13.1 on the development machine). Neither is installed here, to keep the
+# environment small. clang-format is pinned to the same version as .pre-commit-config.yaml.
+name: dyng-dev
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.12
+  - cmake>=3.30
+  - ninja
+  - clang-format=22.1.8
+  - clang-tools=22.1.8
+  - doxygen
+  - pre-commit
+  - reuse
+  - pytest
+  - numpy
+  - python-build
+  - twine

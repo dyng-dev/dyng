@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensing of files that cannot carry an SPDX comment header (PLAN Section 3.2).
+# Source files (C++, CUDA, CMake, shell, Python, YAML) carry their own headers.
+version = 1
+
+[[annotations]]
+path = [
+  "**.md",
+  "**.json",
+  "**.cff",
+  "**.txt",
+  "VERSION",
+  "NOTICE",
+  "LICENSE",
+  "**/py.typed",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The dynG Authors"
+SPDX-License-Identifier = "Apache-2.0"

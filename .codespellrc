@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+[codespell]
+skip = ./.git,./build,./LICENSE,./LICENSES,*.svg
+ignore-words-list = nd,te,ser,fo,ans,inout

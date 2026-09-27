@@ -1,0 +1,6 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.gz binary

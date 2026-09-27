@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# dynG C++/CUDA style (PLAN Section 8.7): Google base, close to RAFT. Pinned clang-format 22.1.8
+# (environment.yml and .pre-commit-config.yaml use the same version).
+---
+Language: Cpp
+BasedOnStyle: Google
+Standard: c++17
+IndentWidth: 2
+ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: Empty
+ReflowComments: false
+DerivePointerAlignment: false
+PointerAlignment: Left
+IncludeBlocks: Regroup
+IncludeCategories:
+  # 1. the matching header / generated dyng headers first come through the main-include rule
+  - Regex: '^<dyng/'
+    Priority: 2
+  - Regex: '^"'
+    Priority: 1
+  - Regex: '^<(gtest|gmock|benchmark|nvbench)/'
+    Priority: 4
+  - Regex: '^<(cuda|cub|thrust|cuda_runtime|omp)'
+    Priority: 3
+  - Regex: '^<.*\.h>'
+    Priority: 5
+  - Regex: '^<'
+    Priority: 6

@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Host translation units only (PLAN Section 8.7). The naming rules encode PLAN Section 4.4.1:
+# snake_case everywhere, no _t suffix on types, _t only on type template parameters,
+# trailing underscore on private/protected data members, DYNG_ + UPPER_SNAKE macros.
+---
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  performance-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-use-nodiscard,
+  readability-identifier-naming
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*/cpp/(include|src)/dyng/.*|.*/cpp/src/.*'
+FormatStyle: file
+CheckOptions:
+  - { key: readability-identifier-naming.NamespaceCase,             value: lower_case }
+  - { key: readability-identifier-naming.ClassCase,                 value: lower_case }
+  - { key: readability-identifier-naming.StructCase,                value: lower_case }
+  - { key: readability-identifier-naming.UnionCase,                 value: lower_case }
+  - { key: readability-identifier-naming.EnumCase,                  value: lower_case }
+  - { key: readability-identifier-naming.EnumConstantCase,          value: lower_case }
+  - { key: readability-identifier-naming.TypeAliasCase,             value: lower_case }
+  - { key: readability-identifier-naming.TypedefCase,               value: lower_case }
+  - { key: readability-identifier-naming.TypeTemplateParameterCase, value: lower_case }
+  - { key: readability-identifier-naming.TypeTemplateParameterSuffix, value: _t }
+  - { key: readability-identifier-naming.ValueTemplateParameterCase, value: lower_case }
+  - { key: readability-identifier-naming.TemplateTemplateParameterCase, value: lower_case }
+  - { key: readability-identifier-naming.FunctionCase,              value: lower_case }
+  - { key: readability-identifier-naming.MethodCase,                value: lower_case }
+  - { key: readability-identifier-naming.ParameterCase,             value: lower_case }
+  - { key: readability-identifier-naming.VariableCase,              value: lower_case }
+  - { key: readability-identifier-naming.LocalConstantCase,         value: lower_case }
+  - { key: readability-identifier-naming.GlobalConstantCase,        value: lower_case }
+  - { key: readability-identifier-naming.ConstexprVariableCase,     value: lower_case }
+  - { key: readability-identifier-naming.StaticConstantCase,        value: lower_case }
+  - { key: readability-identifier-naming.PublicMemberCase,          value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberCase,         value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberSuffix,       value: _ }
+  - { key: readability-identifier-naming.ProtectedMemberCase,       value: lower_case }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix,     value: _ }
+  - { key: readability-identifier-naming.MacroDefinitionCase,       value: UPPER_CASE }
+  - { key: readability-identifier-naming.MacroDefinitionPrefix,     value: DYNG_ }
