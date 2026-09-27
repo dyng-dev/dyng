@@ -6,6 +6,10 @@
 
 add_executable(dyng-compat-mosp mosp/mosp_compat.cpp)
 target_link_libraries(dyng-compat-mosp PRIVATE dyng::dyng)
+if(DYNG_ENABLE_OPENMP)
+  # The driver reads its input files concurrently in an OpenMP region, like MOSP's `mosp`.
+  target_link_libraries(dyng-compat-mosp PRIVATE OpenMP::OpenMP_CXX)
+endif()
 target_compile_features(dyng-compat-mosp PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-mosp)
 dyng_enable_sanitizers(dyng-compat-mosp)
