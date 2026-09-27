@@ -14,6 +14,7 @@ path = [
   "VERSION",
   "NOTICE",
   "LICENSE",
+  "**/LICENSE",
   "**/py.typed",
 ]
 precedence = "aggregate"

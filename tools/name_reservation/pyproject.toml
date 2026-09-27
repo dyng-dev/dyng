@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The name-reservation release dyng 0.0.1 (approval checkpoint A3, ADR 0014): a real, minimal
+# pure-Python package that holds the PyPI name until the first library release. It lives here,
+# not at the repository root, so it never conflicts with the real package (root pyproject.toml,
+# scikit-build-core, milestone M5). Build: python -m build tools/name_reservation
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dyng"
+version = "0.0.1"
+description = "dynG: dynamic graph and hypergraph updates on GPUs (under development; name reservation)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "S M Shovan" }]
+keywords = ["dynamic graph", "batch update", "GPU", "CUDA", "hypergraph", "graph algorithms"]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: C++",
+  "Topic :: Scientific/Engineering",
+  "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Homepage = "https://github.com/dyng-dev/dyng"
+Repository = "https://github.com/dyng-dev/dyng"
+Issues = "https://github.com/dyng-dev/dyng/issues"
+Changelog = "https://github.com/dyng-dev/dyng/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dyng"]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["src/dyng", "tests", "README.md", "LICENSE", "pyproject.toml"]

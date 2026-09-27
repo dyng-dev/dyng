@@ -1,0 +1,125 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Release: build the Python distributions and publish them with PyPI Trusted Publishing
+# (OIDC; no API tokens). The trusted publishers on TestPyPI and PyPI are bound to THIS file name
+# (release.yml) and to the GitHub environments `testpypi` and `pypi`: never rename them.
+#
+# Triggered by a tag `v*`:
+#   * the tag must equal the version of the package being released (checked below);
+#   * every release goes to TestPyPI first; final versions then go to PyPI; pre-releases
+#     (a, b, rc, dev) stop at TestPyPI.
+#
+# Which package is built is decided in the `build` job only, so the publish jobs stay unchanged:
+#   * v0.0.1: the name-reservation package in tools/name_reservation (approval checkpoint A3);
+#   * later (milestone M5): the real distributions (root pyproject.toml: sdist + wheels built by
+#     wheels.yml / cibuildwheel), collected into the same `dist` artifact.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.select.outputs.version }}
+      prerelease: ${{ steps.select.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: python -m pip install build twine
+      - name: Select the package for this tag
+        id: select
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          reservation_version="$(python -c 'import tomllib; print(tomllib.load(open("tools/name_reservation/pyproject.toml","rb"))["project"]["version"])')"
+          if [ "${tag}" = "${reservation_version}" ]; then
+            project_dir=tools/name_reservation
+          elif [ -f pyproject.toml ]; then
+            project_dir=.
+          else
+            echo "::error::tag v${tag} matches neither the name-reservation package (${reservation_version}) nor a root pyproject.toml"
+            exit 1
+          fi
+          if [ "${project_dir}" = "." ]; then
+            version="$(tr -d '[:space:]' < VERSION)"
+          else
+            version="${reservation_version}"
+          fi
+          if [ "${version}" != "${tag}" ]; then
+            echo "::error::tag v${tag} does not match the package version ${version}"
+            exit 1
+          fi
+          if printf '%s' "${version}" | grep -Eq '(a|b|rc|dev)[0-9]*$'; then
+            prerelease=true
+          else
+            prerelease=false
+          fi
+          echo "project_dir=${project_dir}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "prerelease=${prerelease}" >> "${GITHUB_OUTPUT}"
+      - name: Build sdist and wheel
+        run: python -m build --outdir dist "${{ steps.select.outputs.project_dir }}"
+      - name: Check metadata
+        run: twine check --strict dist/*
+      - name: Smoke test the wheel
+        run: |
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install dist/*.whl
+          /tmp/smoke/bin/python -c "import dyng; assert dyng.__version__ == '${{ steps.select.outputs.version }}', dyng.__version__"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/dyng
+    permissions:
+      id-token: write  # Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build, publish-testpypi]
+    if: needs.build.outputs.prerelease == 'false'
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/dyng
+    permissions:
+      id-token: write  # Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
