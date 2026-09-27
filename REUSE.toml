@@ -20,3 +20,11 @@ path = [
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 The dynG Authors"
 SPDX-License-Identifier = "Apache-2.0"
+
+# Test fixtures (tiny inputs and expected outputs; some produced by the pinned original tools, see
+# parity/fixtures/graph_io/make_graph_io_fixtures.sh).
+[[annotations]]
+path = ["cpp/tests/data/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The dynG Authors"
+SPDX-License-Identifier = "Apache-2.0"

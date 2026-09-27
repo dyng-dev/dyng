@@ -30,4 +30,18 @@ if(DYNG_ENABLE_OPENMP)
   target_link_libraries(dyng_core_tests PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
+# Graph and I/O tests read fixtures from cpp/tests/data and use private headers of cpp/src.
+set(DYNG_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data")
+
+dyng_add_test(
+  NAME dyng_graph_tests
+  SOURCES graph/apply_test.cpp graph/graph_test.cpp graph/mosp_apply_fixture_test.cpp
+  LABELS cpu graph
+)
+dyng_add_test(NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp LABELS cpu io)
+foreach(_dyng_test dyng_graph_tests dyng_io_tests)
+  target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+endforeach()
+
 add_subdirectory(api)
