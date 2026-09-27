@@ -20,6 +20,7 @@
 
 #include "graph/instantiate.hpp"
 
+#include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
 
@@ -422,15 +423,94 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
 // transpose
 // ------------------------------------------------------------------------------------------------
 
+#if DYNG_HAS_OPENMP
+namespace {
+
+/// transpose_host() with OpenMP: count and fill with atomics, then sort every row's edge indices,
+/// so the result equals the sequential transposition exactly (inside a row the sources appear in
+/// increasing out-edge index, i.e. in out-edge order).
+template <typename vertex_t, typename edge_t, typename weight_t>
+void transpose_parallel(const csr<vertex_t, edge_t, weight_t>& graph,
+                        csr<vertex_t, edge_t, weight_t>& reverse, int threads) {
+  const auto n = static_cast<std::int64_t>(graph.num_vertices());
+  const auto k_count = static_cast<std::size_t>(graph.num_weights);
+  const auto m = static_cast<std::int64_t>(graph.col_ind.size());
+  const vertex_t* col = graph.col_ind.data();
+  const edge_t* row = graph.row_ptr.data();
+  std::vector<vertex_t> source(static_cast<std::size_t>(m));
+  vertex_t* src = source.data();
+  edge_t* counts = reverse.row_ptr.data();
+#pragma omp parallel num_threads(threads)
+  {
+#pragma omp for schedule(dynamic, 1024)
+    for (std::int64_t u = 0; u < n; ++u) {
+      for (edge_t e = row[u]; e < row[u + 1]; ++e) {
+        src[e] = static_cast<vertex_t>(u);
+      }
+    }
+#pragma omp for schedule(static)
+    for (std::int64_t e = 0; e < m; ++e) {
+      __atomic_fetch_add(&counts[static_cast<std::size_t>(col[e]) + 1], edge_t{1},
+                         __ATOMIC_RELAXED);
+    }
+  }
+  for (std::int64_t v = 0; v < n; ++v) {
+    counts[v + 1] += counts[v];
+  }
+  reverse.col_ind.resize(static_cast<std::size_t>(m));
+  reverse.weights.resize(static_cast<std::size_t>(m) * k_count);
+  std::vector<edge_t> cursor(reverse.row_ptr.begin(), reverse.row_ptr.end() - 1);
+  std::vector<edge_t> edge_of(static_cast<std::size_t>(m));
+  edge_t* next = cursor.data();
+  edge_t* slot = edge_of.data();
+  const edge_t* in_row = reverse.row_ptr.data();
+  vertex_t* in_col = reverse.col_ind.data();
+#pragma omp parallel num_threads(threads)
+  {
+#pragma omp for schedule(static)
+    for (std::int64_t e = 0; e < m; ++e) {
+      const edge_t pos = __atomic_fetch_add(&next[col[e]], edge_t{1}, __ATOMIC_RELAXED);
+      slot[pos] = static_cast<edge_t>(e);
+    }
+#pragma omp for schedule(dynamic, 1024)
+    for (std::int64_t v = 0; v < n; ++v) {
+      std::sort(slot + in_row[v], slot + in_row[v + 1]);
+    }
+#pragma omp for schedule(static)
+    for (std::int64_t pos = 0; pos < m; ++pos) {
+      in_col[pos] = src[slot[pos]];
+    }
+    for (std::size_t k = 0; k < k_count; ++k) {
+      const weight_t* w_in = graph.weights.data() + k * static_cast<std::size_t>(m);
+      weight_t* w_out = reverse.weights.data() + k * static_cast<std::size_t>(m);
+#pragma omp for schedule(static)
+      for (std::int64_t pos = 0; pos < m; ++pos) {
+        w_out[pos] = w_in[slot[pos]];
+      }
+    }
+  }
+}
+
+}  // namespace
+#endif  // DYNG_HAS_OPENMP
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 void transpose_host(const csr<vertex_t, edge_t, weight_t>& graph,
-                    csr<vertex_t, edge_t, weight_t>& reverse) {
+                    csr<vertex_t, edge_t, weight_t>& reverse, int threads) {
   const auto n = static_cast<std::size_t>(graph.num_vertices());
   const auto k_count = static_cast<std::size_t>(graph.num_weights);
   const std::size_t m = graph.col_ind.size();
   reverse = csr<vertex_t, edge_t, weight_t>();
   reverse.num_weights = graph.num_weights;
   reverse.row_ptr.assign(n + 1, edge_t{0});
+#if DYNG_HAS_OPENMP
+  if (threads > 1 && m >= 4096) {
+    transpose_parallel(graph, reverse, threads);
+    return;
+  }
+#else
+  (void)threads;
+#endif
   for (std::size_t e = 0; e < m; ++e) {
     ++reverse.row_ptr[static_cast<std::size_t>(graph.col_ind[e]) + 1];
   }
@@ -766,7 +846,7 @@ std::string integrity_violation(const graph_impl<vertex_t, edge_t, weight_t>& im
   template apply_summary apply_batch_host<V, E, W>(                                              \
       const csr<V, E, W>&, const edge_batch_view<V, W>&, const graph_properties&, csr<V, E, W>&, \
       apply_delta<V>*);                                                                          \
-  template void transpose_host<V, E, W>(const csr<V, E, W>&, csr<V, E, W>&);                     \
+  template void transpose_host<V, E, W>(const csr<V, E, W>&, csr<V, E, W>&, int);                \
   template void build_from_edges_host<V, E, W>(const edge_list_view<V, W>&,                      \
                                                const graph_properties&, csr<V, E, W>&);          \
   template void build_from_csr_host<V, E, W>(const csr_view<V, E, W>&, const graph_properties&,  \

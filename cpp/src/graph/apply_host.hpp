@@ -47,10 +47,11 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
  * @tparam weight_t Weight type.
  * @param[in]  graph   The out-edge CSR.
  * @param[out] reverse The in-edge CSR; inside a row, sources appear in out-edge order.
+ * @param[in]  threads OpenMP threads (> 1: a parallel fill with the same, deterministic result).
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void transpose_host(const csr<vertex_t, edge_t, weight_t>& graph,
-                    csr<vertex_t, edge_t, weight_t>& reverse);
+                    csr<vertex_t, edge_t, weight_t>& reverse, int threads = 1);
 
 /**
  * @brief Build a compact out-edge CSR from an edge list (see graph::from_edges).

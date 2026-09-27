@@ -4,6 +4,7 @@
  * @file graph_test.cpp
  * @brief graph construction, properties, views, transposition and integrity.
  */
+#include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/csr.hpp>
@@ -13,7 +14,9 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
+#include <random>
 #include <utility>
 #include <vector>
 
@@ -267,6 +270,47 @@ TEST(Graph, SixtyFourBitTypes) {
   EXPECT_EQ(g.view().out.row_ptr[4], 2);
   const auto h = dyng::graph<>::from_edges(res, sample_edges().view());
   EXPECT_EQ(h.num_edges(), 4);
+}
+
+}  // namespace
+
+namespace {
+
+// The OpenMP transposition (graph built and updated with resources::openmp) is identical to the
+// sequential one, including the order of parallel edges inside a row.
+TEST(GraphTranspose, OpenmpEqualsSequential) {
+  if (!dyng::backend_available(dyng::backend::openmp)) {
+    GTEST_SKIP() << "OpenMP backend not available in this build";
+  }
+  using graph64 = dyng::graph<std::int32_t, std::int64_t, std::int32_t>;
+  std::mt19937 rng(4242);
+  for (int trial = 0; trial < 20; ++trial) {
+    const std::int32_t n = 1 + static_cast<std::int32_t>(rng() % 3000);
+    const std::size_t m = rng() % 20000;
+    dyng::edge_list<std::int32_t, std::int32_t> list;
+    list.num_vertices = n;
+    list.num_weights = 2;
+    for (std::size_t i = 0; i < m; ++i) {
+      // Few distinct heads: long in-rows with many parallel edges.
+      const auto u = static_cast<std::int32_t>(rng() % static_cast<std::uint32_t>(n));
+      const auto v = static_cast<std::int32_t>(
+          rng() % std::min<std::uint32_t>(static_cast<std::uint32_t>(n), 50));
+      list.add_edge(u, v, {static_cast<std::int32_t>(i), static_cast<std::int32_t>(rng() % 9)});
+    }
+    const auto seq = dyng::resources::sequential();
+    const auto omp = dyng::resources::openmp(7);
+    const auto a = graph64::from_edges(seq, list.view(), graph_properties::mosp_compatible());
+    const auto b = graph64::from_edges(omp, list.view(), graph_properties::mosp_compatible());
+    const auto va = a.view().in;
+    const auto vb = b.view().in;
+    ASSERT_TRUE(
+        std::equal(va.row_ptr.begin(), va.row_ptr.end(), vb.row_ptr.begin(), vb.row_ptr.end()));
+    ASSERT_TRUE(
+        std::equal(va.col_ind.begin(), va.col_ind.end(), vb.col_ind.begin(), vb.col_ind.end()));
+    ASSERT_TRUE(
+        std::equal(va.weights.begin(), va.weights.end(), vb.weights.begin(), vb.weights.end()));
+    EXPECT_NO_THROW(b.check_integrity(omp));
+  }
 }
 
 }  // namespace

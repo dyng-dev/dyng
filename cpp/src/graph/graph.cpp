@@ -29,6 +29,11 @@ void expect_host_backend(const resources& res, const char* what) {
   }
 }
 
+/// Threads for the host transposition: the OpenMP backend's count, 1 otherwise.
+int host_threads(const resources& res) {
+  return res.get_backend() == backend::openmp ? res.num_threads() : 1;
+}
+
 void expect_supported_layout(const graph_properties& props) {
   if (props.layout != row_layout::compact) {
     throw not_supported_error(
@@ -89,7 +94,7 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_edges(
   detail::build_from_edges_host(edges, props, impl->out);
   impl->props.num_weights = impl->out.num_weights;
   if (props.store_transposed) {
-    detail::transpose_host(impl->out, impl->in);
+    detail::transpose_host(impl->out, impl->in, host_threads(res));
   }
   return graph(std::move(impl));
 }
@@ -104,7 +109,7 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_csr(
   detail::build_from_csr_host(csr, props, impl->out);
   impl->props.num_weights = impl->out.num_weights;
   if (props.store_transposed) {
-    detail::transpose_host(impl->out, impl->in);
+    detail::transpose_host(impl->out, impl->in, host_threads(res));
   }
   return graph(std::move(impl));
 }
@@ -224,7 +229,7 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
   const apply_summary summary = apply_batch_host(state.out, batch, state.props, updated, delta);
   state.out = std::move(updated);
   if (state.props.store_transposed) {
-    transpose_host(state.out, state.in);
+    transpose_host(state.out, state.in, host_threads(res));
   }
   ++state.version;
   return summary;
