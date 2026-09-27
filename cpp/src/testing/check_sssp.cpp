@@ -13,8 +13,10 @@
 #include "graph/instantiate.hpp"
 #include "util/allocation.hpp"
 
+#include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
+#include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
 #include <dyng/testing/check_sssp.hpp>
 #include <dyng/testing/dijkstra.hpp>
@@ -145,7 +147,17 @@ sssp_tree_check check_sssp_tree(const graph<vertex_t, edge_t, weight_t>& g,
   check_sssp_options opt;
   opt.objective = r.get_options().objective;
   opt.require_canonical = require_canonical;
-  return check_sssp_tree(g.view().out, r.source(), r.distances(), r.parents(), opt);
+  const array_view<const std::int64_t> d = r.distances();
+  const array_view<const vertex_t> p = r.parents();
+  if (is_host_accessible(d.space()) && is_host_accessible(p.space())) {
+    return check_sssp_tree(g.view().out, r.source(), d, p, opt);
+  }
+  // A result of the CUDA backend: check a host copy (the result is complete when the call that
+  // produced it returned).
+  const resources res = resources::cuda(d.device() < 0 ? 0 : d.device());
+  const std::vector<std::int64_t> host_d = to_vector(res, d);
+  const std::vector<vertex_t> host_p = to_vector(res, p);
+  return check_sssp_tree(g.view().out, r.source(), host_view(host_d), host_view(host_p), opt);
 }
 
 #define DYNG_INSTANTIATE_CHECK_SSSP(V, E, W)                                                       \

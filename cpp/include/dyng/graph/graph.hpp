@@ -40,8 +40,12 @@ struct graph_access;
  * graph state (a process-wide unique value that every construction and every batch renews and
  * clone() copies), so a result is detected as stale when it is used with another graph, or with
  * a graph variable that was reassigned since, even if the version counters are equal. The storage
- * is resident in the memory space of the resources that created it (host memory in this release;
- * the device layout arrives with the CUDA backend).
+ * belongs to the backend of the resources that created it (PLAN Section 4.6 rule 5): algorithms
+ * refuse resources of the other kind (host backends versus cuda) instead of copying the graph
+ * silently, and clone(res) makes a copy for other resources. A graph built with CUDA resources
+ * keeps its CSR in host memory in this release (a batch is applied on the host, as MOSP-CUDA
+ * applies it) and a resident device copy of the current state (out- and in-edges, one weight
+ * column per objective), uploaded on first use and again after each applied batch.
  *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
  * and (int64, int64, int32) (PLAN Section 4.4.3).
@@ -78,13 +82,13 @@ class graph {
    * win. Self-loops follow `props.semantics.on_self_loop`. For an undirected graph every edge
    * (u,v) is stored in both directions. The number of weight columns is taken from `edges`.
    *
-   * @param[in] res   Execution resources (a host backend).
+   * @param[in] res   Execution resources (the graph belongs to its backend).
    * @param[in] edges The edges (host memory); ids must lie in [0, edges.num_vertices).
    * @param[in] props The properties of the new graph.
    * @return The graph at version 0.
    * @throws invalid_argument_error if an id is out of range, the arrays disagree in size, or a
    *         self-loop is present under self_loop::error.
-   * @throws not_supported_error    for a device backend or a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -102,12 +106,12 @@ class graph {
    * weight columns is taken from `csr`. The in-edges (`props.store_transposed`) are built on
    * first use, not here (the same holds for from_edges() and after apply()).
    *
-   * @param[in] res   Execution resources (a host backend).
+   * @param[in] res   Execution resources (the graph belongs to its backend).
    * @param[in] csr   The out-edge CSR (host memory, objective-major weights).
    * @param[in] props The properties of the new graph.
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed.
-   * @throws not_supported_error    for a device backend or a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -124,12 +128,12 @@ class graph {
    * are moved into the graph instead of copied; `csr` is then left empty. Otherwise it is left
    * unchanged.
    *
-   * @param[in]     res   Execution resources (a host backend).
+   * @param[in]     res   Execution resources (the graph belongs to its backend).
    * @param[in,out] csr   The out-edge CSR (objective-major weights).
    * @param[in]     props The properties of the new graph.
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed.
-   * @throws not_supported_error    for a device backend or a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -154,11 +158,13 @@ class graph {
   ~graph();                                 ///< releases the storage
 
   /**
-   * @brief A deep copy (same properties, storage and version).
+   * @brief A deep copy (same properties, storage, version and state) for the resources `res`.
+   *
+   * The copy belongs to the backend of `res`: this is how a graph moves between the host backends
+   * and cuda (a CUDA copy uploads its device copy on first use).
    * @param[in] res Execution resources of the copy.
    * @return The copy.
    * @throws invalid_argument_error for a moved-from graph.
-   * @throws not_supported_error    for a device backend.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -173,10 +179,9 @@ class graph {
    * apply() after reserve() allocates new arrays and the reserved capacity is released. It gives
    * no guarantee against reallocation until the resident apply replaces the port (invariant I9
    * exempts the port until then; PLAN Section 4.5.5).
-   * @param[in] res           Execution resources (a host backend).
+   * @param[in] res           Execution resources.
    * @param[in] edge_capacity Expected maximum number of stored edges.
    * @throws invalid_argument_error if `edge_capacity` is negative or the graph was moved from.
-   * @throws not_supported_error    if `res` is a device backend.
    * @throws out_of_memory_error    if the storage cannot be allocated.
    * @sync
    */
@@ -220,7 +225,9 @@ class graph {
 
   /**
    * @brief The memory space of the storage.
-   * @return memory_space::host in this release.
+   * @return memory_space::device for a graph built with CUDA resources (its resident device copy;
+   *         the host CSR that view() and to_csr() read is kept as well in this release),
+   *         memory_space::host otherwise.
    */
   [[nodiscard]] memory_space space() const noexcept;
 
@@ -231,7 +238,8 @@ class graph {
   [[nodiscard]] std::uint64_t version() const noexcept;
 
   /**
-   * @brief A read-only description of the storage at the current version.
+   * @brief A read-only description of the storage at the current version (host memory, also for
+   *        a graph built with CUDA resources).
    *
    * If the in-edges are stored but not built yet for this version (they are built on first use),
    * this call builds them (with the thread count of the resources that built the graph); it is
@@ -249,7 +257,7 @@ class graph {
    * stale (their update() throws stale_result_error);
    * use the algorithms' update() to apply a batch and keep a result current.
    *
-   * @param[in] res   Execution resources (a host backend).
+   * @param[in] res   Execution resources (host threads; a CUDA graph drops its device copy).
    * @param[in] batch The batch (host memory).
    * @return What the batch did.
    * @throws invalid_argument_error if an id is negative or out of range (without vertex growth),
@@ -265,7 +273,6 @@ class graph {
    * @param[in] res Execution resources.
    * @return The out-edge CSR with objective-major weights.
    * @throws invalid_argument_error for a moved-from graph.
-   * @throws not_supported_error    for a device backend.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */

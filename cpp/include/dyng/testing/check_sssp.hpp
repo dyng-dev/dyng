@@ -109,6 +109,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 
 /**
  * @brief Check an sssp result against its graph (source and objective taken from the result).
+ *
+ * A result of the CUDA backend (device arrays) is copied to the host first.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
@@ -118,6 +120,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @return The findings.
  * @throws invalid_argument_error on size mismatches or a moved-from result.
  * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws cuda_error             if a device result cannot be copied.
  * @sync
  * @ingroup testing
  */

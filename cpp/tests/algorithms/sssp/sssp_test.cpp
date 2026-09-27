@@ -54,13 +54,11 @@ graph_t make_graph(const dyng::resources& res, std::int32_t n, const std::vector
 }
 
 std::vector<std::int64_t> distances_of(const result_t& r) {
-  const auto d = r.distances();
-  return {d.begin(), d.end()};
+  return dyng::test::host_copy(r.distances());
 }
 
 std::vector<std::int32_t> parents_of(const result_t& r) {
-  const auto p = r.parents();
-  return {p.begin(), p.end()};
+  return dyng::test::host_copy(r.parents());
 }
 
 class SsspBackend : public ::testing::TestWithParam<dyng::backend> {
@@ -68,9 +66,9 @@ class SsspBackend : public ::testing::TestWithParam<dyng::backend> {
   dyng::resources res_ = dyng::test::make_resources(GetParam(), 4);
 };
 
-INSTANTIATE_TEST_SUITE_P(HostBackends, SsspBackend,
-                         ::testing::ValuesIn(dyng::test::host_backends()),
+INSTANTIATE_TEST_SUITE_P(Backends, SsspBackend, ::testing::ValuesIn(dyng::test::suite_backends()),
                          dyng::test::backend_name{});
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SsspBackend);
 
 // The MOSP_ESCHER test_mosp_update "ties" case: 0->1 (5), 0->2 (1), 2->3 (1), 1->4 (2), 3->4 (2).
 TEST_P(SsspBackend, ComputeAndUpdateGiveTheCanonicalTree) {
@@ -80,7 +78,7 @@ TEST_P(SsspBackend, ComputeAndUpdateGiveTheCanonicalTree) {
   EXPECT_EQ(parents_of(r), (std::vector<std::int32_t>{-1, 0, 0, 2, 3}));
   EXPECT_EQ(r.source(), 0);
   EXPECT_EQ(r.graph_version(), g.version());
-  EXPECT_EQ(r.space(), dyng::memory_space::host);
+  EXPECT_EQ(r.space(), res_.default_space());
   // Inserting 2->1 (1) gives d(1) = 2 and a second tight path to 4 via 1: its parent must become
   // the lower id, 1.
   batch_t b;
@@ -94,8 +92,8 @@ TEST_P(SsspBackend, ComputeAndUpdateGiveTheCanonicalTree) {
   EXPECT_TRUE(st.converged);
   EXPECT_FALSE(st.fallback_used);
   EXPECT_TRUE(st.packed_parents);
-  EXPECT_EQ(st.engine_used,
-            GetParam() == dyng::backend::openmp ? dyng::engine::fused : dyng::engine::operators);
+  EXPECT_EQ(st.engine_used, GetParam() == dyng::backend::sequential ? dyng::engine::operators
+                                                                    : dyng::engine::fused);
   EXPECT_EQ(r.graph_version(), g.version());
   EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
 }
@@ -379,7 +377,7 @@ TEST_P(SsspBackend, ResultOfAnotherGraphIsStale) {
   batch_t insert;
   insert.insert_edge(0, 2, {1});
   EXPECT_NO_THROW((void)dyng::sssp::update(res_, copy, insert.view(), r));
-  EXPECT_EQ(r.distances()[2], 1);
+  EXPECT_EQ(distances_of(r)[2], 1);
   batch_t other;
   other.insert_edge(1, 0, {1});
   (void)g.apply(res_, other.view());
@@ -495,6 +493,7 @@ TEST_P(SsspBackend, FromArraysValidatesAndCanonicalizes) {
   EXPECT_EQ(distances_of(normalized)[3], inf);
 }
 
+#if !(defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA)  // host-only cases (not repeated on cuda)
 TEST(SsspOpenmp, CyclicTreeWithoutValidationIsReportedAndPoisonsTheResult) {
   DYNG_SKIP_IF_NO_OPENMP();
   // mospTest runRegressions "cyclic-tree": 1 <-> 2 below the deleted edge 0 -> 3.
@@ -516,6 +515,7 @@ TEST(SsspOpenmp, CyclicTreeWithoutValidationIsReportedAndPoisonsTheResult) {
   const batch_t empty;
   EXPECT_THROW((void)dyng::sssp::update(res, g, empty.view(), r), dyng::stale_result_error);
 }
+#endif
 
 TEST_P(SsspBackend, CorruptImportedTreeIsReportedAndPoisonsTheResult) {
   // A tree imported without validation with the parent cycle 1 <-> 2; the deleted edge 0 -> 1 is
@@ -552,6 +552,7 @@ TEST_P(SsspBackend, CorruptImportedTreeIsReportedAndPoisonsTheResult) {
   EXPECT_EQ(distances_of(r), (std::vector<std::int64_t>{0, inf, inf, inf}));
 }
 
+#if !(defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA)  // host-only cases (not repeated on cuda)
 TEST(SsspResult, OptionsCloneAndMove) {
   const auto res = dyng::resources::sequential();
   auto g = make_graph(res, 3, {{0, 1, 1}, {1, 2, 1}});
@@ -584,17 +585,6 @@ TEST(SsspResult, OptionsCloneAndMove) {
   EXPECT_THROW((void)r.parents(), dyng::invalid_argument_error);
   EXPECT_THROW((void)r.get_options(), dyng::invalid_argument_error);
   EXPECT_THROW((void)dyng::sssp::update(res, g, b.view(), r), dyng::invalid_argument_error);
-}
-
-TEST(SsspResult, DeviceBackendIsNotSupportedYet) {
-  const auto res = dyng::resources::sequential();
-  auto g = make_graph(res, 2, {{0, 1, 1}});
-  if (!dyng::backend_available(dyng::backend::cuda)) {
-    EXPECT_THROW((void)dyng::resources::cuda(), dyng::error);
-    return;
-  }
-  const auto cuda = dyng::resources::cuda();
-  EXPECT_THROW((void)dyng::sssp::compute(cuda, g, 0), dyng::not_supported_error);
 }
 
 TEST(SsspProfiler, StagesFollowTheHookNames) {
@@ -635,6 +625,7 @@ TEST(SsspComposition, RejectsDuplicatesAndStaleResultsBeforeApplying) {
   EXPECT_EQ(g.version(), 1u);  // nothing applied
   EXPECT_EQ(a.graph_version(), 1u);
 }
+#endif
 
 // The quickstart of README.md.
 TEST_P(SsspBackend, ReadmeQuickstart) {

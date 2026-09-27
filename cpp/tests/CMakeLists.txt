@@ -72,6 +72,23 @@ if(DYNG_ENABLE_CUDA)
   )
   target_include_directories(dyng_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   dyng_set_cuda_options(dyng_cuda_tests)
+
+  # sssp on the cuda backend: the shared sssp suites compiled with DYNG_TEST_CUDA=1 (their cases
+  # run on cuda, the randomized ones against the host backends) plus the CUDA-only cases.
+  dyng_add_test(
+    NAME dyng_sssp_cuda_tests
+    SOURCES algorithms/sssp/sssp_test.cpp algorithms/sssp/sssp_random_test.cpp
+            algorithms/sssp/sssp_fixture_test.cpp algorithms/sssp/sssp_cuda_test.cpp
+    LABELS gpu sssp
+    LIBRARIES dyng::testing
+  )
+  target_compile_definitions(
+    dyng_sssp_cuda_tests PRIVATE DYNG_TEST_CUDA=1 DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
+  )
+  target_include_directories(dyng_sssp_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  if(DYNG_ENABLE_OPENMP)
+    target_link_libraries(dyng_sssp_cuda_tests PRIVATE OpenMP::OpenMP_CXX)
+  endif()
 endif()
 
 add_subdirectory(api)

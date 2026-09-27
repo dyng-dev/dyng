@@ -7,14 +7,15 @@ title       = "Dynamic single-source shortest paths"
 family      = "fixed_point"
 container   = "graph"
 tier        = "custom_engine"
-maturity    = "experimental"            # stable once the CUDA backend and the Python binding exist
-backends    = ["sequential", "openmp"]  # cuda in M1b
+maturity    = "experimental"            # stable once the Python binding exists (M5)
+backends    = ["sequential", "openmp", "cuda"]
 determinism = "bitwise"
 oracle      = "compute"
 graph_requirements = { multi_edges = "any", row_order = "any", store_transposed = true }
 cite        = ["dynamosp2025", "dynamosptpds2025"]
 maintainers = ["SMShovan"]
-origin      = [ { repo = "MOSP-OpenMP", commit = "c352151", paths = ["src/sospUpdateCpu.cpp", "src/sequentialSOSPUpdate.cpp", "headers/listGather.h"] } ]
+origin      = [ { repo = "MOSP-OpenMP", commit = "c352151", paths = ["src/sospUpdateCpu.cpp", "src/sequentialSOSPUpdate.cpp", "headers/listGather.h"] },
+                { repo = "MOSP-CUDA", commit = "e220ee2", paths = ["src/sospUpdateGpu.cu", "headers/sospUpdateGpu.cuh", "src/deviceGraph.cu"] } ]
 
 [performance]
 compute_tolerance    = 1.05
