@@ -146,5 +146,6 @@ advised by Prof. Sajal K. Das, with the co-authors listed in [AUTHORS.md](AUTHOR
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [GOVERNANCE.md](GOVERNANCE.md). Design decisions are
+See [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), the
+[Code of Conduct](CODE_OF_CONDUCT.md), [SUPPORT.md](SUPPORT.md) and [SECURITY.md](SECURITY.md). Design decisions are
 recorded as ADRs in [docs/adr/](docs/adr/).

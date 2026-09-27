@@ -1,7 +1,9 @@
 # Contributing to dynG
 
 Thank you for your interest! dynG is pre-alpha: the APIs are still moving, so please open an
-issue to discuss a change before investing a lot of time in it.
+issue to discuss a change before investing a lot of time in it. Everyone taking part follows the
+[Code of Conduct](CODE_OF_CONDUCT.md); questions go to GitHub Discussions ([SUPPORT.md](SUPPORT.md))
+and security problems are reported privately ([SECURITY.md](SECURITY.md)).
 
 ## Build and test
 
@@ -14,7 +16,11 @@ pre-commit install                    # once per clone: format and license check
 
 cmake --preset dev && cmake --build --preset dev && ctest --preset dev
 ci/check.sh                           # the full local gate, run it before opening a pull request
+ci/check.sh --parity                  # ... plus the golden parity replay (see parity/README.md)
 ```
+
+`ci/check.sh --help` lists its steps (format, build and tests, clang-tidy naming, REUSE, Doxygen,
+pre-commit, parity); `DYNG_CHECK_SKIP="precommit"` skips a step by name.
 
 ## Style
 
@@ -32,7 +38,9 @@ ci/check.sh                           # the full local gate, run it before openi
   Files ported from the original research repositories also carry a provenance line:
   `// Derived from <repo>@<commit>:<path>`.
 - Every public entity has a Doxygen comment (`@brief`, `@param`, `@tparam`, `@return`,
-  `@throws`); `ci/docs.sh` fails on undocumented public API.
+  `@throws`, `@ingroup`; `@backends`, `@determinism` and `@paper` on `compute` / `update`);
+  `ci/docs.sh` (Doxygen with warnings as errors, then `ci/doxygen_coverage.py`) fails on
+  undocumented public API.
 - Library code never prints, never calls `exit()` or `abort()`, and has no global state other
   than the log level and sink. Errors are exceptions derived from `dyng::error`.
 - Every change comes with tests (GoogleTest in `cpp/tests/`, labelled `cpu`, `gpu`, `slow`,

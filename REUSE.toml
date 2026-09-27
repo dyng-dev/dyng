@@ -28,3 +28,11 @@ path = ["cpp/tests/data/**"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 The dynG Authors"
 SPDX-License-Identifier = "Apache-2.0"
+
+# The Code of Conduct is the Contributor Covenant 3.0 (CC BY-SA 4.0) with the reporting contact
+# filled in and the placeholder note removed.
+[[annotations]]
+path = ["CODE_OF_CONDUCT.md"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Organization for Ethical Source", "2026 The dynG Authors"]
+SPDX-License-Identifier = "CC-BY-SA-4.0"
