@@ -13,6 +13,13 @@ Before 0.1.0 anything may change.
 - Repository bootstrap: Apache-2.0 license, NOTICE, CITATION.cff, AUTHORS, governance and
   contribution guides, ADRs 0001 (name), 0002 (license and credit), 0004 (naming) and 0014
   (approval checkpoints).
+- Project infrastructure (M4): SECURITY.md with the disclosure process, SUPPORT.md,
+  MAINTAINERS.md, a complete CONTRIBUTING.md, eight GitHub issue forms and the issue chooser,
+  the pull request template with the review checklist, CODEOWNERS, the DCO app configuration,
+  the label taxonomy (`.github/labels.yml`, applied by the `labels` workflow;
+  `docs/developer/labels.md`), `ci/github_meta_check.py` (a pre-commit hook),
+  `.readthedocs.yaml` (not connected yet) and the repository settings guide
+  (`docs/developer/repository_settings.md`).
 - Build system: CMake >= 3.30 with presets `dev`, `release`, `relwithdebinfo`, `cpu-only`,
   `asan`, `tsan` and `parity`; the `dyng-dev` conda environment (`environment.yml`) and
   `scripts/dev_env.sh`; install and export of `dyng::dyng` for `find_package(dyng)`.
