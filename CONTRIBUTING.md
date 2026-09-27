@@ -204,10 +204,11 @@ pull request how you measured any performance claim.
   the Actions allow list (`docs/developer/repository_settings.md`, step 5). Least privilege:
   the top-level `permissions:` grants `read` at most, a job that needs to write asks for it in
   its own `permissions:` with a comment saying why, `actions/checkout` sets
-  `persist-credentials: false`, `pull_request_target` is not used, and values from outside
-  (event data, step outputs) reach a `run:` script through `env:`, never as `${{ }}` inside
-  the script. The pre-commit hooks `actionlint` (with shellcheck), `zizmor` and `github-meta`
-  check all of this.
+  `persist-credentials: false`, `pull_request_target` is used only by a workflow that neither
+  checks out nor runs code from the pull request (today only `welcome.yml`, which greets
+  first-time contributors), and values from outside (event data, step outputs) reach a `run:`
+  script through `env:`, never as `${{ }}` inside the script. The pre-commit hooks
+  `actionlint` (with shellcheck), `zizmor` and `github-meta` check all of this.
 
 ## Documentation and Doxygen
 
