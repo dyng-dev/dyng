@@ -1,0 +1,259 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 30,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "dev",
+      "description": "Debug development build: tests on, warnings as errors, budgets on",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_WARNINGS_AS_ERRORS": "ON",
+        "DYNG_DEBUG_BUDGETS": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "release",
+      "description": "Optimized build",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "DYNG_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "relwithdebinfo",
+      "description": "Optimized build with debug info",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "DYNG_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "cpu-only",
+      "displayName": "cpu-only",
+      "description": "CPU backends only (hosted CI, CPU wheel): Release, warnings as errors",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "DYNG_ENABLE_CUDA": "OFF",
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "asan",
+      "description": "Host AddressSanitizer + UndefinedBehaviorSanitizer",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DYNG_ENABLE_CUDA": "OFF",
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_SANITIZE": "address;undefined",
+        "DYNG_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "tsan",
+      "description": "Host ThreadSanitizer",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "DYNG_ENABLE_CUDA": "OFF",
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_SANITIZE": "thread",
+        "DYNG_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "parity",
+      "displayName": "parity",
+      "description": "The originals' flags (-O3, g++ -std=c++17 -fopenmp); all performance gates use this preset",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_BUILD_PARITY_TESTS": "ON",
+        "DYNG_ENABLE_OPENMP": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "cpu-only",
+      "configurePreset": "cpu-only"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan"
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan"
+    },
+    {
+      "name": "parity",
+      "configurePreset": "parity"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "cpu-only",
+      "configurePreset": "cpu-only",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      },
+      "filter": {
+        "include": {
+          "label": "cpu"
+        }
+      }
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      },
+      "environment": {
+        "ASAN_OPTIONS": "allocator_may_return_null=1:detect_leaks=1",
+        "UBSAN_OPTIONS": "print_stacktrace=1:halt_on_error=1"
+      }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      },
+      "environment": {
+        "TSAN_OPTIONS": "halt_on_error=1"
+      }
+    },
+    {
+      "name": "parity",
+      "configurePreset": "parity",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "dev",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev"
+        },
+        {
+          "type": "build",
+          "name": "dev"
+        },
+        {
+          "type": "test",
+          "name": "dev"
+        }
+      ]
+    },
+    {
+      "name": "cpu-only",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "cpu-only"
+        },
+        {
+          "type": "build",
+          "name": "cpu-only"
+        },
+        {
+          "type": "test",
+          "name": "cpu-only"
+        }
+      ]
+    }
+  ]
+}

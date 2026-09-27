@@ -1,0 +1,28 @@
+// SPDX-FileCopyrightText: 2026 The dynG Authors
+// SPDX-License-Identifier: Apache-2.0
+/**
+ * @file dyng.hpp
+ * @brief Umbrella header: includes every stable public header of dynG.
+ * @ingroup core
+ */
+#pragma once
+
+/**
+ * @defgroup core Core
+ * @brief Resources, backends, streams, memory, arrays, errors, logging, profiling, version.
+ */
+
+#include <dyng/citation.hpp>
+#include <dyng/config.hpp>
+#include <dyng/core/array_view.hpp>
+#include <dyng/core/backend.hpp>
+#include <dyng/core/buffer.hpp>
+#include <dyng/core/copy.hpp>
+#include <dyng/core/error.hpp>
+#include <dyng/core/logging.hpp>
+#include <dyng/core/memory.hpp>
+#include <dyng/core/profiler.hpp>
+#include <dyng/core/resources.hpp>
+#include <dyng/core/stream.hpp>
+#include <dyng/core/types.hpp>
+#include <dyng/version.hpp>
