@@ -20,8 +20,10 @@
 #              '// Derived from <repo>@<sha>:<path>' (PLAN Sections 3.4, 6.3)
 #   harness    python -m py_compile on parity/*.py and ci/*.py, and pytest parity/tests (the
 #              smoke tests of the parity harness; pytest is in environment.yml)
-#   docs       ci/docs.sh: Doxygen on the public headers with warnings as errors, then the
-#              convention check ci/doxygen_coverage.py (skipped if doxygen is missing)
+#   docs       ci/docs.sh: Doxygen on the public headers with warnings as errors and the
+#              convention check ci/doxygen_coverage.py, then the Sphinx site with warnings as
+#              errors and the internal link check (skipped if doxygen is missing; fails if the
+#              Sphinx packages of environment.yml are missing)
 #   precommit  pre-commit run --all-files (skipped if pre-commit is missing)
 #   parity     only with --parity (or DYNG_CHECK_PARITY=1): configure and build the `parity`
 #              preset and run `ctest -L parity`, the byte-for-byte replay of the golden corpus
@@ -30,7 +32,8 @@
 #              --parity, missing goldens are an error, not a skip.
 #
 # The GitHub workflows mirror these steps: cpu.yml runs `build`, lint.yml runs `precommit`
-# (which includes clang-format and REUSE), `docs` and the name-reservation package check.
+# (which includes clang-format and REUSE), the Doxygen part of `docs` and the name-reservation
+# package check, and docs.yml runs `docs`.
 set -euo pipefail
 
 run_parity="${DYNG_CHECK_PARITY:-0}"
@@ -38,7 +41,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,33p' "${BASH_SOURCE[0]}"
+      sed -n '5,36p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -148,10 +151,10 @@ if ! skipped harness; then
 fi
 
 if ! skipped docs; then
-  step "doxygen (public headers, warnings as errors)"
+  step "docs (Doxygen and the Sphinx site, warnings as errors; internal links)"
   if command -v doxygen >/dev/null 2>&1; then
     if ci/docs.sh; then
-      echo "doxygen: OK"
+      echo "docs: OK"
     else
       failed+=("docs")
     fi

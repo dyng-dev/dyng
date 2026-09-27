@@ -95,13 +95,14 @@ if(DYNG_BUILD_COMPAT_TOOLS)
 endif()
 
 # `cmake --build --preset <p> --target docs-doxygen`: the Doxygen check of ci/docs.sh on this
-# build tree's generated headers (the Sphinx site and DYNG_BUILD_DOCS arrive in M5).
+# build tree's generated headers (the whole site: ci/docs.sh; DYNG_BUILD_DOCS arrives in M5).
 find_program(DYNG_DOXYGEN_EXECUTABLE doxygen)
 if(DYNG_DOXYGEN_EXECUTABLE AND PROJECT_IS_TOP_LEVEL)
   add_custom_target(
     docs-doxygen
     COMMAND ${CMAKE_COMMAND} -E env "DYNG_BUILD_DIR=${PROJECT_BINARY_DIR}"
             "DYNG_DOXYGEN_OUTPUT=${PROJECT_BINARY_DIR}/doxygen" "${PROJECT_SOURCE_DIR}/ci/docs.sh"
+            --doxygen-only
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     COMMENT "Doxygen on the public headers (warnings as errors) and the convention check"
     VERBATIM USES_TERMINAL

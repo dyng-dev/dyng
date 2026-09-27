@@ -55,7 +55,9 @@ ci/check.sh                              # the full local gate: format, cpu-only
 
 Other presets: `cpu-only` (Release, CPU backends), `release`, `relwithdebinfo`, `asan`, `tsan`
 and `parity` (the flags of the original research codes, used for parity and performance runs).
-The Doxygen check of the public headers is `ci/docs.sh` (or the target `docs-doxygen`).
+`ci/docs.sh` builds the documentation site (Doxygen with warnings as errors, Sphinx, link
+check) into `build/docs/html`; `ci/docs.sh --doxygen-only` (or the target `docs-doxygen`) runs
+only the Doxygen check of the public headers.
 
 ### Run the example
 

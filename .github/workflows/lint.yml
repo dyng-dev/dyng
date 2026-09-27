@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Formatting and licensing checks (PLAN Section 8.8): pre-commit (clang-format, ruff, whitespace,
-# REUSE, codespell, provenance headers), the Doxygen check of the public headers and the smoke
+# REUSE, codespell, provenance headers), the Doxygen check of the public headers
+# (`ci/docs.sh --doxygen-only`; docs.yml builds the whole documentation site) and the smoke
 # tests of the Python parity harness. Mirrors the `format`, `reuse`,
 # `precommit` and `docs` steps of ci/check.sh (clang-format and REUSE run as pre-commit hooks).
 name: lint
@@ -63,7 +64,7 @@ jobs:
       - name: Configure (generates version.hpp / config.hpp)
         run: cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF
       - name: Doxygen, warnings as errors
-        run: ci/docs.sh
+        run: ci/docs.sh --doxygen-only
 
   # The parity harness and CI scripts (Python): they compile, and the smoke tests of
   # parity/tests pass (no goldens or originals needed). ruff runs in the pre-commit job.

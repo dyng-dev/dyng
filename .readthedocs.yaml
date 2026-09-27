@@ -7,9 +7,10 @@
 #
 # The build uses the same conda environment as development and CI (environment.yml: the pinned
 # Sphinx, Breathe and Doxygen), generates the Doxygen XML of the public headers exactly as
-# ci/docs.sh does (it needs a configured tree for the generated version.hpp / config.hpp; no
-# compiler run, no GPU), then builds the Sphinx site with warnings as errors. Keep these steps in
-# sync with docs.yml.
+# ci/docs.sh does (`--doxygen-only`: it needs a configured tree for the generated version.hpp /
+# config.hpp; no compiler run, no GPU), then builds the Sphinx site itself with warnings as
+# errors (the link check stays in ci/docs.sh and docs.yml). Keep these steps in sync with
+# docs.yml.
 version: 2
 
 build:
@@ -19,7 +20,7 @@ build:
   jobs:
     pre_build:
       - cmake --preset cpu-only -DDYNG_BUILD_TESTS=OFF -DDYNG_BUILD_EXAMPLES=OFF -DDYNG_BUILD_TOOLS=OFF
-      - ci/docs.sh
+      - ci/docs.sh --doxygen-only
 
 conda:
   environment: environment.yml

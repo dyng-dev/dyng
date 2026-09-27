@@ -180,10 +180,24 @@ pull request how you measured any performance claim.
   `resources` handle state `@sync` or `@async`; `compute()` and `update()` also state
   `@backends`, `@determinism` and, for published algorithms, `@paper` with a `@cite` key from
   `docs/references.bib`. `detail::` entities get a one-line `@brief`.
-- `ci/docs.sh` runs Doxygen with warnings as errors and then `ci/doxygen_coverage.py`; it fails
-  on undocumented public API. It needs a configured build tree (`cmake --preset cpu-only`).
+- **Build the documentation** with the documented command (it needs a configured build tree
+  and the Sphinx packages of `environment.yml`):
+
+  ```bash
+  cmake --preset cpu-only       # once, for the generated version.hpp / config.hpp
+  ci/docs.sh                    # Doxygen + checks, the Sphinx site with -W, the internal link check
+  # open build/docs/html/index.html
+  ```
+
+  Step 1 runs Doxygen with warnings as errors and then `ci/doxygen_coverage.py`, which fail on
+  undocumented public API; step 2 builds the site (Sphinx, MyST, pydata-sphinx-theme, Breathe)
+  with warnings as errors, so every page must be in a toctree and every reference must
+  resolve; step 3 checks the internal links. `ci/docs.sh --doxygen-only` runs step 1 only.
+  `ci/check.sh` and `.github/workflows/docs.yml` run the same command.
 - User documentation lives in [docs/](docs/) as MyST Markdown (no reStructuredText needed),
-  organised as tutorials, how-to guides, concepts (explanation), reference and developer pages.
+  organised as tutorials, how-to guides, concepts (explanation), reference and developer pages;
+  `docs/developer/documentation.md` explains where a page goes and how the C++ reference is
+  generated.
   Every algorithm has a page under `docs/algorithms/` with the sections the plan requires,
   including "Differences from the paper" for ported algorithms. Update the documentation in the
   same pull request as the code.
