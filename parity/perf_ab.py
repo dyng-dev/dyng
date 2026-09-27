@@ -6,7 +6,11 @@
     parity/perf_ab.py prepare [--graph roadNet-CA] [--hops 160]
     parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--batches safe50k,unsafe50k,local10k]
-                          [--json parity/results/M1a-perf-openmp-roadNet-CA.json]
+                          [--json parity/results/M1b-perf-openmp-roadNet-CA.json]
+
+The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
+roadNet-CA, rgg (rgg_n_2_20_s0) and road_usa_g (road_usa); --hops defaults to the local-batch
+radius the original's bench/prepare.sh names for each (110, 160, 110, 200).
 
 prepare  builds the benchmark inputs with the UNPATCHED original's own tool, exactly as the
          original's bench/prepare.sh does (MOSP-OpenMP@c352151):
@@ -14,7 +18,7 @@ prepare  builds the benchmark inputs with the UNPATCHED original's own tool, exa
            changes_50000_50/             mospPrep changes --changes 50000 --ins 50 --seed 777
            changes_50000_50_safe/        ... --safe
            changes_local_10000_50_safe/  mospPrep changes --changes 10000 --ins 50 --seed 777
-                                         --local HOPS --safe (HOPS = 160 on roadNet-CA)
+                                         --local HOPS --safe (HOPS: see HOPS below)
          into $DYNG_SCRATCH/bench/mosp/<graph>/. The CSR (K = 3 weights in [1, 100], seed 12345;
          mospPrep mtx2csr) is taken from $DYNG_SCRATCH/datasets/mosp/<graph>/csr by a symlink and
          is not copied.
@@ -31,8 +35,9 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          be equal (both are correctness guards: a failure exits non-zero). Load average and the
          run-to-run spread are recorded; a spread above 10 % is flagged (PLAN Section 8.6). A
          gated region whose original median is below 10 ms needs >= 20 runs; with fewer, its
-         verdict is marked provisional. --enforce-gates (M1b on) exits non-zero on an exceeded
-         gate.
+         verdict is marked provisional. Gates (from the map): "compute" <= 1.05x (<= 1.10x when
+         the original's median is below 10 ms), "end_to_end" <= 1.10x. --enforce-gates exits
+         non-zero on an exceeded gate.
 
 The perf lock. The machine's convention is `flock $DYNG_SCRATCH/perf.lock <command>`, and this
 script also takes the lock itself. Both work: the script sees in /proc/locks that an ancestor
@@ -90,6 +95,9 @@ PARITY_PRESET = {
 }
 SHORT_REGION_MS = 10.0
 SHORT_REGION_RUNS = 20
+END_TO_END_GATE = 1.10
+# Local-batch radius per graph, as the original's bench/prepare.sh names it (MOSP-OpenMP@c352151).
+HOPS = {"roadNet-PA": 110, "roadNet-CA": 160, "rgg": 110, "road_usa_g": 200}
 
 
 # --- Helpers ------------------------------------------------------------------------------------
@@ -338,15 +346,12 @@ def original_value(orig: dict, region: dict, k: int | None) -> float:
     return total
 
 
-def port_value(port: dict, region: dict, k: int | None, first_touch: bool = False) -> float:
+def port_value(port: dict, region: dict, k: int | None) -> float:
     total = stage_sum(port, region["port"], k)
     if region.get("port_all_results"):
         total += stage_sum(port, region["port_all_results"])
-    extra0 = list(region.get("port_result0", []))
-    if first_touch:
-        extra0 += ["sssp.workspace.pretouch"]
-    if extra0:
-        total += stage_sum(port, extra0, 0)
+    if region.get("port_result0"):
+        total += stage_sum(port, region["port_result0"], 0)
     return total
 
 
@@ -359,7 +364,9 @@ def spread(xs: list[float]) -> float:
     return (max(xs) - min(xs)) / m if m > 0 else 0.0
 
 
-def gate_limit(original_ms: float) -> float:
+def gate_limit(kind: str, original_ms: float) -> float:
+    if kind == "end_to_end":
+        return END_TO_END_GATE
     return 1.05 if original_ms >= SHORT_REGION_MS else 1.10
 
 
@@ -393,10 +400,11 @@ def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list
             "port_samples": b,
             "gate_kind": gate,
         }
-        if gate == "compute":
-            e["gate"] = gate_limit(ma)
+        if gate in ("compute", "end_to_end"):
+            e["gate"] = gate_limit(gate, ma)
             e["within_gate"] = e["ratio"] <= e["gate"]
-            e["provisional"] = ma < SHORT_REGION_MS and runs < SHORT_REGION_RUNS
+            short = gate == "compute" and ma < SHORT_REGION_MS
+            e["provisional"] = short and runs < SHORT_REGION_RUNS
         e["noisy"] = e["original_spread"] > 0.10 or e["port_spread"] > 0.10
         out["regions"].append(e)
 
@@ -406,30 +414,11 @@ def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list
             for o in range(k):
                 a = [original_value(s, region, o) for s in samples["original"]]
                 b = [port_value(s, region, o) for s in samples["port"]]
-                if o == 0:
-                    # The original's objective 0 pays the first touch of the shared frontier
-                    # lists; the port pays it outside the region (sssp.toml, sosp_update).
-                    counted = [port_value(s, region, 0, first_touch=True) for s in samples["port"]]
-                    entry(
-                        f"{region['name']} obj0",
-                        a,
-                        b,
-                        "none",
-                        "as measured (first touch outside the port's region)",
-                    )
-                    entry(f"{region['name']} obj0", a, counted, gate, "first touch counted")
-                else:
-                    entry(f"{region['name']} obj{o}", a, b, gate, "as measured")
+                entry(f"{region['name']} obj{o}", a, b, gate, "as measured")
         else:
             a = [original_value(s, region, None) for s in samples["original"]]
             b = [port_value(s, region, None) for s in samples["port"]]
-            entry(
-                region["name"],
-                a,
-                b,
-                gate if gate == "compute" else "none",
-                "as measured" if gate == "none" else f"{gate} gate (from M1b)",
-            )
+            entry(region["name"], a, b, gate, "as measured")
     return out
 
 
@@ -638,7 +627,7 @@ def write_json(args, results, build, ref, marker, regions) -> None:
         != 0
     )
     doc = {
-        "schema": 2,
+        "schema": 3,
         "algorithm": "sssp",
         "backend": "openmp",
         "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -682,7 +671,9 @@ def main() -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("prepare")
     p.add_argument("--graph", default="roadNet-CA")
-    p.add_argument("--hops", type=int, default=160, help="local batch radius (roadNet-CA: 160)")
+    p.add_argument(
+        "--hops", type=int, help="local batch radius (default: HOPS[graph]; roadNet-CA: 160)"
+    )
     p.add_argument("--force", action="store_true")
     r = sub.add_parser("run")
     r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
@@ -717,6 +708,10 @@ def main() -> int:
     args = parser.parse_args()
     if args.command == "run" and args.runs < 5:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
+    if args.command == "prepare" and args.hops is None:
+        if args.graph not in HOPS:
+            parser.error(f"--hops is required for {args.graph} (known: {sorted(HOPS)})")
+        args.hops = HOPS[args.graph]
     return prepare(args) if args.command == "prepare" else run(args)
 
 

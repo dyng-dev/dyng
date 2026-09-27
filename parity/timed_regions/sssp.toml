@@ -11,12 +11,21 @@
 # gated region is below 10 ms; otherwise the verdict is marked provisional), A/B/A/B, parity
 # preset, 28 threads pinned with OMP_PROC_BIND=close OMP_PLACES=cores, under the perf lock.
 #
-# dynG stage names: sssp.update > { sssp.prepare, sssp.commit > graph.apply, sssp.identify_affected,
-# sssp.seed, sssp.loop, sssp.finalize }; with dyng::update / update_each the commit is
-# "update.commit" and the per-result stages repeat once per result, in result order. Building a
-# result with from_arrays records sssp.import, [sssp.canonicalize], sssp.workspace,
-# sssp.workspace.pretouch and [sssp.validate]; dyng-compat-mosp writes them after the update's
-# stages, one set per objective in objective order.
+# dynG stage names: sssp.update > { sssp.prepare, sssp.commit > { graph.apply, graph.transpose },
+# sssp.workspace, sssp.identify_affected, sssp.seed, sssp.loop, sssp.finalize }; with dyng::update /
+# update_each the commit is "update.commit" and the per-result stages repeat once per result, in
+# result order. Building a result with from_arrays records sssp.import, [sssp.canonicalize],
+# sssp.workspace and [sssp.validate]; building the graph records graph.build. dyng-compat-mosp
+# writes the setup stages (graph.build, then one from_arrays set per objective in objective order)
+# after the update's stages.
+#
+# Scratch memory (M1b, ADR 0015): the results share one workspace, the pooled workspace of the
+# resources handle, exactly as mospUpdate() shares one SospWorkspace across the K objectives. The
+# first from_arrays sizes it (sssp.workspace: the per-vertex arrays assigned, the six frontier
+# lists only reserved, as SospWorkspace::reserve does); later leases are no-ops. So objective 0's
+# region pays the first touch of the frontier-list pages it uses on both sides, and no cost is
+# moved out of any region any more (M1a's sssp.workspace.pretouch stage and its "first touch
+# counted" reading are gone).
 #
 # Field meanings (per region):
 #   original                  the original's stage names (its ScopedStage / --timing CSV names)
@@ -28,6 +37,8 @@
 #   port_all_results          from_arrays stages summed over the K results
 #   gate                      "compute" (<= 1.05x; <= 1.10x below 10 ms), "end_to_end" (<= 1.10x,
 #                             from M1b), or "none" (reported only)
+# (port_result0, the from_arrays stages of objective 0's result only, is still understood by
+#  perf_ab.py but no region uses it since M1b.)
 
 [reference.mosp_openmp]
 repo = "MOSP-OpenMP"
@@ -49,16 +60,13 @@ note = """
 The port's finalize also counts `affected` (vertices whose distance or parent changed) inside the
 unpack pass.
 
-Moved cost (first touch). mospUpdate() uses ONE SospWorkspace for the K objectives; its
-reserve() only reserves the six frontier lists (near, next near, far, far rebuild, candidates,
-frontier; 6 x n x 4 bytes, about 47 MB on roadNet-CA), so objective 0's region pays their
-first-touch page faults and objectives 1..K-1 reuse the touched pages. Each dynG result owns its
-workspace, and from_arrays touches the lists once (stage sssp.workspace.pretouch) OUTSIDE the
-region, for every objective. perf_ab.py therefore reports objective 0 twice: "as measured" and
-"first touch counted" (+ sssp.workspace.pretouch of objective 0's result, which is measured while
-the K results are built concurrently, so it is an upper bound). The gate verdict of objective 0
-uses the counted value; objectives 1..K-1 compare warm pages on both sides. Removing the move
-needs results that share one workspace (open for M1b, ADR 0013).
+First touch (since M1b): both sides use ONE workspace for the K objectives (MOSP's SospWorkspace;
+dynG's pooled workspace, ADR 0015), whose six frontier lists (near, next near, far, far rebuild,
+candidates, frontier) are reserved but not touched before objective 0 runs. Objective 0's region
+therefore pays the first-touch page faults of the list pages it uses, on both sides, and
+objectives 1..K-1 reuse the touched pages on both sides. Every objective is compared as measured.
+(In M1a each result owned a workspace that from_arrays pre-touched outside the region; the A/B
+then added that moved cost back to objective 0. That reading is withdrawn with its cause.)
 """
 
 # The sum over the objectives: reported for orientation only. It is NOT a gate reading (PLAN
@@ -69,28 +77,28 @@ per_objective = false
 original = ["obj<k>/sosp_update_compute (all k)"]
 original_report = ["obj<k> SOSP update"]
 port = ["sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"]
-port_result0 = ["sssp.workspace.pretouch"]
 gate = "none"
 note = "Includes objective 0's first-touch cost on both sides (see sosp_update)."
 
 # Applying the batch plus the original's "prepare". mospUpdate() times applyChangeBatch() as
 # "apply_batch", then "prepare", which holds buildHostGraph() (the reverse graph and the
 # objective-major weight columns) AND sospWorkspace.reserve(n) (packed, stamp, inFar, state
-# assigned, about 28 MB), the copies of the K initial trees into the result (distances.assign,
-# parents.assign: K x n x 12 bytes, about 71 MB), and combinedDistances / combinedParent.resize(n).
-# dynG's update.commit does the graph work (graph.apply builds the new CSR, its transposition and
-# the objective-major columns); the tree copies and the workspace are done by from_arrays, outside
-# the update, so they are added to the port's side here: every result's sssp.import (the K tree
-# copies) and objective 0's sssp.workspace (the one reserve the original does).
+# assigned, about 28 MB; the six lists reserved), the copies of the K initial trees into the result
+# (distances.assign, parents.assign: K x n x 12 bytes, about 71 MB), and combinedDistances /
+# combinedParent.resize(n). dynG's update.commit does the graph work (graph.apply builds the new
+# CSR, graph.transpose its in-edges; the objective-major columns are the storage layout); the tree
+# copies and the one workspace reserve are done by from_arrays, outside the update, so they are
+# added to the port's side here: every result's sssp.import (the K tree copies) and every
+# sssp.workspace sample (the first from_arrays sizes the shared workspace; every other lease, in
+# the setup or in the update, is a no-op of a few microseconds).
 [[reference.mosp_openmp.region]]
 name = "apply"
 per_objective = false
 original = ["apply_batch", "prepare"]
 original_report = ["apply batch", "prepare"]
 port = ["update.commit"]
-port_all_results = ["sssp.import"]
-port_result0 = ["sssp.workspace"]
-gate = "none"          # "end_to_end" from M1b
+port_all_results = ["sssp.import", "sssp.workspace"]
+gate = "end_to_end"    # <= 1.10 x (PLAN 8.6), from M1b
 note = """
 Still only on the original's side: combinedDistances.resize(n) and combinedParent.resize(n)
 (24 bytes per vertex zero-filled, about 47 MB on roadNet-CA, a few ms), which belong to the mosp
@@ -107,15 +115,17 @@ original = ["TOTAL_end_to_end", "- combined_graph_compute"]
 original_report = ["end_to_end_ms"]
 original_report_subtract = ["comb combined graph + SOSP"]
 port = ["total.end_to_end"]  # written by dyng-compat-mosp next to the profiler rows
-gate = "none"                # "end_to_end" (<= 1.10 x) from M1b
+gate = "end_to_end"          # <= 1.10 x (PLAN 8.6), from M1b
 note = """
 Reading the text inputs to writing the outputs (--no-output on both, so nothing is written). Both
 read the batch and the 2K tree files concurrently (runConcurrently / run_concurrently). The
 original's TOTAL_end_to_end includes the combined graph and its SOSP (Steps 2-3 of the MOSP
 update, "combined_graph_compute", reported as "comb combined graph + SOSP"), which belongs to the
 mosp algorithm (0.2): perf_ab.py subtracts it from the original's side. The port's figure
-includes building the K results (import, workspace, validation), which `mosp` does inside its
-"canonicalize"-free load and "prepare" stages.
+includes building the graph (graph.build: the CSR's arrays are taken over, its in-edges are built
+only for the updated graph, inside the commit) and the K results (import, workspace, validation of
+the input trees, which `mosp` does not validate), which `mosp` does inside its load and "prepare"
+stages.
 """
 
 # --- MOSP-CUDA (M1b; draft, written before the CUDA port as PLAN Section 6.3 step 3 asks) ------
