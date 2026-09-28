@@ -3,11 +3,15 @@
 #
 # Runs dyng-compat-mosp (init and update) on one fixture case and requires byte-identical output
 # files. Variables: EXE, INPUT (graphCsr*, insert.txt, delete.txt), EXPECTED (init/ and updated/
-# from the original), K, BACKEND, OUT.
+# from the original), K, BACKEND, OUT, EDGE (edge-offset type, int32 or int64; default int32).
 
+if(NOT EDGE)
+  set(EDGE int32)
+endif()
 file(REMOVE_RECURSE "${OUT}")
 execute_process(
   COMMAND "${EXE}" init "${INPUT}/graphCsr" "${OUT}/init" -k ${K} --backend ${BACKEND}
+          --edge-type ${EDGE}
   RESULT_VARIABLE rc
 )
 if(NOT rc EQUAL 0)
@@ -17,6 +21,7 @@ execute_process(
   COMMAND
     "${EXE}" --graph "${INPUT}/graphCsr" --changes "${INPUT}" --init "${EXPECTED}/init" -k ${K}
     --out "${OUT}/updated" --backend ${BACKEND} --threads 2 --timing "${OUT}/timing.csv"
+    --edge-type ${EDGE}
   RESULT_VARIABLE rc
 )
 if(NOT rc EQUAL 0)

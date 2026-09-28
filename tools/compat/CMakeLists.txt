@@ -29,23 +29,30 @@ if(DYNG_BUILD_TESTS)
     list(GET _case 0 _name)
     list(GET _case 1 _input)
     list(GET _case 2 _k)
+    # Each backend with the originals' 32-bit edge offsets and with 64-bit ones (--edge-type,
+    # ADR 0009): the same bytes either way.
     foreach(_backend IN LISTS _backends)
-      set(_test compat_mosp.${_name}.${_backend})
-      add_test(
-        NAME ${_test}
-        COMMAND
-          ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-mosp> -DINPUT=${_data}/${_input}
-          -DEXPECTED=${_data}/mosp_sssp/${_name} -DK=${_k} -DBACKEND=${_backend}
-          -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_name}.${_backend} -P
-          ${CMAKE_CURRENT_SOURCE_DIR}/mosp/run_and_compare.cmake
-      )
-      if(_backend STREQUAL "cuda")
-        set(_labels "gpu;sssp;compat")
-      else()
-        set(_labels "cpu;sssp;compat")
-      endif()
-      set_tests_properties(${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT
-                                               "${DYNG_TEST_ENVIRONMENT}")
+      foreach(_edge int32 int64)
+        set(_test compat_mosp.${_name}.${_backend})
+        if(_edge STREQUAL "int64")
+          set(_test ${_test}.int64)
+        endif()
+        add_test(
+          NAME ${_test}
+          COMMAND
+            ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-mosp> -DINPUT=${_data}/${_input}
+            -DEXPECTED=${_data}/mosp_sssp/${_name} -DK=${_k} -DBACKEND=${_backend}
+            -DEDGE=${_edge} -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_test} -P
+            ${CMAKE_CURRENT_SOURCE_DIR}/mosp/run_and_compare.cmake
+        )
+        if(_backend STREQUAL "cuda")
+          set(_labels "gpu;sssp;compat")
+        else()
+          set(_labels "cpu;sssp;compat")
+        endif()
+        set_tests_properties(${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT
+                                                 "${DYNG_TEST_ENVIRONMENT}")
+      endforeach()
     endforeach()
   endforeach()
 endif()

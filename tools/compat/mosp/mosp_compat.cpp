@@ -10,6 +10,7 @@
  * Usage:
  *   dyng-compat-mosp --graph <csrPrefix> --changes <dir> --init <dir> [options]
  *   dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K] [--backend b] [--threads t]
+ *                    [--device d] [--edge-type t]
  *   dyng-compat-mosp changes <csrPrefix> <outDir> [the options of `mospPrep changes`]
  *
  * Update mode reads the inputs of `mosp` (the CSR text files <prefix>{RowPtr,ColInd,Values}.txt,
@@ -39,6 +40,8 @@
  *   --backend <b>        sequential | openmp | cuda (default openmp if built)
  *   --threads <t>        OpenMP threads (default: the OpenMP default)
  *   --device <d>         CUDA device of --backend cuda (default 0)
+ *   --edge-type <t>      int32 | int64: the graph's edge-offset type (default int32, the
+ *                        originals' type; int64 for the edge_t benchmark of ADR 0009)
  *
  * Report lines (without --quiet): the inputs, `obj<k>   SOSP update <ms> (invalidated ...)`,
  * `graph  read graph <ms>, read changes and trees <ms>, build <ms>` and `obj<k>   result import <ms>, workspace <ms>, validate <ms>` (the
@@ -95,10 +98,10 @@
 
 namespace {
 
-using vertex_t = std::int32_t;  // the originals' types
-using edge_t = std::int32_t;
+using vertex_t = std::int32_t;  // the originals' types (edge offsets: --edge-type, default int32)
 using weight_t = std::int32_t;
-using graph_t = dyng::graph<vertex_t, edge_t, weight_t>;
+template <typename edge_t>
+using graph_type = dyng::graph<vertex_t, edge_t, weight_t>;
 using result_t = dyng::sssp::result<vertex_t>;
 using clock_type = std::chrono::steady_clock;
 
@@ -113,6 +116,7 @@ struct options {
   int K = 0;
   int threads = 0;
   int device = 0;
+  bool edge64 = false;  // --edge-type int64: 64-bit edge offsets (the edge_t benchmark, ADR 0009)
   vertex_t source = 0;
   std::int64_t delta = 0;
   bool canonicalize = false;
@@ -132,10 +136,10 @@ void usage() {
                "                        [--no-validate-inputs] [--out dir] [--no-output]\n"
                "                        [--write-graph prefix] [--timing file.csv] [--quiet]\n"
                "                        [--backend sequential|openmp|cuda] [--threads t]\n"
-               "                        [--device d]\n"
+               "                        [--device d] [--edge-type int32|int64]\n"
                "       dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K]\n"
                "                        [--backend sequential|openmp|cuda] [--threads t]\n"
-               "                        [--device d]\n"
+               "                        [--device d] [--edge-type int32|int64]\n"
                "       dyng-compat-mosp changes <csrPrefix> <outDir> [--changes N] [--ins PCT]\n"
                "                        [--mode uniform|targeted|reweight|increase]\n"
                "                        [--local HOPS] [--safe] [--seed S] [--source s]\n"
@@ -210,7 +214,19 @@ std::vector<value_t> host_array(const dyng::resources& res, dyng::array_view<con
   return dyng::to_vector(res, v);
 }
 
+/// `--edge-type int32|int64`: the edge-offset type of the graph (ADR 0009).
+bool parse_edge_type(std::string_view value) {
+  if (value == "int32") {
+    return false;
+  }
+  if (value == "int64") {
+    return true;
+  }
+  throw usage_error("--edge-type: expected int32 or int64, got '" + std::string(value) + "'");
+}
+
 /// Read the CSR; like MOSP, a graph without edges takes K from -k.
+template <typename edge_t>
 dyng::csr<vertex_t, edge_t, weight_t> read_graph(const std::string& prefix, int K) {
   try {
     return dyng::io::read_csr_triplet<vertex_t, edge_t, weight_t>(prefix);
@@ -223,6 +239,9 @@ dyng::csr<vertex_t, edge_t, weight_t> read_graph(const std::string& prefix, int 
     return dyng::io::read_csr_triplet<vertex_t, edge_t, weight_t>(prefix, csr_options);
   }
 }
+
+template <typename edge_t>
+int run_init_typed(const options& opt, const std::string& prefix, const std::string& out_dir);
 
 int run_init(int argc, char** argv) {
   if (argc < 4) {
@@ -247,12 +266,21 @@ int run_init(int argc, char** argv) {
       opt.threads = parse_int<int>(value, a, 1, 1 << 16);
     } else if (a == "--device") {
       opt.device = parse_int<int>(value, a, 0, 1 << 10);
+    } else if (a == "--edge-type") {
+      opt.edge64 = parse_edge_type(value);
     } else {
       throw usage_error("unknown option: " + std::string(a));
     }
   }
+  return opt.edge64 ? run_init_typed<std::int64_t>(opt, prefix, out_dir)
+                    : run_init_typed<std::int32_t>(opt, prefix, out_dir);
+}
+
+template <typename edge_t>
+int run_init_typed(const options& opt, const std::string& prefix, const std::string& out_dir) {
+  using graph_t = graph_type<edge_t>;
   const dyng::resources res = make_resources(opt);
-  auto csr = read_graph(prefix, opt.K);
+  auto csr = read_graph<edge_t>(prefix, opt.K);
   const graph_t g =
       graph_t::from_csr(res, std::move(csr), dyng::graph_properties::mosp_compatible());
   const int K = opt.K > 0 ? std::min(opt.K, g.num_weights()) : g.num_weights();
@@ -323,7 +351,7 @@ int run_changes(int argc, char** argv) {
       throw usage_error("unknown option: " + std::string(a));
     }
   }
-  const auto csr = read_graph(prefix, 0);
+  const auto csr = read_graph<std::int32_t>(prefix, 0);
   dyng::generators::legacy::mosp_change_report report;
   const auto batch = dyng::generators::legacy::mosp_changes(csr.view(), opt, &report);
   std::filesystem::create_directories(out_dir);
@@ -362,6 +390,8 @@ options parse_update_options(int argc, char** argv) {
       opt.threads = parse_int<int>(next(), a, 1, 1 << 16);
     } else if (a == "--device") {
       opt.device = parse_int<int>(next(), a, 0, 1 << 10);
+    } else if (a == "--edge-type") {
+      opt.edge64 = parse_edge_type(next());
     } else if (a == "--source") {
       opt.source = parse_int<vertex_t>(next(), a, 0, INT32_MAX);
     } else if (a == "--delta") {
@@ -384,8 +414,9 @@ options parse_update_options(int argc, char** argv) {
   return opt;
 }
 
-int run_update(int argc, char** argv) {
-  const options opt = parse_update_options(argc, argv);
+template <typename edge_t>
+int run_update_typed(const options& opt) {
+  using graph_t = graph_type<edge_t>;
   const auto start = clock_type::now();
   auto t = clock_type::now();
   dyng::resources res = make_resources(opt);
@@ -400,7 +431,7 @@ int run_update(int argc, char** argv) {
   dyng::profiler setup_prof;
   res.attach_profiler(&setup_prof);
   t = clock_type::now();
-  auto csr = read_graph(opt.graph, opt.K);
+  auto csr = read_graph<edge_t>(opt.graph, opt.K);
   const double read_graph_ms = ms_since(t);
   const vertex_t n = csr.num_vertices();
   const int KG = csr.num_weights;
@@ -622,6 +653,11 @@ int run_update(int argc, char** argv) {
               apply_ms, end_to_end, res.num_threads());
   std::fflush(stdout);
   return timing_written ? 0 : 1;
+}
+
+int run_update(int argc, char** argv) {
+  const options opt = parse_update_options(argc, argv);
+  return opt.edge64 ? run_update_typed<std::int64_t>(opt) : run_update_typed<std::int32_t>(opt);
 }
 
 }  // namespace
