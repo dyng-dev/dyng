@@ -163,7 +163,11 @@ the prior histogram (the static count of the same backend) and generate_batch.""
 #             (count: the first compute() of the graph; update: G_t without a device copy);
 #   resident  the graph is resident on the device before the timed call (dynG's model: the update
 #             keeps the graph on the device across batches). An improvement, reported separately
-#             (PLAN 8.6) and gated as well: it may only be faster.
+#             (PLAN 8.6) and gated as well: it may only be faster. The count task uploads the graph
+#             with an untimed count of the 2-cycles (a millisecond): a full count right before the
+#             timed one leaves the GPU in the state of a long busy period, and the next kernel runs
+#             5-12 % slower even at locked clocks (parity/results/M2b.md section 4.4); the update
+#             task's graph is resident after the prior, which both sides run before the update.
 #
 # Protocol: PLAN 8.6 and ADR 0018 (option B): the parity-cuda preset, GPU 0, the clocks locked for
 # the whole A/B (`--lock-clocks boost`, every busy sample checked), the exclusive perf lock, >= 20

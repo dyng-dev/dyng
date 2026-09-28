@@ -42,8 +42,9 @@
  * `--scope original` (the default) times what the original times, with the graph uploaded inside
  * the timed call (count: the first compute() of the graph; update: the graph is moved to a fresh
  * copy without a device copy before the timed update(), as the original uploads G_t per call);
- * `--scope resident` first makes the graph resident on the device (an untimed compute() for the
- * count task; the prior's upload for the update task), so the timed call reads the resident graph.
+ * `--scope resident` first makes the graph resident on the device (an untimed compute() of the
+ * 2-cycles for the count task; the prior's upload for the update task), so the timed call reads
+ * the resident graph.
  * `--edge-type` selects the graph's edge-offset type: the default is int32 on cuda (the original's
  * 32-bit device CSR) and int64 on the host backends.
  *
@@ -563,7 +564,15 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
   double update_device_ms = 0.0;
   if (config.task == task_kind::count) {
     if (resident) {
-      (void)dyng::cycle_count::compute(res, g, opt);  // uploads the graph (untimed)
+      // Upload the graph (untimed) with the lightest count there is: 2-cycles, one root per
+      // queue claim (a millisecond on the gate graphs). A full count right before the timed one
+      // would leave the GPU in the state of a long busy period, which the original's process
+      // never has before its kernel (measured on GitHub k = 4 at locked clocks: 58 ms for a first
+      // count, 61-62 ms for a count right after it, 58 ms again after a pause).
+      dyng::cycle_count::options upload = opt;
+      upload.max_length = 2;
+      upload.work_items = dyng::cycle_count::cuda_work_items::roots;
+      (void)dyng::cycle_count::compute(res, g, upload);
       prof.reset();  // the profiler of the shared handle recorded that call: keep the timed one
     }
     const std::size_t from = prof.samples().size();
