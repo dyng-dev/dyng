@@ -13,7 +13,7 @@ calls the original functions unchanged.
 | `errors/` | 15 malformed or borderline files | `ok`, or `error <line>` of the original's `GraphParseError` |
 | `cases/` | 80 random graphs (2..11 vertices) with arbitrary batches: absent deletions, present insertions, self-loops, duplicates, delete-then-reinsert pairs, ids past the graph | `prepare_batch`, `apply_batch` (checked equal for the raw and the prepared batch), and the subset-DP oracle and brute-force histograms before and after |
 | `generator/` | 4 graphs and 22 (deletions, insertions, seed, window) cases | `generate_batch`, or `error` for its `std::invalid_argument` |
-| `datasets.txt` (`--datasets`) | DD, GitHub, Twitch, COLLAB under `$DYNG_SCRATCH/datasets/cycle` | FNV-1a digests of the parser output, the CSR, the batches of seed 1 (1K+1K, 25K+25K, 50K+50K; windows) and the normalized batch and CSR after them |
+| `datasets.txt` (`--datasets`) | DD, GitHub, Twitch, COLLAB and the timestamped CollegeMsg, email-Eu-core-temporal, sx-mathoverflow under `$DYNG_SCRATCH/datasets/cycle` | FNV-1a digests of the parser output, the CSR (every dataset), the batches (TUDataset graphs) of seed 1 (1K+1K, 25K+25K, 50K+50K; windows) and the normalized batch and CSR after them |
 
 The consumers are `cpp/tests/io/edge_list_io_test.cpp`, `cpp/tests/graph/set_semantics_test.cpp`,
 `cpp/tests/generators/cycle_enum_batch_test.cpp`, `cpp/tests/testing/cycle_oracle_test.cpp` (label

@@ -6,7 +6,9 @@
  *        the parser output, the CSR, the generated batches (seed 1; 1K+1K, 25K+25K, 50K+50K and
  *        locality windows) and the normalized batch and CSR after each batch are equal to the
  *        original's, compared through the FNV-1a digests of cpp/tests/data/cycle_enum/datasets.txt
- *        (parity/fixtures/cycle_enum/make_cycle_enum_fixtures.sh --datasets).
+ *        (parity/fixtures/cycle_enum/make_cycle_enum_fixtures.sh --datasets). The timestamped
+ *        SNAP edge lists (CollegeMsg, email-Eu-core-temporal, sx-mathoverflow) are compared on the
+ *        parser output and the CSR.
  *
  * The datasets are not in the repository: the test reads them from $DYNG_CYCLE_DATASETS, else
  * $DYNG_SCRATCH/datasets/cycle, else ~/Projects/dyng-work/datasets/cycle, and skips a dataset that

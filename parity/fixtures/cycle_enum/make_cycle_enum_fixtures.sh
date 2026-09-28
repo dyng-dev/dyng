@@ -265,8 +265,11 @@ if [ "${datasets}" -eq 1 ]; then
     echo "# Digests (FNV-1a 64 of the exporter's text) from CycleEnumeration-GPU@0a976ad on"
     echo "# \$DYNG_SCRATCH/datasets/cycle; regenerate with make_cycle_enum_fixtures.sh --datasets."
     echo "# <what> <dataset file> [<deletions> <insertions> <seed>] fnv1a64 <hex> bytes <n>"
+    # The TUDataset graphs, then the timestamped SNAP edge lists (u v t) of the time-window and
+    # temporal experiments (parser and CSR only).
     for d in DD/DD_A.txt github_stargazers/github_stargazers_A.txt \
-      twitch_egos/twitch_egos_A.txt COLLAB/COLLAB_A.txt; do
+      twitch_egos/twitch_egos_A.txt COLLAB/COLLAB_A.txt CollegeMsg.txt \
+      email-Eu-core-temporal.txt sx-mathoverflow.txt; do
       echo "parse ${d} $("${x}" parse "${data}/${d}" --digest)"
       echo "csr ${d} $("${x}" csr "${data}/${d}" --digest)"
     done

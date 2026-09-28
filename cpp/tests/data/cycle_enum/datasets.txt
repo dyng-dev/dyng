@@ -9,6 +9,12 @@ parse twitch_egos/twitch_egos_A.txt fnv1a64 471e2d418821e823 bytes 463812808
 csr twitch_egos/twitch_egos_A.txt fnv1a64 f35e9581e87594f8 bytes 201623083
 parse COLLAB/COLLAB_A.txt fnv1a64 c144900585a23fde bytes 488565094
 csr COLLAB/COLLAB_A.txt fnv1a64 a01484df88503052 bytes 172007211
+parse CollegeMsg.txt fnv1a64 0a769b512a144612 bytes 879462
+csr CollegeMsg.txt fnv1a64 72459fc676d761bc bytes 95745
+parse email-Eu-core-temporal.txt fnv1a64 ae2f1d85305db5b0 bytes 3169961
+csr email-Eu-core-temporal.txt fnv1a64 d1bd840fb1a00475 bytes 102347
+parse sx-mathoverflow.txt fnv1a64 2f526c207bac7af9 bytes 7225159
+csr sx-mathoverflow.txt fnv1a64 e65529c41ea4d947 bytes 1331027
 generate DD/DD_A.txt 1000 1000 1 fnv1a64 bd07020330864713 bytes 30640
 apply-generated DD/DD_A.txt 1000 1000 1 fnv1a64 1b4f626fc11797ab bytes 13725188
 generate DD/DD_A.txt 25000 25000 1 fnv1a64 ddddd7006665078f bytes 766896
