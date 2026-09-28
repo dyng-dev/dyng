@@ -23,6 +23,7 @@
 #include <dyng/core/profiler.hpp>
 #include <dyng/cycle_count.hpp>
 #include <dyng/generators/legacy.hpp>
+#include <dyng/update.hpp>
 
 #include <cuda_runtime.h>
 
@@ -388,10 +389,20 @@ TEST_F(CycleCountCuda, DeviceSetApplyEqualsTheHostApply) {
     std::mt19937_64 rng(seed);
     SCOPED_TRACE(seed_trace(seed));
     dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 1, 70);
-    const std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
-    graph_u g = cc_graph<graph_u>(cuda_, spec.vertex_count, edges);
-    graph_u32 g32 = cc_graph<graph_u32>(cuda_, spec.vertex_count, edges);
-    graph_u gs = cc_graph<graph_u>(seq_, spec.vertex_count, edges);
+    std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+    // Every third seed an undirected graph under set semantics (both directions of each change).
+    dyng::graph_properties props = dyng::graph_properties::cycle_enum_compatible();
+    if (seed % 3 == 0) {
+      props.directed = false;
+      const std::size_t m = edges.size();
+      for (std::size_t i = 0; i < m; ++i) {
+        edges.emplace_back(edges[i].second, edges[i].first);
+      }
+    }
+    SCOPED_TRACE(props.directed ? "directed" : "undirected");
+    graph_u g = cc_graph<graph_u>(cuda_, spec.vertex_count, edges, props);
+    graph_u32 g32 = cc_graph<graph_u32>(cuda_, spec.vertex_count, edges, props);
+    graph_u gs = cc_graph<graph_u>(seq_, spec.vertex_count, edges, props);
     (void)dyng::detail::graph_access::device_out(cuda_, g);  // resident: the device path
     (void)dyng::detail::graph_access::device_out(cuda_, g32);
     std::uniform_int_distribution<std::int32_t> vertex(
@@ -463,6 +474,25 @@ TEST_F(CycleCountCuda, DeviceSetApplyEqualsTheHostApply) {
     }
     EXPECT_TRUE(impl.host_current());
   }
+}
+
+TEST_F(CycleCountCuda, SeveralResultsShareOneDeviceCommit) {
+  // Two cycle_count results with different bounds on one resident graph: one Step 0, one upload
+  // of the change lists, one device merge; each result equals its own recount.
+  const std::vector<cc_edge> edges = ring_with_block(24, 7);
+  graph_u g = cc_graph<graph_u>(cuda_, 24, edges);
+  cycle_count::result r4 = cycle_count::compute(cuda_, g, bound(4));
+  cycle_count::result r7 = cycle_count::compute(cuda_, g, bound(7));
+  const batch_u b = cc_batch<unweighted>({{0, 1}, {2, 3}, {4, 5}}, {{1, 0}, {3, 2}, {23, 24}});
+  const auto [s4, s7] = dyng::update(cuda_, g, b.view(), r4, r7);
+  EXPECT_FALSE(dyng::detail::graph_access::impl(g).host_current());  // merged on the device
+  EXPECT_EQ(cc_counts(r4), cc_counts(cycle_count::compute(seq_, g.clone(seq_), bound(4))));
+  EXPECT_EQ(cc_counts(r7), cc_counts(cycle_count::compute(seq_, g.clone(seq_), bound(7))));
+  EXPECT_EQ(s4.deletions, 3);   // the ring edges 0->1, 2->3, 4->5
+  EXPECT_EQ(s4.insertions, 1);  // 1->0 and 3->2 exist (the block): only 23->24 is new
+  EXPECT_EQ(s7.deletions, s4.deletions);
+  EXPECT_EQ(s7.insertions, s4.insertions);
+  EXPECT_THROW((void)dyng::update(cuda_, g, b.view(), r4, r4), dyng::invalid_argument_error);
 }
 
 // ---- the host-commit fallbacks: weight columns, other batch semantics --------------------------

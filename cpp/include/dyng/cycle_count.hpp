@@ -131,6 +131,7 @@ struct options {
   int max_length = -1;
   search_method method = search_method::johnson;  ///< the search (Johnson)
   cycle_mode mode = cycle_mode::simple;           ///< the cycles counted (simple)
+
   /// The CUDA engine: automatic and fused select the fused kernels (the work queue of the static
   /// count, the per-change searches of the update; Tier B, PLAN Section 4.5.4); operators throws
   /// not_supported_error (cycle_count has no operators engine in 0.1). Ignored on the host
