@@ -125,6 +125,23 @@ Before 0.1.0 anything may change.
 - Parity harness: the CycleEnumeration-GPU@0a976ad reference (`references.toml`, OpenMP and CUDA
   build as in its RESULTS.md), its exporter `export_cycle_enum`, the fixture script
   `parity/fixtures/cycle_enum/`, and the dataset digest test (CTest label `parity`).
+- `cycle_count` on the sequential and OpenMP backends (M2a, `<dyng/cycle_count.hpp>`,
+  `docs/algorithms/cycle_count.md`): exact k-bounded directed simple-cycle histograms; `compute()`
+  is CycleEnumeration-GPU's sequential Johnson and OpenMP counter, `update()` its DynTruCy-style
+  `update_static_histogram[_openmp]` (count(-) on G_t, one apply, count(+) on G_{t+1}, edge-id
+  ownership), ported straight; every batch semantics accepted through Step 0 on G_t
+  (`detail::compute_structural_change`). Histograms bit-identical to the original's on the
+  committed fixtures (80 random cases, k = 2..7 and unbounded; fixture graphs and generated
+  batches) and, with `--datasets`, on the TUDataset graphs (CTest label `parity`). The two recorded
+  mutations are built into copies of the library and must fail the randomized suite (CTest
+  `cycle_count.mutation.*`, label `mutation`). The host port of the original's pruned
+  lower_bound search of its CUDA kernels (`dfs.hpp`) is tested for M2b.
+- `io::format_histogram_csv` (the original's `# cycle_size, num_of_cycles` ... `Total, N`),
+  `tools/compat/dyng-compat-cycle-enum` (the original `cycle-enum` CLI, byte-equal standard output
+  on the committed CLI cases), the `cycle_count_update` example and
+  `parity/timed_regions/cycle_count.toml`.
+- `update_participant::reads_prepared_graph()`: `dyng::update` builds the in-edges (or the device
+  copy) in the commit only for results that read them.
 
 ### Changed
 
