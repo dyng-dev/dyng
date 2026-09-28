@@ -78,6 +78,8 @@ def test_perf_ab_regions_of_both_backends() -> None:
         assert set(perf.report_keys(regions)) <= set(perf.REPORT)
     cuda = {r["name"]: r for r in perf.load_regions("cuda")}
     assert cuda["sosp_update"]["port"] == ["sssp.enact_fused"]
+    # MOSP-CUDA's "upload" copies the K trees on the host first; dynG's copy is sssp.import.
+    assert "sssp.import" in cuda["apply"]["port_all_results"]
     assert perf.report_keys(list(cuda.values())) == [
         "apply batch",
         "upload",
@@ -254,6 +256,7 @@ def test_perf_ab_edge_type_summary_reads_the_port_on_both_sides() -> None:
         stages = {
             "sssp.enact_fused": [ms, ms],
             "update.commit": [10.0],
+            "sssp.import": [0.3, 0.3],
             "sssp.upload": [1.0, 1.0],
             "sssp.workspace": [0.5, 0.0, 0.0, 0.0],
             "sssp.changes": [0.1, 0.1],
@@ -266,4 +269,6 @@ def test_perf_ab_edge_type_summary_reads_the_port_on_both_sides() -> None:
     by_name = {e["region"]: e for e in out["regions"]}
     assert by_name["sosp_update obj0"]["ratio"] == pytest.approx(1.05)
     assert "gate" not in by_name["sosp_update obj0"]
-    assert by_name["apply"]["original_ms"] == pytest.approx(12.7)
+    # update.commit + every sssp.import, sssp.upload, sssp.workspace and sssp.changes sample
+    assert by_name["apply"]["original_ms"] == pytest.approx(13.3)
+

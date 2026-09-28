@@ -183,19 +183,26 @@ note = "Orientation only; the gate is per objective."
 # Applying the batch on the host plus the original's "upload": uploadDeviceGraph() (out-edges to
 # the device, reverse CSR and weight columns built there), the K initial trees, the insertion heads
 # and the K change lists copied in, sospWorkspace.reserve(n) and combineWorkspace.reserve(n, K)
-# (cudaMalloc of the scratch arrays), cudaDeviceSynchronize. dynG's update.commit holds graph.apply
-# and graph.upload (the same device graph build); the tree uploads (sssp.upload) and the one
-# workspace reserve (the first sssp.workspace) happen in from_arrays, and the change lists are
-# uploaded per objective (sssp.changes), so they are added to the port's side here.
+# (cudaMalloc of the scratch arrays), cudaDeviceSynchronize. Its "upload" first copies the K
+# initial trees on the host (mospUpdate.cu: `vector<long long> distances(initialDistances...)` and
+# the same for the parents) and uploads the copies. dynG's update.commit holds graph.apply and
+# graph.upload (the same device graph build); the host tree copies (sssp.import), the tree uploads
+# (sssp.upload) and the one workspace reserve (the first sssp.workspace) happen in from_arrays, and
+# the change lists are uploaded per objective (sssp.changes), so they are added to the port's side
+# here (sssp.import since the M1b review, as in the OpenMP map).
 [[reference.mosp_cuda.region]]
 name = "apply"
 per_objective = false
 original = ["apply_batch_host", "upload"]
 original_report = ["apply batch", "upload"]
 port = ["update.commit"]
-port_all_results = ["sssp.upload", "sssp.workspace", "sssp.changes"]
+port_all_results = ["sssp.import", "sssp.upload", "sssp.workspace", "sssp.changes"]
 gate = "end_to_end"
 note = """
+sssp.import also checks the parent ranges and normalizes INF, which the original's host copy does
+not (a small bias against dynG). The records of M1b Step 4 (port 0f0fba9) left sssp.import out of
+this region, so their CUDA apply ratios (0.55-0.74x) are slightly low; the records of the M1b
+review include it.
 Only on the original's side: the combined-graph workspace and result arrays (mosp, 0.2). The largest
 weight and weight sum per objective are computed between "apply_batch_host" and "upload" (outside
 both) on the original's side and in sssp.prepare (end to end only) on dynG's.
