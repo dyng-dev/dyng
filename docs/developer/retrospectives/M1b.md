@@ -203,9 +203,11 @@ side of the harness (`dyng-compat-mosp`, `compare.py`, `perf_ab.py`) (PLAN 4.5.4
   (names, templates on the index types, dyng streams, scratch buffers from the handle's pool,
   exceptions). The int32 instantiation compiles to the original's 59 registers and 616 bytes of
   parameters (`cuobjdump --dump-resource-usage` of `bin/mosp` and of the parity-cuda
-  `libdyng.so`), so the occupancy-derived grid is the same. Two additions outside the search:
-  the deterministic `affected` counter in the unpack pass (about 190 more SASS instructions, all
-  in the unpack pass) and a host-side parent-cycle check on the control block.
+  `libdyng.so`), so the occupancy-derived grid is the same (256 x 256 threads). Two additions
+  outside the search: the deterministic `affected` counter in the unpack pass (224 more SASS
+  instructions, all in the unpack pass; without it the SASS is byte-identical to the original's;
+  the pass writes only changed pairs, so it moves no more bytes than the original's) and a
+  host-side parent-cycle check on the control block.
 - **Engine selection** before anything is changed: `automatic` / `fused` need the recorded
   cooperative-launch flag, else `not_supported_error` naming the host backends; `operators`
   throws (0.2). Tested with the forced flag (`resources_access::force_cooperative_launch`).
@@ -247,6 +249,10 @@ side of the harness (`dyng-compat-mosp`, `compare.py`, `perf_ab.py`) (PLAN 4.5.4
   objective 0.98-1.00x of MOSP-CUDA, apply 0.55-0.60x, end to end 0.82-0.84x; outputs
   byte-identical, `invalidated` equal in every run. The gate record (four graphs, >= 20 runs) is
   the next step's.
+- road_usa (5 runs): 50K safe 1.00-1.01x per objective, apply 0.71x, end to end 0.73x; local 10K
+  1.05-1.09x per objective. That gap is the GPU boost clock (1.69 vs 1.90 GHz during the kernels,
+  nsys GPU metrics; equal kernel times under Nsight Compute's locked clocks), after the unpack's
+  `affected` count was made free (`parity/results/M1b.md` 6.4).
 
 ### Deviations from the plan (pragmatic choices, same intent)
 
@@ -271,14 +277,26 @@ side of the harness (`dyng-compat-mosp`, `compare.py`, `perf_ab.py`) (PLAN 4.5.4
    file was equal. New fields go at the end.
 3. **Compile shared suites twice instead of parameterizing across labels.** One source per suite,
    a `DYNG_TEST_CUDA` build of it in the `gpu` executable, keeps the `cpu` label free of GPU work
-   and runs every hand case on cuda.
+   and runs every hand case on cuda. Give the second build's cases a CTest prefix: CTest merged
+   the same names from two executables and mixed their labels.
+4. **Measure the clock before blaming the code.** With byte-identical SASS the port was 7 % slower
+   on one workload; Nsight Compute (locked clocks) and nsys GPU metrics showed a boost-clock
+   difference caused by what ran on the GPU before the timed region. Host-timed GPU regions of a
+   few tens of ms need the clock state recorded next to them.
+5. **An added counter can be free:** comparing before writing (write only changed pairs) moves no
+   more bytes than the original's unconditional write, where "read, then write everything" cost
+   2 %.
 
 ### Open items
 
 - The CUDA performance gates (four graphs, three batches, >= 20 runs, `parity/results/M1b.md`),
   the `edge_t` benchmark with ADR 0009, and the `cuda-build.yml` check on GitHub are the next
-  steps. If the gate needs device-side times of the original for regions under 10 ms, nsys kernel
-  sums of `sospPersistentKernel` are the only source (not wired into `perf_ab.py`).
+  steps. The GPU boost-clock effect (`parity/results/M1b.md` 6.4) makes host-timed per-objective
+  regions depend on the GPU lead-in; the gate protocol must control for it (locked clocks need
+  root; otherwise record the GPC clock during the kernels, e.g. nsys `--gpu-metrics-devices`, and
+  compare at equal clocks or with an equal lead-in), and must not move work to hide it. If the
+  gate needs device-side times of the original, nsys kernel sums of `sospPersistentKernel` are
+  the only source (not wired into `perf_ab.py`).
 - A CUDA graph keeps a host copy of its CSR (memory) and uploads each new state; the device
   apply (PLAN 6.4.1) replaces both later.
 - `compute()` on cuda is synchronous (ADR 0017 item 7).

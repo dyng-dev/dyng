@@ -23,9 +23,10 @@ fixes them.
    mechanical changes only (names, templates on the index types, `sssp_infinity` for
    `DISTANCE_INF`); `cuda.cu` holds the host side of `sospUpdateGpu()` / `sospFromScratchGpu()`
    (packing choice, control block, one cooperative launch, one read-back and synchronization).
-   Two additions, both outside the search: the deterministic `affected` counter (compared in the
-   unpack pass of an update, summed per warp) and a host-side parent-cycle check on the control
-   block the kernel already writes (pointer jumping still active in its last round is impossible
+   Two additions, both outside the search: the deterministic `affected` counter (the unpack pass
+   of an update compares each new pair with the old one and writes only changed pairs, so it moves
+   no more bytes than the original's; summed per warp) and a host-side parent-cycle check on the
+   control block the kernel already writes (pointer jumping still active in its last round is impossible
    in a forest). The int32 instantiation compiles to the original's 59 registers; the grid is the
    co-resident block count of each kernel instantiation (occupancy API), cached in the workspace.
 2. **Engine selection before any change.** `options::cuda_engine` is read in `compute()` and in

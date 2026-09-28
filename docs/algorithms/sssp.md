@@ -148,7 +148,9 @@ to its final synchronization; dynG's `sssp.enact_fused` has the same scope and a
 device time with CUDA events (`profiler_options::cuda_events`). The kernel is the original's
 code: its int32 instantiation uses 59 registers and 616 bytes of parameters, like the original
 (`cuobjdump --dump-resource-usage`), so the co-resident grid that the occupancy API gives the
-cooperative launch is the same. A first A/B on roadNet-PA (parity-cuda preset, GPU 0, 5 alternating runs; the full gate
+cooperative launch is the same. The only addition to the kernel is the `affected` count in the
+unpack pass of an update, which compares each new pair with the old one and writes only the pairs
+that changed (no more bytes than the original's unconditional write). A first A/B on roadNet-PA (parity-cuda preset, GPU 0, 5 alternating runs; the full gate
 record follows in `parity/results/M1b.md`) gave 0.98-1.00x per objective, 0.55-0.60x for the apply
 region (dynG's host apply is parallel) and 0.82-0.84x end to end, with byte-identical outputs.
 

@@ -245,10 +245,11 @@ e220ee2 produces the same files on every case (the one-off cross-check,
 | dynG `sssp_persistent_kernel<int64, int64, int32>` | 64 | 0 | 0 | 624 |
 
 Same registers for the original's types, so the same occupancy and the same cooperative grid
-(the blocks per SM come from the occupancy API on both sides; 256 threads per block). The SASS of
-the int32 instantiation has about 190 more instructions than the original's (2,560 vs 2,368),
-from the `affected` count in the unpack pass (ADR 0017 item 1); the search loops are unchanged.
-The int64 instantiations stay within 64 registers (4 blocks of 256 threads per SM on sm_86).
+(256 blocks of 256 threads on the RTX A5000 on both sides, nsys launch records). The SASS of the
+int32 instantiation has 224 more instructions than the original's (2,592 vs 2,368), all in the
+unpack pass (the `affected` count, ADR 0017 item 1); a build without that count produces SASS
+byte-identical to the original's (opcodes, registers and constant offsets). The int64
+instantiations stay within 64 registers (4 blocks of 256 threads per SM on sm_86).
 
 ### 6.3 A first A/B (not the gate record)
 
@@ -258,3 +259,27 @@ scope on both sides, dynG's CUDA-event time within 0.01 ms of its host time), ap
 end to end 0.82-0.84x, for the 50K safe, 50K unsafe and 10K local batches; outputs byte-identical
 and `invalidated` equal in every run. The gate record (four graphs, >= 20 runs because the
 per-objective regions are under 10 ms on roadNet-PA) follows in the next step.
+
+### 6.4 Finding: GPU clocks, not code, separate the per-objective times on road_usa local 10K
+
+A 5-run A/B on road_usa (`--batches safe50k,local10k`) read the 50K safe batch at 1.00-1.01x per
+objective (about 100 ms) but the local 10K batch at 1.05-1.09x (about 21 ms). Investigation:
+
+- The kernels are the same code (6.2), launched with the same grid, on identical inputs (the
+  `invalidated`, `iterations` and `epochs` counters match).
+- The first version of the `affected` count read the old pair next to the unconditional write
+  (+12 bytes per vertex): about 0.4 ms of the gap. The unpack now writes only the pairs that
+  change (commit `522cf0d`), which costs nothing measurable (22.62 vs 22.65 ms without the count).
+- Under Nsight Compute, which locks the clocks, the kernels take the same time: 29.03 / 28.15 /
+  28.44 ms (dynG) vs 29.17 / 28.32 / 28.59 ms (MOSP-CUDA), with equal instruction counts and DRAM
+  traffic within 1 %.
+- nsys GPU metrics during the three kernels: GPC clock 1.69 / 1.69 / 1.77 GHz for dynG, 1.90 /
+  1.90 / 1.89 GHz for MOSP-CUDA (SYS clock 1.42 vs 1.60 GHz). The boost clock is still ramping
+  when dynG's first kernels start: dynG's GPU work right before objective 0 is the graph upload
+  (about 150 ms), MOSP-CUDA's is its whole "upload" stage (about 490 ms: graph, the K trees,
+  workspace), after seconds of host-only file reading on both sides.
+
+So the remaining difference is a boost-clock state (GPU idle before the timed region, dynG's
+shorter GPU lead-in), not the port. The gate step has to choose a protocol that controls for it
+(locked clocks if available, or the same GPU lead-in on both sides, recorded with the clock
+during the kernels); it must not be hidden by moving work.
