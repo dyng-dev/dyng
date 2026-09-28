@@ -9,7 +9,8 @@
  * Mechanical changes from ListGather: templated on the element type, and the offsets are sized
  * from the thread count the caller passes to `num_threads(...)` (resources::num_threads()),
  * instead of omp_get_max_threads(), because dynG never changes the global OpenMP setting and a
- * region may request more threads than that setting.
+ * region may request more threads than that setting; gather() accepts lists with any allocator
+ * (the engines pass cache-line padded thread_lists kept in their workspace, util/thread_list.hpp).
  */
 #pragma once
 
@@ -48,9 +49,11 @@ class list_gather {
 
   /**
    * @brief Append this thread's list (call once per thread, inside the parallel region).
+   * @tparam alloc_t Allocator of the local list (std::allocator or cache_line_allocator).
    * @param[in] local The thread's list.
    */
-  void gather(const std::vector<value_t>& local) {
+  template <typename alloc_t>
+  void gather(const std::vector<value_t, alloc_t>& local) {
     const int thread = omp_get_thread_num();
     offsets_[static_cast<std::size_t>(thread) + 1] = local.size();
 #pragma omp barrier

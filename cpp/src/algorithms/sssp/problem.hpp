@@ -32,6 +32,7 @@
 
 #include "framework/scratch_buffer.hpp"
 #include "framework/workspace.hpp"
+#include "util/thread_list.hpp"
 
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/buffer.hpp>
@@ -120,6 +121,9 @@ struct sssp_workspace final : pooled_workspace {
   std::vector<vertex_t> candidates;     ///< invalidated vertices and insertion heads
   std::vector<vertex_t> frontier;       ///< vertices improved by the pull pass
   std::vector<vertex_t> saved_parents;  ///< old parents (distance-only fallback only)
+  /// Two lists per thread for the parallel regions (slot 2t and 2t + 1 of thread t), each on its
+  /// own cache lines and kept between rounds and runs (util/thread_list.hpp).
+  std::vector<padded_thread_list<vertex_t>> thread_lists;
 
   // --- sequential engine (sequentialSOSPUpdate) ---
   std::vector<vertex_t> child_start;       ///< children CSR offsets of the tree (n + 1)

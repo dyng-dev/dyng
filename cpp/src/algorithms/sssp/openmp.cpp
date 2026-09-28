@@ -31,8 +31,11 @@
  * thread count of `resources` on every parallel region (`num_threads`) instead of the global
  * OpenMP setting, the workspace leased from the pool of `resources` and reserved once (shared by
  * the objectives, as MOSP shares its SospWorkspace; ADR 0015), the phases split into the hooks
- * identify_affected / seed / loop / finalize, and one added counter in the unpack pass
- * (`affected`: vertices whose distance or parent changed).
+ * identify_affected / seed / loop / finalize, one added counter in the unpack pass
+ * (`affected`: vertices whose distance or parent changed), and the per-thread lists of the
+ * parallel regions kept in the workspace, each on its own cache lines (util/thread_list.hpp),
+ * instead of vectors created in every region: the lists and their order are the same, but no
+ * two threads write to one cache line and a steady-state update allocates nothing for them.
  */
 #include "algorithms/sssp/problem.hpp"
 #include "graph/instantiate.hpp"
@@ -43,10 +46,12 @@
 #if DYNG_HAS_OPENMP
 
 #include "util/list_gather.hpp"
+#include "util/thread_list.hpp"
 
 #include <omp.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -165,9 +170,23 @@ class openmp_problem {
     const std::int64_t n = run_.graph.num_vertices;
     DYNG_EXPECTS(run_.delta > 0, "sssp: the near-far width delta must be > 0, got ", run_.delta);
     ws_.reserve(n);
+    // Two per-thread lists for every thread a region may use (kept in the workspace).
+    if (ws_.thread_lists.size() < 2 * static_cast<std::size_t>(threads_)) {
+      ws_.thread_lists.resize(2 * static_cast<std::size_t>(threads_));
+    }
     choose_packing(n, run_.max_weight, packing_, bound_);
     run_.counters = sssp_counters{};
     run_.counters.packed_parents = packing_.has_parents();
+  }
+
+  /// This thread's list `slot` (0 or 1) of the workspace, emptied (inside a parallel region).
+  thread_list<vertex_t>& local_list(int slot) {
+    thread_list<vertex_t>& list =
+        ws_.thread_lists[2 * static_cast<std::size_t>(omp_get_thread_num()) +
+                         static_cast<std::size_t>(slot)]
+            .items;
+    list.clear();
+    return list;
   }
 
   // ---- compute(): sospFromScratchCpu -----------------------------------------------------------
@@ -263,7 +282,7 @@ class openmp_problem {
             __atomic_store_n(&state[u], result, __ATOMIC_RELAXED);
           }
         }
-        std::vector<vertex_t> local_invalid;
+        thread_list<vertex_t>& local_invalid = local_list(0);
 #pragma omp for schedule(static)
         for (std::int64_t v = 0; v < n; ++v) {
           if (state[v] == 2) {
@@ -283,7 +302,7 @@ class openmp_problem {
       list_gather<vertex_t> head_gather(ws_.candidates, threads_);
 #pragma omp parallel num_threads(threads_)
       {
-        std::vector<vertex_t> local_heads;
+        thread_list<vertex_t>& local_heads = local_list(0);
 #pragma omp for schedule(static)
         for (std::int64_t i = 0; i < num_heads; ++i) {
           const vertex_t v = insert_heads[i];
@@ -309,7 +328,7 @@ class openmp_problem {
     list_gather<vertex_t> frontier_gather(ws_.frontier, threads_);
 #pragma omp parallel num_threads(threads_)
     {
-      std::vector<vertex_t> local_frontier;
+      thread_list<vertex_t>& local_frontier = local_list(0);
 #pragma omp for schedule(dynamic, 64)
       for (std::int64_t i = 0; i < count; ++i) {
         const vertex_t v = candidates[i];
@@ -362,8 +381,8 @@ class openmp_problem {
       list_gather<vertex_t> far_gather(ws_.far, threads_);
 #pragma omp parallel num_threads(threads_)
       {
-        std::vector<vertex_t> local_near;
-        std::vector<vertex_t> local_far;
+        thread_list<vertex_t>& local_near = local_list(0);
+        thread_list<vertex_t>& local_far = local_list(1);
 #pragma omp for schedule(static)
         for (std::int64_t i = 0; i < count; ++i) {
           const vertex_t v = frontier[i];
@@ -394,8 +413,8 @@ class openmp_problem {
         list_gather<vertex_t> far_gather(ws_.far, threads_);
 #pragma omp parallel num_threads(threads_)
         {
-          std::vector<vertex_t> local_near;
-          std::vector<vertex_t> local_far;
+          thread_list<vertex_t>& local_near = local_list(0);
+          thread_list<vertex_t>& local_far = local_list(1);
 #pragma omp for schedule(dynamic, 64)
           for (std::int64_t i = 0; i < count; ++i) {
             const vertex_t u = near[i];
@@ -447,8 +466,8 @@ class openmp_problem {
       list_gather<vertex_t> keep_gather(ws_.far2, threads_);
 #pragma omp parallel num_threads(threads_)
       {
-        std::vector<vertex_t> local_near;
-        std::vector<vertex_t> local_keep;
+        thread_list<vertex_t>& local_near = local_list(0);
+        thread_list<vertex_t>& local_keep = local_list(1);
 #pragma omp for schedule(static)
         for (std::int64_t i = 0; i < count; ++i) {
           const vertex_t v = far[i];
