@@ -14,6 +14,28 @@ target_compile_features(dyng-compat-mosp PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-mosp)
 dyng_enable_sanitizers(dyng-compat-mosp)
 
+add_executable(dyng-compat-cycle-enum cycle_enum/cycle_enum_compat.cpp)
+target_link_libraries(dyng-compat-cycle-enum PRIVATE dyng::dyng)
+target_compile_features(dyng-compat-cycle-enum PRIVATE cxx_std_17)
+dyng_set_warnings(dyng-compat-cycle-enum)
+dyng_enable_sanitizers(dyng-compat-cycle-enum)
+
+if(DYNG_BUILD_TESTS)
+  # The cycle-enum clone reproduces the original CLI's standard output and exit status on the
+  # committed cases (cpp/tests/data/cycle_enum/cli, from CycleEnumeration-GPU@0a976ad).
+  add_test(
+    NAME compat_cycle_enum.cli
+    COMMAND
+      ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-cycle-enum>
+      -DDATA=${PROJECT_SOURCE_DIR}/cpp/tests/data/cycle_enum -DOPENMP=${DYNG_ENABLE_OPENMP} -P
+      ${CMAKE_CURRENT_SOURCE_DIR}/cycle_enum/run_and_compare.cmake
+  )
+  set_tests_properties(
+    compat_cycle_enum.cli PROPERTIES LABELS "cpu;cycle_count;compat" ENVIRONMENT
+                                     "${DYNG_TEST_ENVIRONMENT}"
+  )
+endif()
+
 if(DYNG_BUILD_TESTS)
   # The driver reproduces the original's output files byte for byte on committed fixtures.
   set(_data "${PROJECT_SOURCE_DIR}/cpp/tests/data")

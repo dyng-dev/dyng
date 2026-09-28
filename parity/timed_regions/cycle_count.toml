@@ -1,0 +1,78 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of cycle_count (PLAN Sections 6.3 step 3 and 8.6): each timer of the original ->
+# the dynG profiler stages (or dyng-compat-cycle-enum report fields) that must be summed to match
+# it. Written with the CPU port (M2a, before the performance runs); the CUDA regions (the original's
+# kernel_ms / memcpy_ms and the update on the device) are added with M2b.
+#
+# What the original times (CycleEnumeration-GPU@0a976ad src/cli/cycle_enum_main.cpp):
+#   - `--task count` on the CPU backends prints no timer. docs/RESULTS.md reports the WALL TIME OF
+#     THE PROCESS ("end to end": reading the file with read_graph_view(), building the CSR and CSC,
+#     the count, printing the histogram).
+#   - `--task update` prints `update_seconds=` (steady_clock around engine::update_histogram(),
+#     i.e. update_static_histogram[_openmp]: prepare_batch, the delete phase on the initial graph,
+#     apply_batch, the insert phase on the post-batch graph, apply_histogram_delta). The prior
+#     histogram, build_directed_graph() and generate_batch() run before it and are not timed.
+#
+# dynG stage names: cycle_count.compute > { cycle_count.reset, cycle_count.count,
+# cycle_count.finalize }; cycle_count.update > { cycle_count.normalize, cycle_count.count_minus,
+# cycle_count.commit > { graph.apply }, cycle_count.identify_affected, cycle_count.count_plus,
+# cycle_count.finalize }. With dyng::update(res, g, batch, results...) the commit is
+# "update.commit" and the cycle_count stages appear once per cycle_count result. The update does not
+# build the in-edges (no graph.transpose): cycle_count reads the out-edges only.
+#
+# dyng-compat-cycle-enum prints on standard error the original's `update_seconds=` and
+#   RESULT task=<count|update> read_ms build_ms prior_ms generate_ms compute_ms update_ms
+#          end_to_end_ms threads
+# and, with --timing <csv>, the profiler rows (kind,name,value).
+#
+# Protocol of the gate (PLAN 8.6): the parity preset, medians of >= 5 runs alternating original and
+# port (A/B/A/B), >= 20 runs for regions under 10 ms, 56 OpenMP threads as in the original's
+# RESULTS.md (--openmp-threads 56), exclusive perf lock, the UNPATCHED copy's build/cycle-enum.
+#
+# Field meanings: as in sssp.toml (original, original_report, port, gate); `port_report` names
+# fields of dyng-compat-cycle-enum's RESULT line instead of profiler stages.
+
+[reference.cycle_enum_openmp]
+repo = "CycleEnumeration-GPU"
+commit = "0a976ad"
+driver = "build/cycle-enum of the UNPATCHED copy (--backend openmp --openmp-threads 56)"
+port_driver = "dyng-compat-cycle-enum (tools/compat/cycle_enum), parity preset, --timing <csv>"
+
+# The static count, end to end (the RESULTS.md table "Static simple cycles, OpenMP (56 threads),
+# end to end"): the process wall time on both sides, measured by the harness around the process.
+[[reference.cycle_enum_openmp.region]]
+name = "static_end_to_end"
+per_objective = false
+original = ["process wall time (cycle-enum --task count)"]
+original_report = []
+port = []
+port_report = ["process wall time (dyng-compat-cycle-enum --task count)"]
+gate = "compute"    # the paper-timed region: <= 1.05 x at >= 10 ms, <= 1.10 x below
+note = """
+Both sides read the same file with the same parallel parser algorithm (io::read_edge_list is the
+port of read_graph_view's parser), build the sorted CSR (the original also builds a CSC, which dynG
+does not need), count, and print. The count alone is reported as well: the port's compute_ms
+(cycle_count.compute = reset + count + finalize) is the original's count_simple_cycles_johnson();
+the original has no timer for it, so only the end-to-end time is gated.
+"""
+
+# The incremental update (the RESULTS.md table "Incremental update", OpenMP-56 column).
+[[reference.cycle_enum_openmp.region]]
+name = "update"
+per_objective = false
+original = ["update_seconds (engine::update_histogram)"]
+original_report = ["update_seconds"]
+port = ["cycle_count.update"]
+port_report = ["update_ms"]
+gate = "compute"
+note = """
+The same scope on both sides: Step 0 (prepare_batch / cycle_count.normalize), the delete phase on
+G_t (cycle_count.count_minus), applying the batch (apply_batch / cycle_count.commit, which also
+normalizes the batch again, as apply_batch sorts and deduplicates it again), the insert phase on
+G_{t+1} (cycle_count.identify_affected + cycle_count.count_plus) and the histogram delta
+(cycle_count.finalize). Not in the region on either side: the prior histogram, the graph build and
+the batch generation. The original copies the whole graph in apply_batch (a new DirectedGraph);
+dynG's commit also builds a new CSR (in parallel blocks), so the scopes match.
+"""
