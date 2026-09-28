@@ -109,3 +109,16 @@ The device side is in place (ADR 0016 item 8): a CUDA handle's pool leases works
 arrays (`detail::scratch_buffer<T>`) live in the handle's device memory resource, ordered on its
 stream; the tests `CudaWorkspace.*` check reuse, no allocation in steady state, growth, and the
 release through `release_workspaces()`, `set_memory_resource()` and the last copy of the handle.
+
+## Update (M1b Step 5, finish): the per-thread lists on OpenMP
+
+Since M1b Step 4 the OpenMP engine keeps its per-thread lists in the workspace
+(`util/thread_list.hpp`) instead of creating them in every parallel region, as MOSP does. A list
+keeps its capacity and grows only when its thread takes a larger share of a round than it ever
+took before; the dynamic schedule decides the shares, so a steady-state OpenMP update can still
+allocate for these lists, rarely and geometrically (like a vector), while everything else in the
+workspace stays exactly constant. Bounding the lists up front would need a round's whole size
+per thread (on road_usa about 28 x 2 x 24M x 4 bytes), so invariant I9 holds on OpenMP with this
+exception, recorded here. The steady-state test of `sssp_workspace_test.cpp` checks the rest of
+the workspace exactly (`sssp_workspace::thread_list_bytes()` separates the lists); it had
+asserted the total and failed about once in 180 runs.
