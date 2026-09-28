@@ -126,6 +126,7 @@ dyng_add_module(
     src/core/memory_cuda.cpp
     src/core/profiler.cpp
     src/core/resources.cpp
+    src/core/staging.cpp
     src/core/version.cpp
     "${PROJECT_BINARY_DIR}/cpp/generated/references_bib.cpp"
 )

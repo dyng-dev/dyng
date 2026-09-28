@@ -25,9 +25,15 @@ struct resources_access;
 }  // namespace detail
 
 /**
- * @brief What to do when an input array lives in a memory space that does not match the backend.
+ * @brief What to do when an input array lives in another memory space than the one the library
+ *        reads it in (PLAN Section 4.7.1).
  *
- * The library then copies the array once. The default `allow` logs the copy at debug level.
+ * The library then copies the array once. In this release batches, graph builds and imported
+ * trees are read on the host on every backend (the batch is applied on the host, as the original
+ * codes do), so the implicit copies are the ones out of device memory: a batch, an edge list or
+ * CSR, or a tree for sssp::result::from_arrays() in device memory. The default `allow` logs the
+ * copy at debug level; while a profiler is attached, `allow` acts as `warn`, so an unexpected
+ * copy inside a timed run is reported.
  * @ingroup core
  */
 enum class copy_policy : std::uint8_t {
@@ -201,8 +207,10 @@ class resources {
   [[nodiscard]] copy_policy get_copy_policy() const noexcept;
 
   /**
-   * @brief Set the policy for implicit host/device copies of inputs (affects every copy).
-   * @param[in] policy The new policy.
+   * @brief Set the policy for implicit copies of inputs between memory spaces (affects every
+   *        copy of the handle; see copy_policy for where such copies happen).
+   * @param[in] policy The new policy (copy_policy::error makes every implicit copy an
+   *                   invalid_argument_error, raised before anything is changed).
    */
   void set_copy_policy(copy_policy policy) noexcept;
 

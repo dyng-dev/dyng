@@ -10,6 +10,7 @@
 #include "graph/graph_impl.hpp"
 
 #include <dyng/core/error.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>
 #include <dyng/graph/edge_batch.hpp>
@@ -38,6 +39,32 @@ edge_t checked_edge_count(std::int64_t count) {
                          "edge_t (int64)");
   }
   return static_cast<edge_t>(count);
+}
+
+/**
+ * @brief Throws unless every array of `batch` is readable on the host. Checked before any host
+ *        read of the batch (the public entries stage device arrays first, core/staging.hpp; this
+ *        guards the internal paths).
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Weight type.
+ * @param[in] batch The batch.
+ * @param[in] what  The calling function, for the message.
+ * @throws invalid_argument_error naming the first array that is not host-accessible.
+ */
+template <typename vertex_t, typename weight_t>
+void expect_host_batch(const edge_batch_view<vertex_t, weight_t>& batch, const char* what) {
+  const auto check = [what](const auto& view, const char* name) {
+    DYNG_EXPECTS(view.empty() || is_host_accessible(view.space()), what, ": edge_batch_view::",
+                 name, " must be in host-accessible memory here");
+  };
+  check(batch.insert_src, "insert_src");
+  check(batch.insert_dst, "insert_dst");
+  check(batch.insert_weights, "insert_weights");
+  check(batch.delete_src, "delete_src");
+  check(batch.delete_dst, "delete_dst");
+  check(batch.insert_vertices, "insert_vertices");
+  check(batch.insert_vertex_labels, "insert_vertex_labels");
+  check(batch.delete_vertices, "delete_vertices");
 }
 
 /**

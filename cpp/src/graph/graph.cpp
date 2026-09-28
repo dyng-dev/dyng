@@ -5,6 +5,7 @@
  * @brief graph<V,E,W> member functions and their explicit instantiations.
  */
 #include "core/resources_access.hpp"
+#include "core/staging.hpp"
 #include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
@@ -98,7 +99,16 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_edges(
   impl->props = props;
   impl->build_threads = host_threads(res);
   set_home(*impl, res);
-  detail::build_from_edges_host(edges, props, impl->out);
+  // Built on the host on every backend: arrays in device memory are copied once (copy policy).
+  const detail::host_input<vertex_t> src(res, edges.src, "graph::from_edges: edge_list_view::src");
+  const detail::host_input<vertex_t> dst(res, edges.dst, "graph::from_edges: edge_list_view::dst");
+  const detail::host_input<weight_t> weights(res, edges.weights,
+                                             "graph::from_edges: edge_list_view::weights");
+  edge_list_view<vertex_t, weight_t> host_edges = edges;
+  host_edges.src = src.view();
+  host_edges.dst = dst.view();
+  host_edges.weights = weights.view();
+  detail::build_from_edges_host(host_edges, props, impl->out);
   impl->props.num_weights = impl->out.num_weights;
   return graph(std::move(impl));
 }
@@ -115,7 +125,17 @@ graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::from_csr(
   impl->props = props;
   impl->build_threads = host_threads(res);
   set_home(*impl, res);
-  detail::build_from_csr_host(csr, props, impl->out, impl->build_threads);
+  // Built on the host on every backend: arrays in device memory are copied once (copy policy).
+  const detail::host_input<edge_t> row_ptr(res, csr.row_ptr, "graph::from_csr: csr_view::row_ptr");
+  const detail::host_input<vertex_t> col_ind(res, csr.col_ind,
+                                             "graph::from_csr: csr_view::col_ind");
+  const detail::host_input<weight_t> weights(res, csr.weights,
+                                             "graph::from_csr: csr_view::weights");
+  csr_view<vertex_t, edge_t, weight_t> host_csr = csr;
+  host_csr.row_ptr = row_ptr.view();
+  host_csr.col_ind = col_ind.view();
+  host_csr.weights = weights.view();
+  detail::build_from_csr_host(host_csr, props, impl->out, impl->build_threads);
   impl->props.num_weights = impl->out.num_weights;
   return graph(std::move(impl));
 }
@@ -226,7 +246,9 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::view (the in-edges of ", num_edges(), 
 template <typename vertex_t, typename edge_t, typename weight_t>
 apply_summary graph<vertex_t, edge_t, weight_t>::apply(
     const resources& res, const edge_batch_view<vertex_t, weight_t>& batch) {
-  return detail::graph_access::apply(res, *this, batch,
+  // Applied on the host on every backend in this release: device arrays are copied once.
+  const detail::host_batch<vertex_t, weight_t> staged(res, batch, "graph::apply");
+  return detail::graph_access::apply(res, *this, staged.view(),
                                      static_cast<detail::apply_delta<vertex_t>*>(nullptr));
 }
 

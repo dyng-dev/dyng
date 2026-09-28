@@ -111,11 +111,7 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
                  batch.insert_weights.size(), " insertion weights, expected ", num_inserts, " x ",
                  num_objectives);
   }
-  expect_host(batch.insert_src, "edge_batch_view::insert_src");
-  expect_host(batch.insert_dst, "edge_batch_view::insert_dst");
-  expect_host(batch.insert_weights, "edge_batch_view::insert_weights");
-  expect_host(batch.delete_src, "edge_batch_view::delete_src");
-  expect_host(batch.delete_dst, "edge_batch_view::delete_dst");
+  expect_host_batch(batch, "graph::apply");
 
   apply_summary summary;
 

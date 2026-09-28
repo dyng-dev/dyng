@@ -154,14 +154,17 @@ struct stats_of {
  * @tparam results_t    The result types (e.g. sssp::result<V>).
  * @param[in]     res     Execution resources.
  * @param[in,out] g       The container; its version increases by one.
- * @param[in]     batch   The batch.
+ * @param[in]     batch   The batch (any memory space; read on the host in this release, so arrays
+ *                        in device memory are copied once under res.get_copy_policy()).
  * @param[in,out] results The results to update.
  * @return One stats object per result, in order.
  * @throws stale_result_error     if a result does not match `g` (its version, or the graph state
  *         it was computed on).
- * @throws invalid_argument_error if a result is passed twice or the batch is invalid.
+ * @throws invalid_argument_error if a result is passed twice, the batch is invalid, or a batch
+ *         array must be copied to the host and the copy policy is copy_policy::error.
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
- *         result (a device backend before M1b, vertex operations before 0.3).
+ *         result (vertex operations before 0.3), or a batch array is in device memory and CUDA
+ *         is not built.
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup core
@@ -199,15 +202,18 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  * @tparam result_t     The result type (e.g. sssp::result<V>).
  * @param[in]     res     Execution resources.
  * @param[in,out] g       The container; its version increases by one.
- * @param[in]     batch   The batch.
+ * @param[in]     batch   The batch (any memory space; read on the host in this release, so arrays
+ *                        in device memory are copied once under res.get_copy_policy()).
  * @param[in,out] results Pointers to the results to update (host memory, none null).
  * @return One stats object per result, in order.
  * @throws stale_result_error     if a result does not match `g` (its version, or the graph state
  *         it was computed on).
- * @throws invalid_argument_error if a pointer is null or a result is listed twice, or the batch
- *         is invalid.
+ * @throws invalid_argument_error if a pointer is null or a result is listed twice, the batch is
+ *         invalid, or a batch array must be copied to the host and the copy policy is
+ *         copy_policy::error.
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
- *         result (a device backend before M1b, vertex operations before 0.3).
+ *         result (vertex operations before 0.3), or a batch array is in device memory and CUDA
+ *         is not built.
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @sync
  * @ingroup core

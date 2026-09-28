@@ -88,11 +88,14 @@ class graph {
    * (u,v) is stored in both directions. The number of weight columns is taken from `edges`.
    *
    * @param[in] res   Execution resources (the graph belongs to its backend).
-   * @param[in] edges The edges (host memory); ids must lie in [0, edges.num_vertices).
+   * @param[in] edges The edges (any memory space: built on the host, so arrays in device memory
+   *                  are copied once under res.get_copy_policy()); ids must lie in
+   *                  [0, edges.num_vertices).
    * @param[in] props The properties of the new graph.
    * @return The graph at version 0.
-   * @throws invalid_argument_error if an id is out of range, the arrays disagree in size, or a
-   *         self-loop is present under self_loop::error.
+   * @throws invalid_argument_error if an id is out of range, the arrays disagree in size, a
+   *         self-loop is present under self_loop::error, or an array must be copied and the copy
+   *         policy is copy_policy::error.
    * @throws capacity_error         if the number of stored edges does not fit edge_t (use the
    *         int64 edge_t instantiation).
    * @throws not_supported_error    for a layout other than compact.
@@ -114,10 +117,12 @@ class graph {
    * first use, not here (the same holds for from_edges() and after apply()).
    *
    * @param[in] res   Execution resources (the graph belongs to its backend).
-   * @param[in] csr   The out-edge CSR (host memory, objective-major weights).
+   * @param[in] csr   The out-edge CSR (objective-major weights; any memory space: arrays in device
+   *                  memory are copied to the host once under res.get_copy_policy()).
    * @param[in] props The properties of the new graph.
    * @return The graph at version 0.
-   * @throws invalid_argument_error if the CSR is malformed.
+   * @throws invalid_argument_error if the CSR is malformed, or an array must be copied and the
+   *         copy policy is copy_policy::error.
    * @throws not_supported_error    for a layout other than compact.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
@@ -265,10 +270,12 @@ class graph {
    * use the algorithms' update() to apply a batch and keep a result current.
    *
    * @param[in] res   Execution resources (host threads; a CUDA graph drops its device copy).
-   * @param[in] batch The batch (host memory).
+   * @param[in] batch The batch (any memory space: it is applied on the host in this release, so
+   *                  arrays in device memory are copied once under res.get_copy_policy()).
    * @return What the batch did.
    * @throws invalid_argument_error if an id is negative or out of range (without vertex growth),
-   *         the weights do not match num_weights(), or a semantics rule says error.
+   *         the weights do not match num_weights(), a semantics rule says error, or an array must
+   *         be copied and the copy policy is copy_policy::error.
    * @throws capacity_error         if the edge count after the batch does not fit edge_t.
    * @throws not_supported_error    for vertex insertions or deletions (planned for 0.3).
    * @throws out_of_memory_error    if host memory cannot be allocated.

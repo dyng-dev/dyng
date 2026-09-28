@@ -234,22 +234,27 @@ class result {
    * the source); on the OpenMP backend the checks run in parallel and report the same first
    * problem as the sequential ones. The caller guarantees that the tree is a shortest-path tree
    * of `g`. Also sizes the pooled workspace of `res` for the graph (once for all results built
-   * through `res`; ADR 0015). On the cuda backend the tree is imported and checked in host memory
-   * and then uploaded (profiler stage sssp.upload); the arrays may be in host or device memory.
+   * through `res`; ADR 0015). The tree is imported and checked in host memory on every backend
+   * (on cuda it is then uploaded, profiler stage sssp.upload); the arrays may be in any memory
+   * space, and arrays in device memory are copied to the host once under res.get_copy_policy()
+   * (host arrays for a cuda result are this function's own import, not an implicit copy).
    *
    * @tparam edge_t   Edge offset type of the graph.
    * @tparam weight_t Weight type of the graph.
    * @param[in] res          Execution resources (the graph must belong to their backend).
    * @param[in] g            The graph the tree belongs to (with in-edges stored).
    * @param[in] source       The source vertex.
-   * @param[in] distances    One distance per vertex (host memory; any memory for cuda).
-   * @param[in] parents      One parent per vertex, -1 for none (host memory; any memory for cuda).
+   * @param[in] distances    One distance per vertex (any memory space).
+   * @param[in] parents      One parent per vertex, -1 for none (any memory space).
    * @param[in] canonicalize Apply the lowest-id tie rule to the parents (default true).
    * @param[in] opt          Options (objective = the weight column the tree belongs to).
    * @return The result, matching `g.version()`.
-   * @throws invalid_argument_error if a check fails, the options are invalid, or `g` belongs to
-   *         another backend than `res`.
+   * @throws invalid_argument_error if a check fails, the options are invalid, `g` belongs to
+   *         another backend than `res`, or an array in device memory must be copied and the copy
+   *         policy is copy_policy::error.
+   * @throws not_supported_error    if an array is in device memory and CUDA is not built.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync
    */
   template <typename edge_t, typename weight_t>
@@ -320,15 +325,18 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @param[in]     res   Execution resources (sequential, openmp or cuda; `g` and `r` must belong to
  *                      their backend).
  * @param[in,out] g     The graph; the batch is applied to it and its version increases by one.
- * @param[in]     batch Insertions (upserts), deletions and weight changes (host memory).
+ * @param[in]     batch Insertions (upserts), deletions and weight changes (any memory space: the
+ *                      batch is read on the host in this release, so arrays in device memory are
+ *                      copied once under res.get_copy_policy()).
  * @param[in,out] r     Result of compute() or of a previous update() on `g`.
  * @return Counters of this update; `invalidated` and `affected` are deterministic, `iterations`,
  *         `epochs` and `pushes` are not.
  * @throws stale_result_error     if r.graph_version() != g.version(), `r` was computed on another
  *         graph (or on an earlier state of a graph variable that was reassigned since), or `r` was
  *         left unusable by a failed update.
- * @throws invalid_argument_error if a batch id or weight is invalid, or `g` or `r` belongs to
- *         another backend than `res` (nothing is changed); or, only for a tree imported without
+ * @throws invalid_argument_error if a batch id or weight is invalid, `g` or `r` belongs to
+ *         another backend than `res`, or a batch array must be copied and the copy policy is
+ *         copy_policy::error (nothing is changed); or, only for a tree imported without
  *         validation, if the tree has a parent cycle or (cuda) a distance outside the packing bound
  *         (then the graph was updated and `r` is left unusable).
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine

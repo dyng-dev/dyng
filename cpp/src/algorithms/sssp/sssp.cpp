@@ -17,6 +17,8 @@
 #include "algorithms/sssp/problem.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
+#include "core/staging.hpp"
+#include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
 #include "util/allocation.hpp"
@@ -353,21 +355,19 @@ void upload(const resources& res, value_t* device, const value_t* host, std::siz
   }
 }
 
-/// Copy an array of any memory space into a host vector (from_arrays of device inputs).
+/// Copy an array of any memory space into a host vector (from_arrays: the tree is imported and
+/// checked on the host). A copy out of device memory is an implicit copy under the copy policy
+/// of `res` (PLAN 4.7.1); a host array is the function's own import.
 template <typename value_t>
-void assign_host(const resources& res, std::vector<value_t>& out, array_view<const value_t> in) {
-  if (is_host_accessible(in.space())) {
+void assign_host(const resources& res, std::vector<value_t>& out, array_view<const value_t> in,
+                 const char* what) {
+  if (in.empty() || is_host_accessible(in.space())) {
     out.assign(in.begin(), in.end());
     return;
   }
+  note_implicit_copy(res, what, in.space(), memory_space::host, in.size_bytes());
   out.resize(in.size());
-  if (!in.empty()) {
-    const int device = in.device() >= 0 ? in.device() : res.device();
-    const stream_ref stream = is_cuda(res) ? res.stream() : stream_ref{};
-    copy_bytes(out.data(), memory_space::host, in.data(), in.space(), in.size_bytes(), stream,
-               device);
-    cuda_synchronize(device, stream);
-  }
+  copy_to_host(res, out.data(), in.data(), in.space(), in.device(), in.size_bytes());
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -620,10 +620,8 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
                  "sssp::update: the batch has ", batch.insert_weights.size(),
                  " insertion weights for ", num_inserts, " insertions of ", num_weights,
                  " weight(s)");
-    DYNG_EXPECTS(batch.insert_weights.empty() || is_host_accessible(batch.insert_weights.space()),
-                 "sssp::update: the batch must be in host memory");
-    DYNG_EXPECTS(batch.insert_dst.empty() || is_host_accessible(batch.insert_dst.space()),
-                 "sssp::update: the batch must be in host memory");
+    // Every array before any host read (run_update() stages device arrays to the host first).
+    expect_host_batch(batch, "sssp::update");
     std::int64_t largest = 1;
     std::int64_t max_id = -1;
     for (std::size_t i = 0; i < num_inserts; ++i) {
@@ -979,10 +977,6 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
                "sssp::result::from_arrays: ", distances.size(), " distances for ", n, " vertices");
   DYNG_EXPECTS(static_cast<std::int64_t>(parents.size()) == n,
                "sssp::result::from_arrays: ", parents.size(), " parents for ", n, " vertices");
-  DYNG_EXPECTS(n == 0 || cuda ||
-                   (is_host_accessible(distances.space()) && is_host_accessible(parents.space())),
-               "sssp::result::from_arrays: the arrays must be in host memory for the ",
-               to_string(res.get_backend()), " backend");
   const detail::column_summary column =
       detail::summarize_column(res, detail::graph_access::out_view(g).weight_column(opt.objective));
   DYNG_EXPECTS(column.first_bad < 0, "sssp::result::from_arrays: edge ", column.first_bad,
@@ -1003,8 +997,8 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
   {
     // The tree copy (MOSP's mospUpdate copies the initial trees inside its "prepare" stage).
     scoped_stage stage(res, "sssp.import");
-    detail::assign_host(res, d, distances);
-    detail::assign_host(res, p, parents);
+    detail::assign_host(res, d, distances, "sssp::result::from_arrays: distances");
+    detail::assign_host(res, p, parents, "sssp::result::from_arrays: parents");
     detail::normalize_imported_tree(res, d, p);
   }
   if (canonicalize) {

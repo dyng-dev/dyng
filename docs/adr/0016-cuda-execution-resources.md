@@ -1,7 +1,7 @@
 # ADR 0016: CUDA execution resources (streams, memory, errors, warm-up)
 
 - **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3). Amended by the M1b review
-  (item 10; 2026-09-28).
+  (items 10 and 11; 2026-09-28).
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -82,6 +82,24 @@ not fixed by the plan; this ADR fixes them.
     before freeing (so they are `@sync` now). A result whose arrays were allocated on one stream
     and are replaced through a handle on another (vertex growth) moves them to the updating
     stream before releasing them (`buffer::set_stream()`).
+
+11. **Implicit copies of inputs (M1b review).** PLAN 4.7.1: every function that consumes arrays
+    accepts any memory space and copies once when the space does not match; `copy_policy` decides
+    whether that is logged at debug (`allow`, the default), at warn (`warn`; also `allow` while a
+    profiler is attached) or refused with `invalid_argument_error` (`error`). In this release the
+    consumers read their inputs on the host on every backend (the batch is applied on the host,
+    graphs are built on the host, trees are imported and checked on the host, ADR 0017 items 4-5),
+    so "does not match" means "not host-accessible": `graph::from_edges()`, `graph::from_csr()`,
+    `graph::apply()`, `dyng::update()` / `update_each()` / `sssp::update()` and
+    `sssp::result::from_arrays()` copy device (or managed-but-not-host-accessible) arrays to the
+    host once, each array on its own (`detail::host_input`, `detail::host_batch`,
+    `core/staging.hpp`), before anything is changed. Host arrays given to a CUDA consumer are not
+    implicit copies: the host is where they are read, and the upload of a result's or graph's own
+    state is the function's work (MOSP-CUDA uploads the same data). Before this, M1b rejected
+    device batches on CUDA handles and never read the policy; a batch with only some arrays on
+    the device crashed `sssp::update()` (it read `insert_src` on the host before checking it).
+    When the device apply lands (PLAN 6.4.1), device batches become the matching space and host
+    batches the copied one.
 
 ## Consequences
 

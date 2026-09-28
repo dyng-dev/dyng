@@ -22,6 +22,7 @@
 
 #include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/logging.hpp>
 #include <dyng/core/memory.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
@@ -40,10 +41,12 @@
 
 #include <algorithm>
 #include <atomic>
+#include <utility>
 #include <cstddef>
 #include <cstdint>
 #include <random>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -229,6 +232,160 @@ TEST_F(SsspCuda, VertexGrowthThroughAHandleOnAnotherStream) {
   ASSERT_EQ(cudaStreamDestroy(b), cudaSuccess);
 }
 
+/// The batch arrays of `b` with the ones selected by `on_device` (bits 0..4: insert_src,
+/// insert_dst, insert_weights, delete_src, delete_dst) copied into device memory.
+struct placed_batch {
+  placed_batch(const dyng::resources& cuda, const batch_t& b, unsigned on_device)
+      : host(b.view()),
+        insert_src(dyng::to_space(cuda, host.insert_src, dyng::memory_space::device)),
+        insert_dst(dyng::to_space(cuda, host.insert_dst, dyng::memory_space::device)),
+        insert_weights(dyng::to_space(cuda, host.insert_weights, dyng::memory_space::device)),
+        delete_src(dyng::to_space(cuda, host.delete_src, dyng::memory_space::device)),
+        delete_dst(dyng::to_space(cuda, host.delete_dst, dyng::memory_space::device)) {
+    view = host;
+    if ((on_device & 1U) != 0) {
+      view.insert_src = std::as_const(insert_src).view();
+    }
+    if ((on_device & 2U) != 0) {
+      view.insert_dst = std::as_const(insert_dst).view();
+    }
+    if ((on_device & 4U) != 0) {
+      view.insert_weights = std::as_const(insert_weights).view();
+    }
+    if ((on_device & 8U) != 0) {
+      view.delete_src = std::as_const(delete_src).view();
+    }
+    if ((on_device & 16U) != 0) {
+      view.delete_dst = std::as_const(delete_dst).view();
+    }
+    cuda.synchronize();
+  }
+  dyng::edge_batch_view<std::int32_t, std::int32_t> host;
+  dyng::buffer<std::int32_t> insert_src, insert_dst, insert_weights, delete_src, delete_dst;
+  dyng::edge_batch_view<std::int32_t, std::int32_t> view;
+};
+
+// PLAN 4.7.1: every function that consumes arrays accepts any memory space. A batch is applied on
+// the host in this release, so its arrays in device memory are copied once, each on its own: a
+// batch with any subset of its arrays on the device (the mixed placements used to crash, M1b
+// review) gives the host batch's result, on the cuda and on the host backends.
+TEST_F(SsspCuda, BatchArraysInDeviceMemoryAreCopiedOnce) {
+  const auto cuda = dyng::resources::cuda();
+  const auto host = dyng::resources::sequential();
+  batch_t b;
+  b.insert_edge(2, 1, {1});
+  b.insert_edge(4, 0, {3});
+  b.delete_edge(2, 3);
+  auto expected_graph = ties_graph(host);
+  result_t expected = dyng::sssp::compute(host, expected_graph, 0);
+  const dyng::sssp::stats expected_stats = dyng::sssp::update(host, expected_graph, b.view(),
+                                                              expected);
+  for (const unsigned placement : {1U, 2U, 4U, 8U, 16U, 31U}) {
+    SCOPED_TRACE("device arrays " + std::to_string(placement));
+    const placed_batch batch(cuda, b, placement);
+    for (const dyng::resources& res : {cuda, host}) {
+      auto g = ties_graph(res);
+      result_t r = dyng::sssp::compute(res, g, 0);
+      const dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view, r);
+      EXPECT_EQ(st.invalidated, expected_stats.invalidated);
+      EXPECT_EQ(dyng::to_vector(res, r.distances()), host_copy(expected.distances()));
+      EXPECT_EQ(dyng::to_vector(res, r.parents()), host_copy(expected.parents()));
+    }
+    auto g = ties_graph(cuda);
+    (void)g.apply(cuda, batch.view);  // graph::apply stages as well
+    EXPECT_EQ(g.num_edges(), expected_graph.num_edges());
+  }
+}
+
+// copy_policy::error turns every implicit copy into invalid_argument_error, raised before anything
+// changes; `warn` (and `allow` while a profiler is attached) logs the copy at warn level.
+TEST_F(SsspCuda, TheCopyPolicyGovernsImplicitCopies) {
+  const auto cuda = dyng::resources::cuda();
+  batch_t b;
+  b.insert_edge(2, 1, {1});
+  b.delete_edge(2, 3);
+  const placed_batch batch(cuda, b, 1U);  // insert_src on the device
+  auto g = ties_graph(cuda);
+  result_t r = dyng::sssp::compute(cuda, g, 0);
+  auto res = dyng::resources::cuda();  // an independent handle for the policy
+  res.set_copy_policy(dyng::copy_policy::error);
+  try {
+    (void)dyng::sssp::update(res, g, batch.view, r);
+    FAIL() << "copy_policy::error allowed an implicit copy";
+  } catch (const dyng::invalid_argument_error& error) {
+    EXPECT_TRUE(contains(error.what(), "insert_src")) << error.what();
+    EXPECT_TRUE(contains(error.what(), "copy_policy::error")) << error.what();
+  }
+  EXPECT_EQ(g.version(), 0u);  // nothing was applied, and the result is still usable
+  EXPECT_THROW((void)g.apply(res, batch.view), dyng::invalid_argument_error);
+  const auto d = dyng::to_space(cuda, r.distances(), dyng::memory_space::device);
+  const auto p = dyng::to_space(cuda, r.parents(), dyng::memory_space::device);
+  EXPECT_THROW((void)result_t::from_arrays(res, g, 0, d.view(), p.view()),
+               dyng::invalid_argument_error);
+  // Host arrays for a cuda result are from_arrays' own import (uploaded), not an implicit copy.
+  const auto hd = dyng::to_vector(cuda, r.distances());
+  const auto hp = dyng::to_vector(cuda, r.parents());
+  EXPECT_NO_THROW((void)result_t::from_arrays(res, g, 0, dyng::host_view(hd),
+                                              dyng::host_view(hp)));
+  (void)dyng::sssp::update(res, g, b.view(), r);  // a host batch needs no copy on any backend
+
+  std::vector<std::string> lines;
+  const dyng::log_level level = dyng::get_log_level();
+  dyng::set_log_level(dyng::log_level::warn);
+  dyng::set_log_sink([&](dyng::log_level l, std::string_view m) {
+    if (l == dyng::log_level::warn) {
+      lines.emplace_back(m);
+    }
+  });
+  res.set_copy_policy(dyng::copy_policy::allow);
+  batch_t more;
+  more.insert_edge(4, 0, {3});
+  const placed_batch device_more(cuda, more, 31U);
+  (void)dyng::sssp::update(res, g, device_more.view, r);  // allow: logged at debug level only
+  const std::size_t quiet = lines.size();
+  dyng::profiler prof;
+  res.attach_profiler(&prof);  // with a profiler attached, allow acts as warn
+  batch_t again;
+  again.delete_edge(4, 0);
+  const placed_batch device_again(cuda, again, 31U);
+  (void)dyng::sssp::update(res, g, device_again.view, r);
+  res.attach_profiler(nullptr);
+  dyng::set_log_sink(nullptr);
+  dyng::set_log_level(level);
+  EXPECT_EQ(quiet, 0u);
+  ASSERT_FALSE(lines.empty());
+  EXPECT_TRUE(contains(lines.front(), "implicit copy")) << lines.front();
+  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
+}
+
+// Graph builds read their arrays on the host as well: an edge list in device memory is copied.
+TEST_F(SsspCuda, GraphBuildsTakeDeviceArrays) {
+  const auto cuda = dyng::resources::cuda();
+  dyng::edge_list<std::int32_t, std::int32_t> list;
+  list.num_vertices = 5;
+  list.num_weights = 1;
+  for (const edge& e : std::vector<edge>{{0, 1, 5}, {0, 2, 1}, {2, 3, 1}, {1, 4, 2}, {3, 4, 2}}) {
+    list.add_edge(e.u, e.v, {e.w});
+  }
+  const auto view = list.view();
+  const auto src = dyng::to_space(cuda, view.src, dyng::memory_space::device);
+  const auto dst = dyng::to_space(cuda, view.dst, dyng::memory_space::device);
+  const auto w = dyng::to_space(cuda, view.weights, dyng::memory_space::device);
+  auto device_list = view;
+  device_list.src = src.view();
+  device_list.dst = dst.view();
+  device_list.weights = w.view();
+  auto g = graph_t::from_edges(cuda, device_list, dyng::graph_properties::mosp_compatible());
+  auto reference = ties_graph(cuda);
+  EXPECT_EQ(g.to_csr(cuda).col_ind, reference.to_csr(cuda).col_ind);
+  const auto csr = reference.to_csr(cuda);
+  const auto rows = dyng::to_space(cuda, dyng::host_view(csr.row_ptr), dyng::memory_space::device);
+  auto device_csr = csr.view();
+  device_csr.row_ptr = rows.view();
+  auto from_csr = graph_t::from_csr(cuda, device_csr, dyng::graph_properties::mosp_compatible());
+  EXPECT_EQ(from_csr.to_csr(cuda).row_ptr, csr.row_ptr);
+}
+
 TEST_F(SsspCuda, TheDeviceCopyIsUploadedOncePerGraphState) {
   const auto res = dyng::resources::cuda();
   auto g = ties_graph(res);
@@ -259,9 +416,15 @@ TEST_F(SsspCuda, FromArraysTakesHostOrDeviceArrays) {
   result_t from_host = result_t::from_arrays(res, g, 0, dyng::host_view(d), dyng::host_view(p));
   EXPECT_EQ(host_copy(from_device.distances()), d);
   EXPECT_EQ(host_copy(from_host.parents()), p);
-  // The host backends take host arrays only.
-  const auto host = dyng::resources::sequential();
+  // The host backends take device arrays too (copied to the host once, PLAN 4.7.1; M1b review),
+  // unless the copy policy forbids the implicit copy.
+  auto host = dyng::resources::sequential();
   auto hg = ties_graph(host);
+  const result_t on_host =
+      result_t::from_arrays(host, hg, 0, computed.distances(), computed.parents(), false);
+  EXPECT_EQ(host_copy(on_host.distances()), d);
+  EXPECT_EQ(host_copy(on_host.parents()), p);
+  host.set_copy_policy(dyng::copy_policy::error);
   EXPECT_THROW(
       (void)result_t::from_arrays(host, hg, 0, computed.distances(), computed.parents(), false),
       dyng::invalid_argument_error);
