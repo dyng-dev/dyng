@@ -455,9 +455,14 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("cycle_count::result::clone")
 // compute (count_histogram) and update (update_histogram)
 // ------------------------------------------------------------------------------------------------
 
+}  // namespace dyng::cycle_count
+
+namespace dyng::detail {
+
 template <typename vertex_t, typename edge_t, typename weight_t>
-result compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-               const options& opt) try {
+cycle_count::result cycle_count_compute(const resources& res,
+                                        const graph<vertex_t, edge_t, weight_t>& g,
+                                        const cycle_count::options& opt) try {
   scoped_stage stage(res, "cycle_count.compute");
   detail::expect_supported_backend(res, "cycle_count::compute");
   detail::expect_options(opt);
@@ -489,10 +494,11 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("cycle_count::compute (", g.num_vertices(), " 
                                   g.num_edges(), " edges, max_length ", opt.max_length, ")")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result& r) try {
+cycle_count::stats cycle_count_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+                                      const edge_batch_view<vertex_t, weight_t>& batch,
+                                      cycle_count::result& r) try {
   scoped_stage stage(res, "cycle_count.update");
-  stats out;
+  cycle_count::stats out;
   detail::cycle_count_participant<vertex_t, edge_t, weight_t> participant(r, out);
   detail::update_participant<vertex_t, edge_t, weight_t>* participants[] = {&participant};
   detail::run_update(res, g, batch, participants, 1, "cycle_count.commit");
@@ -510,16 +516,14 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("cycle_count::update (", g.num_vertices(), " v
   X(std::int32_t, std::int32_t, std::int32_t)       \
   X(std::int32_t, std::int64_t, std::int32_t)
 
-#define DYNG_INSTANTIATE_CYCLE_COUNT(V, E, W)                                                     \
-  template result compute<V, E, W>(const resources&, const graph<V, E, W>&, const options&);      \
-  template stats update<V, E, W>(const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, \
-                                 result&);
+#define DYNG_INSTANTIATE_CYCLE_COUNT(V, E, W)                                \
+  static_assert(cycle_count_supported_v<V, E, W>);                           \
+  template cycle_count::result cycle_count_compute<V, E, W>(                 \
+      const resources&, const graph<V, E, W>&, const cycle_count::options&); \
+  template cycle_count::stats cycle_count_update<V, E, W>(                   \
+      const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, cycle_count::result&);
 DYNG_FOR_EACH_CYCLE_COUNT_TYPE(DYNG_INSTANTIATE_CYCLE_COUNT)
 #undef DYNG_INSTANTIATE_CYCLE_COUNT
-
-}  // namespace dyng::cycle_count
-
-namespace dyng::detail {
 
 #define DYNG_INSTANTIATE_CYCLE_COUNT_PARTICIPANT(V, E, W)                                      \
   template std::unique_ptr<update_participant<V, E, W>> make_cycle_count_participant<V, E, W>( \

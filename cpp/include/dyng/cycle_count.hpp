@@ -18,6 +18,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 
 /**
  * @defgroup cycle_count cycle_count
@@ -52,6 +53,9 @@
  * Backends: sequential (CycleEnumeration-GPU's sequential Johnson and update_static_histogram()),
  * openmp (its root-parallel OpenMP counter and update_static_histogram_openmp()). The histograms
  * are host arrays on every backend.
+ *
+ * Types: int32_t vertex ids, int32_t or int64_t edge offsets, unweighted or int32_t weights (other
+ * graph types fail to compile with a static_assert naming these).
  */
 
 namespace dyng::cycle_count {
@@ -86,7 +90,17 @@ struct options {
 };
 
 /**
- * @brief Counters of one update() (fields are only ever appended). All are deterministic.
+ * @brief Counters of one update() (fields are only ever appended).
+ *
+ * Every counter is deterministic for cycle_count (identical on every backend, thread count and
+ * run), including the two that update_stats calls schedule-dependent, because the update has no
+ * iterative loop. The inherited fields mean:
+ *   - `affected`: the number of lengths whose count changed (deterministic);
+ *   - `iterations`: always 0 (no Step 2 loop; the searches are one pass per change edge);
+ *   - `frontier_visits`: the change edges searched, `deletions` + `insertions` (deterministic);
+ *   - `fallback_used`: always false (the update never recomputes);
+ *   - `converged`: always true (no iteration cap);
+ *   - `engine_used`: always engine::operators (the hooks of the template, one per stage).
  * @ingroup cycle_count
  */
 struct stats : update_stats {
@@ -107,6 +121,26 @@ struct stats : update_stats {
 namespace dyng::detail {
 struct cycle_count_state;
 struct cycle_count_access;
+
+/**
+ * @brief Whether cycle_count is instantiated for graph<vertex_t, edge_t, weight_t>: int32_t
+ *        vertex ids (the ownership table keys two 32-bit ids), int32_t or int64_t offsets,
+ *        unweighted or int32_t weights.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+inline constexpr bool cycle_count_supported_v =
+    std::is_same_v<vertex_t, std::int32_t> &&
+    (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>) &&
+    (is_unweighted_v<weight_t> || std::is_same_v<weight_t, std::int32_t>);
+
+/// The message of the static_assert of an unsupported graph type.
+#define DYNG_CYCLE_COUNT_TYPES_MESSAGE                                                          \
+  "dyng::cycle_count supports graph<int32_t, int32_t or int64_t, unweighted or int32_t> only "  \
+  "(int32_t vertex ids: the ownership table keys two 32-bit ids); see 'Graph requirements' in " \
+  "docs/algorithms/cycle_count.md"
 }  // namespace dyng::detail
 
 namespace dyng::cycle_count {
@@ -213,6 +247,45 @@ class result {
   std::unique_ptr<detail::cycle_count_state> impl_;
 };
 
+}  // namespace dyng::cycle_count
+
+namespace dyng::detail {
+
+/**
+ * @brief The implementation of cycle_count::compute() (instantiated for the supported types).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in] res Execution resources.
+ * @param[in] g   The graph.
+ * @param[in] opt Options.
+ * @return The histogram.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+[[nodiscard]] cycle_count::result cycle_count_compute(const resources& res,
+                                                      const graph<vertex_t, edge_t, weight_t>& g,
+                                                      const cycle_count::options& opt);
+
+/**
+ * @brief The implementation of cycle_count::update() (instantiated for the supported types).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res   Execution resources.
+ * @param[in,out] g     The graph.
+ * @param[in]     batch The batch.
+ * @param[in,out] r     The result.
+ * @return Counters of the update.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+cycle_count::stats cycle_count_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+                                      const edge_batch_view<vertex_t, weight_t>& batch,
+                                      cycle_count::result& r);
+
+}  // namespace dyng::detail
+
+namespace dyng::cycle_count {
+
 /**
  * @brief Count the directed simple cycles of `g` by length (the static solve).
  *
@@ -246,7 +319,11 @@ class result {
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 [[nodiscard]] result compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-                             const options& opt = {});
+                             const options& opt = {}) {
+  static_assert(detail::cycle_count_supported_v<vertex_t, edge_t, weight_t>,
+                DYNG_CYCLE_COUNT_TYPES_MESSAGE);
+  return detail::cycle_count_compute(res, g, opt);
+}
 
 /**
  * @brief Apply a batch of edge changes to `g` and update the histogram `r`.
@@ -287,7 +364,11 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result& r);
+             const edge_batch_view<vertex_t, weight_t>& batch, result& r) {
+  static_assert(detail::cycle_count_supported_v<vertex_t, edge_t, weight_t>,
+                DYNG_CYCLE_COUNT_TYPES_MESSAGE);
+  return detail::cycle_count_update(res, g, batch, r);
+}
 
 }  // namespace dyng::cycle_count
 
@@ -323,6 +404,10 @@ struct update_traits<cycle_count::result> {
   template <typename container_t>
   static std::unique_ptr<typename participant_of<container_t>::type> make_participant(
       cycle_count::result& r, cycle_count::stats& out) {
+    static_assert(
+        cycle_count_supported_v<typename container_t::vertex_type, typename container_t::edge_type,
+                                typename container_t::weight_type>,
+        DYNG_CYCLE_COUNT_TYPES_MESSAGE);
     return make_cycle_count_participant<typename container_t::vertex_type,
                                         typename container_t::edge_type,
                                         typename container_t::weight_type>(r, out);

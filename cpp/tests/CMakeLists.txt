@@ -91,6 +91,24 @@ target_compile_definitions(
 )
 target_include_directories(dyng_cycle_count_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
+# Compile-failure tests: cycle_count on an unsupported graph type (int64_t vertex ids) must stop
+# at the static_assert that names the supported types (PLAN 4.5: plain-English static_asserts),
+# not at a link error. The test runs the compiler with -fsyntax-only and passes on the message.
+foreach(_case "compute;" "update;-DDYNG_COMPILE_FAIL_UPDATE")
+  list(GET _case 0 _name)
+  list(GET _case 1 _define)
+  add_test(NAME cycle_count.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/cycle_count_int64_vertices.cpp
+  )
+  set_tests_properties(
+    cycle_count.static_assert.${_name}
+    PROPERTIES LABELS "cpu;cycle_count" PASS_REGULAR_EXPRESSION
+               "dyng::cycle_count supports graph<int32_t, int32_t or int64_t"
+  )
+endforeach()
+
 # Mutation tests (PLAN Section 8.4): the recorded mutations of CycleEnumeration-GPU (double counting
 # 5-cycles; a weakened ownership rule) must make the randomized cycle_count suite fail. Each is
 # compiled into a copy of libdyng whose cycle_count module is rebuilt with DYNG_MUTATION_<NAME>
