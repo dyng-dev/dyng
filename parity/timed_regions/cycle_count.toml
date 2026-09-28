@@ -4,7 +4,8 @@
 # Timed-region map of cycle_count (PLAN Sections 6.3 step 3 and 8.6): each timer of the original ->
 # the dynG profiler stages (or dyng-compat-cycle-enum report fields) that must be summed to match
 # it. Written with the CPU port (M2a, before the performance runs); the CUDA regions (the original's
-# kernel_ms / memcpy_ms and the update on the device) are added with M2b.
+# kernel_ms / memcpy_ms / total_ms and the update on the device) were added with M2b, before its
+# performance runs ([reference.cycle_enum_cuda] at the end).
 #
 # What the original times (CycleEnumeration-GPU@0a976ad src/cli/cycle_enum_main.cpp):
 #   - `--task count` on the CPU backends prints no timer. docs/RESULTS.md reports the WALL TIME OF
@@ -132,3 +133,120 @@ gate = "end_to_end"
 note = """
 Includes the untimed parts of run_update() on both sides: reading the file, building the graph,
 the prior histogram (the static count of the same backend) and generate_batch."""
+
+# ------------------------------------------------------------------------------------------------
+# The CUDA backend (M2b). What the original times (CycleEnumeration-GPU@0a976ad):
+#   - `--task count --backend cuda --report-timing` prints on standard error "kernel_ms:",
+#     "memcpy_ms:" and "total_ms:" from CUDA events (ScopedCudaTimers of
+#     count_simple_cycles_johnson[_queue]_device): kernel = building the work items (forward rows,
+#     scan, read-back, fill, the two-hop degrees and scan) + the counting kernel + the device
+#     synchronization; memcpy = the upload of the 32-bit CSR + the copy of the histogram; total =
+#     from before the upload to after the copy. docs/RESULTS.md reports kernel_ms ("the paper's
+#     metric") and the process wall time.
+#   - `--task update --backend cuda` prints `update_seconds=` (steady_clock around
+#     update_histogram(): prepare_batch on the host, the upload of G_t, both device phases, the
+#     device build of G_{t+1}, the copy of both histograms, apply_histogram_delta; the context is
+#     created before, initialize_device()).
+#
+# dynG: `dyng-compat-cycle-enum --backend cuda`; the context and every kernel are loaded before the
+# timed regions (resources::warm_up(), as the original's initialize_device() and occupancy
+# queries). kernel_ms / memcpy_ms / total_ms of its RESULT line are CUDA-event times of the stages
+# cycle_count.count (the work items + the counting kernel + the stream synchronization),
+# graph.upload + cycle_count.finalize (the histogram copy) and cycle_count.compute
+# (--report-timing). update_ms is the steady_clock time around cycle_count::update() (Step 0 in
+# cycle_count.normalize, the delete phase in cycle_count.count_minus, the device apply in
+# cycle_count.commit > graph.apply, the insert phase and the copy of the histograms in
+# cycle_count.count_plus, the delta in cycle_count.finalize).
+#
+# Two scopes (PLAN 6.4.3; `scopes` below, dyng-compat-cycle-enum --scope):
+#   original  the graph is uploaded inside the timed call, as the original uploads it per call
+#             (count: the first compute() of the graph; update: G_t without a device copy);
+#   resident  the graph is resident on the device before the timed call (dynG's model: the update
+#             keeps the graph on the device across batches). An improvement, reported separately
+#             (PLAN 8.6) and gated as well: it may only be faster.
+#
+# Protocol: PLAN 8.6 and ADR 0018 (option B): the parity-cuda preset, GPU 0, the clocks locked for
+# the whole A/B (`--lock-clocks boost`, every busy sample checked), the exclusive perf lock, >= 20
+# alternating runs for regions under 10 ms (else >= 5), medians; default-clock readings are
+# recorded, not gated. Fields as above, plus `scopes` (the port scopes the region is read in).
+
+[reference.cycle_enum_cuda]
+repo = "CycleEnumeration-GPU"
+commit = "0a976ad"
+driver = "build/cycle-enum of the UNPATCHED copy (--backend cuda --cuda-device 0; CUDA_MODULE_LOADING=EAGER)"
+port_driver = "dyng-compat-cycle-enum (tools/compat/cycle_enum), parity-cuda preset, --backend cuda --scope <scope> --timing <csv>"
+
+[[reference.cycle_enum_cuda.region]]
+name = "static_kernel"
+task = "count"
+original = ["kernel_ms (CUDA events: work items + counting kernel + synchronize)"]
+original_report = ["kernel_ms"]
+port = ["cycle_count.count"]
+port_report = ["kernel_ms"]
+scopes = ["original", "resident"]
+gate = "compute"
+note = """
+The paper's metric (docs/RESULTS.md "Kernel"). The same region in both scopes (the upload is not in
+it); the original allocates its item arrays with cudaMalloc inside the region, dynG leases them from
+the workspace pool."""
+
+[[reference.cycle_enum_cuda.region]]
+name = "static_memcpy"
+task = "count"
+original = ["memcpy_ms (the CSR upload + the histogram copy)"]
+original_report = ["memcpy_ms"]
+port = ["graph.upload", "cycle_count.finalize"]
+port_report = ["memcpy_ms"]
+scopes = ["original", "resident"]
+gate = "none"
+note = "Reported. In the resident scope the port uploads nothing (only the histogram copy)."
+
+[[reference.cycle_enum_cuda.region]]
+name = "static_total"
+task = "count"
+original = ["total_ms (from before the upload to after the histogram copy)"]
+original_report = ["total_ms"]
+port = ["cycle_count.compute"]
+port_report = ["total_ms"]
+scopes = ["original", "resident"]
+gate = "none"
+note = "Reported: the whole static call on the device, with the upload in the original scope."
+
+[[reference.cycle_enum_cuda.region]]
+name = "static_end_to_end"
+task = "count"
+original = ["process wall time (cycle-enum --task count --backend cuda)"]
+original_report = ["process wall time"]
+port = []
+port_report = ["process wall time"]
+scopes = ["original"]
+gate = "end_to_end"
+note = """
+docs/RESULTS.md "E2E": reading the file, building the graph, creating the context, the count and
+printing. dynG's process also loads every library kernel (resources::warm_up())."""
+
+[[reference.cycle_enum_cuda.region]]
+name = "update"
+task = "update"
+original = ["update_seconds (engine::update_histogram, backend cuda)"]
+original_report = ["update_seconds"]
+port = ["cycle_count.update"]
+port_report = ["update_ms"]
+scopes = ["original", "resident"]
+gate = "compute"
+note = """
+docs/RESULTS.md "Incremental update" (CUDA new). Scope original: dynG uploads G_t inside the call
+(graph.upload), as the original does; scope resident: G_t is on the device already. In both, dynG
+also applies the batch to its graph (the device merge of build_next_rows_kernel, which the original
+runs as well but discards) and keeps G_{t+1} on the device."""
+
+[[reference.cycle_enum_cuda.region]]
+name = "update_end_to_end"
+task = "update"
+original = ["process wall time (cycle-enum --task update --backend cuda)"]
+original_report = ["process wall time"]
+port = []
+port_report = ["process wall time"]
+scopes = ["original"]
+gate = "end_to_end"
+note = "Includes reading, building, the prior (the static CUDA count) and generate_batch."

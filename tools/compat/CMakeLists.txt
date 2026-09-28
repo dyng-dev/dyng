@@ -148,5 +148,19 @@ if(DYNG_BUILD_TESTS AND DYNG_BUILD_PARITY_TESTS)
       parity.sssp.mosp_cuda_e220ee2 PROPERTIES LABELS "parity;gpu;sssp" SKIP_RETURN_CODE 77
                                                TIMEOUT 3600
     )
+    # The cycle_count corpus of the original's CUDA backend (M2b; the set cycle_count_cuda of
+    # parity/cycle_count_goldens.py): the graph uploaded per call and resident.
+    add_test(
+      NAME parity.cycle_count.cycle_enum_cuda_0a976ad
+      COMMAND
+        ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/parity/compare.py cycle_count --exe
+        $<TARGET_FILE:dyng-compat-cycle-enum> --set cycle_count_cuda --goldens
+        ${DYNG_GOLDENS_DIR}/cycle_count_cuda --configs cuda,cuda:resident --json
+        ${CMAKE_CURRENT_BINARY_DIR}/parity-cycle_count-cuda.json
+    )
+    set_tests_properties(
+      parity.cycle_count.cycle_enum_cuda_0a976ad
+      PROPERTIES LABELS "parity;gpu;cycle_count" SKIP_RETURN_CODE 77 TIMEOUT 3600
+    )
   endif()
 endif()

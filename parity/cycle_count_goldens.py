@@ -7,7 +7,19 @@
     parity/compare.py cycle_count --exe build/parity/tools/compat/dyng-compat-cycle-enum
                                   [--configs sequential,openmp:4,openmp:56] [--full] [--json ...]
 
+    parity/export_goldens.py cycle_count --set cycle_count_cuda [--cases ...]
+    parity/compare.py cycle_count --exe ... --configs cuda,cuda:resident,cuda:int64
+
 (or `parity/cycle_count_goldens.py export|compare ...` directly; PLAN Sections 6.3, 6.4.3, 8.3).
+
+Two sets: `cycle_count` (the original's OpenMP backend, M2a) and `cycle_count_cuda` (its CUDA
+backend, M2b: `cycle-enum --backend cuda` of the patched copy on the GPU of $DYNG_TEST_GPU, default
+1; the cases of the M2b acceptance: DD k = 3..7, GitHub and Twitch k = 3, 4, COLLAB k = 3, and the
+seed-1 updates 1K+1K, 25K+25K, 50K+50K, 100K+100K on DD and GitHub, 1K+1K, 25K+25K, 50K+50K on
+Twitch and 25K+25K on COLLAB, k = 4). Every CUDA histogram is checked equal to the OpenMP golden of
+the same case where the `cycle_count` set has it (the originals cross-checked once, PLAN 6.3 step
+2). The COLLAB update (its prior is the k = 4 count of COLLAB, minutes on the CPU) is replayed on
+the cuda configurations only.
 
 export  runs the original `cycle-enum` driver of the PATCHED scratch copy that
         parity/build_reference.sh builds (the sources are unchanged; the patch only adds the
@@ -70,6 +82,8 @@ sys.path.insert(0, str(REPO / "parity"))
 import compare as sssp_compare  # noqa: E402  (verify_goldens, host_info, build_info, git_head)
 
 SET = "cycle_count"
+SET_CUDA = "cycle_count_cuda"
+SETS = (SET, SET_CUDA)
 REFERENCE = "CycleEnumeration-GPU"
 COMMIT = "0a976adfa801a712135bf1adb51a228f353a0751"
 BASELINE_COMMIT = "da2067d62c2ce8f9234908089fa15bc53b5979c0"
@@ -165,6 +179,31 @@ def all_cases() -> list[Case]:
     return cases
 
 
+def cuda_cases() -> list[Case]:
+    """The cases of the CUDA set (M2b acceptance criterion 3)."""
+    cases = [Case("DD", k) for k in range(3, 8)]
+    cases += [Case(g, k) for g in ("github", "twitch") for k in (3, 4)]
+    cases += [Case("collab", 3)]
+    for g in ("DD", "github"):
+        for size in (1000, 25000, 50000, 100000):
+            cases.append(Case(g, 4, size, size, 1))
+    for size in (1000, 25000, 50000):
+        cases.append(Case("twitch", 4, size, size, 1))
+    cases += [Case("collab", 4, 25000, 25000, 1)]
+    cases += [Case("DD", k, 25000, 25000, 1) for k in (3, 5)]
+    return cases
+
+
+def set_cases(name: str) -> list[Case]:
+    return cuda_cases() if name == SET_CUDA else all_cases()
+
+
+def cuda_only(case: Case) -> bool:
+    """Replayed on the cuda configurations only: the COLLAB update's prior is the k = 4 count of
+    COLLAB (minutes on the CPU backends)."""
+    return case.graph == "collab" and case.update
+
+
 def select(cases: list[Case], spec: str) -> list[Case]:
     wanted = [s.strip() for s in spec.split(",") if s.strip()]
     if not wanted:
@@ -248,12 +287,35 @@ def clean_env() -> dict:
     return env
 
 
-def export_case(case: Case, ref: Path, datasets: Path, out: Path, known: dict) -> dict:
+def backend_args(set_name: str) -> list[str]:
+    """The original's backend of a set: OpenMP with 56 threads, or CUDA device 0 (of the GPUs made
+    visible by CUDA_VISIBLE_DEVICES, see cuda_env)."""
+    if set_name == SET_CUDA:
+        return ["--backend", "cuda", "--cuda-device", "0"]
+    return ["--backend", "openmp", "--openmp-threads", str(THREADS)]
+
+
+def cuda_env(env: dict) -> dict:
+    env = dict(env)
+    env.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("DYNG_TEST_GPU", "1"))
+    env["CUDA_MODULE_LOADING"] = "EAGER"
+    return env
+
+
+def export_case(
+    case: Case,
+    ref: Path,
+    datasets: Path,
+    out: Path,
+    known: dict,
+    set_name: str = SET,
+    cpu_goldens: Path | None = None,
+) -> dict:
     """Run the original on one case and write its files (case.json is written by export())."""
     exe = ref / "build" / "cycle-enum"
     exporter = ref / "parity_export" / "bin" / "export_cycle_enum"
-    env = clean_env()
-    omp = ["--backend", "openmp", "--openmp-threads", str(THREADS)]
+    env = clean_env() if set_name == SET else cuda_env(clean_env())
+    omp = backend_args(set_name)
     args = case.cli_args(datasets)
     started = time.monotonic()
     extra = ["--compare-recompute"] if case.update else []
@@ -276,6 +338,8 @@ def export_case(case: Case, ref: Path, datasets: Path, out: Path, known: dict) -
             a.replace(str(datasets), "$DYNG_SCRATCH/datasets/cycle") for a in [*args, *omp, *extra]
         ),
         "heavy": case.heavy,
+        "backend": "cuda" if set_name == SET_CUDA else "openmp",
+        "cuda_only": set_name == SET_CUDA and cuda_only(case),
     }
     if case.update:
         if "match=yes" not in stderr.splitlines():
@@ -316,6 +380,17 @@ def export_case(case: Case, ref: Path, datasets: Path, out: Path, known: dict) -
         if known[key] != hist:
             raise ExportError(f"{case.rel}: differs from datasets_counts.txt (the exporter's)")
         checks.append("equal to cpp/tests/data/cycle_enum/datasets_counts.txt (exporter path)")
+    if cpu_goldens is not None and (cpu_goldens / case.rel / "histogram.csv").is_file():
+        # PLAN 6.3 step 2: the original's CUDA and OpenMP backends agree on the case.
+        for name in ["histogram.csv", "prior.csv", "batch.txt"]:
+            cpu = cpu_goldens / case.rel / name
+            if cpu.is_file() and cpu.read_bytes() != (d / name).read_bytes():
+                raise ExportError(
+                    f"{case.rel}: {name} of the CUDA backend differs from the OpenMP golden {cpu}"
+                )
+        checks.append(
+            f"histogram.csv, prior.csv and batch.txt equal to the OpenMP golden ({SET} set)"
+        )
     want = PLAN_TOTALS.get((case.graph, case.k))
     if not case.update and want is not None:
         if sum(hist.values()) != want:
@@ -359,10 +434,9 @@ def write_manifest(out: Path) -> tuple[str, int]:
     return hashlib.sha256(text.encode()).hexdigest(), len(lines)
 
 
-SECTION = re.compile(r"^\[sets\.cycle_count[\].]", re.M)
-
-
-def toml_section(out: Path, metas: list[dict], manifest_sha: str, n_files: int) -> str:
+def toml_section(
+    out: Path, metas: list[dict], manifest_sha: str, n_files: int, set_name: str = SET
+) -> str:
     rows, total, groups = [], 0, {g: 0 for g in GROUPS}
     for meta in sorted(metas, key=lambda m: m["case"]):
         digest, files, size = case_digest(out / meta["case"])
@@ -372,29 +446,43 @@ def toml_section(out: Path, metas: list[dict], manifest_sha: str, n_files: int) 
             f'"{meta["case"]}" = {{ k = {meta["max_cycle_length"]}, total = {meta["total"]}, '
             f'files = {files}, sha256 = "{digest}" }}\n'
         )
-    head = f"""[sets.cycle_count]
+    backend = 'backend = "cuda (cycle-enum --backend cuda)"\n' if set_name == SET_CUDA else ""
+    extra = "--set cycle_count_cuda " if set_name == SET_CUDA else ""
+    head = f"""[sets.{set_name}]
 reference = "{REFERENCE}"
 commit = "{COMMIT}"
 baseline_commit = "{BASELINE_COMMIT}"
-location = "$DYNG_SCRATCH/goldens/cycle_count"
-generated_by = "parity/export_goldens.py cycle_count (parity/cycle_count_goldens.py)"
+{backend}location = "$DYNG_SCRATCH/goldens/{set_name}"
+generated_by = "parity/export_goldens.py cycle_count {extra}(parity/cycle_count_goldens.py)"
 num_cases = {len(metas)}
 num_files = {n_files}
 num_bytes = {total}
 manifest_sha256 = "{manifest_sha}"
 
-[sets.cycle_count.groups]
+[sets.{set_name}.groups]
 """ + "".join(f"{g} = {n}\n" for g, n in groups.items() if n)
-    return head + "\n[sets.cycle_count.cases]\n" + "".join(rows)
+    return head + f"\n[sets.{set_name}.cases]\n" + "".join(rows)
 
 
-def write_toml(section: str, path: Path = REPO / "parity" / "goldens.toml") -> None:
-    """Replace the [sets.cycle_count] section of parity/goldens.toml (kept last in the file)."""
+def write_toml(
+    section: str, set_name: str = SET, path: Path = REPO / "parity" / "goldens.toml"
+) -> None:
+    """Replace the [sets.<set_name>] section (and its subtables) of parity/goldens.toml; the
+    cycle_count sets are kept last in the file, in the order of SETS."""
     text = path.read_text()
-    m = SECTION.search(text)
-    if m is not None:
-        text = text[: m.start()]
-    path.write_text(text.rstrip("\n") + "\n\n" + section)
+    first = re.search(r"^\[sets\.cycle_count[\].]|^\[sets\.cycle_count_cuda[\].]", text, re.M)
+    head, tail = (text[: first.start()], text[first.start() :]) if first else (text, "")
+    blocks: dict[str, list[str]] = {}
+    current = None
+    for line in tail.splitlines(keepends=True):
+        m = re.match(r"^\[sets\.([a-z_]+)[\].]", line)
+        if m:
+            current = m.group(1)
+        if current is not None:
+            blocks.setdefault(current, []).append(line)
+    blocks[set_name] = [section]
+    body = "\n".join("".join(blocks[n]).strip("\n") + "\n" for n in SETS if n in blocks)
+    path.write_text(head.rstrip("\n") + "\n\n" + body)
 
 
 def reference_dir(scratch: Path, fresh: bool) -> Path:
@@ -408,15 +496,22 @@ def reference_dir(scratch: Path, fresh: bool) -> Path:
 
 
 def export(
-    ref: Path, datasets: Path, out: Path, cases: list[Case], sequential: bool, jobs: int
+    ref: Path,
+    datasets: Path,
+    out: Path,
+    cases: list[Case],
+    sequential: bool,
+    jobs: int,
+    set_name: str = SET,
+    cpu_goldens: Path | None = None,
 ) -> tuple[list[dict], str, int]:
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     known = committed_counts()
-    print(f"exporting {len(cases)} cycle_count cases from {ref} into {out}", flush=True)
-    # The OpenMP runs use every core: one case at a time.
-    metas = [export_case(c, ref, datasets, out, known) for c in cases]
-    if sequential:
+    print(f"exporting {len(cases)} {set_name} cases from {ref} into {out}", flush=True)
+    # The OpenMP runs use every core, the CUDA ones the GPU: one case at a time.
+    metas = [export_case(c, ref, datasets, out, known, set_name, cpu_goldens) for c in cases]
+    if sequential and set_name == SET:
         # The sequential cross-checks use one core each: --jobs of them at a time.
         with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
             futures = {
@@ -441,7 +536,8 @@ def export_main(argv: list[str]) -> int:
     )
     p.add_argument("--scratch", type=Path, default=scratch)
     p.add_argument("--datasets", type=Path, default=scratch / "datasets" / "cycle")
-    p.add_argument("--out", type=Path, help="default: <scratch>/goldens/cycle_count")
+    p.add_argument("--set", choices=SETS, default=SET, help="the golden set (default cycle_count)")
+    p.add_argument("--out", type=Path, help="default: <scratch>/goldens/<set>")
     p.add_argument("--cases", default="", help="restrict to these cases or groups (comma list)")
     p.add_argument("--jobs", type=int, default=8, help="parallel sequential cross-checks")
     p.add_argument(
@@ -456,20 +552,28 @@ def export_main(argv: list[str]) -> int:
         help="export again from a fresh archive copy and require an identical manifest",
     )
     args = p.parse_args(argv)
-    cases = select(all_cases(), args.cases)
-    out = args.out or args.scratch / "goldens" / SET
+    cases = select(set_cases(args.set), args.cases)
+    out = args.out or args.scratch / "goldens" / args.set
+    cpu_goldens = args.scratch / "goldens" / SET if args.set == SET_CUDA else None
     ref = reference_dir(args.scratch, fresh=False)
     try:
         metas, sha, n_files = export(
-            ref, args.datasets, out, cases, not args.no_sequential_check, args.jobs
+            ref,
+            args.datasets,
+            out,
+            cases,
+            not args.no_sequential_check,
+            args.jobs,
+            args.set,
+            cpu_goldens,
         )
     except ExportError as e:
         print(f"export_goldens cycle_count: {e}", file=sys.stderr)
         return 1
     print(f"{len(metas)} cases, {n_files} files, MANIFEST.sha256 {sha}")
-    if not args.no_toml and len(cases) == len(all_cases()):
-        write_toml(toml_section(out, metas, sha, n_files))
-        print(f"wrote the [sets.{SET}] section of {REPO / 'parity' / 'goldens.toml'}")
+    if not args.no_toml and len(cases) == len(set_cases(args.set)):
+        write_toml(toml_section(out, metas, sha, n_files, args.set), args.set)
+        print(f"wrote the [sets.{args.set}] section of {REPO / 'parity' / 'goldens.toml'}")
     if args.twice:
         with tempfile.TemporaryDirectory(prefix="dyng-goldens-twice-", dir=args.scratch) as t:
             second = Path(t)
@@ -478,17 +582,23 @@ def export_main(argv: list[str]) -> int:
                 _, sha2, _ = export(
                     ref2,
                     args.datasets,
-                    second / "goldens" / SET,
+                    second / "goldens" / args.set,
                     cases,
                     not args.no_sequential_check,
                     args.jobs,
+                    args.set,
+                    cpu_goldens,
                 )
             except ExportError as e:
                 print(f"export_goldens cycle_count (second export): {e}", file=sys.stderr)
                 return 1
             if sha2 != sha:
                 subprocess.run(
-                    ["diff", out / "MANIFEST.sha256", second / "goldens" / SET / "MANIFEST.sha256"]
+                    [
+                        "diff",
+                        out / "MANIFEST.sha256",
+                        second / "goldens" / args.set / "MANIFEST.sha256",
+                    ]
                 )
                 print("SECOND EXPORT DIFFERS", file=sys.stderr)
                 return 1
@@ -501,11 +611,15 @@ def export_main(argv: list[str]) -> int:
 
 def replay(exe: Path, golden: Path, meta: dict, config: str, datasets: Path, tmp: Path) -> list:
     """Replay one case with dyng-compat-cycle-enum; the list of problems (empty: equal)."""
-    backend, _, threads = config.partition(":")
+    backend, _, option = config.partition(":")
     args = ["--input", datasets / meta["dataset"], "--max-cycle-length", meta["max_cycle_length"]]
     args += ["--backend", backend]
     if backend == "openmp":
-        args += ["--openmp-threads", threads or str(THREADS)]
+        args += ["--openmp-threads", option or str(THREADS)]
+    elif backend == "cuda" and option == "resident":
+        args += ["--scope", "resident"]
+    elif backend == "cuda" and option == "int64":
+        args += ["--edge-type", "int64"]
     bad = []
     tmp.mkdir(parents=True, exist_ok=True)
     if meta["task"] == "update":
@@ -522,7 +636,8 @@ def replay(exe: Path, golden: Path, meta: dict, config: str, datasets: Path, tmp
         if meta.get("locality_window") is not None:
             args += ["--batch-locality", meta["locality_window"]]
         args += ["--write-batch", tmp / "batch.txt"]
-    proc = subprocess.run([str(a) for a in [exe, *args]], capture_output=True, text=True)
+    env = cuda_env(dict(os.environ)) if backend == "cuda" else None
+    proc = subprocess.run([str(a) for a in [exe, *args]], capture_output=True, text=True, env=env)
     if proc.returncode != 0:
         return [f"exit status {proc.returncode}: {proc.stderr[-400:]}"]
     if proc.stdout != (golden / "histogram.csv").read_text():
@@ -544,13 +659,19 @@ def compare_main(argv: list[str]) -> int:
         prog="compare.py cycle_count",
         description="Replay the cycle_count golden corpus through dyng-compat-cycle-enum.",
     )
-    p.add_argument("--goldens", type=Path, default=scratch / "goldens" / SET)
+    p.add_argument(
+        "--set",
+        choices=SETS,
+        help="the golden set (default: cycle_count_cuda when every configuration is cuda, "
+        "else cycle_count)",
+    )
+    p.add_argument("--goldens", type=Path, help="default: $DYNG_SCRATCH/goldens/<set>")
     p.add_argument("--datasets", type=Path, default=scratch / "datasets" / "cycle")
     p.add_argument("--exe", type=Path, help="dyng-compat-cycle-enum")
     p.add_argument(
         "--configs",
         default=f"sequential,openmp:4,openmp:{THREADS}",
-        help="list of sequential, openmp[:threads]",
+        help="list of sequential, openmp[:threads], cuda[:resident|:int64]",
     )
     p.add_argument("--cases", default="", help="restrict to these cases or groups (comma list)")
     p.add_argument("--full", action="store_true", help="also replay heavy cases sequentially")
@@ -559,11 +680,17 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--label", default="", help="free text stored in the JSON")
     p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
     args = p.parse_args(argv)
+    configs = [c.strip() for c in args.configs.split(",") if c.strip()]
+    set_name = args.set or (
+        SET_CUDA if configs and all(c.startswith("cuda") for c in configs) else SET
+    )
+    if args.goldens is None:
+        args.goldens = scratch / "goldens" / set_name
 
     toml = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
-    golden_set = toml.get("sets", {}).get(SET)
+    golden_set = toml.get("sets", {}).get(set_name)
     if golden_set is None:
-        print("parity/goldens.toml has no [sets.cycle_count] (skipping)", file=sys.stderr)
+        print(f"parity/goldens.toml has no [sets.{set_name}] (skipping)", file=sys.stderr)
         return SKIP
     if not (args.goldens / "MANIFEST.sha256").is_file():
         print(
@@ -574,11 +701,17 @@ def compare_main(argv: list[str]) -> int:
         return SKIP
     if args.exe is None or not args.exe.is_file():
         p.error("--exe <dyng-compat-cycle-enum> is required")
-    configs = [c.strip() for c in args.configs.split(",") if c.strip()]
     for c in configs:
-        backend, _, number = c.partition(":")
-        if backend not in ("sequential", "openmp") or (number and not number.isdigit()):
-            p.error(f"--configs: '{c}' is not sequential or openmp[:<threads>]")
+        backend, _, option = c.partition(":")
+        ok = (
+            (backend == "sequential" and not option)
+            or (backend == "openmp" and (not option or option.isdigit()))
+            or (backend == "cuda" and option in ("", "resident", "int64"))
+        )
+        if not ok:
+            p.error(
+                f"--configs: '{c}' is not sequential, openmp[:<threads>] or cuda[:resident|:int64]"
+            )
     if not configs:
         p.error("--configs selects no configuration")
     if not args.skip_verify:
@@ -621,6 +754,8 @@ def compare_main(argv: list[str]) -> int:
             for cfg in configs:
                 if cfg == "sequential" and metas[c]["heavy"] and not args.full:
                     results[(c, cfg)] = None  # skipped
+                elif metas[c].get("cuda_only") and not cfg.startswith("cuda"):
+                    results[(c, cfg)] = None  # its prior takes minutes on the CPU
                 else:
                     todo.append((c, cfg))
         # Sequential replays in parallel; the OpenMP ones one at a time (they use the cores).
@@ -648,6 +783,7 @@ def compare_main(argv: list[str]) -> int:
         doc = {
             "schema": 1,
             "algorithm": SET,
+            "set": set_name,
             "label": args.label,
             "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "reference": {

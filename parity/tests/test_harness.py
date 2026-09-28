@@ -411,6 +411,23 @@ def test_cycle_count_cases_and_histograms() -> None:
     )
     # Every plan total belongs to a count case.
     assert {(c.graph, c.k) for c in cases if not c.update} == set(g.PLAN_TOTALS)
+    # The CUDA set (M2b acceptance criterion 3).
+    cuda = [c.rel for c in g.cuda_cases()]
+    assert len(set(cuda)) == len(cuda)
+    for want in [
+        "count/DD_k3",
+        "count/DD_k7",
+        "count/github_k4",
+        "count/twitch_k4",
+        "count/collab_k3",
+        "update/DD_k4_100000_100000_s1",
+        "update/github_k4_100000_100000_s1",
+        "update/twitch_k4_25000_25000_s1",
+        "update/collab_k4_25000_25000_s1",
+    ]:
+        assert want in cuda
+    assert [c.rel for c in g.cuda_cases() if g.cuda_only(c)] == ["update/collab_k4_25000_25000_s1"]
+    assert g.backend_args(g.SET_CUDA)[:2] == ["--backend", "cuda"]
 
 
 def test_cycle_count_section_survives_both_writers(tmp_path: Path, monkeypatch) -> None:
@@ -418,16 +435,23 @@ def test_cycle_count_section_survives_both_writers(tmp_path: Path, monkeypatch) 
     toml = tmp_path / "parity" / "goldens.toml"
     toml.parent.mkdir()
     toml.write_text("schema = 1\n\n[sets.sssp]\nnum_cases = 0\n\n[sets.sssp.cases]\n")
-    g.write_toml("[sets.cycle_count]\nnum_cases = 1\n", toml)
-    g.write_toml("[sets.cycle_count]\nnum_cases = 2\n", toml)  # replaced, not appended
+    g.write_toml("[sets.cycle_count]\nnum_cases = 1\n", g.SET, toml)
+    g.write_toml("[sets.cycle_count]\nnum_cases = 2\n", g.SET, toml)  # replaced, not appended
     assert toml.read_text().count("[sets.cycle_count]") == 1
+    # The CUDA set (M2b) is written next to it; either writer keeps the other set.
+    cuda = "[sets.cycle_count_cuda]\nnum_cases = 3\n\n[sets.cycle_count_cuda.cases]\n"
+    g.write_toml(cuda, g.SET_CUDA, toml)
+    g.write_toml("[sets.cycle_count]\nnum_cases = 4\n", g.SET, toml)
+    g.write_toml(cuda.replace("3", "5"), g.SET_CUDA, toml)
+    assert toml.read_text().count("[sets.cycle_count_cuda]") == 1
     exporter = load("parity/export_goldens.py")
     monkeypatch.setattr(exporter, "REPO", tmp_path)
-    exporter.write_toml(tmp_path, [], "0" * 64, 0)  # the sssp writer keeps the other set
+    exporter.write_toml(tmp_path, [], "0" * 64, 0)  # the sssp writer keeps the other sets
     import tomllib
 
     doc = tomllib.loads(toml.read_text())
-    assert doc["sets"]["cycle_count"]["num_cases"] == 2 and "sssp" in doc["sets"]
+    assert doc["sets"]["cycle_count"]["num_cases"] == 4 and "sssp" in doc["sets"]
+    assert doc["sets"]["cycle_count_cuda"]["num_cases"] == 5
 
 
 def test_cycle_count_region_map_loads() -> None:
