@@ -36,12 +36,29 @@ set(DYNG_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data")
 dyng_add_test(
   NAME dyng_graph_tests
   SOURCES graph/apply_test.cpp graph/graph_test.cpp graph/mosp_apply_fixture_test.cpp
+          graph/set_semantics_test.cpp
   LABELS cpu graph
+  LIBRARIES dyng::testing
 )
-dyng_add_test(NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp LABELS cpu io)
+dyng_add_test(
+  NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp LABELS cpu io
+)
 dyng_add_test(NAME dyng_framework_tests SOURCES framework/workspace_test.cpp LABELS cpu framework)
-dyng_add_test(NAME dyng_generators_tests SOURCES generators/legacy_test.cpp LABELS cpu generators)
-foreach(_dyng_test dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests)
+dyng_add_test(
+  NAME dyng_generators_tests
+  SOURCES generators/legacy_test.cpp generators/cycle_enum_batch_test.cpp
+  LABELS cpu generators
+)
+# Parity with CycleEnumeration-GPU@0a976ad on the TUDataset graphs (outside the repository; the
+# test skips when they are missing). Label parity, not cpu: run with `ctest -L parity`.
+dyng_add_test(
+  NAME dyng_cycle_enum_parity_tests
+  SOURCES parity/cycle_enum_datasets_test.cpp
+  LABELS parity cycle_count
+)
+foreach(_dyng_test dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests
+                   dyng_cycle_enum_parity_tests
+)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 endforeach()
@@ -56,7 +73,13 @@ dyng_add_test(
 target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
-dyng_add_test(NAME dyng_testing_tests SOURCES testing/oracle_test.cpp LABELS cpu testing LIBRARIES dyng::testing)
+dyng_add_test(
+  NAME dyng_testing_tests
+  SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp
+  LABELS cpu testing
+  LIBRARIES dyng::testing
+)
+target_compile_definitions(dyng_testing_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 
 # CUDA core (label gpu; each test skips when no device is visible). ci/gpu_local.sh runs them on
 # GPU 1 and under compute-sanitizer memcheck.
