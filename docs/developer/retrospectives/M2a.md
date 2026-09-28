@@ -519,8 +519,8 @@ fixtures and the randomized suites are unchanged and pass, and the 72 golden rep
 M2a was done in four steps on 2026-09-27/28 on branch `m2-cycle` (from `main` at `b59de86`):
 graph, I/O, generator and oracle pieces (step 1), `cycle_count` on the sequential and OpenMP
 backends (step 2), the parity harness, goldens and OpenMP gates (step 3), the close-out (step 4)
-and the fixes of the independent review (step 5). 33 commits up to the close-out, 16
-more for the review fixes; nothing pushed (the orchestrator pushes). Size of the branch against
+and the fixes of the independent review (step 5). 33 commits up to the close-out, then the
+review-fix commits of step 5 (`7bdd483` onwards); nothing pushed (the orchestrator pushes). Size of the branch against
 `b59de86` at the close-out (added lines, tracked files; the review fixes added about 2,800 more,
 most of them tests, harness and documentation):
 
