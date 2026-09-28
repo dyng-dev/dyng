@@ -31,4 +31,20 @@ if(DYNG_BUILD_TESTS)
     set_tests_properties(example.sssp_update.${_backend} example.sssp_update.${_backend}.matches_original
                          PROPERTIES LABELS "cpu;sssp;examples" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
   endforeach()
+
+  # The same example on the GPU (label gpu): run and compare in one test, skipped (77) when no
+  # device is visible.
+  if(DYNG_ENABLE_CUDA)
+    set(_out "${CMAKE_CURRENT_BINARY_DIR}/out/cuda")
+    file(MAKE_DIRECTORY "${_out}")
+    add_test(
+      NAME example.sssp_update.cuda
+      COMMAND
+        ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:dyng_example_sssp_update>" "-DCASE=${_case}"
+        "-DOUT=${_out}" "-DEXPECTED=${_expected}/SSSPTreeUpdated.txt" -P
+        "${CMAKE_CURRENT_SOURCE_DIR}/run_cuda_example.cmake"
+    )
+    set_tests_properties(example.sssp_update.cuda PROPERTIES LABELS "gpu;sssp;examples"
+                         SKIP_RETURN_CODE 77 ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
+  endif()
 endif()
