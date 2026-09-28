@@ -6,14 +6,15 @@ root, where GitHub shows it next to every issue and pull request. It covers:
 
 - where to start (the `good first issue` labels, {doc}`labels`, and the {doc}`../roadmap`);
 - the development environment (`environment.yml`, `scripts/dev_env.sh`) and the presets;
-- the tests (labels `cpu`, `gpu`, `parity`) and the local gate `ci/check.sh`;
+- the tests (labels `cpu`, `gpu`, `parity`), the local gate `ci/check.sh` and, for CUDA
+  changes, the local GPU gate `ci/gpu_local.sh`;
 - parity with the original research codes ({doc}`parity`) and performance measurements;
 - style: clang-format, the naming rules of ADR 0004, SPDX headers and provenance headers of
   ported files;
 - Doxygen conventions and the documentation build ({doc}`documentation`);
 - commit messages, the Developer Certificate of Origin (DCO) sign-off for external contributors;
 - the pull-request process and review rules (with the {doc}`api_review_checklist` for public API
-  changes), and how to add an algorithm or port research code (with the provenance rules,
+  changes; the merge policy is {doc}`../adr/0019-merge-policy`), and how to add an algorithm or port research code (with the provenance rules,
   {doc}`provenance`).
 
 The community files next to it: the

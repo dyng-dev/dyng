@@ -284,7 +284,7 @@ Two kinds of message matter, and only one of them reaches `main`:
   example `io: reject batches with out-of-range ids`. Areas are the top-level parts of the
   repository (`core`, `graph`, `io`, `sssp`, `parity`, `ci`, `build`, `docs`, `tests`,
   `github`, ...).
-- **The pull request title** becomes the one commit on `main`: pull requests are
+- **The pull request title** becomes the one commit on `main`: contributions are
   squash-merged, and the title is the subject of the squashed commit. It follows
   [Conventional Commits](https://www.conventionalcommits.org/), for example
   `fix(io): reject batches with out-of-range ids`
@@ -365,12 +365,16 @@ exempt (`.github/dco.yml`). Commits made in GitHub's web editor are signed off a
 5. A maintainer reviews. Address comments with new commits (do not force-push during a review
    unless asked); to catch up with `main`, use the pull request's **Update branch** button or
    merge `upstream/main` into your branch. The pull request is **squash-merged**, so the title
-   becomes the commit subject on `main`.
+   becomes the commit subject on `main`. (Milestone and integration work of the maintainers is
+   merged with a merge commit instead, which keeps the commit SHAs cited by parity certificates
+   and retrospectives; rebase merging is disabled. See [ADR 0019](docs/adr/0019-merge-policy.md) and
+   [GOVERNANCE.md](GOVERNANCE.md#reviews-and-merges).)
 
 **Rules:**
 
 - **Everything goes through a pull request**, including the maintainers' own work. (Until the
-  `main` ruleset is active, the lead maintainer still pushes milestone work directly; see
+  `main` ruleset is active, which waits for the first pull request, the lead maintainer still
+  pushes milestone and integration merges directly; see
   [GOVERNANCE.md](GOVERNANCE.md#reviews-and-merges).)
 - **Titles** follow [Conventional Commits](https://www.conventionalcommits.org/):
   `feat(sssp): ...`, `fix(io): ...`, `perf(cycle_count): ...`, `docs: ...`, `test: ...`,

@@ -13,22 +13,26 @@ required; Appendix E and `GOVERNANCE.md` record the decisions.
 
 ## Checklist
 
+"Done" means applied by the lead maintainer (through the GitHub API, 2026-09-27) and checked
+against the read-only API on 2026-09-28 (`gh api repos/dyng-dev/dyng`, its `actions/permissions`,
+`rulesets`, `environments` and security endpoints, and `gh api orgs/dyng-dev`).
+
 | # | Setting | When | Status |
 |---|---|---|---|
-| 1 | Organization: two-factor authentication, base permissions | now | |
-| 2 | About: description, website, topics | now | |
-| 3 | Features: Issues, Discussions, no wiki | now | |
-| 4 | Pull requests: squash merges only | now | |
-| 5 | Actions: permissions, SHA pinning, fork approval | now | |
-| 6 | Security: private vulnerability reporting, Dependabot, secret scanning | now | |
-| 7 | The DCO app and web sign-off | now | |
-| 8 | Labels | after the M4 merge | |
-| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | |
-| 10 | Ruleset for release tags | now | |
-| 11 | Environments `pypi` and `testpypi`: protection rules | now | |
-| 12 | Discussions: categories and the pinned roadmap | after step 3 | |
-| 13 | Read the Docs | later: checkpoint A4, milestone M6 | |
-| 14 | Zenodo | later: checkpoint A4, before 0.1.0 is published | |
+| 1 | Organization: two-factor authentication, base permissions | now | **done** (2FA required, base permission Read; the optional restriction of repository creation, 1.3, is not set) |
+| 2 | About: description, website, topics | now | **done** (description and the 14 topics; no website until step 13) |
+| 3 | Features: Issues, Discussions, no wiki | now | **done** (Issues and Discussions on; wiki and projects off) |
+| 4 | Pull requests: merge commits and squash merges, no rebase (ADR 0019) | now | **done** |
+| 5 | Actions: permissions, SHA pinning, fork approval | now | **done** (allow-list, SHA pinning required, approval for all external contributors, read-only workflow token) |
+| 6 | Security: private vulnerability reporting, Dependabot, secret scanning | now | **done** (private vulnerability reporting; Dependabot alerts and security updates; secret scanning with push protection; CodeQL, optional, not set up) |
+| 7 | The DCO app and web sign-off | now | **done** (DCO app installed on `dyng-dev/dyng` by the author; web sign-off required); add the `DCO` check to the `main` ruleset in step 9 |
+| 8 | Labels | after the M4 merge | pending: the `labels` workflow applies `.github/labels.yml` on the first push of `main` with the M4 merge |
+| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **pending the first pull request** (no ruleset and no branch protection on `main` yet) |
+| 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass) |
+| 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
+| 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
+| 13 | Read the Docs | later: checkpoint A4, milestone M6 | later |
+| 14 | Zenodo | later: checkpoint A4, before 0.1.0 is published | later |
 
 ## 1. Organization security
 
@@ -79,14 +83,18 @@ Settings → **General** → section **Features**:
 
 Docs: <https://docs.github.com/en/discussions/quickstart>.
 
-## 4. Pull requests: squash merges only
+## 4. Pull requests: merge commits and squash merges, no rebase
 
-PLAN Section 8.9: squash merges, the pull request title (Conventional Commits) becomes the
-commit subject.
+The merge policy (ADR 0019, `GOVERNANCE.md`): pull requests of **milestone and integration
+work** are merged with a **merge commit**, so the commit SHAs that parity certificates,
+retrospectives and ADRs cite stay reachable from `main`; **external contributions** are
+**squash-merged**, and their title (Conventional Commits) becomes the commit subject; **rebase
+merging** is disabled. (This replaces the plan's "squash merges only", PLAN Section 8.9.)
 
 Settings → **General** → section **Pull Requests**:
 
-1. Untick **Allow merge commits**.
+1. Tick **Allow merge commits**; **Default commit message**: **Pull request title and
+   description**.
 2. Tick **Allow squash merging**; **Default commit message**: **Pull request title and
    description**.
 3. Untick **Allow rebase merging**.
@@ -176,13 +184,17 @@ interface: the next run resets listed labels to the file.
 
 ## 9. Ruleset for `main`
 
-PLAN Section 8.9: everything goes through a pull request, the required checks must be green,
-squash merges only. While the lead maintainer is the only maintainer, **zero approvals** are
-required (the author merges their own pull request once the checks pass); from the day a
+PLAN Section 8.9: everything goes through a pull request and the required checks must be green;
+the merge methods follow ADR 0019 (merge commits for milestone and integration work, squash
+merges for contributions). While the lead maintainer is the only maintainer, **zero approvals**
+are required (the author merges their own pull request once the checks pass); from the day a
 second maintainer exists, raise it to one.
 
-GitHub offers a required check in the ruleset only after it has run in the last 7 days, so
-open one pull request first (for example the M4 merge) and let every workflow finish.
+**Status: pending the first pull request.** GitHub offers a required check in the ruleset only
+after it has run in the last 7 days, so open one pull request first (for example the next
+milestone merge, M2b) and let every workflow finish, including the `DCO` check; then create the
+ruleset. Until then `main` has no ruleset, and the lead maintainer pushes the integration merges
+(INT1) directly.
 
 1. Settings → sidebar section **Code and automation** → **Rules** → **Rulesets** →
    **New ruleset** → **New branch ruleset**.
@@ -191,7 +203,7 @@ open one pull request first (for example the M4 merge) and let every workflow fi
 4. **Target branches** → **Add target** → **Include default branch**.
 5. Tick these rules:
    - **Restrict deletions**.
-   - **Require linear history**.
+   - Leave **Require linear history** unticked: milestone merges are merge commits (ADR 0019).
    - **Require a pull request before merging**, and open its options:
      - **Required approvals:** `0` now; `1` once there is a second maintainer.
      - **Dismiss stale pull request approvals when new commits are pushed:** tick.
@@ -199,7 +211,7 @@ open one pull request first (for example the M4 merge) and let every workflow fi
      - **Require approval of the most recent reviewable push:** untick now; tick with the
        second maintainer.
      - **Require conversation resolution before merging:** tick.
-     - **Allowed merge methods:** only **Squash**.
+     - **Allowed merge methods:** **Merge** and **Squash** (not **Rebase**).
    - **Require status checks to pass**, and open its options:
      - **Require branches to be up to date before merging:** tick.
      - **Add checks** → type each name below and pick the entry whose source is
@@ -213,6 +225,7 @@ Required checks (the job names as they appear in a pull request's checks list):
 |---|---|
 | `lint.yml` | `pre-commit`, `tidy`, `harness`, `name-reservation` |
 | `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF` |
+| `cuda-build.yml` | `CUDA 13.1.1 (ci-cuda13)`, `CUDA 13.4.1 (ci-cuda13)`, `CUDA 12.9.2 (ci-cuda12)` (the job `compile`, named `CUDA <toolkit> (<preset>)` per matrix entry; compile-only, no GPU) |
 | `docs.yml` | `site` (not `external-links`, which runs only weekly and on demand) |
 | DCO app | `DCO` |
 
@@ -220,13 +233,15 @@ Do **not** require checks of workflows that run only for some files (`labels.yml
 tags (`release.yml`), only on some events (`welcome.yml`, the first-interaction greeting) or
 only on a schedule (the `external-links` job of `docs.yml`): a required check that never runs
 blocks every pull request. When a
-workflow is added (`cuda-build`, `python`, `api-check`; PLAN Section 8.8) or a job of the
-`cpu` matrix is renamed, update this list and the ruleset in the same pull request.
+workflow is added (`python`, `api-check`; PLAN Section 8.8), a job of the `cpu` matrix is
+renamed, or a toolkit of the `cuda-build` matrix is bumped (its version is part of the check
+name), update this list and the ruleset in the same pull request.
 
 **Note on bypassing.** With an empty bypass list, nobody can push to `main` directly, including
-the organization owners: milestone work is merged through pull requests (the AI assistant can
-open them). If you decide to keep pushing directly for a while, **Add bypass** →
-**Repository admin** → mode **Always allow**, and record the decision in `GOVERNANCE.md`.
+the organization owners: once the ruleset exists, milestone and integration work reaches `main`
+through pull requests, merged with a merge commit (ADR 0019; the AI assistant can open them).
+If you decide to keep pushing directly for a while, **Add bypass** → **Repository admin** →
+mode **Always allow**, and record the decision in `GOVERNANCE.md`.
 
 Docs: <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository>.
 

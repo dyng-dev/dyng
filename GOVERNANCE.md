@@ -24,11 +24,18 @@ dynG follows a **lead-maintainer** model while it has fewer than three active ma
   "Pull requests and review"). While the lead maintainer is the only maintainer, they may merge
   their own pull requests once the checks pass; from the day a second maintainer exists, one
   approving review by someone other than the author is required.
-- **Interim exception (until the author decides):** the history of `main` so far, from the
-  first commit through the infrastructure milestone (M4), was pushed directly by the lead
-  maintainer, before the `main` ruleset existed. Whether milestone work keeps being pushed
-  directly for a while (with a ruleset bypass for repository admins) or goes through pull
-  requests from now on is an open decision (below); the choice is logged in the approvals log.
+- **Merge policy** (ADR 0019; the repository settings allow exactly these methods):
+  - pull requests of **milestone and integration work** are merged with a **merge commit**
+    (`git merge --no-ff`), so that the commit SHAs cited by parity certificates, milestone
+    retrospectives and ADRs stay reachable from `main`;
+  - **external contributions** (and small maintainer fixes) are **squash-merged**; the pull
+    request title (Conventional Commits) becomes the commit subject;
+  - **rebase merging** is disabled.
+- **Until the `main` ruleset exists:** the history of `main` so far, from the first commit
+  through the integration of M1b and M4 (INT1, itself a `--no-ff` merge of `m4-infra`), was
+  pushed directly by the lead maintainer. The ruleset (docs/developer/repository_settings.md,
+  step 9) is created after the first pull request has run every required check; from then on
+  milestone and integration work also goes through pull requests, merged as above.
 
 ## Contacts
 
@@ -70,6 +77,7 @@ One line per decision: date, checkpoint or decision, what was approved, by whom.
 | 2026-09-27 | O13 (contact) | `sm.shovan@gmail.com` is the published contact for the Code of Conduct and security reports; GitHub private vulnerability reporting is to be enabled in the repository settings. | S M Shovan |
 | 2026-09-27 | Accounts | Done by the author: the GitHub organization `dyng-dev` and the empty public repository `dyng-dev/dyng`; pending trusted publishers on PyPI and TestPyPI (project `dyng`, repository `dyng-dev/dyng`, workflow `release.yml`, environments `pypi` and `testpypi`). Pushing tag `v0.0.1` publishes the name reservation. | S M Shovan |
 | 2026-09-27 | Credit and citations | The 22 commits under the placeholder identity `CUDA <user@example.com>` in the originals were made by the author or by an AI assistant working for him: credited to S M Shovan. No funding acknowledgement for now (none found; the author adds it later). ESCHER is cited as the IPDPS 2026 paper by S. M. Shovan, A. Khanda, S. Bhowmick and S. K. Das, "ESCHER: Efficient and Scalable Hypergraph Evolution Representation with Application to Triad Counting"; TruCy (IEEE Transactions on Computers) as a submitted manuscript. S M Ferdous is listed with the affiliation Pacific Northwest National Laboratory only (no third-party e-mail address in the repository). | S M Shovan |
+| 2026-09-27 | Merge policy | Milestone and integration pull requests are merged with merge commits, external contributions are squash-merged, rebase merging is disabled (ADR 0019); applied in the repository settings together with About and topics, features, the Actions allow-list with SHA pinning, fork approval, the read-only workflow token, private vulnerability reporting, Dependabot alerts and security updates, secret scanning with push protection, web sign-off, the `release tags` ruleset, the `pypi` and `testpypi` environments, organization 2FA and base permission Read; the DCO app installed. The `main` ruleset follows the first pull request. | S M Shovan |
 
 ## Open decisions
 
@@ -78,7 +86,6 @@ Decisions the lead maintainer still has to take; each moves to the approvals log
 | Decision | Default until then |
 |---|---|
 | O3: confirm the institution line and the years of `NOTICE` ("software developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors") | the draft wording stays in `NOTICE` |
-| How milestone work reaches `main`: pull requests only, or direct pushes by the lead maintainer with a ruleset bypass | direct pushes until the `main` ruleset is created (docs/developer/repository_settings.md, step 9) |
 | Whether a co-author wrote code of the originals outside git (docs/developer/provenance.md) | co-authors credited as research collaborators only |
 
 ## License consent and IP record
