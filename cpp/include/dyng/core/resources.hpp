@@ -98,6 +98,7 @@ class resources {
    * @throws not_supported_error    if the library was built without CUDA, or no device is visible.
    * @throws invalid_argument_error if `device` is not a visible device.
    * @throws cuda_error             if the CUDA runtime reports an error.
+   * @sync Queries the device once; enqueues no work on `stream`.
    */
   [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {});
 
@@ -175,6 +176,9 @@ class resources {
    * @throws invalid_argument_error if the resource's space does not suit the backend (host
    *                                backends need a host-accessible space, cuda a device or
    *                                managed space).
+   * @async The idle workspaces are returned to the previous resource in stream order (after the
+   *        work already enqueued on the handle's stream); calls made after this one returns use
+   *        the new resource.
    */
   void set_memory_resource(memory_resource_ref mr);
 
@@ -207,6 +211,8 @@ class resources {
    *
    * The next compute() or update() through the handle sizes a new workspace (allocates). Safe to
    * call while another thread uses the handle: a workspace in use returns to the cache afterwards.
+   * @async Device workspaces are released in stream order (the memory is reused only after the
+   *        work already enqueued on the handle's stream); host workspaces are freed at once.
    */
   void release_workspaces() const noexcept;
 

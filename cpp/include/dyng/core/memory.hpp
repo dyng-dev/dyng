@@ -77,6 +77,8 @@ class memory_resource_ref {
    * @param[in] alignment Alignment in bytes (a power of two).
    * @return Pointer to at least `bytes` bytes.
    * @throws out_of_memory_error if the allocation fails.
+   * @async Ordered on `stream` for stream-ordered resources (cuda_async_memory_resource); host
+   *        resources return memory that is usable at once.
    */
   void* allocate(stream_ref stream, std::size_t bytes, std::size_t alignment) {
     return vtable_->allocate(object_, stream, bytes, alignment);
@@ -88,6 +90,8 @@ class memory_resource_ref {
    * @param[in] ptr       Pointer returned by allocate() of the same resource.
    * @param[in] bytes     The size passed to allocate().
    * @param[in] alignment The alignment passed to allocate().
+   * @async Ordered on `stream` for stream-ordered resources; what a resource does is stated on its
+   *        own deallocate() (pinned host memory waits for the stream).
    */
   void deallocate(stream_ref stream, void* ptr, std::size_t bytes, std::size_t alignment) noexcept {
     vtable_->deallocate(object_, stream, ptr, bytes, alignment);
@@ -191,6 +195,7 @@ class host_memory_resource {
    * @return Pointer to at least `bytes` bytes (non-null, also for 0 bytes).
    * @throws out_of_memory_error if the allocation fails.
    * @throws invalid_argument_error if `alignment` is not a power of two.
+   * @sync
    */
   void* allocate(stream_ref stream, std::size_t bytes, std::size_t alignment);
 
@@ -200,6 +205,8 @@ class host_memory_resource {
    * @param[in] ptr       Pointer returned by allocate() or allocate_sync().
    * @param[in] bytes     The size passed at allocation.
    * @param[in] alignment The alignment passed at allocation.
+   * @sync The memory is freed at once: the caller must not release memory that enqueued work
+   *       still uses.
    */
   void deallocate(stream_ref stream, void* ptr, std::size_t bytes, std::size_t alignment) noexcept;
 
@@ -427,6 +434,7 @@ class pinned_host_memory_resource {
    * @throws out_of_memory_error    if the allocation fails.
    * @throws invalid_argument_error if `alignment` is not a power of two or exceeds 256.
    * @throws not_supported_error    if the library was built without CUDA.
+   * @sync
    */
   void* allocate(stream_ref stream, std::size_t bytes, std::size_t alignment);
 

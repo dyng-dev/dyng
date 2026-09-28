@@ -73,6 +73,8 @@ class buffer {
    * @param[in] mr     Memory resource; must outlive the buffer.
    * @param[in] device CUDA device of the memory for device / managed spaces, else -1.
    * @throws out_of_memory_error if the allocation fails.
+   * @async The allocation is ordered on `stream` (host memory resources allocate before
+   *        returning).
    */
   buffer(size_type size, stream_ref stream, memory_resource_ref mr, int device = -1)
       : stream_(stream), mr_(mr), device_(device) {
@@ -108,6 +110,7 @@ class buffer {
    * @brief Release the current memory and take over the memory of another buffer.
    * @param[in,out] other The source; left empty.
    * @return *this.
+   * @async The current memory is released in the order of its stream.
    */
   buffer& operator=(buffer&& other) noexcept {
     if (this != &other) {
@@ -123,6 +126,8 @@ class buffer {
 
   /**
    * @brief Release the memory (stream-ordered).
+   * @async The memory is reused only after the work enqueued on the buffer's stream before the
+   *        destruction (host memory is freed at once).
    */
   ~buffer() {
     release_storage();
@@ -231,6 +236,8 @@ class buffer {
    * @param[in] new_size The new element count.
    * @throws out_of_memory_error if the allocation fails.
    * @throws not_supported_error if the memory is device memory and CUDA is not built.
+   * @async The new allocation, the copy of the kept elements and the release of the old memory
+   *        are ordered on the buffer's stream.
    */
   void resize(size_type new_size) {
     if (new_size == size_) {
