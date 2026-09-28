@@ -175,6 +175,28 @@ TEST(CudaBuffer, PinnedStagingCopies) {
   }
 }
 
+// to_space() takes the memory resource from the requested space (M1b review): a CUDA handle
+// reaches host and pinned host memory too, and a host handle reaches pinned memory.
+TEST(CudaBuffer, ToSpaceReachesEverySpaceOfTheHandle) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const auto res = dyng::resources::cuda();
+  const std::vector<int> src{3, 1, 4, 1, 5};
+  const auto dev = dyng::to_space(res, dyng::host_view(src), dyng::memory_space::device);
+  EXPECT_EQ(dev.space(), dyng::memory_space::device);
+  for (const dyng::memory_space space :
+       {dyng::memory_space::host, dyng::memory_space::pinned_host, dyng::memory_space::device}) {
+    const auto copy = dyng::to_space(res, dev.view(), space);
+    EXPECT_EQ(copy.space(), space);
+    EXPECT_EQ(dyng::to_vector(res, copy.view()), src);
+  }
+  EXPECT_THROW((void)dyng::to_space(res, dev.view(), dyng::memory_space::managed),
+               dyng::invalid_argument_error);
+  const auto host = dyng::resources::sequential();
+  const auto pinned = dyng::to_space(host, dyng::host_view(src), dyng::memory_space::pinned_host);
+  EXPECT_EQ(pinned.space(), dyng::memory_space::pinned_host);
+  EXPECT_EQ(dyng::to_vector(host, pinned.view()), src);
+}
+
 template <typename value_t>
 void check_fill(const dyng::resources& res, std::size_t n, value_t value) {
   dyng::buffer<value_t> b(res, n);

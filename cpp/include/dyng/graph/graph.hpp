@@ -42,7 +42,8 @@ struct graph_access;
  * a graph variable that was reassigned since, even if the version counters are equal. The storage
  * belongs to the backend of the resources that created it (PLAN Section 4.6 rule 5): algorithms
  * refuse resources of the other kind (host backends versus cuda) instead of copying the graph
- * silently, and clone(res) makes a copy for other resources. A graph built with CUDA resources
+ * silently, and to_backend(res) (or clone(res)) makes a copy for other resources. A graph built
+ * with CUDA resources
  * keeps its CSR in host memory in this release (a batch is applied on the host, as MOSP-CUDA
  * applies it) and a resident device copy of the current state (out- and in-edges, one weight
  * column per objective), uploaded on first use and again after each applied batch.
@@ -181,6 +182,21 @@ class graph {
    * @sync
    */
   [[nodiscard]] graph clone(const resources& res) const;
+
+  /**
+   * @brief The graph for the backend of `res`: the explicit move between the host backends and
+   *        cuda that the placement errors name (PLAN Section 4.6 rule 5).
+   *
+   * In this release the same as clone(res) (a deep copy that belongs to the backend of `res`; the
+   * original is unchanged), since a CUDA graph keeps its authoritative CSR on the host; ADR 0017
+   * item 3.
+   * @param[in] res Execution resources of the new graph.
+   * @return The graph for `res`.
+   * @throws invalid_argument_error for a moved-from graph.
+   * @throws out_of_memory_error    if host memory cannot be allocated.
+   * @sync
+   */
+  [[nodiscard]] graph to_backend(const resources& res) const;
 
   /**
    * @brief Pre-size the current storage (out-edges and, if stored, in-edges) for `edge_capacity`

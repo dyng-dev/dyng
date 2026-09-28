@@ -170,6 +170,12 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::clone (", num_vertices(), " vertices, 
                                   " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+graph<vertex_t, edge_t, weight_t> graph<vertex_t, edge_t, weight_t>::to_backend(
+    const resources& res) const {
+  return clone(res);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 void graph<vertex_t, edge_t, weight_t>::reserve(const resources& res, edge_t edge_capacity) try {
   (void)res;  // the host storage (also of a CUDA graph, whose device copy is rebuilt per state)
   DYNG_EXPECTS(edge_capacity >= 0, "graph::reserve: negative capacity ", edge_capacity);
@@ -379,11 +385,11 @@ void graph_access::expect_placement(const resources& res,
                  state.home == backend::cuda ? " on CUDA device " : "",
                  state.home == backend::cuda ? std::to_string(state.home_device) : std::string(),
                  " but the resources are cuda on device ", res.device(),
-                 "; build the graph with these resources or copy it with g.clone(res)");
+                 "; build the graph with these resources or move it with g.to_backend(res)");
   } else {
     DYNG_EXPECTS(state.home != backend::cuda, what, ": the graph is resident on CUDA device ",
                  state.home_device, " but the resources are ", to_string(b),
-                 "; copy it with g.clone(res)");
+                 "; move it with g.to_backend(res)");
   }
 }
 

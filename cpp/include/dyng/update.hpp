@@ -238,4 +238,31 @@ auto update_each(const resources& res, container_t& g, const batch_view_t& batch
   return out;
 }
 
+/**
+ * @brief update_each() for a view of mutable pointers, as `host_view(std::vector<result_t*>&)`
+ *        gives (the same call; the element type does not deduce through the conversion).
+ *
+ * @tparam container_t  The container type (graph<V,E,W>).
+ * @tparam batch_view_t The batch view type (edge_batch_view<V,W>).
+ * @tparam result_t     The result type (e.g. sssp::result<V>).
+ * @param[in]     res     Execution resources.
+ * @param[in,out] g       The container; its version increases by one.
+ * @param[in]     batch   The batch (any memory space, as for update_each()).
+ * @param[in,out] results Pointers to the results to update (host memory, none null).
+ * @return One stats object per result, in order.
+ * @throws stale_result_error     as update_each().
+ * @throws invalid_argument_error as update_each().
+ * @throws not_supported_error    as update_each().
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @sync
+ * @ingroup core
+ */
+template <typename container_t, typename batch_view_t, typename result_t>
+auto update_each(const resources& res, container_t& g, const batch_view_t& batch,
+                 array_view<result_t*> results)
+    -> std::vector<typename detail::stats_of<result_t>::type> {
+  return update_each<container_t, batch_view_t, result_t>(res, g, batch,
+                                                          array_view<result_t* const>(results));
+}
+
 }  // namespace dyng

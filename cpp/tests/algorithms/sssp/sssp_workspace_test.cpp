@@ -136,7 +136,7 @@ TEST_P(SsspWorkspace, TheObjectivesShareOneWorkspaceAndASteadyStateAllocatesNone
   for (result_t& r : results) {
     pointers.push_back(&r);
   }
-  const auto list = dyng::array_view<result_t* const>(pointers.data(), pointers.size());
+  const auto list = dyng::host_view(pointers);
   // A stable workload: the same batch deleted and re-inserted, twice.
   const batch_t forth = random_batch(g, 200, 5);
   batch_t back(num_objectives);

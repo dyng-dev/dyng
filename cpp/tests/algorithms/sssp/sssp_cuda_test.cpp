@@ -160,12 +160,15 @@ TEST_F(SsspCuda, GraphsAndResultsStayWithTheirBackendUntilCloned) {
     (void)dyng::sssp::compute(cuda, hg, 0);
     FAIL() << "a host graph was used with cuda resources";
   } catch (const dyng::invalid_argument_error& error) {
-    EXPECT_TRUE(contains(error.what(), "g.clone(res)")) << error.what();
+    EXPECT_TRUE(contains(error.what(), "g.to_backend(res)")) << error.what();
   }
   EXPECT_THROW((void)dyng::sssp::compute(host, dg, 0), dyng::invalid_argument_error);
-  // clone(res) moves a graph to the backend of res; the content and the state are kept.
-  auto moved = hg.clone(cuda);
+  // to_backend(res) (and clone(res)) move a graph to the backend of res; the content and the
+  // state are kept.
+  auto moved = hg.to_backend(cuda);
   EXPECT_EQ(moved.space(), dyng::memory_space::device);
+  EXPECT_EQ(dg.to_backend(host).space(), dyng::memory_space::host);
+  EXPECT_EQ(hg.clone(cuda).space(), dyng::memory_space::device);
   result_t hr = dyng::sssp::compute(host, hg, 0);
   result_t dr = dyng::sssp::compute(cuda, moved, 0);
   EXPECT_EQ(host_copy(dr.distances()), host_copy(hr.distances()));
@@ -665,7 +668,7 @@ TEST_F(SsspCuda, SteadyStateUpdatesAllocateOnlyTheGraphUpload) {
     const std::uint64_t created = pool.statistics().created;
     const int before = counter.allocations.load();
     (void)dyng::update_each(res, g, b.view(),
-                            dyng::array_view<result_t* const>(pointers.data(), pointers.size()));
+                            dyng::host_view(pointers));
     const int during = counter.allocations.load() - before;
     // What uploading this graph state alone allocates.
     const auto copy = g.clone(res);
