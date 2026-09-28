@@ -227,7 +227,7 @@ done
 
 `parity/compare.py --configs cuda` through `dyng-compat-mosp --backend cuda` (parity-cuda preset:
 Release, host `-O3`, nvcc `-O3 -lineinfo -fmad=true`, sm_86; CUDA 13.1; RTX A5000, GPU 1), port
-`b59de86`: **495 / 495 cases byte-identical** (`compute` = `mospPrep init`, `update` = `mosp`
+`492eba0`: **495 / 495 cases byte-identical** (`compute` = `mospPrep init`, `update` = `mosp`
 from the golden initial trees incl. the 107 non-canonical ones, the updated CSR, and the
 `invalidated` counter of every objective). The goldens are MOSP-OpenMP@c352151's; MOSP-CUDA
 e220ee2 produces the same files on every case (the one-off cross-check,

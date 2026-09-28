@@ -2,14 +2,14 @@
  "schema": 1,
  "algorithm": "sssp",
  "label": "M1b step 3: sssp on cuda (fused engine) vs the goldens of MOSP-OpenMP c352151 (= MOSP-CUDA e220ee2 on every case), parity-cuda preset, GPU 1",
- "date": "2026-09-27T23:52:26Z",
+ "date": "2026-09-28T00:45:13Z",
  "reference": {
   "name": "MOSP-OpenMP",
   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
  },
  "port": {
   "repository": "dyng",
-  "commit": "b59de86c93d6ef737cad2dbe976286ba52cda7d4"
+  "commit": "492eba0b159a11ab7348b49b77975158395e4be6"
  },
  "driver": "compat",
  "executable": "build/parity-cuda/tools/compat/dyng-compat-mosp",
