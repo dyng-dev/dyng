@@ -90,6 +90,8 @@ if(DYNG_ENABLE_CUDA)
     set(CMAKE_CUDA_RUNTIME_LIBRARY Shared)
   endif()
   enable_language(CUDA)
+  # native without a visible GPU would silently compile for nvcc's default architecture only.
+  dyng_check_native_cuda_architectures()
   find_package(CUDAToolkit REQUIRED)
   if(NOT CMAKE_CUDA_STANDARD)
     set(CMAKE_CUDA_STANDARD 17)

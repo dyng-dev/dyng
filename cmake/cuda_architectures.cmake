@@ -6,7 +6,11 @@
 # an architecture set after the first target silently leaves that target on the compiler default).
 #
 #   DYNG_CUDA_ARCHITECTURES  (cache)
-#     native   the GPUs of the build machine (development presets; needs a visible GPU)
+#     native   the GPUs of the build machine (the default and the development presets). Without a
+#              visible GPU (a build host or container without one, CUDA_VISIBLE_DEVICES masked)
+#              nvcc would fall back to its own default architecture; dynG then uses the release
+#              list instead and warns (dyng_check_native_cuda_architectures, after
+#              enable_language(CUDA)).
 #     release  the release list of the toolkit in use (release, wheel and CI presets):
 #                CUDA >= 12.8 and 13.x   75-real;80-real;86-real;89-real;90-real;100-real;120
 #                CUDA 12.4 - 12.7        75-real;80-real;86-real;89-real;90
@@ -17,6 +21,8 @@
 #   An explicit -DCMAKE_CUDA_ARCHITECTURES=... always wins over DYNG_CUDA_ARCHITECTURES.
 #
 #   dyng_set_cuda_architectures()      sets CMAKE_CUDA_ARCHITECTURES (needs CMAKE_CUDA_COMPILER)
+#   dyng_check_native_cuda_architectures()   after enable_language(CUDA): native without a GPU ->
+#                                            the release list, with a warning
 #   dyng_release_cuda_architectures(<version> <out-var>)   the release list of a toolkit version
 
 set(DYNG_CUDA_ARCHITECTURES
@@ -80,4 +86,28 @@ macro(dyng_set_cuda_architectures)
   message(STATUS "dynG: CUDA ${DYNG_CUDA_COMPILER_RELEASE} architectures ${CMAKE_CUDA_ARCHITECTURES} "
                  "(${_dyng_cuda_arch_source})")
   unset(_dyng_cuda_arch_source)
+endmacro()
+
+# After enable_language(CUDA), which resolves `native` into CMAKE_CUDA_ARCHITECTURES_NATIVE: with no
+# visible GPU that is empty or CMake's "No CUDA devices found." marker, and nvcc -arch=native would
+# compile for nvcc's default architecture only (a silently slow build that runs through the PTX
+# JIT). Use the release list instead and say so. No target exists yet, so every target gets it.
+macro(dyng_check_native_cuda_architectures)
+  if(CMAKE_CUDA_ARCHITECTURES MATCHES "native")
+    if(CMAKE_CUDA_ARCHITECTURES_NATIVE STREQUAL "" OR CMAKE_CUDA_ARCHITECTURES_NATIVE MATCHES
+                                                      "No CUDA devices")
+      dyng_release_cuda_architectures("${DYNG_CUDA_COMPILER_RELEASE}" CMAKE_CUDA_ARCHITECTURES)
+      message(WARNING "dynG: DYNG_CUDA_ARCHITECTURES=native but no CUDA device is visible on this "
+                      "machine; building for the release list of CUDA ${DYNG_CUDA_COMPILER_RELEASE} "
+                      "(${CMAKE_CUDA_ARCHITECTURES}) instead. Set DYNG_CUDA_ARCHITECTURES to "
+                      "release or an explicit list (for example 86) to silence this.")
+      set(DYNG_CUDA_ARCHITECTURES_RESOLVED
+          "${CMAKE_CUDA_ARCHITECTURES}"
+          CACHE INTERNAL "The CUDA architectures of this build (reports)"
+      )
+    else()
+      message(STATUS "dynG: native CUDA architectures of this machine: "
+                     "${CMAKE_CUDA_ARCHITECTURES_NATIVE}")
+    endif()
+  endif()
 endmacro()

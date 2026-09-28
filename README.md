@@ -83,7 +83,8 @@ ci/build_cuda.sh                         # compile-only release build, as cuda-b
 | `sanitize-cuda` | for `compute-sanitizer` runs |
 | `ci-cuda13`, `ci-cuda12` | compile-only builds of `.github/workflows/cuda-build.yml` (no GPU needed) |
 
-`DYNG_CUDA_ARCHITECTURES` chooses `native`, `release` or an explicit list (for example
+`DYNG_CUDA_ARCHITECTURES` chooses `native` (the default; without a visible GPU the configure
+step warns and uses the release list), `release` or an explicit list (for example
 `-DDYNG_CUDA_ARCHITECTURES=86`). `ci/gpu_local.sh` builds `dev-cuda` and then runs
 `ctest -L gpu` and `ctest -L cpu`, the sssp golden corpus on the cuda backend (when the goldens
 exist, see below), `compute-sanitizer --tool memcheck` over every GPU test executable,
