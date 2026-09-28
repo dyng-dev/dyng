@@ -37,6 +37,12 @@ std::atomic<bool> counting_allocations{false};
 std::atomic<long> allocations{0};
 }  // namespace
 
+// The replacement pair allocates with malloc and frees with free; GCC cannot see that they pair
+// up once operator delete is inlined into a caller of the replaced operator new.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmismatched-new-delete"
+#endif
 void* operator new(std::size_t size) {
   if (counting_allocations.load(std::memory_order_relaxed)) {
     allocations.fetch_add(1, std::memory_order_relaxed);
@@ -52,6 +58,9 @@ void operator delete(void* p) noexcept {
 void operator delete(void* p, std::size_t) noexcept {
   std::free(p);
 }
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 #endif
 
 namespace {
