@@ -70,7 +70,9 @@ class graph {
   /**
    * @brief An empty graph (no vertices) with the given properties.
    * @param[in] props The properties (see graph_properties).
-   * @throws not_supported_error if `props.layout` is not row_layout::compact.
+   * @throws not_supported_error if `props.layout` is not row_layout::compact, or the batch
+   *         semantics cannot be applied (batch_semantics::as_sets without deletions_first, with
+   *         an upsert, or on rows that are not row_order::sorted with multi_edges::forbid).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    */
   explicit graph(const graph_properties& props = {});
@@ -90,7 +92,8 @@ class graph {
    * @return The graph at version 0.
    * @throws invalid_argument_error if an id is out of range, the arrays disagree in size, or a
    *         self-loop is present under self_loop::error.
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -113,7 +116,8 @@ class graph {
    * @param[in] props The properties of the new graph.
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed.
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -135,7 +139,8 @@ class graph {
    * @param[in]     props The properties of the new graph.
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed.
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */

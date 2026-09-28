@@ -5,6 +5,7 @@
  * @brief graph<V,E,W> member functions and their explicit instantiations.
  */
 #include "core/resources_access.hpp"
+#include "graph/apply_common.hpp"
 #include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
@@ -45,6 +46,7 @@ void expect_supported_layout(const graph_properties& props) {
     throw not_supported_error(
         "dyng: only row_layout::compact is implemented; slotted and slack arrive in 0.3");
   }
+  detail::expect_supported_semantics(props);  // e.g. as_sets with upsert: fail here, not at apply
 }
 
 }  // namespace

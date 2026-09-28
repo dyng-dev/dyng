@@ -349,10 +349,13 @@ TYPED_TEST(SetApply, SwitchesAndErrors) {
         break;
     }
     SCOPED_TRACE(change);
-    auto g = TestFixture::build(res, 3, base, p);
-    batch_t b(0);
-    b.insert_edge(0, 2);
-    EXPECT_THROW(g.apply(res, b.view()), dyng::not_supported_error);
+    // Rejected at construction (every constructor), not at the first apply.
+    EXPECT_THROW((void)TestFixture::build(res, 3, base, p), dyng::not_supported_error);
+    using graph_t = TypeParam;
+    EXPECT_THROW(graph_t{p}, dyng::not_supported_error);
+    const graph_t source = TestFixture::build(res, 3, base);
+    const auto csr = source.to_csr(res);
+    EXPECT_THROW((void)graph_t::from_csr(res, csr.view(), p), dyng::not_supported_error);
   }
 }
 

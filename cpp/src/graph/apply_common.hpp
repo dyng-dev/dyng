@@ -25,6 +25,37 @@
 namespace dyng::detail {
 
 /**
+ * @brief Throws unless the batch semantics of `props` can be applied: batch_semantics::as_sets
+ *        needs deletions_first, an on_existing_insert other than upsert (a weight upsert is not a
+ *        structural change), row_order::sorted and multi_edges::forbid. Called when a graph is
+ *        constructed (so an unusable combination fails there, not at the first apply) and again
+ *        by the set apply.
+ * @param[in] props The graph properties.
+ * @throws not_supported_error for an unsupported combination (the message names it and the fix).
+ */
+inline void expect_supported_semantics(const graph_properties& props) {
+  const batch_semantics& semantics = props.semantics;
+  if (!semantics.as_sets) {
+    return;
+  }
+  if (!semantics.deletions_first) {
+    throw not_supported_error(
+        "dyng: batch_semantics::as_sets needs deletions_first (a set batch deletes, then inserts)");
+  }
+  if (semantics.on_existing_insert == batch_semantics::existing_insert::upsert) {
+    throw not_supported_error(
+        "dyng: batch_semantics::as_sets supports on_existing_insert ignore or error; an upsert of "
+        "the weights of an existing edge is not a structural change (delete and re-insert the "
+        "edge to change its weights)");
+  }
+  if (props.order != row_order::sorted || props.parallel_edges != multi_edges::forbid) {
+    throw not_supported_error(
+        "dyng: batch_semantics::as_sets needs row_order::sorted and multi_edges::forbid (the "
+        "changes are merged into sorted rows of a simple graph)");
+  }
+}
+
+/**
  * @brief Throws unless a non-empty view is readable on the host.
  * @tparam value_t Element type.
  * @param[in] view The view.

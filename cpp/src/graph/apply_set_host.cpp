@@ -84,21 +84,7 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
                                    csr<vertex_t, edge_t, weight_t>& updated,
                                    apply_delta<vertex_t>* delta, int threads) {
   const batch_semantics& semantics = props.semantics;
-  if (!semantics.deletions_first) {
-    throw not_supported_error(
-        "dyng: batch_semantics::as_sets needs deletions_first (a set batch deletes, then inserts)");
-  }
-  if (semantics.on_existing_insert == batch_semantics::existing_insert::upsert) {
-    throw not_supported_error(
-        "dyng: batch_semantics::as_sets supports on_existing_insert ignore or error; an upsert of "
-        "the weights of an existing edge is not a structural change (delete and re-insert the "
-        "edge to change its weights)");
-  }
-  if (props.order != row_order::sorted || props.parallel_edges != multi_edges::forbid) {
-    throw not_supported_error(
-        "dyng: batch_semantics::as_sets needs row_order::sorted and multi_edges::forbid (the "
-        "changes are merged into sorted rows of a simple graph)");
-  }
+  expect_supported_semantics(props);  // checked at construction as well
   validate_batch_shape(batch, original.num_weights);
   const int num_objectives = original.num_weights;
   const auto k_count = static_cast<std::size_t>(num_objectives);

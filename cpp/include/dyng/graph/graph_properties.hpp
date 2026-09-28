@@ -96,11 +96,15 @@ struct batch_semantics {
    * apply_summary::cancelled_pairs counts these pairs). The two lists, in this order, are the net
    * structural change the algorithms see (for example the change edges of cycle_count, whose
    * position in the sorted list is their ownership id). The switches above keep their meaning:
-   * `on_missing_delete` and `on_existing_insert` decide what the no-ops do (ignore, error, or an
-   * upsert of the weights of an existing edge, which is not a structural change),
+   * `on_missing_delete` and `on_existing_insert` decide what the no-ops do (ignore or error),
    * `on_self_loop` what self-loops do, and `allow_vertex_growth` whether insertions may name new
-   * vertices. Needs `deletions_first`, row_order::sorted and multi_edges::forbid (the lists are
-   * merged into the sorted rows).
+   * vertices.
+   *
+   * Not supported with as_sets: `on_existing_insert = upsert` (an upsert of the weights of an
+   * existing edge is not a structural change; delete and re-insert the edge to change its
+   * weights), `deletions_first = false`, and rows that are not row_order::sorted with
+   * multi_edges::forbid (the lists are merged into the sorted rows of a simple graph). A graph
+   * constructed with such properties throws not_supported_error at construction.
    */
   bool as_sets = false;
 
