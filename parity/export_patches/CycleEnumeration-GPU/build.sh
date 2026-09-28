@@ -9,12 +9,15 @@
 #
 #   parity_export/bin/export_cycle_enum   the parser (read_temporal_graph, read_graph_view),
 #                                         build_directed_graph, prepare_batch, apply_batch,
-#                                         generate_batch and the tests' subset-DP / brute-force
-#                                         oracles (see parity/exporters/cycle_enum)
+#                                         generate_batch, the tests' subset-DP / brute-force
+#                                         oracles, the sequential Johnson and OpenMP counters and
+#                                         update_static_histogram[_openmp] (see
+#                                         parity/exporters/cycle_enum)
 #
 # The source comes from parity/exporters/cycle_enum and is copied into the copy, so the copy
 # records exactly what was built. It is compiled together with the original's unchanged sources
-# with the flags of the original's Release build (-std=c++17 -O3 -DNDEBUG, std::thread).
+# with the flags of the original's Release build (-std=c++17 -O3 -DNDEBUG, std::thread, OpenMP
+# with CYCLE_ENUM_OPENMP_ENABLED=1 as the original's CMake defines it).
 set -euo pipefail
 
 copy="${1:?usage: build.sh <patched copy>}"
@@ -27,12 +30,16 @@ f=export_cycle_enum.cpp
 cmp -s "${exporters}/${f}" "${dst}/src/${f}" || cp -p "${exporters}/${f}" "${dst}/src/${f}"
 
 cxx="${CXX:-g++}"
-flags=(-std=c++17 -O3 -DNDEBUG -pthread -I"${copy}/include" -I"${copy}/src/core" -I"${copy}/tests")
+flags=(-std=c++17 -O3 -DNDEBUG -pthread -fopenmp -DCYCLE_ENUM_OPENMP_ENABLED=1 -I"${copy}/include"
+  -I"${copy}/src/core" -I"${copy}/tests")
 src="${copy}/src"
 sources=("${dst}/src/${f}" "${src}/core/graph.cpp" "${src}/core/graph_builder.cpp"
   "${src}/core/histogram.cpp" "${src}/core/timestamp.cpp" "${src}/dynamic/directed_graph.cpp"
   "${src}/dynamic/edge_change.cpp" "${src}/dynamic/batch_generator.cpp"
-  "${src}/sequential/bruteforce.cpp")
+  "${src}/sequential/bruteforce.cpp" "${src}/sequential/johnson.cpp"
+  "${src}/openmp/openmp_johnson.cpp" "${src}/openmp/openmp_config.cpp"
+  "${src}/dynamic/cycles_through_edge.cpp" "${src}/dynamic/update_sequential.cpp"
+  "${src}/dynamic/update_openmp.cpp")
 out="${dst}/bin/export_cycle_enum"
 newest="$(ls -t "${sources[@]}" | head -n 1)"
 if [ ! -x "${out}" ] || [ "${newest}" -nt "${out}" ]; then

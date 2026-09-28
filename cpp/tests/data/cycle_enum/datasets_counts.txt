@@ -1,0 +1,24 @@
+# Cycle histograms from CycleEnumeration-GPU@0a976ad (exporter count-file / update-file,
+# 56 OpenMP threads) on $DYNG_SCRATCH/datasets/cycle; regenerate with
+# make_cycle_enum_fixtures.sh --datasets.
+# count <dataset file> <k> <len>:<count> ...
+# update <dataset file> <k> <deletions> <insertions> <seed> <len>:<count> ... (after)
+count DD/DD_A.txt 3 2:843046 3:1177194
+count DD/DD_A.txt 4 2:843046 3:1177194 4:2376434
+count DD/DD_A.txt 5 2:843046 3:1177194 4:2376434 5:5079374
+count DD/DD_A.txt 6 2:843046 3:1177194 4:2376434 5:5079374 6:12009558
+count DD/DD_A.txt 7 2:843046 3:1177194 4:2376434 5:5079374 6:12009558 7:33480566
+count github_stargazers/github_stargazers_A.txt 3 2:2985781 3:4126376
+count github_stargazers/github_stargazers_A.txt 4 2:2985781 3:4126376 4:68760688
+count twitch_egos/twitch_egos_A.txt 3 2:11005517 3:37886068
+count twitch_egos/twitch_egos_A.txt 4 2:11005517 3:37886068 4:340470784
+count COLLAB/COLLAB_A.txt 3 2:12286079 3:1245513494
+update DD/DD_A.txt 4 1000 1000 1 2:842047 3:1175144 4:2370811
+update DD/DD_A.txt 4 25000 25000 1 2:818230 3:1125528 4:2238640
+update DD/DD_A.txt 4 50000 50000 1 2:793772 3:1075356 4:2106474
+update github_stargazers/github_stargazers_A.txt 4 1000 1000 1 2:2984781 3:4124100 4:68710556
+update github_stargazers/github_stargazers_A.txt 4 25000 25000 1 2:2960836 3:4074452 4:67608821
+update github_stargazers/github_stargazers_A.txt 4 50000 50000 1 2:2935978 3:4023209 4:66472888
+update twitch_egos/twitch_egos_A.txt 4 1000 1000 1 2:11004517 3:37880831 4:340408565
+update twitch_egos/twitch_egos_A.txt 4 25000 25000 1 2:10980526 3:37756785 4:338913863
+update twitch_egos/twitch_egos_A.txt 4 50000 50000 1 2:10955577 3:37626922 4:337354408

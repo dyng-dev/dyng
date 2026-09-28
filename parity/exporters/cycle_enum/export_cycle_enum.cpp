@@ -21,6 +21,18 @@
 //                                    the raw and the prepared batch), and the cycle histograms of
 //                                    the graph before and after from the original's subset-DP
 //                                    oracle and its brute force
+//   counts    <case file> <threads>  for one case and every k in 2..7 and "no bound": the static
+//                                    histograms of the graph before and after the batch from the
+//                                    sequential Johnson and the OpenMP counter, and the updated
+//                                    histogram of update_static_histogram and
+//                                    update_static_histogram_openmp (bounded k only)
+//   count-file <file> <k> <threads> [--omp-only] [--digest]
+//                                    the static histograms of read_graph_view(file) (sequential
+//                                    Johnson, unless --omp-only, and OpenMP counter; k = -1: no
+//                                    bound)
+//   update-file <file> <k> <del> <ins> <seed> <threads> [<window>] [--digest]
+//                                    the prior (OpenMP counter), generate_batch, then
+//                                    update_static_histogram and update_static_histogram_openmp
 //
 // Text formats (the dynG tests produce the same text and compare it, or its digest):
 //   parse:   "vertices <n>\nedges <m>\nevents <t>\n", "v <external id>\n" per compact vertex, then
@@ -31,6 +43,12 @@
 //            insertion, in batch order
 //   apply:   "prepared\n" + batch, "after\n" + csr, then "oracle_before <len>:<count> ...\n",
 //            "oracle_after ...\n", "brute_before ...\n", "brute_after ...\n" (unbounded length)
+//   counts:  per k ("k <k>\n", k = -1 for no bound): "seq_before ...\n", "omp_before ...\n",
+//            "seq_after ...\n", "omp_after ...\n" and for k >= 2 "seq_update ...\n",
+//            "omp_update ...\n" (histogram text: "<name> <len>:<count> ..." over the non-zero
+//            lengths)
+//   count-file: "seq ...\n", "omp ...\n"; update-file: "prior ...\n", "seq_update ...\n",
+//            "omp_update ...\n", with "deletions <d> insertions <i>\n" first
 // --digest prints "fnv1a64 <16 hex digits> bytes <size>" of the text instead of the text.
 //
 // The program is not part of the dynG build; it exists so that the committed fixtures and digests
@@ -42,7 +60,11 @@
 #include "cycle_enum/dynamic/batch_generator.hpp"
 #include "cycle_enum/dynamic/directed_graph.hpp"
 #include "cycle_enum/dynamic/edge_change.hpp"
+#include "cycle_enum/dynamic/update_openmp.hpp"
+#include "cycle_enum/dynamic/update_sequential.hpp"
+#include "cycle_enum/openmp/openmp_johnson.hpp"
 #include "cycle_enum/sequential/bruteforce.hpp"
+#include "cycle_enum/sequential/johnson.hpp"
 #include "support/cycle_oracles.hpp"
 
 #include <cstdint>
@@ -50,6 +72,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <random>
 #include <sstream>
 #include <string>
@@ -60,8 +83,8 @@ namespace {
 namespace dyn = cycle_enum::dynamic;
 
 int usage() {
-  std::cerr << "usage: export_cycle_enum parse|csr|generate|apply-generated|random-cases|apply "
-               "...\n";
+  std::cerr << "usage: export_cycle_enum parse|csr|generate|apply-generated|random-cases|apply|"
+               "counts|count-file|update-file ...\n";
   return 2;
 }
 
@@ -267,6 +290,66 @@ std::string apply_case(const std::string& path) {
   return out;
 }
 
+std::optional<std::size_t> bound_of(const long long k) {
+  return k < 0 ? std::nullopt : std::optional<std::size_t>(static_cast<std::size_t>(k));
+}
+
+std::string counts_case(const std::string& path, const int threads) {
+  namespace ts = cycle_enum::test_support;
+  const test_case c = read_case(path);
+  const cycle_enum::GraphView view0 = ts::view_from_edges(c.edges, c.n);
+  const dyn::DirectedGraph g0 = dyn::build_directed_graph(view0);
+  const cycle_enum::GraphView view1 = dyn::to_graph_view(dyn::apply_batch(g0, c.batch));
+  std::string out;
+  for (const long long k : {2LL, 3LL, 4LL, 5LL, 6LL, 7LL, -1LL}) {
+    const std::optional<std::size_t> bound = bound_of(k);
+    out += "k " + std::to_string(k) + "\n";
+    const cycle_enum::CycleHistogram before =
+        cycle_enum::sequential::count_simple_cycles_johnson(view0, bound);
+    out += histogram_text("seq_before", before);
+    out += histogram_text("omp_before",
+                          cycle_enum::openmp::count_simple_cycles_johnson(view0, threads, bound));
+    out += histogram_text("seq_after",
+                          cycle_enum::sequential::count_simple_cycles_johnson(view1, bound));
+    out += histogram_text("omp_after",
+                          cycle_enum::openmp::count_simple_cycles_johnson(view1, threads, bound));
+    if (bound) {
+      out +=
+          histogram_text("seq_update", dyn::update_static_histogram(g0, before, c.batch, *bound));
+      out += histogram_text(
+          "omp_update", dyn::update_static_histogram_openmp(g0, before, c.batch, *bound, threads));
+    }
+  }
+  return out;
+}
+
+std::string count_file(const std::string& path, const long long k, const int threads,
+                       const bool omp_only) {
+  const cycle_enum::GraphView view = cycle_enum::read_graph_view(path);
+  std::string out;
+  if (!omp_only) {
+    out += histogram_text("seq",
+                          cycle_enum::sequential::count_simple_cycles_johnson(view, bound_of(k)));
+  }
+  return out + histogram_text("omp", cycle_enum::openmp::count_simple_cycles_johnson(view, threads,
+                                                                                     bound_of(k)));
+}
+
+std::string update_file(const std::string& path, const std::size_t k,
+                        const dyn::BatchParams& params, const int threads) {
+  const cycle_enum::GraphView view = cycle_enum::read_graph_view(path);
+  // The prior from the OpenMP counter (count-file checks it equal to the sequential Johnson).
+  const cycle_enum::CycleHistogram prior =
+      cycle_enum::openmp::count_simple_cycles_johnson(view, threads, k);
+  const dyn::DirectedGraph g0 = dyn::build_directed_graph(view);
+  const dyn::EdgeBatch batch = dyn::generate_batch(view, params);
+  return "deletions " + std::to_string(batch.deletions.size()) + " insertions " +
+         std::to_string(batch.insertions.size()) + "\n" + histogram_text("prior", prior) +
+         histogram_text("seq_update", dyn::update_static_histogram(g0, prior, batch, k)) +
+         histogram_text("omp_update",
+                        dyn::update_static_histogram_openmp(g0, prior, batch, k, threads));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) try {
@@ -303,6 +386,31 @@ int main(int argc, char** argv) try {
   }
   if (command == "apply" && argc == 3) {
     std::cout << apply_case(argv[2]);
+    return 0;
+  }
+  if (command == "counts" && argc == 4) {
+    std::cout << counts_case(argv[2], std::atoi(argv[3]));
+    return 0;
+  }
+  if (command == "count-file" && argc >= 5) {
+    bool omp_only = false;
+    for (int i = 5; i < argc; ++i) {
+      omp_only = omp_only || std::string(argv[i]) == "--omp-only";
+    }
+    emit(count_file(argv[2], std::atoll(argv[3]), std::atoi(argv[4]), omp_only), digest);
+    return 0;
+  }
+  if (command == "update-file" && argc >= 8) {
+    // <file> <k> <del> <ins> <seed> <threads> [<window>] [--digest]
+    dyn::BatchParams params;
+    params.num_deletions = std::strtoull(argv[4], nullptr, 10);
+    params.num_insertions = std::strtoull(argv[5], nullptr, 10);
+    params.seed = std::strtoull(argv[6], nullptr, 10);
+    if (argc >= 9 && std::string(argv[8]) != "--digest") {
+      params.locality_window = std::strtoull(argv[8], nullptr, 10);
+    }
+    emit(update_file(argv[2], std::strtoull(argv[3], nullptr, 10), params, std::atoi(argv[7])),
+         digest);
     return 0;
   }
   return usage();

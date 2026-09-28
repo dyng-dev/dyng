@@ -1,0 +1,47 @@
+k 2
+seq_before
+omp_before
+seq_after
+omp_after
+seq_update
+omp_update
+k 3
+seq_before
+omp_before
+seq_after
+omp_after
+seq_update
+omp_update
+k 4
+seq_before
+omp_before
+seq_after
+omp_after
+seq_update
+omp_update
+k 5
+seq_before
+omp_before
+seq_after
+omp_after
+seq_update
+omp_update
+k 6
+seq_before
+omp_before
+seq_after
+omp_after
+seq_update
+omp_update
+k 7
+seq_before
+omp_before
+seq_after
+omp_after
+seq_update
+omp_update
+k -1
+seq_before
+omp_before
+seq_after
+omp_after

@@ -1,0 +1,19 @@
+--input @DATA@/parser/reference_sample.txt
+--input @DATA@/parser/reference_sample.txt --backend openmp --openmp-threads 2
+--input @DATA@/parser/tudataset_A.txt --max-cycle-length 5
+--input @DATA@/parser/tudataset_A.txt --backend openmp --openmp-threads 4 --max-cycle-length 5
+--input @DATA@/parser/mm_symmetric.mtx --algorithm johnson --mode simple
+--input @DATA@/generator/graph300.txt --backend omp --threads 3 --max-length 6
+--input @DATA@/parser/tudataset_A.txt --task update --max-cycle-length 4 --deletes 40 --inserts 40 --batch-seed 1
+--input @DATA@/parser/tudataset_A.txt --task update --backend openmp --openmp-threads 4 --max-cycle-length 4 --deletes 40 --inserts 40 --batch-seed 1 --compare-recompute
+--input @DATA@/generator/graph300.txt --task incremental --backend openmp --openmp-threads 2 --max-cycle-length 6 --deletes 100 --inserts 100 --batch-seed 7 --batch-locality 50
+--input @DATA@/generator/ring40.txt --task update --max-cycle-length 40 --deletes 1 --inserts 1 --batch-seed 5
+--input @DATA@/generator/graph300.txt --task update --backend openmp --openmp-threads 3 --max-cycle-length 5 --deletes 50 --inserts 60 --batch-seed 12345 --batch-locality 299
+--input @DATA@/parser/tudataset_A.txt --task update
+--input @DATA@/parser/tudataset_A.txt --max-cycle-length 1
+--input @DATA@/parser/tudataset_A.txt --openmp-threads 0
+--input @DATA@/parser/tudataset_A.txt --task update --max-cycle-length 4 --deletes 100000 --batch-seed 1
+--input @DATA@/errors/glued_token.txt
+--input @DATA@/parser/no_such_file.txt
+--max-cycle-length 4
+--input @DATA@/parser/tudataset_A.txt --bogus
