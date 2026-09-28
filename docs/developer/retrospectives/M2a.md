@@ -345,6 +345,15 @@ no fix were needed for the gates. The likely cause of the gap is recorded there 
    themselves; DD's 25 ms update had outliers (spread above 10 %, flagged, not failed); the
    31-run repeat gave the same verdict.
 
+### Final verification (commit 9f78c00)
+
+- `ci/check.sh --parity` in a fresh clone of `m2-cycle`: every step OK (clang-format, cpu-only
+  377/377 and dev 384/384 `ctest -L cpu`, clang-tidy, reuse, provenance, harness, doxygen,
+  pre-commit) and `ctest -L parity` 4/4 (the dataset digests, the dataset histograms, the sssp
+  replay and the new `parity.cycle_count.cycle_enum_0a976ad`, 439 s).
+- `ci/gpu_local.sh` (dev-cuda, GPU 1): build, `ctest -L gpu` 79/79, `ctest -L cpu` 384/384, the
+  sssp cuda goldens, memcheck and clang-tidy all passed.
+
 ### Notes for M2b
 
 - The CUDA regions (kernel_ms / memcpy_ms, the device update, the resident scope) go into
