@@ -35,7 +35,8 @@
  * (`affected`: vertices whose distance or parent changed), and the per-thread lists of the
  * parallel regions kept in the workspace, each on its own cache lines (util/thread_list.hpp),
  * instead of vectors created in every region: the lists and their order are the same, but no
- * two threads write to one cache line and a steady-state update allocates nothing for them.
+ * two threads write to one cache line, and a list allocates only when its thread takes a larger
+ * share of a round than ever before (the dynamic schedule decides the shares).
  *
  * One change for speed, with identical lists and outputs: the work-sharing loops that feed a
  * list_gather are `nowait` (the gather's first barrier waits for them), and the regions that
