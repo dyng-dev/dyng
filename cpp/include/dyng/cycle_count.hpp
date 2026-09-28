@@ -11,6 +11,7 @@
 #include <dyng/core/memory.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/stats.hpp>
+#include <dyng/core/types.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/graph.hpp>
@@ -51,8 +52,12 @@
  * CycleEnumeration-GPU is defined under batch_semantics::set().
  *
  * Backends: sequential (CycleEnumeration-GPU's sequential Johnson and update_static_histogram()),
- * openmp (its root-parallel OpenMP counter and update_static_histogram_openmp()). The histograms
- * are host arrays on every backend.
+ * openmp (its root-parallel OpenMP counter and update_static_histogram_openmp()), cuda (its
+ * work-queue kernels with edge or two-hop prefix items and update_static_histogram_cuda(), with the
+ * graph resident on the device across updates: under batch_semantics::set() without weight
+ * columns the batch is merged into the sorted rows on the device). The cuda backend counts cycles
+ * of at most 64 vertices (see options::max_length). The histograms are host arrays on every
+ * backend.
  *
  * Types: int32_t vertex ids, int32_t or int64_t edge offsets, unweighted or int32_t weights (other
  * graph types fail to compile with a static_assert naming these).
@@ -77,6 +82,31 @@ enum class cycle_mode : std::uint8_t {
 };
 
 /**
+ * @brief How the CUDA backend schedules the static count (CycleEnumeration-GPU's
+ *        `--cuda-scheduler`).
+ * @ingroup cycle_count
+ */
+enum class cuda_scheduler : std::uint8_t {
+  work_queue,  ///< a resident grid claims work items from a global counter (the default)
+  naive,       ///< one thread per root vertex (for debugging and parity checks)
+};
+
+/**
+ * @brief The work items of the work-queue scheduler (CycleEnumeration-GPU's `--cuda-work-items`).
+ *
+ * Every item is a path prefix from the smallest vertex of the cycles it counts; every cycle has
+ * exactly one prefix of each kind, so the choice never changes the counts, only the balance of
+ * the search trees over the device.
+ * @ingroup cycle_count
+ */
+enum class cuda_work_items : std::uint8_t {
+  automatic,  ///< edges up to k = 3 and at k = 4 below 16 edges per vertex, two-hop otherwise
+  roots,      ///< one item per root vertex
+  edges,      ///< one item per edge r -> v1 with v1 > r
+  two_hop,    ///< one item per path r -> v1 -> v2 (v1, v2 > r), numbered implicitly
+};
+
+/**
  * @brief Options of compute() (an aggregate; fields are only ever appended). Fixed at compute().
  * @ingroup cycle_count
  */
@@ -93,9 +123,23 @@ struct options {
   /// unbounded count of a large sparse graph use the sequential backend, or set a bound. The
   /// searches keep their paths on explicit stacks: a long path costs memory, never the thread's
   /// stack.
+  ///
+  /// On the **cuda** backend the searches keep their paths in thread-local arrays of at most 64
+  /// vertices: the effective bound min(max_length, n) (min(-1 -> n, n) without a bound) must be at
+  /// most 64, or compute() and update() throw invalid_argument_error (a bound above 64 is accepted
+  /// while the graph has at most 64 vertices, as the original's).
   int max_length = -1;
   search_method method = search_method::johnson;  ///< the search (Johnson)
   cycle_mode mode = cycle_mode::simple;           ///< the cycles counted (simple)
+  /// The CUDA engine: automatic and fused select the fused kernels (the work queue of the static
+  /// count, the per-change searches of the update; Tier B, PLAN Section 4.5.4); operators throws
+  /// not_supported_error (cycle_count has no operators engine in 0.1). Ignored on the host
+  /// backends.
+  engine cuda_engine = engine::automatic;
+  /// The scheduler of the static count on the cuda backend (ignored elsewhere).
+  cuda_scheduler scheduler = cuda_scheduler::work_queue;
+  /// The work items of the work-queue scheduler (ignored elsewhere).
+  cuda_work_items work_items = cuda_work_items::automatic;
 };
 
 /**
@@ -109,7 +153,8 @@ struct options {
  *   - `frontier_visits`: the change edges searched, `deletions` + `insertions` (deterministic);
  *   - `fallback_used`: always false (the update never recomputes);
  *   - `converged`: always true (no iteration cap);
- *   - `engine_used`: always engine::operators (the hooks of the template, one per stage).
+ *   - `engine_used`: engine::operators on the host backends (the hooks of the template, one per
+ *     stage), engine::fused on cuda (the fused per-change kernels).
  * @ingroup cycle_count
  */
 struct stats : update_stats {
@@ -241,7 +286,7 @@ class result {
 
   /**
    * @brief A deep copy for the resources `res` (the histogram is a host array on every backend).
-   * @param[in] res Execution resources of the copy (sequential or openmp).
+   * @param[in] res Execution resources of the copy (any backend).
    * @return The copy.
    * @throws invalid_argument_error for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
@@ -304,24 +349,28 @@ namespace dyng::cycle_count {
  * extends paths through larger vertices only and counts a cycle whenever an edge closes back to
  * the root. The sequential backend is CycleEnumeration-GPU's sequential Johnson (path-membership
  * blocking with a bound, Johnson's blocked lists without one), the OpenMP backend its OpenMP
- * counter (roots in parallel, dynamic schedule, one histogram per thread).
+ * counter (roots in parallel, dynamic schedule, one histogram per thread), the CUDA backend its
+ * work-queue counter (a resident grid claims edge or two-hop prefix items, options::work_items;
+ * options::scheduler naive: one thread per root) on the resident device graph.
  *
  * @tparam vertex_t Vertex id type (int32_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).
  * @tparam weight_t Weight type (unweighted or int32_t; weights are ignored).
- * @param[in] res Execution resources (sequential or openmp).
- * @param[in] g   The graph (sorted rows, no parallel edges); it is not modified.
+ * @param[in] res Execution resources.
+ * @param[in] g   The graph (sorted rows, no parallel edges); it is not modified (on cuda its device
+ *                copy is uploaded if it is not resident).
  * @param[in] opt Options.
  * @return The histogram, matching `g.version()`.
  * @throws invalid_argument_error if `g` does not have sorted rows (row_order::sorted) or allows
- *         parallel edges (multi_edges::allow), options::max_length is neither -1 nor >= 2, or `g`
- *         belongs to another backend than `res`.
- * @throws not_supported_error    if the backend of `res` is not available for cycle_count (cuda
- *         arrives with M2b).
+ *         parallel edges (multi_edges::allow), options::max_length is neither -1 nor >= 2, on cuda
+ *         the effective bound exceeds 64, or `g` belongs to another backend than `res`.
+ * @throws not_supported_error    if the backend of `res` is not available for cycle_count, or
+ *         options::cuda_engine is engine::operators on cuda.
  * @throws capacity_error         if a count exceeds 2^64 - 1.
- * @throws out_of_memory_error    if host memory cannot be allocated.
- * @sync The histogram is complete on return (host backends only in this release).
- * @backends sequential, openmp
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error.
+ * @sync The histogram is complete on return (a host array on every backend).
+ * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms on every backend and thread count.
  * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
  *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib. Exact counts; the
@@ -351,25 +400,30 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @tparam vertex_t Vertex id type (int32_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).
  * @tparam weight_t Weight type (unweighted or int32_t).
- * @param[in]     res   Execution resources (sequential or openmp).
- * @param[in,out] g     The graph; the batch is applied to it and its version increases by one.
- * @param[in]     batch Insertions and deletions (host memory).
+ * @param[in]     res   Execution resources.
+ * @param[in,out] g     The graph; the batch is applied to it and its version increases by one
+ *                      (on cuda, under batch_semantics::set() without weight columns, on the
+ *                      resident device copy).
+ * @param[in]     batch Insertions and deletions (host memory, or device memory under the copy
+ *                      policy of `res`).
  * @param[in,out] r     Result of compute() or of a previous update() on `g`.
  * @return Counters of this update (all deterministic).
  * @throws stale_result_error     if r.graph_version() != g.version(), `r` was computed on another
  *         graph, or `r` was left unusable by a failed update.
  * @throws invalid_argument_error if the batch is invalid for the graph's batch_semantics, the
- *         graph does not have sorted rows or allows parallel edges, or `g` belongs to another
- *         backend than `res` (nothing is changed).
- * @throws not_supported_error    if the backend of `res` is not available for cycle_count
- *         (nothing is changed).
+ *         graph does not have sorted rows or allows parallel edges, `g` belongs to another
+ *         backend than `res`, or on cuda the effective bound after the batch (with every vertex
+ *         the batch names) would exceed 64 (nothing is changed).
+ * @throws not_supported_error    if the backend of `res` is not available for cycle_count, or
+ *         options::cuda_engine is engine::operators on cuda (nothing is changed).
  * @throws internal_error         if a bucket would become negative (then the graph was updated and
  *         `r` is left unusable).
  * @throws capacity_error         if a count exceeds 2^64 - 1 (raised after the batch was applied,
  *         it leaves `r` unusable).
- * @throws out_of_memory_error    if host memory cannot be allocated.
- * @sync The graph and the histogram are updated on return (host backends only in this release).
- * @backends sequential, openmp
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error.
+ * @sync The graph and the histogram are updated on return.
+ * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms and counters on every backend and thread count.
  * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
  *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib.

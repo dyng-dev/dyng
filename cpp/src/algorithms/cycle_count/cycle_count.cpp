@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from CycleEnumeration-GPU@0a976ad:src/dynamic/update_sequential.cpp
 // (update_static_histogram, apply_histogram_delta), src/dynamic/update_openmp.cpp
-// (update_static_histogram_openmp), src/core/histogram.cpp (CycleHistogram: increment, merge,
-// total) and src/engine/histogram_engine.cpp (count_histogram, update_histogram)
+// (update_static_histogram_openmp), src/dynamic/update_cuda.cpp (update_static_histogram_cuda),
+// src/core/histogram.cpp (CycleHistogram: increment, merge, total) and
+// src/engine/histogram_engine.cpp (count_histogram, update_histogram)
 /**
  * @file cycle_count.cpp
  * @brief cycle_count: argument validation, version checks, backend dispatch, the hooks of
@@ -14,14 +15,21 @@
  * commit, graph::apply), the insert phase on the post-batch graph (identify_affected + count_plus)
  * and apply_histogram_delta() (finalize). The OpenMP backend runs the phases of
  * update_static_histogram_openmp(); with one thread it runs the sequential phases, as the original
- * does.
+ * does. The CUDA backend runs the device phases of update_static_histogram_cuda() (cuda.cu) on the
+ * resident device graph, whose commit merges the batch on the device under set semantics.
+ *
+ * Under batch_semantics::as_sets the framework normalizes the batch once (run_update; ADR 0020)
+ * and the participant takes those lists instead of computing its own.
  */
 #include "algorithms/cycle_count/problem.hpp"
+#include "algorithms/cycle_count/work_queue.hpp"
 #include "core/resources_access.hpp"
 #include "graph/graph_impl.hpp"
+#include "graph/normalized_batch.hpp"
 #include "util/allocation.hpp"
 
 #include <dyng/config.hpp>
+#include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
 #include <dyng/core/profiler.hpp>
@@ -99,13 +107,39 @@ cycle_count::result cycle_count_access::make(std::unique_ptr<cycle_count_state> 
 
 namespace {
 
-/// The backends cycle_count runs on in this release (the cuda backend arrives with M2b).
+/// The backends cycle_count runs on: sequential, openmp (if built) and cuda (if built; resources of
+/// a backend that is not built cannot be created).
 void expect_supported_backend(const resources& res, const char* what) {
-  if (res.get_backend() == backend::cuda) {
-    throw not_supported_error(concat_message(
-        "dyng: ", what, ": cycle_count has no cuda backend in this release; available: sequential",
-        DYNG_HAS_OPENMP ? ", openmp" : ""));
+  if (res.get_backend() == backend::cuda && !DYNG_HAS_CUDA) {
+    throw not_supported_error(
+        concat_message("dyng: ", what, ": the cuda backend is not built; available: sequential",
+                       DYNG_HAS_OPENMP ? ", openmp" : ""));
   }
+}
+
+/// The CUDA engine of the options (PLAN Section 4.5.4): automatic and fused run the fused kernels;
+/// there is no operators engine yet.
+void expect_cuda_engine(const cycle_count::options& opt, const char* what) {
+  if (opt.cuda_engine == engine::operators) {
+    throw not_supported_error(concat_message(
+        "dyng: ", what,
+        ": cycle_count has no operators engine on the cuda backend in this release; use "
+        "engine::automatic or engine::fused (the fused work-queue and per-change kernels)"));
+  }
+}
+
+/// The bound of the CUDA counters (kMaxDeviceCycleLength): the effective bound max(min(k, n), 2)
+/// must be at most 64.
+std::int64_t expect_device_length(const cycle_count::options& opt, std::int64_t vertices,
+                                  const char* what) {
+  const std::int64_t length = cycle_count_effective_length(opt.max_length, vertices);
+  DYNG_EXPECTS(length <= cycle_count_max_device_length, what,
+               ": the cuda backend counts cycles of up to ", cycle_count_max_device_length,
+               " vertices (the paths of its searches live in thread-local arrays); options."
+               "max_length = ",
+               opt.max_length, " on a graph of ", vertices, " vertices needs ", length,
+               ": use max_length <= ", cycle_count_max_device_length, " or a host backend");
+  return length;
 }
 
 /// A failed update leaves the histogram inconsistent: every later use throws until it is
@@ -128,6 +162,29 @@ void expect_options(const cycle_count::options& opt) {
   DYNG_EXPECTS(opt.mode == cycle_count::cycle_mode::simple, "cycle_count: options.mode ",
                static_cast<int>(opt.mode),
                " is not a cycle_mode (time-window and temporal cycles follow in 0.4)");
+  DYNG_EXPECTS(opt.cuda_engine == engine::automatic || opt.cuda_engine == engine::fused ||
+                   opt.cuda_engine == engine::operators,
+               "cycle_count: options.cuda_engine ", static_cast<int>(opt.cuda_engine),
+               " is not an engine");
+  DYNG_EXPECTS(opt.scheduler == cycle_count::cuda_scheduler::work_queue ||
+                   opt.scheduler == cycle_count::cuda_scheduler::naive,
+               "cycle_count: options.scheduler ", static_cast<int>(opt.scheduler),
+               " is not a cuda_scheduler");
+  DYNG_EXPECTS(
+      static_cast<int>(opt.work_items) <= static_cast<int>(cycle_count::cuda_work_items::two_hop),
+      "cycle_count: options.work_items ", static_cast<int>(opt.work_items),
+      " is not a cuda_work_items");
+}
+
+/// The resident out-edges of a CUDA graph as the CUDA engines read them (uploaded on first use).
+template <typename vertex_t, typename edge_t, typename weight_t>
+cycle_device_graph<edge_t> device_engine_graph(const device_graph<vertex_t, edge_t, weight_t>& d) {
+  cycle_device_graph<edge_t> out;
+  out.vertex_count = static_cast<std::int64_t>(d.num_vertices);
+  out.edge_count = static_cast<std::int64_t>(d.num_edges);
+  out.offsets = d.out_row_ptr.data();
+  out.neighbors = d.out_col_ind.data();
+  return out;
 }
 
 /// The graph requirements of PLAN Section 5.1: the pruning of the searches relies on sorted rows of
@@ -193,7 +250,11 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
   }
 
   [[nodiscard]] bool reads_prepared_graph() const noexcept override {
-    return false;  // the engines read the out-edges only
+    return false;  // the engines read the out-edges only (on cuda: graph_access::device_out)
+  }
+
+  void use_normalized(const normalized_batch<vertex_t>* normalized) noexcept override {
+    normalized_ = normalized;
   }
 
   void before_apply(const resources& res, const graph_type& g, const batch_type& batch) override {
@@ -215,18 +276,46 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
     }
     expect_graph(g, "cycle_count::update");
     graph_access::expect_placement(res, g, "cycle_count::update");
-    threads_ = engine_threads(res);
+    cuda_ = res.get_backend() == backend::cuda;
+    if (cuda_) {
+      expect_cuda_engine(state_->opt, "cycle_count::update");
+    }
+    threads_ = cuda_ ? 1 : engine_threads(res);
     ws_.emplace(resources_access::workspaces(res).acquire<workspace_type>());
     workspace_type& ws = ws_->get();
 
     // ---- Step 0: the net structural change, on G_t (prepare_batch) ----
-    cycle_count_hook(res, "cycle_count.normalize", [&] {
-      compute_structural_change(graph_access::out_view(g), batch, g.properties(), ws.change);
-    });
+    if (normalized_ != nullptr) {
+      // Normalized once by the framework (run_update, stage <algo>.normalize).
+      copy_changes(normalized_->deletions, ws.change.deletions);
+      copy_changes(normalized_->insertions, ws.change.insertions);
+    } else {
+      cycle_count_hook(res, "cycle_count.normalize", [&] {
+        compute_structural_change(graph_access::out_view(g), batch, g.properties(), ws.change);
+      });
+    }
+    if (cuda_) {
+      // The effective bound after the batch, with every vertex the batch may add (the original's
+      // next_vertex_count), must fit the device counters; checked before anything changes.
+      std::int64_t n_after = static_cast<std::int64_t>(g.num_vertices());
+      if (normalized_ != nullptr) {
+        n_after = normalized_->vertices_after;
+      } else {
+        for (std::size_t i = 0; i < batch.insert_src.size(); ++i) {
+          n_after = std::max<std::int64_t>(
+              n_after, std::max<std::int64_t>(batch.insert_src[i], batch.insert_dst[i]) + 1);
+        }
+      }
+      device_length_ = expect_device_length(state_->opt, n_after, "cycle_count::update");
+    }
 
     // ---- before_apply = count(-): the cycles through the deleted edges, on G_t ----
     bound_before_ = histogram_bound(state_->opt, g);
     cycle_count_hook(res, "cycle_count.count_minus", [&] {
+      if (cuda_) {
+        count_minus_cuda(res, g);
+        return;
+      }
       const auto max_length = static_cast<std::size_t>(bound_before_);
       ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()));
       ws.removed.clear();
@@ -243,19 +332,23 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
     const std::int64_t bound_after = histogram_bound(st.opt, g);
     const auto max_length = static_cast<std::size_t>(bound_after);
 
-    // ---- identify_affected: the inserted edges and their ownership index, on G_{t+1} ----
-    cycle_count_hook(res, "cycle_count.identify_affected", [&] {
+    if (cuda_) {
+      after_apply_cuda(res, g, bound_after);
+    } else {
+      // ---- identify_affected: the inserted edges and their ownership index, on G_{t+1} ----
+      cycle_count_hook(res, "cycle_count.identify_affected", [&] {
 #if !defined(DYNG_MUTATION_SKIP_WORKSPACE_RESIZE)
-      ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()));
+        ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()));
 #endif
-      ws.added.clear();
-      ws.index.assign(ws.change.insertions);
-    });
+        ws.added.clear();
+        ws.index.assign(ws.change.insertions);
+      });
 
-    // ---- count(+): the cycles through the inserted edges, on G_{t+1} ----
-    cycle_count_hook(res, "cycle_count.count_plus", [&] {
-      run_phase(engine_graph(g), ws.change.insertions, max_length, ws, ws.added);
-    });
+      // ---- count(+): the cycles through the inserted edges, on G_{t+1} ----
+      cycle_count_hook(res, "cycle_count.count_plus", [&] {
+        run_phase(engine_graph(g), ws.change.insertions, max_length, ws, ws.added);
+      });
+    }
 
     // ---- finalize: apply the signed delta (apply_histogram_delta) ----
     cycle_count::stats s;
@@ -269,14 +362,15 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
         static_cast<std::int64_t>(ws.change.deletions.size() + ws.change.insertions.size());
     s.fallback_used = false;
     s.converged = true;
-    s.engine_used = engine::operators;
+    s.engine_used = cuda_ ? engine::fused : engine::operators;
     s.batch = summary;
     s.deletions = static_cast<std::int64_t>(ws.change.deletions.size());
     s.insertions = static_cast<std::int64_t>(ws.change.insertions.size());
     out_ = s;
     st.version = g.version();
     st.graph_state = graph_access::impl(g).state_id;
-    ws_.reset();  // return the workspace to the pool
+    cuda_ws_.reset();
+    ws_.reset();  // return the workspaces to the pool
   }
 
   void poison() noexcept override {
@@ -286,6 +380,87 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
   }
 
  private:
+  using cuda_workspace_type = cycle_count_cuda_workspace<edge_t>;
+
+  /// The normalized lists of the framework as the engines' change lists.
+  static void copy_changes(const std::vector<set_change<vertex_t>>& from,
+                           std::vector<edge_change<vertex_t>>& to) {
+    to.resize(from.size());
+    for (std::size_t i = 0; i < from.size(); ++i) {
+      to[i] = {from[i].source, from[i].target};
+    }
+  }
+
+  /// CUDA, before_apply: the change lists on the device (the framework's copy, shared with the
+  /// device apply, or the workspace's own) and the delete phase on the resident G_t
+  /// (count_update_cycles_device up to its "Delete phase on G_t").
+  void count_minus_cuda([[maybe_unused]] const resources& res,
+                        [[maybe_unused]] const graph_type& g) {
+#if DYNG_HAS_CUDA
+    workspace_type& ws = ws_->get();
+    cuda_ws_.emplace(resources_access::workspaces(res).acquire<cuda_workspace_type>(res));
+    cuda_workspace_type& cws = cuda_ws_->get();
+    constexpr std::int64_t id_limit = no_change_id;
+    DYNG_EXPECTS(static_cast<std::int64_t>(ws.change.deletions.size()) < id_limit &&
+                     static_cast<std::int64_t>(ws.change.insertions.size()) < id_limit,
+                 "cycle_count::update: the batch exceeds the 32-bit change ids of the cuda "
+                 "backend");
+    if constexpr (sizeof(vertex_t) == 4) {
+      device_changes_ = normalized_ != nullptr
+                            ? upload_normalized_batch(res, *normalized_)
+                            : cycle_count_cuda_upload_changes(res, ws.change.deletions,
+                                                              ws.change.insertions, cws);
+    }
+    cycle_count_cuda_begin_update(res, cws);
+    const auto& d = graph_access::device_out(res, g);
+    cycle_count_cuda_phase(res, device_engine_graph(d), nullptr, device_changes_,
+                           static_cast<std::uint32_t>(ws.change.deletions.size()), device_length_,
+                           0, cws);
+#else
+    throw not_supported_error("dyng: cycle_count::update: the cuda backend is not built");
+#endif
+  }
+
+  /// CUDA, after_apply: the insert phase on G_{t+1} (the graph's resident copy: merged on the
+  /// device by the commit, whose insertion ids are the owner array, or uploaded after a host
+  /// commit) and the copy of both histograms.
+  void after_apply_cuda([[maybe_unused]] const resources& res, [[maybe_unused]] const graph_type& g,
+                        [[maybe_unused]] std::int64_t bound_after) {
+#if DYNG_HAS_CUDA
+    workspace_type& ws = ws_->get();
+    cuda_workspace_type& cws = cuda_ws_->get();
+    const device_graph<vertex_t, edge_t, weight_t>* d = nullptr;
+    cycle_count_hook(res, "cycle_count.identify_affected",
+                     [&] { d = &graph_access::device_out(res, g); });
+    cycle_count_hook(res, "cycle_count.count_plus", [&] {
+      const bool merged = d->insertion_ids.size() >= static_cast<std::size_t>(d->num_edges) &&
+                          !d->insertion_ids.empty() && normalized_ != nullptr;
+      const std::uint32_t* insertions =
+          device_changes_ + 2 * static_cast<std::size_t>(ws.change.deletions.size());
+      cycle_count_cuda_phase(
+          res, device_engine_graph(*d), merged ? d->insertion_ids.data() : nullptr, insertions,
+          static_cast<std::uint32_t>(ws.change.insertions.size()), device_length_, 1, cws);
+      cycle_count_cuda_end_update(res, device_length_, cws, ws.removed, ws.added);
+      // Lengths past the bound after the batch hold no cycle (a simple cycle has at most n
+      // vertices); the device bound may be larger when the batch names vertices it does not add.
+      const auto size = static_cast<std::size_t>(bound_after) + 1;
+      for (std::vector<std::uint64_t>* h : {&ws.removed, &ws.added}) {
+        for (std::size_t len = size; len < h->size(); ++len) {
+          if ((*h)[len] != 0) {
+            DYNG_FAIL("cycle_count::update (cuda): a cycle of length ", len,
+                      " on a graph whose histogram ends at ", bound_after);
+          }
+        }
+        if (h->size() > size) {
+          h->resize(size);
+        }
+      }
+    });
+#else
+    throw not_supported_error("dyng: cycle_count::update: the cuda backend is not built");
+#endif
+  }
+
   /// One phase on the backend of the update: update_static_histogram_openmp() parallelizes a phase
   /// over its change edges when it has more than one thread, and runs the sequential phase
   /// otherwise.
@@ -375,7 +550,12 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
   cycle_count_state* state_ = nullptr;
   int threads_ = 1;
   std::int64_t bound_before_ = 2;
+  bool cuda_ = false;                                       ///< the update runs on the cuda backend
+  std::int64_t device_length_ = 2;                          ///< the bound of the device phases
+  const normalized_batch<vertex_t>* normalized_ = nullptr;  ///< the framework's Step 0, if any
+  const std::uint32_t* device_changes_ = nullptr;           ///< the device change lists (pairs)
   std::optional<workspace_pool::lease<workspace_type>> ws_;
+  std::optional<workspace_pool::lease<cuda_workspace_type>> cuda_ws_;
 };
 
 }  // namespace
@@ -469,6 +649,26 @@ cycle_count::result cycle_count_compute(const resources& res,
   auto state = std::make_unique<detail::cycle_count_state>();
   state->opt = opt;
   state->bound = detail::histogram_bound(opt, g);
+  if (res.get_backend() == backend::cuda) {
+    detail::expect_cuda_engine(opt, "cycle_count::compute");
+    const std::int64_t length = detail::expect_device_length(
+        opt, static_cast<std::int64_t>(g.num_vertices()), "cycle_count::compute");
+    state->counts.assign(static_cast<std::size_t>(state->bound) + 1, 0);
+#if DYNG_HAS_CUDA
+    // count_simple_cycles_johnson[_queue]_device on the resident graph (stages cycle_count.reset,
+    // cycle_count.count and cycle_count.finalize inside).
+    const auto& d = detail::graph_access::device_out(res, g);
+    auto ws = detail::resources_access::workspaces(res)
+                  .acquire<detail::cycle_count_cuda_workspace<edge_t>>(res);
+    detail::cycle_count_cuda_compute(res, detail::device_engine_graph(d), length, opt, ws.get(),
+                                     state->counts);
+#else
+    (void)length;
+#endif
+    state->version = g.version();
+    state->graph_state = detail::graph_access::impl(g).state_id;
+    return detail::cycle_count_access::make(std::move(state));
+  }
   const detail::cycle_graph<vertex_t, edge_t> cg = detail::engine_graph(g);
   detail::cycle_count_hook(res, "cycle_count.reset", [&] {
     state->counts.assign(static_cast<std::size_t>(state->bound) + 1, 0);
