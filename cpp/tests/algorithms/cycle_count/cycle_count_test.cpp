@@ -406,6 +406,23 @@ TEST(CycleCountBackend, PlacementIsChecked) {
   EXPECT_THROW((void)cycle_count::compute(seq, gd), dyng::invalid_argument_error);
 }
 
+// --- OptionsTest (options_test.cpp): the defaults -------------------------------------------------
+
+TEST(CycleCountOptions, DefaultsToJohnsonSimpleCyclesWithoutBound) {
+  const cycle_count::options opt;
+  EXPECT_EQ(opt.max_length, -1);
+  EXPECT_EQ(opt.method, cycle_count::search_method::johnson);
+  EXPECT_EQ(opt.mode, cycle_count::cycle_mode::simple);
+  // Without a bound every cycle is counted: a 5-ring and a 2-cycle.
+  const resources seq = resources::sequential();
+  const graph_u g =
+      cc_graph<graph_u>(seq, 7, {{0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 0}, {5, 6}, {6, 5}});
+  const cycle_count::result r = cycle_count::compute(seq, g, opt);
+  EXPECT_EQ(r.count(2), 1U);
+  EXPECT_EQ(r.count(5), 1U);
+  EXPECT_EQ(r.total(), 2U);
+}
+
 // --- HistogramTest (histogram_test.cpp): accessors, the CSV format, overflow ----------------------
 
 TEST(CycleCountHistogram, AccessorsAndCsv) {
