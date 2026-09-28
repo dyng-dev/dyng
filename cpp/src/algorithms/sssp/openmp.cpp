@@ -36,6 +36,13 @@
  * parallel regions kept in the workspace, each on its own cache lines (util/thread_list.hpp),
  * instead of vectors created in every region: the lists and their order are the same, but no
  * two threads write to one cache line and a steady-state update allocates nothing for them.
+ *
+ * One change for speed, with identical lists and outputs: the work-sharing loops that feed a
+ * list_gather are `nowait` (the gather's first barrier waits for them), and the regions that
+ * gather two lists use list_gather::gather_pair(), so a near-far round passes three barriers
+ * instead of six. On a small batch the loop runs about a thousand rounds per objective and the
+ * barriers were most of its time (road_usa, 10K local batch: sssp.loop 37 -> 19 ms per
+ * objective with 28 threads; parity/results/M1b.md section 9).
  */
 #include "algorithms/sssp/problem.hpp"
 #include "graph/instantiate.hpp"
@@ -283,7 +290,7 @@ class openmp_problem {
           }
         }
         thread_list<vertex_t>& local_invalid = local_list(0);
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) nowait
         for (std::int64_t v = 0; v < n; ++v) {
           if (state[v] == 2) {
             packed_words[v] = packed_inf;
@@ -303,7 +310,7 @@ class openmp_problem {
 #pragma omp parallel num_threads(threads_)
       {
         thread_list<vertex_t>& local_heads = local_list(0);
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) nowait
         for (std::int64_t i = 0; i < num_heads; ++i) {
           const vertex_t v = insert_heads[i];
           if (v != source && claim(stamp, v, generation)) {
@@ -329,7 +336,7 @@ class openmp_problem {
 #pragma omp parallel num_threads(threads_)
     {
       thread_list<vertex_t>& local_frontier = local_list(0);
-#pragma omp for schedule(dynamic, 64)
+#pragma omp for schedule(dynamic, 64) nowait
       for (std::int64_t i = 0; i < count; ++i) {
         const vertex_t v = candidates[i];
         const u64 current = load(&packed_words[v]);
@@ -383,7 +390,7 @@ class openmp_problem {
       {
         thread_list<vertex_t>& local_near = local_list(0);
         thread_list<vertex_t>& local_far = local_list(1);
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) nowait
         for (std::int64_t i = 0; i < count; ++i) {
           const vertex_t v = frontier[i];
           const u64 word = load(&packed_words[v]);
@@ -396,8 +403,7 @@ class openmp_problem {
             local_far.push_back(v);
           }
         }
-        near_gather.gather(local_near);
-        far_gather.gather(local_far);
+        list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far);
       }
     }
 
@@ -415,7 +421,7 @@ class openmp_problem {
         {
           thread_list<vertex_t>& local_near = local_list(0);
           thread_list<vertex_t>& local_far = local_list(1);
-#pragma omp for schedule(dynamic, 64)
+#pragma omp for schedule(dynamic, 64) nowait
           for (std::int64_t i = 0; i < count; ++i) {
             const vertex_t u = near[i];
             const u64 word = load(&packed_words[u]);
@@ -445,8 +451,7 @@ class openmp_problem {
               }
             }
           }
-          near_gather.gather(local_near);
-          far_gather.gather(local_far);
+          list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far);
         }
         std::swap(current, next);
       }
@@ -468,7 +473,7 @@ class openmp_problem {
       {
         thread_list<vertex_t>& local_near = local_list(0);
         thread_list<vertex_t>& local_keep = local_list(1);
-#pragma omp for schedule(static)
+#pragma omp for schedule(static) nowait
         for (std::int64_t i = 0; i < count; ++i) {
           const vertex_t v = far[i];
           const u64 word = load(&packed_words[v]);
@@ -482,8 +487,7 @@ class openmp_problem {
             local_keep.push_back(v);
           }
         }
-        near_gather.gather(local_near);
-        keep_gather.gather(local_keep);
+        list_gather<vertex_t>::gather_pair(near_gather, local_near, keep_gather, local_keep);
       }
       ws_.far.swap(ws_.far2);
     }

@@ -42,8 +42,12 @@ dyng_add_test(NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp LABELS 
 dyng_add_test(
   NAME dyng_framework_tests
   SOURCES framework/workspace_test.cpp framework/thread_list_test.cpp
+          framework/list_gather_test.cpp
   LABELS cpu framework
 )
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_framework_tests PRIVATE OpenMP::OpenMP_CXX)
+endif()
 dyng_add_test(NAME dyng_generators_tests SOURCES generators/legacy_test.cpp LABELS cpu generators)
 foreach(_dyng_test dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
