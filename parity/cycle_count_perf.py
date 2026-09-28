@@ -54,8 +54,14 @@ option B; `none` records a default-clock reading, not a gate), and the machine m
 parity/perf_ab.py samples the GPU: a round is repeated when a busy sample ran at other clocks, a
 foreign process used the GPU or the CPUs were busy outside the harness (--max-foreign-cpu). The
 default cuda cases are the gate of M2b acceptance criterion 4 (M2B_CUDA_CASES); the golden set is
-cycle_count_cuda. `kernels` records the register counts (cuobjdump --dump-resource-usage) and the
-occupancy limits of the counting kernels of both sides.
+cycle_count_cuda. A case with more rejected rounds than --runs (for example a long kernel under
+the GPU's power cap, which cannot hold the boost lock) is recorded as incomplete and the run goes on
+with the next case; the JSON is written after every case.
+
+`kernels` records, for every cycle-count kernel of both sides (the fused counting kernels, the
+work-item builders and the G_{t+1} kernels), the registers, stack and shared memory
+(cuobjdump --dump-resource-usage) and the theoretical sm_86 occupancy at its launch block size, and
+pairs each kernel of the original with the port's 32-bit-offset instantiation of it.
 """
 
 from __future__ import annotations
@@ -491,6 +497,7 @@ def run_cuda(args: argparse.Namespace) -> int:
     golden_root = args.goldens
     results: dict = {}
     failures: list[str] = []
+    incomplete: list[str] = []
     work = Path(tempfile.mkdtemp(prefix="dyng-perf-cc-cuda-", dir=perf_ab.SCRATCH / "runs"))
     timing = work / "timing.csv"
     clocks = perf_ab.ClockLock(args.gpu, args.lock_clocks)
@@ -546,7 +553,12 @@ def run_cuda(args: argparse.Namespace) -> int:
                                 rejected.append({"before_round": r + 1, "reasons": reasons})
                                 print(f"{case.rel}: round {r + 1} rejected ({'; '.join(reasons)})")
                                 if len(rejected) > args.runs:
-                                    raise SystemExit(f"{case.rel}: too many rejected rounds")
+                                    # Recorded, not fatal: the other cases still run (for
+                                    # example a GPU that cannot hold the locked clocks under
+                                    # its power cap for a long kernel).
+                                    print(f"{case.rel}: too many rejected rounds, not measured")
+                                    incomplete.append(case.rel)
+                                    break
                                 time.sleep(5.0)
                                 continue
                             r += 1
@@ -572,6 +584,8 @@ def run_cuda(args: argparse.Namespace) -> int:
                     entry: dict = {
                         "task": task,
                         "golden_checked": checked,
+                        "rounds": r,
+                        "complete": r == args.runs,
                         "regions": [],
                         "port_stages_median_ms": {},
                         "monitor": {
@@ -584,9 +598,9 @@ def run_cuda(args: argparse.Namespace) -> int:
                             ),
                         },
                     }
-                    for sc in scopes:
+                    for sc in scopes if r > 0 else []:
                         entry["regions"] += summarize(
-                            scoped_regions(regions, sc), task, samples[sc], args.runs
+                            scoped_regions(regions, sc), task, samples[sc], r
                         )
                         names = sorted({n for st in samples[sc]["stages"] for n in st})
                         entry["port_stages_median_ms"][sc] = {
@@ -594,6 +608,8 @@ def run_cuda(args: argparse.Namespace) -> int:
                             for n in names
                         }
                     results[case.rel] = entry
+                    if args.json:  # after every case: an interrupted run keeps what it measured
+                        write_json(args, results, build, ref, marker, regions, clocks.record)
     finally:
         subprocess.run(["rm", "-rf", str(work)], check=False)
     report_cuda(results)
@@ -610,11 +626,13 @@ def run_cuda(args: argparse.Namespace) -> int:
         print(f"CORRECTNESS: {f}", file=sys.stderr)
     if failures:
         return 1
+    if incomplete:
+        print(f"not measured (more rejected rounds than --runs): {', '.join(incomplete)}")
     if exceeded:
         print("gate exceeded: " + "; ".join(exceeded))
         if args.enforce_gates and args.lock_clocks != "none":
             return 1
-    return 0
+    return 1 if incomplete else 0
 
 
 def report_cuda(results: dict) -> None:
@@ -641,14 +659,66 @@ def report_cuda(results: dict) -> None:
 
 
 KERNEL_PATTERN = re.compile(
-    r"count_(roots|roots_queue|edge_items|two_hop_items|owned_cycles)_kernel|"
-    r"CountRoots|count_roots|count_edge_items|count_two_hop|count_owned"
+    r"\b(count_(?:roots_queue|roots|edge_items|two_hop_items|owned_cycles)|mark_owners|"
+    r"item_counts|change_rows|next_degree|build_next_rows|forward_rows|fill_edge_items|"
+    r"target_degree)_kernel\b"
 )
+# The fused kernels (the pruned depth-first search: the gated work of the count and the update);
+# the others build the work items or G_{t+1}.
+FUSED_KERNELS = {
+    "count_roots",
+    "count_roots_queue",
+    "count_edge_items",
+    "count_two_hop_items",
+    "count_owned_cycles",
+}
+# Launch block sizes, equal on both sides: kBuildBlockSize = 256 for the work-item builders, 128
+# otherwise (CYCLE_ENUM_CUDA_BLOCK_SIZE's default and the update's kBlockSize).
+BUILD_KERNELS = {"forward_rows", "fill_edge_items", "target_degree"}
+# sm_86 (RTX A5000) limits of the CUDA occupancy calculator: 48 resident warps and 16 blocks per
+# multiprocessor, 65,536 registers allocated per warp in units of 256.
+SM86 = {"max_warps": 48, "max_blocks": 16, "registers": 65536, "register_unit": 256}
+
+
+def block_size(base: str) -> int:
+    return 256 if base in BUILD_KERNELS else 128
+
+
+def occupancy(registers: int, threads: int) -> dict:
+    """Theoretical occupancy on sm_86 (the occupancy calculator's rule: the smallest of the warp,
+    block and register limits; the kernels use no shared memory, and their stack is local memory,
+    which does not limit residency)."""
+    warps = -(-threads // 32)
+    per_warp = -(-max(registers, 1) * 32 // SM86["register_unit"]) * SM86["register_unit"]
+    limits = {
+        "warps": SM86["max_warps"] // warps,
+        "blocks": SM86["max_blocks"],
+        "registers": (SM86["registers"] // per_warp) // warps,
+    }
+    blocks = min(limits.values())
+    return {
+        "block_size": threads,
+        "blocks_per_sm": blocks,
+        "occupancy": blocks * warps / SM86["max_warps"],
+        "limited_by": min(limits, key=lambda k: (limits[k], k != "warps")),
+    }
+
+
+def kernel_key(name: str) -> tuple[str, int | None, str]:
+    """(base name, bound Cap, offset type) of a demangled kernel name; the original's offsets are
+    32-bit (its CsrView)."""
+    base = KERNEL_PATTERN.search(name).group(1)
+    m = re.search(rf"{base}_kernel<([^<>]*)>", name)
+    targs = [a.strip() for a in m.group(1).split(",")] if m else []
+    cap = next((int(a) for a in targs if a.isdigit()), None)
+    offsets = next((a for a in targs if not a.isdigit()), "unsigned int")
+    return base, cap, offsets
 
 
 def resource_usage(binary: Path) -> list[dict]:
-    """Register and memory use of the counting kernels in a binary (cuobjdump
-    --dump-resource-usage), with the kernel names demangled."""
+    """Register and memory use of the cycle-count kernels in a binary (cuobjdump
+    --dump-resource-usage), with the kernel names demangled and the theoretical occupancy at the
+    launch block size."""
     cuobjdump = Path(os.environ.get("CUOBJDUMP", "/usr/local/cuda-13.1/bin/cuobjdump"))
     out = subprocess.run(
         [str(cuobjdump), "--dump-resource-usage", str(binary)], capture_output=True, text=True
@@ -663,21 +733,48 @@ def resource_usage(binary: Path) -> list[dict]:
         if m and fn:
             name = subprocess.run(["c++filt", fn], capture_output=True, text=True).stdout.strip()
             if KERNEL_PATTERN.search(name):
+                base, cap, offsets = kernel_key(name)
+                registers = int(m.group(1))
                 rows.append(
                     {
                         "kernel": name,
-                        "registers": int(m.group(1)),
+                        "base": base,
+                        "cap": cap,
+                        "offsets": offsets,
+                        "fused": base in FUSED_KERNELS,
+                        "registers": registers,
                         "stack": int(m.group(2)),
                         "shared": int(m.group(3)),
                         "local": int(m.group(4)),
                     }
+                    | occupancy(registers, block_size(base))
                 )
             fn = None
     return rows
 
 
+def pair_kernels(doc: dict) -> list[dict]:
+    """Every kernel of the original next to the port's 32-bit-offset instantiation of it."""
+    port = {(r["base"], r["cap"]): r for r in doc["port"] if r["offsets"] == "unsigned int"}
+    pairs = []
+    for o in sorted(doc["original"], key=lambda r: (not r["fused"], r["base"], r["cap"] or 0)):
+        p = port.get((o["base"], o["cap"]))
+        pairs.append(
+            {
+                "kernel": o["base"] + (f"<{o['cap']}>" if o["cap"] else ""),
+                "fused": o["fused"],
+                "block_size": o["block_size"],
+                "original": {k: o[k] for k in ["registers", "stack", "occupancy"]},
+                "port": {k: p[k] for k in ["registers", "stack", "occupancy"]} if p else None,
+                "equal": p is not None
+                and all(o[k] == p[k] for k in ["registers", "stack", "shared", "occupancy"]),
+            }
+        )
+    return pairs
+
+
 def kernels(args: argparse.Namespace) -> int:
-    """The register counts and memory use of the counting kernels of both sides."""
+    """The register counts, memory use and occupancy of the kernels of both sides."""
     ref = perf_ab.reference_copy(goldens.REFERENCE)
     sides = {
         "original": [
@@ -686,14 +783,42 @@ def kernels(args: argparse.Namespace) -> int:
         ],
         "port": [args.library.resolve()],
     }
-    doc = {side: [row for b in bins for row in resource_usage(b)] for side, bins in sides.items()}
-    print("\n| side | kernel | registers | stack | local |\n|---|---|---:|---:|---:|")
-    for side, rows in doc.items():
-        for row in sorted(rows, key=lambda x: x["kernel"]):
-            print(
-                f"| {side} | {row['kernel']} | {row['registers']} | {row['stack']} | "
-                f"{row['local']} |"
-            )
+    doc: dict = {}
+    for side, bins in sides.items():
+        rows = [row for b in bins for row in resource_usage(b)]
+        doc[side] = list({r["kernel"]: r for r in rows}.values())  # one row per kernel
+    doc["pairs"] = pair_kernels(doc)
+    doc["device"] = {"arch": "sm_86"} | SM86
+    doc["binaries"] = {
+        side: [perf_ab.portable_path(b) for b in bins] for side, bins in sides.items()
+    }
+    print(
+        "\n| kernel | block | registers original / port | stack (B) original / port | "
+        "occupancy original / port | equal |\n|---|---:|---|---|---|---|"
+    )
+    for row in doc["pairs"]:
+        o, p = row["original"], row["port"] or {"registers": "-", "stack": "-", "occupancy": 0.0}
+        print(
+            f"| {row['kernel']}{' (fused)' if row['fused'] else ''} | {row['block_size']} | "
+            f"{o['registers']} / {p['registers']} | {o['stack']} / {p['stack']} | "
+            f"{o['occupancy'] * 100:.0f} % / {p['occupancy'] * 100:.0f} % | "
+            f"{'yes' if row['equal'] else 'NO'} |"
+        )
+    wide = sorted(
+        (r for r in doc["port"] if r["offsets"] != "unsigned int"),
+        key=lambda r: (not r["fused"], r["base"], r["cap"] or 0),
+    )
+    print(
+        "\n| port kernel (64-bit offsets) | registers | stack (B) | occupancy |\n"
+        "|---|---:|---:|---:|"
+    )
+    for r in wide:
+        cap = f"<{r['cap']}>" if r["cap"] else ""
+        print(
+            f"| {r['base']}{cap} | {r['registers']} | {r['stack']} | {r['occupancy'] * 100:.0f} % |"
+        )
+    unequal = [r["kernel"] for r in doc["pairs"] if not r["equal"]]
+    print(f"{len(doc['pairs']) - len(unequal)} / {len(doc['pairs'])} kernels equal to the original")
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(doc, indent=1) + "\n")

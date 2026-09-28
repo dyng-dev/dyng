@@ -517,3 +517,48 @@ def test_cycle_count_optional_original_keys() -> None:
     plain = {"original": [{perf.WALL: 2000.0}] * 5, "port": [port] * 5, "stages": [{}] * 5}
     out = {e["region"]: e for e in perf.summarize(regions, "count", plain, 5)}
     assert "ratio" not in out["static_count"] and out["static_end_to_end"]["ratio"] == 0.75
+
+
+def test_cycle_count_kernel_occupancy_and_names() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    # sm_86, 128 threads (4 warps): up to 40 registers the warp limit (12 blocks) binds;
+    # 48 registers: 1536 per warp, 42 warps, 10 blocks (83 %); 64: 8 blocks (67 %).
+    assert perf.occupancy(40, 128)["occupancy"] == 1.0
+    assert perf.occupancy(40, 128)["limited_by"] == "warps"
+    got = perf.occupancy(48, 128)
+    assert got["blocks_per_sm"] == 10 and got["limited_by"] == "registers"
+    assert perf.occupancy(64, 128)["occupancy"] == pytest.approx(8 * 4 / 48)
+    assert perf.occupancy(16, 256)["blocks_per_sm"] == 6
+    name = (
+        "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<16, unsigned long>"
+        "(dyng::detail::device_csr<unsigned long>, int)"
+    )
+    assert perf.kernel_key(name) == ("count_edge_items", 16, "unsigned long")
+    original = (
+        "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_queue_kernel<8>"
+        "(cycle_enum::cuda::CsrView, int, unsigned long long*, unsigned long long*)"
+    )
+    assert perf.kernel_key(original) == ("count_roots_queue", 8, "unsigned int")
+    assert perf.kernel_key("void x::change_rows_kernel(unsigned int)") == (
+        "change_rows",
+        None,
+        "unsigned int",
+    )
+    row = {
+        "base": "count_roots",
+        "cap": 4,
+        "fused": True,
+        "registers": 26,
+        "stack": 96,
+        "shared": 0,
+        "block_size": 128,
+        "occupancy": 1.0,
+    }
+    doc = {
+        "original": [dict(row, offsets="unsigned int")],
+        "port": [dict(row, offsets="unsigned int"), dict(row, offsets="unsigned long", stack=128)],
+    }
+    (pair,) = perf.pair_kernels(doc)
+    assert pair["kernel"] == "count_roots<4>" and pair["equal"]
+    doc["port"][0]["registers"] = 28
+    assert not perf.pair_kernels(doc)[0]["equal"]
