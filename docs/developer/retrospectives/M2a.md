@@ -1,7 +1,9 @@
 # Retrospective: M2a (`cycle_count` on the CPU backends)
 
-Status: **in progress.** Each implementation step appends its section; the close-out adds the
-milestone summary, the acceptance record, the lessons and the re-estimate.
+Status: **complete (2026-09-28)** on branch `m2-cycle`, pending the orchestrator's merge into
+`main` (after M1b) and an independent review. Steps 1-3 each appended their section; Step 4
+(close-out) added the milestone summary, the acceptance record, the consolidated deviations, the
+lessons, the work M2b must do for CUDA and the re-estimate.
 
 ## Step 1: graph, I/O, generator and oracle pieces (graph-io-gen, 2026-09-27)
 
@@ -365,3 +367,190 @@ no fix were needed for the gates. The likely cause of the gap is recorded there 
 - `dyng-compat-cycle-enum` generates the batch from `g.to_csr(res)` (a copy; Twitch 778 ms,
   outside every gated region); reading the out-edges directly would bring the update task's end
   to end closer to the original's structure.
+
+## Step 4: close-out (finish, 2026-09-28)
+
+### Done
+
+- **`docs/algorithms/cycle_count.md`** completed against PLAN 9.5: what it computes, a graph
+  requirements table (sorted rows, no parallel edges, weights ignored, no in-edges needed, int32
+  vertices; `cycle_enum_compatible()` and the other batch semantics), backends, the determinism
+  level `exact_value` and why, complexity, the timed-region table and the measured performance
+  table of step 3, limitations, **Differences from the paper** (exact k-bounded enumeration, not
+  the approximate kappa-truncated TruCy, which is not implemented; TruCy / DynTruCy is
+  **submitted** to IEEE TC; what that means for counts, timings and the kappa experiments) and a
+  **Paper vs fixed code** table (C1, C4, C6, H1, H3, C9, C10, K1/K2, K3/C5/C7 and the
+  time-window items of the original's `CHANGES.md`, each with what dynG takes), the mapping from
+  the original code and how to cite. The header's `@paper` lines say "submitted" as well.
+- **README**: the status table lists `cycle_count` (sequential and OpenMP, bit-identical to
+  CycleEnumeration-GPU@0a976ad, linking the parity certificate) and `cycle_count` on CUDA as
+  planned for M2b; one paragraph on the example and the compat driver. **CHANGELOG**: one
+  additive entry.
+- **Dataset coverage of the parser** (acceptance criterion 2 names every dataset under
+  `$DYNG_SCRATCH/datasets/cycle`): the digests now include the three timestamped SNAP edge lists
+  (CollegeMsg, email-Eu-core-temporal, sx-mathoverflow; parser output and CSR). Their digests
+  came from the original's exporter; the test passed on them and failed when one digest was
+  altered (negative check). Before, only the four TUDataset graphs were compared.
+
+### Deviations from the plan
+
+None new. The algorithm page has no Python snippet (the binding is M5; the page says so).
+
+## Milestone summary
+
+M2a was done in four steps on 2026-09-27/28 on branch `m2-cycle` (from `main` at `b59de86`):
+graph, I/O, generator and oracle pieces (step 1), `cycle_count` on the sequential and OpenMP
+backends (step 2), the parity harness, goldens and OpenMP gates (step 3) and the close-out
+(step 4). 33 commits, this close-out included; nothing pushed (the orchestrator pushes). Size
+of the branch against `b59de86` (added lines, tracked files):
+
+| Area | Lines added |
+|---|---:|
+| Library: public headers and sources (`cpp/include`, `cpp/src`) | 4,650 |
+| Tests (`cpp/tests`, without the fixture data) | 3,750 |
+| Parity harness, compat driver, CI and scripts (`parity`, `tools`, `ci`) | 5,000 |
+| Documentation (Markdown) | 800 |
+| Committed fixtures (`cpp/tests/data/cycle_enum`: 389 files, 200 KB) | 12,400 |
+
+### Acceptance record
+
+| # | Criterion | Evidence | Status |
+|---|---|---|---|
+| 1 | A fresh clone of `m2-cycle` configures, builds every preset (`-Werror`), passes all tests via `ci/check.sh`; `ci/gpu_local.sh` still passes | final verification below (fresh clone) | met |
+| 2 | `cycle_enum_compatible()` (sorted rows, no parallel edges, `set()`, Step 0 = net structural change) and the unweighted graph; sorted-row apply byte-equal to `apply_batch` / `prepare_batch` on the fixtures and random batches; `io::read_edge_list` = the original's parser (TUDataset, comments, separators, Matrix Market symmetries both ways) on the datasets | step 1: 80 random fixture cases x four graph types x both host backends, the seed-1 dataset batches (digests), 9 parser fixtures and 15 malformed files; step 4: the digests cover all seven files under `datasets/cycle` (the four TUDataset graphs and the three timestamped edge lists) | met |
+| 3 | Histograms bit-identical on sequential AND OpenMP: fixtures; DD k = 3..7, GitHub k = 4, Twitch k = 4, COLLAB k = 3; update deltas seed 1 1K/25K/50K on DD, GitHub, Twitch; `generate_batch` identity; randomized differential tests vs subset DP, brute force, edge-set recount in CI; the two recorded mutations fail the suite (tested) | step 2: fixtures (80 random cases, 16 counts, 7 updates, 19 CLI runs), randomized suites (label `cpu`), `cycle_count.mutation.{control,double_count_5,weak_ownership}`; step 3: 72/72 golden replays (24 cases x sequential, OpenMP 4, OpenMP 56; the plan's totals; batches byte-equal) (`parity/results/M2a.md`) | met |
+| 4 | OpenMP-56 gates (static end to end DD k = 3..7, GitHub / Twitch k = 3, 4; update 25K+25K k = 4 on DD, GitHub, Twitch) <= 1.05x / 1.10x; COLLAB k = 3 reported; recorded with methodology | step 3: every gate met, ratios 0.64-0.96 (static), 0.76-0.96 (update), 0.68-0.89 (update end to end); COLLAB k = 3 0.65 (gated, met); unpatched original, exclusive lock, 11 A/B rounds (31 for the noisy DD regions, 5 for COLLAB) | met |
+| 5 | `references.toml`, `build_reference.sh`, export / compare scripts, `timed_regions/cycle_count.toml`; the algorithm page with 'Differences from the paper' and 'Paper vs fixed code'; this retrospective | steps 1, 3 and 4 | met |
+
+### Final verification
+
+All in a fresh `git clone` of `m2-cycle` (heavy steps under the shared perf lock, niced):
+
+| Command | Commit | Result |
+|---|---|---|
+| `ci/check.sh --parity` (18 min) | `0e9c46d` | every step OK: clang-format; `cpu-only` 377/377 and `dev` 384/384 (`ctest -L cpu`, `-Werror`, including `cycle_count.mutation.{control,double_count_5,weak_ownership}`); clang-tidy naming; REUSE; provenance (105 files); harness smoke tests; Doxygen + convention check (116 compounds); pre-commit; parity preset `ctest -L parity` 4/4 (dataset digests, dataset histograms 412 s, the sssp replay, `parity.cycle_count.cycle_enum_0a976ad` 420 s) |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | `0e9c46d` | build, `ctest -L gpu` 79/79, `ctest -L cpu` 384/384, sssp cuda goldens, memcheck, clang-tidy: all passed |
+| `dyng_cycle_enum_parity_tests --gtest_filter='CycleEnumDatasets.*'` (parity preset, after `git pull`) | `b7fb8d5` | passed on all seven dataset files (25 s) |
+
+The commits after `b7fb8d5` change only this retrospective; `pre-commit` (REUSE, codespell,
+whitespace) passed on it.
+
+### Measured parity and performance (from step 3)
+
+- **Parity:** 72 of 72 golden replays byte-identical (sequential including COLLAB k = 3 in
+  444 s, OpenMP 4 and 56 threads); the golden corpus was exported twice from fresh archive copies
+  with the same manifest (`e40fa03b...`) and cross-checked against the original's own sequential
+  backend, its `--compare-recompute`, the committed exporter counts and the plan's totals.
+- **Performance (OpenMP 56 threads, libgomp defaults, the original's RESULTS.md setup):** the
+  port is nowhere slower than the original (table in `docs/algorithms/cycle_count.md` Section 5
+  and `parity/results/M2a.md`). The likely cause of the gap (dense per-thread histograms versus
+  the original's `std::map` increment per cycle) is recorded as not profiled.
+
+### Deviations, consolidated
+
+Every deviation is in the table of the step that made it; the ones that matter beyond M2a:
+
+1. **Batch semantics** (ADR 0010 amendment): `set()` keeps a delete-then-reinsert pair in both
+   lists (the original's `prepare_batch`), not cancelled as PLAN 5.2 says; `as_sets` rejects
+   upsert, insertions-first and unsorted or multigraph rows; every other semantics reaches
+   cycle_count through Step 0 on G_t, which therefore runs twice (on G_t and in the commit), as
+   in the original.
+2. **API:** `generators::legacy::cycle_enum_batch()` (name after `legacy::mosp_changes()`); the
+   histogram is a dense array (`counts()[len]`) instead of the `CycleHistogram` map; unbounded
+   updates are allowed; `stats::affected` counts the lengths whose count changed; the parser
+   takes a thread count in its options.
+3. **Tests:** one CMake option `DYNG_MUTATION_TESTS` builds every recorded mutation plus a
+   control copy (instead of `DYNG_TEST_MUTATION=<name>`), with the mutation points in the CPU
+   code; `parity/mutate.py` is not written. Only the simple-cycle oracle is ported (time-window
+   and temporal oracles with those modes, 0.4).
+4. **Ported ahead of use:** the pruned lower_bound DFS of the original's CUDA kernels
+   (`dfs.hpp`) is ported and tested on the host but used by no CPU backend (the original's CPU
+   backends do not use it either).
+5. **Harness:** the cycle_count harness is in two new modules reached from `export_goldens.py`,
+   `compare.py` and `perf_ab.py` by a first argument `cycle_count` (main was editing those files
+   for M1b); the static gate is on end-to-end process wall time (the original has no CPU count
+   timer); the gate environment is the original's (56 threads, libgomp defaults, no pinning).
+6. **Compat driver:** Read-Tarjan, brute force, the time-window and temporal modes, `--backend
+   cuda` and `--version` are not reproduced.
+7. `graph_properties::cycle_enum_compatible()` keeps `store_transposed = true`; cycle_count never
+   builds the in-edges, so it costs nothing.
+
+### Lessons
+
+1. **Pin the inputs first, then port.** Step 1 made the parser, the CSR, the generated batches
+   and the normalized batches byte-equal before any counting code existed; every later histogram
+   mismatch could only have been in the counters, and there were none on the datasets.
+2. **Cross-check the original against itself before trusting a golden.** The export ran the
+   original's sequential backend, its `--compare-recompute`, a second export path and the plan's
+   totals before writing a case, and exported twice from fresh copies. This costs minutes and
+   removes a whole class of false mismatches.
+3. **Ownership bugs need the right inputs; mutations prove the inputs are there.** A weakened
+   ownership rule changes a count only on cycles through two or more change edges of one phase.
+   Building the recorded mutations as copies of the library and requiring the randomized suite to
+   fail on each (18-19 failing cases per mutation), with a control copy that must pass, keeps the
+   suite's power tested instead of assumed.
+4. **Additive edits to shared files merge cheaply.** With M1b editing the harness scripts on
+   `main` at the same time, dispatching to new modules kept the shared scripts' diffs to a few
+   lines each.
+5. **Name what a region contains on both sides.** The original has no CPU count timer, so the
+   gate is the process; writing that down in `timed_regions/cycle_count.toml` before measuring
+   avoided comparing a port-only count against an end-to-end number.
+6. **A shared machine still needs many rounds.** DD's 25 ms update had single outliers of 37-48
+   ms; 31 rounds gave the same verdict as 11. Record spreads; flag, do not fail.
+7. **The acceptance text is a checklist, not a summary.** Re-reading criterion 2 word by word at
+   close-out showed that the parser digests covered only four of the seven dataset files; the
+   gap was cheap to close.
+
+### What M2b must do for CUDA
+
+1. **Static CUDA counter** (`static_cuda.cu`, `dfs.cuh`, `work_queue.cuh`): the original's exact
+   pruned DFS (K1: thread-local path and cursors, `lower_bound` closure, per-thread histogram
+   reduced across the warp, grid by the occupancy calculator) and the prefix work items (K2: roots,
+   edges, two-hop items built on the device with CUB prefix sums; the `auto` heuristic: edges for
+   k <= 3, at k = 4 two-hop on graphs with >= 16 edges per vertex, two-hop for k >= 5). Reuse the
+   host-tested `dfs.hpp` logic; CUDA k <= 64.
+2. **CUDA update** (`cuda.cu`): K3 / C5 / C7 of the original: path membership instead of a
+   visited array, `mark_owners_kernel` (the `owner[]` array, one entry per CSR position),
+   `item_counts_kernel`, `count_owned_cycles_kernel`, (change, first hop) work items, and G_{t+1}
+   built on the device (`next_degree_kernel`, `build_next_rows_kernel`, the device sorted-row
+   merge). The device graph must stay **resident across batches** (PLAN 6.4.3); report the
+   original's scope (with upload) and the resident scope separately (PLAN 8.6: improvements in
+   their own table).
+3. **Mutations:** add the CUDA mutation points (5-cycles counted twice in the work-queue kernel;
+   weakened ownership in the update kernel) to `DYNG_MUTATION_TESTS`, with a CUDA control copy.
+4. **Harness:** `[reference.cycle_enum_cuda]` regions in `timed_regions/cycle_count.toml`
+   (`kernel_ms`, `memcpy_ms`, the device update; CUDA events or nsys kernel sums over >= 20 runs
+   for regions under 10 ms, e.g. DD's 1.44 ms static kernel and 4.4 ms update); a `--backend
+   cuda` path in `cycle_count_perf.py` (GPU 0, `CUDA_MODULE_LOADING=EAGER` or
+   `resources::warm_up()`); cuda configurations in `compare.py cycle_count` (the goldens are
+   backend independent); `dyng-compat-cycle-enum --backend cuda` and `--cuda-work-items`.
+5. **Gates** (PLAN 6.4.3): static CUDA k = 4 kernel DD 1.44, GitHub 58.0, Twitch 38.1 ms, COLLAB
+   k = 3 51.4 ms; update 25K+25K k = 4 DD 4.4, GitHub 14.3, Twitch 27.3, COLLAB 197 ms; DD 50K+50K
+   6.0 and 100K+100K 9.6 ms; COLLAB k = 4 (199,739,028,717) nightly.
+6. **Tests:** the original's CUDA suites (cuda_*, CliCudaTest, CudaCountersMatchOracle,
+   dynamic_update_cuda), the randomized suites on the CUDA backend (label `gpu`),
+   compute-sanitizer memcheck / racecheck / initcheck on the new kernels in `ci/gpu_local.sh`.
+7. **Small items:** the compat driver generates the batch from `g.to_csr(res)` (a copy; Twitch
+   778 ms, outside every gated region); read the out-edges directly. Update the manifest's
+   `backends` and the maturity note of the algorithm page.
+
+## Re-estimate
+
+M2a (the CPU half of the plan's M2, estimated with M2 at 2-3 working weeks and re-estimated after
+M1a at 4-6 days for all three backends) took four implementation steps over two days, including
+the full dataset parity and the OpenMP gates. The CUDA half is the larger one: two kernel
+families, the device batch application, the resident graph, two measurement scopes and the
+short-region timing protocol. Estimate for M2b: 3-5 days of focused work plus a review-and-fix
+step, after M1b has merged (it needs M1b's CUDA core, streams and the GPU timing harness). The
+0.1 estimate of the M1a retrospective is unchanged.
+
+## Open items carried forward
+
+1. **Independent review** of M2a (as M1a had) before or with the merge into `main`.
+2. **Merge:** `m2-cycle` edits a few shared files additively (CMake module lists, `graph`
+   apply paths, `update_participant::reads_prepared_graph()`, the parity entry scripts,
+   `goldens.toml`, CHANGELOG, README); the orchestrator merges after M1b.
+3. The explanation of the port's speed advantage is not profiled (reported, not gated).
+4. The 9,000-graph fuzz campaign of the original (PLAN 6.4.3: nightly) is not set up; the
+   randomized CTest suites run in CI.
+5. The CUDA work of M2b (above).
