@@ -13,8 +13,12 @@
 # environments, used read-only; see the M1b retrospective, "M1b review"):
 #   ci/build_cuda.sh ci-cuda13
 #   CUDACXX=<cuda-13.4>/bin/nvcc CXX=<gcc-13>/bin/g++ CUDAHOSTCXX=<gcc-13>/bin/g++ \
-#     ci/build_cuda.sh ci-cuda13
+#     LD_LIBRARY_PATH=<cuda-13.4>/lib ci/build_cuda.sh ci-cuda13
 #   CUDACXX=<cuda-12>/bin/nvcc CUDAHOSTCXX=/usr/bin/g++ ci/build_cuda.sh ci-cuda12
+# With a conda-forge toolkit, LD_LIBRARY_PATH (its lib/, which holds libcudart.so.13) is needed
+# for the link of the tests: the linker resolves libdyng.so's libcudart dependency through it,
+# as the containers' ld.so.conf does for /usr/local/cuda. The ci-cuda12 line needs a complete
+# CUDA 12 toolkit, including the NVTX 3 headers (nvtx3/nvToolsExt.h), which DYNG_WITH_NVTX uses.
 # Compiler outputs are cached with ccache (PLAN Section 8.8, "Practices"), one cache per toolkit.
 # The GPU tests run on the author's machine: ci/gpu_local.sh.
 name: cuda-build

@@ -100,17 +100,31 @@ if(DYNG_ENABLE_CUDA)
   set(CMAKE_CUDA_EXTENSIONS OFF)
 endif()
 # NVTX ranges for the profiler's stages (PLAN Section 7.3; profiler_options::nvtx): the header-only
-# NVTX 3 of the CUDA toolkit, ON when it is found.
+# NVTX 3 of the CUDA toolkit, ON when it is found. FindCUDAToolkit defines CUDA::nvtx3 from the
+# toolkit's include directories without checking for the headers (an incomplete toolkit, e.g. some
+# conda packages, has none), so the header itself is looked for.
+set(_dyng_nvtx_found OFF)
 if(DYNG_ENABLE_CUDA AND TARGET CUDA::nvtx3)
-  set(_dyng_nvtx_default ON)
-else()
-  set(_dyng_nvtx_default OFF)
+  get_target_property(_dyng_nvtx_dirs CUDA::nvtx3 INTERFACE_INCLUDE_DIRECTORIES)
+  if(NOT _dyng_nvtx_dirs)
+    set(_dyng_nvtx_dirs "")
+  endif()
+  find_path(
+    DYNG_NVTX3_INCLUDE_DIR nvtx3/nvToolsExt.h
+    PATHS ${_dyng_nvtx_dirs} ${CUDAToolkit_INCLUDE_DIRS}
+    NO_DEFAULT_PATH
+  )
+  if(DYNG_NVTX3_INCLUDE_DIR)
+    set(_dyng_nvtx_found ON)
+  endif()
 endif()
-option(DYNG_WITH_NVTX "NVTX ranges for profiler stages (needs the toolkit's CUDA::nvtx3)"
-       ${_dyng_nvtx_default}
+option(DYNG_WITH_NVTX "NVTX ranges for profiler stages (needs the toolkit's NVTX 3 headers)"
+       ${_dyng_nvtx_found}
 )
-if(DYNG_WITH_NVTX AND NOT TARGET CUDA::nvtx3)
-  message(FATAL_ERROR "DYNG_WITH_NVTX=ON needs a CUDA build whose toolkit provides CUDA::nvtx3")
+if(DYNG_WITH_NVTX AND NOT _dyng_nvtx_found)
+  message(FATAL_ERROR "DYNG_WITH_NVTX=ON needs a CUDA build whose toolkit provides CUDA::nvtx3 "
+                      "with its headers (nvtx3/nvToolsExt.h)"
+  )
 endif()
 foreach(_dyng_unavailable DYNG_BUILD_PYTHON DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS)
   if(${_dyng_unavailable})
