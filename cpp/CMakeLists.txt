@@ -112,6 +112,10 @@ function(dyng_add_module)
   dyng_enable_sanitizers(${target})
   dyng_set_cuda_options(${target})
   target_sources(dyng PRIVATE $<TARGET_OBJECTS:${target}>)
+  # The module list and sources, for the mutation tests (cpp/tests: a copy of libdyng with one
+  # module rebuilt from mutated sources).
+  set_property(GLOBAL APPEND PROPERTY DYNG_MODULE_TARGETS ${target})
+  set_property(GLOBAL PROPERTY DYNG_MODULE_SOURCES_${target} ${_sources})
 endfunction()
 
 dyng_add_module(
@@ -143,6 +147,7 @@ dyng_add_module(
 dyng_add_module(
   NAME graph
   SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp
+          src/graph/structural_change.cpp
   CUDA_SOURCES src/graph/device_graph.cu
 )
 
