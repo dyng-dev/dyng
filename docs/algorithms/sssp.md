@@ -128,7 +128,11 @@ thread counts, backends and edge offset types, and byte-identical to both origin
 corpus. All backends return identical trees, from canonical and non-canonical input trees alike
 (the randomized test `NonCanonicalInputTreesAgreeOnEveryBackend` perturbs tie parents; the CUDA test
 executable runs it with cuda next to the host backends); `invalidated` and `affected` are
-deterministic, `iterations`, `epochs` and `pushes` depend on the schedule. One counter differs by
+deterministic, `iterations`, `epochs` and `pushes` depend on the schedule. (MOSP-CUDA@e220ee2
+reads its `invalidated` count from the candidate-list counter while other threads already append
+the insertion heads to it, a data race that its plain runs happen not to expose; the ported
+kernel sums per-thread counts instead, ADR 0017 item 1, and the CUDA suite runs under
+`compute-sanitizer --tool synccheck` in `ci/gpu_local.sh`.) One counter differs by
 origin: right at the packing limit MOSP-CUDA packs (distance, parent) when (n - 1) * max weight
 fits next to the parent bits, MOSP-OpenMP only when one more edge fits too, so
 `stats::packed_parents` can differ between cuda and the host backends there (the packing-boundary
@@ -144,7 +148,10 @@ every update, as MOSP-CUDA uploads the updated graph once per batch. Results kee
 device memory (`r.space() == memory_space::device`; copy them with `dyng::to_vector(res,
 r.distances())`), `r.clone(res)` moves a result between host and device, and
 `result::from_arrays()` accepts host or device arrays (checked on the host, then uploaded).
-`compute()` and `update()` synchronize the stream once (the kernel's control block is read). The
+`update()` synchronizes the stream once per result (the kernel's control block is read) and once
+per batch inside the commit, where the new graph state is uploaded (`graph.upload`); `compute()`
+synchronizes once, plus once for the upload if the graph state is not resident yet (ADR 0017 item
+7). The
 scratch memory is the device workspace of the handle's pool (ADR 0015), the kernel's grid is the
 co-resident block count of each kernel instantiation (occupancy API), and `resources::warm_up()`
 loads the kernels ahead of timed work. Engine selection, placement and the device graph are

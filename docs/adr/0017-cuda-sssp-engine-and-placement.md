@@ -1,6 +1,7 @@
 # ADR 0017: The CUDA sssp engine, engine selection, placement and the resident device graph
 
-- **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3)
+- **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3). Amended by the M1b review
+  (see "Amendments")
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -78,6 +79,34 @@ fixes them.
    handle's stream (`device_ms`). MOSP-CUDA's per-objective timer is host time up to its
    synchronization, so the gate compares host times of the same scope (`sssp.enact_fused`) and
    reports dynG's device time next to them (`parity/timed_regions/sssp.toml`).
+
+## Amendments (M1b review, 2026-09-28)
+
+- **Item 1, one correction to the verbatim kernel.** MOSP-CUDA@e220ee2 sets `invalidated` from
+  thread 0's read of the candidate-list counter after the barrier that ends the invalidation,
+  with no barrier before the other threads append the insertion heads to the same list; if other
+  blocks append first, the counter includes insertion heads. The trees do not depend on it, but
+  the public contract calls the counter deterministic and the parity checks compare it exactly.
+  The port now sums per-thread counts of the invalidation loop into the control block (a warp
+  shuffle and one atomic per warp) before that barrier. The int32 instantiation keeps 59
+  registers; the golden corpus stays byte-identical with equal counters (the original's plain
+  runs happen to read the counter before any append; `compute-sanitizer --tool synccheck` or
+  `racecheck` scheduling exposes its race, and the CUDA sssp suite now runs under synccheck in
+  `ci/gpu_local.sh`).
+- **Item 3, `graph::to_backend(res)`.** PLAN 5.2 and 4.6 rule 5 name `g.to_backend(res)` as the
+  explicit move between host and device; it now exists (the same as `clone(res)` in this release,
+  because a CUDA graph keeps its authoritative CSR on the host) and the placement errors name it.
+  `to_space(res, view, space)` allocates from the resource that matches `space` (the handle's
+  memory resource, the host resource, the pinned staging resource, or the device's default
+  resource for a CUDA handle) instead of requiring `res.memory().space() == space`.
+- **Item 5.** Host backends accept device arrays in `from_arrays()` too; every implicit copy of an
+  input follows the copy policy (ADR 0016 item 11).
+- **Item 7, synchronization.** Besides the control block, the upload of a new graph state
+  (`graph.upload`, part of the commit of every update, and of `compute()` when the state is not
+  resident) synchronizes the stream once, as MOSP-CUDA's `uploadDeviceGraph()` does. `update()`
+  therefore synchronizes once per result and once per batch; `compute()` once, or twice when it
+  uploads the graph. The `@sync` notes say so. Like the upload's allocations (the host-apply
+  exemption from invariant I9), this sync goes away with the device apply.
 
 ## Consequences
 
