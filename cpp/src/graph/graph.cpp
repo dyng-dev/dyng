@@ -404,6 +404,7 @@ graph_view<vertex_t, edge_t, weight_t> graph_access::view(
   template apply_summary detail::graph_access::apply<V, E, W>(                                   \
       const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, detail::apply_delta<V>*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
 #undef DYNG_INSTANTIATE_GRAPH
 
 }  // namespace dyng

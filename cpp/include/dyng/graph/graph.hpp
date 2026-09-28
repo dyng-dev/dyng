@@ -48,7 +48,9 @@ struct graph_access;
  * column per objective), uploaded on first use and again after each applied batch.
  *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
- * and (int64, int64, int32) (PLAN Section 4.4.3).
+ * and (int64, int64, int32), and without weights for (int32, int32, unweighted) and
+ * (int32, int64, unweighted) (PLAN Section 4.4.3). A graph with weight_t = unweighted has no
+ * weight columns.
  *
  * @tparam vertex_t Vertex id type (signed).
  * @tparam edge_t   Edge offset type (signed).

@@ -87,11 +87,49 @@ struct batch_semantics {
   bool allow_vertex_growth = true;  ///< an insertion naming v >= num_vertices grows the vertex set
 
   /**
+   * @brief true: the deletions and the insertions are read as two SETS (Step 0 of set()).
+   *
+   * Before anything is applied, each list is sorted by (source, destination) and deduplicated
+   * (the first insertion of a pair in batch order supplies its weights); deletions of edges that
+   * do not exist and insertions of edges that exist are no-ops and leave the lists, except that an
+   * edge the batch both deletes and inserts stays in both lists (it is removed, then added back;
+   * apply_summary::cancelled_pairs counts these pairs). The two lists, in this order, are the net
+   * structural change the algorithms see (for example the change edges of cycle_count, whose
+   * position in the sorted list is their ownership id). The switches above keep their meaning:
+   * `on_missing_delete` and `on_existing_insert` decide what the no-ops do (ignore, error, or an
+   * upsert of the weights of an existing edge, which is not a structural change),
+   * `on_self_loop` what self-loops do, and `allow_vertex_growth` whether insertions may name new
+   * vertices. Needs `deletions_first`, row_order::sorted and multi_edges::forbid (the lists are
+   * merged into the sorted rows).
+   */
+  bool as_sets = false;
+
+  /**
    * @brief MOSP applyChangeBatch() / updateGraphCSR() semantics (the default).
    * @return Upsert, ignore missing deletions, keep self-loops, deletions first, vertex growth.
    */
   [[nodiscard]] static constexpr batch_semantics upsert_last_wins() noexcept {
     return batch_semantics{};
+  }
+
+  /**
+   * @brief CycleEnumeration-GPU prepare_batch() / apply_batch() semantics: a batch is two sets.
+   *
+   * as_sets with: insertions of existing edges and deletions of missing edges ignored (dropped
+   * from the normalized batch), self-loops dropped, deletions first, vertex growth. The graph
+   * after the batch has the edges (E minus Del) plus Ins, without self-loops; the normalized batch equals the
+   * original's prepare_batch() exactly.
+   * @return The set semantics.
+   */
+  [[nodiscard]] static constexpr batch_semantics set() noexcept {
+    batch_semantics s;
+    s.on_existing_insert = existing_insert::ignore;
+    s.on_missing_delete = missing_delete::ignore;
+    s.on_self_loop = self_loop::drop;
+    s.deletions_first = true;
+    s.allow_vertex_growth = true;
+    s.as_sets = true;
+    return s;
   }
 };
 
@@ -123,6 +161,25 @@ struct graph_properties {
     props.order = row_order::append;
     props.parallel_edges = multi_edges::allow;
     props.semantics = batch_semantics::upsert_last_wins();
+    return props;
+  }
+
+  /**
+   * @brief Parity with CycleEnumeration-GPU's DirectedGraph: sorted rows of a simple graph and
+   *        set() batch semantics.
+   *
+   * A graph built with these properties from the same edges has the CSR of the original's
+   * build_directed_graph(), and every applied batch gives the CSR of its apply_batch() (byte for
+   * byte, row offsets and neighbours).
+   * @return Directed, transposed stored, compact rows, row_order::sorted, multi_edges::forbid,
+   *         batch_semantics::set(), no weight columns.
+   */
+  [[nodiscard]] static constexpr graph_properties cycle_enum_compatible() noexcept {
+    graph_properties props;
+    props.num_weights = 0;
+    props.order = row_order::sorted;
+    props.parallel_edges = multi_edges::forbid;
+    props.semantics = batch_semantics::set();
     return props;
   }
 };

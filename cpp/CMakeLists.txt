@@ -142,7 +142,7 @@ dyng_add_module(
 
 dyng_add_module(
   NAME graph
-  SOURCES src/graph/apply_host.cpp src/graph/graph.cpp
+  SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp
   CUDA_SOURCES src/graph/device_graph.cu
 )
 

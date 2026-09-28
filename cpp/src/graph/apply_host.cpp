@@ -18,11 +18,13 @@
  */
 #include "graph/apply_host.hpp"
 
+#include "graph/apply_common.hpp"
 #include "graph/instantiate.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
+#include <dyng/core/types.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -33,32 +35,9 @@
 #include <utility>
 #include <vector>
 
-/// Throws dyng::invalid_argument_error with a message and file:line (no condition text).
-#define DYNG_THROW_INVALID_ARGUMENT(...)                                                           \
-  ::dyng::detail::throw_with_location<::dyng::invalid_argument_error>(__FILE__, __LINE__, nullptr, \
-                                                                      __VA_ARGS__)
-
 namespace dyng::detail {
 
 namespace {
-
-/// Throws unless a non-empty view is readable on the host.
-template <typename value_t>
-void expect_host(const array_view<value_t>& view, const char* what) {
-  DYNG_EXPECTS(view.empty() || is_host_accessible(view.space()), what,
-               " must be in host-accessible memory for a host graph");
-}
-
-/// Converts an edge count to edge_t, or throws capacity_error.
-template <typename edge_t>
-edge_t checked_edge_count(std::int64_t count) {
-  if (count > static_cast<std::int64_t>(std::numeric_limits<edge_t>::max())) {
-    throw capacity_error("dyng: " + std::to_string(count) +
-                         " edges do not fit the edge offset type; use a graph with 64-bit "
-                         "edge_t (int64)");
-  }
-  return static_cast<edge_t>(count);
-}
 
 /// One entry of a row being rebuilt. slot >= 0 is an edge of the original graph; slot < 0 is
 /// effective insertion -slot - 1.
@@ -68,22 +47,6 @@ struct row_entry {
   std::int64_t slot;
   bool alive;
 };
-
-/// A self-loop in a batch or an input: returns true if it is to be skipped.
-bool skip_self_loop(batch_semantics::self_loop policy, const char* what, std::int64_t index,
-                    std::int64_t u) {
-  switch (policy) {
-    case batch_semantics::self_loop::keep:
-      return false;
-    case batch_semantics::self_loop::drop:
-      return true;
-    case batch_semantics::self_loop::error:
-      break;
-  }
-  DYNG_THROW_INVALID_ARGUMENT(what, " ", index, " is a self-loop (", u, ", ", u,
-                              ") and the graph's batch_semantics::on_self_loop is error");
-  return true;
-}
 
 }  // namespace
 
@@ -106,27 +69,10 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
   const std::size_t num_deletes = batch.delete_src.size();
 
   // --- Validation ------------------------------------------------------------------------------
-  if (!batch.insert_vertices.empty() || !batch.delete_vertices.empty() ||
-      !batch.insert_vertex_labels.empty()) {
-    throw not_supported_error(
-        "dyng: vertex insertions and deletions are not supported yet (planned for 0.3)");
+  validate_batch_shape(batch, num_objectives);
+  if (semantics.as_sets) {
+    return apply_set_batch_host(original, batch, props, updated, delta, threads);
   }
-  DYNG_EXPECTS(batch.insert_dst.size() == num_inserts, "the batch has ", num_inserts,
-               " insertion sources but ", batch.insert_dst.size(), " destinations");
-  DYNG_EXPECTS(batch.delete_dst.size() == num_deletes, "the batch has ", num_deletes,
-               " deletion sources but ", batch.delete_dst.size(), " destinations");
-  if (num_inserts > 0) {
-    DYNG_EXPECTS(batch.num_weights == num_objectives, "the batch has ", batch.num_weights,
-                 " weights per insertion but the graph has ", num_objectives, " weight columns");
-    DYNG_EXPECTS(batch.insert_weights.size() == num_inserts * k_count, "the batch has ",
-                 batch.insert_weights.size(), " insertion weights, expected ", num_inserts, " x ",
-                 num_objectives);
-  }
-  expect_host(batch.insert_src, "edge_batch_view::insert_src");
-  expect_host(batch.insert_dst, "edge_batch_view::insert_dst");
-  expect_host(batch.insert_weights, "edge_batch_view::insert_weights");
-  expect_host(batch.delete_src, "edge_batch_view::delete_src");
-  expect_host(batch.delete_dst, "edge_batch_view::delete_dst");
 
   apply_summary summary;
 
@@ -675,6 +621,49 @@ void build_from_edges_host(const edge_list_view<vertex_t, weight_t>& edges,
   expect_host(edges.src, "edge_list_view::src");
   expect_host(edges.dst, "edge_list_view::dst");
   expect_host(edges.weights, "edge_list_view::weights");
+  DYNG_EXPECTS(!is_unweighted_v<weight_t> || num_objectives == 0,
+               "an unweighted edge list has no weight columns, got num_weights = ", num_objectives);
+  // Fast path: a directed edge list sorted by (source, destination) without repeated pairs (as
+  // io::read_edge_list returns it) and without self-loops to drop is already the CSR in edge order,
+  // whatever the row order and multigraph switches ask for.
+  bool in_csr_order = props.directed;
+  for (std::size_t i = 0; i < count; ++i) {
+    const vertex_t u = edges.src[i];
+    const vertex_t v = edges.dst[i];
+    DYNG_EXPECTS(u >= 0 && u < n && v >= 0 && v < n, "edge ", i, " (", u, ", ", v,
+                 ") is out of range [0, ", n, ")");
+    if (in_csr_order) {
+      if (u == v && props.semantics.on_self_loop != batch_semantics::self_loop::keep) {
+        in_csr_order = false;
+      } else if (i > 0) {
+        const vertex_t pu = edges.src[i - 1];
+        const vertex_t pv = edges.dst[i - 1];
+        in_csr_order = pu < u || (pu == u && pv < v);
+      }
+    }
+  }
+  if (in_csr_order) {
+    const auto rows = static_cast<std::size_t>(n);
+    const auto k_count = static_cast<std::size_t>(num_objectives);
+    out = csr<vertex_t, edge_t, weight_t>();
+    out.num_weights = num_objectives;
+    out.row_ptr.assign(rows + 1, edge_t{0});
+    (void)checked_edge_count<edge_t>(static_cast<std::int64_t>(count));
+    for (std::size_t i = 0; i < count; ++i) {
+      ++out.row_ptr[static_cast<std::size_t>(edges.src[i]) + 1];
+    }
+    for (std::size_t u = 0; u < rows; ++u) {
+      out.row_ptr[u + 1] += out.row_ptr[u];
+    }
+    out.col_ind.assign(edges.dst.begin(), edges.dst.end());
+    out.weights.resize(count * k_count);
+    for (std::size_t k = 0; k < k_count; ++k) {
+      for (std::size_t i = 0; i < count; ++i) {
+        out.weights[k * count + i] = edges.weights[i * k_count + k];
+      }
+    }
+    return;
+  }
   std::vector<vertex_t> src;
   std::vector<vertex_t> dst;
   std::vector<std::size_t> index;
@@ -798,6 +787,8 @@ void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
   const int num_objectives = input.num_weights;
   const std::size_t m = input.col_ind.size();
   DYNG_EXPECTS(num_objectives >= 0, "csr_view::num_weights must be >= 0, got ", num_objectives);
+  DYNG_EXPECTS(!is_unweighted_v<weight_t> || num_objectives == 0,
+               "an unweighted CSR has no weight columns, got num_weights = ", num_objectives);
   DYNG_EXPECTS(!input.row_ptr.empty() || m == 0, "csr_view::row_ptr is empty but there are ", m,
                " edges");
   const std::int64_t n = input.num_vertices();
@@ -993,6 +984,7 @@ std::string integrity_violation(const graph_impl<vertex_t, edge_t, weight_t>& im
                                              csr<V, E, W>&, int, csr<V, E, W>*);                 \
   template std::string integrity_violation<V, E, W>(const graph_impl<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_HOST)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_HOST)
 #undef DYNG_INSTANTIATE_APPLY_HOST
 
 }  // namespace dyng::detail

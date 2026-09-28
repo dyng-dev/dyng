@@ -1,9 +1,12 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from MOSP-OpenMP@c352151:headers/csrGraph.h (applyChangeBatch, transposeCsrGraph)
+// Derived from CycleEnumeration-GPU@0a976ad:include/cycle_enum/dynamic/directed_graph.hpp
+// (apply_batch, prepare_batch)
 /**
  * @file apply_host.hpp
- * @brief Host batch application: a new compact CSR per batch (MOSP applyChangeBatch semantics).
+ * @brief Host batch application: a new compact CSR per batch (MOSP applyChangeBatch semantics, or
+ *        CycleEnumeration-GPU's set semantics under batch_semantics::as_sets).
  */
 #pragma once
 
@@ -42,6 +45,36 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
                                const graph_properties& props,
                                csr<vertex_t, edge_t, weight_t>& updated,
                                apply_delta<vertex_t>* delta, int threads = 1);
+
+/**
+ * @brief apply_batch_host() for batch_semantics::as_sets (apply_set_host.cpp): Step 0 reduces
+ *        the batch to two sorted, duplicate-free lists of structural changes (CycleEnumeration-GPU
+ *        prepare_batch), which are merged into the sorted rows (its apply_batch).
+ *
+ * `delta` receives the normalized batch: the deletions and the insertions, each sorted by
+ * (source, destination), with zero weight-increase flags (every weight change is a deletion
+ * followed by an insertion of the edge).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]  original The out-edge CSR before the batch (sorted rows without parallel edges).
+ * @param[in]  batch    The batch (host memory; its shape already validated).
+ * @param[in]  props    Properties of the graph (semantics.as_sets set).
+ * @param[out] updated  The out-edge CSR after the batch (must not alias `original`).
+ * @param[out] delta    The normalized batch (may be nullptr).
+ * @param[in]  threads  OpenMP threads for assembling the updated CSR (the result is the same for
+ *                      every thread count).
+ * @return The counters of the batch.
+ * @throws invalid_argument_error on malformed batches or a semantics rule that says error.
+ * @throws not_supported_error    if the properties do not allow set semantics (see as_sets).
+ * @throws capacity_error         if the edge count no longer fits edge_t.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
+                                   const edge_batch_view<vertex_t, weight_t>& batch,
+                                   const graph_properties& props,
+                                   csr<vertex_t, edge_t, weight_t>& updated,
+                                   apply_delta<vertex_t>* delta, int threads = 1);
 
 /**
  * @brief The reverse graph: row v lists u for every edge u -> v (with its weights).

@@ -9,6 +9,7 @@
 
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/types.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -42,9 +43,9 @@ struct edge_batch_view {
   array_view<const vertex_t> delete_src;       ///< source of each deletion
   array_view<const vertex_t> delete_dst;       ///< destination of each deletion
   array_view<const vertex_t> insert_vertices;  ///< new vertices (0.3, DynLP)
-  array_view<const std::int8_t> insert_vertex_labels;  ///< optional labels of new vertices
-  array_view<const vertex_t> delete_vertices;          ///< removed vertices (0.3, DynLP)
-  int num_weights = 1;                                 ///< weights per insertion
+  array_view<const std::int8_t> insert_vertex_labels;   ///< optional labels of new vertices
+  array_view<const vertex_t> delete_vertices;           ///< removed vertices (0.3, DynLP)
+  int num_weights = is_unweighted_v<weight_t> ? 0 : 1;  ///< weights per insertion (0: unweighted)
 
   /**
    * @brief Number of edge insertions.
@@ -85,13 +86,19 @@ struct edge_batch_view {
 template <typename vertex_t, typename weight_t>
 class edge_batch {
  public:
+  /// The default number of weights per insertion: 0 for weight_t = unweighted, else 1.
+  static constexpr int default_num_weights = is_unweighted_v<weight_t> ? 0 : 1;
+
   /**
    * @brief An empty batch.
-   * @param[in] num_weights Weights per insertion (the number of objectives of the graph).
-   * @throws invalid_argument_error if `num_weights` is negative.
+   * @param[in] num_weights Weights per insertion (the number of objectives of the graph; 0 for
+   *                        weight_t = unweighted).
+   * @throws invalid_argument_error if `num_weights` is negative, or not 0 for an unweighted batch.
    */
-  explicit edge_batch(int num_weights = 1) : num_weights_(num_weights) {
+  explicit edge_batch(int num_weights = default_num_weights) : num_weights_(num_weights) {
     DYNG_EXPECTS(num_weights >= 0, "edge_batch: num_weights must be >= 0, got ", num_weights);
+    DYNG_EXPECTS(!is_unweighted_v<weight_t> || num_weights == 0,
+                 "edge_batch: an unweighted batch has no weights, got num_weights = ", num_weights);
   }
 
   /**
@@ -103,6 +110,18 @@ class edge_batch {
    */
   void insert_edge(vertex_t u, vertex_t v, std::initializer_list<weight_t> weights) {
     insert_edge(u, v, array_view<const weight_t>(weights.begin(), weights.size()));
+  }
+
+  /**
+   * @brief Add an edge insertion without weights (a batch with num_weights() == 0, e.g. of an
+   *        unweighted graph).
+   * @param[in] u Source.
+   * @param[in] v Destination.
+   * @throws invalid_argument_error if num_weights() is not 0.
+   * @throws out_of_memory_error    if the arrays cannot grow.
+   */
+  void insert_edge(vertex_t u, vertex_t v) {
+    insert_edge(u, v, array_view<const weight_t>());
   }
 
   /**
