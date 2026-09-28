@@ -1,9 +1,10 @@
 # Retrospective: M2a (`cycle_count` on the CPU backends)
 
 Status: **complete (2026-09-28)** on branch `m2-cycle`, pending the orchestrator's merge into
-`main` (after M1b) and an independent review. Steps 1-3 each appended their section; Step 4
-(close-out) added the milestone summary, the acceptance record, the consolidated deviations, the
-lessons, the work M2b must do for CUDA and the re-estimate.
+`main` (after M1b). Steps 1-3 each appended their section. Step 4 (close-out) added the milestone
+summary, the acceptance record, the consolidated deviations, the lessons, the work M2b must do for
+CUDA and the re-estimate. Step 5 fixed the 16 confirmed findings of the independent review and
+updated those sections.
 
 ## Step 1: graph, I/O, generator and oracle pieces (graph-io-gen, 2026-09-27)
 
@@ -396,13 +397,132 @@ no fix were needed for the gates. The likely cause of the gap is recorded there 
 
 None new. The algorithm page has no Python snippet (the binding is M5; the page says so).
 
+## Step 5: review fixes (review-fix, 2026-09-28)
+
+An independent review of M2a looked through four lenses: parity and correctness, API design,
+performance, and tests. It confirmed 16 findings, each checked by a skeptic. They are 13 distinct
+defects: the stack overflow was found twice and the cost of unbounded updates three times. Every
+one is fixed on `m2-cycle` (commits `7bdd483..HEAD`), and none changes a count: the goldens, the
+fixtures and the randomized suites are unchanged and pass, and the 72 golden replays were run again.
+
+### Findings and fixes
+
+| # | Finding (severity) | Fix | Commit |
+|---|---|---|---|
+| 1 | The default options crash. Without a bound, every search recursed once per path vertex: the update overflowed the stack (SIGSEGV) on a 70,000-vertex ring, the static counts at 200,000 vertices (sequential) and 1,000,000 (OpenMP). (high, found twice) | Every search keeps its path on an explicit stack: the update search, one shared static root search (`root_search.hpp`, for the OpenMP counter and the bounded sequential Johnson), and the unbounded Johnson (`circuit()` and `unblock()`). Same exploration order, same counts. This is option (b) of the finding; the default stays unbounded, as in the original (deviation 1). Tests close a 300,000-vertex ring by an update and count it statically, on both backends | `d6d9c05`, `0679ed1` |
+| 2 | An unbounded update cost O(changes x n) time and 2 x threads x n x 8 bytes: the original's per-edge counts array was filled and summed over max_length + 1 entries for every change edge, and unbounded meant max_length = n. A large bound cost the same (a 10-vertex graph with k = 2e8 took 7.6 GB). (high and medium, found three times) | Histograms and engines are sized by min(k, max(n, 2)). The per-edge array is gone: each cycle is added to the thread's phase counters, which grow with the longest cycle found, and the reduction reads and clears only the lengths reached. The unbounded OpenMP compute grows its per-thread histograms the same way, and `apply_histogram_delta` visits only the reached lengths. The compat driver no longer clamps k to 1,000,000 (its comment was false beyond 1M vertices). Test: an unbounded update of 100,000 triangles costs about as much as the bounded one | `d6d9c05` |
+| 3 | The OpenMP phase sized the marks in one parallel region and used them unchecked in a second one: out of bounds if the two teams differ in size, e.g. with `OMP_DYNAMIC=true`. (low) | One region: each thread sizes its scratch (marks, stack, counters), then runs the `omp for`. Allocation failures are reported after the region, and the scratch is reset | `d6d9c05` |
+| 4 | The docs said "without a bound the sequential search is Johnson", which hid that the OpenMP compute and every update enumerate simple paths: exponential on a DAG. (low) | Stated in the `max_length` and `update()` Doxygen and on the algorithm page: a table per search, and the advice to use the sequential backend or a bound | `d6d9c05`, `3cb6fac` |
+| 5 | `as_sets` with upsert, with insertions first, or with unsorted or multigraph rows was accepted at construction, and the doc said upsert works. (medium) | One check (`expect_supported_semantics`) in every graph constructor and in the set apply throws `not_supported_error` at construction; the doc names the exception | `7bdd483` |
+| 6 | `io::format_histogram_csv` used a verb the plan does not have (PLAN 5.7 names `write_histogram_csv`). (low) | `io::write_histogram_csv(std::ostream&, counts, include_total)`; the formatter is private | `43938c0` |
+| 7 | Unsupported vertex types failed at link time. (low) | A `static_assert` with a message in `compute`, `update` and `update_traits::make_participant` (inline wrappers over `detail::cycle_count_compute` / `cycle_count_update`). CTests `cycle_count.static_assert.{compute,update}` require the message | `f99ad3d` |
+| 8 | The `stats` doc said only "All are deterministic". (low) | It now gives the meaning of every inherited counter for cycle_count and says why they are deterministic here | `f99ad3d` |
+| 9 | The improvements were not isolated (PLAN 8.6). (medium) | Experiment copies of the original (`parity/experiments/cycle_enum`: dense histogram only; stage timers; both), the pre-fix port as another baseline, `--baseline-exe` in the harness, and the isolation section of `parity/results/M2a.md` | `2ae134c`, `eef6889` |
+| 10 | There was no contamination monitor (PLAN 8.6). (medium) | `parity/contamination.py` measures the foreign CPU cores for each timed process: `/proc/stat` busy time minus the harness's and its children's rusage. Recorded per run in the JSON, flagged above 2 cores | `2ae134c` |
+| 11 | "The steady-state update allocates nothing" was false: the ownership `unordered_map` allocated a node per change edge per phase, against invariant I9. (low) | A flat open-addressing table that reuses its arrays; a test counts the `operator new` calls of steady-state phases (0) | `fb08c20`, `d6d9c05` |
+| 12 | M2a had no sanitizer run, and an out-of-bounds mutation survived the dev suite. (medium) | ASan+UBSan and TSan runs (below); `DYNG_STDLIB_ASSERTIONS` (`_GLIBCXX_ASSERTIONS`, ON in Debug builds); the phases check their workspace; the mutation `skip_workspace_resize` must fail the suite, and it does (12 failing cases) | `581ca99`, `d6d9c05` |
+| 13 | The randomized suites had no seed replay (PLAN 8.1). (medium) | `cpp/tests/support/test_seeds.hpp`, shared with sssp: a seed per trial, `DYNG_TEST_SEED` / `DYNG_TEST_SEEDS`, and the replay command in every trace | `aa37f95` |
+
+### Measured and verified
+
+- **Parity**: the 72 golden replays (24 cases x sequential, OpenMP 4 and 56 threads) are
+  byte-identical at `bce07a6` and again at `0679ed1`, after every change to a search. The
+  randomized suites, the 80 fixture cases, the dataset histograms (`ctest -L cycle_count`, dev)
+  and the mutation tests pass: `double_count_5` is killed by 20 failing cases, `weak_ownership`
+  by 20 and `skip_workspace_resize` by 12, and the control copy passes.
+- **Performance** (`parity/results/M2a.md`, port `0679ed1`, 11 A/B rounds, OpenMP 56,
+  contamination monitor on): every gate is met. Static end to end is 0.53-0.93 of the original
+  (GitHub k = 4 0.525, DD k = 7 0.600), the update 0.44-0.65, the update end to end 0.54-0.84,
+  and COLLAB k = 3 0.291 (44.6 s against 13.0 s). One of the 264 timed processes ran with more
+  than 2 foreign cores; it was an original run, and its case's verdict does not depend on it.
+- **Isolation** (the new Section 3.4 of the certificate): with the same dense histogram on both
+  sides, the straight port's count is 0.70-0.94 of the original's. The ported search is
+  therefore not slower, and no regression is masked. The dense histogram saves about a fifth of
+  the original's count at k = 4 and nothing measurable at k = 3, so the first certificate's
+  unprofiled guess that it was the main cause was wrong. The review fixes bring the count to
+  0.76-0.82 and the update to 0.48-0.69 of the straight port's. Separately built copies of the
+  same code differ by up to about 20 % (code layout); the certificate states this.
+- **A regression the isolation caught.** The first explicit-stack searches (`d6d9c05`) kept the
+  expanded vertex's cursor in the stack array. That made the OpenMP static count up to 33 %
+  slower than the recursive port: GitHub k = 4 count 1,344 -> 1,788 ms, which was still 0.79 of
+  the original and inside the gate. Only the comparison with the straight port showed it.
+  `0679ed1` keeps the expanded vertex in locals and scans a row in an inner loop; the count is
+  now 0.76-0.82 of the recursive port's.
+- **Sanitizers** (local runs, as in M1a and M1b; presets `asan` and `tsan`, Debug with
+  `_GLIBCXX_ASSERTIONS`, only the three suites built):
+  - ASan+UBSan passed `dyng_cycle_count_tests` (91 passed, 3 skipped: two CUDA cases and the
+    allocation count, which is off under the sanitizers), `dyng_graph_tests` (84) and
+    `dyng_io_tests` (38) with no report, at `3cb6fac`. It passed again on the cycle_count suite
+    at `1881907`.
+  - TSan (OpenMP off, as the preset documents: libgomp is not instrumented) passed 52 (5
+    skipped), 78 (6 skipped) and 38, with no report.
+- **Intermediate commits**: each commit of this step was built with `cpu-only` (`-Werror`) in a
+  separate worktree, and its cycle_count, graph and io suites were run. All pass except
+  `d6d9c05`: at -O3, GCC's `-Wmismatched-new-delete` on the test's counting `operator new` stops
+  one test TU there. `bce07a6` fixes it; the library itself builds at `d6d9c05`.
+- **Unbounded cost** (the review's probes, now tests):
+  - an unbounded update of 100,000 disjoint triangles (2,000 + 2,000 changes) takes about as
+    long as the bounded one (`UnboundedUpdateCostsAboutTheBoundedOne`);
+  - a bound of 2e9 on graphs of 3-11 vertices costs nothing (`LargeBoundsMatchOracle`);
+  - a 300,000-vertex ring is counted and updated without using the thread's stack
+    (`LongRingsNeedNoThreadStack`);
+  - the steady-state phases make no allocation (`SteadyStatePhasesAllocateNothing`).
+
+### Deviations from the plan (and where they are recorded)
+
+1. **The searches are iterative** (finding 1, option (b)). The original recurses; the port keeps
+   the path on an explicit stack in the same order, so the counts and the order of exploration
+   are the original's. The depth is bounded by memory (24 bytes per level), not by the thread's
+   stack. Option (a), making the bound required, was not taken: the original's default is
+   unbounded and its OptionsTest checks that, and the CUDA question (k <= 64) belongs to M2b.
+   Recorded here and on the algorithm page.
+2. **The update's per-edge counts array is gone**, and the per-thread counters grow with the
+   cycles found. This changes the form of `accumulate_phase[_parallel]`, not the sums; the
+   original's overflow check on each edge's sum cannot trigger before 2^64 cycles. Reported in
+   the certificate's isolation section as an improvement, not as parity.
+3. **The histogram has min(k, max(n, 2)) + 1 entries** (with a bound it had k + 1): no length
+   past the vertex count can hold a cycle. `bound()` returns that length and
+   `get_options().max_length` the requested bound. The CSV output is unchanged, as it prints only
+   the non-zero lengths.
+4. **The ownership index is a flat open-addressing table**, not the original's
+   `std::unordered_map`. It gives the same answers and allocates nothing per update.
+5. **`io::write_histogram_csv(std::ostream&, array_view<const std::uint64_t>, bool)`** takes the
+   counts, not the result as in the PLAN 5.3 example, so that the io module does not depend on
+   the algorithms: `write_histogram_csv(std::cout, hist.counts())`. Steps 2 and 4 above still
+   call it `format_histogram_csv`, its name then.
+6. **A third mutation, `skip_workspace_resize`**, is dynG's own; the two recorded ones come from
+   the original. The phases' workspace check catches it in every build type.
+7. **Sanitizers**: the ASan/UBSan and TSan CI jobs stay M6 deliverables (PLAN 11). M2a records
+   local runs, as M1a and M1b did, and Debug builds now check standard containers.
+8. **The contamination monitor** exists only in the cycle_count harness. M1b is changing
+   `parity/perf_ab.py` (sssp) on `main`, so adopting `parity/contamination.py` there is left to
+   the merge (open item).
+9. **A certificate made of experiments.** The isolation needs builds of the original that are not
+   the unpatched reference: one changes the counter, one only adds timers. They live under
+   `parity/experiments/`, are named in every record (`baseline`), and never gate.
+
+### Notes for M2b
+
+- CUDA supports k <= 64 (PLAN 6.4.3), but the default `max_length` is -1 (unbounded, as in the
+  original). M2b must decide, and record, what `compute(res_cuda, g)` does with the default
+  options: throw `not_supported_error` naming the limit and the CPU backends, or clamp to
+  max(n, 2) when n <= 64. The M3 conformance kit must then run the defaults per backend
+  accordingly.
+- The per-thread scratch of the update (`cycle_count_thread`: marks, explicit stack, counters
+  grown on demand) is the host design. The device update keeps the original's path membership
+  and `owner[]` array (K3 / C5 / C7).
+- Use the stage-timer experiment copy for the CUDA isolation as well: the original already prints
+  `kernel_ms`, and the host-side stages need the same treatment.
+
 ## Milestone summary
 
 M2a was done in four steps on 2026-09-27/28 on branch `m2-cycle` (from `main` at `b59de86`):
 graph, I/O, generator and oracle pieces (step 1), `cycle_count` on the sequential and OpenMP
-backends (step 2), the parity harness, goldens and OpenMP gates (step 3) and the close-out
-(step 4). 33 commits, this close-out included; nothing pushed (the orchestrator pushes). Size
-of the branch against `b59de86` (added lines, tracked files):
+backends (step 2), the parity harness, goldens and OpenMP gates (step 3), the close-out (step 4)
+and the fixes of the independent review (step 5). 33 commits up to the close-out, 16
+more for the review fixes; nothing pushed (the orchestrator pushes). Size of the branch against
+`b59de86` at the close-out (added lines, tracked files; the review fixes added about 2,800 more,
+most of them tests, harness and documentation):
 
 | Area | Lines added |
 |---|---:|
@@ -416,15 +536,25 @@ of the branch against `b59de86` (added lines, tracked files):
 
 | # | Criterion | Evidence | Status |
 |---|---|---|---|
-| 1 | A fresh clone of `m2-cycle` configures, builds every preset (`-Werror`), passes all tests via `ci/check.sh`; `ci/gpu_local.sh` still passes | final verification below (fresh clone) | met |
+| 1 | A fresh clone of `m2-cycle` configures, builds every preset (`-Werror`), passes all tests via `ci/check.sh`; `ci/gpu_local.sh` still passes | final verification below (fresh clone, again after the review fixes) | met |
 | 2 | `cycle_enum_compatible()` (sorted rows, no parallel edges, `set()`, Step 0 = net structural change) and the unweighted graph; sorted-row apply byte-equal to `apply_batch` / `prepare_batch` on the fixtures and random batches; `io::read_edge_list` = the original's parser (TUDataset, comments, separators, Matrix Market symmetries both ways) on the datasets | step 1: 80 random fixture cases x four graph types x both host backends, the seed-1 dataset batches (digests), 9 parser fixtures and 15 malformed files; step 4: the digests cover all seven files under `datasets/cycle` (the four TUDataset graphs and the three timestamped edge lists) | met |
-| 3 | Histograms bit-identical on sequential AND OpenMP: fixtures; DD k = 3..7, GitHub k = 4, Twitch k = 4, COLLAB k = 3; update deltas seed 1 1K/25K/50K on DD, GitHub, Twitch; `generate_batch` identity; randomized differential tests vs subset DP, brute force, edge-set recount in CI; the two recorded mutations fail the suite (tested) | step 2: fixtures (80 random cases, 16 counts, 7 updates, 19 CLI runs), randomized suites (label `cpu`), `cycle_count.mutation.{control,double_count_5,weak_ownership}`; step 3: 72/72 golden replays (24 cases x sequential, OpenMP 4, OpenMP 56; the plan's totals; batches byte-equal) (`parity/results/M2a.md`) | met |
-| 4 | OpenMP-56 gates (static end to end DD k = 3..7, GitHub / Twitch k = 3, 4; update 25K+25K k = 4 on DD, GitHub, Twitch) <= 1.05x / 1.10x; COLLAB k = 3 reported; recorded with methodology | step 3: every gate met, ratios 0.64-0.96 (static), 0.76-0.96 (update), 0.68-0.89 (update end to end); COLLAB k = 3 0.65 (gated, met); unpatched original, exclusive lock, 11 A/B rounds (31 for the noisy DD regions, 5 for COLLAB) | met |
+| 3 | Histograms bit-identical on sequential AND OpenMP: fixtures; DD k = 3..7, GitHub k = 4, Twitch k = 4, COLLAB k = 3; update deltas seed 1 1K/25K/50K on DD, GitHub, Twitch; `generate_batch` identity; randomized differential tests vs subset DP, brute force, edge-set recount in CI; the two recorded mutations fail the suite (tested) | step 2: fixtures (80 random cases, 16 counts, 7 updates, 19 CLI runs), randomized suites (label `cpu`, seed replay since step 5), `cycle_count.mutation.{control,double_count_5,weak_ownership}` (and dynG's `skip_workspace_resize`, step 5); step 3: 72/72 golden replays (24 cases x sequential, OpenMP 4, OpenMP 56; the plan's totals; batches byte-equal) (`parity/results/M2a.md`), again 72/72 at `0679ed1` after the review fixes | met |
+| 4 | OpenMP-56 gates (static end to end DD k = 3..7, GitHub / Twitch k = 3, 4; update 25K+25K k = 4 on DD, GitHub, Twitch) <= 1.05x / 1.10x; COLLAB k = 3 reported; recorded with methodology | step 5 (port `0679ed1`, replacing step 3's record): every gate met, ratios 0.53-0.93 (static), 0.44-0.65 (update), 0.54-0.84 (update end to end); COLLAB k = 3 0.29 (gated, met); unpatched original, exclusive lock, 11 A/B rounds (31 for the noisy DD regions, 5 for COLLAB), contamination monitor, improvements isolated in their own section | met |
 | 5 | `references.toml`, `build_reference.sh`, export / compare scripts, `timed_regions/cycle_count.toml`; the algorithm page with 'Differences from the paper' and 'Paper vs fixed code'; this retrospective | steps 1, 3 and 4 | met |
 
 ### Final verification
 
-All in a fresh `git clone` of `m2-cycle` (heavy steps under the shared perf lock, niced):
+After the review fixes (step 5), all in a fresh `git clone` of `m2-cycle` (heavy steps under the
+shared perf lock, niced):
+
+| Command | Commit | Result |
+|---|---|---|
+| `ci/check.sh --parity` (13 min) | `1881907` | clang-format, `cpu-only` 392/392 and `dev` 399/399 (`ctest -L cpu`, `-Werror`, including `cycle_count.mutation.{control,double_count_5,weak_ownership,skip_workspace_resize}` and `cycle_count.static_assert.{compute,update}`), clang-tidy naming, REUSE, provenance (106 files), harness smoke tests, Doxygen + convention check (116 compounds) and the parity preset `ctest -L parity` 4/4 (616 s) passed. `pre-commit` failed: its trailing-whitespace hook stripped the blank context lines of the two experiment patches. `09e190b` excludes `*.patch` from that hook |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1, 8 min) | `1881907` | build, `ctest -L gpu` 79/79, `ctest -L cpu` 399/399, sssp cuda goldens, memcheck, clang-tidy: all passed. The "dirty tree" in its report is the two patches rewritten by the failed hook above |
+| ASan+UBSan `dyng_cycle_count_tests` (asan preset) | `1881907` | 91 passed, 3 skipped, no report |
+| `ci/check.sh` quick steps (`DYNG_CHECK_SKIP="build tidy docs"`: format, REUSE, provenance, harness, pre-commit) | HEAD | passed; the commits after `1881907` change only `.pre-commit-config.yaml` and this retrospective |
+
+At the close-out (step 4), all in a fresh `git clone` of `m2-cycle`:
 
 | Command | Commit | Result |
 |---|---|---|
@@ -435,16 +565,19 @@ All in a fresh `git clone` of `m2-cycle` (heavy steps under the shared perf lock
 The commits after `b7fb8d5` change only this retrospective; `pre-commit` (REUSE, codespell,
 whitespace) passed on it.
 
-### Measured parity and performance (from step 3)
+### Measured parity and performance (steps 3 and 5)
 
-- **Parity:** 72 of 72 golden replays byte-identical (sequential including COLLAB k = 3 in
-  444 s, OpenMP 4 and 56 threads); the golden corpus was exported twice from fresh archive copies
-  with the same manifest (`e40fa03b...`) and cross-checked against the original's own sequential
-  backend, its `--compare-recompute`, the committed exporter counts and the plan's totals.
+- **Parity:** 72 of 72 golden replays byte-identical (sequential including COLLAB k = 3, OpenMP
+  4 and 56 threads), at `1148d15` and again at `0679ed1`; the golden corpus was exported twice
+  from fresh archive copies with the same manifest (`e40fa03b...`) and cross-checked against the
+  original's own sequential backend, its `--compare-recompute`, the committed exporter counts and
+  the plan's totals.
 - **Performance (OpenMP 56 threads, libgomp defaults, the original's RESULTS.md setup):** the
-  port is nowhere slower than the original (table in `docs/algorithms/cycle_count.md` Section 5
-  and `parity/results/M2a.md`). The likely cause of the gap (dense per-thread histograms versus
-  the original's `std::map` increment per cycle) is recorded as not profiled.
+  port is nowhere slower than the original (tables in `docs/algorithms/cycle_count.md` Section 5
+  and `parity/results/M2a.md`). Step 5 measured where the gap comes from with copies of the
+  original that differ in one change each: the straight-ported search is faster than the
+  original's with the same histogram (it scans 4-byte column ids, the original 24-byte adjacency
+  entries), the dense histogram saves about a fifth at k = 4, and the review fixes add the rest.
 
 ### Deviations, consolidated
 
@@ -474,6 +607,11 @@ Every deviation is in the table of the step that made it; the ones that matter b
    cuda` and `--version` are not reproduced.
 7. `graph_properties::cycle_enum_compatible()` keeps `store_transposed = true`; cycle_count never
    builds the in-edges, so it costs nothing.
+8. **Review fixes (step 5):** iterative searches (the original recurses), no per-edge counts
+   array in the update, histograms of min(k, max(n, 2)) + 1 entries, a flat ownership table,
+   `io::write_histogram_csv(std::ostream&, counts)` taking the counts, a third (dynG) mutation,
+   sanitizers as local runs until M6, the contamination monitor in the cycle_count harness only,
+   and experiment copies of the original for the isolation (never gates).
 
 ### Lessons
 
@@ -500,6 +638,19 @@ Every deviation is in the table of the step that made it; the ones that matter b
 7. **The acceptance text is a checklist, not a summary.** Re-reading criterion 2 word by word at
    close-out showed that the parser digests covered only four of the seven dataset files; the
    gap was cheap to close.
+8. **Measure the straight port as its own baseline.** A gate against the original cannot see a
+   regression that an improvement elsewhere pays for. The first explicit-stack searches were 33 %
+   slower than the recursive port and still passed the gate; timing them against the pre-fix
+   build found it in minutes. Keep a build of the straight port for every milestone that changes
+   a hot path.
+9. **An unprofiled explanation is a hypothesis.** The first certificate attributed the speed-up
+   to the dense histogram; isolating it showed it explains a fifth at k = 4 and nothing at k = 3.
+10. **Two builds of the same code are not the same binary.** Copies of the original that differ
+    only in the CLI's `main` ran the same counter up to 20 % apart. Ratios within one experiment
+    are exact; differences across separately built copies need that margin.
+11. **Defaults are API.** The original's unbounded default crashed on long paths in both codes;
+    porting it straight exported the crash. A default deserves the same tests as any option
+    (long rings, huge bounds, growth past the workspace).
 
 ### What M2b must do for CUDA
 
@@ -546,11 +697,17 @@ step, after M1b has merged (it needs M1b's CUDA core, streams and the GPU timing
 
 ## Open items carried forward
 
-1. **Independent review** of M2a (as M1a had) before or with the merge into `main`.
-2. **Merge:** `m2-cycle` edits a few shared files additively (CMake module lists, `graph`
-   apply paths, `update_participant::reads_prepared_graph()`, the parity entry scripts,
-   `goldens.toml`, CHANGELOG, README); the orchestrator merges after M1b.
-3. The explanation of the port's speed advantage is not profiled (reported, not gated).
+1. ~~Independent review of M2a~~: done; its 16 confirmed findings are fixed (step 5).
+2. **Merge:** `m2-cycle` edits a few shared files additively (CMake module lists and options,
+   `cmake/sanitizers.cmake`, `graph` apply paths and constructors, `io/result_io`,
+   `update_participant::reads_prepared_graph()`, the parity entry scripts, `goldens.toml`, the
+   sssp randomized test's seeds helper, CHANGELOG, README); the orchestrator merges after M1b.
+   With the merge, `parity/perf_ab.py` (sssp) should adopt `parity/contamination.py` (PLAN 8.6);
+   M1b is changing that file on `main`.
+3. ~~The explanation of the port's speed advantage is not profiled~~: measured (step 5,
+   `parity/results/M2a.md` Section 3.4).
 4. The 9,000-graph fuzz campaign of the original (PLAN 6.4.3: nightly) is not set up; the
-   randomized CTest suites run in CI.
-5. The CUDA work of M2b (above).
+   randomized CTest suites run in CI (and `DYNG_TEST_SEEDS` widens them).
+5. The CUDA work of M2b (above), including what the default unbounded options do on CUDA
+   (k <= 64; step 5, notes for M2b).
+6. ASan/UBSan and TSan as CI jobs (M6); M2a records local runs.
