@@ -40,6 +40,8 @@ jobs:
   compile:
     name: CUDA ${{ matrix.cuda }} (${{ matrix.preset }})
     runs-on: ubuntu-24.04
+    # The release architecture list (sm_75 to sm_120) on 4 cores; a cold cache takes the longest.
+    timeout-minutes: 120
     container:
       image: nvidia/cuda:${{ matrix.cuda }}-devel-ubuntu24.04
     strategy:
@@ -71,13 +73,17 @@ jobs:
           python3 -m venv /opt/tools
           /opt/tools/bin/pip install "cmake>=3.30,<4.5" ninja
           echo "/opt/tools/bin" >> "${GITHUB_PATH}"
-          echo "CXX=g++" >> "${GITHUB_ENV}"
-          echo "CUDACXX=/usr/local/cuda/bin/nvcc" >> "${GITHUB_ENV}"
           # Container paths: the github.workspace context would be the runner host's path
           # (actions/runner#2058); inside the container the workspace is $GITHUB_WORKSPACE.
-          echo "CPM_SOURCE_CACHE=${GITHUB_WORKSPACE}/.cache/cpm" >> "${GITHUB_ENV}"
-          echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.cache/ccache" >> "${GITHUB_ENV}"
+          {
+            echo "CXX=g++"
+            echo "CUDACXX=/usr/local/cuda/bin/nvcc"
+            echo "CPM_SOURCE_CACHE=${GITHUB_WORKSPACE}/.cache/cpm"
+            echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.cache/ccache"
+          } >> "${GITHUB_ENV}"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
       - name: Cache CPM downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
