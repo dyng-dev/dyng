@@ -124,8 +124,7 @@ class resources {
    * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync Queries the device once; enqueues no work on `stream`.
    */
-  [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {},
-                                      int host_threads = 0);
+  [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {}, int host_threads = 0);
 
   /**
    * @brief Share the handle of `other` (a cheap copy; settings stay shared).

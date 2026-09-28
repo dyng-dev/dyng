@@ -501,8 +501,8 @@ int run_update_typed(const options& opt) {
     pointers.push_back(&r);
   }
   res.attach_profiler(&prof);
-  const std::vector<dyng::sssp::stats> stats = dyng::update_each(
-      res, g, batch.view(), dyng::host_view(pointers));
+  const std::vector<dyng::sssp::stats> stats =
+      dyng::update_each(res, g, batch.view(), dyng::host_view(pointers));
   res.attach_profiler(nullptr);
 
   // Per-objective times: the i-th call of each stage belongs to objective i.

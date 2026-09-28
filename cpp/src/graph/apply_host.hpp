@@ -54,8 +54,8 @@ edge_t checked_edge_count(std::int64_t count) {
 template <typename vertex_t, typename weight_t>
 void expect_host_batch(const edge_batch_view<vertex_t, weight_t>& batch, const char* what) {
   const auto check = [what](const auto& view, const char* name) {
-    DYNG_EXPECTS(view.empty() || is_host_accessible(view.space()), what, ": edge_batch_view::",
-                 name, " must be in host-accessible memory here");
+    DYNG_EXPECTS(view.empty() || is_host_accessible(view.space()), what,
+                 ": edge_batch_view::", name, " must be in host-accessible memory here");
   };
   check(batch.insert_src, "insert_src");
   check(batch.insert_dst, "insert_dst");

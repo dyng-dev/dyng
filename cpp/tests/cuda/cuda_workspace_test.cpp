@@ -218,8 +218,8 @@ TEST(CudaWorkspace, ReleasingFromAnotherThreadWaitsForTheLastLease) {
     {
       auto ws = resources_access::workspaces(mine).acquire<device_scratch>(mine);
       (void)ws->ids.reserve(mine, 1000);
-      EXPECT_EQ(cudaLaunchHostFunc(static_cast<cudaStream_t>(mine.stream().get()),
-                                   hold_the_stream, nullptr),
+      EXPECT_EQ(cudaLaunchHostFunc(static_cast<cudaStream_t>(mine.stream().get()), hold_the_stream,
+                                   nullptr),
                 cudaSuccess);
     }
     returned.set_value();

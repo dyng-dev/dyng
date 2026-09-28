@@ -41,12 +41,12 @@
 
 #include <algorithm>
 #include <atomic>
-#include <utility>
 #include <cstddef>
 #include <cstdint>
 #include <random>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -281,8 +281,8 @@ TEST_F(SsspCuda, BatchArraysInDeviceMemoryAreCopiedOnce) {
   b.delete_edge(2, 3);
   auto expected_graph = ties_graph(host);
   result_t expected = dyng::sssp::compute(host, expected_graph, 0);
-  const dyng::sssp::stats expected_stats = dyng::sssp::update(host, expected_graph, b.view(),
-                                                              expected);
+  const dyng::sssp::stats expected_stats =
+      dyng::sssp::update(host, expected_graph, b.view(), expected);
   for (const unsigned placement : {1U, 2U, 4U, 8U, 16U, 31U}) {
     SCOPED_TRACE("device arrays " + std::to_string(placement));
     const placed_batch batch(cuda, b, placement);
@@ -328,8 +328,7 @@ TEST_F(SsspCuda, TheCopyPolicyGovernsImplicitCopies) {
   // Host arrays for a cuda result are from_arrays' own import (uploaded), not an implicit copy.
   const auto hd = dyng::to_vector(cuda, r.distances());
   const auto hp = dyng::to_vector(cuda, r.parents());
-  EXPECT_NO_THROW((void)result_t::from_arrays(res, g, 0, dyng::host_view(hd),
-                                              dyng::host_view(hp)));
+  EXPECT_NO_THROW((void)result_t::from_arrays(res, g, 0, dyng::host_view(hd), dyng::host_view(hp)));
   (void)dyng::sssp::update(res, g, b.view(), r);  // a host batch needs no copy on any backend
 
   std::vector<std::string> lines;
@@ -667,8 +666,7 @@ TEST_F(SsspCuda, SteadyStateUpdatesAllocateOnlyTheGraphUpload) {
     }
     const std::uint64_t created = pool.statistics().created;
     const int before = counter.allocations.load();
-    (void)dyng::update_each(res, g, b.view(),
-                            dyng::host_view(pointers));
+    (void)dyng::update_each(res, g, b.view(), dyng::host_view(pointers));
     const int during = counter.allocations.load() - before;
     // What uploading this graph state alone allocates.
     const auto copy = g.clone(res);

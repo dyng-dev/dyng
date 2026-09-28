@@ -215,8 +215,8 @@ void cuda_stream_fence::record(int device, stream_ref stream) {
 }
 
 void cuda_stream_fence::wait(int device, stream_ref stream) const {
-  if (!recorded_ || (stream == stream_ && (!stream.is_per_thread_default() ||
-                                           thread_ == std::this_thread::get_id()))) {
+  if (!recorded_ || (stream == stream_ &&
+                     (!stream.is_per_thread_default() || thread_ == std::this_thread::get_id()))) {
     return;
   }
   const scoped_device guard(device);
