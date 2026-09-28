@@ -25,9 +25,9 @@ against the read-only API on 2026-09-28 (`gh api repos/dyng-dev/dyng`, its `acti
 | 4 | Pull requests: merge commits and squash merges, no rebase (ADR 0019) | now | **done** |
 | 5 | Actions: permissions, SHA pinning, fork approval | now | **done** (allow-list, SHA pinning required, approval for all external contributors, read-only workflow token) |
 | 6 | Security: private vulnerability reporting, Dependabot, secret scanning | now | **done** (private vulnerability reporting; Dependabot alerts and security updates; secret scanning with push protection; CodeQL, optional, not set up) |
-| 7 | The DCO app and web sign-off | now | **done** (DCO app installed on `dyng-dev/dyng` by the author; web sign-off required); add the `DCO` check to the `main` ruleset in step 9 |
+| 7 | The DCO app and web sign-off | now | **done** (DCO app installed on `dyng-dev/dyng` by the author; web sign-off required); the `DCO` check is **not yet** required in the `main` ruleset: the author's membership of `dyng-dev` is private, so the app does not exempt the maintainer's commits; add it once the membership is public (step 9) |
 | 8 | Labels | after the M4 merge | pending: the `labels` workflow applies `.github/labels.yml` on the first push of `main` with the M4 merge |
-| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **pending the first pull request** (no ruleset and no branch protection on `main` yet) |
+| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378) with the 17 required checks of step 9, strict; `DCO` follows (step 7) |
 | 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass) |
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
@@ -162,7 +162,10 @@ request and reports a check named **DCO**. `.github/dco.yml` exempts members of 
 2. Choose the **dyng-dev** organization.
 3. Select **Only select repositories** → choose **dyng-dev/dyng** → **Install**.
 4. After the next pull request, the check **DCO** appears; add it to the required checks
-   (step 9).
+   (step 9) once the maintainers' membership of `dyng-dev` is public. The app exempts only
+   *public* members (`require.members: false`), so while a maintainer's membership is private
+   the check fails on their own commits, which carry no `Signed-off-by` line. (Status
+   2026-09-28: the author's membership is private, so `DCO` is not a required check yet.)
 5. So that contributors who fix a typo in GitHub's web editor pass the check: Settings →
    **General** → in the first section (below **Template repository**) tick **Require
    contributors to sign off on web-based commits**. GitHub then adds the `Signed-off-by` line
@@ -190,16 +193,22 @@ merges for contributions). While the lead maintainer is the only maintainer, **z
 are required (the author merges their own pull request once the checks pass); from the day a
 second maintainer exists, raise it to one.
 
-**Status: pending the first pull request.** GitHub offers a required check in the ruleset only
-after it has run in the last 7 days, so open one pull request first (for example the next
-milestone merge, M2b) and let every workflow finish, including the `DCO` check; then create the
-ruleset. Until then `main` has no ruleset, and the lead maintainer pushes the integration merges
-(INT1) directly.
+**Status: done (checked 2026-09-28).** The ruleset `main` (id 24131378) was created after pull
+request #1 (INT1, merged with the merge commit `eda8b8b`) had run every workflow: pull request
+required (0 approvals, stale approvals dismissed, conversation resolution required, merge
+methods merge and squash), the 17 required checks of the table below (4 `lint`, 9 `cpu`, 3
+`cuda-build`, 1 `docs`) with **Require branches to be up to date** (strict), deletions and
+force pushes blocked. The **Repository admin** role is on the bypass list in the mode **For
+pull requests only**: an administrator can merge a pull request whose checks are not green, but
+cannot push to `main` directly. The `DCO` check is not required yet (step 7). GitHub offers a
+required check in the ruleset only after it has run in the last 7 days, which is why the
+ruleset had to wait for the first pull request. The steps below record how it was made.
 
 1. Settings → sidebar section **Code and automation** → **Rules** → **Rulesets** →
    **New ruleset** → **New branch ruleset**.
 2. **Ruleset name:** `main`. **Enforcement status:** **Active**.
-3. **Bypass list:** leave empty (see the note below).
+3. **Bypass list:** **Add bypass** → **Repository admin** → mode **For pull requests only** (see
+   the note below).
 4. **Target branches** → **Add target** → **Include default branch**.
 5. Tick these rules:
    - **Restrict deletions**.
@@ -227,7 +236,7 @@ Required checks (the job names as they appear in a pull request's checks list):
 | `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF` |
 | `cuda-build.yml` | `CUDA 13.1.1 (ci-cuda13)`, `CUDA 13.4.1 (ci-cuda13)`, `CUDA 12.9.2 (ci-cuda12)` (the job `compile`, named `CUDA <toolkit> (<preset>)` per matrix entry; compile-only, no GPU) |
 | `docs.yml` | `site` (not `external-links`, which runs only weekly and on demand) |
-| DCO app | `DCO` |
+| DCO app | `DCO` (not required yet; step 7) |
 
 Do **not** require checks of workflows that run only for some files (`labels.yml`), only on
 tags (`release.yml`), only on some events (`welcome.yml`, the first-interaction greeting) or
@@ -237,11 +246,13 @@ workflow is added (`python`, `api-check`; PLAN Section 8.8), a job of the `cpu` 
 renamed, or a toolkit of the `cuda-build` matrix is bumped (its version is part of the check
 name), update this list and the ruleset in the same pull request.
 
-**Note on bypassing.** With an empty bypass list, nobody can push to `main` directly, including
-the organization owners: once the ruleset exists, milestone and integration work reaches `main`
-through pull requests, merged with a merge commit (ADR 0019; the AI assistant can open them).
-If you decide to keep pushing directly for a while, **Add bypass** → **Repository admin** →
-mode **Always allow**, and record the decision in `GOVERNANCE.md`.
+**Note on bypassing.** With the Repository admin role allowed to bypass **for pull requests
+only**, nobody can push to `main` directly, including the organization owners: milestone and
+integration work reaches `main` through pull requests, merged with a merge commit (ADR 0019;
+the AI assistant can open them). The bypass only lets an administrator merge a pull request
+whose required checks are not all green (for example when a hosted runner is down); record
+every such merge in the pull request. An empty bypass list would remove that escape hatch; mode
+**Always allow** would re-open direct pushes and must then be recorded in `GOVERNANCE.md`.
 
 Docs: <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository>.
 
