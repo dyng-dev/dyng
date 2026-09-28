@@ -61,7 +61,10 @@ struct cache_line_allocator {
    * @param count The element count it was allocated for.
    */
   void deallocate(value_t* block, std::size_t count) noexcept {
-    ::operator delete(block, rounded(count), std::align_val_t{cache_line_bytes});
+    // Unsized aligned delete: Clang < 19 does not declare the sized overloads by default
+    // (-fsized-deallocation), so the sized form does not compile there.
+    static_cast<void>(count);
+    ::operator delete(block, std::align_val_t{cache_line_bytes});
   }
 
   /**
