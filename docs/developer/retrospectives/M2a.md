@@ -72,6 +72,10 @@ parity evidence against the pinned original.
 - The oracles equal the original's subset DP and brute force on the 80 cases before and after
   the batch, and each other on 300 random graphs with and without a length bound.
 
+- Re-run on the final code of this step (after the per-thread marks moved into the phase):
+  dataset parity (parity preset, 7.3 min) passed; `ci/check.sh` passed in a fresh clone of
+  m2-cycle; `ci/gpu_local.sh` (dev-cuda, GPU 1: gpu, cpu, cuda goldens, memcheck, tidy) passed.
+
 ### Measured (informal; not a gate)
 
 Release builds, exclusive perf lock, medians of 5 (9 for apply) on the development machine;
