@@ -49,11 +49,12 @@ struct graph_access;
  * column per objective), uploaded on first use and again after each applied batch.
  *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
- * and (int64, int64, int32) (PLAN Section 4.4.3). The default edge offset type is int32, the
- * originals' type, fixed by the edge_t benchmark (ADR 0009: 64-bit offsets cost more than 3 % on
- * the parity suites). Construction is checked: a graph whose edge count does not fit edge_t
- * (from_edges(), or a batch that grows it past 2^31 - 1 edges with int32) throws
- * capacity_error naming the int64 instantiation.
+ * and (int64, int64, int32), and without weights for (int32, int32, unweighted) and
+ * (int32, int64, unweighted) (PLAN Section 4.4.3). A graph with weight_t = unweighted has no
+ * weight columns. The default edge offset type is int32, the originals' type, fixed by the edge_t
+ * benchmark (ADR 0009: 64-bit offsets cost more than 3 % on the parity suites). Construction is
+ * checked: a graph whose edge count does not fit edge_t (from_edges(), or a batch that grows it
+ * past 2^31 - 1 edges with int32) throws capacity_error naming the int64 instantiation.
  *
  * @tparam vertex_t Vertex id type (signed).
  * @tparam edge_t   Edge offset type (signed; int32 by default, int64 for more than 2^31 - 1
@@ -74,7 +75,9 @@ class graph {
   /**
    * @brief An empty graph (no vertices) with the given properties.
    * @param[in] props The properties (see graph_properties).
-   * @throws not_supported_error if `props.layout` is not row_layout::compact.
+   * @throws not_supported_error if `props.layout` is not row_layout::compact, or the batch
+   *         semantics cannot be applied (batch_semantics::as_sets without deletions_first, with
+   *         an upsert, or on rows that are not row_order::sorted with multi_edges::forbid).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    */
   explicit graph(const graph_properties& props = {});
@@ -99,7 +102,8 @@ class graph {
    *         policy is copy_policy::error.
    * @throws capacity_error         if the number of stored edges does not fit edge_t (use the
    *         int64 edge_t instantiation).
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -124,7 +128,8 @@ class graph {
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed, or an array must be copied and the
    *         copy policy is copy_policy::error.
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -146,7 +151,8 @@ class graph {
    * @param[in]     props The properties of the new graph.
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed.
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */

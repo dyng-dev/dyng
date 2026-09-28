@@ -1,0 +1,134 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of cycle_count (PLAN Sections 6.3 step 3 and 8.6): each timer of the original ->
+# the dynG profiler stages (or dyng-compat-cycle-enum report fields) that must be summed to match
+# it. Written with the CPU port (M2a, before the performance runs); the CUDA regions (the original's
+# kernel_ms / memcpy_ms and the update on the device) are added with M2b.
+#
+# What the original times (CycleEnumeration-GPU@0a976ad src/cli/cycle_enum_main.cpp):
+#   - `--task count` on the CPU backends prints no timer. docs/RESULTS.md reports the WALL TIME OF
+#     THE PROCESS ("end to end": reading the file with read_graph_view(), building the CSR and CSC,
+#     the count, printing the histogram).
+#   - `--task update` prints `update_seconds=` (steady_clock around engine::update_histogram(),
+#     i.e. update_static_histogram[_openmp]: prepare_batch, the delete phase on the initial graph,
+#     apply_batch, the insert phase on the post-batch graph, apply_histogram_delta). The prior
+#     histogram, build_directed_graph() and generate_batch() run before it and are not timed.
+#
+# dynG stage names: cycle_count.compute > { cycle_count.reset, cycle_count.count,
+# cycle_count.finalize }; cycle_count.update > { cycle_count.normalize, cycle_count.count_minus,
+# cycle_count.commit > { graph.apply }, cycle_count.identify_affected, cycle_count.count_plus,
+# cycle_count.finalize }. With dyng::update(res, g, batch, results...) the commit is
+# "update.commit" and the cycle_count stages appear once per cycle_count result. The update does not
+# build the in-edges (no graph.transpose): cycle_count reads the out-edges only.
+#
+# dyng-compat-cycle-enum prints on standard error the original's `update_seconds=` and
+#   RESULT task=<count|update> read_ms build_ms prior_ms generate_ms compute_ms update_ms
+#          end_to_end_ms threads
+# and, with --timing <csv>, the profiler rows (kind,name,value).
+#
+# Protocol of the gate (PLAN 8.6): the parity preset, medians of >= 5 runs alternating original and
+# port (A/B/A/B), >= 20 runs for regions under 10 ms, 56 OpenMP threads as in the original's
+# RESULTS.md (--openmp-threads 56), exclusive perf lock, the UNPATCHED copy's build/cycle-enum.
+#
+# This file is the definition of the regions: parity/perf_ab.py cycle_count (parity/
+# cycle_count_perf.py) LOADS it and refuses to run if a region it gates is missing or a key is
+# unknown to it.
+#
+# Field meanings (per region):
+#   task             the CLI task the region belongs to: "count" or "update"
+#   original         what the original's side measures (text)
+#   original_report  where the harness reads it: "process wall time" (the harness's clock around
+#                    the process) or a report field of the original's standard error
+#                    ("update_seconds", converted to ms)
+#   port             the dynG profiler stages of the same scope (--timing CSV; recorded next to
+#                    the gated value as a breakdown and a cross-check of port_report)
+#   port_report      where the harness reads the port's value: "process wall time" or a field of
+#                    dyng-compat-cycle-enum's RESULT line ("update_ms", "compute_ms")
+#   gate             "compute" (<= 1.05x; <= 1.10x when the original's median is below 10 ms, which
+#                    then needs >= 20 runs), "end_to_end" (<= 1.10x) or "none" (reported only)
+
+[reference.cycle_enum_openmp]
+repo = "CycleEnumeration-GPU"
+commit = "0a976ad"
+driver = "build/cycle-enum of the UNPATCHED copy (--backend openmp --openmp-threads 56)"
+port_driver = "dyng-compat-cycle-enum (tools/compat/cycle_enum), parity preset, --timing <csv>"
+
+# The static count, end to end (the RESULTS.md table "Static simple cycles, OpenMP (56 threads),
+# end to end"): the process wall time on both sides, measured by the harness around the process.
+[[reference.cycle_enum_openmp.region]]
+name = "static_end_to_end"
+task = "count"
+original = ["process wall time (cycle-enum --task count)"]
+original_report = ["process wall time"]
+port = []
+port_report = ["process wall time"]
+gate = "compute"    # the paper-timed region of the OpenMP count: <= 1.05 x at >= 10 ms
+note = """
+Both sides read the same file with the same parallel parser algorithm (io::read_edge_list is the
+port of read_graph_view's parser), build the sorted CSR (the original also builds a CSC, which dynG
+does not need), count, and print. The count alone is reported as well (static_count below)."""
+
+# The count alone, reported (the original has no timer for it on the CPU backends).
+[[reference.cycle_enum_openmp.region]]
+name = "static_count"
+task = "count"
+original = []
+original_report = []
+port = ["cycle_count.compute"]
+port_report = ["compute_ms"]
+original_report_optional = ["count_seconds"]
+gate = "none"
+note = """
+The port's cycle_count.compute (reset + count + finalize), i.e. the original's
+count_simple_cycles_johnson[_openmp](). The unpatched original has no timer for it; the
+instrumented experiment copies of parity/experiments/cycle_enum (stage_timers.patch) print
+count_seconds (steady_clock around run_backend), and then the ratio is reported (never a gate)."""
+
+[[reference.cycle_enum_openmp.region]]
+name = "static_read"
+task = "count"
+original = []
+original_report = []
+original_report_optional = ["read_seconds"]
+port = ["graph.build"]
+port_report = ["read_ms", "build_ms"]
+gate = "none"
+note = """
+Reading the edge list and building the graph: the port's read_ms + build_ms (io::read_edge_list and
+graph::from_edges, the CSR only), the original's read_graph_view (the parser, the CSR and the CSC),
+timed by the stage_timers experiment copy (read_seconds); reported, never a gate."""
+
+# The incremental update (the RESULTS.md table "Incremental update", OpenMP-56 column).
+[[reference.cycle_enum_openmp.region]]
+name = "update"
+task = "update"
+original = ["update_seconds (engine::update_histogram)"]
+original_report = ["update_seconds"]
+port = ["cycle_count.update"]
+port_report = ["update_ms"]
+gate = "compute"
+note = """
+The same scope on both sides: Step 0 (prepare_batch / cycle_count.normalize), the delete phase on
+G_t (cycle_count.count_minus), applying the batch (apply_batch / cycle_count.commit, which also
+normalizes the batch again, as apply_batch sorts and deduplicates it again), the insert phase on
+G_{t+1} (cycle_count.identify_affected + cycle_count.count_plus) and the histogram delta
+(cycle_count.finalize). Not in the region on either side: the prior histogram, the graph build and
+the batch generation. The original copies the whole graph in apply_batch (a new DirectedGraph);
+dynG's commit also builds a new CSR (in parallel blocks), so the scopes match. update_ms is the
+steady_clock time around cycle_count::update() in the driver, as update_seconds is around
+update_histogram(); the stage cycle_count.update is recorded next to it."""
+
+# The update task end to end (read, build, prior, generate, update, print), reported and gated as
+# an end-to-end region.
+[[reference.cycle_enum_openmp.region]]
+name = "update_end_to_end"
+task = "update"
+original = ["process wall time (cycle-enum --task update)"]
+original_report = ["process wall time"]
+port = []
+port_report = ["process wall time"]
+gate = "end_to_end"
+note = """
+Includes the untimed parts of run_update() on both sides: reading the file, building the graph,
+the prior histogram (the static count of the same backend) and generate_batch."""

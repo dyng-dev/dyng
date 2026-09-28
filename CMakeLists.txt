@@ -62,6 +62,9 @@ else()
   set(_dyng_budgets_default OFF)
 endif()
 option(DYNG_DEBUG_BUDGETS "Allocation and synchronization counters (invariant I9)" ${_dyng_budgets_default})
+option(DYNG_STDLIB_ASSERTIONS "Bounds-checked standard containers (_GLIBCXX_ASSERTIONS) in host code"
+       ${_dyng_budgets_default}
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(_dyng_debug_sync_default ON)

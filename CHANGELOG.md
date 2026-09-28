@@ -150,6 +150,70 @@ Before 0.1.0 anything may change.
 - The M1b retrospective with the acceptance record and a re-estimate of the roadmap
   (`docs/developer/retrospectives/M1b.md`).
 
+- M2a, CycleEnumeration-GPU graph pieces: `graph<V, E, unweighted>` ((int32, int32) and
+  (int32, int64)) and `is_unweighted_v`; `batch_semantics::as_sets` with the preset
+  `batch_semantics::set()` and `graph_properties::cycle_enum_compatible()` (Step 0 is the
+  original's `prepare_batch()`, the apply its sorted-row `apply_batch()`; byte-equal CSR and
+  normalized batches on committed fixtures and on the TUDataset graphs; ADR 0010 amendment);
+  `edge_batch::insert_edge(u, v)` without weights.
+- `io::read_edge_list` / `io::write_edge_list`: the original's parallel `from_chars` parser
+  (TUDataset `*_A.txt`, comments, commas, signs, timestamps, Matrix Market of every symmetry),
+  generalized with weight columns, `vertex_ids::as_is`, symmetrization, kept duplicates and self-
+  loops and a thread cap (`docs/api/file_formats.md`).
+- `generators::legacy::cycle_enum_batch()`: the original's `generate_batch()`, bit-exact, with the
+  library-owned reproductions of libstdc++'s 64-bit `uniform_int_distribution` and `shuffle`.
+- `dyng::testing`: `oracle_simple_cycles` (subset DP), `brute_force_simple_cycles` and
+  `edge_set_after_batch` (the recount of a batch).
+- Parity harness: the CycleEnumeration-GPU@0a976ad reference (`references.toml`, OpenMP and CUDA
+  build as in its RESULTS.md), its exporter `export_cycle_enum`, the fixture script
+  `parity/fixtures/cycle_enum/`, and the dataset digest test (CTest label `parity`).
+- `cycle_count` on the sequential and OpenMP backends (M2a, `<dyng/cycle_count.hpp>`,
+  `docs/algorithms/cycle_count.md`): exact k-bounded directed simple-cycle histograms; `compute()`
+  is CycleEnumeration-GPU's sequential Johnson and OpenMP counter, `update()` its DynTruCy-style
+  `update_static_histogram[_openmp]` (count(-) on G_t, one apply, count(+) on G_{t+1}, edge-id
+  ownership), ported straight; every batch semantics accepted through Step 0 on G_t
+  (`detail::compute_structural_change`). Histograms bit-identical to the original's on the
+  committed fixtures (80 random cases, k = 2..7 and unbounded; fixture graphs and generated
+  batches) and, with `--datasets`, on the TUDataset graphs (CTest label `parity`). The two recorded
+  mutations are built into copies of the library and must fail the randomized suite (CTest
+  `cycle_count.mutation.*`, label `mutation`). The host port of the original's pruned
+  lower_bound search of its CUDA kernels (`dfs.hpp`) is tested for M2b.
+- `io::write_histogram_csv(std::ostream&, counts)` (the original's `# cycle_size,
+  num_of_cycles` ... `Total, N`; PLAN 5.7's name),
+  `tools/compat/dyng-compat-cycle-enum` (the original `cycle-enum` CLI, byte-equal standard output
+  on the committed CLI cases), the `cycle_count_update` example and
+  `parity/timed_regions/cycle_count.toml`.
+- `update_participant::reads_prepared_graph()`: `dyng::update` builds the in-edges (or the device
+  copy) in the commit only for results that read them.
+- Parity harness for `cycle_count` (M2a): the golden corpus of CycleEnumeration-GPU@0a976ad
+  (`parity/export_goldens.py cycle_count`: 24 cases, histograms, update priors, deltas and
+  generated batches, exported twice identically), its replay (`parity/compare.py cycle_count`, CTest
+  `parity.cycle_count.cycle_enum_0a976ad`), the OpenMP A/B (`parity/perf_ab.py cycle_count run`)
+  and `dyng-compat-cycle-enum --write-batch`. Results in `parity/results/M2a.md`: 72 of 72 replays
+  byte-identical (sequential, OpenMP 4 and 56 threads); every OpenMP-56 gate met (at `1148d15`:
+  static end to end 0.64-0.96x, update 25K+25K 0.76-0.96x of the original).
+- M2a close-out: `docs/algorithms/cycle_count.md` completed (graph requirements, determinism,
+  the performance table, 'Differences from the paper': exact k-bounded enumeration, not the
+  paper's approximate kappa-truncated TruCy, and the 'Paper vs fixed code' table of
+  CycleEnumeration-GPU's fixes); the README lists `cycle_count` on the CPU backends (CUDA: M2b);
+  the M2a retrospective. The TruCy / DynTruCy paper is cited as submitted.
+- M2a review fixes (`cycle_count`, graph, io, tests, harness): the searches keep their paths on
+  explicit stacks (the default unbounded options no longer overflow the thread's stack; a
+  300,000-vertex ring is counted and updated in the tests); histograms and engines are sized by
+  min(k, max(n, 2)) and the update's per-thread counters grow with the cycles found, so an
+  unbounded update costs what its searches cost (it was O(changes x n)); the ownership index is a
+  flat table that allocates nothing in a steady-state update (I9); the OpenMP phase sizes its
+  scratch in the region that uses it; `static_assert` on unsupported graph types; `as_sets`
+  combinations that cannot apply a batch are rejected at graph construction; the stats and the
+  unbounded cost per backend are documented; seed replay (`DYNG_TEST_SEED`, `DYNG_TEST_SEEDS`)
+  in the randomized cycle_count suites; a third mutation test (`skip_workspace_resize`);
+  `DYNG_STDLIB_ASSERTIONS` (`_GLIBCXX_ASSERTIONS` in Debug builds); the contamination monitor
+  and isolation experiments of the cycle_count performance harness
+  (`parity/contamination.py`, `--baseline-exe`, `parity/experiments/cycle_enum`); the parity
+  certificate `parity/results/M2a.md` re-measured at `0679ed1` (72 of 72 replays; static end to
+  end 0.53-0.93x, update 0.44-0.65x of the original, COLLAB k = 3 0.29x) with the improvements
+  isolated in their own section.
+
 ### Changed
 
 - The default edge offset type is `int32`: `dyng::graph<>` is `graph<int32, int32, int32>`, and

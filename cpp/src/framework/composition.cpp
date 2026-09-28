@@ -53,8 +53,15 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
     // What the engines read of G_{t+1} is built once here, inside the commit, for every
     // participant: the host in-edges (the graph builds them lazily; MOSP-OpenMP builds its reverse
     // graph in "prepare", before the objectives) or, on the CUDA backend, the device copy (MOSP-CUDA
-    // uploads the updated graph and builds its reverse graph on the device in "upload").
-    graph_access::prepare(res, g);
+    // uploads the updated graph and builds its reverse graph on the device in "upload"). Skipped
+    // when no participant reads them (cycle_count on the host backends reads the out-edges only).
+    bool prepare = false;
+    for (std::size_t i = 0; i < count; ++i) {
+      prepare = prepare || participants[i]->reads_prepared_graph();
+    }
+    if (prepare) {
+      graph_access::prepare(res, g);
+    }
   }
   // Steps 1b and 2 on G_{t+1}. A failing participant is poisoned; the others still run.
   std::exception_ptr first_error;
@@ -82,6 +89,7 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("dyng::update (", g.num_vertices(), " vertices
       const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, \
       update_participant<V, E, W>* const*, std::size_t, std::string_view);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_RUN_UPDATE)
 #undef DYNG_INSTANTIATE_RUN_UPDATE
 
 }  // namespace dyng::detail

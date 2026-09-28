@@ -1,0 +1,23 @@
+count parser/reference_sample.txt -1
+count parser/reference_sample.txt 3
+count parser/sample_temporal.txt 3
+count parser/mm_symmetric.mtx -1
+count parser/mm_hermitian.mtx 4
+count parser/mixed.txt 4
+count parser/sparse_ids.txt 5
+count parser/tudataset_A.txt 3
+count parser/tudataset_A.txt 4
+count parser/tudataset_A.txt 5
+count generator/ring40.txt -1
+count generator/ring40.txt 39
+count generator/ring40.txt 40
+count generator/graph300.txt 4
+count generator/graph300.txt 6
+count generator/graph300.txt 8
+update parser/tudataset_A.txt 4 40 40 1
+update parser/tudataset_A.txt 5 100 100 2
+update generator/ring40.txt 40 3 4 42
+update generator/graph300.txt 5 100 100 1
+update generator/graph300.txt 6 50 60 12345 299
+update generator/graph300.txt 7 390 0 4
+update generator/graph300.txt 4 0 500 5 50

@@ -28,8 +28,8 @@ REPO = Path(__file__).resolve().parent.parent
 SCOPES = ("cpp/src/", "cpp/include/", "tools/")
 SUFFIXES = (".hpp", ".cpp", ".cuh", ".cu", ".h")
 
-# Identifiers of the originals (MOSP-OpenMP@c352151, MOSP-CUDA@e220ee2 for M1a). Extend this list
-# when a port of another repository lands.
+# Identifiers of the originals (MOSP-OpenMP@c352151, MOSP-CUDA@e220ee2 for M1a;
+# CycleEnumeration-GPU@0a976ad for M2). Extend this list when a port of another repository lands.
 SYMBOLS = [
     "sospUpdateCpu",
     "sospFromScratchCpu",
@@ -58,6 +58,31 @@ SYMBOLS = [
     "checkSospTree",
     "combinedGraphSospCpu",
     "buildHostGraph",
+    # CycleEnumeration-GPU@0a976ad (M2)
+    "prepare_batch",
+    "build_directed_graph",
+    "DirectedGraph",
+    "EdgeBatch",
+    "BatchParams",
+    "generate_batch",
+    "sort_and_dedup",
+    "read_temporal_graph",
+    "read_graph_view",
+    "group_edges",
+    "parse_matrix_market_banner",
+    "count_simple_cycles_bruteforce",
+    "oracle_simple_cycles",
+    "parallel_parts",
+    "CycleHistogram",
+    "count_simple_cycles_johnson",
+    "update_static_histogram",
+    "count_cycles_through_edge",
+    "ChangedEdgeIndex",
+    "apply_histogram_delta",
+    "JohnsonSearch",
+    "circuit_bounded",
+    "extend_prefix",
+    "update_histogram",
 ]
 PINNED = re.compile(
     r"\b(MOSP-OpenMP|MOSP-CUDA|MOSP_ESCHER|ESCHER-GPU|LabelPropagation-CUDA|"
@@ -75,7 +100,11 @@ NOT_DERIVED = {
     "cpp/include/dyng/io/csr_triplet.hpp": "public API of csr_triplet.cpp (header there)",
     "cpp/include/dyng/testing/check_sssp.hpp": "public API of check_sssp.cpp (header there)",
     "cpp/include/dyng/testing/dijkstra.hpp": "public API of dijkstra.cpp (header there)",
+    "cpp/include/dyng/io/edge_list_io.hpp": "public API of edge_list_io.cpp (header there)",
+    "cpp/include/dyng/testing/cycle_oracle.hpp": "public API of cycle_oracle.cpp (header there)",
     "cpp/src/graph/graph_impl.hpp": "describes the apply_delta classification; no copied code",
+    "cpp/include/dyng/cycle_count.hpp": "public API; names the CycleEnum functions it ports",
+    "cpp/include/dyng/io/result_io.hpp": "public API of result_io.cpp (header there)",
     "cpp/src/framework/workspace.hpp": "new pool; names MOSP's shared SospWorkspace it mirrors",
 }
 

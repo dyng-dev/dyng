@@ -142,6 +142,7 @@ void build_device_graph(const resources& res, const csr<vertex_t, edge_t, weight
   template void build_device_graph<V, E, W>(const resources&, const csr<V, E, W>&, \
                                             device_graph<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_DEVICE_GRAPH)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_DEVICE_GRAPH)
 #undef DYNG_INSTANTIATE_DEVICE_GRAPH
 
 // One registration per line (the registrar's name is made unique by __LINE__).

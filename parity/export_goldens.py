@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Export the sssp golden corpus from the pinned original MOSP-OpenMP@c352151 (or MOSP-CUDA).
 
+`parity/export_goldens.py cycle_count ...` exports the cycle_count corpus from
+CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_goldens.py).
+
 PLAN Sections 6.3 (steps 1-2) and 8.3. The goldens are written OUTSIDE the repository, to
 $DYNG_SCRATCH/goldens/sssp (default ~/Projects/dyng-work); the repository keeps only
 parity/goldens.toml, the manifest with one SHA-256 per case (and the tiny cases, which are already
@@ -696,7 +699,11 @@ manifest_sha256 = "{manifest_sha}"
 """
     head += "".join(f"{g} = {by_group[g]}\n" for g in GROUPS if g in by_group)
     head += "\n[sets.sssp.cases]\n"
-    (REPO / "parity" / "goldens.toml").write_text(head + "".join(rows))
+    path = REPO / "parity" / "goldens.toml"
+    # Keep the other sets (cycle_count, written by parity/cycle_count_goldens.py after sssp).
+    old = path.read_text() if path.is_file() else ""
+    kept = old[old.find("\n[sets.cycle_count]") :] if "\n[sets.cycle_count]" in old else ""
+    path.write_text(head + "".join(rows) + kept)
 
 
 # --- Driver ----------------------------------------------------------------------------------
@@ -787,6 +794,11 @@ def compare_corpora(ours: Path, theirs: Path) -> list[str]:
 
 def main() -> int:
     global REFERENCE, COMMIT
+    if sys.argv[1:2] == ["cycle_count"]:  # the cycle_count corpus (CycleEnumeration-GPU)
+        sys.path.insert(0, str(REPO / "parity"))
+        import cycle_count_goldens
+
+        return cycle_count_goldens.export_main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "--scratch",

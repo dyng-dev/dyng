@@ -6,6 +6,7 @@
  */
 #include "core/resources_access.hpp"
 #include "core/staging.hpp"
+#include "graph/apply_common.hpp"
 #include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
@@ -46,6 +47,7 @@ void expect_supported_layout(const graph_properties& props) {
     throw not_supported_error(
         "dyng: only row_layout::compact is implemented; slotted and slack arrive in 0.3");
   }
+  detail::expect_supported_semantics(props);  // e.g. as_sets with upsert: fail here, not at apply
 }
 
 }  // namespace
@@ -435,6 +437,7 @@ graph_view<vertex_t, edge_t, weight_t> graph_access::view(
   template apply_summary detail::graph_access::apply<V, E, W>(                                   \
       const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, detail::apply_delta<V>*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
 #undef DYNG_INSTANTIATE_GRAPH
 
 }  // namespace dyng

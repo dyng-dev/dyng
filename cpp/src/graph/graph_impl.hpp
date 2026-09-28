@@ -42,6 +42,11 @@ namespace dyng::detail {
  * - deletions: every requested deletion with both ends in range (after self-loop dropping; for an
  *   undirected graph each direction), in batch order, whether or not it matched an edge.
  *
+ * Under batch_semantics::as_sets (batch_semantics::set()) the lists are instead the normalized
+ * batch, the net structural change: the deletions of existing edges and the insertions of new (or
+ * deleted and re-inserted) edges, each list sorted by (source, destination) without repeats
+ * (CycleEnumeration-GPU's prepare_batch), and every weight-increase flag is 0.
+ *
  * @tparam vertex_t Vertex id type.
  */
 template <typename vertex_t>

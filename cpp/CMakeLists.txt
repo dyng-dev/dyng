@@ -112,6 +112,10 @@ function(dyng_add_module)
   dyng_enable_sanitizers(${target})
   dyng_set_cuda_options(${target})
   target_sources(dyng PRIVATE $<TARGET_OBJECTS:${target}>)
+  # The module list and sources, for the mutation tests (cpp/tests: a copy of libdyng with one
+  # module rebuilt from mutated sources).
+  set_property(GLOBAL APPEND PROPERTY DYNG_MODULE_TARGETS ${target})
+  set_property(GLOBAL PROPERTY DYNG_MODULE_SOURCES_${target} ${_sources})
 endfunction()
 
 dyng_add_module(
@@ -149,7 +153,8 @@ dyng_add_module(
 
 dyng_add_module(
   NAME graph
-  SOURCES src/graph/apply_host.cpp src/graph/graph.cpp
+  SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp
+          src/graph/structural_change.cpp
   CUDA_SOURCES src/graph/device_graph.cu
 )
 
@@ -158,13 +163,16 @@ dyng_add_module(
   SOURCES
     src/io/batch_io.cpp
     src/io/csr_triplet.cpp
+    src/io/edge_list_io.cpp
     src/io/matrix_market.cpp
     src/io/result_io.cpp
 )
 
 dyng_add_module(NAME framework SOURCES src/framework/composition.cpp src/framework/workspace.cpp)
 
-dyng_add_module(NAME generators SOURCES src/generators/legacy.cpp)
+dyng_add_module(
+  NAME generators SOURCES src/generators/legacy.cpp src/generators/legacy_cycle_enum.cpp
+)
 
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
@@ -172,7 +180,9 @@ add_subdirectory(src/algorithms)
 
 # dyng::testing: host-only oracles for users and the test suites (PLAN Section 5.8). It shares no
 # code with the algorithms it checks.
-add_library(dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp)
+add_library(
+  dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp src/testing/cycle_oracle.cpp
+)
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(
   dyng_testing

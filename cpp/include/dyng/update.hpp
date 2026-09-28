@@ -78,6 +78,19 @@ class update_participant {
    * @brief Mark the result unusable after after_apply() threw (later updates throw).
    */
   virtual void poison() noexcept = 0;
+
+  /**
+   * @brief Whether after_apply() reads what the commit prepares for the engines of G_{t+1}: the
+   *        in-edges on the host backends, the device copy on cuda (graph_access::prepare()).
+   *
+   * run_update() prepares the graph inside the commit only if some participant reads it, so an
+   * update of results that read only the out-edges (cycle_count on the host backends) does not
+   * pay a transposition per batch.
+   * @return true (the default).
+   */
+  [[nodiscard]] virtual bool reads_prepared_graph() const noexcept {
+    return true;
+  }
 };
 
 /**

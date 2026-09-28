@@ -1,0 +1,14 @@
+vertices 5
+edges 6
+events 6
+v 1
+v 2
+v 3
+v 4
+v 5
+e 0 1 0
+e 0 2 0
+e 1 0 0
+e 2 0 0
+e 3 4 0
+e 4 3 0

@@ -22,7 +22,8 @@ counting, triad counting, label propagation.
 | Graph container (compact rows, MOSP batch semantics) and MOSP-format I/O | working; the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` |
 | `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working; byte-identical to MOSP-OpenMP@c352151 on its 495-case golden corpus ([parity certificate](parity/results/M1a.md)) |
 | `sssp` on CUDA (the fused persistent cooperative kernel) | working (M1b); byte-identical to MOSP-CUDA@e220ee2 on the same corpus, cross-backend equal, performance gates recorded ([M1b certificate](parity/results/M1b.md)) |
-| `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1); the CPU backends are in progress on a branch |
+| `cycle_count`: exact k-bounded directed cycle histograms (TruCy/DynTruCy update), sequential and OpenMP | working (M2a); bit-identical to CycleEnumeration-GPU@0a976ad on its 24-case golden corpus ([parity certificate](parity/results/M2a.md)) |
+| `cycle_count` on CUDA | in progress (M2b) |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
 | Python package (`pip install dyng`) | planned (0.1) |
@@ -115,6 +116,11 @@ cmp out/SSSPTreeUpdated.txt cpp/tests/data/mosp_sssp/testCase0/updated/obj0/SSSP
 In a CUDA build the last argument can be `cuda` (`build/dev-cuda/examples/cpp/sssp_update ...
 out cuda`): the graph and the tree then live on GPU 0 and the fused kernel runs the update, with
 the same output file.
+
+`examples/cpp/cycle_count_update.cpp` counts the directed cycles of length 2..k of an edge-list
+graph (a TUDataset `*_A.txt` file loads directly), applies a generated batch with
+`cycle_count::update()` and prints the histogram in CycleEnumeration-GPU's CSV format;
+`dyng-compat-cycle-enum` reproduces the original `cycle-enum` CLI.
 
 ### Run the parity check
 
