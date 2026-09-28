@@ -28,9 +28,18 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 option(DYNG_ENABLE_OPENMP "Build the OpenMP backends" ${_dyng_openmp_default})
-# The CUDA backends arrive in milestone M1b; until then the option exists (so presets and
-# scripts keep their shape) but defaults to OFF and cannot be enabled.
-option(DYNG_ENABLE_CUDA "Build the CUDA backends (available from milestone M1b)" OFF)
+
+# CUDA: ON by default when a CUDA compiler is found (CUDACXX, or nvcc on PATH; scripts/dev_env.sh
+# sets CUDACXX). The presets pin it: the CPU presets OFF, the *-cuda presets ON.
+if(NOT DEFINED DYNG_ENABLE_CUDA OR DYNG_ENABLE_CUDA)
+  include(CheckLanguage)
+  check_language(CUDA)
+endif()
+set(_dyng_cuda_default OFF)
+if(CMAKE_CUDA_COMPILER)
+  set(_dyng_cuda_default ON)
+endif()
+option(DYNG_ENABLE_CUDA "Build the CUDA backends" ${_dyng_cuda_default})
 option(BUILD_SHARED_LIBS "Build libdyng as a shared library" ON)
 option(DYNG_BUILD_TESTS "Build the GoogleTest suites" ${PROJECT_IS_TOP_LEVEL})
 option(DYNG_BUILD_EXAMPLES "Build the C++ examples" ${PROJECT_IS_TOP_LEVEL})
@@ -54,8 +63,68 @@ else()
 endif()
 option(DYNG_DEBUG_BUDGETS "Allocation and synchronization counters (invariant I9)" ${_dyng_budgets_default})
 
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(_dyng_debug_sync_default ON)
+else()
+  set(_dyng_debug_sync_default OFF)
+endif()
+option(DYNG_CUDA_DEBUG_SYNC "DYNG_CHECK_KERNEL also synchronizes the stream (Debug, sanitize-cuda)"
+       ${_dyng_debug_sync_default}
+)
+option(DYNG_CUDA_LINEINFO "Compile CUDA code with -lineinfo (always on in RelWithDebInfo)" OFF)
+
+# CUDA: the architectures must be known before enable_language(CUDA) and before any target exists.
 if(DYNG_ENABLE_CUDA)
-  message(FATAL_ERROR "DYNG_ENABLE_CUDA=ON: the CUDA backends are not implemented yet (milestone M1b)")
+  if(NOT CMAKE_CUDA_COMPILER)
+    message(FATAL_ERROR "DYNG_ENABLE_CUDA=ON but no CUDA compiler was found: set CUDACXX or "
+                        "CMAKE_CUDA_COMPILER (source scripts/dev_env.sh on the development machine)")
+  endif()
+  include(cmake/cuda_architectures.cmake)
+  dyng_set_cuda_architectures()
+  # nvcc compiles the host part of .cu files with the same compiler as the .cpp files.
+  if(NOT DEFINED CMAKE_CUDA_HOST_COMPILER)
+    set(CMAKE_CUDA_HOST_COMPILER "${CMAKE_CXX_COMPILER}")
+  endif()
+  # The cudart must match the compiler's toolkit (PLAN Section 7.3): Shared except for wheels.
+  if(NOT DEFINED CMAKE_CUDA_RUNTIME_LIBRARY)
+    set(CMAKE_CUDA_RUNTIME_LIBRARY Shared)
+  endif()
+  enable_language(CUDA)
+  # native without a visible GPU would silently compile for nvcc's default architecture only.
+  dyng_check_native_cuda_architectures()
+  find_package(CUDAToolkit REQUIRED)
+  if(NOT CMAKE_CUDA_STANDARD)
+    set(CMAKE_CUDA_STANDARD 17)
+  endif()
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+  set(CMAKE_CUDA_EXTENSIONS OFF)
+endif()
+# NVTX ranges for the profiler's stages (PLAN Section 7.3; profiler_options::nvtx): the header-only
+# NVTX 3 of the CUDA toolkit, ON when it is found. FindCUDAToolkit defines CUDA::nvtx3 from the
+# toolkit's include directories without checking for the headers (an incomplete toolkit, e.g. some
+# conda packages, has none), so the header itself is looked for.
+set(_dyng_nvtx_found OFF)
+if(DYNG_ENABLE_CUDA AND TARGET CUDA::nvtx3)
+  get_target_property(_dyng_nvtx_dirs CUDA::nvtx3 INTERFACE_INCLUDE_DIRECTORIES)
+  if(NOT _dyng_nvtx_dirs)
+    set(_dyng_nvtx_dirs "")
+  endif()
+  find_path(
+    DYNG_NVTX3_INCLUDE_DIR nvtx3/nvToolsExt.h
+    PATHS ${_dyng_nvtx_dirs} ${CUDAToolkit_INCLUDE_DIRS}
+    NO_DEFAULT_PATH
+  )
+  if(DYNG_NVTX3_INCLUDE_DIR)
+    set(_dyng_nvtx_found ON)
+  endif()
+endif()
+option(DYNG_WITH_NVTX "NVTX ranges for profiler stages (needs the toolkit's NVTX 3 headers)"
+       ${_dyng_nvtx_found}
+)
+if(DYNG_WITH_NVTX AND NOT _dyng_nvtx_found)
+  message(FATAL_ERROR "DYNG_WITH_NVTX=ON needs a CUDA build whose toolkit provides CUDA::nvtx3 "
+                      "with its headers (nvtx3/nvToolsExt.h)"
+  )
 endif()
 foreach(_dyng_unavailable DYNG_BUILD_PYTHON DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS)
   if(${_dyng_unavailable})
@@ -95,13 +164,14 @@ if(DYNG_BUILD_COMPAT_TOOLS)
 endif()
 
 # `cmake --build --preset <p> --target docs-doxygen`: the Doxygen check of ci/docs.sh on this
-# build tree's generated headers (the Sphinx site and DYNG_BUILD_DOCS arrive in M5).
+# build tree's generated headers (the whole site: ci/docs.sh; DYNG_BUILD_DOCS arrives in M5).
 find_program(DYNG_DOXYGEN_EXECUTABLE doxygen)
 if(DYNG_DOXYGEN_EXECUTABLE AND PROJECT_IS_TOP_LEVEL)
   add_custom_target(
     docs-doxygen
     COMMAND ${CMAKE_COMMAND} -E env "DYNG_BUILD_DIR=${PROJECT_BINARY_DIR}"
             "DYNG_DOXYGEN_OUTPUT=${PROJECT_BINARY_DIR}/doxygen" "${PROJECT_SOURCE_DIR}/ci/docs.sh"
+            --doxygen-only
     WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
     COMMENT "Doxygen on the public headers (warnings as errors) and the convention check"
     VERBATIM USES_TERMINAL

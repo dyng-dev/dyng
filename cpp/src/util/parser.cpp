@@ -17,6 +17,19 @@ std::string read_file(const std::string& path) {
     throw io_error("dyng: " + path + ": cannot open file for reading", path);
   }
   std::string text;
+  // One allocation and one read for a regular file (the size is known), as MOSP's readWholeFile()
+  // does; growing the string chunk by chunk would copy a large file several times. The chunk loop
+  // below then reads whatever is left (a file that grew, or a stream without a size).
+  if (std::fseek(file, 0, SEEK_END) == 0) {
+    const long size = std::ftell(file);
+    std::rewind(file);
+    if (size > 0) {
+      text.resize(static_cast<std::size_t>(size));
+      text.resize(std::fread(text.data(), 1, text.size(), file));
+    }
+  } else {
+    std::clearerr(file);
+  }
   char chunk[1 << 16];
   bool failed = false;
   while (true) {

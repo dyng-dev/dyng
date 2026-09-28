@@ -1,0 +1,49 @@
+{
+ "schema": 1,
+ "algorithm": "sssp",
+ "label": "M1b step 4: the golden corpus exported with MOSP-CUDA@e220ee2's own tools (parity/export_goldens.py --reference MOSP-CUDA --compare-to), compared with the committed MOSP-OpenMP@c352151 corpus",
+ "date": "2026-09-28T01:14:36Z",
+ "reference": {
+  "name": "MOSP-CUDA",
+  "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+  "variant": "patched (additive export tools only)",
+  "build": "name=MOSP-CUDA\ncommit=e220ee20d1b0948ece3df135a02d1b898264c22f\nvariant=patched\narchive_sha256=52e7c0521d14f0605fdf065b75677d7ddde6e33682ede0303a5f984611db2c55\nexported=2026-09-27T20:21:17Z\nbuild=make -j16 all stressTest parallelStressTest NVCC=/usr/local/cuda-13.1/bin/nvcc\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "port_commit_of_the_harness": "2b39fac",
+ "command": "parity/export_goldens.py --reference MOSP-CUDA --compare-to --jobs 8 (CUDA_VISIBLE_DEVICES=1, CUDA_MODULE_LOADING=EAGER)",
+ "tools": [
+  "bin/main (generateTestCases: tests/testCase0..9)",
+  "bin/mospTest --seed 1 --only regressions|thesis-example|sosp|large-weights|packing-boundary",
+  "bin/stressTest 1 and bin/parallelStressTest 2 (100/100 passed each)",
+  "bin/mospPrep init / expected",
+  "bin/mosp --validate (sospUpdateGpu)",
+  "parity_export/bin/export_sssp parallel (parallelSOSPUpdate: sospUpdateGpu) and sequential (sequentialSOSPUpdate)",
+  "parity_export/bin/export_graph_io apply (applyChangeBatch)"
+ ],
+ "cases_per_group": {
+  "testcases": 10,
+  "regressions": 3,
+  "thesis": 1,
+  "escher": 4,
+  "fixtures": 17,
+  "sosp": 148,
+  "large_weights": 2,
+  "packing": 3,
+  "stress": 200,
+  "noncanonical": 107
+ },
+ "cases": 495,
+ "files": 11799,
+ "manifest_sha256": {
+  "mosp_cuda_export": "a68e1abc100d8d12dcfb28302089e3b2ae42151f56d2caa30d647797dfb30b75",
+  "committed_mosp_openmp_corpus": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd"
+ },
+ "comparison": "identical: the same 11799 files with the same bytes; case.json equal except its descriptive 'reference' and 'origin' fields (the invalidated counters of MOSP-CUDA's bin/mosp equal MOSP-OpenMP's on every case)",
+ "passed": true,
+ "host": {
+  "gpu": "NVIDIA RTX A5000 (GPU 1)",
+  "driver": "590.48.01",
+  "cuda": "13.1",
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz"
+ }
+}

@@ -11,6 +11,7 @@
 #include <dyng/core/memory.hpp>
 #include <dyng/core/stream.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 
@@ -20,12 +21,19 @@ class profiler;
 
 namespace detail {
 struct resources_state;
+struct resources_access;
 }  // namespace detail
 
 /**
- * @brief What to do when an input array lives in a memory space that does not match the backend.
+ * @brief What to do when an input array lives in another memory space than the one the library
+ *        reads it in (PLAN Section 4.7.1).
  *
- * The library then copies the array once. The default `allow` logs the copy at debug level.
+ * The library then copies the array once. In this release batches, graph builds and imported
+ * trees are read on the host on every backend (the batch is applied on the host, as the original
+ * codes do), so the implicit copies are the ones out of device memory: a batch, an edge list or
+ * CSR, or a tree for sssp::result::from_arrays() in device memory. The default `allow` logs the
+ * copy at debug level; while a profiler is attached, `allow` acts as `warn`, so an unexpected
+ * copy inside a timed run is reported.
  * @ingroup core
  */
 enum class copy_policy : std::uint8_t {
@@ -44,6 +52,24 @@ enum class copy_policy : std::uint8_t {
  * thread count on its own.
  * A moved-from handle stays valid: moving shares the handle like a copy (the source keeps it), so
  * no accessor ever meets an empty handle.
+ *
+ * **The default stream is per thread.** A CUDA handle created with the default stream_ref uses
+ * `cudaStreamPerThread`, which CUDA defines as a different stream on every host thread. Copies of
+ * such a handle share the device, memory resource, profiler and workspaces, but work enqueued
+ * through them on two threads runs on two streams: synchronize() and the release of memory wait
+ * for (or are ordered on) the calling thread's stream only, and ordering work across threads is
+ * the caller's job (PLAN Section 4.7.4), as with two explicit streams. A handle created with an
+ * explicit stream uses that one stream on every thread. (ADR 0016 item 10; PLAN 4.7.4 says a copy
+ * "refers to the same stream", which holds for explicit streams only.)
+ *
+ * **Scratch memory.** The handle also caches the engines' workspaces (scratch memory such as the
+ * frontier lists of sssp): a compute() or update() leases one from the handle, sizes it once and
+ * returns it, so results that run one after another through the same handle (for example the K
+ * objectives updated by dyng::update_each()) share one workspace, and a steady-state update
+ * allocates no scratch memory (ADR 0015). Calls that run concurrently on copies of one handle get
+ * distinct workspaces; a workspace reused on another stream (another thread's default stream)
+ * waits for the device work of its previous use first. The cache lives as long as the last copy of
+ * the handle, or until release_workspaces().
  * @ingroup core
  */
 class resources {
@@ -73,12 +99,32 @@ class resources {
 
   /**
    * @brief The CUDA backend on one device and stream.
-   * @param[in] device CUDA device ordinal.
-   * @param[in] stream Stream for all work; the default is the per-thread default stream.
+   *
+   * Records the device's capabilities once (cooperative launch, multiprocessor count), which the
+   * engines read instead of querying the device on every call. Memory comes from the device's
+   * default resource (default_device_memory_resource(): a stream-ordered cudaMallocAsync pool);
+   * host staging buffers from default_pinned_host_memory_resource(). The library never creates
+   * streams: all work is ordered on `stream`, which must outlive every copy of the handle and
+   * every buffer allocated through it. Every call that enqueues work makes `device` current for
+   * its duration and restores the caller's current device.
+   * The host-side work of a call through the handle (graph builds and batch applies, tree imports
+   * and checks, which run on the host next to the device in this release) uses `host_threads`
+   * OpenMP threads, fixed at creation like resources::openmp()'s thread count.
+   * @param[in] device       CUDA device ordinal.
+   * @param[in] stream       Stream for all work, created on `device`; the default is the
+   *                         per-thread default stream (`cudaStreamPerThread`: the calling thread's
+   *                         stream, a different one on every thread), never the legacy stream.
+   * @param[in] host_threads OpenMP threads for the host-side work; 0 = the OpenMP default at the
+   *                         time of the call (omp_get_max_threads(), which honours
+   *                         OMP_NUM_THREADS); 1 without OpenMP.
    * @return New resources for backend::cuda.
-   * @throws not_supported_error if the library was built without CUDA (always, before M1b).
+   * @throws not_supported_error    if the library was built without CUDA, or no device is visible.
+   * @throws invalid_argument_error if `device` is not a visible device or `host_threads` is
+   *                                negative.
+   * @throws cuda_error             if the CUDA runtime reports an error.
+   * @sync Queries the device once; enqueues no work on `stream`.
    */
-  [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {});
+  [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {}, int host_threads = 0);
 
   /**
    * @brief Share the handle of `other` (a cheap copy; settings stay shared).
@@ -123,13 +169,16 @@ class resources {
 
   /**
    * @brief The stream all work is ordered on.
-   * @return The stream (the per-thread default stream unless one was given).
+   * @return The stream (the per-thread default stream unless one was given; that handle means the
+   *         calling thread's own stream).
    */
   [[nodiscard]] stream_ref stream() const noexcept;
 
   /**
    * @brief The number of host threads the backend uses.
-   * @return 1 for sequential and cuda, the OpenMP team size for openmp.
+   * @return 1 for sequential; the OpenMP team size for openmp; for cuda the OpenMP threads of the
+   *         host-side work (graph builds and applies, tree imports and checks), fixed when the
+   *         handle was created.
    */
   [[nodiscard]] int num_threads() const noexcept;
 
@@ -141,15 +190,22 @@ class resources {
 
   /**
    * @brief The memory resource used for library allocations.
-   * @return A reference to the current resource (the default host resource for host backends).
+   * @return A reference to the current resource (the default host resource for host backends,
+   *         default_device_memory_resource(device()) for cuda).
    */
   [[nodiscard]] memory_resource_ref memory() const noexcept;
 
   /**
    * @brief Replace the memory resource (affects every copy of this handle).
+   *
+   * The cached workspaces are released first (they were allocated from the previous resource).
    * @param[in] mr The new resource; must outlive every allocation made through it.
    * @throws invalid_argument_error if the resource's space does not suit the backend (host
-   *                                backends need a host-accessible space).
+   *                                backends need a host-accessible space, cuda a device or
+   *                                managed space).
+   * @sync The idle workspaces are returned to the previous resource after the device work of
+   *       their last use has completed (it may have run on another thread's default stream);
+   *       calls made after this one returns use the new resource.
    */
   void set_memory_resource(memory_resource_ref mr);
 
@@ -160,8 +216,10 @@ class resources {
   [[nodiscard]] copy_policy get_copy_policy() const noexcept;
 
   /**
-   * @brief Set the policy for implicit host/device copies of inputs (affects every copy).
-   * @param[in] policy The new policy.
+   * @brief Set the policy for implicit copies of inputs between memory spaces (affects every
+   *        copy of the handle; see copy_policy for where such copies happen).
+   * @param[in] policy The new policy (copy_policy::error makes every implicit copy an
+   *                   invalid_argument_error, raised before anything is changed).
    */
   void set_copy_policy(copy_policy policy) noexcept;
 
@@ -178,24 +236,49 @@ class resources {
   [[nodiscard]] profiler* get_profiler() const noexcept;
 
   /**
-   * @brief Initialise the backend ahead of timed work (CUDA: create the context, load kernels).
+   * @brief Free the cached workspaces that are not in use (affects every copy).
    *
-   * A no-op for host backends.
+   * The next compute() or update() through the handle sizes a new workspace (allocates). Safe to
+   * call while another thread uses the handle: a workspace in use returns to the cache afterwards.
+   * @sync Waits until the device work of each idle workspace's last use has completed (it may
+   *       have run on another thread's default stream), then releases its memory on the calling
+   *       thread's view of the handle's stream; host workspaces are freed at once.
+   */
+  void release_workspaces() const noexcept;
+
+  /**
+   * @brief The scratch memory the handle caches (shared by every copy).
+   * @return Bytes held by the cached workspaces that are not in use right now.
+   */
+  [[nodiscard]] std::size_t workspace_bytes() const;
+
+  /**
+   * @brief Initialise the backend ahead of timed work.
+   *
+   * CUDA: creates the device's context, loads every kernel of the library (under lazy module
+   * loading, the CUDA default, each kernel would otherwise be loaded inside its first call), and
+   * primes the stream and the memory resource. This replaces setting CUDA_MODULE_LOADING=EAGER in
+   * the environment, which a library must not do. A no-op for host backends.
    * @throws cuda_error if the CUDA runtime reports an error.
    * @sync
    */
   void warm_up() const;
 
   /**
-   * @brief Wait for all work enqueued through these resources.
+   * @brief Wait for the work enqueued on the handle's stream.
    *
-   * A no-op for host backends, whose calls complete before returning.
+   * With an explicit stream: all work enqueued through any copy of the handle. With the default
+   * stream (`cudaStreamPerThread`): the work the CALLING thread enqueued on its own default stream
+   * of the handle's device; work that other threads enqueued through copies of the handle is on
+   * their streams and is not waited for. A no-op for host backends, whose calls complete before
+   * returning.
    * @throws cuda_error if the CUDA runtime reports an error.
    * @sync
    */
   void synchronize() const;
 
  private:
+  friend struct detail::resources_access;
   explicit resources(std::shared_ptr<detail::resources_state> state) noexcept;
   std::shared_ptr<detail::resources_state> state_;
 };

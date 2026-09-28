@@ -375,7 +375,7 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
   props.directed = sc.directed;
   props.semantics.allow_vertex_growth = sc.growth;
 
-  const std::vector<dyng::backend> backends = dyng::test::host_backends();
+  const std::vector<dyng::backend> backends = dyng::test::comparison_backends();
   const int threads = static_cast<int>(gen.uniform(1, 8));
   std::vector<dyng::resources> res;
   std::vector<graph_t> graphs;
@@ -399,8 +399,7 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
   }
   if (sc.perturb_ties) {
     const auto csr = graphs[0].to_csr(res[0]);
-    const auto d = results[0].distances();
-    const std::vector<std::int64_t> distances(d.begin(), d.end());
+    const std::vector<std::int64_t> distances = dyng::test::host_copy(results[0].distances());
     const std::vector<vertex_t> parents = perturb_tie_parents(
         csr, opt.objective, source, dyng::host_view(distances), results[0].parents(), gen.rng);
     for (std::size_t i = 0; i < backends.size(); ++i) {
@@ -413,8 +412,7 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
   for (int round = 0; round < rounds; ++round) {
     SCOPED_TRACE("batch " + std::to_string(round));
     const auto csr = graphs[0].to_csr(res[0]);
-    const auto p = results[0].parents();
-    const std::vector<vertex_t> tree(p.begin(), p.end());
+    const std::vector<vertex_t> tree = dyng::test::host_copy(results[0].parents());
     const auto b = gen.batch(csr, tree, sc.growth, sc.mosp_compatible);
     std::vector<dyng::sssp::stats> st;
     for (std::size_t i = 0; i < backends.size(); ++i) {
@@ -427,11 +425,11 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
       // update == compute on the new graph: bit for bit from a canonical tree; the distances
       // (and the parents in the distance-only mode) from a perturbed one.
       const auto fresh = dyng::sssp::compute(res[i], graphs[i], source, opt);
-      const auto d = results[i].distances();
-      const auto fd = fresh.distances();
+      const auto d = dyng::test::host_copy(results[i].distances());
+      const auto fd = dyng::test::host_copy(fresh.distances());
       ASSERT_TRUE(std::equal(d.begin(), d.end(), fd.begin(), fd.end()));
-      const auto pr = results[i].parents();
-      const auto fp = fresh.parents();
+      const auto pr = dyng::test::host_copy(results[i].parents());
+      const auto fp = dyng::test::host_copy(fresh.parents());
       if (!sc.perturb_ties || !st[i].packed_parents) {
         ASSERT_TRUE(std::equal(pr.begin(), pr.end(), fp.begin(), fp.end()));
       }
@@ -441,11 +439,11 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
     }
     // Cross-backend: identical trees and deterministic counters.
     for (std::size_t i = 1; i < backends.size(); ++i) {
-      const auto d0 = results[0].distances();
-      const auto di = results[i].distances();
+      const auto d0 = dyng::test::host_copy(results[0].distances());
+      const auto di = dyng::test::host_copy(results[i].distances());
       ASSERT_TRUE(std::equal(d0.begin(), d0.end(), di.begin(), di.end()));
-      const auto p0 = results[0].parents();
-      const auto pi = results[i].parents();
+      const auto p0 = dyng::test::host_copy(results[0].parents());
+      const auto pi = dyng::test::host_copy(results[i].parents());
       ASSERT_TRUE(std::equal(p0.begin(), p0.end(), pi.begin(), pi.end()));
       EXPECT_EQ(st[0].invalidated, st[i].invalidated);
       EXPECT_EQ(st[0].affected, st[i].affected);
@@ -511,7 +509,7 @@ TEST(SsspComposition, SeveralResultsOnOneGraphEqualSeparateUpdates) {
     gen.num_weights = 3;
     gen.max_weight = 20;
     const auto edges = gen.graph_edges(all_shapes[seed % 5], true);
-    for (const dyng::backend b : dyng::test::host_backends()) {
+    for (const dyng::backend b : dyng::test::suite_backends()) {
       const auto res = dyng::test::make_resources(b, 3);
       auto g = graph_t::from_edges(res, edges.view(), dyng::graph_properties::mosp_compatible());
       const auto n = static_cast<std::int32_t>(g.num_vertices());
@@ -523,9 +521,8 @@ TEST(SsspComposition, SeveralResultsOnOneGraphEqualSeparateUpdates) {
       auto r1 = dyng::sssp::compute(res, g, n - 1, opts[1]);
       auto r2 = dyng::sssp::compute(res, g, n / 2, opts[2]);
       for (int round = 0; round < 3; ++round) {
-        const auto p = r0.parents();
         const auto batch =
-            gen.batch(g.to_csr(res), std::vector<std::int32_t>(p.begin(), p.end()), false, true);
+            gen.batch(g.to_csr(res), dyng::test::host_copy(r0.parents()), false, true);
         // Reference: each result updated alone on its own copy of the graph.
         std::vector<dyng::sssp::result<std::int32_t>> alone;
         std::vector<dyng::sssp::stats> alone_stats;
@@ -540,11 +537,11 @@ TEST(SsspComposition, SeveralResultsOnOneGraphEqualSeparateUpdates) {
         EXPECT_EQ(g.version(), version + 1);  // applied once
         std::size_t i = 0;
         for (auto* r : {&r0, &r1, &r2}) {
-          const auto d = r->distances();
-          const auto da = alone[i].distances();
+          const auto d = dyng::test::host_copy(r->distances());
+          const auto da = dyng::test::host_copy(alone[i].distances());
           EXPECT_TRUE(std::equal(d.begin(), d.end(), da.begin(), da.end()));
-          const auto pr = r->parents();
-          const auto pa = alone[i].parents();
+          const auto pr = dyng::test::host_copy(r->parents());
+          const auto pa = dyng::test::host_copy(alone[i].parents());
           EXPECT_TRUE(std::equal(pr.begin(), pr.end(), pa.begin(), pa.end()));
           EXPECT_TRUE(dyng::testing::check_sssp_tree(g, *r).ok());
           ++i;

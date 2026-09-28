@@ -12,9 +12,11 @@ missing @param / @return. This script reads its XML output and additionally requ
   * every documented entity has a one-line @brief (a non-empty brief description);
   * compute() and update() of every algorithm namespace carry @backends and @determinism, and
     @paper for the published algorithms (all algorithms ported so far are published);
-  * every function that takes a `resources` (the functions that do backend work, CUDA-capable
-    from M1b) carries @sync or @async and documents its exceptions: at least one @throws, or
-    `noexcept` (the copy and move operations of `resources` itself are exempt).
+  * every CUDA-capable function carries @sync or @async and documents its exceptions (at least
+    one @throws, or `noexcept`; destructors are exempt from the latter): every function that
+    takes a `resources`, a `stream_ref` or a `memory_resource_ref`, and the members that do
+    stream-ordered work with the stream they were built with (STREAM_ORDERED_MEMBERS, the move
+    assignment of `buffer`). The copy and move operations of `resources` itself are exempt.
 
 Usage: ci/doxygen_coverage.py <doxygen-xml-dir>
 """
@@ -34,13 +36,56 @@ def text_of(node: ET.Element | None) -> str:
     return "" if node is None else "".join(node.itertext()).strip()
 
 
+STREAM_TYPES = (
+    "stream_ref",
+    "dyng::stream_ref",
+    "memory_resource_ref",
+    "dyng::memory_resource_ref",
+)
+
+# Members that enqueue or release stream-ordered work without taking a stream, a memory resource
+# or resources as a parameter (they use the ones they were built with).
+STREAM_ORDERED_MEMBERS = {
+    ("dyng::buffer", "~buffer"),
+    ("dyng::buffer", "resize"),
+    ("dyng::resources", "release_workspaces"),
+    ("dyng::resources", "synchronize"),
+    ("dyng::resources", "warm_up"),
+    ("dyng::stream_ref", "synchronize"),
+} | {
+    # The synchronous allocation members of every memory resource (M1b review): CUDA-capable
+    # (pinned and device memory) without a stream parameter.
+    (resource, member)
+    for resource in (
+        "dyng::memory_resource_ref",
+        "dyng::host_memory_resource",
+        "dyng::cuda_async_memory_resource",
+        "dyng::pinned_host_memory_resource",
+    )
+    for member in ("allocate_sync", "deallocate_sync")
+}
+
+
 def takes_resources(member: ET.Element) -> bool:
-    """Whether a function has a parameter of type (const) dyng::resources&."""
+    """Whether a function does backend or stream-ordered work: it has a parameter of type (const)
+    dyng::resources&, stream_ref or memory_resource_ref."""
     for param in member.findall("param"):
         ptype = text_of(param.find("type")).replace(" ", "")
         if ptype in ("constresources&", "resources&", "constdyng::resources&", "dyng::resources&"):
             return True
+        if ptype in STREAM_TYPES:
+            return True
     return False
+
+
+def is_move_assignment(member: ET.Element) -> bool:
+    """Whether a function is a move assignment operator (it releases the target's memory)."""
+    params = member.findall("param")
+    return (
+        text_of(member.find("name")) == "operator="
+        and len(params) == 1
+        and text_of(params[0].find("type")).replace(" ", "").endswith("&&")
+    )
 
 
 def main(argv: list[str]) -> int:
@@ -111,22 +156,27 @@ def main(argv: list[str]) -> int:
                 continue  # deleted special members (non-copyable, non-movable) need no text
             if not text_of(member.find("briefdescription")):
                 problems.append(f"{at}: {name}::{mname} has no @brief")
+            cuda_capable = (
+                takes_resources(member)
+                or (name, mname) in STREAM_ORDERED_MEMBERS
+                or (name == "dyng::buffer" and is_move_assignment(member))
+            )
             if (
                 member.get("kind") == "function"
-                and takes_resources(member)
+                and cuda_capable
                 and not (name == "dyng::resources" and mname in ("resources", "operator="))
             ):
                 titles = {text_of(t) for t in member.iter("title")}
                 qualified = text_of(member.find("qualifiedname")) or f"{name}::{mname}"
                 if "Synchronization:" not in titles:
-                    problems.append(f"{at}: {qualified} takes resources but has no @sync / @async")
+                    problems.append(f"{at}: {qualified} is CUDA-capable but has no @sync / @async")
                 throws = [
                     pl for pl in member.iter("parameterlist") if pl.get("kind") == "exception"
                 ]
                 noexcept = "noexcept" in text_of(member.find("argsstring"))
-                if not throws and not noexcept:
+                if not throws and not noexcept and not mname.startswith("~"):
                     problems.append(
-                        f"{at}: {qualified} takes resources but documents no @throws "
+                        f"{at}: {qualified} is CUDA-capable but documents no @throws "
                         "(and is not noexcept)"
                     )
             if (

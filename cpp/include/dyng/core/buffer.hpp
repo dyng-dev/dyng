@@ -30,10 +30,13 @@ namespace detail {
  * @param[in]  src_space Memory space of `src`.
  * @param[in]  bytes     Number of bytes.
  * @param[in]  stream    Stream the copy is ordered on (device copies).
+ * @param[in]  device    CUDA device the stream belongs to (made current for the copy; the
+ *                       per-thread default stream is per device), or -1 for the current device.
  * @throws not_supported_error if a device space is involved and CUDA is not built.
+ * @throws cuda_error          if the CUDA runtime reports an error.
  */
 void copy_bytes(void* dst, memory_space dst_space, const void* src, memory_space src_space,
-                std::size_t bytes, stream_ref stream);
+                std::size_t bytes, stream_ref stream, int device = -1);
 
 }  // namespace detail
 
@@ -42,7 +45,10 @@ void copy_bytes(void* dst, memory_space dst_space, const void* src, memory_space
  *
  * Semantics follow rmm::device_uvector: the elements are not constructed or zeroed, so
  * `value_t` must be trivially copyable. Allocation and release are ordered on the buffer's
- * stream. The memory resource must outlive the buffer.
+ * stream. The memory resource must outlive the buffer. With the per-thread default stream
+ * (`cudaStreamPerThread`) that means the stream of the thread that allocates or releases: a buffer
+ * released on another thread than the one whose work last used it must be ordered after that work
+ * by the caller (or moved to an explicit stream with set_stream()).
  *
  * @tparam value_t Trivially copyable element type.
  * @ingroup core
@@ -69,7 +75,13 @@ class buffer {
    * @param[in] stream Stream the allocation is ordered on.
    * @param[in] mr     Memory resource; must outlive the buffer.
    * @param[in] device CUDA device of the memory for device / managed spaces, else -1.
-   * @throws out_of_memory_error if the allocation fails.
+   * @throws out_of_memory_error    if the allocation fails.
+   * @throws invalid_argument_error if the memory resource rejects the request (e.g. an
+   *                                alignment it does not support).
+   * @throws not_supported_error    if the memory resource needs CUDA and it is not built.
+   * @throws cuda_error             if the CUDA runtime reports an error.
+   * @async The allocation is ordered on `stream` (host memory resources allocate before
+   *        returning).
    */
   buffer(size_type size, stream_ref stream, memory_resource_ref mr, int device = -1)
       : stream_(stream), mr_(mr), device_(device) {
@@ -80,7 +92,10 @@ class buffer {
    * @brief Allocate `size` uninitialized elements with the memory resource and stream of `res`.
    * @param[in] res  Resources providing the memory resource, stream and device.
    * @param[in] size Number of elements.
-   * @throws out_of_memory_error if the allocation fails.
+   * @throws out_of_memory_error    if the allocation fails.
+   * @throws invalid_argument_error if the memory resource rejects the request.
+   * @throws not_supported_error    if the memory resource needs CUDA and it is not built.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    * @async The allocation is ordered on the stream of `res` (host memory resources allocate
    *        before returning).
    */
@@ -105,6 +120,7 @@ class buffer {
    * @brief Release the current memory and take over the memory of another buffer.
    * @param[in,out] other The source; left empty.
    * @return *this.
+   * @async The current memory is released in the order of its stream.
    */
   buffer& operator=(buffer&& other) noexcept {
     if (this != &other) {
@@ -120,6 +136,8 @@ class buffer {
 
   /**
    * @brief Release the memory (stream-ordered).
+   * @async The memory is reused only after the work enqueued on the buffer's stream before the
+   *        destruction (host memory is freed at once).
    */
   ~buffer() {
     release_storage();
@@ -182,6 +200,19 @@ class buffer {
   }
 
   /**
+   * @brief Order the buffer's later release (destruction, move assignment, resize) on another
+   *        stream.
+   *
+   * The caller orders the new stream after the work on the old one that still uses the buffer
+   * (rmm::device_uvector::set_stream semantics). The memory itself is not touched.
+   * @param[in] stream The new stream (of the buffer's device).
+   * @sync Enqueues no work.
+   */
+  void set_stream(stream_ref stream) noexcept {
+    stream_ = stream;
+  }
+
+  /**
    * @brief The memory resource the buffer allocates from.
    * @return A reference to the resource.
    */
@@ -228,6 +259,9 @@ class buffer {
    * @param[in] new_size The new element count.
    * @throws out_of_memory_error if the allocation fails.
    * @throws not_supported_error if the memory is device memory and CUDA is not built.
+   * @throws cuda_error          if the CUDA runtime reports an error.
+   * @async The new allocation, the copy of the kept elements and the release of the old memory
+   *        are ordered on the buffer's stream.
    */
   void resize(size_type new_size) {
     if (new_size == size_) {
@@ -236,7 +270,8 @@ class buffer {
     buffer next(new_size, stream_, mr_, device_);
     const size_type keep = std::min(size_, new_size);
     if (keep > 0) {
-      detail::copy_bytes(next.data_, next.space(), data_, space(), keep * sizeof(value_t), stream_);
+      detail::copy_bytes(next.data_, next.space(), data_, space(), keep * sizeof(value_t), stream_,
+                         device_);
     }
     *this = std::move(next);
   }

@@ -21,23 +21,41 @@ if(DYNG_BUILD_TESTS)
   if(DYNG_ENABLE_OPENMP)
     list(APPEND _backends openmp)
   endif()
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _backends cuda)
+  endif()
   foreach(_case "testCase9;mosp_graph_io/testCase9;3" "c2i_0;mosp_sssp/c2i_0/input;2"
                 "h0;mosp_graph_io/h0;2")
     list(GET _case 0 _name)
     list(GET _case 1 _input)
     list(GET _case 2 _k)
+    # Each backend with the originals' 32-bit edge offsets and with 64-bit ones (--edge-type,
+    # ADR 0009): the same bytes either way.
     foreach(_backend IN LISTS _backends)
-      set(_test compat_mosp.${_name}.${_backend})
-      add_test(
-        NAME ${_test}
-        COMMAND
-          ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-mosp> -DINPUT=${_data}/${_input}
-          -DEXPECTED=${_data}/mosp_sssp/${_name} -DK=${_k} -DBACKEND=${_backend}
-          -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_name}.${_backend} -P
-          ${CMAKE_CURRENT_SOURCE_DIR}/mosp/run_and_compare.cmake
-      )
-      set_tests_properties(${_test} PROPERTIES LABELS "cpu;sssp;compat" ENVIRONMENT
-                                               "${DYNG_TEST_ENVIRONMENT}")
+      foreach(_edge int32 int64)
+        set(_test compat_mosp.${_name}.${_backend})
+        if(_edge STREQUAL "int64")
+          set(_test ${_test}.int64)
+        endif()
+        add_test(
+          NAME ${_test}
+          COMMAND
+            ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-mosp> -DINPUT=${_data}/${_input}
+            -DEXPECTED=${_data}/mosp_sssp/${_name} -DK=${_k} -DBACKEND=${_backend}
+            -DEDGE=${_edge} -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_test} -P
+            ${CMAKE_CURRENT_SOURCE_DIR}/mosp/run_and_compare.cmake
+        )
+        if(_backend STREQUAL "cuda")
+          set(_labels "gpu;sssp;compat")
+        else()
+          set(_labels "cpu;sssp;compat")
+        endif()
+        # 77: the cuda backend without a visible device (run_and_compare.cmake).
+        set_tests_properties(
+          ${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+                              SKIP_RETURN_CODE 77
+        )
+      endforeach()
     endforeach()
   endforeach()
 endif()
@@ -66,4 +84,19 @@ if(DYNG_BUILD_TESTS AND DYNG_BUILD_PARITY_TESTS)
     parity.sssp.mosp_openmp_c352151 PROPERTIES LABELS "parity;sssp" SKIP_RETURN_CODE 77 TIMEOUT
                                                1800
   )
+  if(DYNG_ENABLE_CUDA)
+    # The same corpus on the cuda backend: byte parity with MOSP-CUDA e220ee2 (the goldens are
+    # MOSP-OpenMP's; MOSP-CUDA == MOSP-OpenMP on every case was checked once, PLAN 6.3 step 2).
+    add_test(
+      NAME parity.sssp.mosp_cuda_e220ee2
+      COMMAND
+        ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/parity/compare.py --exe
+        $<TARGET_FILE:dyng-compat-mosp> --goldens ${DYNG_GOLDENS_DIR}/sssp --configs cuda --jobs 8
+        --json ${CMAKE_CURRENT_BINARY_DIR}/parity-sssp-cuda.json
+    )
+    set_tests_properties(
+      parity.sssp.mosp_cuda_e220ee2 PROPERTIES LABELS "parity;gpu;sssp" SKIP_RETURN_CODE 77
+                                               TIMEOUT 3600
+    )
+  endif()
 endif()

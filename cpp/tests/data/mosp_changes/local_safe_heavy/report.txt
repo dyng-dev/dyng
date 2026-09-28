@@ -1,0 +1,1 @@
+inserts=80 reweights=0 deletes=320 (safe: kept 320 of 320 after 1 rounds) local centre=120 hops=3 region=20 vertices

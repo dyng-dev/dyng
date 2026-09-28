@@ -2,22 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // SOSP exporter of the parity harness. parity/build_reference.sh compiles it into the PATCHED
-// scratch copy of MOSP-OpenMP@c352151 (parity/export_patches/MOSP-OpenMP/build.sh), against the
-// copy's unchanged sources, and it calls the original file-based SOSP updates unchanged:
+// scratch copies of MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2
+// (parity/export_patches/<repo>/build.sh), against the copy's unchanged sources, and it calls the
+// original file-based SOSP updates unchanged:
 //
 //   sequential <csrPrefix> <distIn> <treeIn> <insert> <delete> <objective> <source> <distOut>
 //              <treeOut>
 //              sequentialSOSPUpdate (the legacy re-scan reference)
 //   parallel   <same arguments>
-//              parallelSOSPUpdate (the file-based OpenMP update, sospUpdateCpu inside)
+//              parallelSOSPUpdate (the file-based parallel update: sospUpdateCpu inside in
+//              MOSP-OpenMP, sospUpdateGpu in MOSP-CUDA)
 //
 // parity/export_goldens.py and parity/fixtures/sssp/make_sssp_fixtures.sh compare both outputs
 // with the in-memory driver `mosp` (mospUpdate) and with `mospPrep expected` (Dijkstra on the
 // updated graph) before they write any expected file: the original implementations must agree
 // byte for byte (PLAN Section 6.3, step 2).
 
+#if __has_include("parallelSOSPUpdate.cuh")  // MOSP-CUDA's headers
+#include "parallelSOSPUpdate.cuh"
+#include "sequentialSOSPUpdate.cuh"
+#else
 #include "parallelSOSPUpdate.h"
 #include "sequentialSOSPUpdate.h"
+#endif
 
 #include <cstdlib>
 #include <iostream>

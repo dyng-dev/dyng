@@ -30,7 +30,13 @@
  */
 #pragma once
 
+#include "framework/scratch_buffer.hpp"
+#include "framework/workspace.hpp"
+#include "util/thread_list.hpp"
+
 #include <dyng/core/array_view.hpp>
+#include <dyng/core/buffer.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
@@ -67,8 +73,9 @@ template <typename vertex_t>
 struct sssp_changes {
   /// Edges (from[i], to[i]) that were deleted or whose weight increased; the head of such an edge
   /// is a root if the edge is its tree edge.
-  std::vector<vertex_t> changed_from;
-  std::vector<vertex_t> changed_to;        ///< heads of the changed edges
+  const vertex_t* changed_from = nullptr;
+  const vertex_t* changed_to = nullptr;    ///< heads of the changed edges
+  std::size_t num_changed = 0;             ///< number of changed edges
   const vertex_t* insert_heads = nullptr;  ///< heads of the insertions (distance may decrease)
   std::size_t num_insert_heads = 0;        ///< number of insertion heads
 };
@@ -86,15 +93,19 @@ struct sssp_counters {
 };
 
 /**
- * @brief Scratch space of the engines, reserved once per result and reused by every update.
+ * @brief Scratch space of the engines: leased from the workspace pool of the resources handle for
+ *        one run and shared by every result run through that handle (ADR 0015).
  *
- * The OpenMP fields are MOSP-OpenMP's SospWorkspace; the sequential fields replace the per-call
- * vectors of sequentialSOSPUpdate().
+ * The OpenMP fields are MOSP-OpenMP's SospWorkspace, which mospUpdate() reserves once and shares
+ * across the K objectives; the sequential fields replace the per-call vectors of
+ * sequentialSOSPUpdate(). Nothing in it carries information from one run to the next, except the
+ * generation counter of the stamps, which lives here with the stamps it describes; `in_far` is all
+ * zero between runs (a failed run's workspace is discarded by its lease).
  *
  * @tparam vertex_t Vertex id type.
  */
 template <typename vertex_t>
-struct sssp_workspace {
+struct sssp_workspace final : pooled_workspace {
   std::int64_t capacity = 0;  ///< vertices the arrays are sized for
   int generation = 0;         ///< stamp generation (stamps deduplicate list insertions)
 
@@ -110,6 +121,9 @@ struct sssp_workspace {
   std::vector<vertex_t> candidates;     ///< invalidated vertices and insertion heads
   std::vector<vertex_t> frontier;       ///< vertices improved by the pull pass
   std::vector<vertex_t> saved_parents;  ///< old parents (distance-only fallback only)
+  /// Two lists per thread for the parallel regions (slot 2t and 2t + 1 of thread t), each on its
+  /// own cache lines and kept between rounds and runs (util/thread_list.hpp).
+  std::vector<padded_thread_list<vertex_t>> thread_lists;
 
   // --- sequential engine (sequentialSOSPUpdate) ---
   std::vector<vertex_t> child_start;       ///< children CSR offsets of the tree (n + 1)
@@ -121,6 +135,10 @@ struct sssp_workspace {
   std::vector<std::int64_t> old_distance;  ///< saved distance of each touched vertex
   std::vector<vertex_t> old_parent;        ///< saved parent of each touched vertex
 
+  // --- the change lists of one objective (update) ---
+  std::vector<vertex_t> changed_from;  ///< tails of the deleted and weight-increased edges
+  std::vector<vertex_t> changed_to;    ///< heads of the deleted and weight-increased edges
+
   /**
    * @brief Size the arrays for `requested` vertices (no-op if large enough; MOSP semantics:
    *        the per-vertex arrays are assigned, the frontier lists only reserved).
@@ -129,21 +147,87 @@ struct sssp_workspace {
   void reserve(std::int64_t requested);
 
   /**
-   * @brief Touch every page of the six frontier lists once (assign + clear), so that the first
-   *        update of this result does not take their page faults inside its timed phases.
-   *
-   * MOSP-OpenMP shares one workspace across the K objectives, so only its first objective pays
-   * these faults, inside its `obj0/sosp_update_compute` region; each dynG result owns its
-   * workspace and pays them here, outside the region (profiler stage sssp.workspace.pretouch,
-   * which parity/perf_ab.py adds back to objective 0; parity/timed_regions/sssp.toml).
-   */
-  void pretouch_lists();
-
-  /**
    * @brief A fresh stamp generation.
    * @return The new generation (> 0).
    */
   int next_generation();
+
+  /**
+   * @brief The memory the workspace holds.
+   * @return Bytes of every array's capacity.
+   */
+  [[nodiscard]] std::size_t bytes() const noexcept override;
+
+  /**
+   * @brief The part of bytes() held by the per-thread lists of the OpenMP engine. Their capacity
+   *        follows the largest share of a round each thread has taken so far, which depends on the
+   *        dynamic schedule; everything else depends only on the graph and the batches.
+   * @return Bytes of the per-thread lists (their headers and their cache-line blocks).
+   */
+  [[nodiscard]] std::size_t thread_list_bytes() const noexcept;
+};
+
+/**
+ * @brief Device scratch of the fused CUDA engine (MOSP-CUDA's SospWorkspace), leased from the
+ *        workspace pool of a CUDA resources handle and shared by every result run through it, as
+ *        mospUpdate() shares one SospWorkspace across the K objectives (ADR 0015).
+ *
+ * The arrays are sized once (reserve(), a no-op once large enough); stamp, in_far and flag are
+ * zero between runs, as SospWorkspace::reserve leaves them and every run leaves them (a failed
+ * run's workspace is discarded by its lease). The change lists of one objective are built on the
+ * host and uploaded into the device lists here, whose capacity is reused from batch to batch.
+ *
+ * @tparam vertex_t Vertex id type.
+ */
+template <typename vertex_t>
+struct sssp_cuda_workspace final : pooled_workspace {
+  std::int64_t capacity = 0;          ///< vertices the arrays are sized for
+  int generation = 0;                 ///< stamp generation (stamps deduplicate list insertions)
+  const void* grid_kernel = nullptr;  ///< the kernel grid_blocks was computed for
+  int grid_blocks = 0;                ///< co-resident blocks of that kernel (cooperative launch)
+
+  scratch_buffer<unsigned long long> packed;  ///< (distance << b | parent) words
+  scratch_buffer<int> stamp;                  ///< last generation a vertex was listed
+  scratch_buffer<int> in_far;                 ///< vertex is in the far pile
+  scratch_buffer<int> flag;                   ///< invalidation marks
+  scratch_buffer<vertex_t> ancestor;          ///< pointer-jumping ancestors
+  scratch_buffer<vertex_t> list_a;            ///< near frontier
+  scratch_buffer<vertex_t> list_b;            ///< next near frontier
+  scratch_buffer<vertex_t> far_a;             ///< far pile
+  scratch_buffer<vertex_t> far_b;             ///< far pile being rebuilt
+  scratch_buffer<vertex_t> candidates;        ///< invalidated vertices and insertion heads
+  scratch_buffer<vertex_t> frontier;          ///< vertices improved by the pull pass
+  scratch_buffer<unsigned char> control;      ///< device control block
+  buffer<unsigned char> host_control;         ///< pinned copy of the control block
+
+  std::vector<vertex_t> changed_from;            ///< host: tails of the changed edges
+  std::vector<vertex_t> changed_to;              ///< host: heads of the changed edges
+  scratch_buffer<vertex_t> device_changed_from;  ///< device copy of changed_from
+  scratch_buffer<vertex_t> device_changed_to;    ///< device copy of changed_to
+  scratch_buffer<vertex_t> device_insert_heads;  ///< device copy of the insertion heads
+
+  /**
+   * @brief Size the arrays for `requested` vertices (no-op if large enough) and clear stamp,
+   *        in_far and flag, ordered on the stream of `res` (SospWorkspace::reserve).
+   * @param[in] res       Resources of the CUDA backend.
+   * @param[in] requested Number of vertices.
+   * @throws out_of_memory_error if device memory runs out.
+   */
+  void reserve(const resources& res, std::int64_t requested);
+
+  /**
+   * @brief A fresh stamp generation; clears the stamps (on the stream of `res`) well before the
+   *        counter could wrap (SospWorkspace::nextGeneration).
+   * @param[in] res Resources of the CUDA backend.
+   * @return The new generation (> 0).
+   */
+  int next_generation(const resources& res);
+
+  /**
+   * @brief The memory the workspace holds.
+   * @return Bytes of every array (device, pinned and host).
+   */
+  [[nodiscard]] std::size_t bytes() const noexcept override;
 };
 
 /**
@@ -158,9 +242,36 @@ struct sssp_state {
   std::uint64_t version = 0;          ///< graph version matched
   std::uint64_t graph_state = 0;      ///< state identifier of the graph matched (graph_impl)
   bool poisoned = false;              ///< a failed update left the arrays inconsistent
-  std::vector<distance_t> distances;  ///< distances, infinite_distance() if unreachable
-  std::vector<vertex_t> parents;      ///< parents, -1 for none
-  sssp_workspace<vertex_t> ws;        ///< engine scratch
+  std::vector<distance_t> distances;  ///< host backends: distances, infinite_distance() if none
+  std::vector<vertex_t> parents;      ///< host backends: parents, -1 for none
+  memory_space space = memory_space::host;  ///< where the arrays live (device for cuda)
+  int device = -1;                          ///< CUDA device of device arrays, -1 otherwise
+  buffer<distance_t> device_distances;      ///< cuda: distances (device memory)
+  buffer<vertex_t> device_parents;          ///< cuda: parents (device memory)
+
+  /**
+   * @brief The number of vertices of either placement.
+   * @return The array length.
+   */
+  [[nodiscard]] std::size_t num_vertices() const noexcept {
+    return space == memory_space::host ? distances.size() : device_distances.size();
+  }
+
+  /**
+   * @brief The distance array of either placement.
+   * @return A mutable pointer (device memory for cuda).
+   */
+  [[nodiscard]] distance_t* distance_data() noexcept {
+    return space == memory_space::host ? distances.data() : device_distances.data();
+  }
+
+  /**
+   * @brief The parent array of either placement.
+   * @return A mutable pointer (device memory for cuda).
+   */
+  [[nodiscard]] vertex_t* parent_data() noexcept {
+    return space == memory_space::host ? parents.data() : device_parents.data();
+  }
 };
 
 /**
@@ -272,15 +383,16 @@ void sssp_enact_compute(const resources& res, problem_t& problem) {
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct sssp_run {
-  sssp_graph<vertex_t, edge_t, weight_t> graph;     ///< the graph after the batch, one objective
-  const sssp_changes<vertex_t>* changes = nullptr;  ///< nullptr for compute()
-  vertex_t source = 0;                              ///< source
-  std::int64_t delta = 1;                           ///< near-far width (> 0)
-  std::int64_t max_weight = 1;                      ///< largest weight before or after the batch
-  std::int64_t* distances = nullptr;                ///< in: old tree; out: new tree
-  vertex_t* parents = nullptr;                      ///< in: old tree; out: new tree
-  sssp_workspace<vertex_t>* ws = nullptr;           ///< scratch
-  sssp_counters counters;                           ///< out
+  sssp_graph<vertex_t, edge_t, weight_t> graph;      ///< the graph after the batch, one objective
+  const sssp_changes<vertex_t>* changes = nullptr;   ///< nullptr for compute()
+  vertex_t source = 0;                               ///< source
+  std::int64_t delta = 1;                            ///< near-far width (> 0)
+  std::int64_t max_weight = 1;                       ///< largest weight before or after the batch
+  std::int64_t* distances = nullptr;                 ///< in: old tree; out: new tree
+  vertex_t* parents = nullptr;                       ///< in: old tree; out: new tree
+  sssp_workspace<vertex_t>* ws = nullptr;            ///< host scratch (leased from the pool)
+  sssp_cuda_workspace<vertex_t>* cuda_ws = nullptr;  ///< device scratch (cuda backend)
+  sssp_counters counters;                            ///< out
 };
 
 /**
@@ -326,5 +438,36 @@ void sssp_openmp_update(const resources& res, sssp_run<vertex_t, edge_t, weight_
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_openmp_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+
+/**
+ * @brief CUDA backend, fused engine: the update (MOSP-CUDA's sospUpdateGpu(), the persistent
+ *        cooperative kernel), timed as the profiler stage sssp.enact_fused.
+ *
+ * `run.graph` and `run.changes` hold device pointers, `run.distances` / `run.parents` the device
+ * arrays of the result, `run.cuda_ws` the leased device workspace. Synchronizes the stream once
+ * (the control block is read back).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res Resources of the CUDA backend.
+ * @param[in,out] run The run.
+ * @throws invalid_argument_error if an input distance does not fit the packing (the tree does not
+ *         belong to the graph) or the input tree has a parent cycle.
+ * @throws not_supported_error    if the kernel cannot be launched cooperatively.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+
+/**
+ * @brief CUDA backend, fused engine: compute() (MOSP-CUDA's sospFromScratchGpu()).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res Resources of the CUDA backend.
+ * @param[in,out] run The run (device pointers; no changes).
+ * @throws not_supported_error if the kernel cannot be launched cooperatively.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
 
 }  // namespace dyng::detail

@@ -7,6 +7,7 @@ selections that would compare nothing, and the pure helpers behave."""
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -61,10 +62,43 @@ def test_compare_rejects_empty_selections(tmp_path: Path) -> None:
         [*base, "--exe", sys.executable, "--configs", ","], capture_output=True, text=True
     )
     assert empty.returncode == 2 and "no configuration" in empty.stderr
-    bad = subprocess.run(
-        [*base, "--exe", sys.executable, "--configs", "cuda:2"], capture_output=True, text=True
+    for config in ["gpu:2", "cuda:x", "openmp:four"]:
+        bad = subprocess.run(
+            [*base, "--exe", sys.executable, "--configs", config], capture_output=True, text=True
+        )
+        assert bad.returncode == 2 and "is not sequential" in bad.stderr, config
+
+
+def test_perf_ab_regions_of_both_backends() -> None:
+    perf = load("parity/perf_ab.py")
+    for backend in ["openmp", "cuda"]:
+        regions = perf.load_regions(backend)
+        names = [r["name"] for r in regions]
+        assert {"sosp_update", "apply", "end_to_end"} <= set(names), backend
+        assert set(perf.report_keys(regions)) <= set(perf.REPORT)
+    cuda = {r["name"]: r for r in perf.load_regions("cuda")}
+    assert cuda["sosp_update"]["port"] == ["sssp.enact_fused"]
+    # MOSP-CUDA's "upload" copies the K trees on the host first; dynG's copy is sssp.import.
+    assert "sssp.import" in cuda["apply"]["port_all_results"]
+    assert perf.report_keys(list(cuda.values())) == [
+        "apply batch",
+        "upload",
+        "end_to_end_ms",
+        "comb combined graph + SOSP",
+    ]
+    log = (
+        "host   context 80.1 ms, read inputs 1.0 ms, canonicalize 0.0 ms, apply batch 12.5 ms, "
+        "upload 30.0 ms, download 4.0 ms, write 0.0 ms\n"
+        "obj0   SOSP update 7.900 ms (invalidated 12, jump rounds 3, iterations 4, epochs 1, "
+        "pushes 9)\n"
+        "comb   combined graph + SOSP 3.000 ms (1 edges, L=1, delta 1, iterations 1, pushes 1)\n"
+        "RESULT gpu_compute_ms=10.900 end_to_end_ms=200.000\n"
     )
-    assert bad.returncode == 2
+    parsed = perf.parse_original(log, 1, perf.report_keys(list(cuda.values())))
+    assert parsed["objectives"] == [7.9] and parsed["invalidated"] == [12]
+    assert parsed["report"]["upload"] == 30.0
+    assert perf.original_value(parsed, cuda["apply"], None) == 42.5
+    assert perf.original_value(parsed, cuda["end_to_end"], None) == 197.0
 
 
 def test_portable_path_hides_personal_paths(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -157,3 +191,152 @@ def test_region_map_loads() -> None:
     by_name = {r["name"]: r for r in regions}
     assert by_name["sosp_update"]["gate"] == "compute" and by_name["sosp_total"]["gate"] == "none"
     assert by_name["end_to_end"]["original_report_subtract"] == ["comb combined graph + SOSP"]
+
+
+def test_compare_edge_type_configs(tmp_path: Path) -> None:
+    (tmp_path / "MANIFEST.sha256").write_text("")
+    base = [sys.executable, REPO / "parity/compare.py", "--goldens", tmp_path, "--skip-verify"]
+    for config in ["cuda/int16", "openmp:4/", "sequential/int64x"]:
+        bad = subprocess.run(
+            [*base, "--exe", sys.executable, "--configs", config], capture_output=True, text=True
+        )
+        assert bad.returncode == 2 and "is not sequential" in bad.stderr, config
+
+
+def test_export_compare_corpora_ignores_only_the_reference(tmp_path: Path) -> None:
+    export = load("parity/export_goldens.py")
+
+    def corpus(root: Path, reference: str, tree: str) -> Path:
+        case = root / "sosp" / "c0"
+        (case / "updated").mkdir(parents=True)
+        (case / "updated" / "tree.txt").write_text(tree)
+        meta = {"case": "sosp/c0", "reference": reference, "invalidated": [3]}
+        (case / "case.json").write_text(json.dumps(meta))
+        export.write_manifest(root, [])
+        return root
+
+    a = corpus(tmp_path / "a", "MOSP-OpenMP@c", "0 0\n1 0\n")
+    b = corpus(tmp_path / "b", "MOSP-CUDA@e", "0 0\n1 0\n")
+    assert export.compare_corpora(a, b) == []
+    c = corpus(tmp_path / "c", "MOSP-CUDA@e", "0 0\n1 1\n")
+    assert export.compare_corpora(a, c) == ["differs: sosp/c0/updated/tree.txt"]
+    meta = json.loads((c / "sosp" / "c0" / "case.json").read_text())
+    meta["invalidated"] = [4]
+    (c / "sosp" / "c0" / "case.json").write_text(json.dumps(meta))
+    (c / "sosp" / "c0" / "updated" / "tree.txt").write_text("0 0\n1 0\n")
+    export.write_manifest(c, [])
+    assert export.compare_corpora(a, c) == ["differs: sosp/c0/case.json"]
+
+
+def test_perf_ab_parses_ncu_csv() -> None:
+    perf = load("parity/perf_ab.py")
+    head = (
+        '"ID","Process ID","Process Name","Host Name","Kernel Name","Context","Stream",'
+        '"Block Size","Grid Size","Device","CC","Section Name","Metric Name","Metric Unit",'
+        '"Metric Value"\n'
+    )
+    rows = "".join(
+        f'"{i}","1","mosp","h","sospPersistentKernel","1","7","(256, 1, 1)","(256, 1, 1)","0",'
+        f'"8.6","Command line profiler metrics","{m}","ns","{v}"\n'
+        for i in range(3)
+        for m, v in [("gpu__time_duration.sum", f"{29 + i},141,120"), ("launch__grid_size", "256")]
+    )
+    kernels = perf.parse_ncu_csv("==PROF== note\n" + head + rows, 2, "mosp")
+    assert [x["gpu__time_duration.sum"] for x in kernels] == [29141120.0, 30141120.0]
+    assert kernels[0]["launch__grid_size"] == 256.0 and kernels[0]["name"] == "sospPersistentKernel"
+    with pytest.raises(SystemExit):
+        perf.parse_ncu_csv(head + rows, 4, "mosp")
+
+
+def test_perf_ab_edge_type_summary_reads_the_port_on_both_sides() -> None:
+    perf = load("parity/perf_ab.py")
+    regions = [dict(r, gate="none") for r in perf.load_regions("cuda")]
+
+    def sample(ms: float) -> dict:
+        stages = {
+            "sssp.enact_fused": [ms, ms],
+            "update.commit": [10.0],
+            "sssp.import": [0.3, 0.3],
+            "sssp.upload": [1.0, 1.0],
+            "sssp.workspace": [0.5, 0.0, 0.0, 0.0],
+            "sssp.changes": [0.1, 0.1],
+            "total.end_to_end": [100.0],
+        }
+        return {"stages": stages, "device": {}, "invalidated": [1, 2], "threads": 1}
+
+    samples = {"original": [sample(4.0)] * 5, "port": [sample(4.2)] * 5}
+    out = perf.summarize(regions, samples, 2, 5, [(1.0, 1.0)], a_value=perf.port_value)
+    by_name = {e["region"]: e for e in out["regions"]}
+    assert by_name["sosp_update obj0"]["ratio"] == pytest.approx(1.05)
+    assert "gate" not in by_name["sosp_update obj0"]
+    # update.commit + every sssp.import, sssp.upload, sssp.workspace and sssp.changes sample
+    assert by_name["apply"]["original_ms"] == pytest.approx(13.3)
+
+
+def test_perf_ab_monitor_sees_foreign_cpu_load() -> None:
+    perf = load("parity/perf_ab.py")
+    # A spinning process that is not the timed program: foreign load of about one core.
+    spinner = subprocess.Popen([sys.executable, "-c", "while True: pass"])
+    try:
+        with perf.MachineMonitor(None, max_foreign_cpu=0.5) as monitor:
+            out, window = monitor.run([sys.executable, "-c", "import time; time.sleep(0.6)"], {})
+    finally:
+        spinner.kill()
+        spinner.wait()
+    assert out == ""
+    assert window["foreign_cpu_cores"] >= 0.7 and window["contaminated"], window
+    assert window["procs_running"] is not None and "gpu" not in window
+    assert window["wall_s"] >= 0.6 and window["program_cpu_s"] < 0.5
+
+
+def test_perf_ab_rejects_contaminated_rounds() -> None:
+    perf = load("parity/perf_ab.py")
+
+    class Args:
+        keep_contaminated = False
+        runs = 2
+
+    clean = {"reasons": [], "foreign_cpu_cores": 0.1}
+    busy = {"reasons": ["foreign CPU load 3.00 cores > 2.0"], "foreign_cpu_cores": 3.0}
+    rejected: list = []
+    assert not perf.rejects(Args(), "b", 0, {"original": clean, "port": clean}, rejected)
+    perf.time.sleep = lambda _s: None  # no pause between repetitions in the test
+    assert perf.rejects(Args(), "b", 0, {"original": clean, "port": busy}, rejected)
+    assert rejected[0]["reasons"] == ["port: foreign CPU load 3.00 cores > 2.0"]
+    perf.rejects(Args(), "b", 0, {"original": busy, "port": busy}, rejected)
+    with pytest.raises(SystemExit):  # more rejections than rounds: the machine is too busy
+        perf.rejects(Args(), "b", 0, {"original": busy, "port": clean}, rejected)
+    rounds = [{"original": clean, "port": dict(clean, foreign_cpu_cores=0.4), "round": 1}]
+    summary = perf.monitor_summary(rounds, rejected, 2.0)
+    assert summary["foreign_cpu_cores_max"] == 0.4 and len(summary["rejected"]) == 3
+
+
+def test_perf_ab_monitor_requires_the_locked_clocks() -> None:
+    perf = load("parity/perf_ab.py")
+    monitor = perf.MachineMonitor(0, locked=(1695, 7601))  # not entered: no sampling threads
+    now = perf.time.time()
+    # (time, P-state, SM MHz, memory MHz, utilization %); idle samples are not checked.
+    monitor.gpu_samples = [
+        (now + 0.1, "P2", 1695, 7601, 80),
+        (now + 0.2, "P8", 210, 405, 0),
+    ]
+    window = monitor.window(now, now + 0.3, 0.3, 0.0, 0.0, 0.0)
+    assert window["gpu"]["clocks_locked"] and not window["contaminated"], window
+    monitor.gpu_samples.append((now + 0.25, "P0", 1905, 8001, 90))
+    window = monitor.window(now, now + 0.3, 0.3, 0.0, 0.0, 0.0)
+    assert not window["gpu"]["clocks_locked"] and window["contaminated"], window
+    assert "not at the locked (1695, 7601)" in window["reasons"][0]
+
+
+def test_perf_ab_monitor_allows_the_clock_holder() -> None:
+    perf = load("parity/perf_ab.py")
+    monitor = perf.MachineMonitor(0, allowed_pids={4242})
+    assert 4242 in monitor.allowed_pids and monitor.locked is None
+
+
+def test_perf_ab_clock_lock_none_does_nothing() -> None:
+    perf = load("parity/perf_ab.py")
+    with perf.ClockLock(0, "none") as clocks:
+        assert clocks.pid is None and clocks.locked is None
+    assert clocks.record["control"] == "none"
+    assert perf.ClockLock.SOURCE.is_file()

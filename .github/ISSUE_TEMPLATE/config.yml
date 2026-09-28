@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The issue chooser: only the issue forms of this folder, plus these links.
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/dyng-dev/dyng/discussions
+    about: Ask questions, discuss ideas and share what you built in GitHub Discussions.
+  - name: Report a security vulnerability
+    url: https://github.com/dyng-dev/dyng/security/advisories/new
+    about: Please report vulnerabilities privately, never in a public issue (see SECURITY.md).
+  - name: Documentation
+    url: https://github.com/dyng-dev/dyng/tree/main/docs
+    about: Guides, algorithm pages and the API reference.
+  - name: Code of Conduct
+    url: https://github.com/dyng-dev/dyng/blob/main/CODE_OF_CONDUCT.md
+    about: How to report a conduct problem (by e-mail, not in an issue).

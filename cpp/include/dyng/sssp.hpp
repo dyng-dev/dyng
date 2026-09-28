@@ -44,6 +44,15 @@
  *   - in the distance-only mode (stats::packed_parents == false: (n - 1) * max weight does not
  *     fit next to the parent ids in 64 bits) every parent is recovered with the lowest-id rule
  *     after the search, so update() equals compute() on every input.
+ *
+ * Backends: sequential (the reference), openmp (MOSP-OpenMP's sospUpdateCpu) and cuda (MOSP-CUDA's
+ * persistent cooperative kernel, the fused engine; options::cuda_engine). On cuda the graph must
+ * be built with (or cloned for) the CUDA resources, the result arrays live in device memory
+ * (copy them with to_vector()), and compute() and update() synchronize the stream once. Near the
+ * packing limit the two parallel engines choose the word format slightly differently (MOSP-CUDA
+ * packs when (n - 1) * max weight fits, MOSP-OpenMP when one more edge fits too), so
+ * stats::packed_parents may differ between cuda and the host backends there; the trees are
+ * identical for canonical input trees.
  */
 
 namespace dyng::sssp {
@@ -59,7 +68,10 @@ struct options {
   std::int64_t delta = 0;
   /// Which weight column of a multi-weight graph is the edge length. Fixed at compute().
   int objective = 0;
-  /// Engine of the CUDA backend (fused, operators or automatic); ignored by the CPU backends.
+  /// Engine of the CUDA backend; ignored by the host backends. engine::automatic and
+  /// engine::fused run the fused persistent cooperative kernel (MOSP-CUDA's sospUpdateGpu) and throw
+  /// not_supported_error on a device without cooperative launch (the operators engine that would be
+  /// the fallback arrives in 0.2); engine::operators throws not_supported_error in this release.
   engine cuda_engine = engine::automatic;
   /// O(n) checks on imported trees in result::from_arrays() (rooted at the source, no parent
   /// cycle, distances in range).
@@ -80,10 +92,11 @@ struct stats : update_stats {
   std::int64_t epochs = 0;
   /// Schedule-dependent: vertex expansions of the Step 2 loop.
   std::int64_t pushes = 0;
-  /// Deterministic: false if distances do not fit next to the parent ids in 64-bit words, so the
-  /// OpenMP engine kept distances only and recovered every parent with the lowest-id rule after
-  /// the search. The sequential engine reports the same value and applies the same recovery, so
-  /// both backends return the same tree.
+  /// Deterministic per backend: false if distances do not fit next to the parent ids in 64-bit
+  /// words, so the engine kept distances only and recovered every parent with the lowest-id rule
+  /// after the search. The sequential engine reports the OpenMP engine's value and applies the same
+  /// recovery, so both return the same tree; the CUDA engine uses MOSP-CUDA's slightly larger
+  /// packing limit (see @ref sssp), so its value can differ right at the limit.
   bool packed_parents = true;
 };
 
@@ -100,8 +113,14 @@ namespace dyng::sssp {
 /**
  * @brief A shortest-path tree kept up to date by update() (opaque, move-only).
  *
- * The result owns its distance and parent arrays, its options, the graph version it matches and
- * the reusable workspace of the incremental engines (reserved once).
+ * The result owns its distance and parent arrays (host memory, or device memory for the cuda
+ * backend), its options and the graph version it matches.
+ * The scratch memory of the engines is not part of it: compute() and update() lease the
+ * workspace of the resources handle they run with (sized once, then reused), so results computed
+ * and updated through one handle, such as the K objectives of dyng::update_each(), share one
+ * workspace as MOSP's objectives share one, and a steady-state update allocates no scratch memory
+ * (ADR 0015). The results stay independent: nothing in the workspace carries over from one run to
+ * the next.
  *
  * @tparam vertex_t   Vertex id type (int32_t or int64_t).
  * @tparam distance_t Distance type (int64_t).
@@ -125,7 +144,7 @@ class result {
 
   result(const result&) = delete;             ///< not copyable: use clone()
   result& operator=(const result&) = delete;  ///< not copyable: use clone()
-  ~result();                                  ///< releases the arrays and the workspace
+  ~result();                                  ///< releases the arrays
 
   /**
    * @brief The source vertex.
@@ -135,8 +154,9 @@ class result {
 
   /**
    * @brief The distances.
-   * @return One distance per vertex (host memory); infinite_distance<distance_t>() for vertices
-   *         that cannot be reached. Valid until the next update() of this result.
+   * @return One distance per vertex (host memory; device memory for a result of the cuda backend,
+   *         see space()); infinite_distance<distance_t>() for vertices that cannot be reached.
+   *         Valid until the next update() of this result.
    * @throws invalid_argument_error for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
@@ -144,9 +164,10 @@ class result {
 
   /**
    * @brief The parents (the tree).
-   * @return One parent per vertex (host memory): an in-neighbour on a shortest path, the lowest-id
-   *         one unless kept from a non-canonical input tree (see the tie rule of @ref sssp); -1
-   *         for the source and unreachable vertices. Valid until the next update().
+   * @return One parent per vertex (host memory; device memory for a result of the cuda backend):
+   *         an in-neighbour on a shortest path, the lowest-id one unless kept from a non-canonical
+   *         input tree (see the tie rule of @ref sssp); -1 for the source and unreachable vertices.
+   *         Valid until the next update().
    * @throws invalid_argument_error for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
@@ -177,12 +198,17 @@ class result {
 
   /**
    * @brief The memory space of the arrays.
-   * @return memory_space::host in this release.
+   * @return memory_space::device for a result of the cuda backend, memory_space::host otherwise.
    */
   [[nodiscard]] memory_space space() const noexcept;
 
   /**
-   * @brief A deep copy (arrays, options, version; a fresh workspace).
+   * @brief A deep copy (arrays, options, version) for the resources `res`.
+   *
+   * The copy belongs to the backend of `res` (its arrays are copied between host and device memory
+   * as needed): this is how a result moves between the host backends and cuda. Also sizes the
+   * pooled workspace of `res` for the graph (a no-op if it is large enough), so the first update of
+   * the copy through `res` allocates no scratch memory.
    * @param[in] res Execution resources of the copy.
    * @return The copy.
    * @throws invalid_argument_error for a moved-from result.
@@ -205,21 +231,30 @@ class result {
    * without a parent, distances in [0, (n - 1) * max weight] or unreachable (>=
    * infinite_distance() / 2, stored as infinite_distance()), unreachable vertices without a
    * parent, every other vertex with a reachable parent, and no parent cycle (every chain ends at
-   * the source). The caller guarantees that the tree is a shortest-path tree of `g`.
+   * the source); on the OpenMP backend the checks run in parallel and report the same first
+   * problem as the sequential ones. The caller guarantees that the tree is a shortest-path tree
+   * of `g`. Also sizes the pooled workspace of `res` for the graph (once for all results built
+   * through `res`; ADR 0015). The tree is imported and checked in host memory on every backend
+   * (on cuda it is then uploaded, profiler stage sssp.upload); the arrays may be in any memory
+   * space, and arrays in device memory are copied to the host once under res.get_copy_policy()
+   * (host arrays for a cuda result are this function's own import, not an implicit copy).
    *
    * @tparam edge_t   Edge offset type of the graph.
    * @tparam weight_t Weight type of the graph.
-   * @param[in] res          Execution resources (a host backend).
+   * @param[in] res          Execution resources (the graph must belong to their backend).
    * @param[in] g            The graph the tree belongs to (with in-edges stored).
    * @param[in] source       The source vertex.
-   * @param[in] distances    One distance per vertex (host memory).
-   * @param[in] parents      One parent per vertex, -1 for none (host memory).
+   * @param[in] distances    One distance per vertex (any memory space).
+   * @param[in] parents      One parent per vertex, -1 for none (any memory space).
    * @param[in] canonicalize Apply the lowest-id tie rule to the parents (default true).
    * @param[in] opt          Options (objective = the weight column the tree belongs to).
    * @return The result, matching `g.version()`.
-   * @throws invalid_argument_error if a check fails or the options are invalid.
-   * @throws not_supported_error    for a device backend.
-   * @throws out_of_memory_error    if host memory cannot be allocated.
+   * @throws invalid_argument_error if a check fails, the options are invalid, `g` belongs to
+   *         another backend than `res`, or an array in device memory must be copied and the copy
+   *         policy is copy_policy::error.
+   * @throws not_supported_error    if an array is in device memory and CUDA is not built.
+   * @throws out_of_memory_error    if host or device memory cannot be allocated.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync
    */
   template <typename edge_t, typename weight_t>
@@ -241,24 +276,29 @@ class result {
  * @brief Compute the canonical shortest-path tree of `g` from `source` (the static solve).
  *
  * The sequential backend runs the Step 2 loop of the sequential engine from the source; the
- * OpenMP backend runs the near-far search of MOSP-OpenMP's sospFromScratchCpu(). Both return the
+ * OpenMP backend runs the near-far search of MOSP-OpenMP's sospFromScratchCpu(), the cuda backend
+ * MOSP-CUDA's sospFromScratchGpu() (the persistent kernel from the source). All return the
  * Dijkstra tree with lowest-id ties.
  *
  * @tparam vertex_t Vertex id type (int32_t or int64_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).
  * @tparam weight_t Integer weight type; the objective's weights must lie in [1, 2^31 - 1].
- * @param[in] res    Execution resources (sequential or openmp).
- * @param[in] g      The graph (with in-edges stored); it is not modified.
+ * @param[in] res    Execution resources (sequential, openmp or cuda).
+ * @param[in] g      The graph (with in-edges stored; built with, or cloned for, the backend of
+ *                   `res`); it is not modified.
  * @param[in] source The source vertex.
  * @param[in] opt    Options.
  * @return The result, matching `g.version()`.
  * @throws invalid_argument_error if the source or the objective is out of range, a weight of the
- *         objective is below 1, the graph stores no in-edges, or distances could exceed 62 bits.
- * @throws not_supported_error    if the backend of `res` is not available for sssp (cuda before
- *         M1b).
- * @throws out_of_memory_error    if host memory cannot be allocated.
- * @sync
- * @backends sequential, openmp
+ *         objective is below 1, the graph stores no in-edges, distances could exceed 62 bits, or
+ *         `g` belongs to another backend than `res`.
+ * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
+ *         of options::cuda_engine cannot run (engine::operators; no cooperative launch).
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @sync On cuda the stream is synchronized once (the control block of the kernel is read), and once
+ *       more before that if the graph's current state is not resident on the device yet (its
+ *       upload, profiler stage graph.upload, completes before the kernel runs).
+ * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs: the Dijkstra tree with lowest-id ties.
  * @paper DynaMOSP (IPDPS 2025; IEEE TPDS 2025): `dyng::citation("sssp")`, keys dynamosp2025 and
  *        dynamosptpds2025 in docs/references.bib.
@@ -284,22 +324,30 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @tparam vertex_t Vertex id type (int32_t or int64_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).
  * @tparam weight_t Integer weight type; weights must lie in [1, 2^31 - 1].
- * @param[in]     res   Execution resources (sequential or openmp).
+ * @param[in]     res   Execution resources (sequential, openmp or cuda; `g` and `r` must belong to
+ *                      their backend).
  * @param[in,out] g     The graph; the batch is applied to it and its version increases by one.
- * @param[in]     batch Insertions (upserts), deletions and weight changes (host memory).
+ * @param[in]     batch Insertions (upserts), deletions and weight changes (any memory space: the
+ *                      batch is read on the host in this release, so arrays in device memory are
+ *                      copied once under res.get_copy_policy()).
  * @param[in,out] r     Result of compute() or of a previous update() on `g`.
  * @return Counters of this update; `invalidated` and `affected` are deterministic, `iterations`,
  *         `epochs` and `pushes` are not.
  * @throws stale_result_error     if r.graph_version() != g.version(), `r` was computed on another
  *         graph (or on an earlier state of a graph variable that was reassigned since), or `r` was
  *         left unusable by a failed update.
- * @throws invalid_argument_error if a batch id or weight is invalid (nothing is changed); or, only
- *         for a tree imported without validation, if the tree has a parent cycle (then the graph
- *         was updated and `r` is left unusable).
- * @throws not_supported_error    if the backend of `res` is not available for sssp.
- * @throws out_of_memory_error    if host memory cannot be allocated.
- * @sync
- * @backends sequential, openmp
+ * @throws invalid_argument_error if a batch id or weight is invalid, `g` or `r` belongs to
+ *         another backend than `res`, or a batch array must be copied and the copy policy is
+ *         copy_policy::error (nothing is changed); or, only for a tree imported without
+ *         validation, if the tree has a parent cycle or (cuda) a distance outside the packing bound
+ *         (then the graph was updated and `r` is left unusable).
+ * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
+ *         of the result's options::cuda_engine cannot run (nothing is changed).
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @sync On cuda the stream is synchronized once per result (the kernel's control block is read)
+ *       and once per batch inside the commit, where the new graph state is uploaded (profiler
+ *       stage graph.upload; ADR 0017 item 7).
+ * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs (distances, parents, `invalidated`,
  *              `affected`), for canonical and non-canonical input trees alike.
  * @paper DynaMOSP (IPDPS 2025; IEEE TPDS 2025): `dyng::citation("sssp")`, keys dynamosp2025 and

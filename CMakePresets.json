@@ -18,14 +18,15 @@
     {
       "name": "dev",
       "displayName": "dev",
-      "description": "Debug development build: tests on, warnings as errors, budgets on",
+      "description": "Debug development build (CPU backends): tests on, warnings as errors, budgets on",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "DYNG_BUILD_TESTS": "ON",
         "DYNG_WARNINGS_AS_ERRORS": "ON",
         "DYNG_DEBUG_BUDGETS": "ON",
-        "DYNG_BUILD_COMPAT_TOOLS": "ON"
+        "DYNG_BUILD_COMPAT_TOOLS": "ON",
+        "DYNG_ENABLE_CUDA": "OFF"
       }
     },
     {
@@ -35,7 +36,8 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "DYNG_BUILD_TESTS": "ON"
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_ENABLE_CUDA": "OFF"
       }
     },
     {
@@ -45,7 +47,8 @@
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "DYNG_BUILD_TESTS": "ON"
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_ENABLE_CUDA": "OFF"
       }
     },
     {
@@ -90,7 +93,7 @@
     {
       "name": "parity",
       "displayName": "parity",
-      "description": "The originals' flags (-O3, g++ -std=c++17 -fopenmp); all performance gates use this preset",
+      "description": "The originals' flags (-O3, g++ -std=c++17 -fopenmp); the OpenMP performance gates use this preset",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -98,8 +101,73 @@
         "DYNG_BUILD_TESTS": "ON",
         "DYNG_BUILD_PARITY_TESTS": "ON",
         "DYNG_BUILD_COMPAT_TOOLS": "ON",
-        "DYNG_ENABLE_OPENMP": "ON"
+        "DYNG_ENABLE_OPENMP": "ON",
+        "DYNG_ENABLE_CUDA": "OFF"
       }
+    },
+    {
+      "name": "dev-cuda",
+      "displayName": "dev-cuda",
+      "description": "dev with the CUDA backend for the GPUs of this machine (native architecture)",
+      "inherits": "dev",
+      "cacheVariables": {
+        "DYNG_ENABLE_CUDA": "ON",
+        "DYNG_CUDA_ARCHITECTURES": "native"
+      }
+    },
+    {
+      "name": "release-cuda",
+      "displayName": "release-cuda",
+      "description": "Optimized build with the CUDA backend for the release architecture list (PLAN 7.8)",
+      "inherits": "release",
+      "cacheVariables": {
+        "DYNG_ENABLE_CUDA": "ON",
+        "DYNG_CUDA_ARCHITECTURES": "release"
+      }
+    },
+    {
+      "name": "parity-cuda",
+      "displayName": "parity-cuda",
+      "description": "parity with the CUDA backend: MOSP-CUDA's nvcc flags (-O3 -lineinfo -arch=sm_86); the CUDA performance gates use this preset",
+      "inherits": "parity",
+      "cacheVariables": {
+        "DYNG_ENABLE_CUDA": "ON",
+        "DYNG_CUDA_ARCHITECTURES": "86",
+        "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true"
+      }
+    },
+    {
+      "name": "sanitize-cuda",
+      "displayName": "sanitize-cuda",
+      "description": "Debug CUDA build for compute-sanitizer: -lineinfo, every kernel launch checked and synchronized",
+      "inherits": "dev",
+      "cacheVariables": {
+        "DYNG_ENABLE_CUDA": "ON",
+        "DYNG_CUDA_ARCHITECTURES": "native",
+        "DYNG_CUDA_LINEINFO": "ON",
+        "DYNG_CUDA_DEBUG_SYNC": "ON",
+        "DYNG_BUILD_COMPAT_TOOLS": "OFF"
+      }
+    },
+    {
+      "name": "ci-cuda13",
+      "displayName": "ci-cuda13",
+      "description": "Compile-only CI (nvidia/cuda:13.x-devel container, no GPU): release architectures, all instantiations, warnings as errors",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "DYNG_ENABLE_CUDA": "ON",
+        "DYNG_CUDA_ARCHITECTURES": "release",
+        "DYNG_BUILD_TESTS": "ON",
+        "DYNG_BUILD_COMPAT_TOOLS": "ON",
+        "DYNG_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-cuda12",
+      "displayName": "ci-cuda12",
+      "description": "Compile-only CI (nvidia/cuda:12.x-devel container, no GPU): release architectures, all instantiations, warnings as errors",
+      "inherits": "ci-cuda13"
     }
   ],
   "buildPresets": [
@@ -130,6 +198,30 @@
     {
       "name": "parity",
       "configurePreset": "parity"
+    },
+    {
+      "name": "dev-cuda",
+      "configurePreset": "dev-cuda"
+    },
+    {
+      "name": "release-cuda",
+      "configurePreset": "release-cuda"
+    },
+    {
+      "name": "parity-cuda",
+      "configurePreset": "parity-cuda"
+    },
+    {
+      "name": "sanitize-cuda",
+      "configurePreset": "sanitize-cuda"
+    },
+    {
+      "name": "ci-cuda13",
+      "configurePreset": "ci-cuda13"
+    },
+    {
+      "name": "ci-cuda12",
+      "configurePreset": "ci-cuda12"
     }
   ],
   "testPresets": [
@@ -221,6 +313,50 @@
         "noTestsAction": "error",
         "stopOnFailure": false
       }
+    },
+    {
+      "name": "dev-cuda",
+      "configurePreset": "dev-cuda",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "release-cuda",
+      "configurePreset": "release-cuda",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "parity-cuda",
+      "configurePreset": "parity-cuda",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "sanitize-cuda",
+      "configurePreset": "sanitize-cuda",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
     }
   ],
   "workflowPresets": [
@@ -255,6 +391,23 @@
         {
           "type": "test",
           "name": "cpu-only"
+        }
+      ]
+    },
+    {
+      "name": "dev-cuda",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "dev-cuda"
+        },
+        {
+          "type": "build",
+          "name": "dev-cuda"
+        },
+        {
+          "type": "test",
+          "name": "dev-cuda"
         }
       ]
     }

@@ -130,7 +130,8 @@ class cuda_error : public error {
  public:
   /**
    * @brief Construct a CUDA error.
-   * @param[in] message Description, including the failing call, file:line and the CUDA error string.
+   * @param[in] message Description, including the failing call, its source file and line, and
+   *                    the CUDA error string.
    * @param[in] code    The numeric cudaError_t value.
    */
   cuda_error(const std::string& message, int code) : error(message), code_(code) {}
@@ -229,8 +230,8 @@ template <typename error_t, typename... args_t>
  * @brief Check a precondition; throw dyng::invalid_argument_error if it does not hold.
  *
  * Usage: `DYNG_EXPECTS(source < n, "source ", source, " is out of range [0, ", n, ")");`
- * At least one message argument is required. The message receives the condition text and
- * file:line.
+ * At least one message argument is required. The message receives the condition text and the
+ * source file and line.
  * @ingroup core
  */
 #define DYNG_EXPECTS(cond, ...)                                                                \

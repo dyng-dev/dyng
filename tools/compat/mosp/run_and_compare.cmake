@@ -3,20 +3,34 @@
 #
 # Runs dyng-compat-mosp (init and update) on one fixture case and requires byte-identical output
 # files. Variables: EXE, INPUT (graphCsr*, insert.txt, delete.txt), EXPECTED (init/ and updated/
-# from the original), K, BACKEND, OUT.
+# from the original), K, BACKEND, OUT, EDGE (edge-offset type, int32 or int64; default int32).
+# Exits with 77 (skip) when BACKEND is cuda and the tool reports that no CUDA device is visible
+# (ci/gpu_local.sh checks for a visible device first, so the GPU gate cannot pass by skipping).
 
+if(NOT EDGE)
+  set(EDGE int32)
+endif()
 file(REMOVE_RECURSE "${OUT}")
 execute_process(
   COMMAND "${EXE}" init "${INPUT}/graphCsr" "${OUT}/init" -k ${K} --backend ${BACKEND}
+          --edge-type ${EDGE}
   RESULT_VARIABLE rc
+  OUTPUT_VARIABLE out
+  ERROR_VARIABLE out
 )
+message("${out}")
 if(NOT rc EQUAL 0)
+  if(BACKEND STREQUAL "cuda" AND out MATCHES "no CUDA device is visible")
+    message(STATUS "dyng-compat-mosp: no CUDA device visible; skipped")
+    cmake_language(EXIT 77)
+  endif()
   message(FATAL_ERROR "dyng-compat-mosp init failed (${rc})")
 endif()
 execute_process(
   COMMAND
     "${EXE}" --graph "${INPUT}/graphCsr" --changes "${INPUT}" --init "${EXPECTED}/init" -k ${K}
     --out "${OUT}/updated" --backend ${BACKEND} --threads 2 --timing "${OUT}/timing.csv"
+    --edge-type ${EDGE}
   RESULT_VARIABLE rc
 )
 if(NOT rc EQUAL 0)

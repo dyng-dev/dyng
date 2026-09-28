@@ -76,6 +76,7 @@ NOT_DERIVED = {
     "cpp/include/dyng/testing/check_sssp.hpp": "public API of check_sssp.cpp (header there)",
     "cpp/include/dyng/testing/dijkstra.hpp": "public API of dijkstra.cpp (header there)",
     "cpp/src/graph/graph_impl.hpp": "describes the apply_delta classification; no copied code",
+    "cpp/src/framework/workspace.hpp": "new pool; names MOSP's shared SospWorkspace it mirrors",
 }
 
 

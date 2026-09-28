@@ -4,6 +4,10 @@
  * @file resources.cpp
  * @brief The resources handle.
  */
+#include "core/cuda_runtime.hpp"
+#include "core/resources_access.hpp"
+#include "framework/workspace.hpp"
+
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
@@ -24,10 +28,48 @@ struct resources_state {
   int device = -1;                     ///< CUDA device, -1 for host backends
   stream_ref stream{};                 ///< stream all work is ordered on
   int num_threads = 1;                 ///< host threads of the backend
-  memory_resource_ref memory{default_host_memory_resource()};  ///< allocations
-  copy_policy copies = copy_policy::allow;                     ///< implicit-copy policy
-  profiler* attached_profiler = nullptr;                       ///< not owned
+  memory_resource_ref memory{default_host_memory_resource()};   ///< allocations
+  memory_resource_ref staging{default_host_memory_resource()};  ///< host staging buffers
+  copy_policy copies = copy_policy::allow;                      ///< implicit-copy policy
+  profiler* attached_profiler = nullptr;                        ///< not owned
+  cuda_device_properties device_props;  ///< recorded once by resources::cuda()
+  // Last member: destroyed first, while the memory resources it allocated from are still valid.
+  workspace_pool workspaces;  ///< engine scratch shared by every result run through the handle
 };
+
+workspace_pool& resources_access::workspaces(const resources& res) noexcept {
+  return res.state_->workspaces;
+}
+
+const cuda_device_properties& resources_access::device_properties(const resources& res) {
+  if (res.state_->kind != backend::cuda) {
+    DYNG_FAIL("device_properties() of a ", to_string(res.state_->kind), " handle");
+  }
+  return res.state_->device_props;
+}
+
+void resources_access::force_cooperative_launch(const resources& res, bool available) {
+  if (res.state_->kind != backend::cuda) {
+    DYNG_FAIL("force_cooperative_launch() on a ", to_string(res.state_->kind), " handle");
+  }
+  res.state_->device_props.cooperative_launch = available;
+}
+
+memory_resource_ref resources_access::staging_memory(const resources& res) noexcept {
+  return res.state_->staging;
+}
+
+int resources_access::host_threads(const resources& res) noexcept {
+  switch (res.state_->kind) {
+    case backend::openmp:
+      return res.state_->num_threads > 0 ? res.state_->num_threads : 1;
+    case backend::cuda:
+      return res.state_->num_threads > 0 ? res.state_->num_threads : 1;
+    case backend::sequential:
+      break;
+  }
+  return 1;
+}
 
 }  // namespace detail
 
@@ -90,12 +132,35 @@ resources resources::openmp(int num_threads) {
 #endif
 }
 
-resources resources::cuda(int device, stream_ref stream) {
+resources resources::cuda(int device, stream_ref stream, int host_threads) {
+#if DYNG_HAS_CUDA
+  DYNG_EXPECTS(host_threads >= 0, "resources::cuda(): host_threads must be >= 0, got ",
+               host_threads);
+  auto state = std::make_shared<detail::resources_state>();
+  state->kind = backend::cuda;
+  state->device = device;
+  state->stream = stream;
+  // The host-side work of the CUDA backend (ADR 0017 item 6), snapshotted like openmp()'s count.
+#if DYNG_HAS_OPENMP
+  state->num_threads = host_threads > 0 ? host_threads : omp_get_max_threads();
+#else
+  state->num_threads = 1;
+#endif
+  // Validates the device (invalid_argument_error; not_supported_error without a visible device)
+  // and records the capabilities engine::automatic reads (cooperative launch, SM count).
+  state->device_props = detail::query_cuda_device(device);
+  state->memory = default_device_memory_resource(device);
+  state->staging = default_pinned_host_memory_resource();
+  return resources(std::move(state));
+#else
   (void)device;
   (void)stream;
+  (void)host_threads;
   throw not_supported_error(
-      std::string("dyng: the cuda backend is not built; available: sequential") +
+      std::string("dyng: the cuda backend is not built (configure with DYNG_ENABLE_CUDA=ON); "
+                  "available: sequential") +
       (DYNG_HAS_OPENMP ? ", openmp" : ""));
+#endif
 }
 
 backend resources::get_backend() const noexcept {
@@ -126,7 +191,11 @@ void resources::set_memory_resource(memory_resource_ref mr) {
   if (state_->kind != backend::cuda) {
     DYNG_EXPECTS(is_host_accessible(mr.space()),
                  "a host backend needs a host-accessible memory resource");
+  } else {
+    DYNG_EXPECTS(mr.space() == memory_space::device || mr.space() == memory_space::managed,
+                 "the cuda backend needs a device or managed memory resource");
   }
+  state_->workspaces.release_idle();
   state_->memory = mr;
 }
 
@@ -146,11 +215,23 @@ profiler* resources::get_profiler() const noexcept {
   return state_->attached_profiler;
 }
 
-void resources::warm_up() const {}
+void resources::release_workspaces() const noexcept {
+  state_->workspaces.release_idle();
+}
+
+std::size_t resources::workspace_bytes() const {
+  return state_->workspaces.statistics().idle_bytes;
+}
+
+void resources::warm_up() const {
+  if (state_->kind == backend::cuda) {
+    (void)detail::cuda_warm_up(state_->device, state_->stream, state_->memory);
+  }
+}
 
 void resources::synchronize() const {
   if (state_->kind == backend::cuda) {
-    state_->stream.synchronize();
+    detail::cuda_synchronize(state_->device, state_->stream);
   }
 }
 

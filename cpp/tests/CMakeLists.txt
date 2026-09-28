@@ -39,7 +39,17 @@ dyng_add_test(
   LABELS cpu graph
 )
 dyng_add_test(NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp LABELS cpu io)
-foreach(_dyng_test dyng_graph_tests dyng_io_tests)
+dyng_add_test(
+  NAME dyng_framework_tests
+  SOURCES framework/workspace_test.cpp framework/thread_list_test.cpp
+          framework/list_gather_test.cpp
+  LABELS cpu framework
+)
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_framework_tests PRIVATE OpenMP::OpenMP_CXX)
+endif()
+dyng_add_test(NAME dyng_generators_tests SOURCES generators/legacy_test.cpp LABELS cpu generators)
+foreach(_dyng_test dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 endforeach()
@@ -47,12 +57,51 @@ endforeach()
 dyng_add_test(
   NAME dyng_sssp_tests
   SOURCES algorithms/sssp/sssp_test.cpp algorithms/sssp/sssp_random_test.cpp
-          algorithms/sssp/sssp_fixture_test.cpp
+          algorithms/sssp/sssp_fixture_test.cpp algorithms/sssp/sssp_workspace_test.cpp
   LABELS cpu sssp
   LIBRARIES dyng::testing
 )
 target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
 dyng_add_test(NAME dyng_testing_tests SOURCES testing/oracle_test.cpp LABELS cpu testing LIBRARIES dyng::testing)
 
+# CUDA core (label gpu; each test skips when no device is visible). ci/gpu_local.sh runs them on
+# GPU 1 and under compute-sanitizer memcheck.
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_cuda_tests
+    SOURCES
+      cuda/cuda_error_test.cpp
+      cuda/cuda_memory_test.cpp
+      cuda/cuda_resources_test.cpp
+      cuda/cuda_test_kernels.cu
+      cuda/cuda_workspace_test.cpp
+    LABELS gpu core
+  )
+  target_include_directories(dyng_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_cuda_tests)
+
+  # sssp on the cuda backend: the shared sssp suites compiled with DYNG_TEST_CUDA=1 (their cases
+  # run on cuda, the randomized ones against the host backends) plus the CUDA-only cases.
+  dyng_add_test(
+    NAME dyng_sssp_cuda_tests
+    SOURCES algorithms/sssp/sssp_test.cpp algorithms/sssp/sssp_random_test.cpp
+            algorithms/sssp/sssp_fixture_test.cpp algorithms/sssp/sssp_cuda_test.cpp
+    LABELS gpu sssp
+    LIBRARIES dyng::testing
+    TEST_PREFIX "cuda."
+  )
+  target_compile_definitions(
+    dyng_sssp_cuda_tests PRIVATE DYNG_TEST_CUDA=1 DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
+  )
+  target_include_directories(dyng_sssp_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_sssp_cuda_tests)  # user streams in sssp_cuda_test.cpp
+  if(DYNG_ENABLE_OPENMP)
+    target_link_libraries(dyng_sssp_cuda_tests PRIVATE OpenMP::OpenMP_CXX)
+  endif()
+endif()
+
 add_subdirectory(api)
+
+dyng_write_gpu_test_list()

@@ -111,3 +111,9 @@ objectives (ADR 0006). M1b must decide how results on one graph share scratch me
 per objective with the first-touch cost counted, and meet the gate before the CUDA gate is read.
 Reading the gate on the sum over the objectives is not an option (it would hide the slower
 objectives behind objective 0).
+
+**Resolved in M1b** (ADR 0015, `parity/results/M1b.md`): results share the pooled workspace of
+their `resources` handle, so both sides pay objective 0's first touch inside its region and every
+objective is compared as measured (no moved cost, no "first touch counted" reading). The gate is
+read per objective on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa (safe, unsafe and local
+batches) and recorded in `parity/results/M1b.md`.

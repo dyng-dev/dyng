@@ -4,6 +4,7 @@
  * @file graph_test.cpp
  * @brief graph construction, properties, views, transposition and integrity.
  */
+#include "graph/graph_impl.hpp"
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/backend.hpp>
@@ -21,6 +22,7 @@
 #include <cstdint>
 #include <random>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -355,3 +357,225 @@ TEST(Graph, ImpossibleAllocationsAreOutOfMemoryErrors) {
   far.insert_edge(0, std::int64_t{1} << 40, {});
   EXPECT_THROW((void)grow.apply(res, far.view()), dyng::out_of_memory_error);
 }
+
+namespace {
+
+using graph64e = dyng::graph<std::int32_t, std::int64_t, std::int32_t>;
+using csr64e = dyng::csr<std::int32_t, std::int64_t, std::int32_t>;
+
+/// A random CSR: rows unsorted or sorted, with repeated neighbours and self-loops on demand.
+csr64e random_csr(std::mt19937& rng, std::int32_t n, int max_degree, bool sorted, bool repeats,
+                  bool self_loops, int num_weights) {
+  csr64e c;
+  c.num_weights = num_weights;
+  c.row_ptr.push_back(0);
+  std::vector<std::vector<std::int32_t>> rows(static_cast<std::size_t>(n));
+  for (std::int32_t u = 0; u < n; ++u) {
+    auto& row = rows[static_cast<std::size_t>(u)];
+    const int degree = static_cast<int>(rng() % static_cast<std::uint32_t>(max_degree + 1));
+    while (static_cast<int>(row.size()) < degree) {
+      auto v = static_cast<std::int32_t>(rng() % static_cast<std::uint32_t>(n));
+      if (!self_loops && v == u) {
+        continue;
+      }
+      if (!repeats && std::find(row.begin(), row.end(), v) != row.end()) {
+        if (static_cast<std::int32_t>(row.size()) + 1 >= n) {
+          break;
+        }
+        continue;
+      }
+      row.push_back(v);
+    }
+    if (sorted) {
+      std::sort(row.begin(), row.end());
+    }
+    c.col_ind.insert(c.col_ind.end(), row.begin(), row.end());
+    c.row_ptr.push_back(static_cast<std::int64_t>(c.col_ind.size()));
+  }
+  const std::size_t m = c.col_ind.size();
+  c.weights.resize(m * static_cast<std::size_t>(num_weights));
+  for (auto& w : c.weights) {
+    w = 1 + static_cast<std::int32_t>(rng() % 50);
+  }
+  return c;
+}
+
+/// The same edges as an edge list in CSR order (from_edges always rebuilds the rows).
+dyng::edge_list<std::int32_t, std::int32_t> edges_of(const csr64e& c) {
+  dyng::edge_list<std::int32_t, std::int32_t> e;
+  e.num_vertices = c.num_vertices();
+  e.num_weights = c.num_weights;
+  const std::size_t m = c.col_ind.size();
+  for (std::int32_t u = 0; u < c.num_vertices(); ++u) {
+    for (auto j = c.row_ptr[static_cast<std::size_t>(u)];
+         j < c.row_ptr[static_cast<std::size_t>(u) + 1]; ++j) {
+      e.src.push_back(u);
+      e.dst.push_back(c.col_ind[static_cast<std::size_t>(j)]);
+      for (int k = 0; k < c.num_weights; ++k) {  // edge-major in an edge list
+        e.weights.push_back(
+            c.weights[static_cast<std::size_t>(k) * m + static_cast<std::size_t>(j)]);
+      }
+    }
+  }
+  return e;
+}
+
+void expect_same_csr(const csr64e& a, const csr64e& b) {
+  EXPECT_EQ(a.row_ptr, b.row_ptr);
+  EXPECT_EQ(a.col_ind, b.col_ind);
+  EXPECT_EQ(a.weights, b.weights);
+  EXPECT_EQ(a.num_weights, b.num_weights);
+}
+
+// from_csr takes a CSR that already is what the properties ask for as it is (copied, or moved
+// from an rvalue); every other CSR is rebuilt. Either way the graph equals from_edges() of the
+// same edges in CSR order, for every combination of row order, multi-edge rule and self-loop rule.
+TEST(Graph, FromCsrEqualsFromEdgesForEveryPropertyCombination) {
+  std::mt19937 rng(777);
+  const auto seq = dyng::resources::sequential();
+  const auto omp = dyng::test::make_resources(dyng::test::host_backends().back(), 6);
+  for (int trial = 0; trial < 18; ++trial) {
+    const bool sorted = (trial & 1) != 0;
+    const bool repeats = (trial & 2) != 0;
+    const bool loops = (trial & 4) != 0;
+    // The last two are large enough (>= 65536 edges) for the parallel checks and copies.
+    const std::int32_t n = trial < 16 ? 50 : 30000;
+    const csr64e c = random_csr(rng, n, 6, sorted, repeats, loops, 2);
+    const auto list = edges_of(c);
+    for (const row_order order : {row_order::append, row_order::sorted}) {
+      for (const multi_edges multi : {multi_edges::allow, multi_edges::forbid}) {
+        for (const auto loop_rule :
+             {dyng::batch_semantics::self_loop::keep, dyng::batch_semantics::self_loop::drop}) {
+          SCOPED_TRACE(::testing::Message()
+                       << "trial " << trial << " order " << static_cast<int>(order) << " multi "
+                       << static_cast<int>(multi) << " loops " << static_cast<int>(loop_rule));
+          graph_properties props;
+          props.order = order;
+          props.parallel_edges = multi;
+          props.semantics.on_self_loop = loop_rule;
+          const auto expected = graph64e::from_edges(seq, list.view(), props).to_csr(seq);
+          for (const dyng::resources& res : {seq, omp}) {
+            expect_same_csr(graph64e::from_csr(res, c.view(), props).to_csr(res), expected);
+            csr64e owned = c;
+            expect_same_csr(graph64e::from_csr(res, std::move(owned), props).to_csr(res), expected);
+          }
+        }
+      }
+    }
+  }
+}
+
+TEST(Graph, FromCsrRvalueMovesAFinalCsrAndLeavesOthersUnchanged) {
+  const auto res = dyng::resources::sequential();
+  csr64e c;
+  c.row_ptr = {0, 2, 2, 3};
+  c.col_ind = {2, 1, 0};
+  c.num_weights = 1;
+  c.weights = {5, 6, 7};
+  csr64e moved = c;
+  const std::int32_t* storage = moved.col_ind.data();
+  const auto g = graph64e::from_csr(res, std::move(moved), graph_properties::mosp_compatible());
+  EXPECT_TRUE(moved.col_ind.empty());  // NOLINT(bugprone-use-after-move): documented state
+  EXPECT_EQ(g.view().out.col_ind.data(), storage);  // taken over, not copied
+  expect_same_csr(g.to_csr(res), c);
+
+  csr64e unsorted = c;  // row 0 = {2, 1} is not sorted: the default properties rebuild it
+  const auto h = graph64e::from_csr(res, std::move(unsorted));
+  EXPECT_EQ(unsorted.col_ind, c.col_ind);  // NOLINT(bugprone-use-after-move): left unchanged
+  EXPECT_EQ(h.to_csr(res).col_ind, (std::vector<std::int32_t>{1, 2, 0}));
+
+  csr64e bad = c;
+  bad.col_ind[0] = 3;
+  EXPECT_THROW((void)graph64e::from_csr(res, std::move(bad)), dyng::invalid_argument_error);
+}
+
+// The in-edges are built on first use: not by construction, by view() or by the algorithms'
+// internal view once, dropped by apply(), and copied by clone() when built.
+TEST(Graph, InEdgesAreBuiltOnFirstUse) {
+  const auto res = dyng::resources::sequential();
+  auto g = graph32::from_edges(res, sample_edges().view(), graph_properties::mosp_compatible());
+  const auto& impl = dyng::detail::graph_access::impl(g);
+  EXPECT_FALSE(impl.has_in_edges());
+  EXPECT_NO_THROW(g.check_integrity(res));  // nothing stored yet: nothing to check
+  EXPECT_FALSE(impl.has_in_edges());
+  const auto first = g.view();
+  EXPECT_TRUE(impl.has_in_edges());
+  EXPECT_EQ(values(first.in.col_ind), (std::vector<std::int32_t>{0, 1, 0, 0, 0}));
+  EXPECT_EQ(g.view().in.col_ind.data(), first.in.col_ind.data());  // built once
+  EXPECT_NO_THROW(g.check_integrity(res));
+
+  const auto copy = g.clone(res);
+  EXPECT_TRUE(dyng::detail::graph_access::impl(copy).has_in_edges());
+  EXPECT_EQ(values(copy.view().in.col_ind), values(first.in.col_ind));
+
+  dyng::edge_batch<std::int32_t, std::int32_t> b(2);
+  b.insert_edge(2, 1, {9, 90});
+  (void)g.apply(res, b.view());
+  EXPECT_FALSE(impl.has_in_edges());
+  const auto after = dyng::detail::graph_access::view(res, g);
+  EXPECT_TRUE(impl.has_in_edges());
+  EXPECT_EQ(values(after.in.col_ind), (std::vector<std::int32_t>{0, 1, 0, 2, 0, 0}));
+  EXPECT_NO_THROW(g.check_integrity(res));
+}
+
+TEST(Graph, ConcurrentViewsBuildTheInEdgesOnce) {
+  std::mt19937 rng(99);
+  const auto res = dyng::resources::sequential();
+  const csr64e c = random_csr(rng, 20000, 5, false, true, true, 1);
+  const auto g = graph64e::from_csr(res, c.view(), graph_properties::mosp_compatible());
+  constexpr int threads = 8;
+  std::vector<const std::int32_t*> seen(threads, nullptr);
+  std::vector<std::thread> workers;
+  for (int t = 0; t < threads; ++t) {
+    workers.emplace_back(
+        [&g, &seen, t] { seen[static_cast<std::size_t>(t)] = g.view().in.col_ind.data(); });
+  }
+  for (std::thread& w : workers) {
+    w.join();
+  }
+  for (const std::int32_t* p : seen) {
+    EXPECT_EQ(p, seen.front());
+  }
+  EXPECT_NO_THROW(g.check_integrity(res));
+}
+
+// The OpenMP assembly of an applied batch (rows handed out in blocks) gives the same CSR and
+// summary as the sequential one, also with vertex growth and for sorted simple graphs.
+TEST(GraphApply, OpenmpAssemblyEqualsSequential) {
+  if (!dyng::backend_available(dyng::backend::openmp)) {
+    GTEST_SKIP() << "OpenMP backend not available in this build";
+  }
+  std::mt19937 rng(2024);
+  const auto seq = dyng::resources::sequential();
+  const auto omp = dyng::resources::openmp(6);
+  for (const graph_properties& props : {graph_properties::mosp_compatible(), graph_properties{}}) {
+    const csr64e c = random_csr(rng, 80000, 5, props.order == row_order::sorted,
+                                props.parallel_edges == multi_edges::allow, true, 2);
+    auto a = graph64e::from_csr(seq, c.view(), props);
+    auto b = graph64e::from_csr(omp, c.view(), props);
+    for (int round = 0; round < 3; ++round) {
+      dyng::edge_batch<std::int32_t, std::int32_t> batch(2);
+      for (int i = 0; i < 20000; ++i) {
+        const auto u = static_cast<std::int32_t>(rng() % 80000);
+        const auto v = static_cast<std::int32_t>(rng() % 80000);
+        if (i % 3 == 0) {
+          batch.delete_edge(u, v);
+        } else {
+          batch.insert_edge(u, v, {1 + static_cast<std::int32_t>(rng() % 9), 3});
+        }
+      }
+      batch.insert_edge(5, 80000 + round, {1, 1});  // vertex growth
+      const auto sa = a.apply(seq, batch.view());
+      const auto sb = b.apply(omp, batch.view());
+      EXPECT_EQ(sa.inserted_edges, sb.inserted_edges);
+      EXPECT_EQ(sa.updated_edges, sb.updated_edges);
+      EXPECT_EQ(sa.deleted_edges, sb.deleted_edges);
+      EXPECT_EQ(sa.ignored_deletions, sb.ignored_deletions);
+      EXPECT_EQ(sa.num_vertices_after, sb.num_vertices_after);
+      expect_same_csr(a.to_csr(seq), b.to_csr(omp));
+      EXPECT_NO_THROW(b.check_integrity(omp));
+    }
+  }
+}
+
+}  // namespace

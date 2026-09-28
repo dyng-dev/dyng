@@ -8,6 +8,7 @@
  * This is the first piece of the framework layer; the problem hooks and enactors are extracted in
  * M3 once a second algorithm (cycle_count) exists (rule of two).
  */
+#include "core/staging.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
 #include "util/allocation.hpp"
@@ -34,16 +35,26 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
                    i, " is the same object as result ", j, "; pass each result once");
     }
   }
+  // The batch is read on the host (the participants' checks and the host apply of this release):
+  // arrays in device memory are copied once, under the copy policy of `res` (PLAN 4.7.1).
+  const host_batch<vertex_t, weight_t> staged(
+      res, batch, commit_stage == "sssp.commit" ? "sssp::update" : "dyng::update");
+  const edge_batch_view<vertex_t, weight_t>& host = staged.view();
   // Steps 0 and 1a on G_t. Nothing is mutated until every participant accepted the batch.
   for (std::size_t i = 0; i < count; ++i) {
-    participants[i]->before_apply(res, g, batch);
+    participants[i]->before_apply(res, g, host);
   }
   // Commit: G_t -> G_{t+1}, exactly once.
   apply_delta<vertex_t> delta;
   apply_summary summary;
   {
     scoped_stage stage(res, commit_stage);
-    summary = graph_access::apply(res, g, batch, &delta);
+    summary = graph_access::apply(res, g, host, &delta);
+    // What the engines read of G_{t+1} is built once here, inside the commit, for every
+    // participant: the host in-edges (the graph builds them lazily; MOSP-OpenMP builds its reverse
+    // graph in "prepare", before the objectives) or, on the CUDA backend, the device copy (MOSP-CUDA
+    // uploads the updated graph and builds its reverse graph on the device in "upload").
+    graph_access::prepare(res, g);
   }
   // Steps 1b and 2 on G_{t+1}. A failing participant is poisoned; the others still run.
   std::exception_ptr first_error;

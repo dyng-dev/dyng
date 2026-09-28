@@ -4,6 +4,8 @@
  * @file backend.cpp
  * @brief Backend availability.
  */
+#include "core/cuda_runtime.hpp"
+
 #include <dyng/config.hpp>
 #include <dyng/core/backend.hpp>
 
@@ -16,7 +18,7 @@ bool backend_available(backend b) noexcept {
     case backend::openmp:
       return DYNG_HAS_OPENMP != 0;
     case backend::cuda:
-      return false;  // the CUDA backend arrives in milestone M1b
+      return DYNG_HAS_CUDA != 0 && detail::cuda_device_count() > 0;
   }
   return false;
 }

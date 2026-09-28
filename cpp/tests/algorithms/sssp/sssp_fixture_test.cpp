@@ -70,8 +70,15 @@ std::int64_t expected_invalidated(const std::string& name, int k) {
   return -1;
 }
 
-/// The backend configurations every case runs on: sequential, and OpenMP with 1, 2 and 4 threads.
+/// The backend configurations every case runs on: sequential, and OpenMP with 1, 2 and 4 threads;
+/// in the CUDA test executable (DYNG_TEST_CUDA) the cuda backend (none without a device).
 std::vector<dyng::resources> configurations() {
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+  if (dyng::backend_available(dyng::backend::cuda)) {
+    return {dyng::resources::cuda()};
+  }
+  return {};
+#endif
   std::vector<dyng::resources> out{dyng::resources::sequential()};
   if (dyng::backend_available(dyng::backend::openmp)) {
     for (int threads : {1, 2, 4}) {
@@ -126,8 +133,10 @@ TYPED_TEST(SsspMospFixture, ComputeAndUpdateAreByteEqualToTheOriginal) {
         auto g = graph_t::from_csr(res, original.view(), dyng::graph_properties::mosp_compatible());
         const auto computed = dyng::sssp::compute(res, g, vertex_t{0}, opt);
         const std::string out = tmp.path(c.name + "/" + obj);
-        dyng::io::write_distances(out + "computed_d.txt", computed.distances());
-        dyng::io::write_parents(out + "computed_t.txt", computed.parents());
+        dyng::io::write_distances(out + "computed_d.txt",
+                                  dyng::host_view(dyng::test::host_copy(computed.distances())));
+        dyng::io::write_parents(out + "computed_t.txt",
+                                dyng::host_view(dyng::test::host_copy(computed.parents())));
         EXPECT_TRUE(read_text(out + "computed_d.txt") == read_text(init_dist));
         EXPECT_TRUE(read_text(out + "computed_t.txt") == read_text(init_tree));
 
@@ -138,8 +147,10 @@ TYPED_TEST(SsspMospFixture, ComputeAndUpdateAreByteEqualToTheOriginal) {
             res, g, vertex_t{0}, dyng::host_view(dist), dyng::host_view(tree),
             /*canonicalize=*/false, opt);
         const dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), r);
-        dyng::io::write_distances(out + "updated_d.txt", r.distances());
-        dyng::io::write_parents(out + "updated_t.txt", r.parents());
+        dyng::io::write_distances(out + "updated_d.txt",
+                                  dyng::host_view(dyng::test::host_copy(r.distances())));
+        dyng::io::write_parents(out + "updated_t.txt",
+                                dyng::host_view(dyng::test::host_copy(r.parents())));
         EXPECT_TRUE(read_text(out + "updated_d.txt") ==
                     read_text(expected + "updated/" + obj + "distancesUpdated.txt"));
         EXPECT_TRUE(read_text(out + "updated_t.txt") ==
@@ -149,6 +160,9 @@ TYPED_TEST(SsspMospFixture, ComputeAndUpdateAreByteEqualToTheOriginal) {
         comparisons += 4;
       }
     }
+  }
+  if (configurations().empty()) {
+    GTEST_SKIP() << "no CUDA device visible";
   }
   EXPECT_GT(comparisons, 0);
 }
@@ -180,8 +194,7 @@ TEST(SsspMospRegressions, CountToInfinityAndDisconnect) {
           input + "insert.txt", input + "delete.txt", options);
       auto r = dyng::sssp::compute(res, g, 0);
       (void)dyng::sssp::update(res, g, batch.view(), r);
-      const auto d = r.distances();
-      EXPECT_EQ(std::vector<std::int64_t>(d.begin(), d.end()), e.distances);
+      EXPECT_EQ(dyng::test::host_copy(r.distances()), e.distances);
     }
   }
 }

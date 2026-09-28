@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
-"""Export the sssp golden corpus from the pinned original MOSP-OpenMP@c352151.
+"""Export the sssp golden corpus from the pinned original MOSP-OpenMP@c352151 (or MOSP-CUDA).
 
 PLAN Sections 6.3 (steps 1-2) and 8.3. The goldens are written OUTSIDE the repository, to
 $DYNG_SCRATCH/goldens/sssp (default ~/Projects/dyng-work); the repository keeps only
@@ -9,6 +9,7 @@ parity/goldens.toml, the manifest with one SHA-256 per case (and the tiny cases,
 committed test fixtures under cpp/tests/data).
 
     parity/export_goldens.py [--jobs N] [--twice] [--groups g1,g2] [--out DIR] [--no-toml]
+    parity/export_goldens.py --reference MOSP-CUDA [--compare-to DIR] [--jobs N]
 
 Every case is produced by the original tools of the PATCHED scratch copy that
 parity/build_reference.sh builds (the originals are never touched):
@@ -62,6 +63,21 @@ where sospUpdateCpu keeps the input's (ADR 0006, "Tie rule of sssp").
 
 --twice exports the corpus a second time from a FRESH scratch copy (a new git archive) into a
 temporary work area and requires an identical manifest (PLAN Section 8.3, "the harness is honest").
+
+--reference MOSP-CUDA (M1b, PLAN 6.4.2: parity against MOSP-CUDA e220ee2) runs the SAME export with
+every tool of the patched MOSP-CUDA@e220ee2 copy instead: its mospTest (and its own
+packing-boundary group as a precondition of the packing cases), its stressTest 1 and
+parallelStressTest 2 (whose 100 cases validate the CUDA update against the sequential one), its
+mospPrep init / expected, its bin/mosp --validate (sospUpdateGpu, the reference update) and its
+file-based parallelSOSPUpdate (sospUpdateGpu) and sequentialSOSPUpdate through export_sssp. It runs
+on CUDA_VISIBLE_DEVICES (default GPU 1, the development GPU), writes into
+<scratch>/goldens/sssp-mosp-cuda by default and never writes parity/goldens.toml: the committed
+corpus stays MOSP-OpenMP's. --compare-to DIR then requires the MOSP-CUDA corpus to be identical to
+the corpus in DIR (default <scratch>/goldens/sssp): the same files with the same bytes, except
+that case.json names the other reference and describes the origin in its own words (every other
+field, incl. the invalidated counters, must be equal). MOSP-CUDA does not track tests/testCase*:
+its bin/main writes them (generateTestCases, fixed seeds) in the export's work area. A passing
+comparison makes the golden corpus a MOSP-CUDA corpus as well, inputs included.
 """
 
 from __future__ import annotations
@@ -82,8 +98,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-REFERENCE = "MOSP-OpenMP"
-COMMIT = "c35215135341d5b5d1553458afe4b2226edc38fb"
+# The originals the corpus can be exported from (--reference); the committed one is MOSP-OpenMP's.
+COMMITS = {
+    "MOSP-OpenMP": "c35215135341d5b5d1553458afe4b2226edc38fb",
+    "MOSP-CUDA": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+}
+REFERENCE = "MOSP-OpenMP"  # set by main() from --reference
+COMMIT = COMMITS[REFERENCE]
 INT_MAX = 2**31 - 1
 GROUPS = [
     "testcases",
@@ -149,6 +170,12 @@ def same(a: Path, b: Path, what: str) -> None:
         raise ExportError(f"cross-check failed: {what}: {a} != {b}")
 
 
+def k_args(k: int) -> list[str]:
+    """`-k K` for mospPrep (MOSP-OpenMP only: MOSP-CUDA's mospPrep takes K from the Values file,
+    and every graph of the corpus has edges)."""
+    return [] if REFERENCE == "MOSP-CUDA" else ["-k", str(k)]
+
+
 def num_weights(values: Path) -> int:
     with open(values) as f:
         for line in f:
@@ -207,8 +234,20 @@ def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Cas
         )
 
     if "testcases" in groups:
+        tests = ref / "tests"
+        origin = "tests/testCase{} (generateTestCases, tracked)"
+        if REFERENCE == "MOSP-CUDA":
+            # MOSP-CUDA does not track tests/: its bin/main writes them (generateTestCases, fixed
+            # seeds) under its working directory, with the expected Dijkstra files.
+            cwd = raw / "main"
+            cwd.mkdir(parents=True)
+            out = run([ref / "bin" / "main"], cwd=cwd, env=env)
+            if "pipeline complete" not in out:
+                raise ExportError(f"bin/main did not complete:\n{out[-2000:]}")
+            tests = cwd / "tests"
+            origin = "tests/testCase{} (generateTestCases, written by bin/main)"
         for i in range(10):
-            d = ref / "tests" / f"testCase{i}"
+            d = tests / f"testCase{i}"
             cases.append(
                 Case(
                     "testcases",
@@ -216,7 +255,7 @@ def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Cas
                     d / "originalGraph" / "graphCsr",
                     d / "changedEdges" / "insert.txt",
                     d / "changedEdges" / "delete.txt",
-                    f"tests/testCase{i} (generateTestCases, tracked)",
+                    origin.format(i),
                     tracked_expected=(TESTCASE_OBJECTIVE[i], d / "expected"),
                 )
             )
@@ -293,6 +332,8 @@ def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Cas
                 )
             )
     if "packing" in groups:
+        if REFERENCE == "MOSP-CUDA":
+            mosp_test("packing-boundary")  # the original's own oracle of these constructions
         cases.extend(packing_cases(raw / "packing"))
     if "stress" in groups:
         for program, seed in [("stressTest", 1), ("parallelStressTest", 2)]:
@@ -463,14 +504,14 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
     # Initial trees (Dijkstra, lowest-id ties).
     perturbed: list[int] = []
     if case.perturb:
-        run([bin_dir / "mospPrep", "init", prefix, dst / "init_canonical", "-k", str(k)], env=env)
+        run([bin_dir / "mospPrep", "init", prefix, dst / "init_canonical", *k_args(k)], env=env)
         perturbed = perturb_initial_trees(prefix, dst / "init_canonical", dst / "init", k, case.rel)
         if sum(perturbed) == 0:
             shutil.rmtree(dst, ignore_errors=True)
             shutil.rmtree(tmp, ignore_errors=True)
             return None  # no tie anywhere: nothing non-canonical to test
     else:
-        run([bin_dir / "mospPrep", "init", prefix, dst / "init", "-k", str(k)], env=env)
+        run([bin_dir / "mospPrep", "init", prefix, dst / "init", *k_args(k)], env=env)
     if case.mosptest_init is not None:
         for obj in range(k):
             a, b = case.mosptest_init / f"obj{obj}", dst / "init" / f"obj{obj}"
@@ -503,7 +544,7 @@ def export_case(case: Case, ref: Path, out: Path, tmp_root: Path, env: dict) -> 
 
     # Cross-check the originals: file-based OpenMP and sequential updates, and Dijkstra.
     run(
-        [bin_dir / "mospPrep", "expected", prefix, dst / "input", tmp / "expected", "-k", str(k)],
+        [bin_dir / "mospPrep", "expected", prefix, dst / "input", tmp / "expected", *k_args(k)],
         env=env,
     )
     for obj in range(k):
@@ -682,6 +723,9 @@ def reference_dir(scratch: Path, fresh: bool) -> Path:
 
 def export(ref: Path, out: Path, groups: list[str], jobs: int) -> tuple[list[dict], str, int]:
     env = dict(os.environ, OMP_NUM_THREADS="4")
+    if REFERENCE == "MOSP-CUDA":
+        env.setdefault("CUDA_VISIBLE_DEVICES", "1")
+        env.setdefault("CUDA_MODULE_LOADING", "EAGER")
     env.pop("OMP_PROC_BIND", None)
     env.pop("OMP_PLACES", None)
     shutil.rmtree(out, ignore_errors=True)
@@ -708,7 +752,41 @@ def export(ref: Path, out: Path, groups: list[str], jobs: int) -> tuple[list[dic
     return metas, manifest_sha, len(lines)
 
 
+def compare_corpora(ours: Path, theirs: Path) -> list[str]:
+    """Differences between two exported corpora (--compare-to): file lists, bytes, and case.json
+    with its descriptive "reference" and "origin" fields ignored."""
+
+    def listing(root: Path) -> dict[str, str]:
+        rows = {}
+        for line in (root / "MANIFEST.sha256").read_text().splitlines():
+            digest, rel = line.split("  ", 1)
+            rows[rel] = digest
+        return rows
+
+    a, b = listing(ours), listing(theirs)
+    problems = [f"only in {ours}: {r}" for r in sorted(set(a) - set(b))]
+    problems += [f"only in {theirs}: {r}" for r in sorted(set(b) - set(a))]
+    for rel in sorted(set(a) & set(b)):
+        if a[rel] == b[rel]:
+            continue
+        if rel.endswith("case.json"):
+            ja = json.loads((ours / rel).read_text())
+            jb = json.loads((theirs / rel).read_text())
+            for field_name in ["reference", "origin"]:
+                ja.pop(field_name, None)
+                jb.pop(field_name, None)
+            if ja == jb:
+                continue
+        problems.append(f"differs: {rel}")
+    for root, rows in [(ours, a), (theirs, b)]:  # the manifests must describe the files
+        for rel, digest in rows.items():
+            if sha256_file(root / rel) != digest:
+                problems.append(f"{root / rel}: SHA-256 differs from its MANIFEST.sha256")
+    return problems
+
+
 def main() -> int:
+    global REFERENCE, COMMIT
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "--scratch",
@@ -720,6 +798,20 @@ def main() -> int:
     parser.add_argument("--groups", default=",".join(GROUPS))
     parser.add_argument("--no-toml", action="store_true", help="do not write parity/goldens.toml")
     parser.add_argument(
+        "--reference",
+        choices=sorted(COMMITS),
+        default="MOSP-OpenMP",
+        help="the original whose tools export the corpus (MOSP-CUDA: never writes goldens.toml)",
+    )
+    parser.add_argument(
+        "--compare-to",
+        type=Path,
+        nargs="?",
+        const=Path(),
+        help="after the export, require the corpus in DIR (default <scratch>/goldens/sssp) to be "
+        "identical except for the reference named in case.json",
+    )
+    parser.add_argument(
         "--twice",
         action="store_true",
         help="export again from a fresh archive copy and require equal manifests",
@@ -729,7 +821,9 @@ def main() -> int:
     unknown = set(groups) - set(GROUPS)
     if unknown:
         parser.error(f"unknown groups: {', '.join(sorted(unknown))}")
-    out = args.out or args.scratch / "goldens" / "sssp"
+    REFERENCE, COMMIT = args.reference, COMMITS[args.reference]
+    default_name = "sssp" if REFERENCE == "MOSP-OpenMP" else "sssp-mosp-cuda"
+    out = args.out or args.scratch / "goldens" / default_name
 
     ref = reference_dir(args.scratch, fresh=False)
     metas, manifest_sha, n_files = export(ref, out, groups, args.jobs)
@@ -738,9 +832,22 @@ def main() -> int:
         counts[m["case"].split("/")[0]] = counts.get(m["case"].split("/")[0], 0) + 1
     print("cases per group: " + ", ".join(f"{g} {counts[g]}" for g in GROUPS if g in counts))
     print(f"{len(metas)} cases, {n_files} files, MANIFEST.sha256 {manifest_sha}")
-    if not args.no_toml and groups == GROUPS:
+    if not args.no_toml and groups == GROUPS and REFERENCE == "MOSP-OpenMP":
         write_toml(out, metas, manifest_sha, n_files)
         print(f"wrote {REPO / 'parity' / 'goldens.toml'}")
+
+    if args.compare_to is not None:
+        other = args.compare_to if args.compare_to != Path() else args.scratch / "goldens" / "sssp"
+        problems = compare_corpora(out, other)
+        for line in problems[:50]:
+            print(line, file=sys.stderr)
+        if problems:
+            print(f"CORPORA DIFFER: {len(problems)} problems ({out} vs {other})", file=sys.stderr)
+            return 1
+        print(
+            f"{REFERENCE} corpus identical to {other} ({n_files} files; case.json equal except "
+            "for the reference and origin it names)"
+        )
 
     if args.twice:
         with tempfile.TemporaryDirectory(prefix="dyng-goldens-twice-", dir=args.scratch) as t:

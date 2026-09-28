@@ -1,0 +1,103 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Compile-only CUDA builds on GitHub-hosted runners (PLAN Section 8.8): no GPU is needed and no
+# test is run. Inside NVIDIA's CUDA devel containers (the latest CUDA 13 and 12 toolkits, PLAN
+# Section 7.8), ci/build_cuda.sh builds the ci-cuda13 / ci-cuda12 preset for the release
+# architecture list with warnings as errors (library, all index-type instantiations, tests,
+# tools), then reports every kernel's registers, stack and shared memory per architecture and the
+# library size (the wheel size budget of PLAN Section 7.7) in the job summary.
+#
+# The containers' host compiler is Ubuntu 24.04's g++ (GCC 13). Local equivalent (the development
+# machine has CUDA 13.1 and GCC 12.2; the other toolkits and GCC 13 come from conda-forge
+# environments, used read-only; see the M1b retrospective, "M1b review"):
+#   ci/build_cuda.sh ci-cuda13
+#   CUDACXX=<cuda-13.4>/bin/nvcc CXX=<gcc-13>/bin/g++ CUDAHOSTCXX=<gcc-13>/bin/g++ \
+#     LD_LIBRARY_PATH=<cuda-13.4>/lib ci/build_cuda.sh ci-cuda13
+#   CUDACXX=<cuda-12>/bin/nvcc CUDAHOSTCXX=/usr/bin/g++ ci/build_cuda.sh ci-cuda12
+# With a conda-forge toolkit, LD_LIBRARY_PATH (its lib/, which holds libcudart.so.13) is needed
+# for the link of the tests: the linker resolves libdyng.so's libcudart dependency through it,
+# as the containers' ld.so.conf does for /usr/local/cuda. The ci-cuda12 line needs a complete
+# CUDA 12 toolkit, including the NVTX 3 headers (nvtx3/nvToolsExt.h), which DYNG_WITH_NVTX uses.
+# Compiler outputs are cached with ccache (PLAN Section 8.8, "Practices"), one cache per toolkit.
+# The GPU tests run on the author's machine: ci/gpu_local.sh.
+name: cuda-build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: CUDA ${{ matrix.cuda }} (${{ matrix.preset }})
+    runs-on: ubuntu-24.04
+    # The release architecture list (sm_75 to sm_120) on 4 cores; a cold cache takes the longest.
+    timeout-minutes: 120
+    container:
+      image: nvidia/cuda:${{ matrix.cuda }}-devel-ubuntu24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The toolkit of the development and performance machine (CUDA 13.1).
+          - cuda: "13.1.1"
+            preset: ci-cuda13
+          # The latest CUDA 13 toolkit (checked on Docker Hub, 2026-09-28; bump it with each
+          # release: the tag list is https://hub.docker.com/r/nvidia/cuda/tags).
+          - cuda: "13.4.1"
+            preset: ci-cuda13
+          # The latest CUDA 12 toolkit (CUDA 12.x is supported from 12.4, PLAN Section 7.1).
+          - cuda: "12.9.2"
+            preset: ci-cuda12
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      # CMake takes the compiler launchers from the environment (the presets stay launcher-free).
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_CUDA_COMPILER_LAUNCHER: ccache
+      CCACHE_MAXSIZE: 2G
+    steps:
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git g++ ccache python3 \
+            python3-venv
+          python3 -m venv /opt/tools
+          /opt/tools/bin/pip install "cmake>=3.30,<4.5" ninja
+          echo "/opt/tools/bin" >> "${GITHUB_PATH}"
+          # Container paths: the github.workspace context would be the runner host's path
+          # (actions/runner#2058); inside the container the workspace is $GITHUB_WORKSPACE.
+          {
+            echo "CXX=g++"
+            echo "CUDACXX=/usr/local/cuda/bin/nvcc"
+            echo "CPM_SOURCE_CACHE=${GITHUB_WORKSPACE}/.cache/cpm"
+            echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.cache/ccache"
+          } >> "${GITHUB_ENV}"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Cache CPM downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .cache/cpm
+          key: cpm-cuda-${{ hashFiles('cmake/CPM.cmake', 'cmake/package-lock.cmake') }}
+      - name: Cache compiler outputs (ccache)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-cuda-${{ matrix.cuda }}-${{ github.sha }}
+          restore-keys: ccache-cuda-${{ matrix.cuda }}-
+      - name: Compile (release architectures, warnings as errors) and report
+        run: |
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          ccache --zero-stats
+          ci/build_cuda.sh ${{ matrix.preset }}
+          ccache --show-stats | tee -a "${GITHUB_STEP_SUMMARY}"

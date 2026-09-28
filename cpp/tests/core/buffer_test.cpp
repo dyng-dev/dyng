@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+#include <dyng/config.hpp>
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/copy.hpp>
 #include <dyng/core/resources.hpp>
@@ -92,11 +93,25 @@ TEST(Copy, ToVectorAndCopyOnHost) {
 
   auto buf = dyng::to_space(res, dyng::host_view(csrc), dyng::memory_space::host);
   EXPECT_EQ(dyng::to_vector(res, buf.view()), src);
+  // Device memory needs CUDA resources; managed memory a managed memory resource.
   EXPECT_THROW((void)dyng::to_space(res, dyng::host_view(csrc), dyng::memory_space::device),
                dyng::invalid_argument_error);
+  EXPECT_THROW((void)dyng::to_space(res, dyng::host_view(csrc), dyng::memory_space::managed),
+               dyng::invalid_argument_error);
+
+  // The element type of copy() comes from the destination: two mutable views deduce (M1b review).
+  std::vector<int> a{4, 5, 6};
+  std::vector<int> b(3, 0);
+  dyng::copy(res, dyng::host_view(a), dyng::host_view(b));
+  EXPECT_EQ(b, a);
+  dyng::copy<int>(res, dyng::host_view(csrc), dyng::host_view(b));  // explicit type still works
+  EXPECT_EQ(b, src);
 }
 
 TEST(Copy, DeviceCopiesAreNotSupportedWithoutCuda) {
+  if (DYNG_HAS_CUDA) {
+    GTEST_SKIP() << "CUDA is built (device copies are covered by the gpu tests)";
+  }
   const auto res = dyng::resources::sequential();
   std::vector<int> fake(2);
   auto dev = dyng::device_view(fake.data(), fake.size());

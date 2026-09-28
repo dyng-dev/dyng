@@ -1,0 +1,15 @@
+uniform --changes 200 --ins 50 --seed 1
+uniform_safe --changes 300 --ins 50 --seed 777 --safe
+uniform_all_inserts --changes 60 --ins 100 --seed 2
+uniform_all_deletes --changes 60 --ins 0 --seed 3 --wmin 7 --wmax 9
+local_safe --changes 100 --ins 50 --seed 777 --local 4 --safe
+local --changes 120 --ins 30 --seed 4 --local 3 --source 100
+targeted --mode targeted --changes 150 --ins 60 --seed 5
+targeted_local_safe --mode targeted --changes 80 --ins 50 --seed 9 --local 5 --source 7 --safe
+reweight --mode reweight --changes 120 --seed 11 --wmin 5 --wmax 500
+reweight_local --mode reweight --changes 40 --seed 12 --local 2
+increase --mode increase --changes 60 --seed 13 --wmax 50
+increase_local --mode increase --changes 30 --seed 14 --local 6 --source 300
+safe_heavy --changes 1600 --ins 10 --seed 21 --safe
+local_safe_heavy --changes 400 --ins 20 --seed 22 --local 3 --safe --source 200
+targeted_safe_heavy --mode targeted --changes 700 --ins 5 --seed 23 --safe

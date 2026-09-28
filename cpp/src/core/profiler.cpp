@@ -4,6 +4,9 @@
  * @file profiler.cpp
  * @brief The instance-based profiler.
  */
+#include "core/cuda_runtime.hpp"
+
+#include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/logging.hpp>
 #include <dyng/core/profiler.hpp>
@@ -12,6 +15,10 @@
 #include <cstdio>
 #include <exception>
 #include <ostream>
+
+#if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
+#include <nvtx3/nvToolsExt.h>
+#endif
 
 namespace dyng {
 
@@ -71,11 +78,21 @@ void profiler::begin_stage(std::string_view name) {
     stages_.push_back(std::move(record));
   }
   open_.push_back(open_stage{index, std::chrono::steady_clock::now()});
+#if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
+  if (options_.nvtx) {
+    nvtxRangePushA(stages_[index].name.c_str());
+  }
+#endif
 }
 
 void profiler::end_stage(double device_ms) {
   const auto now = std::chrono::steady_clock::now();
   DYNG_EXPECTS(!open_.empty(), "profiler::end_stage() without an open stage");
+#if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
+  if (options_.nvtx) {
+    nvtxRangePop();
+  }
+#endif
   const open_stage top = open_.back();
   open_.pop_back();
   const double host_ms = std::chrono::duration<double, std::milli>(now - top.start).count();
@@ -161,6 +178,15 @@ scoped_stage::scoped_stage(const resources& res, std::string_view name)
       res.synchronize();
     }
     profiler_->begin_stage(name);
+    if (profiler_->options().cuda_events && res.get_backend() == backend::cuda) {
+      try {
+        events_ = std::make_unique<detail::cuda_event_timer>(res.device(), res.stream());
+      } catch (...) {
+        profiler_->end_stage();  // keep the profiler's stage stack balanced
+        profiler_ = nullptr;
+        throw;
+      }
+    }
   }
 }
 
@@ -180,16 +206,30 @@ void scoped_stage::stop() noexcept {
   }
   profiler* p = profiler_;
   profiler_ = nullptr;
+  double device_ms = 0.0;
+  bool balanced = false;
   try {
+    if (events_ != nullptr) {
+      device_ms = events_->stop();
+    }
     if (res_ != nullptr && p->options().sync_stages) {
       res_->synchronize();
     }
-    p->end_stage();
+    balanced = true;
+    p->end_stage(device_ms);
   } catch (const std::exception& e) {
     // Never throw from a destructor path; a failed synchronization resurfaces on the next call.
     log_message(log_level::error, e.what());
   } catch (...) {
     log_message(log_level::error, "dyng: unknown exception while ending a profiler stage");
+  }
+  events_.reset();
+  if (!balanced) {
+    try {
+      p->end_stage(device_ms);  // keep the stage stack balanced after a failed wait
+    } catch (...) {
+      log_message(log_level::error, "dyng: could not end a profiler stage");
+    }
   }
 }
 

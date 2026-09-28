@@ -18,11 +18,11 @@ counting, triad counting, label propagation.
 
 | Area | State |
 |---|---|
-| Core (resources, backends, memory, arrays, errors, logging, profiler) | host parts working (M1a); device memory and streams in M1b |
+| Core (resources, backends, memory, arrays, errors, logging, profiler) | working on the host (M1a) and on CUDA (M1b: streams, stream-ordered memory resources, device buffers, profiler device times) |
 | Graph container (compact rows, MOSP batch semantics) and MOSP-format I/O | working; the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` |
 | `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working; byte-identical to MOSP-OpenMP@c352151 on its 495-case golden corpus ([parity certificate](parity/results/M1a.md)) |
-| `sssp` on CUDA | planned (M1b) |
-| `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1) |
+| `sssp` on CUDA (the fused persistent cooperative kernel) | working (M1b); byte-identical to MOSP-CUDA@e220ee2 on the same corpus, cross-backend equal, performance gates recorded ([M1b certificate](parity/results/M1b.md)) |
+| `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1); the CPU backends are in progress on a branch |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
 | Python package (`pip install dyng`) | planned (0.1) |
@@ -37,8 +37,8 @@ and RAFT, but it is **not affiliated** with either project.
 ## Building from source
 
 Requirements: Linux, a C++17 compiler (GCC >= 11 or Clang >= 15; CI builds with GCC 12/13 and
-Clang 17/18), CMake >= 3.30, Ninja, and optionally OpenMP. The CUDA backends (CUDA >= 12.4) arrive in a later milestone; no GPU is
-needed today.
+Clang 17/18), CMake >= 3.30, Ninja, and optionally OpenMP and the CUDA toolkit (>= 12.4; an
+sm_75 or newer GPU to run the CUDA backend). No GPU is needed for the CPU backends.
 
 ```bash
 git clone https://github.com/dyng-dev/dyng.git
@@ -55,7 +55,48 @@ ci/check.sh                              # the full local gate: format, cpu-only
 
 Other presets: `cpu-only` (Release, CPU backends), `release`, `relwithdebinfo`, `asan`, `tsan`
 and `parity` (the flags of the original research codes, used for parity and performance runs).
-The Doxygen check of the public headers is `ci/docs.sh` (or the target `docs-doxygen`).
+`ci/docs.sh` builds the documentation site (Doxygen with warnings as errors, Sphinx, link
+check) into `build/docs/html`; `ci/docs.sh --doxygen-only` (or the target `docs-doxygen`) runs
+only the Doxygen check of the public headers.
+
+### Build with CUDA
+
+The CUDA backend needs the CUDA toolkit >= 12.4 (CUDA 13.1 is the development toolkit) and, to
+run, a GPU of compute capability 7.5 (Turing) or newer. `scripts/dev_env.sh` puts
+`/usr/local/cuda-13.1/bin` on `PATH` when it exists (set `DYNG_CUDA_HOME` for another toolkit).
+The CPU presets above never build CUDA; the CUDA presets are separate:
+
+```bash
+source scripts/dev_env.sh
+cmake --preset dev-cuda                  # Debug, this machine's GPUs (native), host code -Werror
+cmake --build --preset dev-cuda
+ctest --preset dev-cuda -L gpu           # the CUDA tests (each skips when no device is visible)
+ctest --preset dev-cuda -L cpu           # the CPU suites in the CUDA build
+
+ci/gpu_local.sh                          # the local GPU gate (below)
+ci/build_cuda.sh                         # compile-only release build, as cuda-build.yml does
+```
+
+| Preset | Use |
+|---|---|
+| `dev-cuda` | development: Debug, `native` architectures, tests on |
+| `release-cuda` | the release architecture list (sm_75 to sm_120 SASS plus PTX) |
+| `parity-cuda` | the flags of MOSP-CUDA (`-O3 -lineinfo`, sm_86): parity and performance runs |
+| `sanitize-cuda` | for `compute-sanitizer` runs |
+| `ci-cuda13`, `ci-cuda12` | compile-only builds of `.github/workflows/cuda-build.yml` (no GPU needed) |
+
+`DYNG_CUDA_ARCHITECTURES` chooses `native` (the default; without a visible GPU the configure
+step warns and uses the release list), `release` or an explicit list (for example
+`-DDYNG_CUDA_ARCHITECTURES=86`). `ci/gpu_local.sh` builds `dev-cuda` and then runs
+`ctest -L gpu` and `ctest -L cpu`, the sssp golden corpus on the cuda backend (when the goldens
+exist, see below), `compute-sanitizer --tool memcheck` over every GPU test executable,
+`--tool synccheck` over the CUDA sssp suite and the clang-tidy naming check on the CUDA branches;
+it prints a Markdown summary and fails when the test GPU is not visible (the CUDA tests would
+skip). On a shared machine
+choose the test GPU with `DYNG_TEST_GPU` (default 1: GPU 0 is kept for timing runs); every heavy
+step takes the shared lock `$DYNG_SCRATCH/perf.lock` (`DYNG_PERF_LOCK=` disables it) and
+`DYNG_GPU_SKIP="memcheck tidy"` skips steps by name. `ci/gpu_local.sh --preset sanitize-cuda`
+uses another CUDA preset. `ci/check.sh` takes the same shared lock for its heavy steps.
 
 ### Run the example
 
@@ -71,20 +112,31 @@ build/dev/examples/cpp/sssp_update $case/graphCsr $case/insert.txt $case/delete.
 cmp out/SSSPTreeUpdated.txt cpp/tests/data/mosp_sssp/testCase0/updated/obj0/SSSPTreeUpdated.txt
 ```
 
+In a CUDA build the last argument can be `cuda` (`build/dev-cuda/examples/cpp/sssp_update ...
+out cuda`): the graph and the tree then live on GPU 0 and the fused kernel runs the update, with
+the same output file.
+
 ### Run the parity check
 
-The parity harness ([parity/README.md](parity/README.md)) builds the pinned original
-MOSP-OpenMP@c352151 from a `git archive` copy in `$DYNG_SCRATCH`, exports its golden outputs
-(495 cases, about 185 MB, outside the repository) and replays them against dynG byte for byte on
-every CPU backend:
+The parity harness ([parity/README.md](parity/README.md)) builds the pinned originals
+MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 from `git archive` copies in `$DYNG_SCRATCH`, exports
+their golden outputs (495 cases, about 185 MB, outside the repository) and replays them against
+dynG byte for byte on every backend:
 
 ```bash
-parity/build_reference.sh MOSP-OpenMP    # scratch copy of the pinned original, built (MOSP-CUDA needs nvcc)
+git clone https://github.com/SMShovan/MOSP-OpenMP.git ~/Projects/MOSP-OpenMP   # the originals, once
+git clone https://github.com/SMShovan/MOSP-CUDA.git ~/Projects/MOSP-CUDA
+parity/build_reference.sh MOSP-OpenMP    # scratch copy of the pinned original, built
+parity/build_reference.sh MOSP-CUDA      # the CUDA original (needs nvcc)
 parity/export_goldens.py                 # the sssp golden corpus in $DYNG_SCRATCH/goldens
-ci/check.sh --parity                     # the gate plus `ctest --preset parity -L parity`
+ci/check.sh --parity                     # the gate plus `ctest --preset parity -L parity` (CPU)
+cmake --preset parity-cuda && cmake --build --preset parity-cuda
+parity/compare.py --exe build/parity-cuda/tools/compat/dyng-compat-mosp --configs cuda
 ```
 
-The committed record of the last run is the [M1a parity certificate](parity/results/M1a.md).
+`parity/perf_ab.py` runs the performance A/B against the unpatched originals under the
+exclusive perf lock (`parity/README.md`). The committed records are the
+[M1a](parity/results/M1a.md) and [M1b](parity/results/M1b.md) parity certificates.
 
 ## Using the library from C++
 
@@ -97,7 +149,7 @@ target_link_libraries(my_app PRIVATE dyng::dyng)
 #include <dyng/dyng.hpp>
 
 int main() {
-  auto res = dyng::resources::openmp(8);   // or resources::sequential()
+  auto res = dyng::resources::openmp(8);   // or resources::sequential(), resources::cuda()
   dyng::edge_list<std::int32_t, std::int32_t> edges;
   edges.num_vertices = 4;
   edges.num_weights = 1;
@@ -105,7 +157,9 @@ int main() {
   edges.add_edge(0, 2, {1});
   edges.add_edge(2, 1, {2});
   edges.add_edge(1, 3, {1});
-  auto g = dyng::graph<std::int32_t, std::int64_t, std::int32_t>::from_edges(res, edges.view());
+  // graph<> = int32 vertex ids, int32 edge offsets (ADR 0009; int64 past 2^31 - 1 edges), int32
+  // weights.
+  auto g = dyng::graph<>::from_edges(res, edges.view());
 
   auto tree = dyng::sssp::compute(res, g, /*source=*/0);    // canonical tree: lowest-id ties
   dyng::edge_batch<std::int32_t, std::int32_t> batch;
@@ -116,9 +170,11 @@ int main() {
 }
 ```
 
-`examples/cpp/sssp_update.cpp` runs the same steps on MOSP's text files, and
-`dyng-compat-mosp` (`tools/compat`, built by the `dev` and `parity` presets) reproduces the
-output files of MOSP-OpenMP's `mosp` driver for parity runs.
+With `resources::cuda()` the graph and the tree live in device memory: read the results with
+`dyng::to_vector(res, tree.distances())`. `examples/cpp/sssp_update.cpp` runs the same steps on
+MOSP's text files, and
+`dyng-compat-mosp` (`tools/compat`, built by the `dev` and `parity` presets and their CUDA
+twins) reproduces the output files of MOSP's `mosp` driver for parity runs.
 
 ## How to cite
 
@@ -146,6 +202,6 @@ advised by Prof. Sajal K. Das, with the co-authors listed in [AUTHORS.md](AUTHOR
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), the
+See [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), [MAINTAINERS.md](MAINTAINERS.md), the
 [Code of Conduct](CODE_OF_CONDUCT.md), [SUPPORT.md](SUPPORT.md) and [SECURITY.md](SECURITY.md). Design decisions are
 recorded as ADRs in [docs/adr/](docs/adr/).

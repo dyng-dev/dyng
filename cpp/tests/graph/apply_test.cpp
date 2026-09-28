@@ -5,6 +5,7 @@
  * @brief graph::apply: batch semantics, summaries, the weight-increase classification, and a
  *        randomized comparison with an independent row-list model.
  */
+#include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "support/gtest_helpers.hpp"
 
@@ -20,6 +21,7 @@
 #include <cstdint>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -40,6 +42,22 @@ graph32 small_graph(const graph_properties& props = graph_properties::mosp_compa
   e.add_edge(1, 2, {3});
   e.add_edge(2, 0, {4});
   return graph32::from_edges(dyng::resources::sequential(), e.view(), props);
+}
+
+// ADR 0009: the default edge offset type is int32 (the originals' type), with checked
+// construction: an edge count past the type's range throws capacity_error naming int64.
+TEST(GraphEdgeType, DefaultIsInt32WithCheckedConstruction) {
+  static_assert(std::is_same_v<dyng::graph<>::edge_type, std::int32_t>);
+  static_assert(std::is_same_v<dyng::graph<>::vertex_type, std::int32_t>);
+  constexpr std::int64_t max32 = INT32_MAX;
+  EXPECT_EQ(dyng::detail::checked_edge_count<std::int32_t>(max32), INT32_MAX);
+  EXPECT_EQ(dyng::detail::checked_edge_count<std::int64_t>(max32 + 1), max32 + 1);
+  try {
+    (void)dyng::detail::checked_edge_count<std::int32_t>(max32 + 1);
+    ADD_FAILURE() << "expected capacity_error";
+  } catch (const dyng::capacity_error& e) {
+    EXPECT_NE(std::string(e.what()).find("int64"), std::string::npos) << e.what();
+  }
 }
 
 TEST(GraphApply, UpsertAppendDeleteAndVersion) {
@@ -366,7 +384,10 @@ model_result model_apply(model_rows& rows, int K, const graph_properties& props,
   // First occurrence before vs after.
   for (const auto& [u, head] : eff_ins) {
     const auto v = head;  // captured below: a structured binding cannot be captured in C++17
-    std::vector<std::uint8_t> flags(static_cast<std::size_t>(K), 0);
+    // The K flags of this insertion, written in place (a per-insertion std::vector here made GCC
+    // 13 and 14 report a false -Wfree-nonheap-object, an error with -Werror).
+    const std::size_t first = result.increased.size();
+    result.increased.resize(first + static_cast<std::size_t>(K), 0);
     if (u < static_cast<std::int64_t>(before.size())) {
       const auto& old_row = before[static_cast<std::size_t>(u)];
       const auto& new_row = rows[static_cast<std::size_t>(u)];
@@ -376,12 +397,11 @@ model_result model_apply(model_rows& rows, int K, const graph_properties& props,
                             [&](const model_edge& e) { return e.v == v; });
       if (a != old_row.end() && b != new_row.end()) {
         for (int k = 0; k < K; ++k) {
-          flags[static_cast<std::size_t>(k)] =
+          result.increased[first + static_cast<std::size_t>(k)] =
               b->w[static_cast<std::size_t>(k)] > a->w[static_cast<std::size_t>(k)];
         }
       }
     }
-    result.increased.insert(result.increased.end(), flags.begin(), flags.end());
   }
   return result;
 }

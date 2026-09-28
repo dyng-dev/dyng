@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Configuration of the DCO GitHub App (https://github.com/apps/dco; installed by the lead
+# maintainer, docs/developer/repository_settings.md). External contributors sign off every
+# commit (`git commit -s`, CONTRIBUTING.md); members of the dyng-dev organization are exempt.
+# Remediation commits let a contributor fix a missing sign-off without rewriting the branch.
+require:
+  members: false
+allowRemediationCommits:
+  individual: true

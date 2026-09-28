@@ -26,6 +26,7 @@
 #include <dyng/core/stats.hpp>
 #include <dyng/core/stream.hpp>
 #include <dyng/core/types.hpp>
+#include <dyng/generators/legacy.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>
 #include <dyng/graph/edge_batch.hpp>

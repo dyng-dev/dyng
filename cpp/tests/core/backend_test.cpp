@@ -13,12 +13,18 @@ TEST(Backend, OpenmpAvailabilityMatchesConfig) {
   EXPECT_EQ(dyng::backend_available(dyng::backend::openmp), DYNG_HAS_OPENMP != 0);
 }
 
-TEST(Backend, CudaNotAvailableBeforeM1b) {
+TEST(Backend, CudaUnavailableWithoutCudaBuild) {
+  if (DYNG_HAS_CUDA) {
+    GTEST_SKIP() << "CUDA is built; availability depends on the visible devices (gpu tests)";
+  }
   EXPECT_FALSE(dyng::backend_available(dyng::backend::cuda));
 }
 
-TEST(Backend, DefaultPrefersOpenmpOverSequential) {
-  const auto expected = DYNG_HAS_OPENMP ? dyng::backend::openmp : dyng::backend::sequential;
+TEST(Backend, DefaultPrefersCudaThenOpenmpThenSequential) {
+  dyng::backend expected = DYNG_HAS_OPENMP ? dyng::backend::openmp : dyng::backend::sequential;
+  if (dyng::backend_available(dyng::backend::cuda)) {
+    expected = dyng::backend::cuda;
+  }
   EXPECT_EQ(dyng::default_backend(), expected);
 }
 

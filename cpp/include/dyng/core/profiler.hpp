@@ -16,6 +16,7 @@
 #include <chrono>
 #include <cstdint>
 #include <iosfwd>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,6 +24,10 @@
 namespace dyng {
 
 class resources;
+
+namespace detail {
+class cuda_event_timer;
+}  // namespace detail
 
 /**
  * @brief Profiler settings.
@@ -32,7 +37,9 @@ struct profiler_options {
   /// Synchronize the resources' stream at stage boundaries, so stage times are paper-comparable
   /// breakdowns (adds synchronization; host backends are unaffected).
   bool sync_stages = false;
-  /// Emit NVTX ranges for stages (CUDA builds with NVTX; ignored otherwise).
+  /// Emit an NVTX range per stage (push at its start, pop at its end), for Nsight Systems and other
+  /// NVTX tools. Needs a build with DYNG_WITH_NVTX (ON in CUDA builds whose toolkit ships NVTX 3);
+  /// ignored otherwise.
   bool nvtx = false;
   /// Time stages with CUDA events on the device (CUDA backend only; ignored otherwise).
   bool cuda_events = false;
@@ -198,6 +205,9 @@ class profiler {
  *
  * Library code writes `scoped_stage stage(res, "sssp.loop");`. It does nothing when no profiler
  * is attached. With profiler_options::sync_stages the resources are synchronized at both ends.
+ * With profiler_options::cuda_events and resources of the CUDA backend, the stage also records a
+ * CUDA event on the stream of the resources at both ends; the end waits for the second event and
+ * adds the elapsed device time to the stage's `device_ms`.
  * @ingroup core
  */
 class scoped_stage {
@@ -207,8 +217,11 @@ class scoped_stage {
    * @param[in] res  Resources; must outlive the scoped_stage.
    * @param[in] name Stage name `<algo>.<hook>[.<sub>]`.
    * @throws invalid_argument_error if a profiler is attached and `name` is invalid.
+   * @throws cuda_error            if the CUDA events of profiler_options::cuda_events cannot be
+   *         created or recorded.
    * @sync With profiler_options::sync_stages the resources are synchronized first; otherwise
-   *       only a host timestamp is taken.
+   *       only a host timestamp is taken (and, with profiler_options::cuda_events on the CUDA
+   *       backend, an event is recorded on the stream).
    */
   scoped_stage(const resources& res, std::string_view name);
 
@@ -238,6 +251,7 @@ class scoped_stage {
  private:
   const resources* res_ = nullptr;
   profiler* profiler_ = nullptr;
+  std::unique_ptr<detail::cuda_event_timer> events_;  ///< device timing (cuda_events), or null
 };
 
 }  // namespace dyng

@@ -4,6 +4,8 @@
  * @file memory.cpp
  * @brief Host memory resource, stream_ref and cross-space byte copies (host part).
  */
+#include "core/cuda_runtime.hpp"
+
 #include <dyng/config.hpp>
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/error.hpp>
@@ -41,7 +43,9 @@ bool stream_ref::is_per_thread_default() const noexcept {
 
 void stream_ref::synchronize() const {
 #if DYNG_HAS_CUDA
-#error "stream_ref::synchronize() for CUDA builds is implemented in milestone M1b"
+  // The per-thread default stream is per device: this waits for the one of the current device.
+  // resources::synchronize() makes the handle's device current first.
+  detail::cuda_synchronize(-1, *this);
 #endif
 }
 
@@ -86,16 +90,27 @@ host_memory_resource& default_host_memory_resource() noexcept {
 namespace detail {
 
 void copy_bytes(void* dst, memory_space dst_space, const void* src, memory_space src_space,
-                std::size_t bytes, stream_ref /*stream*/) {
+                std::size_t bytes, stream_ref stream, int device) {
   if (bytes == 0) {
     return;
   }
+  if (dst_space == memory_space::host && src_space == memory_space::host) {
+    std::memmove(dst, src, bytes);
+    return;
+  }
+#if DYNG_HAS_CUDA
+  // Pinned and managed memory may still be in use by work on the stream: order the copy on it.
+  detail::cuda_copy_bytes(dst, src, bytes, stream, device);
+#else
+  (void)stream;
+  (void)device;
   if (is_host_accessible(dst_space) && is_host_accessible(src_space)) {
     std::memmove(dst, src, bytes);
     return;
   }
   throw not_supported_error(
       "dyng: copies involving device memory need the CUDA backend, which is not built");
+#endif
 }
 
 }  // namespace detail

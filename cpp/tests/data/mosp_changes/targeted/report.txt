@@ -1,0 +1,1 @@
+inserts=90 reweights=0 deletes=60

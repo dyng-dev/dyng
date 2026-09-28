@@ -29,9 +29,21 @@
  * Mechanical changes only: names (snake_case), templates on the index types, namespace
  * dyng::detail, exceptions (invalid_argument_error) instead of `bool` + `cerr`, no globals, the
  * thread count of `resources` on every parallel region (`num_threads`) instead of the global
- * OpenMP setting, the workspace owned by the result and reserved once, the phases split into the
- * hooks identify_affected / seed / loop / finalize, and one added counter in the unpack pass
- * (`affected`: vertices whose distance or parent changed).
+ * OpenMP setting, the workspace leased from the pool of `resources` and reserved once (shared by
+ * the objectives, as MOSP shares its SospWorkspace; ADR 0015), the phases split into the hooks
+ * identify_affected / seed / loop / finalize, one added counter in the unpack pass
+ * (`affected`: vertices whose distance or parent changed), and the per-thread lists of the
+ * parallel regions kept in the workspace, each on its own cache lines (util/thread_list.hpp),
+ * instead of vectors created in every region: the lists and their order are the same, but no
+ * two threads write to one cache line, and a list allocates only when its thread takes a larger
+ * share of a round than ever before (the dynamic schedule decides the shares).
+ *
+ * One change for speed, with identical lists and outputs: the work-sharing loops that feed a
+ * list_gather are `nowait` (the gather's first barrier waits for them), and the regions that
+ * gather two lists use list_gather::gather_pair(), so a near-far round passes three barriers
+ * instead of six. On a small batch the loop runs about a thousand rounds per objective and the
+ * barriers were most of its time (road_usa, 10K local batch: sssp.loop 37 -> 19 ms per
+ * objective with 28 threads; parity/results/M1b.md section 9).
  */
 #include "algorithms/sssp/problem.hpp"
 #include "graph/instantiate.hpp"
@@ -42,10 +54,12 @@
 #if DYNG_HAS_OPENMP
 
 #include "util/list_gather.hpp"
+#include "util/thread_list.hpp"
 
 #include <omp.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -164,9 +178,23 @@ class openmp_problem {
     const std::int64_t n = run_.graph.num_vertices;
     DYNG_EXPECTS(run_.delta > 0, "sssp: the near-far width delta must be > 0, got ", run_.delta);
     ws_.reserve(n);
+    // Two per-thread lists for every thread a region may use (kept in the workspace).
+    if (ws_.thread_lists.size() < 2 * static_cast<std::size_t>(threads_)) {
+      ws_.thread_lists.resize(2 * static_cast<std::size_t>(threads_));
+    }
     choose_packing(n, run_.max_weight, packing_, bound_);
     run_.counters = sssp_counters{};
     run_.counters.packed_parents = packing_.has_parents();
+  }
+
+  /// This thread's list `slot` (0 or 1) of the workspace, emptied (inside a parallel region).
+  thread_list<vertex_t>& local_list(int slot) {
+    thread_list<vertex_t>& list =
+        ws_.thread_lists[2 * static_cast<std::size_t>(omp_get_thread_num()) +
+                         static_cast<std::size_t>(slot)]
+            .items;
+    list.clear();
+    return list;
   }
 
   // ---- compute(): sospFromScratchCpu -----------------------------------------------------------
@@ -221,10 +249,10 @@ class openmp_problem {
     // ---- Step 1: roots and subtree invalidation. ----
     ws_.candidates.clear();
     const int generation = ws_.next_generation();
-    const auto num_changed = static_cast<std::int64_t>(changes.changed_to.size());
+    const auto num_changed = static_cast<std::int64_t>(changes.num_changed);
     if (num_changed > 0) {
-      const vertex_t* changed_from = changes.changed_from.data();
-      const vertex_t* changed_to = changes.changed_to.data();
+      const vertex_t* changed_from = changes.changed_from;
+      const vertex_t* changed_to = changes.changed_to;
 #pragma omp parallel for num_threads(threads_) schedule(static)
       for (std::int64_t i = 0; i < num_changed; ++i) {
         const vertex_t v = changed_to[i];
@@ -262,8 +290,8 @@ class openmp_problem {
             __atomic_store_n(&state[u], result, __ATOMIC_RELAXED);
           }
         }
-        std::vector<vertex_t> local_invalid;
-#pragma omp for schedule(static)
+        thread_list<vertex_t>& local_invalid = local_list(0);
+#pragma omp for schedule(static) nowait
         for (std::int64_t v = 0; v < n; ++v) {
           if (state[v] == 2) {
             packed_words[v] = packed_inf;
@@ -282,8 +310,8 @@ class openmp_problem {
       list_gather<vertex_t> head_gather(ws_.candidates, threads_);
 #pragma omp parallel num_threads(threads_)
       {
-        std::vector<vertex_t> local_heads;
-#pragma omp for schedule(static)
+        thread_list<vertex_t>& local_heads = local_list(0);
+#pragma omp for schedule(static) nowait
         for (std::int64_t i = 0; i < num_heads; ++i) {
           const vertex_t v = insert_heads[i];
           if (v != source && claim(stamp, v, generation)) {
@@ -308,8 +336,8 @@ class openmp_problem {
     list_gather<vertex_t> frontier_gather(ws_.frontier, threads_);
 #pragma omp parallel num_threads(threads_)
     {
-      std::vector<vertex_t> local_frontier;
-#pragma omp for schedule(dynamic, 64)
+      thread_list<vertex_t>& local_frontier = local_list(0);
+#pragma omp for schedule(dynamic, 64) nowait
       for (std::int64_t i = 0; i < count; ++i) {
         const vertex_t v = candidates[i];
         const u64 current = load(&packed_words[v]);
@@ -361,9 +389,9 @@ class openmp_problem {
       list_gather<vertex_t> far_gather(ws_.far, threads_);
 #pragma omp parallel num_threads(threads_)
       {
-        std::vector<vertex_t> local_near;
-        std::vector<vertex_t> local_far;
-#pragma omp for schedule(static)
+        thread_list<vertex_t>& local_near = local_list(0);
+        thread_list<vertex_t>& local_far = local_list(1);
+#pragma omp for schedule(static) nowait
         for (std::int64_t i = 0; i < count; ++i) {
           const vertex_t v = frontier[i];
           const u64 word = load(&packed_words[v]);
@@ -376,8 +404,7 @@ class openmp_problem {
             local_far.push_back(v);
           }
         }
-        near_gather.gather(local_near);
-        far_gather.gather(local_far);
+        list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far);
       }
     }
 
@@ -393,9 +420,9 @@ class openmp_problem {
         list_gather<vertex_t> far_gather(ws_.far, threads_);
 #pragma omp parallel num_threads(threads_)
         {
-          std::vector<vertex_t> local_near;
-          std::vector<vertex_t> local_far;
-#pragma omp for schedule(dynamic, 64)
+          thread_list<vertex_t>& local_near = local_list(0);
+          thread_list<vertex_t>& local_far = local_list(1);
+#pragma omp for schedule(dynamic, 64) nowait
           for (std::int64_t i = 0; i < count; ++i) {
             const vertex_t u = near[i];
             const u64 word = load(&packed_words[u]);
@@ -425,8 +452,7 @@ class openmp_problem {
               }
             }
           }
-          near_gather.gather(local_near);
-          far_gather.gather(local_far);
+          list_gather<vertex_t>::gather_pair(near_gather, local_near, far_gather, local_far);
         }
         std::swap(current, next);
       }
@@ -446,9 +472,9 @@ class openmp_problem {
       list_gather<vertex_t> keep_gather(ws_.far2, threads_);
 #pragma omp parallel num_threads(threads_)
       {
-        std::vector<vertex_t> local_near;
-        std::vector<vertex_t> local_keep;
-#pragma omp for schedule(static)
+        thread_list<vertex_t>& local_near = local_list(0);
+        thread_list<vertex_t>& local_keep = local_list(1);
+#pragma omp for schedule(static) nowait
         for (std::int64_t i = 0; i < count; ++i) {
           const vertex_t v = far[i];
           const u64 word = load(&packed_words[v]);
@@ -462,8 +488,7 @@ class openmp_problem {
             local_keep.push_back(v);
           }
         }
-        near_gather.gather(local_near);
-        keep_gather.gather(local_keep);
+        list_gather<vertex_t>::gather_pair(near_gather, local_near, keep_gather, local_keep);
       }
       ws_.far.swap(ws_.far2);
     }
