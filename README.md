@@ -140,9 +140,14 @@ cmake --preset parity-cuda && cmake --build --preset parity-cuda
 parity/compare.py --exe build/parity-cuda/tools/compat/dyng-compat-mosp --configs cuda
 ```
 
+`cycle_count` has its own corpus from CycleEnumeration-GPU@0a976ad
+(`parity/build_reference.sh CycleEnumeration-GPU`, `parity/export_goldens.py cycle_count`,
+replayed by `parity/compare.py cycle_count`; see `parity/README.md`).
+
 `parity/perf_ab.py` runs the performance A/B against the unpatched originals under the
 exclusive perf lock (`parity/README.md`). The committed records are the
-[M1a](parity/results/M1a.md) and [M1b](parity/results/M1b.md) parity certificates.
+[M1a](parity/results/M1a.md), [M1b](parity/results/M1b.md) and [M2a](parity/results/M2a.md)
+parity certificates.
 
 ## Using the library from C++
 
