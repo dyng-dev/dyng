@@ -7,10 +7,14 @@
  * @brief Edge-anchored simple-cycle enumeration with edge-id ownership: the count of one change
  *        edge in the count(-) and count(+) hooks of update().
  *
- * Straight port of count_cycles_through_edge(): the mechanical changes are the templates on the
- * index types, the graph as a cycle_graph, and the visited buffer passed in by the caller (the
- * original keeps a `static thread_local` buffer; dynG keeps one per thread in the pooled
- * workspace, no globals).
+ * Port of count_cycles_through_edge(): the mechanical changes are the templates on the index
+ * types, the graph as a cycle_graph, and the scratch passed in by the caller (the original keeps a
+ * `static thread_local` visited buffer; dynG keeps one per thread in the pooled workspace, no
+ * globals). Two changes of form keep the counts and the order of the search: the recursion of
+ * search() is an explicit stack (the original recurses once per path vertex, which overflows the
+ * thread's stack on long cycles of an unbounded update), and each cycle is added to the thread's
+ * phase counters directly (the original fills and sums a per-edge array of max_length + 1 entries
+ * for every change edge, O(max_length) per edge even when the edge closes no cycle).
  */
 #pragma once
 
@@ -22,55 +26,18 @@
 
 namespace dyng::detail {
 
-namespace cycle_count_kernels {
-
-/// Depth-first search for simple paths from `current` back to the anchored source `u`.
-/// `path_size` is the number of vertices on the path starting at the anchored target `v`; closing
-/// at `u` yields a cycle of length `path_size + 1`.
-template <typename vertex_t, typename edge_t>
-void search(const cycle_graph<vertex_t, edge_t>& graph, const vertex_t u, const vertex_t v,
-            const std::size_t owner_id, const changed_edge_index& phase_changes,
-            const std::size_t max_length, const vertex_t current, const std::size_t path_size,
-            std::vector<char>& visited, std::uint64_t* counts) {
-  const auto begin = static_cast<std::size_t>(graph.offsets[current]);
-  const auto end = static_cast<std::size_t>(graph.offsets[current + 1]);
-  for (std::size_t offset = begin; offset < end; ++offset) {
-    const vertex_t next = graph.neighbors[offset];
-
-    if (phase_changes.forbidden_before(current, next, owner_id)) {
-      continue;  // owned by a smaller-id changed edge
-    }
-
-    if (next == u) {
-      const std::size_t length = path_size + 1;
-      if (length >= 2 && length <= max_length) {
-        counts[length] += 1;
-      }
-      continue;
-    }
-
-    if (next == v || visited[static_cast<std::size_t>(next)] != 0) {
-      continue;
-    }
-
-    if (path_size + 1 < max_length) {
-      visited[static_cast<std::size_t>(next)] = 1;
-      search(graph, u, v, owner_id, phase_changes, max_length, next, path_size + 1, visited,
-             counts);
-      visited[static_cast<std::size_t>(next)] = 0;
-    }
-  }
-}
-
-}  // namespace cycle_count_kernels
-
 /**
  * @brief Count the simple cycles through the directed edge (source -> target) that it owns,
  *        bucketed by length (CycleEnumeration-GPU's count_cycles_through_edge).
  *
  * The cycle is source -> target -> ... -> source. It is owned by this edge iff it contains no
  * same-phase changed edge with a smaller id, which the search enforces by refusing to cross such
- * edges. Each found cycle of length len (2 <= len <= max_length) adds one to counts[len].
+ * edges. Each found cycle of length len (2 <= len <= max_length) adds one to
+ * `scratch.partial[len]`, which grows on demand.
+ *
+ * The depth-first search looks for simple paths from the anchored target back to the anchored
+ * source; a path of `depth` vertices from the target that closes at the source is a cycle of
+ * length depth + 1.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @param[in]     graph         The phase's frozen graph.
@@ -79,26 +46,95 @@ void search(const cycle_graph<vertex_t, edge_t>& graph, const vertex_t u, const 
  * @param[in]     owner_id      Ownership id of the anchored edge in its phase.
  * @param[in]     phase_changes Ownership index of the phase.
  * @param[in]     max_length    Longest counted length (>= 2).
- * @param[in,out] visited       Path marks, >= graph.vertex_count entries, all zero (and zero again
- *                              on return).
- * @param[out]    counts        Bucket array of max_length + 1 entries.
+ * @param[in,out] scratch       The thread's scratch: marks (>= graph.vertex_count entries, all
+ *                              zero, and zero again on a normal return), stack and counters.
+ * @return The longest length counted (0 if none).
+ * @throws std::bad_alloc if the stack or the counters cannot grow (the marks are then dirty: the
+ *         caller restores the scratch with cycle_count_thread::reset()).
  */
 template <typename vertex_t, typename edge_t>
-void count_cycles_through_edge(const cycle_graph<vertex_t, edge_t>& graph, const vertex_t source,
-                               const vertex_t target, const std::size_t owner_id,
-                               const changed_edge_index& phase_changes,
-                               const std::size_t max_length, std::vector<char>& visited,
-                               std::uint64_t* counts) {
+std::size_t count_cycles_through_edge(const cycle_graph<vertex_t, edge_t>& graph,
+                                      const vertex_t source, const vertex_t target,
+                                      const std::size_t owner_id,
+                                      const changed_edge_index& phase_changes,
+                                      const std::size_t max_length,
+                                      cycle_count_thread<vertex_t>& scratch) {
   if (max_length < 2 || static_cast<std::size_t>(target) >= graph.vertex_count ||
       static_cast<std::size_t>(source) >= graph.vertex_count) {
-    return;
+    return 0;
   }
+  char* const visited = scratch.visited.data();
+  const edge_t* const offsets = graph.offsets;
+  const vertex_t* const neighbors = graph.neighbors;
+  std::vector<cycle_search_frame<vertex_t>>& stack = scratch.stack;
+  if (stack.empty()) {
+    cycle_count_grow_stack(stack);
+  }
+  cycle_search_frame<vertex_t>* frames = stack.data();
+  std::size_t capacity = stack.size();
+  std::uint64_t* counts = scratch.partial.data();
+  std::size_t count_size = scratch.partial.size();
+  std::size_t reached = 0;
+
   visited[static_cast<std::size_t>(source)] = 1;
   visited[static_cast<std::size_t>(target)] = 1;
-  cycle_count_kernels::search(graph, source, target, owner_id, phase_changes, max_length, target, 1,
-                              visited, counts);
+  frames[0].vertex = target;
+  frames[0].next = static_cast<std::size_t>(offsets[target]);
+  frames[0].end = static_cast<std::size_t>(offsets[target + 1]);
+  std::size_t depth = 1;  // vertices on the path from the anchored target
+
+  while (depth > 0) {
+    cycle_search_frame<vertex_t>& top = frames[depth - 1];
+    if (top.next == top.end) {
+      if (depth > 1) {
+        visited[static_cast<std::size_t>(top.vertex)] = 0;
+      }
+      --depth;
+      continue;
+    }
+    const vertex_t current = top.vertex;
+    const vertex_t next = neighbors[top.next];
+    ++top.next;
+
+    if (phase_changes.forbidden_before(current, next, owner_id)) {
+      continue;  // owned by a smaller-id changed edge
+    }
+
+    if (next == source) {
+      const std::size_t length = depth + 1;
+      if (length >= 2 && length <= max_length) {
+        if (length >= count_size) {
+          cycle_count_grow(scratch.partial, length, max_length);
+          counts = scratch.partial.data();
+          count_size = scratch.partial.size();
+        }
+        counts[length] += 1;
+        reached = length > reached ? length : reached;
+      }
+      continue;
+    }
+
+    if (next == target || visited[static_cast<std::size_t>(next)] != 0) {
+      continue;
+    }
+
+    if (depth + 1 < max_length) {
+      if (depth == capacity) {
+        cycle_count_grow_stack(stack);
+        frames = stack.data();
+        capacity = stack.size();
+      }
+      visited[static_cast<std::size_t>(next)] = 1;
+      frames[depth].vertex = next;
+      frames[depth].next = static_cast<std::size_t>(offsets[next]);
+      frames[depth].end = static_cast<std::size_t>(offsets[next + 1]);
+      ++depth;
+    }
+  }
+
   visited[static_cast<std::size_t>(source)] = 0;
   visited[static_cast<std::size_t>(target)] = 0;
+  return reached;
 }
 
 }  // namespace dyng::detail

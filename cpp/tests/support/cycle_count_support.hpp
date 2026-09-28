@@ -90,10 +90,16 @@ edge_batch<std::int32_t, weight_t> cc_batch(const std::vector<cc_edge>& deletion
   return b;
 }
 
-/// The histogram of a result as a vector.
+/// The histogram of a result as a vector of lengths 0..k for a bound k (up to 4096; the result
+/// stores min(k, max(n, 2)) + 1 entries, the lengths past n are 0), else as stored.
 inline std::vector<std::uint64_t> cc_counts(const cycle_count::result& r) {
   const auto c = r.counts();
-  return std::vector<std::uint64_t>(c.begin(), c.end());
+  std::vector<std::uint64_t> h(c.begin(), c.end());
+  const int k = r.get_options().max_length;
+  if (k >= 0 && k <= 4096 && h.size() < static_cast<std::size_t>(k) + 1) {
+    h.resize(static_cast<std::size_t>(k) + 1, 0);
+  }
+  return h;
 }
 
 /// A histogram resized to max_length + 1 entries (for comparisons with an oracle of another size;

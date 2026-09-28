@@ -55,7 +55,7 @@ namespace dyng::detail {
  */
 struct cycle_count_state {
   cycle_count::options opt;           ///< options given at compute()
-  std::int64_t bound = 2;             ///< longest counted length (max_length, or max(n, 2))
+  std::int64_t bound = 2;             ///< min(max_length, max(n, 2)); max(n, 2) without a bound
   std::vector<std::uint64_t> counts;  ///< counts[len], size bound + 1
   std::uint64_t version = 0;          ///< graph version matched
   std::uint64_t graph_state = 0;      ///< state identifier of the graph matched (graph_impl)
@@ -225,68 +225,120 @@ class changed_edge_index {
 };
 
 /**
+ * @brief One level of an explicit depth-first search: a vertex on the path and its next
+ *        unexplored out-edge (the searches are iterative, so their depth is bounded by memory, not
+ *        by the thread's stack).
+ * @tparam vertex_t Vertex id type.
+ */
+template <typename vertex_t>
+struct cycle_search_frame {
+  vertex_t vertex{};     ///< the vertex on the path
+  std::size_t next = 0;  ///< offset of its next out-edge to explore
+  std::size_t end = 0;   ///< end of its row
+};
+
+/**
+ * @brief Grow a per-thread counts array so that `length` is a valid index (at least doubling, at
+ *        most `max_length` + 1 entries; new entries are zero).
+ * @param[in,out] counts     The array.
+ * @param[in]     length     The index needed (<= max_length).
+ * @param[in]     max_length Longest counted length.
+ */
+inline void cycle_count_grow(std::vector<std::uint64_t>& counts, std::size_t length,
+                             std::size_t max_length) {
+  const std::size_t wanted = std::max(length + 1, 2 * counts.size());
+  counts.resize(std::min(wanted, max_length + 1), 0);
+}
+
+/**
+ * @brief Grow a search stack (at least doubling; new frames are default-constructed).
+ * @tparam frame_t Frame type.
+ * @param[in,out] stack The stack.
+ */
+template <typename frame_t>
+void cycle_count_grow_stack(std::vector<frame_t>& stack) {
+  stack.resize(std::max<std::size_t>(16, 2 * stack.size()));
+}
+
+/**
+ * @brief The scratch of one thread of update() (alignas: no two threads share a cache line).
+ *
+ * Between phases every mark and every counter is zero: the search clears every mark it sets, and
+ * the reduction clears the counters it reads.
+ * @tparam vertex_t Vertex id type.
+ */
+template <typename vertex_t>
+struct alignas(64) cycle_count_thread {
+  std::vector<char> visited;                        ///< path marks, >= marks_needed entries
+  std::vector<cycle_search_frame<vertex_t>> stack;  ///< the explicit search stack
+  std::vector<std::uint64_t> partial;  ///< cycles of the phase by length (grown on demand)
+  std::size_t reached = 0;             ///< longest length counted in `partial` this phase
+
+  /**
+   * @brief Size the marks and the counters (called by the thread itself, so the pages are first
+   *        touched in parallel, as the original's thread_local buffers are).
+   * @param[in] marks   Entries the marks need (the vertex count of the phase's graph).
+   * @param[in] lengths Initial entries of the counters.
+   */
+  void prepare(std::size_t marks, std::size_t lengths) {
+    if (visited.size() < marks) {
+      visited.resize(marks, 0);
+    }
+    if (partial.size() < lengths) {
+      partial.reserve(lengths + 8);  // a spare cache line after the counters
+      partial.resize(lengths, 0);
+    }
+    if (stack.empty()) {
+      cycle_count_grow_stack(stack);
+    }
+    reached = 0;
+  }
+
+  /**
+   * @brief Restore the invariant (all marks and counters zero) after a failed phase.
+   */
+  void reset() noexcept {
+    std::fill(visited.begin(), visited.end(), 0);
+    std::fill(partial.begin(), partial.end(), 0);
+    reached = 0;
+  }
+};
+
+/**
  * @brief Scratch space of update(): leased from the workspace pool of the resources handle for
  *        one update and shared by every result updated through that handle (ADR 0015).
  *
- * `visited` replaces the original's `static thread_local` visited buffer of
- * count_cycles_through_edge() (no globals): one array per thread, all zero between searches (the
- * search clears every mark it sets). The other arrays are the per-thread histograms of a phase
- * and the phase totals.
+ * `threads[t].visited` replaces the original's `static thread_local` visited buffer of
+ * count_cycles_through_edge() (no globals). The per-thread counters grow with the longest cycle
+ * found, not with the length bound (so an unbounded update costs what its searches cost, not
+ * O(n) per change edge).
  *
  * @tparam vertex_t Vertex id type.
  */
 template <typename vertex_t>
 struct cycle_count_workspace final : pooled_workspace {
-  structural_change<vertex_t> change;      ///< the normalized batch (Step 0)
-  changed_edge_index index;                ///< ownership ids of the current phase
-  std::vector<std::vector<char>> visited;  ///< per thread: path marks, n entries, all zero
-  std::size_t marks_needed = 0;            ///< entries each thread's marks must have
-  /// Elements per thread in `counts` and `partial`: max_length + 1 rounded up to a cache line,
-  /// plus one line, so no two threads write to one cache line.
-  std::size_t stride = 0;
-  std::vector<std::uint64_t> counts;   ///< per thread (at t * stride): cycles through one edge
-  std::vector<std::uint64_t> partial;  ///< per thread (at t * stride): cycles of the phase
-  std::vector<std::uint64_t> removed;  ///< cycles through deleted edges, by length
-  std::vector<std::uint64_t> added;    ///< cycles through inserted edges, by length
+  structural_change<vertex_t> change;                 ///< the normalized batch (Step 0)
+  changed_edge_index index;                           ///< ownership ids of the current phase
+  std::vector<cycle_count_thread<vertex_t>> threads;  ///< per-thread scratch
+  std::size_t marks_needed = 0;                       ///< entries each thread's marks must have
+  std::vector<std::uint64_t> removed;                 ///< cycles through deleted edges, by length
+  std::vector<std::uint64_t> added;                   ///< cycles through inserted edges, by length
 
   /**
-   * @brief Size the per-thread arrays (no-op if large enough; `visited` keeps its zeros).
-   * @param[in] threads    Threads of the phase.
-   * @param[in] vertices   Vertices of the largest graph searched.
-   * @param[in] max_length Longest counted length.
+   * @brief Make room for `threads` threads searching a graph of `vertices` vertices (the arrays
+   *        themselves are sized by their thread inside the phase).
+   * @param[in] thread_count Threads of the phase.
+   * @param[in] vertices     Vertices of the largest graph searched.
    */
-  void reserve(int threads, std::size_t vertices, std::size_t max_length);
+  void reserve(int thread_count, std::size_t vertices);
 
   /**
-   * @brief The path marks of one thread, sized on first use by the thread that calls this (so the
-   *        pages are first touched in parallel, as the original's thread_local buffers are).
-   * @param[in] thread The thread.
-   * @return At least marks_needed entries, all zero.
+   * @brief Restore the invariant of every thread's scratch after a failed phase.
    */
-  [[nodiscard]] std::vector<char>& thread_visited(std::size_t thread) {
-    std::vector<char>& marks = visited[thread];
-    if (marks.size() < marks_needed) {
-      marks.resize(marks_needed, 0);
+  void reset_threads() noexcept {
+    for (cycle_count_thread<vertex_t>& t : threads) {
+      t.reset();
     }
-    return marks;
-  }
-
-  /**
-   * @brief The per-edge counts of one thread.
-   * @param[in] thread The thread.
-   * @return max_length + 1 entries.
-   */
-  [[nodiscard]] std::uint64_t* thread_counts(std::size_t thread) noexcept {
-    return counts.data() + thread * stride;
-  }
-
-  /**
-   * @brief The phase sums of one thread.
-   * @param[in] thread The thread.
-   * @return max_length + 1 entries.
-   */
-  [[nodiscard]] std::uint64_t* thread_partial(std::size_t thread) noexcept {
-    return partial.data() + thread * stride;
   }
 
   /**
@@ -303,7 +355,7 @@ struct cycle_count_workspace final : pooled_workspace {
  * @tparam edge_t   Edge offset type.
  * @param[in]  graph      The graph.
  * @param[in]  max_length Longest counted length (>= 2), or -1 for no bound.
- * @param[out] counts     counts[len] (size >= longest possible length + 1, zero on entry).
+ * @param[out] counts     counts[len] (min(max_length, max(n, 2)) + 1 entries, zero on entry).
  */
 template <typename vertex_t, typename edge_t>
 void cycle_count_sequential_compute(const cycle_graph<vertex_t, edge_t>& graph,
@@ -317,8 +369,9 @@ void cycle_count_sequential_compute(const cycle_graph<vertex_t, edge_t>& graph,
  * @param[in]  graph      The graph.
  * @param[in]  max_length Longest counted length (>= 2), or -1 for no bound.
  * @param[in]  threads    OpenMP threads (1: the single-thread loop of the original).
- * @param[out] counts     counts[len] (size >= longest possible length + 1, zero on entry).
+ * @param[out] counts     counts[len] (min(max_length, max(n, 2)) + 1 entries, zero on entry).
  * @throws capacity_error if a merged count exceeds 2^64 - 1.
+ * @throws std::bad_alloc if a thread's scratch cannot be allocated.
  */
 template <typename vertex_t, typename edge_t>
 void cycle_count_openmp_compute(const cycle_graph<vertex_t, edge_t>& graph, std::int64_t max_length,
@@ -329,14 +382,16 @@ void cycle_count_openmp_compute(const cycle_graph<vertex_t, edge_t>& graph, std:
  *        update_static_histogram): the cycles through every change edge that it owns.
  *
  * Precondition: `ws.index` holds the ownership ids of `changes`, and `ws` is reserved for one
- * thread, the vertices of `graph` and `max_length`.
+ * thread and the vertices of `graph`. On an exception the workspace's invariant is restored.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @param[in]     graph      The phase's graph (G_t for the deletions, G_{t+1} for the insertions).
  * @param[in]     changes    The phase's normalized change list.
- * @param[in]     max_length Longest counted length (>= 2).
+ * @param[in]     max_length Longest counted length (>= 2; at most max(n, 2) is useful).
  * @param[in,out] ws         The workspace.
- * @param[out]    phase      phase[len] += the owned cycles of length len (size max_length + 1).
+ * @param[in,out] phase      phase[len] += the owned cycles of length len (grown to the longest
+ *                           length found + 1 if shorter).
+ * @throws capacity_error if a count exceeds 2^64 - 1.
  */
 template <typename vertex_t, typename edge_t>
 void cycle_count_sequential_phase(const cycle_graph<vertex_t, edge_t>& graph,
@@ -353,11 +408,13 @@ void cycle_count_sequential_phase(const cycle_graph<vertex_t, edge_t>& graph,
  * @tparam edge_t   Edge offset type.
  * @param[in]     graph      The phase's graph.
  * @param[in]     changes    The phase's normalized change list.
- * @param[in]     max_length Longest counted length (>= 2).
+ * @param[in]     max_length Longest counted length (>= 2; at most max(n, 2) is useful).
  * @param[in]     threads    OpenMP threads (> 1).
  * @param[in,out] ws         The workspace.
- * @param[out]    phase      phase[len] += the owned cycles of length len (size max_length + 1).
+ * @param[in,out] phase      phase[len] += the owned cycles of length len (grown to the longest
+ *                           length found + 1 if shorter).
  * @throws capacity_error if a merged count exceeds 2^64 - 1.
+ * @throws std::bad_alloc if a thread's scratch cannot be allocated.
  */
 template <typename vertex_t, typename edge_t>
 void cycle_count_openmp_phase(const cycle_graph<vertex_t, edge_t>& graph,
@@ -367,14 +424,30 @@ void cycle_count_openmp_phase(const cycle_graph<vertex_t, edge_t>& graph,
                               std::vector<std::uint64_t>& phase);
 
 /**
+ * @brief The reduction of a phase: add the counters of the first `thread_count` threads into
+ *        `phase` (grown to the longest length reached + 1 if shorter) and clear them.
+ *
+ * Only the lengths each thread reached are read and cleared, so the cost does not depend on the
+ * length bound. On an exception every thread's scratch is reset.
+ * @tparam vertex_t Vertex id type.
+ * @param[in,out] ws           The workspace.
+ * @param[in]     thread_count Threads of the phase.
+ * @param[in,out] phase        The phase's histogram.
+ * @throws capacity_error if a sum exceeds 2^64 - 1.
+ */
+template <typename vertex_t>
+void cycle_count_drain(cycle_count_workspace<vertex_t>& ws, std::size_t thread_count,
+                       std::vector<std::uint64_t>& phase);
+
+/**
  * @brief Record one cycle of `length` in a static count (CycleHistogram::increment).
  *
  * Built with DYNG_MUTATION_DOUBLE_COUNT_5 it is the recorded mutation "double counting 5-cycles"
  * (PLAN Section 8.4): 5-cycles count twice, and the mutation tests require the suite to fail.
  * @param[in,out] counts The histogram.
- * @param[in]     length The cycle length (< counts.size()).
+ * @param[in]     length The cycle length (a valid index of `counts`).
  */
-inline void cycle_count_record(std::vector<std::uint64_t>& counts, std::size_t length) {
+inline void cycle_count_record(std::uint64_t* counts, std::size_t length) noexcept {
 #if defined(DYNG_MUTATION_DOUBLE_COUNT_5)
   counts[length] += length == 5 ? 2 : 1;
 #else

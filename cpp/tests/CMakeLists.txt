@@ -125,8 +125,12 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
       list(APPEND _dyng_other_objects $<TARGET_OBJECTS:${_module}>)
     endif()
   endforeach()
+  # skip_workspace_resize is dynG's own (review of M2a): the insert phase keeps the per-thread
+  # marks of the graph before the batch, so a batch that adds vertices must make the suite fail
+  # (the phases check their workspace) instead of writing out of bounds unseen.
   foreach(_mutant "control;;pass" "double_count_5;DYNG_MUTATION_DOUBLE_COUNT_5;fail"
                   "weak_ownership;DYNG_MUTATION_WEAK_OWNERSHIP;fail"
+                  "skip_workspace_resize;DYNG_MUTATION_SKIP_WORKSPACE_RESIZE;fail"
   )
     list(GET _mutant 0 _name)
     list(GET _mutant 1 _define)

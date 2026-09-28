@@ -14,14 +14,45 @@
 #include "graph/graph_impl.hpp"
 #include "support/cycle_count_support.hpp"
 
+#include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
+#include <cstdlib>
+#include <new>
 #include <random>
 #include <vector>
+
+// Invariant I9 (PLAN Section 4.7): the algorithm phase of a steady-state update allocates nothing.
+// This executable counts the global operator new calls made while `counting_allocations` is set
+// (not under the sanitizers, which bring their own allocator).
+#if !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__)
+#define DYNG_TEST_COUNTS_ALLOCATIONS 1
+namespace {
+std::atomic<bool> counting_allocations{false};
+std::atomic<long> allocations{0};
+}  // namespace
+
+void* operator new(std::size_t size) {
+  if (counting_allocations.load(std::memory_order_relaxed)) {
+    allocations.fetch_add(1, std::memory_order_relaxed);
+  }
+  if (void* p = std::malloc(size == 0 ? 1 : size)) {
+    return p;
+  }
+  throw std::bad_alloc();
+}
+void operator delete(void* p) noexcept {
+  std::free(p);
+}
+void operator delete(void* p, std::size_t) noexcept {
+  std::free(p);
+}
+#endif
 
 namespace {
 
@@ -51,13 +82,21 @@ std::vector<std::uint64_t> count_through(const graph_u& g, std::int32_t u, std::
                                          std::size_t owner_id,
                                          const dyng::detail::changed_edge_index& index,
                                          std::size_t max_len) {
-  std::vector<std::uint64_t> counts(max_len + 1, 0);
-  std::vector<char> visited(static_cast<std::size_t>(g.num_vertices()), 0);
-  dyng::detail::count_cycles_through_edge(view_of(g), u, v, owner_id, index, max_len, visited,
-                                          counts.data());
-  for (const char mark : visited) {
+  dyng::detail::cycle_count_thread<std::int32_t> scratch;
+  scratch.prepare(static_cast<std::size_t>(g.num_vertices()), 3);
+  const std::size_t reached =
+      dyng::detail::count_cycles_through_edge(view_of(g), u, v, owner_id, index, max_len, scratch);
+  for (const char mark : scratch.visited) {
     EXPECT_EQ(mark, 0);  // the search clears every mark it sets
   }
+  std::vector<std::uint64_t> counts = scratch.partial;
+  EXPECT_LE(counts.size(), std::max<std::size_t>(max_len, 2) + 1);  // grown only as needed
+  std::size_t longest = 0;
+  for (std::size_t len = 0; len < counts.size(); ++len) {
+    longest = counts[len] != 0 ? len : longest;
+  }
+  EXPECT_EQ(reached, longest);  // the longest length counted
+  counts.resize(max_len + 1, 0);
   return counts;
 }
 
@@ -116,6 +155,31 @@ TEST(CyclesThroughEdge, OwnershipSkipsCyclesWithSmallerIdEdge) {
   EXPECT_FALSE(index.forbidden_before(0, 1, 1));
 }
 
+TEST(CyclesThroughEdge, CountersGrowOnDemandUpToTheBound) {
+  // A ring of 300 vertices closed by the edge (299, 0): one 300-cycle. The counters start small
+  // and grow to the length found, not to the bound.
+  const resources res = resources::sequential();
+  std::vector<cc_edge> ring;
+  for (std::int32_t v = 0; v < 300; ++v) {
+    ring.emplace_back(v, (v + 1) % 300);
+  }
+  const graph_u g = cc_graph<graph_u>(res, 300, ring);
+  const dyng::detail::changed_edge_index none;
+  dyng::detail::cycle_count_thread<std::int32_t> scratch;
+  scratch.prepare(300, 3);
+  EXPECT_EQ(dyng::detail::count_cycles_through_edge(view_of(g), 299, 0, 0, none,
+                                                    std::size_t{1} << 40, scratch),
+            300U);
+  EXPECT_EQ(scratch.partial.size(), 301U);
+  EXPECT_EQ(scratch.partial[300], 1U);
+  EXPECT_GE(scratch.stack.size(), 299U);  // the explicit stack grew with the path
+  // A bound below the ring's length counts nothing and grows nothing.
+  dyng::detail::cycle_count_thread<std::int32_t> small;
+  small.prepare(300, 3);
+  EXPECT_EQ(dyng::detail::count_cycles_through_edge(view_of(g), 299, 0, 0, none, 299, small), 0U);
+  EXPECT_EQ(small.partial.size(), 3U);
+}
+
 TEST(ChangedEdgeIndex, AnswersAsAMapUnderCollisionsAndReuse) {
   // Many edges out of one vertex and into one vertex, then a smaller list in the larger table.
   std::vector<change> big;
@@ -147,23 +211,120 @@ TEST(ChangedEdgeIndex, AnswersAsAMapUnderCollisionsAndReuse) {
   EXPECT_FALSE(index.forbidden_before(5, 6, 1));
 }
 
-TEST(CycleCountWorkspace, ReserveKeepsZerosAndPadsThreads) {
+TEST(CycleCountWorkspace, ReserveAndPrepareSizeEveryThread) {
   dyng::detail::cycle_count_workspace<std::int32_t> ws;
-  ws.reserve(3, 10, 4);
-  ASSERT_EQ(ws.visited.size(), 3U);
-  EXPECT_EQ(ws.thread_visited(2).size(), 10U);  // sized on first use by its thread
-  EXPECT_GE(ws.stride, 5U + 8U);
-  EXPECT_EQ(ws.stride % 8, 0U);
-  EXPECT_EQ(ws.counts.size(), 3 * ws.stride);
-  ws.thread_counts(2)[4] = 9;
-  ws.reserve(2, 20, 4);  // larger graph: marks grow, counters stay
-  EXPECT_EQ(ws.thread_visited(0).size(), 20U);
-  EXPECT_EQ(ws.thread_visited(2).size(), 20U);
-  EXPECT_EQ(ws.thread_counts(2)[4], 9U);
-  ws.reserve(4, 5, 30);  // more threads and a longer bound: counters are reallocated
-  EXPECT_GE(ws.stride, 31U + 8U);
-  EXPECT_EQ(ws.counts.size(), 4 * ws.stride);
+  ws.reserve(3, 10);
+  ASSERT_EQ(ws.threads.size(), 3U);
+  EXPECT_EQ(ws.marks_needed, 10U);
+  EXPECT_TRUE(ws.threads[2].visited.empty());  // sized by its own thread in the phase
+  ws.threads[2].prepare(ws.marks_needed, 5);
+  EXPECT_EQ(ws.threads[2].visited.size(), 10U);
+  EXPECT_EQ(ws.threads[2].partial.size(), 5U);
+  EXPECT_FALSE(ws.threads[2].stack.empty());
+  ws.threads[2].partial[4] = 9;
+  ws.threads[2].visited[3] = 1;
+  ws.reserve(2, 20);  // larger graph: the marks needed grow, the threads stay
+  EXPECT_EQ(ws.threads.size(), 3U);
+  EXPECT_EQ(ws.marks_needed, 20U);
+  ws.threads[2].prepare(ws.marks_needed, 5);
+  EXPECT_EQ(ws.threads[2].visited.size(), 20U);
+  EXPECT_EQ(ws.threads[2].partial[4], 9U);  // prepare() keeps the counters
+  ws.reset_threads();                       // after a failure: everything zero again
+  EXPECT_EQ(ws.threads[2].partial[4], 0U);
+  EXPECT_EQ(ws.threads[2].visited[3], 0);
+  EXPECT_EQ(reinterpret_cast<std::uintptr_t>(&ws.threads[1]) % 64, 0U);  // one line per thread
   EXPECT_GT(ws.bytes(), 0U);
+}
+
+TEST(CycleCountWorkspace, SteadyStatePhasesAllocateNothing) {
+#if !defined(DYNG_TEST_COUNTS_ALLOCATIONS)
+  GTEST_SKIP() << "allocation counting is off under the sanitizers";
+#else
+  const resources res = resources::sequential();
+  std::mt19937_64 rng(9);
+  dyng::test::cc_spec spec;
+  spec.vertex_count = 300;
+  spec.edge_probability = 0.02;
+  const std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+  const graph_u g = cc_graph<graph_u>(res, spec.vertex_count, edges);
+  std::vector<change> changes;
+  for (std::size_t i = 0; i < edges.size(); i += 7) {
+    changes.push_back({edges[i].first, edges[i].second});
+  }
+  std::sort(changes.begin(), changes.end(), [](const change& a, const change& b) {
+    return a.source != b.source ? a.source < b.source : a.target < b.target;
+  });
+  changes.erase(std::unique(changes.begin(), changes.end(),
+                            [](const change& a, const change& b) {
+                              return a.source == b.source && a.target == b.target;
+                            }),
+                changes.end());
+  dyng::detail::cycle_count_workspace<std::int32_t> ws;
+  std::vector<std::uint64_t> phase;
+  const auto run = [&](int threads) {
+    ws.reserve(threads, static_cast<std::size_t>(g.num_vertices()));
+    ws.index.assign(changes);
+    phase.clear();
+    if (threads > 1) {
+      dyng::detail::cycle_count_openmp_phase(view_of(g), changes, 6, threads, ws, phase);
+    } else {
+      dyng::detail::cycle_count_sequential_phase(view_of(g), changes, 6, ws, phase);
+    }
+  };
+  std::vector<int> team_sizes{1};
+#if DYNG_HAS_OPENMP
+  team_sizes.push_back(4);
+#endif
+  for (const int threads : team_sizes) {
+    run(threads);  // the first update of this size sizes the workspace
+    const std::vector<std::uint64_t> first = phase;
+    EXPECT_GT(first.size(), 3U);
+    allocations = 0;
+    counting_allocations = true;
+    run(threads);
+    counting_allocations = false;
+    EXPECT_EQ(allocations.load(), 0) << "threads " << threads;
+    EXPECT_EQ(phase, first);
+  }
+#endif
+}
+
+TEST(CycleCountWorkspace, PhasesDrainOnlyWhatTheyReached) {
+  // Both phase engines leave every counter and mark zero, and fail loudly on an unreserved
+  // workspace (the check a missing resize trips).
+  const resources res = resources::sequential();
+  const graph_u g = fixture(res);
+  std::vector<change> changes{{0, 1}, {2, 0}};
+  dyng::detail::cycle_count_workspace<std::int32_t> ws;
+  ws.index.assign(changes);
+  std::vector<std::uint64_t> phase;
+  EXPECT_THROW(dyng::detail::cycle_count_sequential_phase(view_of(g), changes, 3, ws, phase),
+               dyng::internal_error);
+  ws.reserve(1, 3);
+  dyng::detail::cycle_count_sequential_phase(view_of(g), changes, 3, ws, phase);
+  EXPECT_EQ(phase, (std::vector<std::uint64_t>{0, 0, 1, 1}));  // 0->1->0 and 0->1->2->0
+  for (const std::uint64_t c : ws.threads[0].partial) {
+    EXPECT_EQ(c, 0U);
+  }
+#if DYNG_HAS_OPENMP
+  std::vector<std::uint64_t> parallel;
+  ws.reserve(4, 3);
+  dyng::detail::cycle_count_openmp_phase(view_of(g), changes, 3, 4, ws, parallel);
+  EXPECT_EQ(parallel, phase);
+  for (const auto& t : ws.threads) {
+    for (const std::uint64_t c : t.partial) {
+      EXPECT_EQ(c, 0U);
+    }
+    for (const char m : t.visited) {
+      EXPECT_EQ(m, 0);
+    }
+  }
+  dyng::detail::cycle_count_workspace<std::int32_t> unreserved;
+  unreserved.index.assign(changes);
+  EXPECT_THROW(
+      dyng::detail::cycle_count_openmp_phase(view_of(g), changes, 3, 4, unreserved, parallel),
+      dyng::internal_error);
+#endif
 }
 
 /// Counts by the fixed-capacity search with one kind of work item, as the CUDA work queue forms

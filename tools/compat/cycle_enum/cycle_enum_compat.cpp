@@ -48,12 +48,14 @@
 #include <dyng/io/edge_list_io.hpp>
 #include <dyng/io/result_io.hpp>
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <exception>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -448,10 +450,13 @@ int run(const cli_config& config) {
     timed.attach_profiler(&prof);
   }
   dyng::cycle_count::options opt;
-  opt.max_length = config.max_cycle_length ? static_cast<int>(*config.max_cycle_length) : -1;
-  if (config.max_cycle_length && *config.max_cycle_length > 1000000) {
-    opt.max_length = 1000000;  // longer than any simple cycle of a graph this driver can read
-  }
+  // The library sizes everything by min(k, max(n, 2)), so k is passed through. A k beyond the int
+  // range is exact as INT_MAX: the vertex ids are int32_t, so no simple cycle is longer.
+  opt.max_length = config.max_cycle_length
+                       ? static_cast<int>(std::min<std::size_t>(
+                             *config.max_cycle_length,
+                             static_cast<std::size_t>(std::numeric_limits<int>::max())))
+                       : -1;
 
   auto t = clock_type::now();
   const auto edges = dyng::io::read_edge_list<std::int32_t, dyng::unweighted>(config.input_path);

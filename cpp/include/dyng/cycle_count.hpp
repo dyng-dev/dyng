@@ -82,8 +82,17 @@ enum class cycle_mode : std::uint8_t {
  */
 struct options {
   /// Longest counted cycle, >= 2; or -1 for no bound (every simple cycle, however long; the
-  /// sequential backend then runs Johnson's algorithm with blocked lists, the OpenMP backend a
-  /// plain path search, as the original). update() keeps the bound of compute().
+  /// default, as the original's). update() keeps the bound of compute(). A bound above the
+  /// vertex count costs nothing extra (no simple cycle is longer than n).
+  ///
+  /// Cost without a bound: only compute() on the **sequential** backend is Johnson's algorithm
+  /// (blocked lists; time O((n + m)(c + 1)) for c cycles). compute() on the **openmp** backend
+  /// (the original's OpenMP counter) and update() on every backend enumerate simple **paths**
+  /// (from each root, and through each change edge), so their time grows with the number of
+  /// simple paths, exponentially even on graphs with few or no cycles (a layered DAG). For an
+  /// unbounded count of a large sparse graph use the sequential backend, or set a bound. The
+  /// searches keep their paths on explicit stacks: a long path costs memory, never the thread's
+  /// stack.
   int max_length = -1;
   search_method method = search_method::johnson;  ///< the search (Johnson)
   cycle_mode mode = cycle_mode::simple;           ///< the cycles counted (simple)
@@ -149,9 +158,11 @@ namespace dyng::cycle_count {
  * @brief A cycle histogram kept up to date by update() (opaque, move-only).
  *
  * counts()[len] is the number of directed simple cycles of length `len`; entries 0 and 1 are
- * always 0. With a bound (options::max_length = k) the array has k + 1 entries; without one it has
- * max(num_vertices, 2) + 1 entries (no simple cycle is longer than the vertex count), and it grows
- * with the graph. Counts are 64-bit; a count that would exceed 2^64 - 1 throws capacity_error.
+ * always 0. The array has bound() + 1 entries, bound() = min(k, max(num_vertices, 2)) for
+ * options::max_length = k, max(num_vertices, 2) without a bound: no simple cycle is longer than
+ * the vertex count, so the lengths past it (up to k) are not stored and count() returns 0 for
+ * them. The array grows with the graph. Counts are 64-bit; a count that would exceed 2^64 - 1
+ * throws capacity_error.
  * The scratch memory of the engines is leased from the resources handle (ADR 0015), not owned.
  * @ingroup cycle_count
  */
@@ -203,8 +214,8 @@ class result {
 
   /**
    * @brief The longest length the histogram covers.
-   * @return options::max_length, or without a bound max(num_vertices, 2) of the graph the result
-   *         matches.
+   * @return min(options::max_length, max(num_vertices, 2)), or without a bound max(num_vertices, 2),
+   *         of the graph the result matches (get_options().max_length is the requested bound).
    * @throws invalid_argument_error for a moved-from result.
    */
   [[nodiscard]] std::int64_t bound() const;
@@ -333,7 +344,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * cycles through the inserted edges are added on the graph after it; each affected cycle is
  * attributed to exactly one change edge (the smallest id on it among its phase's changes).
  * Postcondition: `r` equals compute(res, g, r.get_options()) exactly. Without a bound the update
- * enumerates every cycle through the change edges, which can take exponential time.
+ * enumerates every simple path from each change edge's head back to its tail, which can take
+ * exponential time even when few cycles close (see options::max_length); its bookkeeping costs
+ * what the searches find, not the vertex count.
  *
  * @tparam vertex_t Vertex id type (int32_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).

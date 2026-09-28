@@ -6,20 +6,28 @@
  * @file static_openmp.cpp
  * @brief compute() on the OpenMP backend: CycleEnumeration-GPU's coarse-grained OpenMP counter.
  *
- * Straight port of openmp::count_simple_cycles_johnson(): one path search per root, roots
- * distributed with schedule(dynamic), one histogram per thread merged at the end; one thread runs
- * the single-thread loop. The duplicate-avoidance rule is that of the sequential Johnson search
- * (each cycle counted from its smallest vertex). The mechanical changes: the templates on the
- * index types, the graph as a cycle_graph, the thread count from the resources (never the global
- * OpenMP setting), and dense per-thread counts arrays instead of CycleHistogram maps.
+ * Port of openmp::count_simple_cycles_johnson(): one path search per root, roots distributed with
+ * schedule(dynamic), one histogram per thread merged at the end; one thread runs the single-thread
+ * loop. The duplicate-avoidance rule is that of the sequential Johnson search (each cycle counted
+ * from its smallest vertex). The mechanical changes: the templates on the index types, the graph
+ * as a cycle_graph, the thread count from the resources (never the global OpenMP setting), dense
+ * per-thread counts arrays instead of CycleHistogram maps (grown on demand, so an unbounded count
+ * does not allocate threads x n counters), and the search of count_root() with an explicit stack
+ * (root_search.hpp).
+ *
+ * Without a length bound the search enumerates simple paths (the original has no blocked lists
+ * here either): its cost is exponential in the number of simple paths even on graphs with few
+ * cycles, where the sequential backend's Johnson search is linear per cycle.
  */
 #include "algorithms/cycle_count/problem.hpp"
+#include "algorithms/cycle_count/root_search.hpp"
 
 #include <dyng/config.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
+#include <new>
 #include <vector>
 
 #if DYNG_HAS_OPENMP
@@ -31,59 +39,11 @@ namespace dyng::detail {
 namespace {
 
 template <typename vertex_t, typename edge_t>
-void count_root(const cycle_graph<vertex_t, edge_t>& graph, const vertex_t root,
-                const std::size_t max_cycle_length, std::vector<std::uint64_t>& histogram,
-                std::vector<unsigned char>& visited, std::vector<vertex_t>& path) {
-  // The search clears every mark it sets, so the buffer is all-zero between roots: size it once
-  // instead of clearing all V entries per root, which made the whole count O(V^2).
-  if (visited.size() != graph.vertex_count) {
-    visited.assign(graph.vertex_count, 0);
-  }
-  path.clear();
-  path.push_back(root);
-  visited[static_cast<std::size_t>(root)] = 1;
-
-  auto dfs = [&](auto& self, const vertex_t current) -> void {
-    const auto begin = static_cast<std::size_t>(graph.offsets[current]);
-    const auto end = static_cast<std::size_t>(graph.offsets[current + 1]);
-
-    for (std::size_t offset = begin; offset < end; ++offset) {
-      const vertex_t next = graph.neighbors[offset];
-
-      if (next == root && path.size() >= 2) {
-        cycle_count_record(histogram, path.size());
-        continue;
-      }
-
-      if (next <= root || visited[static_cast<std::size_t>(next)] != 0) {
-        continue;
-      }
-
-      if (path.size() >= max_cycle_length) {
-        continue;
-      }
-
-      visited[static_cast<std::size_t>(next)] = 1;
-      path.push_back(next);
-      self(self, next);
-      path.pop_back();
-      visited[static_cast<std::size_t>(next)] = 0;
-    }
-  };
-
-  dfs(dfs, root);
-  visited[static_cast<std::size_t>(root)] = 0;
-}
-
-template <typename vertex_t, typename edge_t>
-void count_single_thread(const cycle_graph<vertex_t, edge_t>& graph,
-                         const std::size_t max_cycle_length, std::vector<std::uint64_t>& counts) {
-  std::vector<unsigned char> visited;
-  std::vector<vertex_t> path;
-  path.reserve(graph.vertex_count);
-
+void count_single_thread(const cycle_graph<vertex_t, edge_t>& graph, const std::size_t max_length,
+                         std::vector<std::uint64_t>& counts) {
+  cycle_root_scratch<vertex_t> scratch;
   for (std::size_t root = 0; root < graph.vertex_count; ++root) {
-    count_root(graph, static_cast<vertex_t>(root), max_cycle_length, counts, visited, path);
+    cycle_count_search_root(graph, static_cast<vertex_t>(root), max_length, counts, scratch);
   }
 }
 
@@ -92,28 +52,44 @@ void count_single_thread(const cycle_graph<vertex_t, edge_t>& graph,
 template <typename vertex_t, typename edge_t>
 void cycle_count_openmp_compute(const cycle_graph<vertex_t, edge_t>& graph, std::int64_t max_length,
                                 int threads, std::vector<std::uint64_t>& counts) {
-  // No bound: a path never reaches the cap (the original's empty std::optional).
-  const std::size_t max_cycle_length = max_length < 0 ? std::numeric_limits<std::size_t>::max()
-                                                      : static_cast<std::size_t>(max_length);
+  // counts has min(max_length, max(n, 2)) + 1 entries: no simple cycle is longer than n, so the
+  // cap of the search is its last index (without a bound: a path never reaches it).
+  (void)max_length;
+  const std::size_t cap = counts.size() - 1;
 #if DYNG_HAS_OPENMP
   if (threads > 1) {
-    const std::size_t length = counts.size();
+    const std::size_t initial = std::min<std::size_t>(cap, 64) + 1;
     std::vector<std::vector<std::uint64_t>> local_histograms(static_cast<std::size_t>(threads));
 
-#pragma omp parallel num_threads(threads)
+    bool failed = false;
+#pragma omp parallel num_threads(threads) reduction(|| : failed)
     {
       const int thread_id = omp_get_thread_num();
       std::vector<std::uint64_t>& local = local_histograms[static_cast<std::size_t>(thread_id)];
-      local.assign(length, 0);
-      std::vector<unsigned char> visited;
-      std::vector<vertex_t> path;
-      path.reserve(graph.vertex_count);
+      cycle_root_scratch<vertex_t> scratch;
+      bool ready = true;
+      try {
+        local.assign(initial, 0);
+      } catch (...) {
+        ready = false;
+      }
 
 #pragma omp for schedule(dynamic)
       for (std::ptrdiff_t root = 0; root < static_cast<std::ptrdiff_t>(graph.vertex_count);
            ++root) {
-        count_root(graph, static_cast<vertex_t>(root), max_cycle_length, local, visited, path);
+        if (!ready) {
+          continue;
+        }
+        try {
+          cycle_count_search_root(graph, static_cast<vertex_t>(root), cap, local, scratch);
+        } catch (...) {
+          ready = false;
+        }
       }
+      failed = failed || !ready;
+    }
+    if (failed) {
+      throw std::bad_alloc();
     }
 
     for (const std::vector<std::uint64_t>& local : local_histograms) {
@@ -126,7 +102,7 @@ void cycle_count_openmp_compute(const cycle_graph<vertex_t, edge_t>& graph, std:
 #endif
 
   (void)threads;
-  count_single_thread(graph, max_cycle_length, counts);
+  count_single_thread(graph, cap, counts);
 }
 
 template void cycle_count_openmp_compute<std::int32_t, std::int32_t>(

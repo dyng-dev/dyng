@@ -45,35 +45,27 @@ namespace dyng::detail {
 // ------------------------------------------------------------------------------------------------
 
 template <typename vertex_t>
-void cycle_count_workspace<vertex_t>::reserve(int threads, std::size_t vertices,
-                                              std::size_t max_length) {
-  const auto count = static_cast<std::size_t>(std::max(threads, 1));
-  if (visited.size() < count) {
-    visited.resize(count);
+void cycle_count_workspace<vertex_t>::reserve(int thread_count, std::size_t vertices) {
+  const auto count = static_cast<std::size_t>(std::max(thread_count, 1));
+  if (threads.size() < count) {
+    threads.resize(count);
   }
-  // The marks themselves are sized by the thread that uses them, inside the phase (first touch
-  // in parallel, as the original's thread_local buffers): see thread_visited().
+  // The marks, stacks and counters themselves are sized by the thread that uses them, inside the
+  // phase (first touch in parallel, as the original's thread_local buffers): see
+  // cycle_count_thread::prepare().
   marks_needed = std::max(marks_needed, vertices);
-  // One cache line is 8 counters: round up, then keep one spare line between two threads.
-  constexpr std::size_t line = 8;
-  const std::size_t needed = (max_length + 1 + line - 1) / line * line + line;
-  if (stride < needed || counts.size() < count * stride) {
-    stride = std::max(stride, needed);
-    counts.assign(count * stride, 0);
-    partial.assign(count * stride, 0);
-  }
 }
 
 template <typename vertex_t>
 std::size_t cycle_count_workspace<vertex_t>::bytes() const noexcept {
-  std::size_t total =
-      change.deletions.capacity() * sizeof(edge_change<vertex_t>) +
-      change.insertions.capacity() * sizeof(edge_change<vertex_t>) +
-      change.requested.capacity() * sizeof(edge_change<vertex_t>) + index.bytes() +
-      (counts.capacity() + partial.capacity() + removed.capacity() + added.capacity()) *
-          sizeof(std::uint64_t);
-  for (const std::vector<char>& marks : visited) {
-    total += marks.capacity();
+  std::size_t total = change.deletions.capacity() * sizeof(edge_change<vertex_t>) +
+                      change.insertions.capacity() * sizeof(edge_change<vertex_t>) +
+                      change.requested.capacity() * sizeof(edge_change<vertex_t>) + index.bytes() +
+                      (removed.capacity() + added.capacity()) * sizeof(std::uint64_t) +
+                      threads.capacity() * sizeof(cycle_count_thread<vertex_t>);
+  for (const cycle_count_thread<vertex_t>& t : threads) {
+    total += t.visited.capacity() + t.stack.capacity() * sizeof(cycle_search_frame<vertex_t>) +
+             t.partial.capacity() * sizeof(std::uint64_t);
   }
   return total;
 }
@@ -166,14 +158,14 @@ cycle_graph<vertex_t, edge_t> engine_graph(const graph<vertex_t, edge_t, weight_
   return cg;
 }
 
-/// The longest length a histogram of `g` covers: the bound, or max(n, 2) without one (no simple
-/// cycle is longer than the vertex count).
+/// The longest length a histogram of `g` covers: min(max_length, max(n, 2)), or max(n, 2)
+/// without a bound. No simple cycle is longer than the vertex count, so the clamp changes no count;
+/// it keeps a large bound from costing memory and time (histograms, per-thread counters).
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::int64_t histogram_bound(const cycle_count::options& opt,
                              const graph<vertex_t, edge_t, weight_t>& g) {
-  return opt.max_length >= 0
-             ? opt.max_length
-             : std::max<std::int64_t>(static_cast<std::int64_t>(g.num_vertices()), 2);
+  const auto longest = std::max<std::int64_t>(static_cast<std::int64_t>(g.num_vertices()), 2);
+  return opt.max_length >= 0 ? std::min<std::int64_t>(opt.max_length, longest) : longest;
 }
 
 /// Sum of a histogram, checked (CycleHistogram::total()).
@@ -236,8 +228,8 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
     bound_before_ = histogram_bound(state_->opt, g);
     cycle_count_hook(res, "cycle_count.count_minus", [&] {
       const auto max_length = static_cast<std::size_t>(bound_before_);
-      ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()), max_length);
-      ws.removed.assign(max_length + 1, 0);
+      ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()));
+      ws.removed.clear();
       ws.index.assign(ws.change.deletions);
       run_phase(engine_graph(g), ws.change.deletions, max_length, ws, ws.removed);
     });
@@ -253,8 +245,10 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
 
     // ---- identify_affected: the inserted edges and their ownership index, on G_{t+1} ----
     cycle_count_hook(res, "cycle_count.identify_affected", [&] {
-      ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()), max_length);
-      ws.added.assign(max_length + 1, 0);
+#if !defined(DYNG_MUTATION_SKIP_WORKSPACE_RESIZE)
+      ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()));
+#endif
+      ws.added.clear();
       ws.index.assign(ws.change.insertions);
     });
 
@@ -335,12 +329,13 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
 
   /// apply_histogram_delta(): counts[len] += added[len] - removed[len] for every length; a bucket
   /// that would become negative throws internal_error (the original's std::logic_error) before
-  /// anything is written. Without a bound the histogram grows to the new bound.
+  /// anything is written. The histogram grows to the new bound (it covers min(max_length,
+  /// max(n, 2)), and n grows with the graph). Only the lengths the phases reached are visited.
   /// @return The number of lengths whose count changed.
   static std::int64_t apply_histogram_delta(cycle_count_state& st, std::int64_t bound_after,
                                             const std::vector<std::uint64_t>& removed,
                                             const std::vector<std::uint64_t>& added) {
-    const auto size = std::max(static_cast<std::size_t>(bound_after) + 1, st.counts.size());
+    const std::size_t touched = std::max(removed.size(), added.size());
     const auto delta_at = [&](std::size_t len, std::uint64_t& value, std::uint64_t& plus,
                               std::uint64_t& minus) {
       value = len < st.counts.size() ? st.counts[len] : 0;
@@ -348,7 +343,7 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
       minus = len < removed.size() ? removed[len] : 0;
     };
     // Check every bucket first, so a failure leaves the histogram as it was.
-    for (std::size_t len = 0; len < size; ++len) {
+    for (std::size_t len = 0; len < touched; ++len) {
       std::uint64_t value = 0;
       std::uint64_t plus = 0;
       std::uint64_t minus = 0;
@@ -361,15 +356,17 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
                   minus, ")");
       }
     }
-    std::int64_t changed = 0;
+    const std::size_t size =
+        std::max({static_cast<std::size_t>(bound_after) + 1, st.counts.size(), touched});
     st.counts.resize(size, 0);
-    for (std::size_t len = 0; len < size; ++len) {
+    std::int64_t changed = 0;
+    for (std::size_t len = 0; len < touched; ++len) {
       const std::uint64_t plus = len < added.size() ? added[len] : 0;
       const std::uint64_t minus = len < removed.size() ? removed[len] : 0;
       st.counts[len] = st.counts[len] + plus - minus;
       changed += plus != minus ? 1 : 0;
     }
-    st.bound = std::max(st.bound, bound_after);
+    st.bound = static_cast<std::int64_t>(size) - 1;
     return changed;
   }
 

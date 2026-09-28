@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <random>
 #include <set>
@@ -432,7 +433,7 @@ TEST_P(CycleCountRandom, EverySemanticsMatchesCompute) {
         (void)cycle_count::update(res_, g, batch.view(), r);
         EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(k))));
         EXPECT_EQ(cc_counts(r),
-                  dyng::test::cc_resize(dyng::test::cc_oracle(res_, g, k), r.counts().size()));
+                  dyng::test::cc_resize(dyng::test::cc_oracle(res_, g, k), cc_counts(r).size()));
       }
     }
   }
@@ -471,6 +472,133 @@ TEST_P(CycleCountRandom, InverseBatchRestoresTheHistogram) {
     EXPECT_EQ(forward.cycles_added, back.cycles_removed);
     EXPECT_EQ(forward.cycles_removed, back.cycles_added);
   }
+}
+
+// Deep searches (default options, no bound): the reversed path n-1 -> ... -> 1 -> 0 plus the edge
+// 0 -> n-1 is one n-cycle. The static search from root 0 and the update search through the edge
+// both walk a path of n vertices; the searches keep it on explicit stacks, so this neither
+// overflows the thread's stack (the original's recursion does at n of about 70,000 to 200,000)
+// nor costs more than O(n).
+TEST_P(CycleCountRandom, LongRingsNeedNoThreadStack) {
+  constexpr std::int32_t n = 300000;
+  std::vector<cc_edge> path;
+  path.reserve(n);
+  for (std::int32_t v = 1; v < n; ++v) {
+    path.emplace_back(v, v - 1);
+  }
+  graph_u g = cc_graph<graph_u>(res_, n, path);
+  cycle_count::result r = cycle_count::compute(res_, g);
+  EXPECT_EQ(r.total(), 0U);
+  EXPECT_EQ(r.bound(), n);
+  const batch_u close = cc_batch<unweighted>({}, {{0, n - 1}});
+  const cycle_count::stats st = cycle_count::update(res_, g, close.view(), r);
+  EXPECT_EQ(st.cycles_added, 1U);
+  EXPECT_EQ(r.count(n), 1U);
+  EXPECT_EQ(r.total(), 1U);
+  EXPECT_EQ(cycle_count::compute(res_, g).count(n), 1U);  // the static search from root 0
+  const batch_u open = cc_batch<unweighted>({{n / 2, n / 2 - 1}}, {});
+  EXPECT_EQ(cycle_count::update(res_, g, open.view(), r).cycles_removed, 1U);
+  EXPECT_EQ(r.total(), 0U);
+}
+
+// Bounds at the CUDA limit (64) and far above the vertex count: the histogram covers
+// min(k, max(n, 2)) lengths, so a huge k costs nothing, and the counts equal the oracle's.
+TEST_P(CycleCountRandom, LargeBoundsMatchOracle) {
+  for (const std::uint64_t seed : test_seeds(6464, 30)) {
+    std::mt19937_64 rng(seed);
+    const int trial = trial_of(seed, 6464);
+    SCOPED_TRACE(seed_trace(seed));
+    dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 3, 9);
+    graph_u g = cc_graph<graph_u>(res_, spec.vertex_count, dyng::test::cc_random_edges(spec, rng));
+    const int k = trial % 2 == 0 ? 64 : 2000000000;
+    cycle_count::result r = cycle_count::compute(res_, g, bound(k));
+    EXPECT_EQ(r.bound(), std::max<std::int64_t>(g.num_vertices(), 2));
+    EXPECT_EQ(r.counts().size(), static_cast<std::size_t>(r.bound()) + 1);
+    EXPECT_EQ(r.get_options().max_length, k);
+    EXPECT_EQ(cc_counts(r),
+              dyng::test::cc_resize(dyng::test::cc_oracle(res_, g, -1), cc_counts(r).size()));
+    std::uniform_int_distribution<std::int32_t> vertex(
+        0, static_cast<std::int32_t>(spec.vertex_count + 2));
+    std::vector<cc_edge> deletions;
+    std::vector<cc_edge> insertions;
+    for (std::uint64_t i = rng() % 5; i > 0; --i) {
+      deletions.emplace_back(vertex(rng), vertex(rng));
+    }
+    for (std::uint64_t i = 1 + rng() % 5; i > 0; --i) {
+      insertions.emplace_back(vertex(rng), vertex(rng));
+    }
+    const batch_u batch = cc_batch<unweighted>(deletions, insertions);
+    (void)cycle_count::update(res_, g, batch.view(), r);
+    EXPECT_EQ(r.bound(), std::max<std::int64_t>(g.num_vertices(), 2));
+    EXPECT_EQ(cc_counts(r),
+              dyng::test::cc_resize(dyng::test::cc_oracle(res_, g, -1), cc_counts(r).size()));
+  }
+}
+
+// A batch that grows the graph far beyond its size (the per-thread marks of the insert phase must
+// be resized for the new vertices): a ring through 601 new vertices closed at an old one.
+TEST_P(CycleCountRandom, UpdatesThatGrowTheGraphFarBeyondItsSize) {
+  for (const int k : {-1, 4, 700}) {
+    SCOPED_TRACE(::testing::Message() << "k=" << k);
+    graph_u g = cc_graph<graph_u>(res_, 5, {{0, 1}, {1, 2}, {2, 0}, {3, 4}, {4, 3}});
+    cycle_count::result r = cycle_count::compute(res_, g, bound(k));
+    std::vector<cc_edge> ring{{0, 5}};
+    for (std::int32_t v = 5; v < 605; ++v) {
+      ring.emplace_back(v, v + 1);
+    }
+    ring.emplace_back(605, 0);
+    ring.emplace_back(10, 11);  // listed twice: a duplicate insertion
+    const batch_u batch = cc_batch<unweighted>({{2, 0}}, ring);
+    const cycle_count::stats st = cycle_count::update(res_, g, batch.view(), r);
+    EXPECT_EQ(g.num_vertices(), 606);
+    EXPECT_EQ(st.cycles_removed, 1U);  // 0 -> 1 -> 2 -> 0
+    EXPECT_EQ(r.count(2), 1U);         // 3 <-> 4
+    EXPECT_EQ(r.count(3), 0U);
+    EXPECT_EQ(r.count(602), k == 4 ? 0U : 1U);  // 0 -> 5 -> ... -> 605 -> 0
+    EXPECT_EQ(r.total(), k == 4 ? 1U : 2U);
+    EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(k))));
+    EXPECT_EQ(r.bound(), k == 4 ? 4 : 606);
+  }
+}
+
+// The cost of an unbounded update depends on its searches, not on the vertex count: a graph of
+// 100,000 disjoint triangles, 2,000 deletions and 2,000 insertions. Before the counters grew on
+// demand, the unbounded update touched max(n, 2) counters per change edge (about 350 times the
+// bounded update in Release); a loose factor keeps the test robust on a loaded machine.
+TEST_P(CycleCountRandom, UnboundedUpdateCostsAboutTheBoundedOne) {
+  constexpr std::int32_t triangles = 100000;
+  std::vector<cc_edge> edges;
+  for (std::int32_t t = 0; t < triangles; ++t) {
+    edges.emplace_back(3 * t, 3 * t + 1);
+    edges.emplace_back(3 * t + 1, 3 * t + 2);
+    edges.emplace_back(3 * t + 2, 3 * t);
+  }
+  std::vector<cc_edge> deletions;
+  std::vector<cc_edge> insertions;
+  for (std::int32_t t = 0; t < 2000; ++t) {
+    deletions.emplace_back(3 * t, 3 * t + 1);
+    insertions.emplace_back(3 * t + 3 * 5000, 3 * t + 2 + 3 * 5000);  // closes a 2-cycle
+  }
+  const batch_u batch = cc_batch<unweighted>(deletions, insertions);
+  const auto best_of_three = [&](int k) {
+    double best = 1e30;
+    for (int round = 0; round < 3; ++round) {
+      graph_u g = cc_graph<graph_u>(res_, 3 * triangles, edges);
+      cycle_count::result r = cycle_count::compute(res_, g, bound(k));
+      const auto start = std::chrono::steady_clock::now();
+      const cycle_count::stats st = cycle_count::update(res_, g, batch.view(), r);
+      const std::chrono::duration<double> took = std::chrono::steady_clock::now() - start;
+      best = std::min(best, took.count());
+      EXPECT_EQ(st.cycles_removed, 2000U);
+      EXPECT_EQ(st.cycles_added, 2000U);
+      EXPECT_EQ(r.count(2), 2000U);
+      EXPECT_EQ(r.count(3), static_cast<std::uint64_t>(triangles) - 2000U);
+    }
+    return best;
+  };
+  const double bounded = best_of_three(3);
+  const double unbounded = best_of_three(-1);
+  EXPECT_LT(unbounded, 10.0 * bounded + 0.05) << "bounded " << bounded << " s";
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, CycleCountRandom,
