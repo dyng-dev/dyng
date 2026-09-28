@@ -312,7 +312,9 @@ class sequential_problem {
         color[x] = 2;
       }
     }
-    std::fill(color, color + n_, char{0});
+    // The whole array (it holds at least n_ entries): GCC 12 at -O2 cannot bound color + n_ and
+    // warns (-Wstringop-overflow) about the pointer form.
+    std::fill(ws_.state.begin(), ws_.state.end(), char{0});
     path.clear();
     DYNG_EXPECTS(!cyclic, "sssp: the input shortest-path tree has a parent cycle");
   }
