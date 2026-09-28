@@ -246,6 +246,29 @@ Before 0.1.0 anything may change.
   (`CUDA::nvtx3` alone does not guarantee the headers); `cuda-build.yml` documents the
   `LD_LIBRARY_PATH` a conda-forge toolkit needs for the local equivalent.
 
+### Integration 1 (M1b and M4 merged)
+
+- `main` merges the project infrastructure (M4, branch `m4-infra`) with a merge commit on top of
+  the CUDA backend (M1b). `ci/check.sh` keeps M4's steps (clang-tidy naming, harness tests,
+  `DYNG_CHECK_ONLY`, the Sphinx site) under M1b's shared-lock wrapper; CONTRIBUTING.md and the
+  README describe the CUDA presets and the local GPU gate `ci/gpu_local.sh`.
+- `cuda-build.yml` meets the workflow checks of M4 (a job timeout, no persisted credentials).
+- Documentation site: the M1b ADRs (0003, 0009, 0015-0018) and retrospective, an API page for
+  the `generators` group, the CUDA backend on the install, backend, getting-started, roadmap and
+  tutorial pages, the CUDA parity replay and links to the M1a and M1b parity certificates;
+  the algorithm tables list `sssp` on sequential, OpenMP and CUDA.
+- `examples/cpp/first_update.cpp` uses `graph<>` and runs on the `cuda` backend
+  (`example.first_update.cuda`, label `gpu`).
+- Credit and citations (the author's facts of 2026-09-27): the ESCHER IPDPS 2026 title and
+  authors; TruCy cited as a submitted manuscript; S M Ferdous's affiliation (PNNL); the
+  placeholder-identity commits of the originals credited to S M Shovan; no funding line yet.
+- Merge policy (ADR 0019): milestone and integration pull requests are merged with merge
+  commits, external contributions squash-merged, rebase merging disabled. `GOVERNANCE.md` and
+  the repository settings guide record it, mark the settings already applied, and list the
+  `cuda-build` and `docs` jobs among the required checks of the `main` ruleset (pending the
+  first pull request).
+- The INT1 retrospective (`docs/developer/retrospectives/INT1.md`).
+
 ## [0.0.1] - 2026-09-27
 
 ### Added
