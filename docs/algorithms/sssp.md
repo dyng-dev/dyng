@@ -161,7 +161,7 @@ stamps, flags and six frontier lists) belongs to the `resources` handle, not to 
 handle and size it once (profiler stage `sssp.workspace`), so results run through one handle
 share it: the K objectives of `dyng::update_each()` use one workspace one after the other, as
 MOSP's `mospUpdate()` shares its `SospWorkspace`, and a steady-state update allocates no scratch
-memory. Calls that run concurrently on copies of one handle lease distinct workspaces.
+memory (on OpenMP up to the per-thread lists, below). Calls that run concurrently on copies of one handle lease distinct workspaces.
 `resources::workspace_bytes()` reports the cached bytes, `resources::release_workspaces()` frees
 them. As in the original, objective 0 of an update first touches the frontier-list pages it uses.
 
@@ -187,8 +187,10 @@ objective with a few hundred vertices each, so its time is mostly barrier latenc
 pass three barriers instead of the original's six (the work-sharing loops are `nowait` and the
 two per-thread lists of a round are gathered together, `list_gather::gather_pair()`), with the
 same lists and outputs: on the 10K local batches the OpenMP update is 0.63-0.89x of
-MOSP-OpenMP's. The per-thread lists are kept in the workspace on their own cache lines, so a
-steady-state update allocates nothing for them.
+MOSP-OpenMP's. The per-thread lists are kept in the workspace on their own cache lines and keep
+their capacity, so a list allocates only when its thread takes a larger share of a round than it
+ever took before (the dynamic schedule decides the shares; the growth is geometric, like a
+vector's); MOSP creates them in every parallel region.
 
 **Clock state (CUDA).** A short update that follows a long host-only phase runs its kernels
 while the GPU is still in a low performance state (on the RTX A5000: P2, SM clock 1.69 GHz and

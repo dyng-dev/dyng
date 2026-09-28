@@ -10,8 +10,9 @@
  * the blocks of two threads can lie next to each other, so that their push_back writes share a
  * cache line. A thread_list allocates whole cache lines at cache-line boundaries, and a
  * padded_thread_list keeps the vector's own header (written by push_back) on a line of its own.
- * Kept in a workspace, the lists also keep their capacity between rounds and runs, so a
- * steady-state update allocates nothing for them. (M1b measured no speed difference from this
+ * Kept in a workspace, the lists also keep their capacity between rounds and runs, so a list
+ * allocates only when its thread takes a larger share of a round than ever before (the dynamic
+ * schedule decides the shares). (M1b measured no speed difference from this
  * alone; the near-far loop's time is in its barriers, see list_gather::gather_pair() and
  * parity/results/M1b.md section 9.)
  */

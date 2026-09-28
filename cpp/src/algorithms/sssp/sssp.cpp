@@ -75,7 +75,12 @@ std::size_t sssp_workspace<vertex_t>::bytes() const noexcept {
         &changed_to}) {
     total += bytes_of(*list);
   }
-  total += thread_lists.capacity() * sizeof(padded_thread_list<vertex_t>);
+  return total + thread_list_bytes();
+}
+
+template <typename vertex_t>
+std::size_t sssp_workspace<vertex_t>::thread_list_bytes() const noexcept {
+  std::size_t total = thread_lists.capacity() * sizeof(padded_thread_list<vertex_t>);
   for (const padded_thread_list<vertex_t>& list : thread_lists) {
     total += (list.items.capacity() * sizeof(vertex_t) + cache_line_bytes - 1) / cache_line_bytes *
              cache_line_bytes;

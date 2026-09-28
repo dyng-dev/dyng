@@ -3,10 +3,13 @@
 /**
  * @file sssp_workspace_test.cpp
  * @brief Results share the scratch memory of their resources handle (ADR 0015): one workspace for
- *        the K objectives, no scratch allocation in a steady-state update, results that stay
+ *        the K objectives, no scratch allocation in a steady-state update (the OpenMP engine's
+ *        per-thread lists excepted: they grow to the largest share of a round a thread has
+ *        taken, which the dynamic schedule decides), results that stay
  *        independent, a failed update that discards its workspace, concurrent computes on copies
  *        of one handle; and the parallel validation of imported trees.
  */
+#include "algorithms/sssp/problem.hpp"
 #include "framework/workspace.hpp"
 #include "support/gtest_helpers.hpp"
 
@@ -105,6 +108,20 @@ INSTANTIATE_TEST_SUITE_P(HostBackends, SsspWorkspace,
                          ::testing::ValuesIn(dyng::test::host_backends()),
                          dyng::test::backend_name{});
 
+/// The pooled workspace's bytes, split into the part that depends only on the graph and the
+/// batches and the part held by the OpenMP engine's per-thread lists, whose capacity follows the
+/// largest share of a round each thread has taken (the dynamic schedule decides the shares).
+struct workspace_split {
+  std::size_t fixed = 0;
+  std::size_t thread_lists = 0;
+};
+
+workspace_split split_of(const dyng::resources& res) {
+  auto lease =
+      resources_access::workspaces(res).acquire<dyng::detail::sssp_workspace<std::int32_t>>();
+  return {lease->bytes() - lease->thread_list_bytes(), lease->thread_list_bytes()};
+}
+
 TEST_P(SsspWorkspace, TheObjectivesShareOneWorkspaceAndASteadyStateAllocatesNone) {
   auto g = random_graph(res_, 3000, 9000, 11);
   const auto& pool = resources_access::workspaces(res_);
@@ -126,21 +143,32 @@ TEST_P(SsspWorkspace, TheObjectivesShareOneWorkspaceAndASteadyStateAllocatesNone
   for (std::size_t i = 0; i < forth.num_deletions(); ++i) {
     back.insert_edge(forth.view().delete_src[i], forth.view().delete_dst[i], {3, 2, 7});
   }
-  std::size_t warm_bytes = 0;
+  workspace_split warm;
+  std::size_t lists_before = 0;
   for (int round = 0; round < 5; ++round) {
     (void)dyng::update_each(res_, g, forth.view(), list);
     (void)dyng::update_each(res_, g, back.view(), list);
+    const workspace_split now = split_of(res_);
+    EXPECT_EQ(pool.statistics().idle_bytes, now.fixed + now.thread_lists) << "round " << round;
+    // The per-thread lists are kept, never shrunk (a growth is amortized, as a vector's).
+    EXPECT_GE(now.thread_lists, lists_before) << "round " << round;
+    lists_before = now.thread_lists;
     if (round < 2) {
       // The warm-up: the first rounds size the change lists (the first `forth` inserts new
       // edges, later ones update them, so the set of weight increases settles after round 1).
-      warm_bytes = pool.statistics().idle_bytes;
+      warm = now;
       continue;
     }
-    EXPECT_EQ(pool.statistics().idle_bytes, warm_bytes) << "round " << round;
+    EXPECT_EQ(now.fixed, warm.fixed) << "round " << round;
     EXPECT_EQ(pool.statistics().created, 1u) << "round " << round;
   }
-  EXPECT_GT(warm_bytes, 0u);
-  EXPECT_EQ(res_.workspace_bytes(), warm_bytes);
+  EXPECT_GT(warm.fixed, 0u);
+  if (GetParam() == dyng::backend::sequential) {
+    // No per-thread lists: the whole workspace is steady.
+    EXPECT_EQ(lists_before, 0u);
+    EXPECT_EQ(res_.workspace_bytes(), warm.fixed);
+  }
+  EXPECT_EQ(res_.workspace_bytes(), pool.statistics().idle_bytes);
   for (int k = 0; k < num_objectives; ++k) {
     expect_equals_compute(dyng::test::make_resources(GetParam(), 4), g,
                           results[static_cast<std::size_t>(k)], k);

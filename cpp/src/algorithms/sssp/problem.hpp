@@ -157,6 +157,14 @@ struct sssp_workspace final : pooled_workspace {
    * @return Bytes of every array's capacity.
    */
   [[nodiscard]] std::size_t bytes() const noexcept override;
+
+  /**
+   * @brief The part of bytes() held by the per-thread lists of the OpenMP engine. Their capacity
+   *        follows the largest share of a round each thread has taken so far, which depends on the
+   *        dynamic schedule; everything else depends only on the graph and the batches.
+   * @return Bytes of the per-thread lists (their headers and their cache-line blocks).
+   */
+  [[nodiscard]] std::size_t thread_list_bytes() const noexcept;
 };
 
 /**
