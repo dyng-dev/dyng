@@ -209,6 +209,16 @@ Before 0.1.0 anything may change.
   GPU P-state and clocks, foreign GPU processes) and repeats contaminated rounds; the CUDA
   `apply` region includes the host tree copies (`sssp.import`).
 
+### Fixed (M1b acceptance)
+
+- Harness: `perf_ab.py run --backend cuda` locks the GPU's clocks for the whole A/B without root
+  (`--lock-clocks boost|base|none`, default `boost`; Nsight Compute holds the lock through the idle
+  helper `parity/clock_lock/clock_holder.cu`, neither timed program is profiled), checks every
+  busy GPU sample against the locked clocks and resets the clocks at the end (ADR 0018, rule 4).
+- Build: `DYNG_WITH_NVTX` defaults to ON only when the toolkit's `nvtx3/nvToolsExt.h` exists
+  (`CUDA::nvtx3` alone does not guarantee the headers); `cuda-build.yml` documents the
+  `LD_LIBRARY_PATH` a conda-forge toolkit needs for the local equivalent.
+
 ## [0.0.1] - 2026-09-27
 
 ### Added
