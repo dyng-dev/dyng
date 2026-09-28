@@ -74,8 +74,10 @@ on CUDA_VISIBLE_DEVICES (default GPU 1, the development GPU), writes into
 <scratch>/goldens/sssp-mosp-cuda by default and never writes parity/goldens.toml: the committed
 corpus stays MOSP-OpenMP's. --compare-to DIR then requires the MOSP-CUDA corpus to be identical to
 the corpus in DIR (default <scratch>/goldens/sssp): the same files with the same bytes, except
-that case.json names the other reference (every other field, incl. the invalidated counters, must
-be equal). That makes the golden corpus a MOSP-CUDA corpus as well, inputs included.
+that case.json names the other reference and describes the origin in its own words (every other
+field, incl. the invalidated counters, must be equal). MOSP-CUDA does not track tests/testCase*:
+its bin/main writes them (generateTestCases, fixed seeds) in the export's work area. A passing
+comparison makes the golden corpus a MOSP-CUDA corpus as well, inputs included.
 """
 
 from __future__ import annotations
@@ -232,8 +234,20 @@ def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Cas
         )
 
     if "testcases" in groups:
+        tests = ref / "tests"
+        origin = "tests/testCase{} (generateTestCases, tracked)"
+        if REFERENCE == "MOSP-CUDA":
+            # MOSP-CUDA does not track tests/: its bin/main writes them (generateTestCases, fixed
+            # seeds) under its working directory, with the expected Dijkstra files.
+            cwd = raw / "main"
+            cwd.mkdir(parents=True)
+            out = run([ref / "bin" / "main"], cwd=cwd, env=env)
+            if "pipeline complete" not in out:
+                raise ExportError(f"bin/main did not complete:\n{out[-2000:]}")
+            tests = cwd / "tests"
+            origin = "tests/testCase{} (generateTestCases, written by bin/main)"
         for i in range(10):
-            d = ref / "tests" / f"testCase{i}"
+            d = tests / f"testCase{i}"
             cases.append(
                 Case(
                     "testcases",
@@ -241,7 +255,7 @@ def collect_base(ref: Path, raw: Path, groups: list[str], env: dict) -> list[Cas
                     d / "originalGraph" / "graphCsr",
                     d / "changedEdges" / "insert.txt",
                     d / "changedEdges" / "delete.txt",
-                    f"tests/testCase{i} (generateTestCases, tracked)",
+                    origin.format(i),
                     tracked_expected=(TESTCASE_OBJECTIVE[i], d / "expected"),
                 )
             )
@@ -740,7 +754,7 @@ def export(ref: Path, out: Path, groups: list[str], jobs: int) -> tuple[list[dic
 
 def compare_corpora(ours: Path, theirs: Path) -> list[str]:
     """Differences between two exported corpora (--compare-to): file lists, bytes, and case.json
-    with its "reference" field ignored."""
+    with its descriptive "reference" and "origin" fields ignored."""
 
     def listing(root: Path) -> dict[str, str]:
         rows = {}
@@ -758,8 +772,9 @@ def compare_corpora(ours: Path, theirs: Path) -> list[str]:
         if rel.endswith("case.json"):
             ja = json.loads((ours / rel).read_text())
             jb = json.loads((theirs / rel).read_text())
-            ja.pop("reference", None)
-            jb.pop("reference", None)
+            for field_name in ["reference", "origin"]:
+                ja.pop(field_name, None)
+                jb.pop(field_name, None)
             if ja == jb:
                 continue
         problems.append(f"differs: {rel}")
@@ -831,7 +846,7 @@ def main() -> int:
             return 1
         print(
             f"{REFERENCE} corpus identical to {other} ({n_files} files; case.json equal except "
-            "for the reference it names)"
+            "for the reference and origin it names)"
         )
 
     if args.twice:
