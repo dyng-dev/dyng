@@ -10,9 +10,10 @@ repos:
     rev: v6.0.0
     hooks:
       # Test fixtures are byte-exact outputs of the original tools (and some inputs have
-      # trailing blanks on purpose); the text fixers must not touch them.
+      # trailing blanks on purpose); the text fixers must not touch them. Unified diffs
+      # (parity/experiments) start every blank context line with a space.
       - id: trailing-whitespace
-        exclude: ^cpp/tests/data/
+        exclude: ^cpp/tests/data/|\.patch$
       - id: end-of-file-fixer
         exclude: ^cpp/tests/data/
       - id: mixed-line-ending
