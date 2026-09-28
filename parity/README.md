@@ -25,6 +25,7 @@ $DYNG_SCRATCH/
 | `build_reference.sh` | `git archive` the pinned commit into `ref/<name>@<commit7>/{unpatched,patched}`, verify the copy against the archive, build it, apply the additive export patch (patched only), write the archive-build check; `--test` runs the original's own tests |
 | `export_patches/<repo>/build.sh` | the additive export patch: builds the exporters of `exporters/` against the copy's unchanged sources |
 | `exporters/mosp/` | `export_graph_io` (generators, `applyChangeBatch`) and `export_sssp` (file-based SOSP updates) |
+| `exporters/cycle_enum/` | `export_cycle_enum` (CycleEnumeration-GPU: parser, `build_directed_graph`, `prepare_batch`, `apply_batch`, `generate_batch`, the tests' subset-DP oracle and brute force) |
 | `export_goldens.py` | writes the `sssp` golden set from MOSP-OpenMP@c352151 (495 cases, including 107 with non-canonical initial trees) after cross-checking the original implementations; `--twice` re-exports from a fresh copy and compares |
 | `goldens.toml` | GENERATED manifest: the SHA-256 of each golden set's `MANIFEST.sha256` and one digest per case |
 | `compare.py` | verifies the goldens, then replays every case through `tools/compat` (dynG; `--configs sequential,openmp:<t>,cuda[:<device>]`) or through another original's copy, byte for byte |

@@ -1,0 +1,19 @@
+# comments, blank lines, tabs, CRLF, signs, timestamps, duplicates, self-loops
+% another comment
+
+   # an indented comment
+10 20 5
+10	20	3
++10,20,3
+20 10 -7
+  -5 10
+10 -5 2
+7 7 1
+7 30
+30 7 0
+1000000000000 10
+10 1000000000000 9
+30,40
+40 30
+40	30	11
+
