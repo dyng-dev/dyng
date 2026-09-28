@@ -384,7 +384,10 @@ model_result model_apply(model_rows& rows, int K, const graph_properties& props,
   // First occurrence before vs after.
   for (const auto& [u, head] : eff_ins) {
     const auto v = head;  // captured below: a structured binding cannot be captured in C++17
-    std::vector<std::uint8_t> flags(static_cast<std::size_t>(K), 0);
+    // The K flags of this insertion, written in place (a per-insertion std::vector here made GCC
+    // 13 and 14 report a false -Wfree-nonheap-object, an error with -Werror).
+    const std::size_t first = result.increased.size();
+    result.increased.resize(first + static_cast<std::size_t>(K), 0);
     if (u < static_cast<std::int64_t>(before.size())) {
       const auto& old_row = before[static_cast<std::size_t>(u)];
       const auto& new_row = rows[static_cast<std::size_t>(u)];
@@ -394,12 +397,11 @@ model_result model_apply(model_rows& rows, int K, const graph_properties& props,
                             [&](const model_edge& e) { return e.v == v; });
       if (a != old_row.end() && b != new_row.end()) {
         for (int k = 0; k < K; ++k) {
-          flags[static_cast<std::size_t>(k)] =
+          result.increased[first + static_cast<std::size_t>(k)] =
               b->w[static_cast<std::size_t>(k)] > a->w[static_cast<std::size_t>(k)];
         }
       }
     }
-    result.increased.insert(result.increased.end(), flags.begin(), flags.end());
   }
   return result;
 }
