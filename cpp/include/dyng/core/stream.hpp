@@ -24,8 +24,10 @@ using cuda_stream_handle = CUstream_st*;
  * @brief A non-owning reference to a CUDA stream.
  *
  * A default stream_ref is the explicit per-thread default stream (`cudaStreamPerThread`), never
- * the legacy stream (handle 0); pass handle 0 explicitly to use the legacy stream. On builds
- * without CUDA, and for host backends, a stream_ref is carried along but no work is enqueued on it.
+ * the legacy stream (handle 0); pass handle 0 explicitly to use the legacy stream. The per-thread
+ * default stream is a different stream on every host thread (and per device): the same stream_ref
+ * value used on two threads names two streams. On builds without CUDA, and for host backends, a
+ * stream_ref is carried along but no work is enqueued on it.
  * @ingroup core
  */
 class stream_ref {
@@ -58,7 +60,9 @@ class stream_ref {
   /**
    * @brief Wait until all work enqueued on the stream has completed.
    *
-   * A no-op in builds without CUDA.
+   * For the per-thread default stream: the calling thread's default stream of the CURRENT device
+   * (resources::synchronize() makes the handle's device current first). A no-op in builds without
+   * CUDA.
    * @throws cuda_error if the CUDA runtime reports an error.
    * @sync
    */

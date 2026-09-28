@@ -4,7 +4,8 @@
  * @file cuda_workspace_test.cpp
  * @brief The workspace pool of a CUDA handle (ADR 0015 on the device): device scratch arrays
  *        allocated once and reused, no allocation in steady state (invariant I9), release through
- *        the handle's memory resource and stream.
+ *        the handle's memory resource and stream, and stream order across the per-thread default
+ *        streams of two threads (the lease fences, M1b review).
  */
 #include "framework/scratch_buffer.hpp"
 #include "framework/workspace.hpp"
@@ -18,8 +19,12 @@
 #include <gtest/gtest.h>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <future>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -150,6 +155,84 @@ TEST(CudaWorkspace, SetMemoryResourceAndHandleDestructionRelease) {
   EXPECT_EQ(counting.deallocations.load(), 4);
   ASSERT_EQ(cudaStreamSynchronize(cudaStreamPerThread), cudaSuccess);
   EXPECT_EQ(pool.used_bytes(), 0u);
+}
+
+/// Occupies the stream it is enqueued on for a while (a host function, so no kernel is needed).
+void hold_the_stream(void* /*unused*/) {
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+}
+
+// Copies of one default-stream handle used on two threads run on two streams: cudaStreamPerThread
+// is a different stream on every thread. A workspace that thread A returns while its device work
+// is still pending must not be reused by thread B before that work has completed.
+TEST(CudaWorkspace, ALeaseOnAnotherThreadsDefaultStreamWaitsForThePreviousLease) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const auto res = dyng::resources::cuda();
+  ASSERT_TRUE(res.stream().is_per_thread_default());
+  constexpr std::size_t n = 1 << 20;
+  std::promise<void> returned;
+  std::promise<void> done;
+  std::thread a([&] {
+    const dyng::resources mine = res;  // the same handle, this thread's default stream
+    {
+      auto ws = resources_access::workspaces(mine).acquire<device_scratch>(mine);
+      std::int32_t* ids = ws->ids.reserve(mine, n);
+      const auto stream = static_cast<cudaStream_t>(mine.stream().get());
+      EXPECT_EQ(cudaMemsetAsync(ids, 0, n * sizeof(std::int32_t), stream), cudaSuccess);
+      EXPECT_EQ(cudaStreamSynchronize(stream), cudaSuccess);
+      // Asynchronous work that is still running when the lease ends: hold the stream, then write.
+      EXPECT_EQ(cudaLaunchHostFunc(stream, hold_the_stream, nullptr), cudaSuccess);
+      EXPECT_EQ(cudaMemsetAsync(ids, 7, n * sizeof(std::int32_t), stream), cudaSuccess);
+    }  // returned without synchronizing
+    returned.set_value();
+    done.get_future().wait();  // keep this thread and its default stream alive
+    EXPECT_EQ(cudaStreamSynchronize(cudaStreamPerThread), cudaSuccess);
+  });
+  returned.get_future().wait();
+  std::vector<std::int32_t> host(n, -1);
+  {
+    // This thread: the same workspace (the pool's only idle one), read on this thread's stream.
+    auto ws = resources_access::workspaces(res).acquire<device_scratch>(res);
+    std::int32_t* ids = ws->ids.reserve(res, n);  // large enough already: the same array
+    EXPECT_EQ(cudaMemcpyAsync(host.data(), ids, n * sizeof(std::int32_t), cudaMemcpyDeviceToHost,
+                              cudaStreamPerThread),
+              cudaSuccess);
+    EXPECT_EQ(cudaStreamSynchronize(cudaStreamPerThread), cudaSuccess);
+  }
+  done.set_value();
+  a.join();
+  EXPECT_EQ(resources_access::workspaces(res).statistics().created, 1u);
+  EXPECT_EQ(host.front(), 0x07070707);  // thread A's write, not the zeros before it
+  EXPECT_EQ(host.back(), 0x07070707);
+}
+
+// Releasing idle workspaces from another thread waits for the device work of their last lease
+// before their memory goes back to the pool (it is freed on the releasing thread's stream).
+TEST(CudaWorkspace, ReleasingFromAnotherThreadWaitsForTheLastLease) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const auto res = dyng::resources::cuda();
+  std::promise<void> returned;
+  std::promise<void> done;
+  std::thread a([&] {
+    const dyng::resources mine = res;
+    {
+      auto ws = resources_access::workspaces(mine).acquire<device_scratch>(mine);
+      (void)ws->ids.reserve(mine, 1000);
+      EXPECT_EQ(cudaLaunchHostFunc(static_cast<cudaStream_t>(mine.stream().get()),
+                                   hold_the_stream, nullptr),
+                cudaSuccess);
+    }
+    returned.set_value();
+    done.get_future().wait();
+  });
+  returned.get_future().wait();
+  const auto start = std::chrono::steady_clock::now();
+  res.release_workspaces();
+  const auto waited = std::chrono::steady_clock::now() - start;
+  done.set_value();
+  a.join();
+  EXPECT_EQ(res.workspace_bytes(), 0u);
+  EXPECT_GE(waited, std::chrono::milliseconds(100));  // it waited for thread A's stream
 }
 
 TEST(CudaWorkspace, HostScratchOnHostBackends) {

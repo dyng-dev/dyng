@@ -47,13 +47,23 @@ enum class copy_policy : std::uint8_t {
  * A moved-from handle stays valid: moving shares the handle like a copy (the source keeps it), so
  * no accessor ever meets an empty handle.
  *
+ * **The default stream is per thread.** A CUDA handle created with the default stream_ref uses
+ * `cudaStreamPerThread`, which CUDA defines as a different stream on every host thread. Copies of
+ * such a handle share the device, memory resource, profiler and workspaces, but work enqueued
+ * through them on two threads runs on two streams: synchronize() and the release of memory wait
+ * for (or are ordered on) the calling thread's stream only, and ordering work across threads is
+ * the caller's job (PLAN Section 4.7.4), as with two explicit streams. A handle created with an
+ * explicit stream uses that one stream on every thread. (ADR 0016 item 10; PLAN 4.7.4 says a copy
+ * "refers to the same stream", which holds for explicit streams only.)
+ *
  * **Scratch memory.** The handle also caches the engines' workspaces (scratch memory such as the
  * frontier lists of sssp): a compute() or update() leases one from the handle, sizes it once and
  * returns it, so results that run one after another through the same handle (for example the K
  * objectives updated by dyng::update_each()) share one workspace, and a steady-state update
  * allocates no scratch memory (ADR 0015). Calls that run concurrently on copies of one handle get
- * distinct workspaces. The cache lives as long as the last copy of the handle, or until
- * release_workspaces().
+ * distinct workspaces; a workspace reused on another stream (another thread's default stream)
+ * waits for the device work of its previous use first. The cache lives as long as the last copy of
+ * the handle, or until release_workspaces().
  * @ingroup core
  */
 class resources {
@@ -93,7 +103,8 @@ class resources {
    * its duration and restores the caller's current device.
    * @param[in] device CUDA device ordinal.
    * @param[in] stream Stream for all work, created on `device`; the default is the per-thread
-   *                   default stream (`cudaStreamPerThread`), never the legacy stream.
+   *                   default stream (`cudaStreamPerThread`: the calling thread's stream, a
+   *                   different one on every thread), never the legacy stream.
    * @return New resources for backend::cuda.
    * @throws not_supported_error    if the library was built without CUDA, or no device is visible.
    * @throws invalid_argument_error if `device` is not a visible device.
@@ -145,7 +156,8 @@ class resources {
 
   /**
    * @brief The stream all work is ordered on.
-   * @return The stream (the per-thread default stream unless one was given).
+   * @return The stream (the per-thread default stream unless one was given; that handle means the
+   *         calling thread's own stream).
    */
   [[nodiscard]] stream_ref stream() const noexcept;
 
@@ -176,9 +188,9 @@ class resources {
    * @throws invalid_argument_error if the resource's space does not suit the backend (host
    *                                backends need a host-accessible space, cuda a device or
    *                                managed space).
-   * @async The idle workspaces are returned to the previous resource in stream order (after the
-   *        work already enqueued on the handle's stream); calls made after this one returns use
-   *        the new resource.
+   * @sync The idle workspaces are returned to the previous resource after the device work of
+   *       their last use has completed (it may have run on another thread's default stream);
+   *       calls made after this one returns use the new resource.
    */
   void set_memory_resource(memory_resource_ref mr);
 
@@ -211,8 +223,9 @@ class resources {
    *
    * The next compute() or update() through the handle sizes a new workspace (allocates). Safe to
    * call while another thread uses the handle: a workspace in use returns to the cache afterwards.
-   * @async Device workspaces are released in stream order (the memory is reused only after the
-   *        work already enqueued on the handle's stream); host workspaces are freed at once.
+   * @sync Waits until the device work of each idle workspace's last use has completed (it may
+   *       have run on another thread's default stream), then releases its memory on the calling
+   *       thread's view of the handle's stream; host workspaces are freed at once.
    */
   void release_workspaces() const noexcept;
 
@@ -235,9 +248,13 @@ class resources {
   void warm_up() const;
 
   /**
-   * @brief Wait for all work enqueued through these resources.
+   * @brief Wait for the work enqueued on the handle's stream.
    *
-   * A no-op for host backends, whose calls complete before returning.
+   * With an explicit stream: all work enqueued through any copy of the handle. With the default
+   * stream (`cudaStreamPerThread`): the work the CALLING thread enqueued on its own default stream
+   * of the handle's device; work that other threads enqueued through copies of the handle is on
+   * their streams and is not waited for. A no-op for host backends, whose calls complete before
+   * returning.
    * @throws cuda_error if the CUDA runtime reports an error.
    * @sync
    */

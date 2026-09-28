@@ -56,11 +56,22 @@ void workspace_pool::note_created() noexcept {
   ++created_;
 }
 
+workspace_pool::~workspace_pool() {
+  release_idle();
+}
+
 void workspace_pool::release_idle() noexcept {
   std::vector<entry> dropped;  // destroyed after the lock is released
   {
     const std::lock_guard<std::mutex> lock(mutex_);
     dropped.swap(idle_);
+  }
+  // A device workspace's memory is released on the calling thread's stream, which need not be the
+  // one its last CUDA lease used (per-thread default streams): wait for that lease's work first.
+  for (entry& e : dropped) {
+    if (e.workspace != nullptr) {
+      e.workspace->fence().synchronize();
+    }
   }
 }
 

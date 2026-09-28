@@ -188,6 +188,47 @@ double cuda_event_timer::stop() {
   return static_cast<double>(ms);
 }
 
+cuda_stream_fence::~cuda_stream_fence() {
+  if (event_ != nullptr) {
+    DYNG_CUDA_TRY_NO_THROW(cudaEventDestroy(static_cast<cudaEvent_t>(event_)));
+  }
+}
+
+void cuda_stream_fence::record(int device, stream_ref stream) {
+  const scoped_device guard(device);
+  if (event_ == nullptr || device_ != device) {
+    if (event_ != nullptr) {
+      DYNG_CUDA_TRY_NO_THROW(cudaEventDestroy(static_cast<cudaEvent_t>(event_)));
+      event_ = nullptr;
+    }
+    recorded_ = false;
+    cudaEvent_t event = nullptr;
+    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+    event_ = event;
+    device_ = device;
+  }
+  recorded_ = false;
+  DYNG_CUDA_TRY(cudaEventRecord(static_cast<cudaEvent_t>(event_), native(stream)));
+  stream_ = stream;
+  thread_ = std::this_thread::get_id();
+  recorded_ = true;
+}
+
+void cuda_stream_fence::wait(int device, stream_ref stream) const {
+  if (!recorded_ || (stream == stream_ && (!stream.is_per_thread_default() ||
+                                           thread_ == std::this_thread::get_id()))) {
+    return;
+  }
+  const scoped_device guard(device);
+  DYNG_CUDA_TRY(cudaStreamWaitEvent(native(stream), static_cast<cudaEvent_t>(event_), 0));
+}
+
+void cuda_stream_fence::synchronize() const noexcept {
+  if (recorded_) {
+    DYNG_CUDA_TRY_NO_THROW(cudaEventSynchronize(static_cast<cudaEvent_t>(event_)));
+  }
+}
+
 }  // namespace dyng::detail
 
 #else  // !DYNG_HAS_CUDA
@@ -238,6 +279,16 @@ cuda_event_timer::~cuda_event_timer() = default;
 double cuda_event_timer::stop() {
   cuda_not_built();
 }
+
+cuda_stream_fence::~cuda_stream_fence() = default;
+
+void cuda_stream_fence::record(int /*device*/, stream_ref /*stream*/) {
+  cuda_not_built();
+}
+
+void cuda_stream_fence::wait(int /*device*/, stream_ref /*stream*/) const {}
+
+void cuda_stream_fence::synchronize() const noexcept {}
 
 }  // namespace dyng::detail
 

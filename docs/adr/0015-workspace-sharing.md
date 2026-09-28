@@ -1,6 +1,7 @@
 # ADR 0015: Workspace sharing (scratch memory owned by `resources`)
 
-- **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3), together with ADR 0006
+- **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3), together with ADR 0006.
+  Updated by the M1b review (stream order of device workspaces).
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -122,3 +123,19 @@ per thread (on road_usa about 28 x 2 x 24M x 4 bytes), so invariant I9 holds on 
 exception, recorded here. The steady-state test of `sssp_workspace_test.cpp` checks the rest of
 the workspace exactly (`sssp_workspace::thread_list_bytes()` separates the lists); it had
 asserted the total and failed about once in 180 runs.
+
+## Update (M1b review): stream order of device workspaces
+
+Item 6 said that reuse "on the same stream is stream-ordered and needs no synchronization", and
+item 4 that concurrent calls get distinct workspaces. Both hold, but item 4 only separates calls
+that overlap in *host* time: with the default stream (`cudaStreamPerThread`, a different stream on
+every host thread; ADR 0016 item 10) a CUDA call on thread A can return while its kernels still
+run, and a call on thread B through a copy of the handle could then lease the same workspace on
+another stream. sssp was safe only because every CUDA run ends with a synchronization. Every pooled
+workspace now carries a fence: a CUDA lease (`workspace_pool::acquire(res)`) records it on its
+stream when it ends, and the next CUDA lease makes its stream wait for it unless it runs on the same
+stream (same handle and, for the per-thread stream, same thread; the wait is skipped then, so the
+single-stream steady state costs one event record per run). `release_idle()` and the pool's
+destructor wait for the fences before the memory is freed. Tested with two threads, a host function
+holding one thread's stream and a write behind it (`CudaWorkspace.*`); without the wait the second
+thread read the old contents.

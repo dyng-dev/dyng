@@ -96,7 +96,7 @@ template <typename vertex_t>
 workspace_pool::lease<sssp_workspace<vertex_t>> lease_workspace(const resources& res,
                                                                 std::int64_t n) {
   scoped_stage stage(res, "sssp.workspace");
-  auto ws = resources_access::workspaces(res).acquire<sssp_workspace<vertex_t>>();
+  auto ws = resources_access::workspaces(res).acquire<sssp_workspace<vertex_t>>(res);
   ws->reserve(n);
   return ws;
 }
@@ -107,7 +107,7 @@ template <typename vertex_t>
 workspace_pool::lease<sssp_cuda_workspace<vertex_t>> lease_cuda_workspace(const resources& res,
                                                                           std::int64_t n) {
   scoped_stage stage(res, "sssp.workspace");
-  auto ws = resources_access::workspaces(res).acquire<sssp_cuda_workspace<vertex_t>>();
+  auto ws = resources_access::workspaces(res).acquire<sssp_cuda_workspace<vertex_t>>(res);
   ws->reserve(res, n);
   return ws;
 }

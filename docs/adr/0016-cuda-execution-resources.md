@@ -1,6 +1,7 @@
 # ADR 0016: CUDA execution resources (streams, memory, errors, warm-up)
 
-- **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3)
+- **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3). Amended by the M1b review
+  (item 10; 2026-09-28).
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -64,6 +65,23 @@ not fixed by the plan; this ADR fixes them.
    `asan`, `tsan`) pin `DYNG_ENABLE_CUDA=OFF`; the CUDA builds are separate presets
    (`dev-cuda`, `release-cuda`, `parity-cuda`, `sanitize-cuda`, `ci-cuda12`, `ci-cuda13`). A plain
    `cmake` without a preset enables CUDA when a CUDA compiler is found (PLAN Section 7.3).
+
+10. **The default stream is per thread (M1b review).** `resources::cuda()` with the default
+    `stream_ref` uses `cudaStreamPerThread`, which CUDA defines as a different stream on every
+    host thread. The handle keeps that value instead of resolving it (no API returns a handle for
+    another thread's per-thread stream, and pinning the handle to the creating thread would forbid
+    the concurrent read-only calls PLAN 4.7.4 allows). Consequences, documented on `resources`,
+    `stream_ref` and `buffer`: copies of a default handle used on two threads run on two streams;
+    `synchronize()` waits for the calling thread's stream only; memory is released on the stream
+    of the thread that releases it; ordering work across threads is the caller's job, as with two
+    explicit streams. PLAN 4.7.4's "a copy refers to the same stream" holds for explicit streams.
+    The library itself stays sound: pooled workspaces carry a fence (`detail::cuda_stream_fence`,
+    a CUDA event) that each CUDA lease records on its stream when it ends and that the next lease
+    waits for when it runs on another stream (another thread's per-thread stream included);
+    `release_workspaces()`, `set_memory_resource()` and the pool's destructor wait for the fences
+    before freeing (so they are `@sync` now). A result whose arrays were allocated on one stream
+    and are replaced through a handle on another (vertex growth) moves them to the updating
+    stream before releasing them (`buffer::set_stream()`).
 
 ## Consequences
 

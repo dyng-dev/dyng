@@ -25,10 +25,23 @@
  * resource on its stream when sized and free there when destroyed, so the pool must be emptied
  * before its memory resource goes away (resources::set_memory_resource() does that; the default
  * resources outlive every handle).
+ *
+ * Stream order (M1b review). A CUDA lease (acquire(res)) records a fence (a CUDA event) on the
+ * handle's stream when it ends, and the next CUDA lease of the same workspace makes its stream wait
+ * for that fence unless it is the same stream. This matters because the default stream of a handle,
+ * `cudaStreamPerThread`, is a different stream on every host thread: two threads using copies of one
+ * default handle run on two streams, and the second could otherwise reuse a workspace (or free its
+ * memory) while the first one's device work still uses it. release_idle() and the pool's destructor
+ * wait for the fences before freeing the memory.
  */
 #pragma once
 
+#include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
+
+#include <dyng/core/backend.hpp>
+#include <dyng/core/resources.hpp>
+#include <dyng/core/stream.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -60,6 +73,17 @@ class pooled_workspace {
    * @return Bytes of its arrays (capacity, not size).
    */
   [[nodiscard]] virtual std::size_t bytes() const noexcept = 0;
+
+  /**
+   * @brief Where the device work of the last CUDA lease ended (see the file comment).
+   * @return The workspace's fence.
+   */
+  [[nodiscard]] cuda_stream_fence& fence() noexcept {
+    return fence_;
+  }
+
+ private:
+  cuda_stream_fence fence_;
 };
 
 /**
@@ -96,14 +120,27 @@ class workspace_pool {
     lease(lease&& other) noexcept
         : pool_(std::exchange(other.pool_, nullptr)),
           workspace_(std::move(other.workspace_)),
-          exceptions_(other.exceptions_) {}
+          exceptions_(other.exceptions_),
+          device_(other.device_),
+          stream_(other.stream_) {}
 
     lease& operator=(lease&&) = delete;  ///< not assignable
 
-    /// @brief Return the workspace (or discard it if an exception is propagating).
+    /// @brief Return the workspace (or discard it if an exception is propagating). A CUDA lease
+    ///        first records the workspace's fence on its stream.
     ~lease() {
       if (pool_ != nullptr && workspace_ != nullptr) {
-        pool_->give_back(key(), std::move(workspace_), std::uncaught_exceptions() > exceptions_);
+        bool discard = std::uncaught_exceptions() > exceptions_;
+        if (!discard && device_ >= 0) {
+          try {
+            workspace_->fence().record(device_, stream_);
+          } catch (...) {
+            // Without a fence the next lease could not be ordered after this one's work: drop the
+            // workspace instead (its memory is freed on this thread's stream, after that work).
+            discard = true;
+          }
+        }
+        pool_->give_back(key(), std::move(workspace_), discard);
       }
     }
 
@@ -133,8 +170,13 @@ class workspace_pool {
 
    private:
     friend class workspace_pool;
-    lease(workspace_pool* pool, std::unique_ptr<pooled_workspace> workspace) noexcept
-        : pool_(pool), workspace_(std::move(workspace)), exceptions_(std::uncaught_exceptions()) {}
+    lease(workspace_pool* pool, std::unique_ptr<pooled_workspace> workspace, int device,
+          stream_ref stream) noexcept
+        : pool_(pool),
+          workspace_(std::move(workspace)),
+          exceptions_(std::uncaught_exceptions()),
+          device_(device),
+          stream_(stream) {}
 
     static std::type_index key() noexcept {
       return std::type_index(typeid(workspace_t));
@@ -143,6 +185,8 @@ class workspace_pool {
     workspace_pool* pool_;
     std::unique_ptr<pooled_workspace> workspace_;
     int exceptions_;
+    int device_;         ///< >= 0: a CUDA lease, ordered on stream_ of this device
+    stream_ref stream_;  ///< the stream of a CUDA lease
   };
 
   workspace_pool() = default;                                 ///< an empty pool
@@ -150,30 +194,46 @@ class workspace_pool {
   workspace_pool& operator=(const workspace_pool&) = delete;  ///< not copyable
   workspace_pool(workspace_pool&&) = delete;                  ///< not movable
   workspace_pool& operator=(workspace_pool&&) = delete;       ///< not movable
-  ~workspace_pool() = default;                                ///< frees every idle workspace
+  /// @brief Free every idle workspace (after the device work of its last CUDA lease).
+  ~workspace_pool();
 
   /**
    * @brief Lease a workspace of type `workspace_t`: an idle one (the most recently returned) or a
-   *        new, empty one.
+   *        new, empty one. Host work only: the lease records no fence.
    * @tparam workspace_t The workspace type (derived from pooled_workspace, default-constructible).
    * @return The lease; the caller sizes the workspace.
    * @throws std::bad_alloc if a new workspace cannot be created.
    */
   template <typename workspace_t>
   [[nodiscard]] lease<workspace_t> acquire() {
-    static_assert(std::is_base_of_v<pooled_workspace, workspace_t>,
-                  "workspace_pool: a workspace type must derive from pooled_workspace");
-    std::unique_ptr<pooled_workspace> taken = take(lease<workspace_t>::key());
-    if (taken == nullptr) {
-      try {
-        taken = std::make_unique<workspace_t>();
-      } catch (...) {
-        give_back(lease<workspace_t>::key(), nullptr, true);  // ends the counted lease
-        throw;
-      }
-      note_created();
+    return lease<workspace_t>(this, take_or_create<workspace_t>(), -1, stream_ref{});
+  }
+
+  /**
+   * @brief Lease a workspace for a run through `res`. For a CUDA handle the lease is ordered on
+   *        the handle's stream: that stream first waits for the fence of the workspace's previous
+   *        CUDA lease if it ran on another stream (another thread's per-thread default stream, for
+   *        example), and the lease records the fence again when it ends.
+   * @tparam workspace_t The workspace type (derived from pooled_workspace, default-constructible).
+   * @param[in] res The resources of the run.
+   * @return The lease; the caller sizes the workspace.
+   * @throws std::bad_alloc if a new workspace cannot be created.
+   * @throws cuda_error     if the stream cannot be made to wait.
+   * @async On CUDA the wait is enqueued on the handle's stream.
+   */
+  template <typename workspace_t>
+  [[nodiscard]] lease<workspace_t> acquire(const resources& res) {
+    if (res.get_backend() != backend::cuda) {
+      return acquire<workspace_t>();
     }
-    return lease<workspace_t>(this, std::move(taken));
+    std::unique_ptr<pooled_workspace> taken = take_or_create<workspace_t>();
+    try {
+      taken->fence().wait(res.device(), res.stream());
+    } catch (...) {
+      give_back(lease<workspace_t>::key(), std::move(taken), false);  // unused: keep it
+      throw;
+    }
+    return lease<workspace_t>(this, std::move(taken), res.device(), res.stream());
   }
 
   /**
@@ -192,6 +252,24 @@ class workspace_pool {
     std::type_index key;
     std::unique_ptr<pooled_workspace> workspace;
   };
+
+  /// An idle workspace of the type or a new one; counts a lease.
+  template <typename workspace_t>
+  std::unique_ptr<pooled_workspace> take_or_create() {
+    static_assert(std::is_base_of_v<pooled_workspace, workspace_t>,
+                  "workspace_pool: a workspace type must derive from pooled_workspace");
+    std::unique_ptr<pooled_workspace> taken = take(lease<workspace_t>::key());
+    if (taken == nullptr) {
+      try {
+        taken = std::make_unique<workspace_t>();
+      } catch (...) {
+        give_back(lease<workspace_t>::key(), nullptr, true);  // ends the counted lease
+        throw;
+      }
+      note_created();
+    }
+    return taken;
+  }
 
   /// An idle workspace of this type (the most recently returned), or nullptr; counts a lease.
   std::unique_ptr<pooled_workspace> take(std::type_index key);

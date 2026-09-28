@@ -16,6 +16,7 @@
 
 #include <cstddef>
 #include <string>
+#include <thread>
 
 namespace dyng::detail {
 
@@ -151,6 +152,68 @@ class cuda_event_timer {
   [[maybe_unused]] stream_ref stream_;
   [[maybe_unused]] void* start_ = nullptr;  // unused in builds without CUDA
   [[maybe_unused]] void* stop_ = nullptr;
+};
+
+/**
+ * @brief A point in a stream's work that later work on other streams can be ordered after: one
+ *        reusable CUDA event (created on first use), and the stream and host thread that recorded
+ *        it (ADR 0015 item 6, M1b review).
+ *
+ * The per-thread default stream (`cudaStreamPerThread`) is a different stream on every host
+ * thread, so "the same stream" means the same handle and, for that handle, the same thread.
+ */
+class cuda_stream_fence {
+ public:
+  cuda_stream_fence() noexcept = default;                           ///< nothing recorded
+  cuda_stream_fence(const cuda_stream_fence&) = delete;             ///< not copyable
+  cuda_stream_fence& operator=(const cuda_stream_fence&) = delete;  ///< not copyable
+  cuda_stream_fence(cuda_stream_fence&&) = delete;                  ///< not movable
+  cuda_stream_fence& operator=(cuda_stream_fence&&) = delete;       ///< not movable
+  /// @brief Destroy the event (errors are logged).
+  ~cuda_stream_fence();
+
+  /**
+   * @brief Record the current end of `stream`'s work (replaces an earlier record).
+   * @param[in] device Device of the stream (>= 0; made current for the call).
+   * @param[in] stream The stream.
+   * @throws cuda_error          if the runtime reports an error.
+   * @throws not_supported_error if CUDA is not built.
+   * @async
+   */
+  void record(int device, stream_ref stream);
+
+  /**
+   * @brief Order the later work of `stream` after the recorded point (cudaStreamWaitEvent); a
+   *        no-op if nothing was recorded or `stream` is the recording stream (the same handle and,
+   *        for the per-thread default stream, the same host thread).
+   * @param[in] device Device of the stream (>= 0; made current for the call).
+   * @param[in] stream The stream that must wait.
+   * @throws cuda_error if the runtime reports an error.
+   * @async
+   */
+  void wait(int device, stream_ref stream) const;
+
+  /**
+   * @brief Block the host until the recorded point has completed (no-op if nothing was
+   *        recorded; errors are logged).
+   * @sync
+   */
+  void synchronize() const noexcept;
+
+  /**
+   * @brief Whether a point was recorded.
+   * @return True after a successful record().
+   */
+  [[nodiscard]] bool recorded() const noexcept {
+    return recorded_;
+  }
+
+ private:
+  [[maybe_unused]] void* event_ = nullptr;  // cudaEvent_t; unused in builds without CUDA
+  [[maybe_unused]] int device_ = -1;
+  stream_ref stream_{};
+  std::thread::id thread_{};
+  bool recorded_ = false;
 };
 
 }  // namespace dyng::detail
