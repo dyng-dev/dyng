@@ -37,6 +37,10 @@ $DYNG_SCRATCH/
 
 ## Typical session
 
+The harness reads each original from a clone in `$DYNG_ORIGINALS_DIR/<name>` (default
+`~/Projects/<name>`); clone the ones you need once from their `upstream` in `references.toml`,
+for example `git clone https://github.com/SMShovan/MOSP-OpenMP.git ~/Projects/MOSP-OpenMP`.
+
 ```bash
 source scripts/dev_env.sh
 parity/build_reference.sh --test                  # build (and test) every pinned original

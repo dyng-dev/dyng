@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+name: API change
+description: Propose a change to the public C++ or Python API (a new public entity, a new option, or a changed or removed one).
+title: "[api] "
+labels: ["api-change", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Public API changes are reviewed before implementation: they need a CHANGELOG entry,
+        updated documentation, the
+        [API review checklist](https://github.com/dyng-dev/dyng/blob/main/docs/developer/api_review_checklist.md),
+        and an ADR if the change is significant ("Pull requests and review" in
+        [CONTRIBUTING.md](https://github.com/dyng-dev/dyng/blob/main/CONTRIBUTING.md)). Until
+        0.1.0 the API is not frozen, but changes are still discussed here first.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected API
+      multiple: true
+      options:
+        - C++ headers (cpp/include/dyng)
+        - Python package
+        - command-line interface
+        - file formats
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind of change
+      options:
+        - addition (backwards compatible)
+        - behaviour change (same signatures)
+        - breaking change (signatures, removals, renames)
+        - deprecation
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current API
+      description: The declarations or calls as they are today (none for a pure addition).
+      render: cpp
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed API
+      description: The new declarations or calls, with their documentation (brief, parameters, errors, backends).
+      render: cpp
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why the change is needed, and what users can do with it that they cannot do today.
+    validations:
+      required: true
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration
+      description: For behaviour changes, breaking changes and deprecations, how existing users update their code.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

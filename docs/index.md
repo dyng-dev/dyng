@@ -1,0 +1,123 @@
+# dynG
+
+**dynamic graph and hypergraph updates on GPUs**
+
+dynG is a C++17/CUDA library (Python bindings are planned) that keeps the results of graph and
+hypergraph algorithms up to date while the structure changes in **batches** of insertions,
+deletions and weight changes, without recomputing from scratch. Every algorithm follows one
+update model, the template of {doc}`concepts/update_model`, and has the same two verbs:
+`compute()` for the static result and `update()` for a batch. Each port is proved equal to the
+pinned original research code by a parity harness.
+
+:::{warning}
+**Pre-alpha.** dynG has not been released. APIs, file formats and build options may change
+without notice until 0.1.0 (see the {doc}`roadmap`). The PyPI package `dyng` 0.0.1 is only a
+name reservation.
+:::
+
+## Algorithms
+
+| Algorithm | Computes | Container | Family | Backends | Status | Paper |
+|---|---|---|---|---|---|---|
+| {doc}`sssp <algorithms/sssp>` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP (CUDA in M1b) | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
+| `cycle_count` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | planned (0.1) | TruCy / DynTruCy |
+| `mosp` | multi-objective shortest paths | graph | fixed point (K x `sssp`) | sequential, OpenMP, CUDA | planned (0.2) | DynaMOSP |
+| `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.2) | ESCHER / ESCHER+ |
+| `label_propagation` | binary harmonic label propagation | graph | fixed point | sequential, CUDA | planned (0.3) | DynLP (ICS 2026) |
+| `hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | planned (0.3) | H-SOSP (IA3 2026) |
+
+The {doc}`algorithms/index` page explains the columns; the {doc}`roadmap` says what each
+release will contain.
+
+## Install and build
+
+There is no release yet, so dynG is built from source. No GPU is needed for the CPU backends.
+
+```bash
+git clone https://github.com/dyng-dev/dyng.git
+cd dyng
+conda env create -f environment.yml    # the pinned tools: CMake, Ninja, clang-format, Doxygen, Sphinx
+source scripts/dev_env.sh              # activates the environment
+cmake --preset dev && cmake --build --preset dev && ctest --preset dev
+```
+
+{doc}`getting_started/install` has the requirements, the presets and how to use dynG from
+your own CMake project; {doc}`getting_started/first_update_cpp` runs a first update.
+
+## A first update in C++
+
+From `examples/cpp/first_update.cpp`, which CTest builds and runs
+({doc}`getting_started/first_update_cpp`):
+
+```{literalinclude} ../examples/cpp/first_update.cpp
+:language: cpp
+:start-at: "auto res ="
+:end-at: "// applies the batch"
+:dedent: 2
+```
+
+## How to cite
+
+If you use dynG in academic work, please cite the software and the paper behind each algorithm
+you use. {doc}`citing` has the BibTeX entries (from `docs/references.bib`, the same entries that
+`dyng::citation()` returns) and the `CITATION.cff` record that GitHub's "Cite this repository"
+button uses.
+
+## Contents
+
+```{toctree}
+:maxdepth: 1
+:caption: Getting started
+
+getting_started/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Tutorials
+
+tutorials/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: How-to guides
+
+how_to/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Explanation
+
+concepts/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Reference
+
+algorithms/index
+api/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Developer
+
+developer/index
+adr/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Project
+
+roadmap
+citing
+changelog
+glossary
+```
+
+dynG is licensed under the Apache License 2.0 and is not affiliated with Gunrock or RAPIDS,
+whose designs inspired it.

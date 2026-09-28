@@ -64,3 +64,11 @@ These notes record how the decision is enforced at the end of M1a; they do not c
 - Ported code is renamed on the way in, including locals (for example `K` became
   `num_objectives` in `cpp/src/graph/apply_host.cpp`); comments that quote the original keep its
   names.
+
+## Notes (M4, 2026-09-27)
+
+- The hosted CI runs the same `tidy` step: the `tidy` job of `.github/workflows/lint.yml`
+  (`DYNG_CHECK_ONLY=tidy ci/check.sh` on a configured `cpu-only` tree, with the clang-tidy of
+  `environment.yml`), a required check. The naming rules are therefore enforced on every pull
+  request. The bugprone, performance and modernize checks of `.clang-tidy` stay advisory until a
+  later milestone cleans their findings and adds them to the job.

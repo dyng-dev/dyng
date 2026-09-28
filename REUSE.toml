@@ -30,7 +30,8 @@ SPDX-FileCopyrightText = "2026 The dynG Authors"
 SPDX-License-Identifier = "Apache-2.0"
 
 # The Code of Conduct is the Contributor Covenant 3.0 (CC BY-SA 4.0) with the reporting contact
-# filled in and the placeholder note removed.
+# filled in, the placeholder note removed and an escalation paragraph for reports about the lead
+# maintainer added.
 [[annotations]]
 path = ["CODE_OF_CONDUCT.md"]
 precedence = "override"

@@ -1,0 +1,103 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+name: Performance regression
+description: dynG became slower than an earlier version, or is slower than the original research code.
+labels: ["performance", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Timings are noisy, so please say how you measured: the number of runs, the median, and
+        whether the machine was otherwise idle. The parity harness has an A/B/A/B runner
+        (`parity/perf_ab.py`, see
+        [parity/README.md](https://github.com/dyng-dev/dyng/blob/main/parity/README.md)).
+  - type: dropdown
+    id: algorithm
+    attributes:
+      label: Algorithm
+      options:
+        - sssp
+        - cycle_count
+        - mosp
+        - triad_count
+        - label_propagation
+        - hyper_sssp
+        - graph or hypergraph construction / batch application
+        - I/O
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - sequential
+        - openmp
+        - cuda
+    validations:
+      required: true
+  - type: dropdown
+    id: baseline
+    attributes:
+      label: Compared with
+      options:
+        - an earlier dynG version or commit
+        - the original research code
+        - another library
+    validations:
+      required: true
+  - type: input
+    id: good
+    attributes:
+      label: Fast version (baseline)
+      description: The dynG version or commit, or the original repository and commit, that is fast.
+      placeholder: "main at 1a2b3c4, or MOSP-CUDA@e220ee2"
+    validations:
+      required: true
+  - type: input
+    id: bad
+    attributes:
+      label: Slow version
+      description: The dynG version or commit that is slow.
+      placeholder: "main at 5d6e7f8"
+    validations:
+      required: true
+  - type: textarea
+    id: measurements
+    attributes:
+      label: Measurements
+      description: |
+        The timings of both versions (median and spread over several runs), and which region was
+        timed (the whole update, or a profiler stage such as `sssp.loop`). A table is ideal.
+      placeholder: |
+        | version | runs | median (ms) | min-max (ms) |
+        |---|---|---|---|
+        | 1a2b3c4 | 21 | 41.2 | 40.8-42.0 |
+        | 5d6e7f8 | 21 | 55.9 | 55.1-57.3 |
+    validations:
+      required: true
+  - type: textarea
+    id: workload
+    attributes:
+      label: Workload and command
+      description: The dataset, batch size and composition (insertions/deletions), options, and the exact command or code.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      value: |
+        - CPU and thread count (OMP_NUM_THREADS):
+        - GPU model, driver and CUDA version:
+        - Compiler and CMake preset (performance numbers need a Release or `parity` build):
+        - OS:
+    validations:
+      required: true
+  - type: textarea
+    id: profile
+    attributes:
+      label: Profile (optional)
+      description: The profiler's per-stage output, or an Nsight Systems / Nsight Compute summary.
+      render: text

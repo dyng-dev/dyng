@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+name: Parity regression
+description: A ported algorithm no longer matches its original research code (a golden replay fails or outputs differ).
+labels: ["parity", "bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        dynG's ported algorithms must reproduce the pinned original exactly, as their algorithm
+        page states (byte-identical outputs or a documented tolerance). A difference is a bug
+        unless it is a documented deviation. See
+        [parity/README.md](https://github.com/dyng-dev/dyng/blob/main/parity/README.md).
+  - type: dropdown
+    id: algorithm
+    attributes:
+      label: Algorithm
+      options:
+        - sssp
+        - cycle_count
+        - mosp
+        - triad_count
+        - label_propagation
+        - hyper_sssp
+        - graph construction or batch application
+        - other
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Original (repository@commit)
+      description: The pinned original from `parity/references.toml`.
+      placeholder: MOSP-OpenMP@c352151
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      multiple: true
+      options:
+        - sequential
+        - openmp
+        - cuda
+    validations:
+      required: true
+  - type: input
+    id: dyng-commit
+    attributes:
+      label: dynG commit
+      description: The first commit that fails and, if known, the last one that passed.
+      placeholder: "fails at 5d6e7f8, passed at 1a2b3c4"
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The parity command that fails, and the golden set and case(s).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: difference
+    attributes:
+      label: Difference
+      description: The comparison output (the first differing lines or values).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      value: |
+        - CMake preset (parity runs use the `parity` preset):
+        - Compiler and version:
+        - CUDA version, GPU and driver (for CUDA):
+        - OMP_NUM_THREADS (for OpenMP):
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Analysis (optional)
+      description: What you found so far, for example a suspected commit or a tie-breaking difference.

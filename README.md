@@ -55,7 +55,9 @@ ci/check.sh                              # the full local gate: format, cpu-only
 
 Other presets: `cpu-only` (Release, CPU backends), `release`, `relwithdebinfo`, `asan`, `tsan`
 and `parity` (the flags of the original research codes, used for parity and performance runs).
-The Doxygen check of the public headers is `ci/docs.sh` (or the target `docs-doxygen`).
+`ci/docs.sh` builds the documentation site (Doxygen with warnings as errors, Sphinx, link
+check) into `build/docs/html`; `ci/docs.sh --doxygen-only` (or the target `docs-doxygen`) runs
+only the Doxygen check of the public headers.
 
 ### Build with CUDA
 
@@ -122,6 +124,8 @@ their golden outputs (495 cases, about 185 MB, outside the repository) and repla
 dynG byte for byte on every backend:
 
 ```bash
+git clone https://github.com/SMShovan/MOSP-OpenMP.git ~/Projects/MOSP-OpenMP   # the originals, once
+git clone https://github.com/SMShovan/MOSP-CUDA.git ~/Projects/MOSP-CUDA
 parity/build_reference.sh MOSP-OpenMP    # scratch copy of the pinned original, built
 parity/build_reference.sh MOSP-CUDA      # the CUDA original (needs nvcc)
 parity/export_goldens.py                 # the sssp golden corpus in $DYNG_SCRATCH/goldens
@@ -198,6 +202,6 @@ advised by Prof. Sajal K. Das, with the co-authors listed in [AUTHORS.md](AUTHOR
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), the
+See [CONTRIBUTING.md](CONTRIBUTING.md), [GOVERNANCE.md](GOVERNANCE.md), [MAINTAINERS.md](MAINTAINERS.md), the
 [Code of Conduct](CODE_OF_CONDUCT.md), [SUPPORT.md](SUPPORT.md) and [SECURITY.md](SECURITY.md). Design decisions are
 recorded as ADRs in [docs/adr/](docs/adr/).
