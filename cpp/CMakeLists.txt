@@ -153,6 +153,7 @@ dyng_add_module(
     src/io/csr_triplet.cpp
     src/io/edge_list_io.cpp
     src/io/edge_list_io.cpp
+    src/io/edge_list_io.cpp
     src/io/matrix_market.cpp
     src/io/result_io.cpp
 )
@@ -169,7 +170,9 @@ add_subdirectory(src/algorithms)
 
 # dyng::testing: host-only oracles for users and the test suites (PLAN Section 5.8). It shares no
 # code with the algorithms it checks.
-add_library(dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp)
+add_library(
+  dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp src/testing/cycle_oracle.cpp
+)
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(
   dyng_testing
