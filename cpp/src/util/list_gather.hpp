@@ -86,16 +86,18 @@ class list_gather {
    * sums instead of two each. The region's work-sharing loop may use `nowait`: the first barrier
    * waits for every thread's part of it.
    *
-   * @tparam alloc_a Allocator of the first local list.
-   * @tparam alloc_b Allocator of the second local list.
+   * @tparam first_alloc_t  Allocator of the first local list.
+   * @tparam second_alloc_t Allocator of the second local list.
    * @param[in,out] first        The first gather.
    * @param[in]     local_first  The thread's list for the first gather.
    * @param[in,out] second       The second gather (a different output than the first's).
    * @param[in]     local_second The thread's list for the second gather.
    */
-  template <typename alloc_a, typename alloc_b>
-  static void gather_pair(list_gather& first, const std::vector<value_t, alloc_a>& local_first,
-                          list_gather& second, const std::vector<value_t, alloc_b>& local_second) {
+  template <typename first_alloc_t, typename second_alloc_t>
+  static void gather_pair(list_gather& first,
+                          const std::vector<value_t, first_alloc_t>& local_first,
+                          list_gather& second,
+                          const std::vector<value_t, second_alloc_t>& local_second) {
     const auto thread = static_cast<std::size_t>(omp_get_thread_num());
     first.offsets_[thread + 1] = local_first.size();
     second.offsets_[thread + 1] = local_second.size();
