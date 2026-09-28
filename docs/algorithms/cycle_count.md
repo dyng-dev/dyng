@@ -27,14 +27,16 @@ recounting the rest. Postcondition: `update()` equals `compute()` on the new gra
 | `multi_edges::forbid` | a cycle is a vertex sequence; parallel edges would count it once per edge choice | `invalid_argument_error` |
 | weights | ignored: instantiated for `unweighted` and `int32` weights, so a weighted sssp graph with the default properties can be shared (`dyng::update(res, g, batch, tree, hist)`) | – |
 | in-edges | not read (`store_transposed` is not needed; the update never transposes the graph) | – |
-| vertex type | `int32_t` (the ownership table keys two 32-bit ids); offsets `int32_t` or `int64_t` | compile error (not instantiated) |
+| vertex type | `int32_t` (the ownership table keys two 32-bit ids); offsets `int32_t` or `int64_t`; weights `unweighted` or `int32_t` | compile error: a `static_assert` in `compute`, `update` and `dyng::update` names the supported types |
 
 `graph_properties::cycle_enum_compatible()` is the preset of the original: sorted rows, no
 parallel edges, no weights and `batch_semantics::set()` (a deletion of a missing edge, an
 insertion of an existing edge and a self-loop are no-ops; new vertex ids grow the graph). Every
 other batch semantics is accepted as well: Step 0 reduces a batch to the change of the edge set
 (weight-only upserts are no-ops for cycle_count). Parity with the original is defined under
-`set()`.
+`set()`. `batch_semantics::as_sets` cannot be combined with `on_existing_insert = upsert`,
+`deletions_first = false`, unsorted rows or parallel edges; a graph built with such properties
+throws `not_supported_error` when it is constructed.
 
 ## 2. Template mapping
 
@@ -82,13 +84,18 @@ Python: planned (M5; PLAN Section 5.5, `dyng.cycle_count.compute(cg, max_length=
 
 | Option | Default | Meaning |
 |---|---|---|
-| `max_length` | -1 | longest counted length (>= 2), or -1: no bound (the histogram then has max(n, 2) + 1 entries) |
+| `max_length` | -1 | longest counted length (>= 2), or -1: no bound. The histogram has min(k, max(n, 2)) + 1 entries (no simple cycle is longer than n), so a bound far above n costs nothing. Without a bound see Section 5 for the cost per backend |
 | `method` | `search_method::johnson` | the search (the only one) |
 | `mode` | `cycle_mode::simple` | static simple cycles (time-window and temporal modes: 0.4) |
 
 `stats`: `batch` (the apply summary), `deletions` / `insertions` (the change edges of the two
-phases), `cycles_removed` / `cycles_added`, `affected` (the number of lengths whose count changed);
-all deterministic. `result`: `counts()`, `count(len)`, `total()`, `bound()`, `clone()`.
+phases), `cycles_removed` / `cycles_added`, and the inherited counters with their cycle_count
+meaning: `affected` (the number of lengths whose count changed), `frontier_visits` (the change
+edges searched, deletions + insertions), `iterations` (always 0: no iterative loop),
+`fallback_used` (always false), `converged` (always true), `engine_used` (always
+`engine::operators`). Every counter is deterministic for cycle_count, including the two that
+`update_stats` calls schedule-dependent. `result`: `counts()`, `count(len)`, `total()`,
+`bound()` (min(k, max(n, 2))), `get_options()`, `clone()`.
 `dyng::update(res, g, batch, r1, r2, ...)` updates cycle_count together with other results on one
 graph (e.g. sssp on a weighted graph with the default properties; weights are ignored).
 
@@ -105,17 +112,38 @@ The example is `examples/cpp/cycle_count_update.cpp`; the drop-in clone of the o
 
 Determinism: **`exact_value`**. The histograms (and every `stats` counter) are identical on every
 backend, thread count and run, because they are sums of integers; the order in which threads find
-cycles does not matter. Counts are 64-bit; a sum beyond 2^64 - 1 throws `capacity_error`. The
-steady-state update allocates nothing but its histogram growth (unbounded results on a growing
-graph): the per-thread visited marks, per-thread histograms and the ownership table live in a
-workspace leased from the resources handle (ADR 0015).
+cycles does not matter. Counts are 64-bit; a sum beyond 2^64 - 1 throws `capacity_error`.
+
+Memory. The per-thread visited marks, search stacks and counters, the ownership table and the
+phase histograms live in a workspace leased from the resources handle (ADR 0015); each thread
+sizes its own scratch at the start of the parallel region that uses it. The ownership table is a
+flat open-addressing table whose arrays are reused (the original's `std::unordered_map` allocates
+a node per change edge on every update). So once a first update of a given size has run, the
+algorithm phase of an update (after the commit) allocates nothing (invariant I9), except when a
+larger batch, a longer cycle than any before or a larger graph grows an array (a histogram of an
+unbounded result grows with the vertex count). The per-thread counters grow with the longest
+cycle actually found, not with the length bound, and the reduction reads and clears only the
+lengths a search reached: an update costs what its searches cost, bounded or not.
 
 ## 5. Complexity and performance notes
 
 Exact counting is exponential in the length bound: `compute()` explores, from every root, the
 simple paths of length < k over vertices above the root; `update()` explores the paths of length
-< k through each change edge, on G_t for the deletions and on G_{t+1} for the insertions. Without
-a bound the sequential search is Johnson's algorithm (time O((n + m)(c + 1)) for c cycles).
+< k through each change edge, on G_t for the deletions and on G_{t+1} for the insertions.
+
+**Without a bound** (`max_length = -1`, the default) the backends differ:
+
+| Search | Algorithm | Time |
+|---|---|---|
+| `compute()`, sequential | Johnson's algorithm with blocked lists (the original's `JohnsonSearch`) | O((n + m)(c + 1)) for c cycles |
+| `compute()`, openmp | the original's OpenMP counter: a path search per root, no blocked lists | grows with the number of simple paths over vertices above each root: exponential even on a graph with few or no cycles (a layered DAG of 28 layers of two vertices, no cycle at all: about 1 s, doubling per layer) |
+| `update()`, every backend | a path search through each change edge (the original's `count_cycles_through_edge`) | grows with the number of simple paths from the change edge's head, exponential in the same way |
+
+For an unbounded count of a large sparse graph use the sequential backend, or set a bound. Every
+search keeps its path on an explicit stack (the original recurses once per path vertex and
+overflows the thread's stack at a path of about 70,000 to 200,000 vertices); a long path costs
+memory (24 bytes per level), never the stack. The length bound is clamped to max(n, 2) before
+anything is sized.
 
 The timed regions are defined in `parity/timed_regions/cycle_count.toml`:
 
@@ -162,8 +190,12 @@ kernels do not carry over.
 
 ## 6. Limitations
 
-- Exact counting is exponential in the length bound; an unbounded count or update enumerates every
-  cycle through the searched vertices.
+- Exact counting is exponential in the length bound. Without a bound the OpenMP `compute()` and
+  every `update()` enumerate simple **paths**, not only cycles (Section 5): their time can be
+  exponential on graphs with few or no cycles, where the sequential `compute()` (Johnson) is
+  linear per cycle.
+- The CUDA backend (M2b) is planned for bounds up to 64 (PLAN 6.4.3); what it does with the
+  default options (no bound) is an open item of M2b (the M2a retrospective).
 - The vertex type is `int32_t` (the ownership table keys two 32-bit ids); offsets may be 32 or 64
   bits.
 - Graphs with parallel edges or unsorted rows are rejected (`invalid_argument_error`).
