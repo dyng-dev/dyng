@@ -19,8 +19,8 @@ name reservation.
 
 | Algorithm | Computes | Container | Family | Backends | Status | Paper |
 |---|---|---|---|---|---|---|
-| {doc}`sssp <algorithms/sssp>` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP (CUDA in M1b) | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
-| `cycle_count` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | planned (0.1) | TruCy / DynTruCy |
+| {doc}`sssp <algorithms/sssp>` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
+| `cycle_count` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | planned (0.1; the CPU backends are in progress on a branch) | TruCy / DynTruCy |
 | `mosp` | multi-objective shortest paths | graph | fixed point (K x `sssp`) | sequential, OpenMP, CUDA | planned (0.2) | DynaMOSP |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.2) | ESCHER / ESCHER+ |
 | `label_propagation` | binary harmonic label propagation | graph | fixed point | sequential, CUDA | planned (0.3) | DynLP (ICS 2026) |
@@ -31,7 +31,8 @@ release will contain.
 
 ## Install and build
 
-There is no release yet, so dynG is built from source. No GPU is needed for the CPU backends.
+There is no release yet, so dynG is built from source. No GPU is needed for the CPU backends;
+the CUDA backend has its own presets (`dev-cuda`, {doc}`getting_started/install`).
 
 ```bash
 git clone https://github.com/dyng-dev/dyng.git

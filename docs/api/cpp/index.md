@@ -1,8 +1,9 @@
 # C++ API
 
 The public C++ API lives in `cpp/include/dyng/` (namespace `dyng`) and compiles with a plain
-host compiler; `#include <dyng/dyng.hpp>` includes all of it. These pages are generated from the
-Doxygen comments of the public headers (Breathe over Doxygen XML) and are **curated**: one page
+host compiler, also in a build with the CUDA backend (CUDA objects appear only as opaque
+handles, such as `stream_ref`); `#include <dyng/dyng.hpp>` includes all of it. These pages are
+generated from the Doxygen comments of the public headers (Breathe over Doxygen XML) and are **curated**: one page
 per Doxygen group, in the order a new user meets them. `dyng::detail` is private and not shown.
 
 Link against the CMake target `dyng::dyng` (`find_package(dyng)`).
@@ -15,6 +16,7 @@ graph
 batch
 io
 sssp
+generators
 testing
 ```
 

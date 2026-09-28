@@ -3,7 +3,7 @@
 Maturity: **experimental** (sequential and OpenMP backends since M1a, the CUDA backend with the
 fused engine since M1b; the Python binding arrives in M5 and the operators engine in 0.2).
 Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
-MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](../../parity/results/M1b.md)).
+MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md)).
 
 ## 1. Problem
 

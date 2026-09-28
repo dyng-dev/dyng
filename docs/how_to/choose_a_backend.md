@@ -5,7 +5,7 @@ Every call takes a `dyng::resources` as its first argument; it decides where the
 ```cpp
 auto seq = dyng::resources::sequential();   // one host thread: the reference backend
 auto omp = dyng::resources::openmp(16);     // 16 OpenMP threads; 0 = omp_get_max_threads()
-auto gpu = dyng::resources::cuda(/*device=*/0);   // from milestone M1b
+auto gpu = dyng::resources::cuda(/*device=*/0);   // GPU 0, its per-thread default stream
 auto dflt = dyng::resources();              // dyng::default_backend()
 ```
 
@@ -13,7 +13,13 @@ auto dflt = dyng::resources();              // dyng::default_backend()
   small inputs, and when you need a result to compare against.
 - **openmp** uses host threads. `openmp(0)` takes the OpenMP default at the time of the call,
   which honours `OMP_NUM_THREADS`; dynG never changes the global OpenMP thread count.
-- **cuda** runs on one GPU and stream. Before M1b it always throws `not_supported_error`.
+- **cuda** runs on one GPU and one stream (`resources::cuda(device, stream)` takes your own
+  `stream_ref`). Graphs and results created with it live in device memory: read them with
+  `dyng::to_vector(res, tree.distances())`. Calls are stream-ordered; each function's
+  reference entry says when it synchronizes. `sssp` runs its fused engine, the persistent
+  cooperative kernel of the original MOSP-CUDA code, and throws `not_supported_error` on a
+  device without cooperative launch. In a build without CUDA, or with no visible device,
+  `resources::cuda()` throws `not_supported_error`.
 
 Ask what this build and machine support before choosing:
 

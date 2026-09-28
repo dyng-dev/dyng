@@ -39,6 +39,11 @@ runs, so a hidden copy cannot distort a measurement), or throw.
 
 ## Synchronous and asynchronous calls
 
-Host backends complete every call before returning. The CUDA backend (milestone M1b) orders work
-on the `resources`' stream; each function's reference entry says whether it is synchronous or
-stream-ordered.
+Host backends complete every call before returning. The CUDA backend orders work on the
+`resources`' stream (`stream_ref`; by default the per-thread default stream); each function's
+reference entry says whether it is synchronous or stream-ordered, and which calls synchronize
+(for example the upload of the updated graph in `sssp::update()`). Device memory comes from the
+`resources`' memory resource, by default the stream-ordered `cuda_async_memory_resource`; the
+scratch memory of the algorithms belongs to the `resources` handle and is reused across calls
+(ADR 0015, ADR 0016). `resources::warm_up()` pays the one-time costs (context creation, kernel
+loading) before a timed region.

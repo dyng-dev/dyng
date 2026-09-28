@@ -75,6 +75,18 @@ done
 `cmp` prints nothing: the files are identical. CTest runs the same comparisons, both files on
 every CPU backend (`ctest --preset dev -R example.sssp_update`).
 
+With a GPU and a CUDA build (the `dev-cuda` preset, {doc}`../getting_started/install`), the
+same program runs on the `cuda` backend: the graph and the tree then live in device memory, the
+fused kernel of the original MOSP-CUDA code runs the update, and the output files are the same
+bytes:
+
+```bash
+cmake --build --preset dev-cuda --target dyng_example_sssp_update
+mkdir -p out/cuda
+build/dev-cuda/examples/cpp/sssp_update $case/graphCsr $case/insert.txt $case/delete.txt out/cuda cuda
+cmp out/cuda/SSSPTreeUpdated.txt $expected/SSSPTreeUpdated.txt
+```
+
 ## What you learned
 
 - One `resources` object selects the backend for every call.

@@ -6,9 +6,10 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 
 ## Where we are
 
-**Pre-alpha, before 0.1.0.** The CPU backends of `sssp` (sequential and OpenMP) work and are
-byte-identical to the original MOSP-OpenMP code on its 495-case golden corpus. The CUDA backend
-of `sssp` and the project infrastructure (this site, CI, community files) are being built now.
+**Pre-alpha, before 0.1.0.** `sssp` works on all three backends (sequential, OpenMP and CUDA)
+and is byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes on their 495-case golden
+corpus, within the performance gates against the originals. The project infrastructure (this
+site, CI, community files) is in place. `cycle_count` is being ported (its CPU backends first).
 
 ## 0.1.0: the first release
 

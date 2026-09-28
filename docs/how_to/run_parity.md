@@ -16,6 +16,28 @@ The harness only reads the original (with `git archive`); it looks for the clone
 `$DYNG_ORIGINALS_DIR/<name>` (default `~/Projects/<name>`), so set `DYNG_ORIGINALS_DIR` if your
 clones live elsewhere. `DYNG_SCRATCH` can point anywhere with a few GB free.
 
-The goldens (about 185 MB for `sssp`) stay outside the repository; the committed record of the
-last run is the parity certificate under `parity/results/`. The full guide, with the file layout
-and the rules, is {doc}`../developer/parity`.
+The goldens (about 185 MB for `sssp`) stay outside the repository. The CUDA backend is replayed
+against the same corpus, and cross-checked against the CUDA original, with a CUDA toolkit and a
+GPU:
+
+```bash
+git clone https://github.com/SMShovan/MOSP-CUDA.git ~/Projects/MOSP-CUDA       # once
+parity/build_reference.sh MOSP-CUDA       # the CUDA original (needs nvcc)
+cmake --preset parity-cuda && cmake --build --preset parity-cuda
+parity/compare.py --exe build/parity-cuda/tools/compat/dyng-compat-mosp --configs cuda
+ci/gpu_local.sh                           # the GPU gate also replays the corpus on `cuda`
+```
+
+Performance is compared with the unpatched originals by `parity/perf_ab.py` (alternating A/B
+runs under an exclusive lock; the parity guide below has the details).
+
+Each milestone commits its record, the **parity certificate**: correctness, the performance
+gates and the raw measurements of the run.
+
+- [M1a certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1a.md): `sssp`
+  on the sequential and OpenMP backends against MOSP-OpenMP@c352151.
+- [M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md): `sssp`
+  on the CUDA backend against MOSP-CUDA@e220ee2, cross-backend equality, the CUDA and OpenMP
+  performance gates and the `edge_t` benchmark (ADR 0009).
+
+The full guide, with the file layout and the rules, is {doc}`../developer/parity`.
