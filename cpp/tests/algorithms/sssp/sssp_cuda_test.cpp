@@ -13,6 +13,7 @@
  * DYNG_TEST_CUDA=1 and run their cases on the cuda backend, the randomized ones against the
  * sequential and OpenMP backends.
  */
+#include "algorithms/sssp/problem.hpp"
 #include "core/resources_access.hpp"
 #include "framework/workspace.hpp"
 #include "graph/graph_impl.hpp"
@@ -32,6 +33,8 @@
 #include <dyng/testing/check_sssp.hpp>
 #include <dyng/testing/dijkstra.hpp>
 #include <dyng/update.hpp>
+
+#include <cuda_runtime_api.h>
 
 #include <gtest/gtest.h>
 
@@ -177,6 +180,53 @@ TEST_F(SsspCuda, GraphsAndResultsStayWithTheirBackendUntilCloned) {
   (void)dyng::sssp::update(host, hg, b.view(), to_host);
   EXPECT_EQ(host_copy(to_device.distances()), host_copy(to_host.distances()));
   EXPECT_EQ(host_copy(to_device.parents()), host_copy(to_host.parents()));
+}
+
+// A result computed on one stream and updated with vertex growth through a handle on another
+// stream (the caller orders the streams, PLAN 4.7.4): the old arrays are released on the updating
+// stream, after the copies into the grown arrays read them (M1b review).
+TEST_F(SsspCuda, VertexGrowthThroughAHandleOnAnotherStream) {
+  cudaStream_t a = nullptr;
+  cudaStream_t b = nullptr;
+  ASSERT_EQ(cudaStreamCreateWithFlags(&a, cudaStreamNonBlocking), cudaSuccess);
+  ASSERT_EQ(cudaStreamCreateWithFlags(&b, cudaStreamNonBlocking), cudaSuccess);
+  {
+    const auto on_a = dyng::resources::cuda(0, dyng::stream_ref(a));
+    const auto on_b = dyng::resources::cuda(0, dyng::stream_ref(b));
+    const auto host = dyng::resources::sequential();
+    dyng::graph_properties props = dyng::graph_properties::mosp_compatible();
+    props.semantics.allow_vertex_growth = true;
+    const auto build = [&](const dyng::resources& res) {
+      dyng::edge_list<std::int32_t, std::int32_t> list;
+      list.num_vertices = 5;
+      list.num_weights = 1;
+      for (const edge& e : std::vector<edge>{{0, 1, 5}, {0, 2, 1}, {2, 3, 1}, {1, 4, 2}}) {
+        list.add_edge(e.u, e.v, {e.w});
+      }
+      return graph_t::from_edges(res, list.view(), props);
+    };
+    auto g = build(on_a);
+    auto hg = build(host);
+    result_t r = dyng::sssp::compute(on_a, g, 0);
+    result_t hr = dyng::sssp::compute(host, hg, 0);
+    batch_t batch;
+    batch.insert_edge(4, 6, {3});  // grows the graph to 7 vertices
+    batch.insert_edge(3, 4, {1});
+    batch.delete_edge(0, 1);
+    (void)dyng::sssp::update(on_b, g, batch.view(), r);
+    (void)dyng::sssp::update(host, hg, batch.view(), hr);
+    EXPECT_EQ(g.num_vertices(), 7);
+    EXPECT_EQ(dyng::to_vector(on_b, r.distances()), host_copy(hr.distances()));
+    EXPECT_EQ(dyng::to_vector(on_b, r.parents()), host_copy(hr.parents()));
+    // The grown arrays, and the release of the old ones, are ordered on the updating stream.
+    const auto& state = dyng::detail::sssp_access::state(r);
+    EXPECT_EQ(state.device_distances.stream(), on_b.stream());
+    EXPECT_EQ(state.device_parents.stream(), on_b.stream());
+    on_b.synchronize();
+  }
+  ASSERT_EQ(cudaStreamSynchronize(a), cudaSuccess);
+  ASSERT_EQ(cudaStreamDestroy(a), cudaSuccess);
+  ASSERT_EQ(cudaStreamDestroy(b), cudaSuccess);
 }
 
 TEST_F(SsspCuda, TheDeviceCopyIsUploadedOncePerGraphState) {

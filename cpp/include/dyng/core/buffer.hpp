@@ -45,7 +45,10 @@ void copy_bytes(void* dst, memory_space dst_space, const void* src, memory_space
  *
  * Semantics follow rmm::device_uvector: the elements are not constructed or zeroed, so
  * `value_t` must be trivially copyable. Allocation and release are ordered on the buffer's
- * stream. The memory resource must outlive the buffer.
+ * stream. The memory resource must outlive the buffer. With the per-thread default stream
+ * (`cudaStreamPerThread`) that means the stream of the thread that allocates or releases: a buffer
+ * released on another thread than the one whose work last used it must be ordered after that work
+ * by the caller (or moved to an explicit stream with set_stream()).
  *
  * @tparam value_t Trivially copyable element type.
  * @ingroup core
@@ -187,6 +190,18 @@ class buffer {
    */
   [[nodiscard]] stream_ref stream() const noexcept {
     return stream_;
+  }
+
+  /**
+   * @brief Order the buffer's later release (destruction, move assignment, resize) on another
+   *        stream.
+   *
+   * The caller orders the new stream after the work on the old one that still uses the buffer
+   * (rmm::device_uvector::set_stream semantics). The memory itself is not touched.
+   * @param[in] stream The new stream (of the buffer's device).
+   */
+  void set_stream(stream_ref stream) noexcept {
+    stream_ = stream;
   }
 
   /**

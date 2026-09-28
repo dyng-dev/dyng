@@ -728,6 +728,12 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
       fill_async(res.stream(), distances.data() + old_n, n - old_n, distance_t{sssp_infinity});
       fill_async(res.stream(), parents.data() + old_n, n - old_n, vertex_t{-1});
     }
+    // The old arrays are released on res.stream(), after the copies above that read them: the
+    // result may have been computed (and its arrays allocated) on another stream, whose earlier
+    // work the caller has ordered before this call (PLAN 4.7.4). Released on their own stream they
+    // could be reused by another allocation before the copies ran.
+    st.device_distances.set_stream(res.stream());
+    st.device_parents.set_stream(res.stream());
     st.device_distances = std::move(distances);
     st.device_parents = std::move(parents);
 #else
