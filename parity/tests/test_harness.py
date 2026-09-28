@@ -7,6 +7,7 @@ selections that would compare nothing, and the pure helpers behave."""
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -188,3 +189,81 @@ def test_region_map_loads() -> None:
     by_name = {r["name"]: r for r in regions}
     assert by_name["sosp_update"]["gate"] == "compute" and by_name["sosp_total"]["gate"] == "none"
     assert by_name["end_to_end"]["original_report_subtract"] == ["comb combined graph + SOSP"]
+
+
+def test_compare_edge_type_configs(tmp_path: Path) -> None:
+    (tmp_path / "MANIFEST.sha256").write_text("")
+    base = [sys.executable, REPO / "parity/compare.py", "--goldens", tmp_path, "--skip-verify"]
+    for config in ["cuda/int16", "openmp:4/", "sequential/int64x"]:
+        bad = subprocess.run(
+            [*base, "--exe", sys.executable, "--configs", config], capture_output=True, text=True
+        )
+        assert bad.returncode == 2 and "is not sequential" in bad.stderr, config
+
+
+def test_export_compare_corpora_ignores_only_the_reference(tmp_path: Path) -> None:
+    export = load("parity/export_goldens.py")
+
+    def corpus(root: Path, reference: str, tree: str) -> Path:
+        case = root / "sosp" / "c0"
+        (case / "updated").mkdir(parents=True)
+        (case / "updated" / "tree.txt").write_text(tree)
+        meta = {"case": "sosp/c0", "reference": reference, "invalidated": [3]}
+        (case / "case.json").write_text(json.dumps(meta))
+        export.write_manifest(root, [])
+        return root
+
+    a = corpus(tmp_path / "a", "MOSP-OpenMP@c", "0 0\n1 0\n")
+    b = corpus(tmp_path / "b", "MOSP-CUDA@e", "0 0\n1 0\n")
+    assert export.compare_corpora(a, b) == []
+    c = corpus(tmp_path / "c", "MOSP-CUDA@e", "0 0\n1 1\n")
+    assert export.compare_corpora(a, c) == ["differs: sosp/c0/updated/tree.txt"]
+    meta = json.loads((c / "sosp" / "c0" / "case.json").read_text())
+    meta["invalidated"] = [4]
+    (c / "sosp" / "c0" / "case.json").write_text(json.dumps(meta))
+    (c / "sosp" / "c0" / "updated" / "tree.txt").write_text("0 0\n1 0\n")
+    export.write_manifest(c, [])
+    assert export.compare_corpora(a, c) == ["differs: sosp/c0/case.json"]
+
+
+def test_perf_ab_parses_ncu_csv() -> None:
+    perf = load("parity/perf_ab.py")
+    head = (
+        '"ID","Process ID","Process Name","Host Name","Kernel Name","Context","Stream",'
+        '"Block Size","Grid Size","Device","CC","Section Name","Metric Name","Metric Unit",'
+        '"Metric Value"\n'
+    )
+    rows = "".join(
+        f'"{i}","1","mosp","h","sospPersistentKernel","1","7","(256, 1, 1)","(256, 1, 1)","0",'
+        f'"8.6","Command line profiler metrics","{m}","ns","{v}"\n'
+        for i in range(3)
+        for m, v in [("gpu__time_duration.sum", f"{29 + i},141,120"), ("launch__grid_size", "256")]
+    )
+    kernels = perf.parse_ncu_csv("==PROF== note\n" + head + rows, 2, "mosp")
+    assert [x["gpu__time_duration.sum"] for x in kernels] == [29141120.0, 30141120.0]
+    assert kernels[0]["launch__grid_size"] == 256.0 and kernels[0]["name"] == "sospPersistentKernel"
+    with pytest.raises(SystemExit):
+        perf.parse_ncu_csv(head + rows, 4, "mosp")
+
+
+def test_perf_ab_edge_type_summary_reads_the_port_on_both_sides() -> None:
+    perf = load("parity/perf_ab.py")
+    regions = [dict(r, gate="none") for r in perf.load_regions("cuda")]
+
+    def sample(ms: float) -> dict:
+        stages = {
+            "sssp.enact_fused": [ms, ms],
+            "update.commit": [10.0],
+            "sssp.upload": [1.0, 1.0],
+            "sssp.workspace": [0.5, 0.0, 0.0, 0.0],
+            "sssp.changes": [0.1, 0.1],
+            "total.end_to_end": [100.0],
+        }
+        return {"stages": stages, "device": {}, "invalidated": [1, 2], "threads": 1}
+
+    samples = {"original": [sample(4.0)] * 5, "port": [sample(4.2)] * 5}
+    out = perf.summarize(regions, samples, 2, 5, [(1.0, 1.0)], a_value=perf.port_value)
+    by_name = {e["region"]: e for e in out["regions"]}
+    assert by_name["sosp_update obj0"]["ratio"] == pytest.approx(1.05)
+    assert "gate" not in by_name["sosp_update obj0"]
+    assert by_name["apply"]["original_ms"] == pytest.approx(12.7)

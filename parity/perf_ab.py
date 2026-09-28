@@ -9,6 +9,9 @@
                           [--json parity/results/M1b-perf-openmp-roadNet-CA.json]
     parity/perf_ab.py run --backend cuda --exe build/parity-cuda/tools/compat/dyng-compat-mosp
                           [--gpu 0] [--runs 21] [--graph roadNet-CA] [--json ...]
+    parity/perf_ab.py kernels --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--runs 21]
+                          [--graph roadNet-CA] [--json ...]
+    parity/perf_ab.py edge-type --backend openmp|cuda --exe <parity build> [--runs 21] ...
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
 roadNet-CA, rgg (rgg_n_2_20_s0) and road_usa_g (road_usa); --hops defaults to the local-batch
@@ -50,6 +53,19 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          stage sssp.enact_fused, which has the same scope; the port's device time (CUDA events)
          of that stage is recorded next to it (the original has no device timer). The regions
          under 10 ms need >= 20 runs (PLAN 8.6).
+
+kernels  (cuda) runs both sides A/B/A/B under Nsight Compute with the GPU clocks locked to base
+         (`ncu --clock-control base --cache-control none`, no root needed) and compares the
+         per-objective fused kernels (gpu__time_duration of the first K launches of
+         sospPersistentKernel / sssp_persistent_kernel; MOSP-CUDA's K+1-th launch is its combined
+         graph), with their DRAM bytes, registers, grid and occupancy limits. It takes the GPU's
+         clock state (the DVFS P-state, which a program's own GPU work before the timed region
+         decides) out of the comparison; it is the controlled-clock reading next to `run`'s
+         as-measured one (parity/results/M1b.md).
+
+edge-type  the edge_t benchmark of ADR 0009: the port with 32-bit (A) against 64-bit (B) edge
+         offsets (`dyng-compat-mosp --edge-type`), A/B/A/B, same inputs, regions and guards
+         (outputs byte-identical, invalidated counters equal); the ratio is int64 / int32.
 
 The perf lock. The machine's convention is `flock $DYNG_SCRATCH/perf.lock <command>`, and this
 script also takes the lock itself. Both work: the script sees in /proc/locks that an ancestor
@@ -443,7 +459,12 @@ def gate_limit(kind: str, original_ms: float) -> float:
     return 1.05 if original_ms >= SHORT_REGION_MS else 1.10
 
 
-def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list) -> dict:
+def summarize(
+    regions: list[dict], samples: dict, k: int, runs: int, loads: list, a_value=None
+) -> dict:
+    """Medians and gate verdicts per region; side A is the original (its report lines) unless
+    a_value reads A's samples otherwise (the edge-type A/B: both sides are the port)."""
+    a_value = a_value or original_value
     out = {
         "regions": [],
         "invalidated": {},
@@ -490,21 +511,21 @@ def summarize(regions: list[dict], samples: dict, k: int, runs: int, loads: list
         gate = region["gate"]
         if region.get("per_objective"):
             for o in range(k):
-                a = [original_value(s, region, o) for s in samples["original"]]
+                a = [a_value(s, region, o) for s in samples["original"]]
                 b = [port_value(s, region, o) for s in samples["port"]]
                 dev = [port_device_value(s, region, o) for s in samples["port"]]
                 entry(f"{region['name']} obj{o}", a, b, gate, "as measured", dev)
         else:
-            a = [original_value(s, region, None) for s in samples["original"]]
+            a = [a_value(s, region, None) for s in samples["original"]]
             b = [port_value(s, region, None) for s in samples["port"]]
             entry(region["name"], a, b, gate, "as measured")
     return out
 
 
-def report(results: dict) -> list[str]:
+def report(results: dict, labels: tuple[str, str] = ("original", "dynG")) -> list[str]:
     lines = [
-        "| batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B |"
-        " dynG device (ms) |",
+        f"| batch | region | reading | {labels[0]} (ms) | {labels[1]} (ms) | ratio | gate | "
+        f"spread A / B | {labels[1]} device (ms) |",
         "|---|---|---|---:|---:|---:|---|---|---:|",
     ]
     for batch, res in results.items():
@@ -597,10 +618,8 @@ def prepare(args: argparse.Namespace) -> int:
     return 0
 
 
-def run(args: argparse.Namespace) -> int:
-    regions = load_regions(args.backend)
-    keys = report_keys(regions)
-    reference = REFERENCES[args.backend]
+def check_port_build(args: argparse.Namespace) -> tuple[Path, dict]:
+    """The port's executable and its build record; refuses a non-parity build tree."""
     exe = args.exe.resolve()
     build = port_build(exe, args.backend)
     if not build["parity_preset"] and not args.allow_non_parity_build:
@@ -610,15 +629,19 @@ def run(args: argparse.Namespace) -> int:
             f"defined on the {preset} preset (pass --allow-non-parity-build for an "
             "experiment, whose record says so)"
         )
-    # Rebuild (idempotent) and verify the unpatched copy before timing it.
-    build_reference(reference["name"])
-    ref = reference_copy(reference["name"])
-    mosp = ref / "bin" / "mosp"
-    marker = ref / ".dyng-reference"
-    data = SCRATCH / "bench" / "mosp" / args.graph
+    return exe, build
+
+
+def bench_inputs(graph: str) -> tuple[Path, int]:
+    """The prepared inputs of a graph and its number of objectives."""
+    data = SCRATCH / "bench" / "mosp" / graph
     if not (data / "init").is_dir():
-        raise SystemExit(f"{data}: run `parity/perf_ab.py prepare --graph {args.graph}` first")
-    k = len(list((data / "init").glob("obj*")))
+        raise SystemExit(f"{data}: run `parity/perf_ab.py prepare --graph {graph}` first")
+    return data, len(list((data / "init").glob("obj*")))
+
+
+def run_env(args: argparse.Namespace) -> tuple[dict, list]:
+    """The environment of both sides and the port's backend arguments."""
     env = dict(
         os.environ, OMP_NUM_THREADS=str(args.threads), OMP_PROC_BIND="close", OMP_PLACES="cores"
     )
@@ -632,36 +655,60 @@ def run(args: argparse.Namespace) -> int:
     for item in args.env:  # extra settings for BOTH sides, e.g. OMP_WAIT_POLICY=active
         key, _, value = item.partition("=")
         env[key] = value
+    return env, port_args
+
+
+def batch_list(args: argparse.Namespace) -> list[str]:
     batches = [b for b in args.batches.split(",") if b]
     unknown = [b for b in batches if b not in BATCHES]
     if unknown or not batches:
         raise SystemExit(f"--batches: unknown or empty ({unknown}); known: {sorted(BATCHES)}")
+    return batches
+
+
+def batch_args(data: Path, batch: str) -> list:
+    return [
+        "--graph",
+        data / "csr" / "graphCsr",
+        "--changes",
+        data / BATCHES[batch],
+        "--init",
+        data / "init",
+    ]
+
+
+def same_outputs(a: Path, b: Path, k: int, what: str) -> None:
+    """Correctness guard: the updated trees of two runs must be byte-identical."""
+    for o in range(k):
+        for f in ["distancesUpdated.txt", "SSSPTreeUpdated.txt"]:
+            if not filecmp.cmp(a / f"obj{o}" / f, b / f"obj{o}" / f, shallow=False):
+                raise SystemExit(f"{what}: obj{o}/{f} differs")
+
+
+def run(args: argparse.Namespace) -> int:
+    regions = load_regions(args.backend)
+    keys = report_keys(regions)
+    reference = REFERENCES[args.backend]
+    exe, build = check_port_build(args)
+    # Rebuild (idempotent) and verify the unpatched copy before timing it.
+    build_reference(reference["name"])
+    ref = reference_copy(reference["name"])
+    mosp = ref / "bin" / "mosp"
+    marker = ref / ".dyng-reference"
+    data, k = bench_inputs(args.graph)
+    env, port_args = run_env(args)
+    batches = batch_list(args)
     results = {}
     failures = []
     work = Path(tempfile.mkdtemp(prefix="dyng-perf-", dir=SCRATCH / "runs"))
     try:
         with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
             for batch in batches:
-                changes = data / BATCHES[batch]
-                common = [
-                    "--graph",
-                    data / "csr" / "graphCsr",
-                    "--changes",
-                    changes,
-                    "--init",
-                    data / "init",
-                ]
+                common = batch_args(data, batch)
                 # Correctness guard: both write their outputs once; the files must be identical.
                 run_one([mosp, *common, "--out", work / "A"], env)
                 run_one([exe, *common, *port_args, "--out", work / "B"], env)
-                for o in range(k):
-                    for f in ["distancesUpdated.txt", "SSSPTreeUpdated.txt"]:
-                        if not filecmp.cmp(
-                            work / "A" / f"obj{o}" / f, work / "B" / f"obj{o}" / f, shallow=False
-                        ):
-                            raise SystemExit(
-                                f"{batch}: obj{o}/{f} differs between the original and the port"
-                            )
+                same_outputs(work / "A", work / "B", k, f"{batch}: the original and the port")
                 print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
                 samples: dict[str, list] = {"original": [], "port": []}
                 loads = []
@@ -712,15 +759,298 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
-def write_json(args, results, build, ref, marker, regions, reference) -> None:
+# --- edge-type: the edge_t benchmark (ADR 0009) ---------------------------------------------
+
+
+def edge_type(args: argparse.Namespace) -> int:
+    """dynG with 32-bit (A) against 64-bit (B) edge offsets, A/B/A/B, on the same inputs and
+    regions as `run` (both sides read through the port's stages)."""
+    regions = [dict(r, gate="none") for r in load_regions(args.backend)]
+    exe, build = check_port_build(args)
+    data, k = bench_inputs(args.graph)
+    env, port_args = run_env(args)
+    batches = batch_list(args)
+    sides = ["int32", "int64"]
+    results, failures = {}, []
+    work = Path(tempfile.mkdtemp(prefix="dyng-edge-", dir=SCRATCH / "runs"))
+    try:
+        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for batch in batches:
+                common = batch_args(data, batch)
+                for side in sides:
+                    run_one(
+                        [exe, *common, *port_args, "--edge-type", side, "--out", work / side], env
+                    )
+                same_outputs(work / "int32", work / "int64", k, f"{batch}: int32 vs int64 offsets")
+                print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
+                samples: dict[str, list] = {"original": [], "port": []}
+                loads = []
+                timing = work / "timing.csv"
+                for r in range(args.runs):
+                    before = os.getloadavg()[0]
+                    for side, key in zip(sides, ["original", "port"], strict=True):
+                        log = run_one(
+                            [
+                                exe,
+                                *common,
+                                *port_args,
+                                "--edge-type",
+                                side,
+                                "--no-output",
+                                "--timing",
+                                timing,
+                            ],
+                            env,
+                        )
+                        samples[key].append(parse_port(log, timing, k))
+                    loads.append((before, os.getloadavg()[0]))
+                    a, b = samples["original"][-1], samples["port"][-1]
+                    if a["invalidated"] != b["invalidated"]:
+                        failures.append(f"{batch} round {r + 1}: invalidated differ")
+                    print(f"{batch} round {r + 1}/{args.runs}", flush=True)
+                results[batch] = summarize(
+                    regions, samples, k, args.runs, loads, a_value=port_value
+                )
+    finally:
+        with contextlib.suppress(OSError):
+            subprocess.run(["rm", "-rf", str(work)], check=False)
+    report(results, labels=("int32", "int64"))
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "sssp",
+            "benchmark": "edge_t (ADR 0009): dynG int32 (A) vs int64 (B) edge offsets",
+            "backend": args.backend,
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "graph": args.graph,
+            "port": {"commit": port_commit(), "binary": portable_path(args.exe), "build": build},
+            "protocol": {
+                "runs": args.runs,
+                "order": "A/B/A/B (int32 first)",
+                "threads": args.threads,
+                "gpu": args.gpu if args.backend == "cuda" else None,
+                "lock": "perf.lock",
+                "statistic": "median",
+            },
+            "host": {"cpu": cpu_model(), "logical_cpus": os.cpu_count()},
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    for f in failures:
+        print(f"CORRECTNESS: {f}", file=sys.stderr)
+    return 1 if failures else 0
+
+
+# --- kernels: the fused kernels at locked clocks (Nsight Compute) ---------------------------
+
+NCU = Path(os.environ.get("NCU", "/usr/local/cuda-13.1/bin/ncu"))
+NCU_KERNELS = "regex:^(sospPersistentKernel|sssp_persistent_kernel)$"
+NCU_METRICS = [
+    "gpu__time_duration.sum",
+    "dram__bytes.sum",
+    "sm__cycles_elapsed.avg.per_second",
+    "dram__cycles_elapsed.avg.per_second",
+    "launch__registers_per_thread",
+    "launch__grid_size",
+    "launch__block_size",
+    "launch__occupancy_limit_registers",
+    "launch__occupancy_limit_blocks",
+    "launch__occupancy_limit_warps",
+]
+
+
+def ncu_run(cmd: list, env: dict, k: int, log: Path) -> tuple[list[dict], list[int]]:
+    """One run under Nsight Compute with the clocks locked to base (--clock-control base): the
+    metrics of the first k fused-kernel launches (the K objectives; MOSP-CUDA launches the kernel
+    once more for the combined graph) and the invalidated counters of the program's report."""
+    full = [
+        NCU,
+        "--clock-control",
+        "base",
+        "--cache-control",
+        "none",
+        "--kernel-name-base",
+        "function",
+        "-k",
+        NCU_KERNELS,
+        "--metrics",
+        ",".join(NCU_METRICS),
+        "--csv",
+        "--log-file",
+        log,
+        *cmd,
+    ]
+    out = run_one(full, env)
+    ids = parse_ncu_csv(log.read_text(), k, str(cmd[0]))
+    inv = {int(o): int(v) for o, _, v in OBJ.findall(out)}
+    return ids, [inv.get(o, -1) for o in range(k)]
+
+
+def parse_ncu_csv(text: str, k: int, what: str) -> list[dict]:
+    """The metrics of the first k kernel launches of an `ncu --csv` log (one row per launch and
+    metric; launches in ID order)."""
+    kernels: dict[int, dict] = {}
+    rows = list(csv.reader(text.splitlines()))
+    header = next((r for r in rows if r and r[0] == "ID"), None)
+    if header is None:
+        raise SystemExit(f"{what}: no ncu CSV:\n{text[-2000:]}")
+    col = {name: i for i, name in enumerate(header)}
+    for r in rows:
+        if len(r) != len(header) or r[0] == "ID":
+            continue
+        raw = r[col["Metric Value"]].replace(",", "")
+        try:
+            value: float | str | None = float(raw) if raw else None
+        except ValueError:
+            value = raw
+        entry = kernels.setdefault(int(r[col["ID"]]), {"name": r[col["Kernel Name"]]})
+        entry[r[col["Metric Name"]]] = value
+    ids = sorted(kernels)[:k]
+    if len(ids) != k:
+        raise SystemExit(f"{what}: {len(kernels)} fused-kernel launches under ncu, need {k}")
+    return [kernels[i] for i in ids]
+
+
+def kernels(args: argparse.Namespace) -> int:
+    """The per-objective fused kernels of MOSP-CUDA (A) and dynG (B), A/B/A/B, each run under
+    Nsight Compute with the GPU clocks locked to base, which removes the GPU's clock state
+    (DVFS P-states) from the comparison: kernel time only (gpu__time_duration)."""
+    if args.backend != "cuda":
+        raise SystemExit("kernels: --backend cuda only")
+    reference = REFERENCES["cuda"]
+    exe, build = check_port_build(args)
+    build_reference(reference["name"])
+    ref = reference_copy(reference["name"])
+    mosp = ref / "bin" / "mosp"
+    data, k = bench_inputs(args.graph)
+    env, port_args = run_env(args)
+    batches = batch_list(args)
+    results, failures = {}, []
+    work = Path(tempfile.mkdtemp(prefix="dyng-ncu-", dir=SCRATCH / "runs"))
+    try:
+        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for batch in batches:
+                common = batch_args(data, batch)
+                side: dict[str, list] = {"original": [], "port": []}
+                for r in range(args.runs):
+                    for key, cmd in [
+                        ("original", [mosp, *common, "--no-output"]),
+                        ("port", [exe, *common, *port_args, "--no-output"]),
+                    ]:
+                        side[key].append(ncu_run(cmd, env, k, work / f"{key}.csv"))
+                    (ka, ia), (kb, ib) = side["original"][-1], side["port"][-1]
+                    if ia != ib:
+                        failures.append(f"{batch} round {r + 1}: invalidated {ia} != {ib}")
+                    print(
+                        f"{batch} round {r + 1}/{args.runs}: kernels original "
+                        f"{sum(x['gpu__time_duration.sum'] for x in ka) / 1e6:.2f} ms, port "
+                        f"{sum(x['gpu__time_duration.sum'] for x in kb) / 1e6:.2f} ms",
+                        flush=True,
+                    )
+                res = {"regions": [], "launch": {}}
+                for key in ["original", "port"]:
+                    first = side[key][0][0][0]
+                    res["launch"][key] = {m: first.get(m) for m in ["name", *NCU_METRICS[4:]]} | {
+                        "sm_clock_hz": first.get("sm__cycles_elapsed.avg.per_second"),
+                        "dram_clock_hz": first.get("dram__cycles_elapsed.avg.per_second"),
+                    }
+                for o in range(k):
+                    a = [run[0][o]["gpu__time_duration.sum"] / 1e6 for run in side["original"]]
+                    b = [run[0][o]["gpu__time_duration.sum"] / 1e6 for run in side["port"]]
+                    da = [run[0][o]["dram__bytes.sum"] for run in side["original"]]
+                    db = [run[0][o]["dram__bytes.sum"] for run in side["port"]]
+                    ma, mb = statistics.median(a), statistics.median(b)
+                    gate = gate_limit("compute", ma)
+                    res["regions"].append(
+                        {
+                            "region": f"fused kernel obj{o}",
+                            "reading": "kernel time, clocks locked to base (ncu)",
+                            "original_ms": ma,
+                            "port_ms": mb,
+                            "ratio": mb / ma,
+                            "gate": gate,
+                            "within_gate": mb / ma <= gate,
+                            "provisional": ma < SHORT_REGION_MS and args.runs < SHORT_REGION_RUNS,
+                            "original_spread": spread(a),
+                            "port_spread": spread(b),
+                            "noisy": spread(a) > 0.10 or spread(b) > 0.10,
+                            "original_samples": a,
+                            "port_samples": b,
+                            "original_dram_bytes": statistics.median(da),
+                            "port_dram_bytes": statistics.median(db),
+                        }
+                    )
+                results[batch] = res
+    finally:
+        with contextlib.suppress(OSError):
+            subprocess.run(["rm", "-rf", str(work)], check=False)
+    print("| batch | kernel | original (ms) | dynG (ms) | ratio | gate | spread A / B | DRAM B/A |")
+    print("|---|---|---:|---:|---:|---|---|---:|")
+    for batch, res in results.items():
+        for e in res["regions"]:
+            verdict = "ok" if e["within_gate"] else "EXCEEDED"
+            print(
+                f"| {batch} | {e['region']} | {e['original_ms']:.2f} | {e['port_ms']:.2f} | "
+                f"{e['ratio']:.3f} | <= {e['gate']:.2f} {verdict} | "
+                f"{e['original_spread'] * 100:.0f} % / {e['port_spread'] * 100:.0f} % | "
+                f"{e['port_dram_bytes'] / e['original_dram_bytes']:.3f} |"
+            )
+        print(f"{batch}: launch {res['launch']}")
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "sssp",
+            "benchmark": "fused kernels at locked clocks (Nsight Compute --clock-control base)",
+            "backend": "cuda",
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "graph": args.graph,
+            "reference": {
+                "name": reference["name"],
+                "commit": reference["commit"],
+                "variant": "unpatched",
+                "binary": portable_path(mosp),
+            },
+            "port": {"commit": port_commit(), "binary": portable_path(args.exe), "build": build},
+            "protocol": {
+                "runs": args.runs,
+                "order": "A/B/A/B (original first)",
+                "tool": subprocess.run([NCU, "--version"], capture_output=True, text=True)
+                .stdout.strip()
+                .splitlines()[-1],
+                "ncu": "--clock-control base --cache-control none, metrics "
+                + ",".join(NCU_METRICS),
+                "gpu": args.gpu,
+                "lock": "perf.lock",
+                "statistic": "median",
+            },
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    for f in failures:
+        print(f"CORRECTNESS: {f}", file=sys.stderr)
+    exceeded = [e for res in results.values() for e in res["regions"] if not e["within_gate"]]
+    if failures:
+        return 1
+    return 1 if exceeded and args.enforce_gates else 0
+
+
+def port_commit() -> str:
     head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
-    # The records this script writes (parity/results/) do not make the measured code dirty.
     dirty = (
         subprocess.run(
             ["git", "-C", REPO, "diff", "--quiet", "HEAD", "--", ".", ":(exclude)parity/results"]
         ).returncode
         != 0
     )
+    return head + ("+dirty" if dirty else "")
+
+
+def write_json(args, results, build, ref, marker, regions, reference) -> None:
+    # The records this script writes (parity/results/) do not make the measured code dirty.
     doc = {
         "schema": 3,
         "algorithm": "sssp",
@@ -735,7 +1065,7 @@ def write_json(args, results, build, ref, marker, regions, reference) -> None:
             "build": marker.read_text() if marker.is_file() else None,
         },
         "port": {
-            "commit": head + ("+dirty" if dirty else ""),
+            "commit": port_commit(),
             "binary": portable_path(args.exe),
             "build": build,
         },
@@ -778,51 +1108,57 @@ def main() -> int:
         "--hops", type=int, help="local batch radius (default: HOPS[graph]; roadNet-CA: 160)"
     )
     p.add_argument("--force", action="store_true")
-    r = sub.add_parser("run")
-    r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
-    r.add_argument(
-        "--backend",
-        choices=sorted(REFERENCES),
-        default="openmp",
-        help="openmp: against MOSP-OpenMP c352151; cuda: against MOSP-CUDA e220ee2",
-    )
-    r.add_argument("--gpu", type=int, default=0, help="--backend cuda: the GPU of both sides")
-    r.add_argument("--graph", default="roadNet-CA")
-    r.add_argument("--batches", default="safe50k,unsafe50k,local10k")
-    r.add_argument("--runs", type=int, default=21)
-    r.add_argument("--threads", type=int, default=28)
-    r.add_argument("--json", type=Path)
-    r.add_argument(
-        "--env",
-        action="append",
-        default=[],
-        metavar="VAR=VALUE",
-        help="extra environment for both sides (repeatable)",
-    )
-    r.add_argument(
-        "--no-lock",
-        action="store_true",
-        help="the caller holds $DYNG_SCRATCH/perf.lock (same as DYNG_PERF_LOCK_HELD=1)",
-    )
-    r.add_argument("--lock-timeout", type=float, default=3 * 3600.0, metavar="SECONDS")
-    r.add_argument(
-        "--allow-non-parity-build",
-        action="store_true",
-        help="time an --exe that is not from the parity preset (an experiment)",
-    )
-    r.add_argument(
-        "--enforce-gates",
-        action="store_true",
-        help="exit 1 if a gated region exceeds its limit (the gates bind from M1b)",
-    )
+    for command, help_text in [
+        ("run", "the port against the unpatched original (the gates)"),
+        ("edge-type", "the edge_t benchmark: the port with int32 (A) vs int64 (B) edge offsets"),
+        ("kernels", "cuda: the fused kernels of both under Nsight Compute, clocks locked to base"),
+    ]:
+        r = sub.add_parser(command, help=help_text)
+        r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
+        r.add_argument(
+            "--backend",
+            choices=sorted(REFERENCES),
+            default="cuda" if command == "kernels" else "openmp",
+            help="openmp: against MOSP-OpenMP c352151; cuda: against MOSP-CUDA e220ee2",
+        )
+        r.add_argument("--gpu", type=int, default=0, help="--backend cuda: the GPU of both sides")
+        r.add_argument("--graph", default="roadNet-CA")
+        r.add_argument("--batches", default="safe50k,unsafe50k,local10k")
+        r.add_argument("--runs", type=int, default=21)
+        r.add_argument("--threads", type=int, default=28)
+        r.add_argument("--json", type=Path)
+        r.add_argument(
+            "--env",
+            action="append",
+            default=[],
+            metavar="VAR=VALUE",
+            help="extra environment for both sides (repeatable)",
+        )
+        r.add_argument(
+            "--no-lock",
+            action="store_true",
+            help="the caller holds $DYNG_SCRATCH/perf.lock (same as DYNG_PERF_LOCK_HELD=1)",
+        )
+        r.add_argument("--lock-timeout", type=float, default=3 * 3600.0, metavar="SECONDS")
+        r.add_argument(
+            "--allow-non-parity-build",
+            action="store_true",
+            help="time an --exe that is not from the parity preset (an experiment)",
+        )
+        r.add_argument(
+            "--enforce-gates",
+            action="store_true",
+            help="exit 1 if a gated region exceeds its limit (the gates bind from M1b)",
+        )
     args = parser.parse_args()
-    if args.command == "run" and args.runs < 5:
+    if args.command != "prepare" and args.runs < 5:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
     if args.command == "prepare" and args.hops is None:
         if args.graph not in HOPS:
             parser.error(f"--hops is required for {args.graph} (known: {sorted(HOPS)})")
         args.hops = HOPS[args.graph]
-    return prepare(args) if args.command == "prepare" else run(args)
+    commands = {"prepare": prepare, "run": run, "edge-type": edge_type, "kernels": kernels}
+    return commands[args.command](args)
 
 
 if __name__ == "__main__":
