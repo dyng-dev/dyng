@@ -13,7 +13,8 @@ configuration:
 
 driver "compat" (dynG, through tools/compat/dyng-compat-mosp), per configuration
 (sequential, openmp:<threads>, cuda[:<device>]; the cuda configurations run on
-CUDA_VISIBLE_DEVICES, default GPU 1, the development GPU):
+CUDA_VISIBLE_DEVICES, default GPU 1, the development GPU; a suffix /int64, e.g. cuda/int64, runs
+the graph with 64-bit edge offsets, dyng-compat-mosp --edge-type int64, ADR 0009):
   * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute;
     init_canonical/ for the noncanonical group, whose init/ holds perturbed tie parents)
   * `dyng-compat-mosp` update == updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt, from the
@@ -139,11 +140,14 @@ def replay_compat(
     exe: Path, golden: Path, meta: dict, config: str, tmp: Path, env: dict
 ) -> list[str]:
     k = meta["num_objectives"]
-    backend, _, number = config.partition(":")
+    base, _, edge_type = config.partition("/")
+    backend, _, number = base.partition(":")
     if backend == "cuda":
         extra = ["--backend", "cuda"] + (["--device", number] if number else [])
     else:
         extra = ["--backend", backend] + (["--threads", number] if number else [])
+    if edge_type:
+        extra += ["--edge-type", edge_type]
     bad = []
     rc, log = run([exe, "init", golden / "input" / "graphCsr", tmp / "init", "-k", k, *extra], env)
     if rc != 0:
@@ -345,7 +349,8 @@ def main() -> int:
     parser.add_argument(
         "--configs",
         default="sequential,openmp:1,openmp:4,openmp:16",
-        help="driver compat: list of sequential, openmp[:threads], cuda[:device]",
+        help="driver compat: list of sequential, openmp[:threads], cuda[:device], each with an "
+        "optional /int32 or /int64 (edge-offset type)",
     )
     parser.add_argument("--groups", default="", help="restrict to these groups (comma list)")
     parser.add_argument("--jobs", type=int, default=8)
@@ -382,10 +387,16 @@ def main() -> int:
         if not configs:
             parser.error("--configs selects no configuration")
         for c in configs:
-            backend, _, number = c.partition(":")
-            if backend not in ("sequential", "openmp", "cuda") or (number and not number.isdigit()):
+            base, slash, edge_type = c.partition("/")
+            backend, _, number = base.partition(":")
+            if (
+                backend not in ("sequential", "openmp", "cuda")
+                or (number and not number.isdigit())
+                or (slash and edge_type not in ("int32", "int64"))
+            ):
                 parser.error(
-                    f"--configs: '{c}' is not sequential, openmp[:<threads>] or cuda[:<device>]"
+                    f"--configs: '{c}' is not sequential, openmp[:<threads>] or cuda[:<device>], "
+                    "optionally followed by /int32 or /int64"
                 )
         if any(c.startswith("cuda") for c in configs):
             env.setdefault("CUDA_VISIBLE_DEVICES", "1")
@@ -420,7 +431,7 @@ def main() -> int:
     def job(case: str, config: str) -> tuple[str, str, list[str]]:
         golden = args.goldens / case
         meta = json.loads((golden / "case.json").read_text())
-        tmp = work / config.replace(":", "_") / case
+        tmp = work / config.replace(":", "_").replace("/", "_") / case
         try:
             if args.driver == "compat":
                 bad = replay_compat(args.exe.resolve(), golden, meta, config, tmp, env)
