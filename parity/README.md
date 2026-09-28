@@ -26,6 +26,8 @@ $DYNG_SCRATCH/
 | `export_patches/<repo>/build.sh` | the additive export patch: builds the exporters of `exporters/` against the copy's unchanged sources |
 | `exporters/mosp/` | `export_graph_io` (generators, `applyChangeBatch`) and `export_sssp` (file-based SOSP updates) |
 | `exporters/cycle_enum/` | `export_cycle_enum` (CycleEnumeration-GPU: parser, `build_directed_graph`, `prepare_batch`, `apply_batch`, `generate_batch`, the tests' subset-DP oracle and brute force) |
+| `cycle_count_goldens.py` | the `cycle_count` corpus of CycleEnumeration-GPU@0a976ad: `export` (histograms of the original `cycle-enum`, OpenMP 56 threads, DD k = 3..7, GitHub and Twitch k = 3, 4, COLLAB k = 3; the seed-1 updates 1K/25K/50K on DD, GitHub, Twitch with prior, delta and the generated batch; a DD locality and bound sweep; cross-checked against the original's sequential backend, the exporter's counts and the plan's totals) and `compare` (replay through `dyng-compat-cycle-enum`); reached as `export_goldens.py cycle_count` and `compare.py cycle_count` |
+| `cycle_count_perf.py` | the OpenMP A/B of `cycle_count` against the unpatched CycleEnumeration-GPU (`perf_ab.py cycle_count run`; regions from `timed_regions/cycle_count.toml`) |
 | `export_goldens.py` | writes the `sssp` golden set from MOSP-OpenMP@c352151 (495 cases, including 107 with non-canonical initial trees) after cross-checking the original implementations; `--twice` re-exports from a fresh copy and compares |
 | `goldens.toml` | GENERATED manifest: the SHA-256 of each golden set's `MANIFEST.sha256` and one digest per case |
 | `compare.py` | verifies the goldens, then replays every case through `tools/compat` (dynG; `--configs sequential,openmp:<t>,cuda[:<device>]`) or through another original's copy, byte for byte |
@@ -51,6 +53,11 @@ parity/perf_ab.py prepare --graph roadNet-CA      # inputs, as the original's be
 flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py run --graph roadNet-CA \
     --exe build/parity/tools/compat/dyng-compat-mosp --runs 21 --json out.json
 # graphs of the sssp gate (PLAN 6.4.2): roadNet-PA, roadNet-CA, rgg, road_usa_g
+# cycle_count (M2a): goldens, replay, OpenMP gate against CycleEnumeration-GPU@0a976ad
+parity/export_goldens.py cycle_count --twice
+parity/compare.py cycle_count --exe build/parity/tools/compat/dyng-compat-cycle-enum
+flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py cycle_count run \
+    --exe build/parity/tools/compat/dyng-compat-cycle-enum --runs 11 --json out.json
 flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py run --backend cuda --gpu 0 --graph roadNet-CA \
     --exe build/parity-cuda/tools/compat/dyng-compat-mosp --runs 21 --json out.json
 ```

@@ -14,7 +14,18 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-SCRIPTS = ["parity/compare.py", "parity/export_goldens.py", "parity/perf_ab.py"]
+SCRIPTS = [
+    "parity/compare.py",
+    "parity/export_goldens.py",
+    "parity/perf_ab.py",
+    "parity/cycle_count_goldens.py",
+]
+# The cycle_count entry points behind the sssp scripts' first argument.
+CYCLE_COUNT = [
+    ["parity/compare.py", "cycle_count"],
+    ["parity/export_goldens.py", "cycle_count"],
+    ["parity/perf_ab.py", "cycle_count", "run"],
+]
 
 
 def load(rel: str):
@@ -188,3 +199,102 @@ def test_region_map_loads() -> None:
     by_name = {r["name"]: r for r in regions}
     assert by_name["sosp_update"]["gate"] == "compute" and by_name["sosp_total"]["gate"] == "none"
     assert by_name["end_to_end"]["original_report_subtract"] == ["comb combined graph + SOSP"]
+
+
+# --- cycle_count (CycleEnumeration-GPU) -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("command", CYCLE_COUNT)
+def test_cycle_count_help(command: list[str]) -> None:
+    proc = subprocess.run(
+        [sys.executable, REPO / command[0], *command[1:], "--help"], capture_output=True, text=True
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "usage" in proc.stdout and "cycle_count" in proc.stdout
+
+
+def test_cycle_count_compare_skips_without_goldens(tmp_path: Path) -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            REPO / "parity/compare.py",
+            "cycle_count",
+            "--goldens",
+            tmp_path,
+            "--exe",
+            sys.executable,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 77, proc.stdout + proc.stderr
+
+
+def test_cycle_count_cases_and_histograms() -> None:
+    g = load("parity/cycle_count_goldens.py")
+    cases = g.all_cases()
+    names = [c.rel for c in cases]
+    assert len(set(names)) == len(names)
+    for want in ["count/DD_k7", "count/collab_k3", "update/twitch_k4_50000_50000_s1"]:
+        assert want in names
+    assert "update/DD_k4_25000_25000_s1_w10000" in names
+    assert [c.heavy for c in cases if c.graph == "collab"] == [True]
+    upd = g.select(cases, "DD_k4_1000_1000_s1")[0]
+    assert upd.cli_args(Path("/d"))[-6:] == [
+        "--deletes",
+        "1000",
+        "--inserts",
+        "1000",
+        "--batch-seed",
+        "1",
+    ]
+    with pytest.raises(SystemExit):
+        g.select(cases, "DD_k99")
+    text = "# cycle_size, num_of_cycles\n2, 5\n3, 7\nTotal, 12\n"
+    assert g.parse_histogram(text) == {2: 5, 3: 7}
+    with pytest.raises(ValueError):
+        g.parse_histogram("2, 5\nTotal, 6\n")
+    assert g.delta_csv({2: 5, 3: 7}, {2: 4, 3: 9, 4: 1}, 4) == (
+        "# cycle_size, delta\n2, -1\n3, 2\n4, 1\nTotal, 2\n"
+    )
+    # Every plan total belongs to a count case.
+    assert {(c.graph, c.k) for c in cases if not c.update} == set(g.PLAN_TOTALS)
+
+
+def test_cycle_count_section_survives_both_writers(tmp_path: Path, monkeypatch) -> None:
+    g = load("parity/cycle_count_goldens.py")
+    toml = tmp_path / "parity" / "goldens.toml"
+    toml.parent.mkdir()
+    toml.write_text("schema = 1\n\n[sets.sssp]\nnum_cases = 0\n\n[sets.sssp.cases]\n")
+    g.write_toml("[sets.cycle_count]\nnum_cases = 1\n", toml)
+    g.write_toml("[sets.cycle_count]\nnum_cases = 2\n", toml)  # replaced, not appended
+    assert toml.read_text().count("[sets.cycle_count]") == 1
+    exporter = load("parity/export_goldens.py")
+    monkeypatch.setattr(exporter, "REPO", tmp_path)
+    exporter.write_toml(tmp_path, [], "0" * 64, 0)  # the sssp writer keeps the other set
+    import tomllib
+
+    doc = tomllib.loads(toml.read_text())
+    assert doc["sets"]["cycle_count"]["num_cases"] == 2 and "sssp" in doc["sets"]
+
+
+def test_cycle_count_region_map_loads() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = {r["name"]: r for r in perf.load_regions()}
+    assert regions["static_end_to_end"]["gate"] == "compute"
+    assert regions["update"]["original_report"] == ["update_seconds"]
+    assert regions["update"]["port_report"] == ["update_ms"]
+    assert regions["update_end_to_end"]["gate"] == "end_to_end"
+    assert perf.parse_original(12.0, "deletions=1 insertions=1\nupdate_seconds=0.0221\n") == {
+        perf.WALL: 12.0,
+        "update_seconds": pytest.approx(22.1),
+    }
+    samples = {
+        "original": [{perf.WALL: 100.0, "update_seconds": 20.0}] * 5,
+        "port": [{perf.WALL: 104.0, "update_ms": 21.5, "compute_ms": 1.0}] * 5,
+        "stages": [{"cycle_count.update": 21.4}] * 5,
+    }
+    out = {e["region"]: e for e in perf.summarize(list(regions.values()), "update", samples, 5)}
+    assert out["update"]["ratio"] == pytest.approx(1.075) and not out["update"]["within_gate"]
+    assert out["update"]["gate"] == 1.05 and out["update"]["port_stage_ms"] == 21.4
+    assert out["update_end_to_end"]["within_gate"] and out["update_end_to_end"]["gate"] == 1.10
