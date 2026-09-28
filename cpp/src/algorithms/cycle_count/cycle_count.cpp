@@ -51,11 +51,9 @@ void cycle_count_workspace<vertex_t>::reserve(int threads, std::size_t vertices,
   if (visited.size() < count) {
     visited.resize(count);
   }
-  for (std::size_t t = 0; t < count; ++t) {
-    if (visited[t].size() < vertices) {
-      visited[t].resize(vertices, 0);
-    }
-  }
+  // The marks themselves are sized by the thread that uses them, inside the phase (first touch
+  // in parallel, as the original's thread_local buffers): see thread_visited().
+  marks_needed = std::max(marks_needed, vertices);
   // One cache line is 8 counters: round up, then keep one spare line between two threads.
   constexpr std::size_t line = 8;
   const std::size_t needed = (max_length + 1 + line - 1) / line * line + line;

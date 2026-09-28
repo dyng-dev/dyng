@@ -28,7 +28,7 @@ void cycle_count_sequential_phase(const cycle_graph<vertex_t, edge_t>& graph,
                                   std::size_t max_length, cycle_count_workspace<vertex_t>& ws,
                                   std::vector<std::uint64_t>& phase) {
   std::uint64_t* counts = ws.thread_counts(0);
-  std::vector<char>& visited = ws.visited[0];
+  std::vector<char>& visited = ws.thread_visited(0);
   for (std::size_t owner_id = 0; owner_id < changes.size(); ++owner_id) {
     std::fill(counts, counts + max_length + 1, 0);
     count_cycles_through_edge(graph, changes[owner_id].source, changes[owner_id].target, owner_id,

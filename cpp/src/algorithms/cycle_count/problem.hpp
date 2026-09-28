@@ -191,6 +191,7 @@ struct cycle_count_workspace final : pooled_workspace {
   structural_change<vertex_t> change;      ///< the normalized batch (Step 0)
   changed_edge_index index;                ///< ownership ids of the current phase
   std::vector<std::vector<char>> visited;  ///< per thread: path marks, n entries, all zero
+  std::size_t marks_needed = 0;            ///< entries each thread's marks must have
   /// Elements per thread in `counts` and `partial`: max_length + 1 rounded up to a cache line,
   /// plus one line, so no two threads write to one cache line.
   std::size_t stride = 0;
@@ -206,6 +207,20 @@ struct cycle_count_workspace final : pooled_workspace {
    * @param[in] max_length Longest counted length.
    */
   void reserve(int threads, std::size_t vertices, std::size_t max_length);
+
+  /**
+   * @brief The path marks of one thread, sized on first use by the thread that calls this (so the
+   *        pages are first touched in parallel, as the original's thread_local buffers are).
+   * @param[in] thread The thread.
+   * @return At least marks_needed entries, all zero.
+   */
+  [[nodiscard]] std::vector<char>& thread_visited(std::size_t thread) {
+    std::vector<char>& marks = visited[thread];
+    if (marks.size() < marks_needed) {
+      marks.resize(marks_needed, 0);
+    }
+    return marks;
+  }
 
   /**
    * @brief The per-edge counts of one thread.

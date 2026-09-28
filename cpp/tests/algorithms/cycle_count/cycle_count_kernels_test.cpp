@@ -119,13 +119,14 @@ TEST(CycleCountWorkspace, ReserveKeepsZerosAndPadsThreads) {
   dyng::detail::cycle_count_workspace<std::int32_t> ws;
   ws.reserve(3, 10, 4);
   ASSERT_EQ(ws.visited.size(), 3U);
-  EXPECT_EQ(ws.visited[2].size(), 10U);
+  EXPECT_EQ(ws.thread_visited(2).size(), 10U);  // sized on first use by its thread
   EXPECT_GE(ws.stride, 5U + 8U);
   EXPECT_EQ(ws.stride % 8, 0U);
   EXPECT_EQ(ws.counts.size(), 3 * ws.stride);
   ws.thread_counts(2)[4] = 9;
   ws.reserve(2, 20, 4);  // larger graph: marks grow, counters stay
-  EXPECT_EQ(ws.visited[0].size(), 20U);
+  EXPECT_EQ(ws.thread_visited(0).size(), 20U);
+  EXPECT_EQ(ws.thread_visited(2).size(), 20U);
   EXPECT_EQ(ws.thread_counts(2)[4], 9U);
   ws.reserve(4, 5, 30);  // more threads and a longer bound: counters are reallocated
   EXPECT_GE(ws.stride, 31U + 8U);

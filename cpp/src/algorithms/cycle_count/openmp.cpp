@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <new>
 #include <vector>
 
 #if DYNG_HAS_OPENMP
@@ -45,6 +46,21 @@ void cycle_count_openmp_phase(const cycle_graph<vertex_t, edge_t>& graph,
   for (int t = 0; t < threads; ++t) {
     std::uint64_t* mine = ws.thread_partial(static_cast<std::size_t>(t));
     std::fill(mine, mine + max_length + 1, 0);
+  }
+
+  // Each thread sizes its own marks (first touch in parallel, as the original's thread_local
+  // buffers); an allocation failure is reported after the region.
+  bool failed = false;
+#pragma omp parallel num_threads(threads) reduction(|| : failed)
+  {
+    try {
+      (void)ws.thread_visited(static_cast<std::size_t>(omp_get_thread_num()));
+    } catch (...) {
+      failed = true;
+    }
+  }
+  if (failed) {
+    throw std::bad_alloc();
   }
 
 #pragma omp parallel num_threads(threads)
