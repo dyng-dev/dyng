@@ -272,3 +272,40 @@ def test_perf_ab_edge_type_summary_reads_the_port_on_both_sides() -> None:
     # update.commit + every sssp.import, sssp.upload, sssp.workspace and sssp.changes sample
     assert by_name["apply"]["original_ms"] == pytest.approx(13.3)
 
+
+def test_perf_ab_monitor_sees_foreign_cpu_load() -> None:
+    perf = load("parity/perf_ab.py")
+    # A spinning process that is not the timed program: foreign load of about one core.
+    spinner = subprocess.Popen([sys.executable, "-c", "while True: pass"])
+    try:
+        with perf.MachineMonitor(None, max_foreign_cpu=0.5) as monitor:
+            out, window = monitor.run([sys.executable, "-c", "import time; time.sleep(0.6)"], {})
+    finally:
+        spinner.kill()
+        spinner.wait()
+    assert out == ""
+    assert window["foreign_cpu_cores"] >= 0.7 and window["contaminated"], window
+    assert window["procs_running"] is not None and "gpu" not in window
+    assert window["wall_s"] >= 0.6 and window["program_cpu_s"] < 0.5
+
+
+def test_perf_ab_rejects_contaminated_rounds() -> None:
+    perf = load("parity/perf_ab.py")
+
+    class Args:
+        keep_contaminated = False
+        runs = 2
+
+    clean = {"reasons": [], "foreign_cpu_cores": 0.1}
+    busy = {"reasons": ["foreign CPU load 3.00 cores > 2.0"], "foreign_cpu_cores": 3.0}
+    rejected: list = []
+    assert not perf.rejects(Args(), "b", 0, {"original": clean, "port": clean}, rejected)
+    perf.time.sleep = lambda _s: None  # no pause between repetitions in the test
+    assert perf.rejects(Args(), "b", 0, {"original": clean, "port": busy}, rejected)
+    assert rejected[0]["reasons"] == ["port: foreign CPU load 3.00 cores > 2.0"]
+    perf.rejects(Args(), "b", 0, {"original": busy, "port": busy}, rejected)
+    with pytest.raises(SystemExit):  # more rejections than rounds: the machine is too busy
+        perf.rejects(Args(), "b", 0, {"original": busy, "port": clean}, rejected)
+    rounds = [{"original": clean, "port": dict(clean, foreign_cpu_cores=0.4), "round": 1}]
+    summary = perf.monitor_summary(rounds, rejected, 2.0)
+    assert summary["foreign_cpu_cores_max"] == 0.4 and len(summary["rejected"]) == 3

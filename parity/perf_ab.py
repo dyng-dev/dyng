@@ -86,10 +86,13 @@ import json
 import os
 import platform
 import re
+import resource
+import shutil
 import statistics
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import tomllib
 from pathlib import Path
@@ -267,12 +270,17 @@ def ancestors() -> set[int]:
     return pids
 
 
+LOCK_STATUS = "perf.lock: not taken"
+
+
 @contextlib.contextmanager
 def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
     """Hold the exclusive perf lock, or run under an ancestor's (flock(1)) hold of it."""
+    global LOCK_STATUS
     path.parent.mkdir(parents=True, exist_ok=True)
     if skip or os.environ.get("DYNG_PERF_LOCK_HELD") == "1":
         print(f"{path}: held by the caller (DYNG_PERF_LOCK_HELD=1 / --no-lock)", flush=True)
+        LOCK_STATUS = "perf.lock: declared held by the caller (--no-lock / DYNG_PERF_LOCK_HELD=1)"
         yield
         return
     with open(path, "a") as f:
@@ -290,6 +298,7 @@ def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
                         "(flock(1)); running under that lock",
                         flush=True,
                     )
+                    LOCK_STATUS = "perf.lock: held exclusively by an ancestor (flock(1))"
                     yield
                     return
                 if time.monotonic() >= deadline:
@@ -304,6 +313,7 @@ def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
                     )
                     announced = True
                 time.sleep(1.0)
+        LOCK_STATUS = "perf.lock: held exclusively by this process"
         try:
             yield
         finally:
@@ -346,6 +356,254 @@ def run_one(cmd: list, env: dict) -> str:
     if proc.returncode != 0:
         raise SystemExit(f"{' '.join(map(str, cmd))} failed:\n{proc.stdout[-2000:]}")
     return proc.stdout
+
+
+# --- The contamination monitor (PLAN Sections 8.5 item 2 and 8.6) -------------------------------
+
+CLK_TCK = os.sysconf("SC_CLK_TCK")
+# A round is rejected (and repeated) when, during either side's run, the CPUs were busy outside this
+# harness and its programs for more than this many cores on average, or a compute process that is
+# not the timed program was on the timed GPU.
+MAX_FOREIGN_CPU = 2.0
+NVSMI_TIME = "%Y/%m/%d %H:%M:%S.%f"
+
+
+def cpu_busy_seconds() -> float:
+    """Busy CPU time of the whole machine (all CPUs; /proc/stat, without idle and iowait)."""
+    fields = [int(x) for x in Path("/proc/stat").read_text().split("\n", 1)[0].split()[1:9]]
+    return (sum(fields) - fields[3] - fields[4]) / CLK_TCK
+
+
+def procs_running() -> int:
+    for line in Path("/proc/stat").read_text().splitlines():
+        if line.startswith("procs_running "):
+            return int(line.split()[1])
+    return -1
+
+
+def running_tasks(pid: int) -> int:
+    """Threads of `pid` in state R (they are counted in procs_running)."""
+    count = 0
+    with contextlib.suppress(OSError):
+        for task in os.scandir(f"/proc/{pid}/task"):
+            with contextlib.suppress(OSError, IndexError):
+                stat = Path(task.path, "stat").read_text()
+                count += stat.rsplit(")", 1)[1].split()[0] == "R"
+    return count
+
+
+def descends_from(pid: int, root: int) -> bool:
+    while pid > 1:
+        if pid == root:
+            return True
+        try:
+            pid = int(Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[1])
+        except (OSError, ValueError, IndexError):
+            return False
+    return False
+
+
+def describe(values: list[float]) -> dict | None:
+    if not values:
+        return None
+    return {"median": statistics.median(values), "min": min(values), "max": max(values)}
+
+
+class MachineMonitor:
+    """What the machine did while the timed programs ran (PLAN 8.5 item 2: "the contamination
+    monitor"), sampled for a whole batch and cut into one window per side and round:
+
+    - the CPUs: busy CPU time of the machine minus that of this harness and its children (the
+      timed program), as average cores busy with foreign work; and the run queue (procs_running
+      of /proc/stat, every 0.1 s) with the timed program's own running threads taken out;
+    - the timed GPU (cuda only): its P-state, SM and memory clocks and utilization every 50 ms
+      (nvidia-smi -lms, NVML), and every second the compute processes on it that are neither this
+      harness nor its descendants (the originals' bench/gpumon.sh rule).
+
+    A window is contaminated when the foreign CPU load exceeds max_foreign_cpu cores or a foreign
+    compute process was on the timed GPU; `run` and `edge-type` then repeat the round.
+    """
+
+    def __init__(self, gpu: int | None, max_foreign_cpu: float = MAX_FOREIGN_CPU) -> None:
+        self.gpu = gpu
+        self.max_foreign_cpu = max_foreign_cpu
+        self.gpu_samples: list[tuple] = []  # (time, pstate, sm MHz, memory MHz, utilization %)
+        self.queue_samples: list[tuple] = []  # (time, procs_running, the program's running threads)
+        self.foreign_gpu: list[tuple] = []  # (time, pid, process name)
+        self.child: int | None = None
+        self.gpu_uuid = None
+        self.nvsmi = shutil.which("nvidia-smi")
+        self._stop = threading.Event()
+        self._threads: list[threading.Thread] = []
+        self._smi: subprocess.Popen | None = None
+
+    def __enter__(self) -> MachineMonitor:
+        if self.gpu is not None and self.nvsmi:
+            with contextlib.suppress(OSError, subprocess.CalledProcessError):
+                self.gpu_uuid = subprocess.check_output(
+                    [self.nvsmi, "--query-gpu=uuid", "--format=csv,noheader", "-i", str(self.gpu)],
+                    text=True,
+                ).strip()
+            query = "--query-gpu=timestamp,pstate,clocks.sm,clocks.mem,utilization.gpu"
+            cmd = [self.nvsmi, "-i", str(self.gpu), query, "--format=csv,noheader,nounits"]
+            stdbuf = shutil.which("stdbuf")
+            self._smi = subprocess.Popen(
+                ([stdbuf, "-oL"] if stdbuf else []) + [*cmd, "-lms", "50"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            self._threads.append(threading.Thread(target=self._read_gpu, daemon=True))
+            self._threads.append(threading.Thread(target=self._poll_gpu_processes, daemon=True))
+        self._threads.append(threading.Thread(target=self._poll_queue, daemon=True))
+        for t in self._threads:
+            t.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        if self._smi is not None:
+            self._smi.terminate()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                self._smi.wait(timeout=5)
+        for t in self._threads:
+            t.join(timeout=5)
+
+    def _read_gpu(self) -> None:
+        assert self._smi is not None and self._smi.stdout is not None
+        for line in self._smi.stdout:
+            parts = [x.strip() for x in line.split(",")]
+            with contextlib.suppress(ValueError, IndexError):
+                t = datetime.datetime.strptime(parts[0], NVSMI_TIME).timestamp()
+                self.gpu_samples.append((t, parts[1], int(parts[2]), int(parts[3]), int(parts[4])))
+
+    def _poll_gpu_processes(self) -> None:
+        me = os.getpid()
+        query = "--query-compute-apps=pid,gpu_uuid,process_name"
+        while not self._stop.wait(1.0):
+            with contextlib.suppress(OSError, subprocess.CalledProcessError):
+                out = subprocess.check_output(
+                    [self.nvsmi, query, "--format=csv,noheader"], text=True
+                )
+                now = time.time()
+                for line in out.splitlines():
+                    parts = [x.strip() for x in line.split(",")]
+                    if len(parts) < 3 or (self.gpu_uuid and parts[1] != self.gpu_uuid):
+                        continue
+                    with contextlib.suppress(ValueError):
+                        pid = int(parts[0])
+                        if not descends_from(pid, me):
+                            self.foreign_gpu.append((now, pid, parts[2]))
+
+    def _poll_queue(self) -> None:
+        while not self._stop.wait(0.1):
+            with contextlib.suppress(OSError, ValueError):
+                child = self.child
+                own = running_tasks(child) if child is not None else 0
+                self.queue_samples.append((time.time(), procs_running(), own))
+
+    def run(self, cmd: list, env: dict) -> tuple[str, dict]:
+        """One side's run with its window: (stdout, the window's record)."""
+        cpu0, self0, kids0 = (
+            cpu_busy_seconds(),
+            resource.getrusage(resource.RUSAGE_SELF),
+            (resource.getrusage(resource.RUSAGE_CHILDREN)),
+        )
+        t0 = time.time()
+        proc = subprocess.Popen(
+            [str(c) for c in cmd],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        self.child = proc.pid
+        out, _ = proc.communicate()
+        self.child = None
+        t1 = time.time()
+        cpu1, self1, kids1 = (
+            cpu_busy_seconds(),
+            resource.getrusage(resource.RUSAGE_SELF),
+            (resource.getrusage(resource.RUSAGE_CHILDREN)),
+        )
+        if proc.returncode != 0:
+            raise SystemExit(f"{' '.join(map(str, cmd))} failed:\n{out[-2000:]}")
+        mine = (self1.ru_utime + self1.ru_stime) - (self0.ru_utime + self0.ru_stime)
+        program = (kids1.ru_utime + kids1.ru_stime) - (kids0.ru_utime + kids0.ru_stime)
+        wall = t1 - t0
+        return out, self.window(t0, t1, wall, cpu1 - cpu0, mine, program)
+
+    def window(
+        self, t0: float, t1: float, wall: float, busy: float, mine: float, program: float
+    ) -> dict:
+        # Wait (at most 1 s) for the GPU samples that cover the end of the window.
+        deadline = time.time() + 1.0
+        while self._smi is not None and time.time() < deadline:
+            if self.gpu_samples and self.gpu_samples[-1][0] >= t1:
+                break
+            time.sleep(0.05)
+        foreign_cpu = max(0.0, busy - mine - program) / wall if wall > 0 else 0.0
+        queue = [(q, own) for t, q, own in list(self.queue_samples) if t0 <= t <= t1]
+        rec: dict = {
+            "wall_s": wall,
+            "program_cpu_s": program,
+            "foreign_cpu_cores": foreign_cpu,
+            "procs_running": describe([q for q, _ in queue]),
+            "foreign_runnable": describe([max(0, q - own - 1) for q, own in queue]),
+        }
+        reasons = []
+        if foreign_cpu > self.max_foreign_cpu:
+            reasons.append(f"foreign CPU load {foreign_cpu:.2f} cores > {self.max_foreign_cpu}")
+        if self.gpu is not None:
+            gpu = [s for s in list(self.gpu_samples) if t0 <= s[0] <= t1]
+            busy_gpu = [s for s in gpu if s[4] > 0]
+            use = busy_gpu or gpu
+            pstates: dict[str, int] = {}
+            for s in use:
+                pstates[s[1]] = pstates.get(s[1], 0) + 1
+            foreign = sorted({(pid, name) for t, pid, name in self.foreign_gpu if t0 <= t <= t1})
+            rec["gpu"] = {
+                "samples": len(gpu),
+                "busy_samples": len(busy_gpu),
+                "pstates_busy" if busy_gpu else "pstates": pstates,
+                "sm_mhz": describe([s[2] for s in use]),
+                "memory_mhz": describe([s[3] for s in use]),
+                "foreign_processes": [{"pid": pid, "name": name} for pid, name in foreign],
+            }
+            if foreign:
+                reasons.append(f"foreign compute processes on GPU {self.gpu}: {foreign}")
+        rec["contaminated"] = bool(reasons)
+        rec["reasons"] = reasons
+        return rec
+
+
+def monitor_summary(rounds: list[dict], rejected: list[dict], limit: float) -> dict:
+    """The monitor's record of a batch (kept per round in the JSON)."""
+    sides = ["original", "port"]
+    out: dict = {
+        "rule": (
+            f"a round is repeated if, during either side, the CPUs were busy outside the harness "
+            f"for more than {limit} cores on average or a foreign compute process was on the "
+            "timed GPU"
+        ),
+        "max_foreign_cpu_cores": limit,
+        "rounds": rounds,
+        "rejected": rejected,
+        "foreign_cpu_cores_max": max(r[s]["foreign_cpu_cores"] for r in rounds for s in sides),
+    }
+    if rounds and "gpu" in rounds[0]["original"]:
+        for side in sides:
+            states: dict[str, int] = {}
+            sm = []
+            for r in rounds:
+                g = r[side]["gpu"]
+                for state, n in (g.get("pstates_busy") or g.get("pstates") or {}).items():
+                    states[state] = states.get(state, 0) + n
+                if g["sm_mhz"]:
+                    sm.append(g["sm_mhz"]["median"])
+            out[f"{side}_pstates_busy"] = states
+            out[f"{side}_sm_mhz_busy_median"] = statistics.median(sm) if sm else None
+    return out
 
 
 def report_keys(regions: list[dict]) -> list[str]:
@@ -460,7 +718,13 @@ def gate_limit(kind: str, original_ms: float) -> float:
 
 
 def summarize(
-    regions: list[dict], samples: dict, k: int, runs: int, loads: list, a_value=None
+    regions: list[dict],
+    samples: dict,
+    k: int,
+    runs: int,
+    loads: list,
+    a_value=None,
+    monitor: dict | None = None,
 ) -> dict:
     """Medians and gate verdicts per region; side A is the original (its report lines) unless
     a_value reads A's samples otherwise (the edge-type A/B: both sides are the port)."""
@@ -471,6 +735,8 @@ def summarize(
         "threads": {},
         "load_average": {"min": min(min(p) for p in loads), "max": max(max(p) for p in loads)},
     }
+    if monitor is not None:
+        out["monitor"] = monitor
     out["invalidated"]["original"] = samples["original"][0]["invalidated"]
     out["invalidated"]["port"] = samples["port"][0]["invalidated"]
     out["invalidated"]["equal_in_every_sample"] = all(
@@ -555,6 +821,20 @@ def report(results: dict, labels: tuple[str, str] = ("original", "dynG")) -> lis
             f"threads {res['threads']}; load average {res['load_average']['min']:.1f}-"
             f"{res['load_average']['max']:.1f}"
         )
+        mon = res.get("monitor")
+        if mon:
+            line = (
+                f"{batch}: monitor: {len(mon['rejected'])} round(s) rejected; foreign CPU load "
+                f"<= {mon['foreign_cpu_cores_max']:.2f} cores "
+                f"(limit {mon['max_foreign_cpu_cores']})"
+            )
+            if "original_pstates_busy" in mon:
+                line += (
+                    f"; GPU busy P-states {labels[0]} {mon['original_pstates_busy']} "
+                    f"(SM {mon['original_sm_mhz_busy_median']} MHz), {labels[1]} "
+                    f"{mon['port_pstates_busy']} (SM {mon['port_sm_mhz_busy_median']} MHz)"
+                )
+            print(line)
     return lines
 
 
@@ -685,6 +965,38 @@ def same_outputs(a: Path, b: Path, k: int, what: str) -> None:
                 raise SystemExit(f"{what}: obj{o}/{f} differs")
 
 
+def monitored_gpu(args: argparse.Namespace) -> int | None:
+    """The GPU whose state the monitor samples (cuda runs only)."""
+    return args.gpu if args.backend == "cuda" else None
+
+
+def rejects(args: argparse.Namespace, batch: str, r: int, window: dict, rejected: list) -> bool:
+    """Record and reject a contaminated round (it is repeated); fail after too many."""
+    reasons = [f"{side}: {x}" for side in ["original", "port"] for x in window[side]["reasons"]]
+    if not reasons or args.keep_contaminated:
+        return False
+    rejected.append({"before_round": r + 1, "reasons": reasons, "windows": window})
+    print(f"{batch}: round {r + 1} rejected ({'; '.join(reasons)}); repeating it", flush=True)
+    if len(rejected) > args.runs:
+        raise SystemExit(
+            f"{batch}: {len(rejected)} rounds rejected by the contamination monitor; the machine "
+            "is too busy for a gate run (see --max-foreign-cpu)"
+        )
+    time.sleep(5.0)
+    return True
+
+
+def gpu_note(window: dict) -> str:
+    """P-state and SM clock of both sides while the GPU was busy, for the progress lines."""
+    notes = []
+    for side in ["original", "port"]:
+        g = window[side].get("gpu")
+        if g and g["sm_mhz"]:
+            states = "/".join(sorted(g.get("pstates_busy") or g.get("pstates") or {}))
+            notes.append(f"{states} {g['sm_mhz']['median']:.0f} MHz")
+    return f"; GPU {' vs '.join(notes)}" if notes else ""
+
+
 def run(args: argparse.Namespace) -> int:
     regions = load_regions(args.backend)
     keys = report_keys(regions)
@@ -713,29 +1025,47 @@ def run(args: argparse.Namespace) -> int:
                 samples: dict[str, list] = {"original": [], "port": []}
                 loads = []
                 timing = work / "timing.csv"
-                for r in range(args.runs):
-                    before = os.getloadavg()[0]
-                    orig = parse_original(run_one([mosp, *common, "--no-output"], env), k, keys)
-                    log = run_one(
-                        [exe, *common, *port_args, "--no-output", "--timing", timing], env
-                    )
-                    port = parse_port(log, timing, k)
-                    loads.append((before, os.getloadavg()[0]))
-                    samples["original"].append(orig)
-                    samples["port"].append(port)
-                    if orig["invalidated"] != port["invalidated"]:
-                        failures.append(
-                            f"{batch} round {r + 1}: invalidated original "
-                            f"{orig['invalidated']} != port {port['invalidated']}"
+                watched, rejected = [], []
+                with MachineMonitor(monitored_gpu(args), args.max_foreign_cpu) as monitor:
+                    r = 0
+                    while r < args.runs:
+                        before = os.getloadavg()[0]
+                        log_a, win_a = monitor.run([mosp, *common, "--no-output"], env)
+                        orig = parse_original(log_a, k, keys)
+                        log, win_b = monitor.run(
+                            [exe, *common, *port_args, "--no-output", "--timing", timing], env
                         )
-                    print(
-                        f"{batch} round {r + 1}/{args.runs}: SOSP original "
-                        f"{sum(orig['objectives']):.1f} ms, port "
-                        f"{sum(stage_sum(port, regions[0]['port'], o) for o in range(k)):.1f}"
-                        " ms",
-                        flush=True,
-                    )
-                results[batch] = summarize(regions, samples, k, args.runs, loads)
+                        port = parse_port(log, timing, k)
+                        window = {"original": win_a, "port": win_b}
+                        if rejects(args, batch, r, window, rejected):
+                            continue
+                        r += 1
+                        window["round"] = r
+                        watched.append(window)
+                        loads.append((before, os.getloadavg()[0]))
+                        samples["original"].append(orig)
+                        samples["port"].append(port)
+                        if orig["invalidated"] != port["invalidated"]:
+                            failures.append(
+                                f"{batch} round {r}: invalidated original "
+                                f"{orig['invalidated']} != port {port['invalidated']}"
+                            )
+                        print(
+                            f"{batch} round {r}/{args.runs}: SOSP original "
+                            f"{sum(orig['objectives']):.1f} ms, port "
+                            f"{sum(stage_sum(port, regions[0]['port'], o) for o in range(k)):.1f}"
+                            f" ms; foreign CPU {win_a['foreign_cpu_cores']:.2f} / "
+                            f"{win_b['foreign_cpu_cores']:.2f} cores" + gpu_note(window),
+                            flush=True,
+                        )
+                results[batch] = summarize(
+                    regions,
+                    samples,
+                    k,
+                    args.runs,
+                    loads,
+                    monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
+                )
     finally:
         with contextlib.suppress(OSError):
             subprocess.run(["rm", "-rf", str(work)], check=False)
@@ -786,30 +1116,46 @@ def edge_type(args: argparse.Namespace) -> int:
                 samples: dict[str, list] = {"original": [], "port": []}
                 loads = []
                 timing = work / "timing.csv"
-                for r in range(args.runs):
-                    before = os.getloadavg()[0]
-                    for side, key in zip(sides, ["original", "port"], strict=True):
-                        log = run_one(
-                            [
-                                exe,
-                                *common,
-                                *port_args,
-                                "--edge-type",
-                                side,
-                                "--no-output",
-                                "--timing",
-                                timing,
-                            ],
-                            env,
-                        )
-                        samples[key].append(parse_port(log, timing, k))
-                    loads.append((before, os.getloadavg()[0]))
-                    a, b = samples["original"][-1], samples["port"][-1]
-                    if a["invalidated"] != b["invalidated"]:
-                        failures.append(f"{batch} round {r + 1}: invalidated differ")
-                    print(f"{batch} round {r + 1}/{args.runs}", flush=True)
+                watched, rejected = [], []
+                with MachineMonitor(monitored_gpu(args), args.max_foreign_cpu) as monitor:
+                    r = 0
+                    while r < args.runs:
+                        before = os.getloadavg()[0]
+                        got, window = {}, {}
+                        for side, key in zip(sides, ["original", "port"], strict=True):
+                            log, window[key] = monitor.run(
+                                [
+                                    exe,
+                                    *common,
+                                    *port_args,
+                                    "--edge-type",
+                                    side,
+                                    "--no-output",
+                                    "--timing",
+                                    timing,
+                                ],
+                                env,
+                            )
+                            got[key] = parse_port(log, timing, k)
+                        if rejects(args, batch, r, window, rejected):
+                            continue
+                        r += 1
+                        window["round"] = r
+                        watched.append(window)
+                        loads.append((before, os.getloadavg()[0]))
+                        for key in ["original", "port"]:
+                            samples[key].append(got[key])
+                        if got["original"]["invalidated"] != got["port"]["invalidated"]:
+                            failures.append(f"{batch} round {r}: invalidated differ")
+                        print(f"{batch} round {r}/{args.runs}" + gpu_note(window), flush=True)
                 results[batch] = summarize(
-                    regions, samples, k, args.runs, loads, a_value=port_value
+                    regions,
+                    samples,
+                    k,
+                    args.runs,
+                    loads,
+                    a_value=port_value,
+                    monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
                 )
     finally:
         with contextlib.suppress(OSError):
@@ -829,7 +1175,8 @@ def edge_type(args: argparse.Namespace) -> int:
                 "order": "A/B/A/B (int32 first)",
                 "threads": args.threads,
                 "gpu": args.gpu if args.backend == "cuda" else None,
-                "lock": "perf.lock",
+                "lock": LOCK_STATUS,
+                "contamination_monitor": f"as `run`; limit {args.max_foreign_cpu} cores",
                 "statistic": "median",
             },
             "host": {"cpu": cpu_model(), "logical_cpus": os.cpu_count()},
@@ -1022,7 +1369,7 @@ def kernels(args: argparse.Namespace) -> int:
                 "ncu": "--clock-control base --cache-control none, metrics "
                 + ",".join(NCU_METRICS),
                 "gpu": args.gpu,
-                "lock": "perf.lock",
+                "lock": LOCK_STATUS,
                 "statistic": "median",
             },
             "results": results,
@@ -1083,7 +1430,14 @@ def write_json(args, results, build, ref, marker, regions, reference) -> None:
                 )
                 + args.env
             ),
-            "lock": "perf.lock",
+            "lock": LOCK_STATUS,
+            "contamination_monitor": (
+                "per round and side: foreign CPU load (machine busy time minus the harness and "
+                "its programs), run queue, GPU P-state / clocks / utilization every 50 ms and "
+                "foreign compute processes on the GPU every second; limit "
+                f"{args.max_foreign_cpu} cores; contaminated rounds "
+                + ("kept and flagged" if args.keep_contaminated else "repeated")
+            ),
             "statistic": "median",
             "outputs": "--no-output on both",
             "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
@@ -1144,6 +1498,20 @@ def main() -> int:
             "--allow-non-parity-build",
             action="store_true",
             help="time an --exe that is not from the parity preset (an experiment)",
+        )
+        r.add_argument(
+            "--max-foreign-cpu",
+            type=float,
+            default=MAX_FOREIGN_CPU,
+            metavar="CORES",
+            help="contamination monitor: repeat a round when the CPUs were busy outside the "
+            "harness for more than CORES on average during either side "
+            f"(default {MAX_FOREIGN_CPU})",
+        )
+        r.add_argument(
+            "--keep-contaminated",
+            action="store_true",
+            help="record contaminated rounds instead of repeating them (flagged in the JSON)",
         )
         r.add_argument(
             "--enforce-gates",
