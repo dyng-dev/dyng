@@ -142,6 +142,13 @@ Before 0.1.0 anything may change.
   `parity/timed_regions/cycle_count.toml`.
 - `update_participant::reads_prepared_graph()`: `dyng::update` builds the in-edges (or the device
   copy) in the commit only for results that read them.
+- Parity harness for `cycle_count` (M2a): the golden corpus of CycleEnumeration-GPU@0a976ad
+  (`parity/export_goldens.py cycle_count`: 24 cases, histograms, update priors, deltas and
+  generated batches, exported twice identically), its replay (`parity/compare.py cycle_count`, CTest
+  `parity.cycle_count.cycle_enum_0a976ad`), the OpenMP A/B (`parity/perf_ab.py cycle_count run`)
+  and `dyng-compat-cycle-enum --write-batch`. Results in `parity/results/M2a.md`: 72 of 72 replays
+  byte-identical (sequential, OpenMP 4 and 56 threads); every OpenMP-56 gate met (static end to
+  end 0.64-0.96x, update 25K+25K 0.76-0.96x of the original).
 
 ### Changed
 

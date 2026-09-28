@@ -281,3 +281,78 @@ gate protocol of step 3 fixes the environment. Stage breakdown of one DD update 
 - The full sequential dataset parity: `DYNG_CYCLE_PARITY_FULL=1 build/<preset>/cpp/tests/
   dyng_cycle_enum_parity_tests --gtest_filter=CycleCountDatasets*` (COLLAB k = 3 sequential takes
   tens of minutes).
+
+## Step 3: parity harness, goldens and the OpenMP gates (parity-perf, 2026-09-28)
+
+Goal: the harness pieces for CycleEnumeration-GPU@0a976ad (golden export, replay, timed regions,
+performance A/B), the full parity run and the OpenMP gates of acceptance criterion 4, recorded in
+`parity/results/M2a.md`.
+
+### Done
+
+- `references.toml` and `build_reference.sh` already covered the reference since step 1 (CMake
+  Release, OpenMP and CUDA sm_86 as its RESULTS.md; the CUDA build stays possible for M2b).
+- **Golden corpus** (`parity/cycle_count_goldens.py`, reached as `parity/export_goldens.py
+  cycle_count`): 24 cases from the original `cycle-enum` of the patched copy (OpenMP, 56
+  threads): DD k = 3..7, GitHub and Twitch k = 3, 4, COLLAB k = 3; the seed-1 updates 1K+1K,
+  25K+25K and 50K+50K (k = 4) on DD, GitHub and Twitch with `prior.csv`, `delta.csv` and the
+  generated `batch.txt`; a DD sweep (locality windows 1000 / 10000 / 100000, k = 3 and 5).
+  Cross-checks before writing: the original's sequential backend (23 cases), its
+  `--compare-recompute`, the committed exporter counts, the plan's totals, the batch sizes.
+  `--twice` exported again from a fresh archive copy: identical manifest `e40fa03b...`.
+  `goldens.toml` gains a `[sets.cycle_count]` section (the sssp writer keeps it).
+- **Replay** (`parity/compare.py cycle_count`, CTest `parity.cycle_count.cycle_enum_0a976ad`,
+  label `parity`): the histogram CSV and the generated batch byte for byte; `dyng-compat-cycle-enum
+  --write-batch` writes the batch in the exporter's text. Result: 72 of 72 replays equal
+  (sequential including COLLAB, OpenMP 4 and 56 threads). This closes the step-2 open issue: the
+  sequential backend now ran DD k = 7, GitHub, Twitch and COLLAB as well.
+- **Timed regions** (`parity/timed_regions/cycle_count.toml`): regions now carry the task and the
+  keys the harness reads: `static_end_to_end` (gated), `static_count` (reported), `update`
+  (`update_seconds` vs `update_ms`, gated) and `update_end_to_end` (gate 1.10).
+- **Performance A/B** (`parity/cycle_count_perf.py`, reached as `parity/perf_ab.py cycle_count
+  run`): alternating A/B under the exclusive perf lock, 56 threads on both sides, histograms
+  compared in every round and against the goldens, medians, spread flags, JSON records.
+- **Results** (`parity/results/M2a.md` and three JSON files): every gate met. Static end to end
+  0.64-0.96x (DD k = 3..7, GitHub and Twitch k = 3, 4), COLLAB k = 3 0.65x (44.5 s vs 29.0 s),
+  update 25K+25K k = 4 DD 0.96x (26.7 / 25.6 ms; 0.96x again with 31 runs), GitHub 0.96x (294 /
+  282 ms), Twitch 0.76x (161 / 122 ms); update end to end 0.68-0.89x.
+- Harness smoke tests (`parity/tests/test_harness.py`): the new entry points, case names,
+  histogram parsing and deltas, the goldens.toml section surviving both writers, the region map.
+
+### Measured
+
+See `parity/results/M2a.md`. The port was nowhere slower than the original, so no profiling and
+no fix were needed for the gates. The likely cause of the gap is recorded there (the original's
+`std::map` histogram increment per cycle vs dynG's dense arrays; not profiled).
+
+### Deviations from the plan (and where they are recorded)
+
+1. **Harness layout.** The cycle_count code of the harness lives in two new modules
+   (`parity/cycle_count_goldens.py`, `parity/cycle_count_perf.py`) that `export_goldens.py`,
+   `compare.py` and `perf_ab.py` dispatch to on a first argument `cycle_count`, instead of
+   extending the sssp code paths: main (M1b) was changing those three files at the same time, and
+   the sssp logic (objectives, trees, CSR files) shares little with histograms. The edits to the
+   shared scripts are a few lines each.
+2. **The static gate is end to end.** The original has no CPU timer for the count; its RESULTS.md
+   reports process wall times, so the paper-timed region is the process (gate 1.05, every case
+   >= 250 ms). The port's count alone is reported next to it.
+3. **Environment of the gate.** Both sides ran with the libgomp defaults (no `OMP_*` variables),
+   as the original's RESULTS.md, not with the pinned 28-thread environment of the sssp gate
+   (PLAN 8.6: "56 where the original used 56").
+4. **Golden locality sweep.** A window of 1000 cannot supply 25K deletions on DD (the original
+   rejects it), so the window-1000 case uses 1K+1K.
+5. **Load average** during the runs was 5.6-44, mostly the measured 56-thread processes
+   themselves; DD's 25 ms update had outliers (spread above 10 %, flagged, not failed); the
+   31-run repeat gave the same verdict.
+
+### Notes for M2b
+
+- The CUDA regions (kernel_ms / memcpy_ms, the device update, the resident scope) go into
+  `timed_regions/cycle_count.toml` as `[reference.cycle_enum_cuda]`; `cycle_count_perf.py`
+  keeps the backend fixed to OpenMP today and needs a `--backend cuda` path (CUDA events or
+  nsys kernel sums over >= 20 runs for DD's 1.44 ms kernel).
+- The goldens are backend independent: `compare.py cycle_count --configs cuda` only needs the
+  config parser extended once the compat driver accepts `--backend cuda`.
+- `dyng-compat-cycle-enum` generates the batch from `g.to_csr(res)` (a copy; Twitch 778 ms,
+  outside every gated region); reading the out-edges directly would bring the update task's end
+  to end closer to the original's structure.

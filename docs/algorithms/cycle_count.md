@@ -93,7 +93,11 @@ and the ownership table live in a workspace leased from the resources handle (AD
 The timed regions are defined in `parity/timed_regions/cycle_count.toml`: the static count is
 gated end to end (the original's CLI prints no CPU timer; RESULTS.md reports process wall times),
 the update on the original's `update_seconds` (`cycle_count.update`). The measurements of M2a are
-in `parity/results/M2a.md`.
+in `parity/results/M2a.md`: with 56 OpenMP threads the port takes 0.64-0.96x of the original's
+time end to end (DD k = 3..7, GitHub and Twitch k = 3, 4; COLLAB k = 3 0.65x) and 0.76-0.96x for
+the 25K + 25K update at k = 4 (DD 25.6 ms, GitHub 282 ms, Twitch 122 ms). The difference most
+likely comes from the dense per-thread histograms (the original updates a `std::map` per cycle
+found; not profiled); it is not an algorithmic change.
 
 ## 6. Limitations
 

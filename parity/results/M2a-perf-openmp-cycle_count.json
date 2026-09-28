@@ -1,0 +1,1162 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "backend": "openmp",
+ "date": "2026-09-28T05:17:53Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/cycle-enum",
+  "build": "name=CycleEnumeration-GPU\ncommit=0a976adfa801a712135bf1adb51a228f353a0751\nvariant=unpatched\narchive_sha256=53eef2ed4394c0d8ab079f9ef50b2394946f4a0d611a0425a0a32b7892fe39c3\nexported=2026-09-28T00:00:24Z\nbuild=env NVCC=/usr/local/cuda-13.1/bin/nvcc cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCYCLE_ENUM_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.1/bin/nvcc -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++ -DCMAKE_CUDA_ARCHITECTURES=86 && cmake --build build -j16\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "port": {
+  "commit": "1148d15e9f3d5f17763e4d911de255a04f2ac286",
+  "binary": "build/parity/tools/compat/dyng-compat-cycle-enum",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "OFF",
+   "DYNG_CUDA_ARCHITECTURES": null,
+   "CMAKE_CUDA_FLAGS_RELEASE": null,
+   "CMAKE_CUDA_COMPILER": null,
+   "build_dir": "build/parity",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/cycle_count.toml",
+  "regions": [
+   "static_end_to_end",
+   "static_count",
+   "update",
+   "update_end_to_end"
+  ]
+ },
+ "protocol": {
+  "runs": 11,
+  "order": "A/B/A/B (original first), one untimed round per case first",
+  "threads": 56,
+  "backend": "openmp (--backend openmp --openmp-threads N on both)",
+  "env": "no OMP_* variables (the libgomp defaults) on both",
+  "lock": "perf.lock (exclusive)",
+  "statistic": "median",
+  "outputs": "standard output captured (the histogram CSV), compared every round",
+  "short_regions": "< 10.0 ms need >= 20 runs"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "datasets_sha256": {
+  "DD": "e538ec13a262b84a0664db2f22e6ff720fb5bb74965536c37f4b8e962d156e4a",
+  "github": "a5a43e92b9a22054882017a2b5dea267535c8d94705ac4987d967e517448c9d4",
+  "twitch": "c2270e018af70321c8f6d1517abc097204105ec7bafe71527555b4f954fbea82"
+ },
+ "results": {
+  "count/DD_k3": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 255.96109870821238,
+     "original_samples": [
+      263.59678292647004,
+      253.21618700399995,
+      249.33624593541026,
+      278.2878568395972,
+      260.3544029407203,
+      235.8276699669659,
+      257.8716790303588,
+      272.71097898483276,
+      243.19456610828638,
+      254.92125703021884,
+      255.96109870821238
+     ],
+     "original_spread": 0.16588531259992204,
+     "port_ms": 245.29963312670588,
+     "port_samples": [
+      240.53764808923006,
+      247.51884816214442,
+      226.58556886017323,
+      222.4813369102776,
+      271.5290649794042,
+      233.16371580585837,
+      248.07087518274784,
+      231.9886051118374,
+      266.7679572477937,
+      245.29963312670588,
+      250.9048688225448
+     ],
+     "port_spread": 0.19995027079307423,
+     "ratio": 0.9583473206072606,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 30.7679,
+     "port_samples": [
+      37.5543,
+      28.6455,
+      27.7081,
+      28.4513,
+      46.8862,
+      27.9236,
+      33.1067,
+      30.5476,
+      35.148,
+      30.8432,
+      30.7679
+     ],
+     "port_spread": 0.6233152083827626,
+     "port_stage_ms": 30.756149,
+     "noisy": true
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 30.756149,
+    "cycle_count.count": 30.73652,
+    "cycle_count.finalize": 0.001299,
+    "cycle_count.reset": 0.004373,
+    "graph.build": 10.743169
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 30.7679,
+    "read_ms": 195.583,
+    "build_ms": 10.7719,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 5.57080078125,
+    "max": 5.96875
+   }
+  },
+  "count/DD_k4": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 251.743467990309,
+     "original_samples": [
+      251.6605439595878,
+      262.2544188052416,
+      255.83953177556396,
+      251.743467990309,
+      263.02969409152865,
+      251.03077199310064,
+      255.28345024213195,
+      249.12326270714402,
+      248.91619011759758,
+      260.5090900324285,
+      249.448137357831
+     ],
+     "original_spread": 0.0560630394369334,
+     "port_ms": 235.31176801770926,
+     "port_samples": [
+      248.06755082681775,
+      233.69261203333735,
+      229.80500012636185,
+      235.31176801770926,
+      239.35970896854997,
+      234.00032380595803,
+      243.67879470810294,
+      232.8806440345943,
+      239.0646911226213,
+      231.77853412926197,
+      236.14139296114445
+     ],
+     "port_spread": 0.07761001863315858,
+     "ratio": 0.9347283959191652,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 38.1187,
+     "port_samples": [
+      40.1941,
+      37.6908,
+      40.5632,
+      39.3068,
+      40.2893,
+      38.1187,
+      36.8491,
+      36.7636,
+      40.9925,
+      37.8084,
+      37.8413
+     ],
+     "port_spread": 0.11094029964295749,
+     "port_stage_ms": 38.107893,
+     "noisy": true
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 38.107893,
+    "cycle_count.count": 38.088627,
+    "cycle_count.finalize": 0.001349,
+    "cycle_count.reset": 0.004404,
+    "graph.build": 10.779649
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 38.1187,
+    "read_ms": 179.652,
+    "build_ms": 10.807,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 5.57080078125,
+    "max": 8.248046875
+   }
+  },
+  "count/DD_k5": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 301.98185704648495,
+     "original_samples": [
+      289.46399688720703,
+      303.7488888949156,
+      303.7038519978523,
+      296.31822369992733,
+      296.5693506412208,
+      298.7479278817773,
+      301.98185704648495,
+      297.03232599422336,
+      307.678384706378,
+      303.66268707439303,
+      302.7035868726671
+     ],
+     "original_spread": 0.06031616600187725,
+     "port_ms": 270.13809280470014,
+     "port_samples": [
+      265.1050537824631,
+      267.4298188649118,
+      278.52205093950033,
+      276.4737820252776,
+      273.05395202711225,
+      270.0571659952402,
+      257.9760979861021,
+      280.8585776947439,
+      277.69609820097685,
+      270.13809280470014,
+      268.36037961766124
+     ],
+     "port_spread": 0.08470660124629278,
+     "ratio": 0.8945507370766218,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 76.2497,
+     "port_samples": [
+      75.4939,
+      78.6583,
+      78.9383,
+      78.1672,
+      76.0119,
+      75.0023,
+      76.0275,
+      76.2497,
+      79.4112,
+      75.2882,
+      78.4536
+     ],
+     "port_spread": 0.05782186684013168,
+     "port_stage_ms": 76.236531,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 76.236531,
+    "cycle_count.count": 76.214622,
+    "cycle_count.finalize": 0.001287,
+    "cycle_count.reset": 0.004173,
+    "graph.build": 10.727882
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 76.2497,
+    "read_ms": 179.071,
+    "build_ms": 10.7528,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 8.248046875,
+    "max": 12.072265625
+   }
+  },
+  "count/DD_k6": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 516.4168486371636,
+     "original_samples": [
+      521.6983063146472,
+      526.7943628132343,
+      505.0308960489929,
+      513.8195310719311,
+      506.41687074676156,
+      511.94776175543666,
+      520.7378552295268,
+      516.4168486371636,
+      516.7023371905088,
+      509.6494569443166,
+      527.0396498963237
+     ],
+     "original_spread": 0.04261819478859459,
+     "port_ms": 425.44823605567217,
+     "port_samples": [
+      437.47750390321016,
+      425.44823605567217,
+      420.74566800147295,
+      442.9951459169388,
+      437.1070801280439,
+      420.5704750493169,
+      426.71895399689674,
+      424.4266259483993,
+      427.80116526409984,
+      409.45139387622476,
+      416.9263360090554
+     ],
+     "port_spread": 0.07884332146184911,
+     "ratio": 0.8238465440824407,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 229.161,
+     "port_samples": [
+      240.182,
+      235.368,
+      226.517,
+      241.146,
+      229.161,
+      227.473,
+      229.451,
+      226.092,
+      229.274,
+      225.514,
+      226.213
+     ],
+     "port_spread": 0.0682140503837912,
+     "port_stage_ms": 229.148784,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 229.148784,
+    "cycle_count.count": 229.126969,
+    "cycle_count.finalize": 0.001382,
+    "cycle_count.reset": 0.00442,
+    "graph.build": 10.667203
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 229.161,
+    "read_ms": 179.001,
+    "build_ms": 10.6921,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 10.36962890625,
+    "max": 14.02392578125
+   }
+  },
+  "count/DD_k7": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 1479.5012762770057,
+     "original_samples": [
+      1504.2130290530622,
+      1468.5865906067193,
+      1480.9705908410251,
+      1477.7939142659307,
+      1479.5012762770057,
+      1465.422309935093,
+      1475.5093208514154,
+      1472.43329603225,
+      1487.5054764561355,
+      1497.3153490573168,
+      1485.8428481966257
+     ],
+     "original_spread": 0.026218780436324897,
+     "port_ms": 1038.7866697274148,
+     "port_samples": [
+      1019.4767680950463,
+      1040.1032427325845,
+      1032.6415738090873,
+      1040.2220580726862,
+      1055.173295084387,
+      1038.7866697274148,
+      1037.0303611271083,
+      1041.7792461812496,
+      1019.0715966746211,
+      1055.0046502612531,
+      1034.2584671452641
+     ],
+     "port_spread": 0.034753717449261555,
+     "ratio": 0.7021194820063973,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 830.957,
+     "port_samples": [
+      823.826,
+      826.7,
+      830.957,
+      829.415,
+      828.514,
+      832.722,
+      831.951,
+      833.459,
+      830.204,
+      832.884,
+      832.088
+     ],
+     "port_spread": 0.011592657622476162,
+     "port_stage_ms": 830.945814,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 830.945814,
+    "cycle_count.count": 830.922276,
+    "cycle_count.finalize": 0.001261,
+    "cycle_count.reset": 0.004678,
+    "graph.build": 10.814321
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 830.957,
+    "read_ms": 189.156,
+    "build_ms": 10.842,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 14.02392578125,
+    "max": 30.96875
+   }
+  },
+  "count/github_k3": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 713.9217909425497,
+     "original_samples": [
+      716.8938163667917,
+      713.9217909425497,
+      714.4201220944524,
+      703.9089482277632,
+      697.2648757509887,
+      718.7266908586025,
+      718.953509349376,
+      713.4711327962577,
+      707.2212300263345,
+      723.9020429551601,
+      704.8254529945552
+     ],
+     "original_spread": 0.03731104378954998,
+     "port_ms": 603.9257310330868,
+     "port_samples": [
+      611.3329869695008,
+      594.0631530247629,
+      604.2326679453254,
+      617.6153607666492,
+      597.9696963913739,
+      603.7794169969857,
+      617.0701263472438,
+      603.9257310330868,
+      603.3897628076375,
+      603.3350280486047,
+      614.3030542880297
+     ],
+     "port_spread": 0.03899851675734618,
+     "ratio": 0.8459270170696969,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 168.141,
+     "port_samples": [
+      170.943,
+      168.141,
+      166.817,
+      167.165,
+      171.647,
+      170.43,
+      168.136,
+      165.763,
+      170.71,
+      167.016,
+      168.355
+     ],
+     "port_spread": 0.03499443919091707,
+     "port_stage_ms": 168.129635,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 168.129635,
+    "cycle_count.count": 168.108724,
+    "cycle_count.finalize": 0.001303,
+    "cycle_count.reset": 0.004132,
+    "graph.build": 42.653779
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 168.141,
+    "read_ms": 383.87,
+    "build_ms": 42.679,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 28.7080078125,
+    "max": 31.20751953125
+   }
+  },
+  "count/github_k4": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 2800.2144298516214,
+     "original_samples": [
+      2791.1107731051743,
+      2786.3552579656243,
+      2800.2144298516214,
+      2814.3357168883085,
+      2777.9283318668604,
+      2800.2327606081963,
+      2812.490338925272,
+      2804.6469250693917,
+      2797.8961640037596,
+      2809.664980042726,
+      2795.8309301175177
+     ],
+     "original_spread": 0.013001641814758201,
+     "port_ms": 1785.3261609561741,
+     "port_samples": [
+      1779.8839248716831,
+      1779.3171131052077,
+      1782.0525174029171,
+      1777.997865807265,
+      1785.3261609561741,
+      1780.884366016835,
+      1791.5803543291986,
+      1796.0624266415834,
+      1805.9761640615761,
+      1956.4705481752753,
+      1800.0129512511194
+     ],
+     "port_spread": 0.09996642981606507,
+     "ratio": 0.6375676597919594,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 1343.93,
+     "port_samples": [
+      1345.17,
+      1342.96,
+      1342.63,
+      1342.21,
+      1348.09,
+      1340.25,
+      1344.45,
+      1342.35,
+      1346.91,
+      1504.62,
+      1343.93
+     ],
+     "port_spread": 0.12230547721979558,
+     "port_stage_ms": 1343.922709,
+     "noisy": true
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 1343.922709,
+    "cycle_count.count": 1343.902964,
+    "cycle_count.finalize": 0.001384,
+    "cycle_count.reset": 0.004141,
+    "graph.build": 42.59612
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 1343.93,
+    "read_ms": 386.467,
+    "build_ms": 42.623,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 30.8935546875,
+    "max": 41.48681640625
+   }
+  },
+  "count/twitch_k3": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 1817.850633058697,
+     "original_samples": [
+      1821.9862394034863,
+      1819.8749269358814,
+      1784.888554830104,
+      1817.850633058697,
+      1819.9749710038304,
+      1834.430148359388,
+      1775.2242609858513,
+      1833.472257014364,
+      1815.2828477323055,
+      1807.6275689527392,
+      1799.5080291293561
+     ],
+     "original_spread": 0.03256917058906958,
+     "port_ms": 1595.7523570396006,
+     "port_samples": [
+      1597.3221138119698,
+      1586.2016300670803,
+      1588.7056160718203,
+      1591.1045912653208,
+      1597.7319832891226,
+      1605.1824470050633,
+      1597.8304529562593,
+      1592.4312039278448,
+      1595.7523570396006,
+      1584.7242139279842,
+      1620.8672430366278
+     ],
+     "port_spread": 0.022649522621226242,
+     "ratio": 0.8778236935531958,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 234.385,
+     "port_samples": [
+      234.273,
+      234.385,
+      234.111,
+      232.892,
+      236.419,
+      234.079,
+      234.426,
+      239.541,
+      237.35,
+      233.169,
+      242.645
+     ],
+     "port_spread": 0.041611024596283956,
+     "port_stage_ms": 234.372722,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 234.372722,
+    "cycle_count.count": 234.350236,
+    "cycle_count.finalize": 0.001466,
+    "cycle_count.reset": 0.004231,
+    "graph.build": 143.157562
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 234.385,
+    "read_ms": 1197.49,
+    "build_ms": 143.185,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 26.47216796875,
+    "max": 39.66650390625
+   }
+  },
+  "count/twitch_k4": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 3624.131645075977,
+     "original_samples": [
+      3624.131645075977,
+      3627.7600792236626,
+      3644.9179709888995,
+      3585.0033620372415,
+      3621.1955421604216,
+      3645.6607338041067,
+      3630.6878882460296,
+      3618.2462540455163,
+      3634.110209066421,
+      3609.1781589202583,
+      3620.5546646378934
+     ],
+     "original_spread": 0.016737077376667322,
+     "port_ms": 2746.872795280069,
+     "port_samples": [
+      2756.477772258222,
+      2734.2001167126,
+      2743.84871032089,
+      2746.872795280069,
+      2764.0412440523505,
+      2761.158319655806,
+      2740.7639608718455,
+      2753.8292799144983,
+      2741.0342656075954,
+      2745.8177749067545,
+      2749.820241704583
+     ],
+     "port_spread": 0.01086367282497621,
+     "ratio": 0.7579395740251823,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "port_ms": 1383.02,
+     "port_samples": [
+      1392.7,
+      1381.94,
+      1382.83,
+      1384.14,
+      1390.12,
+      1383.02,
+      1385.65,
+      1380.71,
+      1381.86,
+      1381.2,
+      1385.4
+     ],
+     "port_spread": 0.00866943355844457,
+     "port_stage_ms": 1383.012473,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 1383.012473,
+    "cycle_count.count": 1382.992373,
+    "cycle_count.finalize": 0.00144,
+    "cycle_count.reset": 0.004102,
+    "graph.build": 143.432724
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 1383.02,
+    "read_ms": 1199.82,
+    "build_ms": 143.458,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 28.0673828125,
+    "max": 38.36474609375
+   }
+  },
+  "update/DD_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 26.7284,
+     "original_samples": [
+      29.4857,
+      25.3353,
+      37.424899999999994,
+      26.3916,
+      26.7284,
+      25.244,
+      26.4993,
+      47.8125,
+      28.8103,
+      39.8724,
+      26.2147
+     ],
+     "original_spread": 0.844364047230661,
+     "port_ms": 25.6448,
+     "port_samples": [
+      26.5071,
+      24.8484,
+      24.3228,
+      27.8824,
+      27.5208,
+      28.8093,
+      22.2769,
+      25.6448,
+      23.4667,
+      23.5068,
+      30.4144
+     ],
+     "port_spread": 0.31731579111554775,
+     "port_stage_ms": 25.640209,
+     "ratio": 0.9594588527558702,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 354.9988488666713,
+     "original_samples": [
+      353.2773260958493,
+      359.7869761288166,
+      354.9988488666713,
+      358.2262662239373,
+      353.93687477335334,
+      344.29114079102874,
+      354.2344542220235,
+      405.26682091876864,
+      361.9738472625613,
+      373.1144550256431,
+      352.95963007956743
+     ],
+     "original_spread": 0.17176303619688876,
+     "port_ms": 316.9409232214093,
+     "port_samples": [
+      309.5919117331505,
+      321.85700722038746,
+      325.8203361183405,
+      328.7960011512041,
+      315.9472802653909,
+      333.6766599677503,
+      310.4319470003247,
+      309.3500258401036,
+      335.61430405825377,
+      316.9409232214093,
+      297.8562442585826
+     ],
+     "port_spread": 0.119132800573355,
+     "ratio": 0.8927942280185939,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.commit": 5.824102,
+    "cycle_count.compute": 39.765278,
+    "cycle_count.count": 39.744609,
+    "cycle_count.count_minus": 8.829887,
+    "cycle_count.count_plus": 5.305526,
+    "cycle_count.finalize": 0.001702,
+    "cycle_count.identify_affected": 1.992112,
+    "cycle_count.normalize": 2.567909,
+    "cycle_count.reset": 0.004091,
+    "cycle_count.update": 25.640209,
+    "graph.apply": 5.821347,
+    "graph.build": 10.796855
+   },
+   "port_report_median_ms": {
+    "update_ms": 25.6448,
+    "compute_ms": 0.0,
+    "read_ms": 184.554,
+    "build_ms": 10.822,
+    "prior_ms": 39.7773,
+    "generate_ms": 47.313
+   },
+   "load_average": {
+    "min": 28.71240234375,
+    "max": 33.74755859375
+   }
+  },
+  "update/github_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 293.952,
+     "original_samples": [
+      301.654,
+      288.37800000000004,
+      288.645,
+      292.38599999999997,
+      302.88,
+      292.474,
+      297.728,
+      291.567,
+      295.233,
+      300.79299999999995,
+      293.952
+     ],
+     "original_spread": 0.04933458523840611,
+     "port_ms": 281.93,
+     "port_samples": [
+      282.519,
+      279.075,
+      281.93,
+      280.604,
+      284.198,
+      283.55,
+      270.518,
+      269.327,
+      293.339,
+      266.574,
+      284.11
+     ],
+     "port_spread": 0.09493491292164717,
+     "port_stage_ms": 281.913224,
+     "ratio": 0.9591021663400827,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 3292.1864772215486,
+     "original_samples": [
+      3313.367565628141,
+      3285.7040176168084,
+      3271.3248101063073,
+      3267.504378221929,
+      3295.130732934922,
+      3296.378009021282,
+      3285.9619967639446,
+      3292.1864772215486,
+      3296.9213258475065,
+      3298.273589927703,
+      3282.89409307763
+     ],
+     "original_spread": 0.013930920293712668,
+     "port_ms": 2241.4261288940907,
+     "port_samples": [
+      2234.791831113398,
+      2243.412274867296,
+      2241.4261288940907,
+      2230.4764399304986,
+      2398.7027490511537,
+      2257.4004936031997,
+      2256.7210691049695,
+      2232.8928438946605,
+      2275.4567321389914,
+      2215.2389883995056,
+      2226.696501020342
+     ],
+     "port_spread": 0.08185135271094936,
+     "ratio": 0.6808320684148333,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.commit": 12.501723,
+    "cycle_count.compute": 1345.025032,
+    "cycle_count.count": 1345.002831,
+    "cycle_count.count_minus": 208.216615,
+    "cycle_count.count_plus": 54.476227,
+    "cycle_count.finalize": 0.001826,
+    "cycle_count.identify_affected": 2.143113,
+    "cycle_count.normalize": 4.431612,
+    "cycle_count.reset": 0.004198,
+    "cycle_count.update": 281.913224,
+    "graph.apply": 12.498251,
+    "graph.build": 42.620766
+   },
+   "port_report_median_ms": {
+    "update_ms": 281.93,
+    "compute_ms": 0.0,
+    "read_ms": 386.0,
+    "build_ms": 42.6471,
+    "prior_ms": 1345.04,
+    "generate_ms": 161.308
+   },
+   "load_average": {
+    "min": 26.4931640625,
+    "max": 37.55419921875
+   }
+  },
+  "update/twitch_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 160.659,
+     "original_samples": [
+      166.72500000000002,
+      163.322,
+      159.537,
+      159.38,
+      160.936,
+      157.42600000000002,
+      158.78900000000002,
+      161.44400000000002,
+      160.659,
+      160.11,
+      163.44400000000002
+     ],
+     "original_spread": 0.0578803552866631,
+     "port_ms": 121.861,
+     "port_samples": [
+      123.277,
+      114.134,
+      122.264,
+      119.311,
+      127.922,
+      119.754,
+      116.833,
+      121.861,
+      111.937,
+      124.942,
+      125.094
+     ],
+     "port_spread": 0.1311740425566834,
+     "port_stage_ms": 121.855005,
+     "ratio": 0.7585071486813687,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 4596.1928851902485,
+     "original_samples": [
+      4596.1928851902485,
+      4610.7556829229,
+      4589.68699304387,
+      4580.193402245641,
+      4572.599194012582,
+      4606.639239937067,
+      4595.216632820666,
+      4606.292963959277,
+      4602.999454829842,
+      4584.48203606531,
+      4619.726915843785
+     ],
+     "original_spread": 0.010253643180001522,
+     "port_ms": 3659.2885982245207,
+     "port_samples": [
+      3673.765442799777,
+      3637.9085178487003,
+      3654.8519413918257,
+      3659.2885982245207,
+      3662.0153449475765,
+      3651.754328981042,
+      3641.7267760261893,
+      3667.084594722837,
+      3637.903390917927,
+      3689.8802192881703,
+      3692.6426738500595
+     ],
+     "port_spread": 0.014958995843807419,
+     "ratio": 0.7961564472229614,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.commit": 28.071382,
+    "cycle_count.compute": 1380.99164,
+    "cycle_count.count": 1380.96477,
+    "cycle_count.count_minus": 64.715188,
+    "cycle_count.count_plus": 21.129582,
+    "cycle_count.finalize": 0.001931,
+    "cycle_count.identify_affected": 2.175926,
+    "cycle_count.normalize": 4.326713,
+    "cycle_count.reset": 0.00412,
+    "cycle_count.update": 121.855005,
+    "graph.apply": 28.068368,
+    "graph.build": 143.328691
+   },
+   "port_report_median_ms": {
+    "update_ms": 121.861,
+    "compute_ms": 0.0,
+    "read_ms": 1201.72,
+    "build_ms": 143.354,
+    "prior_ms": 1381.0,
+    "generate_ms": 778.214
+   },
+   "load_average": {
+    "min": 33.58203125,
+    "max": 44.4951171875
+   }
+  }
+ }
+}
