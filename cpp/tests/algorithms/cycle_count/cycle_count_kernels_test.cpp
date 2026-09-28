@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <random>
 #include <vector>
@@ -113,6 +114,37 @@ TEST(CyclesThroughEdge, OwnershipSkipsCyclesWithSmallerIdEdge) {
   index.assign(std::vector<change>{{2, 0}});
   EXPECT_EQ(index.size(), 1U);
   EXPECT_FALSE(index.forbidden_before(0, 1, 1));
+}
+
+TEST(ChangedEdgeIndex, AnswersAsAMapUnderCollisionsAndReuse) {
+  // Many edges out of one vertex and into one vertex, then a smaller list in the larger table.
+  std::vector<change> big;
+  for (std::int32_t v = 0; v < 1000; ++v) {
+    big.push_back({0, v});
+  }
+  for (std::int32_t u = 1; u < 1000; ++u) {
+    big.push_back({u, 0});
+  }
+  std::sort(big.begin(), big.end(), [](const change& a, const change& b) {
+    return a.source != b.source ? a.source < b.source : a.target < b.target;
+  });
+  dyng::detail::changed_edge_index index;
+  index.assign(big);
+  EXPECT_EQ(index.size(), big.size());
+  for (std::size_t id = 0; id < big.size(); ++id) {
+    EXPECT_FALSE(index.forbidden_before(big[id].source, big[id].target, id));
+    EXPECT_TRUE(index.forbidden_before(big[id].source, big[id].target, id + 1));
+  }
+  EXPECT_FALSE(index.forbidden_before(1, 1, big.size()));
+  EXPECT_FALSE(index.forbidden_before(2147483646, 2147483646, big.size()));
+  const std::size_t bytes = index.bytes();
+  index.assign(std::vector<change>{{5, 6}});
+  EXPECT_EQ(index.bytes(), bytes);  // the arrays are reused
+  EXPECT_TRUE(index.forbidden_before(5, 6, 1));
+  EXPECT_FALSE(index.forbidden_before(0, 5, big.size()));  // the old entries are gone
+  index.assign(std::vector<change>{});
+  EXPECT_EQ(index.size(), 0U);
+  EXPECT_FALSE(index.forbidden_before(5, 6, 1));
 }
 
 TEST(CycleCountWorkspace, ReserveKeepsZerosAndPadsThreads) {

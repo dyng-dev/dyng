@@ -42,10 +42,10 @@
 #include <dyng/core/resources.hpp>
 #include <dyng/cycle_count.hpp>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 namespace dyng::detail {
@@ -105,6 +105,11 @@ struct cycle_graph {
  * @brief Maps a phase's changed edges to their ownership ids (CycleEnumeration-GPU's
  *        ChangedEdgeIndex): the id of a changed edge is its index in the normalized (sorted)
  *        change list; a cycle is counted only by the smallest-id changed edge it contains.
+ *
+ * The original keeps a std::unordered_map, which allocates one node per changed edge on every
+ * update; dynG keeps a flat open-addressing table (linear probing, load factor <= 1/2) whose
+ * arrays are reused, so rebuilding it for a batch no larger than an earlier one allocates nothing
+ * (invariant I9). The lookups answer exactly as the map's.
  */
 class changed_edge_index {
  public:
@@ -112,15 +117,34 @@ class changed_edge_index {
    * @brief Rebuild the index from a normalized change list (index = id); the table's capacity is
    *        reused.
    * @tparam vertex_t Vertex id type (32-bit).
-   * @param[in] changes The change list.
+   * @param[in] changes The change list (distinct edges).
    */
   template <typename vertex_t>
   void assign(const std::vector<edge_change<vertex_t>>& changes) {
     static_assert(sizeof(vertex_t) == 4, "changed_edge_index keys two 32-bit vertex ids");
-    id_of_.clear();
-    id_of_.reserve(changes.size());
+    std::size_t slots = min_slots;
+    int bits = min_bits;
+    while (slots < 2 * changes.size()) {
+      slots *= 2;
+      ++bits;
+    }
+    if (keys_.size() < slots) {
+      keys_.assign(slots, empty_key);
+      ids_.assign(slots, 0);
+    } else {
+      std::fill(keys_.begin(), keys_.begin() + static_cast<std::ptrdiff_t>(slots), empty_key);
+    }
+    mask_ = slots - 1;
+    shift_ = 64 - bits;
+    size_ = changes.size();
     for (std::size_t index = 0; index < changes.size(); ++index) {
-      id_of_.emplace(key(changes[index].source, changes[index].target), index);
+      const std::uint64_t k = key(changes[index].source, changes[index].target);
+      std::size_t slot = home(k);
+      while (keys_[slot] != empty_key) {
+        slot = (slot + 1) & mask_;
+      }
+      keys_[slot] = k;
+      ids_[slot] = index;
     }
   }
 
@@ -136,43 +160,68 @@ class changed_edge_index {
    */
   template <typename vertex_t>
   [[nodiscard]] bool forbidden_before(vertex_t source, vertex_t target,
-                                      std::size_t owner_id) const {
-    const auto found = id_of_.find(key(source, target));
+                                      std::size_t owner_id) const noexcept {
+    if (size_ == 0) {
+      return false;
+    }
+    const std::uint64_t k = key(source, target);
+    for (std::size_t slot = home(k);; slot = (slot + 1) & mask_) {
+      const std::uint64_t found = keys_[slot];
+      if (found == k) {
 #if defined(DYNG_MUTATION_WEAK_OWNERSHIP)
-    // Recorded mutation (PLAN Section 8.4, "weakened ownership rule"): the changed edge with the
-    // id just below the anchor no longer takes precedence, so cycles through two consecutive
-    // changed edges are counted twice. The mutation tests require the suite to fail.
-    return found != id_of_.end() && found->second + 1 < owner_id;
+        // Recorded mutation (PLAN Section 8.4, "weakened ownership rule"): the changed edge with
+        // the id just below the anchor no longer takes precedence, so cycles through two
+        // consecutive changed edges are counted twice. The mutation tests require the suite to
+        // fail.
+        return ids_[slot] + 1 < owner_id;
 #else
-    return found != id_of_.end() && found->second < owner_id;
+        return ids_[slot] < owner_id;
 #endif
+      }
+      if (found == empty_key) {
+        return false;
+      }
+    }
   }
 
   /**
    * @brief Number of indexed changed edges.
-   * @return The size of the table.
+   * @return The number of edges of the last assign().
    */
   [[nodiscard]] std::size_t size() const noexcept {
-    return id_of_.size();
+    return size_;
   }
 
   /**
-   * @brief The memory the table holds (approximate).
-   * @return Bytes of its buckets and nodes.
+   * @brief The memory the table holds.
+   * @return Bytes of its arrays' capacity.
    */
   [[nodiscard]] std::size_t bytes() const noexcept {
-    return id_of_.bucket_count() * sizeof(void*) +
-           id_of_.size() * (sizeof(std::uint64_t) + sizeof(std::size_t) + 2 * sizeof(void*));
+    return keys_.capacity() * sizeof(std::uint64_t) + ids_.capacity() * sizeof(std::size_t);
   }
 
  private:
+  static constexpr int min_bits = 4;
+  static constexpr std::size_t min_slots = std::size_t{1} << min_bits;
+  /// No edge has this key: vertex ids are non-negative 32-bit values below 2^31.
+  static constexpr std::uint64_t empty_key = ~std::uint64_t{0};
+
   template <typename vertex_t>
   static std::uint64_t key(vertex_t source, vertex_t target) noexcept {
     return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(source)) << 32) |
            static_cast<std::uint64_t>(static_cast<std::uint32_t>(target));
   }
 
-  std::unordered_map<std::uint64_t, std::size_t> id_of_;
+  /// Fibonacci hashing: the top bits of key * 2^64 / phi.
+  [[nodiscard]] std::size_t home(std::uint64_t k) const noexcept {
+    return static_cast<std::size_t>((k * 0x9E3779B97F4A7C15ULL) >> shift_) & mask_;
+  }
+
+  std::vector<std::uint64_t> keys_;  ///< empty_key or the key of the edge in the slot
+  std::vector<std::size_t> ids_;     ///< the ownership id of the edge in the slot
+  std::size_t mask_ = 0;             ///< slots in use - 1 (a power of two minus one)
+  int shift_ = 64;                   ///< 64 - log2(slots in use)
+  std::size_t size_ = 0;             ///< indexed edges
 };
 
 /**
