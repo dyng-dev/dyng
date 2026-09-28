@@ -62,7 +62,6 @@ Before 0.1.0 anything may change.
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 3.0), `SECURITY.md` and `SUPPORT.md`.
 - The M1a retrospective with the acceptance record and a re-estimate of the roadmap
   (`docs/developer/retrospectives/M1a.md`).
-
 - `legacy_batch_options::mosp_lenient` (MOSP's accept/reject rules for batch files; used by
   `dyng-compat-mosp`), `sssp::stats::packed_parents` on both CPU backends, and the golden group
   `noncanonical` (107 cases with perturbed tie parents; 495 golden cases in total).
@@ -115,6 +114,12 @@ Before 0.1.0 anything may change.
   tools, compared file for file with the committed one); `compare.py` configurations with
   `/int32` or `/int64`; `dyng-compat-mosp --edge-type`; `perf_ab.py kernels` (the fused kernels
   of both programs under Nsight Compute at locked clocks) and `perf_ab.py edge-type`.
+- The `sssp_update` example takes the `cuda` backend (CTest `example.sssp_update.cuda`, label
+  `gpu`, skipped without a device); the README describes the CUDA build, the CUDA presets and the
+  local GPU gate; the sssp page documents the CUDA engines, the determinism level, the
+  performance against both originals and a "paper vs fixed code" section.
+- The M1b retrospective with the acceptance record and a re-estimate of the roadmap
+  (`docs/developer/retrospectives/M1b.md`).
 
 ### Changed
 
@@ -125,7 +130,10 @@ Before 0.1.0 anything may change.
   (`list_gather::gather_pair()`, `nowait` loops) and the per-thread lists live in the workspace on
   their own cache lines; the same trees, 0.63-0.89x of MOSP-OpenMP's time on the 10K local
   batches.
-
+- The Doxygen convention check (`ci/doxygen_coverage.py`) requires `@sync` or `@async` on every
+  CUDA-capable public function: those taking `resources`, a `stream_ref` or a
+  `memory_resource_ref`, and the stream-ordered members of `buffer` and `resources`; the memory
+  resources, `buffer` and `resources` document how they order their work.
 - Placement (PLAN 4.6 rule 5): a graph belongs to the backend of the resources that built it;
   sssp on resources of the other kind (host backends versus cuda) throws `invalid_argument_error`
   instead of copying, and `graph::clone(res)` / `result::clone(res)` move a graph or a result.
@@ -133,7 +141,6 @@ Before 0.1.0 anything may change.
   resources; `graph::space()` is `device` for a CUDA graph.
 - `dyng::testing::check_sssp_tree(g, r)` copies a device result to the host first.
 - The host-side work of a call with CUDA resources uses the OpenMP threads.
-
 - The CPU presets (`dev`, `release`, `relwithdebinfo`, `parity`) pin `DYNG_ENABLE_CUDA=OFF`; a
   build without a preset enables CUDA when a CUDA compiler is found. With CUDA built and a device
   visible, `default_backend()` is `cuda`.
