@@ -156,32 +156,41 @@ The timed regions are defined in `parity/timed_regions/cycle_count.toml`:
 
 Measured in M2a (`parity/results/M2a.md`: OpenMP, 56 threads, the libgomp defaults on both
 sides, the unpatched original, exclusive lock, medians of 11 A/B rounds; COLLAB 5), on the Xeon
-Gold 6258R:
+Gold 6258R, port `0679ed1` (after the review fixes):
 
 | Case | Region | CycleEnumeration-GPU (ms) | dynG (ms) | Ratio |
 |---|---|---:|---:|---:|
-| DD k = 3 | static end to end | 256.0 | 245.3 | 0.958 |
-| DD k = 4 | static end to end | 251.7 | 235.3 | 0.935 |
-| DD k = 5 | static end to end | 302.0 | 270.1 | 0.895 |
-| DD k = 6 | static end to end | 516.4 | 425.4 | 0.824 |
-| DD k = 7 | static end to end | 1,479.5 | 1,038.8 | 0.702 |
-| GitHub k = 3 | static end to end | 713.9 | 603.9 | 0.846 |
-| GitHub k = 4 | static end to end | 2,800.2 | 1,785.3 | 0.638 |
-| Twitch k = 3 | static end to end | 1,817.9 | 1,595.8 | 0.878 |
-| Twitch k = 4 | static end to end | 3,624.1 | 2,746.9 | 0.758 |
-| COLLAB k = 3 | static end to end | 44,513.4 | 29,028.0 | 0.652 |
-| DD 25K+25K, k = 4 | update | 26.7 | 25.6 | 0.959 |
-| GitHub 25K+25K, k = 4 | update | 294.0 | 281.9 | 0.959 |
-| Twitch 25K+25K, k = 4 | update | 160.7 | 121.9 | 0.759 |
-| DD 25K+25K, k = 4 | update end to end | 355.0 | 316.9 | 0.893 |
-| GitHub 25K+25K, k = 4 | update end to end | 3,292.2 | 2,241.4 | 0.681 |
-| Twitch 25K+25K, k = 4 | update end to end | 4,596.2 | 3,659.3 | 0.796 |
+| DD k = 3 | static end to end | 256.7 | 238.7 | 0.930 |
+| DD k = 4 | static end to end | 251.2 | 229.6 | 0.914 |
+| DD k = 5 | static end to end | 293.3 | 262.9 | 0.896 |
+| DD k = 6 | static end to end | 514.5 | 373.1 | 0.725 |
+| DD k = 7 | static end to end | 1,488.7 | 892.7 | 0.600 |
+| GitHub k = 3 | static end to end | 719.2 | 562.4 | 0.782 |
+| GitHub k = 4 | static end to end | 2,806.5 | 1,472.0 | 0.525 |
+| Twitch k = 3 | static end to end | 1,812.5 | 1,537.2 | 0.848 |
+| Twitch k = 4 | static end to end | 3,608.7 | 2,474.1 | 0.686 |
+| COLLAB k = 3 | static end to end | 44,565.1 | 12,961.1 | 0.291 |
+| DD 25K+25K, k = 4 | update | 26.1 | 16.9 | 0.646 |
+| GitHub 25K+25K, k = 4 | update | 294.3 | 130.7 | 0.444 |
+| Twitch 25K+25K, k = 4 | update | 157.8 | 76.1 | 0.483 |
+| DD 25K+25K, k = 4 | update end to end | 368.1 | 308.5 | 0.838 |
+| GitHub 25K+25K, k = 4 | update end to end | 3,283.7 | 1,769.2 | 0.539 |
+| Twitch 25K+25K, k = 4 | update end to end | 4,576.7 | 3,329.1 | 0.727 |
 
-Every gate is met; the two noisy DD regions gave the same verdict with 31 rounds (static k = 3
-0.932, update 0.960). The difference most likely comes from the dense per-thread histograms (the
-original updates a `std::map` per cycle found; not profiled); it is not an algorithmic change.
-Where the time goes in the update (DD 25K+25K, ms): normalize 2.6, count_minus 8.8, commit 5.8,
-identify_affected 2.0, count_plus 5.3.
+Every gate is met, with no contaminated measurement (the harness records the foreign CPU load of
+every run). Where the gains come from is measured separately (PLAN 8.6; `parity/results/M2a.md`
+Section 3.4, with copies of the original that differ in one change each):
+
+- the straight-ported search is already faster than the original's with the same dense
+  histogram (count 0.70-0.94): it scans 4-byte column ids, the original 24-byte adjacency entries;
+- the dense per-thread histogram instead of a `std::map` increment per cycle saves about a fifth
+  of the original's count at k = 4 and nothing measurable at k = 3;
+- the explicit-stack searches of the review fixes scan a row in a tight loop (count 0.76-0.82 of
+  the recursive port on the large cases), and the update adds each cycle to the thread's counters
+  and looks ownership up in a flat table (update 0.48-0.69 of the port before the fixes).
+
+Where the time goes in the update (DD 25K+25K, ms): normalize 2.5, count_minus 3.6, commit 6.3,
+identify_affected 0.3, count_plus 3.7.
 
 The update is not always much faster than a recompute: with the original's fast static kernels,
 its own measurements give update-vs-recompute ratios of 1.2x on DD, 5.2x on GitHub, 4.2x on

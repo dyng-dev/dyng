@@ -148,13 +148,29 @@ Before 0.1.0 anything may change.
   generated batches, exported twice identically), its replay (`parity/compare.py cycle_count`, CTest
   `parity.cycle_count.cycle_enum_0a976ad`), the OpenMP A/B (`parity/perf_ab.py cycle_count run`)
   and `dyng-compat-cycle-enum --write-batch`. Results in `parity/results/M2a.md`: 72 of 72 replays
-  byte-identical (sequential, OpenMP 4 and 56 threads); every OpenMP-56 gate met (static end to
-  end 0.64-0.96x, update 25K+25K 0.76-0.96x of the original).
+  byte-identical (sequential, OpenMP 4 and 56 threads); every OpenMP-56 gate met (at `1148d15`:
+  static end to end 0.64-0.96x, update 25K+25K 0.76-0.96x of the original).
 - M2a close-out: `docs/algorithms/cycle_count.md` completed (graph requirements, determinism,
   the performance table, 'Differences from the paper': exact k-bounded enumeration, not the
   paper's approximate kappa-truncated TruCy, and the 'Paper vs fixed code' table of
   CycleEnumeration-GPU's fixes); the README lists `cycle_count` on the CPU backends (CUDA: M2b);
   the M2a retrospective. The TruCy / DynTruCy paper is cited as submitted.
+- M2a review fixes (`cycle_count`, graph, io, tests, harness): the searches keep their paths on
+  explicit stacks (the default unbounded options no longer overflow the thread's stack; a
+  300,000-vertex ring is counted and updated in the tests); histograms and engines are sized by
+  min(k, max(n, 2)) and the update's per-thread counters grow with the cycles found, so an
+  unbounded update costs what its searches cost (it was O(changes x n)); the ownership index is a
+  flat table that allocates nothing in a steady-state update (I9); the OpenMP phase sizes its
+  scratch in the region that uses it; `static_assert` on unsupported graph types; `as_sets`
+  combinations that cannot apply a batch are rejected at graph construction; the stats and the
+  unbounded cost per backend are documented; seed replay (`DYNG_TEST_SEED`, `DYNG_TEST_SEEDS`)
+  in the randomized cycle_count suites; a third mutation test (`skip_workspace_resize`);
+  `DYNG_STDLIB_ASSERTIONS` (`_GLIBCXX_ASSERTIONS` in Debug builds); the contamination monitor
+  and isolation experiments of the cycle_count performance harness
+  (`parity/contamination.py`, `--baseline-exe`, `parity/experiments/cycle_enum`); the parity
+  certificate `parity/results/M2a.md` re-measured at `0679ed1` (72 of 72 replays; static end to
+  end 0.53-0.93x, update 0.44-0.65x of the original, COLLAB k = 3 0.29x) with the improvements
+  isolated in their own section.
 
 ### Changed
 
