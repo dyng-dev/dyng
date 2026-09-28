@@ -48,10 +48,25 @@ bool edge_less(const change<vertex_t>& a, const change<vertex_t>& b) noexcept {
   return a.source != b.source ? a.source < b.source : a.target < b.target;
 }
 
+/// Order by source, target, then position in the batch: a total order (the positions are unique),
+/// so an unstable sort gives what a stable sort by (source, target) gives.
+template <typename vertex_t>
+bool edge_index_less(const change<vertex_t>& a, const change<vertex_t>& b) noexcept {
+  if (a.source != b.source) {
+    return a.source < b.source;
+  }
+  return a.target != b.target ? a.target < b.target : a.index < b.index;
+}
+
 /// sort_and_dedup(): sorted by (source, target); of equal pairs the first in batch order stays.
+/// std::sort as the original's (a stable sort costs 1.5x on 100K changes and allocates a buffer);
+/// the position breaks ties, so the first in batch order stays as before. A list already in that
+/// order is not sorted again (one linear check: generated batches and CSR-ordered changes are).
 template <typename vertex_t>
 void sort_and_dedup(std::vector<change<vertex_t>>& changes) {
-  std::stable_sort(changes.begin(), changes.end(), edge_less<vertex_t>);
+  if (!std::is_sorted(changes.begin(), changes.end(), edge_index_less<vertex_t>)) {
+    std::sort(changes.begin(), changes.end(), edge_index_less<vertex_t>);
+  }
   changes.erase(std::unique(changes.begin(), changes.end(),
                             [](const change<vertex_t>& a, const change<vertex_t>& b) {
                               return a.source == b.source && a.target == b.target;
