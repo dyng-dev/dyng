@@ -53,6 +53,15 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          stage sssp.enact_fused, which has the same scope; the port's device time (CUDA events)
          of that stage is recorded next to it (the original has no device timer). The regions
          under 10 ms need >= 20 runs (PLAN 8.6).
+         --lock-clocks (cuda; default boost) locks GPU --gpu's SM and memory clocks for the
+         whole A/B without root (ADR 0018): Nsight Compute profiles the idle helper
+         parity/clock_lock/clock_holder.cu under `ncu --clock-control boost|base`, which holds
+         the lock for every process on the GPU while the helper lives; neither timed program is
+         profiled. The monitor then requires every busy GPU sample of both sides to be at the
+         locked clocks (otherwise the round is repeated), and `ncu --clock-control reset` runs
+         at the end in any case. --lock-clocks none keeps the default clocks (DVFS): the
+         as-measured reading, in which a program's own GPU work before the timed region decides
+         the P-state of its kernels.
 
 kernels  (cuda) runs both sides A/B/A/B under Nsight Compute with the GPU clocks locked to base
          (`ncu --clock-control base --cache-control none`, no root needed) and compares the
@@ -88,6 +97,7 @@ import platform
 import re
 import resource
 import shutil
+import signal
 import statistics
 import subprocess
 import sys
@@ -420,13 +430,24 @@ class MachineMonitor:
       (nvidia-smi -lms, NVML), and every second the compute processes on it that are neither this
       harness nor its descendants (the originals' bench/gpumon.sh rule).
 
-    A window is contaminated when the foreign CPU load exceeds max_foreign_cpu cores or a foreign
-    compute process was on the timed GPU; `run` and `edge-type` then repeat the round.
+    A window is contaminated when the foreign CPU load exceeds max_foreign_cpu cores, a foreign
+    compute process was on the timed GPU, or (with `locked`, the (SM, memory) MHz of a
+    ClockLock) a busy GPU sample ran at other clocks; `run` and `edge-type` then repeat the round.
+    `allowed_pids` are the harness's own GPU processes that do not descend from it (the clock
+    holder, a child of ncu).
     """
 
-    def __init__(self, gpu: int | None, max_foreign_cpu: float = MAX_FOREIGN_CPU) -> None:
+    def __init__(
+        self,
+        gpu: int | None,
+        max_foreign_cpu: float = MAX_FOREIGN_CPU,
+        allowed_pids: set[int] | None = None,
+        locked: tuple[int, int] | None = None,
+    ) -> None:
         self.gpu = gpu
         self.max_foreign_cpu = max_foreign_cpu
+        self.allowed_pids = set(allowed_pids or ())
+        self.locked = locked
         self.gpu_samples: list[tuple] = []  # (time, pstate, sm MHz, memory MHz, utilization %)
         self.queue_samples: list[tuple] = []  # (time, procs_running, the program's running threads)
         self.foreign_gpu: list[tuple] = []  # (time, pid, process name)
@@ -492,7 +513,7 @@ class MachineMonitor:
                         continue
                     with contextlib.suppress(ValueError):
                         pid = int(parts[0])
-                        if not descends_from(pid, me):
+                        if pid not in self.allowed_pids and not descends_from(pid, me):
                             self.foreign_gpu.append((now, pid, parts[2]))
 
     def _poll_queue(self) -> None:
@@ -572,9 +593,157 @@ class MachineMonitor:
             }
             if foreign:
                 reasons.append(f"foreign compute processes on GPU {self.gpu}: {foreign}")
+            if self.locked is not None:
+                off = sorted({(s[2], s[3]) for s in busy_gpu if (s[2], s[3]) != self.locked})
+                rec["gpu"]["clocks_locked"] = not off
+                if off:
+                    reasons.append(
+                        f"GPU {self.gpu} busy at (SM, memory) MHz {off}, not at the locked "
+                        f"{self.locked}"
+                    )
         rec["contaminated"] = bool(reasons)
         rec["reasons"] = reasons
         return rec
+
+
+class ClockLock:
+    """The GPU clocks locked for the whole A/B without root (ADR 0018, rule 4): Nsight Compute
+    profiles parity/clock_lock/clock_holder.cu under `--clock-control <mode>` and keeps the
+    GPU's SM and memory clocks locked while that process lives, for every process on the GPU;
+    neither timed program is profiled. On exit the holder ends normally (ncu restores the
+    clocks) and `ncu --clock-control reset` resets them in any case. `mode` none does nothing.
+
+    `record` describes the lock for the JSON; `locked` is the (SM, memory) MHz the GPU reports
+    under it, which the monitor requires of every busy sample; `pid` is the holder's process."""
+
+    SOURCE = REPO / "parity" / "clock_lock" / "clock_holder.cu"
+    READY = re.compile(r"clock_holder ready pid=(\d+)")
+
+    def __init__(self, gpu: int, mode: str) -> None:
+        self.gpu = gpu
+        self.mode = mode
+        self.pid: int | None = None
+        self.locked: tuple[int, int] | None = None
+        self.record: dict = {"control": mode}
+        self._proc: subprocess.Popen | None = None
+        self._lines: list[str] = []
+        self._reader: threading.Thread | None = None
+
+    def _env(self) -> dict:
+        return dict(os.environ, CUDA_VISIBLE_DEVICES=str(self.gpu))
+
+    def _clocks(self) -> tuple[str, int, int]:
+        out = subprocess.check_output(
+            [
+                "nvidia-smi",
+                "-i",
+                str(self.gpu),
+                "--query-gpu=pstate,clocks.sm,clocks.mem",
+                "--format=csv,noheader,nounits",
+            ],
+            text=True,
+        )
+        state, sm, mem = [x.strip() for x in out.strip().split(",")]
+        return state, int(sm), int(mem)
+
+    def _build(self) -> Path:
+        import hashlib
+
+        digest = hashlib.sha256(self.SOURCE.read_bytes()).hexdigest()[:12]
+        exe = SCRATCH / "tools" / "clock_holder" / digest / "clock_holder"
+        if not exe.is_file():
+            nvcc = os.environ.get("NVCC") or next(
+                (
+                    str(c)
+                    for c in [Path("/usr/local/cuda-13.1/bin/nvcc"), shutil.which("nvcc")]
+                    if c and Path(c).is_file()
+                ),
+                None,
+            )
+            if nvcc is None:
+                raise SystemExit("--lock-clocks: nvcc not found (set NVCC)")
+            exe.parent.mkdir(parents=True, exist_ok=True)
+            check_call([nvcc, "-O2", "-arch=native", self.SOURCE, "-o", exe])
+        return exe
+
+    def _read(self) -> None:
+        assert self._proc is not None and self._proc.stdout is not None
+        for line in self._proc.stdout:
+            self._lines.append(line)
+
+    def __enter__(self) -> ClockLock:
+        if self.mode == "none":
+            self.record["note"] = "default GPU clocks (DVFS), as measured"
+            return self
+        before = self._clocks()
+        exe = self._build()
+        self._proc = subprocess.Popen(
+            [str(NCU), "--clock-control", self.mode, "--metrics", "gpu__time_duration.sum", exe],
+            env=self._env(),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        self._reader = threading.Thread(target=self._read, daemon=True)
+        self._reader.start()
+        deadline = time.time() + 120.0
+        while self.pid is None:
+            for line in list(self._lines):
+                m = self.READY.search(line)
+                if m:
+                    self.pid = int(m.group(1))
+            if self.pid is None:
+                if self._proc.poll() is not None or time.time() > deadline:
+                    self.__exit__()
+                    raise SystemExit(
+                        "--lock-clocks: the clock holder failed:\n" + "".join(self._lines)
+                    )
+                time.sleep(0.1)
+        time.sleep(1.0)
+        state, sm, mem = self._clocks()
+        self.locked = (sm, mem)
+        version = subprocess.run([str(NCU), "--version"], capture_output=True, text=True)
+        self.record.update(
+            {
+                "tool": (version.stdout.strip().splitlines() or ["ncu"])[-1],
+                "how": f"ncu --clock-control {self.mode} on parity/clock_lock/clock_holder.cu "
+                "(idle, one kernel) for the whole A/B; the timed programs are not profiled",
+                "before": {"pstate": before[0], "sm_mhz": before[1], "memory_mhz": before[2]},
+                "locked": {"pstate": state, "sm_mhz": sm, "memory_mhz": mem},
+                "check": "every busy GPU sample of every accepted round at the locked clocks",
+            }
+        )
+        print(
+            f"GPU {self.gpu}: clocks locked ({self.mode}): SM {sm} MHz, memory {mem} MHz",
+            flush=True,
+        )
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self.mode == "none":
+            return
+        if self._proc is not None:
+            with contextlib.suppress(OSError, ValueError):
+                assert self._proc.stdin is not None
+                self._proc.stdin.close()
+            try:
+                self._proc.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                self._proc.kill()
+                self._proc.wait()
+            self._proc = None
+        # A killed ncu session leaves the clocks locked; reset them in every case.
+        subprocess.run(
+            [str(NCU), "--clock-control", "reset"],
+            env=self._env(),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        with contextlib.suppress(OSError, ValueError, subprocess.CalledProcessError):
+            state, sm, mem = self._clocks()
+            self.record["after_reset"] = {"pstate": state, "sm_mhz": sm, "memory_mhz": mem}
 
 
 def monitor_summary(rounds: list[dict], rejected: list[dict], limit: float) -> dict:
@@ -603,6 +772,10 @@ def monitor_summary(rounds: list[dict], rejected: list[dict], limit: float) -> d
                     sm.append(g["sm_mhz"]["median"])
             out[f"{side}_pstates_busy"] = states
             out[f"{side}_sm_mhz_busy_median"] = statistics.median(sm) if sm else None
+        if "clocks_locked" in rounds[0]["original"]["gpu"]:
+            out["clocks_locked_in_every_round"] = all(
+                r[s]["gpu"]["clocks_locked"] for r in rounds for s in sides
+            )
     return out
 
 
@@ -1013,8 +1186,13 @@ def run(args: argparse.Namespace) -> int:
     results = {}
     failures = []
     work = Path(tempfile.mkdtemp(prefix="dyng-perf-", dir=SCRATCH / "runs"))
+    mode = args.lock_clocks if args.backend == "cuda" else "none"
+    clocks = ClockLock(args.gpu, mode)
     try:
-        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+        with (
+            perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock),
+            clocks,
+        ):
             for batch in batches:
                 common = batch_args(data, batch)
                 # Correctness guard: both write their outputs once; the files must be identical.
@@ -1026,7 +1204,12 @@ def run(args: argparse.Namespace) -> int:
                 loads = []
                 timing = work / "timing.csv"
                 watched, rejected = [], []
-                with MachineMonitor(monitored_gpu(args), args.max_foreign_cpu) as monitor:
+                with MachineMonitor(
+                    monitored_gpu(args),
+                    args.max_foreign_cpu,
+                    allowed_pids={clocks.pid} if clocks.pid else None,
+                    locked=clocks.locked,
+                ) as monitor:
                     r = 0
                     while r < args.runs:
                         before = os.getloadavg()[0]
@@ -1076,8 +1259,10 @@ def run(args: argparse.Namespace) -> int:
         for e in res["regions"]
         if "gate" in e and not e["within_gate"]
     ]
+    if args.backend == "cuda":
+        print(f"GPU clocks: {json.dumps(clocks.record)}")
     if args.json:
-        write_json(args, results, build, ref, marker, regions, reference)
+        write_json(args, results, build, ref, marker, regions, reference, clocks.record)
     for f in failures:
         print(f"CORRECTNESS: {f}", file=sys.stderr)
     if failures:
@@ -1396,7 +1581,7 @@ def port_commit() -> str:
     return head + ("+dirty" if dirty else "")
 
 
-def write_json(args, results, build, ref, marker, regions, reference) -> None:
+def write_json(args, results, build, ref, marker, regions, reference, clocks=None) -> None:
     # The records this script writes (parity/results/) do not make the measured code dirty.
     doc = {
         "schema": 3,
@@ -1431,6 +1616,7 @@ def write_json(args, results, build, ref, marker, regions, reference) -> None:
                 + args.env
             ),
             "lock": LOCK_STATUS,
+            "gpu_clocks": clocks if args.backend == "cuda" else "not applicable",
             "contamination_monitor": (
                 "per round and side: foreign CPU load (machine busy time minus the harness and "
                 "its programs), run queue, GPU P-state / clocks / utilization every 50 ms and "
@@ -1513,6 +1699,16 @@ def main() -> int:
             action="store_true",
             help="record contaminated rounds instead of repeating them (flagged in the JSON)",
         )
+        if command == "run":
+            r.add_argument(
+                "--lock-clocks",
+                choices=["boost", "base", "none"],
+                default="boost",
+                help="--backend cuda: lock the GPU's clocks for the whole A/B with Nsight "
+                "Compute (no root; ADR 0018): boost (the default: the highest lockable clocks, "
+                "on the RTX A5000 SM 1695 MHz / memory 7601 MHz), base, or none (default clocks, "
+                "DVFS: the as-measured reading)",
+            )
         r.add_argument(
             "--enforce-gates",
             action="store_true",
@@ -1525,6 +1721,9 @@ def main() -> int:
         if args.graph not in HOPS:
             parser.error(f"--hops is required for {args.graph} (known: {sorted(HOPS)})")
         args.hops = HOPS[args.graph]
+    # SIGTERM / SIGHUP unwind like Ctrl-C, so that a clock lock is always released.
+    for sig in (signal.SIGTERM, signal.SIGHUP):
+        signal.signal(sig, lambda signum, frame: sys.exit(128 + signum))
     commands = {"prepare": prepare, "run": run, "edge-type": edge_type, "kernels": kernels}
     return commands[args.command](args)
 

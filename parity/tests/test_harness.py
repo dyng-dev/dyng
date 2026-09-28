@@ -309,3 +309,34 @@ def test_perf_ab_rejects_contaminated_rounds() -> None:
     rounds = [{"original": clean, "port": dict(clean, foreign_cpu_cores=0.4), "round": 1}]
     summary = perf.monitor_summary(rounds, rejected, 2.0)
     assert summary["foreign_cpu_cores_max"] == 0.4 and len(summary["rejected"]) == 3
+
+
+def test_perf_ab_monitor_requires_the_locked_clocks() -> None:
+    perf = load("parity/perf_ab.py")
+    monitor = perf.MachineMonitor(0, locked=(1695, 7601))  # not entered: no sampling threads
+    now = perf.time.time()
+    # (time, P-state, SM MHz, memory MHz, utilization %); idle samples are not checked.
+    monitor.gpu_samples = [
+        (now + 0.1, "P2", 1695, 7601, 80),
+        (now + 0.2, "P8", 210, 405, 0),
+    ]
+    window = monitor.window(now, now + 0.3, 0.3, 0.0, 0.0, 0.0)
+    assert window["gpu"]["clocks_locked"] and not window["contaminated"], window
+    monitor.gpu_samples.append((now + 0.25, "P0", 1905, 8001, 90))
+    window = monitor.window(now, now + 0.3, 0.3, 0.0, 0.0, 0.0)
+    assert not window["gpu"]["clocks_locked"] and window["contaminated"], window
+    assert "not at the locked (1695, 7601)" in window["reasons"][0]
+
+
+def test_perf_ab_monitor_allows_the_clock_holder() -> None:
+    perf = load("parity/perf_ab.py")
+    monitor = perf.MachineMonitor(0, allowed_pids={4242})
+    assert 4242 in monitor.allowed_pids and monitor.locked is None
+
+
+def test_perf_ab_clock_lock_none_does_nothing() -> None:
+    perf = load("parity/perf_ab.py")
+    with perf.ClockLock(0, "none") as clocks:
+        assert clocks.pid is None and clocks.locked is None
+    assert clocks.record["control"] == "none"
+    assert perf.ClockLock.SOURCE.is_file()
