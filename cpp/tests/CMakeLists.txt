@@ -36,7 +36,7 @@ set(DYNG_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data")
 dyng_add_test(
   NAME dyng_graph_tests
   SOURCES graph/apply_test.cpp graph/graph_test.cpp graph/mosp_apply_fixture_test.cpp
-          graph/set_semantics_test.cpp
+          graph/set_semantics_test.cpp graph/structural_change_test.cpp
   LABELS cpu graph
   LIBRARIES dyng::testing
 )
@@ -53,7 +53,7 @@ dyng_add_test(
 # test skips when they are missing). Label parity, not cpu: run with `ctest -L parity`.
 dyng_add_test(
   NAME dyng_cycle_enum_parity_tests
-  SOURCES parity/cycle_enum_datasets_test.cpp
+  SOURCES parity/cycle_enum_datasets_test.cpp parity/cycle_count_datasets_test.cpp
   LABELS parity cycle_count
 )
 foreach(_dyng_test dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests
@@ -72,6 +72,97 @@ dyng_add_test(
 )
 target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+
+# cycle_count (CycleEnumeration-GPU@0a976ad): API, the original's suites, randomized differential
+# tests against the oracles and parity with the original's histograms on the committed fixtures.
+set(DYNG_CYCLE_COUNT_TEST_SOURCES
+    algorithms/cycle_count/cycle_count_test.cpp algorithms/cycle_count/cycle_count_random_test.cpp
+    algorithms/cycle_count/cycle_count_fixture_test.cpp
+    algorithms/cycle_count/cycle_count_kernels_test.cpp
+)
+dyng_add_test(
+  NAME dyng_cycle_count_tests
+  SOURCES ${DYNG_CYCLE_COUNT_TEST_SOURCES}
+  LABELS cpu cycle_count
+  LIBRARIES dyng::testing
+)
+target_compile_definitions(
+  dyng_cycle_count_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
+)
+target_include_directories(dyng_cycle_count_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+
+# Mutation tests (PLAN Section 8.4): the recorded mutations of CycleEnumeration-GPU (double counting
+# 5-cycles; a weakened ownership rule) must make the randomized cycle_count suite fail. Each is
+# compiled into a copy of libdyng whose cycle_count module is rebuilt with DYNG_MUTATION_<NAME>
+# (a static library of every other module's objects plus the mutated ones), against which the
+# suite cycle_count_random_test.cpp is linked; the CTest passes when the suite fails. A control
+# copy built the same way without a mutation must pass. Label "mutation" (and cpu).
+option(DYNG_MUTATION_TESTS "Build the mutation tests of cycle_count" ON)
+if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_property(_dyng_cc_sources GLOBAL PROPERTY DYNG_MODULE_SOURCES_dyng_cycle_count)
+  set(_dyng_other_objects)
+  foreach(_module IN LISTS _dyng_modules)
+    if(NOT _module STREQUAL "dyng_cycle_count")
+      list(APPEND _dyng_other_objects $<TARGET_OBJECTS:${_module}>)
+    endif()
+  endforeach()
+  foreach(_mutant "control;;pass" "double_count_5;DYNG_MUTATION_DOUBLE_COUNT_5;fail"
+                  "weak_ownership;DYNG_MUTATION_WEAK_OWNERSHIP;fail"
+  )
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _expect)
+    set(_lib dyng_mutant_${_name})
+    add_library(${_lib}_cycle_count OBJECT ${_dyng_cc_sources})
+    add_library(
+      ${_lib} STATIC ${_dyng_other_objects} $<TARGET_OBJECTS:${_lib}_cycle_count>
+                     "${PROJECT_SOURCE_DIR}/cpp/src/testing/cycle_oracle.cpp"
+    )
+    foreach(_target ${_lib}_cycle_count ${_lib})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+    endforeach()
+    set_target_properties(${_lib}_cycle_count PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(
+      ${_lib} INTERFACE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+    )
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE CUDA::cudart)
+    endif()
+    set(_exe dyng_cycle_count_mutant_${_name})
+    add_executable(${_exe} algorithms/cycle_count/cycle_count_random_test.cpp)
+    target_link_libraries(
+      ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+    )
+    target_compile_features(${_exe} PRIVATE cxx_std_17)
+    dyng_set_warnings(${_exe})
+    dyng_enable_sanitizers(${_exe})
+    add_test(NAME cycle_count.mutation.${_name}
+             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                     -DNAME=${_name} -P "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+    )
+    set_tests_properties(
+      cycle_count.mutation.${_name} PROPERTIES LABELS "cpu;mutation;cycle_count" ENVIRONMENT
+                                               "${DYNG_TEST_ENVIRONMENT}"
+    )
+  endforeach()
+endif()
 
 dyng_add_test(
   NAME dyng_testing_tests
