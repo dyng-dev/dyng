@@ -11,8 +11,13 @@
  * program), testing::brute_force_simple_cycles and testing::edge_set_after_batch (the graph after
  * a batch computed without the library's apply). This executable is also built against the two
  * recorded mutations (tests/CMakeLists.txt, DYNG_MUTATION_TESTS), which must make it fail.
+ *
+ * Every trial draws from its own seed and prints it on failure; replay one with
+ * `DYNG_TEST_SEED=<seed> ctest -R <test>`, widen the campaign with `DYNG_TEST_SEEDS=<n>` (PLAN
+ * Section 8.1).
  */
 #include "support/cycle_count_support.hpp"
+#include "support/test_seeds.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/cycle_count.hpp>
@@ -40,6 +45,8 @@ using dyng::test::cc_counts;
 using dyng::test::cc_edge;
 using dyng::test::cc_graph;
 using dyng::test::cc_resources;
+using dyng::test::seed_trace;
+using dyng::test::test_seeds;
 namespace cycle_count = dyng::cycle_count;
 namespace legacy = dyng::generators::legacy;
 using graph_u = dyng::graph<std::int32_t, std::int64_t, unweighted>;
@@ -47,6 +54,16 @@ using graph_u32 = dyng::graph<std::int32_t, std::int32_t, unweighted>;
 using graph_w = dyng::graph<std::int32_t, std::int64_t, std::int32_t>;
 using hist = std::vector<std::uint64_t>;
 using batch_u = dyng::edge_batch<std::int32_t, unweighted>;
+
+/// The trial index of a seed of test_seeds(base, n) (any value for a replayed foreign seed).
+int trial_of(std::uint64_t seed, std::uint64_t base) {
+  return static_cast<int>((seed - base) & 0x7fffffffU);
+}
+
+/// At least two thirds of the seeds must have given a checkable case (a replay of one seed: 0).
+std::size_t required_checks(std::size_t seeds) {
+  return seeds > 1 ? seeds * 2 / 3 : 0;
+}
 
 cycle_count::options bound(int k) {
   cycle_count::options opt;
@@ -70,8 +87,10 @@ class CycleCountRandom : public ::testing::TestWithParam<backend> {
 // RandomizedStaticParityTest.CpuCountersMatchOracle: 400 random graphs (sparse, dense, hub-heavy,
 // with and without self-loops), k in 2..8 or no bound.
 TEST_P(CycleCountRandom, StaticMatchesOracle) {
-  std::mt19937_64 rng(20260925);
-  for (int trial = 0; trial < 400; ++trial) {
+  for (const std::uint64_t seed : test_seeds(20260925, 400)) {
+    std::mt19937_64 rng(seed);
+    const int trial = trial_of(seed, 20260925);
+    SCOPED_TRACE(seed_trace(seed));
     const dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 2, 10);
     const graph_u g =
         cc_graph<graph_u>(res_, spec.vertex_count, dyng::test::cc_random_edges(spec, rng));
@@ -87,35 +106,41 @@ TEST_P(CycleCountRandom, StaticMatchesOracle) {
 // Larger sparse and hub-heavy graphs against the brute force (the host part of
 // CudaCountersMatchBruteForceOnLargerGraphs), 32-bit and 64-bit offsets.
 TEST_P(CycleCountRandom, StaticMatchesBruteForceOnLargerGraphs) {
-  std::mt19937_64 rng(99);
   struct shape {
     std::int64_t vertices;
     double probability;
     std::int64_t hubs;
     int k;
   };
-  for (const shape& c : {shape{40, 0.12, 0, 6}, shape{60, 0.05, 2, 5}, shape{30, 0.3, 0, 5},
-                         shape{80, 0.03, 3, 6}, shape{50, 0.06, 1, 7}, shape{25, 0.5, 0, 4}}) {
-    dyng::test::cc_spec spec;
-    spec.vertex_count = c.vertices;
-    spec.edge_probability = c.probability;
-    spec.hubs = c.hubs;
-    spec.self_loop_probability = 0.05;
-    const std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
-    const graph_u g = cc_graph<graph_u>(res_, c.vertices, edges);
-    const graph_u32 g32 = cc_graph<graph_u32>(res_, c.vertices, edges);
-    SCOPED_TRACE(::testing::Message() << "n=" << c.vertices << " k=" << c.k);
-    const hist expected = dyng::test::cc_brute(res_, g, c.k);
-    EXPECT_EQ(cc_counts(cycle_count::compute(res_, g, bound(c.k))), expected);
-    EXPECT_EQ(cc_counts(cycle_count::compute(res_, g32, bound(c.k))), expected);
+  for (const std::uint64_t seed : test_seeds(99, 1)) {
+    std::mt19937_64 rng(seed);
+    SCOPED_TRACE(seed_trace(seed));
+    for (const shape& c : {shape{40, 0.12, 0, 6}, shape{60, 0.05, 2, 5}, shape{30, 0.3, 0, 5},
+                           shape{80, 0.03, 3, 6}, shape{50, 0.06, 1, 7}, shape{25, 0.5, 0, 4}}) {
+      dyng::test::cc_spec spec;
+      spec.vertex_count = c.vertices;
+      spec.edge_probability = c.probability;
+      spec.hubs = c.hubs;
+      spec.self_loop_probability = 0.05;
+      const std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+      const graph_u g = cc_graph<graph_u>(res_, c.vertices, edges);
+      const graph_u32 g32 = cc_graph<graph_u32>(res_, c.vertices, edges);
+      SCOPED_TRACE(::testing::Message() << "n=" << c.vertices << " k=" << c.k);
+      const hist expected = dyng::test::cc_brute(res_, g, c.k);
+      EXPECT_EQ(cc_counts(cycle_count::compute(res_, g, bound(c.k))), expected);
+      EXPECT_EQ(cc_counts(cycle_count::compute(res_, g32, bound(c.k))), expected);
+    }
   }
 }
 
 // RandomizedUpdateParityTest.ValidBatchesMatchRecount: generated (valid) batches.
 TEST_P(CycleCountRandom, GeneratedBatchesMatchRecount) {
-  std::mt19937_64 rng(8675309);
-  int checked = 0;
-  for (int trial = 0; trial < 300; ++trial) {
+  const std::vector<std::uint64_t> seeds = test_seeds(8675309, 300);
+  std::size_t checked = 0;
+  for (const std::uint64_t seed : seeds) {
+    std::mt19937_64 rng(seed);
+    const int trial = trial_of(seed, 8675309);
+    SCOPED_TRACE(seed_trace(seed));
     dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 3, 11);
     spec.self_loop_probability = 0.0;  // the parser never produces self-loops
     graph_u g = cc_graph<graph_u>(res_, spec.vertex_count, dyng::test::cc_random_edges(spec, rng));
@@ -141,13 +166,15 @@ TEST_P(CycleCountRandom, GeneratedBatchesMatchRecount) {
     EXPECT_EQ(st.insertions, params.num_insertions);
     ++checked;
   }
-  EXPECT_GT(checked, 200);
+  EXPECT_GE(checked, required_checks(seeds.size()));
 }
 
 // RandomizedUpdateParityTest.LargerGraphsMatchBruteForceRecount.
 TEST_P(CycleCountRandom, LargerGraphsMatchBruteForceRecount) {
-  std::mt19937_64 rng(1234);
-  for (int trial = 0; trial < 12; ++trial) {
+  for (const std::uint64_t seed : test_seeds(1234, 12)) {
+    std::mt19937_64 rng(seed);
+    const int trial = trial_of(seed, 1234);
+    SCOPED_TRACE(seed_trace(seed));
     dyng::test::cc_spec spec;
     spec.vertex_count = 40 + static_cast<std::int64_t>(rng() % 40);
     spec.edge_probability = 0.04 + 0.02 * static_cast<double>(trial % 4);
@@ -208,8 +235,10 @@ TEST_P(CycleCountRandom, ChangesThatDoNotAlterTheGraphAreNoOps) {
 // UpdateBatchValidationTest.ArbitraryBatchesMatchRecount: ids past the graph, coinciding endpoints,
 // existing insertions, absent deletions, delete-then-reinsert.
 TEST_P(CycleCountRandom, ArbitraryBatchesMatchRecount) {
-  std::mt19937_64 rng(4711);
-  for (int trial = 0; trial < 200; ++trial) {
+  for (const std::uint64_t seed : test_seeds(4711, 200)) {
+    std::mt19937_64 rng(seed);
+    const int trial = trial_of(seed, 4711);
+    SCOPED_TRACE(seed_trace(seed));
     dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 3, 9);
     spec.self_loop_probability = 0.0;
     graph_u g = cc_graph<graph_u>(res_, spec.vertex_count, dyng::test::cc_random_edges(spec, rng));
@@ -243,10 +272,12 @@ TEST_P(CycleCountRandom, ArbitraryBatchesMatchRecount) {
 TEST_P(CycleCountRandom, UpdateMatchesRecompute) {
   constexpr std::int32_t vertices = 8;
   constexpr int k = 6;
-  std::mt19937_64 rng(12345);
   std::uniform_real_distribution<double> coin(0.0, 1.0);
-  int checked = 0;
-  for (int trial = 0; trial < 200; ++trial) {
+  const std::vector<std::uint64_t> seeds = test_seeds(12345, 200);
+  std::size_t checked = 0;
+  for (const std::uint64_t seed : seeds) {
+    std::mt19937_64 rng(seed);
+    SCOPED_TRACE(seed_trace(seed));
     std::vector<cc_edge> edges;
     for (std::int32_t u = 0; u < vertices; ++u) {
       for (std::int32_t v = 0; v < vertices; ++v) {
@@ -269,16 +300,17 @@ TEST_P(CycleCountRandom, UpdateMatchesRecompute) {
     }
     cycle_count::result r = cycle_count::compute(res_, g, bound(k));
     (void)cycle_count::update(res_, g, batch.view(), r);
-    ASSERT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(k))))
-        << "trial " << trial;
+    ASSERT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(k))));
     ++checked;
   }
-  EXPECT_GT(checked, 100);
+  EXPECT_GE(checked, required_checks(seeds.size()) / 2);
 }
 
 // DynamicUpdateParityTest.AllDeleteAndAllInsertMatchRecompute.
 TEST_P(CycleCountRandom, DeleteOnlyAndInsertOnlyMatchRecompute) {
-  std::mt19937_64 rng(99);
+  const std::uint64_t seed = test_seeds(99, 1).front();
+  SCOPED_TRACE(seed_trace(seed));
+  std::mt19937_64 rng(seed);
   std::uniform_real_distribution<double> coin(0.0, 1.0);
   std::vector<cc_edge> edges;
   for (std::int32_t u = 0; u < 8; ++u) {
@@ -311,8 +343,9 @@ TEST_P(CycleCountRandom, DeleteOnlyAndInsertOnlyMatchRecompute) {
 
 // Unbounded results: the update counts every cycle through the change edges.
 TEST_P(CycleCountRandom, UnboundedUpdatesMatchOracle) {
-  std::mt19937_64 rng(31337);
-  for (int trial = 0; trial < 60; ++trial) {
+  for (const std::uint64_t seed : test_seeds(31337, 60)) {
+    std::mt19937_64 rng(seed);
+    SCOPED_TRACE(seed_trace(seed));
     dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 2, 8);
     graph_u g = cc_graph<graph_u>(res_, spec.vertex_count, dyng::test::cc_random_edges(spec, rng));
     cycle_count::result r = cycle_count::compute(res_, g);
@@ -327,7 +360,6 @@ TEST_P(CycleCountRandom, UnboundedUpdatesMatchOracle) {
       insertions.emplace_back(vertex(rng), vertex(rng));
     }
     const batch_u batch = cc_batch<unweighted>(deletions, insertions);
-    SCOPED_TRACE(::testing::Message() << "trial " << trial);
     const hist expected = recount_after(res_, g, batch, -1);
     (void)cycle_count::update(res_, g, batch.view(), r);
     EXPECT_EQ(cc_counts(r), expected);
@@ -364,9 +396,11 @@ TEST_P(CycleCountRandom, EverySemanticsMatchesCompute) {
     p.directed = false;
     variants.emplace_back("undirected upsert", p);
   }
-  std::mt19937_64 rng(777);
   for (const auto& [name, props] : variants) {
-    for (int trial = 0; trial < 25; ++trial) {
+    for (const std::uint64_t seed : test_seeds(777, 25)) {
+      std::mt19937_64 rng(seed);
+      const int trial = trial_of(seed, 777);
+      SCOPED_TRACE(seed_trace(seed));
       dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 3, 9);
       std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
       if (!props.directed) {  // a symmetric edge list
@@ -405,8 +439,9 @@ TEST_P(CycleCountRandom, EverySemanticsMatchesCompute) {
 }
 
 TEST_P(CycleCountRandom, InverseBatchRestoresTheHistogram) {
-  std::mt19937_64 rng(4242);
-  for (int trial = 0; trial < 40; ++trial) {
+  for (const std::uint64_t seed : test_seeds(4242, 40)) {
+    std::mt19937_64 rng(seed);
+    SCOPED_TRACE(seed_trace(seed));
     dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 4, 10);
     spec.self_loop_probability = 0.0;
     graph_u g = cc_graph<graph_u>(res_, spec.vertex_count, dyng::test::cc_random_edges(spec, rng));
@@ -432,7 +467,7 @@ TEST_P(CycleCountRandom, InverseBatchRestoresTheHistogram) {
     }
     const cycle_count::stats forward = cycle_count::update(res_, g, batch.view(), r);
     const cycle_count::stats back = cycle_count::update(res_, g, inverse.view(), r);
-    EXPECT_EQ(cc_counts(r), before) << "trial " << trial;
+    EXPECT_EQ(cc_counts(r), before);
     EXPECT_EQ(forward.cycles_added, back.cycles_removed);
     EXPECT_EQ(forward.cycles_removed, back.cycles_added);
   }
@@ -450,10 +485,11 @@ TEST(CycleCountRandomOpenmp, ThreadCountsAgree) {
   if (!dyng::backend_available(backend::openmp)) {
     GTEST_SKIP() << "OpenMP is not built";
   }
-  std::mt19937_64 rng(654);
   std::uniform_real_distribution<double> coin(0.0, 1.0);
   const resources seq = resources::sequential();
-  for (int trial = 0; trial < 40; ++trial) {
+  for (const std::uint64_t seed : test_seeds(654, 40)) {
+    std::mt19937_64 rng(seed);
+    SCOPED_TRACE(seed_trace(seed));
     std::vector<cc_edge> edges;
     for (std::int32_t u = 0; u < 8; ++u) {
       for (std::int32_t v = 0; v < 8; ++v) {
@@ -480,7 +516,7 @@ TEST(CycleCountRandomOpenmp, ThreadCountsAgree) {
       graph_u g = cc_graph<graph_u>(omp, 8, edges);
       cycle_count::result r = cycle_count::compute(omp, g, bound(6));
       const cycle_count::stats so = cycle_count::update(omp, g, batch.view(), r);
-      EXPECT_EQ(cc_counts(r), cc_counts(rs)) << "trial " << trial << " threads " << threads;
+      EXPECT_EQ(cc_counts(r), cc_counts(rs)) << "threads " << threads;
       EXPECT_EQ(so.cycles_added, ss.cycles_added);
       EXPECT_EQ(so.cycles_removed, ss.cycles_removed);
       EXPECT_EQ(so.affected, ss.affected);
