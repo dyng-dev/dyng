@@ -34,6 +34,20 @@ if(DYNG_BUILD_TESTS)
     compat_cycle_enum.cli PROPERTIES LABELS "cpu;cycle_count;compat" ENVIRONMENT
                                      "${DYNG_TEST_ENVIRONMENT}"
   )
+  if(DYNG_ENABLE_CUDA)
+    # The runs of the original CLI on its cuda backend (M2b).
+    add_test(
+      NAME compat_cycle_enum.cli.cuda
+      COMMAND
+        ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-cycle-enum>
+        -DDATA=${PROJECT_SOURCE_DIR}/cpp/tests/data/cycle_enum -DOPENMP=${DYNG_ENABLE_OPENMP}
+        -DSET=cuda -P ${CMAKE_CURRENT_SOURCE_DIR}/cycle_enum/run_and_compare.cmake
+    )
+    set_tests_properties(
+      compat_cycle_enum.cli.cuda PROPERTIES LABELS "gpu;cycle_count;compat" ENVIRONMENT
+                                            "${DYNG_TEST_ENVIRONMENT}" SKIP_RETURN_CODE 77
+    )
+  endif()
 endif()
 
 if(DYNG_BUILD_TESTS)

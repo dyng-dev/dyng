@@ -319,6 +319,38 @@ while read -r what g k rest; do
   cross_check "${out}/counts/${name}.expected" "${out}/counts/${name}.cuda"
   i=$((i + 1))
 done <"${out}/counts/cases.txt"
+# cli/cuda_cases.txt: runs of the original CLI on its cuda backend; cli/cudaNN.out and
+# cli/cudaNN.status as for cli/cases.txt (the compat test with SET=cuda, label gpu).
+cat >"${out}/cli/cuda_cases.txt" <<'EOF2'
+--input @DATA@/parser/reference_sample.txt --backend cuda --max-cycle-length 5
+--input @DATA@/parser/tudataset_A.txt --backend cuda --max-cycle-length 5 --report-timing
+--input @DATA@/parser/tudataset_A.txt --backend gpu --cuda-scheduler naive --max-cycle-length 4
+--input @DATA@/generator/graph300.txt --backend cuda --cuda-work-items two-hop --max-cycle-length 6
+--input @DATA@/generator/graph300.txt --backend cuda --cuda-work-items roots --max-length 5
+--input @DATA@/generator/graph300.txt --backend cuda --cuda-work-items edges --max-cycle-length 7
+--input @DATA@/generator/graph300.txt --backend cuda --cuda-scheduler work-queue --cuda-work-items auto --max-cycle-length 8
+--input @DATA@/generator/ring40.txt --backend cuda --max-cycle-length 64
+--input @DATA@/generator/ring40.txt --backend cuda --cuda-device 0 --max-cycle-length 100
+--input @DATA@/parser/tudataset_A.txt --task update --backend cuda --max-cycle-length 4 --deletes 40 --inserts 40 --batch-seed 1
+--input @DATA@/parser/tudataset_A.txt --task update --backend cuda --max-cycle-length 5 --deletes 100 --inserts 100 --batch-seed 2 --compare-recompute
+--input @DATA@/generator/graph300.txt --task update --backend cuda --max-cycle-length 6 --deletes 50 --inserts 60 --batch-seed 12345 --batch-locality 299
+--input @DATA@/generator/graph300.txt --task incremental --backend cuda --max-cycle-length 7 --deletes 390 --inserts 0 --batch-seed 4
+--input @DATA@/generator/ring40.txt --task update --backend cuda --max-cycle-length 40 --deletes 1 --inserts 1 --batch-seed 5
+--input @DATA@/parser/tudataset_A.txt --backend cuda
+--input @DATA@/generator/graph300.txt --backend cuda --max-cycle-length 65
+--input @DATA@/parser/tudataset_A.txt --backend cuda --algorithm read-tarjan --max-cycle-length 4
+--input @DATA@/generator/graph300.txt --task update --backend cuda --max-cycle-length 65 --deletes 5 --inserts 5 --batch-seed 1
+EOF2
+i=0
+while read -r line; do
+  name="$(printf 'cuda%02d' "${i}")"
+  # shellcheck disable=SC2086
+  set -- ${line//@DATA@/${out}}
+  status=0
+  "${cli}" "$@" >"${out}/cli/${name}.out" 2>/dev/null || status=$?
+  echo "${status}" >"${out}/cli/${name}.status"
+  i=$((i + 1))
+done <"${out}/cli/cuda_cases.txt"
 
 # --- 6. Dataset digests --------------------------------------------------------------------------
 if [ "${datasets}" -eq 1 ]; then
