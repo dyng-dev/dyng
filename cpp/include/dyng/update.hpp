@@ -27,6 +27,8 @@ namespace detail {
 
 template <typename vertex_t>
 struct apply_delta;
+template <typename vertex_t>
+struct normalized_batch;
 
 /**
  * @brief One result taking part in an update (type-erased; each algorithm implements it).
@@ -78,6 +80,17 @@ class update_participant {
    * @brief Mark the result unusable after after_apply() threw (later updates throw).
    */
   virtual void poison() noexcept = 0;
+
+  /**
+   * @brief Receive Step 0 of batch_semantics::as_sets (the normalized batch of G_t), which
+   *        run_update() computes once for every participant and the commit; called before
+   *        before_apply(), with nullptr for graphs without set semantics. The object lives until
+   *        run_update() returns.
+   * @param[in] normalized The normalized batch, or nullptr.
+   */
+  virtual void use_normalized(const normalized_batch<vertex_t>* normalized) noexcept {
+    (void)normalized;
+  }
 
   /**
    * @brief Whether after_apply() reads what the commit prepares for the engines of G_{t+1}: the

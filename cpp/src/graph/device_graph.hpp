@@ -6,28 +6,39 @@
  * @brief The resident device copy of a graph built with CUDA resources: out- and in-edge CSR with
  *        one contiguous weight column per objective (MOSP-CUDA's DeviceGraph).
  *
- * Host-only declarations (buffers, no CUDA headers); build_device_graph() lives in
- * device_graph.cu. In this release the batch is still applied on the host, as MOSP-CUDA applies
- * it (applyChangeBatch), and the updated out-edges are uploaded once per graph state; the in-edges
- * are built on the device (count, scan, fill), as uploadDeviceGraph() does. A device apply that
- * keeps the resident arrays across batches comes later (PLAN Section 6.4.1).
+ * Host-only declarations (buffers, no CUDA headers); the functions live in device_graph.cu and
+ * apply_set_device.cu. A batch is applied on the host, as MOSP-CUDA applies it (applyChangeBatch),
+ * and the updated out-edges are uploaded once per graph state; the in-edges are built on the
+ * device (count, scan, fill), as uploadDeviceGraph() does, when an engine first needs them. A
+ * resident graph under batch_semantics::as_sets without weight columns keeps its arrays on the
+ * device across batches instead: apply_set_batch_device() merges the normalized batch into the
+ * sorted rows on the device (CycleEnumeration-GPU's build_next_rows_kernel; PLAN Section 6.4.1).
  */
 #pragma once
+
+#include "graph/normalized_batch.hpp"
 
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/csr.hpp>
 
 #include <cstddef>
+#include <cstdint>
 
 namespace dyng::detail {
 
+/// The value of device_graph::insertion_ids at an edge the last batch did not insert (the byte
+/// pattern 0x7f of cudaMemset; larger than every change id, as CycleEnumeration-GPU's kNoOwner).
+inline constexpr std::int32_t no_change_id = 0x7f7f7f7f;
+
 /**
- * @brief One graph state on the device: out- and in-edges, objective-major weights.
+ * @brief One graph state on the device: out-edges and, once an engine asked for them, in-edges;
+ *        objective-major weights.
  *
  * The row order of the in-edges is unspecified (the fill appends with atomics, as MOSP-CUDA's
  * fillReverseKernel does); the device engines only take minima over in-neighbours, which do not
- * depend on it. The host CSR of the graph stays the authoritative copy (view(), to_csr()).
+ * depend on it. The host CSR of the graph is the authoritative copy unless a device apply
+ * produced this state (graph_impl).
  *
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
@@ -45,6 +56,12 @@ struct device_graph {
   buffer<edge_t> in_row_ptr;     ///< n + 1 in-edge offsets
   buffer<vertex_t> in_col_ind;   ///< m in-neighbours
   buffer<weight_t> in_weights;   ///< K columns of m weights, in-edge order
+  bool has_in_edges = false;     ///< the in-edge arrays are built
+  /// Per out-edge of this state: the id (position in normalized_batch::insertions) of the
+  /// insertion that added it, if a device apply produced this state (apply_set_batch_device),
+  /// else no_change_id; empty for an uploaded state. The cycle_count insert phase reads it as its
+  /// ownership array, as CycleEnumeration-GPU's count_update_cycles_device reads next_owner.
+  buffer<std::int32_t> insertion_ids;
 
   /**
    * @brief The weight column of objective `k`, out-edge order (MOSP's DeviceGraph::out(k)).
@@ -71,15 +88,16 @@ struct device_graph {
   [[nodiscard]] std::size_t bytes() const noexcept {
     return out_row_ptr.size() * sizeof(edge_t) + out_col_ind.size() * sizeof(vertex_t) +
            out_weights.size() * sizeof(weight_t) + in_row_ptr.size() * sizeof(edge_t) +
-           in_col_ind.size() * sizeof(vertex_t) + in_weights.size() * sizeof(weight_t);
+           in_col_ind.size() * sizeof(vertex_t) + in_weights.size() * sizeof(weight_t) +
+           insertion_ids.size() * sizeof(std::int32_t);
   }
 };
 
 /**
- * @brief Upload the out-edges of `host` and build the in-edges on the device (MOSP-CUDA's
- *        uploadDeviceGraph(): only the out-edge CSR crosses PCIe; in-degrees, exclusive scan and
- *        fill run on the device). The weights are uploaded as they are stored, one column per
- *        objective, so MOSP's split kernel (edge-major to objective-major) is not needed.
+ * @brief Upload the out-edges of `host` (MOSP-CUDA's uploadDeviceGraph(): only the out-edge CSR
+ *        crosses PCIe). The weights are uploaded as they are stored, one column per objective, so
+ *        MOSP's split kernel (edge-major to objective-major) is not needed. The in-edges are built
+ *        separately (build_device_in_edges) when an engine needs them.
  *
  * Ordered on the stream of `res` (no synchronization; graph_impl::device_edges() waits for it);
  * memory from `res.memory()`.
@@ -97,5 +115,74 @@ struct device_graph {
 template <typename vertex_t, typename edge_t, typename weight_t>
 void build_device_graph(const resources& res, const csr<vertex_t, edge_t, weight_t>& host,
                         device_graph<vertex_t, edge_t, weight_t>& out);
+
+/**
+ * @brief Build the in-edges of a device graph on the device (MOSP-CUDA's uploadDeviceGraph():
+ *        in-degrees, exclusive scan and fill); no-op if they are built.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res Resources of the CUDA backend (the graph's device).
+ * @param[in,out] g   The device graph.
+ * @throws out_of_memory_error if device memory runs out.
+ * @throws cuda_error          if the runtime reports an error.
+ * @throws not_supported_error if CUDA is not built.
+ * @async
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void build_device_in_edges(const resources& res, device_graph<vertex_t, edge_t, weight_t>& g);
+
+/**
+ * @brief Copy the out-edges of a device graph into a host CSR (the download of a stale host copy;
+ *        synchronous, on the legacy default stream of the graph's device, after the device apply
+ *        that produced the state completed).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]  g    The device graph.
+ * @param[out] host The out-edge CSR (resized).
+ * @throws cuda_error          if the runtime reports an error.
+ * @throws not_supported_error if CUDA is not built.
+ * @sync
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void download_device_graph(const device_graph<vertex_t, edge_t, weight_t>& g,
+                           csr<vertex_t, edge_t, weight_t>& host);
+
+/**
+ * @brief Whether apply_set_batch_device() can apply batches to graphs of these types.
+ * @tparam vertex_t Vertex id type.
+ * @return true for 32-bit vertex ids (the merge kernels read vertex ids as 32-bit values).
+ */
+template <typename vertex_t>
+inline constexpr bool device_set_apply_supported_v = sizeof(vertex_t) == 4;
+
+/**
+ * @brief Apply a normalized batch (batch_semantics::as_sets) to a resident graph on the device:
+ *        the next graph state, built from `base` by CycleEnumeration-GPU's device row merge
+ *        (change_rows_kernel, next_degree_kernel, an exclusive scan and build_next_rows_kernel),
+ *        with its insertion_ids.
+ *
+ * Precondition: `base` has no weight columns and `normalized` was computed for its state. The
+ * rows of the result are sorted and equal (row offsets and neighbours) to the host set apply's.
+ * Synchronizes the stream of `res` at the end (the host copy of the state may be downloaded on
+ * another stream).
+ * @tparam vertex_t Vertex id type (32-bit).
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]  res        Resources of the CUDA backend (the graph's device).
+ * @param[in]  base       The resident graph G_t.
+ * @param[in]  normalized The normalized batch of G_t.
+ * @param[out] next       Receives G_{t+1} (out-edges and insertion_ids; no in-edges).
+ * @throws out_of_memory_error if device memory runs out.
+ * @throws cuda_error          if the runtime reports an error.
+ * @throws not_supported_error if CUDA is not built.
+ * @sync
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void apply_set_batch_device(const resources& res,
+                            const device_graph<vertex_t, edge_t, weight_t>& base,
+                            const normalized_batch<vertex_t>& normalized,
+                            device_graph<vertex_t, edge_t, weight_t>& next);
 
 }  // namespace dyng::detail

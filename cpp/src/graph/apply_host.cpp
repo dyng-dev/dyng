@@ -59,7 +59,8 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
                                const edge_batch_view<vertex_t, weight_t>& batch,
                                const graph_properties& props,
                                csr<vertex_t, edge_t, weight_t>& updated,
-                               apply_delta<vertex_t>* delta, int threads) {
+                               apply_delta<vertex_t>* delta, int threads,
+                               const normalized_batch<vertex_t>* normalized) {
   const batch_semantics& semantics = props.semantics;
   const int num_objectives = original.num_weights;
   const auto k_count = static_cast<std::size_t>(num_objectives);
@@ -71,7 +72,7 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
   // --- Validation ------------------------------------------------------------------------------
   validate_batch_shape(batch, num_objectives);
   if (semantics.as_sets) {
-    return apply_set_batch_host(original, batch, props, updated, delta, threads);
+    return apply_set_batch_host(original, batch, props, updated, delta, threads, normalized);
   }
 
   apply_summary summary;
@@ -877,7 +878,7 @@ void build_from_csr_host(const csr_view<vertex_t, edge_t, weight_t>& input,
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::string integrity_violation(const graph_impl<vertex_t, edge_t, weight_t>& impl) {
-  const auto& g = impl.out;
+  const auto& g = impl.host_edges();
   const std::int64_t n = g.num_vertices();
   const std::size_t m = g.col_ind.size();
   if (g.row_ptr.empty()) {
@@ -976,7 +977,7 @@ std::string integrity_violation(const graph_impl<vertex_t, edge_t, weight_t>& im
 #define DYNG_INSTANTIATE_APPLY_HOST(V, E, W)                                                     \
   template apply_summary apply_batch_host<V, E, W>(                                              \
       const csr<V, E, W>&, const edge_batch_view<V, W>&, const graph_properties&, csr<V, E, W>&, \
-      apply_delta<V>*, int);                                                                     \
+      apply_delta<V>*, int, const normalized_batch<V>*);                                         \
   template void transpose_host<V, E, W>(const csr<V, E, W>&, csr<V, E, W>&, int);                \
   template void build_from_edges_host<V, E, W>(const edge_list_view<V, W>&,                      \
                                                const graph_properties&, csr<V, E, W>&);          \

@@ -4,15 +4,16 @@
 // uploadDeviceGraph)
 /**
  * @file device_graph.cu
- * @brief Upload a graph state once and derive its in-edges on the device (the resident device
- *        graph of the CUDA backend).
+ * @brief Upload a graph state once and derive its in-edges on the device when an engine needs
+ *        them (the resident device graph of the CUDA backend), and download a stale host copy.
  *
  * Straight port of MOSP-CUDA's uploadDeviceGraph(), with mechanical changes only: names, templates
  * on the index types, namespace dyng::detail, dyng buffers from the memory resource of `res`, the
  * stream of `res` instead of the legacy default stream, exceptions instead of `bool` + `cerr`, no
- * cudaDeviceSynchronize() at the end (the caller's next work is ordered on the same stream). The
- * host CSR already stores its weights objective-major, so they are uploaded as they are and the
- * split kernel (edge-major to objective-major) is gone.
+ * cudaDeviceSynchronize() at the end (the caller's next work is ordered on the same stream), and
+ * the in-edges built in a second function (build_device_in_edges), only for the engines that read
+ * them. The host CSR already stores its weights objective-major, so they are uploaded as they are
+ * and the split kernel (edge-major to objective-major) is gone.
  */
 #include "core/cuda_runtime.hpp"
 #include "graph/device_graph.hpp"
@@ -93,23 +94,30 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void build_device_graph(const resources& res, const csr<vertex_t, edge_t, weight_t>& host,
                         device_graph<vertex_t, edge_t, weight_t>& out) {
   const scoped_device guard(res.device());
-  const auto stream = static_cast<cudaStream_t>(res.stream().get());
   out = device_graph<vertex_t, edge_t, weight_t>();  // release first: one copy at a time
-  const vertex_t n = host.num_vertices();
-  const edge_t m = host.num_edges();
-  const int num_weights = host.num_weights;
   out.device = res.device();
-  out.num_vertices = n;
-  out.num_edges = m;
-  out.num_weights = num_weights;
-
+  out.num_vertices = host.num_vertices();
+  out.num_edges = host.num_edges();
+  out.num_weights = host.num_weights;
   upload(res, out.out_row_ptr, host.row_ptr);
   upload(res, out.out_col_ind, host.col_ind);
   upload(res, out.out_weights, host.weights);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void build_device_in_edges(const resources& res, device_graph<vertex_t, edge_t, weight_t>& out) {
+  if (out.has_in_edges) {
+    return;
+  }
+  const scoped_device guard(res.device());
+  const auto stream = static_cast<cudaStream_t>(res.stream().get());
+  const vertex_t n = out.num_vertices;
+  const edge_t m = out.num_edges;
+  const int num_weights = out.num_weights;
   const auto rows = static_cast<std::size_t>(n) + 1;
   out.in_row_ptr = buffer<edge_t>(res, rows);
   out.in_col_ind = buffer<vertex_t>(res, static_cast<std::size_t>(m));
-  out.in_weights = buffer<weight_t>(res, host.weights.size());
+  out.in_weights = buffer<weight_t>(res, out.out_weights.size());
 
   // Reverse CSR: in-degrees, exclusive scan, fill.
   buffer<edge_t> cursor(res, rows);
@@ -136,11 +144,32 @@ void build_device_graph(const resources& res, const csr<vertex_t, edge_t, weight
             out.out_weights.data(), cursor.data(), out.in_col_ind.data(), out.in_weights.data());
     DYNG_CHECK_KERNEL(stream);
   }
+  out.has_in_edges = true;
 }
 
-#define DYNG_INSTANTIATE_DEVICE_GRAPH(V, E, W)                                     \
-  template void build_device_graph<V, E, W>(const resources&, const csr<V, E, W>&, \
-                                            device_graph<V, E, W>&);
+template <typename vertex_t, typename edge_t, typename weight_t>
+void download_device_graph(const device_graph<vertex_t, edge_t, weight_t>& g,
+                           csr<vertex_t, edge_t, weight_t>& host) {
+  const scoped_device guard(g.device);
+  host.num_weights = g.num_weights;
+  host.row_ptr.resize(g.out_row_ptr.size());
+  host.col_ind.resize(g.out_col_ind.size());
+  host.weights.resize(g.out_weights.size());
+  const auto copy = [](auto* dst, const auto* src, std::size_t count) {
+    if (count > 0) {
+      DYNG_CUDA_TRY(cudaMemcpy(dst, src, count * sizeof(*dst), cudaMemcpyDeviceToHost));
+    }
+  };
+  copy(host.row_ptr.data(), g.out_row_ptr.data(), host.row_ptr.size());
+  copy(host.col_ind.data(), g.out_col_ind.data(), host.col_ind.size());
+  copy(host.weights.data(), g.out_weights.data(), host.weights.size());
+}
+
+#define DYNG_INSTANTIATE_DEVICE_GRAPH(V, E, W)                                            \
+  template void build_device_graph<V, E, W>(const resources&, const csr<V, E, W>&,        \
+                                            device_graph<V, E, W>&);                      \
+  template void build_device_in_edges<V, E, W>(const resources&, device_graph<V, E, W>&); \
+  template void download_device_graph<V, E, W>(const device_graph<V, E, W>&, csr<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_DEVICE_GRAPH)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_DEVICE_GRAPH)
 #undef DYNG_INSTANTIATE_DEVICE_GRAPH

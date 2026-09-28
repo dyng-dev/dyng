@@ -11,6 +11,7 @@
 #pragma once
 
 #include "graph/graph_impl.hpp"
+#include "graph/normalized_batch.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/memory.hpp>
@@ -82,6 +83,8 @@ void expect_host_batch(const edge_batch_view<vertex_t, weight_t>& batch, const c
  * @param[out] delta    The effective changes and the weight-increase flags (may be nullptr).
  * @param[in]  threads  OpenMP threads for assembling the updated CSR (1 = sequential; the result
  *                      is the same for every thread count).
+ * @param[in]  normalized Under batch_semantics::as_sets: Step 0 already computed for `original`
+ *                      and `batch` (normalize_set_batch), or nullptr; ignored otherwise.
  * @return The counters of the batch.
  * @throws invalid_argument_error on malformed batches or a semantics rule that says error.
  * @throws not_supported_error    for vertex insertions or deletions.
@@ -92,7 +95,8 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
                                const edge_batch_view<vertex_t, weight_t>& batch,
                                const graph_properties& props,
                                csr<vertex_t, edge_t, weight_t>& updated,
-                               apply_delta<vertex_t>* delta, int threads = 1);
+                               apply_delta<vertex_t>* delta, int threads = 1,
+                               const normalized_batch<vertex_t>* normalized = nullptr);
 
 /**
  * @brief apply_batch_host() for batch_semantics::as_sets (apply_set_host.cpp): Step 0 reduces
@@ -112,6 +116,8 @@ apply_summary apply_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
  * @param[out] delta    The normalized batch (may be nullptr).
  * @param[in]  threads  OpenMP threads for assembling the updated CSR (the result is the same for
  *                      every thread count).
+ * @param[in]  normalized Step 0 already computed for `original` and `batch` (normalize_set_batch;
+ *                      run_update computes it once per update), or nullptr to compute it here.
  * @return The counters of the batch.
  * @throws invalid_argument_error on malformed batches or a semantics rule that says error.
  * @throws not_supported_error    if the properties do not allow set semantics (see as_sets).
@@ -122,7 +128,8 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
                                    const edge_batch_view<vertex_t, weight_t>& batch,
                                    const graph_properties& props,
                                    csr<vertex_t, edge_t, weight_t>& updated,
-                                   apply_delta<vertex_t>* delta, int threads = 1);
+                                   apply_delta<vertex_t>* delta, int threads = 1,
+                                   const normalized_batch<vertex_t>* normalized = nullptr);
 
 /**
  * @brief The reverse graph: row v lists u for every edge u -> v (with its weights).

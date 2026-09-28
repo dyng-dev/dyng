@@ -155,7 +155,7 @@ dyng_add_module(
   NAME graph
   SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp
           src/graph/structural_change.cpp
-  CUDA_SOURCES src/graph/device_graph.cu
+  CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu
 )
 
 dyng_add_module(

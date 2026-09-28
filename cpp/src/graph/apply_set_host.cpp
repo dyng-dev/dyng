@@ -22,6 +22,7 @@
 #include "graph/apply_common.hpp"
 #include "graph/apply_host.hpp"
 #include "graph/instantiate.hpp"
+#include "graph/normalized_batch.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
@@ -37,14 +38,9 @@ namespace dyng::detail {
 
 namespace {
 
-/// One requested change: the edge and its position in the batch (for the weights of an insertion
-/// and for error messages).
+/// One requested change (normalized_batch.hpp).
 template <typename vertex_t>
-struct change {
-  vertex_t source;
-  vertex_t target;
-  std::size_t index;
-};
+using change = set_change<vertex_t>;
 
 /// Lexicographic order by source, then target (EdgeChange's operator<).
 template <typename vertex_t>
@@ -78,25 +74,24 @@ bool has_edge(const csr<vertex_t, edge_t, weight_t>& g, std::int64_t n, vertex_t
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
-                                   const edge_batch_view<vertex_t, weight_t>& batch,
-                                   const graph_properties& props,
-                                   csr<vertex_t, edge_t, weight_t>& updated,
-                                   apply_delta<vertex_t>* delta, int threads) {
+void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
+                         const edge_batch_view<vertex_t, weight_t>& batch,
+                         const graph_properties& props, normalized_batch<vertex_t>& out) {
   const batch_semantics& semantics = props.semantics;
   expect_supported_semantics(props);  // checked at construction as well
   validate_batch_shape(batch, original.num_weights);
-  const int num_objectives = original.num_weights;
-  const auto k_count = static_cast<std::size_t>(num_objectives);
   const std::int64_t n = original.num_vertices();
   const std::size_t m = original.col_ind.size();
   const std::size_t num_inserts = batch.insert_src.size();
   const std::size_t num_deletes = batch.delete_src.size();
   apply_summary summary;
+  out.device_current = false;
 
   // --- Step 0: the requested operations (ids, self-loops, vertex growth, undirected expansion) --
-  std::vector<change<vertex_t>> insertions;
-  std::vector<change<vertex_t>> deletions;
+  std::vector<change<vertex_t>>& insertions = out.requested_insertions;
+  std::vector<change<vertex_t>>& deletions = out.requested_deletions;
+  insertions.clear();
+  deletions.clear();
   insertions.reserve(props.directed ? num_inserts : 2 * num_inserts);
   deletions.reserve(props.directed ? num_deletes : 2 * num_deletes);
   std::int64_t n_after = n;
@@ -140,7 +135,8 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
   // --- prepare_batch(): sorted, duplicate-free lists without no-ops ------------------------------
   sort_and_dedup(deletions);
   sort_and_dedup(insertions);
-  std::vector<change<vertex_t>> del_kept;
+  std::vector<change<vertex_t>>& del_kept = out.deletions;
+  del_kept.clear();
   del_kept.reserve(deletions.size());
   for (const change<vertex_t>& d : deletions) {
     if (has_edge(original, n, d.source, d.target)) {
@@ -152,7 +148,8 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
                  ") names a missing edge and batch_semantics::on_missing_delete is error");
     ++summary.ignored_deletions;
   }
-  std::vector<change<vertex_t>> ins_kept;
+  std::vector<change<vertex_t>>& ins_kept = out.insertions;
+  ins_kept.clear();
   ins_kept.reserve(insertions.size());
   for (const change<vertex_t>& c : insertions) {
     if (has_edge(original, n, c.source, c.target)) {
@@ -173,6 +170,39 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
   summary.inserted_edges = static_cast<std::int64_t>(ins_kept.size());
   summary.inserted_vertices = n_after - n;
   summary.num_vertices_after = n_after;
+  out.summary = summary;
+  out.vertices_before = n;
+  out.vertices_after = n_after;
+  out.edges_before = static_cast<std::int64_t>(m);
+  out.edges_after = static_cast<std::int64_t>(m) + static_cast<std::int64_t>(ins_kept.size()) -
+                    static_cast<std::int64_t>(del_kept.size());
+  (void)checked_edge_count<edge_t>(out.edges_after);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& original,
+                                   const edge_batch_view<vertex_t, weight_t>& batch,
+                                   const graph_properties& props,
+                                   csr<vertex_t, edge_t, weight_t>& updated,
+                                   apply_delta<vertex_t>* delta, int threads,
+                                   const normalized_batch<vertex_t>* normalized) {
+  normalized_batch<vertex_t> local;
+  if (normalized == nullptr) {
+    normalize_set_batch(original, batch, props, local);
+    normalized = &local;
+  } else {
+    DYNG_EXPECTS(normalized->vertices_before == original.num_vertices() &&
+                     normalized->edges_before == static_cast<std::int64_t>(original.col_ind.size()),
+                 "apply (set semantics): the normalized batch belongs to another graph state");
+  }
+  const int num_objectives = original.num_weights;
+  const auto k_count = static_cast<std::size_t>(num_objectives);
+  const std::int64_t n = original.num_vertices();
+  const std::size_t m = original.col_ind.size();
+  const std::int64_t n_after = normalized->vertices_after;
+  const std::vector<change<vertex_t>>& del_kept = normalized->deletions;
+  const std::vector<change<vertex_t>>& ins_kept = normalized->insertions;
+  const apply_summary summary = normalized->summary;
 
   // --- apply_batch(): the touched rows and their change ranges -----------------------------------
   // Both lists are sorted by source, so the changes of a row are contiguous in each list.
@@ -337,28 +367,17 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
   }
 
   if (delta != nullptr) {
-    delta->num_weights = num_objectives;
-    delta->insert_src.resize(ins_kept.size());
-    delta->insert_dst.resize(ins_kept.size());
-    for (std::size_t i = 0; i < ins_kept.size(); ++i) {
-      delta->insert_src[i] = ins_kept[i].source;
-      delta->insert_dst[i] = ins_kept[i].target;
-    }
-    delta->weight_increased.assign(ins_kept.size() * k_count, 0);
-    delta->delete_src.resize(del_kept.size());
-    delta->delete_dst.resize(del_kept.size());
-    for (std::size_t d = 0; d < del_kept.size(); ++d) {
-      delta->delete_src[d] = del_kept[d].source;
-      delta->delete_dst[d] = del_kept[d].target;
-    }
+    fill_set_delta(*normalized, *delta, num_objectives);
   }
   return summary;
 }
 
 #define DYNG_INSTANTIATE_APPLY_SET_HOST(V, E, W)                                                 \
+  template void normalize_set_batch<V, E, W>(const csr<V, E, W>&, const edge_batch_view<V, W>&,  \
+                                             const graph_properties&, normalized_batch<V>&);     \
   template apply_summary apply_set_batch_host<V, E, W>(                                          \
       const csr<V, E, W>&, const edge_batch_view<V, W>&, const graph_properties&, csr<V, E, W>&, \
-      apply_delta<V>*, int);
+      apply_delta<V>*, int, const normalized_batch<V>*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_HOST)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_HOST)
 #undef DYNG_INSTANTIATE_APPLY_SET_HOST
