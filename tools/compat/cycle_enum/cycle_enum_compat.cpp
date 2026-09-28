@@ -500,14 +500,17 @@ void expect_ported(const cli_config& config) {
   }
 }
 
-/// The device time of a stage (0 if it did not run).
-double device_ms(const dyng::profiler& prof, std::string_view name) {
-  for (const dyng::stage_record& r : prof.stages()) {
-    if (r.name == name) {
-      return r.device_ms;
+/// The device time of a stage in the calls completed after the first `from` samples (the timed
+/// call only: the profiler of a shared handle also records the untimed calls before it).
+double device_ms(const dyng::profiler& prof, std::size_t from, std::string_view name) {
+  double total = 0.0;
+  const auto& samples = prof.samples();
+  for (std::size_t i = from; i < samples.size(); ++i) {
+    if (samples[i].name == name) {
+      total += samples[i].device_ms;
     }
   }
-  return 0.0;
+  return total;
 }
 
 template <typename graph_t>
@@ -561,15 +564,18 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
   if (config.task == task_kind::count) {
     if (resident) {
       (void)dyng::cycle_count::compute(res, g, opt);  // uploads the graph (untimed)
+      prof.reset();  // the profiler of the shared handle recorded that call: keep the timed one
     }
+    const std::size_t from = prof.samples().size();
     t = clock_type::now();
     const dyng::cycle_count::result r = dyng::cycle_count::compute(timed, g, opt);
     compute_ms = ms_since(t);
     histogram = histogram_csv(r.counts());
     if (popt.cuda_events) {
-      kernel_ms = device_ms(prof, "cycle_count.count");
-      memcpy_ms = device_ms(prof, "graph.upload") + device_ms(prof, "cycle_count.finalize");
-      total_ms = device_ms(prof, "cycle_count.compute");
+      kernel_ms = device_ms(prof, from, "cycle_count.count");
+      memcpy_ms =
+          device_ms(prof, from, "graph.upload") + device_ms(prof, from, "cycle_count.finalize");
+      total_ms = device_ms(prof, from, "cycle_count.compute");
       std::cerr << "vertices: " << g.num_vertices() << '\n'
                 << "edges: " << g.num_edges() << '\n'
                 << "kernel_ms: " << kernel_ms << '\n'
@@ -593,11 +599,12 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
       // not resident (a clone keeps the state, so the result still matches it).
       g = g.clone(res);
     }
+    const std::size_t from = prof.samples().size();
     t = clock_type::now();
     const dyng::cycle_count::stats st = dyng::cycle_count::update(timed, g, batch.view(), r);
     update_ms = ms_since(t);
     if (popt.cuda_events) {
-      update_device_ms = device_ms(prof, "cycle_count.update");
+      update_device_ms = device_ms(prof, from, "cycle_count.update");
     }
     std::cerr << "deletions=" << batch.num_deletions() << " insertions=" << batch.num_insertions()
               << '\n';
