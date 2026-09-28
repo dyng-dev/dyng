@@ -27,8 +27,17 @@ run   rebuilds (idempotently) and verifies the UNPATCHED copy of CycleEnumeratio
       the port's profiler stages from its --timing CSV. Medians are compared region by region;
       "compute" gates are <= 1.05x (<= 1.10x when the original's median is below 10 ms, which
       then needs >= 20 runs, else the verdict is provisional), "end_to_end" gates <= 1.10x. The
-      spread (max - min) / median above 10 % is flagged (PLAN 8.6), load averages are recorded.
+      spread (max - min) / median above 10 % is flagged (PLAN 8.6). The contamination monitor
+      (parity/contamination.py) records, for every timed process, the foreign CPU use of the
+      machine (busy CPU time from /proc/stat minus the harness's own and its children's), and
+      flags runs above 2 cores; load averages are recorded as well.
       --enforce-gates exits non-zero on an exceeded gate.
+
+      Experiments (PLAN 8.6: improvements reported in their own table): --baseline-exe replaces
+      side A by another binary, either a variant of the original (--baseline-kind original, e.g.
+      parity/experiments/cycle_enum_dense_histogram/build.sh) or another dynG build
+      (--baseline-kind port, e.g. the compat driver of an earlier commit). The record then names
+      the baseline (--baseline-label) and its verdicts are not gates.
 
 The default cases are the gate of acceptance criterion 4 of M2a: the static count DD k = 3..7,
 GitHub and Twitch k = 3, 4 and the update 25K + 25K k = 4 (seed 1) on DD, GitHub and Twitch.
@@ -55,6 +64,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "parity"))
 
+import contamination  # noqa: E402
 import cycle_count_goldens as goldens  # noqa: E402
 import perf_ab  # noqa: E402  (perf_lock, port_build, build_reference, portable_path, cpu_model)
 
@@ -105,14 +115,16 @@ def load_regions() -> list[dict]:
     return regions
 
 
-def timed_run(cmd: list, env: dict) -> tuple[float, str, str]:
-    """(wall ms, stdout, stderr) of one process; the clock covers fork, exec and wait."""
-    t0 = time.perf_counter()
-    proc = subprocess.run([str(c) for c in cmd], env=env, capture_output=True, text=True)
-    wall = (time.perf_counter() - t0) * 1000.0
+def timed_run(cmd: list, env: dict) -> tuple[float, str, str, dict]:
+    """(wall ms, stdout, stderr, contamination) of one process; the clock covers fork, exec and
+    wait, the contamination monitor the same span."""
+    with contamination.Monitor() as monitor:
+        t0 = time.perf_counter()
+        proc = subprocess.run([str(c) for c in cmd], env=env, capture_output=True, text=True)
+        wall = (time.perf_counter() - t0) * 1000.0
     if proc.returncode != 0:
         raise SystemExit(f"{' '.join(map(str, cmd))} failed ({proc.returncode}):\n{proc.stderr}")
-    return wall, proc.stdout, proc.stderr
+    return wall, proc.stdout, proc.stderr, monitor.result
 
 
 def parse_original(wall: float, stderr: str) -> dict:
@@ -154,14 +166,17 @@ def spread(xs: list[float]) -> float:
     return (max(xs) - min(xs)) / m if m > 0 else 0.0
 
 
-def summarize(regions: list[dict], task: str, samples: dict, runs: int) -> list[dict]:
+def summarize(
+    regions: list[dict], task: str, samples: dict, runs: int, baseline_kind: str = "original"
+) -> list[dict]:
     out = []
     for r in regions:
         if r["task"] != task:
             continue
         e: dict = {"region": r["name"], "gate_kind": r["gate"]}
+        a_keys = r.get("original_report") if baseline_kind == "original" else r.get("port_report")
         if r.get("original_report"):
-            a = [side_value(s, r["original_report"]) for s in samples["original"]]
+            a = [side_value(s, a_keys) for s in samples["original"]]
             e.update(
                 original_ms=statistics.median(a), original_samples=a, original_spread=spread(a)
             )
@@ -182,9 +197,9 @@ def summarize(regions: list[dict], task: str, samples: dict, runs: int) -> list[
     return out
 
 
-def report(results: dict) -> None:
+def report(results: dict, baseline: str = "original") -> None:
     print(
-        "\n| case | region | original (ms) | dynG (ms) | ratio | gate | spread A / B |\n"
+        f"\n| case | region | {baseline} (ms) | dynG (ms) | ratio | gate | spread A / B |\n"
         "|---|---|---:|---:|---:|---|---|"
     )
     for case, res in results.items():
@@ -204,6 +219,18 @@ def report(results: dict) -> None:
                 f"| {case} | {e['region']} | {orig} | {e['port_ms']:.1f} | {ratio} | {g} | "
                 f"{sa} / {e['port_spread'] * 100:.0f} %{flag} |"
             )
+    print(
+        "\n| case | foreign cores A: median / max | B: median / max | flagged runs A / B "
+        f"(> {contamination.FLAG_CORES:.0f} cores) |\n|---|---|---|---|"
+    )
+    for case, res in results.items():
+        c = res["contamination"]
+        a, b = c["original"], c["port"]
+        print(
+            f"| {case} | {a['foreign_cores_median']:.2f} / {a['foreign_cores_max']:.2f} | "
+            f"{b['foreign_cores_median']:.2f} / {b['foreign_cores_max']:.2f} | "
+            f"{a['flagged_runs']} / {b['flagged_runs']} of {a['runs']} |"
+        )
 
 
 def run(args: argparse.Namespace) -> int:
@@ -220,6 +247,10 @@ def run(args: argparse.Namespace) -> int:
     ref = perf_ab.reference_copy(name)
     original = ref / "build" / "cycle-enum"
     marker = ref / ".dyng-reference"
+    if args.baseline_exe:
+        original = args.baseline_exe.resolve()
+        if not original.is_file():
+            raise SystemExit(f"--baseline-exe {original} does not exist")
     cases = goldens.select(goldens.all_cases(), ",".join(args.cases))
     env = dict(os.environ)
     for var in ["OMP_NUM_THREADS", "OMP_PROC_BIND", "OMP_PLACES", "OMP_WAIT_POLICY", "OMP_DYNAMIC"]:
@@ -234,16 +265,19 @@ def run(args: argparse.Namespace) -> int:
     failures: list[str] = []
     work = Path(tempfile.mkdtemp(prefix="dyng-perf-cc-", dir=perf_ab.SCRATCH / "runs"))
     timing = work / "timing.csv"
+    timing_a = work / "timing-a.csv"
     try:
         with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
             for case in cases:
                 task = "update" if case.update else "count"
                 cli = [*case.cli_args(args.datasets), *omp]
                 a_cmd = [original, *cli]
+                if args.baseline_kind == "port":
+                    a_cmd += ["--timing", timing_a]
                 b_cmd = [exe, *cli, "--timing", timing]
                 # Untimed first round: page cache, and the outputs must be identical.
-                _, out_a, _ = timed_run(a_cmd, env)
-                _, out_b, _ = timed_run(b_cmd, env)
+                _, out_a, _, _ = timed_run(a_cmd, env)
+                _, out_b, _, _ = timed_run(b_cmd, env)
                 if out_a != out_b:
                     raise SystemExit(f"{case.rel}: the histograms differ:\n{out_a}\n{out_b}")
                 golden = golden_root / case.rel / "histogram.csv"
@@ -257,30 +291,41 @@ def run(args: argparse.Namespace) -> int:
                 )
                 samples: dict[str, list] = {"original": [], "port": [], "stages": []}
                 loads = []
+                foreign: dict[str, list] = {"original": [], "port": []}
                 for r in range(args.runs):
                     before = os.getloadavg()[0]
-                    wall_a, out_a, err_a = timed_run(a_cmd, env)
-                    wall_b, out_b, err_b = timed_run(b_cmd, env)
+                    wall_a, out_a, err_a, cont_a = timed_run(a_cmd, env)
+                    wall_b, out_b, err_b, cont_b = timed_run(b_cmd, env)
                     loads.append((before, os.getloadavg()[0]))
+                    foreign["original"].append(cont_a)
+                    foreign["port"].append(cont_b)
                     if out_a != out_b:
                         failures.append(f"{case.rel} round {r + 1}: the histograms differ")
                     values_b, stages = parse_port(wall_b, err_b, timing)
-                    samples["original"].append(parse_original(wall_a, err_a))
+                    if args.baseline_kind == "port":
+                        samples["original"].append(parse_port(wall_a, err_a, timing_a)[0])
+                    else:
+                        samples["original"].append(parse_original(wall_a, err_a))
                     samples["port"].append(values_b)
                     samples["stages"].append(stages)
-                    key = "update_seconds" if case.update else WALL
                     port_key = "update_ms" if case.update else WALL
+                    key = (
+                        port_key
+                        if args.baseline_kind == "port"
+                        else ("update_seconds" if case.update else WALL)
+                    )
                     print(
-                        f"{case.rel} round {r + 1}/{args.runs}: {key} original "
+                        f"{case.rel} round {r + 1}/{args.runs}: {key} {args.baseline_label} "
                         f"{samples['original'][-1][key]:.1f} ms, port "
-                        f"{values_b[port_key]:.1f} ms",
+                        f"{values_b[port_key]:.1f} ms (foreign cores "
+                        f"{cont_a['foreign_cores']:.2f} / {cont_b['foreign_cores']:.2f})",
                         flush=True,
                     )
                 stage_names = sorted({n for s in samples["stages"] for n in s})
                 results[case.rel] = {
                     "task": task,
                     "golden_checked": checked,
-                    "regions": summarize(regions, task, samples, args.runs),
+                    "regions": summarize(regions, task, samples, args.runs, args.baseline_kind),
                     "port_stages_median_ms": {
                         n: statistics.median(s.get(n, 0.0) for s in samples["stages"])
                         for n in stage_names
@@ -294,10 +339,14 @@ def run(args: argparse.Namespace) -> int:
                         "min": min(min(p) for p in loads),
                         "max": max(max(p) for p in loads),
                     },
+                    "contamination": {
+                        side: {**contamination.summarize(runs), "per_run": runs}
+                        for side, runs in foreign.items()
+                    },
                 }
     finally:
         subprocess.run(["rm", "-rf", str(work)], check=False)
-    report(results)
+    report(results, args.baseline_label)
     exceeded = [
         f"{c}: {e['region']} {e['ratio']:.3f} > {e['gate']:.2f}"
         for c, res in results.items()
@@ -312,7 +361,7 @@ def run(args: argparse.Namespace) -> int:
         return 1
     if exceeded:
         print("gate exceeded: " + "; ".join(exceeded))
-        if args.enforce_gates:
+        if args.enforce_gates and not args.baseline_exe:
             return 1
     return 0
 
@@ -337,6 +386,18 @@ def write_json(args, results, build, ref, marker, regions) -> None:
             "binary": perf_ab.portable_path(ref / "build" / "cycle-enum"),
             "build": marker.read_text() if marker.is_file() else None,
         },
+        "baseline": (
+            {
+                "experiment": True,
+                "label": args.baseline_label,
+                "kind": args.baseline_kind,
+                "binary": perf_ab.portable_path(args.baseline_exe),
+                "note": "side A is this binary, not the unpatched original: the verdicts are "
+                "not gates (PLAN 8.6: improvements reported separately)",
+            }
+            if args.baseline_exe
+            else {"experiment": False, "label": "original", "kind": "original"}
+        ),
         "port": {
             "commit": head + ("+dirty" if dirty else ""),
             "binary": perf_ab.portable_path(args.exe),
@@ -398,9 +459,18 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--lock-timeout", type=float, default=3 * 3600.0, metavar="SECONDS")
     r.add_argument("--allow-non-parity-build", action="store_true")
     r.add_argument("--enforce-gates", action="store_true", help="exit 1 on an exceeded gate")
+    r.add_argument(
+        "--baseline-exe",
+        type=Path,
+        help="an experiment: this binary replaces the unpatched original as side A",
+    )
+    r.add_argument("--baseline-kind", choices=["original", "port"], default="original")
+    r.add_argument("--baseline-label", default="original")
     args = parser.parse_args(argv)
     if args.runs < 5:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
+    if args.baseline_exe and args.baseline_label == "original":
+        parser.error("--baseline-exe needs a --baseline-label naming the experiment")
     return run(args)
 
 

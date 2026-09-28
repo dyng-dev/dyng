@@ -298,3 +298,28 @@ def test_cycle_count_region_map_loads() -> None:
     assert out["update"]["ratio"] == pytest.approx(1.075) and not out["update"]["within_gate"]
     assert out["update"]["gate"] == 1.05 and out["update"]["port_stage_ms"] == 21.4
     assert out["update_end_to_end"]["within_gate"] and out["update_end_to_end"]["gate"] == 1.10
+
+
+def test_cycle_count_summarize_with_a_port_baseline() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = list(perf.load_regions())
+    samples = {
+        "original": [{perf.WALL: 100.0, "update_ms": 30.0}] * 5,  # another dynG build
+        "port": [{perf.WALL: 90.0, "update_ms": 15.0}] * 5,
+        "stages": [{}] * 5,
+    }
+    out = {e["region"]: e for e in perf.summarize(regions, "update", samples, 5, "port")}
+    assert out["update"]["original_ms"] == 30.0 and out["update"]["ratio"] == pytest.approx(0.5)
+
+
+def test_contamination_monitor() -> None:
+    cont = load("parity/contamination.py")
+    with cont.Monitor() as m:
+        subprocess.run([sys.executable, "-c", "sum(range(3000000))"], check=True)
+    r = m.result
+    assert r["wall_s"] > 0 and r["own_cores"] > 0 and r["foreign_cores"] >= 0
+    assert r["busy_cores"] >= 0
+    s = cont.summarize([{"foreign_cores": 0.1}, {"foreign_cores": 3.0}, {"foreign_cores": 0.5}])
+    assert s["foreign_cores_median"] == 0.5 and s["foreign_cores_max"] == 3.0
+    assert s["flagged_runs"] == 1 and s["runs"] == 3
+    assert cont.summarize([])["runs"] == 0
