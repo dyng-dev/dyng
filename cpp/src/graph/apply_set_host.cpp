@@ -101,6 +101,7 @@ void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
   const std::size_t num_deletes = batch.delete_src.size();
   apply_summary summary;
   out.device_current = false;
+  out.deletions_marked = false;
 
   // --- Step 0: the requested operations (ids, self-loops, vertex growth, undirected expansion) --
   std::vector<change<vertex_t>>& insertions = out.requested_insertions;

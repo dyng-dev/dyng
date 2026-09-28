@@ -413,7 +413,15 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
     }
     cycle_count_cuda_begin_update(res, cws);
     const auto& d = graph_access::device_out(res, g);
-    cycle_count_cuda_phase(res, device_engine_graph(d), nullptr, device_changes_,
+    // Under set semantics the deletion marks of G_t are the framework's (computed once, shared
+    // with the device apply); otherwise the phase marks them in the workspace.
+    const std::int32_t* owner = nullptr;
+    if constexpr (sizeof(vertex_t) == 4) {
+      if (normalized_ != nullptr) {
+        owner = mark_normalized_deletions(res, d, *normalized_);
+      }
+    }
+    cycle_count_cuda_phase(res, device_engine_graph(d), owner, device_changes_,
                            static_cast<std::uint32_t>(ws.change.deletions.size()), device_length_,
                            0, cws);
 #else

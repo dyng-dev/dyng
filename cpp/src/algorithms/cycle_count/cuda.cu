@@ -268,6 +268,16 @@ void run_phase(const resources& res, const device_csr<offset_t> graph, const int
 template <typename edge_t>
 void cycle_count_cuda_begin_update(const resources& res, cycle_count_cuda_workspace<edge_t>& ws) {
   const scoped_device guard(res.device());
+  // The work items of a static count are not read by an update: return them before its arrays
+  // are sized (the original frees them after every count; kept, the prior's two-hop items of
+  // COLLAB k = 4 alone were 300 MB next to G_t and G_{t+1}).
+  ws.forward_begin.release();
+  ws.forward_count.release();
+  ws.forward_offset.release();
+  ws.item_source.release();
+  ws.item_target.release();
+  ws.hop_count.release();
+  ws.hop_offset.release();
   cuda_workspace_prepare(res, ws);
   DYNG_CUDA_TRY(cudaMemsetAsync(
       ws.histograms.data(), 0, sizeof(unsigned long long) * 2 * (cycle_count_max_device_length + 1),

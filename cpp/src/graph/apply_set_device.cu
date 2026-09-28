@@ -231,6 +231,46 @@ const std::uint32_t* upload_normalized_batch(const resources& res,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+const int* mark_normalized_deletions(const resources& res,
+                                     const device_graph<vertex_t, edge_t, weight_t>& base,
+                                     const normalized_batch<vertex_t>& normalized) {
+  static_assert(device_set_apply_supported_v<vertex_t>,
+                "the device deletion marks read 32-bit vertex ids");
+  using offset_t = device_offset_t<edge_t>;
+  DYNG_EXPECTS(normalized.vertices_before == static_cast<std::int64_t>(base.num_vertices) &&
+                   normalized.edges_before == static_cast<std::int64_t>(base.num_edges),
+               "mark_normalized_deletions: the normalized batch belongs to another graph state");
+  const auto m = std::max<std::size_t>(static_cast<std::size_t>(base.num_edges), 1);
+  if (normalized.deletions_marked && normalized.deletion_owner.size() >= m) {
+    return normalized.deletion_owner.data();
+  }
+  DYNG_EXPECTS(static_cast<std::int64_t>(normalized.deletions.size()) < no_change_id,
+               "mark_normalized_deletions: the batch exceeds the 32-bit change ids");
+  const scoped_device guard(res.device());
+  const cudaStream_t stream = native(res);
+  const std::uint32_t* lists = upload_normalized_batch(res, normalized);
+  if (normalized.deletion_owner.size() < m ||
+      normalized.deletion_owner.memory_resource() != res.memory()) {
+    normalized.deletion_owner = buffer<int>();  // release first: the peak holds one array
+    normalized.deletion_owner = buffer<int>(res, m);
+  }
+  int* owner = normalized.deletion_owner.data();
+  DYNG_CUDA_TRY(cudaMemsetAsync(owner, 0x7f, sizeof(int) * m, stream));  // no_change_id
+  const auto deletion_count = static_cast<std::uint32_t>(normalized.deletions.size());
+  if (deletion_count > 0) {
+    const device_csr<offset_t> graph{
+        static_cast<std::uint32_t>(base.num_vertices),
+        reinterpret_cast<const offset_t*>(base.out_row_ptr.data()),
+        reinterpret_cast<const device_vertex*>(base.out_col_ind.data())};
+    mark_owners_kernel<offset_t><<<grid_for(deletion_count), set_apply_block_size, 0, stream>>>(
+        graph, reinterpret_cast<const device_edge*>(lists), deletion_count, owner);
+    DYNG_CHECK_KERNEL(stream);
+  }
+  normalized.deletions_marked = true;
+  return owner;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 void apply_set_batch_device(const resources& res,
                             const device_graph<vertex_t, edge_t, weight_t>& base,
                             const normalized_batch<vertex_t>& normalized,
@@ -269,16 +309,9 @@ void apply_set_batch_device(const resources& res,
       reinterpret_cast<const offset_t*>(base.out_row_ptr.data()),
       reinterpret_cast<const device_vertex*>(base.out_col_ind.data())};
 
-  // Deleted positions of G_t: the owner array of the deletion phase.
-  const auto m = static_cast<std::size_t>(base.num_edges);
-  buffer<int> deletion_owner(res, std::max<std::size_t>(m, 1));
-  DYNG_CUDA_TRY(cudaMemsetAsync(deletion_owner.data(), 0x7f, sizeof(int) * deletion_owner.size(),
-                                stream));  // every entry becomes no_change_id
-  if (deletion_count > 0) {
-    mark_owners_kernel<offset_t><<<grid_for(deletion_count), set_apply_block_size, 0, stream>>>(
-        old_graph, deletions, deletion_count, deletion_owner.data());
-    DYNG_CHECK_KERNEL(stream);
-  }
+  // Deleted positions of G_t: the owner array of the deletion phase (shared with the cycle_count
+  // delete phase, which may have marked them already).
+  const int* deletion_owner = mark_normalized_deletions(res, base, normalized);
 
   // G_{t+1}: change rows, degrees, offsets, rows.
   next = device_graph<vertex_t, edge_t, weight_t>();
@@ -310,7 +343,7 @@ void apply_set_batch_device(const resources& res,
   if (next_count > 0) {
     build_next_rows_kernel<offset_t><<<grid_for(static_cast<std::uint64_t>(next_count) * 32U),
                                        set_apply_block_size, 0, stream>>>(
-        old_graph, deletion_owner.data(), insertions, insertion_rows.data(), next_count,
+        old_graph, deletion_owner, insertions, insertion_rows.data(), next_count,
         reinterpret_cast<const offset_t*>(next.out_row_ptr.data()),
         reinterpret_cast<device_vertex*>(next.out_col_ind.data()), next.insertion_ids.data());
     DYNG_CHECK_KERNEL(stream);
@@ -323,7 +356,9 @@ void apply_set_batch_device(const resources& res,
 #define DYNG_INSTANTIATE_APPLY_SET_DEVICE(V, E, W)                                              \
   template void apply_set_batch_device<V, E, W>(const resources&, const device_graph<V, E, W>&, \
                                                 const normalized_batch<V>&,                     \
-                                                device_graph<V, E, W>&);
+                                                device_graph<V, E, W>&);                        \
+  template const int* mark_normalized_deletions<V, E, W>(                                       \
+      const resources&, const device_graph<V, E, W>&, const normalized_batch<V>&);
 DYNG_INSTANTIATE_APPLY_SET_DEVICE(std::int32_t, std::int32_t, std::int32_t)
 DYNG_INSTANTIATE_APPLY_SET_DEVICE(std::int32_t, std::int64_t, std::int32_t)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_DEVICE)

@@ -67,6 +67,15 @@ avoids on CUDA (its device merge reads the prepared batch).
 5. **The device change lists are uploaded once per update**, from pinned staging
    (`upload_normalized_batch`), and shared by the device apply and the cycle_count phases.
 
+6. **The deletion marks of G_t are computed once per update** (amended in M2b, step
+   cuda-parity-perf). `mark_normalized_deletions()` (graph/apply_set_device.cu: `mark_owners_kernel`
+   on a `0x7f` array of m ints) writes them into the normalized batch, next to its device lists;
+   the cycle_count delete phase reads them as its ownership array and the device apply as its
+   deleted positions, as the original's single `owner` array serves both. The first version of
+   this ADR computed them twice (cycle_count's workspace and a buffer of the apply), which kept a
+   second m-int array alive during the merge. The graph module still owns the function; the
+   algorithm only asks for it earlier.
+
 ## Consequences
 
 - cycle_count's CUDA update in the original's scope (G_t uploaded inside the call) costs Step 0,
@@ -81,6 +90,10 @@ avoids on CUDA (its device merge reads the prepared batch).
   re-upload); the cycle_count update then builds its insert-phase owner array itself
   (`mark_owners_kernel` on G_{t+1}). A device merge of weight columns, and the append-order device
   apply of PLAN 6.4.1 (for `mosp_compatible()`), come later.
+- Device memory (PLAN 8.6): with the marks shared and the static-count work items returned when
+  an update begins (`cycle_count_cuda_begin_update`), the peak of live device allocations of the
+  CUDA update equals the original's on every gate case (`parity/results/M2b.md` section 4.8). The
+  stream-ordered pool keeps up to one 32 MB granule more reserved.
 - The device apply synchronizes its stream at the end (one host synchronization in the commit), so
   the state is complete before the host copy can be downloaded on another stream.
 - `update_participant` gains one virtual function with a default; the sssp participant ignores

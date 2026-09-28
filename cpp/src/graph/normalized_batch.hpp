@@ -69,6 +69,13 @@ struct normalized_batch {
   mutable buffer<std::uint32_t> staging;  ///< pinned host staging of device_lists
   mutable bool device_current = false;    ///< device_lists holds these lists
 
+  /// Device deletion marks of G_t (CUDA backend, 32-bit ids): for every position of G_t's CSR the
+  /// id of the deletion that removes it, else no_change_id (CycleEnumeration-GPU's owner array of
+  /// the delete phase). Computed once per update by mark_normalized_deletions() and read by the
+  /// device apply and the cycle_count delete phase. Valid while `deletions_marked`.
+  mutable buffer<int> deletion_owner;
+  mutable bool deletions_marked = false;  ///< deletion_owner holds the marks of these lists
+
   /**
    * @brief The memory held (for workspace reports).
    * @return Bytes of the vectors' capacity and of the device and staging buffers.
@@ -77,7 +84,8 @@ struct normalized_batch {
     return (deletions.capacity() + insertions.capacity() + requested_deletions.capacity() +
             requested_insertions.capacity()) *
                sizeof(set_change<vertex_t>) +
-           (device_lists.size() + staging.size()) * sizeof(std::uint32_t);
+           (device_lists.size() + staging.size()) * sizeof(std::uint32_t) +
+           deletion_owner.size() * sizeof(int);
   }
 };
 

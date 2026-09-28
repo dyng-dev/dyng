@@ -185,4 +185,29 @@ void apply_set_batch_device(const resources& res,
                             const normalized_batch<vertex_t>& normalized,
                             device_graph<vertex_t, edge_t, weight_t>& next);
 
+/**
+ * @brief The deletion marks of a normalized batch on the resident G_t (CycleEnumeration-GPU's
+ *        mark_owners_kernel on a cudaMemset 0x7f array): computed once per update, then shared by
+ *        the device apply and the cycle_count delete phase (no-op while
+ *        `normalized.deletions_marked`).
+ *
+ * Precondition: `normalized` was computed for the state of `base`. The array (m ints) is kept in
+ * `normalized` and reused by the next update of the same size.
+ * @tparam vertex_t Vertex id type (32-bit).
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type (the weight columns are not read).
+ * @param[in] res        Resources of the CUDA backend (the graph's device).
+ * @param[in] base       The resident graph G_t.
+ * @param[in] normalized The normalized batch of G_t (its device fields are written).
+ * @return Device pointer to m marks (normalized.deletion_owner).
+ * @throws out_of_memory_error if device memory runs out.
+ * @throws cuda_error          if the runtime reports an error.
+ * @throws not_supported_error if CUDA is not built.
+ * @async
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+const int* mark_normalized_deletions(const resources& res,
+                                     const device_graph<vertex_t, edge_t, weight_t>& base,
+                                     const normalized_batch<vertex_t>& normalized);
+
 }  // namespace dyng::detail
