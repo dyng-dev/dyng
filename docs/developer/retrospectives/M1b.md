@@ -806,6 +806,7 @@ session found the tree clean at `a304d90`.
 | road_usa local 10K at default clocks (ungated) | 1.063 / 1.060 / 1.062x, bimodal as before; the original's kernels reached P0 more often (118 of 480 busy samples against 68 of 525) |
 | Outputs / `invalidated` | byte-identical, equal in every round |
 | `ci/check.sh` (`c25fe6d`) | all checks passed (harness 20 tests) |
+| fresh clone of `b5b88e8`: `ci/check.sh --parity`, then `ci/gpu_local.sh` | all checks passed (`cpu-only` 230/230, `dev` 242/242, golden replay); all GPU steps passed (`ctest -L gpu` 91/91, `ctest -L cpu` 242/242, cuda goldens 495/495, memcheck and synccheck 0 errors, clang-tidy) |
 | `ci/build_cuda.sh ci-cuda12` with the conda-forge CUDA 12.8 toolkit and GCC 12.2 (`92d9fe4`; the verifier could not reproduce ci-cuda12 because of the NVTX headers) | release architecture list (sm_75..sm_120), `-Werror`, 0 warnings, rc 0; NVTX detected as absent; the int32 fused kernel 59 registers on sm_86 |
 
 The OpenMP gate and the other criteria were not re-measured: no library or kernel code changed
