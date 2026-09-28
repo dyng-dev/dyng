@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file result_io.hpp
- * @brief Shortest-path results in the MOSP formats: distance files ("v d" / "v INF") and
- *        SSSP-tree files ("v p", p = -1 for none).
+ * @brief Results in the originals' formats: shortest-path distance files ("v d" / "v INF") and
+ *        SSSP-tree files ("v p", p = -1 for none) of MOSP, and cycle histograms in the CSV of
+ *        CycleEnumeration-GPU ("# cycle_size, num_of_cycles" ... "Total, N").
  * @ingroup io
  */
 #pragma once
@@ -82,5 +83,23 @@ template <typename distance_t>
 template <typename vertex_t>
 [[nodiscard]] std::vector<vertex_t> read_parents(const std::string& path,
                                                  std::int64_t num_vertices);
+
+/**
+ * @brief Format a cycle histogram as CycleEnumeration-GPU's CSV (CycleHistogram::to_csv()).
+ *
+ * The header line "# cycle_size, num_of_cycles", one line "len, count" per length with a non-zero
+ * count in increasing order, then (with `include_total`) "Total, N". This is the standard output
+ * of the original's `cycle-enum`.
+ * @param[in] counts        counts[len] = cycles of length len (host memory; e.g.
+ *                          cycle_count::result::counts()).
+ * @param[in] include_total Append the "Total, N" line.
+ * @return The text.
+ * @throws invalid_argument_error if the array is not host-accessible.
+ * @throws capacity_error         if the total exceeds 2^64 - 1.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @ingroup io
+ */
+[[nodiscard]] std::string format_histogram_csv(array_view<const std::uint64_t> counts,
+                                               bool include_total = true);
 
 }  // namespace dyng::io
