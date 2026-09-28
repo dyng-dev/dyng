@@ -108,6 +108,24 @@ Before 0.1.0 anything may change.
   `perf_ab.py run --backend cuda` against the unpatched MOSP-CUDA; `ci/gpu_local.sh` replays the
   golden corpus on cuda.
 
+- M2a, CycleEnumeration-GPU graph pieces: `graph<V, E, unweighted>` ((int32, int32) and
+  (int32, int64)) and `is_unweighted_v`; `batch_semantics::as_sets` with the preset
+  `batch_semantics::set()` and `graph_properties::cycle_enum_compatible()` (Step 0 is the
+  original's `prepare_batch()`, the apply its sorted-row `apply_batch()`; byte-equal CSR and
+  normalized batches on committed fixtures and on the TUDataset graphs; ADR 0010 amendment);
+  `edge_batch::insert_edge(u, v)` without weights.
+- `io::read_edge_list` / `io::write_edge_list`: the original's parallel `from_chars` parser
+  (TUDataset `*_A.txt`, comments, commas, signs, timestamps, Matrix Market of every symmetry),
+  generalized with weight columns, `vertex_ids::as_is`, symmetrization, kept duplicates and self-
+  loops and a thread cap (`docs/api/file_formats.md`).
+- `generators::legacy::cycle_enum_batch()`: the original's `generate_batch()`, bit-exact, with the
+  library-owned reproductions of libstdc++'s 64-bit `uniform_int_distribution` and `shuffle`.
+- `dyng::testing`: `oracle_simple_cycles` (subset DP), `brute_force_simple_cycles` and
+  `edge_set_after_batch` (the recount of a batch).
+- Parity harness: the CycleEnumeration-GPU@0a976ad reference (`references.toml`, OpenMP and CUDA
+  build as in its RESULTS.md), its exporter `export_cycle_enum`, the fixture script
+  `parity/fixtures/cycle_enum/`, and the dataset digest test (CTest label `parity`).
+
 ### Changed
 
 - Placement (PLAN 4.6 rule 5): a graph belongs to the backend of the resources that built it;

@@ -78,3 +78,46 @@ is read.
   accept/reject decision and the same trees. In both modes a token must be a whole decimal
   integer; MOSP splits a glued token such as `5-6` into `5` and `-6`, dynG rejects it (the only
   remaining difference, for malformed files only).
+
+## Amendment (M2a, 2026-09-27): set semantics and the unweighted graph
+
+Decision 6 deferred `set()` and `cycle_enum_compatible()` to M2. They land with the CycleEnum
+graph pieces of M2a:
+
+1. `batch_semantics` gains a switch `as_sets` (appended, as PLAN Section 5.1 requires for
+   aggregates). With it, Step 0 is CycleEnumeration-GPU@0a976ad's `prepare_batch()`: each list is
+   sorted by (source, destination) and deduplicated, self-loops follow `on_self_loop`, deletions
+   of absent edges and insertions of present edges are no-ops that leave the lists, and the
+   normalized batch is merged into the sorted rows by a port of its `apply_batch()` (a new CSR per
+   batch, the untouched rows copied in parallel blocks, the offsets shifted by the degree changes
+   of the touched rows; the bytes are those of the original's sequential loop for every thread
+   count). `batch_semantics::set()` = `as_sets` + ignore + ignore + drop + deletions first +
+   vertex growth; `graph_properties::cycle_enum_compatible()` = sorted + forbid + `set()` + no
+   weight columns. The algorithms receive the normalized batch as `detail::apply_delta` (sorted
+   lists; the position of a change in its list is its ownership id in cycle_count).
+2. **A delete-then-reinsert pair is kept, not cancelled.** The PLAN sketch describes `set()` as
+   "dedup, drop no-ops, cancel pairs", and Decision 1's context above said the same. The original's
+   `prepare_batch()` keeps an edge that the batch both deletes and inserts in both lists (the delete
+   phase removes its cycles, the insert phase adds them back), and M2's parity criterion is
+   "identical normalized batches". dynG therefore keeps the pair; `apply_summary::cancelled_pairs`
+   counts such pairs (their structural effects cancel), and `deleted_edges` / `inserted_edges`
+   count both halves. Removing the pairs would give the same histograms but not the original's
+   normalized batch, and no generated batch contains such a pair, so there is no performance cost.
+3. Under `as_sets` the other switches keep their meaning where they can: `on_missing_delete` and
+   `on_existing_insert` = `error` throw on the no-ops, `on_self_loop` = `keep` keeps self-loops as
+   ordinary set members, `allow_vertex_growth` = false rejects new vertices. Three combinations
+   throw `not_supported_error`: `on_existing_insert = upsert` (a weight overwrite of an existing
+   edge is not a structural change and would be invisible in the normalized batch; delete and
+   re-insert the edge instead), `deletions_first = false`, and rows that are not
+   `row_order::sorted` + `multi_edges::forbid` (the merge needs sorted rows of a simple graph).
+   With weights, a new edge takes the weights of the first insertion of its pair in batch order
+   (the first one is the insertion; the later ones are ignored duplicates).
+4. **`unweighted`.** `graph<V, E, unweighted>` is instantiated for (int32, int32) and
+   (int32, int64) (PLAN Section 4.4.3); the graph has no weight columns, `edge_batch<V,
+   unweighted>` defaults to `num_weights = 0` and has `insert_edge(u, v)`, and constructors reject
+   weight columns for it. The tag compares equal to itself (so containers of it compare), and
+   `is_unweighted_v<W>` names it. `graph::from_edges()` takes an edge list that is already sorted
+   by (source, destination) without repeats, as `io::read_edge_list()` returns it, as the CSR in
+   one pass.
+5. `batch_semantics::net_effect()` (DynLP vertex batches) stays deferred to 0.3 with the vertex
+   operations.
