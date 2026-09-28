@@ -10,6 +10,7 @@
 #include "support/gtest_helpers.hpp"
 #include "util/kernel_registry.hpp"
 
+#include <dyng/config.hpp>
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/backend.hpp>
 #include <dyng/core/copy.hpp>
@@ -42,13 +43,32 @@ TEST(CudaResources, Defaults) {
   const auto res = dyng::resources::cuda();
   EXPECT_EQ(res.get_backend(), dyng::backend::cuda);
   EXPECT_EQ(res.device(), 0);
-  EXPECT_EQ(res.num_threads(), 1);
+  EXPECT_GE(res.num_threads(), 1);  // the OpenMP threads of the host-side work
   EXPECT_EQ(res.default_space(), dyng::memory_space::device);
   EXPECT_EQ(res.memory().space(), dyng::memory_space::device);
   EXPECT_EQ(res.memory(), dyng::memory_resource_ref(dyng::default_device_memory_resource(0)));
   EXPECT_EQ(resources_access::staging_memory(res).space(), dyng::memory_space::pinned_host);
   EXPECT_TRUE(res.stream().is_per_thread_default());
   EXPECT_NO_THROW(res.synchronize());
+}
+
+// The host-side work of a CUDA handle (graph builds, applies, tree imports and checks) uses a
+// thread count fixed at creation, reported by num_threads() (M1b review; ADR 0017 item 6).
+TEST(CudaResources, HostThreadsAreFixedAtCreation) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const int expected = DYNG_HAS_OPENMP ? 3 : 1;
+  const auto res = dyng::resources::cuda(0, {}, 3);
+  EXPECT_EQ(res.num_threads(), expected);
+  EXPECT_EQ(resources_access::host_threads(res), expected);
+  const auto copy = res;  // shared by the copies
+  EXPECT_EQ(copy.num_threads(), expected);
+  const auto by_default = dyng::resources::cuda();
+  if (dyng::backend_available(dyng::backend::openmp)) {
+    EXPECT_EQ(by_default.num_threads(), dyng::resources::openmp().num_threads());
+  } else {
+    EXPECT_EQ(by_default.num_threads(), 1);
+  }
+  EXPECT_THROW((void)dyng::resources::cuda(0, {}, -1), dyng::invalid_argument_error);
 }
 
 TEST(CudaResources, RecordsTheDeviceOnce) {

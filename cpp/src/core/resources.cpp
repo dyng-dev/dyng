@@ -64,11 +64,7 @@ int resources_access::host_threads(const resources& res) noexcept {
     case backend::openmp:
       return res.state_->num_threads > 0 ? res.state_->num_threads : 1;
     case backend::cuda:
-#if DYNG_HAS_OPENMP
-      return omp_get_max_threads() > 0 ? omp_get_max_threads() : 1;
-#else
-      return 1;
-#endif
+      return res.state_->num_threads > 0 ? res.state_->num_threads : 1;
     case backend::sequential:
       break;
   }
@@ -136,13 +132,20 @@ resources resources::openmp(int num_threads) {
 #endif
 }
 
-resources resources::cuda(int device, stream_ref stream) {
+resources resources::cuda(int device, stream_ref stream, int host_threads) {
 #if DYNG_HAS_CUDA
+  DYNG_EXPECTS(host_threads >= 0, "resources::cuda(): host_threads must be >= 0, got ",
+               host_threads);
   auto state = std::make_shared<detail::resources_state>();
   state->kind = backend::cuda;
   state->device = device;
   state->stream = stream;
+  // The host-side work of the CUDA backend (ADR 0017 item 6), snapshotted like openmp()'s count.
+#if DYNG_HAS_OPENMP
+  state->num_threads = host_threads > 0 ? host_threads : omp_get_max_threads();
+#else
   state->num_threads = 1;
+#endif
   // Validates the device (invalid_argument_error; not_supported_error without a visible device)
   // and records the capabilities engine::automatic reads (cooperative launch, SM count).
   state->device_props = detail::query_cuda_device(device);
@@ -152,6 +155,7 @@ resources resources::cuda(int device, stream_ref stream) {
 #else
   (void)device;
   (void)stream;
+  (void)host_threads;
   throw not_supported_error(
       std::string("dyng: the cuda backend is not built (configure with DYNG_ENABLE_CUDA=ON); "
                   "available: sequential") +

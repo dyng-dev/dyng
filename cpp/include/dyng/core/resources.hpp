@@ -107,17 +107,25 @@ class resources {
    * streams: all work is ordered on `stream`, which must outlive every copy of the handle and
    * every buffer allocated through it. Every call that enqueues work makes `device` current for
    * its duration and restores the caller's current device.
-   * @param[in] device CUDA device ordinal.
-   * @param[in] stream Stream for all work, created on `device`; the default is the per-thread
-   *                   default stream (`cudaStreamPerThread`: the calling thread's stream, a
-   *                   different one on every thread), never the legacy stream.
+   * The host-side work of a call through the handle (graph builds and batch applies, tree imports
+   * and checks, which run on the host next to the device in this release) uses `host_threads`
+   * OpenMP threads, fixed at creation like resources::openmp()'s thread count.
+   * @param[in] device       CUDA device ordinal.
+   * @param[in] stream       Stream for all work, created on `device`; the default is the
+   *                         per-thread default stream (`cudaStreamPerThread`: the calling thread's
+   *                         stream, a different one on every thread), never the legacy stream.
+   * @param[in] host_threads OpenMP threads for the host-side work; 0 = the OpenMP default at the
+   *                         time of the call (omp_get_max_threads(), which honours
+   *                         OMP_NUM_THREADS); 1 without OpenMP.
    * @return New resources for backend::cuda.
    * @throws not_supported_error    if the library was built without CUDA, or no device is visible.
-   * @throws invalid_argument_error if `device` is not a visible device.
+   * @throws invalid_argument_error if `device` is not a visible device or `host_threads` is
+   *                                negative.
    * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync Queries the device once; enqueues no work on `stream`.
    */
-  [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {});
+  [[nodiscard]] static resources cuda(int device = 0, stream_ref stream = {},
+                                      int host_threads = 0);
 
   /**
    * @brief Share the handle of `other` (a cheap copy; settings stay shared).
@@ -169,7 +177,9 @@ class resources {
 
   /**
    * @brief The number of host threads the backend uses.
-   * @return 1 for sequential and cuda, the OpenMP team size for openmp.
+   * @return 1 for sequential; the OpenMP team size for openmp; for cuda the OpenMP threads of the
+   *         host-side work (graph builds and applies, tree imports and checks), fixed when the
+   *         handle was created.
    */
   [[nodiscard]] int num_threads() const noexcept;
 

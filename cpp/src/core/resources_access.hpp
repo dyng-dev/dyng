@@ -57,9 +57,8 @@ struct resources_access {
 
   /**
    * @brief Host threads for the host-side work of a call (graph builds and applies, tree imports
-   *        and checks): the thread count of an OpenMP handle, the OpenMP default for a CUDA handle
-   *        (its host work runs next to the device; 1 without OpenMP), 1 for the sequential
-   *        backend.
+   *        and checks): the thread count of an OpenMP or CUDA handle, fixed when it was created
+   *        (resources::num_threads(); 1 without OpenMP), 1 for the sequential backend.
    * @param[in] res The handle.
    * @return The thread count (>= 1).
    */

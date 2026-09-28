@@ -101,6 +101,11 @@ fixes them.
   resource for a CUDA handle) instead of requiring `res.memory().space() == space`.
 - **Item 5.** Host backends accept device arrays in `from_arrays()` too; every implicit copy of an
   input follows the copy policy (ADR 0016 item 11).
+- **Item 6, host threads of a CUDA handle.** `resources::cuda(device, stream, host_threads = 0)`
+  fixes the thread count of the host-side work at creation (0 = `omp_get_max_threads()` then),
+  as `resources::openmp()` does, and `num_threads()` reports it; before, the count was the global
+  OpenMP default read on every call and `num_threads()` said 1. The third parameter is an addition
+  to PLAN 4.7.1's `cuda(device, stream)`.
 - **Item 7, synchronization.** Besides the control block, the upload of a new graph state
   (`graph.upload`, part of the commit of every update, and of `compute()` when the state is not
   resident) synchronizes the stream once, as MOSP-CUDA's `uploadDeviceGraph()` does. `update()`
