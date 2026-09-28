@@ -4,3 +4,5 @@
 *.sh text eol=lf
 *.png binary
 *.gz binary
+# A parser fixture with CRLF line ends on purpose (CycleEnumeration-GPU treats '\r' as a blank).
+cpp/tests/data/cycle_enum/parser/mixed.txt -text
