@@ -170,3 +170,51 @@ Cross-backend equality (CUDA = OpenMP = sequential) on randomized graphs and cha
 the device set apply against the host apply (byte-equal CSR, apply summaries, normalized lists
 and insertion ids), the bounds 2..64 and the rejection beyond, and the corner cases are the CUDA
 cases of `dyng_cycle_count_cuda_tests` (`cycle_count_cuda_test.cpp`).
+
+## 3. Performance: the harness checked, and the CPU update after the change of the commit
+
+The full CUDA gate of M2b acceptance criterion 4 (all ten cases, both scopes) is the next step. In
+this step the CUDA harness was run end to end on DD, and the OpenMP update gate was re-checked
+because the host commit changed (Step 0 once, ADR 0020). Port `6123e1d` plus the fix of
+`dyng-compat-cycle-enum` that reads only the timed call's stages in the resident scope (the
+records say `+dirty`; the fix is committed right after this section); unpatched original;
+exclusive perf lock.
+
+**CUDA, DD** (`parity/cycle_count_perf.py run --backend cuda --gpu 0 --runs 21`, clocks locked
+(boost: SM 1695 MHz, memory 7601 MHz, P2) for the whole A/B and checked in every busy sample;
+`M2b-cuda-perf-cycle_count-DD-smoke.json`):
+
+| Case | Region | Original (ms) | dynG original scope (ms) | ratio | dynG resident scope (ms) | ratio | Gate |
+|---|---|---:|---:|---:|---:|---:|---|
+| DD k = 4 | static kernel | 1.401 | 0.963 | 0.688 | 0.922 | 0.658 | <= 1.10 ok |
+| DD k = 4 | static memcpy (reported) | 1.181 | 0.934 | 0.791 | 0.006 | - | - |
+| DD k = 4 | static total (reported) | 2.600 | 2.854 | 1.098 | 0.962 | 0.370 | - |
+| DD k = 4 | static end to end | 436.7 | 427.5 | 0.979 | | | <= 1.10 ok |
+| DD 25K+25K k = 4 | update | 5.596 | 3.999 | 0.715 | 3.657 | 0.653 | <= 1.10 ok |
+| DD 25K+25K k = 4 | update end to end | 497.5 | 479.6 | 0.964 | | | <= 1.10 ok |
+
+The original's update reads 5.6 ms at these clocks (its RESULTS.md: 4.4 ms at the default,
+DVFS-raised clocks; ADR 0018). The static total of dynG's original scope includes the first
+allocation of the pinned scalar buffer of the workspace (about 0.9 ms, stage `cycle_count.reset`),
+which a second call does not pay; the gated kernel region excludes it on both sides. Register
+counts (`cycle_count_perf.py kernels`, `cuobjdump`) of the `uint32_t` instantiations equal the
+original's (for example 19 for `count_edge_items_kernel<4>`, 26 for `count_roots_kernel<4>`, 22
+for `count_owned_cycles_kernel<4>`, 96 bytes of stack each).
+
+**OpenMP update, 56 threads** (11 rounds, `M2b-cuda-step-perf-openmp-cycle_count.json`):
+
+| Case | Region | Original (ms) | dynG (ms) | Ratio | Gate | Section 1.3 ratio |
+|---|---|---:|---:|---:|---|---:|
+| DD 25K+25K k = 4 | update | 26.3 | 15.1 | 0.574 | <= 1.05 ok | 0.615 |
+| DD 25K+25K k = 4 | update end to end | 366.2 | 304.6 | 0.832 | <= 1.10 ok | 0.839 |
+| GitHub 25K+25K k = 4 | update | 297.6 | 122.1 | 0.410 | <= 1.05 ok | 0.426 |
+| GitHub 25K+25K k = 4 | update end to end | 3,266.6 | 1,757.0 | 0.538 | <= 1.10 ok | 0.565 |
+
+No run flagged (> 2 foreign cores). The update got faster, as expected: the commit no longer
+normalizes the batch a second time.
+
+### 3.1 Sanitizers
+
+compute-sanitizer on `dyng_cycle_count_cuda_tests` (GPU 1, `DYNG_TEST_SEEDS=2`, every test of
+the suite): memcheck with leak checking 0 errors and 0 bytes leaked, racecheck 0 hazards,
+synccheck 0 errors (`ci/gpu_local.sh` runs the same three).
