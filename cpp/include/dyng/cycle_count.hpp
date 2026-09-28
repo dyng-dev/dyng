@@ -239,9 +239,9 @@ class result {
  * @sync The histogram is complete on return (host backends only in this release).
  * @backends sequential, openmp
  * @determinism Exact values: identical histograms on every backend and thread count.
- * @paper TruCy / DynTruCy (IEEE Transactions on Computers): `dyng::citation("cycle_count")`, key
- *        trucy2026 in docs/references.bib. Exact counts; the kappa-truncated search of the paper
- *        is not implemented.
+ * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
+ *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib. Exact counts; the
+ *        kappa-truncated search of the paper is not implemented.
  * @ingroup cycle_count
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -281,8 +281,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @sync The graph and the histogram are updated on return (host backends only in this release).
  * @backends sequential, openmp
  * @determinism Exact values: identical histograms and counters on every backend and thread count.
- * @paper TruCy / DynTruCy (IEEE Transactions on Computers): `dyng::citation("cycle_count")`, key
- *        trucy2026 in docs/references.bib.
+ * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
+ *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib.
  * @ingroup cycle_count
  */
 template <typename vertex_t, typename edge_t, typename weight_t>

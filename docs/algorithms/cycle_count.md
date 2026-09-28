@@ -2,22 +2,39 @@
 
 Maturity: **experimental** (M2a: sequential and OpenMP backends; CUDA arrives in M2b, the Python
 binding in M5). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
-Ported from CycleEnumeration-GPU@0a976ad (TruCy / DynTruCy, IEEE Transactions on Computers).
+Ported from CycleEnumeration-GPU@0a976ad, the code of TruCy / DynTruCy (Khanda, Shovan, Satpathy,
+Das; submitted to IEEE Transactions on Computers). dynG implements the exact k-bounded
+enumeration of that code, **not** the paper's approximate kappa-truncated TruCy search (Section 7).
 
 ## 1. Problem
 
-Input: a directed graph with sorted rows and no parallel edges, and a length bound k >= 2 (or no
-bound). Output: the histogram `counts[len]`, the number of directed simple cycles of each length
-2..k. A cycle is a closed path without repeated vertices; a 2-cycle is a pair of opposite edges;
-self-loops lie on no cycle. Every cycle is counted once, from its smallest vertex.
+**What it computes.** Input: a directed graph with sorted rows and no parallel edges, and a length
+bound k >= 2 (or no bound). Output: the histogram `counts[len]`, the number of directed simple
+cycles of each length 2..k. A cycle is a closed path without repeated vertices; a 2-cycle is a
+pair of opposite edges; self-loops lie on no cycle. Every cycle is counted once, from its smallest
+vertex. The counts are exact: they are what the paper calls the "optimal" (reference) counts.
 
-Update model: a batch of edge insertions and deletions is applied to the graph under its
+**Update model.** A batch of edge insertions and deletions is applied to the graph under its
 `batch_semantics`, and the histogram changes by the cycles the batch destroys (counted on the
 graph before the batch, G_t) and creates (counted on the graph after it, G_{t+1}), without
-recounting the rest. Postcondition: `update()` equals `compute()` on the new graph exactly. Every
-batch semantics is accepted: Step 0 reduces a batch to the change of the edge set (weight-only
-upserts are no-ops); parity with the original is defined under `batch_semantics::set()`
-(`graph_properties::cycle_enum_compatible()`).
+recounting the rest. Postcondition: `update()` equals `compute()` on the new graph exactly.
+
+### 1.1 Graph requirements
+
+| Requirement | Why | If not met |
+|---|---|---|
+| `row_order::sorted` | the searches rely on sorted rows (neighbors above the root, the ownership lookups; the CUDA kernels of M2b close cycles with one `lower_bound`) | `invalid_argument_error` naming the property and the fix |
+| `multi_edges::forbid` | a cycle is a vertex sequence; parallel edges would count it once per edge choice | `invalid_argument_error` |
+| weights | ignored: instantiated for `unweighted` and `int32` weights, so a weighted sssp graph with the default properties can be shared (`dyng::update(res, g, batch, tree, hist)`) | – |
+| in-edges | not read (`store_transposed` is not needed; the update never transposes the graph) | – |
+| vertex type | `int32_t` (the ownership table keys two 32-bit ids); offsets `int32_t` or `int64_t` | compile error (not instantiated) |
+
+`graph_properties::cycle_enum_compatible()` is the preset of the original: sorted rows, no
+parallel edges, no weights and `batch_semantics::set()` (a deletion of a missing edge, an
+insertion of an existing edge and a self-loop are no-ops; new vertex ids grow the graph). Every
+other batch semantics is accepted as well: Step 0 reduces a batch to the change of the edge set
+(weight-only upserts are no-ops for cycle_count). Parity with the original is defined under
+`set()`.
 
 ## 2. Template mapping
 
@@ -26,7 +43,8 @@ normalize -> translate -> prepare -> [before_apply -> (AG: count -)] -> commit -
 identify_affected -> seed -> { AG: count + } -> finalize
 ```
 
-cycle_count is an **aggregate-delta** problem.
+cycle_count is an **aggregate-delta** problem (template card in
+`cpp/src/algorithms/cycle_count/problem.hpp`; tier: custom engine).
 
 | Step | Hook (profiler stage) | What it does | Original |
 |---|---|---|---|
@@ -60,6 +78,8 @@ auto st = dyng::cycle_count::update(res, g, batch.view(), hist);
 std::cout << dyng::io::format_histogram_csv(hist.counts());   // "# cycle_size, num_of_cycles" ...
 ```
 
+Python: planned (M5; PLAN Section 5.5, `dyng.cycle_count.compute(cg, max_length=4)`).
+
 | Option | Default | Meaning |
 |---|---|---|
 | `max_length` | -1 | longest counted length (>= 2), or -1: no bound (the histogram then has max(n, 2) + 1 entries) |
@@ -81,23 +101,64 @@ The example is `examples/cpp/cycle_count_update.cpp`; the drop-in clone of the o
 |---|---|---|
 | sequential | the original's sequential Johnson: path-membership blocking with a bound, Johnson's blocked lists without one | `update_static_histogram` |
 | openmp | the original's OpenMP counter: roots in parallel (`schedule(dynamic)`), one histogram per thread | `update_static_histogram_openmp`: change edges in parallel, one histogram per thread; with one thread the sequential phases |
-| cuda | M2b | M2b |
+| cuda | M2b (throws `not_supported_error` today) | M2b |
 
-Histograms are identical on every backend and thread count. Counts are 64-bit; a sum beyond
-2^64 - 1 throws `capacity_error`. The steady-state update allocates nothing but its histogram
-growth (unbounded results on a growing graph): the per-thread visited marks, per-thread histograms
-and the ownership table live in a workspace leased from the resources handle (ADR 0015).
+Determinism: **`exact_value`**. The histograms (and every `stats` counter) are identical on every
+backend, thread count and run, because they are sums of integers; the order in which threads find
+cycles does not matter. Counts are 64-bit; a sum beyond 2^64 - 1 throws `capacity_error`. The
+steady-state update allocates nothing but its histogram growth (unbounded results on a growing
+graph): the per-thread visited marks, per-thread histograms and the ownership table live in a
+workspace leased from the resources handle (ADR 0015).
 
-## 5. Performance notes
+## 5. Complexity and performance notes
 
-The timed regions are defined in `parity/timed_regions/cycle_count.toml`: the static count is
-gated end to end (the original's CLI prints no CPU timer; RESULTS.md reports process wall times),
-the update on the original's `update_seconds` (`cycle_count.update`). The measurements of M2a are
-in `parity/results/M2a.md`: with 56 OpenMP threads the port takes 0.64-0.96x of the original's
-time end to end (DD k = 3..7, GitHub and Twitch k = 3, 4; COLLAB k = 3 0.65x) and 0.76-0.96x for
-the 25K + 25K update at k = 4 (DD 25.6 ms, GitHub 282 ms, Twitch 122 ms). The difference most
-likely comes from the dense per-thread histograms (the original updates a `std::map` per cycle
-found; not profiled); it is not an algorithmic change.
+Exact counting is exponential in the length bound: `compute()` explores, from every root, the
+simple paths of length < k over vertices above the root; `update()` explores the paths of length
+< k through each change edge, on G_t for the deletions and on G_{t+1} for the insertions. Without
+a bound the sequential search is Johnson's algorithm (time O((n + m)(c + 1)) for c cycles).
+
+The timed regions are defined in `parity/timed_regions/cycle_count.toml`:
+
+| Region | dynG | Original | Gate |
+|---|---|---|---|
+| `static_end_to_end` | process wall time of `dyng-compat-cycle-enum --task count` | process wall time of `cycle-enum --task count` (its RESULTS.md "OpenMP (56 threads), end to end"; the CLI has no CPU count timer) | <= 1.05x |
+| `static_count` | stage `cycle_count.compute` | – | reported |
+| `update` | `update_ms` = stage `cycle_count.update` (`cycle_count::update()`) | `update_seconds` (around `update_histogram`) | <= 1.05x (>= 10 ms) |
+| `update_end_to_end` | process wall time of `--task update` | process wall time | <= 1.10x |
+
+Measured in M2a (`parity/results/M2a.md`: OpenMP, 56 threads, the libgomp defaults on both
+sides, the unpatched original, exclusive lock, medians of 11 A/B rounds; COLLAB 5), on the Xeon
+Gold 6258R:
+
+| Case | Region | CycleEnumeration-GPU (ms) | dynG (ms) | Ratio |
+|---|---|---:|---:|---:|
+| DD k = 3 | static end to end | 256.0 | 245.3 | 0.958 |
+| DD k = 4 | static end to end | 251.7 | 235.3 | 0.935 |
+| DD k = 5 | static end to end | 302.0 | 270.1 | 0.895 |
+| DD k = 6 | static end to end | 516.4 | 425.4 | 0.824 |
+| DD k = 7 | static end to end | 1,479.5 | 1,038.8 | 0.702 |
+| GitHub k = 3 | static end to end | 713.9 | 603.9 | 0.846 |
+| GitHub k = 4 | static end to end | 2,800.2 | 1,785.3 | 0.638 |
+| Twitch k = 3 | static end to end | 1,817.9 | 1,595.8 | 0.878 |
+| Twitch k = 4 | static end to end | 3,624.1 | 2,746.9 | 0.758 |
+| COLLAB k = 3 | static end to end | 44,513.4 | 29,028.0 | 0.652 |
+| DD 25K+25K, k = 4 | update | 26.7 | 25.6 | 0.959 |
+| GitHub 25K+25K, k = 4 | update | 294.0 | 281.9 | 0.959 |
+| Twitch 25K+25K, k = 4 | update | 160.7 | 121.9 | 0.759 |
+| DD 25K+25K, k = 4 | update end to end | 355.0 | 316.9 | 0.893 |
+| GitHub 25K+25K, k = 4 | update end to end | 3,292.2 | 2,241.4 | 0.681 |
+| Twitch 25K+25K, k = 4 | update end to end | 4,596.2 | 3,659.3 | 0.796 |
+
+Every gate is met; the two noisy DD regions gave the same verdict with 31 rounds (static k = 3
+0.932, update 0.960). The difference most likely comes from the dense per-thread histograms (the
+original updates a `std::map` per cycle found; not profiled); it is not an algorithmic change.
+Where the time goes in the update (DD 25K+25K, ms): normalize 2.6, count_minus 8.8, commit 5.8,
+identify_affected 2.0, count_plus 5.3.
+
+The update is not always much faster than a recompute: with the original's fast static kernels,
+its own measurements give update-vs-recompute ratios of 1.2x on DD, 5.2x on GitHub, 4.2x on
+Twitch and 34x on COLLAB (CUDA, 25K+25K, k = 4). Speedups reported against the paper's slower
+kernels do not carry over.
 
 ## 6. Limitations
 
@@ -106,34 +167,59 @@ found; not profiled); it is not an algorithmic change.
 - The vertex type is `int32_t` (the ownership table keys two 32-bit ids); offsets may be 32 or 64
   bits.
 - Graphs with parallel edges or unsorted rows are rejected (`invalid_argument_error`).
-- No time-window or temporal modes yet (0.4), no CUDA backend yet (M2b).
+- No time-window or temporal modes yet (0.4), no Read-Tarjan or brute-force method, no CUDA
+  backend yet (M2b), no Python binding yet (M5).
+- No approximate (kappa-truncated) mode (Section 7).
 
 ## 7. Differences from the paper
 
-**Exact, not kappa-truncated.** The paper's TruCy is an approximate search: a truncated Johnson
-search with a blocked array of bounded size kappa, ranks on the truncated blocked path, iterative
-unblocking, zero in/out-degree pruning with relabeling and roots in decreasing out-degree order;
-when the blocked array is full the search from that root stops, so TruCy can miss cycles (the
-paper's Figs. 5, 7 and 8). That design is not in CycleEnumeration-GPU and not in dynG. dynG counts
-exactly what the paper uses as its reference ("optimal"); its timings are for exact enumeration and
-are not comparable with kappa-bounded runs, and the kappa experiments cannot be reproduced.
+The paper is TruCy / DynTruCy (A. Khanda, S. M. Shovan, A. Satpathy, S. K. Das: "TruCy:
+GPU-Accelerated Cycle Enumeration for Large-Scale Static and Dynamic Networks", **submitted** to
+IEEE Transactions on Computers, 2026). The code it was evaluated with is CycleEnumeration-GPU at
+tag `baseline-2026-09` (`da2067d`); dynG ports the corrected version `0a976ad`.
 
-**Paper vs fixed code.** The port follows the corrected CycleEnumeration-GPU@0a976ad, not the
-paper's code snapshot (tag `baseline-2026-09`). The fixes that concern the CPU path: the update
-accepted invalid batches (deleting a missing edge, inserting an existing edge or a self-loop gave
-wrong histograms; an insertion naming a new vertex was dropped) until `prepare_batch` gave batches
-set semantics and `apply_batch` grew the graph; Matrix Market files were read in one direction
-only; the bounded sequential Johnson reset O(V) state per root (O(V^2)) and the OpenMP counter
-allocated a V-byte array per root; the update's recompute baseline always used the sequential
-Johnson. The update itself is the DynTruCy delete-then-insert scheme with edge-id ownership: the
-cycles through the deleted edges are subtracted on G_t, those through the inserted edges added on
-G_{t+1}, each attributed to its smallest-id change edge.
+**Exact k-bounded enumeration, not the kappa-truncated TruCy.** The paper's TruCy is an
+approximate search: a truncated Johnson search with a blocked array of bounded size kappa, ranks
+on the truncated blocked path (`rbpath`), iterative unblocking, zero in/out-degree pruning with
+relabeling, and roots in decreasing out-degree order. When the blocked array is full, the search
+from that root stops, so TruCy can miss cycles (the paper's Figs. 5, 7 and 8). That design is not
+in CycleEnumeration-GPU (before or after its fixes) and **not in dynG**. Consequently:
 
-**Recorded mutations.** CycleEnumeration-GPU recorded two mutations its suite must detect (double
-counting 5-cycles in the static kernel; a weakened ownership rule in the update). dynG builds both
-into copies of the library (`DYNG_MUTATION_DOUBLE_COUNT_5`, `DYNG_MUTATION_WEAK_OWNERSHIP`, in the
-static counters and in `changed_edge_index`) and requires the randomized suite to fail on each
-(CTest `cycle_count.mutation.*`), with a control copy that must pass.
+- dynG's counts equal the exact ("optimal") counts the paper compares TruCy against, not TruCy's
+  kappa-dependent counts;
+- dynG's timings are for exact enumeration and are not directly comparable with kappa-bounded
+  TruCy runs;
+- the paper's kappa experiments (Figs. 7 and 8) cannot be reproduced with dynG. A future,
+  explicitly approximate mode is on the roadmap (PLAN 6.1, row E6), not planned for 0.1.
+
+The update is the paper's DynTruCy scheme: the cycles through the deleted edges are subtracted on
+G_t, those through the inserted edges added on G_{t+1}, each attributed to its smallest-id change
+edge. dynG counts simple cycles only (the time-window and temporal modes of the original follow
+in 0.4).
+
+### Paper vs fixed code
+
+The fixes between the paper's snapshot (`baseline-2026-09`) and `0a976ad`, with the labels of the
+original's `CHANGES.md`, and what dynG takes from each:
+
+| Item | Paper's code (`baseline-2026-09`) | Fixed code (`0a976ad`) | dynG |
+|---|---|---|---|
+| C1 Matrix Market input | symmetric files read in one direction only: lower-triangle storage became a DAG, 0 cycles | `symmetric`, `skew-symmetric`, `hermitian` add both directions; `array` and unknown banners rejected | ported (`io::read_edge_list`; fixture tests for every symmetry) |
+| C4 invalid update batches | deleting a missing edge, inserting an existing edge or a self-loop gave wrong histograms; an insertion with an id >= V was dropped on the CPU (out of bounds on the GPU) | `prepare_batch` gives batches set semantics; `apply_batch` grows the graph | ported (`batch_semantics::set()`, Step 0 on G_t); 80 random arbitrary batches and the edge-set recount in CI |
+| C6 CPU baselines | the bounded sequential Johnson reset O(V) state per root (O(V^2)); the OpenMP counter allocated a V-byte array per root; the update's prior and recompute always used the sequential Johnson (DD k = 3: 127 s) | bounded search without the reset, unbounded searches reset only touched vertices; per-thread buffers; the recompute uses the update's backend (DD k = 3: 2.5 s) | ported (per-thread marks leased from the workspace, sized by their own thread) |
+| H1 parser | single-threaded `istringstream`, `std::set` / `std::map` interning | parallel `from_chars` parser, counting-sort CSR/CSC | ported (`io::read_edge_list`; identical vertex order and CSR) |
+| H3 batch application | every touched row rescanned the whole insertion list (335 ms of DD's timed update) | O(E + B log B): both lists sorted once, one merge per touched row | ported (`graph::apply` under `set()`, byte-equal CSR; assembled in parallel blocks) |
+| C9 tests | GPU tests could not fail (no device test of the default kernel, tiny graphs, a buggy oracle) | subset-DP oracles, randomized parity suites; two recorded mutations (5-cycles counted twice, weakened ownership) each fail the suite | ported (`dyng::testing` oracles; CTests `cycle_count.mutation.*` require both mutations to fail and a control copy to pass) |
+| C10 build | no build type (`-O0`), CUDA architecture default never applied | Release default, sm_86 | dynG's presets; the reference is built Release as its RESULTS.md |
+| K1, K2 static CUDA kernels | full-row scans, global-memory paths, one atomic per cycle; roots as work items | exact pruned DFS with a `lower_bound` closure; edge and two-hop prefix work items (3.7x to 714x faster kernels) | the pruned DFS is ported for the host (`dfs.hpp`, tested); the kernels and the work queue are M2b |
+| K3, C5, C7 CUDA update | a V-byte visited array per change (36 GB on GitHub: out of memory), host rebuild of G_{t+1}, context creation inside `update_seconds` | path membership, resident G_t with G_{t+1} built on the device, an `owner[]` array | M2b (dynG keeps the device graph resident across batches) |
+| C2, C3, time-window / temporal self-loops | bounded time-window Johnson undercounted; time-window Read-Tarjan wrong; self-loop start events | fixed | not ported (modes arrive in 0.4) |
+
+Every fix keeps the counts exact. On valid inputs (the TUDataset graphs, valid batches) the
+histograms of `0a976ad` are bit-identical to the paper's code on every dataset the original's
+`CHANGES.md` measured, so dynG's parity against `0a976ad` is also parity with the counts the paper
+used there; the counts differ only where the paper's code was wrong (C1, C4 and the time-window
+modes).
 
 ## 8. Mapping from the original code
 
@@ -156,4 +242,6 @@ static counters and in `changed_edge_index`) and requires the randomized suite t
 
 ## 9. How to cite
 
-`dyng::citation("cycle_count")` returns the BibTeX entry `trucy2026` (docs/references.bib).
+`dyng::citation("cycle_count")` returns the BibTeX entry `trucy2026` (docs/references.bib; the
+paper is submitted, the entry is updated when it is accepted). Please also cite dynG itself
+(`CITATION.cff`).
