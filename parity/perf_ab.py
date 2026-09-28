@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Performance A/B of the sssp port against the original (PLAN Sections 6.3 step 7, 8.5, 8.6).
 
+`parity/perf_ab.py cycle_count run ...` runs the cycle_count A/B against
+CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py).
+
     parity/perf_ab.py prepare [--graph roadNet-CA] [--hops 160]
     parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--batches safe50k,unsafe50k,local10k]
@@ -770,6 +773,11 @@ def write_json(args, results, build, ref, marker, regions, reference) -> None:
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["cycle_count"]:  # cycle_count against CycleEnumeration-GPU
+        sys.path.insert(0, str(REPO / "parity"))
+        import cycle_count_perf
+
+        return cycle_count_perf.main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("prepare")
