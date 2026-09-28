@@ -151,6 +151,7 @@ dyng_add_module(
   SOURCES
     src/io/batch_io.cpp
     src/io/csr_triplet.cpp
+    src/io/edge_list_io.cpp
     src/io/matrix_market.cpp
     src/io/result_io.cpp
 )
