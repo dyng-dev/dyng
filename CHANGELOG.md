@@ -136,7 +136,8 @@ Before 0.1.0 anything may change.
   mutations are built into copies of the library and must fail the randomized suite (CTest
   `cycle_count.mutation.*`, label `mutation`). The host port of the original's pruned
   lower_bound search of its CUDA kernels (`dfs.hpp`) is tested for M2b.
-- `io::format_histogram_csv` (the original's `# cycle_size, num_of_cycles` ... `Total, N`),
+- `io::write_histogram_csv(std::ostream&, counts)` (the original's `# cycle_size,
+  num_of_cycles` ... `Total, N`; PLAN 5.7's name),
   `tools/compat/dyng-compat-cycle-enum` (the original `cycle-enum` CLI, byte-equal standard output
   on the committed CLI cases), the `cycle_count_update` example and
   `parity/timed_regions/cycle_count.toml`.

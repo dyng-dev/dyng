@@ -75,7 +75,7 @@ dyng::cycle_count::options opt;
 opt.max_length = 4;
 auto hist = dyng::cycle_count::compute(res, g, opt);
 auto st = dyng::cycle_count::update(res, g, batch.view(), hist);
-std::cout << dyng::io::format_histogram_csv(hist.counts());   // "# cycle_size, num_of_cycles" ...
+dyng::io::write_histogram_csv(std::cout, hist.counts());   // "# cycle_size, num_of_cycles" ...
 ```
 
 Python: planned (M5; PLAN Section 5.5, `dyng.cycle_count.compute(cg, max_length=4)`).
@@ -232,7 +232,7 @@ modes).
 | `dynamic::count_cycles_through_edge`, `ChangedEdgeIndex` | `detail::count_cycles_through_edge`, `detail::changed_edge_index` (`cycles_through_edge.hpp`, `problem.hpp`) |
 | `dynamic::apply_histogram_delta` | the finalize hook (`cycle_count.cpp`) |
 | `dynamic::prepare_batch`, `apply_batch`, `DirectedGraph` | `detail::compute_structural_change` (Step 0 on G_t), `graph::apply` under `graph_properties::cycle_enum_compatible()` |
-| `CycleHistogram` (a map), `to_csv` | `cycle_count::result` (a dense array), `io::format_histogram_csv` |
+| `CycleHistogram` (a map), `to_csv` | `cycle_count::result` (a dense array), `io::write_histogram_csv` |
 | `CycleEnumerationOptions` (`max_cycle_length`, `algorithm`, `mode`) | `cycle_count::options` (`max_length`, `method`, `mode`) |
 | `cuda::extend_prefix`, `find_edge`, `dispatch_capacity` | `detail::cycle_count_extend_prefix` and friends (`dfs.hpp`, host port, used by the CUDA backend in M2b) |
 | `engine::count_histogram`, `engine::update_histogram` | `cycle_count::compute`, `cycle_count::update` |

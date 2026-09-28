@@ -24,10 +24,18 @@
 #include <limits>
 #include <random>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
 namespace {
+
+/// io::write_histogram_csv into a string.
+std::string histogram_csv(dyng::array_view<const std::uint64_t> counts, bool include_total = true) {
+  std::ostringstream out;
+  dyng::io::write_histogram_csv(out, counts, include_total);
+  return out.str();
+}
 
 using dyng::backend;
 using dyng::resources;
@@ -438,19 +446,15 @@ TEST(CycleCountHistogram, AccessorsAndCsv) {
   EXPECT_EQ(r.count(6), 0U);  // beyond the bound
   EXPECT_EQ(r.count(-3), 0U);
   EXPECT_EQ(r.total(), 3U);
-  EXPECT_EQ(dyng::io::format_histogram_csv(r.counts()),
-            "# cycle_size, num_of_cycles\n2, 1\n3, 2\nTotal, 3\n");
-  EXPECT_EQ(dyng::io::format_histogram_csv(r.counts(), false),
-            "# cycle_size, num_of_cycles\n2, 1\n3, 2\n");
+  EXPECT_EQ(histogram_csv(r.counts()), "# cycle_size, num_of_cycles\n2, 1\n3, 2\nTotal, 3\n");
+  EXPECT_EQ(histogram_csv(r.counts(), false), "# cycle_size, num_of_cycles\n2, 1\n3, 2\n");
   // AllowsZeroIncrementWithoutCreatingEntry: zero counts print no line.
   const hist zero(6, 0);
-  EXPECT_EQ(dyng::io::format_histogram_csv(dyng::host_view(zero), false),
-            "# cycle_size, num_of_cycles\n");
-  EXPECT_EQ(dyng::io::format_histogram_csv(dyng::host_view(zero)),
-            "# cycle_size, num_of_cycles\nTotal, 0\n");
+  EXPECT_EQ(histogram_csv(dyng::host_view(zero), false), "# cycle_size, num_of_cycles\n");
+  EXPECT_EQ(histogram_csv(dyng::host_view(zero)), "# cycle_size, num_of_cycles\nTotal, 0\n");
   // MergesWithDeterministicOrdering: lengths in increasing order.
   const hist merged = {0, 0, 1, 2, 8};
-  EXPECT_EQ(dyng::io::format_histogram_csv(dyng::host_view(merged)),
+  EXPECT_EQ(histogram_csv(dyng::host_view(merged)),
             "# cycle_size, num_of_cycles\n2, 1\n3, 2\n4, 8\nTotal, 11\n");
 }
 
@@ -461,7 +465,15 @@ TEST(CycleCountHistogram, DetectsCountOverflow) {
   dyng::detail::cycle_count_checked_add(b, 7);
   EXPECT_EQ(b, 12U);
   const hist big = {0, 0, std::numeric_limits<std::uint64_t>::max(), 1};
-  EXPECT_THROW((void)dyng::io::format_histogram_csv(dyng::host_view(big)), dyng::capacity_error);
+  EXPECT_THROW((void)histogram_csv(dyng::host_view(big)), dyng::capacity_error);
+  std::ostringstream untouched;
+  EXPECT_THROW(dyng::io::write_histogram_csv(untouched, dyng::host_view(big)),
+               dyng::capacity_error);
+  EXPECT_TRUE(untouched.str().empty());  // nothing is written on an error
+  std::ostringstream failed;
+  failed.setstate(std::ios::badbit);
+  const hist one = {0, 0, 1};
+  EXPECT_THROW(dyng::io::write_histogram_csv(failed, dyng::host_view(one)), dyng::io_error);
 }
 
 }  // namespace

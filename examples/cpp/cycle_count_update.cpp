@@ -45,6 +45,6 @@ int main(int argc, char** argv) {
   for (int len = 2; len <= opt.max_length; ++len) {
     std::cerr << len << "-cycles: " << hist.count(len) << '\n';
   }
-  std::cout << dyng::io::format_histogram_csv(hist.counts());  // "# cycle_size, ..." "Total, N"
+  dyng::io::write_histogram_csv(std::cout, hist.counts());  // "# cycle_size, ..." "Total, N"
   return 0;
 }

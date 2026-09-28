@@ -55,6 +55,7 @@
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -392,6 +393,13 @@ std::optional<cli_config> parse_args(int argc, char** argv, std::ostream& err) {
   return config;
 }
 
+/// The original's standard output: the histogram CSV (io::write_histogram_csv) as a string.
+std::string histogram_csv(dyng::array_view<const std::uint64_t> counts) {
+  std::ostringstream out;
+  dyng::io::write_histogram_csv(out, counts);
+  return out.str();
+}
+
 double ms_since(clock_type::time_point start) {
   return std::chrono::duration<double, std::milli>(clock_type::now() - start).count();
 }
@@ -462,7 +470,7 @@ int run(const cli_config& config) {
     t = clock_type::now();
     const dyng::cycle_count::result r = dyng::cycle_count::compute(timed, g, opt);
     compute_ms = ms_since(t);
-    histogram = dyng::io::format_histogram_csv(r.counts());
+    histogram = histogram_csv(r.counts());
   } else {
     // run_update(): the prior (not timed), the batch, the timed update.
     t = clock_type::now();
@@ -493,7 +501,7 @@ int run(const cli_config& config) {
       std::cerr << "recompute_seconds=" << recompute_ms / 1000.0 << '\n';
       std::cerr << "match=" << (match ? "yes" : "no") << '\n';
     }
-    histogram = dyng::io::format_histogram_csv(r.counts());
+    histogram = histogram_csv(r.counts());
   }
   std::cout << histogram;
   std::cout.flush();
