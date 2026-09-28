@@ -86,12 +86,14 @@ ci/build_cuda.sh                         # compile-only release build, as cuda-b
 `DYNG_CUDA_ARCHITECTURES` chooses `native`, `release` or an explicit list (for example
 `-DDYNG_CUDA_ARCHITECTURES=86`). `ci/gpu_local.sh` builds `dev-cuda` and then runs
 `ctest -L gpu` and `ctest -L cpu`, the sssp golden corpus on the cuda backend (when the goldens
-exist, see below), `compute-sanitizer --tool memcheck` over every GPU test executable and the
-clang-tidy naming check on the CUDA branches; it prints a Markdown summary. On a shared machine
+exist, see below), `compute-sanitizer --tool memcheck` over every GPU test executable,
+`--tool synccheck` over the CUDA sssp suite and the clang-tidy naming check on the CUDA branches;
+it prints a Markdown summary and fails when the test GPU is not visible (the CUDA tests would
+skip). On a shared machine
 choose the test GPU with `DYNG_TEST_GPU` (default 1: GPU 0 is kept for timing runs); every heavy
 step takes the shared lock `$DYNG_SCRATCH/perf.lock` (`DYNG_PERF_LOCK=` disables it) and
 `DYNG_GPU_SKIP="memcheck tidy"` skips steps by name. `ci/gpu_local.sh --preset sanitize-cuda`
-uses another CUDA preset.
+uses another CUDA preset. `ci/check.sh` takes the same shared lock for its heavy steps.
 
 ### Run the example
 

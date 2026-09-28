@@ -6,7 +6,7 @@
 # code, before milestone gates and before releases. Hosted CI has no GPU; cuda-build.yml only
 # compiles.
 #
-#   ci/gpu_local.sh                        # dev-cuda: build, ctest -L gpu and -L cpu, memcheck, tidy
+#   ci/gpu_local.sh                        # dev-cuda: build, tests, parity, memcheck, synccheck, tidy
 #   ci/gpu_local.sh --preset sanitize-cuda
 #   ci/gpu_local.sh --comment 42           # also post the summary on pull request #42 (gh CLI)
 #   DYNG_GPU_SKIP="cpu tidy" ci/gpu_local.sh
@@ -24,6 +24,10 @@
 #              tests (randomized suites with DYNG_TEST_SEEDS=2). Tests that make CUDA API calls
 #              fail on purpose (suite CudaApiErrors) run in a second pass without API-error
 #              reporting; every other test must be free of API errors as well as of memory errors.
+#   synccheck  compute-sanitizer --tool synccheck on the CUDA sssp suite (dyng_sssp_cuda_tests):
+#              no barrier errors, and every test must pass under the sanitizer's scheduling, which
+#              exposes data races in the counters the tests compare exactly (M1b review: MOSP's
+#              `invalidated` read raced with the insertion-head appends; about 2 minutes)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -47,7 +51,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,36p' "${BASH_SOURCE[0]}"
+      sed -n '5,38p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -100,6 +104,12 @@ if ! skipped build; then
 fi
 
 export CUDA_VISIBLE_DEVICES="${gpu}"
+
+# The CUDA tests skip (77) without a visible device; the gate must not pass by skipping.
+if ! nvidia-smi -i "${gpu}" --query-gpu=name --format=csv,noheader >/dev/null 2>&1; then
+  echo "ci/gpu_local.sh: GPU ${gpu} is not visible (nvidia-smi -i ${gpu}); the GPU gate needs it" >&2
+  exit 1
+fi
 
 if ! skipped gpu; then
   step "ctest -L gpu (GPU ${gpu})"
@@ -164,6 +174,23 @@ if ! skipped memcheck; then
   fi
 fi
 
+if ! skipped synccheck; then
+  step "compute-sanitizer synccheck, CUDA sssp suite (GPU ${gpu})"
+  sssp_tests="${build_dir}/cpp/tests/dyng_sssp_cuda_tests"
+  if [ -z "${sanitizer}" ]; then
+    echo "compute-sanitizer not found"
+    record synccheck FAILED
+  elif [ ! -x "${sssp_tests}" ]; then
+    echo "${sssp_tests} missing"
+    record synccheck FAILED
+  elif heavy "${sanitizer}" --tool synccheck --error-exitcode 1 "${sssp_tests}" \
+    --gtest_filter='-CudaApiErrors.*' --gtest_brief=1; then
+    record synccheck passed
+  else
+    record synccheck FAILED
+  fi
+fi
+
 if ! skipped tidy; then
   step "clang-tidy (naming rules, library sources, CUDA branches)"
   if ! command -v clang-tidy >/dev/null 2>&1; then
@@ -171,7 +198,7 @@ if ! skipped tidy; then
     record clang-tidy skipped
   else
     gcc_include="$("${CXX:-g++}" -print-file-name=include)"
-    if git ls-files 'cpp/src/*.cpp' | xargs -r -n 1 -P "$(nproc)" nice -n 10 clang-tidy \
+    if git ls-files 'cpp/src/*.cpp' | heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
       -p "${build_dir}" --quiet --checks='-*,readability-identifier-naming' \
       --warnings-as-errors='*' "--extra-arg=-isystem${gcc_include}" \
       --extra-arg=-Wno-deprecated-declarations; then
