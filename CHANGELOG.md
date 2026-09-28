@@ -140,7 +140,9 @@ Before 0.1.0 anything may change.
   `graph::from_*`, `clone`, `reserve`, `apply`, `to_csr` and `check_integrity` accept CUDA
   resources; `graph::space()` is `device` for a CUDA graph.
 - `dyng::testing::check_sssp_tree(g, r)` copies a device result to the host first.
-- The host-side work of a call with CUDA resources uses the OpenMP threads.
+- The host-side work of a call with CUDA resources uses the OpenMP threads; since the M1b review
+  their count is fixed when the handle is created (`resources::cuda(device, stream,
+  host_threads)`) and reported by `num_threads()`.
 - The CPU presets (`dev`, `release`, `relwithdebinfo`, `parity`) pin `DYNG_ENABLE_CUDA=OFF`; a
   build without a preset enables CUDA when a CUDA compiler is found. With CUDA built and a device
   visible, `default_backend()` is `cuda`.
@@ -175,6 +177,37 @@ Before 0.1.0 anything may change.
 - I/O: files are read with one allocation and one read; distance and tree files are parsed in
   one pass (the strict reader reports errors); CSR weights are parsed straight into their
   objective-major columns.
+
+### Fixed (M1b review)
+
+- CUDA `sssp`: the fused kernel counts `invalidated` per thread instead of reading the
+  candidate-list counter while other threads append insertion heads to it (a data race inherited
+  from MOSP-CUDA@e220ee2; the trees were never affected). `ci/gpu_local.sh` runs the CUDA sssp
+  suite under `compute-sanitizer --tool synccheck`.
+- CUDA `sssp`: vertex growth releases the old result arrays on the updating stream, after the
+  copies that read them (`buffer::set_stream()`).
+- Pooled workspaces are ordered across streams (a CUDA event per workspace): copies of a
+  default-stream handle used on two threads run on two per-thread streams, which the docs now
+  state for `resources`, `stream_ref` and `buffer`; `release_workspaces()` waits for the last use.
+- Inputs in device memory are accepted everywhere and copied to the host once under
+  `copy_policy` (`error` refuses, `warn` logs, `allow` logs at debug and acts as `warn` while a
+  profiler is attached): batches of `graph::apply()`, `dyng::update()`, `update_each()` and
+  `sssp::update()`, graph builds and `sssp::result::from_arrays()`. A batch with only some arrays
+  in device memory no longer crashes `sssp::update()`.
+- `copy(res, src, dst)` and `update_each()` deduce their types from mutable views;
+  `to_space()` allocates from the resource that matches the requested space;
+  `graph::to_backend(res)` exists and the placement errors name it.
+- `DYNG_WITH_NVTX`: `profiler_options::nvtx` emits NVTX ranges per stage.
+- Documentation: `@sync` of `sssp::compute()` / `update()` names the graph upload; `@sync` and
+  `@throws` on the synchronous allocation members and `buffer`; the Doxygen check covers them.
+- Build and CI: `native` CUDA architectures without a visible GPU fall back to the release list
+  with a warning; `cuda-build.yml` builds CUDA 13.4.1 (the latest 13.x) and caches ccache; a GCC
+  13/14 `-Werror` false positive in a test is gone; the `compat_mosp` cuda tests skip without a
+  device (`ci/gpu_local.sh` requires one); `ci/check.sh` and the clang-tidy steps run under the
+  shared perf lock.
+- Harness: `perf_ab.py` records a contamination monitor per round (foreign CPU load, run queue,
+  GPU P-state and clocks, foreign GPU processes) and repeats contaminated rounds; the CUDA
+  `apply` region includes the host tree copies (`sssp.import`).
 
 ## [0.0.1] - 2026-09-27
 
