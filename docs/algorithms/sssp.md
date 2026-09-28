@@ -1,7 +1,9 @@
 # sssp: dynamic single-source shortest paths
 
-Maturity: **experimental** (M1a: sequential and OpenMP backends; CUDA arrives in M1b, the Python
-binding in M5). Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`.
+Maturity: **experimental** (sequential and OpenMP backends since M1a, the CUDA backend with the
+fused engine since M1b; the Python binding arrives in M5 and the operators engine in 0.2).
+Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
+MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](../../parity/results/M1b.md)).
 
 ## 1. Problem
 
@@ -78,6 +80,17 @@ dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), tree);
 auto [s0, s1] = dyng::update(res, g, batch.view(), tree0, tree1);
 ```
 
+On a GPU the same calls take CUDA resources and a graph that belongs to them:
+
+```cpp
+auto gpu = dyng::resources::cuda(/*device=*/0);      // work ordered on the per-thread stream
+gpu.warm_up();                                        // load the kernels before timed work
+auto dg = g.clone(gpu);                               // or build the graph with gpu directly
+auto dtree = dyng::sssp::compute(gpu, dg, /*source=*/0);   // arrays in device memory
+dyng::sssp::update(gpu, dg, batch.view(), dtree);     // the fused engine
+std::vector<std::int64_t> dist = dyng::to_vector(gpu, dtree.distances());
+```
+
 | Option | Default | Meaning |
 |---|---|---|
 | `delta` | 0 (automatic) | near-far bucket width: max(1, 32 * average weight / average out-degree) of the graph before the batch |
@@ -87,7 +100,7 @@ auto [s0, s1] = dyng::update(res, g, batch.view(), tree0, tree1);
 
 Python: planned (M5).
 
-## 4. Backends and determinism
+## 4. Backends, engines and determinism
 
 | Backend | Engine | Origin |
 |---|---|---|
@@ -95,8 +108,25 @@ Python: planned (M5).
 | openmp | the ported paper engine (`engine::fused`) | `sospUpdateCpu` / `sospFromScratchCpu` ported straight |
 | cuda | the ported paper engine (`engine::fused`): one persistent cooperative kernel | `sospUpdateGpu` / `sospFromScratchGpu` ported verbatim (`cuda.cu`, `fused.cuh`) |
 
-All backends return identical trees, from canonical and non-canonical input trees alike (the
-randomized test `NonCanonicalInputTreesAgreeOnEveryBackend` perturbs tie parents; the CUDA test
+**Engines on CUDA** (`options::cuda_engine`, PLAN 4.5.4; ADR 0017). The choice is checked before
+the graph or the result is changed, so a refused call leaves both as they were:
+
+| `cuda_engine` | Device with cooperative launch | Device without it |
+|---|---|---|
+| `automatic` (default) | the fused engine | `not_supported_error`: there is no other CUDA engine in this release; the message names `resources::openmp()` / `resources::sequential()` |
+| `fused` | the fused engine: one persistent cooperative kernel per objective, grid = co-resident blocks of the instantiation (occupancy API), as MOSP-CUDA's `SospWorkspace` sizes it | `not_supported_error` (same message, without the `automatic` note) |
+| `operators` | `not_supported_error` (the multi-kernel engine arrives in 0.2, decision O24) | `not_supported_error` |
+
+`stats::engine_used` reports the engine that ran: `fused` on cuda and openmp (the ported paper
+engines), `operators` on the sequential reference. The no-cooperative-launch path is tested on the
+real device with a forced capability flag (`sssp_cuda_test.cpp`). Every GPU since Pascal
+supports cooperative launch; MPS or MIG limits can still make the launch fail, which surfaces as
+`cuda_error`.
+
+**Determinism** (`determinism::bitwise`). Distances and parents are bit-identical across runs,
+thread counts, backends and edge offset types, and byte-identical to both originals on the golden
+corpus. All backends return identical trees, from canonical and non-canonical input trees alike
+(the randomized test `NonCanonicalInputTreesAgreeOnEveryBackend` perturbs tie parents; the CUDA test
 executable runs it with cuda next to the host backends); `invalidated` and `affected` are
 deterministic, `iterations`, `epochs` and `pushes` depend on the schedule. One counter differs by
 origin: right at the packing limit MOSP-CUDA packs (distance, parent) when (n - 1) * max weight
@@ -172,7 +202,7 @@ alternating runs of `dyng-compat-mosp` and the unpatched original, parity preset
 CUDA 13.1 / 28 OpenMP threads pinned; 50K safe, 50K unsafe and 10K local batches on each graph).
 Ratio dynG / original (below 1 is faster), the range over the batches and the objectives:
 
-| Graph | CUDA: SOSP region per objective (gate 1.05x) | CUDA: kernel at locked clocks | CUDA: apply / end to end (gate 1.10x) | OpenMP: SOSP region per objective (gate 1.05x) | OpenMP: apply / end to end (gate 1.10x) |
+| Graph | CUDA: SOSP region per objective (gate 1.05x; 1.10x under 10 ms) | CUDA: kernel at locked clocks | CUDA: apply / end to end (gate 1.10x) | OpenMP: SOSP region per objective (gate 1.05x; 1.10x under 10 ms) | OpenMP: apply / end to end (gate 1.10x) |
 |---|---|---|---|---|---|
 | roadNet-PA | 0.98-1.00x | 1.00x | 0.55-0.62x / 0.86-0.87x | 0.63-0.86x | 0.85-1.02x / 0.83-0.91x |
 | roadNet-CA | 0.99-1.01x | 0.99-1.01x | 0.65-0.72x / 0.84-0.90x | 0.68-0.92x | 0.89-0.91x / 0.81-0.84x |
@@ -181,8 +211,21 @@ Ratio dynG / original (below 1 is faster), the range over the batches and the ob
 
 Byte-identical outputs and equal `invalidated` counters in every run. The fused kernel uses the
 original's 59 registers and runs the same 256 x 256 cooperative grid. The one reading over its
-gate, road_usa's local batch on CUDA, is the GPU's clock state (at locked clocks the kernels read
-0.99x); ADR 0018 leaves its verdict to the author.
+gate, road_usa's local batch on CUDA (objectives 0 and 1: 1.065x and 1.063x; objective 2
+1.037x), is the GPU's clock state (at locked clocks the kernels read 0.99x); ADR 0018 leaves its
+verdict to the author, and until then it is recorded as a gate miss.
+
+Absolute times of the 50K safe batch (ms per objective, medians; the same records):
+
+| Graph | MOSP-CUDA | dynG cuda | MOSP-OpenMP (28 threads) | dynG openmp (28 threads) |
+|---|---:|---:|---:|---:|
+| roadNet-PA | 4.7-4.8 | 4.6-4.8 | 12.6-16.5 | 10.7-14.2 |
+| roadNet-CA | 8.6-8.7 | 8.6-8.8 | 20.4-34.0 | 18.8-24.6 |
+| rgg_n_2_20_s0 | 24.7-25.4 | 24.6-25.2 | 40.1-51.7 | 38.0-51.1 |
+| road_usa | 100-101 | 101-102 | 271-312 | 253-272 |
+
+The first objective is the slowest on OpenMP on both sides: it first touches the pages of the
+frontier lists (section "Scratch memory").
 
 ## 6. Limitations
 
@@ -203,12 +246,56 @@ gate, road_usa's local batch on CUDA, is the GPU's clock state (at locked clocks
 
 ## 7. Differences from the paper
 
-The code follows the corrected MOSP-OpenMP@c352151, not the thesis pseudocode: subtree
-invalidation plus a pull pass replaces Step 1's best-in-neighbour rule (which counts to infinity,
-e.g. d(1) = 60 instead of 90 on the n = 6 stress seed), the propagation is a monotone near-far
-worklist without an iteration cap or a reachability pass, and ties go to the lowest parent id.
+The code follows the corrected MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2, not the thesis
+pseudocode: subtree invalidation plus a pull pass replaces Step 1's best-in-neighbour rule (which
+counts to infinity, e.g. d(1) = 60 instead of 90 on the n = 6 stress seed), the propagation is a
+monotone near-far worklist without an iteration cap or a reachability pass, and ties go to the
+lowest parent id. On CUDA the whole update of one objective (roots, invalidation by pointer
+jumping, pull, near-far push, unpack) is one persistent cooperative kernel, where the paper's
+code ran Step 1 on the host and a loop of kernels with a host round trip per iteration. Weights
+are integers (the paper uses real weights). Section 8 lists what the fixes changed.
 
-## 8. Mapping from the original code
+## 8. Paper vs fixed code
+
+The DynaMOSP papers were measured on the research code as it was then (tag `baseline-2026-09` of
+both repositories: MOSP-CUDA `ac29545`, MOSP-OpenMP `7284f50`). The pinned originals that dynG
+ports are the **fixed** code (`fix/correctness-perf`: MOSP-CUDA@e220ee2, MOSP-OpenMP@c352151),
+whose `CHANGES.md` and `results/README.md` record what changed and by how much. dynG is
+byte-identical to the fixed code, not to the paper's code. The papers' own run times were not
+re-derived by the fixed code or by dynG; the comparisons below are all on the same machine (RTX
+A5000, Xeon Gold 6258R with 28 threads pinned) and the same inputs.
+
+Correctness:
+
+| Paper's code (`baseline-2026-09`) | Fixed code and dynG |
+|---|---|
+| Step 1 gives an invalidated vertex its best *current* in-neighbour, which can be its own descendant: a stale cycle counts to infinity, cut off at `maxIterations = n` rounds plus a BFS repair; distances of **reachable** vertices can end too small (about 1 in 500 random stress cases; e.g. n = 6, seeds 621705 / 250813: d(1) = 60 instead of 90) | subtree invalidation below the changed tree edges, then a pull pass and a monotone push: no cap, no BFS, exact distances (M-a); the three regression cases are golden cases |
+| a batch that disconnects vertices runs the full n rounds (roadNet-CA: 1,971,281 rounds, 95-110 s per objective) | cut-off vertices get infinity and -1 directly; the time equals the connectivity-safe batch's |
+| parents of tied distances depend on the schedule; CUDA and OpenMP disagree | lowest-id parent everywhere (M-c): CUDA = OpenMP = Dijkstra's tree, deterministic (dynG: `determinism::bitwise`) |
+| Step 1 serial on the host (CUDA) | Step 1 on the GPU, grouped by destination (M-b) |
+
+Performance, SOSP update per objective (K = 3, 50K connectivity-safe batch, seed 777). The first
+two columns of each backend are the originals' own records (`results/README.md` of each
+repository: the paper's code built with `-O3`, and the fixed code as it measured itself, medians
+of 3 runs); the last two are the M1b A/B (`parity/results/M1b.md` sections 8.3 and 9.2, medians
+of 21 alternating runs, range over the objectives):
+
+| Graph | CUDA: paper's code | CUDA: fixed (own record) | CUDA: fixed (M1b A/B) | CUDA: dynG | OpenMP: paper's code | OpenMP: fixed (own record) | OpenMP: fixed (M1b A/B) | OpenMP: dynG |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| roadNet-PA | 34.1 ms | 5.21 ms | 4.7-4.8 ms | 4.6-4.8 ms | 159 ms | 14.0 ms | 12.6-16.5 ms | 10.7-14.2 ms |
+| roadNet-CA | 73.4 ms | 9.43 ms | 8.6-8.7 ms | 8.6-8.8 ms | 287 ms | 23.1 ms | 20.4-34.0 ms | 18.8-24.6 ms |
+| rgg_n_2_20_s0 | 167 ms | 26.5 ms | 24.7-25.4 ms | 24.6-25.2 ms | 371 ms | 50.1 ms | 40.1-51.7 ms | 38.0-51.1 ms |
+| road_usa | 1.63 s | 105 ms | 100-101 ms | 101-102 ms | 10.1 s | 308 ms | 271-312 ms | 253-272 ms |
+
+The fixed code is 6-16x faster per objective than the paper's code on CUDA and 7-33x on OpenMP
+(the OpenMP road_usa baseline ran under a host load of about 45; its own record calls that ratio
+overstated by up to about 30 %). On the batch that disconnects vertices the paper's code needs
+minutes per objective (roadNet-PA 39.1 s on CUDA, 106 s on OpenMP) where the fixed code and dynG
+take the connectivity-safe batch's time. The MOSP-level "(a) compute" totals of the fixed code
+(K = 3 updates plus the combined graph: CUDA 18.5 / 33.7 / 83.0 / 377 ms, OpenMP 63.2 / 110 /
+166 / 1,320 ms) are gated when `mosp` is ported (0.2, PLAN 6.4.4).
+
+## 9. Mapping from the original code
 
 | MOSP-OpenMP@c352151 | dynG |
 |---|---|
@@ -235,7 +322,7 @@ worklist without an iteration cap or a reachability pass, and ties go to the low
 | `ScopedStage` with `cudaDeviceSynchronize` | `profiler` stages; `profiler_options::cuda_events` for device times |
 | `mospPrep changes` (`generateChangeBatch`) | `generators::legacy::mosp_changes()`; `dyng-compat-mosp changes` |
 
-## 9. How to cite
+## 10. How to cite
 
 `dyng::citation("sssp")`: DynaMOSP (IPDPS 2025) and its journal version (IEEE TPDS 2025), keys
 `dynamosp2025` and `dynamosptpds2025` in `docs/references.bib`.
