@@ -22,7 +22,8 @@ counting, triad counting, label propagation.
 | Graph container (compact rows, MOSP batch semantics) and MOSP-format I/O | working; the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` |
 | `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working; byte-identical to MOSP-OpenMP@c352151 on its 495-case golden corpus ([parity certificate](parity/results/M1a.md)) |
 | `sssp` on CUDA | planned (M1b) |
-| `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1) |
+| `cycle_count`: exact k-bounded directed cycle histograms (TruCy/DynTruCy update), sequential and OpenMP | working; bit-identical to CycleEnumeration-GPU@0a976ad on its 24-case golden corpus ([parity certificate](parity/results/M2a.md)) |
+| `cycle_count` on CUDA | planned (M2b) |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
 | Python package (`pip install dyng`) | planned (0.1) |
@@ -74,6 +75,11 @@ build/dev/examples/cpp/sssp_update $case/graphCsr $case/insert.txt $case/delete.
 # +0 -1 edges, invalidated 0, affected 2, engine fused   (then the profiler's stage CSV)
 cmp out/SSSPTreeUpdated.txt cpp/tests/data/mosp_sssp/testCase0/updated/obj0/SSSPTreeUpdated.txt
 ```
+
+`examples/cpp/cycle_count_update.cpp` counts the directed cycles of length 2..k of an edge-list
+graph (a TUDataset `*_A.txt` file loads directly), applies a generated batch with
+`cycle_count::update()` and prints the histogram in CycleEnumeration-GPU's CSV format;
+`dyng-compat-cycle-enum` reproduces the original `cycle-enum` CLI.
 
 ### Run the parity check
 

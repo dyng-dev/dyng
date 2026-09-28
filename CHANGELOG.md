@@ -149,6 +149,11 @@ Before 0.1.0 anything may change.
   and `dyng-compat-cycle-enum --write-batch`. Results in `parity/results/M2a.md`: 72 of 72 replays
   byte-identical (sequential, OpenMP 4 and 56 threads); every OpenMP-56 gate met (static end to
   end 0.64-0.96x, update 25K+25K 0.76-0.96x of the original).
+- M2a close-out: `docs/algorithms/cycle_count.md` completed (graph requirements, determinism,
+  the performance table, 'Differences from the paper': exact k-bounded enumeration, not the
+  paper's approximate kappa-truncated TruCy, and the 'Paper vs fixed code' table of
+  CycleEnumeration-GPU's fixes); the README lists `cycle_count` on the CPU backends (CUDA: M2b);
+  the M2a retrospective. The TruCy / DynTruCy paper is cited as submitted.
 
 ### Changed
 
