@@ -65,15 +65,17 @@ references:
     end: 944
     year: 2025
   - type: conference-paper
-    title: "ESCHER: An Efficient and Scalable GPU Data Structure for Dynamic Hypergraph Triad Counting"
+    title: "ESCHER: Efficient and Scalable Hypergraph Evolution Representation with Application to Triad Counting"
     authors:
       - family-names: Shovan
         given-names: S M
       - family-names: Khanda
         given-names: Arindam
+      - family-names: Bhowmick
+        given-names: Sanjukta
       - family-names: Das
         given-names: Sajal K.
-    collection-title: "IEEE International Parallel and Distributed Processing Symposium (IPDPS)"
+    collection-title: "2026 IEEE International Parallel and Distributed Processing Symposium (IPDPS)"
     year: 2026
   - type: article
     title: "ESCHER+: Memory-Efficient Dynamic Hypergraph Evolution on GPU"
@@ -112,7 +114,7 @@ references:
         given-names: Sajal K.
     collection-title: "Workshop on Irregular Applications: Architectures and Algorithms (IA3), SC26 Workshops"
     year: 2026
-  - type: article
+  - type: unpublished
     title: "TruCy: GPU-Accelerated Cycle Enumeration for Large-Scale Static and Dynamic Networks"
     authors:
       - family-names: Khanda
@@ -123,6 +125,6 @@ references:
         given-names: Anurag
       - family-names: Das
         given-names: Sajal K.
-    journal: "IEEE Transactions on Computers"
     status: submitted
+    notes: "Manuscript submitted to IEEE Transactions on Computers"
     year: 2026

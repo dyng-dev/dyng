@@ -69,6 +69,7 @@ One line per decision: date, checkpoint or decision, what was approved, by whom.
 | 2026-09-27 | Plan | The plan (version 2) is approved; execute milestone by milestone, asking only for account-level actions or real blockers. | S M Shovan |
 | 2026-09-27 | O13 (contact) | `sm.shovan@gmail.com` is the published contact for the Code of Conduct and security reports; GitHub private vulnerability reporting is to be enabled in the repository settings. | S M Shovan |
 | 2026-09-27 | Accounts | Done by the author: the GitHub organization `dyng-dev` and the empty public repository `dyng-dev/dyng`; pending trusted publishers on PyPI and TestPyPI (project `dyng`, repository `dyng-dev/dyng`, workflow `release.yml`, environments `pypi` and `testpypi`). Pushing tag `v0.0.1` publishes the name reservation. | S M Shovan |
+| 2026-09-27 | Credit and citations | The 22 commits under the placeholder identity `CUDA <user@example.com>` in the originals were made by the author or by an AI assistant working for him: credited to S M Shovan. No funding acknowledgement for now (none found; the author adds it later). ESCHER is cited as the IPDPS 2026 paper by S. M. Shovan, A. Khanda, S. Bhowmick and S. K. Das, "ESCHER: Efficient and Scalable Hypergraph Evolution Representation with Application to Triad Counting"; TruCy (IEEE Transactions on Computers) as a submitted manuscript. S M Ferdous is listed with the affiliation Pacific Northwest National Laboratory only (no third-party e-mail address in the repository). | S M Shovan |
 
 ## Open decisions
 
@@ -78,7 +79,7 @@ Decisions the lead maintainer still has to take; each moves to the approvals log
 |---|---|
 | O3: confirm the institution line and the years of `NOTICE` ("software developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors") | the draft wording stays in `NOTICE` |
 | How milestone work reaches `main`: pull requests only, or direct pushes by the lead maintainer with a ruleset bypass | direct pushes until the `main` ruleset is created (docs/developer/repository_settings.md, step 9) |
-| Who made the 22 commits under the placeholder identity in the originals, and whether a co-author wrote code outside git (docs/developer/provenance.md) | credited as research collaborators only |
+| Whether a co-author wrote code of the originals outside git (docs/developer/provenance.md) | co-authors credited as research collaborators only |
 
 ## License consent and IP record
 
