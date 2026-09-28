@@ -74,49 +74,65 @@ void cycle_count_search_root(const cycle_graph<vertex_t, edge_t>& graph, const v
   std::uint64_t* counts = histogram.data();
   std::size_t count_size = histogram.size();
 
-  on_path[static_cast<std::size_t>(root)] = 1;
-  frames[0].vertex = root;
-  frames[0].next = static_cast<std::size_t>(offsets[root]);
-  frames[0].end = static_cast<std::size_t>(offsets[root + 1]);
+  // The vertex being expanded and its cursor stay in locals (registers), as the recursion's do;
+  // frames[d - 1] holds the suspended cursor of the path's d-th vertex while a deeper one is
+  // expanded.
+  vertex_t current = root;
+  std::size_t next = static_cast<std::size_t>(offsets[root]);
+  std::size_t end = static_cast<std::size_t>(offsets[root + 1]);
   std::size_t depth = 1;  // vertices on the path, the root included
+  on_path[static_cast<std::size_t>(root)] = 1;
 
-  while (depth > 0) {
-    cycle_search_frame<vertex_t>& top = frames[depth - 1];
-    if (top.next == top.end) {
-      on_path[static_cast<std::size_t>(top.vertex)] = 0;
-      --depth;
-      continue;
-    }
-    const vertex_t next = neighbors[top.next];
-    ++top.next;
-
-    if (next == root && depth >= 2) {
-      if (depth >= count_size) {
-        cycle_count_grow(histogram, depth, max_length);
-        counts = histogram.data();
-        count_size = histogram.size();
+  for (;;) {
+    // Scan the row of the vertex being expanded up to the next vertex to extend the path with
+    // (the order and the tests of count_root's loop).
+    vertex_t v = 0;
+    bool extend = false;
+    while (next != end) {
+      v = neighbors[next];
+      ++next;
+      if (v == root && depth >= 2) {
+        if (depth >= count_size) {
+          cycle_count_grow(histogram, depth, max_length);
+          counts = histogram.data();
+          count_size = histogram.size();
+        }
+        cycle_count_record(counts, depth);
+        continue;
       }
-      cycle_count_record(counts, depth);
+      if (v <= root || on_path[static_cast<std::size_t>(v)] != 0) {
+        continue;
+      }
+      if (depth >= max_length) {
+        continue;
+      }
+      extend = true;
+      break;
+    }
+
+    if (!extend) {  // the row is done: back to the parent
+      on_path[static_cast<std::size_t>(current)] = 0;
+      if (--depth == 0) {
+        break;
+      }
+      current = frames[depth - 1].vertex;
+      next = frames[depth - 1].next;
+      end = frames[depth - 1].end;
       continue;
     }
 
-    if (next <= root || on_path[static_cast<std::size_t>(next)] != 0) {
-      continue;
-    }
-
-    if (depth >= max_length) {
-      continue;
-    }
-
-    if (depth == capacity) {
+    if (depth > capacity) {
       cycle_count_grow_stack(scratch.stack);
       frames = scratch.stack.data();
       capacity = scratch.stack.size();
     }
-    on_path[static_cast<std::size_t>(next)] = 1;
-    frames[depth].vertex = next;
-    frames[depth].next = static_cast<std::size_t>(offsets[next]);
-    frames[depth].end = static_cast<std::size_t>(offsets[next + 1]);
+    frames[depth - 1].vertex = current;
+    frames[depth - 1].next = next;
+    frames[depth - 1].end = end;
+    on_path[static_cast<std::size_t>(v)] = 1;
+    current = v;
+    next = static_cast<std::size_t>(offsets[v]);
+    end = static_cast<std::size_t>(offsets[v + 1]);
     ++depth;
   }
 }

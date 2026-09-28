@@ -78,58 +78,71 @@ std::size_t count_cycles_through_edge(const cycle_graph<vertex_t, edge_t>& graph
 
   visited[static_cast<std::size_t>(source)] = 1;
   visited[static_cast<std::size_t>(target)] = 1;
-  frames[0].vertex = target;
-  frames[0].next = static_cast<std::size_t>(offsets[target]);
-  frames[0].end = static_cast<std::size_t>(offsets[target + 1]);
+  // The vertex being expanded and its cursor stay in locals (registers), as the recursion's do;
+  // frames[d - 1] holds the suspended cursor of the path's d-th vertex while a deeper one is
+  // expanded.
+  vertex_t current = target;
+  std::size_t next = static_cast<std::size_t>(offsets[target]);
+  std::size_t end = static_cast<std::size_t>(offsets[target + 1]);
   std::size_t depth = 1;  // vertices on the path from the anchored target
 
-  while (depth > 0) {
-    cycle_search_frame<vertex_t>& top = frames[depth - 1];
-    if (top.next == top.end) {
-      if (depth > 1) {
-        visited[static_cast<std::size_t>(top.vertex)] = 0;
+  for (;;) {
+    // Scan the row of the vertex being expanded up to the next vertex to extend the path with
+    // (the order and the tests of search()'s loop).
+    vertex_t v = 0;
+    bool extend = false;
+    while (next != end) {
+      v = neighbors[next];
+      ++next;
+      if (phase_changes.forbidden_before(current, v, owner_id)) {
+        continue;  // owned by a smaller-id changed edge
       }
-      --depth;
-      continue;
-    }
-    const vertex_t current = top.vertex;
-    const vertex_t next = neighbors[top.next];
-    ++top.next;
-
-    if (phase_changes.forbidden_before(current, next, owner_id)) {
-      continue;  // owned by a smaller-id changed edge
-    }
-
-    if (next == source) {
-      const std::size_t length = depth + 1;
-      if (length >= 2 && length <= max_length) {
-        if (length >= count_size) {
-          cycle_count_grow(scratch.partial, length, max_length);
-          counts = scratch.partial.data();
-          count_size = scratch.partial.size();
+      if (v == source) {
+        const std::size_t length = depth + 1;
+        if (length >= 2 && length <= max_length) {
+          if (length >= count_size) {
+            cycle_count_grow(scratch.partial, length, max_length);
+            counts = scratch.partial.data();
+            count_size = scratch.partial.size();
+          }
+          counts[length] += 1;
+          reached = length > reached ? length : reached;
         }
-        counts[length] += 1;
-        reached = length > reached ? length : reached;
+        continue;
       }
+      if (v == target || visited[static_cast<std::size_t>(v)] != 0) {
+        continue;
+      }
+      if (depth + 1 < max_length) {
+        extend = true;
+        break;
+      }
+    }
+
+    if (!extend) {  // the row is done: back to the parent
+      if (--depth == 0) {
+        break;  // the anchored target: its mark is cleared below
+      }
+      visited[static_cast<std::size_t>(current)] = 0;
+      current = frames[depth - 1].vertex;
+      next = frames[depth - 1].next;
+      end = frames[depth - 1].end;
       continue;
     }
 
-    if (next == target || visited[static_cast<std::size_t>(next)] != 0) {
-      continue;
+    if (depth > capacity) {
+      cycle_count_grow_stack(stack);
+      frames = stack.data();
+      capacity = stack.size();
     }
-
-    if (depth + 1 < max_length) {
-      if (depth == capacity) {
-        cycle_count_grow_stack(stack);
-        frames = stack.data();
-        capacity = stack.size();
-      }
-      visited[static_cast<std::size_t>(next)] = 1;
-      frames[depth].vertex = next;
-      frames[depth].next = static_cast<std::size_t>(offsets[next]);
-      frames[depth].end = static_cast<std::size_t>(offsets[next + 1]);
-      ++depth;
-    }
+    frames[depth - 1].vertex = current;
+    frames[depth - 1].next = next;
+    frames[depth - 1].end = end;
+    visited[static_cast<std::size_t>(v)] = 1;
+    current = v;
+    next = static_cast<std::size_t>(offsets[v]);
+    end = static_cast<std::size_t>(offsets[v + 1]);
+    ++depth;
   }
 
   visited[static_cast<std::size_t>(source)] = 0;
