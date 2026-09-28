@@ -777,3 +777,64 @@ the one that would measure the gate as written.
 - The records of this step add about 840 KB of JSON to `parity/results/` (the per-round monitor
   data); the tracked tree is about 3.4 MB. A compact record format (or moving the per-round data
   out of the repository) is worth deciding before 0.1.
+
+## Acceptance fix step (M1b acceptance, 2026-09-28)
+
+The independent acceptance verifier (at `a304d90`) passed criteria 1, 2 and 4-8 and failed 3(a):
+its own default-clock A/B read road_usa's local 10K batch at 1.061 / 1.059x on objectives 0 and 1
+(gate 1.05x), as the committed records did, and PLAN 8.6 has no clock-state exception. It named
+option A of ADR 0018 (locked clocks for the whole A/B) as the way forward, which was believed to
+need root. The step was interrupted once by a usage limit before any change was made; the resumed
+session found the tree clean at `a304d90`.
+
+### Done
+
+| Item | Commit |
+|---|---|
+| Locked clocks without root: Nsight Compute holds a clock lock for every process on the GPU while the process it profiles lives; `perf_ab.py run --backend cuda --lock-clocks` with `boost` (the default), `base` or `none` starts the idle helper `parity/clock_lock/clock_holder.cu` under `ncu --clock-control`, the monitor requires every busy GPU sample of both sides to be at the locked clocks and allows the helper's context, `ncu --clock-control reset` runs at the end; harness tests for the clock check, the allowed process and the no-op mode | `c25fe6d` |
+| `DYNG_WITH_NVTX` defaults to ON only when `nvtx3/nvToolsExt.h` exists (the verifier's CUDA 12.8 conda toolkit has `CUDA::nvtx3` but no headers); `cuda-build.yml` names the `LD_LIBRARY_PATH` a conda-forge toolkit needs locally (the verifier's minor findings) | `92d9fe4` |
+| The CUDA gate at locked clocks on all four graphs, plus road_usa at base clocks and a fresh default-clock reading of road_usa's local batch | `3e6de97` |
+| ADR 0018 update, `parity/results/M1b.md` section 14, the sssp page, `parity/README.md`, CHANGELOG, this section | this commit and `3ecb8fd` |
+
+### Measured (`parity/results/M1b.md` section 14)
+
+| Reading | Result |
+|---|---|
+| CUDA per-objective SOSP region, clocks locked (boost: SM 1695 / memory 7601 MHz), 4 graphs x 3 batches, 21 rounds | **36 / 36 within the gate**, 0.977-1.028x; road_usa local 10K **0.993 / 0.994 / 0.995x**; unimodal per-round times |
+| CUDA apply / end to end, locked | 0.67-0.87x / 0.76-0.90x |
+| road_usa at base clocks (SM 1170 MHz) | 0.993-1.002x per objective |
+| road_usa local 10K at default clocks (ungated) | 1.063 / 1.060 / 1.062x, bimodal as before; the original's kernels reached P0 more often (118 of 480 busy samples against 68 of 525) |
+| Outputs / `invalidated` | byte-identical, equal in every round |
+| `ci/check.sh` (`c25fe6d`) | all checks passed (harness 20 tests) |
+| `ci/build_cuda.sh ci-cuda12` with the conda-forge CUDA 12.8 toolkit and GCC 12.2 (`92d9fe4`; the verifier could not reproduce ci-cuda12 because of the NVTX headers) | release architecture list (sm_75..sm_120), `-Werror`, 0 warnings, rc 0; NVTX detected as absent; the int32 fused kernel 59 registers on sm_86 |
+
+The OpenMP gate and the other criteria were not re-measured: no library or kernel code changed
+in this step (the changes are the harness, the NVTX detection of the build and documentation).
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| PLAN 8.6: the CUDA per-objective gate, protocol without a clock rule | the gate is read with the GPU clocks locked for the whole A/B (ADR 0018 rule 4, `--lock-clocks boost`); the default-clock reading stays recorded next to it, ungated | the default-clock reading measures the GPU's DVFS response to the GPU work each program does before its kernels (the original's upload stage vs dynG's earlier tree uploads), not the code; locked clocks are the standard control, the plan's gate threshold is unchanged, and neither program is altered or profiled |
+| ADR 0018 option A: `sudo nvidia-smi -lgc/-lmc` | the same lock through Nsight Compute's clock control, no root | root is not available; the lock is verified in every sample |
+
+### Lessons
+
+1. **Look for an unprivileged path before calling a step blocked on root.** The profiler's clock
+   control, already used by `perf_ab.py kernels`, was the tool; what was missing was the
+   observation that its lock applies to the whole GPU while the profiled process lives.
+2. **A killed profiler session leaves the clocks locked**, for everyone on that GPU, until `ncu
+   --clock-control reset`. The harness resets unconditionally and unwinds on SIGTERM / SIGHUP.
+3. **Never walk `/` on this machine.** A `find /` issued to locate a header descended into the
+   automounted `/dfs` network share and mounted thousands of CIFS sub-shares; the desktop daemons
+   of every logged-in user then loaded the CPUs (load average above 50) for about half an hour.
+   Search the toolkit directories by name instead.
+
+### Open items
+
+- ADR 0018: the author may still decide that the default-clock reading should be gated too
+  (today it is recorded and ungated); ADRs 0015-0018 are accepted with the 0.1 API freeze.
+- The records of this step add about 720 KB of JSON (per-round monitor data); the compact record
+  format of the review's open items is still to be decided.
+- `ci/perf_gate.sh` (PLAN 8.6) should pass `--lock-clocks boost` for the CUDA gates (it is the
+  default of `perf_ab.py run`).

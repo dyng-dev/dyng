@@ -5,9 +5,12 @@ grew with the steps of M1b: sections 1-5 are the OpenMP gate of step cpu-gates, 
 first CUDA readings of step sssp-cuda, **sections 7-12 the M1b certificate** (step
 cuda-parity-perf): byte parity on every backend, the CUDA and OpenMP performance gates on the four
 graphs of PLAN 6.4.2, the fused kernel's resources, and the `edge_t` benchmark; **section 13**
-re-measures parity and the gates on the code fixed after the M1b review. Where the sections
-disagree, sections 7-12 supersede 3 and 6.3, and section 13 supersedes the gate readings of 7-9
-(it measures the final code).
+re-measures parity and the gates on the code fixed after the M1b review; **section 14** reads
+the CUDA gate with the GPU clocks locked for the whole A/B (ADR 0018 rule 4, without root), the
+protocol of the gate from the M1b acceptance fix on. Where the sections disagree, sections 7-12
+supersede 3 and 6.3, section 13 supersedes the gate readings of 7-9 (it measures the final code),
+and section 14 supersedes section 13's CUDA verdict (section 13's default-clock readings stay as
+the ungated as-measured record).
 
 **Certificate summary** (details and every number below; machine-readable records next to this
 file):
@@ -24,6 +27,7 @@ file):
 | OpenMP apply and end to end (<= 1.10x) | **pass**: apply 0.78-1.02x, end to end 0.75-0.91x |
 | Fused kernel registers / occupancy vs the original | **equal**: 59 registers, 616 bytes of parameters, 4 blocks of 256 threads per SM, grid 256 x 256 (section 11) |
 | **M1b review** (section 13): the gates re-measured on the fixed code `674fc3b` with the contamination monitor | byte parity 495 / 495 in 9 configurations; CUDA 33 / 36 per objective within the gate, road_usa local 10K **1.060 / 1.060 / 1.054x (FAIL as measured)**, 0.989-0.991x at locked clocks; OpenMP 36 / 36; apply and end to end pass on both; no contamination in the gated rounds |
+| **M1b acceptance fix** (section 14): the CUDA gate with the clocks locked for the whole A/B (`--lock-clocks boost`, no root), code `3ecb8fd` | **36 / 36 per-objective regions within the gate** (0.977-1.028x; road_usa local 10K **0.993 / 0.994 / 0.995x**); apply 0.67-0.87x, end to end 0.76-0.90x; clocks at the locked values in every busy sample of every round; at base clocks road_usa 0.993-1.002x; at default clocks road_usa local 10K still 1.06x (P-state, recorded, ungated) |
 | `edge_t` benchmark (ADR 0009) | int64 costs 3-4.5 % on the CUDA SOSP region (50K batches), up to 4.4 % on OpenMP; default int32 with checked construction (section 10) |
 
 | File | Content |
@@ -38,6 +42,8 @@ file):
 | `M1b-diag-openmp-road_usa_g-*.json` | the OpenMP road_usa readings before the barrier change (section 9) |
 | `M1b-sssp-parity-preset.json`, `M1b-sssp-dev-preset.json`, `M1b-perf-openmp-*.json` | step cpu-gates (sections 2, 3) |
 | `M1b-sssp-cuda-parity-cuda-preset.json` | step sssp-cuda (section 6.1) |
+| `M1b-accept-perf-cuda-<graph>.json` | the CUDA gate at locked clocks (boost), section 14 |
+| `M1b-accept-perf-cuda-base-road_usa_g.json`, `M1b-accept-perf-cuda-unlocked-road_usa_g.json` | road_usa at base clocks; road_usa's local batch at default clocks (section 14) |
 | `M1b-review-*.json` | the M1b review's records on the fixed code (section 13): golden replays, both A/Bs with the contamination monitor, the locked-clock kernels of road_usa |
 
 `<graph>` is `roadNet-PA`, `roadNet-CA`, `rgg` (rgg_n_2_20_s0) or `road_usa_g` (road_usa).
@@ -1024,8 +1030,8 @@ bytes (0.99-1.03x of the original's) are the measured cost of that addition.
 | M1b criterion | Status |
 |---|---|
 | 2. CUDA byte-identical to MOSP-CUDA e220ee2 on the 495 cases incl. the M1b cases; CUDA = OpenMP = sequential on the corpus and randomized | **met** (sections 7.2, 7.3; `dyng_sssp_cuda_tests`) |
-| 3a. CUDA per-objective SOSP region <= 1.05x / 1.10x | **not met as measured** on road_usa local 10K objectives 0 and 1 (1.065x, 1.063x); met at controlled clocks; pending the author's decision in ADR 0018 |
-| 3b. CUDA end to end <= 1.10x | **met** (0.83-0.92x; apply 0.55-0.74x) |
+| 3a. CUDA per-objective SOSP region <= 1.05x / 1.10x | **met** with the clocks locked for the whole A/B (section 14: 36 / 36, 0.977-1.028x); at default clocks road_usa local 10K reads 1.06x (sections 8, 13, 14; the GPU's P-state, ADR 0018) |
+| 3b. CUDA end to end <= 1.10x | **met** (0.83-0.92x; apply 0.55-0.74x; section 14: 0.76-0.90x, apply 0.67-0.87x) |
 | 3c. OpenMP per-objective SOSP region and end to end | **met** (0.63-0.99x; end to end 0.75-0.91x; apply 0.78-1.02x) |
 | 4. Fused kernel registers and occupancy no worse than the original's | **met** (59 = 59 registers, same occupancy and grid; section 11) |
 | 7. `edge_t` benchmark and ADR 0009; workspace-sharing ADR | **met** (section 10, ADR 0009: int32 with checked construction; ADR 0015) |
@@ -1046,6 +1052,7 @@ for g in roadNet-PA roadNet-CA rgg road_usa_g; do
   parity/perf_ab.py prepare --graph $g
   parity/perf_ab.py run --backend cuda --gpu 0 \
       --exe build/parity-cuda/tools/compat/dyng-compat-mosp --graph $g --runs 21
+  # (--lock-clocks boost is the default since section 14; --lock-clocks none: default clocks)
   parity/perf_ab.py kernels --gpu 0 --exe build/parity-cuda/tools/compat/dyng-compat-mosp \
       --graph $g --runs 21
   parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp --graph $g --runs 21
@@ -1145,3 +1152,80 @@ show:
 counted on dynG's side), end to end 0.80-0.90x; OpenMP 36 / 36 per-objective readings (0.63-0.99x),
 apply 0.79-1.03x, end to end 0.77-0.90x. The fused kernel keeps the original's 59 registers (60 and
 64 for the int64 instantiations, as before).
+
+## 14. M1b acceptance fix: the CUDA gate with the GPU clocks locked for the whole A/B
+
+The acceptance verifier re-measured section 13's CUDA gate at default clocks and read road_usa's
+local 10K batch at 1.061 / 1.059 / 1.014x (FAIL of criterion 3(a)), naming option A of ADR 0018
+(locked clocks for the whole A/B, thought to need root) as the way forward. It does not need
+root: Nsight Compute's clock control holds a lock for every process on the GPU while the process
+it profiles lives (`RmProfilingAdminOnly: 0` on this machine). ADR 0018's update has the checks.
+
+**Protocol.** As section 13 (parity and parity-cuda presets built from `3ecb8fd`, the unpatched
+MOSP-CUDA@e220ee2 rebuilt and verified by `build_reference.sh`, exclusive perf lock, GPU 0, 21
+alternating A/B rounds per batch, medians, contamination monitor, `CUDA_MODULE_LOADING=EAGER`),
+plus `--lock-clocks boost` (now the default of `perf_ab.py run --backend cuda`): before the
+first round the harness starts `ncu --clock-control boost parity/clock_lock/clock_holder.cu`
+on GPU 0 (one kernel, then idle until the harness closes its input); the GPU then reports SM
+1695 MHz and memory 7601 MHz (P2) under any load. Neither timed program is profiled or changed.
+The monitor accepts the helper's idle context and **requires every busy GPU sample (50 ms) of both
+sides in every accepted round to be at the locked clocks** (column "clocks locked"); at the end
+the helper exits and `ncu --clock-control reset` restores the default clocks (recorded in each
+JSON, `protocol.gpu_clocks`). Rounds with more than 2 cores of foreign CPU load were repeated;
+the machine carried about 1.1 cores of foreign load (desktop daemons reacting to network
+mounts) throughout, below the limit.
+
+**CUDA against MOSP-CUDA@e220ee2, clocks locked (boost)** (ratio dynG / original, medians of 21
+alternating rounds; records `M1b-accept-perf-cuda-<graph>.json`):
+
+| Graph | Batch | obj0 | obj1 | obj2 | original obj0 (ms) | apply | end to end | rounds rejected | foreign CPU max (cores) | clocks locked in every round |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| roadNet-PA | safe50k | 1.010 | 1.027 | 1.028 | 4.75 | 0.693 | 0.902 | 0 | 1.40 | yes |
+| roadNet-PA | unsafe50k | 1.011 | 1.023 | 1.024 | 4.74 | 0.690 | 0.881 | 0 | 1.41 | yes |
+| roadNet-PA | local10k | 0.994 | 1.002 | 1.002 | 9.36 | 0.675 | 0.879 | 0 | 1.37 | yes |
+| roadNet-CA | safe50k | 0.985 | 0.994 | 0.997 | 8.76 | 0.867 | 0.835 | 0 | 1.66 | yes |
+| roadNet-CA | unsafe50k | 0.989 | 0.999 | 0.996 | 8.74 | 0.816 | 0.883 | 0 | 1.31 | yes |
+| roadNet-CA | local10k | 0.977 | 0.999 | 1.000 | 3.50 | 0.796 | 0.837 | 0 | 1.36 | yes |
+| rgg_n_2_20_s0 | safe50k | 0.988 | 0.991 | 0.991 | 25.90 | 0.805 | 0.889 | 2 | 1.28 | yes |
+| rgg_n_2_20_s0 | unsafe50k | 0.990 | 0.991 | 0.991 | 25.88 | 0.776 | 0.832 | 0 | 1.29 | yes |
+| rgg_n_2_20_s0 | local10k | 1.001 | 1.003 | 1.002 | 61.49 | 0.734 | 0.901 | 0 | 1.69 | yes |
+| road_usa | safe50k | 1.000 | 0.999 | 1.000 | 102.80 | 0.805 | 0.813 | 1 | 1.40 | yes |
+| road_usa | unsafe50k | 0.999 | 1.000 | 1.001 | 102.80 | 0.810 | 0.756 | 3 | 1.97 | yes |
+| road_usa | local10k | 0.993 | 0.994 | 0.995 | 22.72 | 0.798 | 0.816 | 1 | 1.32 | yes |
+
+**The same A/B at base clocks** (SM 1170 MHz, memory 7601 MHz; road_usa,
+`M1b-accept-perf-cuda-base-road_usa_g.json`):
+
+| Graph | Batch | obj0 | obj1 | obj2 | original obj0 (ms) | apply | end to end | rounds rejected | foreign CPU max (cores) | clocks locked in every round |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| road_usa | safe50k | 1.002 | 1.002 | 1.001 | 112.56 | 0.810 | 0.787 | 0 | 1.41 | yes |
+| road_usa | unsafe50k | 1.002 | 1.002 | 1.002 | 112.53 | 0.816 | 0.745 | 0 | 1.26 | yes |
+| road_usa | local10k | 0.993 | 0.994 | 0.995 | 29.38 | 0.816 | 0.776 | 0 | 1.29 | yes |
+
+**At default clocks** (`--lock-clocks none`, the as-measured reading of sections 8 and 13;
+road_usa's local batch, `M1b-accept-perf-cuda-unlocked-road_usa_g.json`; ungated, see below):
+
+| Graph | Batch | obj0 | obj1 | obj2 | original obj0 (ms) | apply | end to end | rounds rejected | foreign CPU max (cores) | clocks locked in every round |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| road_usa | local10k | **1.063** (> 1.05) | **1.060** (> 1.05) | **1.062** (> 1.05) | 21.22 | 0.882 | 0.781 | 0 | 1.70 | n/a |
+
+**What the three readings show.**
+
+- With the clocks fixed, road_usa's local batch reads 0.993-0.995x at both lock levels, like the
+  other 33 per-objective readings (0.977-1.028x; the short roadNet-PA regions, 4.7-9.4 ms, are
+  gated at 1.10x). The per-round times become unimodal: objective 0 of the original took
+  22.65-22.81 ms in all 21 rounds, dynG's 22.53-22.63 ms.
+- At default clocks the two modes of section 13 are back (original objective 0: 18 of 21 rounds at
+  21.17-21.26 ms; dynG: 16 of 21 at 22.49-22.65 ms), and so is the 1.06x. The fast mode of the
+  original (21.2 ms) is faster than its own time at the 1695 MHz lock (22.7 ms): its kernels ran
+  above 1695 MHz, in P0, which the monitor saw more often for the original (118 of 480 busy
+  samples in P0) than for dynG (68 of 525). The difference is the GPU's DVFS response to the work
+  each program runs before its kernels, not the port (ADR 0018).
+- apply (0.67-0.88x) and end to end (0.75-0.90x) pass under every clock setting.
+
+**Verdict (criterion 3).** With the gate protocol of ADR 0018 rule 4 (clocks locked for the whole
+A/B), every CUDA reading is within its gate: per objective 36 / 36 (<= 1.05x, <= 1.10x under 10
+ms), apply and end to end <= 1.10x. The OpenMP gate is unchanged from section 13 (36 / 36 per
+objective, apply and end to end within 1.10x; the code has not changed since). The default-clock
+reading is kept as a separate, ungated record, as ADR 0018 decision 1 requires; whether it should
+be gated as well is the one question left to the author in ADR 0018.

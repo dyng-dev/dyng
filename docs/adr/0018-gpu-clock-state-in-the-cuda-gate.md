@@ -1,7 +1,8 @@
 # ADR 0018: The GPU clock state in the CUDA performance gate
 
-- **Status:** Proposed (M1b); needs the author's decision (see "Open decision"; updated by the M1b
-  review)
+- **Status:** Proposed (M1b). Decision 4 (locked clocks for the whole A/B) is applied without root
+  since the M1b acceptance fix (see the last update); the author may still ask for the default-clock
+  reading to be gated (updated by the M1b review and the M1b acceptance fix)
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -112,3 +113,44 @@ round, or timestamps of the timed region from both programs), which the unpatche
 provide without a profiler. Option A (locked application clocks for the whole A/B, a root action)
 is therefore the only option left that measures the gate as written with the clock state
 controlled; options B and C are unchanged otherwise. The decision stays with the author.
+
+## Update (M1b acceptance fix, 2026-09-28): locked clocks without root
+
+The acceptance verifier re-measured the default-clock reading independently (road_usa local 10K
+1.061 / 1.059 / 1.014x) and failed criterion 3(a), naming option A (locked clocks for the whole
+A/B) as the way forward. Option A turned out not to need root:
+
+- Nsight Compute locks the GPU's clocks while it profiles a process (`--clock-control
+  base|boost`), and the driver keeps them locked **for every process on the GPU** until the
+  profiled process ends (profiling is open to non-admin users on this machine,
+  `RmProfilingAdminOnly: 0`). Checked on GPU 1: a spin kernel of another process took 36.1 ms
+  under a `base` lock instead of 24.9 ms, and 24.9 ms under a `boost` lock, where sustained load
+  at default clocks drifts to 24.5 ms.
+- `perf_ab.py run --backend cuda --lock-clocks boost` (the default now) starts
+  `ncu --clock-control boost parity/clock_lock/clock_holder.cu` on the timed GPU: the helper runs
+  one kernel, then idles until the harness closes its standard input. **Neither timed program is
+  profiled or changed.** The monitor accepts the helper's idle context and requires every busy GPU
+  sample of both sides, in every accepted round, to be at the locked clocks (otherwise the round
+  is repeated). At the end the helper exits normally (ncu restores the clocks) and `ncu
+  --clock-control reset` runs in any case, because a killed ncu session leaves the clocks locked
+  (seen once on GPU 1 during the trials and reset the same way).
+- `boost` locks the RTX A5000 at SM 1695 MHz, memory 7601 MHz: the P2 state in which CUDA work
+  runs until DVFS promotes a long busy period to P0. `base` locks SM 1170 MHz, memory 7601 MHz.
+
+Result (`parity/results/M1b.md` section 14; all four graphs, three batches, 21 alternating
+rounds, `boost`): every per-objective CUDA region is within its gate, 0.977-1.028x (road_usa
+local 10K **0.993 / 0.994 / 0.995x**, original 22.7 ms); apply 0.67-0.87x; end to end
+0.76-0.90x; outputs byte-identical and `invalidated` equal in every round. The same A/B at `base`
+clocks on road_usa and a fresh default-clock reading of road_usa's local batch are recorded next
+to it; the default-clock reading still shows the 1.06x of the P-state difference and is kept as a
+separate, ungated row.
+
+What this changes:
+
+- Decision 4 is the gate protocol for the CUDA per-objective regions from now on, and the rule 3
+  waiver is withdrawn (not needed). Decision 1 still holds: the default-clock reading and the
+  Nsight Compute kernel reading are recorded next to the gate, never merged into it.
+- The open decision reduces to one question for the author: whether the default-clock reading
+  (which measures the GPU's DVFS response to the work each program does before its kernels, not
+  the port) should also be gated. Until the author says so, the locked-clock reading is the
+  gate, as rule 4 proposed.

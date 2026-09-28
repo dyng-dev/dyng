@@ -204,32 +204,35 @@ while the GPU is still in a low performance state (on the RTX A5000: P2, SM cloc
 memory 7.6 GHz instead of P0's 1.92 / 8.0 GHz). Any code sees this; it is why
 MOSP-CUDA, whose half-second "upload" stage precedes its first kernel, reads faster on road_usa's
 local batch than dynG, which uploads earlier (ADR 0018). Call `resources::warm_up()` and time
-repeated updates, or lock the GPU clocks, when a single short update is measured.
+repeated updates, or lock the GPU clocks, when a single short update is measured. The CUDA gate is
+read with the clocks locked for the whole A/B (`parity/perf_ab.py run --lock-clocks boost`, which
+needs no root: Nsight Compute holds the lock through an idle helper process; ADR 0018).
 
-**Measured against the originals** (`parity/results/M1b.md` section 13, the re-measurement on
-the code fixed after the M1b review; sections 8-9 have the step-4 records and the locked-clock
-tables: medians of 21 alternating runs of `dyng-compat-mosp` and the unpatched original, parity
-presets, RTX A5000 with CUDA 13.1 / 28 OpenMP threads pinned, with a contamination monitor; 50K
-safe, 50K unsafe and 10K local batches on each graph). Ratio dynG / original (below 1 is faster),
-the range over the batches and the objectives:
+**Measured against the originals** (`parity/results/M1b.md`: section 14 for CUDA, the gate with
+the GPU clocks locked for the whole A/B at SM 1695 MHz / memory 7601 MHz, and section 13 for
+OpenMP and the CUDA default-clock readings; sections 8-9 have the step-4 records and the Nsight
+Compute kernel tables: medians of 21 alternating runs of `dyng-compat-mosp` and the unpatched
+original, parity presets, RTX A5000 with CUDA 13.1 / 28 OpenMP threads pinned, with a
+contamination monitor; 50K safe, 50K unsafe and 10K local batches on each graph). Ratio dynG /
+original (below 1 is faster), the range over the batches and the objectives:
 
-| Graph | CUDA: SOSP region per objective (gate 1.05x; 1.10x under 10 ms) | CUDA: kernel at locked clocks | CUDA: apply / end to end (gate 1.10x) | OpenMP: SOSP region per objective (gate 1.05x; 1.10x under 10 ms) | OpenMP: apply / end to end (gate 1.10x) |
+| Graph | CUDA: SOSP region per objective, locked clocks (gate 1.05x; 1.10x under 10 ms) | CUDA: the same at default clocks (ungated) | CUDA: apply / end to end, locked clocks (gate 1.10x) | OpenMP: SOSP region per objective (gate 1.05x; 1.10x under 10 ms) | OpenMP: apply / end to end (gate 1.10x) |
 |---|---|---|---|---|---|
-| roadNet-PA | 0.98-1.00x | 1.00x | 0.65-0.68x / 0.86-0.89x | 0.63-0.85x | 0.86-1.03x / 0.79-0.90x |
-| roadNet-CA | 0.98-1.01x | 0.99-1.01x | 0.80-0.86x / 0.83-0.87x | 0.70-0.93x | 0.85-0.90x / 0.77-0.82x |
-| rgg_n_2_20_s0 | 0.99-1.00x | 0.99-1.00x | 0.77-0.79x / 0.86-0.89x | 0.68-0.99x | 0.79-0.81x / 0.79-0.88x |
-| road_usa | 1.00-1.01x (50K); **1.05-1.06x (local 10K, clock state)** | 0.99-1.01x | 0.94-0.96x / 0.80-0.87x | 0.79-0.95x | 0.79x / 0.80-0.85x |
+| roadNet-PA | 0.99-1.03x | 0.98-1.00x | 0.67-0.69x / 0.88-0.90x | 0.63-0.85x | 0.86-1.03x / 0.79-0.90x |
+| roadNet-CA | 0.98-1.00x | 0.98-1.01x | 0.80-0.87x / 0.83-0.88x | 0.70-0.93x | 0.85-0.90x / 0.77-0.82x |
+| rgg_n_2_20_s0 | 0.99-1.00x | 0.99-1.00x | 0.73-0.81x / 0.83-0.90x | 0.68-0.99x | 0.79-0.81x / 0.79-0.88x |
+| road_usa | 0.99-1.00x | 1.00-1.01x (50K); 1.06x (local 10K, clock state) | 0.80-0.81x / 0.76-0.82x | 0.79-0.95x | 0.79x / 0.80-0.85x |
 
 Byte-identical outputs and equal `invalidated` counters in every run. The fused kernel uses the
 original's 59 registers and runs the same 256 x 256 cooperative grid. The apply ratios of CUDA
 include dynG's host copies of the input trees (`sssp.import`), as the original's "upload" does.
-The one reading over its gate, road_usa's local batch on CUDA (1.060 / 1.060 / 1.054x; step 4:
-1.065 / 1.063 / 1.037x), is not contamination (the monitor saw clean rounds) and at locked clocks
-the kernels read 0.99x; the per-round times of both programs fall into the same two modes in
-different proportions, which fits the GPU's clock state (ADR 0018). ADR 0018 leaves its verdict to
-the author, and until then it is recorded as a gate miss.
+Every gated reading is within its gate. At default clocks road_usa's local batch on CUDA reads
+1.04-1.07x (the objectives of three campaigns): both programs' per-round times fall into the same two
+modes in different proportions, depending on whether the GPU reached P0 before the kernels (ADR
+0018); with the clocks locked it reads 0.993-0.995x at both lock levels tried (boost and base),
+with unimodal times.
 
-Absolute times of the 50K safe batch (ms per objective, medians; the same records):
+Absolute times of the 50K safe batch (ms per objective, medians; section 13, default clocks):
 
 | Graph | MOSP-CUDA | dynG cuda | MOSP-OpenMP (28 threads) | dynG openmp (28 threads) |
 |---|---:|---:|---:|---:|
