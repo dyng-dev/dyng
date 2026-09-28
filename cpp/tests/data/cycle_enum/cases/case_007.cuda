@@ -1,0 +1,55 @@
+k 2
+cuda_before 2:5
+cuda_naive_before 2:5
+cuda_roots_before 2:5
+cuda_edges_before 2:5
+cuda_two_hop_before 2:5
+cuda_after 2:6
+cuda_update 2:6
+k 3
+cuda_before 2:5 3:16
+cuda_naive_before 2:5 3:16
+cuda_roots_before 2:5 3:16
+cuda_edges_before 2:5 3:16
+cuda_two_hop_before 2:5 3:16
+cuda_after 2:6 3:16
+cuda_update 2:6 3:16
+k 4
+cuda_before 2:5 3:16 4:39
+cuda_naive_before 2:5 3:16 4:39
+cuda_roots_before 2:5 3:16 4:39
+cuda_edges_before 2:5 3:16 4:39
+cuda_two_hop_before 2:5 3:16 4:39
+cuda_after 2:6 3:16 4:44
+cuda_update 2:6 3:16 4:44
+k 5
+cuda_before 2:5 3:16 4:39 5:75
+cuda_naive_before 2:5 3:16 4:39 5:75
+cuda_roots_before 2:5 3:16 4:39 5:75
+cuda_edges_before 2:5 3:16 4:39 5:75
+cuda_two_hop_before 2:5 3:16 4:39 5:75
+cuda_after 2:6 3:16 4:44 5:85
+cuda_update 2:6 3:16 4:44 5:85
+k 6
+cuda_before 2:5 3:16 4:39 5:75 6:137
+cuda_naive_before 2:5 3:16 4:39 5:75 6:137
+cuda_roots_before 2:5 3:16 4:39 5:75 6:137
+cuda_edges_before 2:5 3:16 4:39 5:75 6:137
+cuda_two_hop_before 2:5 3:16 4:39 5:75 6:137
+cuda_after 2:6 3:16 4:44 5:85 6:164
+cuda_update 2:6 3:16 4:44 5:85 6:164
+k 7
+cuda_before 2:5 3:16 4:39 5:75 6:137 7:186
+cuda_naive_before 2:5 3:16 4:39 5:75 6:137 7:186
+cuda_roots_before 2:5 3:16 4:39 5:75 6:137 7:186
+cuda_edges_before 2:5 3:16 4:39 5:75 6:137 7:186
+cuda_two_hop_before 2:5 3:16 4:39 5:75 6:137 7:186
+cuda_after 2:6 3:16 4:44 5:85 6:164 7:232
+cuda_update 2:6 3:16 4:44 5:85 6:164 7:232
+k -1
+cuda_before 2:5 3:16 4:39 5:75 6:137 7:186 8:186 9:126 10:45
+cuda_naive_before 2:5 3:16 4:39 5:75 6:137 7:186 8:186 9:126 10:45
+cuda_roots_before 2:5 3:16 4:39 5:75 6:137 7:186 8:186 9:126 10:45
+cuda_edges_before 2:5 3:16 4:39 5:75 6:137 7:186 8:186 9:126 10:45
+cuda_two_hop_before 2:5 3:16 4:39 5:75 6:137 7:186 8:186 9:126 10:45
+cuda_after 2:6 3:16 4:44 5:85 6:164 7:232 8:249 9:183 10:66

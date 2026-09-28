@@ -19,7 +19,9 @@
 # update_static_histogram and update_static_histogram_openmp, checked equal). This takes a few
 # minutes.
 #
-# Environment: DYNG_SCRATCH (persistent work area, default $HOME/Projects/dyng-work).
+# Environment: DYNG_SCRATCH (persistent work area, default $HOME/Projects/dyng-work);
+# DYNG_TEST_GPU (the GPU of the original's CUDA backend, section 5b; default 1). The reference is
+# built with CUDA (parity/references.toml), so its exporter has the CUDA backend.
 # The script is deterministic: running it again must leave `git status` clean.
 set -euo pipefail
 
@@ -257,6 +259,66 @@ while read -r line; do
   echo "${status}" >"${out}/cli/${name}.status"
   i=$((i + 1))
 done <"${out}/cli/cases.txt"
+
+# --- 5b. The original's CUDA backend (M2b) -----------------------------------------------------------
+# cases/case_NNN.cuda and counts/cNN.cuda: the same histograms from the original's CUDA backend
+# (export_cycle_enum_cuda: the work-queue counter with every kind of work item, the naive counter
+# and update_static_histogram_cuda; "no bound" is the vertex count, as the device counters need a
+# bound), on GPU ${DYNG_TEST_GPU:-1}. Before they are written, every CUDA histogram is checked equal
+# to the sequential one of the same case (PLAN Section 6.3 step 2: the originals are cross-checked
+# once before a port is blamed).
+xc="${ref}/parity_export/bin/export_cycle_enum_cuda"
+if [ ! -x "${xc}" ]; then
+  echo "make_cycle_enum_fixtures.sh: ${xc} is missing; the reference must be built with CUDA" >&2
+  exit 1
+fi
+export CUDA_VISIBLE_DEVICES="${DYNG_TEST_GPU:-1}"
+cross_check() { # <cpu expectation file> <cuda expectation file>: every cuda line equals its seq line
+  python3 - "$1" "$2" <<'PY'
+import sys
+def sections(path):
+    out, k = {}, None
+    for line in open(path).read().splitlines():
+        name, _, rest = line.partition(" ")
+        if name == "k":
+            k = rest
+            continue
+        out[(k, name)] = rest
+    return out
+cpu, gpu = sections(sys.argv[1]), sections(sys.argv[2])
+for (k, name), value in gpu.items():
+    if name in ("deletions", "prior"):
+        ref = cpu.get((k, name))
+    elif name == "cuda_update":
+        ref = cpu.get((k, "seq_update"))
+    elif name.startswith("cuda") and name.endswith("_after"):
+        ref = cpu.get((k, "seq_after"))
+    elif name.startswith("cuda") and name.endswith("_before"):
+        ref = cpu.get((k, "seq_before"))
+    else:  # count-file lines: cuda, cuda_naive, cuda_roots, ...
+        ref = cpu.get((k, "seq"), cpu.get((k, "omp")))
+    if ref is None or ref != value:
+        sys.exit(f"{sys.argv[2]}: k {k} {name} '{value}' differs from the CPU backends' '{ref}'")
+PY
+}
+for f in "${out}"/cases/case_*.txt; do
+  "${xc}" cuda-counts "${f}" 0 >"${f%.txt}.cuda"
+  cross_check "${f%.txt}.counts" "${f%.txt}.cuda"
+done
+i=0
+while read -r what g k rest; do
+  name="$(printf 'c%02d' "${i}")"
+  if [ "${what}" = "count" ]; then
+    "${xc}" cuda-count-file "${out}/${g}" "${k}" 0 >"${out}/counts/${name}.cuda"
+  else
+    # shellcheck disable=SC2086
+    set -- ${rest}
+    "${xc}" cuda-update-file "${out}/${g}" "${k}" "$1" "$2" "$3" 0 ${4:+"$4"} \
+      >"${out}/counts/${name}.cuda"
+  fi
+  cross_check "${out}/counts/${name}.expected" "${out}/counts/${name}.cuda"
+  i=$((i + 1))
+done <"${out}/counts/cases.txt"
 
 # --- 6. Dataset digests --------------------------------------------------------------------------
 if [ "${datasets}" -eq 1 ]; then

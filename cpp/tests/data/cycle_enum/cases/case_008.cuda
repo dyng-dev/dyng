@@ -1,0 +1,55 @@
+k 2
+cuda_before 2:24
+cuda_naive_before 2:24
+cuda_roots_before 2:24
+cuda_edges_before 2:24
+cuda_two_hop_before 2:24
+cuda_after 2:23
+cuda_update 2:23
+k 3
+cuda_before 2:24 3:88
+cuda_naive_before 2:24 3:88
+cuda_roots_before 2:24 3:88
+cuda_edges_before 2:24 3:88
+cuda_two_hop_before 2:24 3:88
+cuda_after 2:23 3:82
+cuda_update 2:23 3:82
+k 4
+cuda_before 2:24 3:88 4:337
+cuda_naive_before 2:24 3:88 4:337
+cuda_roots_before 2:24 3:88 4:337
+cuda_edges_before 2:24 3:88 4:337
+cuda_two_hop_before 2:24 3:88 4:337
+cuda_after 2:23 3:82 4:303
+cuda_update 2:23 3:82 4:303
+k 5
+cuda_before 2:24 3:88 4:337 5:1211
+cuda_naive_before 2:24 3:88 4:337 5:1211
+cuda_roots_before 2:24 3:88 4:337 5:1211
+cuda_edges_before 2:24 3:88 4:337 5:1211
+cuda_two_hop_before 2:24 3:88 4:337 5:1211
+cuda_after 2:23 3:82 4:303 5:1051
+cuda_update 2:23 3:82 4:303 5:1051
+k 6
+cuda_before 2:24 3:88 4:337 5:1211 6:3860
+cuda_naive_before 2:24 3:88 4:337 5:1211 6:3860
+cuda_roots_before 2:24 3:88 4:337 5:1211 6:3860
+cuda_edges_before 2:24 3:88 4:337 5:1211 6:3860
+cuda_two_hop_before 2:24 3:88 4:337 5:1211 6:3860
+cuda_after 2:23 3:82 4:303 5:1051 6:3234
+cuda_update 2:23 3:82 4:303 5:1051 6:3234
+k 7
+cuda_before 2:24 3:88 4:337 5:1211 6:3860 7:10607
+cuda_naive_before 2:24 3:88 4:337 5:1211 6:3860 7:10607
+cuda_roots_before 2:24 3:88 4:337 5:1211 6:3860 7:10607
+cuda_edges_before 2:24 3:88 4:337 5:1211 6:3860 7:10607
+cuda_two_hop_before 2:24 3:88 4:337 5:1211 6:3860 7:10607
+cuda_after 2:23 3:82 4:303 5:1051 6:3234 7:8558
+cuda_update 2:23 3:82 4:303 5:1051 6:3234 7:8558
+k -1
+cuda_before 2:24 3:88 4:337 5:1211 6:3860 7:10607 8:23693 9:40155 10:45606 11:25775
+cuda_naive_before 2:24 3:88 4:337 5:1211 6:3860 7:10607 8:23693 9:40155 10:45606 11:25775
+cuda_roots_before 2:24 3:88 4:337 5:1211 6:3860 7:10607 8:23693 9:40155 10:45606 11:25775
+cuda_edges_before 2:24 3:88 4:337 5:1211 6:3860 7:10607 8:23693 9:40155 10:45606 11:25775
+cuda_two_hop_before 2:24 3:88 4:337 5:1211 6:3860 7:10607 8:23693 9:40155 10:45606 11:25775
+cuda_after 2:23 3:82 4:303 5:1051 6:3234 7:8558 8:18396 9:29993 10:32809 11:17991

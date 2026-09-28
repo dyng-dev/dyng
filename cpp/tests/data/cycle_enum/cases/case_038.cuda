@@ -1,0 +1,55 @@
+k 2
+cuda_before 2:17
+cuda_naive_before 2:17
+cuda_roots_before 2:17
+cuda_edges_before 2:17
+cuda_two_hop_before 2:17
+cuda_after 2:14
+cuda_update 2:14
+k 3
+cuda_before 2:17 3:52
+cuda_naive_before 2:17 3:52
+cuda_roots_before 2:17 3:52
+cuda_edges_before 2:17 3:52
+cuda_two_hop_before 2:17 3:52
+cuda_after 2:14 3:39
+cuda_update 2:14 3:39
+k 4
+cuda_before 2:17 3:52 4:161
+cuda_naive_before 2:17 3:52 4:161
+cuda_roots_before 2:17 3:52 4:161
+cuda_edges_before 2:17 3:52 4:161
+cuda_two_hop_before 2:17 3:52 4:161
+cuda_after 2:14 3:39 4:111
+cuda_update 2:14 3:39 4:111
+k 5
+cuda_before 2:17 3:52 4:161 5:429
+cuda_naive_before 2:17 3:52 4:161 5:429
+cuda_roots_before 2:17 3:52 4:161 5:429
+cuda_edges_before 2:17 3:52 4:161 5:429
+cuda_two_hop_before 2:17 3:52 4:161 5:429
+cuda_after 2:14 3:39 4:111 5:271
+cuda_update 2:14 3:39 4:111 5:271
+k 6
+cuda_before 2:17 3:52 4:161 5:429 6:954
+cuda_naive_before 2:17 3:52 4:161 5:429 6:954
+cuda_roots_before 2:17 3:52 4:161 5:429 6:954
+cuda_edges_before 2:17 3:52 4:161 5:429 6:954
+cuda_two_hop_before 2:17 3:52 4:161 5:429 6:954
+cuda_after 2:14 3:39 4:111 5:271 6:540
+cuda_update 2:14 3:39 4:111 5:271 6:540
+k 7
+cuda_before 2:17 3:52 4:161 5:429 6:954 7:1657
+cuda_naive_before 2:17 3:52 4:161 5:429 6:954 7:1657
+cuda_roots_before 2:17 3:52 4:161 5:429 6:954 7:1657
+cuda_edges_before 2:17 3:52 4:161 5:429 6:954 7:1657
+cuda_two_hop_before 2:17 3:52 4:161 5:429 6:954 7:1657
+cuda_after 2:14 3:39 4:111 5:271 6:540 7:841
+cuda_update 2:14 3:39 4:111 5:271 6:540 7:841
+k -1
+cuda_before 2:17 3:52 4:161 5:429 6:954 7:1657 8:1989 9:1240
+cuda_naive_before 2:17 3:52 4:161 5:429 6:954 7:1657 8:1989 9:1240
+cuda_roots_before 2:17 3:52 4:161 5:429 6:954 7:1657 8:1989 9:1240
+cuda_edges_before 2:17 3:52 4:161 5:429 6:954 7:1657 8:1989 9:1240
+cuda_two_hop_before 2:17 3:52 4:161 5:429 6:954 7:1657 8:1989 9:1240
+cuda_after 2:14 3:39 4:111 5:271 6:540 7:841 8:896 9:482

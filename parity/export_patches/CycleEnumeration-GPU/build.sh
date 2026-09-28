@@ -14,6 +14,12 @@
 #                                         update_static_histogram[_openmp] (see
 #                                         parity/exporters/cycle_enum)
 #
+#   parity_export/bin/export_cycle_enum_cuda
+#                                         the same program with the original's CUDA backend
+#                                         (count_simple_cycles_johnson[_work_queue],
+#                                         update_static_histogram_cuda), linked against the copy's
+#                                         CUDA build (only when that build compiled the kernels)
+#
 # The source comes from parity/exporters/cycle_enum and is copied into the copy, so the copy
 # records exactly what was built. It is compiled together with the original's unchanged sources
 # with the flags of the original's Release build (-std=c++17 -O3 -DNDEBUG, std::thread, OpenMP
@@ -46,3 +52,22 @@ if [ ! -x "${out}" ] || [ "${newest}" -nt "${out}" ]; then
   "${cxx}" "${flags[@]}" "${sources[@]}" -o "${out}"
 fi
 echo "export tool: ${out}"
+
+# The same source with the original's CUDA backend (M2b): linked against the static libraries of
+# the copy's own CUDA build (-DCYCLE_ENUM_ENABLE_CUDA=ON), whose kernels were compiled by its CMake
+# build with nvcc; only when that build made them.
+build="${copy}/build"
+cuda_libs=("${build}/libcycle_enum_dynamic.a" "${build}/libcycle_enum_cuda.a"
+  "${build}/libcycle_enum_openmp.a" "${build}/libcycle_enum_sequential.a"
+  "${build}/libcycle_enum_core.a")
+cuda_home="${CUDA_HOME:-/usr/local/cuda-13.1}"
+if [ -f "${build}/libcycle_enum_cuda.a" ] &&
+  [ -f "${build}/CMakeFiles/cycle_enum_cuda.dir/src/cuda/cuda_static_kernels.cu.o" ]; then
+  out_cuda="${dst}/bin/export_cycle_enum_cuda"
+  newest="$(ls -t "${dst}/src/${f}" "${cuda_libs[@]}" | head -n 1)"
+  if [ ! -x "${out_cuda}" ] || [ "${newest}" -nt "${out_cuda}" ]; then
+    "${cxx}" "${flags[@]}" -DCYCLE_ENUM_CUDA_ENABLED=1 "${dst}/src/${f}" "${cuda_libs[@]}" \
+      -L"${cuda_home}/lib64" -Wl,-rpath,"${cuda_home}/lib64" -lcudart -o "${out_cuda}"
+  fi
+  echo "export tool (cuda): ${out_cuda}"
+fi

@@ -34,6 +34,21 @@
 //                                    the prior (OpenMP counter), generate_batch, then
 //                                    update_static_histogram and update_static_histogram_openmp
 //
+// Built a second time as export_cycle_enum_cuda (CYCLE_ENUM_CUDA_ENABLED=1, linked against the
+// copy's CUDA libraries; M2b), it also has the original's CUDA backend:
+//   cuda-counts <case file> <device>  for one case and every k in 2..7 and "no bound" (k = the
+//                                    vertex count: the device counters need a bound): the static
+//                                    histograms before and after the batch from the work-queue
+//                                    counter with automatic items (count_simple_cycles_johnson_
+//                                    work_queue), before also with every other scheduler (naive
+//                                    count_simple_cycles_johnson; work-queue roots, edges, two-hop),
+//                                    and update_static_histogram_cuda (bounded k only)
+//   cuda-count-file <file> <k> <device> [--digest]
+//                                    the same static histograms of read_graph_view(file)
+//   cuda-update-file <file> <k> <del> <ins> <seed> <device> [<window>] [--digest]
+//                                    the prior (work queue), generate_batch, then
+//                                    update_static_histogram_cuda
+//
 // Text formats (the dynG tests produce the same text and compare it, or its digest):
 //   parse:   "vertices <n>\nedges <m>\nevents <t>\n", "v <external id>\n" per compact vertex, then
 //            "e <u> <v> <t1> <t2> ...\n" per grouped edge (timestamps sorted)
@@ -49,6 +64,12 @@
 //            lengths)
 //   count-file: "seq ...\n", "omp ...\n"; update-file: "prior ...\n", "seq_update ...\n",
 //            "omp_update ...\n", with "deletions <d> insertions <i>\n" first
+//   cuda-counts: per k ("k <k>\n"): "cuda_before ...\n", "cuda_naive_before ...\n",
+//            "cuda_roots_before ...\n", "cuda_edges_before ...\n", "cuda_two_hop_before ...\n",
+//            "cuda_after ...\n" and for k >= 2 "cuda_update ...\n"
+//   cuda-count-file: "cuda ...\n", "cuda_naive ...\n", "cuda_roots ...\n", "cuda_edges ...\n",
+//            "cuda_two_hop ...\n"; cuda-update-file: "deletions <d> insertions <i>\n",
+//            "prior ...\n", "cuda_update ...\n"
 // --digest prints "fnv1a64 <16 hex digits> bytes <size>" of the text instead of the text.
 //
 // The program is not part of the dynG build; it exists so that the committed fixtures and digests
@@ -67,6 +88,16 @@
 #include "cycle_enum/sequential/johnson.hpp"
 #include "support/cycle_oracles.hpp"
 
+#ifndef CYCLE_ENUM_CUDA_ENABLED
+#define CYCLE_ENUM_CUDA_ENABLED 0
+#endif
+#if CYCLE_ENUM_CUDA_ENABLED
+#include "cycle_enum/cuda/cuda_johnson.hpp"
+#include "cycle_enum/cuda/cuda_work_queue.hpp"
+#include "cycle_enum/dynamic/update_cuda.hpp"
+#endif
+
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -76,6 +107,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -84,7 +116,7 @@ namespace dyn = cycle_enum::dynamic;
 
 int usage() {
   std::cerr << "usage: export_cycle_enum parse|csr|generate|apply-generated|random-cases|apply|"
-               "counts|count-file|update-file ...\n";
+               "counts|count-file|update-file|cuda-counts|cuda-count-file|cuda-update-file ...\n";
   return 2;
 }
 
@@ -350,6 +382,84 @@ std::string update_file(const std::string& path, const std::size_t k,
                         dyn::update_static_histogram_openmp(g0, prior, batch, k, threads));
 }
 
+#if CYCLE_ENUM_CUDA_ENABLED
+namespace cu = cycle_enum::cuda;
+
+/// The static histograms of every CUDA scheduler, "<prefix><name><suffix> ..." lines; the first
+/// (work queue, automatic items) is returned for the update.
+std::string cuda_static(const cycle_enum::GraphView& view, const std::size_t k, const int device,
+                        const std::string& prefix, const std::string& suffix,
+                        cycle_enum::CycleHistogram* first) {
+  const cycle_enum::CycleHistogram automatic =
+      cu::count_simple_cycles_johnson_work_queue(view, device, k, nullptr, cu::CudaWorkItems::Auto);
+  if (first != nullptr) {
+    *first = automatic;
+  }
+  std::string out = histogram_text((prefix + suffix).c_str(), automatic);
+  out += histogram_text((prefix + "_naive" + suffix).c_str(),
+                        cu::count_simple_cycles_johnson(view, device, k, nullptr));
+  const std::pair<const char*, cu::CudaWorkItems> kinds[] = {
+      {"_roots", cu::CudaWorkItems::Roots},
+      {"_edges", cu::CudaWorkItems::Edges},
+      {"_two_hop", cu::CudaWorkItems::TwoHop}};
+  for (const auto& [name, items] : kinds) {
+    out +=
+        histogram_text((prefix + name + suffix).c_str(),
+                       cu::count_simple_cycles_johnson_work_queue(view, device, k, nullptr, items));
+  }
+  return out;
+}
+
+/// The effective bound of "no bound" on the device: the vertex count (at least 2).
+std::size_t device_bound(const long long k, const std::size_t vertices) {
+  return k < 0 ? std::max<std::size_t>(vertices, 2) : static_cast<std::size_t>(k);
+}
+
+std::string cuda_counts_case(const std::string& path, const int device) {
+  namespace ts = cycle_enum::test_support;
+  const test_case c = read_case(path);
+  const cycle_enum::GraphView view0 = ts::view_from_edges(c.edges, c.n);
+  const dyn::DirectedGraph g0 = dyn::build_directed_graph(view0);
+  const cycle_enum::GraphView view1 = dyn::to_graph_view(dyn::apply_batch(g0, c.batch));
+  std::string out;
+  for (const long long k : {2LL, 3LL, 4LL, 5LL, 6LL, 7LL, -1LL}) {
+    out += "k " + std::to_string(k) + "\n";
+    cycle_enum::CycleHistogram before;
+    std::string lines = cuda_static(view0, device_bound(k, view0.vertex_count()), device, "cuda",
+                                    "_before", &before);
+    // cuda_static names the automatic line "cuda_before".
+    out += lines;
+    out += histogram_text("cuda_after", cu::count_simple_cycles_johnson_work_queue(
+                                            view1, device, device_bound(k, view1.vertex_count()),
+                                            nullptr, cu::CudaWorkItems::Auto));
+    if (k >= 0) {
+      out += histogram_text("cuda_update",
+                            dyn::update_static_histogram_cuda(g0, before, c.batch,
+                                                              static_cast<std::size_t>(k), device));
+    }
+  }
+  return out;
+}
+
+std::string cuda_count_file(const std::string& path, const long long k, const int device) {
+  const cycle_enum::GraphView view = cycle_enum::read_graph_view(path);
+  return cuda_static(view, device_bound(k, view.vertex_count()), device, "cuda", "", nullptr);
+}
+
+std::string cuda_update_file(const std::string& path, const std::size_t k,
+                             const dyn::BatchParams& params, const int device) {
+  const cycle_enum::GraphView view = cycle_enum::read_graph_view(path);
+  const cycle_enum::CycleHistogram prior =
+      cu::count_simple_cycles_johnson_work_queue(view, device, k, nullptr, cu::CudaWorkItems::Auto);
+  const dyn::DirectedGraph g0 = dyn::build_directed_graph(view);
+  const dyn::EdgeBatch batch = dyn::generate_batch(view, params);
+  return "deletions " + std::to_string(batch.deletions.size()) + " insertions " +
+         std::to_string(batch.insertions.size()) + "\n" + histogram_text("prior", prior) +
+         histogram_text("cuda_update",
+                        dyn::update_static_histogram_cuda(g0, prior, batch, k, device));
+}
+#endif
+
 }  // namespace
 
 int main(int argc, char** argv) try {
@@ -413,6 +523,29 @@ int main(int argc, char** argv) try {
          digest);
     return 0;
   }
+#if CYCLE_ENUM_CUDA_ENABLED
+  if (command == "cuda-counts" && argc == 4) {
+    std::cout << cuda_counts_case(argv[2], std::atoi(argv[3]));
+    return 0;
+  }
+  if (command == "cuda-count-file" && argc >= 5) {
+    emit(cuda_count_file(argv[2], std::atoll(argv[3]), std::atoi(argv[4])), digest);
+    return 0;
+  }
+  if (command == "cuda-update-file" && argc >= 8) {
+    // <file> <k> <del> <ins> <seed> <device> [<window>] [--digest]
+    dyn::BatchParams params;
+    params.num_deletions = std::strtoull(argv[4], nullptr, 10);
+    params.num_insertions = std::strtoull(argv[5], nullptr, 10);
+    params.seed = std::strtoull(argv[6], nullptr, 10);
+    if (argc >= 9 && std::string(argv[8]) != "--digest") {
+      params.locality_window = std::strtoull(argv[8], nullptr, 10);
+    }
+    emit(cuda_update_file(argv[2], std::strtoull(argv[3], nullptr, 10), params, std::atoi(argv[7])),
+         digest);
+    return 0;
+  }
+#endif
   return usage();
 } catch (const std::exception& e) {
   std::cerr << "export_cycle_enum: " << e.what() << '\n';

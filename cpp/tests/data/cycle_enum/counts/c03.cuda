@@ -1,0 +1,5 @@
+cuda 2:5 3:4 4:2
+cuda_naive 2:5 3:4 4:2
+cuda_roots 2:5 3:4 4:2
+cuda_edges 2:5 3:4 4:2
+cuda_two_hop 2:5 3:4 4:2
