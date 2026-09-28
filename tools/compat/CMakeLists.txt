@@ -96,6 +96,20 @@ if(DYNG_BUILD_TESTS AND DYNG_BUILD_PARITY_TESTS)
     parity.sssp.mosp_openmp_c352151 PROPERTIES LABELS "parity;sssp" SKIP_RETURN_CODE 77 TIMEOUT
                                                1800
   )
+  # The cycle_count corpus of CycleEnumeration-GPU 0a976ad (parity/cycle_count_goldens.py):
+  # histograms and generated batches byte for byte, sequential and OpenMP with 4 and 56 threads
+  # (COLLAB only on OpenMP; `compare.py cycle_count --full` adds its sequential replay).
+  add_test(
+    NAME parity.cycle_count.cycle_enum_0a976ad
+    COMMAND
+      ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/parity/compare.py cycle_count --exe
+      $<TARGET_FILE:dyng-compat-cycle-enum> --goldens ${DYNG_GOLDENS_DIR}/cycle_count --jobs 8
+      --json ${CMAKE_CURRENT_BINARY_DIR}/parity-cycle_count.json
+  )
+  set_tests_properties(
+    parity.cycle_count.cycle_enum_0a976ad PROPERTIES LABELS "parity;cycle_count" SKIP_RETURN_CODE
+                                                     77 TIMEOUT 3600
+  )
   if(DYNG_ENABLE_CUDA)
     # The same corpus on the cuda backend: byte parity with MOSP-CUDA e220ee2 (the goldens are
     # MOSP-OpenMP's; MOSP-CUDA == MOSP-OpenMP on every case was checked once, PLAN 6.3 step 2).

@@ -527,3 +527,44 @@ noncanonical = 107
 "testcases/testCase8" = { k = 1, files = 17, sha256 = "0fba3777500bcfe036adc22784aa9b985a79b6fdc8e70b49dadf9ad24ae37172" }
 "testcases/testCase9" = { k = 3, files = 25, sha256 = "ecd3b46aa93be1b0890b39ef4eade467cefabc89b2c84b288c2a2f817a03bd10" }
 "thesis/thesis_example" = { k = 3, files = 25, sha256 = "9b4081cafea038eb9ee24b8e3d78d06ee954358072fb90fedc4f221b98972eb9" }
+
+[sets.cycle_count]
+reference = "CycleEnumeration-GPU"
+commit = "0a976adfa801a712135bf1adb51a228f353a0751"
+baseline_commit = "da2067d62c2ce8f9234908089fa15bc53b5979c0"
+location = "$DYNG_SCRATCH/goldens/cycle_count"
+generated_by = "parity/export_goldens.py cycle_count (parity/cycle_count_goldens.py)"
+num_cases = 24
+num_files = 90
+num_bytes = 10498089
+manifest_sha256 = "e40fa03ba3300376866362b9e7e737799a0ae99ac9f08f89c660d47b5fde91eb"
+
+[sets.cycle_count.groups]
+count = 10
+update = 14
+
+[sets.cycle_count.cases]
+"count/DD_k3" = { k = 3, total = 2020240, files = 2, sha256 = "8da68f1c8c4b8eec7f912df64e04dae13a6be898eb7cba1498d8d35449a36da6" }
+"count/DD_k4" = { k = 4, total = 4396674, files = 2, sha256 = "f782d4ba04f1d6397a037f4d714453e012db2c1c401022db224f7806033e4742" }
+"count/DD_k5" = { k = 5, total = 9476048, files = 2, sha256 = "9e9453ca4e7a28a09bf2371024e6c33927163de4f5b42546fb7ae5e79b2ea23b" }
+"count/DD_k6" = { k = 6, total = 21485606, files = 2, sha256 = "628c8029681503b9f3b3d5ddcd6062f0ec2750f69db86e5bc1ce9fcce8e1ffbe" }
+"count/DD_k7" = { k = 7, total = 54966172, files = 2, sha256 = "0cffcaf0188d58e1bced87f8f183bc5ff7f750182624f3b809101d1487d471c0" }
+"count/collab_k3" = { k = 3, total = 1257799573, files = 2, sha256 = "0c32315f48e423758c366c724cb4fdf3576f3f758eb23719b74b5f1d9a2e0c14" }
+"count/github_k3" = { k = 3, total = 7112157, files = 2, sha256 = "8bf72be570ba235b2be20e6fad8bc21ea45ee33e6dd8e2bbd2c97900750a440f" }
+"count/github_k4" = { k = 4, total = 75872845, files = 2, sha256 = "9d1d2e6dbc75f07ca24a75def998bdc7012f57a48c208136ff231b24b30be5f2" }
+"count/twitch_k3" = { k = 3, total = 48891585, files = 2, sha256 = "9e57ef42a3cf5142b5bf2e8e1a5bfca9c96c73da04773db744715ada95a85f7b" }
+"count/twitch_k4" = { k = 4, total = 389362369, files = 2, sha256 = "8f98de2e504b6d3e340ff13e1f02e27627b1d6808d27c0e7d08ee7ccc8caa0d0" }
+"update/DD_k3_25000_25000_s1" = { k = 3, total = 1943758, files = 5, sha256 = "8e1561b811671ed14f4d393fbc26a370b0beb1d8aa77ea144c573fec21070e83" }
+"update/DD_k4_1000_1000_s1" = { k = 4, total = 4388002, files = 5, sha256 = "9dd81e846d8a057486a2e013ed47631518192d65294229c73b3d00c65ce2e09d" }
+"update/DD_k4_1000_1000_s1_w1000" = { k = 4, total = 4391275, files = 5, sha256 = "539094713179272aa9b8889a17d6a8a5227a75070d2ae733f77fdfa994bcab0c" }
+"update/DD_k4_25000_25000_s1" = { k = 4, total = 4182398, files = 5, sha256 = "516222607ad67a9b3074282487d139d4f24385ed1676b6b0f710fdea670b0b85" }
+"update/DD_k4_25000_25000_s1_w10000" = { k = 4, total = 4269825, files = 5, sha256 = "feb67e1ae87ccbe0487ee11ee7d5ac3d59edbd510728c8edf4da20226546e7ba" }
+"update/DD_k4_25000_25000_s1_w100000" = { k = 4, total = 4182351, files = 5, sha256 = "87ce64bebdfefbe012ac93d572acfaab664aecfa9b8dbcdb67141ea3bef3688f" }
+"update/DD_k4_50000_50000_s1" = { k = 4, total = 3975602, files = 5, sha256 = "e0d02965ffa9d7ed360be9160500df93ed8dfe1369936b0ca8baca960e9b40f3" }
+"update/DD_k5_25000_25000_s1" = { k = 5, total = 8897380, files = 5, sha256 = "6d922721b0fdcde26f23f9c6cc088580ec486405fefe76f23d9f5f917d2e1cb4" }
+"update/github_k4_1000_1000_s1" = { k = 4, total = 75819437, files = 5, sha256 = "122623307bf33cefc7b311d1843be59a374b78f27aad1f1e301114b733e03548" }
+"update/github_k4_25000_25000_s1" = { k = 4, total = 74644109, files = 5, sha256 = "2d2d414a8b0cbd0597d99d52e4bc3fe36944af9ee43e23dd3ad30e9a1cb27f6b" }
+"update/github_k4_50000_50000_s1" = { k = 4, total = 73432075, files = 5, sha256 = "14f4282fac412caf00dcc9221105e6860e89abd7ed514376138764d64a4ca28f" }
+"update/twitch_k4_1000_1000_s1" = { k = 4, total = 389293913, files = 5, sha256 = "2cb0bbc7e84b61fdb80fab53e43aaad3a70a9ac3430d1ffc3534efc60465c89c" }
+"update/twitch_k4_25000_25000_s1" = { k = 4, total = 387651174, files = 5, sha256 = "096b1300c9cf2390cb44f4d562817fe6b0ed7545a0c39aac36dcca582288bc23" }
+"update/twitch_k4_50000_50000_s1" = { k = 4, total = 385936907, files = 5, sha256 = "add2ee51598c3863be4d9901a289ae5463596e0689dd9d6757be7b6aa700c4c8" }
