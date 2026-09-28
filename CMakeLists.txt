@@ -99,6 +99,19 @@ if(DYNG_ENABLE_CUDA)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
   set(CMAKE_CUDA_EXTENSIONS OFF)
 endif()
+# NVTX ranges for the profiler's stages (PLAN Section 7.3; profiler_options::nvtx): the header-only
+# NVTX 3 of the CUDA toolkit, ON when it is found.
+if(DYNG_ENABLE_CUDA AND TARGET CUDA::nvtx3)
+  set(_dyng_nvtx_default ON)
+else()
+  set(_dyng_nvtx_default OFF)
+endif()
+option(DYNG_WITH_NVTX "NVTX ranges for profiler stages (needs the toolkit's CUDA::nvtx3)"
+       ${_dyng_nvtx_default}
+)
+if(DYNG_WITH_NVTX AND NOT TARGET CUDA::nvtx3)
+  message(FATAL_ERROR "DYNG_WITH_NVTX=ON needs a CUDA build whose toolkit provides CUDA::nvtx3")
+endif()
 foreach(_dyng_unavailable DYNG_BUILD_PYTHON DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS)
   if(${_dyng_unavailable})
     message(WARNING "${_dyng_unavailable}=ON has no effect yet (added in a later milestone)")

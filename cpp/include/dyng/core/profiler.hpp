@@ -37,7 +37,9 @@ struct profiler_options {
   /// Synchronize the resources' stream at stage boundaries, so stage times are paper-comparable
   /// breakdowns (adds synchronization; host backends are unaffected).
   bool sync_stages = false;
-  /// Emit NVTX ranges for stages (CUDA builds with NVTX; ignored otherwise).
+  /// Emit an NVTX range per stage (push at its start, pop at its end), for Nsight Systems and other
+  /// NVTX tools. Needs a build with DYNG_WITH_NVTX (ON in CUDA builds whose toolkit ships NVTX 3);
+  /// ignored otherwise.
   bool nvtx = false;
   /// Time stages with CUDA events on the device (CUDA backend only; ignored otherwise).
   bool cuda_events = false;

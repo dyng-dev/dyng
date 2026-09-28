@@ -16,6 +16,10 @@
 #include <exception>
 #include <ostream>
 
+#if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
+#include <nvtx3/nvToolsExt.h>
+#endif
+
 namespace dyng {
 
 namespace {
@@ -74,11 +78,21 @@ void profiler::begin_stage(std::string_view name) {
     stages_.push_back(std::move(record));
   }
   open_.push_back(open_stage{index, std::chrono::steady_clock::now()});
+#if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
+  if (options_.nvtx) {
+    nvtxRangePushA(stages_[index].name.c_str());
+  }
+#endif
 }
 
 void profiler::end_stage(double device_ms) {
   const auto now = std::chrono::steady_clock::now();
   DYNG_EXPECTS(!open_.empty(), "profiler::end_stage() without an open stage");
+#if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
+  if (options_.nvtx) {
+    nvtxRangePop();
+  }
+#endif
   const open_stage top = open_.back();
   open_.pop_back();
   const double host_ms = std::chrono::duration<double, std::milli>(now - top.start).count();

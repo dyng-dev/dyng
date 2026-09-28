@@ -130,6 +130,12 @@ dyng_add_module(
     src/core/version.cpp
     "${PROJECT_BINARY_DIR}/cpp/generated/references_bib.cpp"
 )
+if(DYNG_WITH_NVTX)
+  # Header-only (NVTX 3 loads its tool at run time); nothing appears in the export set.
+  target_link_libraries(dyng_core PRIVATE $<BUILD_INTERFACE:CUDA::nvtx3>)
+  target_compile_definitions(dyng_core PRIVATE DYNG_HAS_NVTX=1)
+  target_link_libraries(dyng PRIVATE ${CMAKE_DL_LIBS})
+endif()
 
 dyng_add_module(
   NAME util

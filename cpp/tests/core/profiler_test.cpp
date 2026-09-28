@@ -124,3 +124,22 @@ TEST(Profiler, ScopedStageThroughResources) {
   EXPECT_THROW(dyng::scoped_stage(res, "BAD"), dyng::invalid_argument_error);
   res.attach_profiler(nullptr);
 }
+
+// profiler_options::nvtx adds an NVTX range per stage in builds with DYNG_WITH_NVTX (a no-op
+// without an attached NVTX tool) and is ignored otherwise; the recording is the same either way.
+TEST(Profiler, NvtxRangesDoNotChangeTheRecord) {
+  dyng::profiler_options options;
+  options.nvtx = true;
+  dyng::profiler prof(options);
+  auto res = dyng::resources::sequential();
+  res.attach_profiler(&prof);
+  {
+    dyng::scoped_stage outer(res, "test.outer");
+    dyng::scoped_stage inner(res, "test.inner");
+  }
+  res.attach_profiler(nullptr);
+  ASSERT_EQ(prof.stages().size(), 2U);
+  EXPECT_EQ(prof.stages()[0].name, "test.outer");
+  EXPECT_EQ(prof.stages()[1].depth, 1);
+  EXPECT_EQ(prof.samples().size(), 2U);
+}
