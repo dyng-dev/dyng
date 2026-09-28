@@ -31,6 +31,12 @@
 #
 # The GitHub workflows mirror these steps: cpu.yml runs `build`, lint.yml runs `precommit`
 # (which includes clang-format and REUSE), `docs` and the name-reservation package check.
+#
+# Machine rules (the development machine is shared): the heavy steps (build and tests, clang-tidy,
+# Doxygen, pre-commit, the parity replay) take the SHARED lock ${DYNG_PERF_LOCK} and run niced, so
+# they never overlap a timing run (which takes the lock exclusively). The default lock is
+# $DYNG_SCRATCH/perf.lock when that directory exists and CI is not set; DYNG_PERF_LOCK= (empty)
+# runs without it.
 set -euo pipefail
 
 run_parity="${DYNG_CHECK_PARITY:-0}"
@@ -38,7 +44,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,33p' "${BASH_SOURCE[0]}"
+      sed -n '5,39p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -60,9 +66,24 @@ fi
 presets="${DYNG_CHECK_PRESETS:-cpu-only dev}"
 skip=" ${DYNG_CHECK_SKIP:-} "
 failed=()
+if [ -n "${DYNG_PERF_LOCK+set}" ]; then
+  lock="${DYNG_PERF_LOCK}"
+elif [ -z "${CI:-}" ] && [ -n "${DYNG_SCRATCH:-}" ] && [ -d "${DYNG_SCRATCH}" ]; then
+  lock="${DYNG_SCRATCH}/perf.lock"
+else
+  lock=""
+fi
 
 step() { printf '\n==> %s\n' "$*"; }
 skipped() { [[ "${skip}" == *" $1 "* ]]; }
+# Heavy commands: shared lock (never during an exclusive timing run), niced.
+heavy() {
+  if [ -n "${lock}" ]; then
+    flock -s "${lock}" nice -n 10 "$@"
+  else
+    nice -n 10 "$@"
+  fi
+}
 
 if ! skipped format; then
   step "clang-format ($(clang-format --version | head -n1))"
@@ -77,8 +98,8 @@ fi
 if ! skipped build; then
   for preset in ${presets}; do
     step "preset ${preset}: configure, build, test (label cpu)"
-    if cmake --preset "${preset}" && cmake --build --preset "${preset}" &&
-      ctest --preset "${preset}" -L cpu; then
+    if heavy cmake --preset "${preset}" && heavy cmake --build --preset "${preset}" &&
+      heavy ctest --preset "${preset}" -L cpu; then
       echo "preset ${preset}: OK"
     else
       failed+=("build:${preset}")
@@ -105,8 +126,8 @@ if ! skipped tidy; then
     # include directory stands in for them. libstdc++ 12's get_temporary_buffer is deprecated
     # for clang (not for GCC); that diagnostic is not ours.
     gcc_include="$("${CXX:-g++}" -print-file-name=include)"
-    if git ls-files 'cpp/src/*.cpp' | xargs -r -n 1 -P "$(nproc)" clang-tidy -p "${tidy_db}" \
-      --quiet --checks='-*,readability-identifier-naming' --warnings-as-errors='*' \
+    if git ls-files 'cpp/src/*.cpp' | heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
+      -p "${tidy_db}" --quiet --checks='-*,readability-identifier-naming' --warnings-as-errors='*' \
       "--extra-arg=-isystem${gcc_include}" --extra-arg=-Wno-deprecated-declarations; then
       echo "clang-tidy: OK"
     else
@@ -150,7 +171,7 @@ fi
 if ! skipped docs; then
   step "doxygen (public headers, warnings as errors)"
   if command -v doxygen >/dev/null 2>&1; then
-    if ci/docs.sh; then
+    if heavy ci/docs.sh; then
       echo "doxygen: OK"
     else
       failed+=("docs")
@@ -163,7 +184,7 @@ fi
 if ! skipped precommit; then
   step "pre-commit run --all-files"
   if command -v pre-commit >/dev/null 2>&1; then
-    if pre-commit run --all-files --show-diff-on-failure; then
+    if heavy pre-commit run --all-files --show-diff-on-failure; then
       echo "pre-commit: OK"
     else
       failed+=("precommit")
@@ -179,8 +200,8 @@ if [ "${run_parity}" = "1" ] && ! skipped parity; then
   if [ ! -f "${goldens}/sssp/MANIFEST.sha256" ]; then
     echo "no goldens in ${goldens}/sssp: run parity/build_reference.sh and parity/export_goldens.py"
     failed+=("parity:no-goldens")
-  elif cmake --preset parity -DDYNG_GOLDENS_DIR="${goldens}" && cmake --build --preset parity &&
-    ctest --preset parity -L parity; then
+  elif heavy cmake --preset parity -DDYNG_GOLDENS_DIR="${goldens}" &&
+    heavy cmake --build --preset parity && heavy ctest --preset parity -L parity; then
     echo "parity: OK"
   else
     failed+=("parity")
