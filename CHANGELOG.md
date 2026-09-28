@@ -335,6 +335,23 @@ Before 0.1.0 anything may change.
   first pull request).
 - The INT1 retrospective (`docs/developer/retrospectives/INT1.md`).
 
+### M2b: M2a merged (branch `m2b-cycle-cuda`)
+
+- The CPU `cycle_count` of M2a (branch `m2-cycle`) is merged with a merge commit on top of
+  INT1. The graph keeps both sides: M1b's `int32` default `edge_t` with checked construction
+  (ADR 0009), the device graph and the copy-policy staging, and M2a's `unweighted`
+  instantiations, `graph_properties::cycle_enum_compatible()` / `batch_semantics::set()` and
+  the sorted-row set apply. The host batch checks are one function (`validate_batch_shape`) for
+  both applies; `checked_edge_count` exists once.
+- Documentation site: an API page for the `cycle_count` group; the algorithm tables, landing
+  page, README, roadmap and short plan list `cycle_count` as working on sequential and OpenMP,
+  CUDA in progress. M2a added no ADR (it amended ADR 0010), so no ADR was renumbered.
+- The `main` ruleset exists since pull request #1 (17 required checks, strict; the Repository
+  admin role bypasses only through pull requests); `DCO` becomes required once the author's
+  organization membership is public. `GOVERNANCE.md`, CONTRIBUTING.md and the repository
+  settings guide say so.
+- Re-verification after the merge: `parity/results/M2b.md`, section "Merge re-verification".
+
 ## [0.0.1] - 2026-09-27
 
 ### Added
