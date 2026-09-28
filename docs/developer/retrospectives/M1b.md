@@ -1,7 +1,11 @@
 # Retrospective: M1b (CUDA `sssp`, CUDA core, performance harness and gates)
 
-Status: **in progress.** Each implementation step appends its section; the close-out adds the
-milestone summary, the acceptance record, the lessons and the re-estimate.
+Status: **complete (2026-09-28) with one open gate decision.** Steps 1-4 each appended their
+section; Step 5 (finish) added the documentation, the Doxygen synchronization rule, the final
+verification from a fresh clone of every preset, the milestone summary, the acceptance record,
+the consolidated deviations, the lessons and the re-estimate. One acceptance reading is not met
+as written and waits for the author (criterion 3a, CUDA road_usa local 10K batch, ADR 0018). An
+independent review of M1b (as M1a had) has not happened yet.
 
 ## Step 1: the OpenMP gates and the M1a carry-over (cpu-gates, 2026-09-27)
 
@@ -408,3 +412,252 @@ rounds per batch (11 for `edge_t`), medians:
   on the lab machine pushed it to 244 without CPU load); a run-queue sample would be a better
   contamination monitor (PLAN 8.5).
 - As in step 3: a CUDA graph keeps a host copy of its CSR; `compute()` on cuda synchronizes.
+
+## Step 5: finish (2026-09-28)
+
+Goal: close M1b (the step "finish" of the milestone): the sssp page, README, CHANGELOG, Doxygen
+clean with `@sync` / `@async` on CUDA-capable functions, REUSE and provenance, both local gates
+green from a clean tree, and this close-out. The step was interrupted once by a usage limit; the
+second session found the tree clean at `0fef14f` (nothing of the first session was left
+uncommitted) and did the whole step.
+
+### Done
+
+- **Doxygen synchronization rule** (`3f683fb`, `e330e9e`). The public functions that take a
+  `stream_ref` or a `memory_resource_ref`, and the members that do stream-ordered work with their
+  own stream (`buffer`'s destructor, `resize()` and move assignment; `resources::
+  release_workspaces()`), now carry `@sync` or `@async` with a sentence saying what is ordered on
+  which stream: the memory resources' `allocate` / `deallocate`, the `buffer` constructors,
+  `resources::cuda()`, `set_memory_resource()`, `release_workspaces()`. `ci/doxygen_coverage.py`
+  enforces it (before, only functions taking `resources` were checked); the rule was checked to
+  fail on four removed tags.
+- **Example on the GPU** (`10805b4`): `sssp_update ... cuda` runs the update with the fused engine
+  and writes the same file; CTest `example.sssp_update.cuda` (label `gpu`) compares it with MOSP's
+  output and is skipped (77) without a device; unknown backends are rejected.
+- **sssp page** (`73f7f05`): the CUDA engine table (`automatic` / `fused` / `operators` with and
+  without cooperative launch), the determinism level, a CUDA API snippet (compiled against the
+  headers), absolute times next to the ratios, the gate thresholds of the table corrected
+  (1.10x under 10 ms), and **"Paper vs fixed code"** (PLAN 6.3 step 10): the correctness fixes
+  between the papers' code (`baseline-2026-09`) and the pinned originals, and the per-objective
+  times of the papers' code, of the fixed code (its own record and the M1b A/B) and of dynG.
+- **README and CHANGELOG** (`fbb2508`): the CUDA build (toolkit, presets, architectures), the local
+  GPU gate and its knobs (`DYNG_TEST_GPU`, the perf lock, `DYNG_GPU_SKIP`), the example on cuda,
+  the parity check with MOSP-CUDA, the status table.
+- **Found by building every preset** (the first full run, on `fbb2508`):
+  - `SsspWorkspace.TheObjectivesShareOneWorkspaceAndASteadyStateAllocatesNone/openmp` failed in
+    the `relwithdebinfo` preset (workspace 157,584 -> 169,872 bytes after the warm-up; about 1 in
+    180 runs in `dev` too). Since Step 4 the OpenMP per-thread lists live in the workspace, and a
+    list grows when its thread takes a larger share of a round than before, which the dynamic
+    schedule decides. `sssp_workspace::thread_list_bytes()` now separates them; the test requires
+    the rest of the workspace to stay exactly constant, the lists never to shrink, and the whole
+    workspace to stay constant on the sequential backend (`5fbf149`; 320 repetitions under
+    parallel load without a failure). The sssp page, `thread_list.hpp`, the engine header and
+    ADR 0015 state the exception to I9 instead of "allocates nothing" (`eff3684`, `0086ee7`).
+  - GCC 12 at `-O2` warned (`-Wstringop-overflow`, not an error in `relwithdebinfo`) on the
+    sequential engine's colour reset; it now fills the whole state array (`4609c94`).
+- **Verification** of every preset from a fresh clone of the final code (section "Final
+  verification").
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| PLAN 9.1: `@sync` / `@async` "on CUDA-capable functions" | the check defines CUDA-capable mechanically (a `resources`, `stream_ref` or `memory_resource_ref` parameter, plus a named list of stream-ordered members) | the XML has no notion of "CUDA-capable"; the list is short and lives next to the rule |
+| PLAN 8.5 / 9.5: "paper vs fixed code" against the papers' numbers | against the papers' **code** (`baseline-2026-09`), from the originals' own `results/README.md`, plus the M1b A/B | neither original re-derived the papers' run times (MOSP-CUDA `CHANGES.md`, "Not done"); the same-machine comparison is the reproducible one |
+| PLAN 9.6: README quickstarts extracted and run by `ci/docs.sh` | not yet; the CUDA snippet of the sssp page was compiled by hand against the headers | the extraction step belongs to the docs tooling of M5 |
+| invariant I9 (no allocation in a steady-state update) | holds except for the OpenMP per-thread lists, which grow geometrically to the largest share a thread has taken (ADR 0015 update) | bounding them up front costs a round's size per thread; MOSP allocates them in every region |
+
+## Milestone summary
+
+M1b was carried out in five implementation steps between 2026-09-27 15:40 and 2026-09-28 04:20
+(CDT): the OpenMP gates and the M1a carry-over (Step 1), the CUDA core (Step 2), the CUDA sssp
+engine (Step 3), parity and performance (Step 4), and this finish (Step 5); two steps were
+interrupted by a usage limit and resumed. 46 commits on `main` since the M1a close-out
+(`c54eb6a`); nothing was pushed by a step. M2a (`m2-cycle`) and M4 (`m4-infra`) ran in parallel on
+their own branches and worktrees and are not part of this record.
+
+| Area | Size after M1b (lines, tracked) | After M1a |
+|---|---:|---:|
+| Library: public headers and sources (`cpp/include`, `cpp/src`; 1,540 lines of `.cu` / `.cuh`) | 16,000 | 9,900 |
+| Tests (`cpp/tests`, without the fixture data) | 7,000 | 4,000 |
+| Parity harness, compat driver, CI, scripts, CMake, examples (without the result records) | 7,300 | 3,800 |
+| Documentation (Markdown, ADRs, algorithm and API pages) | 4,700 | 1,900 |
+
+The tracked tree is 2.5 MB, of which 720 KB are the JSON records of `parity/results/` and 209 KB
+the committed test inputs (limit 1 MB).
+
+What M1b delivered, in one list:
+
+- **CUDA foundation** (ADRs 0003, 0016): the CUDA build and presets, `resources::cuda()`,
+  `stream_ref`, the CCCL-shaped `memory_resource_ref` with `cuda_async_memory_resource` as the
+  default, pinned host memory, device `buffer`, device error flags, `warm_up()`, device
+  workspaces in the handle's pool, profiler device times from CUDA events.
+- **CUDA sssp** (ADR 0017): the resident device graph (uploaded per state, in-edges built on the
+  device), MOSP-CUDA@e220ee2's persistent cooperative kernel ported verbatim behind the fused
+  engine (the same 59 registers, 616 parameter bytes and 256 x 256 grid), engine selection with
+  the forced no-cooperative-launch path, device results, `from_arrays()` / `clone()` across
+  spaces.
+- **OpenMP at the gates** (ADR 0015): workspace sharing through the pool, lazy in-edges,
+  parallel checks and assembly, one-pass readers, per-thread lists in the workspace, three
+  barriers per near-far round.
+- **`generators::legacy::mosp_changes()`**, bit-exact with MOSP's `mospPrep changes`.
+- **Harness:** CUDA in `dyng-compat-mosp`, `compare.py`, `perf_ab.py` (`run`, `kernels`,
+  `edge-type`), the corpus re-exported by MOSP-CUDA's own tools, `ci/gpu_local.sh`,
+  `ci/build_cuda.sh` and `cuda-build.yml`.
+- **Decisions:** ADR 0009 (int32 offsets, checked), ADR 0015 (workspace sharing), ADR 0018
+  (the GPU clock state in the CUDA gate; open).
+
+### Acceptance record
+
+| # | Criterion | Evidence | Status |
+|---|---|---|---|
+| 1 | A fresh clone configures and builds every preset (host `-Werror`) and passes all tests: CPU labels via `ci/check.sh`, GPU labels via `ci/gpu_local.sh` | section "Final verification": all 13 configure presets from one fresh clone of `0086ee7`, every test label green | met |
+| 2 | CUDA byte-identical to MOSP-CUDA e220ee2 on the 495-case corpus plus the M1b cases; CUDA = OpenMP = sequential on the corpus and in randomized differential tests against `testing::dijkstra` + `check_sssp_tree(require_canonical)` | 495/495 in 9 configurations incl. cuda and cuda with int64 offsets (`parity/results/M1b.md` 7.3); the M1b cases are corpus groups (packing n = 2^17 - 1, the 320 x 320 large-weight grid, 100 `stressTest` + 100 `parallelStressTest` seeds) and CUDA unit tests; the corpus re-exported by MOSP-CUDA's own tools is file-identical (11,799 files); the randomized suites run cuda next to the host backends (`dyng_sssp_cuda_tests`); replayed again on cuda from the fresh clones of Step 5 | met |
+| 3a | CUDA per-objective SOSP region <= 1.05x (<= 1.10x under 10 ms) of MOSP-CUDA | 34/36 readings within the gate (0.98-1.01x); road_usa local 10K objectives 0 and 1 read 1.065x and 1.063x as measured (objective 2 1.037x); at locked clocks all 36 kernels read 0.992-1.014x (ADR 0018) | **not met as written**; the author's decision is open (ADR 0018: A, B or C) |
+| 3b | CUDA end to end <= 1.10x | 0.83-0.92x (apply 0.55-0.74x) | met |
+| 3c | OpenMP per-objective region and end to end within the same gates against MOSP-OpenMP c352151 (28 threads pinned); the M1a carry-over closed | 36/36 per objective (0.63-0.99x), end to end 0.75-0.91x, apply 0.78-1.02x; workspace sharing (ADR 0015), lazy in-edges in `from_csr`, parallel tree validation | met |
+| 4 | Fused kernel registers and occupancy no worse than the original's | `cuobjdump --dump-resource-usage`: 59 registers, 616 parameter bytes on both sides; 4 blocks of 256 threads per SM, the same 256 x 256 grid (`parity/results/M1b.md` section 11) | met |
+| 5 | `engine::automatic` = fused, `not_supported_error` with a clear message without cooperative launch (forced flag tested); streams and memory resources per PLAN 4.7; no allocation inside `update` after warm-up for a stable workload | engine selection before any change, message naming the host backends (`sssp_cuda_test.cpp`, forced flag); `resource_ref`-shaped `memory_resource_ref`, `cuda_async_memory_resource` default (ADRs 0003, 0016); the algorithm phase of an update (workspace, change lists, fused engine) allocates nothing in steady state (counting-resource test); the per-batch upload of the new graph state allocates its arrays from the stream-ordered pool, because the host apply builds a new CSR per batch as MOSP does | met, with the graph upload exempt until the device apply (as the host apply's I9 exemption of M1a) |
+| 6 | `generators::legacy` reproduces MOSP's change generator bit-exactly | 15 committed fixtures from both originals' `mospPrep changes`, all index types; the twelve benchmark batches of the gate graphs (seed 777) byte for byte | met |
+| 7 | `edge_t` benchmark done, ADR 0009 fixes the default; an ADR on workspace sharing | int64 offsets cost 3-4.5 % on the CUDA 50K batches, -0.6 to +4.4 % on OpenMP: int32 with checked construction (ADR 0009, accepted); ADR 0015 | met |
+| 8 | `cuda-build.yml` (compile-only) exists and builds locally in an equivalent way; docs updated; this retrospective | `ci/build_cuda.sh ci-cuda13` (CUDA 13.1) and `ci-cuda12` (CUDA 12.9) from the fresh clone (below); the hosted run waits for the push; the sssp page (CUDA backend, engines, performance table, paper vs fixed code), README, CHANGELOG, this file | met (the hosted run waits for the push) |
+
+### Final verification (Step 5)
+
+All from one fresh `git clone` of `0086ee7` (the code as committed; this retrospective was
+added after it and re-checked with the lint steps), on the development machine (GCC 12.2, CUDA
+13.1, RTX A5000; GPU tests on GPU 1; every heavy step under the shared perf lock). Logs:
+`$DYNG_SCRATCH/runs/m1b-finish/final/`.
+
+| Command (preset) | Result |
+|---|---|
+| `ci/check.sh --parity` (`cpu-only`, `dev`, `parity`) | all steps passed: clang-format; `cpu-only` 229/229 and `dev` 241/241 (`ctest -L cpu`, `-Werror`); clang-tidy naming; REUSE; provenance (86 files); harness smoke tests; Doxygen + convention check (105 compounds, incl. the new `@sync` / `@async` rule); pre-commit; `parity` preset golden replay (sequential and OpenMP) passed |
+| `ci/gpu_local.sh` (`dev-cuda`, `-Werror`) | build; `ctest -L gpu` 83/83 on GPU 1 (incl. `example.sssp_update.cuda`); `ctest -L cpu` 241/241 in the CUDA build; the golden corpus on cuda 495/495 byte-identical; compute-sanitizer memcheck with leak check 0 errors (4 passes); clang-tidy on the CUDA branches |
+| `release`, `relwithdebinfo` | build without warnings; `ctest -L cpu` 229/229 each |
+| `asan` (`-Werror`) | `ctest -L cpu` 229/229 (skips by design: impossible allocations under sanitizers) |
+| `tsan` (`-Werror`, OpenMP off) | `ctest -L cpu` 200/200 |
+| `release-cuda` (sm_75-sm_120 + PTX) | build without warnings; `ctest -L gpu` 77/77 |
+| `parity-cuda` (MOSP-CUDA's flags, sm_86) | build; `ctest -L gpu` 84/84; `compare.py --configs cuda`: 495/495 byte-identical (manifest `668145c6...`) |
+| `sanitize-cuda` (`-Werror`, launches checked) | `ctest -L gpu` 77/77 |
+| `ci/build_cuda.sh ci-cuda13` (CUDA 13.1) | compile-only release build, `-Werror`: passed; `sssp_persistent_kernel<int, int, int>` 59 registers on sm_86 |
+| `ci/build_cuda.sh ci-cuda12` (CUDA 12.9, conda toolkit read-only) | compile-only release build, `-Werror`: passed |
+
+The first full run (on `fbb2508`) failed in `relwithdebinfo` on the flaky steady-state test and
+showed the `-Wstringop-overflow` warning; both are fixed (Step 5, "Found by building every
+preset"), and the run above is the rerun on the fixed code.
+
+### Deviations, consolidated
+
+Every deviation is in the table of the step that made it; the ones that matter beyond M1b:
+
+1. **Scratch memory belongs to `resources`** (ADR 0015): a workspace pool per handle, leased by
+   runs, instead of workspaces inside results (PLAN 4.7.2, 5.1); `release_workspaces()`,
+   `workspace_bytes()`.
+2. **Graph construction:** in-edges built on first use; `from_csr(res, csr&&, props)`; the
+   `apply` region gated at 1.10x in addition to PLAN 8.6's regions.
+3. **Presets:** `dev` stays CPU-only; the CUDA builds are separate presets (`dev-cuda`,
+   `release-cuda`, `parity-cuda`, `sanitize-cuda`, `ci-cuda12/13`) (ADR 0016).
+4. **CUDA placement:** a graph belongs to its backend class; a CUDA graph keeps a host CSR and a
+   device copy per state; `compute()` on cuda synchronizes once (ADR 0017).
+5. **Stage names on cuda:** one `sssp.enact_fused` stage replaces the four hooks (Tier B).
+6. **The CUDA gate:** host times of the same scope on both sides (the original has no device
+   timer), recorded as measured and at locked clocks, never merged (ADR 0018, open).
+7. **OpenMP engine beyond the straight port:** three barriers per round (`gather_pair()`,
+   `nowait`) and per-thread lists in the workspace; the straight port's records kept separately.
+8. **Additions to the ported kernel:** the deterministic `affected` count in the unpack pass and
+   a host-side parent-cycle check; `stats::packed_parents` may differ between cuda and the host
+   engines right at the packing limit.
+9. **Records instead of tools:** `parity/results/M1b.md` with JSON records instead of
+   `certify.py` / `benchmarks/results/<version>/parity.json`; 21 alternating rounds instead of 5.
+10. **Documentation checks:** `@sync` / `@async` enforced on a mechanical definition of
+    "CUDA-capable"; "paper vs fixed code" against the papers' code rather than the papers'
+    numbers.
+11. **Invariant I9 exceptions:** the OpenMP per-thread lists (schedule-dependent growth, ADR 0015)
+    and, on CUDA, the per-batch upload of the new graph state (until the device apply).
+
+### Lessons
+
+1. **Machine time for performance gates is the scarce resource.** The final campaign (4 graphs
+   x 3 batches x 21 rounds for both backends, the locked-clock kernels and the `edge_t`
+   benchmark) held the exclusive lock for about 2 h 40 min; every gate iteration before it cost
+   30-60 min. Parallel milestones (M2, M4) share that lock: schedule GPU campaigns, do not
+   assume them.
+2. **A gate is only as good as its control of the machine.** Two causes of false readings were
+   the machine, not the code: DVFS performance states on the GPU (ADR 0018) and barrier-latency
+   modes on the CPU (Step 4). Record the machine state (clocks, P-state, run queue) next to every
+   timing, and decide in advance, in an ADR, what the gate compares when the state differs.
+3. **Straight ports first, measured changes after, both kept on record.** Every change beyond
+   the straight port (workspace sharing, parallel assembly, three-barrier rounds) came with a
+   measurement and left byte parity intact; the straight port's numbers stay in the certificate.
+4. **Byte parity scales when the originals are cross-checked first.** Both originals' tools
+   produce the same 11,799 files; every CUDA mismatch during the port was dynG's by construction,
+   and the corpus replays in under a minute per configuration.
+5. **Mechanical checks beat review for conventions.** Extending the `@sync` / `@async` rule
+   from `resources` parameters to streams and memory resources found twelve public functions
+   without the tag, all written in Steps 2-3 and unnoticed since.
+6. **Build every preset from a fresh clone before closing a milestone.** `ci/check.sh` and
+   `ci/gpu_local.sh` cover four presets; the other nine found a schedule-dependent test (a 1-in-180
+   flake that the gates had never hit) and an optimizer-only warning.
+7. **Interrupted sessions need a clean tree or a written state.** Step 4's first session left
+   uncommitted work and mixed records; Step 5's interruption left nothing, because every piece
+   was committed as soon as it was checked.
+
+## Re-estimate of the roadmap
+
+**Measured:** the M1a retrospective re-estimated M1b at 4-6 days of focused work and 1.5-2 weeks
+of calendar time (plan: 2 weeks). M1b took five sessions over about 13 hours of wall-clock time;
+the final measurement campaign alone held the exclusive lock for about 2 h 40 min, and the
+earlier A/B runs of Steps 1, 3 and 4 added to that. The independent review and its fix
+step (M1a's found 25 defects) are still to come. M2a (the CPU half of M2) and M4 were completed
+in parallel on their own branches in the same period.
+
+**What this changes.** The coding of a port with a good original is faster than the M1a
+re-estimate assumed; the remaining time is dominated by (i) measurement campaigns that need the
+exclusive lock of one shared machine, (ii) reviews and their fix steps, (iii) the author's
+decisions and account actions, and (iv) merges of parallel branches. The re-estimate therefore
+lowers the focused effort and keeps most of the calendar time.
+
+| Milestone | Plan (working weeks) | M1a re-estimate (focused) | Now: focused AI effort | Calendar incl. author gates | Main risk |
+|---|---|---|---|---|---|
+| M1b CUDA `sssp` + harness | 2 | 4-6 days | done (about 13 h), plus a review-and-fix step of 1-2 days | ADR 0018 decision; review | the open gate reading; review findings |
+| M2 `cycle_count` | 2-3 | 4-6 days | M2a done; M2b (CUDA) 3-5 days after the M1b merge | 1-1.5 weeks | two kernel families, device batch apply, GPU campaigns competing for the lock |
+| M3 framework + conformance kit + 0.1 API freeze | 2-3 | 5-8 days | 4-7 days | 2-3 weeks | re-running parity and both GPU/CPU gates per refactor commit (lock time); the author's API sign-off |
+| M4 GitHub repository and infrastructure | 1-2 | 1-3 days | done on `m4-infra` (merge pending) | author settings actions | first hosted runs of the CUDA compile job |
+| M5 Python CPU wheel, CLI, docs | 2-3 | 5-8 days | 4-7 days | 2-3 weeks | nanobind + scikit-build-core, Sphinx `-W`, TestPyPI release candidate |
+| **0.1.0** | **12-17** (from M0) | **4-6 weeks** | **about 3-4 weeks** from now | **about 6-8 weeks** | merges of three branches; reviews |
+| 0.1.x (M6) | 4-6 | 1.5-2 weeks | 1-2 weeks | 3-4 weeks | GPU runner decision (O11); wheel sizes |
+| 0.2.0 (M7-M9) | 8-12 | 3-4 weeks | 2.5-3.5 weeks | 6-8 weeks | the operators engine must stay within 1.05x of the fused one (a long GPU campaign per refactor); the CBST merge |
+| 0.3.0 (M10-M11) | 8-12 | 3-4 weeks | 2.5-3.5 weeks | 6-8 weeks | DynLP float tolerances; conda-forge review |
+| **Up to 0.3.0** | **about 32-47** | **12-16 weeks** | **about 9-13 weeks** | **about 20-27 weeks** | |
+
+**Recommended order now:** the author decides ADR 0018 (option A needs one sudo command pair and
+one 30-minute A/B on GPU 0); an independent review of M1b; merge M1b, then M2a and M4 into `main`
+(M2b needs M1b's CUDA core); M2b; then M3. Measurement campaigns of parallel milestones should be
+scheduled one after the other on the exclusive lock.
+
+## Open items carried forward
+
+For **the author**:
+
+1. **ADR 0018** (acceptance criterion 3a): (A) one A/B with root-locked clocks on GPU 0
+   (`nvidia-smi -lgc/-lmc`, then reset), (B) accept the proposed verdict rule (its three
+   conditions hold for road_usa's local batch), or (C) keep the reading as a known M1b gate miss.
+2. Review M1b; ADRs 0015-0017 are proposed and are accepted with the 0.1 API freeze (M3).
+
+For **M1b's review-and-fix step / M2b / M3**:
+
+3. A CUDA graph keeps a host copy of its CSR and uploads each new state (allocating from the
+   pool); the device apply (PLAN 6.4.1) removes both. `compute()` on cuda synchronizes (ADR 0017
+   item 7).
+4. `perf_ab.py`'s load-average guard counts kernel threads in uninterruptible sleep (CIFS); a
+   run-queue sample would be a better contamination monitor (PLAN 8.5).
+5. The OpenMP near-far round could drop to two barriers with a lock-free prefix sum (not needed
+   for the gate; the operators engine of 0.2 is the place).
+6. `parity/certify.py` and `benchmarks/results/<version>/parity.json` (PLAN 8.3) are release
+   tooling for 0.1.
+7. The README quickstart extraction (`ci/docs.sh`, PLAN 9.6) comes with the docs tooling of M5.
+
+For **M4 / the first push**:
+
+8. `cuda-build.yml` has not run on GitHub yet (the CUDA 13.3.1 container was never built
+   locally; 13.1 and 12.9 were).
