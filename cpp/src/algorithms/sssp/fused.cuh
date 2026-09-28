@@ -41,12 +41,14 @@
  *
  * Mechanical changes only (PLAN Section 6.3 step 5): names in snake_case; templates on the vertex,
  * edge and weight types (the int32 instantiation is the original's code); namespace
- * dyng::detail; DISTANCE_INF is sssp_infinity (the same value). Two additions, both in the
- * unpack pass of an update (not in compute(), whose input arrays are not a tree): the counter
- * `affected` (vertices whose distance or parent changed; update_stats), summed per warp and added
- * to the control block; in the distance-only mode it needs the old parents and the "distance
- * changed" marks, which the unpack pass keeps in the `ancestor` and `candidates` arrays (free at
- * that point) and counts after one more grid barrier.
+ * dyng::detail; DISTANCE_INF is sssp_infinity (the same value). One addition, in the unpack pass
+ * of an update (not in compute(), whose input arrays are not a tree): the counter `affected`
+ * (vertices whose distance or parent changed; update_stats), summed per warp and added to the
+ * control block. With packed words the unpack compares each vertex's new pair with the old one it
+ * would overwrite and writes only changed pairs (the same bytes moved as the original's
+ * unconditional write, the same output); in the distance-only mode it needs the old parents and
+ * the "distance changed" marks, which the unpack pass keeps in the `ancestor` and `candidates`
+ * arrays (free at that point) and counts after one more grid barrier.
  */
 #pragma once
 
@@ -508,19 +510,33 @@ __global__ void __launch_bounds__(block_size)
   const bool count_affected = !p.from_scratch;  // added: the input arrays of an update are a tree
   u64 affected = 0;
   if (packed_format.has_parents()) {
-    for (vertex_t v = tid; v < n; v += threads) {
-      u64 word = load(&p.packed[v]);
-      const long long old_distance = count_affected ? p.distances[v] : 0;
-      const vertex_t old_parent = count_affected ? p.parent[v] : vertex_t{0};
-      if (word == packed_inf) {
-        p.distances[v] = sssp_infinity;
-        p.parent[v] = -1;
-      } else {
-        p.distances[v] = static_cast<long long>(packed_format.distance(word));
-        p.parent[v] = packed_format.parent<vertex_t>(word);
+    if (count_affected) {
+      // Added (update only): the arrays still hold the old tree, so only the entries that change
+      // are written (and counted). The unpack moves as many bytes as the original's (a read of
+      // the old pair instead of a write of an unchanged one) and gives `affected` for free.
+      for (vertex_t v = tid; v < n; v += threads) {
+        u64 word = load(&p.packed[v]);
+        const long long distance = word == packed_inf
+                                       ? sssp_infinity
+                                       : static_cast<long long>(packed_format.distance(word));
+        const vertex_t parent =
+            word == packed_inf ? vertex_t{-1} : packed_format.parent<vertex_t>(word);
+        if (p.distances[v] != distance || p.parent[v] != parent) {
+          p.distances[v] = distance;
+          p.parent[v] = parent;
+          ++affected;
+        }
       }
-      if (count_affected) {
-        affected += (p.distances[v] != old_distance || p.parent[v] != old_parent) ? 1 : 0;
+    } else {
+      for (vertex_t v = tid; v < n; v += threads) {
+        u64 word = load(&p.packed[v]);
+        if (word == packed_inf) {
+          p.distances[v] = sssp_infinity;
+          p.parent[v] = -1;
+        } else {
+          p.distances[v] = static_cast<long long>(packed_format.distance(word));
+          p.parent[v] = packed_format.parent<vertex_t>(word);
+        }
       }
     }
   } else {
