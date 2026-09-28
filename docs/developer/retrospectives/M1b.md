@@ -839,3 +839,10 @@ in this step (the changes are the harness, the NVTX detection of the build and d
   format of the review's open items is still to be decided.
 - `ci/perf_gate.sh` (PLAN 8.6) should pass `--lock-clocks boost` for the CUDA gates (it is the
   default of `perf_ab.py run`).
+
+## Author decision (2026-09-28)
+
+ADR 0018 is **Accepted with option B**: the CUDA gate is read at locked clocks (the harness default
+since the acceptance fix), and default-clock readings are reported but not gated. Acceptance
+criterion 3a is therefore met (36 / 36 per-objective CUDA regions within the gate at locked clocks).
+The earlier "open decision" notes in this retrospective are kept as the historical record.

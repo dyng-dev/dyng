@@ -20,13 +20,13 @@ file):
 | Golden corpus, 495 cases (incl. the M1b cases), byte equality | **pass**: sequential, OpenMP 1/4/16/28 threads, CUDA; int32 and int64 edge offsets (section 7) |
 | Goldens re-exported with MOSP-CUDA@e220ee2's own tools | **identical** to the committed MOSP-OpenMP corpus, file for file (section 7.2) |
 | Paper-scale outputs (4 graphs x 3 batches, both backends) | byte-identical trees, `invalidated` equal in every timed round (sections 8, 9) |
-| CUDA per-objective SOSP region, as measured (<= 1.05x / 1.10x) | **34 / 36 within the gate** (0.98-1.01x); **road_usa local 10K objectives 0 and 1 EXCEED** (1.065x, 1.063x; objective 2 1.037x): a FAIL under the strict reading, caused by the GPU's clock state, not the kernel (section 8.2; ADR 0018, open decision) |
+| CUDA per-objective SOSP region at **default** clocks (recorded, not gated: ADR 0018, option B accepted 2026-09-28) | 34 / 36 within 1.05x (0.98-1.01x); road_usa local 10K objectives 0 and 1 read 1.065x and 1.063x (objective 2 1.037x), caused by the GPU's clock state, not the kernel (section 8.2) |
 | CUDA per-objective fused kernel at locked clocks | 36 / 36 within 0.992-1.014x (road_usa local 10K: 0.992-0.995x); DRAM bytes 0.99-1.03x (section 8.4) |
 | CUDA apply and end to end (<= 1.10x) | **pass**: apply 0.55-0.74x, end to end 0.83-0.92x |
 | OpenMP per-objective SOSP region (<= 1.05x / 1.10x) | **36 / 36 within the gate** (0.63-0.99x), after the barrier change of section 9 (the straight port exceeded on road_usa local 10K in two campaigns) |
 | OpenMP apply and end to end (<= 1.10x) | **pass**: apply 0.78-1.02x, end to end 0.75-0.91x |
 | Fused kernel registers / occupancy vs the original | **equal**: 59 registers, 616 bytes of parameters, 4 blocks of 256 threads per SM, grid 256 x 256 (section 11) |
-| **M1b review** (section 13): the gates re-measured on the fixed code `674fc3b` with the contamination monitor | byte parity 495 / 495 in 9 configurations; CUDA 33 / 36 per objective within the gate, road_usa local 10K **1.060 / 1.060 / 1.054x (FAIL as measured)**, 0.989-0.991x at locked clocks; OpenMP 36 / 36; apply and end to end pass on both; no contamination in the gated rounds |
+| **M1b review** (section 13): the gates re-measured on the fixed code `674fc3b` with the contamination monitor | byte parity 495 / 495 in 9 configurations; CUDA 33 / 36 per objective within the gate, road_usa local 10K **1.060 / 1.060 / 1.054x (default clocks; not gated per ADR 0018)**, 0.989-0.991x at locked clocks; OpenMP 36 / 36; apply and end to end pass on both; no contamination in the gated rounds |
 | **M1b acceptance fix** (section 14): the CUDA gate with the clocks locked for the whole A/B (`--lock-clocks boost`, no root), code `3ecb8fd` | **36 / 36 per-objective regions within the gate** (0.977-1.028x; road_usa local 10K **0.993 / 0.994 / 0.995x**); apply 0.67-0.87x, end to end 0.76-0.90x; clocks at the locked values in every busy sample of every round; at base clocks road_usa 0.993-1.002x; at default clocks road_usa local 10K still 1.06x (P-state, recorded, ungated) |
 | `edge_t` benchmark (ADR 0009) | int64 costs 3-4.5 % on the CUDA SOSP region (50K batches), up to 4.4 % on OpenMP; default int32 with checked construction (section 10) |
 
@@ -1229,3 +1229,10 @@ ms), apply and end to end <= 1.10x. The OpenMP gate is unchanged from section 13
 objective, apply and end to end within 1.10x; the code has not changed since). The default-clock
 reading is kept as a separate, ungated record, as ADR 0018 decision 1 requires; whether it should
 be gated as well is the one question left to the author in ADR 0018.
+
+## 15. Author decision on the CUDA gate (2026-09-28)
+
+The author accepted ADR 0018 option B: the CUDA per-objective gate is read with the clocks locked for
+the whole A/B (section 14, `--lock-clocks boost`), and default-clock readings are recorded, not gated.
+Under that rule every M1b gate passes: 36 / 36 CUDA per-objective regions (section 14), CUDA apply
+and end to end, and all OpenMP gates.

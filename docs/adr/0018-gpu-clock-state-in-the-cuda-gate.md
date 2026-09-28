@@ -1,8 +1,8 @@
 # ADR 0018: The GPU clock state in the CUDA performance gate
 
-- **Status:** Proposed (M1b). Decision 4 (locked clocks for the whole A/B) is applied without root
-  since the M1b acceptance fix (see the last update); the author may still ask for the default-clock
-  reading to be gated (updated by the M1b review and the M1b acceptance fix)
+- **Status:** Accepted (2026-09-28, by the author: option B). The CUDA gate is read with the clocks
+  locked for the whole A/B (`perf_ab.py run --backend cuda --lock-clocks boost`, both sides, checked in
+  every busy sample); default-clock readings are recorded and published, not gated
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -74,11 +74,18 @@ update slower end to end, and would tune the library to the idle pattern of a on
    whole A/B (`sudo nvidia-smi -i 0 -lgc <f>,<f> -lmc <f>,<f>`, reset with `-rgc -rmc`) and read
    `perf_ab.py run --backend cuda` as measured; that makes rule 3 unnecessary.
 
-## Open decision (for the author)
+## Decision taken (2026-09-28)
 
-Either (A) run the CUDA A/B once with locked clocks (rule 4; a sudo action on the lab machine), or
-(B) accept rule 3 for per-objective regions, or (C) keep the strict reading and treat road_usa's
-local 10K batch as a known gate miss of M1b. The rest of the CUDA gate record passes as measured.
+The author chose **option B**, in the form the M1b acceptance fix made possible without root: the
+CUDA per-objective gate of PLAN 8.6 is read **with the GPU clocks locked for the whole A/B**
+(`perf_ab.py run --backend cuda --lock-clocks boost`: an idle helper holds the lock through
+`ncu --clock-control`, applied equally to both programs, and every busy GPU sample of both sides must be
+at the locked clocks or the round is repeated). This is standard practice for comparing GPU kernels.
+The **default-clock** reading is still measured, recorded and published next to it (for example
+road_usa's local 10K batch reads about 1.06x at default clocks because of the P-state the preceding
+work leaves behind), but it is **not gated**. Options A (root-locked clocks) and C (a strict
+default-clock gate) were not taken. The same rule applies to every later CUDA gate (`cycle_count`,
+`mosp`, `triad_count`, `label_propagation`, `hyper_sssp`).
 
 ## Consequences
 

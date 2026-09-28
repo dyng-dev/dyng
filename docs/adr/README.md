@@ -19,7 +19,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0015](0015-workspace-sharing.md) | Workspace sharing (scratch memory owned by `resources`) | Proposed (M1b) |
 | [0016](0016-cuda-execution-resources.md) | CUDA execution resources (streams, memory, errors, warm-up) | Proposed (M1b) |
 | [0017](0017-cuda-sssp-engine-and-placement.md) | The CUDA sssp engine, engine selection, placement and the resident device graph | Proposed (M1b) |
-| [0018](0018-gpu-clock-state-in-the-cuda-gate.md) | The GPU clock state in the CUDA performance gate | Proposed (M1b; the gate is read at locked clocks, without root, since the acceptance fix) |
+| [0018](0018-gpu-clock-state-in-the-cuda-gate.md) | The GPU clock state in the CUDA performance gate | Accepted (2026-09-28: option B, the gate is read at locked clocks; default-clock readings are reported, not gated) |
 | [0019](0019-merge-policy.md) | Merge policy (merge commits for milestone and integration work, squash for contributions, no rebase) | Accepted (INT1) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
