@@ -8,10 +8,14 @@
 # tools), then reports every kernel's registers, stack and shared memory per architecture and the
 # library size (the wheel size budget of PLAN Section 7.7) in the job summary.
 #
-# Local equivalent (the development machine has CUDA 13.1; ci-cuda12 was checked with the conda
-# CUDA 12.9 toolkit):
+# The containers' host compiler is Ubuntu 24.04's g++ (GCC 13). Local equivalent (the development
+# machine has CUDA 13.1 and GCC 12.2; the other toolkits and GCC 13 come from conda-forge
+# environments, used read-only; see the M1b retrospective, "M1b review"):
 #   ci/build_cuda.sh ci-cuda13
+#   CUDACXX=<cuda-13.4>/bin/nvcc CXX=<gcc-13>/bin/g++ CUDAHOSTCXX=<gcc-13>/bin/g++ \
+#     ci/build_cuda.sh ci-cuda13
 #   CUDACXX=<cuda-12>/bin/nvcc CUDAHOSTCXX=/usr/bin/g++ ci/build_cuda.sh ci-cuda12
+# Compiler outputs are cached with ccache (PLAN Section 8.8, "Practices"), one cache per toolkit.
 # The GPU tests run on the author's machine: ci/gpu_local.sh.
 name: cuda-build
 
@@ -41,32 +45,49 @@ jobs:
           # The toolkit of the development and performance machine (CUDA 13.1).
           - cuda: "13.1.1"
             preset: ci-cuda13
-          # The latest CUDA 13 toolkit.
-          - cuda: "13.3.1"
+          # The latest CUDA 13 toolkit (checked on Docker Hub, 2026-09-28; bump it with each
+          # release: the tag list is https://hub.docker.com/r/nvidia/cuda/tags).
+          - cuda: "13.4.1"
             preset: ci-cuda13
           # The latest CUDA 12 toolkit (CUDA 12.x is supported from 12.4, PLAN Section 7.1).
           - cuda: "12.9.2"
             preset: ci-cuda12
     env:
-      CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/cpm
       CMAKE_BUILD_PARALLEL_LEVEL: 4
+      # CMake takes the compiler launchers from the environment (the presets stay launcher-free).
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_CUDA_COMPILER_LAUNCHER: ccache
+      CCACHE_MAXSIZE: 2G
     steps:
       - name: Install build tools
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates git g++ python3 python3-venv
+          apt-get install -y --no-install-recommends ca-certificates git g++ ccache python3 \
+            python3-venv
           python3 -m venv /opt/tools
           /opt/tools/bin/pip install "cmake>=3.30,<4.5" ninja
           echo "/opt/tools/bin" >> "${GITHUB_PATH}"
           echo "CXX=g++" >> "${GITHUB_ENV}"
           echo "CUDACXX=/usr/local/cuda/bin/nvcc" >> "${GITHUB_ENV}"
+          # Container paths: the github.workspace context would be the runner host's path
+          # (actions/runner#2058); inside the container the workspace is $GITHUB_WORKSPACE.
+          echo "CPM_SOURCE_CACHE=${GITHUB_WORKSPACE}/.cache/cpm" >> "${GITHUB_ENV}"
+          echo "CCACHE_DIR=${GITHUB_WORKSPACE}/.cache/ccache" >> "${GITHUB_ENV}"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
       - name: Cache CPM downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
-          path: ${{ env.CPM_SOURCE_CACHE }}
+          path: .cache/cpm
           key: cpm-cuda-${{ hashFiles('cmake/CPM.cmake', 'cmake/package-lock.cmake') }}
+      - name: Cache compiler outputs (ccache)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: .cache/ccache
+          key: ccache-cuda-${{ matrix.cuda }}-${{ github.sha }}
+          restore-keys: ccache-cuda-${{ matrix.cuda }}-
       - name: Compile (release architectures, warnings as errors) and report
         run: |
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          ccache --zero-stats
           ci/build_cuda.sh ${{ matrix.preset }}
+          ccache --show-stats | tee -a "${GITHUB_STEP_SUMMARY}"
