@@ -202,6 +202,7 @@ class result {
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    * @throws not_supported_error    if the backend of `res` is not available for cycle_count.
    * @throws out_of_memory_error    if the copy cannot be allocated.
+   * @sync The copy is complete on return (host memory on every backend).
    */
   [[nodiscard]] result clone(const resources& res) const;
 
@@ -235,6 +236,7 @@ class result {
  *         arrives with M2b).
  * @throws capacity_error         if a count exceeds 2^64 - 1.
  * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @sync The histogram is complete on return (host backends only in this release).
  * @backends sequential, openmp
  * @determinism Exact values: identical histograms on every backend and thread count.
  * @paper TruCy / DynTruCy (IEEE Transactions on Computers): `dyng::citation("cycle_count")`, key
@@ -273,7 +275,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *         (nothing is changed).
  * @throws internal_error         if a bucket would become negative (then the graph was updated and
  *         `r` is left unusable).
+ * @throws capacity_error         if a count exceeds 2^64 - 1 (raised after the batch was applied,
+ *         it leaves `r` unusable).
  * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @sync The graph and the histogram are updated on return (host backends only in this release).
  * @backends sequential, openmp
  * @determinism Exact values: identical histograms and counters on every backend and thread count.
  * @paper TruCy / DynTruCy (IEEE Transactions on Computers): `dyng::citation("cycle_count")`, key
