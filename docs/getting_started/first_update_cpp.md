@@ -2,8 +2,9 @@
 
 This program builds a four-vertex graph, computes shortest paths from vertex 0, and then applies
 a batch with `sssp::update()`, which changes the graph **and** brings the result up to date. It
-is `examples/cpp/first_update.cpp`: the `dev` build compiles it, and CTest runs it on every CPU
-backend and checks that it prints exactly this:
+is `examples/cpp/first_update.cpp`: the `dev` build compiles it, and CTest runs it on every
+backend (the CPU backends, and `cuda` in a CUDA build with a GPU) and checks that it prints
+exactly this:
 
 ```text
 invalidated 2, affected 2
@@ -18,7 +19,9 @@ parents -1 0 0 2
 
 What happened:
 
-1. `resources` chose the backend (Explanation: {doc}`../concepts/backends_and_resources`).
+1. `resources` chose the backend (Explanation: {doc}`../concepts/backends_and_resources`). On
+   `cuda` the graph and the tree live in device memory, so the program reads the result with
+   `to_vector()`, which copies it to the host (on the CPU backends it is a plain copy).
 2. `compute()` produced the static result, the canonical shortest-path tree.
 3. `update()` applied the batch to `g` (its version went up by one) and repaired the tree:
    the deletion of the tree edge (2, 1) invalidated the subtree below vertex 1, and the

@@ -67,5 +67,11 @@ if(DYNG_BUILD_TESTS)
     )
     set_tests_properties(example.sssp_update.cuda PROPERTIES LABELS "gpu;sssp;examples"
                          SKIP_RETURN_CODE 77 ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
+    add_test(NAME example.first_update.cuda COMMAND dyng_example_first_update cuda)
+    set_tests_properties(example.first_update.cuda PROPERTIES
+                         PASS_REGULAR_EXPRESSION
+                         "invalidated 2, affected 2\ndistances 0 4 1 2\nparents -1 0 0 2\n"
+                         SKIP_RETURN_CODE 77 SKIP_REGULAR_EXPRESSION "no CUDA device visible"
+                         LABELS "gpu;sssp;examples" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}")
   endif()
 endif()
