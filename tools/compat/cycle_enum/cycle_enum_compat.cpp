@@ -5,13 +5,16 @@
 /**
  * @file cycle_enum_compat.cpp
  * @brief dyng-compat-cycle-enum: a drop-in clone of CycleEnumeration-GPU's `cycle-enum` for the
- *        static simple-cycle count and the incremental update on the host backends, built on
- *        dynG, for the parity harness (PLAN Section 5.6, tools/compat).
+ *        static simple-cycle count and the incremental update on the sequential, OpenMP and CUDA
+ *        backends, built on dynG, for the parity harness (PLAN Section 5.6, tools/compat).
  *
  * Usage (the original's flags and their aliases):
- *   dyng-compat-cycle-enum --input <path> [--backend sequential|openmp] [--openmp-threads t]
- *       [--max-cycle-length k] [--task count|update] [--deletes d --inserts i --batch-seed s
- *       [--batch-locality w]] [--compare-recompute] [--timing <csv>] [--write-batch <path>]
+ *   dyng-compat-cycle-enum --input <path> [--backend sequential|openmp|cuda] [--openmp-threads t]
+ *       [--cuda-device d] [--cuda-scheduler naive|work-queue] [--cuda-work-items
+ *       auto|roots|edges|two-hop] [--report-timing] [--max-cycle-length k] [--task count|update]
+ *       [--deletes d --inserts i --batch-seed s [--batch-locality w]] [--compare-recompute]
+ *       [--timing <csv>] [--write-batch <path>] [--scope original|resident]
+ *       [--edge-type int32|int64]
  *
  * Standard output is the original's histogram CSV ("# cycle_size, num_of_cycles", "len, count"
  * per non-zero length, "Total, N"), byte for byte. The input is read with io::read_edge_list
@@ -25,8 +28,24 @@
  * exit with status 1 as the original's.
  *
  * Not ported: --algorithm read-tarjan and brute-force, --mode simple-time-window and temporal (0.4)
- * and --backend cuda (M2b) exit with status 1 and a message; the CUDA tuning flags
- * (--cuda-device, --cuda-scheduler, --cuda-work-items, --report-timing) are parsed and ignored.
+ * exit with status 1 and a message.
+ *
+ * The cuda backend (M2b): `--cuda-device`, `--cuda-scheduler` and `--cuda-work-items` map to
+ * resources::cuda(d), options::scheduler and options::work_items; `--report-timing` (count task)
+ * prints the original's lines "vertices:", "edges:", "kernel_ms:", "memcpy_ms:" and "total_ms:" on
+ * standard error, measured with CUDA events (profiler_options::cuda_events): kernel_ms is the
+ * stage cycle_count.count (building the work items and counting, the original's kernel region),
+ * memcpy_ms the upload of the graph (graph.upload) plus the copy of the histogram
+ * (cycle_count.finalize), total_ms the stage cycle_count.compute. The CUDA context is created and
+ * every kernel loaded before any timed region (resources::warm_up(), the original's
+ * initialize_device and occupancy queries). Two scopes (dynG's addition, PLAN 6.4.3):
+ * `--scope original` (the default) times what the original times, with the graph uploaded inside
+ * the timed call (count: the first compute() of the graph; update: the graph is moved to a fresh
+ * copy without a device copy before the timed update(), as the original uploads G_t per call);
+ * `--scope resident` first makes the graph resident on the device (an untimed compute() for the
+ * count task; the prior's upload for the update task), so the timed call reads the resident graph.
+ * `--edge-type` selects the graph's edge-offset type: the default is int32 on cuda (the original's
+ * 32-bit device CSR) and int64 on the host backends.
  *
  * dynG additions: --timing <csv> writes the profiler stages (kind,name,value); --write-batch <path>
  * (update task) writes the generated batch before the update, one change per line ("- u v" for
@@ -34,10 +53,14 @@
  * exporter's `generate` command, for the golden corpus of parity/cycle_count_goldens.py); and a
  * summary line on standard error:
  *   RESULT task=<count|update> read_ms=<> build_ms=<> prior_ms=<> generate_ms=<> compute_ms=<>
- *          update_ms=<> end_to_end_ms=<> threads=<>
+ *          update_ms=<> end_to_end_ms=<> threads=<> backend=<> scope=<> kernel_ms=<> memcpy_ms=<>
+ *          total_ms=<> update_device_ms=<>
  * where compute_ms is the static count (task count) and update_ms the timed update (the region of
- * the original's update_seconds; parity/timed_regions/cycle_count.toml).
+ * the original's update_seconds; parity/timed_regions/cycle_count.toml); kernel_ms, memcpy_ms and
+ * total_ms are the CUDA-event times of --report-timing (0 otherwise) and update_device_ms the
+ * CUDA-event time of the stage cycle_count.update (cuda with --report-timing; 0 otherwise).
  */
+#include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
@@ -65,7 +88,6 @@
 
 namespace {
 
-using graph_t = dyng::graph<std::int32_t, std::int64_t, dyng::unweighted>;
 using clock_type = std::chrono::steady_clock;
 
 enum class task_kind { count, update };
@@ -83,24 +105,36 @@ struct cli_config {
   dyng::generators::legacy::cycle_enum_batch_options batch;
   bool compare_recompute = false;
   bool show_help = false;
+  bool report_timing = false;
   std::string timing;
   std::string write_batch;
+  dyng::cycle_count::cuda_scheduler scheduler = dyng::cycle_count::cuda_scheduler::work_queue;
+  dyng::cycle_count::cuda_work_items work_items = dyng::cycle_count::cuda_work_items::automatic;
+  std::string scope = "original";
+  std::string edge_type;  // empty: int32 on cuda, int64 otherwise
 };
 
 void print_usage(std::ostream& out) {
   out << "Usage: dyng-compat-cycle-enum --input <path> [options]\n\n"
       << "Options:\n"
       << "  --algorithm <johnson>\n"
-      << "  --backend <sequential|openmp>\n"
+      << "  --backend <sequential|openmp|cuda>\n"
       << "  --mode <simple>\n"
       << "  --max-cycle-length <integer >= 2>\n"
       << "  --openmp-threads <positive integer>\n"
+      << "  --cuda-device <non-negative integer>\n"
+      << "  --cuda-scheduler <naive|work-queue>\n"
+      << "  --cuda-work-items <auto|roots|edges|two-hop>  (work-queue items)\n"
       << "  --task <count|update>\n"
       << "  --deletes <count>  --inserts <count>  (update task)\n"
       << "  --batch-seed <integer>  --batch-locality <window>  (update task)\n"
       << "  --compare-recompute  (update task: verify against a full recompute\n"
       << "                        with the same backend and time it)\n"
+      << "  --report-timing  (cuda count: print kernel/memcpy/total ms to stderr)\n"
       << "  --timing <csv>  (dynG: write the profiler stages)\n"
+      << "  --scope <original|resident>  (dynG, cuda: the graph's upload inside the timed call\n"
+      << "                                or resident before it)\n"
+      << "  --edge-type <int32|int64>  (dynG: edge offsets; default int32 on cuda, else int64)\n"
       << "  --write-batch <path>  (dynG, update task: write the generated batch)\n"
       << "  --help\n";
 }
@@ -244,8 +278,12 @@ std::optional<cli_config> parse_args(int argc, char** argv, std::ostream& err) {
       if (!value) {
         return std::nullopt;
       }
-      if (*value != "naive" && *value != "work-queue" && *value != "work_queue" &&
-          *value != "workqueue" && *value != "queue") {
+      if (*value == "naive") {
+        config.scheduler = dyng::cycle_count::cuda_scheduler::naive;
+      } else if (*value == "work-queue" || *value == "work_queue" || *value == "workqueue" ||
+                 *value == "queue") {
+        config.scheduler = dyng::cycle_count::cuda_scheduler::work_queue;
+      } else {
         err << "unknown cuda scheduler: " << *value << '\n';
         return std::nullopt;
       }
@@ -254,8 +292,16 @@ std::optional<cli_config> parse_args(int argc, char** argv, std::ostream& err) {
       if (!value) {
         return std::nullopt;
       }
-      if (*value != "auto" && *value != "roots" && *value != "root" && *value != "edges" &&
-          *value != "edge" && *value != "two-hop" && *value != "two_hop" && *value != "twohop") {
+      using items = dyng::cycle_count::cuda_work_items;
+      if (*value == "auto") {
+        config.work_items = items::automatic;
+      } else if (*value == "roots" || *value == "root") {
+        config.work_items = items::roots;
+      } else if (*value == "edges" || *value == "edge") {
+        config.work_items = items::edges;
+      } else if (*value == "two-hop" || *value == "two_hop" || *value == "twohop") {
+        config.work_items = items::two_hop;
+      } else {
         err << "unknown cuda work items: " << *value << '\n';
         return std::nullopt;
       }
@@ -296,7 +342,27 @@ std::optional<cli_config> parse_args(int argc, char** argv, std::ostream& err) {
     } else if (option == "--compare-recompute") {
       config.compare_recompute = true;
     } else if (option == "--report-timing") {
-      // CUDA timing in the original; nothing to report on the host backends.
+      config.report_timing = true;  // cuda count task only, as the original's
+    } else if (option == "--scope") {
+      const auto value = take();
+      if (!value) {
+        return std::nullopt;
+      }
+      if (*value != "original" && *value != "resident") {
+        err << "--scope: expected original or resident, got " << *value << '\n';
+        return std::nullopt;
+      }
+      config.scope = std::string(*value);
+    } else if (option == "--edge-type") {
+      const auto value = take();
+      if (!value) {
+        return std::nullopt;
+      }
+      if (*value != "int32" && *value != "int64") {
+        err << "--edge-type: expected int32 or int64, got " << *value << '\n';
+        return std::nullopt;
+      }
+      config.edge_type = std::string(*value);
     } else if (option == "--time-window" || option == "--window") {
       const auto value = take();
       const auto parsed = value ? parse_integer<std::int64_t>(*value, option, err) : std::nullopt;
@@ -432,21 +498,35 @@ void expect_ported(const cli_config& config) {
     throw dyng::not_supported_error("dyng-compat-cycle-enum: --mode " + config.mode +
                                     " arrives with the time-window and temporal modes (0.4)");
   }
-  if (config.backend == "cuda") {
-    throw dyng::not_supported_error(
-        "dyng-compat-cycle-enum: the cuda backend of cycle_count arrives with M2b");
-  }
 }
 
-int run(const cli_config& config) {
-  const auto start = clock_type::now();
-  expect_ported(config);
-  const dyng::resources res = config.backend == "openmp"
+/// The device time of a stage (0 if it did not run).
+double device_ms(const dyng::profiler& prof, std::string_view name) {
+  for (const dyng::stage_record& r : prof.stages()) {
+    if (r.name == name) {
+      return r.device_ms;
+    }
+  }
+  return 0.0;
+}
+
+template <typename graph_t>
+int run(const cli_config& config, const std::chrono::steady_clock::time_point start) {
+  const bool cuda = config.backend == "cuda";
+  const dyng::resources res = cuda ? dyng::resources::cuda(config.cuda_device_id)
+                              : config.backend == "openmp"
                                   ? dyng::resources::openmp(config.openmp_threads)
                                   : dyng::resources::sequential();
-  dyng::profiler prof;
+  if (cuda) {
+    // The context and every kernel are loaded before any timed region (the original's
+    // initialize_device() and occupancy queries; CUDA_MODULE_LOADING=EAGER).
+    res.warm_up();
+  }
+  dyng::profiler_options popt;
+  popt.cuda_events = cuda && config.report_timing;
+  dyng::profiler prof(popt);
   dyng::resources timed = res;  // a copy shares the handle: the profiler records every call
-  if (!config.timing.empty()) {
+  if (!config.timing.empty() || popt.cuda_events) {
     timed.attach_profiler(&prof);
   }
   dyng::cycle_count::options opt;
@@ -457,6 +537,9 @@ int run(const cli_config& config) {
                              *config.max_cycle_length,
                              static_cast<std::size_t>(std::numeric_limits<int>::max())))
                        : -1;
+  opt.scheduler = config.scheduler;
+  opt.work_items = config.work_items;
+  const bool resident = cuda && config.scope == "resident";
 
   auto t = clock_type::now();
   const auto edges = dyng::io::read_edge_list<std::int32_t, dyng::unweighted>(config.input_path);
@@ -471,11 +554,28 @@ int run(const cli_config& config) {
   double compute_ms = 0.0;
   double update_ms = 0.0;
   std::string histogram;
+  double kernel_ms = 0.0;
+  double memcpy_ms = 0.0;
+  double total_ms = 0.0;
+  double update_device_ms = 0.0;
   if (config.task == task_kind::count) {
+    if (resident) {
+      (void)dyng::cycle_count::compute(res, g, opt);  // uploads the graph (untimed)
+    }
     t = clock_type::now();
     const dyng::cycle_count::result r = dyng::cycle_count::compute(timed, g, opt);
     compute_ms = ms_since(t);
     histogram = histogram_csv(r.counts());
+    if (popt.cuda_events) {
+      kernel_ms = device_ms(prof, "cycle_count.count");
+      memcpy_ms = device_ms(prof, "graph.upload") + device_ms(prof, "cycle_count.finalize");
+      total_ms = device_ms(prof, "cycle_count.compute");
+      std::cerr << "vertices: " << g.num_vertices() << '\n'
+                << "edges: " << g.num_edges() << '\n'
+                << "kernel_ms: " << kernel_ms << '\n'
+                << "memcpy_ms: " << memcpy_ms << '\n'
+                << "total_ms: " << total_ms << '\n';
+    }
   } else {
     // run_update(): the prior (not timed), the batch, the timed update.
     t = clock_type::now();
@@ -488,9 +588,17 @@ int run(const cli_config& config) {
     if (!config.write_batch.empty()) {
       write_batch_text(config.write_batch, batch);
     }
+    if (cuda && !resident) {
+      // The original uploads G_t in every update: time the update of a graph whose device copy is
+      // not resident (a clone keeps the state, so the result still matches it).
+      g = g.clone(res);
+    }
     t = clock_type::now();
     const dyng::cycle_count::stats st = dyng::cycle_count::update(timed, g, batch.view(), r);
     update_ms = ms_since(t);
+    if (popt.cuda_events) {
+      update_device_ms = device_ms(prof, "cycle_count.update");
+    }
     std::cerr << "deletions=" << batch.num_deletions() << " insertions=" << batch.num_insertions()
               << '\n';
     std::cerr << "update_seconds=" << update_ms / 1000.0 << '\n';
@@ -518,8 +626,22 @@ int run(const cli_config& config) {
             << " read_ms=" << read_ms << " build_ms=" << build_ms << " prior_ms=" << prior_ms
             << " generate_ms=" << generate_ms << " compute_ms=" << compute_ms
             << " update_ms=" << update_ms << " end_to_end_ms=" << ms_since(start)
-            << " threads=" << res.num_threads() << '\n';
+            << " threads=" << res.num_threads() << " backend=" << config.backend
+            << " scope=" << (cuda ? config.scope : std::string("host"))
+            << " kernel_ms=" << kernel_ms << " memcpy_ms=" << memcpy_ms << " total_ms=" << total_ms
+            << " update_device_ms=" << update_device_ms << '\n';
   return 0;
+}
+
+int run(const cli_config& config) {
+  const auto start = clock_type::now();
+  expect_ported(config);
+  const std::string edge =
+      config.edge_type.empty() ? (config.backend == "cuda" ? "int32" : "int64") : config.edge_type;
+  if (edge == "int32") {
+    return run<dyng::graph<std::int32_t, std::int32_t, dyng::unweighted>>(config, start);
+  }
+  return run<dyng::graph<std::int32_t, std::int64_t, dyng::unweighted>>(config, start);
 }
 
 }  // namespace
