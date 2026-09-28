@@ -206,32 +206,37 @@ MOSP-CUDA, whose half-second "upload" stage precedes its first kernel, reads fas
 local batch than dynG, which uploads earlier (ADR 0018). Call `resources::warm_up()` and time
 repeated updates, or lock the GPU clocks, when a single short update is measured.
 
-**Measured against the originals** (`parity/results/M1b.md` sections 8-9: medians of 21
-alternating runs of `dyng-compat-mosp` and the unpatched original, parity presets, RTX A5000 with
-CUDA 13.1 / 28 OpenMP threads pinned; 50K safe, 50K unsafe and 10K local batches on each graph).
-Ratio dynG / original (below 1 is faster), the range over the batches and the objectives:
+**Measured against the originals** (`parity/results/M1b.md` section 13, the re-measurement on
+the code fixed after the M1b review; sections 8-9 have the step-4 records and the locked-clock
+tables: medians of 21 alternating runs of `dyng-compat-mosp` and the unpatched original, parity
+presets, RTX A5000 with CUDA 13.1 / 28 OpenMP threads pinned, with a contamination monitor; 50K
+safe, 50K unsafe and 10K local batches on each graph). Ratio dynG / original (below 1 is faster),
+the range over the batches and the objectives:
 
 | Graph | CUDA: SOSP region per objective (gate 1.05x; 1.10x under 10 ms) | CUDA: kernel at locked clocks | CUDA: apply / end to end (gate 1.10x) | OpenMP: SOSP region per objective (gate 1.05x; 1.10x under 10 ms) | OpenMP: apply / end to end (gate 1.10x) |
 |---|---|---|---|---|---|
-| roadNet-PA | 0.98-1.00x | 1.00x | 0.55-0.62x / 0.86-0.87x | 0.63-0.86x | 0.85-1.02x / 0.83-0.91x |
-| roadNet-CA | 0.99-1.01x | 0.99-1.01x | 0.65-0.72x / 0.84-0.90x | 0.68-0.92x | 0.89-0.91x / 0.81-0.84x |
-| rgg_n_2_20_s0 | 0.99-1.00x | 0.99-1.00x | 0.70-0.74x / 0.88-0.92x | 0.68-0.99x | 0.78-0.81x / 0.83-0.90x |
-| road_usa | 1.00-1.01x (50K); **1.04-1.07x (local 10K, clock state)** | 0.99-1.01x | 0.71-0.72x / 0.83-0.84x | 0.77-0.94x | 0.78-0.79x / 0.75-0.81x |
+| roadNet-PA | 0.98-1.00x | 1.00x | 0.65-0.68x / 0.86-0.89x | 0.63-0.85x | 0.86-1.03x / 0.79-0.90x |
+| roadNet-CA | 0.98-1.01x | 0.99-1.01x | 0.80-0.86x / 0.83-0.87x | 0.70-0.93x | 0.85-0.90x / 0.77-0.82x |
+| rgg_n_2_20_s0 | 0.99-1.00x | 0.99-1.00x | 0.77-0.79x / 0.86-0.89x | 0.68-0.99x | 0.79-0.81x / 0.79-0.88x |
+| road_usa | 1.00-1.01x (50K); **1.05-1.06x (local 10K, clock state)** | 0.99-1.01x | 0.94-0.96x / 0.80-0.87x | 0.79-0.95x | 0.79x / 0.80-0.85x |
 
 Byte-identical outputs and equal `invalidated` counters in every run. The fused kernel uses the
-original's 59 registers and runs the same 256 x 256 cooperative grid. The one reading over its
-gate, road_usa's local batch on CUDA (objectives 0 and 1: 1.065x and 1.063x; objective 2
-1.037x), is the GPU's clock state (at locked clocks the kernels read 0.99x); ADR 0018 leaves its
-verdict to the author, and until then it is recorded as a gate miss.
+original's 59 registers and runs the same 256 x 256 cooperative grid. The apply ratios of CUDA
+include dynG's host copies of the input trees (`sssp.import`), as the original's "upload" does.
+The one reading over its gate, road_usa's local batch on CUDA (1.060 / 1.060 / 1.054x; step 4:
+1.065 / 1.063 / 1.037x), is not contamination (the monitor saw clean rounds) and at locked clocks
+the kernels read 0.99x; the per-round times of both programs fall into the same two modes in
+different proportions, which fits the GPU's clock state (ADR 0018). ADR 0018 leaves its verdict to
+the author, and until then it is recorded as a gate miss.
 
 Absolute times of the 50K safe batch (ms per objective, medians; the same records):
 
 | Graph | MOSP-CUDA | dynG cuda | MOSP-OpenMP (28 threads) | dynG openmp (28 threads) |
 |---|---:|---:|---:|---:|
-| roadNet-PA | 4.7-4.8 | 4.6-4.8 | 12.6-16.5 | 10.7-14.2 |
-| roadNet-CA | 8.6-8.7 | 8.6-8.8 | 20.4-34.0 | 18.8-24.6 |
-| rgg_n_2_20_s0 | 24.7-25.4 | 24.6-25.2 | 40.1-51.7 | 38.0-51.1 |
-| road_usa | 100-101 | 101-102 | 271-312 | 253-272 |
+| roadNet-PA | 4.7-4.8 | 4.6-4.8 | 12.6-16.6 | 10.6-14.1 |
+| roadNet-CA | 8.6-8.7 | 8.6-8.8 | 20.2-30.5 | 18.8-24.8 |
+| rgg_n_2_20_s0 | 24.7-25.4 | 24.6-25.2 | 40.1-51.8 | 38.0-51.3 |
+| road_usa | 100-101 | 100-102 | 268-308 | 253-273 |
 
 The first objective is the slowest on OpenMP on both sides: it first touches the pages of the
 frontier lists (section "Scratch memory").

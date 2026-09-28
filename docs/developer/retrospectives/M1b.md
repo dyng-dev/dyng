@@ -1,11 +1,12 @@
 # Retrospective: M1b (CUDA `sssp`, CUDA core, performance harness and gates)
 
-Status: **complete (2026-09-28) with one open gate decision.** Steps 1-4 each appended their
-section; Step 5 (finish) added the documentation, the Doxygen synchronization rule, the final
-verification from a fresh clone of every preset, the milestone summary, the acceptance record,
-the consolidated deviations, the lessons and the re-estimate. One acceptance reading is not met
-as written and waits for the author (criterion 3a, CUDA road_usa local 10K batch, ADR 0018). An
-independent review of M1b (as M1a had) has not happened yet.
+Status: **complete (2026-09-28) with one open gate decision; reviewed and fixed.** Steps 1-4 each
+appended their section; Step 5 (finish) added the documentation, the Doxygen synchronization rule,
+the final verification from a fresh clone of every preset, the milestone summary, the acceptance
+record, the consolidated deviations, the lessons and the re-estimate. An independent review then
+found 19 problems; all are fixed and the gates were re-measured on the fixed code (section
+"Review and fix step" at the end). One acceptance reading is still not met as written and waits
+for the author (criterion 3a, CUDA road_usa local 10K batch, 1.054-1.060x as measured, ADR 0018).
 
 ## Step 1: the OpenMP gates and the M1a carry-over (cpu-gates, 2026-09-27)
 
@@ -513,7 +514,7 @@ What M1b delivered, in one list:
 |---|---|---|---|
 | 1 | A fresh clone configures and builds every preset (host `-Werror`) and passes all tests: CPU labels via `ci/check.sh`, GPU labels via `ci/gpu_local.sh` | section "Final verification": all 13 configure presets from one fresh clone of `0086ee7`, every test label green | met |
 | 2 | CUDA byte-identical to MOSP-CUDA e220ee2 on the 495-case corpus plus the M1b cases; CUDA = OpenMP = sequential on the corpus and in randomized differential tests against `testing::dijkstra` + `check_sssp_tree(require_canonical)` | 495/495 in 9 configurations incl. cuda and cuda with int64 offsets (`parity/results/M1b.md` 7.3); the M1b cases are corpus groups (packing n = 2^17 - 1, the 320 x 320 large-weight grid, 100 `stressTest` + 100 `parallelStressTest` seeds) and CUDA unit tests; the corpus re-exported by MOSP-CUDA's own tools is file-identical (11,799 files); the randomized suites run cuda next to the host backends (`dyng_sssp_cuda_tests`); replayed again on cuda from the fresh clones of Step 5 | met |
-| 3a | CUDA per-objective SOSP region <= 1.05x (<= 1.10x under 10 ms) of MOSP-CUDA | 34/36 readings within the gate (0.98-1.01x); road_usa local 10K objectives 0 and 1 read 1.065x and 1.063x as measured (objective 2 1.037x); at locked clocks all 36 kernels read 0.992-1.014x (ADR 0018) | **not met as written**; the author's decision is open (ADR 0018: A, B or C) |
+| 3a | CUDA per-objective SOSP region <= 1.05x (<= 1.10x under 10 ms) of MOSP-CUDA | 34/36 readings within the gate (0.98-1.01x); road_usa local 10K objectives 0 and 1 read 1.065x and 1.063x as measured (objective 2 1.037x); at locked clocks all 36 kernels read 0.992-1.014x (ADR 0018). **Re-measured after the review** on `674fc3b` with the contamination monitor: 33/36 within the gate, road_usa local 10K 1.060 / 1.060 / 1.054x, clean rounds, 0.989-0.991x at locked clocks | **not met as written**; the author's decision is open (ADR 0018: A, B or C) |
 | 3b | CUDA end to end <= 1.10x | 0.83-0.92x (apply 0.55-0.74x) | met |
 | 3c | OpenMP per-objective region and end to end within the same gates against MOSP-OpenMP c352151 (28 threads pinned); the M1a carry-over closed | 36/36 per objective (0.63-0.99x), end to end 0.75-0.91x, apply 0.78-1.02x; workspace sharing (ADR 0015), lazy in-edges in `from_csr`, parallel tree validation | met |
 | 4 | Fused kernel registers and occupancy no worse than the original's | `cuobjdump --dump-resource-usage`: 59 registers, 616 parameter bytes on both sides; 4 blocks of 256 threads per SM, the same 256 x 256 grid (`parity/results/M1b.md` section 11) | met |
@@ -661,3 +662,118 @@ For **M4 / the first push**:
 
 8. `cuda-build.yml` has not run on GitHub yet (the CUDA 13.3.1 container was never built
    locally; 13.1 and 12.9 were).
+
+## Review and fix step (M1b review, 2026-09-28)
+
+An independent review of M1b (at `6ab4f25`) found 19 problems, each confirmed by a second
+reviewer. All 19 are fixed in this step, in small commits `043fcae`..`674fc3b` (plus the records
+and this section), each checked by the tests it touches; nothing was deferred. The step was
+interrupted once by a usage limit before any change was made; the resumed session found the tree
+clean at `6ab4f25` and did the whole step.
+
+### Findings and fixes
+
+| # | Finding (severity) | Fix | Commit | Checked by |
+|---|---|---|---|---|
+| 1 | The fused kernel's `invalidated` counter races with the insertion-head appends (high; inherited from MOSP-CUDA@e220ee2) | per-thread counts summed per warp before the barrier (`count_into`); ADR 0017 amendment | `d5c52bc` | the CUDA sssp suite under `compute-sanitizer --tool synccheck` 49/49 (four failed before), a new `synccheck` step in `ci/gpu_local.sh` (`a0ee1a9`); 59 registers kept; golden corpus 495/495 on cuda and cuda/int64 |
+| 2 | `grow()` freed the old device arrays on their own stream while the copy reading them ran on another (medium) | `buffer::set_stream()`; the old arrays move to the updating stream first | `2a9d0a2` | `SsspCuda.VertexGrowthThroughAHandleOnAnotherStream` (two explicit streams) |
+| 3 | `@sync` of `sssp::update()` / `compute()` omitted the graph upload's synchronization (low) | `@sync` text, sssp page, ADR 0017 item 7 amendment | `28df43c` | Doxygen check |
+| 4 | No contamination monitor or per-round GPU clock record in the gate records (medium) | `perf_ab.py`: per round and side the foreign CPU load, run queue, GPU P-state / SM and memory clocks / utilization every 50 ms, foreign compute processes on the GPU; contaminated rounds repeated; lock status recorded | `2a8950e` | harness tests (a spinning process is detected); the re-measured gate records below |
+| 5 | The CUDA `apply` region left `sssp.import` out of dynG's side (low) | added to `port_all_results` (as in the OpenMP map) | `043fcae` | harness test; re-measured records |
+| 6 | Default-stream handles are per-thread streams, so `synchronize()` and the workspace pool's reuse were unsound across threads (high) | workspace fences (`detail::cuda_stream_fence`): a CUDA lease records an event, the next lease on another stream waits for it, `release_workspaces()` / the pool's destructor wait before freeing; docs of `resources`, `stream_ref`, `buffer`; ADR 0016 item 10, ADR 0015 update | `e89a43c` | `CudaWorkspace.ALeaseOnAnotherThreadsDefaultStreamWaitsForThePreviousLease` (fails without the wait: the second thread read the old zeros) and `...ReleasingFromAnotherThreadWaitsForTheLastLease` |
+| 7 | `copy_policy` never read; device batches rejected on CUDA (high) | `core/staging.hpp`: inputs not in host memory are copied once under the policy in graph builds, `graph::apply`, `dyng::update` / `update_each` / `sssp::update` and `from_arrays`; ADR 0016 item 11 | `182bfc6` | `SsspCuda.BatchArraysInDeviceMemoryAreCopiedOnce`, `...TheCopyPolicyGovernsImplicitCopies`, `...GraphBuildsTakeDeviceArrays`, `...FromArraysTakesHostOrDeviceArrays` |
+| 8 | `sssp::update` crashed when only `insert_src` was in device memory (medium) | staging (7) plus `expect_host_batch()` on all eight arrays before any host read | `182bfc6` | each batch array in device memory in turn, on cuda and the host backends |
+| 9 | `copy()` and `update_each()` did not deduce from mutable views (medium) | `copy()` deduces from `dst` only; an `update_each()` overload for `array_view<result_t*>`; callers simplified | `d6f7184` | `Copy.ToVectorAndCopyOnHost`; the callers compile in the natural form |
+| 10 | `graph::to_backend()` missing and unrecorded; `to_space()` limited to the handle's space (medium) | `graph::to_backend(res)` (= `clone(res)` in this release), named by the placement errors; `to_space()` picks the resource by space; ADR 0017 item 3 amendment | `d6f7184` | `CudaBuffer.ToSpaceReachesEverySpaceOfTheHandle`, `SsspCuda.GraphsAndResultsStayWithTheirBackendUntilCloned` |
+| 11 | `num_threads()` said 1 for CUDA while the host work used the global OpenMP default (low) | `resources::cuda(device, stream, host_threads = 0)` snapshots the count; ADR 0017 item 6 amendment | `8980145` | `CudaResources.HostThreadsAreFixedAtCreation` |
+| 12 | Doxygen gaps: `@sync` on the synchronous allocation members, `@throws cuda_error` on the copies and buffers (low) | tags added; `ci/doxygen_coverage.py` covers `allocate_sync` / `deallocate_sync` of every resource and `stream_ref::synchronize()` | `d6f7184`, `7e95016` | the check fails on a removed tag (tried) and passes |
+| 13 | `cuda-build.yml`'s "latest CUDA 13" was 13.3.1; 13.4.1 was out and unverified (medium) | the matrix builds 13.4.1 | `41b339e` | `ci/build_cuda.sh ci-cuda13` with conda-forge CUDA 13.4.92 and GCC 13.4: `-Werror` build passed |
+| 14 | The local equivalent never used the containers' GCC 13; GCC 14 failed with `-Werror` (medium) | the test's per-insertion vector (a GCC 13/14 `-Wfree-nonheap-object` false positive) replaced | `9aacfbb` | `cpu-only` with GCC 13.4 and GCC 14.4: build with `-Werror` and 229/229 tests each; `ci-cuda13` (CUDA 13.4) and `ci-cuda12` (CUDA 12.9) with GCC 13.4 as host compiler |
+| 15 | `native` architectures silently fell back to sm_75 without a visible GPU (low) | `dyng_check_native_cuda_architectures()`: release list and a warning | `319ebeb` | configure with `CUDA_VISIBLE_DEVICES=""` (sm_75..sm_120) and on the machine (86-real) |
+| 16 | `cuda-build.yml` did not cache ccache (low) | ccache installed, launchers set, cache per toolkit; container paths for the caches | `41b339e` | YAML check (the hosted run waits for the push) |
+| 17 | The `compat_mosp` cuda tests failed instead of skipping without a device (low) | exit code 77 mapped in `run_and_compare.cmake`, `SKIP_RETURN_CODE 77`; `gpu_local.sh` requires a visible test GPU | `7f96e1b`, `a0ee1a9` | `CUDA_VISIBLE_DEVICES=7 ctest -L gpu`: all skipped; GPU 1: passed |
+| 18 | clang-tidy and all of `ci/check.sh` ran outside the perf lock (low) | `heavy()` in `check.sh`; tidy through it in both scripts | `720af36`, `a0ee1a9` | both gates run under the lock |
+| 19 | `DYNG_WITH_NVTX` missing; `profiler_options::nvtx` silently ignored (low) | the option (CUDA::nvtx3, build interface only) and ranges per profiler stage | `cdd14d5` | `nsys --trace=nvtx` shows the stage ranges; `Profiler.NvtxRangesDoNotChangeTheRecord` |
+
+### Verification of the final code (`674fc3b`)
+
+All on the development machine (GCC 12.2, CUDA 13.1, RTX A5000; GPU tests on GPU 1; every
+heavy step under the shared perf lock, the timing under the exclusive one). Logs:
+`$DYNG_SCRATCH/runs/m1b-review/`.
+
+| Command (preset, code) | Result |
+|---|---|
+| `ci/check.sh --parity` (`cpu-only`, `dev`, `parity`; `dea0896`, code equal to `674fc3b`) | all steps passed: clang-format, `cpu-only` 230/230 and `dev` 242/242 (`-Werror`), clang-tidy naming, REUSE, provenance (88 files), harness (17 tests), Doxygen + convention check (105 compounds, with the extended `@sync` rule), pre-commit, golden replay on the `parity` preset |
+| `ci/gpu_local.sh` (`dev-cuda`, `674fc3b`) | build; `ctest -L gpu` 91/91; `ctest -L cpu` 242/242; golden corpus on cuda 495/495; memcheck 0 errors; **synccheck of the CUDA sssp suite: all tests pass** (new step); clang-tidy |
+| golden replay records (`674fc3b`) | 495/495 in 9 configurations (`M1b-review-sssp-*.json`) |
+| `cpu-only` with conda-forge GCC 13.4 and GCC 14.4 (`9aacfbb`) | `-Werror` build, `ctest -L cpu` 229/229 each |
+| `ci/build_cuda.sh ci-cuda13` with CUDA 13.4.92 + GCC 13.4, `ci-cuda12` with CUDA 12.9 + GCC 13.4 (`9aacfbb`) | compile-only release builds with `-Werror` passed; the int32 fused kernel 59 registers on sm_86 |
+| fresh clone of `674fc3b`: `release`, `relwithdebinfo`, `asan`, `tsan` (`ctest -L cpu`), `release-cuda`, `sanitize-cuda` (`ctest -L gpu`) | each builds without a warning; `release` / `relwithdebinfo` / `asan` 230/230, `tsan` 201/201, `release-cuda` and `sanitize-cuda` 85/85 |
+| performance campaign (`674fc3b`, exclusive lock, 06:26-08:02 including waits for other sessions' shared locks) | below |
+
+### Performance, re-measured with the contamination monitor
+
+`parity/results/M1b.md` section 13 has every number; medians of 21 alternating rounds per
+batch, parity presets, GPU 0, with the contamination monitor (one round rejected in the whole
+campaign, none of the CUDA ones; foreign load of accepted rounds at most 1.46 cores; no foreign
+GPU process).
+
+| Reading | Result |
+|---|---|
+| CUDA per-objective SOSP region, as measured | 33 / 36 within the gate (0.979-1.010x); **road_usa local 10K 1.060 / 1.060 / 1.054x: still a FAIL as written** (step 4: 1.065 / 1.063 / 1.037x) |
+| CUDA fused kernels at locked clocks (road_usa) | 0.989-0.991x (local 10K), 1.009-1.011x (50K); 59 registers, grid 256 x 256 on both sides |
+| CUDA apply / end to end | 0.66-0.96x / 0.80-0.90x (apply now includes `sssp.import`) |
+| OpenMP per-objective / apply / end to end | 36 / 36 (0.63-0.99x) / 0.79-1.03x / 0.77-0.90x |
+| `invalidated` and trees in the A/Bs | equal in every timed round, byte-identical outputs |
+
+The monitor settles what the road_usa miss is not: it is not contamination. It does not settle
+ADR 0018's condition (a): sampled every 50 ms over each process, both sides show the same clock
+states, and the 65 ms of kernels per round cannot be separated from the surrounding work. ADR 0018
+now says so; the author's decision stays open, and option A (locked clocks for the whole A/B) is
+the one that would measure the gate as written.
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| MOSP-CUDA's kernel ported verbatim (PLAN 6.3 step 5) | `invalidated` counted per thread instead of read from the list counter (ADR 0017 item 1) | the original races on that read; the public contract calls the counter deterministic and the parity checks compare it exactly; trees and SASS of the search unchanged |
+| PLAN 4.7.4: a copy of `resources` "refers to the same stream" | true for explicit streams; the default `cudaStreamPerThread` is each thread's own stream, documented; the library orders its own pooled memory across streams with events (ADR 0016 item 10) | the per-thread stream has no handle that another thread could use; pinning handles to a thread would forbid the concurrent read-only calls of 4.7.4 |
+| PLAN 4.7.1: `resources::cuda(device, stream)` | + `host_threads` (ADR 0017 item 6) | the host-side work of a CUDA call runs on OpenMP threads, whose count belongs to the handle (PLAN 4.6 rule 6, 4.7.4) |
+| PLAN 4.7.1: "if [an input's space] does not match the backend, the library copies once" | the match is against where the input is read: the host, for every backend in this release; host inputs of CUDA calls are not implicit copies (ADR 0016 item 11) | the batch is applied, graphs are built and trees are checked on the host (the straight ports); calling host arrays "misplaced" would make the fastest path warn |
+| PLAN 5.2: `graph::to_backend(res)` next to `clone(res)` | both, identical in this release | a CUDA graph keeps its authoritative CSR on the host until the device apply |
+| PLAN 8.5 item 2: "the contamination monitor" | foreign CPU load from `/proc/stat` minus the harness's own CPU time, run queue without the timed program's threads, NVML samples via `nvidia-smi -lms 50`, foreign GPU processes every second | the originals' `gpumon.sh` rule plus the CPU side the load average could not show; `pynvml` is not installed |
+
+### Lessons
+
+1. **A verbatim port inherits the original's races.** The golden corpus could not show the
+   `invalidated` race because the original's plain runs never expose it; a sanitizer's scheduling
+   did. Run the ported kernels under `synccheck` / `racecheck` once, and keep the one that finds
+   nothing false in the gate.
+2. **"Per-thread default stream" is a different stream per thread.** Every stream-ordered free
+   and every "same stream" assumption has to name the thread; the library's own reuse needs
+   events, and the documentation has to say what `synchronize()` really waits for.
+3. **Documented options must do something.** `copy_policy` and `profiler_options::nvtx` were
+   stored and documented but read nowhere; a grep for the readers of every public setting is a
+   cheap review step.
+4. **Test the CI's host compiler, not the development machine's.** GCC 13/14 disagreed with GCC
+   12 on one test; conda-forge compilers (read-only environments in `$DYNG_SCRATCH/tools`) make
+   the container toolchains checkable locally.
+5. **Record the machine next to every timing.** The per-round monitor turns ADR 0018's rule (a)
+   from a claim backed by three profiled runs into a property of the gated samples.
+
+### Open items after the review
+
+- **ADR 0018** (acceptance criterion 3a) is still the author's decision; the monitored
+  re-measurement shows the miss is not contamination and that the gated samples cannot establish
+  rule 3's condition (a), which leaves option A (locked clocks for the whole A/B, a root action)
+  as the way to read the gate as written.
+- `cuda-build.yml` (now CUDA 13.4.1, 13.1.1 and 12.9.2, with ccache) runs on GitHub only after the
+  push; its three toolkits were built locally with the containers' host compiler generation
+  (GCC 13) from conda-forge environments in `$DYNG_SCRATCH/tools` (13.1 with the system GCC 12).
+- The implicit copies of device inputs are host staging copies until the device apply (PLAN
+  6.4.1) makes device batches the matching space (ADR 0016 item 11).
+- The monitor's GPU samples cover whole processes; clock readings inside the timed kernels would
+  need profiler metrics on every gated round (ADR 0018 update).
+- The records of this step add about 840 KB of JSON to `parity/results/` (the per-round monitor
+  data); the tracked tree is about 3.4 MB. A compact record format (or moving the per-round data
+  out of the repository) is worth deciding before 0.1.

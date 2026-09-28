@@ -1,6 +1,7 @@
 # ADR 0018: The GPU clock state in the CUDA performance gate
 
-- **Status:** Proposed (M1b); needs the author's decision (see "Open decision")
+- **Status:** Proposed (M1b); needs the author's decision (see "Open decision"; updated by the M1b
+  review)
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -85,3 +86,29 @@ local 10K batch as a known gate miss of M1b. The rest of the CUDA gate record pa
 - Short GPU regions measured in one-shot processes are documented as clock-sensitive (the sssp
   page's performance notes); users who time a single update after an idle period see the same
   effect with any code.
+
+## Update (M1b review, 2026-09-28): the gated samples with a contamination monitor
+
+The review found that the gate records carried no per-round machine state, so rule 3(a) rested on
+three nsys-profiled runs outside the gated campaign. `perf_ab.py` now records, per round and side,
+the foreign CPU load, the run queue, and the GPU's P-state, SM and memory clocks and utilization
+every 50 ms (plus foreign compute processes on the GPU), and repeats contaminated rounds. The
+CUDA gate was re-measured on the fixed code (`parity/results/M1b.md` section 13,
+`M1b-review-perf-cuda-road_usa_g.json`):
+
+- road_usa's local 10K batch still exceeds as measured: **1.060 / 1.060 / 1.054x**; the rounds
+  were clean (foreign load at most 0.17 cores, no foreign GPU process, none rejected);
+- both sides show the same two per-round modes (about 21.3 and 22.6 ms for objective 0) in
+  different proportions (original 16 of 21 rounds in the fast mode, dynG 3 of 21);
+- at locked clocks the kernels read 0.989-0.991x (`M1b-review-kernels-cuda-road_usa_g.json`);
+- the 50 ms, whole-process clock record shows the **same** states on both sides (the same maximum
+  SM clock, 1905 MHz, in every round, and P0 samples on both); the roughly 65 ms of kernels per
+  round are one or two samples and cannot be separated from the work around them.
+
+Consequence for the decision: the gated samples do not establish condition (a) of rule 3, so rule 3
+as written would also leave the reading a FAIL. Establishing (a) on gated samples would need the
+clock sampled inside the kernel windows (for example Nsight Systems GPU metrics on every gated
+round, or timestamps of the timed region from both programs), which the unpatched original cannot
+provide without a profiler. Option A (locked application clocks for the whole A/B, a root action)
+is therefore the only option left that measures the gate as written with the clock state
+controlled; options B and C are unchanged otherwise. The decision stays with the author.
