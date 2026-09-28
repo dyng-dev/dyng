@@ -77,10 +77,27 @@ original = []
 original_report = []
 port = ["cycle_count.compute"]
 port_report = ["compute_ms"]
+original_report_optional = ["count_seconds"]
 gate = "none"
 note = """
 The port's cycle_count.compute (reset + count + finalize), i.e. the original's
-count_simple_cycles_johnson[_openmp](); reported for the port only."""
+count_simple_cycles_johnson[_openmp](). The unpatched original has no timer for it; the
+instrumented experiment copies of parity/experiments/cycle_enum (stage_timers.patch) print
+count_seconds (steady_clock around run_backend), and then the ratio is reported (never a gate)."""
+
+[[reference.cycle_enum_openmp.region]]
+name = "static_read"
+task = "count"
+original = []
+original_report = []
+original_report_optional = ["read_seconds"]
+port = ["graph.build"]
+port_report = ["read_ms", "build_ms"]
+gate = "none"
+note = """
+Reading the edge list and building the graph: the port's read_ms + build_ms (io::read_edge_list and
+graph::from_edges, the CSR only), the original's read_graph_view (the parser, the CSR and the CSC),
+timed by the stage_timers experiment copy (read_seconds); reported, never a gate."""
 
 # The incremental update (the RESULTS.md table "Incremental update", OpenMP-56 column).
 [[reference.cycle_enum_openmp.region]]

@@ -35,7 +35,7 @@ run   rebuilds (idempotently) and verifies the UNPATCHED copy of CycleEnumeratio
 
       Experiments (PLAN 8.6: improvements reported in their own table): --baseline-exe replaces
       side A by another binary, either a variant of the original (--baseline-kind original, e.g.
-      parity/experiments/cycle_enum_dense_histogram/build.sh) or another dynG build
+      parity/experiments/cycle_enum/build_variant.sh) or another dynG build
       (--baseline-kind port, e.g. the compat driver of an earlier commit). The record then names
       the baseline (--baseline-label) and its verdicts are not gates.
 
@@ -71,7 +71,10 @@ import perf_ab  # noqa: E402  (perf_lock, port_build, build_reference, portable_
 REGION_MAP = REPO / "parity" / "timed_regions" / "cycle_count.toml"
 MAP_KEY = "cycle_enum_openmp"
 WALL = "process wall time"
-ORIGINAL_REPORT = {"update_seconds": re.compile(r"^update_seconds=([0-9.eE+-]+)$", re.M)}
+ORIGINAL_REPORT = {
+    key: re.compile(rf"^{key}=([0-9.eE+-]+)$", re.M)
+    for key in ["update_seconds", "count_seconds", "read_seconds"]
+}
 PORT_REPORT = ["update_ms", "compute_ms", "read_ms", "build_ms", "prior_ms", "generate_ms"]
 RESULT = re.compile(r"^RESULT task=(\w+) (.*)$", re.M)
 SHORT_REGION_MS = 10.0
@@ -104,7 +107,7 @@ def load_regions() -> list[dict]:
             raise SystemExit(f"{REGION_MAP}: region {r['name']}: task must be count or update")
         if r["gate"] not in ("compute", "end_to_end", "none"):
             raise SystemExit(f"{REGION_MAP}: region {r['name']}: unknown gate '{r['gate']}'")
-        for key in r.get("original_report", []):
+        for key in r.get("original_report", []) + r.get("original_report_optional", []):
             if key != WALL and key not in ORIGINAL_REPORT:
                 raise SystemExit(f"{REGION_MAP}: region {r['name']}: unknown original key {key}")
         for key in r.get("port_report", []):
@@ -175,7 +178,12 @@ def summarize(
             continue
         e: dict = {"region": r["name"], "gate_kind": r["gate"]}
         a_keys = r.get("original_report") if baseline_kind == "original" else r.get("port_report")
-        if r.get("original_report"):
+        optional = r.get("original_report_optional", [])
+        if baseline_kind == "original" and not a_keys and optional:
+            # Reported only by an instrumented experiment copy (parity/experiments/cycle_enum).
+            if all(all(k in s for k in optional) for s in samples["original"]):
+                a_keys = optional
+        if a_keys:
             a = [side_value(s, a_keys) for s in samples["original"]]
             e.update(
                 original_ms=statistics.median(a), original_samples=a, original_spread=spread(a)

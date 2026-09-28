@@ -323,3 +323,21 @@ def test_contamination_monitor() -> None:
     assert s["foreign_cores_median"] == 0.5 and s["foreign_cores_max"] == 3.0
     assert s["flagged_runs"] == 1 and s["runs"] == 3
     assert cont.summarize([])["runs"] == 0
+
+
+def test_cycle_count_optional_original_keys() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = list(perf.load_regions())
+    err = "read_seconds=0.39\ncount_seconds=1.5\n"
+    timed = perf.parse_original(2000.0, err)
+    assert timed["count_seconds"] == pytest.approx(1500.0)
+    assert timed["read_seconds"] == pytest.approx(390.0)
+    port = {perf.WALL: 1500.0, "compute_ms": 1000.0, "read_ms": 380.0, "build_ms": 40.0}
+    samples = {"original": [timed] * 5, "port": [port] * 5, "stages": [{}] * 5}
+    out = {e["region"]: e for e in perf.summarize(regions, "count", samples, 5)}
+    assert out["static_count"]["ratio"] == pytest.approx(1000.0 / 1500.0)
+    assert out["static_read"]["ratio"] == pytest.approx(420.0 / 390.0)
+    assert "gate" not in out["static_count"]  # never a gate
+    plain = {"original": [{perf.WALL: 2000.0}] * 5, "port": [port] * 5, "stages": [{}] * 5}
+    out = {e["region"]: e for e in perf.summarize(regions, "count", plain, 5)}
+    assert "ratio" not in out["static_count"] and out["static_end_to_end"]["ratio"] == 0.75
