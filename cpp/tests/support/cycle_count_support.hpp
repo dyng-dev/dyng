@@ -38,15 +38,23 @@ namespace dyng::test {
 /// A directed edge.
 using cc_edge = std::pair<std::int32_t, std::int32_t>;
 
-/// Resources of a host backend for the cycle_count suites (openmp: 4 threads, like the original's
-/// randomized tests).
+/// Resources of a backend for the cycle_count suites (openmp: 4 threads, like the original's
+/// randomized tests; cuda: the first visible device).
 inline resources cc_resources(backend b, int threads = 4) {
-  return b == backend::openmp ? resources::openmp(threads) : resources::sequential();
+  switch (b) {
+    case backend::openmp:
+      return resources::openmp(threads);
+    case backend::cuda:
+      return resources::cuda();
+    case backend::sequential:
+      break;
+  }
+  return resources::sequential();
 }
 
 /// The name of a backend for traces.
 inline std::string cc_name(backend b) {
-  return b == backend::openmp ? "openmp" : "sequential";
+  return std::string(to_string(b));
 }
 
 /// A graph on n vertices from edge pairs (weights 1 for a weighted graph type).

@@ -11,6 +11,7 @@
 #include "algorithms/cycle_count/cycles_through_edge.hpp"
 #include "algorithms/cycle_count/dfs.hpp"
 #include "algorithms/cycle_count/problem.hpp"
+#include "algorithms/cycle_count/work_queue.hpp"
 #include "graph/graph_impl.hpp"
 #include "support/cycle_count_support.hpp"
 
@@ -429,6 +430,33 @@ TEST(CycleCountPrunedSearch, LongRing) {
   const std::vector<std::uint64_t> counts = pruned_counts<64>(view_of(g), 40, 1);
   EXPECT_EQ(counts[40], 1U);
   EXPECT_EQ(pruned_counts<64>(view_of(g), 39, 2)[39], 0U);
+}
+
+// ---- the host-side planning of the device counters ----------------------------------------------
+
+TEST(CycleCountCudaPlanning, WorkQueueLaunchAndItems) {
+  using dyng::detail::plan_work_queue_launch;
+  using dyng::detail::resolve_work_items;
+  using items = dyng::cycle_count::cuda_work_items;
+  EXPECT_EQ(plan_work_queue_launch(0, 128, 4, 64).grid_blocks, 0U);
+  EXPECT_EQ(plan_work_queue_launch(10, 128, 4, 64).grid_blocks, 10U);
+  EXPECT_EQ(plan_work_queue_launch(1000000, 128, 4, 64).grid_blocks, 256U);
+  EXPECT_EQ(plan_work_queue_launch(1000000, 128, 4, 64).block_size, 128U);
+  EXPECT_THROW((void)plan_work_queue_launch(1, 0, 4, 64), dyng::invalid_argument_error);
+  EXPECT_THROW((void)plan_work_queue_launch(1, 128, 0, 64), dyng::invalid_argument_error);
+  EXPECT_THROW((void)plan_work_queue_launch(1, 128, 4, 0), dyng::invalid_argument_error);
+  // The original's automatic choice (measured on DD, COLLAB, Twitch and GitHub).
+  EXPECT_EQ(resolve_work_items(items::automatic, 2, 100, 1000), items::edges);
+  EXPECT_EQ(resolve_work_items(items::automatic, 3, 100, 100000), items::edges);
+  EXPECT_EQ(resolve_work_items(items::automatic, 4, 100, 1599), items::edges);
+  EXPECT_EQ(resolve_work_items(items::automatic, 4, 100, 1600), items::two_hop);
+  EXPECT_EQ(resolve_work_items(items::automatic, 5, 100, 10), items::two_hop);
+  EXPECT_EQ(resolve_work_items(items::two_hop, 2, 100, 10), items::edges);
+  EXPECT_EQ(resolve_work_items(items::roots, 7, 100, 10), items::roots);
+  EXPECT_EQ(dyng::detail::cycle_count_effective_length(-1, 40), 40);
+  EXPECT_EQ(dyng::detail::cycle_count_effective_length(-1, 1), 2);
+  EXPECT_EQ(dyng::detail::cycle_count_effective_length(5, 3), 3);
+  EXPECT_EQ(dyng::detail::cycle_count_effective_length(5, 100), 5);
 }
 
 }  // namespace

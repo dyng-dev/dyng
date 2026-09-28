@@ -487,6 +487,12 @@ TEST_P(CycleCountRandom, LongRingsNeedNoThreadStack) {
     path.emplace_back(v, v - 1);
   }
   graph_u g = cc_graph<graph_u>(res_, n, path);
+  if (GetParam() == backend::cuda) {
+    // The device searches keep at most 64 vertices: an unbounded count of a large graph is
+    // rejected with a clear error (kMaxDeviceCycleLength).
+    EXPECT_THROW((void)cycle_count::compute(res_, g), dyng::invalid_argument_error);
+    return;
+  }
   cycle_count::result r = cycle_count::compute(res_, g);
   EXPECT_EQ(r.total(), 0U);
   EXPECT_EQ(r.bound(), n);
@@ -549,6 +555,17 @@ TEST_P(CycleCountRandom, UpdatesThatGrowTheGraphFarBeyondItsSize) {
     ring.emplace_back(605, 0);
     ring.emplace_back(10, 11);  // listed twice: a duplicate insertion
     const batch_u batch = cc_batch<unweighted>({{2, 0}}, ring);
+    if (GetParam() == backend::cuda && k != 4) {
+      // The bound after the batch (606 vertices) exceeds the device searches' 64: rejected before
+      // anything changes.
+      const hist before = cc_counts(r);
+      EXPECT_THROW((void)cycle_count::update(res_, g, batch.view(), r),
+                   dyng::invalid_argument_error);
+      EXPECT_EQ(g.version(), 0U);
+      EXPECT_EQ(g.num_vertices(), 5);
+      EXPECT_EQ(cc_counts(r), before);
+      continue;
+    }
     const cycle_count::stats st = cycle_count::update(res_, g, batch.view(), r);
     EXPECT_EQ(g.num_vertices(), 606);
     EXPECT_EQ(st.cycles_removed, 1U);  // 0 -> 1 -> 2 -> 0
@@ -566,6 +583,9 @@ TEST_P(CycleCountRandom, UpdatesThatGrowTheGraphFarBeyondItsSize) {
 // demand, the unbounded update touched max(n, 2) counters per change edge (about 350 times the
 // bounded update in Release); a loose factor keeps the test robust on a loaded machine.
 TEST_P(CycleCountRandom, UnboundedUpdateCostsAboutTheBoundedOne) {
+  if (GetParam() == backend::cuda) {
+    GTEST_SKIP() << "the cuda backend has no unbounded count of a large graph (at most 64)";
+  }
   constexpr std::int32_t triangles = 100000;
   std::vector<cc_edge> edges;
   for (std::int32_t t = 0; t < triangles; ++t) {
@@ -602,10 +622,13 @@ TEST_P(CycleCountRandom, UnboundedUpdateCostsAboutTheBoundedOne) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, CycleCountRandom,
-                         ::testing::ValuesIn(dyng::test::host_backends()),
+                         ::testing::ValuesIn(dyng::test::suite_backends()),
                          [](const ::testing::TestParamInfo<backend>& info) {
                            return dyng::test::cc_name(info.param);
                          });
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CycleCountRandom);
+
+#if !(defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA)  // host-only cases (not repeated on cuda)
 
 // DynamicUpdateOpenMPTest: one thread equals the sequential update; 2 and 4 threads equal the
 // recount; results do not depend on the thread count (determinism, conformance C3 / C6).
@@ -651,5 +674,7 @@ TEST(CycleCountRandomOpenmp, ThreadCountsAgree) {
     }
   }
 }
+
+#endif  // host-only cases
 
 }  // namespace

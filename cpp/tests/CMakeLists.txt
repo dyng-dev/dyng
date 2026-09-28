@@ -163,6 +163,7 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
       endif()
       dyng_set_warnings(${_target})
       dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})  # the module's .cu files (cuda builds)
     endforeach()
     set_target_properties(${_lib}_cycle_count PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_include_directories(
@@ -235,6 +236,25 @@ if(DYNG_ENABLE_CUDA)
   dyng_set_cuda_options(dyng_sssp_cuda_tests)  # user streams in sssp_cuda_test.cpp
   if(DYNG_ENABLE_OPENMP)
     target_link_libraries(dyng_sssp_cuda_tests PRIVATE OpenMP::OpenMP_CXX)
+  endif()
+
+  # cycle_count on the cuda backend (M2b): the shared cycle_count suites compiled with
+  # DYNG_TEST_CUDA=1 (their cases run on cuda; the fixtures against the original's CUDA backend)
+  # plus the CUDA-only cases (bounds, schedulers, cross-backend chains, the resident graph).
+  dyng_add_test(
+    NAME dyng_cycle_count_cuda_tests
+    SOURCES ${DYNG_CYCLE_COUNT_TEST_SOURCES} algorithms/cycle_count/cycle_count_cuda_test.cpp
+    LABELS gpu cycle_count
+    LIBRARIES dyng::testing
+    TEST_PREFIX "cuda."
+  )
+  target_compile_definitions(
+    dyng_cycle_count_cuda_tests PRIVATE DYNG_TEST_CUDA=1 DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
+  )
+  target_include_directories(dyng_cycle_count_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_cycle_count_cuda_tests)  # cudaMemcpy in cycle_count_cuda_test.cpp
+  if(DYNG_ENABLE_OPENMP)
+    target_link_libraries(dyng_cycle_count_cuda_tests PRIVATE OpenMP::OpenMP_CXX)
   endif()
 endif()
 

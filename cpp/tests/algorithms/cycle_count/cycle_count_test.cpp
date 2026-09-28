@@ -31,7 +31,8 @@
 namespace {
 
 /// io::write_histogram_csv into a string.
-std::string histogram_csv(dyng::array_view<const std::uint64_t> counts, bool include_total = true) {
+[[maybe_unused]] std::string histogram_csv(dyng::array_view<const std::uint64_t> counts,
+                                           bool include_total = true) {
   std::ostringstream out;
   dyng::io::write_histogram_csv(out, counts, include_total);
   return out.str();
@@ -307,6 +308,10 @@ TEST_P(CycleCountBackends, ProfilerStagesFollowTheHooks) {
   }
   // The update does not build the in-edges (cycle_count reads the out-edges only).
   EXPECT_EQ(names.count("graph.transpose"), 0U);
+  EXPECT_EQ(names.count("graph.transpose_device"), 0U);
+  // On cuda the graph is uploaded once (by compute) and stays resident: the update merges the
+  // batch on the device.
+  EXPECT_EQ(names.count("graph.upload"), GetParam() == backend::cuda ? 1U : 0U);
 }
 
 TEST_P(CycleCountBackends, SteadyStateUpdatesReuseOneWorkspace) {
@@ -319,10 +324,14 @@ TEST_P(CycleCountBackends, SteadyStateUpdatesReuseOneWorkspace) {
     (void)cycle_count::update(res_, g, b.view(), r);
     (void)cycle_count::update(res_, g, back.view(), r);
   }
+  // One workspace per type: the normalized batch of the framework, cycle_count's host workspace
+  // and, on cuda, its device workspace (the compute before leased the latter already).
+  const bool cuda = GetParam() == backend::cuda;
+  const std::uint64_t types = cuda ? 3U : 2U;
   const auto stats = pool.statistics();
-  EXPECT_EQ(stats.created, 1U);
+  EXPECT_EQ(stats.created, types);
   EXPECT_EQ(stats.leased, 0U);
-  EXPECT_EQ(stats.leases, 8U);
+  EXPECT_EQ(stats.leases, 8U * types + (cuda ? 1U : 0U));
   EXPECT_GT(res_.workspace_bytes(), 0U);
 }
 
@@ -364,10 +373,13 @@ TEST_P(CycleCountBackends, ComposesWithSssp) {
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, CycleCountBackends,
-                         ::testing::ValuesIn(dyng::test::host_backends()),
+                         ::testing::ValuesIn(dyng::test::suite_backends()),
                          [](const ::testing::TestParamInfo<backend>& info) {
                            return dyng::test::cc_name(info.param);
                          });
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(CycleCountBackends);
+
+#if !(defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA)  // host-only cases (not repeated on cuda)
 
 // --- OpenMPJohnsonTest (openmp_johnson_test.cpp) ---------------------------------------------------
 
@@ -392,15 +404,6 @@ TEST(CycleCountOpenmp, RejectsInvalidConfiguration) {
   const resources seq = resources::sequential();
   const graph_u g = cc_graph<graph_u>(seq, 4, overlapping_cycles());
   EXPECT_THROW((void)cycle_count::compute(seq, g, bound(1)), dyng::invalid_argument_error);
-}
-
-TEST(CycleCountBackend, CudaIsNotAvailableYet) {
-  if (!dyng::backend_available(backend::cuda)) {
-    GTEST_SKIP() << "no CUDA device or CUDA not built";
-  }
-  const resources cuda = resources::cuda(0);
-  const graph_u g = cc_graph<graph_u>(cuda, 4, overlapping_cycles());
-  EXPECT_THROW((void)cycle_count::compute(cuda, g), dyng::not_supported_error);
 }
 
 TEST(CycleCountBackend, PlacementIsChecked) {
@@ -475,5 +478,7 @@ TEST(CycleCountHistogram, DetectsCountOverflow) {
   const hist one = {0, 0, 1};
   EXPECT_THROW(dyng::io::write_histogram_csv(failed, dyng::host_view(one)), dyng::io_error);
 }
+
+#endif  // host-only cases
 
 }  // namespace
