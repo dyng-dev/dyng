@@ -50,8 +50,11 @@ if(DYNG_BUILD_TESTS)
         else()
           set(_labels "cpu;sssp;compat")
         endif()
-        set_tests_properties(${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT
-                                                 "${DYNG_TEST_ENVIRONMENT}")
+        # 77: the cuda backend without a visible device (run_and_compare.cmake).
+        set_tests_properties(
+          ${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+                              SKIP_RETURN_CODE 77
+        )
       endforeach()
     endforeach()
   endforeach()
