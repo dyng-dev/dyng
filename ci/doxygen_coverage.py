@@ -51,6 +51,18 @@ STREAM_ORDERED_MEMBERS = {
     ("dyng::resources", "release_workspaces"),
     ("dyng::resources", "synchronize"),
     ("dyng::resources", "warm_up"),
+    ("dyng::stream_ref", "synchronize"),
+} | {
+    # The synchronous allocation members of every memory resource (M1b review): CUDA-capable
+    # (pinned and device memory) without a stream parameter.
+    (resource, member)
+    for resource in (
+        "dyng::memory_resource_ref",
+        "dyng::host_memory_resource",
+        "dyng::cuda_async_memory_resource",
+        "dyng::pinned_host_memory_resource",
+    )
+    for member in ("allocate_sync", "deallocate_sync")
 }
 
 

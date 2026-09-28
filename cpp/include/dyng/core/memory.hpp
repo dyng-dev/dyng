@@ -102,7 +102,11 @@ class memory_resource_ref {
    * @param[in] bytes     Size in bytes.
    * @param[in] alignment Alignment in bytes (a power of two).
    * @return Pointer to at least `bytes` bytes.
-   * @throws out_of_memory_error if the allocation fails.
+   * @throws out_of_memory_error    if the allocation fails.
+   * @throws invalid_argument_error if the resource rejects `alignment`.
+   * @throws not_supported_error    if the resource needs CUDA and it is not built.
+   * @throws cuda_error             if the CUDA runtime reports an error.
+   * @sync The memory is usable by any stream and the host as soon as the call returns.
    */
   void* allocate_sync(std::size_t bytes, std::size_t alignment) {
     return vtable_->allocate_sync(object_, bytes, alignment);
@@ -113,6 +117,7 @@ class memory_resource_ref {
    * @param[in] ptr       Pointer returned by allocate_sync() of the same resource.
    * @param[in] bytes     The size passed to allocate_sync().
    * @param[in] alignment The alignment passed to allocate_sync().
+   * @sync The memory is released at once: all work using it must have completed.
    */
   void deallocate_sync(void* ptr, std::size_t bytes, std::size_t alignment) noexcept {
     vtable_->deallocate_sync(object_, ptr, bytes, alignment);
@@ -217,6 +222,7 @@ class host_memory_resource {
    * @return Pointer to at least `bytes` bytes.
    * @throws out_of_memory_error if the allocation fails.
    * @throws invalid_argument_error if `alignment` is not a power of two.
+   * @sync
    */
   void* allocate_sync(std::size_t bytes, std::size_t alignment);
 
@@ -225,6 +231,7 @@ class host_memory_resource {
    * @param[in] ptr       Pointer returned by allocate() or allocate_sync().
    * @param[in] bytes     The size passed at allocation.
    * @param[in] alignment The alignment passed at allocation.
+   * @sync The memory is freed at once.
    */
   void deallocate_sync(void* ptr, std::size_t bytes, std::size_t alignment) noexcept;
 
@@ -457,6 +464,8 @@ class pinned_host_memory_resource {
    * @throws out_of_memory_error    if the allocation fails.
    * @throws invalid_argument_error if `alignment` is not a power of two or exceeds 256.
    * @throws not_supported_error    if the library was built without CUDA.
+   * @throws cuda_error             if the CUDA runtime reports another error.
+   * @sync cudaHostAlloc: the memory is usable as soon as the call returns.
    */
   void* allocate_sync(std::size_t bytes, std::size_t alignment);
 
@@ -465,6 +474,7 @@ class pinned_host_memory_resource {
    * @param[in] ptr       Pointer returned by this resource (nullptr is ignored).
    * @param[in] bytes     The size passed at allocation.
    * @param[in] alignment The alignment passed at allocation.
+   * @sync cudaFreeHost, at once (errors are logged).
    */
   void deallocate_sync(void* ptr, std::size_t bytes, std::size_t alignment) noexcept;
 

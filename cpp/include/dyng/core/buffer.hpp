@@ -75,7 +75,11 @@ class buffer {
    * @param[in] stream Stream the allocation is ordered on.
    * @param[in] mr     Memory resource; must outlive the buffer.
    * @param[in] device CUDA device of the memory for device / managed spaces, else -1.
-   * @throws out_of_memory_error if the allocation fails.
+   * @throws out_of_memory_error    if the allocation fails.
+   * @throws invalid_argument_error if the memory resource rejects the request (e.g. an
+   *                                alignment it does not support).
+   * @throws not_supported_error    if the memory resource needs CUDA and it is not built.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    * @async The allocation is ordered on `stream` (host memory resources allocate before
    *        returning).
    */
@@ -88,7 +92,10 @@ class buffer {
    * @brief Allocate `size` uninitialized elements with the memory resource and stream of `res`.
    * @param[in] res  Resources providing the memory resource, stream and device.
    * @param[in] size Number of elements.
-   * @throws out_of_memory_error if the allocation fails.
+   * @throws out_of_memory_error    if the allocation fails.
+   * @throws invalid_argument_error if the memory resource rejects the request.
+   * @throws not_supported_error    if the memory resource needs CUDA and it is not built.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    * @async The allocation is ordered on the stream of `res` (host memory resources allocate
    *        before returning).
    */
@@ -199,6 +206,7 @@ class buffer {
    * The caller orders the new stream after the work on the old one that still uses the buffer
    * (rmm::device_uvector::set_stream semantics). The memory itself is not touched.
    * @param[in] stream The new stream (of the buffer's device).
+   * @sync Enqueues no work.
    */
   void set_stream(stream_ref stream) noexcept {
     stream_ = stream;
@@ -251,6 +259,7 @@ class buffer {
    * @param[in] new_size The new element count.
    * @throws out_of_memory_error if the allocation fails.
    * @throws not_supported_error if the memory is device memory and CUDA is not built.
+   * @throws cuda_error          if the CUDA runtime reports an error.
    * @async The new allocation, the copy of the kept elements and the release of the old memory
    *        are ordered on the buffer's stream.
    */
