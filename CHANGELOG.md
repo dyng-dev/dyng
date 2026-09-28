@@ -107,8 +107,24 @@ Before 0.1.0 anything may change.
   `compare.py --configs cuda`, the CTest golden replay `parity.sssp.mosp_cuda_e220ee2`, and
   `perf_ab.py run --backend cuda` against the unpatched MOSP-CUDA; `ci/gpu_local.sh` replays the
   golden corpus on cuda.
+- The M1b parity certificate (`parity/results/M1b.md` sections 7-12): byte parity with
+  MOSP-CUDA@e220ee2 and MOSP-OpenMP@c352151 on all 495 golden cases for every backend and both
+  edge offset types, and the CUDA and OpenMP performance gates on roadNet-PA, roadNet-CA,
+  rgg_n_2_20_s0 and road_usa; ADR 0018 (the GPU clock state in the CUDA gate, proposed).
+- `parity/export_goldens.py --reference MOSP-CUDA --compare-to` (the corpus from MOSP-CUDA's own
+  tools, compared file for file with the committed one); `compare.py` configurations with
+  `/int32` or `/int64`; `dyng-compat-mosp --edge-type`; `perf_ab.py kernels` (the fused kernels
+  of both programs under Nsight Compute at locked clocks) and `perf_ab.py edge-type`.
 
 ### Changed
+
+- The default edge offset type is `int32`: `dyng::graph<>` is `graph<int32, int32, int32>`, and
+  building or updating a graph past 2^31 - 1 edges throws `capacity_error` naming the int64
+  instantiation (ADR 0009, from the `edge_t` benchmark).
+- OpenMP `sssp`: a near-far round passes three barriers instead of six
+  (`list_gather::gather_pair()`, `nowait` loops) and the per-thread lists live in the workspace on
+  their own cache lines; the same trees, 0.63-0.89x of MOSP-OpenMP's time on the 10K local
+  batches.
 
 - Placement (PLAN 4.6 rule 5): a graph belongs to the backend of the resources that built it;
   sssp on resources of the other kind (host backends versus cuda) throws `invalid_argument_error`

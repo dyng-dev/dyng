@@ -13,14 +13,14 @@ runs it). `perf_ab.py run --backend cuda` measures exactly that, as host times o
 both sides (the original has no device timer; dynG's CUDA-event time is recorded next to it and is
 within 0.01 ms of its host time).
 
-The RTX A5000 changes its performance state by itself (DVFS). Measured with NVML and nvidia-smi on
-GPU 0 (`parity/results/M1b.md` section 8):
+The RTX A5000 changes its performance state by itself (DVFS). Measured with nvidia-smi and with
+Nsight Systems GPU metrics on GPU 0 (`parity/results/M1b.md` section 8.2):
 
-- idle: P8 (210 MHz);
+- idle: P8 (SM 210 MHz, memory 405 MHz);
 - a process with a CUDA context, GPU mostly idle: **P2**, SM clock up to 1695 MHz, **memory
   7601 MHz**;
-- after roughly half a second of sustained GPU load: **P0**, SM 1935 MHz, **memory 8001 MHz**;
-  it falls back to P2 within about a second once the load stops.
+- after roughly half a second of sustained GPU load: **P0**, SM about 1920 MHz, **memory
+  8001 MHz**; it falls back to P2 within about a second once the load stops.
 
 Both programs spend seconds on the host (reading the text inputs, applying the batch) with the GPU
 idle, so what runs on the GPU in the half second before objective 0 decides the state of the
@@ -30,16 +30,19 @@ timed kernels:
   work: the graph, the reverse CSR built on the device, the K trees, the workspace allocations);
   its kernels run in P0.
 - dynG uploads the K trees earlier (in `result::from_arrays`, before the host apply) and its graph
-  upload inside the commit takes about 130 ms; its kernels start in P2.
+  upload inside the commit takes about 130 ms; its kernels start in P2. In three nsys-profiled
+  runs of each program the original's kernels ran at 1.84-1.90 GHz after one at 1.69 GHz, dynG's
+  at 1.69-1.83 GHz; at the same clock (1.694 GHz) both took 22.5 ms.
 
 On the gate graphs this matters only where the kernels are short and the graph is large: road_usa's
-10K local batch (three kernels of about 21 ms). There the as-measured reading is **1.06x per
-objective** (`M1b-final-perf-cuda-road_usa_g.json`), while every other per-objective reading of the
-four graphs is 0.98-1.01x. With the clocks held equal the kernels are equal: under Nsight Compute
-with the clocks locked to base (`perf_ab.py kernels`, 21 alternating runs) road_usa local 10K reads
-0.99x per objective and every one of the 36 per-objective kernels of the suite is within 0.99-1.01x
-of the original's, with 59 registers, the same 256 x 256 cooperative grid and 0.99-1.03x the DRAM
-bytes (the `affected` count). The code is the original's; the difference is the clock state that
+10K local batch (three kernels of about 21 ms). There the as-measured reading of the final gate
+record is **1.065 / 1.063 / 1.037x** for objectives 0 / 1 / 2
+(`M1b-final-perf-cuda-road_usa_g.json`, port `0f0fba9`; 1.06x in every earlier campaign), while
+the other 33 per-objective readings of the four graphs are 0.98-1.01x. With the clocks held equal
+the kernels are equal: under Nsight Compute with the clocks locked to base (`perf_ab.py kernels`,
+21 alternating runs) road_usa local 10K reads 0.992-0.995x per objective and all 36
+per-objective kernels of the suite are within 0.99-1.01x of the original's, with 59 registers,
+the same 256 x 256 cooperative grid and 0.99-1.03x the DRAM bytes (the `affected` count). The code is the original's; the difference is the clock state that
 the work *before* the timed region leaves behind.
 
 Locking the clocks for whole runs (`nvidia-smi -lgc/-lmc`, or the PowerMizer "prefer maximum

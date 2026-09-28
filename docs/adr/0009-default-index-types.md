@@ -24,37 +24,40 @@ originals' int32).
 (OpenMP: 28 threads pinned; CUDA: RTX A5000, CUDA 13.1), parity and parity-cuda presets, under the
 exclusive perf lock. Both types write byte-identical outputs (checked once per batch) with equal
 `invalidated` counters in every round; the golden corpus replays byte-identically with int64
-offsets too (`compare.py --configs cuda/int64,openmp:4/int64`). The records are
-`parity/results/M1b-edge-type-{openmp,cuda}-<graph>.json`; the tables are in
+offsets too (`compare.py --configs cuda/int64,sequential/int64,openmp:4/int64`). The records are
+`parity/results/M1b-edge-type-{openmp,cuda}-<graph>.json`, measured on the final M1b code
+(`0f0fba9`; a first run on `2b39fac` gave the same picture); the tables are in
 `parity/results/M1b.md` section 10.
 
-Ratio int64 / int32 of the medians (range over the objectives):
+Ratio int64 / int32 of the medians (range over the objectives, or over the batches for apply and
+end to end):
 
-| Graph | CUDA SOSP per objective, 50K batches | CUDA, local 10K | OpenMP SOSP per objective, 50K batches | OpenMP, local 10K | apply (both) | end to end (both) |
+| Graph | CUDA SOSP per objective, 50K batches | CUDA, local 10K | OpenMP SOSP per objective, 50K batches | OpenMP, local 10K | apply CUDA / OpenMP | end to end CUDA / OpenMP |
 |---|---|---|---|---|---|---|
-| roadNet-PA | 1.034-1.046 | 1.007-1.009 | 1.004-1.016 | 1.19-1.21 (noisy, 19-25 %) | 0.90-1.20 | 0.98-1.05 |
-| roadNet-CA | 1.028-1.039 | 1.004-1.006 | 0.981-1.022 | 1.005-1.012 (noisy) | 1.00-1.08 | 0.99-1.00 |
-| rgg_n_2_20_s0 | 1.040-1.043 | 1.008-1.010 | 1.008-1.021 | 0.85-0.87 (noisy, 15-20 %) | 1.00-1.06 | 0.995-1.03 |
-| road_usa | 1.011-1.019 | 1.005-1.032 | 0.991-1.009 | 1.007-1.019 (noisy, 16-18 %) | 1.01 (CUDA), 1.08 (OpenMP) | 1.00-1.03 |
+| roadNet-PA | 1.035-1.044 | 1.013-1.014 | 0.994-1.018 | 1.000-1.012 (spreads 12-15 %) | 0.98-1.04 / 0.90-1.16 (spreads ~20 %) | 0.99-1.01 / 0.98-1.00 |
+| roadNet-CA | 1.028-1.036 | 1.005-1.010 | 1.007-1.044 | 1.016-1.062 (spreads 15-24 %) | 0.96-0.99 / 1.01-1.08 | 0.99 / 1.00-1.02 |
+| rgg_n_2_20_s0 | 1.038-1.045 | 1.008-1.009 | 1.009-1.032 | 0.913-0.960 (spreads 9-13 %) | 0.99-1.01 / 1.03-1.06 | 1.00 / 1.00-1.01 |
+| road_usa | 1.014-1.019 | 1.002-1.004 | 1.013-1.018 | 0.957-0.966 (spreads 8-17 %) | 1.01 / 1.08-1.09 | 1.00 / 1.02-1.03 |
 
-- **CUDA: int64 costs 3-5 % on the 50K batches** of roadNet-PA, roadNet-CA and rgg_n_2_20_s0,
-  consistently (spreads of 1-4 %), on the gated per-objective region, and 1-2 % on road_usa's;
-  0.4-3 % on the local batches. The persistent kernel reads the row offsets of every relaxed
+- **CUDA: int64 costs 3-4.5 % on the 50K batches** of roadNet-PA, roadNet-CA and rgg_n_2_20_s0,
+  consistently (spreads of 1-3 %), on the gated per-objective region, and 1.5-2 % on road_usa's;
+  0.2-1.4 % on the local batches. The persistent kernel reads the row offsets of every relaxed
   vertex twice (begin and end); with int64 they are twice the bytes and the index arithmetic is
-  64-bit. The int64 instantiation also needs 60 instead of 59 registers
-  (still 4 blocks of 256 threads per SM on sm_86).
-- **OpenMP: within about 2 % on the 50K batches**; the local batches move by up to 20 % in both
-  directions between rounds (their medians are not stable at 11 rounds, as in the OpenMP gate
-  record), so they carry no signal either way.
-- Apply and end to end are dominated by the host work around the update (reading files, the host
-  CSR assembly, uploads) and move by less than the noise, except apply (1.00-1.08x where its
-  medians are stable: the CSR's offset arrays are twice as large).
+  64-bit. The int64 instantiation also needs 60 instead of 59 registers (still 4 blocks of 256
+  threads per SM on sm_86).
+- **OpenMP: -0.6 % to +4.4 % on the 50K batches** (the largest on roadNet-CA); the local
+  batches move by -9 % to +6 % with spreads of 8-24 % between rounds, so they carry no signal
+  either way.
+- **apply** costs up to 9 % on OpenMP where its medians are stable (road_usa 1.08-1.09x: the CSR's
+  offset arrays are twice as large and the host apply is memory-bound); end to end moves by at
+  most 3 %, below the noise of the input phase.
 
 ## Decision
 
 1. **The default `edge_t` is `std::int32_t`**: `dyng::graph<>` is `graph<int32, int32, int32>`,
    the originals' types and the parity configuration. int64 exceeds the 3 % threshold of PLAN
-   4.4.2 on the CUDA backend's gated region.
+   4.4.2 on the CUDA backend's gated region (and on OpenMP's roadNet-CA and rgg_n_2_20_s0 50K
+   batches and apply).
 2. **Construction is checked.** Every path that produces a CSR from an edge count converts it with
    `detail::checked_edge_count<edge_t>()`, which throws `capacity_error` ("... edges do not fit
    the edge offset type; use a graph with 64-bit edge_t (int64)") when the count exceeds

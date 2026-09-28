@@ -150,24 +150,39 @@ code: its int32 instantiation uses 59 registers and 616 bytes of parameters, lik
 (`cuobjdump --dump-resource-usage`), so the co-resident grid that the occupancy API gives the
 cooperative launch is the same. The only addition to the kernel is the `affected` count in the
 unpack pass of an update, which compares each new pair with the old one and writes only the pairs
-that changed (no more bytes than the original's unconditional write). A first A/B on roadNet-PA (parity-cuda preset, GPU 0, 5 alternating runs; the full gate
-record follows in `parity/results/M1b.md`) gave 0.98-1.00x per objective, 0.55-0.60x for the apply
-region (dynG's host apply is parallel) and 0.82-0.84x end to end, with byte-identical outputs.
+that changed (no more bytes than the original's unconditional write).
 
-**Measured against the originals** (OpenMP, 28 threads pinned, medians of 21 alternating runs,
-`parity/results/M1b.md`): every objective's SOSP region, the apply region and the end-to-end time
-of `dyng-compat-mosp` against MOSP-OpenMP@c352151's `mosp` on roadNet-PA, roadNet-CA,
-rgg_n_2_20_s0 and road_usa (50K safe, 50K unsafe, 10K local batches). Ratio dynG / original
-(medians; below 1 is faster), the range over the three batches and the objectives:
+**OpenMP barriers.** On a small batch the near-far loop runs about a thousand rounds per
+objective with a few hundred vertices each, so its time is mostly barrier latency. dynG's rounds
+pass three barriers instead of the original's six (the work-sharing loops are `nowait` and the
+two per-thread lists of a round are gathered together, `list_gather::gather_pair()`), with the
+same lists and outputs: on the 10K local batches the OpenMP update is 0.63-0.89x of
+MOSP-OpenMP's. The per-thread lists are kept in the workspace on their own cache lines, so a
+steady-state update allocates nothing for them.
 
-| Graph | SOSP region per objective (gate 1.05x) | apply (gate 1.10x) | end to end (gate 1.10x) |
-|---|---|---|---|
-| roadNet-PA | 0.78-0.95x | 0.78-0.91x | 0.80-0.83x |
-| roadNet-CA | 0.81-0.99x | 0.84-0.88x | 0.76x |
-| rgg_n_2_20_s0 | 0.82-1.01x | 0.77-0.80x | 0.83-0.85x |
-| road_usa | 0.84-0.96x | 0.79x | 0.77-0.81x |
+**Clock state (CUDA).** A short update that follows a long host-only phase runs its kernels
+while the GPU is still in a low performance state (on the RTX A5000: P2, SM clock 1.69 GHz and
+memory 7.6 GHz instead of P0's 1.92 / 8.0 GHz). Any code sees this; it is why
+MOSP-CUDA, whose half-second "upload" stage precedes its first kernel, reads faster on road_usa's
+local batch than dynG, which uploads earlier (ADR 0018). Call `resources::warm_up()` and time
+repeated updates, or lock the GPU clocks, when a single short update is measured.
 
-Byte-identical outputs and equal `invalidated` counters in every run; details in the record.
+**Measured against the originals** (`parity/results/M1b.md` sections 8-9: medians of 21
+alternating runs of `dyng-compat-mosp` and the unpatched original, parity presets, RTX A5000 with
+CUDA 13.1 / 28 OpenMP threads pinned; 50K safe, 50K unsafe and 10K local batches on each graph).
+Ratio dynG / original (below 1 is faster), the range over the batches and the objectives:
+
+| Graph | CUDA: SOSP region per objective (gate 1.05x) | CUDA: kernel at locked clocks | CUDA: apply / end to end (gate 1.10x) | OpenMP: SOSP region per objective (gate 1.05x) | OpenMP: apply / end to end (gate 1.10x) |
+|---|---|---|---|---|---|
+| roadNet-PA | 0.98-1.00x | 1.00x | 0.55-0.62x / 0.86-0.87x | 0.63-0.86x | 0.85-1.02x / 0.83-0.91x |
+| roadNet-CA | 0.99-1.01x | 0.99-1.01x | 0.65-0.72x / 0.84-0.90x | 0.68-0.92x | 0.89-0.91x / 0.81-0.84x |
+| rgg_n_2_20_s0 | 0.99-1.00x | 0.99-1.00x | 0.70-0.74x / 0.88-0.92x | 0.68-0.99x | 0.78-0.81x / 0.83-0.90x |
+| road_usa | 1.00-1.01x (50K); **1.04-1.07x (local 10K, clock state)** | 0.99-1.01x | 0.71-0.72x / 0.83-0.84x | 0.77-0.94x | 0.78-0.79x / 0.75-0.81x |
+
+Byte-identical outputs and equal `invalidated` counters in every run. The fused kernel uses the
+original's 59 registers and runs the same 256 x 256 cooperative grid. The one reading over its
+gate, road_usa's local batch on CUDA, is the GPU's clock state (at locked clocks the kernels read
+0.99x); ADR 0018 leaves its verdict to the author.
 
 ## 6. Limitations
 
@@ -206,7 +221,7 @@ worklist without an iteration cap or a reachability pass, and ties go to the low
 | `defaultDelta` | `options.delta = 0` |
 | `canonicalizeTree`, `--init` files | `sssp::result::from_arrays(..., canonicalize)` |
 | `checkSospTree` | `testing::check_sssp_tree` |
-| `ListGather` | `detail::list_gather` (`cpp/src/util/list_gather.hpp`) |
+| `ListGather`; per-region `std::vector` thread lists | `detail::list_gather` (`cpp/src/util/list_gather.hpp`), plus `gather_pair()` (two lists between one pair of barriers); `thread_list`s kept in the workspace (`util/thread_list.hpp`) |
 | `mosp` driver (per-objective part) | `tools/compat` `dyng-compat-mosp` |
 
 | MOSP-CUDA@e220ee2 | dynG |

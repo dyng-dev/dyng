@@ -300,3 +300,111 @@ side of the harness (`dyng-compat-mosp`, `compare.py`, `perf_ab.py`) (PLAN 4.5.4
 - A CUDA graph keeps a host copy of its CSR (memory) and uploads each new state; the device
   apply (PLAN 6.4.1) replaces both later.
 - `compute()` on cuda is synchronous (ADR 0017 item 7).
+
+## Step 4: parity and performance of the CUDA backend (cuda-parity-perf, 2026-09-27/28)
+
+Goal: prove M1b parity and performance (PLAN 6.4.2, 8.3, 8.5, 8.6; acceptance criteria 2-4 and
+7): byte parity of every backend with both originals on the whole corpus, the CUDA and OpenMP
+gates on the four graphs, the fused kernel's resources, and the `edge_t` benchmark with ADR 0009.
+The step was interrupted once by a usage limit; the second session verified the uncommitted work
+of the first, kept it, and finished the step.
+
+### Done
+
+- **The corpus from MOSP-CUDA's own tools** (`711ad76`, `2b39fac`): `export_goldens.py
+  --reference MOSP-CUDA --compare-to` re-exports all 495 cases with MOSP-CUDA@e220ee2's tools (its
+  `bin/main` test cases, `mospTest`, `stressTest` / `parallelStressTest`, `mospPrep`, `bin/mosp
+  --validate`, `sospUpdateGpu` through the export tool) and requires the committed corpus file for
+  file: identical. `compare.py` configurations take `/int32` or `/int64`.
+- **Byte parity on the final code** (`0f0fba9`): 495 / 495 on sequential, OpenMP 1/4/16/28,
+  sequential and OpenMP with int64 offsets, CUDA and CUDA with int64 offsets; the paper-scale
+  outputs of both A/Bs byte-identical; `invalidated` equal in every timed round.
+- **Harness** (`0ecc062`, `49943ac`): `perf_ab.py kernels` (both programs under Nsight Compute,
+  clocks locked to base: per-objective kernel time, DRAM bytes, registers, grid, occupancy
+  limits) and `perf_ab.py edge-type` (int32 against int64 offsets); `dyng-compat-mosp
+  --edge-type`.
+- **The `edge_t` default** (`988a113`, ADR 0009): int32, with `detail::checked_edge_count` in
+  every construction path (`capacity_error` naming the int64 instantiation); tested at the
+  boundary.
+- **The GPU clock state** (ADR 0018, proposed): the as-measured and the controlled-clock readings
+  are recorded side by side; nothing is moved to change the clock state.
+- **OpenMP engine** (`9439733`, `0f0fba9`): the per-thread lists live in the workspace on their
+  own cache lines (`util/thread_list.hpp`); the near-far rounds pass three barriers instead of six
+  (`list_gather::gather_pair()`, `nowait` loops), which fixed the road_usa local-batch reading
+  (section "Measured") and makes every local batch 0.63-0.89x of the original.
+- **Records**: `parity/results/M1b.md` sections 7-12 (the certificate), the JSON records next to
+  it, ADR 0009's table on the final code, the sssp page's performance section.
+- **Tests**: `list_gather` (`gather_pair()` equals two `gather()` calls, in thread order, after an
+  `omp for nowait`), `thread_list` (alignment, no shared lines, capacity kept),
+  `checked_edge_count` at the int32 boundary, the harness smoke tests for `kernels` and
+  `edge-type`. `ci/check.sh` and `ci/gpu_local.sh` (build, `ctest -L gpu` and `-L cpu` of the CUDA
+  build, the CUDA golden replay, compute-sanitizer memcheck, clang-tidy) green on the final code.
+
+### Measured (every number: `parity/results/M1b.md` sections 7-12)
+
+All on port `0f0fba9` (clean), parity presets, exclusive perf lock, GPU 0, 21 alternating
+rounds per batch (11 for `edge_t`), medians:
+
+- **Byte parity:** 495 / 495 in 9 configurations (sequential, OpenMP 1/4/16/28, sequential and
+  OpenMP 4 with int64 offsets, CUDA, CUDA with int64 offsets); 24 paper-scale output checks
+  byte-identical; `invalidated` equal in every timed round.
+- **CUDA, as measured:** 34 / 36 per-objective readings within the gate (0.98-1.01x); road_usa's
+  local 10K batch exceeds on objectives 0 and 1 (1.065x, 1.063x; objective 2 1.037x): **FAIL**
+  under the strict reading. apply 0.55-0.74x, end to end 0.83-0.92x.
+- **CUDA, locked clocks (Nsight Compute):** 36 / 36 kernels within 0.992-1.014x (road_usa local:
+  0.992-0.995x), DRAM bytes 0.99-1.03x, 59 registers and a 256 x 256 grid on both sides. nsys GPU
+  metrics: at the same clock (1.694 GHz) both kernels take 22.5 ms; the original's usually run at
+  1.89 GHz after its 470 ms upload stage, dynG's at 1.69 GHz.
+- **OpenMP:** 36 / 36 within the gate (0.63-0.99x; local batches 0.63-0.89x), apply 0.78-1.02x,
+  end to end 0.75-0.91x. Before the barrier change the straight port read 1.12x on road_usa's
+  local batch (objectives 1 and 2) in two campaigns, 0.96x in step 1's.
+- **`edge_t`:** int64 costs 3-4.5 % on the CUDA SOSP region of the 50K batches (1.5-2 % on
+  road_usa), -0.6 to +4.4 % on OpenMP; default int32 (ADR 0009).
+
+### Deviations from the plan (pragmatic choices, same intent)
+
+| Plan | What was done | Why |
+|---|---|---|
+| PLAN 6.4.2 / 8.6: the CUDA per-objective gate as host-time medians | recorded as measured **and** at locked clocks (Nsight Compute `--clock-control base`), never merged; the as-measured miss on road_usa's local batch stays a FAIL until the author decides (ADR 0018, open decision) | the RTX A5000's DVFS state during the timed kernels depends on the GPU work that precedes them in a one-shot process, not on the kernel; locking the clocks for whole runs needs root |
+| MOSP-OpenMP's `ListGather` used as is (ported straight) | `list_gather::gather_pair()` and `nowait` loops: three barriers per near-far round instead of six | the straight port missed the local-batch gate on road_usa in two campaigns (barrier latency); outputs unchanged; reported separately from the straight port (PLAN 8.6) |
+| MOSP's per-region `std::vector` locals | per-thread `thread_list`s kept in the workspace | no per-round allocations, no shared cache lines; same lists and order |
+| PLAN 8.3 `parity/certify.py` writing `benchmarks/results/<version>/parity.json` | the certificate is `parity/results/M1b.md` plus the JSON records of `compare.py` / `perf_ab.py` | `certify.py` is a release tool (0.1); the records hold every field it would collect |
+| PLAN 8.6: >= 5 runs | 21 alternating rounds per batch (11 for the `edge_t` benchmark) | every per-objective region is gated, and the regions under 10 ms need >= 20 |
+
+### Lessons
+
+1. **A 5 % gate on a barrier-bound loop measures the machine as much as the code.** The same
+   binary read 0.96x in one campaign and 1.12x in the next; the original has the same two modes.
+   Fixing the cause (six barriers per round where three suffice) removed the mode instead of
+   averaging over it. Instrumenting the loop per thread found the cause in one run after hours of
+   excluding the usual suspects (layout, huge pages, power, false sharing).
+2. **Record the controlled reading next to the gate reading, never instead of it.** The locked-clock
+   kernel table shows that the CUDA kernel is the original's (0.99-1.01x everywhere); the
+   as-measured table shows what a user of a one-shot process sees. Both are true, and only the
+   author can decide which one the gate means (ADR 0018).
+3. **Re-exporting the corpus with the second original is cheap insurance.** "Byte-identical to
+   the goldens" now means both originals' tools produce the same 11,799 files.
+4. **Keep the tree clean during a measurement campaign.** The harness stamps every record with
+   `HEAD` and a dirty flag at write time; editing a tracked file while it ran would have marked
+   the records dirty. Docs and name fixes were written after the last record.
+5. **Interrupted sessions need a written state.** The first session left uncommitted work and
+   JSON records from several commits; the second had to re-derive which record belonged to which
+   code. The final campaign re-measured everything on one clean commit.
+
+### Open items
+
+- **The CUDA per-objective gate on road_usa's local 10K batch** (objectives 0 and 1, 1.065x and
+  1.063x as measured) needs the author's decision (ADR 0018, "Open decision"): (A) one A/B with
+  the GPU clocks locked by root (`nvidia-smi -lgc/-lmc` on GPU 0, then reset), (B) accept the
+  proposed verdict rule (different P-states recorded, locked-clock reading within the gate, end
+  to end within the gate: all three hold), or (C) keep it as a known M1b gate miss. Until then
+  acceptance criterion 3a is not met as written. Nothing was moved in dynG to change the clock
+  state.
+- The PLAN 8.3 `parity/certify.py` / `benchmarks/results/<version>/parity.json` tooling is not
+  written; `parity/results/M1b.md` and its JSON records carry the same content for M1b.
+- The OpenMP near-far loop could drop to two barriers per round (one gather barrier, the region
+  end) with a lock-free prefix sum; not needed for the gate, left for the operators engine of 0.2.
+- `perf_ab.py`'s load-average guard counts kernel threads in uninterruptible sleep (a CIFS mount
+  on the lab machine pushed it to 244 without CPU load); a run-queue sample would be a better
+  contamination monitor (PLAN 8.5).
+- As in step 3: a CUDA graph keeps a host copy of its CSR; `compute()` on cuda synchronizes.
