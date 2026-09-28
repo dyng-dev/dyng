@@ -348,7 +348,10 @@ def run(args: argparse.Namespace) -> int:
                         "max": max(max(p) for p in loads),
                     },
                     "contamination": {
-                        side: {**contamination.summarize(runs), "per_run": runs}
+                        side: {
+                            **contamination.summarize(runs),
+                            "foreign_cores_per_run": [round(r["foreign_cores"], 3) for r in runs],
+                        }
                         for side, runs in foreign.items()
                     },
                 }
