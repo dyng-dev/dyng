@@ -11,7 +11,7 @@
  * Usage (the original's flags and their aliases):
  *   dyng-compat-cycle-enum --input <path> [--backend sequential|openmp] [--openmp-threads t]
  *       [--max-cycle-length k] [--task count|update] [--deletes d --inserts i --batch-seed s
- *       [--batch-locality w]] [--compare-recompute] [--timing <csv>]
+ *       [--batch-locality w]] [--compare-recompute] [--timing <csv>] [--write-batch <path>]
  *
  * Standard output is the original's histogram CSV ("# cycle_size, num_of_cycles", "len, count"
  * per non-zero length, "Total, N"), byte for byte. The input is read with io::read_edge_list
@@ -28,8 +28,11 @@
  * and --backend cuda (M2b) exit with status 1 and a message; the CUDA tuning flags
  * (--cuda-device, --cuda-scheduler, --cuda-work-items, --report-timing) are parsed and ignored.
  *
- * dynG additions: --timing <csv> writes the profiler stages (kind,name,value), and a summary line
- * on standard error:
+ * dynG additions: --timing <csv> writes the profiler stages (kind,name,value); --write-batch <path>
+ * (update task) writes the generated batch before the update, one change per line ("- u v" for
+ * each deletion, then "+ u v" for each insertion, in the generator's order: the text of the
+ * exporter's `generate` command, for the golden corpus of parity/cycle_count_goldens.py); and a
+ * summary line on standard error:
  *   RESULT task=<count|update> read_ms=<> build_ms=<> prior_ms=<> generate_ms=<> compute_ms=<>
  *          update_ms=<> end_to_end_ms=<> threads=<>
  * where compute_ms is the static count (task count) and update_ms the timed update (the region of
@@ -78,6 +81,7 @@ struct cli_config {
   bool compare_recompute = false;
   bool show_help = false;
   std::string timing;
+  std::string write_batch;
 };
 
 void print_usage(std::ostream& out) {
@@ -94,6 +98,7 @@ void print_usage(std::ostream& out) {
       << "  --compare-recompute  (update task: verify against a full recompute\n"
       << "                        with the same backend and time it)\n"
       << "  --timing <csv>  (dynG: write the profiler stages)\n"
+      << "  --write-batch <path>  (dynG, update task: write the generated batch)\n"
       << "  --help\n";
 }
 
@@ -309,6 +314,12 @@ std::optional<cli_config> parse_args(int argc, char** argv, std::ostream& err) {
         return std::nullopt;
       }
       config.timing = std::string(*value);
+    } else if (option == "--write-batch") {
+      const auto value = take();
+      if (!value) {
+        return std::nullopt;
+      }
+      config.write_batch = std::string(*value);
     } else {
       err << "unknown option: " << option << '\n';
       return std::nullopt;
@@ -385,6 +396,22 @@ double ms_since(clock_type::time_point start) {
   return std::chrono::duration<double, std::milli>(clock_type::now() - start).count();
 }
 
+/// The generated batch as the exporter's `batch_text()`: "- u v" per deletion, then "+ u v".
+template <typename batch_t>
+void write_batch_text(const std::string& path, const batch_t& batch) {
+  std::ofstream out(path);
+  for (std::size_t i = 0; i < batch.num_deletions(); ++i) {
+    out << "- " << batch.delete_src()[i] << ' ' << batch.delete_dst()[i] << '\n';
+  }
+  for (std::size_t i = 0; i < batch.num_insertions(); ++i) {
+    out << "+ " << batch.insert_src()[i] << ' ' << batch.insert_dst()[i] << '\n';
+  }
+  out.flush();
+  if (!out) {
+    throw dyng::io_error("dyng-compat-cycle-enum: cannot write " + path);
+  }
+}
+
 /// What dynG does not port: other algorithms, modes and the CUDA backend (exit status 1).
 void expect_ported(const cli_config& config) {
   if (config.algorithm != "johnson") {
@@ -445,6 +472,9 @@ int run(const cli_config& config) {
     const auto batch =
         dyng::generators::legacy::cycle_enum_batch(g.to_csr(res).view(), config.batch);
     generate_ms = ms_since(t);
+    if (!config.write_batch.empty()) {
+      write_batch_text(config.write_batch, batch);
+    }
     t = clock_type::now();
     const dyng::cycle_count::stats st = dyng::cycle_count::update(timed, g, batch.view(), r);
     update_ms = ms_since(t);
