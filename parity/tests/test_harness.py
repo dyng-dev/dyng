@@ -562,3 +562,22 @@ def test_cycle_count_kernel_occupancy_and_names() -> None:
     assert pair["kernel"] == "count_roots<4>" and pair["equal"]
     doc["port"][0]["registers"] = 28
     assert not perf.pair_kernels(doc)[0]["equal"]
+
+
+def test_cycle_count_cuda_gpu_summary_keeps_both_sides() -> None:
+    perf = load("parity/cycle_count_perf.py")
+
+    def win(low: int, busy: int) -> dict:
+        return {"gpu": {"sm_mhz": {"min": low}, "busy_samples": busy, "clocks_locked": True}}
+
+    windows = [
+        {"round": 1, "original": win(1695, 2), "port": {"original": win(1500, 0)}},
+        {"round": 2, "original": win(1680, 0), "port": {"original": win(1695, 1)}},
+    ]
+    got = perf.gpu_summary(windows, ["original"])
+    assert got["original"] == {
+        "sm_mhz_min": 1680,
+        "busy_samples": 2,
+        "rounds_with_busy_samples": 1,
+    }
+    assert got["port[original]"]["sm_mhz_min"] == 1500

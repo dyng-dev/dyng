@@ -568,8 +568,11 @@ def run_cuda(args: argparse.Namespace) -> int:
                                 samples[sc]["port"].append(values_b)
                                 samples[sc]["stages"].append(stages)
                             windows.append(
-                                {"round": r, "original": win_a}
-                                | {sc: v[2] for sc, v in round_b.items()}
+                                {
+                                    "round": r,
+                                    "original": win_a,
+                                    "port": {sc: v[2] for sc, v in round_b.items()},
+                                }
                             )
                             key_a = "update_seconds" if case.update else "kernel_ms"
                             key_b = "update_ms" if case.update else "kernel_ms"
@@ -592,10 +595,11 @@ def run_cuda(args: argparse.Namespace) -> int:
                             "rounds": windows,
                             "rejected": rejected,
                             "clocks_locked_in_every_round": all(
-                                w[side].get("gpu", {}).get("clocks_locked", True)
+                                win.get("gpu", {}).get("clocks_locked", True)
                                 for w in windows
-                                for side in ["original", *scopes]
+                                for win in [w["original"], *w["port"].values()]
                             ),
+                            "gpu_summary": gpu_summary(windows, scopes),
                         },
                     }
                     for sc in scopes if r > 0 else []:
@@ -635,6 +639,25 @@ def run_cuda(args: argparse.Namespace) -> int:
     return 1 if incomplete else 0
 
 
+def gpu_summary(windows: list[dict], scopes: list[str]) -> dict:
+    """Per side (the original, the port in each scope), over the accepted rounds: the lowest SM
+    clock of any GPU sample, busy or not, and the number of busy samples (the lock check reads the
+    busy ones; a kernel shorter than the sampling period may leave none)."""
+    sides = {"original": [w["original"] for w in windows]} | {
+        f"port[{sc}]": [w["port"][sc] for w in windows] for sc in scopes
+    }
+    out = {}
+    for side, wins in sides.items():
+        gpus = [w.get("gpu", {}) for w in wins]
+        lows = [g["sm_mhz"]["min"] for g in gpus if g.get("sm_mhz")]
+        out[side] = {
+            "sm_mhz_min": min(lows) if lows else None,
+            "busy_samples": sum(g.get("busy_samples", 0) for g in gpus),
+            "rounds_with_busy_samples": sum(1 for g in gpus if g.get("busy_samples", 0) > 0),
+        }
+    return out
+
+
 def report_cuda(results: dict) -> None:
     print(
         "\n| case | region | original (ms) | dynG (ms) | ratio | gate | spread A / B |\n"
@@ -655,6 +678,16 @@ def report_cuda(results: dict) -> None:
             print(
                 f"| {case} | {e['region']} | {orig} | {e['port_ms']:.3f} | {ratio} | {g} | "
                 f"{sa} / {e['port_spread'] * 100:.0f} % |"
+            )
+    print(
+        "\n| case | side | lowest SM MHz (any sample) | busy samples (rounds with one) |\n"
+        "|---|---|---:|---|"
+    )
+    for case, res in results.items():
+        for side, g in res["monitor"].get("gpu_summary", {}).items():
+            print(
+                f"| {case} | {side} | {g['sm_mhz_min']} | {g['busy_samples']} "
+                f"({g['rounds_with_busy_samples']} of {res['rounds']}) |"
             )
 
 
