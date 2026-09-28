@@ -26,6 +26,7 @@
 #include <dyng/core/stats.hpp>
 #include <dyng/core/stream.hpp>
 #include <dyng/core/types.hpp>
+#include <dyng/cycle_count.hpp>
 #include <dyng/generators/legacy.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>
@@ -36,6 +37,7 @@
 #include <dyng/graph/graph_view.hpp>
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/csr_triplet.hpp>
+#include <dyng/io/edge_list_io.hpp>
 #include <dyng/io/matrix_market.hpp>
 #include <dyng/io/result_io.hpp>
 #include <dyng/sssp.hpp>

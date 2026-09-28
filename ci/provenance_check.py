@@ -74,6 +74,15 @@ SYMBOLS = [
     "oracle_simple_cycles",
     "parallel_parts",
     "CycleHistogram",
+    "count_simple_cycles_johnson",
+    "update_static_histogram",
+    "count_cycles_through_edge",
+    "ChangedEdgeIndex",
+    "apply_histogram_delta",
+    "JohnsonSearch",
+    "circuit_bounded",
+    "extend_prefix",
+    "update_histogram",
 ]
 PINNED = re.compile(
     r"\b(MOSP-OpenMP|MOSP-CUDA|MOSP_ESCHER|ESCHER-GPU|LabelPropagation-CUDA|"
@@ -94,6 +103,8 @@ NOT_DERIVED = {
     "cpp/include/dyng/io/edge_list_io.hpp": "public API of edge_list_io.cpp (header there)",
     "cpp/include/dyng/testing/cycle_oracle.hpp": "public API of cycle_oracle.cpp (header there)",
     "cpp/src/graph/graph_impl.hpp": "describes the apply_delta classification; no copied code",
+    "cpp/include/dyng/cycle_count.hpp": "public API; names the CycleEnum functions it ports",
+    "cpp/include/dyng/io/result_io.hpp": "public API of result_io.cpp (header there)",
     "cpp/src/framework/workspace.hpp": "new pool; names MOSP's shared SospWorkspace it mirrors",
 }
 
