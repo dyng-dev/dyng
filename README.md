@@ -109,7 +109,9 @@ int main() {
   edges.add_edge(0, 2, {1});
   edges.add_edge(2, 1, {2});
   edges.add_edge(1, 3, {1});
-  auto g = dyng::graph<std::int32_t, std::int64_t, std::int32_t>::from_edges(res, edges.view());
+  // graph<> = int32 vertex ids, int32 edge offsets (ADR 0009; int64 past 2^31 - 1 edges), int32
+  // weights.
+  auto g = dyng::graph<>::from_edges(res, edges.view());
 
   auto tree = dyng::sssp::compute(res, g, /*source=*/0);    // canonical tree: lowest-id ties
   dyng::edge_batch<std::int32_t, std::int32_t> batch;

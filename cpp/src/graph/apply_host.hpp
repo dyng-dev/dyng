@@ -9,15 +9,36 @@
 
 #include "graph/graph_impl.hpp"
 
+#include <dyng/core/error.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/edge_list.hpp>
 #include <dyng/graph/graph_properties.hpp>
 
+#include <cstdint>
+#include <limits>
 #include <string>
 
 namespace dyng::detail {
+
+/**
+ * @brief Converts an edge count to edge_t: the checked construction of ADR 0009.
+ * @tparam edge_t Edge offset type.
+ * @param count The number of edges (>= 0).
+ * @return `count` as edge_t.
+ * @throws capacity_error if `count` does not fit edge_t; the message names the int64 edge_t
+ *         instantiation.
+ */
+template <typename edge_t>
+edge_t checked_edge_count(std::int64_t count) {
+  if (count > static_cast<std::int64_t>(std::numeric_limits<edge_t>::max())) {
+    throw capacity_error("dyng: " + std::to_string(count) +
+                         " edges do not fit the edge offset type; use a graph with 64-bit "
+                         "edge_t (int64)");
+  }
+  return static_cast<edge_t>(count);
+}
 
 /**
  * @brief Apply `batch` to `original` under `props`, writing the updated out-edge CSR.

@@ -48,14 +48,19 @@ struct graph_access;
  * column per objective), uploaded on first use and again after each applied batch.
  *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
- * and (int64, int64, int32) (PLAN Section 4.4.3).
+ * and (int64, int64, int32) (PLAN Section 4.4.3). The default edge offset type is int32, the
+ * originals' type, fixed by the edge_t benchmark (ADR 0009: 64-bit offsets cost more than 3 % on
+ * the parity suites). Construction is checked: a graph whose edge count does not fit edge_t
+ * (from_edges(), or a batch that grows it past 2^31 - 1 edges with int32) throws
+ * capacity_error naming the int64 instantiation.
  *
  * @tparam vertex_t Vertex id type (signed).
- * @tparam edge_t   Edge offset type (signed).
+ * @tparam edge_t   Edge offset type (signed; int32 by default, int64 for more than 2^31 - 1
+ *                  edges).
  * @tparam weight_t Weight type.
  * @ingroup graph
  */
-template <typename vertex_t = std::int32_t, typename edge_t = std::int64_t,
+template <typename vertex_t = std::int32_t, typename edge_t = std::int32_t,
           typename weight_t = std::int32_t>
 class graph {
  public:
@@ -88,6 +93,8 @@ class graph {
    * @return The graph at version 0.
    * @throws invalid_argument_error if an id is out of range, the arrays disagree in size, or a
    *         self-loop is present under self_loop::error.
+   * @throws capacity_error         if the number of stored edges does not fit edge_t (use the
+   *         int64 edge_t instantiation).
    * @throws not_supported_error    for a layout other than compact.
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
@@ -262,6 +269,7 @@ class graph {
    * @return What the batch did.
    * @throws invalid_argument_error if an id is negative or out of range (without vertex growth),
    *         the weights do not match num_weights(), or a semantics rule says error.
+   * @throws capacity_error         if the edge count after the batch does not fit edge_t.
    * @throws not_supported_error    for vertex insertions or deletions (planned for 0.3).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync

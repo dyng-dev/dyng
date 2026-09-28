@@ -49,17 +49,6 @@ void expect_host(const array_view<value_t>& view, const char* what) {
                " must be in host-accessible memory for a host graph");
 }
 
-/// Converts an edge count to edge_t, or throws capacity_error.
-template <typename edge_t>
-edge_t checked_edge_count(std::int64_t count) {
-  if (count > static_cast<std::int64_t>(std::numeric_limits<edge_t>::max())) {
-    throw capacity_error("dyng: " + std::to_string(count) +
-                         " edges do not fit the edge offset type; use a graph with 64-bit "
-                         "edge_t (int64)");
-  }
-  return static_cast<edge_t>(count);
-}
-
 /// One entry of a row being rebuilt. slot >= 0 is an edge of the original graph; slot < 0 is
 /// effective insertion -slot - 1.
 template <typename vertex_t>
