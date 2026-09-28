@@ -2,8 +2,8 @@
 
 Date: 2026-09-28. Format: PLAN Section 8.3 ("Parity certificate"). M2b merges the accepted M2a
 branch (`cycle_count` on the CPU backends) and ports `cycle_count` to CUDA. This file starts with
-the re-verification after the merge; the CUDA parity and performance sections follow as the
-port lands.
+the re-verification after the merge (section 1), then the parity of the CUDA port (section 2);
+the performance gates follow.
 
 ## 1. Merge re-verification
 
@@ -130,3 +130,43 @@ parity/perf_ab.py cycle_count run --exe build/parity/tools/compat/dyng-compat-cy
     --cases DD_k4_25000_25000_s1,github_k4_25000_25000_s1 --runs 11 \
     --json parity/results/M2b-merge-perf-openmp-cycle_count.json
 ```
+
+## 2. The CUDA port: byte parity (step cycle-cuda)
+
+The CUDA backend of `cycle_count` (commits `8fdec6e`..`4a1a8b5`; ADR 0020 for the resident
+graph) against CycleEnumeration-GPU@0a976ad's **CUDA** backend, built from a `git archive` of the
+pinned commit with `-DCYCLE_ENUM_ENABLE_CUDA=ON` by `parity/build_reference.sh` (the patched copy
+for the goldens and fixtures: its sources unchanged, the exporter added; the unpatched copy for
+performance). GPU 1 (the development GPU), CUDA 13.1.
+
+| Item | Value |
+|---|---|
+| Port | dynG `7d3e116` (CUDA replays; `+dirty`: the harness change `fdc0f3a` was being written, the timed library and tool are those of `40a0000`), `fdc0f3a` (host replays; `+dirty`: documentation) |
+| Reference | CycleEnumeration-GPU `0a976ad`, `cycle-enum --backend cuda --cuda-device 0` (CUDA_VISIBLE_DEVICES=1, CUDA_MODULE_LOADING=EAGER) and its exporter built against the copy's CUDA libraries (`export_cycle_enum_cuda`) |
+
+### 2.1 The originals cross-checked (PLAN 6.3 step 2)
+
+Before a CUDA golden or fixture was written, the original's CUDA output was compared with its
+CPU output of the same case: every one of the 80 random fixture cases (k = 2..7 and no bound;
+static counts before and after the batch with the work queue, the naive counter and every kind of
+work item; `update_static_histogram_cuda`) and the 23 fixture-graph jobs equal the sequential
+histograms (`make_cycle_enum_fixtures.sh`, section 5b); the 21 dataset cases that the OpenMP
+golden set also has are byte-identical to it (`histogram.csv`, `prior.csv`, `batch.txt`; the
+other three, the 100K + 100K updates of DD and GitHub and the COLLAB update, are new), and every
+update case's own `--compare-recompute` says `match=yes`. The original's CUDA and CPU backends agree
+everywhere they were compared.
+
+### 2.2 Byte parity (no tolerance)
+
+| Corpus | Configurations | Result | Record |
+|---|---|---|---|
+| `cycle_count_cuda`, 24 cases (the original's CUDA backend: DD k = 3..7, GitHub and Twitch k = 3, 4, COLLAB k = 3; the seed-1 updates k = 4 of 1K+1K, 25K+25K, 50K+50K, 100K+100K on DD and GitHub, 1K..50K on Twitch, 25K+25K on COLLAB, and DD 25K+25K at k = 3 and 5) | cuda (the graph uploaded per call, `int32_t` offsets), cuda:resident, cuda:int64 (`parity-cuda` preset) | **72 / 72 replays equal** (histograms and generated batches) | `M2b-cycle_count-cuda-set-parity-cuda-preset.json` |
+| `cycle_count_cuda` | openmp:56 (`parity` preset; COLLAB's update is replayed on cuda only: its prior is the k = 4 count of COLLAB) | **23 / 23 equal** | `M2b-cycle_count-cuda-set-openmp-parity-preset.json` |
+| `cycle_count`, 24 cases (the M2a OpenMP corpus), after the change of the host commit (Step 0 once, ADR 0020) | sequential, openmp:4, openmp:56 (`--full`) | **72 / 72 replays equal** | `M2b-cycle_count-parity-preset.json` |
+| fixtures: 80 random cases x 7 bounds (before, after, update, and every scheduler and kind of work item), 23 fixture-graph jobs | cuda, both offset types (`CycleCountFixtures.*` in `dyng_cycle_count_cuda_tests`) | equal to `cases/*.cuda`, `counts/*.cuda` | `ctest -L gpu` |
+| the original CLI on cuda: 18 runs (schedulers, work items, bounds 64 and 65, updates, errors) | `dyng-compat-cycle-enum --backend cuda` | standard output and exit status equal (`compat_cycle_enum.cli.cuda`) | `ctest -L gpu` |
+
+Cross-backend equality (CUDA = OpenMP = sequential) on randomized graphs and chains of batches,
+the device set apply against the host apply (byte-equal CSR, apply summaries, normalized lists
+and insertion ids), the bounds 2..64 and the rejection beyond, and the corner cases are the CUDA
+cases of `dyng_cycle_count_cuda_tests` (`cycle_count_cuda_test.cpp`).

@@ -1,7 +1,7 @@
 # cycle_count: exact k-bounded directed simple-cycle histograms
 
-Maturity: **experimental** (M2a: sequential and OpenMP backends; CUDA arrives in M2b, the Python
-binding in M5). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
+Maturity: **experimental** (M2a: sequential and OpenMP backends; M2b: the CUDA backend; the
+Python binding arrives in M5). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
 Ported from CycleEnumeration-GPU@0a976ad, the code of TruCy / DynTruCy (Khanda, Shovan, Satpathy,
 Das; submitted to IEEE Transactions on Computers). dynG implements the exact k-bounded
 enumeration of that code, **not** the paper's approximate kappa-truncated TruCy search (Section 7).
@@ -23,11 +23,12 @@ recounting the rest. Postcondition: `update()` equals `compute()` on the new gra
 
 | Requirement | Why | If not met |
 |---|---|---|
-| `row_order::sorted` | the searches rely on sorted rows (neighbors above the root, the ownership lookups; the CUDA kernels of M2b close cycles with one `lower_bound`) | `invalid_argument_error` naming the property and the fix |
+| `row_order::sorted` | the searches rely on sorted rows (neighbors above the root, the ownership lookups; the CUDA kernels close cycles with one `lower_bound`) | `invalid_argument_error` naming the property and the fix |
 | `multi_edges::forbid` | a cycle is a vertex sequence; parallel edges would count it once per edge choice | `invalid_argument_error` |
 | weights | ignored: instantiated for `unweighted` and `int32` weights, so a weighted sssp graph with the default properties can be shared (`dyng::update(res, g, batch, tree, hist)`) | – |
 | in-edges | not read (`store_transposed` is not needed; the update never transposes the graph) | – |
 | vertex type | `int32_t` (the ownership table keys two 32-bit ids); offsets `int32_t` or `int64_t`; weights `unweighted` or `int32_t` | compile error: a `static_assert` in `compute`, `update` and `dyng::update` names the supported types |
+| length bound (cuda) | the device searches keep their path in thread-local arrays of at most 64 vertices (`kMaxDeviceCycleLength`): the effective bound max(min(k, n), 2) must be <= 64 (a larger k is accepted while the graph has at most 64 vertices, as the original's; no bound means k = n) | `invalid_argument_error` naming 64 and the bound, before anything changes (for an update: with every vertex the batch names) |
 
 `graph_properties::cycle_enum_compatible()` is the preset of the original: sorted rows, no
 parallel edges, no weights and `batch_semantics::set()` (a deletion of a missing edge, an
@@ -50,9 +51,9 @@ cycle_count is an **aggregate-delta** problem (template card in
 
 | Step | Hook (profiler stage) | What it does | Original |
 |---|---|---|---|
-| 0 | `normalize` (`cycle_count.normalize`) | the net structural change on G_t: deletions of existing edges, insertions of new (or deleted and re-inserted) edges, each sorted by (source, destination) without repeats; self-loops dropped | `prepare_batch` |
+| 0 | `normalize` (`cycle_count.normalize`) | the net structural change on G_t: deletions of existing edges, insertions of new (or deleted and re-inserted) edges, each sorted by (source, destination) without repeats; self-loops dropped. Under `batch_semantics::as_sets` the framework computes it once for every result and the commit (ADR 0020) | `prepare_batch` |
 | 1a | `before_apply` = count(-) (`cycle_count.count_minus`) | for every deleted edge in id order, the cycles through it on G_t that contain no deleted edge of smaller id (ownership = the smallest id, `changed_edge_index`) | delete phase of `update_static_histogram` |
-| apply | commit (`cycle_count.commit` > `graph.apply`) | the batch applied once; no transposition (the searches read the out-edges only) | `apply_batch` |
+| apply | commit (`cycle_count.commit` > `graph.apply`) | the batch applied once; no transposition (the searches read the out-edges only). On cuda under set semantics without weight columns the batch is merged into the resident graph on the device | `apply_batch` (CUDA: `build_next_rows_kernel`) |
 | 1b | `identify_affected` (`cycle_count.identify_affected`) | the inserted edges and their ownership index | – |
 | 2 | count(+) (`cycle_count.count_plus`) | the owned cycles through every inserted edge on G_{t+1} | insert phase |
 | finish | `finalize` (`cycle_count.finalize`) | counts += added - removed; a bucket that would become negative throws `internal_error` and poisons the result | `apply_histogram_delta` |
@@ -87,13 +88,16 @@ Python: planned (M5; PLAN Section 5.5, `dyng.cycle_count.compute(cg, max_length=
 | `max_length` | -1 | longest counted length (>= 2), or -1: no bound. The histogram has min(k, max(n, 2)) + 1 entries (no simple cycle is longer than n), so a bound far above n costs nothing. Without a bound see Section 5 for the cost per backend |
 | `method` | `search_method::johnson` | the search (the only one) |
 | `mode` | `cycle_mode::simple` | static simple cycles (time-window and temporal modes: 0.4) |
+| `cuda_engine` | `engine::automatic` | cuda only: `automatic` and `fused` run the fused kernels (Tier B); `operators` throws `not_supported_error` (no operators engine in 0.1) |
+| `scheduler` | `cuda_scheduler::work_queue` | cuda `compute()` only: the work queue, or `naive` (one thread per root; the original's debugging and parity path) |
+| `work_items` | `cuda_work_items::automatic` | cuda `compute()` with the work queue: `roots`, `edges` (r -> v1, v1 > r), `two_hop` (r -> v1 -> v2, numbered implicitly), or `automatic` (the original's rule: edges up to k = 3 and at k = 4 below 16 edges per vertex, two-hop otherwise). Every cycle has exactly one prefix of each kind: the counts never depend on it |
 
 `stats`: `batch` (the apply summary), `deletions` / `insertions` (the change edges of the two
 phases), `cycles_removed` / `cycles_added`, and the inherited counters with their cycle_count
 meaning: `affected` (the number of lengths whose count changed), `frontier_visits` (the change
 edges searched, deletions + insertions), `iterations` (always 0: no iterative loop),
-`fallback_used` (always false), `converged` (always true), `engine_used` (always
-`engine::operators`). Every counter is deterministic for cycle_count, including the two that
+`fallback_used` (always false), `converged` (always true), `engine_used` (`engine::operators`
+on the host backends, `engine::fused` on cuda). Every counter is deterministic for cycle_count, including the two that
 `update_stats` calls schedule-dependent. `result`: `counts()`, `count(len)`, `total()`,
 `bound()` (min(k, max(n, 2))), `get_options()`, `clone()`.
 `dyng::update(res, g, batch, r1, r2, ...)` updates cycle_count together with other results on one
@@ -108,7 +112,7 @@ The example is `examples/cpp/cycle_count_update.cpp`; the drop-in clone of the o
 |---|---|---|
 | sequential | the original's sequential Johnson: path-membership blocking with a bound, Johnson's blocked lists without one | `update_static_histogram` |
 | openmp | the original's OpenMP counter: roots in parallel (`schedule(dynamic)`), one histogram per thread | `update_static_histogram_openmp`: change edges in parallel, one histogram per thread; with one thread the sequential phases |
-| cuda | M2b (throws `not_supported_error` today) | M2b |
+| cuda | the original's static CUDA counters (`count_simple_cycles_johnson_queue_device`, and `count_simple_cycles_johnson_device` with `scheduler = naive`): the exact pruned DFS (`extend_prefix`, a `lower_bound` closes each cycle), path and cursors in thread-local arrays of a compile-time capacity (4, 8, 16, 32 or 64), one per-thread histogram reduced across the warp and flushed once; the work queue: a resident grid (occupancy limit x SMs, 128 threads) claims prefix items from a global counter | `update_static_histogram_cuda`: the delete phase on the resident G_t, the insert phase on G_{t+1}; work items are (change, first hop) pairs numbered by a prefix sum; path membership instead of a visited array; an `owner[]` array per CSR position gives the ownership id of a change edge |
 
 Determinism: **`exact_value`**. The histograms (and every `stats` counter) are identical on every
 backend, thread count and run, because they are sums of integers; the order in which threads find
@@ -124,6 +128,26 @@ larger batch, a longer cycle than any before or a larger graph grows an array (a
 unbounded result grows with the vertex count). The per-thread counters grow with the longest
 cycle actually found, not with the length bound, and the reduction reads and clears only the
 lengths a search reached: an update costs what its searches cost, bounded or not.
+
+**The CUDA backend** is the straight port of CycleEnumeration-GPU's `src/cuda` and
+`src/dynamic/update_cuda_kernel.cu` (the kernels templated on the offset type: with `int32_t`
+offsets they are the original's 32-bit ones). Two things differ by design:
+
+- **The graph is resident.** A graph built with CUDA resources is uploaded once (the first
+  `compute()` or `update()`), not per call as the original does. Under `batch_semantics::set()` (or
+  any `as_sets` semantics) without weight columns, `update()` merges the batch into the sorted rows
+  on the device (the original's `build_next_rows_kernel`, which it runs and discards), so the next
+  update finds G_{t+1} on the device; the insertion ids that kernel writes are the owner array of
+  the insert phase. The host copy of the graph is then stale and is downloaded when something reads
+  it (`g.view()`, `g.to_csr()`, a host backend, or Step 0 of the next batch, which reads G_t's rows
+  on the host as the original's `prepare_batch` does). Other semantics and weighted graphs apply the
+  batch on the host and upload the new graph (ADR 0020).
+- **Scratch memory is leased.** The item arrays, owner arrays, prefix sums and histograms come from
+  the workspace pool of the resources handle (ADR 0015), on its stream; the original allocates them
+  with `cudaMalloc` on every call (inside its timed kernel region).
+
+The histograms are copied back to the host at the end of every call (the result is a host array on
+every backend).
 
 ## 5. Complexity and performance notes
 
@@ -192,6 +216,17 @@ Section 3.4, with copies of the original that differ in one change each):
 Where the time goes in the update (DD 25K+25K, ms): normalize 2.5, count_minus 3.6, commit 6.3,
 identify_affected 0.3, count_plus 3.7.
 
+**CUDA.** The regions are those of `[reference.cycle_enum_cuda]` in the same file: the static
+`kernel_ms` (CUDA events around building the work items and counting: the original's
+`--report-timing` and dynG's stage `cycle_count.count`), `memcpy_ms` and `total_ms` (reported),
+the update's `update_seconds` / `update_ms` (host clock around the update, as the original), and
+both end-to-end times. Each is read in two scopes (`dyng-compat-cycle-enum --scope`): *original*
+(the graph uploaded inside the timed call, as the original does per call) and *resident* (the
+graph on the device before the call, dynG's model). The gate is PLAN 8.6 at locked GPU clocks
+(ADR 0018, `parity/cycle_count_perf.py run --backend cuda`); the measured table is in
+`parity/results/M2b.md`. The register counts of the counting kernels of both sides are recorded
+with `parity/cycle_count_perf.py kernels`.
+
 The update is not always much faster than a recompute: with the original's fast static kernels,
 its own measurements give update-vs-recompute ratios of 1.2x on DD, 5.2x on GitHub, 4.2x on
 Twitch and 34x on COLLAB (CUDA, 25K+25K, k = 4). Speedups reported against the paper's slower
@@ -203,13 +238,18 @@ kernels do not carry over.
   every `update()` enumerate simple **paths**, not only cycles (Section 5): their time can be
   exponential on graphs with few or no cycles, where the sequential `compute()` (Johnson) is
   linear per cycle.
-- The CUDA backend (M2b) is planned for bounds up to 64 (PLAN 6.4.3); what it does with the
-  default options (no bound) is an open item of M2b (the M2a retrospective).
+- The CUDA backend counts cycles of at most 64 vertices: the effective bound max(min(k, n), 2)
+  must be <= 64 (`invalid_argument_error` otherwise). Without a bound (the default options) it
+  therefore works only on graphs of at most 64 vertices; set `max_length`.
+- On cuda, Step 0 of an update reads the host copy of G_t: after a device apply, the next update
+  downloads the graph once (ADR 0020). A device Step 0 is future work.
 - The vertex type is `int32_t` (the ownership table keys two 32-bit ids); offsets may be 32 or 64
   bits.
 - Graphs with parallel edges or unsorted rows are rejected (`invalid_argument_error`).
-- No time-window or temporal modes yet (0.4), no Read-Tarjan or brute-force method, no CUDA
-  backend yet (M2b), no Python binding yet (M5).
+- No time-window or temporal modes yet (0.4), no Read-Tarjan or brute-force method, no Python
+  binding yet (M5). The original's CUDA time-window and temporal kernels are not ported (0.4), nor
+  its environment tuning (`CYCLE_ENUM_CUDA_BLOCK_SIZE`, `CYCLE_ENUM_CUDA_BLOCKS_PER_SM`: the
+  defaults, 128 threads and the occupancy limit, are fixed).
 - No approximate (kappa-truncated) mode (Section 7).
 
 ## 7. Differences from the paper
@@ -252,8 +292,8 @@ original's `CHANGES.md`, and what dynG takes from each:
 | H3 batch application | every touched row rescanned the whole insertion list (335 ms of DD's timed update) | O(E + B log B): both lists sorted once, one merge per touched row | ported (`graph::apply` under `set()`, byte-equal CSR; assembled in parallel blocks) |
 | C9 tests | GPU tests could not fail (no device test of the default kernel, tiny graphs, a buggy oracle) | subset-DP oracles, randomized parity suites; two recorded mutations (5-cycles counted twice, weakened ownership) each fail the suite | ported (`dyng::testing` oracles; CTests `cycle_count.mutation.*` require both mutations to fail and a control copy to pass) |
 | C10 build | no build type (`-O0`), CUDA architecture default never applied | Release default, sm_86 | dynG's presets; the reference is built Release as its RESULTS.md |
-| K1, K2 static CUDA kernels | full-row scans, global-memory paths, one atomic per cycle; roots as work items | exact pruned DFS with a `lower_bound` closure; edge and two-hop prefix work items (3.7x to 714x faster kernels) | the pruned DFS is ported for the host (`dfs.hpp`, tested); the kernels and the work queue are M2b |
-| K3, C5, C7 CUDA update | a V-byte visited array per change (36 GB on GitHub: out of memory), host rebuild of G_{t+1}, context creation inside `update_seconds` | path membership, resident G_t with G_{t+1} built on the device, an `owner[]` array | M2b (dynG keeps the device graph resident across batches) |
+| K1, K2 static CUDA kernels | full-row scans, global-memory paths, one atomic per cycle; roots as work items | exact pruned DFS with a `lower_bound` closure; edge and two-hop prefix work items (3.7x to 714x faster kernels) | ported (M2b: `static_cuda.cu`, `dfs.cuh`; every scheduler and kind of work item, checked against the original's CUDA backend on the fixtures) |
+| K3, C5, C7 CUDA update | a V-byte visited array per change (36 GB on GitHub: out of memory), host rebuild of G_{t+1}, context creation inside `update_seconds` | path membership, resident G_t with G_{t+1} built on the device, an `owner[]` array | ported (M2b: `cuda.cu`, `graph/apply_set_device.cu`); dynG also keeps G_{t+1} on the device for the next batch (ADR 0020) |
 | C2, C3, time-window / temporal self-loops | bounded time-window Johnson undercounted; time-window Read-Tarjan wrong; self-loop start events | fixed | not ported (modes arrive in 0.4) |
 
 Every fix keeps the counts exact. On valid inputs (the TUDataset graphs, valid batches) the
@@ -275,7 +315,11 @@ modes).
 | `dynamic::prepare_batch`, `apply_batch`, `DirectedGraph` | `detail::compute_structural_change` (Step 0 on G_t), `graph::apply` under `graph_properties::cycle_enum_compatible()` |
 | `CycleHistogram` (a map), `to_csv` | `cycle_count::result` (a dense array), `io::write_histogram_csv` |
 | `CycleEnumerationOptions` (`max_cycle_length`, `algorithm`, `mode`) | `cycle_count::options` (`max_length`, `method`, `mode`) |
-| `cuda::extend_prefix`, `find_edge`, `dispatch_capacity` | `detail::cycle_count_extend_prefix` and friends (`dfs.hpp`, host port, used by the CUDA backend in M2b) |
+| `cuda::extend_prefix`, `find_edge`, `dispatch_capacity`, `ThreadHistogram`, `CsrView` | `detail::extend_prefix`, `find_edge`, `dispatch_capacity`, `thread_histogram` (`dfs.cuh`), `detail::device_csr` (`util/device_csr.cuh`); the host port `detail::cycle_count_extend_prefix` (`dfs.hpp`) |
+| `cuda::count_simple_cycles_johnson[_work_queue]` (`count_roots_kernel`, `count_roots_queue_kernel`, `forward_rows_kernel`, `fill_edge_items_kernel`, `target_degree_kernel`, `count_edge_items_kernel`, `count_two_hop_items_kernel`), `CudaWorkItems`, `resolve_work_items`, `plan_work_queue_launch` | `cycle_count::compute` on `resources::cuda()` (`static_cuda.cu`, same kernel names), `cycle_count::cuda_work_items`, `detail::resolve_work_items`, `detail::plan_work_queue_launch` (`work_queue.hpp`) |
+| `dynamic::update_static_histogram_cuda`, `count_update_cycles_device` (`mark_owners_kernel`, `item_counts_kernel`, `count_owned_cycles_kernel`) | `cycle_count::update` on `resources::cuda()` (`cuda.cu`, same kernel names) |
+| `change_rows_kernel`, `next_degree_kernel`, `build_next_rows_kernel` (G_{t+1} on the device) | `detail::apply_set_batch_device` (`graph/apply_set_device.cu`), the commit of a resident graph |
+| `kMaxDeviceCycleLength` | `detail::cycle_count_max_device_length` (64) |
 | `engine::count_histogram`, `engine::update_histogram` | `cycle_count::compute`, `cycle_count::update` |
 | `cycle-enum` (CLI) | `dyng-compat-cycle-enum` (`tools/compat/cycle_enum`) |
 | `generate_batch`, `read_graph_view` | `generators::legacy::cycle_enum_batch`, `io::read_edge_list` |

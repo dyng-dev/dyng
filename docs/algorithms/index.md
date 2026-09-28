@@ -9,7 +9,7 @@ code, how to cite).
 | Algorithm | Computes | Container | Family | Backends | Maturity | Release |
 |---|---|---|---|---|---|---|
 | {doc}`sssp` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | 0.1 |
-| {doc}`cycle_count` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP (CUDA in progress, M2b) | experimental | 0.1 |
+| {doc}`cycle_count` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA (M2b) | experimental | 0.1 |
 | `mosp` | multi-objective shortest paths | graph | fixed point (composition of K `sssp`) | sequential, OpenMP, CUDA | planned | 0.2 |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | planned | 0.2 |
 | `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned | 0.3 |

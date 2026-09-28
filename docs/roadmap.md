@@ -9,9 +9,9 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 **Pre-alpha, before 0.1.0.** `sssp` works on all three backends (sequential, OpenMP and CUDA)
 and is byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes on their 495-case golden
 corpus, within the performance gates against the originals. The project infrastructure (this
-site, CI, community files) is in place. `cycle_count` works on the sequential and OpenMP backends
-and is bit-identical to the original CycleEnumeration-GPU code on its golden corpus; its CUDA
-backend is being ported.
+site, CI, community files) is in place. `cycle_count` works on the sequential, OpenMP and CUDA backends
+and is bit-identical to the original CycleEnumeration-GPU code (its OpenMP and CUDA backends) on
+its golden corpus; the performance gates of its CUDA backend are being measured.
 
 ## 0.1.0: the first release
 

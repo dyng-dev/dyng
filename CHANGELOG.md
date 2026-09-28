@@ -352,6 +352,40 @@ Before 0.1.0 anything may change.
   settings guide say so.
 - Re-verification after the merge: `parity/results/M2b.md`, section "Merge re-verification".
 
+### M2b: `cycle_count` on CUDA (branch `m2b-cycle-cuda`)
+
+- The CUDA backend of `cycle_count` (`<dyng/cycle_count.hpp>`): the straight port of
+  CycleEnumeration-GPU@0a976ad's static counters (the work queue with root, edge and implicit
+  two-hop prefix items and its automatic choice; the naive one-thread-per-root counter) and of its
+  update (the delete phase on G_t, the insert phase on G_{t+1}: `mark_owners_kernel`,
+  `item_counts_kernel`, `count_owned_cycles_kernel`), behind `compute()` and `update()`. New
+  options: `cuda_engine` (`automatic` / `fused`; `operators` throws `not_supported_error`),
+  `scheduler` (`cuda_scheduler::work_queue` / `naive`) and `work_items` (`cuda_work_items`). The
+  effective bound is limited to 64 on cuda (`invalid_argument_error`). Histograms are
+  bit-identical to the original's CUDA backend on the fixtures and the TUDataset corpus.
+- The resident device graph (ADR 0020): a CUDA graph under `batch_semantics::as_sets` without
+  weight columns is updated on the device (`build_next_rows_kernel` and friends,
+  `graph/apply_set_device.cu`) and stays there across batches; its host CSR is downloaded when
+  something reads it. The device in-edges are built on first use. Under set semantics a batch is
+  normalized once per update (`<algo>.normalize`), for every result and the commit (the host
+  commit no longer normalizes again).
+- `dyng-compat-cycle-enum --backend cuda` with the original's CUDA flags (`--cuda-device`,
+  `--cuda-scheduler`, `--cuda-work-items`, `--report-timing` from CUDA events) and `--scope
+  original|resident`, `--edge-type`; the CLI test `compat_cycle_enum.cli.cuda` (label `gpu`).
+- Parity harness: the exporter's CUDA build (`export_cycle_enum_cuda`) and the CUDA fixtures
+  (`cases/*.cuda`, `counts/*.cuda`, `cli/cuda*`, each checked equal to the original's sequential
+  backend when written); the golden set `cycle_count_cuda` (24 cases from `cycle-enum --backend
+  cuda`, including the 100K + 100K updates of DD and GitHub and the COLLAB update), replayed by
+  `compare.py cycle_count --configs cuda,cuda:resident,cuda:int64` (CTest
+  `parity.cycle_count.cycle_enum_cuda_0a976ad`); `parity/cycle_count_perf.py run --backend cuda`
+  (the regions of `[reference.cycle_enum_cuda]` in both scopes, the clocks locked for the whole
+  A/B, ADR 0018) and `kernels` (register counts of both sides).
+- Tests: the shared `cycle_count` suites on cuda (`dyng_cycle_count_cuda_tests`, label `gpu`)
+  and the CUDA cases (bounds 2..64 and beyond, schedulers, cross-backend chains of batches, the
+  device apply against the host apply, the lazy host copy, the host-commit fallbacks, corner
+  cases). `ci/gpu_local.sh` replays the CUDA golden set and runs synccheck and racecheck on the
+  CUDA `cycle_count` suite.
+
 ## [0.0.1] - 2026-09-27
 
 ### Added
