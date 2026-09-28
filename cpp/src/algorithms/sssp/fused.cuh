@@ -49,6 +49,15 @@
  * unconditional write, the same output); in the distance-only mode it needs the old parents and
  * the "distance changed" marks, which the unpack pass keeps in the `ancestor` and `candidates`
  * arrays (free at that point) and counts after one more grid barrier.
+ *
+ * One correction (M1b review, ADR 0017 item 1): the original sets `invalidated` from thread 0's
+ * read of the candidate-list counter right after the barrier that ends the invalidation, with no
+ * barrier before the insertion heads are appended to the same list by every other thread. If
+ * other blocks append first, the counter includes insertion heads (a data race; the trees are not
+ * affected, the reported count is). Here every thread counts the vertices it invalidates and the
+ * counts are summed per warp into the control block before that barrier (count_into), so the
+ * counter is exact on every run. MOSP-CUDA@e220ee2 has the race (compute-sanitizer's scheduling
+ * exposes it); its plain runs give the exact count, which is what the golden corpus records.
  */
 #pragma once
 
@@ -149,7 +158,7 @@ struct control {
   vertex_t far2_count;      ///< re-split far pile size
   int active[3];            ///< pointer jumping: a vertex still jumps
   int overflow;             ///< an input distance does not fit the packing
-  vertex_t invalidated;
+  vertex_t invalidated;     ///< vertices invalidated (changed: summed, see count_into)
   int rounds;
   int iterations;
   int epochs;
@@ -229,6 +238,18 @@ __device__ inline void minimum_into(u64 value, u64* target) {
   }
   if ((threadIdx.x & 31) == 0 && value != packed_inf) {
     atomicMin(target, value);
+  }
+}
+
+/// Added (M1b review): warp-wide sum of per-thread counts of the index type, added to *target
+/// (the `invalidated` counter).
+template <typename index_t>
+__device__ inline void count_into(index_t value, index_t* target) {
+  for (int offset = 16; offset > 0; offset >>= 1) {
+    value += __shfl_down_sync(0xffffffffu, value, offset);
+  }
+  if ((threadIdx.x & 31) == 0 && value != 0) {
+    atomic_add(target, value);
   }
 }
 
@@ -325,18 +346,18 @@ __global__ void __launch_bounds__(block_size)
 
     // ---- Invalidate; candidates = invalidated + insert heads. -------------------------------
     ++generation;
+    vertex_t invalidated = 0;  // changed: counted here (see the file comment, "One correction")
     for (vertex_t v = tid; v < n; v += threads) {
       if (load(&p.flag[v])) {
         p.flag[v] = 0;  // leave the flags clean for the next update
         p.packed[v] = packed_inf;
         p.stamp[v] = generation;
         p.candidates[append_index(&c->list_count)] = v;
+        ++invalidated;
       }
     }
+    count_into(invalidated, &c->invalidated);
     grid.sync();
-    if (tid == 0) {
-      c->invalidated = load(&c->list_count);
-    }
     for (vertex_t i = tid; i < p.changes.number_of_insert_heads; i += threads) {
       vertex_t v = p.changes.insert_heads[i];
       if (v != p.source && claim(p.stamp, v, generation)) {
