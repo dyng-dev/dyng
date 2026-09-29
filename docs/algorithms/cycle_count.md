@@ -290,9 +290,10 @@ Before the review, the resident column above was the first update only, and ever
 of a chain downloaded G_t (on Twitch about 10-12 ms per update, and a 26 ms spike when the graph
 outgrew its host arrays), which the table did not show.
 
-Every gate is met in both scopes (<= 1.05x, <= 1.10x below 10 ms); end to end 0.90-0.99x. The
-update regions are host clocks on both sides (the original's region runs its Step 0 and its
-histogram delta on the host and has no device timer); for the cases under 10 ms dynG's CUDA-event
+Every gate read at the 1695 MHz lock is met in both scopes (<= 1.05x, <= 1.10x below 10 ms); the
+COLLAB update is within the same bounds at the 1170 MHz lock, which counts as its gate reading only
+once ADR 0021 is accepted. End to end 0.90-0.99x. The update regions are host clocks on both
+sides (the original's region runs its Step 0 and its histogram delta on the host and has no device timer); for the cases under 10 ms dynG's CUDA-event
 time of the update is recorded next to them and reads 0.1-0.2 ms above its host clock, so the host
 clock hides no device time. The static kernels of 38 ms and more are the original's own kernels
 and run at the same speed; DD's short kernel is faster because the original allocates its item

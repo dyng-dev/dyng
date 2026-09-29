@@ -11,7 +11,10 @@ and is byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes on their 4
 corpus, within the performance gates against the originals. The project infrastructure (this
 site, CI, community files) is in place. `cycle_count` works on the sequential, OpenMP and CUDA backends
 and is bit-identical to the original CycleEnumeration-GPU code (its OpenMP and CUDA backends) on
-its golden corpus, and its CUDA backend is within the performance gates against the original.
+its golden corpus. Its CUDA backend is within the performance gates against the original, except
+one case still awaiting a decision: the COLLAB update, which the GPU cannot run at the locked
+clock the gate uses, is measured at a lower locked clock (within the gate there) and counts once
+the maintainer decides {doc}`ADR 0021 <adr/0021-power-cap-and-base-lock-in-the-cycle-count-gate>`.
 
 ## 0.1.0: the first release
 
