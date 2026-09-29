@@ -627,6 +627,46 @@ TEST(SsspComposition, RejectsDuplicatesAndStaleResultsBeforeApplying) {
 }
 #endif
 
+/// The profile of compute() and update() in call order (samples end with their stage, so a stage
+/// follows the stages nested in it). The framework's enactors open exactly these stages; the
+/// sequence is the one of M1b (parity/timed_regions/sssp.toml sums them; the M3 migration kept it,
+/// parity/results/M3.md).
+TEST_P(SsspBackend, TheEnactorsOpenTheStagesOfTheTimedRegions) {
+  const bool cuda = GetParam() == dyng::backend::cuda;
+  dyng::profiler prof;
+  auto g = make_graph(res_, 4, {{0, 1, 1}, {1, 2, 1}, {2, 3, 1}, {0, 3, 5}});
+  res_.attach_profiler(&prof);
+  result_t r = dyng::sssp::compute(res_, g, 0);
+  const std::size_t after_compute = prof.samples().size();
+  batch_t b;
+  b.delete_edge(1, 2);
+  b.insert_edge(0, 2, {3});
+  (void)dyng::sssp::update(res_, g, b.view(), r);
+  res_.attach_profiler(nullptr);
+  std::vector<std::string> compute_names;
+  std::vector<std::string> update_names;
+  for (std::size_t i = 0; i < prof.samples().size(); ++i) {
+    const std::string& name = prof.samples()[i].name;
+    if (name.rfind("sssp.", 0) != 0) {
+      continue;  // graph.* stages depend on the graph's lazy builds
+    }
+    (i < after_compute ? compute_names : update_names).push_back(name);
+  }
+  const std::vector<std::string> compute_expected =
+      cuda ? std::vector<std::string>{"sssp.workspace", "sssp.enact_fused", "sssp.compute"}
+           : std::vector<std::string>{"sssp.workspace", "sssp.reset",    "sssp.seed",
+                                      "sssp.loop",      "sssp.finalize", "sssp.compute"};
+  const std::vector<std::string> update_expected =
+      cuda ? std::vector<std::string>{"sssp.prepare", "sssp.commit",      "sssp.workspace",
+                                      "sssp.changes", "sssp.enact_fused", "sssp.update"}
+           : std::vector<std::string>{"sssp.prepare",           "sssp.commit", "sssp.workspace",
+                                      "sssp.identify_affected", "sssp.seed",   "sssp.loop",
+                                      "sssp.finalize",          "sssp.update"};
+  EXPECT_EQ(compute_names, compute_expected);
+  EXPECT_EQ(update_names, update_expected);
+  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
+}
+
 // The quickstart of README.md.
 TEST_P(SsspBackend, ReadmeQuickstart) {
   dyng::edge_list<std::int32_t, std::int32_t> edges;

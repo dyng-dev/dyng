@@ -5,8 +5,9 @@
 // defaultDelta, the choosePacking precondition)
 /**
  * @file sssp.cpp
- * @brief sssp: argument validation, version checks, backend dispatch and result bookkeeping
- *        (compute, update, result, from_arrays) and the explicit instantiations.
+ * @brief sssp: the members of sssp_problem (argument validation, version checks, Step 0, the
+ *        binding of the backend's engine, result bookkeeping), compute() and update() through the
+ *        framework's enactors, sssp::result and from_arrays, and the explicit instantiations.
  *
  * The per-objective preparation follows MOSP-OpenMP@c352151 mospUpdate(): the largest weight
  * (original graph and batch insertions, at least 1) and the weight sum of the original graph give
