@@ -11,9 +11,10 @@ profile_an_update
 read_and_write_files
 run_parity
 build_the_docs
+add_an_algorithm
 ```
 
-Planned, written with the code they describe: streams and memory (with an
-RMM pool), reproduce a paper, use from PyTorch or CuPy, **add an algorithm**, **port research
-code**, add an operator, add a backend, add a file format, benchmark and read the performance
-gates, debug CUDA (sanitizers, NVTX), and release.
+Planned, written with the code they describe: streams and memory (with an RMM pool), reproduce a
+paper, use from PyTorch or CuPy, **port research code** (the {doc}`add_an_algorithm` outline
+becomes the full guide in 0.1.x), add an operator, add a backend, add a file format, benchmark and
+read the performance gates, debug CUDA (sanitizers, NVTX), and release.

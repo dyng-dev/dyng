@@ -55,6 +55,24 @@ Before 0.1.0 anything may change.
   `scaffold.new_algorithm`, job `scaffold` of `cpu.yml`). The manifests gain `computes`, `paper`
   and `since`; the planned algorithms are listed in `cpp/src/algorithms/planned.toml`. The README
   has the generated algorithm table.
+- The 0.1 API freeze (M3, ADR 0023, accepted under delegation; ADR 0006, the algorithm contract,
+  accepted with it): the review of `core/*`, `graph/*`, `update.hpp`, `sssp.hpp`,
+  `cycle_count.hpp` and the top-level headers, and the committed public-API listing
+  `cpp/tests/api/api_snapshot/public_api.txt`, generated from the Doxygen XML by
+  `ci/api_snapshot.py` and checked by `ci/docs.sh` (so by the `docs` workflow and `ci/check.sh`):
+  a change of a public signature, default value, field or enumerator fails until it is reviewed
+  and the baseline updated (`docs/developer/api_review_checklist.md`, "Updating the API
+  baseline"). The frozen headers are marked `frozen`, `io/*`, `generators/*` and `testing/*`
+  `tracked` (frozen in M5).
+- `to_string()` for `engine`, `determinism`, `memory_space`, `copy_policy`, `algorithm_family`,
+  `container_kind`, `maturity_level` and `oracle_kind` (the enumerators' own names, as in the
+  manifests).
+- Reviewed API sketches of the later algorithms, written against the frozen contract:
+  `docs/design/sketches/` (`mosp`, the `hypergraph` with `hyperedge_batch`, `triad_count`,
+  `label_propagation`, `hyper_sssp`).
+- The "Add an algorithm" guide outline (`docs/how_to/add_an_algorithm.md`, PLAN Section 9.4) and
+  the M3 retrospective with the re-estimate (`docs/developer/retrospectives/M3.md`); the M3 gate
+  suites on the final code in `parity/results/M3.md` section 4.
 - Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
   accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for
@@ -263,6 +281,16 @@ Before 0.1.0 anything may change.
 
 ### Changed
 
+- Exception guarantees (the 0.1 API review): `compute()`, `update()`, `from_arrays()`,
+  `graph::apply()`, `dyng::update()` and `dyng::update_each()` state them in a new `@guarantee`
+  paragraph (strong before the commit; basic after it, with the result poisoned; `graph::apply()`
+  strong), and `ci/doxygen_coverage.py` requires it. The checker takes the algorithm namespaces
+  from the manifests (it checked only `sssp` before). `dyng::update()`, `update_each()` and
+  `dyng::algorithms()` report host allocation failures as `out_of_memory_error` instead of
+  letting `std::bad_alloc` leave the library; `sssp::compute()` / `update()` document
+  `cuda_error`.
+- The header self-containment targets (`cpp/tests/api`) also fail when a public header includes a
+  CUDA, CUB, Thrust or libcu++ header.
 - Budgets (I9): a run that grows a reusable array on purpose (`detail::note_reservation()`: a new
   workspace, a grown scratch buffer or per-thread list, a grown result) is a reserving run whose
   allocations are reported, not failed; the graph's own materializations inside an update (its
