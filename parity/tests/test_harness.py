@@ -501,6 +501,26 @@ def test_cycle_count_summarize_with_a_port_baseline() -> None:
     assert out["update"]["original_ms"] == 30.0 and out["update"]["ratio"] == pytest.approx(0.5)
 
 
+def test_cycle_count_cuda_gpu_summary_of_a_port_baseline() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    gpu = {"gpu": {"sm_mhz": {"min": 1695}, "busy_samples": 3}}
+    windows = [
+        {
+            "original": {"reasons": [], "baseline": {"original": gpu, "resident": gpu}},
+            "port": {"original": gpu, "resident": gpu},
+        }
+    ]
+    out = perf.gpu_summary(windows, ["original", "resident"])
+    assert set(out) == {
+        "baseline[original]",
+        "baseline[resident]",
+        "port[original]",
+        "port[resident]",
+    }
+    assert out["baseline[resident]"]["sm_mhz_min"] == 1695
+    assert out["port[original]"]["busy_samples"] == 3
+
+
 def test_cycle_count_cuda_extra_processes() -> None:
     perf = load("parity/cycle_count_perf.py")
     regions = perf.load_regions("cuda")
