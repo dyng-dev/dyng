@@ -1,0 +1,707 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "backend": "openmp",
+ "date": "2026-09-29T06:22:54Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/cycle-enum",
+  "build": "name=CycleEnumeration-GPU\ncommit=0a976adfa801a712135bf1adb51a228f353a0751\nvariant=unpatched\narchive_sha256=53eef2ed4394c0d8ab079f9ef50b2394946f4a0d611a0425a0a32b7892fe39c3\nexported=2026-09-28T00:00:24Z\nbuild=env NVCC=/usr/local/cuda-13.1/bin/nvcc cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCYCLE_ENUM_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.1/bin/nvcc -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++ -DCMAKE_CUDA_ARCHITECTURES=86 && cmake --build build -j16\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "baseline": {
+  "experiment": false,
+  "label": "original",
+  "kind": "original"
+ },
+ "port": {
+  "commit": "c9e03473d914767323db05749d103230f7438f98",
+  "binary": "build/parity/tools/compat/dyng-compat-cycle-enum",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "OFF",
+   "DYNG_CUDA_ARCHITECTURES": null,
+   "CMAKE_CUDA_FLAGS_RELEASE": null,
+   "CMAKE_CUDA_COMPILER": null,
+   "build_dir": "build/parity",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/cycle_count.toml",
+  "key": "cycle_enum_openmp",
+  "regions": [
+   "static_end_to_end",
+   "static_count",
+   "static_read",
+   "update",
+   "update_end_to_end"
+  ]
+ },
+ "protocol": {
+  "runs": 11,
+  "order": "A/B/A/B (original first), one untimed round per case first",
+  "threads": 56,
+  "backend": "openmp (--backend openmp --openmp-threads N on both)",
+  "env": "no OMP_* variables (the libgomp defaults) on both",
+  "lock": "perf.lock (exclusive)",
+  "statistic": "median",
+  "outputs": "standard output captured (the histogram CSV), compared every round",
+  "short_regions": "< 10.0 ms need >= 20 runs"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "datasets_sha256": {
+  "DD": "e538ec13a262b84a0664db2f22e6ff720fb5bb74965536c37f4b8e962d156e4a",
+  "github": "a5a43e92b9a22054882017a2b5dea267535c8d94705ac4987d967e517448c9d4",
+  "twitch": "c2270e018af70321c8f6d1517abc097204105ec7bafe71527555b4f954fbea82"
+ },
+ "results": {
+  "update/DD_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 26.6551,
+     "original_samples": [
+      26.7238,
+      27.4971,
+      24.6745,
+      26.6551,
+      27.1586,
+      26.2232,
+      26.1323,
+      28.1713,
+      29.203,
+      23.6444,
+      26.0984
+     ],
+     "original_spread": 0.20853795333725997,
+     "port_ms": 13.2967,
+     "port_samples": [
+      13.2967,
+      12.3864,
+      14.2316,
+      15.4913,
+      13.9243,
+      15.1363,
+      14.7975,
+      12.588,
+      12.9598,
+      13.1873,
+      12.649
+     ],
+     "port_spread": 0.23350906615927267,
+     "port_stage_ms": 13.293653,
+     "ratio": 0.49884262298772086,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 358.20326674729586,
+     "original_samples": [
+      352.5094138458371,
+      360.08229944854975,
+      351.9908897578716,
+      369.688056409359,
+      358.20326674729586,
+      357.1508564054966,
+      360.378485172987,
+      360.87782587856054,
+      366.8090244755149,
+      353.1656442210078,
+      356.6411407664418
+     ],
+     "original_spread": 0.049405374809080936,
+     "port_ms": 311.7731139063835,
+     "port_samples": [
+      311.96208018809557,
+      318.78483295440674,
+      329.88642528653145,
+      311.7731139063835,
+      316.37813430279493,
+      307.94763192534447,
+      309.58315171301365,
+      314.8151095956564,
+      302.2466255351901,
+      309.0588040649891,
+      307.64989648014307
+     ],
+     "port_spread": 0.08865357055657076,
+     "ratio": 0.8703804315842051,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.commit": 3.223973,
+    "cycle_count.compute": 37.593296,
+    "cycle_count.count": 37.568557,
+    "cycle_count.count_minus": 3.640023,
+    "cycle_count.count_plus": 3.756993,
+    "cycle_count.finalize": 0.0018219999999999998,
+    "cycle_count.identify_affected": 0.279343,
+    "cycle_count.normalize": 2.580149,
+    "cycle_count.reset": 0.005096,
+    "cycle_count.update": 13.293653,
+    "graph.apply": 3.221967,
+    "graph.build": 8.592134
+   },
+   "port_report_median_ms": {
+    "update_ms": 13.2967,
+    "compute_ms": 0.0,
+    "read_ms": 193.972,
+    "build_ms": 8.62117,
+    "prior_ms": 37.6045,
+    "generate_ms": 48.6507,
+    "kernel_ms": 0.0,
+    "memcpy_ms": 0.0,
+    "total_ms": 0.0,
+    "update_device_ms": 0.0
+   },
+   "load_average": {
+    "min": 2.048828125,
+    "max": 2.4453125
+   },
+   "contamination": {
+    "original": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.052755654244726134,
+     "foreign_cores_max": 0.9394973950373515,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.053,
+      0.0,
+      0.56,
+      0.0,
+      0.202,
+      0.193,
+      0.188,
+      0.939,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "port": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.15894127818158904,
+     "foreign_cores_max": 1.0627355802896619,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.159,
+      0.1,
+      0.0,
+      0.484,
+      1.063,
+      0.0,
+      0.277,
+      0.515,
+      0.0,
+      0.0,
+      0.556
+     ]
+    }
+   }
+  },
+  "update/DD_k4_50000_50000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 46.612899999999996,
+     "original_samples": [
+      48.1796,
+      47.042500000000004,
+      42.8304,
+      46.5539,
+      49.1746,
+      48.252900000000004,
+      46.2329,
+      43.285700000000006,
+      47.5082,
+      46.612899999999996,
+      45.8542
+     ],
+     "original_spread": 0.136103954055637,
+     "port_ms": 24.8047,
+     "port_samples": [
+      22.3024,
+      24.8047,
+      29.9104,
+      24.6755,
+      24.9743,
+      25.0915,
+      29.1899,
+      25.5475,
+      21.0973,
+      23.4571,
+      24.3142
+     ],
+     "port_spread": 0.35529960047894144,
+     "port_stage_ms": 24.800535,
+     "ratio": 0.5321423897676395,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 390.1044661179185,
+     "original_samples": [
+      390.1044661179185,
+      384.2637473717332,
+      380.3180502727628,
+      386.94985024631023,
+      390.6406294554472,
+      398.88719841837883,
+      399.6147159487009,
+      382.25204683840275,
+      383.6723482236266,
+      394.37026996165514,
+      396.552306599915
+     ],
+     "original_spread": 0.04946538005054586,
+     "port_ms": 327.29263324290514,
+     "port_samples": [
+      339.26429599523544,
+      327.29263324290514,
+      331.569816917181,
+      327.99140736460686,
+      337.5589521601796,
+      324.18247777968645,
+      341.9511942192912,
+      318.61679162830114,
+      322.60857708752155,
+      306.0124721378088,
+      323.6998124048114
+     ],
+     "port_spread": 0.10980608309264922,
+     "ratio": 0.8389871474682709,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.commit": 5.474147,
+    "cycle_count.compute": 36.804851,
+    "cycle_count.count": 36.775667,
+    "cycle_count.count_minus": 7.777044,
+    "cycle_count.count_plus": 5.975794,
+    "cycle_count.finalize": 0.001802,
+    "cycle_count.identify_affected": 0.620411,
+    "cycle_count.normalize": 3.975846,
+    "cycle_count.reset": 0.004937,
+    "cycle_count.update": 24.800535,
+    "graph.apply": 5.472145,
+    "graph.build": 8.416699
+   },
+   "port_report_median_ms": {
+    "update_ms": 24.8047,
+    "compute_ms": 0.0,
+    "read_ms": 187.018,
+    "build_ms": 8.4459,
+    "prior_ms": 36.8171,
+    "generate_ms": 59.4173,
+    "kernel_ms": 0.0,
+    "memcpy_ms": 0.0,
+    "total_ms": 0.0,
+    "update_device_ms": 0.0
+   },
+   "load_average": {
+    "min": 2.3291015625,
+    "max": 6.70751953125
+   },
+   "contamination": {
+    "original": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.22624097978216828,
+     "foreign_cores_max": 0.6454204317143355,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.592,
+      0.03,
+      0.226,
+      0.0,
+      0.185,
+      0.264,
+      0.645,
+      0.353,
+      0.268,
+      0.0,
+      0.0
+     ]
+    },
+    "port": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.009484027077312118,
+     "foreign_cores_max": 1.1102281701146322,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.0,
+      0.0,
+      0.0,
+      0.587,
+      0.0,
+      0.039,
+      0.567,
+      1.11,
+      0.826,
+      0.0,
+      0.009
+     ]
+    }
+   }
+  },
+  "update/github_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 294.149,
+     "original_samples": [
+      292.686,
+      296.684,
+      295.493,
+      293.771,
+      295.237,
+      294.15999999999997,
+      292.04200000000003,
+      292.887,
+      297.496,
+      294.149,
+      293.712
+     ],
+     "original_spread": 0.018541623462938684,
+     "port_ms": 128.567,
+     "port_samples": [
+      131.946,
+      128.567,
+      128.52,
+      128.417,
+      124.54,
+      125.702,
+      128.568,
+      129.804,
+      122.418,
+      130.169,
+      130.634
+     ],
+     "port_spread": 0.0741092193175542,
+     "port_stage_ms": 128.561077,
+     "ratio": 0.43708120714331855,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 3264.1996182501316,
+     "original_samples": [
+      3244.9715668335557,
+      3250.511048361659,
+      3261.078662239015,
+      3282.489134930074,
+      3257.226699963212,
+      3264.1996182501316,
+      3264.5122800022364,
+      3280.0901541486382,
+      3266.449318267405,
+      3278.91490329057,
+      3254.7463020309806
+     ],
+     "original_spread": 0.011493650047245238,
+     "port_ms": 1848.8169414922595,
+     "port_samples": [
+      1848.87267742306,
+      1834.3482296913862,
+      1851.763417944312,
+      1846.4614544063807,
+      1839.9830916896462,
+      1848.8169414922595,
+      1861.0329953953624,
+      1858.3526760339737,
+      1842.0755295082927,
+      1846.8590741977096,
+      1856.7063547670841
+     ],
+     "port_spread": 0.014433427726185662,
+     "ratio": 0.5663921198800247,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.commit": 6.728512,
+    "cycle_count.compute": 1113.989917,
+    "cycle_count.count": 1113.96985,
+    "cycle_count.count_minus": 94.977299,
+    "cycle_count.count_plus": 22.425127,
+    "cycle_count.finalize": 0.001739,
+    "cycle_count.identify_affected": 0.272328,
+    "cycle_count.normalize": 4.23536,
+    "cycle_count.reset": 0.004467,
+    "cycle_count.update": 128.561077,
+    "graph.apply": 6.725709,
+    "graph.build": 35.382599
+   },
+   "port_report_median_ms": {
+    "update_ms": 128.567,
+    "compute_ms": 0.0,
+    "read_ms": 387.418,
+    "build_ms": 35.4096,
+    "prior_ms": 1114.0,
+    "generate_ms": 162.609,
+    "kernel_ms": 0.0,
+    "memcpy_ms": 0.0,
+    "total_ms": 0.0,
+    "update_device_ms": 0.0
+   },
+   "load_average": {
+    "min": 8.49267578125,
+    "max": 35.48583984375
+   },
+   "contamination": {
+    "original": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.07846821911128976,
+     "foreign_cores_max": 0.14173580858840695,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.048,
+      0.078,
+      0.108,
+      0.091,
+      0.142,
+      0.092,
+      0.02,
+      0.126,
+      0.057,
+      0.0,
+      0.064
+     ]
+    },
+    "port": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.03724644106274395,
+     "foreign_cores_max": 0.2153736843421043,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.208,
+      0.104,
+      0.215,
+      0.163,
+      0.0,
+      0.037,
+      0.132,
+      0.017,
+      0.0,
+      0.0,
+      0.03
+     ]
+    }
+   }
+  },
+  "update/twitch_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 156.679,
+     "original_samples": [
+      154.498,
+      156.00900000000001,
+      164.616,
+      180.187,
+      163.999,
+      156.679,
+      158.733,
+      152.76500000000001,
+      152.962,
+      153.846,
+      159.15099999999998
+     ],
+     "original_spread": 0.17502026436216722,
+     "port_ms": 75.1028,
+     "port_samples": [
+      76.5133,
+      75.8935,
+      71.9271,
+      76.2252,
+      71.3832,
+      75.1028,
+      73.831,
+      70.1148,
+      74.3145,
+      75.1637,
+      75.1533
+     ],
+     "port_spread": 0.08519655725219297,
+     "port_stage_ms": 75.096643,
+     "ratio": 0.47934183904671335,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 4579.049604013562,
+     "original_samples": [
+      4561.306526884437,
+      4588.877442292869,
+      4567.011922597885,
+      4602.425491437316,
+      4590.154157951474,
+      4554.365314543247,
+      4582.609037868679,
+      4539.673171006143,
+      4545.801663771272,
+      4579.049604013562,
+      4593.1884767487645
+     ],
+     "original_spread": 0.013704223770838842,
+     "port_ms": 3407.240692526102,
+     "port_samples": [
+      3434.26254671067,
+      3394.7609635069966,
+      3410.5386082082987,
+      3412.278634496033,
+      3392.2700760886073,
+      3412.106802687049,
+      3407.187670469284,
+      3384.6663096919656,
+      3407.3292426764965,
+      3407.240692526102,
+      3400.115743279457
+     ],
+     "port_spread": 0.014556129576491453,
+     "ratio": 0.744093422691826,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.commit": 22.162426,
+    "cycle_count.compute": 1196.79945,
+    "cycle_count.count": 1196.7755,
+    "cycle_count.count_minus": 36.561347,
+    "cycle_count.count_plus": 10.269039,
+    "cycle_count.finalize": 0.002001,
+    "cycle_count.identify_affected": 0.244737,
+    "cycle_count.normalize": 4.185828,
+    "cycle_count.reset": 0.00464,
+    "cycle_count.update": 75.096643,
+    "graph.apply": 22.159548,
+    "graph.build": 117.367523
+   },
+   "port_report_median_ms": {
+    "update_ms": 75.1028,
+    "compute_ms": 0.0,
+    "read_ms": 1203.38,
+    "build_ms": 117.395,
+    "prior_ms": 1196.81,
+    "generate_ms": 786.864,
+    "kernel_ms": 0.0,
+    "memcpy_ms": 0.0,
+    "total_ms": 0.0,
+    "update_device_ms": 0.0
+   },
+   "load_average": {
+    "min": 28.8935546875,
+    "max": 34.21533203125
+   },
+   "contamination": {
+    "original": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.037591025788819864,
+     "foreign_cores_max": 0.10676921846533424,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.091,
+      0.044,
+      0.004,
+      0.038,
+      0.022,
+      0.033,
+      0.0,
+      0.048,
+      0.107,
+      0.069,
+      0.003
+     ]
+    },
+    "port": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.06441368129792317,
+     "foreign_cores_max": 0.13595290341926403,
+     "flagged_runs": 0,
+     "runs": 11,
+     "foreign_cores_per_run": [
+      0.064,
+      0.046,
+      0.029,
+      0.0,
+      0.131,
+      0.0,
+      0.123,
+      0.064,
+      0.131,
+      0.113,
+      0.136
+     ]
+    }
+   }
+  }
+ }
+}
