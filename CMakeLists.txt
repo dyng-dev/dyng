@@ -158,11 +158,18 @@ if(DYNG_BUILD_TESTS)
   add_subdirectory(cpp/tests)
 endif()
 
-if(DYNG_BUILD_EXAMPLES)
+# The examples and the compat CLIs use sssp and cycle_count: a build of a subset of the algorithms
+# (DYNG_ALGORITHMS) leaves them out.
+if(TARGET dyng_sssp AND TARGET dyng_cycle_count)
+  set(_dyng_both_algorithms ON)
+else()
+  set(_dyng_both_algorithms OFF)
+endif()
+if(DYNG_BUILD_EXAMPLES AND _dyng_both_algorithms)
   add_subdirectory(examples/cpp)
 endif()
 
-if(DYNG_BUILD_COMPAT_TOOLS)
+if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms)
   add_subdirectory(tools/compat)
 endif()
 
