@@ -363,7 +363,7 @@ TEST_P(CycleCountBackends, ProfilerStagesFollowTheHooks) {
 /// (parity/timed_regions/cycle_count.toml sums them; parity/results/M3.md records the migration).
 TEST_P(CycleCountBackends, TheEnactorsOpenTheStagesOfTheTimedRegions) {
   // M3 migration: the backends that run through the framework's enactors so far.
-  const bool framework = GetParam() == backend::sequential;
+  const bool framework = GetParam() != backend::cuda;
   for (const bool as_sets : {true, false}) {
     SCOPED_TRACE(as_sets ? "batch_semantics::set()" : "batch_semantics::upsert_last_wins()");
     dyng::graph_properties props = dyng::graph_properties::cycle_enum_compatible();

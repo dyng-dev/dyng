@@ -320,8 +320,8 @@ std::int64_t apply_histogram_delta(cycle_count_state& st, std::int64_t bound_aft
   return changed;
 }
 
-/// The M2 participant of one cycle_count result, kept for the backends that do not run through
-/// the framework's enactors yet (M3 migration: one backend after the other).
+/// The M2 participant of one cycle_count result, kept for the CUDA backend until it runs through
+/// the framework's enactors (M3 migration: one backend after the other).
 template <typename vertex_t, typename edge_t, typename weight_t>
 class cycle_count_legacy_participant final : public update_participant<vertex_t, edge_t, weight_t> {
  public:
@@ -337,7 +337,7 @@ class cycle_count_legacy_participant final : public update_participant<vertex_t,
   }
 
   [[nodiscard]] bool reads_prepared_graph() const noexcept override {
-    return false;  // the engines read the out-edges only (on cuda: graph_access::device_out)
+    return false;  // the engines read the out-edges only (graph_access::device_out)
   }
 
   void use_normalized(const normalized_batch<vertex_t>* normalized) noexcept override {
@@ -363,11 +363,7 @@ class cycle_count_legacy_participant final : public update_participant<vertex_t,
     }
     expect_graph(g, "cycle_count::update");
     graph_access::expect_placement(res, g, "cycle_count::update");
-    cuda_ = res.get_backend() == backend::cuda;
-    if (cuda_) {
-      expect_cuda_engine(state_->opt, "cycle_count::update");
-    }
-    threads_ = cuda_ ? 1 : engine_threads(res);
+    expect_cuda_engine(state_->opt, "cycle_count::update");
     ws_.emplace(resources_access::workspaces(res).acquire<workspace_type>());
     workspace_type& ws = ws_->get();
 
@@ -381,7 +377,7 @@ class cycle_count_legacy_participant final : public update_participant<vertex_t,
         compute_structural_change(graph_access::out_view(g), batch, g.properties(), ws.change);
       });
     }
-    if (cuda_) {
+    {
       // The effective bound after the batch, with every vertex the batch may add (the original's
       // next_vertex_count), must fit the device counters; checked before anything changes.
       std::int64_t n_after = static_cast<std::int64_t>(g.num_vertices());
@@ -397,18 +393,7 @@ class cycle_count_legacy_participant final : public update_participant<vertex_t,
     }
 
     // ---- before_apply = count(-): the cycles through the deleted edges, on G_t ----
-    bound_before_ = histogram_bound(state_->opt, g);
-    cycle_count_hook(res, "cycle_count.count_minus", [&] {
-      if (cuda_) {
-        count_minus_cuda(res, g);
-        return;
-      }
-      const auto max_length = static_cast<std::size_t>(bound_before_);
-      ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()));
-      ws.removed.clear();
-      ws.index.assign(ws.change.deletions);
-      run_phase(engine_graph(g), ws.change.deletions, max_length, ws, ws.removed);
-    });
+    cycle_count_hook(res, "cycle_count.count_minus", [&] { count_minus_cuda(res, g); });
   }
 
   void after_apply(const resources& res, const graph_type& g, const apply_summary& summary,
@@ -417,25 +402,7 @@ class cycle_count_legacy_participant final : public update_participant<vertex_t,
     workspace_type& ws = ws_->get();
     check_normalized_batch(g, delta, ws);
     const std::int64_t bound_after = histogram_bound(st.opt, g);
-    const auto max_length = static_cast<std::size_t>(bound_after);
-
-    if (cuda_) {
-      after_apply_cuda(res, g, bound_after);
-    } else {
-      // ---- identify_affected: the inserted edges and their ownership index, on G_{t+1} ----
-      cycle_count_hook(res, "cycle_count.identify_affected", [&] {
-#if !defined(DYNG_MUTATION_SKIP_WORKSPACE_RESIZE)
-        ws.reserve(threads_, static_cast<std::size_t>(g.num_vertices()));
-#endif
-        ws.added.clear();
-        ws.index.assign(ws.change.insertions);
-      });
-
-      // ---- count(+): the cycles through the inserted edges, on G_{t+1} ----
-      cycle_count_hook(res, "cycle_count.count_plus", [&] {
-        run_phase(engine_graph(g), ws.change.insertions, max_length, ws, ws.added);
-      });
-    }
+    after_apply_cuda(res, g, bound_after);
 
     // ---- finalize: apply the signed delta (apply_histogram_delta) ----
     cycle_count::stats s;
@@ -449,7 +416,7 @@ class cycle_count_legacy_participant final : public update_participant<vertex_t,
         static_cast<std::int64_t>(ws.change.deletions.size() + ws.change.insertions.size());
     s.fallback_used = false;
     s.converged = true;
-    s.engine_used = cuda_ ? engine::fused : engine::operators;
+    s.engine_used = engine::fused;
     s.batch = summary;
     s.deletions = static_cast<std::int64_t>(ws.change.deletions.size());
     s.insertions = static_cast<std::int64_t>(ws.change.insertions.size());
@@ -550,25 +517,9 @@ class cycle_count_legacy_participant final : public update_participant<vertex_t,
 #endif
   }
 
-  /// One phase on the backend of the update: update_static_histogram_openmp() parallelizes a phase
-  /// over its change edges when it has more than one thread, and runs the sequential phase
-  /// otherwise.
-  void run_phase(const cycle_graph<vertex_t, edge_t>& graph,
-                 const std::vector<edge_change<vertex_t>>& changes, std::size_t max_length,
-                 workspace_type& ws, std::vector<std::uint64_t>& phase) const {
-    if (threads_ > 1) {
-      cycle_count_openmp_phase(graph, changes, max_length, threads_, ws, phase);
-    } else {
-      cycle_count_sequential_phase(graph, changes, max_length, ws, phase);
-    }
-  }
-
   cycle_count::result& result_;
   cycle_count::stats& out_;
   cycle_count_state* state_ = nullptr;
-  int threads_ = 1;
-  std::int64_t bound_before_ = 2;
-  bool cuda_ = false;                                       ///< the update runs on the cuda backend
   std::int64_t device_length_ = 2;                          ///< the bound of the device phases
   const normalized_batch<vertex_t>* normalized_ = nullptr;  ///< the framework's Step 0, if any
   const std::uint32_t* device_changes_ = nullptr;           ///< the device change lists (pairs)
@@ -749,7 +700,7 @@ namespace {
 /// Whether a backend runs cycle_count through the framework's enactors (M3 migration: one backend
 /// after the other; the others keep the M2 participant until their own commit).
 bool on_framework(const resources& res) noexcept {
-  return res.get_backend() == backend::sequential;
+  return res.get_backend() != backend::cuda;
 }
 
 /// The participant of one result during the M3 migration: the framework's participant of
@@ -943,32 +894,13 @@ cycle_count::result cycle_count_compute(const resources& res,
     state->graph_state = detail::graph_access::impl(g).state_id;
     return detail::cycle_count_access::make(std::move(state));
   }
-  if (detail::on_framework(res)) {
-    // The static enactor: reset -> count -> finalize.
-    using problem_type = detail::cycle_count_problem<vertex_t, edge_t, weight_t>;
-    problem_type problem(*state);
-    detail::framework::context ctx(res, problem_type::name);
-    const detail::framework::new_view<graph<vertex_t, edge_t, weight_t>> view(g);
-    problem.bind_static(ctx, view);
-    (void)detail::framework::static_enactor<problem_type>(problem).run(ctx, view);
-    return detail::cycle_count_access::make(std::move(state));
-  }
-  const detail::cycle_graph<vertex_t, edge_t> cg = detail::engine_graph(g);
-  detail::cycle_count_hook(res, "cycle_count.reset", [&] {
-    state->counts.assign(static_cast<std::size_t>(state->bound) + 1, 0);
-  });
-  detail::cycle_count_hook(res, "cycle_count.count", [&] {
-    if (res.get_backend() == backend::openmp) {
-      detail::cycle_count_openmp_compute(cg, opt.max_length, detail::engine_threads(res),
-                                         state->counts);
-    } else {
-      detail::cycle_count_sequential_compute(cg, opt.max_length, state->counts);
-    }
-  });
-  detail::cycle_count_hook(res, "cycle_count.finalize", [&] {
-    state->version = g.version();
-    state->graph_state = detail::graph_access::impl(g).state_id;
-  });
+  // The static enactor: reset -> count -> finalize.
+  using problem_type = detail::cycle_count_problem<vertex_t, edge_t, weight_t>;
+  problem_type problem(*state);
+  detail::framework::context ctx(res, problem_type::name);
+  const detail::framework::new_view<graph<vertex_t, edge_t, weight_t>> view(g);
+  problem.bind_static(ctx, view);
+  (void)detail::framework::static_enactor<problem_type>(problem).run(ctx, view);
   return detail::cycle_count_access::make(std::move(state));
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("cycle_count::compute (", g.num_vertices(), " vertices, ",
