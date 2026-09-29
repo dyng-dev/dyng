@@ -174,7 +174,10 @@ dyng_add_module(
     src/io/result_io.cpp
 )
 
-dyng_add_module(NAME framework SOURCES src/framework/composition.cpp src/framework/workspace.cpp)
+dyng_add_module(
+  NAME framework SOURCES src/framework/budgets.cpp src/framework/composition.cpp
+                         src/framework/workspace.cpp
+)
 
 dyng_add_module(
   NAME generators SOURCES src/generators/legacy.cpp src/generators/legacy_cycle_enum.cpp
