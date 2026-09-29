@@ -409,6 +409,18 @@ dyng_add_test(
 target_compile_definitions(dyng_conformance_registry_tests PRIVATE ${_dyng_algorithm_defines})
 target_include_directories(dyng_conformance_registry_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
+# The scaffold check (PLAN Section 4.8): scripts/new_algorithm.py generates a throwaway algorithm of
+# each family in a copy of the source tree, which is configured, built and must pass its
+# conformance kit (ci/scaffold_check.sh; a nested build of a few minutes). Label scaffold only (not
+# cpu): run it with `ctest -L scaffold` or through ci/check.sh (step scaffold) and cpu.yml.
+find_program(DYNG_BASH bash)
+find_package(Git QUIET)
+if(DYNG_BASH AND GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  add_test(NAME scaffold.new_algorithm COMMAND "${DYNG_BASH}"
+                                               "${PROJECT_SOURCE_DIR}/ci/scaffold_check.sh")
+  set_tests_properties(scaffold.new_algorithm PROPERTIES LABELS "scaffold" TIMEOUT 3600)
+endif()
+
 # Algorithms may add their own test folder (scripts/new_algorithm.py writes one for its
 # <name>_test.cpp); sssp and cycle_count are listed above.
 foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
