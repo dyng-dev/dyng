@@ -374,21 +374,10 @@ void assign_host(const resources& res, std::vector<value_t>& out, array_view<con
   copy_to_host(res, out.data(), in.data(), in.space(), in.device(), in.size_bytes());
 }
 
-/// The legacy (M1) path of the backends not yet on the framework's enactors (M3 migration).
-template <typename vertex_t, typename edge_t, typename weight_t>
-void run_update_engine(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run) {
-  sssp_openmp_update(res, run);
-}
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-void run_compute_engine(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run) {
-  sssp_openmp_compute(res, run);
-}
-
 /// Whether a backend runs sssp through the framework's enactors (M3 migration: one backend after
 /// the other; the others keep the M1 participant until they are migrated).
 bool on_framework(const resources& res) noexcept {
-  return res.get_backend() == backend::sequential;
+  return res.get_backend() != backend::cuda;
 }
 
 /// MOSP's canonicalizeTree(): for every edge (u,v) with dist[u] + w(u,v) == dist[v] and
@@ -621,7 +610,8 @@ void grow(const resources& res, sssp_state<vertex_t, distance_t>& st, std::size_
 #endif
 }
 
-/// The participant of one sssp result in run_update() (and dyng::update()).
+/// The M1 participant of one sssp result in run_update() (and dyng::update()); during the M3
+/// migration it serves the backends not yet on the enactors (the CUDA backend).
 template <typename vertex_t, typename edge_t, typename weight_t, typename distance_t>
 class sssp_participant final : public update_participant<vertex_t, edge_t, weight_t> {
   static_assert(std::is_same_v<distance_t, std::int64_t>, "sssp: distance_t must be int64_t");
@@ -717,8 +707,7 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
     DYNG_EXPECTS(sssp_distances_fit(static_cast<std::int64_t>(n), max_weight_),
                  "sssp::update: distances up to ", max_weight_, " * ", n - 1,
                  " do not fit in 62 bits");
-    sssp_counters counters =
-        is_cuda(res) ? update_cuda(res, g, delta, st) : update_host(res, g, delta, st);
+    sssp_counters counters = update_cuda(res, g, delta, st);
 
     sssp::stats s;
     s.affected = counters.affected;
@@ -726,7 +715,7 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
     s.frontier_visits = counters.pushes;
     s.fallback_used = false;
     s.converged = true;
-    s.engine_used = res.get_backend() == backend::sequential ? engine::operators : engine::fused;
+    s.engine_used = engine::fused;
     s.batch = summary;
     s.invalidated = counters.invalidated;
     s.epochs = counters.epochs;
@@ -744,37 +733,6 @@ class sssp_participant final : public update_participant<vertex_t, edge_t, weigh
   }
 
  private:
-  /// Host backends: the objective's change list in the pooled workspace, then the engine.
-  sssp_counters update_host(const resources& res, const graph_type& g,
-                            const apply_delta<vertex_t>& delta,
-                            sssp_state<vertex_t, distance_t>& st) const {
-    const int k = st.opt.objective;
-    // The scratch memory of the engines, shared with the other results run through `res` (the K
-    // objectives of dyng::update_each() use one workspace one after the other, as MOSP's
-    // mospUpdate() shares its SospWorkspace; ADR 0015).
-    auto ws = lease_workspace<vertex_t>(res, static_cast<std::int64_t>(g.num_vertices()));
-    // Kept in the workspace, whose capacity is reused from batch to batch.
-    build_changes(delta, k, ws->changed_from, ws->changed_to);
-    sssp_changes<vertex_t> changes;
-    changes.changed_from = ws->changed_from.data();
-    changes.changed_to = ws->changed_to.data();
-    changes.num_changed = ws->changed_to.size();
-    changes.insert_heads = delta.insert_dst.data();
-    changes.num_insert_heads = delta.insert_dst.size();
-
-    sssp_run<vertex_t, edge_t, weight_t> run;
-    run.graph = objective_graph(res, g, k);
-    run.changes = &changes;
-    run.source = st.source;
-    run.delta = delta_;
-    run.max_weight = max_weight_;
-    run.distances = st.distances.data();
-    run.parents = st.parents.data();
-    run.ws = &ws.get();
-    run_update_engine(res, run);
-    return run.counters;
-  }
-
   /// CUDA backend: the change lists are built on the host (as mospUpdate() builds them) and
   /// uploaded into the pooled device workspace (stage sssp.changes), then the fused engine runs
   /// (stage sssp.enact_fused, MOSP's per-objective "sosp_update_gpu" region).
@@ -935,7 +893,7 @@ void sssp_problem<vertex_t, edge_t, weight_t>::resume(framework::context& ctx, n
   run_.distances = st.distances.data();
   run_.parents = st.parents.data();
   run_.ws = &ws;
-  sequential_.emplace(run_);
+  bind_engine(res);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -943,6 +901,7 @@ void sssp_problem<vertex_t, edge_t, weight_t>::end_update(framework::context& /*
                                                           const stats_type& /*stats*/) {
   framework::stamp_result(state_->version, state_->graph_state, g.get());
   sequential_.reset();
+  openmp_.reset();
   host_ws_.reset();
 }
 
@@ -966,18 +925,33 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& c
   run_.source = st.source;
   run_.delta = delta;
   run_.max_weight = max_weight;
-  // The sequential engine also reads the in-edges.
-  run_.graph = objective_graph(res, graph, st.opt.objective, true);
+  // The OpenMP engine computes from scratch with pushes only; the sequential engine also reads
+  // the in-edges.
+  run_.graph =
+      objective_graph(res, graph, st.opt.objective, res.get_backend() == backend::sequential);
   run_.distances = st.distances.data();
   run_.parents = st.parents.data();
   run_.ws = &host_ws_->get();
-  sequential_.emplace(run_);
+  bind_engine(res);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::bind_engine(const resources& res) {
+  if (res.get_backend() == backend::openmp) {
+    openmp_.emplace(res, run_);
+  } else {
+    sequential_.emplace(run_);
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 template <typename fn_t>
 void sssp_problem<vertex_t, edge_t, weight_t>::on_engine(fn_t&& fn) {
-  fn(*sequential_);
+  if (openmp_) {
+    fn(*openmp_);
+  } else {
+    fn(*sequential_);
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -1012,6 +986,11 @@ void sssp_problem<vertex_t, edge_t, weight_t>::finalize(framework::context& /*ct
   stats.epochs = counters.epochs;
   stats.pushes = counters.pushes;
   stats.packed_parents = counters.packed_parents;
+  if (openmp_) {
+    // The OpenMP engine is the ported paper engine (MOSP-OpenMP's sospUpdateCpu), reported as
+    // fused, as since M1a; the sequential engine is the hook-by-hook reference (operators).
+    stats.engine_used = engine::fused;
+  }
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -1358,23 +1337,13 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   }
   state->distances.assign(static_cast<std::size_t>(n), detail::sssp_infinity);
   state->parents.assign(static_cast<std::size_t>(n), vertex_t{-1});
-  if (detail::on_framework(res)) {
-    // The static enactor: reset -> seed_static -> loop -> finalize.
-    using problem_type = detail::sssp_problem<vertex_t, edge_t, weight_t>;
-    problem_type problem(*state);
-    detail::framework::context ctx(res, problem_type::name);
-    const detail::framework::new_view<graph<vertex_t, edge_t, weight_t>> view(g);
-    problem.bind_static(ctx, view, run.delta, run.max_weight);
-    (void)detail::framework::static_enactor<problem_type>(problem).run(ctx, view);
-    return detail::sssp_access::make(std::move(state));
-  }
-  auto ws = detail::lease_workspace<vertex_t>(res, n);  // the handle's pooled scratch (ADR 0015)
-  // The OpenMP engine computes from scratch with pushes only.
-  run.graph = detail::objective_graph(res, g, opt.objective, false);
-  run.distances = state->distances.data();
-  run.parents = state->parents.data();
-  run.ws = &ws.get();
-  detail::run_compute_engine(res, run);
+  // The static enactor: reset -> seed_static -> loop -> finalize.
+  using problem_type = detail::sssp_problem<vertex_t, edge_t, weight_t>;
+  problem_type problem(*state);
+  detail::framework::context ctx(res, problem_type::name);
+  const detail::framework::new_view<graph<vertex_t, edge_t, weight_t>> view(g);
+  problem.bind_static(ctx, view, run.delta, run.max_weight);
+  (void)detail::framework::static_enactor<problem_type>(problem).run(ctx, view);
   return detail::sssp_access::make(std::move(state));
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::compute (", g.num_vertices(), " vertices, ", g.num_edges(),

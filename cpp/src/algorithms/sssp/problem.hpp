@@ -51,7 +51,6 @@
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/memory.hpp>
-#include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
 #include <dyng/graph/graph.hpp>
@@ -352,47 +351,6 @@ bool sssp_distances_fit(std::int64_t num_vertices, std::int64_t max_weight);
 bool sssp_packs_parents(std::int64_t num_vertices, std::int64_t max_weight);
 
 /**
- * @brief Run one hook inside its profiler stage `sssp.<hook>`.
- * @tparam fn_t Callable.
- * @param[in] res  Resources (profiler).
- * @param[in] name Stage name.
- * @param[in] fn   The hook.
- */
-template <typename fn_t>
-void sssp_hook(const resources& res, const char* name, fn_t&& fn) {
-  scoped_stage stage(res, name);
-  fn();
-}
-
-/**
- * @brief The update enactor: identify_affected -> seed -> loop -> finalize, one stage each.
- * @tparam problem_t A backend problem with those hooks.
- * @param[in]     res     Resources.
- * @param[in,out] problem The problem.
- */
-template <typename problem_t>
-void sssp_enact_update(const resources& res, problem_t& problem) {
-  sssp_hook(res, "sssp.identify_affected", [&] { problem.identify_affected(); });
-  sssp_hook(res, "sssp.seed", [&] { problem.seed(); });
-  sssp_hook(res, "sssp.loop", [&] { problem.loop(); });
-  sssp_hook(res, "sssp.finalize", [&] { problem.finalize(); });
-}
-
-/**
- * @brief The static enactor of compute(): reset -> seed_static -> loop -> finalize.
- * @tparam problem_t A backend problem with those hooks.
- * @param[in]     res     Resources.
- * @param[in,out] problem The problem.
- */
-template <typename problem_t>
-void sssp_enact_compute(const resources& res, problem_t& problem) {
-  sssp_hook(res, "sssp.reset", [&] { problem.reset(); });
-  sssp_hook(res, "sssp.seed", [&] { problem.seed_static(); });
-  sssp_hook(res, "sssp.loop", [&] { problem.loop(); });
-  sssp_hook(res, "sssp.finalize", [&] { problem.finalize(); });
-}
-
-/**
  * @brief Everything one engine run needs.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
@@ -465,26 +423,91 @@ class sssp_sequential_engine {
 };
 
 /**
- * @brief OpenMP backend: the update (MOSP-OpenMP's sospUpdateCpu()).
+ * @brief The packed (distance, parent) words of the OpenMP engine (MOSP-OpenMP's Packing):
+ *        `parent_bits` low bits hold the parent (all ones: none), the rest the distance;
+ *        parent_bits == 0 means distance only.
  * @tparam vertex_t Vertex id type.
- * @tparam edge_t   Edge offset type.
- * @tparam weight_t Weight type.
- * @param[in]     res Resources (thread count).
- * @param[in,out] run The run.
  */
-template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp_openmp_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+template <typename vertex_t>
+struct sssp_packing {
+  int parent_bits;          ///< bits of the parent field (0: distance-only words)
+  std::uint64_t no_parent;  ///< the "no parent" value (all ones in parent_bits bits)
+
+  /// Whether the words hold the parents.
+  [[nodiscard]] bool has_parents() const {
+    return parent_bits > 0;
+  }
+  /// The word of (distance, parent).
+  [[nodiscard]] std::uint64_t pack(std::uint64_t distance, vertex_t parent) const {
+    if (parent_bits == 0) {
+      return distance;
+    }
+    return (distance << parent_bits) |
+           (parent < 0 ? no_parent : static_cast<std::uint64_t>(parent));
+  }
+  /// The distance of a word.
+  [[nodiscard]] std::uint64_t distance(std::uint64_t word) const {
+    return word >> parent_bits;
+  }
+  /// The parent of a word (-1 for none).
+  [[nodiscard]] vertex_t parent(std::uint64_t word) const {
+    const std::uint64_t p = word & no_parent;
+    return p == no_parent ? vertex_t{-1} : static_cast<vertex_t>(p);
+  }
+  /// The largest distance a word can hold.
+  [[nodiscard]] std::uint64_t max_distance() const {
+    return (~0ULL >> parent_bits) - 1;
+  }
+};
 
 /**
- * @brief OpenMP backend: compute() (MOSP-OpenMP's sospFromScratchCpu()).
+ * @brief The OpenMP engine (openmp.cpp): MOSP-OpenMP's sospUpdateCpu() / sospFromScratchCpu(),
+ *        one hook per phase.
+ *
+ * Bound to one run: the constructor sizes the pooled workspace, its per-thread lists and the
+ * packing; the hooks are called in the enactors' order. On an empty graph every hook does nothing
+ * (the counters stay zero).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
- * @param[in]     res Resources (thread count).
- * @param[in,out] run The run.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp_openmp_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+class sssp_openmp_engine {
+ public:
+  /**
+   * @brief Bind the engine to a run.
+   * @param[in]     res Resources (thread count).
+   * @param[in,out] run The run (must outlive the engine; `run.ws` set).
+   * @throws invalid_argument_error if delta is not positive or distances could overflow.
+   * @throws not_supported_error    if the OpenMP backend is not built.
+   */
+  sssp_openmp_engine(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+
+  /// compute(): every packed word INF except the source's.
+  void reset();
+  /// compute(): the source is the frontier.
+  void seed_static();
+  /// update(): pack the old tree, then roots, chain-walk invalidation and the insertion heads.
+  /// @throws invalid_argument_error if an input distance is out of range or the tree has a
+  ///         parent cycle.
+  void identify_affected();
+  /// update(): the pull pass.
+  void seed();
+  /// Step 2: near-far propagation from the frontier.
+  void loop();
+  /// Unpack distances and parents (parent recovery in the distance-only mode), `affected`.
+  void finalize();
+
+ private:
+  thread_list<vertex_t>& local_list(int slot);
+
+  int threads_;
+  sssp_run<vertex_t, edge_t, weight_t>& run_;
+  sssp_workspace<vertex_t>& ws_;
+  sssp_packing<vertex_t> packing_{0, 0};
+  std::uint64_t bound_ = 0;
+  bool empty_ = false;
+};
 
 /**
  * @brief CUDA backend, fused engine: the update (MOSP-CUDA's sospUpdateGpu(), the persistent
@@ -638,6 +661,8 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   void seed_static(framework::context& ctx, new_graph g, frontier& f);
 
  private:
+  /// Bind the engine of the call's backend to run_ (sequential or OpenMP).
+  void bind_engine(const resources& res);
   /// Run `fn` on the bound engine.
   template <typename fn_t>
   void on_engine(fn_t&& fn);
@@ -650,6 +675,7 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   sssp_run<vertex_t, edge_t, weight_t> run_;  ///< the engine's run (resume, bind_static)
   std::optional<workspace_pool::lease<sssp_workspace<vertex_t>>> host_ws_;        ///< host scratch
   std::optional<sssp_sequential_engine<vertex_t, edge_t, weight_t>> sequential_;  ///< engine
+  std::optional<sssp_openmp_engine<vertex_t, edge_t, weight_t>> openmp_;          ///< engine
 };
 
 }  // namespace dyng::detail
