@@ -333,10 +333,49 @@ within the gates. It failed two things:
    cap during the 6.5 s prior), as ours did; its base-lock reading is 0.991x (original scope) /
    0.946x (resident), ours 0.989x / 0.945x. This is not something the implementation can fix:
    ADR 0018's rule (every busy sample of both programs at the boost lock) cannot be met by an
-   unpatched original on this GPU without root (a lower power limit, alternative 1 of ADR 0021),
-   and changing the rule, or reading only part of the process, would weaken an accepted check.
+   unpatched original on this GPU (a different power limit, alternative 1 of ADR 0021, needs root
+   and, as step 7 found, is not possible at all), and changing the rule, or reading only part of
+   the process, would weaken an accepted check.
    It stays open for the author's decision on ADR 0021; once accepted, the committed record
    `parity/results/M2b-review-cuda-perf-cycle_count-collab-update-base.json` is the gate reading.
+
+## Step 7: the second acceptance verification (acceptance-fix 2)
+
+The second acceptance verifier (fresh clone at `6efc49f`) passed criteria 1, 2, 3 and 5 on its own
+evidence (`ci/check.sh --parity`, `ci/docs.sh` and `ci/gpu_local.sh` in the clone; sssp 495 / 495
+on ten configurations and the sssp gates at the boost lock; cycle_count CPU parity 72 / 72 and the
+OpenMP update gate; its own 0a976ad CUDA build byte-identical to dynG on 14 dataset cases; the
+CUDA goldens 72 / 72; 4,193 randomized CUDA / OpenMP / sequential / oracle checks with no failure;
+GitHub static and the DD and GitHub 25K+25K updates within the gates at the boost lock; 33 / 33
+kernels with the original's registers). It failed criterion 4 on one case only, the same one as
+step 6:
+
+1. **The COLLAB 25K+25K update has no reading under ADR 0018's accepted protocol.** Its boost-lock
+   run rejected every round (SM 1365-1605 MHz under the 230 W power cap during the 6.5 s prior, on
+   both programs); its base-lock reading is 0.988x (original scope) / 0.945x (resident), end to end
+   0.992x. No code change can fix this: GPU 0's power limit is already its maximum (`nvidia-smi -q
+   -d POWER`: current, default and maximum limit all 230 W), so even with root the limit cannot be
+   raised; `ncu --clock-control` offers no lock between base and boost; and the original computes
+   the prior with its CUDA counter in the same process as the timed update (`run_update()` of
+   `src/cli/cycle_enum_main.cpp`), so the prior cannot be moved out of the monitored process
+   without patching the original. Accepting ADR 0021 ourselves, or checking the lock only in part
+   of the process, would change an accepted rule without the author. **The case stays pending the
+   author's decision on ADR 0021**; nothing in the code or the records was changed for it.
+
+It also recorded a non-blocking observation: in its first `ci/gpu_local.sh` run, the racecheck
+step failed once (`compute-sanitizer racecheck` on `dyng_cycle_count_cuda_tests`: "process didn't
+terminate successfully", 0 hazards, no gtest failure printed; the process ended during the
+`CycleCountFixtures` tests, the last output being the skip of
+`CycleCountRandom.UnboundedUpdateCostsAboutTheBoundedOne/cuda`). It ran next to a CPU-heavy
+`compare.py cycle_count --full`, and did not reproduce in the verifier's six reruns or in its
+second complete `ci/gpu_local.sh`. This step tried again at `6efc49f` (GPU 1, `DYNG_TEST_SEEDS=2`,
+as `ci/gpu_local.sh` runs it): the whole suite once (58 tests, 0 hazards, peak RSS 0.87 GB, so host
+memory pressure is an unlikely cause on a 124 GB machine), and the `Fixtures` and `Random` suites
+four times, the first two while the whole `dev` `ctest` suite ran next to them (-j 40, all passed)
+and the last two while `parity/compare.py cycle_count --full` did (ALL EQUAL, 72 / 72). All five runs exited
+0 with 0 hazards. The cause is not known; the kernel log of the shared machine is not readable
+without the `adm` group, so an OOM kill or a signal could not be confirmed. It is carried forward
+as open item 8.
 
 ## Milestone summary (M2b)
 
@@ -512,3 +551,7 @@ For **M2b's review, M3 and later**:
 6. The work items (`work_queue.hpp`) and the device merge become framework pieces when a second
    algorithm uses them (M3, M9).
 7. The original's 9,000-graph fuzz campaign (PLAN 6.4.3: nightly) and sanitizer jobs in CI (M6).
+8. One unexplained exit of `dyng_cycle_count_cuda_tests` under `compute-sanitizer racecheck` in
+   the second acceptance verification (step 7; 0 hazards, not reproduced in 12 later runs). If it
+   recurs, `ci/gpu_local.sh` should keep the exit status or signal of the sanitized process
+   (and a core file) so that a crash can be told from a sanitizer failure.

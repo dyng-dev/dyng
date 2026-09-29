@@ -47,8 +47,15 @@ criterion 4) is read the same way. Two things differ from sssp:
 
 ## Alternatives
 
-- Lower the GPU's power limit for the gate so that `boost` holds (needs root on the shared
-  machine, and changes the machine for every user during the run).
+- Change the GPU's power limit for the gate so that `boost` holds. Not possible on this machine
+  (checked in the second acceptance verification, 2026-09-29): the RTX A5000's current, default
+  and maximum power limits are all 230 W (`nvidia-smi -q -d POWER`), so the limit cannot be
+  raised even with root, and a lower limit would only lower the clocks further. (The first version
+  of this ADR listed "lower the power limit"; that was wrong.)
+- Check the lock only in the busy samples of the timed region (the update itself, about 200 ms,
+  after the untimed prior). The unpatched original reports no timestamps of its region; the window
+  would have to be inferred from the arrival of its unbuffered `update_seconds=` line, and it
+  would still change ADR 0018's accepted rule (every busy sample of the process). Not evaluated.
 - Gate the COLLAB update only at default clocks (ADR 0018 option A for this case).
 - Leave the COLLAB update ungated and report it (a gap in acceptance criterion 4).
 

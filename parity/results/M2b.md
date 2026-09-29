@@ -760,3 +760,20 @@ flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 parity/compare.py cycle_count \
     --exe build/parity/tools/compat/dyng-compat-cycle-enum --full \
     --json parity/results/M2b-review-cycle_count-parity-preset.json
 ```
+
+### 8.6 The second acceptance verification
+
+The second acceptance verification (fresh clone at `6efc49f`) reproduced every record of this
+certificate on its own runs except one, the same as the first: the **COLLAB 25K+25K update** has
+no reading at the boost lock (every round rejected, SM 1365-1605 MHz under the 230 W power cap
+during the 6.5 s prior, on both programs). Its base-lock reading is 0.988x (original scope) /
+0.945x (resident), end to end 0.992x, next to this certificate's 0.989x / 0.945x (section 8.2).
+The power limit of GPU 0 is already its maximum (current = default = maximum = 230 W), so no
+change of the machine or of dynG makes the boost lock hold through the original's prior; the case
+stays **pending the author's decision on ADR 0021** (retrospective, step 7).
+
+One racecheck run of `dyng_cycle_count_cuda_tests` in the verifier's first `ci/gpu_local.sh` ended
+with "process didn't terminate successfully" and 0 hazards, and did not reproduce in 12 later runs
+(the verifier's 7, this step's 5, some next to the same CPU load); it is recorded as open item 8 of
+the retrospective. The sanitizer verdicts of section 3.1 are unchanged: 0 errors, 0 leaks, 0
+hazards.
