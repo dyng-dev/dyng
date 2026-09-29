@@ -121,7 +121,8 @@ def test_render_replaces_the_names_and_the_fields() -> None:
 def test_scaffold_and_remove_round_trip(tmp_path: Path) -> None:
     root = _copy(tmp_path)
     before = _snapshot(root)
-    args = ["dynamic_kcore", "--family", "fixed_point", "--backends", "seq,omp", "--root", str(root)]
+    args = ["dynamic_kcore", "--family", "fixed_point", "--backends", "seq,omp"]
+    args += ["--root", str(root)]
     assert new_algorithm.main(args) == 0
     assert regen.main(["--check", "--root", str(root)]) == 0
     header = (root / "cpp/include/dyng/dynamic_kcore.hpp").read_text()
