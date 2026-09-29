@@ -14,7 +14,7 @@
  *       auto|roots|edges|two-hop] [--report-timing] [--max-cycle-length k] [--task count|update]
  *       [--deletes d --inserts i --batch-seed s [--batch-locality w]] [--compare-recompute]
  *       [--timing <csv>] [--write-batch <path>] [--scope original|resident]
- *       [--edge-type int32|int64]
+ *       [--edge-type int32|int64] [--chain n]
  *
  * Standard output is the original's histogram CSV ("# cycle_size, num_of_cycles", "len, count"
  * per non-zero length, "Total, N"), byte for byte. The input is read with io::read_edge_list
@@ -47,6 +47,14 @@
  * the resident graph.
  * `--edge-type` selects the graph's edge-offset type: the default is int32 on cuda (the original's
  * 32-bit device CSR) and int64 on the host backends.
+ * `--chain n` (dynG, update task; M2b review): n batches are generated from the graph before the
+ * first update (seeds s, s + 1, ..., s + n - 1; a later batch may delete edges already deleted and
+ * insert edges already present, which set semantics ignores) and applied by n chained update()
+ * calls on the same graph and result, each timed with the same clock as update_ms. Standard output
+ * and update_ms are those of the first update (the original's single update); the RESULT line adds
+ * chain_ms=<ms of each update, comma separated> and chain_match=<yes|no> (the final histogram
+ * against an untimed recompute with the same backend). It measures the resident graph across
+ * batches (PLAN 6.4.3): the updates after the first read a graph that a device apply produced.
  *
  * dynG additions: --timing <csv> writes the profiler stages (kind,name,value); --write-batch <path>
  * (update task) writes the generated batch before the update, one change per line ("- u v" for
@@ -113,6 +121,7 @@ struct cli_config {
   dyng::cycle_count::cuda_work_items work_items = dyng::cycle_count::cuda_work_items::automatic;
   std::string scope = "original";
   std::string edge_type;  // empty: int32 on cuda, int64 otherwise
+  std::size_t chain = 1;  // chained updates (--chain; 1: the original's single update)
 };
 
 void print_usage(std::ostream& out) {
@@ -137,6 +146,7 @@ void print_usage(std::ostream& out) {
       << "                                or resident before it)\n"
       << "  --edge-type <int32|int64>  (dynG: edge offsets; default int32 on cuda, else int64)\n"
       << "  --write-batch <path>  (dynG, update task: write the generated batch)\n"
+      << "  --chain <n>  (dynG, update task: n chained updates, batches of seeds s..s+n-1)\n"
       << "  --help\n";
 }
 
@@ -384,6 +394,17 @@ std::optional<cli_config> parse_args(int argc, char** argv, std::ostream& err) {
         return std::nullopt;
       }
       config.timing = std::string(*value);
+    } else if (option == "--chain") {
+      const auto value = take();
+      const auto parsed = value ? parse_integer<std::size_t>(*value, option, err) : std::nullopt;
+      if (!parsed) {
+        return std::nullopt;
+      }
+      if (*parsed < 1) {
+        err << "--chain: expected at least 1\n";
+        return std::nullopt;
+      }
+      config.chain = *parsed;
     } else if (option == "--write-batch") {
       const auto value = take();
       if (!value) {
@@ -443,6 +464,10 @@ std::optional<cli_config> parse_args(int argc, char** argv, std::ostream& err) {
     for (const std::string& e : errors) {
       err << e << '\n';
     }
+    return std::nullopt;
+  }
+  if (config.chain > 1 && config.task != task_kind::update) {
+    err << "--chain needs --task update\n";
     return std::nullopt;
   }
   if (config.task == task_kind::update) {
@@ -562,6 +587,8 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
   double memcpy_ms = 0.0;
   double total_ms = 0.0;
   double update_device_ms = 0.0;
+  std::vector<double> chain_ms;
+  std::string chain_match;
   if (config.task == task_kind::count) {
     if (resident) {
       // Upload the graph (untimed) with the lightest count there is: 2-cycles, one root per
@@ -597,9 +624,17 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
     dyng::cycle_count::result r = dyng::cycle_count::compute(res, g, opt);
     prior_ms = ms_since(t);
     t = clock_type::now();
-    const auto batch =
-        dyng::generators::legacy::cycle_enum_batch(g.to_csr(res).view(), config.batch);
+    const auto base = g.to_csr(res);
+    const auto batch = dyng::generators::legacy::cycle_enum_batch(base.view(), config.batch);
     generate_ms = ms_since(t);
+    // --chain: the later batches, generated from the same graph before any update.
+    std::vector<decltype(dyng::generators::legacy::cycle_enum_batch(base.view(), config.batch))>
+        chained;
+    for (std::size_t i = 1; i < config.chain; ++i) {
+      auto params = config.batch;
+      params.seed = config.batch.seed + i;
+      chained.push_back(dyng::generators::legacy::cycle_enum_batch(base.view(), params));
+    }
     if (!config.write_batch.empty()) {
       write_batch_text(config.write_batch, batch);
     }
@@ -631,6 +666,21 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
       std::cerr << "match=" << (match ? "yes" : "no") << '\n';
     }
     histogram = histogram_csv(r.counts());
+    if (config.chain > 1) {
+      chain_ms.push_back(update_ms);
+      for (const auto& next : chained) {
+        t = clock_type::now();
+        (void)dyng::cycle_count::update(timed, g, next.view(), r);
+        chain_ms.push_back(ms_since(t));
+      }
+      const dyng::cycle_count::result recomputed = dyng::cycle_count::compute(res, g, opt);
+      const auto a = r.counts();
+      const auto b = recomputed.counts();
+      chain_match = std::vector<std::uint64_t>(a.begin(), a.end()) ==
+                            std::vector<std::uint64_t>(b.begin(), b.end())
+                        ? "yes"
+                        : "no";
+    }
   }
   std::cout << histogram;
   std::cout.flush();
@@ -645,7 +695,15 @@ int run(const cli_config& config, const std::chrono::steady_clock::time_point st
             << " threads=" << res.num_threads() << " backend=" << config.backend
             << " scope=" << (cuda ? config.scope : std::string("host"))
             << " kernel_ms=" << kernel_ms << " memcpy_ms=" << memcpy_ms << " total_ms=" << total_ms
-            << " update_device_ms=" << update_device_ms << '\n';
+            << " update_device_ms=" << update_device_ms;
+  if (!chain_ms.empty()) {
+    std::cerr << " chain_ms=";
+    for (std::size_t i = 0; i < chain_ms.size(); ++i) {
+      std::cerr << (i == 0 ? "" : ",") << chain_ms[i];
+    }
+    std::cerr << " chain_match=" << chain_match;
+  }
+  std::cerr << '\n';
   return 0;
 }
 
