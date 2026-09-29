@@ -277,8 +277,9 @@ than `--runs`; the campaign's record marks both cases incomplete) and
 | COLLAB 25K+25K (base lock) | update | 197 | 218.1 | 215.3 | 0.987 | 205.7 | 0.943 | <= 1.05 ok / ok | 0.986 | 11 / 0 |
 
 **Every gated region is within its gate in both scopes: 20 / 20 readings (0.34-1.003x), and all
-ten end-to-end readings (0.88-0.99x).** (Superseded for the updates by section 8.2: the DD 50K and 100K readings
-here relied on the sortedness skip of section 4.4.) The first campaign's partial reading of COLLAB k = 3 (15
+ten end-to-end readings (0.88-0.99x).** The two COLLAB update readings are at the base lock and
+count as gate readings only once the author accepts ADR 0021 (section 4.5). (Superseded for the
+updates by section 8.2: the DD 50K and 100K readings here relied on the sortedness skip of section 4.4.) The first campaign's partial reading of COLLAB k = 3 (15
 rounds before it was stopped) was 1.005x / 1.007x, the same as the repeat. The DD update reads
 above PLAN's 4.4 ms on the original's side because PLAN quotes default, DVFS-raised clocks
 (ADR 0018); at the same locked clocks both programs ran the same kernels.
@@ -397,9 +398,11 @@ lowers the SM clock to 1350-1680 MHz under its power cap (230 W, the default) in
 both programs. The first campaign rejected 22 consecutive rounds and stopped (the harness then
 exited without a record; it now records such a case as incomplete and continues, `778ebf5`). At
 the base lock (1170 MHz) the clocks hold for the whole process on both sides, so this case is
-gated at base: 11 rounds, none rejected, 0.987x (original scope) and 0.943x (resident). ADR 0018
-records the rule (a case whose GPU cannot hold the boost lock is read at the base lock, applied
-equally to both programs). At default clocks the case reads 0.989x / 0.937x (section 4.7).
+read at base: 11 rounds, none rejected, 0.987x (original scope) and 0.943x (resident). ADR 0021
+(Proposed, pending the author) records the rule (a case whose GPU cannot hold the boost lock is
+read at the base lock, applied equally to both programs); this step first appended it to ADR 0018,
+and the review moved it out of the accepted ADR. At default clocks the case reads 0.989x /
+0.937x (section 4.7).
 
 ### 4.6 Kernels: registers, stack and occupancy
 

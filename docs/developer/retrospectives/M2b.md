@@ -159,8 +159,9 @@ locked for the whole A/B, 21 rounds (11 for the COLLAB update, a region of about
 default-clock readings (ungated), the register, stack and occupancy table of all 33 kernels, and
 the device memory of every gate case. Parity replayed on the final code: the CUDA set on cuda,
 cuda:resident and cuda:int64 (72 / 72), on openmp:56 (23 / 23) and the CPU corpus with `--full`
-(72 / 72). Every gated reading is within its gate; the summary is `parity/results/M2b.md`
-section 6.
+(72 / 72). Every gated reading is within its gate (the COLLAB update's at the base lock, which
+since the review counts only once the author accepts ADR 0021); the summary is
+`parity/results/M2b.md` section 6.
 
 **What the first gate campaign found**, and what changed (numbers: `parity/results/M2b.md`
 section 4.4):
@@ -178,8 +179,9 @@ section 4.4):
 3. *The COLLAB update could not be measured at the boost lock*: its 6.5 s prior runs under the
    GPU's power cap, the SM clock drops to 1350-1680 MHz in every process of both programs, and
    the monitor rejected 22 rounds in a row; the harness then exited without writing any record.
-   The harness now records such a case as incomplete and continues; the case is gated at the base
-   lock, where the clocks hold (ADR 0018 update).
+   The harness now records such a case as incomplete and continues; the case is read at the base
+   lock, where the clocks hold (first written as an update of ADR 0018; since the review ADR 0021,
+   Proposed, pending the author).
 4. *The record lost the original's monitor window*: in the CUDA mode the round record merged
    `{"original": window}` with the port's scope windows, and the scope "original" overwrote it.
    The rejection itself read the right window; only the JSON was wrong. Fixed before the campaign
@@ -202,7 +204,8 @@ library: about 34 MB on a three-edge graph).
 
 **Deviations from the plan, recorded here.**
 
-- The COLLAB update is gated at the base clock lock (1170 MHz), not at boost (ADR 0018 update):
+- The COLLAB update is read at the base clock lock (1170 MHz), not at boost (ADR 0021, Proposed;
+  written here as an ADR 0018 update and moved to ADR 0021 by the review):
   the GPU cannot hold the boost lock through its prior. Its default-clock reading (0.989x /
   0.937x) is recorded as for every case.
 - The resident scope of the count task makes the graph resident with a 2-cycle count, not with a
@@ -309,6 +312,31 @@ All are fixed on the branch; none is deferred. Commits in order:
 skip made the gate pass on the one input order the generator produces; the radix sort passes on
 every order. The same goes for scopes: a resident scope measured once after the upload says
 nothing about the resident graph across batches, which is what it claims.
+
+## Step 6: the acceptance verification and its fixes (acceptance-fix 1)
+
+The independent acceptance verifier (fresh clone at `450a1c6`) passed criteria 2, 3 and 5 on its
+own evidence: its own archive build of 0a976ad, byte parity of the CUDA CLI on every required
+dataset and delta, about 11,400 randomized checks with no failure, the sssp gates re-run on the
+final code, and its own boost-lock A/B of GitHub static and the DD and GitHub 25K+25K updates
+within the gates. It failed two things:
+
+1. **The status documents overclaimed** (criterion 1): the short plan (status line and M2 row)
+   said every CUDA gate was met, the roadmap said the CUDA backend is within the gates, and the
+   algorithm page said "every gate is met in both scopes" right after its COLLAB caveat, while
+   README and the certificate named the COLLAB update as pending. The certificate (section 4.5)
+   and this retrospective (steps 3 and 4) still cited an "ADR 0018 update" that the review had
+   moved to ADR 0021. Fixed: every status page names the exception, the short plan lists ADR 0021
+   among the open decisions, and the stale references point at ADR 0021.
+2. **The COLLAB 25K+25K update has no gate reading under the accepted protocol** (criterion 4).
+   The verifier's own boost-lock run rejected every round (SM 1410-1620 MHz under the 230 W power
+   cap during the 6.5 s prior), as ours did; its base-lock reading is 0.991x (original scope) /
+   0.946x (resident), ours 0.989x / 0.945x. This is not something the implementation can fix:
+   ADR 0018's rule (every busy sample of both programs at the boost lock) cannot be met by an
+   unpatched original on this GPU without root (a lower power limit, alternative 1 of ADR 0021),
+   and changing the rule, or reading only part of the process, would weaken an accepted check.
+   It stays open for the author's decision on ADR 0021; once accepted, the committed record
+   `parity/results/M2b-review-cuda-perf-cycle_count-collab-update-base.json` is the gate reading.
 
 ## Milestone summary (M2b)
 

@@ -391,7 +391,8 @@ Before 0.1.0 anything may change.
 - The CUDA gate of `cycle_count` against CycleEnumeration-GPU@0a976ad's CUDA backend
   (`parity/results/M2b.md` sections 4-6): ten cases (static k = 4 on DD, GitHub, Twitch, k = 3
   on COLLAB; the updates 25K+25K on all four and DD 50K+50K, 100K+100K) in both scopes, clocks
-  locked; every gated reading within its gate. Default-clock readings, the registers, stack and
+  locked; every gated reading within its gate (the COLLAB update at the base lock, now pending
+  ADR 0021, see the review entries below). Default-clock readings, the registers, stack and
   occupancy of all 33 kernels (equal to the original's) and the peak device memory of every case
   (equal to the original's) are recorded.
 - Faster Step 0 under set semantics: `std::sort` by (source, target, position) instead of
@@ -461,6 +462,14 @@ Before 0.1.0 anything may change.
   been marked Accepted without an acceptance) with the review's amendments; the M2b clock rule
   that had been appended to the accepted ADR 0018 is ADR 0021 (Proposed), pending the author;
   README lists the M2b certificate.
+
+### M2b: acceptance fixes (branch `m2b-cycle-cuda`)
+
+- Docs: the status pages (the developer plan, the roadmap, README, the algorithm page) no longer
+  say that every CUDA gate is met; they name the COLLAB update, read at the base clock lock and
+  pending the author's decision on ADR 0021, which the developer plan also lists as an open
+  decision. The certificate and the retrospective point at ADR 0021 instead of the removed
+  "ADR 0018 update".
 
 ## [0.0.1] - 2026-09-27
 
