@@ -20,12 +20,15 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <random>
 #include <set>
 #include <sstream>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -472,6 +475,141 @@ TEST_P(CycleCountBackends, ComposesWithSssp) {
   const auto fresh = dyng::sssp::compute(res_, g, 0);
   EXPECT_EQ(dyng::to_vector(res_, tree.distances()), dyng::to_vector(res_, fresh.distances()));
   EXPECT_EQ(g.version(), 1U);
+}
+
+/// `m` distinct random edges on `n` vertices, without self-loops.
+std::set<std::pair<std::int32_t, std::int32_t>> random_edge_set(std::mt19937& rng, std::int32_t n,
+                                                                std::size_t m) {
+  std::uniform_int_distribution<std::int32_t> vertex(0, n - 1);
+  std::set<std::pair<std::int32_t, std::int32_t>> edges;
+  while (edges.size() < m) {
+    const std::int32_t u = vertex(rng);
+    const std::int32_t v = vertex(rng);
+    if (u != v) {
+      edges.emplace(u, v);
+    }
+  }
+  return edges;
+}
+
+/// The graph of an edge set; weights[i] is the weight of the i-th edge in set order.
+graph_w weighted_graph(const resources& res, std::int32_t n,
+                       const std::set<std::pair<std::int32_t, std::int32_t>>& edges,
+                       const std::vector<std::int32_t>& weights, dyng::graph_properties props) {
+  dyng::edge_list<std::int32_t, std::int32_t> list;
+  list.num_vertices = n;
+  list.num_weights = 1;
+  std::size_t i = 0;
+  for (const auto& [u, v] : edges) {
+    list.add_edge(u, v, {weights[i++]});
+  }
+  props.num_weights = 1;
+  return graph_w::from_edges(res, list.view(), props);
+}
+
+// PLAN 8.2 C10 on every backend: one dyng::update(res, g, batch, tree, hist) over a chain of
+// batches equals sssp::update and cycle_count::update run alone on copies of the graph, with one
+// commit per batch; under set semantics (Step 0 once, ADR 0020) and under upsert semantics; both
+// orders of the results. A result left out of an update is stale afterwards (C11).
+TEST_P(CycleCountBackends, OneUpdateOfSsspAndCycleCountEqualsSeparateUpdates) {
+  constexpr std::int32_t n = 40;
+  for (const bool as_sets : {true, false}) {
+    SCOPED_TRACE(as_sets ? "batch_semantics::set()" : "batch_semantics::upsert_last_wins()");
+    dyng::graph_properties props;  // sorted rows, no parallel edges (both algorithms' needs)
+    if (as_sets) {
+      props.semantics = dyng::batch_semantics::set();
+    }
+    std::mt19937 rng(as_sets ? 17U : 23U);
+    std::set<std::pair<std::int32_t, std::int32_t>> edges = random_edge_set(rng, n, 150);
+    std::uniform_int_distribution<std::int32_t> weight(1, 9);
+    std::vector<std::int32_t> weights(edges.size());
+    for (std::int32_t& w : weights) {
+      w = weight(rng);
+    }
+    graph_w g = weighted_graph(res_, n, edges, weights, props);
+    graph_w g_sssp = weighted_graph(res_, n, edges, weights, props);
+    graph_w g_cycles = weighted_graph(res_, n, edges, weights, props);
+    auto tree = dyng::sssp::compute(res_, g, 0);
+    auto tree_alone = dyng::sssp::compute(res_, g_sssp, 0);
+    cycle_count::result hist = cycle_count::compute(res_, g, bound(5));
+    cycle_count::result hist_alone = cycle_count::compute(res_, g_cycles, bound(5));
+    std::uniform_int_distribution<std::int32_t> vertex(0, n - 1);
+    for (int step = 0; step < 4; ++step) {
+      SCOPED_TRACE("batch " + std::to_string(step));
+      // Deletions of existing edges and insertions of new ones (valid under both semantics).
+      dyng::edge_batch<std::int32_t, std::int32_t> b;
+      std::vector<std::pair<std::int32_t, std::int32_t>> existing(edges.begin(), edges.end());
+      std::shuffle(existing.begin(), existing.end(), rng);
+      for (std::size_t i = 0; i < 12; ++i) {
+        b.delete_edge(existing[i].first, existing[i].second);
+        edges.erase(existing[i]);
+      }
+      for (int inserted = 0; inserted < 12;) {
+        const std::int32_t u = vertex(rng);
+        const std::int32_t v = vertex(rng);
+        if (u != v && edges.emplace(u, v).second) {
+          b.insert_edge(u, v, {weight(rng)});
+          ++inserted;
+        }
+      }
+      dyng::profiler prof;
+      resources res = res_;
+      res.attach_profiler(&prof);
+      dyng::sssp::stats s_sssp;
+      cycle_count::stats s_cycles;
+      if (step % 2 == 0) {
+        std::tie(s_sssp, s_cycles) = dyng::update(res, g, b.view(), tree, hist);
+      } else {
+        std::tie(s_cycles, s_sssp) = dyng::update(res, g, b.view(), hist, tree);
+      }
+      res.attach_profiler(nullptr);
+      const dyng::sssp::stats a_sssp = dyng::sssp::update(res_, g_sssp, b.view(), tree_alone);
+      const cycle_count::stats a_cycles = cycle_count::update(res_, g_cycles, b.view(), hist_alone);
+      // One commit for both results, and the stages of both algorithms around it.
+      std::int64_t commits = 0;
+      std::int64_t own_commits = 0;
+      std::int64_t normalizations = 0;
+      for (const dyng::stage_record& r : prof.stages()) {
+        commits += r.name == "update.commit" ? r.calls : 0;
+        own_commits += r.name == "sssp.commit" || r.name == "cycle_count.commit" ? r.calls : 0;
+        normalizations += r.name == "update.normalize" ? r.calls : 0;
+      }
+      EXPECT_EQ(commits, 1);
+      EXPECT_EQ(own_commits, 0);
+      EXPECT_EQ(normalizations, as_sets ? 1 : 0);
+      EXPECT_EQ(dyng::to_vector(res_, tree.distances()),
+                dyng::to_vector(res_, tree_alone.distances()));
+      EXPECT_EQ(dyng::to_vector(res_, tree.parents()), dyng::to_vector(res_, tree_alone.parents()));
+      EXPECT_EQ(cc_counts(hist), cc_counts(hist_alone));
+      EXPECT_EQ(s_sssp.affected, a_sssp.affected);
+      EXPECT_EQ(s_sssp.invalidated, a_sssp.invalidated);
+      EXPECT_EQ(s_sssp.engine_used, a_sssp.engine_used);
+      EXPECT_EQ(s_cycles.affected, a_cycles.affected);
+      EXPECT_EQ(s_cycles.cycles_added, a_cycles.cycles_added);
+      EXPECT_EQ(s_cycles.cycles_removed, a_cycles.cycles_removed);
+      EXPECT_EQ(s_cycles.deletions, a_cycles.deletions);
+      EXPECT_EQ(s_cycles.insertions, a_cycles.insertions);
+      EXPECT_EQ(s_cycles.engine_used, a_cycles.engine_used);
+      EXPECT_EQ(s_sssp.batch.inserted_edges, a_cycles.batch.inserted_edges);
+      EXPECT_EQ(s_cycles.batch.deleted_edges, a_sssp.batch.deleted_edges);
+      EXPECT_EQ(tree.graph_version(), g.version());
+      EXPECT_EQ(hist.graph_version(), g.version());
+    }
+    EXPECT_EQ(g.version(), 4U);
+    EXPECT_EQ(cc_counts(hist), cc_counts(cycle_count::compute(res_, g, bound(5))));
+    const auto fresh = dyng::sssp::compute(res_, g, 0);
+    EXPECT_EQ(dyng::to_vector(res_, tree.distances()), dyng::to_vector(res_, fresh.distances()));
+    // C11: an update of one result leaves the other stale.
+    dyng::edge_batch<std::int32_t, std::int32_t> more;
+    const auto first = *edges.begin();
+    more.delete_edge(first.first, first.second);
+    (void)dyng::sssp::update(res_, g, more.view(), tree);
+    const dyng::edge_batch<std::int32_t, std::int32_t> empty;
+    EXPECT_THROW((void)cycle_count::update(res_, g, empty.view(), hist), dyng::stale_result_error);
+    EXPECT_THROW((void)dyng::update(res_, g, empty.view(), tree, hist), dyng::stale_result_error);
+    EXPECT_EQ(g.version(), 5U);  // the failed updates changed nothing
+    EXPECT_EQ(tree.graph_version(), g.version());
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, CycleCountBackends,

@@ -34,7 +34,10 @@ struct normalized_batch;
  * @brief One result taking part in an update (type-erased; each algorithm implements it).
  *
  * run_update() calls before_apply() of every participant on G_t, commits the batch once, then
- * calls after_apply() of every participant on G_{t+1} (PLAN Section 4.5.1, invariant I1).
+ * calls after_apply() of every participant on G_{t+1} (PLAN Section 4.5.1, invariant I1). The
+ * participant of an algorithm is the framework's adapter of its problem (problem_participant in
+ * the library's cpp/src/framework/composition.hpp): before_apply() runs the problem's Steps 0 and
+ * 1a through its update_enactor, after_apply() its Steps 1b and 2.
  *
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
