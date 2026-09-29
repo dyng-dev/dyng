@@ -60,9 +60,10 @@ re-run at another threshold is told apart). The update cases run two extra port 
 --scope resident --chain N (--chain, default 4: chained updates on the resident graph; the regions
 update_chain_steady and update_chain_worst, gated as the resident scope, and the final histogram
 must equal a recompute). The default cuda cases are the gate of M2b acceptance criterion 4
-(M2B_CUDA_CASES); the golden set is cycle_count_cuda. A case with more rejected rounds than --runs (for example a long kernel under
-the GPU's power cap, which cannot hold the boost lock) is recorded as incomplete and the run goes on
-with the next case; the JSON is written after every case.
+(M2B_CUDA_CASES); the golden set is cycle_count_cuda. A case with more rejected rounds than
+--runs (for example a long kernel under the GPU's power cap, which cannot hold the boost lock) is
+recorded as incomplete and the run goes on with the next case; the JSON is written after every
+case.
 
 `memory` records the device memory of PLAN 8.6 per case: the peak of live device allocations
 (cudaMalloc and cudaMallocAsync) of the original and of the port in both scopes, one process each
