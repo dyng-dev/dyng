@@ -116,7 +116,29 @@ The example is `examples/cpp/cycle_count_update.cpp`; the drop-in clone of the o
 
 Determinism: **`exact_value`**. The histograms (and every `stats` counter) are identical on every
 backend, thread count and run, because they are sums of integers; the order in which threads find
-cycles does not matter. Counts are 64-bit; a sum beyond 2^64 - 1 throws `capacity_error`.
+cycles does not matter. Counts are 64-bit; on the host backends a sum beyond 2^64 - 1 throws
+`capacity_error`. On cuda the order in which the resident grid claims work items, and so the order
+of the 64-bit `atomicAdd`s that flush each warp's histogram, changes from run to run; the sums do
+not. Neither do the scheduler, the kind of work item or the grid size: every cycle is found from
+exactly one root, one first edge and one two-hop prefix, so every choice counts each cycle once
+(the CUDA tests compare every combination with the sequential count). The device sums wrap at
+2^64 as the original's do (only the host-side merge of the two update phases is checked); one
+length would need more than 10^19 cycles, some 10^8 times COLLAB's k = 4 total.
+
+**CUDA work items.** A work item is a prefix of a search that one thread extends to the end:
+
+| Call | Work items (`work_items`) | Numbered by |
+|---|---|---|
+| `compute()`, `scheduler = naive` | one root per thread | the thread index |
+| `compute()`, work queue, `roots` | a root r | a global counter claimed by the resident grid |
+| `compute()`, work queue, `edges` | an edge r -> v1 with v1 > r | `forward_rows_kernel` + a scan of the forward degrees, `fill_edge_items_kernel` |
+| `compute()`, work queue, `two_hop` | a path r -> v1 -> v2 with v1, v2 > r | implicitly: `target_degree_kernel` + a scan; a thread finds its prefix by a binary search over the scanned edge items (no array of two-hop items) |
+| `update()`, delete and insert phases | a (change edge, first hop from its head) pair | `item_counts_kernel` + a scan over the change edges of the phase |
+
+`automatic` follows the original: edges up to k = 3 and, at k = 4, below 16 edges per vertex;
+two-hop items otherwise. The resident grid is the occupancy limit times the number of SMs, 128
+threads per block (12 x 64 blocks on an RTX A5000); the search capacity is the smallest of 4, 8,
+16, 32 or 64 that holds the effective bound, fixed at compile time per kernel instantiation.
 
 Memory. The per-thread visited marks, search stacks and counters, the ownership table and the
 phase histograms live in a workspace leased from the resources handle (ADR 0015); each thread
@@ -252,8 +274,27 @@ not sort lists that are already sorted, and its scratch is leased instead of all
 and in the resident scope G_t is not uploaded again (on Twitch the upload is 11.9 ms of dynG's
 20.7 ms original-scope update). All 33 kernels have the original's registers, stack and 100 %
 theoretical occupancy (`parity/cycle_count_perf.py kernels`), and the peak device memory of every
-case equals the original's (`parity/cycle_count_perf.py memory`). At default clocks the readings
-are the same within a few percent (recorded, not gated).
+case equals the original's (`parity/cycle_count_perf.py memory`).
+
+At default clocks (recorded, not gated, ADR 0018; 11 rounds, `parity/results/M2b.md` section 4.7)
+the readings are the same within a few percent:
+
+| Case | Region | CycleEnumeration-GPU (ms) | dynG, original scope (ms) | ratio | dynG, resident scope (ms) | ratio |
+|---|---|---:|---:|---:|---:|---:|
+| DD k = 4 | static kernel | 1.392 | 0.975 | 0.701 | 0.959 | 0.689 |
+| GitHub k = 4 | static kernel | 59.476 | 57.634 | 0.969 | 57.782 | 0.972 |
+| Twitch k = 4 | static kernel | 38.681 | 38.376 | 0.992 | 38.010 | 0.983 |
+| COLLAB k = 3 | static kernel | 51.306 | 51.644 | 1.007 | 51.539 | 1.005 |
+| DD 25K+25K, k = 4 | update | 5.528 | 3.224 | 0.583 | 2.926 | 0.529 |
+| DD 50K+50K, k = 4 | update | 7.013 | 4.797 | 0.684 | 4.486 | 0.640 |
+| DD 100K+100K, k = 4 | update | 10.710 | 7.944 | 0.742 | 7.451 | 0.696 |
+| GitHub 25K+25K, k = 4 | update | 14.753 | 11.595 | 0.786 | 8.425 | 0.571 |
+| Twitch 25K+25K, k = 4 | update | 25.295 | 20.294 | 0.802 | 8.556 | 0.338 |
+| COLLAB 25K+25K, k = 4 | update | 199.4 | 197.2 | 0.989 | 186.9 | 0.937 |
+
+One reported region reads above the gate's bound: DD's static `total_ms` in the original scope
+(upload, count and copy-back; 1.10x, not gated) includes the first allocation of the workspace's
+pinned scalar buffer (about 0.85 ms), which later calls through the same resources do not pay.
 
 The update is not always much faster than a recompute: with the original's fast static kernels,
 its own measurements give update-vs-recompute ratios of 1.2x on DD, 5.2x on GitHub, 4.2x on

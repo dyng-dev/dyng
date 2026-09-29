@@ -7,14 +7,15 @@ title       = "Exact k-bounded directed simple-cycle histograms"
 family      = "aggregate_delta"
 container   = "graph"
 tier        = "custom_engine"
-maturity    = "experimental"            # stable once the CUDA backend (M2b) and Python (M5) exist
-backends    = ["sequential", "openmp"]  # cuda: M2b
+maturity    = "experimental"            # stable once the Python binding exists (M5)
+backends    = ["sequential", "openmp", "cuda"]
 determinism = "exact_value"
 oracle      = "compute"
 graph_requirements = { multi_edges = "forbid", row_order = "sorted", store_transposed = false }
 cite        = ["trucy2026"]
 maintainers = ["SMShovan"]
-origin      = [ { repo = "CycleEnumeration-GPU", commit = "0a976ad", paths = ["src/sequential/johnson.cpp", "src/openmp/openmp_johnson.cpp", "src/dynamic/cycles_through_edge.cpp", "src/dynamic/update_sequential.cpp", "src/dynamic/update_openmp.cpp", "src/dynamic/directed_graph.cpp", "src/core/histogram.cpp"] } ]
+origin      = [ { repo = "CycleEnumeration-GPU", commit = "0a976ad", paths = ["src/sequential/johnson.cpp", "src/openmp/openmp_johnson.cpp", "src/dynamic/cycles_through_edge.cpp", "src/dynamic/update_sequential.cpp", "src/dynamic/update_openmp.cpp", "src/dynamic/directed_graph.cpp", "src/core/histogram.cpp",
+                                                                 "src/cuda/cuda_static_kernels.cu", "include/cycle_enum/cuda/cuda_dfs.cuh", "include/cycle_enum/cuda/cuda_work_queue.hpp", "src/dynamic/update_cuda_kernel.cu"] } ]
 
 [performance]
 compute_tolerance    = 1.05
