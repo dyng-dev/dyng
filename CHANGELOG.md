@@ -36,6 +36,25 @@ Before 0.1.0 anything may change.
   takes its lists), and on CUDA the ported code's stages sit inside a new `cycle_count.enact_fused`
   stage; every other stage is unchanged. The CUDA engines of both algorithms and the graph's device
   paths count their host synchronizations for the budgets (I9).
+- The conformance kit (M3, PLAN Section 8.2; `cpp/tests/conformance/`,
+  `docs/developer/conformance.md`): checks C0-C12 for every registered algorithm on every backend
+  and graph type, from a `test_traits` specialisation and one line `DYNG_CONFORMANCE_SUITE(<name>)`
+  (`dyng_<name>_conformance_tests`, labels `cpu;conformance;<name>`, and
+  `dyng_<name>_conformance_cuda_tests` in CUDA builds); sssp and cycle_count pass it on
+  sequential, OpenMP and CUDA. C8 runs in `DYNG_DEBUG_BUDGETS` builds (the dev presets) and counts
+  host heap allocations too (a counting `operator new` in the conformance executables).
+- The algorithm registry: `dyng::algorithms()` / `dyng::find_algorithm()` in
+  `<dyng/core/registry.hpp>` (name, title, family, container, maturity, determinism, oracle kind,
+  backends, cite keys of every algorithm built into the library), generated from the manifests;
+  `dyng::citation()` knows every registered algorithm.
+- `scripts/regen.py` (the algorithm tables of the README, the landing page and the algorithms
+  index, the CODEOWNERS block, the registries; `--check` in pre-commit, `ci/check.sh` and
+  `lint.yml`; it enforces the registration rules of invariant I8) and `scripts/new_algorithm.py`
+  with `cpp/src/algorithms/_template` (a fixed-point or aggregate-delta algorithm on the host
+  backends that builds and passes the kit on the first build; `ci/scaffold_check.sh`, CTest
+  `scaffold.new_algorithm`, job `scaffold` of `cpu.yml`). The manifests gain `computes`, `paper`
+  and `since`; the planned algorithms are listed in `cpp/src/algorithms/planned.toml`. The README
+  has the generated algorithm table.
 - Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
   accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for
@@ -244,6 +263,19 @@ Before 0.1.0 anything may change.
 
 ### Changed
 
+- Budgets (I9): a run that grows a reusable array on purpose (`detail::note_reservation()`: a new
+  workspace, a grown scratch buffer or per-thread list, a grown result) is a reserving run whose
+  allocations are reported, not failed; the graph's own materializations inside an update (its
+  device copy uploaded on first use, `detail::container_scope`) are container work and never held
+  against a problem's budget; `run_update()` records the commit's counts. sssp and cycle_count
+  declare their budgets (no allocation once reserved; 0 host syncs on the host backends, 1 and 2
+  on CUDA), checked by the update enactor in `DYNG_DEBUG_BUDGETS` builds.
+- OpenMP `sssp`: `list_gather` keeps its offsets in an inline array (up to 256 threads) instead of
+  a `std::vector` per gather, so the near-far rounds allocate nothing (found by C8); the same
+  trees.
+- A build of a subset of the algorithms (`-DDYNG_ALGORITHMS=...`) configures: the suites of an
+  algorithm are built with it, and the examples and compat tools (sssp and cycle_count) only when
+  both are built.
 - `.github/workflows/welcome.yml` no longer greets owners, organization members and repository
   collaborators (the event's `author_association`); first-time outside contributors are greeted
   as before.

@@ -245,13 +245,36 @@ two things (`core/budget_counters.hpp`, process-wide atomics):
 `update_enactor::after_commit` measures its phase (`resume` … `finalize`, or `enact_fused`). Once
 the result and the workspaces are reserved, the phase must stay within `algorithm_budget(ctx)`,
 for example `budget::steady_state(1)` for a fused CUDA engine that reads its control block back
-once. The commit is not in the phase: container growth is reported, not failed.
+once. The commit is not in the phase: `run_update()` measures it separately
+(`last_commit_counts()`), and container growth is reported, not failed.
 `last_budget_report()` returns the last measurement on the calling thread; conformance check C8
 reads it.
 
+"Once reserved" is made precise by two more counters:
+
+- **Reservations.** Code that grows a reusable array on purpose calls `detail::note_reservation()`:
+  the workspace pool when it creates a workspace, `scratch_buffer::reserve` when it grows, the
+  per-thread lists of the OpenMP engines (`util/thread_list.hpp`) when a thread takes a larger
+  share than ever before, and the problems where they grow their workspaces or results (sssp's
+  workspace and result growth, cycle_count's workspace and histogram). A phase that reserved is a
+  *reserving* run: its allocations are reported, not held against the budget; its host
+  synchronizations are still checked. A phase that reserved nothing must stay within the whole
+  budget. C8 warms the handle up with the same shapes and then requires a run that reserves
+  nothing, allocates nothing and synchronizes at most the budget.
+- **Container work.** The graph's own materializations inside an update (its device copy uploaded
+  on first use after a host commit, the host copy downloaded) run in a `detail::container_scope`:
+  counted, recorded as container work (`budget_counters::container_allocations`,
+  `container_host_syncs`) and never held against a problem's budget.
+
+The budgets of the two algorithms: no allocation once reserved; host synchronizations 0 on the
+host backends, 1 for sssp on CUDA (the control block) and 2 for cycle_count on CUDA (the insert
+phase's item counts and the histogram copy).
+
 These are not counted: a user-installed memory resource, `std::vector` growth of the host engines
-(a test binary can count host allocations by calling `detail::note_allocation()` from a
-replacement `operator new`), and synchronizations an engine makes with the CUDA runtime directly.
+(the conformance executables count host allocations too: `cpp/tests/conformance/
+allocation_counter.cpp` replaces the global `operator new` and reports every allocation of the
+measured update to `detail::note_allocation()`), and synchronizations an engine makes with the
+CUDA runtime directly.
 Such an engine calls `detail::note_host_sync()` next to the call. sssp's fused engine does this
 at its one `cudaStreamSynchronize` (`run_persistent` in `algorithms/sssp/cuda.cu`); cycle_count's
 CUDA engines at theirs (`cuda.cu`: the item count of a phase, the staging of the change lists, the
@@ -338,6 +361,9 @@ has the same rows as before the migration, with `calls = 2` on that row. Under
 
 `cpp/tests/compile_fail/framework_conformance.cpp` checks the `static_assert` messages of
 `conformance.hpp` (CTest `framework.conformance.*`).
+
+The algorithms themselves are checked by the conformance kit (C0-C12,
+{doc}`conformance`), for every registered algorithm, backend and graph type.
 
 ## Differences from PLAN 4.5
 

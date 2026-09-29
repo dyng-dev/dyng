@@ -83,6 +83,7 @@ One line per decision: date, checkpoint or decision, what was approved, by whom.
 | 2026-09-29 | ADR 0020 | Accepted: the resident device graph under set semantics (device batch apply, lazily downloaded host copy) and Step 0 once per update. | S M Shovan |
 | 2026-09-29 | ADR 0021 | Accepted: a CUDA gate case whose GPU cannot hold the boost clock lock under the power cap is read at the base lock, applied equally to both programs (the COLLAB `cycle_count` update). | S M Shovan |
 | 2026-09-29 | Delegation of technical ADRs | The AI assistant may accept a technical ADR on the author's behalf when its decision does not change a rule the author approved, and reports it to the author afterwards (recorded in this log as "accepted under delegation"). Rules the author approved (gates, the measurement protocol), licensing, naming, publishing and account-level actions stay with the author. | S M Shovan |
+| 2026-09-29 | ADR 0022 | Accepted under delegation (M3, step kit-scaffold): the conformance kit in `cpp/tests/conformance` (one executable per algorithm and variant), registry-driven from the manifests (`scripts/regen.py`; the public `<dyng/core/registry.hpp>`, to be reviewed with the 0.1 API), C8's reservations and container work, C4 skipped while no backend has two engines, and the scope of `scripts/new_algorithm.py` in 0.1 (graphs, host backends). No approved rule changes. | AI assistant (delegated) |
 
 ## Open decisions
 
