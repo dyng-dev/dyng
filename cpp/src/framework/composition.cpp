@@ -24,6 +24,7 @@
 #include <exception>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace dyng::detail {
 
@@ -47,6 +48,16 @@ std::string normalize_stage(std::string_view commit_stage) {
          (dot == std::string_view::npos ? "update" : "") + ".normalize";
 }
 
+/// The function a user called, for messages: "<algo>::update" for the commit stage
+/// "<algo>.commit" (sssp::update, cycle_count::update); "dyng::update" for dyng::update()'s
+/// "update.commit" and for a name without a dot.
+std::string update_function(std::string_view commit_stage) {
+  const std::size_t dot = commit_stage.rfind('.');
+  const std::string_view algo = commit_stage.substr(0, dot == std::string_view::npos ? 0 : dot);
+  return algo.empty() || algo == "update" ? std::string("dyng::update")
+                                          : std::string(algo) + "::update";
+}
+
 }  // namespace
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -64,8 +75,8 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
   }
   // The batch is read on the host (the participants' checks and the host apply of this release):
   // arrays in device memory are copied once, under the copy policy of `res` (PLAN 4.7.1).
-  const host_batch<vertex_t, weight_t> staged(
-      res, batch, commit_stage == "sssp.commit" ? "sssp::update" : "dyng::update");
+  const std::string function = update_function(commit_stage);
+  const host_batch<vertex_t, weight_t> staged(res, batch, function.c_str());
   const edge_batch_view<vertex_t, weight_t>& host = staged.view();
   // Step 0 of set semantics, once for every participant and the commit (ADR 0020): the
   // normalized batch of G_t (graph/normalized_batch.hpp).
