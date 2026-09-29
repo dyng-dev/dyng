@@ -46,7 +46,7 @@ dyng_add_test(
 dyng_add_test(
   NAME dyng_framework_tests
   SOURCES framework/workspace_test.cpp framework/thread_list_test.cpp
-          framework/list_gather_test.cpp
+          framework/list_gather_test.cpp framework/enactor_test.cpp
   LABELS cpu framework
 )
 if(DYNG_ENABLE_OPENMP)
@@ -117,6 +117,42 @@ foreach(_case "compute;" "update;-DDYNG_COMPILE_FAIL_UPDATE")
     PROPERTIES LABELS "cpu;cycle_count" PASS_REGULAR_EXPRESSION
                "dyng::cycle_count supports graph<int32_t, int32_t or int64_t"
   )
+endforeach()
+
+# Compile-failure tests of the framework's conformance checks (framework/conformance.hpp, PLAN
+# Section 8.2): a problem missing a required declaration or hook stops at a static_assert with a
+# plain-English message. The control case (no define) must compile.
+set(_dyng_framework_cf_includes
+    -I${PROJECT_SOURCE_DIR}/cpp/src -I${PROJECT_SOURCE_DIR}/cpp/include
+    -I${DYNG_GENERATED_INCLUDE_DIR}
+)
+# name|define|expected message (a regular expression)
+foreach(
+  _case
+  "control||"
+  "no_base|-DDYNG_CF_NO_BASE|a problem must derive from"
+  "fixed_point_without_loop|-DDYNG_CF_FP_NO_LOOP|a fixed_point problem must provide `loop"
+  "aggregate_delta_without_ownership|-DDYNG_CF_AG_NO_OWNER|must declare `using ownership_type"
+  "aggregate_delta_without_count_minus|-DDYNG_CF_AG_NO_MINUS|count.context&, old_view"
+  "participant_without_target|-DDYNG_CF_NO_TARGET|must provide `const void. target"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME framework.conformance.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   ${_dyng_framework_cf_includes}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/framework_conformance.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(framework.conformance.${_name} PROPERTIES LABELS "cpu;framework")
+  else()
+    set_tests_properties(
+      framework.conformance.${_name} PROPERTIES LABELS "cpu;framework" PASS_REGULAR_EXPRESSION
+                                                "${_message}"
+    )
+  endif()
 endforeach()
 
 # Mutation tests (PLAN Section 8.4): the recorded mutations of CycleEnumeration-GPU (double counting

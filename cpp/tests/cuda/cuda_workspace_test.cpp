@@ -7,10 +7,13 @@
  *        the handle's memory resource and stream, and stream order across the per-thread default
  *        streams of two threads (the lease fences, M1b review).
  */
+#include "core/budget_counters.hpp"
+#include "framework/budgets.hpp"
 #include "framework/scratch_buffer.hpp"
 #include "framework/workspace.hpp"
 #include "support/gtest_helpers.hpp"
 
+#include <dyng/core/buffer.hpp>
 #include <dyng/core/memory.hpp>
 #include <dyng/core/resources.hpp>
 
@@ -245,6 +248,27 @@ TEST(CudaWorkspace, HostScratchOnHostBackends) {
   EXPECT_EQ(s.space(), dyng::memory_space::host);
   EXPECT_EQ(s.reserve(res, 5), p);
   EXPECT_EQ(s.bytes(), 10 * sizeof(int));
+}
+
+// The budget counters of invariant I9 (framework/budgets.hpp) see the CUDA backend's device and
+// pinned allocations and its stream synchronizations (DYNG_DEBUG_BUDGETS builds).
+TEST(CudaWorkspace, BudgetCountersSeeDeviceAllocationsAndHostSyncs) {
+  DYNG_SKIP_IF_NO_CUDA();
+  if (!dyng::detail::budgets_enabled()) {
+    GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build";
+  }
+  const dyng::resources res = dyng::resources::cuda();
+  res.synchronize();
+  const dyng::detail::framework::budget_scope scope;
+  {
+    const dyng::buffer<int> device(res, 256);
+    res.synchronize();
+  }
+  const dyng::detail::budget_counters used = scope.used();
+  EXPECT_EQ(used.allocations, 1);
+  EXPECT_EQ(used.allocated_bytes, 256 * static_cast<std::int64_t>(sizeof(int)));
+  EXPECT_EQ(used.host_syncs, 1);
+  EXPECT_FALSE(dyng::detail::framework::budget::steady_state(0).allows(used));
 }
 
 }  // namespace
