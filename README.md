@@ -19,7 +19,7 @@ counting, triad counting, label propagation.
 | Area | State |
 |---|---|
 | Core (resources, backends, memory, arrays, errors, logging, profiler) | working on the host (M1a) and on CUDA (M1b: streams, stream-ordered memory resources, device buffers, profiler device times) |
-| Graph container (compact rows, MOSP batch semantics) and MOSP-format I/O | working; the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` |
+| Graph container (compact rows, MOSP and CycleEnumeration batch semantics, weighted and unweighted graphs), MOSP-format and edge-list I/O | working; under MOSP semantics the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` (M1a); under set semantics (`batch_semantics::set()`, `graph_properties::cycle_enum_compatible()`) a batch is applied as CycleEnumeration-GPU's `prepare_batch` + `apply_batch` on the host (M2a) and, on a resident CUDA graph without weight columns, merged on the device (`build_next_rows_kernel`; the host copy is downloaded only when read, M2b, ADR 0020) |
 | `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working; byte-identical to MOSP-OpenMP@c352151 on its 495-case golden corpus ([parity certificate](parity/results/M1a.md)) |
 | `sssp` on CUDA (the fused persistent cooperative kernel) | working (M1b); byte-identical to MOSP-CUDA@e220ee2 on the same corpus, cross-backend equal, performance gates recorded ([M1b certificate](parity/results/M1b.md)) |
 | `cycle_count`: exact k-bounded directed cycle histograms (TruCy/DynTruCy update), sequential and OpenMP | working (M2a); bit-identical to CycleEnumeration-GPU@0a976ad on its 24-case golden corpus ([parity certificate](parity/results/M2a.md)) |
@@ -146,8 +146,8 @@ replayed by `parity/compare.py cycle_count`; see `parity/README.md`).
 
 `parity/perf_ab.py` runs the performance A/B against the unpatched originals under the
 exclusive perf lock (`parity/README.md`). The committed records are the
-[M1a](parity/results/M1a.md), [M1b](parity/results/M1b.md) and [M2a](parity/results/M2a.md)
-parity certificates.
+[M1a](parity/results/M1a.md), [M1b](parity/results/M1b.md), [M2a](parity/results/M2a.md) and
+[M2b](parity/results/M2b.md) parity certificates.
 
 ## Using the library from C++
 
