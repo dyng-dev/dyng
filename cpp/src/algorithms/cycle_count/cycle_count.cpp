@@ -26,6 +26,7 @@
  */
 #include "algorithms/cycle_count/problem.hpp"
 #include "algorithms/cycle_count/work_queue.hpp"
+#include "core/budget_counters.hpp"
 #include "core/resources_access.hpp"
 #include "framework/composition.hpp"
 #include "framework/context.hpp"
@@ -62,6 +63,9 @@ namespace dyng::detail {
 template <typename vertex_t>
 void cycle_count_workspace<vertex_t>::reserve(int thread_count, std::size_t vertices) {
   const auto count = static_cast<std::size_t>(std::max(thread_count, 1));
+  if (threads.size() < count || marks_needed < vertices) {
+    note_reservation();  // invariant I9: a reserving run (core/budget_counters.hpp)
+  }
   if (threads.size() < count) {
     threads.resize(count);
   }
@@ -311,6 +315,9 @@ std::int64_t apply_histogram_delta(cycle_count_state& st, std::int64_t bound_aft
   }
   const std::size_t size =
       std::max({static_cast<std::size_t>(bound_after) + 1, st.counts.size(), touched});
+  if (size > st.counts.capacity()) {
+    note_reservation();  // invariant I9: the result grows (core/budget_counters.hpp)
+  }
   st.counts.resize(size, 0);
   std::int64_t changed = 0;
   for (std::size_t len = 0; len < touched; ++len) {
@@ -519,6 +526,12 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 engine cycle_count_problem<vertex_t, edge_t, weight_t>::select_engine(
     framework::context& ctx) const noexcept {
   return ctx.on_cuda() ? engine::fused : engine::operators;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+framework::budget cycle_count_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
+    framework::context& ctx) const noexcept {
+  return framework::budget::steady_state(ctx.on_cuda() ? 2 : 0);
 }
 
 /// CUDA, count(-): the change lists on the device (the framework's copy, shared with the device

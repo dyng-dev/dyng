@@ -471,6 +471,66 @@ TEST(Budgets, AnAllocationAfterTheCommitExceedsASteadyStateBudget) {
   }
 }
 
+// "Once reserved": a phase that notes a reservation may allocate (reported, not failed).
+TEST(Budgets, AReservingPhaseMayAllocate) {
+  const resources res = resources::sequential();
+  graph_type g = make_graph(res, 4, path(3));
+  hook_log log;
+  levels_result r = compute_levels(res, g, 0, log);
+  levels_options opt;
+  opt.limit = fw::budget::steady_state(0);
+  opt.bad.allocate_after_commit = true;
+  opt.bad.reserve_after_commit = true;
+  EXPECT_NO_THROW((void)update_levels(res, g, make_batch({}, {{2, 3}}), r, log, opt));
+  const fw::budget_report report = fw::last_budget_report();
+  EXPECT_EQ(report.reserving(), dyng::detail::budgets_enabled());
+  EXPECT_EQ(report.used.allocations, dyng::detail::budgets_enabled() ? 1 : 0);
+}
+
+// The commit is measured separately (container growth, reported only): run_update() records it.
+TEST(Budgets, TheCommitIsMeasuredSeparately) {
+  if (!dyng::detail::budgets_enabled()) {
+    GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build";
+  }
+  const resources res = resources::sequential();
+  graph_type g = make_graph(res, 4, path(3));
+  hook_log log;
+  levels_result r = compute_levels(res, g, 0, log);
+  dyng::detail::budget_counters marker;
+  marker.host_syncs = -7;
+  fw::record_commit_counts(marker);
+  (void)update_levels(res, g, make_batch({}, {{2, 3}}), r, log);
+  EXPECT_EQ(fw::last_commit_counts().host_syncs, 0);  // replaced by this update's commit
+  EXPECT_EQ(fw::last_commit_counts().reservations, 0);
+}
+
+// Container work (container_scope) is counted, recorded as such, and not held against a budget;
+// nested scopes count once.
+TEST(Budgets, ContainerWorkIsNotHeldAgainstTheBudget) {
+  if (!dyng::detail::budgets_enabled()) {
+    GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build";
+  }
+  const resources res = resources::sequential();
+  const fw::budget_scope scope;
+  {
+    const dyng::detail::container_scope outer;
+    const dyng::buffer<int> a(res, 4);
+    {
+      const dyng::detail::container_scope inner;
+      const dyng::buffer<int> b(res, 4);
+    }
+  }
+  const dyng::buffer<int> own(res, 4);
+  const dyng::detail::budget_counters used = scope.used();
+  EXPECT_EQ(used.allocations, 3);
+  EXPECT_EQ(used.container_allocations, 2);
+  EXPECT_EQ(used.own_allocations(), 1);
+  EXPECT_FALSE(fw::budget::steady_state(0).allows(used));
+  dyng::detail::budget_counters container_only = used;
+  container_only.allocations = 2;
+  EXPECT_TRUE(fw::budget::steady_state(0).allows(container_only));
+}
+
 TEST(Budgets, UncheckedAllowsAnything) {
   const fw::budget unchecked = fw::budget::unchecked();
   dyng::detail::budget_counters used;
@@ -483,6 +543,15 @@ TEST(Budgets, UncheckedAllowsAnything) {
   EXPECT_TRUE(fw::budget::steady_state(1).allows(used));
   used.host_syncs = 2;
   EXPECT_FALSE(fw::budget::steady_state(1).allows(used));
+  // A reserving phase: its allocations do not count against the budget, its syncs still do.
+  used.allocations = 5;
+  used.host_syncs = 1;
+  used.reservations = 1;
+  EXPECT_TRUE(fw::budget::steady_state(1).allows(used));
+  used.host_syncs = 2;
+  EXPECT_FALSE(fw::budget::steady_state(1).allows(used));
+  EXPECT_TRUE(fw::budget::steady_state(0).bounded());
+  EXPECT_FALSE(unchecked.bounded());
 }
 
 TEST(Budgets, CountersCountTheLibrarysAllocations) {

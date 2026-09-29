@@ -15,8 +15,18 @@
  * phase exceeded the problem's budget. The commit is measured separately (container growth is
  * reported, not failed: PLAN 4.5.5).
  *
+ * "Once reserved": a phase that grew a reusable array on purpose (a new or enlarged workspace, a
+ * grown scratch buffer, a result grown for new vertices; note_reservation() in
+ * core/budget_counters.hpp) is a reserving run. Its allocations are reported, not failed; its
+ * host synchronizations are still checked. A phase that reserved nothing must stay within the
+ * whole budget, so the steady state (the same shapes again) allocates nothing. The graph's own
+ * materializations inside the phase (its device copy uploaded on first use, core/
+ * budget_counters.hpp container_scope) are container work: counted and reported, never held
+ * against the problem's budget.
+ *
  * The measurement of the last update enactor run on the calling thread stays readable through
- * last_budget_report() (for the tests of C8). Counting is process-wide, so run budget checks
+ * last_budget_report() (for the tests of C8), and the commit of the last run_update() on the
+ * calling thread through last_commit_counts() (container growth: reported, never failed). Counting is process-wide, so run budget checks
  * without concurrent library calls on other threads, and without profiler_options::sync_stages
  * (whose synchronizations count as host synchronizations).
  *
@@ -68,11 +78,22 @@ struct budget {
   /**
    * @brief Whether the counts of a phase are within the budget.
    * @param[in] used The counts of the phase.
-   * @return true if every bounded quantity is at most its bound.
+   * @return true if every bounded quantity is at most its bound. Container work
+   *         (container_scope) does not count, and the allocation bound does not apply to a
+   *         reserving phase (used.reservations > 0); see the file comment.
    */
   [[nodiscard]] constexpr bool allows(const budget_counters& used) const noexcept {
-    return (allocations == unlimited || used.allocations <= allocations) &&
-           (host_syncs == unlimited || used.host_syncs <= host_syncs);
+    return (allocations == unlimited || used.reservations > 0 ||
+            used.own_allocations() <= allocations) &&
+           (host_syncs == unlimited || used.own_host_syncs() <= host_syncs);
+  }
+
+  /**
+   * @brief Whether both quantities are bounded.
+   * @return true unless a quantity is unlimited.
+   */
+  [[nodiscard]] constexpr bool bounded() const noexcept {
+    return allocations != unlimited && host_syncs != unlimited;
   }
 };
 
@@ -83,6 +104,14 @@ struct budget_report {
   bool measured = false;  ///< false: no phase ran, or counting is off (not a budgets build)
   budget limit;           ///< the problem's budget
   budget_counters used;   ///< what the phase did
+
+  /**
+   * @brief Whether the phase reserved (grew a reusable array on purpose).
+   * @return used.reservations > 0.
+   */
+  [[nodiscard]] constexpr bool reserving() const noexcept {
+    return used.reservations > 0;
+  }
 };
 
 /**
@@ -110,6 +139,20 @@ class budget_scope {
  * @return The report (measured == false before the first).
  */
 [[nodiscard]] budget_report last_budget_report() noexcept;
+
+/**
+ * @brief The counts of the commit of the last run_update() on the calling thread (graph::apply
+ *        and the preparation of G_{t+1}): container growth, reported and never failed (PLAN
+ *        4.5.5, I9).
+ * @return The counts (all zero before the first update, or when counting is off).
+ */
+[[nodiscard]] budget_counters last_commit_counts() noexcept;
+
+/**
+ * @brief Record the counts of a commit (run_update()).
+ * @param[in] used The counts of the commit.
+ */
+void record_commit_counts(const budget_counters& used) noexcept;
 
 /**
  * @brief Store the report of an algorithm phase and, in a budgets build, check it.

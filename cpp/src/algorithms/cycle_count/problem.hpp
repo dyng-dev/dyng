@@ -51,6 +51,7 @@
  */
 #pragma once
 
+#include "framework/budgets.hpp"
 #include "framework/context.hpp"
 #include "framework/frontier.hpp"
 #include "framework/policies.hpp"
@@ -777,6 +778,13 @@ class cycle_count_problem final
    * @return The engine.
    */
   [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
+
+  /**
+   * @brief The budget of the algorithm phase (invariant I9; conformance check C8): once reserved,
+   *        no allocation, and at most two host synchronizations on CUDA (the insert phase reads its item counts back, and the two histograms are copied back once) and none on the host backends.
+   * @return The budget (checked by the update enactor in DYNG_DEBUG_BUDGETS builds).
+   */
+  [[nodiscard]] framework::budget algorithm_budget(framework::context& ctx) const noexcept;
 
   /**
    * @brief cycle_count.enact_fused: the insert phase on the resident G_{t+1}

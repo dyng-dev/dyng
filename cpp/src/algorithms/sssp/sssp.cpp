@@ -16,6 +16,7 @@
  * insertion heads are the heads of all insertions.
  */
 #include "algorithms/sssp/problem.hpp"
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
 #include "core/staging.hpp"
@@ -58,6 +59,7 @@ void sssp_workspace<vertex_t>::reserve(std::int64_t requested) {
   if (requested <= capacity) {
     return;
   }
+  note_reservation();  // invariant I9: a reserving run (core/budget_counters.hpp)
   const auto n = static_cast<std::size_t>(requested);
   packed.assign(n, ~0ULL);
   stamp.assign(n, 0);
@@ -573,6 +575,7 @@ void build_changes(const apply_delta<vertex_t>& delta, int k, std::vector<vertex
 /// Vertex growth: the new vertices are unreachable (INF, parent -1).
 template <typename vertex_t, typename distance_t>
 void grow(const resources& res, sssp_state<vertex_t, distance_t>& st, std::size_t n) {
+  note_reservation();  // invariant I9: a reserving run (core/budget_counters.hpp)
   if (st.space == memory_space::host) {
     st.distances.resize(n, sssp_infinity);
     st.parents.resize(n, vertex_t{-1});
@@ -874,6 +877,12 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 engine sssp_problem<vertex_t, edge_t, weight_t>::select_engine(
     framework::context& ctx) const noexcept {
   return ctx.on_cuda() ? engine::fused : engine::operators;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+framework::budget sssp_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
+    framework::context& ctx) const noexcept {
+  return framework::budget::steady_state(ctx.on_cuda() ? 1 : 0);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>

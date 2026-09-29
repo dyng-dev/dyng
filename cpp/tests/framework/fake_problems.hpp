@@ -19,6 +19,7 @@
  */
 #pragma once
 
+#include "core/budget_counters.hpp"
 #include "framework/budgets.hpp"
 #include "framework/composition.hpp"
 #include "framework/context.hpp"
@@ -107,6 +108,7 @@ struct misbehaviour {
   std::uint32_t device_error_before = 0;  ///< raised in prepare / count(-) (before the commit)
   std::uint32_t device_error_after = 0;   ///< raised in seed / count(+) (after the commit)
   bool allocate_after_commit = false;     ///< finalize allocates through the handle's memory
+  bool reserve_after_commit = false;      ///< ... and notes it as a reservation (a growth)
   bool keep_old_view = false;             ///< finalize reads the old_view of before_apply
 };
 
@@ -286,6 +288,9 @@ class levels_problem : public fw::problem_base<levels_problem, fw::family::fixed
   // ---- finish ----
   void finalize(fw::context& ctx, levels_stats& s) {
     log_.add("finalize", 0);
+    if (opt_.bad.reserve_after_commit) {
+      detail::note_reservation();  // a deliberate growth: the run is a reserving one
+    }
     if (opt_.bad.allocate_after_commit) {
       const buffer<int> scratch(ctx.res(), 16);  // an allocation in the algorithm phase
       (void)scratch;

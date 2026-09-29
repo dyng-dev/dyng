@@ -16,6 +16,9 @@ namespace {
 std::atomic<std::int64_t> allocations{0};
 std::atomic<std::int64_t> allocated_bytes{0};
 std::atomic<std::int64_t> host_syncs{0};
+std::atomic<std::int64_t> reservations{0};
+std::atomic<std::int64_t> container_allocations{0};
+std::atomic<std::int64_t> container_host_syncs{0};
 
 }  // namespace
 
@@ -28,6 +31,9 @@ budget_counters budget_snapshot() noexcept {
   c.allocations = allocations.load(std::memory_order_relaxed);
   c.allocated_bytes = allocated_bytes.load(std::memory_order_relaxed);
   c.host_syncs = host_syncs.load(std::memory_order_relaxed);
+  c.reservations = reservations.load(std::memory_order_relaxed);
+  c.container_allocations = container_allocations.load(std::memory_order_relaxed);
+  c.container_host_syncs = container_host_syncs.load(std::memory_order_relaxed);
   return c;
 }
 
@@ -38,6 +44,15 @@ void note_allocation(std::size_t bytes) noexcept {
 
 void note_host_sync() noexcept {
   host_syncs.fetch_add(1, std::memory_order_relaxed);
+}
+
+void note_reservation() noexcept {
+  reservations.fetch_add(1, std::memory_order_relaxed);
+}
+
+void note_container_work(std::int64_t allocations, std::int64_t host_syncs) noexcept {
+  container_allocations.fetch_add(allocations, std::memory_order_relaxed);
+  container_host_syncs.fetch_add(host_syncs, std::memory_order_relaxed);
 }
 #else
 bool budgets_enabled() noexcept {
@@ -51,6 +66,10 @@ budget_counters budget_snapshot() noexcept {
 void note_allocation(std::size_t /*bytes*/) noexcept {}
 
 void note_host_sync() noexcept {}
+
+void note_reservation() noexcept {}
+
+void note_container_work(std::int64_t /*allocations*/, std::int64_t /*host_syncs*/) noexcept {}
 #endif
 
 }  // namespace dyng::detail
