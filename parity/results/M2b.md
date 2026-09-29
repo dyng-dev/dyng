@@ -693,6 +693,12 @@ At default clocks (11 rounds, ungated): original scope 0.690 (DD 25K), 0.850 (DD
 (DD 100K), 0.813 (GitHub), 0.823 (Twitch), 0.988 (COLLAB); resident 0.379-0.934; chained steady
 0.224-0.945, slowest 0.361-0.971.
 
+Device memory of the six update cases after the review (`M2b-review-cuda-memory-cycle_count.json`,
+`parity/cycle_count_perf.py memory`, GPU 1): the peak of live allocations is unchanged, 1.000x on
+DD, GitHub and Twitch and 1.001x on COLLAB, in both scopes (the pooled scratch of the device apply
+was live at the apply's peak before as well; the device Step 0 adds a flags buffer of one byte per
+change).
+
 ### 8.3 The OpenMP update gate
 
 Step 0 is shared by the host backends, so the OpenMP 56 update gate was re-checked
