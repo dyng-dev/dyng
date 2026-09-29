@@ -158,7 +158,13 @@ __device__ __forceinline__ void extend_prefix(const device_csr<offset_t> graph,
     offset_t row_end = 0;
     const bool closes = find_edge(graph, next, root, position, row_end);
     if (closes) {
+#if defined(DYNG_MUTATION_CUDA_DOUBLE_COUNT_5)
+      // Recorded mutation (PLAN Section 8.4, "double counting 5-cycles" in the static work-queue
+      // kernel, where CycleEnumeration-GPU recorded it): the gpu suite must fail.
+      histogram.count[depth + 1] += depth + 1 == 5 ? 2ULL : 1ULL;
+#else
       ++histogram.count[depth + 1];  // cycle root, path[1..depth-1], next
+#endif
     }
     if (depth + 1 < max_length) {
       path[depth] = next;

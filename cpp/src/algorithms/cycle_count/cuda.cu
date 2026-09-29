@@ -62,6 +62,21 @@ constexpr unsigned int update_block_size = 128;  // kBlockSize
 
 // ---- kernels (CycleEnumeration-GPU@0a976ad:src/dynamic/update_cuda_kernel.cu) -----------------------
 
+/// Whether an edge whose ownership id is `owner_id` belongs to a change with a smaller id than the
+/// anchored change `work` (a search anchored at `work` must not use it: the cycle is counted by
+/// the smaller change).
+__device__ __forceinline__ bool owned_by_smaller(const int owner_id, const int work) {
+#if defined(DYNG_MUTATION_CUDA_WEAK_OWNERSHIP)
+  // Recorded mutation (PLAN Section 8.4, "weakened ownership rule" of the update kernel, where
+  // CycleEnumeration-GPU recorded it): the change with the id just below the anchor no longer
+  // takes precedence, so cycles through two consecutive changes count twice. The gpu suite must
+  // fail.
+  return owner_id + 1 < work;
+#else
+  return owner_id < work;
+#endif
+}
+
 /// Whether from -> to is an edge whose owner id is not below `work` (closes_owned).
 template <typename offset_t>
 __device__ __forceinline__ bool closes_owned(const device_csr<offset_t> graph,
@@ -72,7 +87,7 @@ __device__ __forceinline__ bool closes_owned(const device_csr<offset_t> graph,
   const offset_t end = __ldg(graph.offsets + from + 1);
   const offset_t position = lower_bound_u32(graph.neighbors, begin, end, to);
   return position < end && __ldg(graph.neighbors + position) == to &&
-         __ldg(owner + position) >= work;
+         !owned_by_smaller(__ldg(owner + position), work);
 }
 
 /// Search below path[0..prefix-1] (path[0] = t), whose own closing edge was already counted; a
@@ -100,7 +115,7 @@ __device__ __forceinline__ void extend_owned_path(const device_csr<offset_t> gra
     }
     const offset_t position = cursor[depth - 1]++;
     const device_vertex next = __ldg(graph.neighbors + position);
-    if (__ldg(owner + position) < work || next == source) {
+    if (owned_by_smaller(__ldg(owner + position), work) || next == source) {
       continue;  // a smaller change owns it, or it is the closing edge
     }
     bool on_path = false;
@@ -163,7 +178,7 @@ __global__ void count_owned_cycles_kernel(
     }
     const offset_t position = __ldg(graph.offsets + target) + j;
     const device_vertex next = __ldg(graph.neighbors + position);
-    if (__ldg(owner + position) < work || next == source || next == target) {
+    if (owned_by_smaller(__ldg(owner + position), work) || next == source || next == target) {
       continue;
     }
     if (closes_owned(graph, owner, next, source, work)) {

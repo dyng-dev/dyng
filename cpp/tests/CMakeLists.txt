@@ -123,6 +123,13 @@ endforeach()
 # (a static library of every other module's objects plus the mutated ones), against which the
 # suite cycle_count_random_test.cpp is linked; the CTest passes when the suite fails. A control
 # copy built the same way without a mutation must pass. Label "mutation" (and cpu).
+#
+# The original recorded both mutations in its CUDA kernels (the static work-queue kernel and the
+# update kernel). DYNG_MUTATION_<NAME> mutates the host searches; DYNG_MUTATION_CUDA_<NAME> mutates
+# the same rule in the device kernels only (dfs.cuh, cuda.cu). In CUDA builds the cuda mutants are
+# linked with the gpu suite (the shared suites with DYNG_TEST_CUDA=1 plus cycle_count_cuda_test.cpp,
+# which compare the cuda backend with the unmutated host backends and the oracles): CTests
+# cycle_count.mutation.cuda.<name>, labels gpu;mutation;cycle_count, with the control copy.
 option(DYNG_MUTATION_TESTS "Build the mutation tests of cycle_count" ON)
 if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
   get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
@@ -136,10 +143,18 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
   # skip_workspace_resize is dynG's own (review of M2a): the insert phase keeps the per-thread
   # marks of the graph before the batch, so a batch that adds vertices must make the suite fail
   # (the phases check their workspace) instead of writing out of bounds unseen.
-  foreach(_mutant "control;;pass" "double_count_5;DYNG_MUTATION_DOUBLE_COUNT_5;fail"
-                  "weak_ownership;DYNG_MUTATION_WEAK_OWNERSHIP;fail"
-                  "skip_workspace_resize;DYNG_MUTATION_SKIP_WORKSPACE_RESIZE;fail"
+  # name|define|expected verdict
+  set(_dyng_mutants "control||pass" "double_count_5|DYNG_MUTATION_DOUBLE_COUNT_5|fail"
+                    "weak_ownership|DYNG_MUTATION_WEAK_OWNERSHIP|fail"
+                    "skip_workspace_resize|DYNG_MUTATION_SKIP_WORKSPACE_RESIZE|fail"
   )
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _dyng_mutants "cuda_double_count_5|DYNG_MUTATION_CUDA_DOUBLE_COUNT_5|fail"
+         "cuda_weak_ownership|DYNG_MUTATION_CUDA_WEAK_OWNERSHIP|fail"
+    )
+  endif()
+  foreach(_entry IN LISTS _dyng_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
     list(GET _mutant 0 _name)
     list(GET _mutant 1 _define)
     list(GET _mutant 2 _expect)
@@ -176,22 +191,50 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
     if(DYNG_ENABLE_CUDA)
       target_link_libraries(${_lib} INTERFACE CUDA::cudart)
     endif()
-    set(_exe dyng_cycle_count_mutant_${_name})
-    add_executable(${_exe} algorithms/cycle_count/cycle_count_random_test.cpp)
-    target_link_libraries(
-      ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
-    )
-    target_compile_features(${_exe} PRIVATE cxx_std_17)
-    dyng_set_warnings(${_exe})
-    dyng_enable_sanitizers(${_exe})
-    add_test(NAME cycle_count.mutation.${_name}
-             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
-                     -DNAME=${_name} -P "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
-    )
-    set_tests_properties(
-      cycle_count.mutation.${_name} PROPERTIES LABELS "cpu;mutation;cycle_count" ENVIRONMENT
-                                               "${DYNG_TEST_ENVIRONMENT}"
-    )
+    if(NOT _name MATCHES "^cuda_")
+      set(_exe dyng_cycle_count_mutant_${_name})
+      add_executable(${_exe} algorithms/cycle_count/cycle_count_random_test.cpp)
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      target_compile_features(${_exe} PRIVATE cxx_std_17)
+      dyng_set_warnings(${_exe})
+      dyng_enable_sanitizers(${_exe})
+      add_test(NAME cycle_count.mutation.${_name}
+               COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                       -DNAME=${_name} -P "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+      )
+      set_tests_properties(
+        cycle_count.mutation.${_name} PROPERTIES LABELS "cpu;mutation;cycle_count" ENVIRONMENT
+                                                 "${DYNG_TEST_ENVIRONMENT}"
+      )
+    endif()
+    if(DYNG_ENABLE_CUDA AND (_name STREQUAL "control" OR _name MATCHES "^cuda_"))
+      # The gpu suite against the mutant (the device mutations, and the control).
+      set(_exe dyng_cycle_count_cuda_mutant_${_name})
+      add_executable(
+        ${_exe} algorithms/cycle_count/cycle_count_random_test.cpp
+                algorithms/cycle_count/cycle_count_cuda_test.cpp
+      )
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      target_compile_definitions(${_exe} PRIVATE DYNG_TEST_CUDA=1)
+      target_include_directories(${_exe} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+      target_compile_features(${_exe} PRIVATE cxx_std_17)
+      dyng_set_warnings(${_exe})
+      dyng_enable_sanitizers(${_exe})
+      dyng_set_cuda_options(${_exe})
+      add_test(NAME cycle_count.mutation.cuda.${_name}
+               COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                       -DNAME=cuda.${_name} -P
+                       "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+      )
+      set_tests_properties(
+        cycle_count.mutation.cuda.${_name}
+        PROPERTIES LABELS "gpu;mutation;cycle_count" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+      )
+    endif()
   endforeach()
 endif()
 
