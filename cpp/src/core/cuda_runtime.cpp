@@ -7,6 +7,8 @@
  */
 #include "core/cuda_runtime.hpp"
 
+#include "core/budget_counters.hpp"
+
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
 
@@ -116,6 +118,7 @@ scoped_device::~scoped_device() {
 }
 
 void cuda_synchronize(int device, stream_ref stream) {
+  note_host_sync();  // invariant I9 (counts only with DYNG_DEBUG_BUDGETS)
   if (device < 0) {
     DYNG_CUDA_TRY(cudaStreamSynchronize(native(stream)));
     return;

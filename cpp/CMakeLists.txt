@@ -122,6 +122,7 @@ dyng_add_module(
   NAME core
   SOURCES
     src/core/backend.cpp
+    src/core/budget_counters.cpp
     src/core/citation.cpp
     src/core/cuda_runtime.cpp
     src/core/error.cpp
@@ -134,6 +135,11 @@ dyng_add_module(
     src/core/version.cpp
     "${PROJECT_BINARY_DIR}/cpp/generated/references_bib.cpp"
 )
+if(DYNG_DEBUG_BUDGETS)
+  # Invariant I9: the allocation and host-synchronization counters count (core/budget_counters.cpp;
+  # every other file calls them unconditionally, so only this module needs the define).
+  target_compile_definitions(dyng_core PRIVATE DYNG_DEBUG_BUDGETS=1)
+endif()
 if(DYNG_WITH_NVTX)
   # Header-only (NVTX 3 loads its tool at run time); nothing appears in the export set.
   target_link_libraries(dyng_core PRIVATE $<BUILD_INTERFACE:CUDA::nvtx3>)

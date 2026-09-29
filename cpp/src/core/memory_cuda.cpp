@@ -6,6 +6,7 @@
  *        of the CUDA backend) and pinned_host_memory_resource (PLAN Section 4.7.2). Without CUDA the
  *        resources exist but cannot be created or used (not_supported_error).
  */
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 
 #include <dyng/config.hpp>
@@ -113,6 +114,7 @@ void* cuda_async_memory_resource::allocate(stream_ref stream, std::size_t bytes,
     return nullptr;
   }
   const detail::scoped_device guard(device_);
+  detail::note_allocation(bytes);  // invariant I9 (counts only with DYNG_DEBUG_BUDGETS)
   void* ptr = nullptr;
   const cudaError_t status =
       cudaMallocFromPoolAsync(&ptr, bytes, native_pool(pool_), native(stream));
@@ -217,6 +219,7 @@ void pinned_host_memory_resource::deallocate(stream_ref stream, void* ptr, std::
     return;
   }
   // cudaFreeHost does not wait for asynchronous copies that still read or write the memory.
+  detail::note_host_sync();  // invariant I9 (counts only with DYNG_DEBUG_BUDGETS)
   DYNG_CUDA_TRY_NO_THROW(cudaStreamSynchronize(native(stream)));
   deallocate_sync(ptr, bytes, alignment);
 }
@@ -226,6 +229,7 @@ void* pinned_host_memory_resource::allocate_sync(std::size_t bytes, std::size_t 
   if (bytes == 0) {
     return nullptr;
   }
+  detail::note_allocation(bytes);  // invariant I9 (counts only with DYNG_DEBUG_BUDGETS)
   void* ptr = nullptr;
   // Portable: pinned for every device's context, not only the current one.
   const cudaError_t status = cudaHostAlloc(&ptr, bytes, cudaHostAllocPortable);
