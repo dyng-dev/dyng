@@ -16,6 +16,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <new>
+#include <stdexcept>
 #include <string_view>
 #include <tuple>
 #include <utility>
@@ -194,8 +196,15 @@ struct stats_of {
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
  *         result (vertex operations before 0.3), or a batch array is in device memory and CUDA
  *         is not built.
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws error                  any other exception of an algorithm's own update() (for example
+ *         cycle_count's internal_error or capacity_error, a cuda_error); the first one is rethrown.
  * @sync
+ * @guarantee Strong for every error found before the batch is applied (the before-apply work of
+ *            every result runs on G_t before the commit): the graph and every result are
+ *            unchanged. Basic for an error after the commit: the graph holds the new version, the
+ *            result whose update threw is poisoned (every later use throws stale_result_error),
+ *            the other results are still brought up to date, and the first exception is rethrown.
  * @ingroup core
  */
 template <typename container_t, typename batch_view_t, typename... results_t>
@@ -204,18 +213,24 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
   static_assert(sizeof...(results_t) > 0, "dyng::update() needs at least one result");
   using participant_t = typename detail::participant_of<container_t>::type;
   std::tuple<typename detail::stats_of<results_t>::type...> out;
-  std::apply(
-      [&](auto&... stats) {
-        std::unique_ptr<participant_t> owned[] = {
-            detail::update_traits<results_t>::template make_participant<container_t>(results,
-                                                                                     stats)...};
-        participant_t* raw[sizeof...(results_t)] = {};
-        for (std::size_t i = 0; i < sizeof...(results_t); ++i) {
-          raw[i] = owned[i].get();
-        }
-        detail::run_update(res, g, batch, raw, sizeof...(results_t), "update.commit");
-      },
-      out);
+  try {
+    std::apply(
+        [&](auto&... stats) {
+          std::unique_ptr<participant_t> owned[] = {
+              detail::update_traits<results_t>::template make_participant<container_t>(results,
+                                                                                       stats)...};
+          participant_t* raw[sizeof...(results_t)] = {};
+          for (std::size_t i = 0; i < sizeof...(results_t); ++i) {
+            raw[i] = owned[i].get();
+          }
+          detail::run_update(res, g, batch, raw, sizeof...(results_t), "update.commit");
+        },
+        out);
+  } catch (const std::bad_alloc& e) {
+    detail::throw_host_allocation_failure("dyng::update (the participants)", e.what());
+  } catch (const std::length_error& e) {
+    detail::throw_host_allocation_failure("dyng::update (the participants)", e.what());
+  }
   return out;
 }
 
@@ -243,8 +258,15 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
  *         result (vertex operations before 0.3), or a batch array is in device memory and CUDA
  *         is not built.
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws error                  any other exception of an algorithm's own update() (for example
+ *         cycle_count's internal_error or capacity_error, a cuda_error); the first one is rethrown.
  * @sync
+ * @guarantee Strong for every error found before the batch is applied (the before-apply work of
+ *            every result runs on G_t before the commit): the graph and every result are
+ *            unchanged. Basic for an error after the commit: the graph holds the new version, the
+ *            result whose update threw is poisoned (every later use throws stale_result_error),
+ *            the other results are still brought up to date, and the first exception is rethrown.
  * @ingroup core
  */
 template <typename container_t, typename batch_view_t, typename result_t>
@@ -252,19 +274,29 @@ auto update_each(const resources& res, container_t& g, const batch_view_t& batch
                  array_view<result_t* const> results)
     -> std::vector<typename detail::stats_of<result_t>::type> {
   using participant_t = typename detail::participant_of<container_t>::type;
-  std::vector<typename detail::stats_of<result_t>::type> out(results.size());
-  std::vector<std::unique_ptr<participant_t>> owned;
-  std::vector<participant_t*> raw;
-  owned.reserve(results.size());
-  raw.reserve(results.size());
   for (std::size_t i = 0; i < results.size(); ++i) {
     DYNG_EXPECTS(results[i] != nullptr, "dyng::update_each: result ", i, " is null");
-    owned.push_back(detail::update_traits<result_t>::template make_participant<container_t>(
-        *results[i], out[i]));
-    raw.push_back(owned.back().get());
   }
-  detail::run_update(res, g, batch, raw.data(), raw.size(), "update.commit");
-  return out;
+  try {
+    std::vector<typename detail::stats_of<result_t>::type> out(results.size());
+    std::vector<std::unique_ptr<participant_t>> owned;
+    std::vector<participant_t*> raw;
+    owned.reserve(results.size());
+    raw.reserve(results.size());
+    for (std::size_t i = 0; i < results.size(); ++i) {
+      owned.push_back(detail::update_traits<result_t>::template make_participant<container_t>(
+          *results[i], out[i]));
+      raw.push_back(owned.back().get());
+    }
+    detail::run_update(res, g, batch, raw.data(), raw.size(), "update.commit");
+    return out;
+  } catch (const std::bad_alloc& e) {
+    detail::throw_host_allocation_failure(
+        detail::concat_message("dyng::update_each (", results.size(), " results)"), e.what());
+  } catch (const std::length_error& e) {
+    detail::throw_host_allocation_failure(
+        detail::concat_message("dyng::update_each (", results.size(), " results)"), e.what());
+  }
 }
 
 /**
@@ -282,8 +314,10 @@ auto update_each(const resources& res, container_t& g, const batch_view_t& batch
  * @throws stale_result_error     as update_each().
  * @throws invalid_argument_error as update_each().
  * @throws not_supported_error    as update_each().
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    as update_each().
+ * @throws error                  as update_each().
  * @sync
+ * @guarantee As update_each().
  * @ingroup core
  */
 template <typename container_t, typename batch_view_t, typename result_t>

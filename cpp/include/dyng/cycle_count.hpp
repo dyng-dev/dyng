@@ -393,6 +393,8 @@ namespace dyng::cycle_count {
  * @sync The histogram is complete on return (a host array on every backend).
  * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms on every backend and thread count.
+ * @guarantee Strong: `g` is not modified (on cuda its device copy may be uploaded, which changes
+ *            no observable state), and nothing is kept if the call throws.
  * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
  *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib. Exact counts; the
  *        kappa-truncated search of the paper is not implemented.
@@ -449,6 +451,12 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @sync The graph and the histogram are updated on return.
  * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms and counters on every backend and thread count.
+ * @guarantee Strong for every error found before the batch is applied (the ones marked "nothing is
+ *            changed" above, and allocation failures of the normalization): `g` and `r` are
+ *            unchanged. Basic for an error after the commit (a negative bucket, a count past
+ *            2^64 - 1 in the merge, a CUDA or allocation failure): `g` holds the new version and
+ *            `r` is poisoned, so every later use of it throws stale_result_error until it is
+ *            recomputed.
  * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
  *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib.
  * @ingroup cycle_count

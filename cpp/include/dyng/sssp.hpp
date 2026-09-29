@@ -256,6 +256,8 @@ class result {
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync
+   * @guarantee Strong: `g` and the arrays are not modified, and nothing is kept if the call
+   *            throws.
    */
   template <typename edge_t, typename weight_t>
   [[nodiscard]] static result from_arrays(const resources& res,
@@ -295,11 +297,14 @@ class result {
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
  *         of options::cuda_engine cannot run (engine::operators; no cooperative launch).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
  * @sync On cuda the stream is synchronized once (the control block of the kernel is read), and once
  *       more before that if the graph's current state is not resident on the device yet (its
  *       upload, profiler stage graph.upload, completes before the kernel runs).
  * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs: the Dijkstra tree with lowest-id ties.
+ * @guarantee Strong: `g` is not modified (on cuda its device copy may be uploaded, which changes
+ *            no observable state), and nothing is kept if the call throws.
  * @paper DynaMOSP (IPDPS 2025; IEEE TPDS 2025): `dyng::citation("sssp")`, keys dynamosp2025 and
  *        dynamosptpds2025 in docs/references.bib.
  * @ingroup sssp
@@ -344,12 +349,20 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
  *         of the result's options::cuda_engine cannot run (nothing is changed).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
+ * @throws cuda_error             if the CUDA runtime reports an error (cuda backend; after the
+ *         batch was applied, `r` is left unusable).
  * @sync On cuda the stream is synchronized once per result (the kernel's control block is read)
  *       and once per batch inside the commit, where the new graph state is uploaded (profiler
  *       stage graph.upload; ADR 0017 item 7).
  * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs (distances, parents, `invalidated`,
  *              `affected`), for canonical and non-canonical input trees alike.
+ * @guarantee Strong for every error found before the batch is applied (a stale result, an
+ *            invalid batch, the wrong backend, an unsupported engine, a copy refused by the copy
+ *            policy, memory for the normalization): `g` and `r` are unchanged. Basic for an error
+ *            after the commit (only an imported tree that was not validated, a CUDA failure or an
+ *            allocation failure can cause one): `g` holds the new version and `r` is poisoned, so
+ *            every later use of it throws stale_result_error until it is recomputed.
  * @paper DynaMOSP (IPDPS 2025; IEEE TPDS 2025): `dyng::citation("sssp")`, keys dynamosp2025 and
  *        dynamosptpds2025 in docs/references.bib.
  * @ingroup sssp

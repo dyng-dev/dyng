@@ -325,6 +325,9 @@ class graph {
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error (device merge).
    * @sync
+   * @guarantee Strong: the batch is validated and the next state is built completely before it
+   *            replaces the current one, so a throwing apply() leaves the graph (storage, version,
+   *            state identity) unchanged.
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
 

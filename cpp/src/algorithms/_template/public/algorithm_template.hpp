@@ -185,6 +185,7 @@ class result {
  * @backends {{backends_doc}}
  * @determinism Exact: identical results on every backend and run.
  * @paper None yet (TODO(algorithm_template): the paper, and its key in docs/references.bib).
+ * @guarantee Strong: `g` is not modified, and nothing is kept if the call throws.
  * @ingroup algorithm_template
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -213,6 +214,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @backends {{backends_doc}}
  * @determinism Exact: identical results on every backend and run.
  * @paper None yet (TODO(algorithm_template)).
+ * @guarantee Strong for every error found before the batch is applied (`g` and `r` unchanged);
+ *            basic after the commit (`g` updated, `r` poisoned until it is recomputed).
  * @ingroup algorithm_template
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
