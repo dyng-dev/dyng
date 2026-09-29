@@ -357,6 +357,56 @@ TEST_P(CycleCountBackends, ProfilerStagesFollowTheHooks) {
   EXPECT_EQ(names.count("graph.upload"), GetParam() == backend::cuda ? 1U : 0U);
 }
 
+/// The cycle_count stages of compute() and update() in call order (samples end with their
+/// stage, so a stage follows the stages nested in it; graph.* stages depend on the graph's lazy
+/// builds and are left out). The framework's enactors open exactly these stages
+/// (parity/timed_regions/cycle_count.toml sums them; parity/results/M3.md records the migration).
+TEST_P(CycleCountBackends, TheEnactorsOpenTheStagesOfTheTimedRegions) {
+  // M3 migration: the backends that run through the framework's enactors so far.
+  const bool framework = GetParam() == backend::sequential;
+  for (const bool as_sets : {true, false}) {
+    SCOPED_TRACE(as_sets ? "batch_semantics::set()" : "batch_semantics::upsert_last_wins()");
+    dyng::graph_properties props = dyng::graph_properties::cycle_enum_compatible();
+    if (!as_sets) {
+      props.semantics = dyng::batch_semantics::upsert_last_wins();
+    }
+    dyng::profiler prof;
+    resources res = res_;
+    graph_u g = cc_graph<graph_u>(res, 4, overlapping_cycles(), props);
+    res.attach_profiler(&prof);
+    cycle_count::result r = cycle_count::compute(res, g, bound(4));
+    const std::size_t after_compute = prof.samples().size();
+    const auto b = cc_batch<unweighted>({{0, 1}}, {{3, 0}});
+    (void)cycle_count::update(res, g, b.view(), r);
+    res.attach_profiler(nullptr);
+    std::vector<std::string> compute_names;
+    std::vector<std::string> update_names;
+    for (std::size_t i = 0; i < prof.samples().size(); ++i) {
+      const std::string& name = prof.samples()[i].name;
+      if (name.rfind("cycle_count.", 0) != 0) {
+        continue;
+      }
+      (i < after_compute ? compute_names : update_names).push_back(name);
+    }
+    const std::vector<std::string> compute_expected = {
+        "cycle_count.reset", "cycle_count.count", "cycle_count.finalize", "cycle_count.compute"};
+    // Under set semantics Step 0 runs once in run_update() (ADR 0020); the problem's normalize
+    // hook then takes its lists.
+    std::vector<std::string> update_expected = {"cycle_count.normalize"};
+    if (as_sets && framework) {
+      update_expected.emplace_back("cycle_count.normalize");
+    }
+    for (const char* name :
+         {"cycle_count.count_minus", "cycle_count.commit", "cycle_count.identify_affected",
+          "cycle_count.count_plus", "cycle_count.finalize", "cycle_count.update"}) {
+      update_expected.emplace_back(name);
+    }
+    EXPECT_EQ(compute_names, compute_expected);
+    EXPECT_EQ(update_names, update_expected);
+    EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(4))));
+  }
+}
+
 TEST_P(CycleCountBackends, SteadyStateUpdatesReuseOneWorkspace) {
   graph_u g = cc_graph<graph_u>(res_, 4, overlapping_cycles());
   cycle_count::result r = cycle_count::compute(res_, g, bound(4));

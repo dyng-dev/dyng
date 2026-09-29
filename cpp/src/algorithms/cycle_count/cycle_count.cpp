@@ -24,6 +24,10 @@
 #include "algorithms/cycle_count/problem.hpp"
 #include "algorithms/cycle_count/work_queue.hpp"
 #include "core/resources_access.hpp"
+#include "framework/composition.hpp"
+#include "framework/context.hpp"
+#include "framework/enactor.hpp"
+#include "framework/views.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/normalized_batch.hpp"
 #include "util/allocation.hpp"
@@ -234,15 +238,98 @@ std::uint64_t checked_total(const std::vector<std::uint64_t>& counts) {
   return sum;
 }
 
-/// The participant of one cycle_count result in run_update() (and dyng::update()).
+/// The normalized lists of the framework as the engines' change lists.
+template <typename vertex_t>
+void copy_changes(const std::vector<set_change<vertex_t>>& from,
+                  std::vector<edge_change<vertex_t>>& to) {
+  to.resize(from.size());
+  for (std::size_t i = 0; i < from.size(); ++i) {
+    to[i] = {from[i].source, from[i].target};
+  }
+}
+
+/// Under batch_semantics::as_sets the commit's normalized batch (apply_delta) must equal the lists
+/// of Step 0 (Debug builds only: an O(batch) check of the graph module's two paths).
 template <typename vertex_t, typename edge_t, typename weight_t>
-class cycle_count_participant final : public update_participant<vertex_t, edge_t, weight_t> {
+void check_normalized_batch([[maybe_unused]] const graph<vertex_t, edge_t, weight_t>& g,
+                            [[maybe_unused]] const apply_delta<vertex_t>& delta,
+                            [[maybe_unused]] const cycle_count_workspace<vertex_t>& ws) {
+#ifndef NDEBUG
+  if (!g.properties().semantics.as_sets) {
+    return;
+  }
+  const auto same = [](const std::vector<edge_change<vertex_t>>& list,
+                       const std::vector<vertex_t>& src, const std::vector<vertex_t>& dst) {
+    if (list.size() != src.size() || list.size() != dst.size()) {
+      return false;
+    }
+    for (std::size_t i = 0; i < list.size(); ++i) {
+      if (list[i].source != src[i] || list[i].target != dst[i]) {
+        return false;
+      }
+    }
+    return true;
+  };
+  if (!same(ws.change.deletions, delta.delete_src, delta.delete_dst) ||
+      !same(ws.change.insertions, delta.insert_src, delta.insert_dst)) {
+    DYNG_FAIL("cycle_count::update: the normalized batch of Step 0 differs from the commit's");
+  }
+#endif
+}
+
+/// apply_histogram_delta(): counts[len] += added[len] - removed[len] for every length; a bucket
+/// that would become negative throws internal_error (the original's std::logic_error) before
+/// anything is written. The histogram grows to the new bound (it covers min(max_length,
+/// max(n, 2)), and n grows with the graph). Only the lengths the phases reached are visited.
+/// @return The number of lengths whose count changed.
+std::int64_t apply_histogram_delta(cycle_count_state& st, std::int64_t bound_after,
+                                   const std::vector<std::uint64_t>& removed,
+                                   const std::vector<std::uint64_t>& added) {
+  const std::size_t touched = std::max(removed.size(), added.size());
+  const auto delta_at = [&](std::size_t len, std::uint64_t& value, std::uint64_t& plus,
+                            std::uint64_t& minus) {
+    value = len < st.counts.size() ? st.counts[len] : 0;
+    plus = len < added.size() ? added[len] : 0;
+    minus = len < removed.size() ? removed[len] : 0;
+  };
+  // Check every bucket first, so a failure leaves the histogram as it was.
+  for (std::size_t len = 0; len < touched; ++len) {
+    std::uint64_t value = 0;
+    std::uint64_t plus = 0;
+    std::uint64_t minus = 0;
+    delta_at(len, value, plus, minus);
+    const std::uint64_t before = value;
+    cycle_count_checked_add(value, plus);
+    if (value < minus) {
+      DYNG_FAIL("cycle_count::update would make the count of length ", len,
+                " negative (the result does not match the graph: ", before, " + ", plus, " - ",
+                minus, ")");
+    }
+  }
+  const std::size_t size =
+      std::max({static_cast<std::size_t>(bound_after) + 1, st.counts.size(), touched});
+  st.counts.resize(size, 0);
+  std::int64_t changed = 0;
+  for (std::size_t len = 0; len < touched; ++len) {
+    const std::uint64_t plus = len < added.size() ? added[len] : 0;
+    const std::uint64_t minus = len < removed.size() ? removed[len] : 0;
+    st.counts[len] = st.counts[len] + plus - minus;
+    changed += plus != minus ? 1 : 0;
+  }
+  st.bound = static_cast<std::int64_t>(size) - 1;
+  return changed;
+}
+
+/// The M2 participant of one cycle_count result, kept for the backends that do not run through
+/// the framework's enactors yet (M3 migration: one backend after the other).
+template <typename vertex_t, typename edge_t, typename weight_t>
+class cycle_count_legacy_participant final : public update_participant<vertex_t, edge_t, weight_t> {
  public:
   using graph_type = graph<vertex_t, edge_t, weight_t>;
   using batch_type = edge_batch_view<vertex_t, weight_t>;
   using workspace_type = cycle_count_workspace<vertex_t>;
 
-  cycle_count_participant(cycle_count::result& r, cycle_count::stats& out)
+  cycle_count_legacy_participant(cycle_count::result& r, cycle_count::stats& out)
       : result_(r), out_(out) {}
 
   [[nodiscard]] const void* target() const noexcept override {
@@ -382,15 +469,6 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
  private:
   using cuda_workspace_type = cycle_count_cuda_workspace<edge_t>;
 
-  /// The normalized lists of the framework as the engines' change lists.
-  static void copy_changes(const std::vector<set_change<vertex_t>>& from,
-                           std::vector<edge_change<vertex_t>>& to) {
-    to.resize(from.size());
-    for (std::size_t i = 0; i < from.size(); ++i) {
-      to[i] = {from[i].source, from[i].target};
-    }
-  }
-
   /// CUDA, before_apply: the change lists on the device (the framework's copy, shared with the
   /// device apply, or the workspace's own) and the delete phase on the resident G_t
   /// (count_update_cycles_device up to its "Delete phase on G_t").
@@ -485,77 +563,6 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
     }
   }
 
-  /// Under batch_semantics::as_sets the commit's normalized batch (apply_delta) must equal the
-  /// lists of Step 0 (Debug builds only: an O(batch) check of the graph module's two paths).
-  static void check_normalized_batch([[maybe_unused]] const graph_type& g,
-                                     [[maybe_unused]] const apply_delta<vertex_t>& delta,
-                                     [[maybe_unused]] const workspace_type& ws) {
-#ifndef NDEBUG
-    if (!g.properties().semantics.as_sets) {
-      return;
-    }
-    const auto same = [](const std::vector<edge_change<vertex_t>>& list,
-                         const std::vector<vertex_t>& src, const std::vector<vertex_t>& dst) {
-      if (list.size() != src.size() || list.size() != dst.size()) {
-        return false;
-      }
-      for (std::size_t i = 0; i < list.size(); ++i) {
-        if (list[i].source != src[i] || list[i].target != dst[i]) {
-          return false;
-        }
-      }
-      return true;
-    };
-    if (!same(ws.change.deletions, delta.delete_src, delta.delete_dst) ||
-        !same(ws.change.insertions, delta.insert_src, delta.insert_dst)) {
-      DYNG_FAIL("cycle_count::update: the normalized batch of Step 0 differs from the commit's");
-    }
-#endif
-  }
-
-  /// apply_histogram_delta(): counts[len] += added[len] - removed[len] for every length; a bucket
-  /// that would become negative throws internal_error (the original's std::logic_error) before
-  /// anything is written. The histogram grows to the new bound (it covers min(max_length,
-  /// max(n, 2)), and n grows with the graph). Only the lengths the phases reached are visited.
-  /// @return The number of lengths whose count changed.
-  static std::int64_t apply_histogram_delta(cycle_count_state& st, std::int64_t bound_after,
-                                            const std::vector<std::uint64_t>& removed,
-                                            const std::vector<std::uint64_t>& added) {
-    const std::size_t touched = std::max(removed.size(), added.size());
-    const auto delta_at = [&](std::size_t len, std::uint64_t& value, std::uint64_t& plus,
-                              std::uint64_t& minus) {
-      value = len < st.counts.size() ? st.counts[len] : 0;
-      plus = len < added.size() ? added[len] : 0;
-      minus = len < removed.size() ? removed[len] : 0;
-    };
-    // Check every bucket first, so a failure leaves the histogram as it was.
-    for (std::size_t len = 0; len < touched; ++len) {
-      std::uint64_t value = 0;
-      std::uint64_t plus = 0;
-      std::uint64_t minus = 0;
-      delta_at(len, value, plus, minus);
-      const std::uint64_t before = value;
-      cycle_count_checked_add(value, plus);
-      if (value < minus) {
-        DYNG_FAIL("cycle_count::update would make the count of length ", len,
-                  " negative (the result does not match the graph: ", before, " + ", plus, " - ",
-                  minus, ")");
-      }
-    }
-    const std::size_t size =
-        std::max({static_cast<std::size_t>(bound_after) + 1, st.counts.size(), touched});
-    st.counts.resize(size, 0);
-    std::int64_t changed = 0;
-    for (std::size_t len = 0; len < touched; ++len) {
-      const std::uint64_t plus = len < added.size() ? added[len] : 0;
-      const std::uint64_t minus = len < removed.size() ? removed[len] : 0;
-      st.counts[len] = st.counts[len] + plus - minus;
-      changed += plus != minus ? 1 : 0;
-    }
-    st.bound = static_cast<std::int64_t>(size) - 1;
-    return changed;
-  }
-
   cycle_count::result& result_;
   cycle_count::stats& out_;
   cycle_count_state* state_ = nullptr;
@@ -571,10 +578,242 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
 
 }  // namespace
 
+// ------------------------------------------------------------------------------------------------
+// cycle_count_problem: the hooks (problem.hpp), run by the framework's enactors
+// ------------------------------------------------------------------------------------------------
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::begin_update(framework::context& ctx,
+                                                                   old_graph g,
+                                                                   const requested& /*batch*/) {
+  const resources& res = ctx.res();
+  expect_supported_backend(res, "cycle_count::update");
+  state_ = &cycle_count_access::state(*result_);
+  expect_not_poisoned(*state_, "cycle_count::update");
+  const container_type& graph = g.get();
+  framework::expect_current_result("cycle_count::update", state_->version, state_->graph_state,
+                                   graph);
+  expect_graph(graph, "cycle_count::update");
+  graph_access::expect_placement(res, graph, "cycle_count::update");
+  cuda_ = ctx.on_cuda();
+  threads_ = cuda_ ? 1 : engine_threads(res);
+  // The host scratch (change lists, ownership index, per-thread marks and counters), shared with
+  // every result updated through `res` (ADR 0015); returned in end_update().
+  ws_.emplace(ctx.workspaces().acquire<workspace_type>());
+}
+
+/// Step 0 on G_t (prepare_batch).
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::normalize(framework::context& /*ctx*/,
+                                                                old_graph g,
+                                                                const requested& batch) {
+  workspace_type& ws = ws_->get();
+  const container_type& graph = g.get();
+  normalized_ = batch.normalized;
+  if (normalized_ != nullptr) {
+    // Normalized once by the framework (run_update(), stage <algo>.normalize; ADR 0020): its lists
+    // become the engines' change lists.
+    copy_changes(normalized_->deletions, ws.change.deletions);
+    copy_changes(normalized_->insertions, ws.change.insertions);
+  } else {
+    compute_structural_change(graph_access::out_view(graph), batch.edges, graph.properties(),
+                              ws.change);
+  }
+}
+
+/// before_apply = count(-): the owned cycles through the deleted edges, on G_t (the delete phase
+/// of update_static_histogram).
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::count(framework::context& /*ctx*/,
+                                                            old_graph g, frontier& /*f*/,
+                                                            framework::sign s,
+                                                            ownership_type /*rule*/) {
+  (void)s;  // sign::minus: the enactor subtracts on G_t
+  workspace_type& ws = ws_->get();
+  const container_type& graph = g.get();
+  bound_before_ = histogram_bound(state_->opt, graph);
+  ws.reserve(threads_, static_cast<std::size_t>(graph.num_vertices()));
+  ws.removed.clear();
+  ws.index.assign(ws.change.deletions);  // ownership::min_member over the deletions
+  run_host_phase(graph, ws.change.deletions, static_cast<std::size_t>(bound_before_), ws.removed);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::resume(framework::context& /*ctx*/,
+                                                             new_graph g, const applied& applied) {
+  const container_type& graph = g.get();
+  check_normalized_batch(graph, applied.delta, ws_->get());
+  bound_after_ = histogram_bound(state_->opt, graph);
+}
+
+/// The inserted edges and their ownership index, on G_{t+1}.
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::identify_affected(
+    framework::context& /*ctx*/, [[maybe_unused]] new_graph g, const applied& /*applied*/,
+    frontier& /*f*/) {
+  workspace_type& ws = ws_->get();
+#if !defined(DYNG_MUTATION_SKIP_WORKSPACE_RESIZE)
+  ws.reserve(threads_, static_cast<std::size_t>(g->num_vertices()));
+#endif
+  ws.added.clear();
+  ws.index.assign(ws.change.insertions);  // ownership::min_member over the insertions
+}
+
+/// update(): count(+), the owned cycles through the inserted edges on G_{t+1} (the insert phase);
+/// compute(): the static count (count_simple_cycles_johnson[_openmp]).
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::count(framework::context& ctx, new_graph g,
+                                                            frontier& /*f*/, framework::sign s,
+                                                            ownership_type /*rule*/) {
+  (void)s;  // sign::plus: the enactor adds on G_{t+1} (and counts the whole graph in compute())
+  const container_type& graph = g.get();
+  if (computing_) {
+    const cycle_graph<vertex_t, edge_t> cg = engine_graph(graph);
+    if (ctx.get_backend() == backend::openmp) {
+      cycle_count_openmp_compute(cg, state_->opt.max_length, engine_threads(ctx.res()),
+                                 state_->counts);
+    } else {
+      cycle_count_sequential_compute(cg, state_->opt.max_length, state_->counts);
+    }
+    return;
+  }
+  workspace_type& ws = ws_->get();
+  run_host_phase(graph, ws.change.insertions, static_cast<std::size_t>(bound_after_), ws.added);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::finalize(framework::context& /*ctx*/,
+                                                               stats_type& stats) {
+  if (computing_) {
+    framework::stamp_result(state_->version, state_->graph_state, *static_graph_);
+    return;
+  }
+  // apply_histogram_delta: the signed delta, checked before anything is written.
+  const workspace_type& ws = ws_->get();
+  stats.affected = apply_histogram_delta(*state_, bound_after_, ws.removed, ws.added);
+  stats.cycles_removed = checked_total(ws.removed);
+  stats.cycles_added = checked_total(ws.added);
+  fill_counts(stats);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::fill_counts(stats_type& stats) const {
+  const workspace_type& ws = ws_->get();
+  stats.iterations = 0;
+  stats.frontier_visits =
+      static_cast<std::int64_t>(ws.change.deletions.size() + ws.change.insertions.size());
+  stats.deletions = static_cast<std::int64_t>(ws.change.deletions.size());
+  stats.insertions = static_cast<std::int64_t>(ws.change.insertions.size());
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::end_update(framework::context& /*ctx*/,
+                                                                 new_graph g,
+                                                                 const stats_type& /*stats*/) {
+  framework::stamp_result(state_->version, state_->graph_state, g.get());
+  ws_.reset();  // return the workspace to the pool
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::poison() noexcept {
+  if (state_ != nullptr) {
+    state_->poisoned = true;
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& /*ctx*/,
+                                                                  new_graph g) {
+  static_graph_ = &g.get();
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::reset(framework::context& /*ctx*/) {
+  state_->counts.assign(static_cast<std::size_t>(state_->bound) + 1, 0);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void cycle_count_problem<vertex_t, edge_t, weight_t>::run_host_phase(
+    const container_type& g, const std::vector<edge_change<vertex_t>>& changes,
+    std::size_t max_length, std::vector<std::uint64_t>& phase) {
+  workspace_type& ws = ws_->get();
+  if (threads_ > 1) {
+    cycle_count_openmp_phase(engine_graph(g), changes, max_length, threads_, ws, phase);
+  } else {
+    cycle_count_sequential_phase(engine_graph(g), changes, max_length, ws, phase);
+  }
+}
+
+namespace {
+
+/// Whether a backend runs cycle_count through the framework's enactors (M3 migration: one backend
+/// after the other; the others keep the M2 participant until their own commit).
+bool on_framework(const resources& res) noexcept {
+  return res.get_backend() == backend::sequential;
+}
+
+/// The participant of one result during the M3 migration: the framework's participant of
+/// cycle_count_problem on the migrated backends, the M2 participant on the others. The backend is
+/// known only in before_apply(), so the choice is made there.
+template <typename vertex_t, typename edge_t, typename weight_t>
+class cycle_count_migration_participant final
+    : public update_participant<vertex_t, edge_t, weight_t> {
+ public:
+  using graph_type = graph<vertex_t, edge_t, weight_t>;
+  using batch_type = edge_batch_view<vertex_t, weight_t>;
+  using problem_type = cycle_count_problem<vertex_t, edge_t, weight_t>;
+
+  cycle_count_migration_participant(cycle_count::result& r, cycle_count::stats& out)
+      : result_(r), out_(out) {}
+
+  [[nodiscard]] const void* target() const noexcept override {
+    return &result_;
+  }
+
+  [[nodiscard]] bool reads_prepared_graph() const noexcept override {
+    return false;  // both read the out-edges only
+  }
+
+  void use_normalized(const normalized_batch<vertex_t>* normalized) noexcept override {
+    normalized_ = normalized;
+  }
+
+  void before_apply(const resources& res, const graph_type& g, const batch_type& batch) override {
+    if (on_framework(res)) {
+      chosen_ = &framework_.emplace(out_, result_);
+    } else {
+      chosen_ = &legacy_.emplace(result_, out_);
+    }
+    chosen_->use_normalized(normalized_);
+    chosen_->before_apply(res, g, batch);
+  }
+
+  void after_apply(const resources& res, const graph_type& g, const apply_summary& summary,
+                   const apply_delta<vertex_t>& delta) override {
+    chosen_->after_apply(res, g, summary, delta);
+  }
+
+  void poison() noexcept override {
+    if (chosen_ != nullptr) {
+      chosen_->poison();
+    }
+  }
+
+ private:
+  cycle_count::result& result_;
+  cycle_count::stats& out_;
+  const normalized_batch<vertex_t>* normalized_ = nullptr;
+  std::optional<framework::problem_participant<problem_type>> framework_;
+  std::optional<cycle_count_legacy_participant<vertex_t, edge_t, weight_t>> legacy_;
+  update_participant<vertex_t, edge_t, weight_t>* chosen_ = nullptr;
+};
+
+}  // namespace
+
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<update_participant<vertex_t, edge_t, weight_t>> make_cycle_count_participant(
     cycle_count::result& r, cycle_count::stats& out) {
-  return std::make_unique<cycle_count_participant<vertex_t, edge_t, weight_t>>(r, out);
+  return std::make_unique<cycle_count_migration_participant<vertex_t, edge_t, weight_t>>(r, out);
 }
 
 }  // namespace dyng::detail
@@ -704,6 +943,16 @@ cycle_count::result cycle_count_compute(const resources& res,
     state->graph_state = detail::graph_access::impl(g).state_id;
     return detail::cycle_count_access::make(std::move(state));
   }
+  if (detail::on_framework(res)) {
+    // The static enactor: reset -> count -> finalize.
+    using problem_type = detail::cycle_count_problem<vertex_t, edge_t, weight_t>;
+    problem_type problem(*state);
+    detail::framework::context ctx(res, problem_type::name);
+    const detail::framework::new_view<graph<vertex_t, edge_t, weight_t>> view(g);
+    problem.bind_static(ctx, view);
+    (void)detail::framework::static_enactor<problem_type>(problem).run(ctx, view);
+    return detail::cycle_count_access::make(std::move(state));
+  }
   const detail::cycle_graph<vertex_t, edge_t> cg = detail::engine_graph(g);
   detail::cycle_count_hook(res, "cycle_count.reset", [&] {
     state->counts.assign(static_cast<std::size_t>(state->bound) + 1, 0);
@@ -731,7 +980,7 @@ cycle_count::stats cycle_count_update(const resources& res, graph<vertex_t, edge
                                       cycle_count::result& r) try {
   scoped_stage stage(res, "cycle_count.update");
   cycle_count::stats out;
-  detail::cycle_count_participant<vertex_t, edge_t, weight_t> participant(r, out);
+  detail::cycle_count_migration_participant<vertex_t, edge_t, weight_t> participant(r, out);
   detail::update_participant<vertex_t, edge_t, weight_t>* participants[] = {&participant};
   detail::run_update(res, g, batch, participants, 1, "cycle_count.commit");
   return out;
