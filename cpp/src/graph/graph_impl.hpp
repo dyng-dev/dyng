@@ -164,7 +164,8 @@ class graph_impl {
 
   /**
    * @brief The host out-edges, downloaded from the device copy first if a device apply left them
-   *        stale (thread-safe; a synchronous copy on the graph's device).
+   *        stale (thread-safe; download_device_graph: copies ordered on the stream of the state's
+   *        buffers, then a synchronization of that stream).
    * @return The out-edge CSR, valid until the graph changes.
    */
   const csr_type& host_edges() const;

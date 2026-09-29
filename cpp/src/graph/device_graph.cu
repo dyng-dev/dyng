@@ -13,7 +13,8 @@
  * cudaDeviceSynchronize() at the end (the caller's next work is ordered on the same stream), and
  * the in-edges built in a second function (build_device_in_edges), only for the engines that read
  * them. The host CSR already stores its weights objective-major, so they are uploaded as they are
- * and the split kernel (edge-major to objective-major) is gone.
+ * and the split kernel (edge-major to objective-major) is gone. The download of a stale host copy
+ * (download_device_graph) is ordered on the stream the state was built on.
  */
 #include "core/cuda_runtime.hpp"
 #include "graph/device_graph.hpp"
@@ -27,6 +28,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 namespace dyng::detail {
@@ -151,18 +153,29 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void download_device_graph(const device_graph<vertex_t, edge_t, weight_t>& g,
                            csr<vertex_t, edge_t, weight_t>& host) {
   const scoped_device guard(g.device);
-  host.num_weights = g.num_weights;
-  host.row_ptr.resize(g.out_row_ptr.size());
-  host.col_ind.resize(g.out_col_ind.size());
-  host.weights.resize(g.out_weights.size());
-  const auto copy = [](auto* dst, const auto* src, std::size_t count) {
+  // The stream of the resources that built this state (its buffers are ordered on it, and the
+  // resources contract keeps it alive while they exist); never the legacy default stream.
+  const auto stream = static_cast<cudaStream_t>(g.out_row_ptr.stream().get());
+  const auto copy = [stream](auto& dst, const auto& src) {
+    const std::size_t count = src.size();
+    if (dst.capacity() < count) {
+      // The stale content need not survive: release it before the larger array is allocated (no
+      // copy of the old elements), with room for a few batches of growth, so a chain of growing
+      // states does not reallocate at every download.
+      std::remove_reference_t<decltype(dst)>().swap(dst);
+      dst.reserve(count + count / 16);
+    }
+    dst.resize(count);
     if (count > 0) {
-      DYNG_CUDA_TRY(cudaMemcpy(dst, src, count * sizeof(*dst), cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(dst.data(), src.data(), count * sizeof(*dst.data()),
+                                    cudaMemcpyDeviceToHost, stream));
     }
   };
-  copy(host.row_ptr.data(), g.out_row_ptr.data(), host.row_ptr.size());
-  copy(host.col_ind.data(), g.out_col_ind.data(), host.col_ind.size());
-  copy(host.weights.data(), g.out_weights.data(), host.weights.size());
+  host.num_weights = g.num_weights;
+  copy(host.row_ptr, g.out_row_ptr);
+  copy(host.col_ind, g.out_col_ind);
+  copy(host.weights, g.out_weights);
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
 #define DYNG_INSTANTIATE_DEVICE_GRAPH(V, E, W)                                            \

@@ -136,9 +136,13 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void build_device_in_edges(const resources& res, device_graph<vertex_t, edge_t, weight_t>& g);
 
 /**
- * @brief Copy the out-edges of a device graph into a host CSR (the download of a stale host copy;
- *        synchronous, on the legacy default stream of the graph's device, after the device apply
- *        that produced the state completed).
+ * @brief Copy the out-edges of a device graph into a host CSR (the download of a stale host copy,
+ *        for a host read of a graph whose state a device apply produced): asynchronous copies on
+ *        the stream the state's buffers are ordered on (the stream of the resources that built it;
+ *        never the legacy default stream), then a synchronization of that stream. The copies go
+ *        straight into the CSR's pageable vectors (a pinned staging copy would add a host copy of
+ *        the whole graph); a vector that must grow is released first and reserved with room for
+ *        growth, so the stale content is never copied.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
