@@ -244,6 +244,9 @@ Before 0.1.0 anything may change.
 
 ### Changed
 
+- `.github/workflows/welcome.yml` no longer greets owners, organization members and repository
+  collaborators (the event's `author_association`); first-time outside contributors are greeted
+  as before.
 - The default edge offset type is `int32`: `dyng::graph<>` is `graph<int32, int32, int32>`, and
   building or updating a graph past 2^31 - 1 edges throws `capacity_error` naming the int64
   instantiation (ADR 0009, from the `edge_t` benchmark).
