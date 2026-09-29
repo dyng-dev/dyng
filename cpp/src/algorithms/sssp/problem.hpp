@@ -4,33 +4,47 @@
 // SospStats, defaultDelta, DISTANCE_INF)
 /**
  * @file problem.hpp
- * @brief The sssp problem: state, workspace, per-objective inputs and the hook enactors shared by
- *        the sequential and OpenMP backends.
+ * @brief The sssp problem on the framework (cpp/src/framework): its hooks, its state and
+ *        workspaces, the per-objective inputs, and the engines of the host backends.
  *
  * Template card (PLAN Section 4.5.2):
  *
  *     normalize -> translate -> prepare -> [before_apply] -> commit ->
  *     identify_affected -> seed -> { FP: loop until is_converged } -> finalize
  *
- * sssp is a fixed-point problem. Its hooks:
+ * sssp is a fixed-point problem (sssp_problem below; its members are defined in sssp.cpp, which
+ * runs it through framework::update_enactor and framework::static_enactor). Its hooks:
+ *   - begin_update (no stage): the backend, stale-result and poisoned checks, the graph's
+ *     requirements, the placements and the CUDA engine, before anything changes;
  *   - prepare (sssp.prepare, on G_t): largest weight and weight sum of the objective (MOSP
  *     computes them on the graph before the batch), the default near-far width, input checks;
- *   - commit (sssp.commit): graph::apply under the graph's batch_semantics, with the per-edge
- *     classification (apply_delta: deletions and per-objective weight increases);
+ *   - commit (sssp.commit, run_update()): graph::apply under the graph's batch_semantics, with the
+ *     per-edge classification (apply_delta: deletions and per-objective weight increases);
+ *   - resume (no stage of its own): grow the result for new vertices, lease and size the pooled
+ *     workspace (sssp.workspace), build the objective's change list (on CUDA uploaded in
+ *     sssp.changes) and bind the backend's engine;
  *   - identify_affected (sssp.identify_affected): roots = heads of deleted or weight-increased
  *     tree edges (judged against the old parents); their subtrees are invalidated;
  *   - seed (sssp.seed): invalidated vertices and insertion heads pull their best (distance,
  *     lowest id) over their in-neighbours;
- *   - loop (sssp.loop): propagate decreases until no distance changes;
- *   - finalize (sssp.finalize): write distances and parents, count the affected vertices.
+ *   - loop (sssp.loop): propagate decreases until no distance changes (the frontier is internal:
+ *     one call runs Step 2 to its fixed point inside the engine);
+ *   - finalize (sssp.finalize): write distances and parents, count the affected vertices, fill
+ *     the stats;
+ *   - end_update (no stage): record the graph state the result matches, return the workspace.
  * compute() is the static enactor: reset -> seed_static (the source) -> loop -> finalize.
  *
- * The code stays organized by these hooks so that M3 can extract the framework
- * (cpp/src/framework) without rewriting the engines.
+ * The engines behind the Tier A hooks are sssp_sequential_engine (sequential.cpp, the reference
+ * backend) and sssp_openmp_engine (openmp.cpp, MOSP-OpenMP's sospUpdateCpu); the problem binds the
+ * one of the call's backend in resume() (in compute(), in bind_static()).
  */
 #pragma once
 
+#include "framework/context.hpp"
+#include "framework/frontier.hpp"
+#include "framework/problem.hpp"
 #include "framework/scratch_buffer.hpp"
+#include "framework/views.hpp"
 #include "framework/workspace.hpp"
 #include "util/thread_list.hpp"
 
@@ -40,10 +54,13 @@
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
+#include <dyng/graph/graph.hpp>
 #include <dyng/sssp.hpp>
 
 #include <cstdint>
 #include <limits>
+#include <optional>
+#include <string_view>
 #include <vector>
 
 namespace dyng::detail {
@@ -396,26 +413,56 @@ struct sssp_run {
 };
 
 /**
- * @brief Sequential backend: the update (adapted from sequentialSOSPUpdate()).
+ * @brief The sequential engine (sequential.cpp): the hooks of the reference backend, adapted from
+ *        MOSP-OpenMP's sequentialSOSPUpdate() (see sequential.cpp).
+ *
+ * Bound to one run: the constructor sizes the pooled workspace's sequential arrays and resets the
+ * counters; the hooks are called in the enactors' order (update: identify_affected, seed, loop,
+ * finalize; compute: reset, seed_static, loop, finalize).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
- * @param[in]     res Resources.
- * @param[in,out] run The run.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp_sequential_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+class sssp_sequential_engine {
+ public:
+  /**
+   * @brief Bind the engine to a run.
+   * @param[in,out] run The run (must outlive the engine; `run.ws` set).
+   */
+  explicit sssp_sequential_engine(sssp_run<vertex_t, edge_t, weight_t>& run);
 
-/**
- * @brief Sequential backend: compute() (the same loop from the source).
- * @tparam vertex_t Vertex id type.
- * @tparam edge_t   Edge offset type.
- * @tparam weight_t Weight type.
- * @param[in]     res Resources.
- * @param[in,out] run The run.
- */
-template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp_sequential_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+  /// compute(): every vertex unreachable, the source at distance 0.
+  void reset();
+  /// compute(): the source is the first affected vertex.
+  void seed_static();
+  /// update(): roots and subtree invalidation (a traversal of the old tree's children lists).
+  /// @throws invalid_argument_error if the input tree has a parent cycle.
+  void identify_affected();
+  /// update(): the invalidated vertices and the insertion heads pull their best in-neighbour.
+  void seed();
+  /// Step 2: the affected vertices push (distance, parent id) offers until no distance decreases.
+  /// @throws internal_error if the propagation does not settle within n rounds.
+  void loop();
+  /// Parent recovery of the distance-only mode, then `affected`.
+  void finalize();
+
+ private:
+  void recover_parents();
+  void count_affected();
+  template <typename is_root_t>
+  void expect_no_rootless_cycle(const is_root_t& is_root);
+  void save(vertex_t v);
+  void mark_affected(vertex_t v);
+  bool relax(vertex_t v);
+
+  sssp_run<vertex_t, edge_t, weight_t>& run_;
+  sssp_workspace<vertex_t>& ws_;
+  std::int64_t n_;
+  int affected_generation_ = 0;
+  bool count_changes_ = true;
+  bool packed_parents_ = true;
+};
 
 /**
  * @brief OpenMP backend: the update (MOSP-OpenMP's sospUpdateCpu()).
@@ -469,5 +516,140 @@ void sssp_cuda_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_cuda_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+
+namespace framework {
+template <typename vertex_t, typename weight_t>
+struct requested_batch;
+template <typename vertex_t>
+struct applied_batch;
+}  // namespace framework
+
+/**
+ * @brief The sssp problem (family::fixed_point) that framework::update_enactor and
+ *        framework::static_enactor run: the hooks of the file comment. Its members are defined in
+ *        sssp.cpp, the only translation unit that runs it.
+ *
+ * One problem serves one call: an update of one result (constructed from the result; the
+ * participant adapter of framework/composition.hpp owns it) or a compute() (constructed from the
+ * state being built, then bind_static()). Between resume() / bind_static() and end_update() /
+ * the problem's destruction it holds the lease of the pooled workspace, the run of the engine
+ * and the engine of the call's backend.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t, edge_t, weight_t>,
+                                                          framework::family::fixed_point> {
+ public:
+  static constexpr std::string_view name = "sssp";                   ///< stages "sssp.<hook>"
+  using container_type = graph<vertex_t, edge_t, weight_t>;          ///< the container
+  using stats_type = sssp::stats;                                    ///< the stats of update()
+  using result_type = sssp::result<vertex_t, std::int64_t>;          ///< the result it updates
+  using state_type = sssp_state<vertex_t, std::int64_t>;             ///< the state behind a result
+  using old_graph = framework::old_view<container_type>;             ///< G_t
+  using new_graph = framework::new_view<container_type>;             ///< G_{t+1}
+  using requested = framework::requested_batch<vertex_t, weight_t>;  ///< the batch before commit
+  using applied = framework::applied_batch<vertex_t>;                ///< what the commit did
+  using frontier = framework::internal_frontier;                     ///< frontiers are internal
+
+  /**
+   * @brief The problem of one update of `r`.
+   * @param[in,out] r The result (must outlive the problem).
+   */
+  explicit sssp_problem(result_type& r) noexcept : result_(&r) {}
+
+  /**
+   * @brief The problem of one compute() that fills `st` (bind_static() follows).
+   * @param[in,out] st The state of the result being built (must outlive the problem).
+   */
+  explicit sssp_problem(state_type& st) noexcept : state_(&st) {}
+
+  // ---- lifecycle (no stage) ------------------------------------------------------------------
+
+  /**
+   * @brief The result this problem updates.
+   * @return Its address (nullptr for compute()).
+   */
+  [[nodiscard]] const void* target() const noexcept {
+    return result_;
+  }
+
+  /**
+   * @brief Validate the call before Step 0: backend, poisoned and stale result, the graph's
+   *        requirements, the placements, the CUDA engine, the vertex count.
+   * @throws not_supported_error, stale_result_error, invalid_argument_error.
+   */
+  void begin_update(framework::context& ctx, old_graph g, const requested& batch);
+
+  /**
+   * @brief Re-bind to G_{t+1}: grow the result, lease and size the workspace (sssp.workspace),
+   *        build the objective's change list (cuda: uploaded in sssp.changes), bind the engine.
+   * @throws invalid_argument_error if the distances no longer fit in 62 bits.
+   */
+  void resume(framework::context& ctx, new_graph g, const applied& applied);
+
+  /**
+   * @brief Record the graph state the result matches; return the workspace.
+   */
+  void end_update(framework::context& ctx, new_graph g, const stats_type& stats);
+
+  /**
+   * @brief Mark the result unusable (its algorithm phase failed).
+   */
+  void poison() noexcept;
+
+  /**
+   * @brief compute(): lease and size the workspace (sssp.workspace), bind the engine of the
+   *        call's backend to the state's arrays.
+   * @param[in,out] ctx        The run's context.
+   * @param[in]     g          The graph.
+   * @param[in]     delta      The near-far width (> 0).
+   * @param[in]     max_weight The largest weight of the objective.
+   */
+  void bind_static(framework::context& ctx, new_graph g, std::int64_t delta,
+                   std::int64_t max_weight);
+
+  // ---- Step 0, on G_t --------------------------------------------------------------------------
+
+  /**
+   * @brief sssp.prepare: batch checks, largest weight and weight sum of the objective, the
+   *        near-far width, the 62-bit check (MOSP's per-objective preparation).
+   * @throws invalid_argument_error for a malformed batch or distances that would not fit.
+   */
+  void prepare(framework::context& ctx, old_graph g, const requested& batch);
+
+  // ---- Tier A, on G_{t+1} ----------------------------------------------------------------------
+
+  /// sssp.identify_affected: the engine's roots and subtree invalidation.
+  void identify_affected(framework::context& ctx, new_graph g, const applied& applied, frontier& f);
+  /// sssp.seed: the engine's pull pass.
+  void seed(framework::context& ctx, new_graph g, frontier& f);
+  /// sssp.loop: the engine's propagation, to the fixed point (one call).
+  void loop(framework::context& ctx, new_graph g, frontier& in, frontier& out);
+  /// sssp.finalize: the engine's unpack and `affected`, then the stats.
+  void finalize(framework::context& ctx, stats_type& stats);
+
+  // ---- compute(), static enactor ---------------------------------------------------------------
+
+  /// sssp.reset: every vertex unreachable, the source at 0.
+  void reset(framework::context& ctx);
+  /// sssp.seed: the source.
+  void seed_static(framework::context& ctx, new_graph g, frontier& f);
+
+ private:
+  /// Run `fn` on the bound engine.
+  template <typename fn_t>
+  void on_engine(fn_t&& fn);
+
+  result_type* result_ = nullptr;   ///< update(): the result
+  state_type* state_ = nullptr;     ///< its state (bound in begin_update), or compute()'s state
+  std::int64_t max_weight_ = 1;     ///< largest weight before or after the batch (prepare)
+  std::int64_t delta_ = 1;          ///< near-far width (prepare)
+  sssp_changes<vertex_t> changes_;  ///< the objective's change list (resume)
+  sssp_run<vertex_t, edge_t, weight_t> run_;  ///< the engine's run (resume, bind_static)
+  std::optional<workspace_pool::lease<sssp_workspace<vertex_t>>> host_ws_;        ///< host scratch
+  std::optional<sssp_sequential_engine<vertex_t, edge_t, weight_t>> sequential_;  ///< engine
+};
 
 }  // namespace dyng::detail
