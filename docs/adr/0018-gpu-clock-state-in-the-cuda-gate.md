@@ -161,31 +161,3 @@ What this changes:
   (which measures the GPU's DVFS response to the work each program does before its kernels, not
   the port) should also be gated. Until the author says so, the locked-clock reading is the
   gate, as rule 4 proposed.
-
-## Update (M2b, 2026-09-28): the `cycle_count` CUDA gate and the power cap
-
-The `cycle_count` CUDA gate (`parity/cycle_count_perf.py run --backend cuda`, M2b acceptance
-criterion 4) is read the same way: both programs on GPU 0 with the clocks locked by the idle
-helper, every busy sample checked. Two things differ from `sssp`:
-
-- **Long counting kernels meet the power cap.** A static count of 40-60 ms (GitHub and Twitch
-  k = 4, COLLAB k = 3) or the 6.5 s prior of the COLLAB update draws enough power that the driver
-  lowers the SM clock below the locked 1695 MHz ("SW power cap"; the GPU's power limit is its
-  default, 230 W). For the static kernels this happens in some rounds and on both sides
-  alike (the kernels are the same code with the same registers); the monitor repeats every round
-  in which a busy sample is off the lock. The COLLAB update cannot be read at `boost` at all: its
-  prior runs under the cap for seconds, so every round was rejected (22 in a row before the harness
-  gave up on the case). **This case is read with `--lock-clocks base`** (SM 1170 MHz, memory
-  7601 MHz), where the clocks hold for the whole process on both sides; the lock is still applied
-  equally to both programs and checked in every busy sample, which is the rule of option B. The
-  record says so (`M2b-cuda-perf-cycle_count-collab-update-base.json`), and the default-clock
-  reading of the case is recorded next to it, ungated, like every other case.
-- **The monitor samples every 50 ms.** A kernel shorter than a sample can fall between busy
-  samples, so the record now also gives, per side, the lowest SM clock of any sample and the
-  number of busy samples (`gpu_summary`; `parity/results/M2b.md` section 4). Samples below the
-  lock that were not busy appear on both sides in the same cases.
-
-Neither point changes the decision: the gate is read at locked clocks, applied equally, and a
-case whose GPU cannot hold the higher lock uses the lower one. The author may prefer another
-treatment of the COLLAB update (for example a lowered power limit, which needs root); it is
-listed among the open items of M2b.

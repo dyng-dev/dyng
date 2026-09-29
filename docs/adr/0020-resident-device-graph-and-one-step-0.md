@@ -1,7 +1,9 @@
 # ADR 0020: The resident device graph under set semantics, and Step 0 once per update
 
-- **Status:** Accepted (M2b, step cycle-cuda)
-- **Date:** 2026-09-28
+- **Status:** Proposed (M2b, step cycle-cuda; amended by the M2b review: points 7-10). Awaiting
+  the author's acceptance, which GOVERNANCE.md's approvals log will record (the first version said
+  "Accepted" although no acceptance had been given).
+- **Date:** 2026-09-28 (amended 2026-09-29)
 - **Deciders:** S M Shovan (lead maintainer)
 
 ## Context
@@ -52,9 +54,9 @@ avoids on CUDA (its device merge reads the prepared batch).
    before (M1b).
 
 3. **The host CSR of such a graph is a lazily downloaded copy.** After a device apply the host
-   CSR is stale; `graph_impl::host_edges()` downloads it (a synchronous copy on the graph's device)
-   the first time anything reads it: `view()`, `to_csr()`, `check_integrity()`, `clone()`, a host
-   apply, the host engines, Step 0 of the next batch. `num_vertices()` and `num_edges()` never
+   CSR is stale; `graph_impl::host_edges()` downloads it (point 8) the first time anything reads
+   it: `view()`, `to_csr()`, `check_integrity()`, `clone()`, a host apply, the host engines. Step 0
+   of the next batch no longer reads it (point 7). `num_vertices()` and `num_edges()` never
    download (they read the device copy's counts). The download is thread-safe like the lazy
    transposition; mutating calls happen only from the owner of the graph.
 
@@ -76,16 +78,54 @@ avoids on CUDA (its device merge reads the prepared batch).
    second m-int array alive during the merge. The graph module still owns the function; the
    algorithm only asks for it earlier.
 
+7. **Step 0 of a stale-host graph runs against the device copy** (M2b review).
+   `graph_access::normalize()` normalizes against the host CSR while it is current, and otherwise
+   (a device apply produced the state) with `normalize_set_batch_device()`: the requested lists are
+   built, sorted and deduplicated on the host exactly as before, and the only thing Step 0 reads of
+   G_t, the membership of each requested change (`has_edge`), is answered on the device by
+   `edge_membership_kernel` (one binary search per change in its sorted row), through the pinned
+   staging and device buffers of the pooled normalized batch. Both paths share one core with a
+   membership callback, so their lists and counters are identical
+   (`CycleCountCuda.DeviceStepZeroEqualsTheHostStepZero`). A chain of updates therefore never
+   downloads the graph: the first version downloaded all of G_t in every update after the first
+   (15 + 88 MB per update on Twitch), and a growing graph reallocated the host arrays (a 26 ms
+   spike), which the resident scope of the gate, measured on the first update only, did not see.
+   The chain is now measured (`--chain`, regions `update_chain_steady` / `update_chain_worst`).
+
+8. **The download is ordered on the state's own stream** (M2b review). `download_device_graph()`
+   used a synchronous `cudaMemcpy` on the legacy default stream, which PLAN 4.7.1 rules out (it
+   waits for every blocking stream of the device). It now enqueues `cudaMemcpyAsync` on the stream
+   the state's buffers are ordered on (the stream of the resources that built it, which the
+   resources contract keeps alive as long as the buffers) and synchronizes that stream. The copies
+   go straight into the CSR's pageable vectors, not through pinned staging: a staged copy would add
+   a host copy of the whole graph, and after point 7 a download happens only on an explicit host
+   read. A vector that must grow is released first and reserved with room for growth (no copy of
+   stale content).
+
+9. **Self-loop change edges are skipped by the phases** (M2b review). Under `as_sets` with
+   `self_loop::keep` the normalized batch keeps a self-loop as a change edge (the graph stores the
+   loop), while `compute_structural_change()` and the original's `prepare_batch()` drop it. The
+   phases counted a spurious 2-cycle through it on every backend. A self-loop lies on no simple
+   cycle of length >= 2, so the phases skip it without renumbering the ids
+   (`count_cycles_through_edge()` returns 0, `item_counts_kernel` gives it no work items); its id
+   never decides an ownership, so the device insertion ids and deletion marks, indexed by the
+   normalized positions, stay valid.
+
+10. **The device apply's scratch is pooled** (M2b review). The change rows of both lists, the
+    degrees and the scan's CUB scratch live in the pooled normalized batch and are reallocated only
+    to grow, so a steady workload allocates only the three arrays of G_{t+1} (invariant I9,
+    `CycleCountCuda.SteadyStateUpdatesAllocateOnlyTheNextGraph`). The peak device memory is
+    unchanged: the scratch was live at the apply's peak before as well.
+
 ## Consequences
 
 - cycle_count's CUDA update in the original's scope (G_t uploaded inside the call) costs Step 0,
   the upload, the phases and the merge, as the original; in the resident scope the upload is gone.
   Both are measured (`parity/timed_regions/cycle_count.toml`, `[reference.cycle_enum_cuda]`).
-- A chain of updates on the device downloads nothing as long as nobody reads the host CSR, except
-  Step 0 of the next batch, which binary-searches the host rows of G_t: the second update of a
-  chain downloads G_t once (about what the original's upload costs). A device Step 0 (sorting and
-  classifying the batch on the device) would remove that download; it is not part of the port and
-  is recorded as future work (docs/developer/retrospectives/M2b.md).
+- A chain of updates on the device downloads nothing as long as nobody reads the host CSR (point
+  7). The sort and deduplication of Step 0 stay on the host, as the original's `prepare_batch()`
+  (a radix sort whose cost does not depend on the order of the batch; `sort_and_dedup`); a fully
+  device Step 0 remains future work.
 - Weighted graphs and graphs with other batch semantics keep the M1b behaviour (host apply,
   re-upload); the cycle_count update then builds its insert-phase owner array itself
   (`mark_owners_kernel` on G_{t+1}). A device merge of weight columns, and the append-order device
