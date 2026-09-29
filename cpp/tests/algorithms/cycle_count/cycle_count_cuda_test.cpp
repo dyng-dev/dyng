@@ -280,6 +280,93 @@ TEST_F(CycleCountCuda, EverySchedulerAndWorkItemAgree) {
   }
 }
 
+// ---- larger graphs: persistent threads claim several work items -------------------------------
+
+// CycleEnumeration-GPU's CudaCountersMatchBruteForceOnLargerGraphs (device part): the sparse and
+// hub-heavy shapes, the last one dense enough (about 23 edges per vertex) for automatic two-hop
+// items at k = 4, with every scheduler and kind of work item; then a graph with far more roots
+// than resident device threads, so every thread of the persistent kernels claims several items.
+TEST_F(CycleCountCuda, CountersMatchBruteForceOnLargerGraphs) {
+  using items = cycle_count::cuda_work_items;
+  const std::pair<cycle_count::cuda_scheduler, items> configs[] = {
+      {cycle_count::cuda_scheduler::naive, items::automatic},
+      {cycle_count::cuda_scheduler::work_queue, items::automatic},
+      {cycle_count::cuda_scheduler::work_queue, items::roots},
+      {cycle_count::cuda_scheduler::work_queue, items::edges},
+      {cycle_count::cuda_scheduler::work_queue, items::two_hop}};
+  struct shape {
+    std::int64_t vertices;
+    double probability;
+    std::int64_t hubs;
+    int k;
+  };
+  std::mt19937_64 rng(99);
+  for (const shape& c :
+       {shape{40, 0.12, 0, 6}, shape{60, 0.05, 2, 5}, shape{30, 0.3, 0, 5}, shape{80, 0.03, 3, 6},
+        shape{50, 0.06, 1, 7}, shape{25, 0.5, 0, 4}, shape{40, 0.6, 0, 4}}) {
+    dyng::test::cc_spec spec;
+    spec.vertex_count = c.vertices;
+    spec.edge_probability = c.probability;
+    spec.hubs = c.hubs;
+    spec.self_loop_probability = 0.05;
+    const std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+    const graph_u g = cc_graph<graph_u>(cuda_, c.vertices, edges);
+    const graph_u32 g32 = cc_graph<graph_u32>(cuda_, c.vertices, edges);
+    const hist expected =
+        dyng::test::cc_brute(seq_, cc_graph<graph_u>(seq_, c.vertices, edges), c.k);
+    SCOPED_TRACE(::testing::Message() << "n=" << c.vertices << " k=" << c.k);
+    for (const auto& [scheduler, work] : configs) {
+      cycle_count::options opt = bound(c.k);
+      opt.scheduler = scheduler;
+      opt.work_items = work;
+      SCOPED_TRACE(::testing::Message() << "scheduler " << static_cast<int>(scheduler) << " items "
+                                        << static_cast<int>(work));
+      EXPECT_EQ(cc_counts(cycle_count::compute(cuda_, g, opt)), expected);
+      EXPECT_EQ(cc_counts(cycle_count::compute(cuda_, g32, opt)), expected);
+    }
+  }
+
+  // 300,000 vertices with mostly local edges (short cycles exist), both directions of each pair.
+  constexpr std::int32_t large = 300000;
+  std::uniform_int_distribution<std::int32_t> vertex(0, large - 1);
+  std::vector<cc_edge> pairs;
+  pairs.reserve(6 * static_cast<std::size_t>(large));
+  for (std::int32_t i = 0; i < 3 * large; ++i) {
+    const std::int32_t u = vertex(rng);
+    const auto v =
+        static_cast<std::int32_t>((u + 1 + static_cast<std::int32_t>(rng() % 6)) % large);
+    pairs.emplace_back(u, v);
+    pairs.emplace_back(v, u);
+  }
+  std::sort(pairs.begin(), pairs.end());
+  pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());
+  graph_u32 g = cc_graph<graph_u32>(cuda_, large, pairs);
+  graph_u32 gs = cc_graph<graph_u32>(seq_, large, pairs);
+  cycle_count::result rs = cycle_count::compute(seq_, gs, bound(5));
+  ASSERT_GT(rs.total(), 0U);
+  for (const auto& [scheduler, work] : configs) {
+    cycle_count::options opt = bound(5);
+    opt.scheduler = scheduler;
+    opt.work_items = work;
+    SCOPED_TRACE(::testing::Message() << "large: scheduler " << static_cast<int>(scheduler)
+                                      << " items " << static_cast<int>(work));
+    EXPECT_EQ(cc_counts(cycle_count::compute(cuda_, g, opt)), cc_counts(rs));
+  }
+
+  // An update with far more (change, first hop) items than resident threads: 20,000 + 20,000
+  // changes of about 6 out-edges each at their heads, in both phases.
+  cycle_count::result r = cycle_count::compute(cuda_, g, bound(5));
+  legacy::cycle_enum_batch_options params;
+  params.num_deletions = 20000;
+  params.num_insertions = 20000;
+  params.seed = 7;
+  const auto b = legacy::cycle_enum_batch(gs.to_csr(seq_).view(), params);
+  const cycle_count::stats st = cycle_count::update(cuda_, g, b.view(), r);
+  (void)cycle_count::update(seq_, gs, b.view(), rs);
+  EXPECT_GT(st.deletions + st.insertions, 30000);
+  EXPECT_EQ(cc_counts(r), cc_counts(rs));
+}
+
 // ---- cross-backend equality: cuda = openmp = sequential ----------------------------------------
 
 TEST_F(CycleCountCuda, RandomChainsOfBatchesAgreeOnEveryBackend) {
