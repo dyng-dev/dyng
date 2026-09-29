@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Formatting, licensing and naming checks (PLAN Sections 8.7 and 8.8): pre-commit (clang-format,
-# ruff, whitespace, REUSE, codespell, provenance headers, actionlint, zizmor, the .github checks)
-# plus the SHA-to-tag check of the action pins (network), the clang-tidy naming rules, the smoke
-# tests of the Python parity harness and the name-reservation package. Mirrors the `format`,
-# `reuse`, `provenance`, `precommit`, `tidy` and `harness` steps of ci/check.sh (clang-format and
-# REUSE run as pre-commit hooks). The Doxygen check runs in docs.yml (job `site`, ci/docs.sh).
+# ruff, whitespace, REUSE, codespell, provenance headers, regen --check, actionlint, zizmor, the
+# .github checks) plus the SHA-to-tag check of the action pins (network), the clang-tidy naming
+# rules, the smoke tests of the Python parity harness and the name-reservation package. Mirrors the
+# `format`, `reuse`, `provenance`, `regen`, `precommit`, `tidy` and `harness` steps of ci/check.sh
+# (clang-format, REUSE and regen run as pre-commit hooks). The Doxygen check runs in docs.yml (job `site`, ci/docs.sh).
 name: lint
 
 on:
@@ -99,7 +99,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Compile the scripts
-        run: python -m py_compile parity/*.py ci/*.py
+        run: python -m py_compile parity/*.py ci/*.py scripts/*.py
+      - name: The files generated from the algorithm manifests are up to date
+        run: python scripts/regen.py --check
       - name: Smoke tests of the parity harness and tests of the CI scripts
         run: |
           python -m pip install pytest

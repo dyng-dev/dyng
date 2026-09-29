@@ -21,6 +21,7 @@ repos:
         exclude: ^cpp/tests/data/
       - id: check-yaml
       - id: check-toml
+        exclude: ^cpp/src/algorithms/_template/manifest\.toml$  # {{placeholders}} until generated
       - id: check-json
       - id: check-merge-conflict
       - id: check-executables-have-shebangs
@@ -65,6 +66,14 @@ repos:
       - id: provenance
         name: provenance headers of ported files
         entry: python3 ci/provenance_check.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      # The files generated from the algorithm manifests (the algorithm tables, the CODEOWNERS
+      # block, the registries) are up to date (PLAN Section 8.7).
+      - id: regen
+        name: files generated from the algorithm manifests (scripts/regen.py --check)
+        entry: python3 scripts/regen.py --check
         language: system
         pass_filenames: false
         always_run: true
