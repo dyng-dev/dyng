@@ -1,8 +1,7 @@
 # ADR 0020: The resident device graph under set semantics, and Step 0 once per update
 
-- **Status:** Proposed (M2b, step cycle-cuda; amended by the M2b review: points 7-10). Awaiting
-  the author's acceptance, which GOVERNANCE.md's approvals log will record (the first version said
-  "Accepted" although no acceptance had been given).
+- **Status:** Accepted (2026-09-29, by the author; recorded in GOVERNANCE.md). Written in M2b, step
+  cycle-cuda; amended by the M2b review (points 7-10).
 - **Date:** 2026-09-28 (amended 2026-09-29)
 - **Deciders:** S M Shovan (lead maintainer)
 

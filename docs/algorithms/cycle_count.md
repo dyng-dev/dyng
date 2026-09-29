@@ -255,8 +255,8 @@ graph on the device before the call, dynG's model). The gate is PLAN 8.6 at lock
 Measured after the M2b review (`parity/results/M2b.md` section 8: RTX A5000, GPU clocks locked at
 1695 MHz for both programs, the unpatched original, medians of 21 alternating rounds; the static
 kernels at `297ece6`, the updates at `b38de7e`; the COLLAB update at the 1170 MHz lock, 11 rounds,
-because the GPU cannot hold the higher clock through its 6.5 s prior, which ADR 0021 (Proposed,
-pending the author) would allow):
+because the GPU cannot hold the higher clock through its 6.5 s prior, as ADR 0021 (accepted
+2026-09-29) provides):
 
 | Case | Region | CycleEnumeration-GPU (ms) | dynG, original scope (ms) | ratio | dynG, resident scope (ms) | ratio |
 |---|---|---:|---:|---:|---:|---:|

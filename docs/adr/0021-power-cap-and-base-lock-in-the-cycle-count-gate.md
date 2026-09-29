@@ -1,8 +1,8 @@
 # ADR 0021: The power cap and the base clock lock in the cycle_count CUDA gate
 
-- **Status:** Proposed (M2b review, 2026-09-29): awaiting the author's decision. Until the author
-  accepts it, the COLLAB update's reading at the base lock is recorded but is **not** counted as
-  within the gate that ADR 0018 approved.
+- **Status:** Accepted (2026-09-29, by the author; recorded in GOVERNANCE.md). A gate case whose GPU
+  cannot hold the boost lock under the power cap is read at the base lock (decision 1); the COLLAB
+  update's base-lock reading (0.989x original scope, 0.945x resident) is its gate reading.
 - **Date:** 2026-09-29
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -34,7 +34,7 @@ criterion 4) is read the same way. Two things differ from sssp:
   busy samples (`gpu_summary`; `parity/results/M2b.md` section 4). Samples below the lock that were
   not busy appear on both sides in the same cases.
 
-## Decision (proposed)
+## Decision
 
 1. A gate case whose GPU cannot hold the boost lock for the whole process on both sides (every
    round rejected because a busy sample is off the lock under the power cap) is read with

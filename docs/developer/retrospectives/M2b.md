@@ -555,3 +555,15 @@ For **M2b's review, M3 and later**:
    the second acceptance verification (step 7; 0 hazards, not reproduced in 12 later runs). If it
    recurs, `ci/gpu_local.sh` should keep the exit status or signal of the sanitized process
    (and a core file) so that a crash can be told from a sanitizer failure.
+
+## Author decisions (2026-09-29)
+
+- ADR 0020 and ADR 0021 are **Accepted** by the author. With ADR 0021 the COLLAB update's base-lock
+  reading counts, so acceptance criterion 4 is met; the three acceptance rounds above failed only on
+  this governance item.
+- The author delegated technical ADRs: the AI assistant may accept an ADR whose decision does not
+  change a rule the author approved, and reports it afterwards (GOVERNANCE.md).
+- The DCO app exempts organization members only for **signed** commits; from 2026-09-29 the
+  maintainer's commits are SSH-signed, and DCO becomes a required check after the first signed pull
+  request passes it. The commits of this milestone stay unsigned (re-signing would change the SHAs
+  that the parity records cite).

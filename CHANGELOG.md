@@ -10,6 +10,8 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
+  accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for
   the whole A/B; default-clock readings are recorded, not gated.
 - Repository bootstrap: Apache-2.0 license, NOTICE, CITATION.cff, AUTHORS, governance and

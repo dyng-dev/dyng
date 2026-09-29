@@ -399,7 +399,7 @@ both programs. The first campaign rejected 22 consecutive rounds and stopped (th
 exited without a record; it now records such a case as incomplete and continues, `778ebf5`). At
 the base lock (1170 MHz) the clocks hold for the whole process on both sides, so this case is
 read at base: 11 rounds, none rejected, 0.987x (original scope) and 0.943x (resident). ADR 0021
-(Proposed, pending the author) records the rule (a case whose GPU cannot hold the boost lock is
+(accepted by the author on 2026-09-29) records the rule (a case whose GPU cannot hold the boost lock is
 read at the base lock, applied equally to both programs); this step first appended it to ADR 0018,
 and the review moved it out of the accepted ADR. At default clocks the case reads 0.989x /
 0.937x (section 4.7).
@@ -653,7 +653,7 @@ of the whole update, reported next to the host clocks). Records:
 - `M2b-review-cuda-perf-cycle_count-updates.json`: the five boost-lock update cases on the final
   Step 0 (the bucket sort, `b38de7e`, clean).
 - `M2b-review-cuda-perf-cycle_count-collab-update-base.json`: the COLLAB update at the base lock
-  (ADR 0021, Proposed), 11 rounds.
+  (ADR 0021, accepted 2026-09-29), 11 rounds.
 - `M2b-review-cuda-perf-cycle_count-default-clocks.json`: the six update cases at default clocks
   (recorded, not gated), 11 rounds.
 
@@ -668,7 +668,7 @@ of the whole update, reported next to the host clocks). Records:
 | DD 100K+100K | update | 10.781 | 10.027 | 0.930 | 9.476 | 0.879 | 6.214 | 0.576 | 9.540 | 0.885 | <= 1.05 ok | 0 |
 | GitHub 25K+25K | update | 14.810 | 12.101 | 0.817 | 9.470 | 0.639 | 5.699 | 0.385 | 9.023 | 0.609 | <= 1.05 ok | 15 |
 | Twitch 25K+25K | update | 24.820 | 20.833 | 0.839 | 9.593 | 0.386 | 5.614 | 0.226 | 9.119 | 0.367 | <= 1.05 ok | 13 |
-| COLLAB 25K+25K (base lock) | update | 218.24 | 215.95 | 0.989 | 206.27 | 0.945 | 211.98 | 0.971 | 217.91 | 0.998 | <= 1.05 ok, pending ADR 0021 | 1 |
+| COLLAB 25K+25K (base lock) | update | 218.24 | 215.95 | 0.989 | 206.27 | 0.945 | 211.98 | 0.971 | 217.91 | 0.998 | <= 1.05 ok (ADR 0021) | 1 |
 
 End to end (original scope): static 0.899-0.974x, updates 0.938-0.993x. The CUDA-event time of the
 short updates (`update_device`): DD 25K 4.001 ms original scope / 3.589 ms resident, DD 50K 6.092 /
@@ -777,3 +777,11 @@ with "process didn't terminate successfully" and 0 hazards, and did not reproduc
 (the verifier's 7, this step's 5, some next to the same CPU load); it is recorded as open item 8 of
 the retrospective. The sanitizer verdicts of section 3.1 are unchanged: 0 errors, 0 leaks, 0
 hazards.
+
+## Author decisions (2026-09-29)
+
+The author accepted ADR 0020 (the resident device graph under set semantics, Step 0 once per
+update) and ADR 0021 (the base clock lock for gate cases whose GPU cannot hold the boost lock under
+the power cap). Under ADR 0021 the COLLAB 25K+25K update's base-lock reading (0.989x original
+scope, 0.945x resident; the verifier's independent reading 0.988x / 0.945x) is its gate reading,
+so every M2b CUDA gate is met.
