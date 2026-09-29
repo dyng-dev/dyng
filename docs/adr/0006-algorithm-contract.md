@@ -1,6 +1,7 @@
 # ADR 0006: Algorithm contract
 
-- **Status:** Proposed (draft, M1a); accepted with the 0.1 API freeze (M3)
+- **Status:** Accepted under delegation with the 0.1 API freeze (2026-09-29, ADR 0023; proposed
+  as the M1a draft)
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 
