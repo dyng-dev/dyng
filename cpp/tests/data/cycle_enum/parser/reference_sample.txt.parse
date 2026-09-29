@@ -1,0 +1,21 @@
+vertices 7
+edges 11
+events 11
+v 1
+v 2
+v 3
+v 4
+v 5
+v 6
+v 7
+e 0 1 0
+e 0 4 1
+e 1 2 2
+e 2 0 3
+e 2 1 4
+e 2 3 5
+e 2 5 6
+e 3 4 7
+e 3 6 10
+e 4 1 8
+e 5 3 9

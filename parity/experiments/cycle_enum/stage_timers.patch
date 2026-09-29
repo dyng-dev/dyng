@@ -1,0 +1,29 @@
+--- a/src/cli/cycle_enum_main.cpp
++++ b/src/cli/cycle_enum_main.cpp
+@@ -740,8 +740,14 @@
+   }
+ 
+   try {
++    // dynG experiment (stage timers): steady_clock around the parser and the count, on stderr.
++    const auto stage_start = std::chrono::steady_clock::now();
+     const cycle_enum::GraphView view =
+         cycle_enum::read_graph_view(config->input_path);
++    std::cerr << "read_seconds="
++              << std::chrono::duration<double>(std::chrono::steady_clock::now() - stage_start).count()
++              << '\n';
++    const auto count_start = std::chrono::steady_clock::now();
+ 
+     cycle_enum::cuda::CudaTimingsMs timings;
+     const bool collect_timing =
+@@ -754,6 +760,11 @@
+             : run_backend(view, config->options, config->cuda_scheduler,
+                           config->cuda_work_items,
+                           collect_timing ? &timings : nullptr);
++    if (config->task != Task::Update) {
++      std::cerr << "count_seconds="
++                << std::chrono::duration<double>(std::chrono::steady_clock::now() - count_start).count()
++                << '\n';
++    }
+ 
+     if (collect_timing) {
+       std::cerr << "vertices: " << view.vertex_count() << '\n'

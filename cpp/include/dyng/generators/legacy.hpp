@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from MOSP-OpenMP@c352151:headers/changeGenerator.h (ChangeMode, ChangeGeneratorOptions,
 // generateChangeBatch)
+// Derived from CycleEnumeration-GPU@0a976ad:include/cycle_enum/dynamic/batch_generator.hpp
+// (BatchParams, generate_batch)
 /**
  * @file legacy.hpp
  * @brief generators::legacy: bit-exact reproductions of the original repositories' generators
@@ -121,5 +123,56 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 [[nodiscard]] edge_batch<vertex_t, weight_t> mosp_changes(
     const csr_view<vertex_t, edge_t, weight_t>& graph, const mosp_change_options& opt,
     mosp_change_report* report = nullptr);
+
+/**
+ * @brief Options of cycle_enum_batch() (CycleEnumeration-GPU's BatchParams; the `cycle-enum`
+ *        flags --deletes, --inserts, --batch-seed and --batch-locality).
+ * @ingroup generators
+ */
+struct cycle_enum_batch_options {
+  std::int64_t num_deletions = 0;   ///< existing edges to delete (sampled without replacement)
+  std::int64_t num_insertions = 0;  ///< new edges to insert (non-edges, no self-loops)
+  std::uint64_t seed = 0;           ///< seed of std::mt19937_64
+  /**
+   * @brief Locality window: when >= 0 and smaller than the vertex count, both endpoints of every
+   *        change lie in a window of max(window, 2) consecutive vertex ids whose start is drawn
+   *        from the seed. The default, a negative value, means no window (the original's
+   *        std::nullopt).
+   */
+  std::int64_t locality_window = -1;
+};
+
+/**
+ * @brief CycleEnumeration-GPU's batch generator (generate_batch of commit 0a976ad; `cycle-enum
+ *        --task update`), bit-exact for a fixed seed.
+ *
+ * Deletions are sampled without replacement from the existing edges (in window), insertions from
+ * the directed pairs of the window that are neither edges nor self-loops, as in the original:
+ * one std::mt19937_64(seed) draws the window start, shuffles the candidate deletions (libstdc++'s
+ * std::shuffle) and draws the insertion endpoints (libstdc++'s std::uniform_int_distribution);
+ * dynG reproduces both algorithms, so the batch does not depend on the standard library. The
+ * batch is normalized: the deletions, then the insertions, each sorted by (source, destination).
+ * Applied under graph_properties::cycle_enum_compatible() it changes the graph exactly as the
+ * original's apply_batch(). For a weighted graph every insertion carries the weight 1 in each
+ * weight column (the original's batches have no weights).
+ *
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type (`unweighted` or integral).
+ * @param[in] graph The graph (host memory) with sorted rows and no parallel edges, e.g. the view
+ *                  of a graph built under graph_properties::cycle_enum_compatible().
+ * @param[in] opt   The options.
+ * @return The batch (num_weights of the graph).
+ * @throws invalid_argument_error if a count is negative, the graph has fewer than 2 vertices (and
+ *         a count is positive), its rows are not sorted and duplicate-free, or there are not
+ *         enough existing edges or non-edges in the window for the requested counts (the
+ *         original's errors).
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @sync
+ * @ingroup generators
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+[[nodiscard]] edge_batch<vertex_t, weight_t> cycle_enum_batch(
+    const csr_view<vertex_t, edge_t, weight_t>& graph, const cycle_enum_batch_options& opt);
 
 }  // namespace dyng::generators::legacy

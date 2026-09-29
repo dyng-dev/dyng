@@ -10,6 +10,8 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
+  accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for
   the whole A/B; default-clock readings are recorded, not gated.
 - Repository bootstrap: Apache-2.0 license, NOTICE, CITATION.cff, AUTHORS, governance and
@@ -150,6 +152,70 @@ Before 0.1.0 anything may change.
 - The M1b retrospective with the acceptance record and a re-estimate of the roadmap
   (`docs/developer/retrospectives/M1b.md`).
 
+- M2a, CycleEnumeration-GPU graph pieces: `graph<V, E, unweighted>` ((int32, int32) and
+  (int32, int64)) and `is_unweighted_v`; `batch_semantics::as_sets` with the preset
+  `batch_semantics::set()` and `graph_properties::cycle_enum_compatible()` (Step 0 is the
+  original's `prepare_batch()`, the apply its sorted-row `apply_batch()`; byte-equal CSR and
+  normalized batches on committed fixtures and on the TUDataset graphs; ADR 0010 amendment);
+  `edge_batch::insert_edge(u, v)` without weights.
+- `io::read_edge_list` / `io::write_edge_list`: the original's parallel `from_chars` parser
+  (TUDataset `*_A.txt`, comments, commas, signs, timestamps, Matrix Market of every symmetry),
+  generalized with weight columns, `vertex_ids::as_is`, symmetrization, kept duplicates and self-
+  loops and a thread cap (`docs/api/file_formats.md`).
+- `generators::legacy::cycle_enum_batch()`: the original's `generate_batch()`, bit-exact, with the
+  library-owned reproductions of libstdc++'s 64-bit `uniform_int_distribution` and `shuffle`.
+- `dyng::testing`: `oracle_simple_cycles` (subset DP), `brute_force_simple_cycles` and
+  `edge_set_after_batch` (the recount of a batch).
+- Parity harness: the CycleEnumeration-GPU@0a976ad reference (`references.toml`, OpenMP and CUDA
+  build as in its RESULTS.md), its exporter `export_cycle_enum`, the fixture script
+  `parity/fixtures/cycle_enum/`, and the dataset digest test (CTest label `parity`).
+- `cycle_count` on the sequential and OpenMP backends (M2a, `<dyng/cycle_count.hpp>`,
+  `docs/algorithms/cycle_count.md`): exact k-bounded directed simple-cycle histograms; `compute()`
+  is CycleEnumeration-GPU's sequential Johnson and OpenMP counter, `update()` its DynTruCy-style
+  `update_static_histogram[_openmp]` (count(-) on G_t, one apply, count(+) on G_{t+1}, edge-id
+  ownership), ported straight; every batch semantics accepted through Step 0 on G_t
+  (`detail::compute_structural_change`). Histograms bit-identical to the original's on the
+  committed fixtures (80 random cases, k = 2..7 and unbounded; fixture graphs and generated
+  batches) and, with `--datasets`, on the TUDataset graphs (CTest label `parity`). The two recorded
+  mutations are built into copies of the library and must fail the randomized suite (CTest
+  `cycle_count.mutation.*`, label `mutation`). The host port of the original's pruned
+  lower_bound search of its CUDA kernels (`dfs.hpp`) is tested for M2b.
+- `io::write_histogram_csv(std::ostream&, counts)` (the original's `# cycle_size,
+  num_of_cycles` ... `Total, N`; PLAN 5.7's name),
+  `tools/compat/dyng-compat-cycle-enum` (the original `cycle-enum` CLI, byte-equal standard output
+  on the committed CLI cases), the `cycle_count_update` example and
+  `parity/timed_regions/cycle_count.toml`.
+- `update_participant::reads_prepared_graph()`: `dyng::update` builds the in-edges (or the device
+  copy) in the commit only for results that read them.
+- Parity harness for `cycle_count` (M2a): the golden corpus of CycleEnumeration-GPU@0a976ad
+  (`parity/export_goldens.py cycle_count`: 24 cases, histograms, update priors, deltas and
+  generated batches, exported twice identically), its replay (`parity/compare.py cycle_count`, CTest
+  `parity.cycle_count.cycle_enum_0a976ad`), the OpenMP A/B (`parity/perf_ab.py cycle_count run`)
+  and `dyng-compat-cycle-enum --write-batch`. Results in `parity/results/M2a.md`: 72 of 72 replays
+  byte-identical (sequential, OpenMP 4 and 56 threads); every OpenMP-56 gate met (at `1148d15`:
+  static end to end 0.64-0.96x, update 25K+25K 0.76-0.96x of the original).
+- M2a close-out: `docs/algorithms/cycle_count.md` completed (graph requirements, determinism,
+  the performance table, 'Differences from the paper': exact k-bounded enumeration, not the
+  paper's approximate kappa-truncated TruCy, and the 'Paper vs fixed code' table of
+  CycleEnumeration-GPU's fixes); the README lists `cycle_count` on the CPU backends (CUDA: M2b);
+  the M2a retrospective. The TruCy / DynTruCy paper is cited as submitted.
+- M2a review fixes (`cycle_count`, graph, io, tests, harness): the searches keep their paths on
+  explicit stacks (the default unbounded options no longer overflow the thread's stack; a
+  300,000-vertex ring is counted and updated in the tests); histograms and engines are sized by
+  min(k, max(n, 2)) and the update's per-thread counters grow with the cycles found, so an
+  unbounded update costs what its searches cost (it was O(changes x n)); the ownership index is a
+  flat table that allocates nothing in a steady-state update (I9); the OpenMP phase sizes its
+  scratch in the region that uses it; `static_assert` on unsupported graph types; `as_sets`
+  combinations that cannot apply a batch are rejected at graph construction; the stats and the
+  unbounded cost per backend are documented; seed replay (`DYNG_TEST_SEED`, `DYNG_TEST_SEEDS`)
+  in the randomized cycle_count suites; a third mutation test (`skip_workspace_resize`);
+  `DYNG_STDLIB_ASSERTIONS` (`_GLIBCXX_ASSERTIONS` in Debug builds); the contamination monitor
+  and isolation experiments of the cycle_count performance harness
+  (`parity/contamination.py`, `--baseline-exe`, `parity/experiments/cycle_enum`); the parity
+  certificate `parity/results/M2a.md` re-measured at `0679ed1` (72 of 72 replays; static end to
+  end 0.53-0.93x, update 0.44-0.65x of the original, COLLAB k = 3 0.29x) with the improvements
+  isolated in their own section.
+
 ### Changed
 
 - The default edge offset type is `int32`: `dyng::graph<>` is `graph<int32, int32, int32>`, and
@@ -270,6 +336,142 @@ Before 0.1.0 anything may change.
   `cuda-build` and `docs` jobs among the required checks of the `main` ruleset (pending the
   first pull request).
 - The INT1 retrospective (`docs/developer/retrospectives/INT1.md`).
+
+### M2b: M2a merged (branch `m2b-cycle-cuda`)
+
+- The CPU `cycle_count` of M2a (branch `m2-cycle`) is merged with a merge commit on top of
+  INT1. The graph keeps both sides: M1b's `int32` default `edge_t` with checked construction
+  (ADR 0009), the device graph and the copy-policy staging, and M2a's `unweighted`
+  instantiations, `graph_properties::cycle_enum_compatible()` / `batch_semantics::set()` and
+  the sorted-row set apply. The host batch checks are one function (`validate_batch_shape`) for
+  both applies; `checked_edge_count` exists once.
+- Documentation site: an API page for the `cycle_count` group; the algorithm tables, landing
+  page, README, roadmap and short plan list `cycle_count` as working on sequential and OpenMP,
+  CUDA in progress. M2a added no ADR (it amended ADR 0010), so no ADR was renumbered.
+- The `main` ruleset exists since pull request #1 (17 required checks, strict; the Repository
+  admin role bypasses only through pull requests); `DCO` becomes required once the author's
+  organization membership is public. `GOVERNANCE.md`, CONTRIBUTING.md and the repository
+  settings guide say so.
+- Re-verification after the merge: `parity/results/M2b.md`, section "Merge re-verification".
+
+### M2b: `cycle_count` on CUDA (branch `m2b-cycle-cuda`)
+
+- The CUDA backend of `cycle_count` (`<dyng/cycle_count.hpp>`): the straight port of
+  CycleEnumeration-GPU@0a976ad's static counters (the work queue with root, edge and implicit
+  two-hop prefix items and its automatic choice; the naive one-thread-per-root counter) and of its
+  update (the delete phase on G_t, the insert phase on G_{t+1}: `mark_owners_kernel`,
+  `item_counts_kernel`, `count_owned_cycles_kernel`), behind `compute()` and `update()`. New
+  options: `cuda_engine` (`automatic` / `fused`; `operators` throws `not_supported_error`),
+  `scheduler` (`cuda_scheduler::work_queue` / `naive`) and `work_items` (`cuda_work_items`). The
+  effective bound is limited to 64 on cuda (`invalid_argument_error`). Histograms are
+  bit-identical to the original's CUDA backend on the fixtures and the TUDataset corpus.
+- The resident device graph (ADR 0020): a CUDA graph under `batch_semantics::as_sets` without
+  weight columns is updated on the device (`build_next_rows_kernel` and friends,
+  `graph/apply_set_device.cu`) and stays there across batches; its host CSR is downloaded when
+  something reads it. The device in-edges are built on first use. Under set semantics a batch is
+  normalized once per update (`<algo>.normalize`), for every result and the commit (the host
+  commit no longer normalizes again).
+- `dyng-compat-cycle-enum --backend cuda` with the original's CUDA flags (`--cuda-device`,
+  `--cuda-scheduler`, `--cuda-work-items`, `--report-timing` from CUDA events) and `--scope
+  original|resident`, `--edge-type`; the CLI test `compat_cycle_enum.cli.cuda` (label `gpu`).
+- Parity harness: the exporter's CUDA build (`export_cycle_enum_cuda`) and the CUDA fixtures
+  (`cases/*.cuda`, `counts/*.cuda`, `cli/cuda*`, each checked equal to the original's sequential
+  backend when written); the golden set `cycle_count_cuda` (24 cases from `cycle-enum --backend
+  cuda`, including the 100K + 100K updates of DD and GitHub and the COLLAB update), replayed by
+  `compare.py cycle_count --configs cuda,cuda:resident,cuda:int64` (CTest
+  `parity.cycle_count.cycle_enum_cuda_0a976ad`); `parity/cycle_count_perf.py run --backend cuda`
+  (the regions of `[reference.cycle_enum_cuda]` in both scopes, the clocks locked for the whole
+  A/B, ADR 0018) and `kernels` (register counts of both sides).
+- Tests: the shared `cycle_count` suites on cuda (`dyng_cycle_count_cuda_tests`, label `gpu`)
+  and the CUDA cases (bounds 2..64 and beyond, schedulers, cross-backend chains of batches, the
+  device apply against the host apply, the lazy host copy, the host-commit fallbacks, corner
+  cases). `ci/gpu_local.sh` replays the CUDA golden set and runs synccheck and racecheck on the
+  CUDA `cycle_count` suite.
+
+### M2b: the CUDA gates of `cycle_count` (branch `m2b-cycle-cuda`)
+
+- The CUDA gate of `cycle_count` against CycleEnumeration-GPU@0a976ad's CUDA backend
+  (`parity/results/M2b.md` sections 4-6): ten cases (static k = 4 on DD, GitHub, Twitch, k = 3
+  on COLLAB; the updates 25K+25K on all four and DD 50K+50K, 100K+100K) in both scopes, clocks
+  locked; every gated reading within its gate (the COLLAB update at the base lock, now pending
+  ADR 0021, see the review entries below). Default-clock readings, the registers, stack and
+  occupancy of all 33 kernels (equal to the original's) and the peak device memory of every case
+  (equal to the original's) are recorded.
+- Faster Step 0 under set semantics: `std::sort` by (source, target, position) instead of
+  `std::stable_sort`, and no sort for lists already in order (every backend; the DD 100K+100K
+  CUDA update 12.2 -> 8.0 ms). Results unchanged. (Replaced by the review's bucket sort: the skip
+  helped only the gate's already sorted batches.)
+- Less device memory in the CUDA `cycle_count` update: the static-count work items are returned
+  when an update begins, and the deletion marks of G_t are computed once per update and shared
+  by the cycle_count delete phase and the device apply (ADR 0020, point 6).
+- `dyng-compat-cycle-enum --scope resident` (count task) makes the graph resident with a 2-cycle
+  count, so the timed kernel does not follow a full count (which runs it 5-12 % slower even at
+  locked clocks).
+- Harness: `parity/cycle_count_perf.py kernels` covers every kernel with its sm_86 occupancy and
+  pairs both sides; `run --backend cuda` records an unmeasurable case (more rejected rounds than
+  `--runs`) as incomplete and continues, writes the JSON after every case, keeps the original's
+  monitor window apart from the port's and summarizes the GPU clocks per side; `memory` records
+  the peak device memory of both sides per case (Nsight Systems' memory trace).
+- A case whose GPU cannot hold the boost lock under its power cap (the COLLAB update, whose prior
+  counts for 6.5 s) is read at the base lock, applied equally to both sides: first written as an
+  update of the accepted ADR 0018, now the Proposed ADR 0021, pending the author.
+
+### M2b: close-out (branch `m2b-cycle-cuda`)
+
+- `cycle_count` works on the sequential, OpenMP and CUDA backends (M2 done). The algorithm page
+  describes the CUDA work items of every scheduler and update phase, determinism on cuda (the
+  claim order of the work queue changes, the sums do not; the device sums are not checked for
+  overflow, as in the original) and the default-clock readings next to the locked-clock gate
+  table.
+- The `cycle_count` manifest lists the cuda backend and the original's CUDA sources.
+- The short plan's estimate is re-estimated after M2 (0.1.0 in about 1-2 weeks of focused work,
+  3-5 weeks of calendar time); the M2b retrospective has the milestone summary, the M2 summary,
+  the acceptance record and the final verification from a fresh clone.
+- `parity/results/M2b.md` section 7: the three gate scripts pass in a fresh clone, and the sssp
+  CUDA and OpenMP gates and the cycle_count OpenMP update gate hold on the final code.
+
+### M2b: review fixes (branch `m2b-cycle-cuda`)
+
+- Fixed: under `batch_semantics::set()` with `self_loop::keep` the `cycle_count` update counted
+  a spurious 2-cycle through every self-loop of a batch on every backend (the normalized lists
+  keep self-loops as change edges); the phases now skip them.
+- Fixed: a chain of CUDA updates on a resident graph downloaded all of G_t in every update after
+  the first (Step 0 read the stale host copy). Step 0 of such a graph now tests the membership of
+  the changes in G_t on the device (`graph_access::normalize`); the graph is downloaded only when
+  something reads it on the host, on the stream of the resources that built the state (no longer
+  the legacy default stream), without copying stale content into a regrown vector.
+- Changed: Step 0's sort under set semantics is a bucket sort (stable, no shortcut for sorted
+  lists; 0.7x of the original's `std::sort` on sorted input, 0.3x on shuffled input). The
+  sortedness skip of the gate campaign is gone.
+- Added: `cycle_count::result::set_options()` for the tunables `cuda_engine`, `scheduler` and
+  `work_items` (`max_length`, `method` and `mode` stay fixed at `compute()`).
+- Changed: `bound()` and `get_options()` of a poisoned `cycle_count` result throw
+  `stale_result_error`; `compute()` on cuda counts an edgeless graph of any size (the zero
+  histogram before the 64-vertex check, as the original); the 32-bit change-id limit of the cuda
+  update raises `capacity_error`; the documentation says that the device sums wrap at 2^64 on
+  cuda, as the original's.
+- Fixed: staging errors of `cycle_count::update` name it instead of `dyng::update`.
+- The device set apply keeps its scratch in the pooled normalized batch: a steady CUDA update
+  allocates only the arrays of G_{t+1}.
+- Tests: the recorded mutations in the CUDA kernels (`cycle_count.mutation.cuda.*`, label
+  `gpu`), the original's large-graph device test (300,000 vertices), device Step 0 against host
+  Step 0, chained updates, steady-state allocations, kept self-loops on all backends; the
+  host-only kernel tests no longer run in the gpu executable.
+- Harness: `dyng-compat-cycle-enum --chain n`; the CUDA gate records chained updates on the
+  resident graph (`update_chain_steady`, `update_chain_worst`), dynG's CUDA-event time of the
+  short updates (`update_device`) and the CPU-load threshold.
+- Docs: the public graph documentation covers the device merge; ADR 0020 is Proposed (it had
+  been marked Accepted without an acceptance) with the review's amendments; the M2b clock rule
+  that had been appended to the accepted ADR 0018 is ADR 0021 (Proposed), pending the author;
+  README lists the M2b certificate.
+
+### M2b: acceptance fixes (branch `m2b-cycle-cuda`)
+
+- Docs: the status pages (the developer plan, the roadmap, README, the algorithm page) no longer
+  say that every CUDA gate is met; they name the COLLAB update, read at the base clock lock and
+  pending the author's decision on ADR 0021, which the developer plan also lists as an open
+  decision. The certificate and the retrospective point at ADR 0021 instead of the removed
+  "ADR 0018 update".
 
 ## [0.0.1] - 2026-09-27
 

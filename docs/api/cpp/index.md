@@ -16,6 +16,7 @@ graph
 batch
 io
 sssp
+cycle_count
 generators
 testing
 ```

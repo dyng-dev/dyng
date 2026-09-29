@@ -3,6 +3,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Replay the sssp golden corpus and compare byte for byte (PLAN Sections 6.3 step 6 and 8.3).
 
+`parity/compare.py cycle_count ...` replays the cycle_count corpus instead
+(parity/cycle_count_goldens.py).
+
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
 
@@ -340,6 +343,11 @@ def git_head() -> str:
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["cycle_count"]:  # the cycle_count corpus (CycleEnumeration-GPU)
+        sys.path.insert(0, str(REPO / "parity"))
+        import cycle_count_goldens
+
+        return cycle_count_goldens.compare_main(sys.argv[2:])
     scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--goldens", type=Path, default=scratch / "goldens" / "sssp")

@@ -4,3 +4,4 @@
 # One add_subdirectory() line per algorithm (hand-edited; PLAN Section 4.2).
 
 add_subdirectory(sssp)
+add_subdirectory(cycle_count)

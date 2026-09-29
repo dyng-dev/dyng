@@ -32,7 +32,7 @@ The history of the six original research repositories is not imported (fresh his
 (`// Derived from <repo>@<commit>:<path>`) and `parity/references.toml`. Some commits in the
 originals were made under an unconfigured placeholder git identity (14 in ESCHER-GPU, 7 in
 LabelPropagation-CUDA, 1 in MOSP-CUDA). They were made by S M Shovan, or by an AI coding
-assistant working for him, and are credited to S M Shovan; the placeholder is not a person.
+assistant working on the author's behalf, and are credited to S M Shovan; the placeholder is not a person.
 
 Parts of the fixed research codes and of this library were written with the help of an AI
 coding assistant; the commits concerned carry a `Co-Authored-By` trailer.

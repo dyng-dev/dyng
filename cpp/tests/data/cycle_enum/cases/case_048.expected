@@ -1,0 +1,13 @@
+prepared
++ 0 3
++ 5 0
++ 5 3
+after
+n 6
+m 10
+row_ptr 0 3 5 6 8 8 10
+col_ind 1 2 3 0 3 0 0 1 0 3
+oracle_before 2:3 3:1
+oracle_after 2:4 3:2
+brute_before 2:3 3:1
+brute_after 2:4 3:2

@@ -84,3 +84,30 @@ old MOSP-CUDA == old MOSP-OpenMP on the golden corpus (PLAN Section 6.3 step 2).
 the same command line and output files as MOSP-OpenMP's. The export patch builds the graph/io
 exporter against the CUDA sources (applyChangeBatch of the CUDA repository).
 """
+
+[[reference]]
+name = "CycleEnumeration-GPU"
+origin = "$HOME/Projects/CycleEnumeration-GPU"
+upstream = "git@github.com:SMShovan/CycleEnumeration-GPU.git"
+commit = "0a976adfa801a712135bf1adb51a228f353a0751"
+baseline_tag = "baseline-2026-09"
+baseline_commit = "da2067d62c2ce8f9234908089fa15bc53b5979c0"
+build = "env NVCC=/usr/local/cuda-13.1/bin/nvcc cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCYCLE_ENUM_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.1/bin/nvcc -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++ -DCMAKE_CUDA_ARCHITECTURES=86 && cmake --build build -j{jobs}"
+build_env = []
+cxx = "/usr/bin/g++"
+run_env = ["CUDA_MODULE_LOADING=EAGER"]
+export_patch = "CycleEnumeration-GPU"
+smoke_test = "ctest --test-dir build --output-on-failure -j 8"
+gitlinks = []
+external_inputs = [
+  "googletest v1.14.0, fetched by the original's tests/CMakeLists.txt (FetchContent from GitHub) at configure time",
+  "TUDataset DD, COLLAB, github_stargazers, twitch_egos (*_A.txt) and the SNAP temporal edge lists under $DYNG_SCRATCH/datasets/cycle",
+]
+toolchain = "system g++ 12.2 and CUDA 13.1 nvcc (sm_86), CMake Release (-O3 -DNDEBUG), OpenMP and CUDA enabled as in the original's docs/RESULTS.md"
+notes = """
+The M2 reference of cycle_count, the graph container under graph_properties::cycle_enum_compatible(),
+io::read_edge_list and generators::legacy::cycle_enum_batch. Its driver is build/cycle-enum
+(--task count|update, --backend sequential|openmp|cuda; RESULTS.md measures OpenMP with 56 threads).
+The export patch adds parity_export/bin/export_cycle_enum (parity/exporters/cycle_enum), compiled
+against the unchanged sources; no original file is modified.
+"""

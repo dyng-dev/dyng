@@ -372,10 +372,8 @@ exempt (`.github/dco.yml`). Commits made in GitHub's web editor are signed off a
 
 **Rules:**
 
-- **Everything goes through a pull request**, including the maintainers' own work. (Until the
-  `main` ruleset is active, which waits for the first pull request, the lead maintainer still
-  pushes milestone and integration merges directly; see
-  [GOVERNANCE.md](GOVERNANCE.md#reviews-and-merges).)
+- **Everything goes through a pull request**, including the maintainers' own work (the `main`
+  ruleset enforces it; see [GOVERNANCE.md](GOVERNANCE.md#reviews-and-merges)).
 - **Titles** follow [Conventional Commits](https://www.conventionalcommits.org/):
   `feat(sssp): ...`, `fix(io): ...`, `perf(cycle_count): ...`, `docs: ...`, `test: ...`,
   `build: ...`, `ci: ...`, `refactor: ...`, `chore: ...`. A breaking change adds `!`

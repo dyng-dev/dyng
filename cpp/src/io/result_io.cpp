@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from MOSP-CUDA@e220ee2:src/csrGraph.cu (readDistances, readParents, writeDistances,
 // writeParents)
+// Derived from CycleEnumeration-GPU@0a976ad:src/core/histogram.cpp (CycleHistogram::to_csv)
 /**
  * @file result_io.cpp
  * @brief Distance and SSSP-tree files in the MOSP formats.
@@ -21,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -249,5 +251,46 @@ DYNG_FOR_EACH_DISTANCE_TYPE(DYNG_INSTANTIATE_DISTANCE_IO)
 DYNG_FOR_EACH_VERTEX_TYPE(DYNG_INSTANTIATE_PARENT_IO)
 #undef DYNG_INSTANTIATE_DISTANCE_IO
 #undef DYNG_INSTANTIATE_PARENT_IO
+
+namespace {
+
+/// The text of CycleHistogram::to_csv() (throws capacity_error before anything is returned).
+std::string histogram_csv_text(array_view<const std::uint64_t> counts, bool include_total) {
+  std::string out = "# cycle_size, num_of_cycles\n";
+  std::uint64_t total = 0;
+  for (std::size_t length = 0; length < counts.size(); ++length) {
+    const std::uint64_t count = counts[length];
+    if (count == 0) {
+      continue;  // CycleHistogram keeps no entry for a zero count
+    }
+    out += std::to_string(length);
+    out += ", ";
+    out += std::to_string(count);
+    out += '\n';
+    if (count > std::numeric_limits<std::uint64_t>::max() - total) {
+      throw capacity_error("dyng: io::write_histogram_csv: the total exceeds 2^64 - 1");
+    }
+    total += count;
+  }
+  if (include_total) {
+    out += "Total, ";
+    out += std::to_string(total);
+    out += '\n';
+  }
+  return out;
+}
+
+}  // namespace
+
+void write_histogram_csv(std::ostream& out, array_view<const std::uint64_t> counts,
+                         bool include_total) try {
+  expect_host_array(counts, "write_histogram_csv");
+  const std::string text = histogram_csv_text(counts, include_total);
+  out << text;
+  if (!out) {
+    throw io_error("dyng: io::write_histogram_csv: writing to the stream failed");
+  }
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_histogram_csv (", counts.size(), " lengths)")
 
 }  // namespace dyng::io

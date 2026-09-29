@@ -1,0 +1,169 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "set": "cycle_count_cuda",
+ "label": "",
+ "date": "2026-09-29T06:25:09Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "baseline_commit": "da2067d62c2ce8f9234908089fa15bc53b5979c0"
+ },
+ "port": {
+  "repository": "dyng",
+  "commit": "34f3fcab8926a8589e581f0fa33247b14dc8cc93"
+ },
+ "executable": "build/parity-cuda/tools/compat/dyng-compat-cycle-enum",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+  "CMAKE_CXX_FLAGS": "",
+  "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "DYNG_ENABLE_CUDA": "ON",
+  "DYNG_ENABLE_OPENMP": "ON",
+  "build_dir": "build/parity-cuda",
+  "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64",
+  "python": "3.12.14"
+ },
+ "goldens": {
+  "manifest_sha256": "9af66ca507b62641cd1871d189cb835303e7da800a364c6bbf950ad25184e3e0",
+  "cases": 24,
+  "files": 90
+ },
+ "tolerance": "none: byte equality of the histogram CSV and the generated batch",
+ "configs": [
+  "cuda",
+  "cuda:resident",
+  "cuda:int64"
+ ],
+ "matrix": {
+  "count/DD_k3": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/DD_k4": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/DD_k5": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/DD_k6": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/DD_k7": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/collab_k3": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/github_k3": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/github_k4": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/twitch_k3": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "count/twitch_k4": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/DD_k3_25000_25000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/DD_k4_100000_100000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/DD_k4_1000_1000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/DD_k4_25000_25000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/DD_k4_50000_50000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/DD_k5_25000_25000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/collab_k4_25000_25000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/github_k4_100000_100000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/github_k4_1000_1000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/github_k4_25000_25000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/github_k4_50000_50000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/twitch_k4_1000_1000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/twitch_k4_25000_25000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  },
+  "update/twitch_k4_50000_50000_s1": {
+   "cuda": "equal",
+   "cuda:resident": "equal",
+   "cuda:int64": "equal"
+  }
+ },
+ "passed": true
+}

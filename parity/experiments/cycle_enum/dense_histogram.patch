@@ -1,0 +1,85 @@
+--- a/src/openmp/openmp_johnson.cpp
++++ b/src/openmp/openmp_johnson.cpp
+@@ -37,7 +37,7 @@
+ void count_root(const GraphView& graph,
+                 const VertexId root,
+                 const std::optional<std::size_t> max_cycle_length,
+-                CycleHistogram& histogram,
++                std::vector<CycleHistogram::Count>& histogram,
+                 std::vector<unsigned char>& visited,
+                 std::vector<VertexId>& path) {
+   // The search clears every mark it sets, so the buffer is all-zero between
+@@ -58,7 +58,11 @@
+       const VertexId next = graph.outgoing_edges()[offset].vertex;
+ 
+       if (next == root && path.size() >= 2) {
+-        histogram.increment(static_cast<CycleHistogram::Length>(path.size()));
++        // dynG experiment: a dense per-thread array instead of CycleHistogram::increment.
++        if (path.size() >= histogram.size()) {
++          histogram.resize(path.size() + 1, 0);
++        }
++        ++histogram[path.size()];
+         continue;
+       }
+ 
+@@ -82,18 +86,29 @@
+   visited[root] = 0;
+ }
+ 
++void add_dense(CycleHistogram& histogram,
++               const std::vector<CycleHistogram::Count>& dense) {
++  for (std::size_t length = 2; length < dense.size(); ++length) {
++    if (dense[length] != 0) {
++      histogram.increment(static_cast<CycleHistogram::Length>(length), dense[length]);
++    }
++  }
++}
++
+ CycleHistogram count_single_thread(
+     const GraphView& graph,
+     const std::optional<std::size_t> max_cycle_length) {
+-  CycleHistogram histogram;
++  std::vector<CycleHistogram::Count> dense(max_cycle_length.value_or(2) + 1, 0);
+   std::vector<unsigned char> visited;
+   std::vector<VertexId> path;
+   path.reserve(graph.vertex_count());
+ 
+   for (VertexId root = 0; root < graph.vertex_count(); ++root) {
+-    count_root(graph, root, max_cycle_length, histogram, visited, path);
++    count_root(graph, root, max_cycle_length, dense, visited, path);
+   }
+ 
++  CycleHistogram histogram;
++  add_dense(histogram, dense);
+   return histogram;
+ }
+ 
+@@ -108,13 +123,15 @@
+ 
+ #if CYCLE_ENUM_OPENMP_ENABLED
+   if (threads > 1) {
+-    std::vector<CycleHistogram> local_histograms(static_cast<std::size_t>(threads));
++    std::vector<std::vector<CycleHistogram::Count>> local_histograms(
++        static_cast<std::size_t>(threads));
+ 
+ #pragma omp parallel num_threads(threads)
+     {
+       const int thread_id = omp_get_thread_num();
+-      CycleHistogram& local =
++      std::vector<CycleHistogram::Count>& local =
+           local_histograms[static_cast<std::size_t>(thread_id)];
++      local.assign(max_cycle_length.value_or(2) + 1, 0);
+       std::vector<unsigned char> visited;
+       std::vector<VertexId> path;
+       path.reserve(graph.vertex_count());
+@@ -128,8 +145,8 @@
+     }
+ 
+     CycleHistogram merged;
+-    for (const CycleHistogram& local : local_histograms) {
+-      merged.merge(local);
++    for (const std::vector<CycleHistogram::Count>& local : local_histograms) {
++      add_dense(merged, local);
+     }
+     return merged;
+   }

@@ -42,18 +42,31 @@ struct graph_access;
  * a graph variable that was reassigned since, even if the version counters are equal. The storage
  * belongs to the backend of the resources that created it (PLAN Section 4.6 rule 5): algorithms
  * refuse resources of the other kind (host backends versus cuda) instead of copying the graph
- * silently, and to_backend(res) (or clone(res)) makes a copy for other resources. A graph built
- * with CUDA resources
- * keeps its CSR in host memory in this release (a batch is applied on the host, as MOSP-CUDA
- * applies it) and a resident device copy of the current state (out- and in-edges, one weight
- * column per objective), uploaded on first use and again after each applied batch.
+ * silently, and to_backend(res) (or clone(res)) makes a copy for other resources.
+ *
+ * A graph built with CUDA resources has two copies of its out-edges, at least one of which is
+ * current: a host CSR and a resident device copy (one weight column per objective), uploaded on
+ * first use. The in-edges of the device copy are built on the device only when an engine needs
+ * them (sssp does; cycle_count reads the out-edges only). A batch takes one of two paths
+ * (ADR 0020, docs/adr/0020-resident-device-graph-and-one-step-0.md):
+ *   - the device merge: when the device copy is resident, the batch semantics is
+ *     batch_semantics::set() (as_sets), the graph has no weight columns and 32-bit vertex ids,
+ *     and the resources are CUDA resources of the graph's device, the normalized batch is merged
+ *     into the sorted rows on the device (CycleEnumeration-GPU's build_next_rows_kernel). The
+ *     device copy becomes the new state and the host CSR is stale until something reads it:
+ *     view(), to_csr(), check_integrity() and clone() download it once. Step 0 of the next batch
+ *     reads the device copy, so a chain of batches never downloads the graph.
+ *   - the host apply, in every other case: the batch is applied to the host CSR (as MOSP-CUDA
+ *     applies it) and the device copy is dropped, then uploaded again on first use.
+ * num_vertices() and num_edges() never download.
  *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
- * and (int64, int64, int32) (PLAN Section 4.4.3). The default edge offset type is int32, the
- * originals' type, fixed by the edge_t benchmark (ADR 0009: 64-bit offsets cost more than 3 % on
- * the parity suites). Construction is checked: a graph whose edge count does not fit edge_t
- * (from_edges(), or a batch that grows it past 2^31 - 1 edges with int32) throws
- * capacity_error naming the int64 instantiation.
+ * and (int64, int64, int32), and without weights for (int32, int32, unweighted) and
+ * (int32, int64, unweighted) (PLAN Section 4.4.3). A graph with weight_t = unweighted has no
+ * weight columns. The default edge offset type is int32, the originals' type, fixed by the edge_t
+ * benchmark (ADR 0009: 64-bit offsets cost more than 3 % on the parity suites). Construction is
+ * checked: a graph whose edge count does not fit edge_t (from_edges(), or a batch that grows it
+ * past 2^31 - 1 edges with int32) throws capacity_error naming the int64 instantiation.
  *
  * @tparam vertex_t Vertex id type (signed).
  * @tparam edge_t   Edge offset type (signed; int32 by default, int64 for more than 2^31 - 1
@@ -74,7 +87,9 @@ class graph {
   /**
    * @brief An empty graph (no vertices) with the given properties.
    * @param[in] props The properties (see graph_properties).
-   * @throws not_supported_error if `props.layout` is not row_layout::compact.
+   * @throws not_supported_error if `props.layout` is not row_layout::compact, or the batch
+   *         semantics cannot be applied (batch_semantics::as_sets without deletions_first, with
+   *         an upsert, or on rows that are not row_order::sorted with multi_edges::forbid).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    */
   explicit graph(const graph_properties& props = {});
@@ -99,7 +114,8 @@ class graph {
    *         policy is copy_policy::error.
    * @throws capacity_error         if the number of stored edges does not fit edge_t (use the
    *         int64 edge_t instantiation).
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -124,7 +140,8 @@ class graph {
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed, or an array must be copied and the
    *         copy policy is copy_policy::error.
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -146,7 +163,8 @@ class graph {
    * @param[in]     props The properties of the new graph.
    * @return The graph at version 0.
    * @throws invalid_argument_error if the CSR is malformed.
-   * @throws not_supported_error    for a layout other than compact.
+   * @throws not_supported_error    for a layout other than compact, or batch semantics that
+   *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
    */
@@ -254,7 +272,8 @@ class graph {
   /**
    * @brief The memory space of the storage.
    * @return memory_space::device for a graph built with CUDA resources (its resident device copy;
-   *         the host CSR that view() and to_csr() read is kept as well in this release),
+   *         the host CSR that view() and to_csr() read is kept as well, and after a device merge
+   *         downloaded lazily on the first host read, see the class description),
    *         memory_space::host otherwise.
    */
   [[nodiscard]] memory_space space() const noexcept;
@@ -269,9 +288,11 @@ class graph {
    * @brief A read-only description of the storage at the current version (host memory, also for
    *        a graph built with CUDA resources).
    *
-   * If the in-edges are stored but not built yet for this version (they are built on first use),
-   * this call builds them (with the thread count of the resources that built the graph); it is
-   * safe to call concurrently with other read-only calls.
+   * For a CUDA graph whose current state a device merge produced, the host CSR is downloaded
+   * first (once per state; a synchronous copy on the stream of the resources that built the
+   * state). If the in-edges are stored but not built yet for this version (they are built on first
+   * use), this call builds them (with the thread count of the resources that built the graph); it
+   * is safe to call concurrently with other read-only calls.
    * @return The view; invalidated by the next apply().
    * @throws out_of_memory_error if the in-edges must be built and memory cannot be allocated.
    */
@@ -285,22 +306,31 @@ class graph {
    * stale (their update() throws stale_result_error);
    * use the algorithms' update() to apply a batch and keep a result current.
    *
-   * @param[in] res   Execution resources (host threads; a CUDA graph drops its device copy).
-   * @param[in] batch The batch (any memory space: it is applied on the host in this release, so
-   *                  arrays in device memory are copied once under res.get_copy_policy()).
+   * On a CUDA graph the batch is merged on the device when the class description's conditions
+   * hold (resident device copy, batch_semantics::set(), no weight columns, 32-bit vertex ids):
+   * the host CSR is then left stale and downloaded on the next host read. Otherwise it is applied
+   * to the host CSR and the device copy is dropped (uploaded again on first use). ADR 0020.
+   *
+   * @param[in] res   Execution resources (host threads; for the device merge, CUDA resources of
+   *                  the graph's device).
+   * @param[in] batch The batch (any memory space: it is read on the host, where its
+   *                  normalization, Step 0, runs on both paths, so arrays in device memory are
+   *                  copied once under res.get_copy_policy()).
    * @return What the batch did.
    * @throws invalid_argument_error if an id is negative or out of range (without vertex growth),
    *         the weights do not match num_weights(), a semantics rule says error, or an array must
    *         be copied and the copy policy is copy_policy::error.
    * @throws capacity_error         if the edge count after the batch does not fit edge_t.
    * @throws not_supported_error    for vertex insertions or deletions (planned for 0.3).
-   * @throws out_of_memory_error    if host memory cannot be allocated.
+   * @throws out_of_memory_error    if host or device memory cannot be allocated.
+   * @throws cuda_error             if the CUDA runtime reports an error (device merge).
    * @sync
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
 
   /**
-   * @brief A host copy of the out-edges.
+   * @brief A host copy of the out-edges (downloaded first, once per state, if a device merge left
+   *        the host CSR of a CUDA graph stale).
    * @param[in] res Execution resources.
    * @return The out-edge CSR with objective-major weights.
    * @throws invalid_argument_error for a moved-from graph.

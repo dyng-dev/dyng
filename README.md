@@ -19,10 +19,11 @@ counting, triad counting, label propagation.
 | Area | State |
 |---|---|
 | Core (resources, backends, memory, arrays, errors, logging, profiler) | working on the host (M1a) and on CUDA (M1b: streams, stream-ordered memory resources, device buffers, profiler device times) |
-| Graph container (compact rows, MOSP batch semantics) and MOSP-format I/O | working; the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` |
+| Graph container (compact rows, MOSP and CycleEnumeration batch semantics, weighted and unweighted graphs), MOSP-format and edge-list I/O | working; under MOSP semantics the updated CSR is byte-identical to MOSP-OpenMP's `applyChangeBatch` (M1a); under set semantics (`batch_semantics::set()`, `graph_properties::cycle_enum_compatible()`) a batch is applied as CycleEnumeration-GPU's `prepare_batch` + `apply_batch` on the host (M2a) and, on a resident CUDA graph without weight columns, merged on the device (`build_next_rows_kernel`; the host copy is downloaded only when read, M2b, ADR 0020) |
 | `sssp`: dynamic single-source shortest paths (DynaMOSP SOSP update), sequential and OpenMP | working; byte-identical to MOSP-OpenMP@c352151 on its 495-case golden corpus ([parity certificate](parity/results/M1a.md)) |
 | `sssp` on CUDA (the fused persistent cooperative kernel) | working (M1b); byte-identical to MOSP-CUDA@e220ee2 on the same corpus, cross-backend equal, performance gates recorded ([M1b certificate](parity/results/M1b.md)) |
-| `cycle_count`: dynamic k-bounded cycle counts (TruCy/DynTruCy) | planned (0.1); the CPU backends are in progress on a branch |
+| `cycle_count`: exact k-bounded directed cycle histograms (TruCy/DynTruCy update), sequential and OpenMP | working (M2a); bit-identical to CycleEnumeration-GPU@0a976ad on its 24-case golden corpus ([parity certificate](parity/results/M2a.md)) |
+| `cycle_count` on CUDA (the work-queue static counters, the update on a resident device graph) | working (M2b); bit-identical to CycleEnumeration-GPU@0a976ad's CUDA backend on its golden corpus and cross-backend equal, within the CUDA performance gates in both scopes (at the boost lock: static kernels 0.67-1.00x, updates 0.39-0.93x, chained updates on the resident graph 0.23-0.89x; the COLLAB update is read at the base lock, ADR 0021) and the original's device memory ([M2b certificate](parity/results/M2b.md)) |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
 | Python package (`pip install dyng`) | planned (0.1) |
@@ -116,6 +117,11 @@ In a CUDA build the last argument can be `cuda` (`build/dev-cuda/examples/cpp/ss
 out cuda`): the graph and the tree then live on GPU 0 and the fused kernel runs the update, with
 the same output file.
 
+`examples/cpp/cycle_count_update.cpp` counts the directed cycles of length 2..k of an edge-list
+graph (a TUDataset `*_A.txt` file loads directly), applies a generated batch with
+`cycle_count::update()` and prints the histogram in CycleEnumeration-GPU's CSV format;
+`dyng-compat-cycle-enum` reproduces the original `cycle-enum` CLI.
+
 ### Run the parity check
 
 The parity harness ([parity/README.md](parity/README.md)) builds the pinned originals
@@ -134,9 +140,14 @@ cmake --preset parity-cuda && cmake --build --preset parity-cuda
 parity/compare.py --exe build/parity-cuda/tools/compat/dyng-compat-mosp --configs cuda
 ```
 
+`cycle_count` has its own corpus from CycleEnumeration-GPU@0a976ad
+(`parity/build_reference.sh CycleEnumeration-GPU`, `parity/export_goldens.py cycle_count`,
+replayed by `parity/compare.py cycle_count`; see `parity/README.md`).
+
 `parity/perf_ab.py` runs the performance A/B against the unpatched originals under the
 exclusive perf lock (`parity/README.md`). The committed records are the
-[M1a](parity/results/M1a.md) and [M1b](parity/results/M1b.md) parity certificates.
+[M1a](parity/results/M1a.md), [M1b](parity/results/M1b.md), [M2a](parity/results/M2a.md) and
+[M2b](parity/results/M2b.md) parity certificates.
 
 ## Using the library from C++
 

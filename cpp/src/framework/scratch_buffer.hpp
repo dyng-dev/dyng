@@ -46,6 +46,14 @@ class scratch_buffer {
   }
 
   /**
+   * @brief Return the memory (the next reserve() allocates again).
+   * @async On the CUDA backend the memory returns to its pool in stream order.
+   */
+  void release() noexcept {
+    storage_ = buffer<value_t>();
+  }
+
+  /**
    * @brief The array.
    * @return Pointer to the first element.
    */

@@ -1,0 +1,38 @@
+# Digests (FNV-1a 64 of the exporter's text) from CycleEnumeration-GPU@0a976ad on
+# $DYNG_SCRATCH/datasets/cycle; regenerate with make_cycle_enum_fixtures.sh --datasets.
+# <what> <dataset file> [<deletions> <insertions> <seed>] fnv1a64 <hex> bytes <n>
+parse DD/DD_A.txt fnv1a64 9f71805be8c39e50 bytes 32115309
+csr DD/DD_A.txt fnv1a64 7770d2513be248bf bytes 13694511
+parse github_stargazers/github_stargazers_A.txt fnv1a64 c1e5224bfdb9371e bytes 123617496
+csr github_stargazers/github_stargazers_A.txt fnv1a64 d454cbe2d3f9ff8b bytes 54496669
+parse twitch_egos/twitch_egos_A.txt fnv1a64 471e2d418821e823 bytes 463812808
+csr twitch_egos/twitch_egos_A.txt fnv1a64 f35e9581e87594f8 bytes 201623083
+parse COLLAB/COLLAB_A.txt fnv1a64 c144900585a23fde bytes 488565094
+csr COLLAB/COLLAB_A.txt fnv1a64 a01484df88503052 bytes 172007211
+parse CollegeMsg.txt fnv1a64 0a769b512a144612 bytes 879462
+csr CollegeMsg.txt fnv1a64 72459fc676d761bc bytes 95745
+parse email-Eu-core-temporal.txt fnv1a64 ae2f1d85305db5b0 bytes 3169961
+csr email-Eu-core-temporal.txt fnv1a64 d1bd840fb1a00475 bytes 102347
+parse sx-mathoverflow.txt fnv1a64 2f526c207bac7af9 bytes 7225159
+csr sx-mathoverflow.txt fnv1a64 e65529c41ea4d947 bytes 1331027
+generate DD/DD_A.txt 1000 1000 1 fnv1a64 bd07020330864713 bytes 30640
+apply-generated DD/DD_A.txt 1000 1000 1 fnv1a64 1b4f626fc11797ab bytes 13725188
+generate DD/DD_A.txt 25000 25000 1 fnv1a64 ddddd7006665078f bytes 766896
+apply-generated DD/DD_A.txt 25000 25000 1 fnv1a64 5a8a0390a0e10ab0 bytes 14461446
+generate DD/DD_A.txt 50000 50000 1 fnv1a64 427a0942841d2e78 bytes 1533521
+apply-generated DD/DD_A.txt 50000 50000 1 fnv1a64 03890269c4ea1737 bytes 15228236
+generate github_stargazers/github_stargazers_A.txt 1000 1000 1 fnv1a64 8c1af0f3334d4051 bytes 32933
+apply-generated github_stargazers/github_stargazers_A.txt 1000 1000 1 fnv1a64 a9023d035f93240b bytes 54529623
+generate github_stargazers/github_stargazers_A.txt 25000 25000 1 fnv1a64 2ebfdfd8ec7feb2d bytes 823356
+apply-generated github_stargazers/github_stargazers_A.txt 25000 25000 1 fnv1a64 51afcfec627ae0c4 bytes 55319858
+generate github_stargazers/github_stargazers_A.txt 50000 50000 1 fnv1a64 fa8eed25793365ea bytes 1646414
+apply-generated github_stargazers/github_stargazers_A.txt 50000 50000 1 fnv1a64 ee05130b9fcac916 bytes 56143007
+generate twitch_egos/twitch_egos_A.txt 1000 1000 1 fnv1a64 4dfe8554deb89b28 bytes 34808
+apply-generated twitch_egos/twitch_egos_A.txt 1000 1000 1 fnv1a64 3f868c118b3f6837 bytes 201657958
+generate twitch_egos/twitch_egos_A.txt 25000 25000 1 fnv1a64 480ad3eda414fc35 bytes 870614
+apply-generated twitch_egos/twitch_egos_A.txt 25000 25000 1 fnv1a64 8d2613ebe8b58a6a bytes 202493770
+generate twitch_egos/twitch_egos_A.txt 50000 50000 1 fnv1a64 40479f9d9e07a377 bytes 1741199
+apply-generated twitch_egos/twitch_egos_A.txt 50000 50000 1 fnv1a64 24b865c42e5b3f7c bytes 203364279
+generate DD/DD_A.txt 1000 1000 1 100 error
+generate DD/DD_A.txt 1000 1000 1 1000 fnv1a64 018567c720d8c621 bytes 28000
+generate DD/DD_A.txt 1000 1000 1 10000 fnv1a64 42b41c50ffa705f2 bytes 28000

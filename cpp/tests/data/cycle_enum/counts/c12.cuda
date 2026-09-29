@@ -1,0 +1,5 @@
+cuda 40:1
+cuda_naive 40:1
+cuda_roots 40:1
+cuda_edges 40:1
+cuda_two_hop 40:1

@@ -19,6 +19,7 @@
  * for the number of seeds per test).
  */
 #include "support/gtest_helpers.hpp"
+#include "support/test_seeds.hpp"
 
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/resources.hpp>
@@ -45,19 +46,9 @@
 namespace {
 
 /// Seeds of a randomized test: DYNG_TEST_SEED replays one seed; DYNG_TEST_SEEDS sets the count.
+using dyng::test::test_seeds;
 std::vector<std::uint64_t> seeds(std::uint64_t base, int default_count) {
-  if (const char* one = std::getenv("DYNG_TEST_SEED")) {
-    return {std::strtoull(one, nullptr, 10)};
-  }
-  int count = default_count;
-  if (const char* n = std::getenv("DYNG_TEST_SEEDS")) {
-    count = std::max(1, std::atoi(n));
-  }
-  std::vector<std::uint64_t> out;
-  for (int i = 0; i < count; ++i) {
-    out.push_back(base + static_cast<std::uint64_t>(i));
-  }
-  return out;
+  return test_seeds(base, default_count);
 }
 
 enum class shape { sparse, dense, grid, hub, chain };

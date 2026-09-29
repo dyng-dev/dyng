@@ -1,0 +1,47 @@
+k 2
+seq_before 2:4
+omp_before 2:4
+seq_after 2:5
+omp_after 2:5
+seq_update 2:5
+omp_update 2:5
+k 3
+seq_before 2:4 3:4
+omp_before 2:4 3:4
+seq_after 2:5 3:6
+omp_after 2:5 3:6
+seq_update 2:5 3:6
+omp_update 2:5 3:6
+k 4
+seq_before 2:4 3:4 4:5
+omp_before 2:4 3:4 4:5
+seq_after 2:5 3:6 4:9
+omp_after 2:5 3:6 4:9
+seq_update 2:5 3:6 4:9
+omp_update 2:5 3:6 4:9
+k 5
+seq_before 2:4 3:4 4:5 5:13
+omp_before 2:4 3:4 4:5 5:13
+seq_after 2:5 3:6 4:9 5:19
+omp_after 2:5 3:6 4:9 5:19
+seq_update 2:5 3:6 4:9 5:19
+omp_update 2:5 3:6 4:9 5:19
+k 6
+seq_before 2:4 3:4 4:5 5:13 6:12
+omp_before 2:4 3:4 4:5 5:13 6:12
+seq_after 2:5 3:6 4:9 5:19 6:18
+omp_after 2:5 3:6 4:9 5:19 6:18
+seq_update 2:5 3:6 4:9 5:19 6:18
+omp_update 2:5 3:6 4:9 5:19 6:18
+k 7
+seq_before 2:4 3:4 4:5 5:13 6:12 7:8
+omp_before 2:4 3:4 4:5 5:13 6:12 7:8
+seq_after 2:5 3:6 4:9 5:19 6:18 7:12
+omp_after 2:5 3:6 4:9 5:19 6:18 7:12
+seq_update 2:5 3:6 4:9 5:19 6:18 7:12
+omp_update 2:5 3:6 4:9 5:19 6:18 7:12
+k -1
+seq_before 2:4 3:4 4:5 5:13 6:12 7:8 8:3 9:3
+omp_before 2:4 3:4 4:5 5:13 6:12 7:8 8:3 9:3
+seq_after 2:5 3:6 4:9 5:19 6:18 7:12 8:7 9:1
+omp_after 2:5 3:6 4:9 5:19 6:18 7:12 8:7 9:1

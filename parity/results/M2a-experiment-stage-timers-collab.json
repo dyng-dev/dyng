@@ -1,0 +1,204 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "backend": "openmp",
+ "date": "2026-09-28T10:47:01Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/cycle-enum",
+  "build": "name=CycleEnumeration-GPU\ncommit=0a976adfa801a712135bf1adb51a228f353a0751\nvariant=unpatched\narchive_sha256=53eef2ed4394c0d8ab079f9ef50b2394946f4a0d611a0425a0a32b7892fe39c3\nexported=2026-09-28T00:00:24Z\nbuild=env NVCC=/usr/local/cuda-13.1/bin/nvcc cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCYCLE_ENUM_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.1/bin/nvcc -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++ -DCMAKE_CUDA_ARCHITECTURES=86 && cmake --build build -j16\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "baseline": {
+  "experiment": true,
+  "label": "original+stage-timers",
+  "kind": "original",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/experiment-stage-timers/build/cycle-enum",
+  "note": "side A is this binary, not the unpatched original: the verdicts are not gates (PLAN 8.6: improvements reported separately)"
+ },
+ "port": {
+  "commit": "eef6889478e3973c42a8ce13db314140c235bf84",
+  "binary": "build/parity/tools/compat/dyng-compat-cycle-enum",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "OFF",
+   "DYNG_CUDA_ARCHITECTURES": null,
+   "CMAKE_CUDA_FLAGS_RELEASE": null,
+   "CMAKE_CUDA_COMPILER": null,
+   "build_dir": "build/parity",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/cycle_count.toml",
+  "regions": [
+   "static_end_to_end",
+   "static_count",
+   "static_read",
+   "update",
+   "update_end_to_end"
+  ]
+ },
+ "protocol": {
+  "runs": 5,
+  "order": "A/B/A/B (original first), one untimed round per case first",
+  "threads": 56,
+  "backend": "openmp (--backend openmp --openmp-threads N on both)",
+  "env": "no OMP_* variables (the libgomp defaults) on both",
+  "lock": "perf.lock (exclusive)",
+  "statistic": "median",
+  "outputs": "standard output captured (the histogram CSV), compared every round",
+  "short_regions": "< 10.0 ms need >= 20 runs"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "datasets_sha256": {
+  "collab": "043c465d207992054d2567a277bfba9fad24d994040241987e61f9e9daa12ae4"
+ },
+ "results": {
+  "count/collab_k3": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 36170.60750443488,
+     "original_samples": [
+      36170.60750443488,
+      36222.97720424831,
+      36139.78040963411,
+      36184.7916143015,
+      36083.9330945164
+     ],
+     "original_spread": 0.0038441187285799495,
+     "port_ms": 12999.469093047082,
+     "port_samples": [
+      12999.469093047082,
+      12999.350829981267,
+      12988.090670667589,
+      13020.187119953334,
+      13013.03209643811
+     ],
+     "port_spread": 0.002469058471235012,
+     "ratio": 0.35939316450389214,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": 33635.5,
+     "original_samples": [
+      33587.4,
+      33700.200000000004,
+      33635.5,
+      33640.3,
+      33566.299999999996
+     ],
+     "original_spread": 0.003980913023442754,
+     "port_ms": 10583.8,
+     "port_samples": [
+      10584.5,
+      10583.8,
+      10583.2,
+      10587.9,
+      10581.1
+     ],
+     "port_spread": 0.0006424913547118495,
+     "port_stage_ms": 10583.799657,
+     "ratio": 0.3146615926625143,
+     "noisy": false
+    },
+    {
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": 2513.11,
+     "original_samples": [
+      2573.5800000000004,
+      2513.11,
+      2494.7200000000003,
+      2534.97,
+      2508.46
+     ],
+     "original_spread": 0.031379446184210055,
+     "port_ms": 2407.804,
+     "port_samples": [
+      2407.546,
+      2407.804,
+      2396.98,
+      2425.505,
+      2421.9649999999997
+     ],
+     "port_spread": 0.011846894514669836,
+     "port_stage_ms": 136.161284,
+     "ratio": 0.9580973375618258,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 10583.799657,
+    "cycle_count.count": 10583.776478,
+    "cycle_count.finalize": 0.001494,
+    "cycle_count.reset": 0.003766,
+    "graph.build": 136.161284
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 10583.8,
+    "read_ms": 2271.12,
+    "build_ms": 136.185,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0
+   },
+   "load_average": {
+    "min": 42.81005859375,
+    "max": 55.22900390625
+   },
+   "contamination": {
+    "original": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.05872900661138305,
+     "foreign_cores_max": 0.0776410866535357,
+     "flagged_runs": 0,
+     "runs": 5,
+     "foreign_cores_per_run": [
+      0.065,
+      0.042,
+      0.078,
+      0.059,
+      0.048
+     ]
+    },
+    "port": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.04702404727140771,
+     "foreign_cores_max": 0.06150802224285303,
+     "flagged_runs": 0,
+     "runs": 5,
+     "foreign_cores_per_run": [
+      0.035,
+      0.043,
+      0.058,
+      0.047,
+      0.062
+     ]
+    }
+   }
+  }
+ }
+}

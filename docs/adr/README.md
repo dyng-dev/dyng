@@ -13,7 +13,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0004](0004-naming.md) | Naming conventions | Accepted |
 | [0006](0006-algorithm-contract.md) | Algorithm contract | Proposed (M1a draft) |
 | [0009](0009-default-index-types.md) | Default index types (edge_t = int32 with checked construction) | Accepted (M1b) |
-| [0010](0010-batch-and-graph-semantics.md) | Batch and graph semantics | Proposed (M1a draft) |
+| [0010](0010-batch-and-graph-semantics.md) | Batch and graph semantics | Proposed (M1a draft; amended in M2a: set semantics and the unweighted graph) |
 | [0013](0013-parity-and-goldens.md) | Parity and goldens | Proposed (M1a draft) |
 | [0014](0014-approval-checkpoints.md) | Approval checkpoints | Accepted |
 | [0015](0015-workspace-sharing.md) | Workspace sharing (scratch memory owned by `resources`) | Proposed (M1b) |
@@ -21,6 +21,8 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0017](0017-cuda-sssp-engine-and-placement.md) | The CUDA sssp engine, engine selection, placement and the resident device graph | Proposed (M1b) |
 | [0018](0018-gpu-clock-state-in-the-cuda-gate.md) | The GPU clock state in the CUDA performance gate | Accepted (2026-09-28: option B, the gate is read at locked clocks; default-clock readings are reported, not gated) |
 | [0019](0019-merge-policy.md) | Merge policy (merge commits for milestone and integration work, squash for contributions, no rebase) | Accepted (INT1) |
+| [0020](0020-resident-device-graph-and-one-step-0.md) | The resident device graph under set semantics (device set apply, lazily downloaded host copy), and Step 0 once per update | Accepted (2026-09-29, by the author; written in M2b, amended by the M2b review) |
+| [0021](0021-power-cap-and-base-lock-in-the-cycle-count-gate.md) | The power cap and the base clock lock in the cycle_count CUDA gate (a case whose GPU cannot hold the boost lock is read at the base lock) | Accepted (2026-09-29, by the author) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0011 Python, 0012 versioning and stability.

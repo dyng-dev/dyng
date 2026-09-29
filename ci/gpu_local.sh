@@ -6,7 +6,7 @@
 # code, before milestone gates and before releases. Hosted CI has no GPU; cuda-build.yml only
 # compiles.
 #
-#   ci/gpu_local.sh                        # dev-cuda: build, tests, parity, memcheck, synccheck, tidy
+#   ci/gpu_local.sh                        # dev-cuda: build, tests, parity, sanitizers, tidy
 #   ci/gpu_local.sh --preset sanitize-cuda
 #   ci/gpu_local.sh --comment 42           # also post the summary on pull request #42 (gh CLI)
 #   DYNG_GPU_SKIP="cpu tidy" ci/gpu_local.sh
@@ -18,8 +18,10 @@
 #              so the CPU suites are checked against a CUDA build too)
 #   parity     the sssp golden corpus on the cuda backend (parity/compare.py --configs cuda through
 #              the preset's dyng-compat-mosp): byte parity with MOSP-CUDA e220ee2 on every case;
-#              skipped when the goldens ($DYNG_SCRATCH/goldens, parity/export_goldens.py) or the
-#              compat tool are missing
+#              and the cycle_count corpus of the original's CUDA backend (compare.py cycle_count
+#              --set cycle_count_cuda --configs cuda,cuda:resident through dyng-compat-cycle-enum):
+#              byte parity with CycleEnumeration-GPU 0a976ad; each skipped when its goldens
+#              ($DYNG_SCRATCH/goldens, parity/export_goldens.py) or its compat tool are missing
 #   memcheck   compute-sanitizer --tool memcheck --leak-check full on every executable with gpu
 #              tests (randomized suites with DYNG_TEST_SEEDS=2). Tests that make CUDA API calls
 #              fail on purpose (suite CudaApiErrors) run in a second pass without API-error
@@ -27,7 +29,10 @@
 #   synccheck  compute-sanitizer --tool synccheck on the CUDA sssp suite (dyng_sssp_cuda_tests):
 #              no barrier errors, and every test must pass under the sanitizer's scheduling, which
 #              exposes data races in the counters the tests compare exactly (M1b review: MOSP's
-#              `invalidated` read raced with the insertion-head appends; about 2 minutes)
+#              `invalidated` read raced with the insertion-head appends; about 2 minutes); and on
+#              the CUDA cycle_count suite (dyng_cycle_count_cuda_tests, DYNG_TEST_SEEDS=2)
+#   racecheck  compute-sanitizer --tool racecheck on the CUDA cycle_count suite (shared-memory
+#              hazards of its kernels and of the CUB scans; DYNG_TEST_SEEDS=2)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -51,7 +56,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,38p' "${BASH_SOURCE[0]}"
+      sed -n '5,42p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -140,6 +145,16 @@ if ! skipped parity; then
   else
     record "parity (cuda goldens)" FAILED
   fi
+  compat_cc="${build_dir}/tools/compat/dyng-compat-cycle-enum"
+  if [ ! -f "${DYNG_SCRATCH}/goldens/cycle_count_cuda/MANIFEST.sha256" ] || [ ! -x "${compat_cc}" ]; then
+    echo "cycle_count cuda goldens or ${compat_cc} missing; skipped"
+    record "parity (cycle_count cuda goldens)" skipped
+  elif heavy python3 parity/compare.py cycle_count --exe "${compat_cc}" \
+    --set cycle_count_cuda --configs cuda,cuda:resident; then
+    record "parity (cycle_count cuda goldens)" passed
+  else
+    record "parity (cycle_count cuda goldens)" FAILED
+  fi
 fi
 
 if ! skipped memcheck; then
@@ -188,6 +203,30 @@ if ! skipped synccheck; then
     record synccheck passed
   else
     record synccheck FAILED
+  fi
+  cc_tests="${build_dir}/cpp/tests/dyng_cycle_count_cuda_tests"
+  if [ -z "${sanitizer}" ] || [ ! -x "${cc_tests}" ]; then
+    echo "compute-sanitizer or ${cc_tests} missing"
+    record "synccheck (cycle_count)" FAILED
+  elif DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool synccheck --error-exitcode 1 "${cc_tests}" \
+    --gtest_brief=1; then
+    record "synccheck (cycle_count)" passed
+  else
+    record "synccheck (cycle_count)" FAILED
+  fi
+fi
+
+if ! skipped racecheck; then
+  step "compute-sanitizer racecheck, CUDA cycle_count suite (GPU ${gpu})"
+  cc_tests="${build_dir}/cpp/tests/dyng_cycle_count_cuda_tests"
+  if [ -z "${sanitizer}" ] || [ ! -x "${cc_tests}" ]; then
+    echo "compute-sanitizer or ${cc_tests} missing"
+    record racecheck FAILED
+  elif DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool racecheck --racecheck-report all \
+    --error-exitcode 1 "${cc_tests}" --gtest_brief=1; then
+    record racecheck passed
+  else
+    record racecheck FAILED
   fi
 fi
 

@@ -1,0 +1,8 @@
+vertices 3
+edges 2
+events 2
+v 1
+v 2
+v 3
+e 0 1 0
+e 1 2 0

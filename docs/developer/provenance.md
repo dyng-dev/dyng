@@ -36,8 +36,8 @@ Counts are of the commits reachable from the pinned commit (`git log <commit>` i
 
 - **Placeholder identity.** 22 commits (14 in ESCHER-GPU, 7 in LabelPropagation-CUDA, 1 in
   MOSP-CUDA) carry the unconfigured identity `CUDA <user@example.com>`. The lead maintainer
-  confirmed (2026-09-27) that they were made by him or by an AI coding assistant working for
-  him; they are credited to S M Shovan (`AUTHORS.md`), and the placeholder is not a person.
+  confirmed (2026-09-27) that they were made by the author or by an AI coding assistant working
+  on the author's behalf; they are credited to S M Shovan (`AUTHORS.md`), and the placeholder is not a person.
 - **AI-assisted commits** carry a `Co-Authored-By` trailer naming the AI coding assistant (the
   fixes of 2026 before the port). The IP office's answer covers the code as it is.
 - **Code written outside git.** The papers list co-authors (`AUTHORS.md`, `CITATION.cff`). For

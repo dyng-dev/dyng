@@ -15,7 +15,18 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-SCRIPTS = ["parity/compare.py", "parity/export_goldens.py", "parity/perf_ab.py"]
+SCRIPTS = [
+    "parity/compare.py",
+    "parity/export_goldens.py",
+    "parity/perf_ab.py",
+    "parity/cycle_count_goldens.py",
+]
+# The cycle_count entry points behind the sssp scripts' first argument.
+CYCLE_COUNT = [
+    ["parity/compare.py", "cycle_count"],
+    ["parity/export_goldens.py", "cycle_count"],
+    ["parity/perf_ab.py", "cycle_count", "run"],
+]
 
 
 def load(rel: str):
@@ -340,3 +351,271 @@ def test_perf_ab_clock_lock_none_does_nothing() -> None:
         assert clocks.pid is None and clocks.locked is None
     assert clocks.record["control"] == "none"
     assert perf.ClockLock.SOURCE.is_file()
+
+
+# --- cycle_count (CycleEnumeration-GPU) -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("command", CYCLE_COUNT)
+def test_cycle_count_help(command: list[str]) -> None:
+    proc = subprocess.run(
+        [sys.executable, REPO / command[0], *command[1:], "--help"], capture_output=True, text=True
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "usage" in proc.stdout and "cycle_count" in proc.stdout
+
+
+def test_cycle_count_compare_skips_without_goldens(tmp_path: Path) -> None:
+    proc = subprocess.run(
+        [
+            sys.executable,
+            REPO / "parity/compare.py",
+            "cycle_count",
+            "--goldens",
+            tmp_path,
+            "--exe",
+            sys.executable,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 77, proc.stdout + proc.stderr
+
+
+def test_cycle_count_cases_and_histograms() -> None:
+    g = load("parity/cycle_count_goldens.py")
+    cases = g.all_cases()
+    names = [c.rel for c in cases]
+    assert len(set(names)) == len(names)
+    for want in ["count/DD_k7", "count/collab_k3", "update/twitch_k4_50000_50000_s1"]:
+        assert want in names
+    assert "update/DD_k4_25000_25000_s1_w10000" in names
+    assert [c.heavy for c in cases if c.graph == "collab"] == [True]
+    upd = g.select(cases, "DD_k4_1000_1000_s1")[0]
+    assert upd.cli_args(Path("/d"))[-6:] == [
+        "--deletes",
+        "1000",
+        "--inserts",
+        "1000",
+        "--batch-seed",
+        "1",
+    ]
+    with pytest.raises(SystemExit):
+        g.select(cases, "DD_k99")
+    text = "# cycle_size, num_of_cycles\n2, 5\n3, 7\nTotal, 12\n"
+    assert g.parse_histogram(text) == {2: 5, 3: 7}
+    with pytest.raises(ValueError):
+        g.parse_histogram("2, 5\nTotal, 6\n")
+    assert g.delta_csv({2: 5, 3: 7}, {2: 4, 3: 9, 4: 1}, 4) == (
+        "# cycle_size, delta\n2, -1\n3, 2\n4, 1\nTotal, 2\n"
+    )
+    # Every plan total belongs to a count case.
+    assert {(c.graph, c.k) for c in cases if not c.update} == set(g.PLAN_TOTALS)
+    # The CUDA set (M2b acceptance criterion 3).
+    cuda = [c.rel for c in g.cuda_cases()]
+    assert len(set(cuda)) == len(cuda)
+    for want in [
+        "count/DD_k3",
+        "count/DD_k7",
+        "count/github_k4",
+        "count/twitch_k4",
+        "count/collab_k3",
+        "update/DD_k4_100000_100000_s1",
+        "update/github_k4_100000_100000_s1",
+        "update/twitch_k4_25000_25000_s1",
+        "update/collab_k4_25000_25000_s1",
+    ]:
+        assert want in cuda
+    assert [c.rel for c in g.cuda_cases() if g.cuda_only(c)] == ["update/collab_k4_25000_25000_s1"]
+    assert g.backend_args(g.SET_CUDA)[:2] == ["--backend", "cuda"]
+
+
+def test_cycle_count_section_survives_both_writers(tmp_path: Path, monkeypatch) -> None:
+    g = load("parity/cycle_count_goldens.py")
+    toml = tmp_path / "parity" / "goldens.toml"
+    toml.parent.mkdir()
+    toml.write_text("schema = 1\n\n[sets.sssp]\nnum_cases = 0\n\n[sets.sssp.cases]\n")
+    g.write_toml("[sets.cycle_count]\nnum_cases = 1\n", g.SET, toml)
+    g.write_toml("[sets.cycle_count]\nnum_cases = 2\n", g.SET, toml)  # replaced, not appended
+    assert toml.read_text().count("[sets.cycle_count]") == 1
+    # The CUDA set (M2b) is written next to it; either writer keeps the other set.
+    cuda = "[sets.cycle_count_cuda]\nnum_cases = 3\n\n[sets.cycle_count_cuda.cases]\n"
+    g.write_toml(cuda, g.SET_CUDA, toml)
+    g.write_toml("[sets.cycle_count]\nnum_cases = 4\n", g.SET, toml)
+    g.write_toml(cuda.replace("3", "5"), g.SET_CUDA, toml)
+    assert toml.read_text().count("[sets.cycle_count_cuda]") == 1
+    exporter = load("parity/export_goldens.py")
+    monkeypatch.setattr(exporter, "REPO", tmp_path)
+    exporter.write_toml(tmp_path, [], "0" * 64, 0)  # the sssp writer keeps the other sets
+    import tomllib
+
+    doc = tomllib.loads(toml.read_text())
+    assert doc["sets"]["cycle_count"]["num_cases"] == 4 and "sssp" in doc["sets"]
+    assert doc["sets"]["cycle_count_cuda"]["num_cases"] == 5
+
+
+def test_cycle_count_region_map_loads() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = {r["name"]: r for r in perf.load_regions()}
+    assert regions["static_end_to_end"]["gate"] == "compute"
+    assert regions["update"]["original_report"] == ["update_seconds"]
+    assert regions["update"]["port_report"] == ["update_ms"]
+    assert regions["update_end_to_end"]["gate"] == "end_to_end"
+    assert perf.parse_original(12.0, "deletions=1 insertions=1\nupdate_seconds=0.0221\n") == {
+        perf.WALL: 12.0,
+        "update_seconds": pytest.approx(22.1),
+    }
+    samples = {
+        "original": [{perf.WALL: 100.0, "update_seconds": 20.0}] * 5,
+        "port": [{perf.WALL: 104.0, "update_ms": 21.5, "compute_ms": 1.0}] * 5,
+        "stages": [{"cycle_count.update": 21.4}] * 5,
+    }
+    out = {e["region"]: e for e in perf.summarize(list(regions.values()), "update", samples, 5)}
+    assert out["update"]["ratio"] == pytest.approx(1.075) and not out["update"]["within_gate"]
+    assert out["update"]["gate"] == 1.05 and out["update"]["port_stage_ms"] == 21.4
+    assert out["update_end_to_end"]["within_gate"] and out["update_end_to_end"]["gate"] == 1.10
+
+
+def test_cycle_count_summarize_with_a_port_baseline() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = list(perf.load_regions())
+    samples = {
+        "original": [{perf.WALL: 100.0, "update_ms": 30.0}] * 5,  # another dynG build
+        "port": [{perf.WALL: 90.0, "update_ms": 15.0}] * 5,
+        "stages": [{}] * 5,
+    }
+    out = {e["region"]: e for e in perf.summarize(regions, "update", samples, 5, "port")}
+    assert out["update"]["original_ms"] == 30.0 and out["update"]["ratio"] == pytest.approx(0.5)
+
+
+def test_cycle_count_cuda_extra_processes() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = perf.load_regions("cuda")
+    main = {r["name"] for r in perf.scoped_regions(regions, "resident")}
+    chain = {r["name"] for r in perf.scoped_regions(regions, "resident", "chain")}
+    events = {r["name"] for r in perf.scoped_regions(regions, "original", "events")}
+    assert "update[resident]" in main and "update_chain_steady[resident]" not in main
+    assert chain == {"update_chain_steady[resident]", "update_chain_worst[resident]"}
+    assert events == {"update_device[original]"}
+    assert not perf.scoped_regions(regions, "original", "chain")  # resident only
+    values: dict = {}
+    err = "RESULT task=update update_ms=9.4 chain_ms=9.4,5.9,6.3,5.8 chain_match=yes\n"
+    assert perf.parse_chain(values, err)
+    assert values["chain_steady_ms"] == pytest.approx(5.9) and values["chain_worst_ms"] == 9.4
+    assert not perf.parse_chain({}, "chain_ms=1,2 chain_match=no\n")
+    samples = {
+        "original": [{perf.WALL: 1.0, "update_seconds": 20.0}] * 21,
+        "port": [values] * 21,
+        "stages": [{}] * 21,
+    }
+    out = {
+        e["region"]: e
+        for e in perf.summarize(
+            perf.scoped_regions(regions, "resident", "chain"), "update", samples, 21
+        )
+    }
+    assert out["update_chain_worst[resident]"]["ratio"] == pytest.approx(0.47)
+    assert out["update_chain_steady[resident]"]["within_gate"]
+
+
+def test_contamination_monitor() -> None:
+    cont = load("parity/contamination.py")
+    with cont.Monitor() as m:
+        subprocess.run([sys.executable, "-c", "sum(range(3000000))"], check=True)
+    r = m.result
+    assert r["wall_s"] > 0 and r["own_cores"] > 0 and r["foreign_cores"] >= 0
+    assert r["busy_cores"] >= 0
+    s = cont.summarize([{"foreign_cores": 0.1}, {"foreign_cores": 3.0}, {"foreign_cores": 0.5}])
+    assert s["foreign_cores_median"] == 0.5 and s["foreign_cores_max"] == 3.0
+    assert s["flagged_runs"] == 1 and s["runs"] == 3
+    assert cont.summarize([])["runs"] == 0
+
+
+def test_cycle_count_optional_original_keys() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = list(perf.load_regions())
+    err = "read_seconds=0.39\ncount_seconds=1.5\n"
+    timed = perf.parse_original(2000.0, err)
+    assert timed["count_seconds"] == pytest.approx(1500.0)
+    assert timed["read_seconds"] == pytest.approx(390.0)
+    port = {perf.WALL: 1500.0, "compute_ms": 1000.0, "read_ms": 380.0, "build_ms": 40.0}
+    samples = {"original": [timed] * 5, "port": [port] * 5, "stages": [{}] * 5}
+    out = {e["region"]: e for e in perf.summarize(regions, "count", samples, 5)}
+    assert out["static_count"]["ratio"] == pytest.approx(1000.0 / 1500.0)
+    assert out["static_read"]["ratio"] == pytest.approx(420.0 / 390.0)
+    assert "gate" not in out["static_count"]  # never a gate
+    plain = {"original": [{perf.WALL: 2000.0}] * 5, "port": [port] * 5, "stages": [{}] * 5}
+    out = {e["region"]: e for e in perf.summarize(regions, "count", plain, 5)}
+    assert "ratio" not in out["static_count"] and out["static_end_to_end"]["ratio"] == 0.75
+
+
+def test_cycle_count_kernel_occupancy_and_names() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    # sm_86, 128 threads (4 warps): up to 40 registers the warp limit (12 blocks) binds;
+    # 48 registers: 1536 per warp, 42 warps, 10 blocks (83 %); 64: 8 blocks (67 %).
+    assert perf.occupancy(40, 128)["occupancy"] == 1.0
+    assert perf.occupancy(40, 128)["limited_by"] == "warps"
+    got = perf.occupancy(48, 128)
+    assert got["blocks_per_sm"] == 10 and got["limited_by"] == "registers"
+    assert perf.occupancy(64, 128)["occupancy"] == pytest.approx(8 * 4 / 48)
+    assert perf.occupancy(16, 256)["blocks_per_sm"] == 6
+    name = (
+        "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<16, unsigned long>"
+        "(dyng::detail::device_csr<unsigned long>, int)"
+    )
+    assert perf.kernel_key(name) == ("count_edge_items", 16, "unsigned long")
+    original = (
+        "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_queue_kernel<8>"
+        "(cycle_enum::cuda::CsrView, int, unsigned long long*, unsigned long long*)"
+    )
+    assert perf.kernel_key(original) == ("count_roots_queue", 8, "unsigned int")
+    assert perf.kernel_key("void x::change_rows_kernel(unsigned int)") == (
+        "change_rows",
+        None,
+        "unsigned int",
+    )
+    row = {
+        "base": "count_roots",
+        "cap": 4,
+        "fused": True,
+        "registers": 26,
+        "stack": 96,
+        "shared": 0,
+        "block_size": 128,
+        "occupancy": 1.0,
+    }
+    doc = {
+        "original": [dict(row, offsets="unsigned int")],
+        "port": [dict(row, offsets="unsigned int"), dict(row, offsets="unsigned long", stack=128)],
+    }
+    (pair,) = perf.pair_kernels(doc)
+    assert pair["kernel"] == "count_roots<4>" and pair["equal"]
+    doc["port"][0]["registers"] = 28
+    assert not perf.pair_kernels(doc)[0]["equal"]
+
+
+def test_cycle_count_cuda_gpu_summary_keeps_both_sides() -> None:
+    perf = load("parity/cycle_count_perf.py")
+
+    def win(low: int, busy: int) -> dict:
+        return {"gpu": {"sm_mhz": {"min": low}, "busy_samples": busy, "clocks_locked": True}}
+
+    windows = [
+        {"round": 1, "original": win(1695, 2), "port": {"original": win(1500, 0)}},
+        {"round": 2, "original": win(1680, 0), "port": {"original": win(1695, 1)}},
+    ]
+    got = perf.gpu_summary(windows, ["original"])
+    assert got["original"] == {
+        "sm_mhz_min": 1680,
+        "busy_samples": 2,
+        "rounds_with_busy_samples": 1,
+    }
+    assert got["port[original]"]["sm_mhz_min"] == 1500
+
+
+def test_cycle_count_peak_device_bytes() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    # (start, bytes, operation 0 = allocate / 1 = free, address), out of order on purpose
+    events = [(3, 0, 1, 0xA), (1, 100, 0, 0xA), (2, 50, 0, 0xB), (4, 70, 0, 0xC), (5, 0, 1, 0xB)]
+    assert perf.peak_device_bytes(events) == 150
+    assert perf.peak_device_bytes([]) == 0
