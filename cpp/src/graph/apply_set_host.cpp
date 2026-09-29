@@ -69,29 +69,35 @@ inline int bit_width(std::uint64_t value) noexcept {
   return bits;
 }
 
-/// Lists shorter than this are sorted with std::sort (the radix sort's counters cost more).
-constexpr std::size_t radix_sort_threshold = 256;
-/// Digit width of the radix sort (2048 counters per pass).
-constexpr int radix_digit_bits = 11;
+/// Lists shorter than this are sorted with std::sort (the bucket sort's counters cost more).
+constexpr std::size_t bucket_sort_threshold = 256;
+/// Buckets of at most this many changes are finished with an insertion sort, larger ones with
+/// std::sort by (source, target, position).
+constexpr std::size_t insertion_sort_limit = 32;
+/// At most 2^20 buckets (4 MiB of counters).
+constexpr int max_bucket_bits = 20;
 
 /// Sort a requested list by (source, target, position in the batch).
 ///
 /// Precondition: the list is in batch order (positions non-decreasing), as normalize_set_batch()
-/// builds it. A least-significant-digit radix sort on the key (source, target) is stable, so equal
-/// pairs stay in batch order: the result is the one of sorting by (source, target, position), a
-/// total order, whatever the order of the input. Its cost does not depend on the order of the input
-/// (the original's std::sort of 8-byte EdgeChange records is fast on sorted input and slow on
-/// shuffled input; std::sort of these 16-byte records with a three-key comparator is slower than
-/// the original's on both). Short lists, and keys wider than 64 bits (64-bit ids), use std::sort
-/// with the same total order.
+/// builds it. One counting pass distributes the changes over about size / 4 buckets by the top
+/// bits of the key (source, target), keeping their order within a bucket (a stable scatter), and
+/// each bucket is finished with an insertion sort on the key (stable), or, if it is large (keys
+/// crowded into few buckets), with std::sort by (source, target, position). Either way equal pairs
+/// keep their batch order: the result is the one of sorting by (source, target, position), a
+/// total order, whatever the order of the input. On the gate's batches (100K changes) it costs
+/// 0.70x of the original's std::sort of 8-byte EdgeChange records on sorted input and 0.29x on
+/// shuffled input; std::sort of these 16-byte records with a three-key comparator costs 1.2-1.7x
+/// of the original's on both (M2b review). Short lists, and keys wider than 64 bits (64-bit ids),
+/// use std::sort with the same total order.
 /// @param[in,out] changes  The list.
-/// @param[in,out] scratch  A second list of the same capacity class (swapped with `changes`).
-/// @param[in,out] counters The digit counters (reused).
+/// @param[in,out] scratch  A second list (swapped with `changes`; both keep their capacity).
+/// @param[in,out] counters The bucket counters (reused).
 template <typename vertex_t>
 void sort_changes(std::vector<change<vertex_t>>& changes, std::vector<change<vertex_t>>& scratch,
                   std::vector<std::uint32_t>& counters) {
   const std::size_t size = changes.size();
-  if (size < radix_sort_threshold ||
+  if (size < bucket_sort_threshold ||
       size > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
     std::sort(changes.begin(), changes.end(), edge_index_less<vertex_t>);
     return;
@@ -120,37 +126,43 @@ void sort_changes(std::vector<change<vertex_t>>& changes, std::vector<change<ver
                              : (static_cast<std::uint64_t>(c.source) << target_bits) |
                                    static_cast<std::uint64_t>(c.target);
   };
-  constexpr std::size_t radix = std::size_t{1} << radix_digit_bits;
-  constexpr std::uint64_t digit_mask = radix - 1;
-  const int passes = (key_bits + radix_digit_bits - 1) / radix_digit_bits;
-  counters.assign(static_cast<std::size_t>(passes) * radix, 0);
+  const int bucket_bits = std::min({key_bits, max_bucket_bits, std::max(1, bit_width(size / 4))});
+  const int shift = key_bits - bucket_bits;
+  const std::size_t buckets = std::size_t{1} << bucket_bits;
+  counters.assign(buckets, 0);
   for (const change<vertex_t>& c : changes) {
-    const std::uint64_t k = key(c);
-    for (int p = 0; p < passes; ++p) {
-      ++counters[static_cast<std::size_t>(p) * radix +
-                 ((k >> (p * radix_digit_bits)) & digit_mask)];
-    }
+    ++counters[static_cast<std::size_t>(key(c) >> shift)];
+  }
+  std::uint32_t sum = 0;
+  for (std::size_t b = 0; b < buckets; ++b) {  // counters[b]: the first position of bucket b
+    const std::uint32_t count = counters[b];
+    counters[b] = sum;
+    sum += count;
   }
   scratch.resize(size);
-  for (int p = 0; p < passes; ++p) {
-    std::uint32_t* count = counters.data() + static_cast<std::size_t>(p) * radix;
-    const int shift = p * radix_digit_bits;
-    if (count[(key(changes[0]) >> shift) & digit_mask] == size) {
-      continue;  // every key has the same digit here: the pass would not move anything
-    }
-    std::uint32_t sum = 0;
-    for (std::size_t d = 0; d < radix; ++d) {
-      const std::uint32_t c = count[d];
-      count[d] = sum;
-      sum += c;
-    }
-    const change<vertex_t>* from = changes.data();
-    change<vertex_t>* to = scratch.data();
-    for (std::size_t i = 0; i < size; ++i) {
-      to[count[(key(from[i]) >> shift) & digit_mask]++] = from[i];
-    }
-    changes.swap(scratch);  // O(1); both keep their capacity for the next update
+  change<vertex_t>* to = scratch.data();
+  for (const change<vertex_t>& c : changes) {  // afterwards counters[b]: the end of bucket b
+    to[counters[static_cast<std::size_t>(key(c) >> shift)]++] = c;
   }
+  std::size_t begin = 0;
+  for (std::size_t b = 0; b < buckets; ++b) {
+    const std::size_t end = counters[b];
+    if (end - begin > insertion_sort_limit) {
+      std::sort(to + begin, to + end, edge_index_less<vertex_t>);
+    } else {
+      for (std::size_t i = begin + 1; i < end; ++i) {  // stable: equal keys stay in order
+        const change<vertex_t> x = to[i];
+        const std::uint64_t k = key(x);
+        std::size_t j = i;
+        for (; j > begin && key(to[j - 1]) > k; --j) {
+          to[j] = to[j - 1];
+        }
+        to[j] = x;
+      }
+    }
+    begin = end;
+  }
+  changes.swap(scratch);  // O(1); both keep their capacity for the next update
 }
 
 /// sort_and_dedup(): sorted by (source, target); of equal pairs the first in batch order stays

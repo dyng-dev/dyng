@@ -535,10 +535,11 @@ TEST(SetSemantics, WeightedGraphWeights) {
   EXPECT_EQ(out.weights, (std::vector<std::int32_t>{5, 1, 6, 4, 50, 10, 60, 40}));
 }
 
-// Step 0 sorts the requested lists with a radix sort from 256 changes on (normalize_set_batch):
+// Step 0 sorts the requested lists with a bucket sort from 256 changes on (normalize_set_batch):
 // its lists must equal a stable sort by (source, target) that keeps the first of equal pairs in
-// batch order, whatever the order of the batch (shuffled, sorted, reversed), on directed and
-// undirected graphs, with ids wide enough for several digit passes. The batch position kept (the
+// batch order, whatever the order of the batch (shuffled, sorted, reversed, or crowded into a few
+// pairs, whose buckets are finished with std::sort), on directed and undirected graphs, with ids
+// from 6 to 22 bits. The batch position kept (the
 // first of a pair's) supplies an insertion's weights and names it in error messages.
 TEST(SetSemantics, StepZeroListsEqualAStableSortOnLargeBatches) {
   using graph_t = dyng::graph<std::int32_t, std::int64_t, std::int32_t>;
@@ -547,7 +548,7 @@ TEST(SetSemantics, StepZeroListsEqualAStableSortOnLargeBatches) {
   std::mt19937_64 rng(20260929);
   for (const bool directed : {true, false}) {
     for (const std::int32_t n : {50, 5000, 3000000}) {
-      for (int order = 0; order < 3; ++order) {
+      for (int order = 0; order < 4; ++order) {
         SCOPED_TRACE(::testing::Message()
                      << (directed ? "directed" : "undirected") << " n=" << n << " order " << order);
         std::uniform_int_distribution<std::int32_t> vertex(0, n - 1);
@@ -575,6 +576,13 @@ TEST(SetSemantics, StepZeroListsEqualAStableSortOnLargeBatches) {
           ins.emplace_back(vertex(rng), vertex(rng));
           del.emplace_back(i % 3 == 0 ? present[rng() % present.size()]
                                       : std::pair{vertex(rng), vertex(rng)});
+        }
+        if (order == 3) {  // crowded: five pairs, repeated
+          for (auto* ops : {&ins, &del}) {
+            for (auto& op : *ops) {
+              op = (*ops)[rng() % 5];
+            }
+          }
         }
         if (order == 1) {
           std::sort(ins.begin(), ins.end());
@@ -625,7 +633,7 @@ TEST(SetSemantics, StepZeroListsEqualAStableSortOnLargeBatches) {
         };
         EXPECT_TRUE(same(nb.requested_insertions, reference(ins)));
         EXPECT_TRUE(same(nb.requested_deletions, reference(del)));
-        EXPECT_GE(nb.requested_insertions.size(), 256U);  // the radix path
+        EXPECT_GE(ins.size(), 256U);  // the bucket sort's path
       }
     }
   }

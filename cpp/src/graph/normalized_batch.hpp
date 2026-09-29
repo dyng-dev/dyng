@@ -61,8 +61,8 @@ struct normalized_batch {
   std::uint64_t state_id = 0;  ///< the graph state (graph_impl::state_id) it was computed for
   std::vector<set_change<vertex_t>> requested_deletions;   ///< scratch: requested deletions
   std::vector<set_change<vertex_t>> requested_insertions;  ///< scratch: requested insertions
-  std::vector<set_change<vertex_t>> sort_scratch;          ///< scratch: the radix sort's copy
-  std::vector<std::uint32_t> sort_counters;                ///< scratch: the radix sort's counters
+  std::vector<set_change<vertex_t>> sort_scratch;          ///< scratch: the bucket sort's copy
+  std::vector<std::uint32_t> sort_counters;                ///< scratch: the bucket sort's counters
   /// Scratch: per requested change (deletions, then insertions) 1 if it names an edge of G_t.
   std::vector<std::uint8_t> present;
 

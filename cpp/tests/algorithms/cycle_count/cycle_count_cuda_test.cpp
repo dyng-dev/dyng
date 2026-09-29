@@ -667,7 +667,7 @@ TEST_F(CycleCountCuda, DeviceStepZeroEqualsTheHostStepZero) {
       std::uniform_int_distribution<std::int32_t> vertex(0, gs.num_vertices() + 2);
       std::vector<cc_edge> deletions;
       std::vector<cc_edge> insertions;
-      // Enough changes for the radix sort (>= 256 per list) in some steps.
+      // Enough changes for the bucket sort (>= 256 per list) in some steps.
       const std::uint64_t count = step == 1 ? 400 : rng() % 40;
       for (std::uint64_t i = count; i > 0; --i) {
         deletions.emplace_back(vertex(rng), vertex(rng));
