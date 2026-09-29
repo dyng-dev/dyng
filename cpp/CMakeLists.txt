@@ -130,6 +130,7 @@ dyng_add_module(
     src/core/memory.cpp
     src/core/memory_cuda.cpp
     src/core/profiler.cpp
+    src/core/registry.cpp
     src/core/resources.cpp
     src/core/staging.cpp
     src/core/version.cpp
@@ -186,6 +187,13 @@ dyng_add_module(
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
 add_subdirectory(src/algorithms)
+# The registry (core/registry.cpp) lists the algorithms built here: DYNG_ALGORITHM_<NAME> selects
+# their entries of the generated table (scripts/regen.py writes src/core/registry_table.inc).
+get_property(DYNG_BUILT_ALGORITHMS GLOBAL PROPERTY DYNG_BUILT_ALGORITHMS)
+foreach(_dyng_algorithm IN LISTS DYNG_BUILT_ALGORITHMS)
+  string(TOUPPER "${_dyng_algorithm}" _dyng_upper)
+  target_compile_definitions(dyng_core PRIVATE DYNG_ALGORITHM_${_dyng_upper}=1)
+endforeach()
 
 # dyng::testing: host-only oracles for users and the test suites (PLAN Section 5.8). It shares no
 # code with the algorithms it checks.

@@ -22,6 +22,7 @@
 #include <dyng/core/logging.hpp>
 #include <dyng/core/memory.hpp>
 #include <dyng/core/profiler.hpp>
+#include <dyng/core/registry.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/stats.hpp>
 #include <dyng/core/stream.hpp>
