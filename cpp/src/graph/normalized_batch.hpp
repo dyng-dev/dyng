@@ -63,6 +63,8 @@ struct normalized_batch {
   std::vector<set_change<vertex_t>> requested_insertions;  ///< scratch: requested insertions
   std::vector<set_change<vertex_t>> sort_scratch;          ///< scratch: the radix sort's copy
   std::vector<std::uint32_t> sort_counters;                ///< scratch: the radix sort's counters
+  /// Scratch: per requested change (deletions, then insertions) 1 if it names an edge of G_t.
+  std::vector<std::uint8_t> present;
 
   /// Device copy of the lists (CUDA backend, 32-bit ids): the deletions, then the insertions, as
   /// (source, target) pairs, uploaded once per update by upload_normalized_batch() and read by
@@ -78,6 +80,11 @@ struct normalized_batch {
   mutable buffer<int> deletion_owner;
   mutable bool deletions_marked = false;  ///< deletion_owner holds the marks of these lists
 
+  /// Step 0 against a resident graph whose host copy is stale (normalize_set_batch_device): the
+  /// membership flags of the requested changes on the device and their pinned read-back.
+  mutable buffer<std::uint8_t> device_present;
+  mutable buffer<std::uint8_t> present_staging;  ///< pinned host staging of device_present
+
   /**
    * @brief The memory held (for workspace reports).
    * @return Bytes of the vectors' capacity and of the device and staging buffers.
@@ -86,9 +93,9 @@ struct normalized_batch {
     return (deletions.capacity() + insertions.capacity() + requested_deletions.capacity() +
             requested_insertions.capacity() + sort_scratch.capacity()) *
                sizeof(set_change<vertex_t>) +
-           sort_counters.capacity() * sizeof(std::uint32_t) +
+           sort_counters.capacity() * sizeof(std::uint32_t) + present.capacity() +
            (device_lists.size() + staging.size()) * sizeof(std::uint32_t) +
-           deletion_owner.size() * sizeof(int);
+           deletion_owner.size() * sizeof(int) + device_present.size() + present_staging.size();
   }
 };
 

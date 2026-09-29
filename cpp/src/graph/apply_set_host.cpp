@@ -21,6 +21,7 @@
  */
 #include "graph/apply_common.hpp"
 #include "graph/apply_host.hpp"
+#include "graph/device_graph.hpp"
 #include "graph/instantiate.hpp"
 #include "graph/normalized_batch.hpp"
 
@@ -177,17 +178,18 @@ bool has_edge(const csr<vertex_t, edge_t, weight_t>& g, std::int64_t n, vertex_t
   return std::binary_search(begin, end, target);
 }
 
-}  // namespace
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
-                         const edge_batch_view<vertex_t, weight_t>& batch,
-                         const graph_properties& props, normalized_batch<vertex_t>& out) {
+/// Step 0 on a graph of n vertices and m edges, whatever holds it: `present` fills
+/// out.present[i] (1 if the i-th requested change, deletions first, then insertions, names an
+/// edge of G_t) for the sorted, duplicate-free requested lists; the host CSR answers with has_edge,
+/// a resident device copy with one kernel (graph_impl keeps the host copy stale then).
+template <typename edge_t, typename vertex_t, typename weight_t, typename present_t>
+void normalize_set_batch_with(std::int64_t n, std::size_t m, int num_weights,
+                              const edge_batch_view<vertex_t, weight_t>& batch,
+                              const graph_properties& props, normalized_batch<vertex_t>& out,
+                              present_t&& present) {
   const batch_semantics& semantics = props.semantics;
   expect_supported_semantics(props);  // checked at construction as well
-  validate_batch_shape(batch, original.num_weights);
-  const std::int64_t n = original.num_vertices();
-  const std::size_t m = original.col_ind.size();
+  validate_batch_shape(batch, num_weights);
   const std::size_t num_inserts = batch.insert_src.size();
   const std::size_t num_deletes = batch.delete_src.size();
   apply_summary summary;
@@ -243,24 +245,30 @@ void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
   // --- prepare_batch(): sorted, duplicate-free lists without no-ops ------------------------------
   sort_and_dedup(deletions, out.sort_scratch, out.sort_counters);
   sort_and_dedup(insertions, out.sort_scratch, out.sort_counters);
+  out.present.resize(deletions.size() + insertions.size());
+  present(deletions, insertions, out.present);
+  const std::uint8_t* deletion_present = out.present.data();
+  const std::uint8_t* insertion_present = out.present.data() + deletions.size();
   std::vector<change<vertex_t>>& del_kept = out.deletions;
   del_kept.clear();
   del_kept.reserve(deletions.size());
-  for (const change<vertex_t>& d : deletions) {
-    if (has_edge(original, n, d.source, d.target)) {
-      del_kept.push_back(d);
+  for (std::size_t d = 0; d < deletions.size(); ++d) {
+    if (deletion_present[d] != 0) {
+      del_kept.push_back(deletions[d]);
       continue;
     }
     DYNG_EXPECTS(semantics.on_missing_delete == batch_semantics::missing_delete::ignore,
-                 "deletion ", d.index, " (", d.source, ", ", d.target,
+                 "deletion ", deletions[d].index, " (", deletions[d].source, ", ",
+                 deletions[d].target,
                  ") names a missing edge and batch_semantics::on_missing_delete is error");
     ++summary.ignored_deletions;
   }
   std::vector<change<vertex_t>>& ins_kept = out.insertions;
   ins_kept.clear();
   ins_kept.reserve(insertions.size());
-  for (const change<vertex_t>& c : insertions) {
-    if (has_edge(original, n, c.source, c.target)) {
+  for (std::size_t i = 0; i < insertions.size(); ++i) {
+    const change<vertex_t>& c = insertions[i];
+    if (insertion_present[i] != 0) {
       if (!std::binary_search(del_kept.begin(), del_kept.end(), c, edge_less<vertex_t>)) {
         if (semantics.on_existing_insert == batch_semantics::existing_insert::error) {
           DYNG_THROW_INVALID_ARGUMENT("insertion ", c.index, " (", c.source, ", ", c.target,
@@ -285,6 +293,49 @@ void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
   out.edges_after = static_cast<std::int64_t>(m) + static_cast<std::int64_t>(ins_kept.size()) -
                     static_cast<std::int64_t>(del_kept.size());
   (void)checked_edge_count<edge_t>(out.edges_after);
+}
+
+}  // namespace
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
+                         const edge_batch_view<vertex_t, weight_t>& batch,
+                         const graph_properties& props, normalized_batch<vertex_t>& out) {
+  const std::int64_t n = original.num_vertices();
+  normalize_set_batch_with<edge_t>(
+      n, original.col_ind.size(), original.num_weights, batch, props, out,
+      [&](const std::vector<change<vertex_t>>& deletions,
+          const std::vector<change<vertex_t>>& insertions, std::vector<std::uint8_t>& present) {
+        std::size_t k = 0;
+        for (const change<vertex_t>& d : deletions) {
+          present[k++] = has_edge(original, n, d.source, d.target) ? 1 : 0;
+        }
+        for (const change<vertex_t>& c : insertions) {
+          present[k++] = has_edge(original, n, c.source, c.target) ? 1 : 0;
+        }
+      });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void normalize_set_batch_device(const resources& res,
+                                const device_graph<vertex_t, edge_t, weight_t>& base,
+                                const edge_batch_view<vertex_t, weight_t>& batch,
+                                const graph_properties& props, normalized_batch<vertex_t>& out) {
+  normalize_set_batch_with<edge_t>(
+      static_cast<std::int64_t>(base.num_vertices), static_cast<std::size_t>(base.num_edges),
+      base.num_weights, batch, props, out,
+      [&](const std::vector<change<vertex_t>>& deletions,
+          const std::vector<change<vertex_t>>& insertions, std::vector<std::uint8_t>& present) {
+#if DYNG_HAS_CUDA
+        device_edge_membership(res, base, deletions, insertions, out, present);
+#else
+        (void)res;
+        (void)deletions;
+        (void)insertions;
+        (void)present;
+        throw not_supported_error("dyng: the cuda backend is not built");
+#endif
+      });
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -489,5 +540,15 @@ apply_summary apply_set_batch_host(const csr<vertex_t, edge_t, weight_t>& origin
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_HOST)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_HOST)
 #undef DYNG_INSTANTIATE_APPLY_SET_HOST
+
+// The device Step 0 reads 32-bit vertex ids (device_set_apply_supported_v), as the device apply.
+#define DYNG_INSTANTIATE_NORMALIZE_SET_DEVICE(V, E, W)                              \
+  template void normalize_set_batch_device<V, E, W>(                                \
+      const resources&, const device_graph<V, E, W>&, const edge_batch_view<V, W>&, \
+      const graph_properties&, normalized_batch<V>&);
+DYNG_INSTANTIATE_NORMALIZE_SET_DEVICE(std::int32_t, std::int32_t, std::int32_t)
+DYNG_INSTANTIATE_NORMALIZE_SET_DEVICE(std::int32_t, std::int64_t, std::int32_t)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_NORMALIZE_SET_DEVICE)
+#undef DYNG_INSTANTIATE_NORMALIZE_SET_DEVICE
 
 }  // namespace dyng::detail

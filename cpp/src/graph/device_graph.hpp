@@ -21,9 +21,12 @@
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/csr.hpp>
+#include <dyng/graph/edge_batch.hpp>
+#include <dyng/graph/graph_properties.hpp>
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace dyng::detail {
 
@@ -209,5 +212,61 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 const int* mark_normalized_deletions(const resources& res,
                                      const device_graph<vertex_t, edge_t, weight_t>& base,
                                      const normalized_batch<vertex_t>& normalized);
+
+/**
+ * @brief Step 0 of batch_semantics::as_sets (normalize_set_batch()) against the resident device
+ *        copy of G_t, for a graph whose host copy a device apply left stale: the requested lists
+ *        are built, sorted and deduplicated on the host as normalize_set_batch() does, and the
+ *        membership of each requested change in G_t is answered on the device
+ *        (device_edge_membership), so a chain of updates never downloads the graph (ADR 0020).
+ *
+ * The result equals normalize_set_batch() on the host CSR of the same state.
+ * @tparam vertex_t Vertex id type (32-bit).
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]  res   Resources of the CUDA backend (the graph's device).
+ * @param[in]  base  The resident graph G_t.
+ * @param[in]  batch The batch (host memory).
+ * @param[in]  props Properties of the graph (semantics.as_sets set).
+ * @param[out] out   The normalized batch.
+ * @throws invalid_argument_error, not_supported_error, capacity_error as normalize_set_batch().
+ * @throws cuda_error if the runtime reports an error.
+ * @sync
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void normalize_set_batch_device(const resources& res,
+                                const device_graph<vertex_t, edge_t, weight_t>& base,
+                                const edge_batch_view<vertex_t, weight_t>& batch,
+                                const graph_properties& props, normalized_batch<vertex_t>& out);
+
+/**
+ * @brief Whether each requested change names an edge of the resident G_t (has_edge on the device:
+ *        one binary search per change in its sorted row; false for a source >= n).
+ *
+ * The pairs are uploaded through the pinned staging of `nb` and the flags are read back through
+ * pinned memory, on the stream of `res` (synchronized before the return).
+ * @tparam vertex_t Vertex id type (32-bit).
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type (the weight columns are not read).
+ * @param[in]  res        Resources of the CUDA backend (the graph's device).
+ * @param[in]  base       The resident graph G_t.
+ * @param[in]  deletions  The requested deletions.
+ * @param[in]  insertions The requested insertions.
+ * @param[in]  nb         The normalized batch whose device buffers are used as scratch.
+ * @param[out] present    present[i] = 1 if change i (deletions first) is an edge of G_t, else 0
+ *                        (deletions.size() + insertions.size() entries).
+ * @throws capacity_error      if the lists hold 2^31 or more changes.
+ * @throws out_of_memory_error if memory runs out.
+ * @throws cuda_error          if the runtime reports an error.
+ * @throws not_supported_error if CUDA is not built.
+ * @sync
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+void device_edge_membership(const resources& res,
+                            const device_graph<vertex_t, edge_t, weight_t>& base,
+                            const std::vector<set_change<vertex_t>>& deletions,
+                            const std::vector<set_change<vertex_t>>& insertions,
+                            const normalized_batch<vertex_t>& nb,
+                            std::vector<std::uint8_t>& present);
 
 }  // namespace dyng::detail

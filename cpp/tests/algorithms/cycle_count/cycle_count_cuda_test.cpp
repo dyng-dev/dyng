@@ -637,6 +637,111 @@ TEST_F(CycleCountCuda, SeveralResultsShareOneDeviceCommit) {
   EXPECT_THROW((void)dyng::update(cuda_, g, b.view(), r4, r4), dyng::invalid_argument_error);
 }
 
+// Step 0 of a graph whose host copy is stale (a device apply produced its state) runs against the
+// resident copy (graph_access::normalize: the requested lists are sorted on the host, their
+// membership in G_t is tested on the device) and gives the host Step 0's lists and counters.
+TEST_F(CycleCountCuda, DeviceStepZeroEqualsTheHostStepZero) {
+  for (const std::uint64_t seed : test_seeds(1729, 40)) {
+    std::mt19937_64 rng(seed);
+    SCOPED_TRACE(seed_trace(seed));
+    dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 1, 60);
+    std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+    dyng::graph_properties props = dyng::graph_properties::cycle_enum_compatible();
+    if (seed % 3 == 0) {
+      props.directed = false;
+      const std::size_t m = edges.size();
+      for (std::size_t i = 0; i < m; ++i) {
+        edges.emplace_back(edges[i].second, edges[i].first);
+      }
+    }
+    if (seed % 4 == 1) {
+      props.semantics.on_self_loop = dyng::batch_semantics::self_loop::keep;
+    }
+    graph_u g = cc_graph<graph_u>(cuda_, spec.vertex_count, edges, props);
+    graph_u gs = cc_graph<graph_u>(seq_, spec.vertex_count, edges, props);
+    (void)dyng::detail::graph_access::device_out(cuda_, g);
+    const auto& impl = dyng::detail::graph_access::impl(g);
+    for (int step = 0; step < 3; ++step) {
+      std::uniform_int_distribution<std::int32_t> vertex(0, gs.num_vertices() + 2);
+      std::vector<cc_edge> deletions;
+      std::vector<cc_edge> insertions;
+      // Enough changes for the radix sort (>= 256 per list) in some steps.
+      const std::uint64_t count = step == 1 ? 400 : rng() % 40;
+      for (std::uint64_t i = count; i > 0; --i) {
+        deletions.emplace_back(vertex(rng), vertex(rng));
+        insertions.emplace_back(vertex(rng), vertex(rng));
+      }
+      const auto csr = gs.to_csr(seq_);
+      for (std::size_t i = 0; i < 8 && !csr.col_ind.empty(); ++i) {
+        const auto e = static_cast<std::size_t>(rng() % csr.col_ind.size());
+        const auto u = static_cast<std::int32_t>(
+            std::upper_bound(csr.row_ptr.begin(), csr.row_ptr.end(), static_cast<std::int64_t>(e)) -
+            csr.row_ptr.begin() - 1);
+        deletions.emplace_back(u, csr.col_ind[e]);
+        insertions.emplace_back(u, csr.col_ind[e]);  // present: kept only with its deletion
+      }
+      const batch_u b = cc_batch<unweighted>(deletions, insertions);
+      SCOPED_TRACE(::testing::Message() << "step " << step);
+      dyng::detail::normalized_batch<std::int32_t> device_lists;
+      dyng::detail::normalized_batch<std::int32_t> host_lists;
+      dyng::detail::graph_access::normalize(cuda_, g, b.view(), device_lists);
+      dyng::detail::graph_access::normalize(seq_, gs, b.view(), host_lists);
+      EXPECT_EQ(impl.host_current(), step == 0);  // never downloaded by Step 0
+      const auto same = [](const std::vector<dyng::detail::set_change<std::int32_t>>& a,
+                           const std::vector<dyng::detail::set_change<std::int32_t>>& c) {
+        return a.size() == c.size() &&
+               std::equal(a.begin(), a.end(), c.begin(), [](const auto& x, const auto& y) {
+                 return x.source == y.source && x.target == y.target && x.index == y.index;
+               });
+      };
+      EXPECT_TRUE(same(device_lists.deletions, host_lists.deletions));
+      EXPECT_TRUE(same(device_lists.insertions, host_lists.insertions));
+      EXPECT_EQ(device_lists.summary.ignored_deletions, host_lists.summary.ignored_deletions);
+      EXPECT_EQ(device_lists.summary.ignored_insertions, host_lists.summary.ignored_insertions);
+      EXPECT_EQ(device_lists.summary.cancelled_pairs, host_lists.summary.cancelled_pairs);
+      EXPECT_EQ(device_lists.summary.dropped_self_loops, host_lists.summary.dropped_self_loops);
+      EXPECT_EQ(device_lists.vertices_after, host_lists.vertices_after);
+      EXPECT_EQ(device_lists.edges_after, host_lists.edges_after);
+      (void)g.apply(cuda_, b.view());  // merged on the device: the host copy is stale
+      (void)gs.apply(seq_, b.view());
+      EXPECT_FALSE(impl.host_current());
+    }
+    EXPECT_EQ(g.to_csr(cuda_).col_ind, gs.to_csr(seq_).col_ind);
+  }
+}
+
+// A chain of updates on a resident graph never downloads it: Step 0 runs against the device copy
+// (M2b review: every update after the first downloaded G_t, and a growing graph reallocated the
+// host arrays), and the histograms equal the sequential update's.
+TEST_F(CycleCountCuda, ChainedUpdatesNeverDownloadTheGraph) {
+  for (const std::uint64_t seed : test_seeds(4096, 6)) {
+    std::mt19937_64 rng(seed);
+    SCOPED_TRACE(seed_trace(seed));
+    dyng::test::cc_spec spec;
+    spec.vertex_count = 400 + static_cast<std::int64_t>(rng() % 400);
+    spec.edge_probability = 4.0 / static_cast<double>(spec.vertex_count);
+    const std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+    graph_u32 g = cc_graph<graph_u32>(cuda_, spec.vertex_count, edges);
+    graph_u32 gs = cc_graph<graph_u32>(seq_, spec.vertex_count, edges);
+    cycle_count::result r = cycle_count::compute(cuda_, g, bound(5));
+    cycle_count::result rs = cycle_count::compute(seq_, gs, bound(5));
+    const auto& impl = dyng::detail::graph_access::impl(g);
+    for (int step = 0; step < 5; ++step) {
+      legacy::cycle_enum_batch_options params;
+      params.num_deletions = 300;
+      params.num_insertions = 300 + 50 * static_cast<std::size_t>(step);  // the graph grows
+      params.seed = rng();
+      const auto b = legacy::cycle_enum_batch(gs.to_csr(seq_).view(), params);
+      (void)cycle_count::update(cuda_, g, b.view(), r);
+      (void)cycle_count::update(seq_, gs, b.view(), rs);
+      EXPECT_FALSE(impl.host_current()) << "step " << step;
+      EXPECT_EQ(cc_counts(r), cc_counts(rs)) << "step " << step;
+    }
+    EXPECT_EQ(g.to_csr(cuda_).col_ind, gs.to_csr(seq_).col_ind);  // the one download
+    EXPECT_TRUE(impl.host_current());
+  }
+}
+
 // ---- the host-commit fallbacks: weight columns, other batch semantics --------------------------
 
 TEST_F(CycleCountCuda, HostCommitsUploadTheNextGraph) {

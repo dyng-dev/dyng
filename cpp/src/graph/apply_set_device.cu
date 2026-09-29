@@ -43,6 +43,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 namespace dyng::detail {
 
@@ -160,6 +161,26 @@ __global__ void build_next_rows_kernel(const device_csr<offset_t> base,
         ++out;
       }
     }
+  }
+}
+
+/// present[w] = 1 if the requested change w is an edge of the graph (has_edge on the device: a
+/// binary search in the sorted row of its source; 0 for a source >= n).
+template <typename offset_t>
+__global__ void edge_membership_kernel(const device_csr<offset_t> graph, const device_edge* changes,
+                                       const std::uint32_t change_count, std::uint8_t* present) {
+  const std::uint32_t stride = gridDim.x * blockDim.x;
+  for (std::uint32_t w = blockIdx.x * blockDim.x + threadIdx.x; w < change_count; w += stride) {
+    const device_vertex source = changes[w].source;
+    const device_vertex target = changes[w].target;
+    std::uint8_t found = 0;
+    if (source < graph.vertex_count) {
+      const offset_t begin = graph.offsets[source];
+      const offset_t end = graph.offsets[source + 1];
+      const offset_t position = lower_bound_u32(graph.neighbors, begin, end, target);
+      found = position < end && graph.neighbors[position] == target ? 1 : 0;
+    }
+    present[w] = found;
   }
 }
 
@@ -353,12 +374,86 @@ void apply_set_batch_device(const resources& res,
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
 }
 
+template <typename vertex_t, typename edge_t, typename weight_t>
+void device_edge_membership(const resources& res,
+                            const device_graph<vertex_t, edge_t, weight_t>& base,
+                            const std::vector<set_change<vertex_t>>& deletions,
+                            const std::vector<set_change<vertex_t>>& insertions,
+                            const normalized_batch<vertex_t>& nb,
+                            std::vector<std::uint8_t>& present) {
+  static_assert(device_set_apply_supported_v<vertex_t>,
+                "the device membership test reads 32-bit vertex ids");
+  using offset_t = device_offset_t<edge_t>;
+  const std::size_t pairs = deletions.size() + insertions.size();
+  present.resize(pairs);
+  if (pairs == 0) {
+    return;
+  }
+  if (static_cast<std::int64_t>(pairs) >= static_cast<std::int64_t>(no_change_id)) {
+    throw capacity_error(
+        "dyng: apply (device): the batch exceeds the 32-bit change ids of the device set apply");
+  }
+  const scoped_device guard(res.device());
+  const cudaStream_t stream = native(res);
+  const std::size_t words = 2 * pairs;
+  // The lists' device and staging buffers of `nb` serve as scratch: the normalized lists are
+  // uploaded into them afterwards (upload_normalized_batch; device_current is false until then).
+  if (nb.device_lists.size() < words || nb.device_lists.memory_resource() != res.memory()) {
+    nb.device_lists = buffer<std::uint32_t>();
+    nb.device_lists = buffer<std::uint32_t>(res, words);
+  }
+  if (nb.staging.size() < words) {
+    nb.staging = buffer<std::uint32_t>();
+    nb.staging = buffer<std::uint32_t>(words, res.stream(), resources_access::staging_memory(res),
+                                       res.device());
+  } else {
+    // The staging buffer may still be read by the copy of an earlier update on this stream.
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  }
+  if (nb.device_present.size() < pairs || nb.device_present.memory_resource() != res.memory()) {
+    nb.device_present = buffer<std::uint8_t>();
+    nb.device_present = buffer<std::uint8_t>(res, pairs);
+  }
+  if (nb.present_staging.size() < pairs) {
+    nb.present_staging = buffer<std::uint8_t>();
+    nb.present_staging = buffer<std::uint8_t>(pairs, res.stream(),
+                                              resources_access::staging_memory(res), res.device());
+  }
+  std::uint32_t* host = nb.staging.data();
+  std::size_t k = 0;
+  for (const auto& c : deletions) {
+    host[k++] = static_cast<std::uint32_t>(c.source);
+    host[k++] = static_cast<std::uint32_t>(c.target);
+  }
+  for (const auto& c : insertions) {
+    host[k++] = static_cast<std::uint32_t>(c.source);
+    host[k++] = static_cast<std::uint32_t>(c.target);
+  }
+  DYNG_CUDA_TRY(cudaMemcpyAsync(nb.device_lists.data(), host, words * sizeof(std::uint32_t),
+                                cudaMemcpyHostToDevice, stream));
+  const device_csr<offset_t> graph{static_cast<std::uint32_t>(base.num_vertices),
+                                   reinterpret_cast<const offset_t*>(base.out_row_ptr.data()),
+                                   reinterpret_cast<const device_vertex*>(base.out_col_ind.data())};
+  const auto count = static_cast<std::uint32_t>(pairs);
+  edge_membership_kernel<offset_t><<<grid_for(count), set_apply_block_size, 0, stream>>>(
+      graph, reinterpret_cast<const device_edge*>(nb.device_lists.data()), count,
+      nb.device_present.data());
+  DYNG_CHECK_KERNEL(stream);
+  DYNG_CUDA_TRY(cudaMemcpyAsync(nb.present_staging.data(), nb.device_present.data(), pairs,
+                                cudaMemcpyDeviceToHost, stream));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  std::copy(nb.present_staging.data(), nb.present_staging.data() + pairs, present.begin());
+}
+
 #define DYNG_INSTANTIATE_APPLY_SET_DEVICE(V, E, W)                                              \
   template void apply_set_batch_device<V, E, W>(const resources&, const device_graph<V, E, W>&, \
                                                 const normalized_batch<V>&,                     \
                                                 device_graph<V, E, W>&);                        \
   template const int* mark_normalized_deletions<V, E, W>(                                       \
-      const resources&, const device_graph<V, E, W>&, const normalized_batch<V>&);
+      const resources&, const device_graph<V, E, W>&, const normalized_batch<V>&);              \
+  template void device_edge_membership<V, E, W>(                                                \
+      const resources&, const device_graph<V, E, W>&, const std::vector<set_change<V>>&,        \
+      const std::vector<set_change<V>>&, const normalized_batch<V>&, std::vector<std::uint8_t>&);
 DYNG_INSTANTIATE_APPLY_SET_DEVICE(std::int32_t, std::int32_t, std::int32_t)
 DYNG_INSTANTIATE_APPLY_SET_DEVICE(std::int32_t, std::int64_t, std::int32_t)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_APPLY_SET_DEVICE)
@@ -371,6 +466,8 @@ template const std::uint32_t* upload_normalized_batch<std::int32_t>(
 DYNG_REGISTER_KERNEL(mark_owners_kernel<std::uint32_t>);
 DYNG_REGISTER_KERNEL(mark_owners_kernel<std::uint64_t>);
 DYNG_REGISTER_KERNEL(change_rows_kernel);
+DYNG_REGISTER_KERNEL(edge_membership_kernel<std::uint32_t>);
+DYNG_REGISTER_KERNEL(edge_membership_kernel<std::uint64_t>);
 DYNG_REGISTER_KERNEL(next_degree_kernel<std::uint32_t>);
 DYNG_REGISTER_KERNEL(next_degree_kernel<std::uint64_t>);
 DYNG_REGISTER_KERNEL(build_next_rows_kernel<std::uint32_t>);

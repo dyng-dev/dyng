@@ -87,9 +87,7 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
     normalized_lease.emplace(
         resources_access::workspaces(res).acquire<normalized_workspace<vertex_t>>(res));
     normalized_batch<vertex_t>& nb = (*normalized_lease)->batch;
-    const auto& state = graph_access::impl(g);
-    normalize_set_batch(state.host_edges(), host, g.properties(), nb);
-    nb.state_id = state.state_id;
+    graph_access::normalize(res, g, host, nb);
     normalized = &nb;
   }
   for (std::size_t i = 0; i < count; ++i) {

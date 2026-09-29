@@ -348,7 +348,7 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
         state.props.semantics.as_sets && state.num_weights() == 0) {
       normalized_batch<vertex_t> local;
       if (normalized == nullptr) {
-        normalize_set_batch(state.host_edges(), batch, state.props, local);
+        normalize(res, g, batch, local);
         normalized = &local;
       }
       auto next = std::make_unique<device_graph<vertex_t, edge_t, weight_t>>();
@@ -375,6 +375,24 @@ apply_summary graph_access::apply(const resources& res, graph<vertex_t, edge_t, 
 DYNG_TRANSLATE_ALLOCATION_FAILURE("graph::apply (", g.num_vertices(), " vertices, ", g.num_edges(),
                                   " edges; batch of ", batch.num_insertions(), " insertions, ",
                                   batch.num_deletions(), " deletions)")
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void graph_access::normalize(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+                             const edge_batch_view<vertex_t, weight_t>& batch,
+                             normalized_batch<vertex_t>& out) {
+  const auto& state = g.impl();
+  if constexpr (device_set_apply_supported_v<vertex_t>) {
+    if (!state.host_current() && state.home == backend::cuda &&
+        res.get_backend() == backend::cuda && res.device() == state.home_device &&
+        state.has_device_edges()) {
+      normalize_set_batch_device(res, state.device_edges(res, false), batch, state.props, out);
+      out.state_id = state.state_id;
+      return;
+    }
+  }
+  normalize_set_batch(state.host_edges(), batch, state.props, out);
+  out.state_id = state.state_id;
+}
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 graph_impl<vertex_t, edge_t, weight_t>::graph_impl(const graph_impl& other)
@@ -533,20 +551,23 @@ graph_view<vertex_t, edge_t, weight_t> graph_access::view(
 
 }  // namespace detail
 
-#define DYNG_INSTANTIATE_GRAPH(V, E, W)                                                          \
-  template class detail::graph_impl<V, E, W>;                                                    \
-  template graph_view<V, E, W> detail::graph_access::view<V, E, W>(const resources&,             \
-                                                                   const graph<V, E, W>&);       \
-  template const detail::device_graph<V, E, W>& detail::graph_access::device<V, E, W>(           \
-      const resources&, const graph<V, E, W>&);                                                  \
-  template const detail::device_graph<V, E, W>& detail::graph_access::device_out<V, E, W>(       \
-      const resources&, const graph<V, E, W>&);                                                  \
-  template void detail::graph_access::prepare<V, E, W>(const resources&, const graph<V, E, W>&); \
-  template void detail::graph_access::expect_placement<V, E, W>(                                 \
-      const resources&, const graph<V, E, W>&, const char*);                                     \
-  template class graph<V, E, W>;                                                                 \
-  template apply_summary detail::graph_access::apply<V, E, W>(                                   \
-      const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, detail::apply_delta<V>*,  \
+#define DYNG_INSTANTIATE_GRAPH(V, E, W)                                                           \
+  template class detail::graph_impl<V, E, W>;                                                     \
+  template graph_view<V, E, W> detail::graph_access::view<V, E, W>(const resources&,              \
+                                                                   const graph<V, E, W>&);        \
+  template const detail::device_graph<V, E, W>& detail::graph_access::device<V, E, W>(            \
+      const resources&, const graph<V, E, W>&);                                                   \
+  template const detail::device_graph<V, E, W>& detail::graph_access::device_out<V, E, W>(        \
+      const resources&, const graph<V, E, W>&);                                                   \
+  template void detail::graph_access::prepare<V, E, W>(const resources&, const graph<V, E, W>&);  \
+  template void detail::graph_access::normalize<V, E, W>(const resources&, const graph<V, E, W>&, \
+                                                         const edge_batch_view<V, W>&,            \
+                                                         detail::normalized_batch<V>&);           \
+  template void detail::graph_access::expect_placement<V, E, W>(                                  \
+      const resources&, const graph<V, E, W>&, const char*);                                      \
+  template class graph<V, E, W>;                                                                  \
+  template apply_summary detail::graph_access::apply<V, E, W>(                                    \
+      const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, detail::apply_delta<V>*,   \
       const detail::normalized_batch<V>*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)
 DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_GRAPH)

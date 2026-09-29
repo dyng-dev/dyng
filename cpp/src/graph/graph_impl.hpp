@@ -326,6 +326,24 @@ struct graph_access {
                              const normalized_batch<vertex_t>* normalized = nullptr);
 
   /**
+   * @brief Step 0 of batch_semantics::as_sets for the current state of `g` (normalize_set_batch):
+   *        against the host CSR when it is current, else against the resident device copy
+   *        (normalize_set_batch_device), so an update never downloads a graph that a device apply
+   *        left stale on the host (ADR 0020). Both give the same lists.
+   * @tparam vertex_t Vertex id type.
+   * @tparam edge_t   Edge offset type.
+   * @tparam weight_t Weight type.
+   * @param[in]  res   Execution resources.
+   * @param[in]  g     The graph (semantics.as_sets).
+   * @param[in]  batch The batch (host memory).
+   * @param[out] out   The normalized batch (its state_id is set to the graph's).
+   */
+  template <typename vertex_t, typename edge_t, typename weight_t>
+  static void normalize(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+                        const edge_batch_view<vertex_t, weight_t>& batch,
+                        normalized_batch<vertex_t>& out);
+
+  /**
    * @brief The host out-edges alone (never builds the in-edges; downloads a stale host copy of a
    *        CUDA graph first, see graph_impl::host_edges()).
    * @tparam vertex_t Vertex id type.
