@@ -15,6 +15,7 @@ CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py).
     parity/perf_ab.py kernels --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--json ...]
     parity/perf_ab.py edge-type --backend openmp|cuda --exe <parity build> [--runs 21] ...
+    parity/perf_ab.py run --baseline-exe <earlier dynG build> --baseline-label <commit> --exe ...
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
 roadNet-CA, rgg (rgg_n_2_20_s0) and road_usa_g (road_usa); --hops defaults to the local-batch
@@ -46,6 +47,13 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          verdict is marked provisional. Gates (from the map): "compute" <= 1.05x (<= 1.10x when
          the original's median is below 10 ms), "end_to_end" <= 1.10x. --enforce-gates exits
          non-zero on an exceeded gate.
+
+--baseline-exe replaces side A (the original) by an earlier dynG build's dyng-compat-mosp (for
+         example the code before a refactor, PLAN 6.3 step 8, or main before a milestone), run
+         with the same arguments and read through the same profiler stages as side B. The
+         correctness guards stay (byte-identical outputs, equal invalidated counters); the region
+         ratios are the change of the refactor and are reported, not gated. The record's
+         "reference" names the baseline (--baseline-label).
 
 --backend cuda compares dynG's cuda backend (`dyng-compat-mosp --backend cuda`, parity-cuda
          preset) with the UNPATCHED MOSP-CUDA@e220ee2 (bin/mosp) on the same prepared inputs,
@@ -964,7 +972,8 @@ def summarize(
     return out
 
 
-def report(results: dict, labels: tuple[str, str] = ("original", "dynG")) -> list[str]:
+def report(results: dict, labels: tuple[str, str] | None = None) -> list[str]:
+    labels = labels or ("original", "dynG")
     lines = [
         f"| batch | region | reading | {labels[0]} (ms) | {labels[1]} (ms) | ratio | gate | "
         f"spread A / B | {labels[1]} device (ms) |",
@@ -1178,13 +1187,23 @@ def run(args: argparse.Namespace) -> int:
     keys = report_keys(regions)
     reference = REFERENCES[args.backend]
     exe, build = check_port_build(args)
-    # Rebuild (idempotent) and verify the unpatched copy before timing it.
-    build_reference(reference["name"])
-    ref = reference_copy(reference["name"])
-    mosp = ref / "bin" / "mosp"
-    marker = ref / ".dyng-reference"
     data, k = bench_inputs(args.graph)
     env, port_args = run_env(args)
+    baseline = args.baseline_exe.resolve() if args.baseline_exe else None
+    if baseline is not None:
+        # Side A is an earlier dynG build (PLAN 6.3 step 8: a refactor against the code before
+        # it), read through the same profiler stages as side B; the ratios are reported, not gated.
+        if not baseline.is_file():
+            raise SystemExit(f"--baseline-exe {baseline} does not exist")
+        regions = [dict(r, gate="none") for r in regions]
+        ref, marker = baseline.parent, baseline.parent / ".no-reference-marker"
+        side_a = [baseline, *port_args]
+    else:
+        # Rebuild (idempotent) and verify the unpatched copy before timing it.
+        build_reference(reference["name"])
+        ref = reference_copy(reference["name"])
+        marker = ref / ".dyng-reference"
+        side_a = [ref / "bin" / "mosp"]
     batches = batch_list(args)
     results = {}
     failures = []
@@ -1199,9 +1218,9 @@ def run(args: argparse.Namespace) -> int:
             for batch in batches:
                 common = batch_args(data, batch)
                 # Correctness guard: both write their outputs once; the files must be identical.
-                run_one([mosp, *common, "--out", work / "A"], env)
+                run_one([*side_a, *common, "--out", work / "A"], env)
                 run_one([exe, *common, *port_args, "--out", work / "B"], env)
-                same_outputs(work / "A", work / "B", k, f"{batch}: the original and the port")
+                same_outputs(work / "A", work / "B", k, f"{batch}: side A and the port")
                 print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
                 samples: dict[str, list] = {"original": [], "port": []}
                 loads = []
@@ -1216,8 +1235,17 @@ def run(args: argparse.Namespace) -> int:
                     r = 0
                     while r < args.runs:
                         before = os.getloadavg()[0]
-                        log_a, win_a = monitor.run([mosp, *common, "--no-output"], env)
-                        orig = parse_original(log_a, k, keys)
+                        if baseline is not None:
+                            log_a, win_a = monitor.run(
+                                [*side_a, *common, "--no-output", "--timing", timing], env
+                            )
+                            orig = parse_port(log_a, timing, k)
+                            orig["objectives"] = [
+                                stage_sum(orig, regions[0]["port"], o) for o in range(k)
+                            ]
+                        else:
+                            log_a, win_a = monitor.run([*side_a, *common, "--no-output"], env)
+                            orig = parse_original(log_a, k, keys)
                         log, win_b = monitor.run(
                             [exe, *common, *port_args, "--no-output", "--timing", timing], env
                         )
@@ -1250,12 +1278,13 @@ def run(args: argparse.Namespace) -> int:
                     k,
                     args.runs,
                     loads,
+                    a_value=port_value if baseline is not None else None,
                     monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
                 )
     finally:
         with contextlib.suppress(OSError):
             subprocess.run(["rm", "-rf", str(work)], check=False)
-    report(results)
+    report(results, labels=(args.baseline_label, "dynG") if baseline is not None else None)
     exceeded = [
         f"{b}: {e['region']} ({e['reading']}) {e['ratio']:.3f} > {e['gate']:.2f}"
         for b, res in results.items()
@@ -1550,7 +1579,9 @@ def kernels(args: argparse.Namespace) -> int:
             "port": {"commit": port_commit(), "binary": portable_path(args.exe), "build": build},
             "protocol": {
                 "runs": args.runs,
-                "order": "A/B/A/B (original first)",
+                "order": "A/B/A/B (side A first: "
+                + ("the dynG baseline" if getattr(args, "baseline_exe", None) else "the original")
+                + ")",
                 "tool": subprocess.run([NCU, "--version"], capture_output=True, text=True)
                 .stdout.strip()
                 .splitlines()[-1],
@@ -1592,13 +1623,22 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
         "backend": args.backend,
         "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "graph": args.graph,
-        "reference": {
-            "name": reference["name"],
-            "commit": reference["commit"],
-            "variant": "unpatched",
-            "binary": portable_path(ref / "bin" / "mosp"),
-            "build": marker.read_text() if marker.is_file() else None,
-        },
+        "reference": (
+            {
+                "name": reference["name"],
+                "commit": reference["commit"],
+                "variant": "unpatched",
+                "binary": portable_path(ref / "bin" / "mosp"),
+                "build": marker.read_text() if marker.is_file() else None,
+            }
+            if not getattr(args, "baseline_exe", None)
+            else {
+                "name": "dynG baseline (--baseline-exe; not a gate)",
+                "label": args.baseline_label,
+                "binary": portable_path(args.baseline_exe),
+                "build": port_build(args.baseline_exe.resolve(), args.backend),
+            }
+        ),
         "port": {
             "commit": port_commit(),
             "binary": portable_path(args.exe),
@@ -1607,7 +1647,9 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
         "region_map": {"file": portable_path(REGION_MAP), "regions": [r["name"] for r in regions]},
         "protocol": {
             "runs": args.runs,
-            "order": "A/B/A/B (original first)",
+            "order": "A/B/A/B (side A first: "
+            + ("the dynG baseline" if getattr(args, "baseline_exe", None) else "the original")
+            + ")",
             "threads": args.threads,
             "env": " ".join(
                 ["OMP_PROC_BIND=close", "OMP_PLACES=cores"]
@@ -1708,6 +1750,18 @@ def main() -> int:
             help="record contaminated rounds instead of repeating them (flagged in the JSON)",
         )
         if command == "run":
+            r.add_argument(
+                "--baseline-exe",
+                type=Path,
+                help="replace side A (the original) by an earlier dynG build's dyng-compat-mosp, "
+                "read through the same profiler stages (PLAN 6.3 step 8: a refactor against the "
+                "code before it); the ratios are reported, not gated",
+            )
+            r.add_argument(
+                "--baseline-label",
+                default="baseline",
+                help="the name of side A in the report with --baseline-exe (e.g. a commit)",
+            )
             r.add_argument(
                 "--lock-clocks",
                 choices=["boost", "base", "none"],

@@ -284,6 +284,19 @@ def test_perf_ab_edge_type_summary_reads_the_port_on_both_sides() -> None:
     assert by_name["apply"]["original_ms"] == pytest.approx(13.3)
 
 
+def test_perf_ab_run_takes_a_dyng_baseline() -> None:
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity/perf_ab.py", "run", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "--baseline-exe" in proc.stdout and "--baseline-label" in proc.stdout
+    perf = load("parity/perf_ab.py")
+    lines = perf.report({}, labels=("f664f96", "dynG"))
+    assert "f664f96 (ms)" in lines[0]
+
+
 def test_perf_ab_monitor_sees_foreign_cpu_load() -> None:
     perf = load("parity/perf_ab.py")
     # A spinning process that is not the timed program: foreign load of about one core.

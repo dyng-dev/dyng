@@ -32,7 +32,7 @@ $DYNG_SCRATCH/
 | `goldens.toml` | GENERATED manifest: the SHA-256 of each golden set's `MANIFEST.sha256` and one digest per case |
 | `compare.py` | verifies the goldens, then replays every case through `tools/compat` (dynG; `--configs sequential,openmp:<t>,cuda[:<device>]`) or through another original's copy, byte for byte |
 | `timed_regions/<algo>.toml` | the original's timers -> dynG profiler stages (written before each port); `perf_ab.py` loads it |
-| `perf_ab.py` | `prepare` the benchmark inputs with the original's own tool; `run` the A/B/A/B comparison under the perf lock (`--backend openmp` against MOSP-OpenMP, `--backend cuda` against MOSP-CUDA) |
+| `perf_ab.py` | `prepare` the benchmark inputs with the original's own tool; `run` the A/B/A/B comparison under the perf lock (`--backend openmp` against MOSP-OpenMP, `--backend cuda` against MOSP-CUDA; `--baseline-exe` against an earlier dynG build instead, for refactors: reported, not gated) |
 | `clock_lock/clock_holder.cu` | the idle helper through which `perf_ab.py run --backend cuda --lock-clocks boost` (the default; or `base`) keeps the GPU clocks locked for the whole A/B with Nsight Compute, without root (ADR 0018) |
 | `tests/` | smoke tests of the scripts (pytest; run by `ci/check.sh` and `lint.yml`) |
 | `fixtures/` | scripts that regenerate the small committed test fixtures (`cpp/tests/data`) from the same scratch copies |
