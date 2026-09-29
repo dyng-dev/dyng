@@ -411,6 +411,20 @@ Before 0.1.0 anything may change.
 - ADR 0018 update: a case whose GPU cannot hold the boost lock under its power cap (the COLLAB
   update, whose prior counts for 6.5 s) is read at the base lock, applied equally to both sides.
 
+### M2b: close-out (branch `m2b-cycle-cuda`)
+
+- `cycle_count` works on the sequential, OpenMP and CUDA backends (M2 done). The algorithm page
+  describes the CUDA work items of every scheduler and update phase, determinism on cuda (the
+  claim order of the work queue changes, the sums do not; the device sums are not checked for
+  overflow, as in the original) and the default-clock readings next to the locked-clock gate
+  table.
+- The `cycle_count` manifest lists the cuda backend and the original's CUDA sources.
+- The short plan's estimate is re-estimated after M2 (0.1.0 in about 1-2 weeks of focused work,
+  3-5 weeks of calendar time); the M2b retrospective has the milestone summary, the M2 summary,
+  the acceptance record and the final verification from a fresh clone.
+- `parity/results/M2b.md` section 7: the three gate scripts pass in a fresh clone, and the sssp
+  CUDA and OpenMP gates and the cycle_count OpenMP update gate hold on the final code.
+
 ## [0.0.1] - 2026-09-27
 
 ### Added

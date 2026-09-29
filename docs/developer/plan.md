@@ -151,33 +151,31 @@ insert-only MOSP of thesis Chapter 5; incident-vertex and temporal triads; open 
 implicit line-graph policy; new dynamic algorithms (k-core, connected components, PageRank,
 BFS); a HIP backend; multi-GPU only if a research need appears.
 
-## 4. Estimate (re-estimated after M1a)
+## 4. Estimate (re-estimated after M2)
 
-The plan estimated 0.1 at 12-17 working weeks. M1a, estimated at 2-3 weeks, was implemented in
-five sessions on one day with the AI assistant doing the coding. The remaining milestones will
-not scale by the same factor: M1a was the most mechanical milestone (CPU only, one original with
-good tests); most of its effort went into work that grows with every later port (the parity
-harness, performance investigations, documents); every later port adds GPU performance gates on
-a shared, noisy machine; the independent review of M1a found 25 real defects in a milestone that
-had passed its own gate, so every milestone needs a review-and-fix step; and author review and
-account actions are calendar time the AI cannot shorten. The re-estimate applies a speed-up of
-about 3x to the plan's figures:
+The plan estimated 0.1 at 12-17 working weeks. With the AI assistant doing the coding, each port
+of a good original so far (M1a, M1b, M2a, M2b) took about a day of wall-clock time including its
+gates, and each independent review found real defects (M1a 25, M1b 19, M2a 16) and took about
+half a day more to fix. What dominates now is measurement time on the one shared machine (the
+exclusive perf lock, other users' jobs, the GPU's power cap), reviews and their fix steps, the
+author's decisions and account actions, and merges of parallel branches. The remaining
+milestones are less mechanical (M3 refactors two algorithms under unchanged parity and gates; M8
+merges two diverged copies of a data structure; M10 needs calibrated float tolerances), so the
+speed-up of the ports is applied only in part (details: the M2b retrospective):
 
-| Milestone | Plan (working weeks) | Focused effort | Calendar, incl. author gates | Main risk |
+| Milestone | Plan (working weeks) | Focused effort, incl. review and fix | Calendar, incl. author gates | Main risk |
 |---|---|---|---|---|
-| M1b CUDA `sssp` | 2 | 4-6 days | 1.5-2 weeks | the per-objective OpenMP gate (1.05x); end-to-end cost; the cooperative kernel's registers |
-| M2 `cycle_count` | 2-3 | 4-6 days | 1-1.5 weeks (parallel with M1b) | the sorted-rows / set-semantics preset; gates on 4 datasets in both scopes |
-| M3 framework + API freeze | 2-3 | 5-8 days | 2-3 weeks | design judgment; parity and performance re-run per commit; API sign-off |
-| M4 infrastructure | 1-2 | 1-3 days | 3-5 days | first hosted runs; DCO app and rulesets (author) |
-| M5 Python, CLI, docs | 2-3 | 5-8 days | 2-3 weeks | nanobind + scikit-build-core, stubs, TestPyPI release candidate |
-| **0.1.0** | **12-17** | **about 4-6 weeks** | **about 7-10 weeks** | |
-| 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 1.5-2 weeks | 3-4 weeks | the GPU runner decision (O11); wheel sizes |
-| 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 3-4 weeks | 6-8 weeks | the staged CBST merge; memory within 1.05x; performance on the 2M-hyperedge suites |
-| 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 3-4 weeks | 6-8 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
-| **Up to 0.3.0** | **about 32-47** | **about 12-16 weeks** | **about 22-30 weeks** | |
+| M1a, M1b, M2, M4 | 7-10 | done (M2b's review and fix step: 0.5-1 day) | | |
+| M3 framework + API freeze | 2-3 | 2-4 days | 1-2 weeks | parity and gates re-run per refactor commit (lock time); the author's API sign-off |
+| M5 Python, CLI, docs | 2-3 | 2-4 days | 1-2 weeks | nanobind + scikit-build-core, stubs, the TestPyPI release candidate |
+| **0.1.0** | **12-17** | **about 1-2 weeks from now** | **about 3-5 weeks** | the API review and the release approval |
+| 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 4-7 days | 2-3 weeks | the GPU runner decision (O11); wheel sizes; A4 |
+| 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | the operators engine within 1.05x of the fused one; the staged CBST merge; memory within 1.05x |
+| 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
+| **Up to 0.3.0** | **about 32-47** | **about 5-8.5 weeks** | **about 13-20 weeks** | |
 
 The calendar column assumes the author reviews at each gate within a few days. The estimate is
-revisited in the M1b and M3 retrospectives.
+revisited in the M3 retrospective.
 
 ## 5. Risks
 

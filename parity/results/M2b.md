@@ -531,7 +531,7 @@ are the milestone's close-out.
 
 ## 6. Certificate
 
-M2b acceptance criteria 3 and 4 against CycleEnumeration-GPU@0a976ad's CUDA backend:
+M2b acceptance criteria 1-4 (criteria 3 and 4 against CycleEnumeration-GPU@0a976ad's CUDA backend):
 
 | Criterion | Evidence | Verdict |
 |---|---|---|
@@ -541,4 +541,61 @@ M2b acceptance criteria 3 and 4 against CycleEnumeration-GPU@0a976ad's CUDA back
 | 3: compute-sanitizer clean | memcheck (0 errors, 0 leaks), racecheck (0 hazards), synccheck (0 errors) on `dyng_cycle_count_cuda_tests` (`ci/gpu_local.sh`, section 5) | **pass** |
 | 4: CUDA gates, both scopes, clocks locked, >= 20 runs with CUDA events for regions < 10 ms | section 4.2: 20 / 20 gated readings within the gate (0.34-1.003x), end to end 0.88-0.99x | **pass** (the COLLAB update at the base lock, section 4.5) |
 | 4: default-clock readings; registers and occupancy | sections 4.7 and 4.6 (33 / 33 kernels equal to the original's) | recorded |
+| 1 and 2: the gate scripts from a fresh clone; no regression on the final code | section 7: `ci/check.sh --parity`, `ci/gpu_local.sh` and `ci/docs.sh` pass in a fresh clone of `6894e2a`; the sssp CUDA and OpenMP gates and the cycle_count OpenMP update gate within their gates on the final code | **pass** |
 | PLAN 8.6: device memory <= 1.05x | section 4.8: the peak of live allocations 1.000-1.001x on all ten cases | **pass** (not an M2b criterion; fixed in this step) |
+
+## 7. Close-out: the gate scripts from a fresh clone, and the gates on the final code (step finish)
+
+Acceptance criteria 1 and 2 on the final code `6894e2a` (the library and tools are those of
+`94523c5`; the commits after it change documents, the harness and the `cycle_count` manifest
+only). A fresh `git clone` of the branch into the scratch area, then:
+
+| Command | Result |
+|---|---|
+| `ci/check.sh --parity` (14 min 46 s) | every step OK: clang-format; `cpu-only` 401 / 401 and `dev` 414 / 414 (`ctest -L cpu`, `-Werror`); clang-tidy naming; REUSE; provenance (116 files); harness tests; Doxygen (116 compounds) and the Sphinx site with link check; pre-commit; `parity` preset `ctest -L parity` 4 / 4 (dataset digests 27 s, dataset histograms 295 s, the sssp replay 21 s, `parity.cycle_count.cycle_enum_0a976ad` 297 s) |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1, 27 min) | all ten steps passed: build, `ctest -L gpu` 155 / 155, `ctest -L cpu` 414 / 414, the sssp CUDA goldens 495 / 495, the cycle_count CUDA goldens 48 / 48 (24 cases x cuda, cuda:resident), memcheck (0 errors), synccheck on the sssp and cycle_count suites (0 errors), racecheck on the cycle_count suite (0 hazards), clang-tidy on the CUDA branches |
+| `ci/docs.sh` | OK (Doxygen coverage, the site with warnings as errors, links and anchors) |
+
+Performance on the same clone's `parity` and `parity-cuda` builds (`parity/perf_ab.py`, exclusive
+lock, unpatched originals, the machine monitor; no round was rejected or flagged; records
+`M2b-final-perf-*.json`, port `6894e2a`, clean). The sssp CUDA gate at locked clocks (ADR 0018:
+boost, SM 1695 MHz, every busy sample at the lock), roadNet-CA 21 rounds and road_usa 11 as in
+section 1.3:
+
+| Gate | Case | Per-objective update (gated) | apply | end to end | Section 1.3 |
+|---|---|---:|---:|---:|---|
+| sssp CUDA | roadNet-CA (safe50k, unsafe50k, local10k) | 0.976-0.999 | 0.79-0.82 | 0.83-0.87 | 0.978-1.000 |
+| sssp CUDA | road_usa (the three batches) | 0.994-1.001 | 0.816-0.821 | 0.72-0.80 | 0.994-1.001 |
+| sssp OpenMP (28 threads) | roadNet-CA | 0.68-0.94 | 0.86-0.88 | 0.73-0.81 | 0.67-0.93 |
+| sssp OpenMP | road_usa | 0.78-0.99 | 0.770-0.775 | 0.77-0.81 | 0.74-0.92 |
+
+| Gate | Case | Original (ms) | dynG (ms) | Ratio | End to end | Section 3 |
+|---|---|---:|---:|---:|---:|---:|
+| cycle_count OpenMP 56, update | DD 25K+25K k = 4 | 27.1 | 14.0 | 0.516 | 0.842 | 0.574 |
+| cycle_count OpenMP 56, update | GitHub 25K+25K k = 4 | 295.6 | 113.2 | 0.383 | 0.559 | 0.410 |
+
+Every gated reading is within its gate (sssp <= 1.05x, <= 1.10x below 10 ms; cycle_count
+<= 1.05x, end to end <= 1.10x), and the outputs of both sides were byte-identical in every round
+(the sssp invalidation counts equal in every sample). The cycle_count OpenMP update is faster than
+at `6123e1d` (section 3) because of the unstable Step 0 sort (`8e4d453`); sssp reads as at the merge
+(its graphs use MOSP's batch semantics, not `as_sets`, so they keep M1b's host apply and
+re-upload).
+
+```bash
+git clone /path/to/dyng dyng-clean && cd dyng-clean && git checkout m2b-cycle-cuda
+source scripts/dev_env.sh
+ci/check.sh --parity && ci/gpu_local.sh && ci/docs.sh
+flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 cmake --preset parity-cuda
+flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 cmake --build --preset parity-cuda
+parity/perf_ab.py cycle_count run --exe build/parity/tools/compat/dyng-compat-cycle-enum \
+    --cases DD_k4_25000_25000_s1,github_k4_25000_25000_s1 --runs 11 \
+    --json parity/results/M2b-final-perf-openmp-cycle_count.json
+for gr in roadNet-CA:21 road_usa_g:11; do
+  g=${gr%:*} runs=${gr#*:}
+  parity/perf_ab.py run --backend cuda --gpu 0 --lock-clocks boost \
+      --exe build/parity-cuda/tools/compat/dyng-compat-mosp --graph $g --runs $runs \
+      --json parity/results/M2b-final-perf-cuda-$g.json
+  parity/perf_ab.py run --backend openmp --exe build/parity/tools/compat/dyng-compat-mosp \
+      --graph $g --runs $runs --json parity/results/M2b-final-perf-openmp-$g.json
+done
+```
