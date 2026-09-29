@@ -12,6 +12,10 @@
  * region may request more threads than that setting; gather() accepts lists with any allocator
  * (the engines pass cache-line padded thread_lists kept in their workspace, util/thread_list.hpp).
  *
+ * Changed (M3, invariant I9): the offsets live in an inline array for up to 256 threads instead of
+ * a std::vector per gather, so the near-far rounds, which build two gathers each, allocate nothing
+ * (conformance check C8 counts host allocations); a larger team falls back to a heap array.
+ *
  * Added: gather_pair(), which gathers two lists of a region with the barriers of one gather.
  * ListGather's gather() costs two barriers (before and after the prefix sum), so a region that
  * gathers two lists after an `omp for` passed six barriers (the loop's, two per gather, the
@@ -29,6 +33,7 @@
 #include <omp.h>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <vector>
 
@@ -52,8 +57,21 @@ class list_gather {
    * @param[in,out] out         The shared output (appended to).
    * @param[in]     max_threads The thread count requested for the region (>= its team size).
    */
-  list_gather(std::vector<value_t>& out, int max_threads)
-      : out_(out), base_(out.size()), offsets_(static_cast<std::size_t>(max_threads) + 1, 0) {}
+  list_gather(std::vector<value_t>& out, int max_threads) : out_(out), base_(out.size()) {
+    const std::size_t count = static_cast<std::size_t>(std::max(max_threads, 1)) + 1;
+    if (count > inline_offsets) {
+      heap_offsets_.assign(count, 0);
+      offsets_ = heap_offsets_.data();
+    } else {
+      std::fill_n(inline_offsets_.begin(), count, std::size_t{0});
+      offsets_ = inline_offsets_.data();
+    }
+  }
+  list_gather(const list_gather&) = delete;             ///< not copyable (offsets_ points inside)
+  list_gather& operator=(const list_gather&) = delete;  ///< not copyable
+  list_gather(list_gather&&) = delete;                  ///< not movable
+  list_gather& operator=(list_gather&&) = delete;       ///< not movable
+  ~list_gather() = default;                             ///< destructor
 
   /**
    * @brief Append this thread's list (call once per thread, inside the parallel region).
@@ -126,9 +144,14 @@ class list_gather {
               out_.begin() + static_cast<std::ptrdiff_t>(base_ + offsets_[thread]));
   }
 
+  /// Offsets held inline: teams of up to 256 threads gather without a heap allocation.
+  static constexpr std::size_t inline_offsets = 257;
+
   std::vector<value_t>& out_;
   std::size_t base_;
-  std::vector<std::size_t> offsets_;
+  std::size_t* offsets_ = nullptr;  ///< inline_offsets_ or heap_offsets_ (max_threads + 1 entries)
+  std::array<std::size_t, inline_offsets> inline_offsets_;
+  std::vector<std::size_t> heap_offsets_;
 };
 
 }  // namespace dyng::detail

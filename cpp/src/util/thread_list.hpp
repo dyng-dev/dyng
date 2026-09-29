@@ -12,11 +12,14 @@
  * padded_thread_list keeps the vector's own header (written by push_back) on a line of its own.
  * Kept in a workspace, the lists also keep their capacity between rounds and runs, so a list
  * allocates only when its thread takes a larger share of a round than ever before (the dynamic
- * schedule decides the shares). (M1b measured no speed difference from this
+ * schedule decides the shares); such a growth is a reservation for the budgets (invariant I9,
+ * core/budget_counters.hpp). (M1b measured no speed difference from this
  * alone; the near-far loop's time is in its barriers, see list_gather::gather_pair() and
  * parity/results/M1b.md section 9.)
  */
 #pragma once
+
+#include "core/budget_counters.hpp"
 
 #include <cstddef>
 #include <new>
@@ -51,6 +54,7 @@ struct cache_line_allocator {
    * @throws std::bad_alloc if the memory cannot be allocated.
    */
   [[nodiscard]] value_t* allocate(std::size_t count) {
+    note_reservation();  // a list grows past its largest share so far (invariant I9)
     return static_cast<value_t*>(
         ::operator new(rounded(count), std::align_val_t{cache_line_bytes}));
   }
