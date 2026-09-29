@@ -22,5 +22,12 @@ pypi_name_reservation
 retrospectives/index
 ```
 
+```{toctree}
+:maxdepth: 1
+:caption: Design
+
+../design/sketches/index
+```
+
 Planned design pages, each written when the milestone that needs it starts: architecture,
 style guide, API guidelines, performance rules, CI, packaging, release process, Python gaps.
