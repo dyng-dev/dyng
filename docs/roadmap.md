@@ -11,7 +11,7 @@ and is byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes on their 4
 corpus, within the performance gates against the originals. The project infrastructure (this
 site, CI, community files) is in place. `cycle_count` works on the sequential, OpenMP and CUDA backends
 and is bit-identical to the original CycleEnumeration-GPU code (its OpenMP and CUDA backends) on
-its golden corpus; the performance gates of its CUDA backend are being measured.
+its golden corpus, and its CUDA backend is within the performance gates against the original.
 
 ## 0.1.0: the first release
 

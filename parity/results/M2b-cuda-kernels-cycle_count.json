@@ -1,0 +1,2022 @@
+{
+ "original": [
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_two_hop_items_kernel<64>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_edge_items_kernel<64>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_queue_kernel<64>(cycle_enum::cuda::CsrView, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_two_hop_items_kernel<32>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_edge_items_kernel<32>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_queue_kernel<32>(cycle_enum::cuda::CsrView, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_two_hop_items_kernel<16>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 29,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_edge_items_kernel<16>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 30,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_queue_kernel<16>(cycle_enum::cuda::CsrView, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 30,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_two_hop_items_kernel<8>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_edge_items_kernel<8>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 20,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_queue_kernel<8>(cycle_enum::cuda::CsrView, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_two_hop_items_kernel<4>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 20,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_edge_items_kernel<4>(cycle_enum::cuda::CsrView, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 19,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_queue_kernel<4>(cycle_enum::cuda::CsrView, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 20,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_kernel<64>(cycle_enum::cuda::CsrView, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_kernel<32>(cycle_enum::cuda::CsrView, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_kernel<16>(cycle_enum::cuda::CsrView, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_kernel<8>(cycle_enum::cuda::CsrView, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 34,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::cuda::detail::(anonymous namespace)::count_roots_kernel<4>(cycle_enum::cuda::CsrView, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 26,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::cuda::detail::(anonymous namespace)::target_degree_kernel(cycle_enum::cuda::CsrView, unsigned int const*, unsigned int, unsigned long long*)",
+   "base": "target_degree",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 14,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::cuda::detail::(anonymous namespace)::fill_edge_items_kernel(cycle_enum::cuda::CsrView, unsigned int const*, unsigned int const*, unsigned int*, unsigned int*)",
+   "base": "fill_edge_items",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 18,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::cuda::detail::(anonymous namespace)::forward_rows_kernel(cycle_enum::cuda::CsrView, unsigned int*, unsigned int*)",
+   "base": "forward_rows",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 16,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::dynamic::detail::(anonymous namespace)::count_owned_cycles_kernel<64>(cycle_enum::cuda::CsrView, int const*, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 36,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::dynamic::detail::(anonymous namespace)::count_owned_cycles_kernel<32>(cycle_enum::cuda::CsrView, int const*, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 36,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::dynamic::detail::(anonymous namespace)::count_owned_cycles_kernel<16>(cycle_enum::cuda::CsrView, int const*, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 30,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::dynamic::detail::(anonymous namespace)::count_owned_cycles_kernel<8>(cycle_enum::cuda::CsrView, int const*, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void cycle_enum::dynamic::detail::(anonymous namespace)::count_owned_cycles_kernel<4>(cycle_enum::cuda::CsrView, int const*, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::dynamic::detail::(anonymous namespace)::build_next_rows_kernel(cycle_enum::cuda::CsrView, int const*, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned int const*, unsigned int, unsigned int const*, unsigned int*, int*)",
+   "base": "build_next_rows",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 22,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::dynamic::detail::(anonymous namespace)::next_degree_kernel(cycle_enum::cuda::CsrView, unsigned int, unsigned int const*, unsigned int const*, unsigned int*)",
+   "base": "next_degree",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 18,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::dynamic::detail::(anonymous namespace)::change_rows_kernel(cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned int, unsigned int, unsigned int*)",
+   "base": "change_rows",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 10,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::dynamic::detail::(anonymous namespace)::item_counts_kernel(cycle_enum::cuda::CsrView, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned int, unsigned long long*)",
+   "base": "item_counts",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 14,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "cycle_enum::dynamic::detail::(anonymous namespace)::mark_owners_kernel(cycle_enum::cuda::CsrView, cycle_enum::dynamic::detail::(anonymous namespace)::DeviceEdge const*, unsigned int, int*)",
+   "base": "mark_owners",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 12,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  }
+ ],
+ "port": [
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::build_next_rows_kernel<unsigned long>(dyng::detail::device_csr<unsigned long>, int const*, dyng::detail::device_edge const*, unsigned int const*, unsigned int, unsigned long const*, unsigned int*, int*)",
+   "base": "build_next_rows",
+   "cap": null,
+   "offsets": "unsigned long",
+   "fused": false,
+   "registers": 28,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::build_next_rows_kernel<unsigned int>(dyng::detail::device_csr<unsigned int>, int const*, dyng::detail::device_edge const*, unsigned int const*, unsigned int, unsigned int const*, unsigned int*, int*)",
+   "base": "build_next_rows",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 22,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::next_degree_kernel<unsigned long>(dyng::detail::device_csr<unsigned long>, unsigned int, unsigned int const*, unsigned int const*, unsigned long*)",
+   "base": "next_degree",
+   "cap": null,
+   "offsets": "unsigned long",
+   "fused": false,
+   "registers": 20,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::next_degree_kernel<unsigned int>(dyng::detail::device_csr<unsigned int>, unsigned int, unsigned int const*, unsigned int const*, unsigned int*)",
+   "base": "next_degree",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 18,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::mark_owners_kernel<unsigned long>(dyng::detail::device_csr<unsigned long>, dyng::detail::device_edge const*, unsigned int, int*)",
+   "base": "mark_owners",
+   "cap": null,
+   "offsets": "unsigned long",
+   "fused": false,
+   "registers": 18,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::mark_owners_kernel<unsigned int>(dyng::detail::device_csr<unsigned int>, dyng::detail::device_edge const*, unsigned int, int*)",
+   "base": "mark_owners",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 12,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "dyng::detail::(anonymous namespace)::change_rows_kernel(dyng::detail::device_edge const*, unsigned int, unsigned int, unsigned int*)",
+   "base": "change_rows",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 10,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::target_degree_kernel<unsigned long>(dyng::detail::device_csr<unsigned long>, unsigned int const*, unsigned long, unsigned long long*)",
+   "base": "target_degree",
+   "cap": null,
+   "offsets": "unsigned long",
+   "fused": false,
+   "registers": 16,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::target_degree_kernel<unsigned int>(dyng::detail::device_csr<unsigned int>, unsigned int const*, unsigned int, unsigned long long*)",
+   "base": "target_degree",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 14,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::fill_edge_items_kernel<unsigned long>(dyng::detail::device_csr<unsigned long>, unsigned long const*, unsigned long const*, unsigned int*, unsigned int*)",
+   "base": "fill_edge_items",
+   "cap": null,
+   "offsets": "unsigned long",
+   "fused": false,
+   "registers": 26,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::fill_edge_items_kernel<unsigned int>(dyng::detail::device_csr<unsigned int>, unsigned int const*, unsigned int const*, unsigned int*, unsigned int*)",
+   "base": "fill_edge_items",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 18,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::forward_rows_kernel<unsigned long>(dyng::detail::device_csr<unsigned long>, unsigned long*, unsigned long*)",
+   "base": "forward_rows",
+   "cap": null,
+   "offsets": "unsigned long",
+   "fused": false,
+   "registers": 21,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::forward_rows_kernel<unsigned int>(dyng::detail::device_csr<unsigned int>, unsigned int*, unsigned int*)",
+   "base": "forward_rows",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 16,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 256,
+   "blocks_per_sm": 6,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<64, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned long, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 64,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 1808,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<64, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 64,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 38,
+   "stack": 1808,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<64, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 64,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 38,
+   "stack": 1808,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<64, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 64,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 1808,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<32, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned long, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 32,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 912,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<32, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 32,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 912,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<32, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 32,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 912,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<32, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 32,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 912,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<16, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned long, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 16,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 30,
+   "stack": 464,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<16, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 16,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 28,
+   "stack": 464,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<16, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 16,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 29,
+   "stack": 464,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<16, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 16,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 464,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<8, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned long, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 8,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 25,
+   "stack": 240,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<8, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 8,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 24,
+   "stack": 240,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<8, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 8,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 22,
+   "stack": 240,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<8, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 8,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 34,
+   "stack": 240,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<4, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned long, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 4,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 25,
+   "stack": 128,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<4, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 4,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 22,
+   "stack": 128,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<4, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 4,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 22,
+   "stack": 128,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<4, unsigned long>(dyng::detail::device_csr<unsigned long>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 4,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 26,
+   "stack": 128,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<64, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<64, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<64, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<64, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<32, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<32, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<32, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<32, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<16, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 29,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<16, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 30,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<16, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 30,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<16, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 40,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<8, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<8, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 20,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<8, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<8, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 34,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_two_hop_items_kernel<4, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long const*, unsigned int, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_two_hop_items",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 20,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_edge_items_kernel<4, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned int const*, unsigned int const*, unsigned long long, unsigned long long*, unsigned long long*)",
+   "base": "count_edge_items",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 19,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_queue_kernel<4, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*, unsigned long long*)",
+   "base": "count_roots_queue",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 20,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_roots_kernel<4, unsigned int>(dyng::detail::device_csr<unsigned int>, int, unsigned long long*)",
+   "base": "count_roots",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 26,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::item_counts_kernel<unsigned long>(dyng::detail::device_csr<unsigned long>, dyng::detail::device_edge const*, unsigned int, unsigned long long*)",
+   "base": "item_counts",
+   "cap": null,
+   "offsets": "unsigned long",
+   "fused": false,
+   "registers": 14,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::item_counts_kernel<unsigned int>(dyng::detail::device_csr<unsigned int>, dyng::detail::device_edge const*, unsigned int, unsigned long long*)",
+   "base": "item_counts",
+   "cap": null,
+   "offsets": "unsigned int",
+   "fused": false,
+   "registers": 14,
+   "stack": 0,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<64, unsigned long>(dyng::detail::device_csr<unsigned long>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 64,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 1808,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<32, unsigned long>(dyng::detail::device_csr<unsigned long>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 32,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 40,
+   "stack": 912,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<16, unsigned long>(dyng::detail::device_csr<unsigned long>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 16,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 28,
+   "stack": 464,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<8, unsigned long>(dyng::detail::device_csr<unsigned long>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 8,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 26,
+   "stack": 240,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<4, unsigned long>(dyng::detail::device_csr<unsigned long>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 4,
+   "offsets": "unsigned long",
+   "fused": true,
+   "registers": 26,
+   "stack": 128,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<64, unsigned int>(dyng::detail::device_csr<unsigned int>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 64,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 36,
+   "stack": 1296,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<32, unsigned int>(dyng::detail::device_csr<unsigned int>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 32,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 36,
+   "stack": 656,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<16, unsigned int>(dyng::detail::device_csr<unsigned int>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 16,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 30,
+   "stack": 336,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<8, unsigned int>(dyng::detail::device_csr<unsigned int>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 8,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 176,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  },
+  {
+   "kernel": "void dyng::detail::(anonymous namespace)::count_owned_cycles_kernel<4, unsigned int>(dyng::detail::device_csr<unsigned int>, int const*, dyng::detail::device_edge const*, unsigned long long const*, unsigned int, unsigned long long, int, unsigned long long*, unsigned long long*)",
+   "base": "count_owned_cycles",
+   "cap": 4,
+   "offsets": "unsigned int",
+   "fused": true,
+   "registers": 22,
+   "stack": 96,
+   "shared": 0,
+   "local": 0,
+   "block_size": 128,
+   "blocks_per_sm": 12,
+   "occupancy": 1.0,
+   "limited_by": "warps"
+  }
+ ],
+ "pairs": [
+  {
+   "kernel": "count_edge_items<4>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 19,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 19,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_edge_items<8>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 20,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 20,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_edge_items<16>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 30,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 30,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_edge_items<32>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_edge_items<64>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_owned_cycles<4>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 22,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 22,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_owned_cycles<8>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 22,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 22,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_owned_cycles<16>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 30,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 30,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_owned_cycles<32>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 36,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 36,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_owned_cycles<64>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 36,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 36,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots<4>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 26,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 26,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots<8>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 34,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 34,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots<16>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots<32>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots<64>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots_queue<4>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 20,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 20,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots_queue<8>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 22,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 22,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots_queue<16>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 30,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 30,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots_queue<32>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_roots_queue<64>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_two_hop_items<4>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 20,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 20,
+    "stack": 96,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_two_hop_items<8>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 22,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 22,
+    "stack": 176,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_two_hop_items<16>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 29,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 29,
+    "stack": 336,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_two_hop_items<32>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 656,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "count_two_hop_items<64>",
+   "fused": true,
+   "block_size": 128,
+   "original": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 40,
+    "stack": 1296,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "build_next_rows",
+   "fused": false,
+   "block_size": 128,
+   "original": {
+    "registers": 22,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 22,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "change_rows",
+   "fused": false,
+   "block_size": 128,
+   "original": {
+    "registers": 10,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 10,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "fill_edge_items",
+   "fused": false,
+   "block_size": 256,
+   "original": {
+    "registers": 18,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 18,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "forward_rows",
+   "fused": false,
+   "block_size": 256,
+   "original": {
+    "registers": 16,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 16,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "item_counts",
+   "fused": false,
+   "block_size": 128,
+   "original": {
+    "registers": 14,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 14,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "mark_owners",
+   "fused": false,
+   "block_size": 128,
+   "original": {
+    "registers": 12,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 12,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "next_degree",
+   "fused": false,
+   "block_size": 128,
+   "original": {
+    "registers": 18,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 18,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  },
+  {
+   "kernel": "target_degree",
+   "fused": false,
+   "block_size": 256,
+   "original": {
+    "registers": 14,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "port": {
+    "registers": 14,
+    "stack": 0,
+    "occupancy": 1.0
+   },
+   "equal": true
+  }
+ ],
+ "device": {
+  "arch": "sm_86",
+  "max_warps": 48,
+  "max_blocks": 16,
+  "registers": 65536,
+  "register_unit": 256
+ },
+ "binaries": {
+  "original": [
+   "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/libcycle_enum_cuda.a",
+   "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/libcycle_enum_dynamic.a"
+  ],
+  "port": [
+   "build/parity-cuda/cpp/libdyng.so.0.1.0"
+  ]
+ }
+}

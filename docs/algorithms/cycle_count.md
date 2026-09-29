@@ -223,9 +223,37 @@ the update's `update_seconds` / `update_ms` (host clock around the update, as th
 both end-to-end times. Each is read in two scopes (`dyng-compat-cycle-enum --scope`): *original*
 (the graph uploaded inside the timed call, as the original does per call) and *resident* (the
 graph on the device before the call, dynG's model). The gate is PLAN 8.6 at locked GPU clocks
-(ADR 0018, `parity/cycle_count_perf.py run --backend cuda`); the measured table is in
-`parity/results/M2b.md`. The register counts of the counting kernels of both sides are recorded
-with `parity/cycle_count_perf.py kernels`.
+(ADR 0018, `parity/cycle_count_perf.py run --backend cuda`).
+
+Measured in M2b (`parity/results/M2b.md` section 4: RTX A5000, GPU clocks locked at 1695 MHz for
+both programs, the unpatched original, medians of 21 alternating rounds; the COLLAB update at the
+1170 MHz lock, 11 rounds, because the GPU cannot hold the higher clock through its 6.5 s prior),
+port `94523c5`:
+
+| Case | Region | CycleEnumeration-GPU (ms) | dynG, original scope (ms) | ratio | dynG, resident scope (ms) | ratio |
+|---|---|---:|---:|---:|---:|---:|
+| DD k = 4 | static kernel | 1.396 | 0.967 | 0.692 | 0.948 | 0.679 |
+| GitHub k = 4 | static kernel | 58.183 | 57.523 | 0.989 | 58.048 | 0.998 |
+| Twitch k = 4 | static kernel | 39.083 | 38.997 | 0.998 | 38.222 | 0.978 |
+| COLLAB k = 3 | static kernel | 52.112 | 51.786 | 0.994 | 52.286 | 1.003 |
+| DD 25K+25K, k = 4 | update | 5.609 | 3.272 | 0.583 | 2.918 | 0.520 |
+| DD 50K+50K, k = 4 | update | 7.092 | 4.794 | 0.676 | 4.553 | 0.642 |
+| DD 100K+100K, k = 4 | update | 10.867 | 8.058 | 0.742 | 7.510 | 0.691 |
+| GitHub 25K+25K, k = 4 | update | 15.013 | 11.675 | 0.778 | 8.499 | 0.566 |
+| Twitch 25K+25K, k = 4 | update | 25.203 | 20.663 | 0.820 | 8.636 | 0.343 |
+| COLLAB 25K+25K, k = 4 | update | 218.1 | 215.3 | 0.987 | 205.7 | 0.943 |
+
+Every gate is met in both scopes (<= 1.05x, <= 1.10x below 10 ms); end to end 0.88-0.99x. The
+static kernels of 38 ms and more are the original's own kernels and run at the same speed; DD's
+short kernel is faster because the original allocates its item arrays with `cudaMalloc` inside the
+timed region, which dynG leases from its workspace pool. The updates run the original's kernels
+too; in the original scope the difference is on the host and in allocation (dynG's Step 0 does
+not sort lists that are already sorted, and its scratch is leased instead of allocated per call),
+and in the resident scope G_t is not uploaded again (on Twitch the upload is 11.9 ms of dynG's
+20.7 ms original-scope update). All 33 kernels have the original's registers, stack and 100 %
+theoretical occupancy (`parity/cycle_count_perf.py kernels`), and the peak device memory of every
+case equals the original's (`parity/cycle_count_perf.py memory`). At default clocks the readings
+are the same within a few percent (recorded, not gated).
 
 The update is not always much faster than a recompute: with the original's fast static kernels,
 its own measurements give update-vs-recompute ratios of 1.2x on DD, 5.2x on GitHub, 4.2x on

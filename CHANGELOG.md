@@ -386,6 +386,31 @@ Before 0.1.0 anything may change.
   cases). `ci/gpu_local.sh` replays the CUDA golden set and runs synccheck and racecheck on the
   CUDA `cycle_count` suite.
 
+### M2b: the CUDA gates of `cycle_count` (branch `m2b-cycle-cuda`)
+
+- The CUDA gate of `cycle_count` against CycleEnumeration-GPU@0a976ad's CUDA backend
+  (`parity/results/M2b.md` sections 4-6): ten cases (static k = 4 on DD, GitHub, Twitch, k = 3
+  on COLLAB; the updates 25K+25K on all four and DD 50K+50K, 100K+100K) in both scopes, clocks
+  locked; every gated reading within its gate. Default-clock readings, the registers, stack and
+  occupancy of all 33 kernels (equal to the original's) and the peak device memory of every case
+  (equal to the original's) are recorded.
+- Faster Step 0 under set semantics: `std::sort` by (source, target, position) instead of
+  `std::stable_sort`, and no sort for lists already in order (every backend; the DD 100K+100K
+  CUDA update 12.2 -> 8.0 ms). Results unchanged.
+- Less device memory in the CUDA `cycle_count` update: the static-count work items are returned
+  when an update begins, and the deletion marks of G_t are computed once per update and shared
+  by the cycle_count delete phase and the device apply (ADR 0020, point 6).
+- `dyng-compat-cycle-enum --scope resident` (count task) makes the graph resident with a 2-cycle
+  count, so the timed kernel does not follow a full count (which runs it 5-12 % slower even at
+  locked clocks).
+- Harness: `parity/cycle_count_perf.py kernels` covers every kernel with its sm_86 occupancy and
+  pairs both sides; `run --backend cuda` records an unmeasurable case (more rejected rounds than
+  `--runs`) as incomplete and continues, writes the JSON after every case, keeps the original's
+  monitor window apart from the port's and summarizes the GPU clocks per side; `memory` records
+  the peak device memory of both sides per case (Nsight Systems' memory trace).
+- ADR 0018 update: a case whose GPU cannot hold the boost lock under its power cap (the COLLAB
+  update, whose prior counts for 6.5 s) is read at the base lock, applied equally to both sides.
+
 ## [0.0.1] - 2026-09-27
 
 ### Added

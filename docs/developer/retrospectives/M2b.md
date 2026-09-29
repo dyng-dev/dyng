@@ -136,3 +136,91 @@ sequential reference recount of such a graph runs for hours. The CUDA suites use
 `parity/cycle_count_perf.py run --backend cuda`), the fresh-clone runs of the three gate
 scripts, and a device Step 0 (sorting and classifying a batch on the device, so a chain of
 updates never downloads G_t) as future work beyond the port.
+
+## Step 3: parity and performance of the CUDA backend (cuda-parity-perf)
+
+| Commit | What |
+|---|---|
+| `8e4d453` | graph: Step 0 of set semantics sorts with `std::sort` by (source, target, position) and skips lists already in order (was `std::stable_sort`); the DD 100K+100K update 12.2 -> 8.0 ms |
+| `c0c100e` | tools: the resident count scope uploads the graph with an untimed 2-cycle count instead of a full count |
+| `778ebf5` | parity: `cycle_count_perf.py kernels` covers every kernel with the sm_86 occupancy and pairs both sides; a case with more rejected rounds than `--runs` is recorded as incomplete instead of ending the run; the JSON is written after every case |
+| `fe753d2` | parity: the CUDA record keeps the original's monitor window apart from the port's (they were merged under one key) and adds a per-side GPU clock summary |
+| `94523c5` | cycle_count, graph: the update returns the static-count work items when it begins, and the deletion marks of G_t are computed once per update and shared with the device apply (ADR 0020, point 6) |
+| `11a9b2f` | parity: `cycle_count_perf.py memory` (the peak of live device allocations of both sides, from Nsight Systems' memory trace) |
+| (this commit) | `parity/results/M2b.md` sections 4-6, ADR 0018 update, the algorithm page's CUDA performance table, statuses, CHANGELOG, this section |
+
+**Done.** The CUDA gate of acceptance criterion 4 in full: ten cases, both scopes, the clocks
+locked for the whole A/B, 21 rounds (11 for the COLLAB update, a region of about 200 ms), plus the
+default-clock readings (ungated), the register, stack and occupancy table of all 33 kernels, and
+the device memory of every gate case. Parity replayed on the final code: the CUDA set on cuda,
+cuda:resident and cuda:int64 (72 / 72), on openmp:56 (23 / 23) and the CPU corpus with `--full`
+(72 / 72). Every gated reading is within its gate; the summary is `parity/results/M2b.md`
+section 6.
+
+**What the first gate campaign found**, and what changed (numbers: `parity/results/M2b.md`
+section 4.4):
+
+1. *The resident static kernel read 1.06-1.09x* on GitHub, Twitch and COLLAB while the original
+   scope read 0.97-1.00x. The kernel is the same; the compat tool's residency call was a full
+   count right before the timed one, and a counting kernel that follows another at once runs
+   5-12 % slower even at locked clocks (Nsight Systems: 56.0 then 61.3 ms in one process; a one-
+   or two-second pause removes it). The original's process never has that state before its
+   kernel. The residency call is now a 2-cycle count (about a millisecond). No library change.
+2. *DD 100K+100K update read 1.13x* (original scope). Step 0 on the host took 8.8 of the 12.2 ms:
+   `std::stable_sort` of 16-byte changes, 1.5x the original's `std::sort`. The unstable sort by
+   (source, target, position) is equivalent (positions are unique); a sortedness check first
+   skips the sort for lists already in order. 0.74x now; all replays unchanged.
+3. *The COLLAB update could not be measured at the boost lock*: its 6.5 s prior runs under the
+   GPU's power cap, the SM clock drops to 1350-1680 MHz in every process of both programs, and
+   the monitor rejected 22 rounds in a row; the harness then exited without writing any record.
+   The harness now records such a case as incomplete and continues; the case is gated at the base
+   lock, where the clocks hold (ADR 0018 update).
+4. *The record lost the original's monitor window*: in the CUDA mode the round record merged
+   `{"original": window}` with the port's scope windows, and the scope "original" overwrote it.
+   The rejection itself read the right window; only the JSON was wrong. Fixed before the campaign
+   whose records are committed.
+5. *Device memory*: see below; fixed in `94523c5`, after which the whole campaign was measured
+   again on the final code (the committed records; the `fe753d2` campaign read the same within
+   0.02 in every ratio).
+
+**Device memory** (PLAN 8.6 lists device memory <= 1.05x; M1b did not measure it). A first
+measurement with nvidia-smi's per-process totals showed the CUDA update far above the original
+(COLLAB 25K+25K: 1040 against 592 MiB; Nsight Systems' trace of the live allocations then gave
+762 against 383 MiB). The causes were the prior's static-count work items (about
+300 MB of two-hop items on COLLAB k = 4), kept in the workspace through an update that never reads
+them, and a second m-int array of deletion marks (cycle_count's delete phase and the device apply
+each marked the deleted positions). Both are fixed (`94523c5`). Nsight Systems' memory trace (the
+high-water mark of live `cudaMalloc` / `cudaMallocAsync` allocations) now gives the same peak for
+both programs on all ten cases; nvidia-smi totals still differ by a fixed amount (the stream-ordered
+pool reserves in 32 MB granules, and dynG's process loads the kernels of every algorithm of the
+library: about 34 MB on a three-edge graph).
+
+**Deviations from the plan, recorded here.**
+
+- The COLLAB update is gated at the base clock lock (1170 MHz), not at boost (ADR 0018 update):
+  the GPU cannot hold the boost lock through its prior. Its default-clock reading (0.989x /
+  0.937x) is recorded as for every case.
+- The resident scope of the count task makes the graph resident with a 2-cycle count, not with a
+  full count (`parity/timed_regions/cycle_count.toml`).
+- Device memory is compared as the peak of live allocations (Nsight Systems) and reported next to
+  the process totals; PLAN 8.6 does not say which. It is within 1.05x on every case; M2b's
+  acceptance criteria do not list it.
+
+**Lessons.**
+
+- On a GPU near its power cap, what ran just before a timed kernel matters even at locked clocks.
+  A scope that adds GPU work before the timed region (here, to make the graph resident) must keep
+  the GPU as idle as the original's process leaves it.
+- A harness that gives up on one case must still write what it measured: one unmeasurable case
+  cost a whole campaign. On a shared machine, a record per case also lets one case be repeated
+  alone: another user's GPU job hit two cases of the final campaign, which were repeated
+  (`M2b-cuda-perf-cycle_count-repeat.json`).
+- Retained workspaces are right for steady-state throughput and wrong for peak memory when an
+  operation keeps another operation's scratch. Measuring device memory per gate case, not only
+  time, found it.
+
+**Open items after this step.** The fresh-clone runs of `ci/check.sh --parity`, `ci/gpu_local.sh`
+and `ci/docs.sh` (criterion 1); the M2 summary and the re-estimate that close this page; the
+author's view on reading the COLLAB update at the base lock; the device Step 0 (ADR 0020) and the
+one-time pinned-buffer allocation in the first static call (0.85 ms of DD's reported
+`static_total`) as future work.
