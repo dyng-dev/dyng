@@ -52,7 +52,9 @@ identify_affected -> seed -> { FP: loop until is_converged } -> finalize
 | `sssp.finalize` | unpack distances and parents (the distance-only mode recovers every parent); count `affected` |
 
 `compute()` is the static enactor: `sssp.reset` -> `sssp.seed` (the source) -> `sssp.loop` ->
-`sssp.finalize`, inside `sssp.compute`. `update()` runs inside `sssp.update`.
+`sssp.finalize`, inside `sssp.compute`. `update()` runs inside `sssp.update`. Both are the
+framework's enactors running `detail::sssp_problem` (`cpp/src/algorithms/sssp/problem.hpp`; the
+[framework guide](../developer/framework.md) maps its hooks).
 
 On the CUDA backend the four hooks from `identify_affected` to `finalize` are one fused engine
 (Tier B, PLAN 4.5.4): MOSP-CUDA's persistent cooperative kernel, one launch per objective, profiler
@@ -316,9 +318,9 @@ take the connectivity-safe batch's time. The MOSP-level "(a) compute" totals of 
 
 | MOSP-OpenMP@c352151 | dynG |
 |---|---|
-| `sospUpdateCpu` | `sssp::update` on `resources::openmp` (`cpp/src/algorithms/sssp/openmp.cpp`) |
+| `sospUpdateCpu` | `sssp::update` on `resources::openmp`: `detail::sssp_openmp_engine` (`cpp/src/algorithms/sssp/openmp.cpp`), one member per phase, run by the framework's enactors as the Tier A hooks of `detail::sssp_problem` (`problem.hpp`) |
 | `sospFromScratchCpu`, `mospPrep init` / `dijkstraCsrGraph` | `sssp::compute`; `testing::dijkstra` |
-| `sequentialSOSPUpdate` | `sssp::update` on `resources::sequential` (`sequential.cpp`) |
+| `sequentialSOSPUpdate` | `sssp::update` on `resources::sequential`: `detail::sssp_sequential_engine` (`sequential.cpp`), the same hooks |
 | `SospWorkspace` (one per `mospUpdate()` call, shared by the objectives) | `detail::sssp_workspace`, leased from the pool of `resources` (one per handle, shared by the results; ADR 0015) |
 | `SospStats` | `sssp::stats` (`invalidated`, `iterations`, `epochs`, `pushes`, `packed_parents`) |
 | `HostChanges` (changed edges, insert heads), `weightIncreaseMask` | `detail::apply_delta` from the commit |
@@ -330,7 +332,7 @@ take the connectivity-safe batch's time. The MOSP-level "(a) compute" totals of 
 
 | MOSP-CUDA@e220ee2 | dynG |
 |---|---|
-| `sospUpdateGpu`, `sospPersistentKernel` | `sssp::update` on `resources::cuda` (`cuda.cu`, `fused.cuh`: `sssp_persistent_kernel`) |
+| `sospUpdateGpu`, `sospPersistentKernel` | `sssp::update` on `resources::cuda` (`cuda.cu`, `fused.cuh`: `sssp_persistent_kernel`), the Tier B hook `enact_fused` of `detail::sssp_problem` |
 | `sospFromScratchGpu` | `sssp::compute` on `resources::cuda` |
 | `SospWorkspace` (`gridBlocks` from the occupancy API) | `detail::sssp_cuda_workspace`, leased from the pool of `resources` |
 | `DeviceGraph`, `uploadDeviceGraph` (reverse CSR built on the device) | the device copy of a CUDA graph (`graph/device_graph.{hpp,cu}`, stage `graph.upload`) |

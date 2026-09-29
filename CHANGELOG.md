@@ -18,6 +18,12 @@ Before 0.1.0 anything may change.
   allocation and host-synchronization counters in `DYNG_DEBUG_BUDGETS` builds), compile-time
   conformance checks, and the participant adapter for `run_update` composition. The guide is
   `docs/developer/framework.md`.
+- `sssp` runs through the framework (M3): `detail::sssp_problem` with the Tier A hooks on the
+  sequential and OpenMP backends and the fused persistent kernel behind `enact_fused` (Tier B) on
+  CUDA; migrated one backend per commit with the golden parity (495 / 495 on every backend) and
+  the performance re-checked after each (`parity/results/M3.md`). No change to the public API,
+  the profiler stages or the results. `parity/perf_ab.py run --baseline-exe` times dynG against
+  an earlier dynG build.
 - Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
   accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for

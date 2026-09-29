@@ -368,6 +368,10 @@ struct sssp_run {
   sssp_workspace<vertex_t>* ws = nullptr;            ///< host scratch (leased from the pool)
   sssp_cuda_workspace<vertex_t>* cuda_ws = nullptr;  ///< device scratch (cuda backend)
   sssp_counters counters;                            ///< out
+  /// out (cuda): device_error bits the fused engine's control block reported (0: none); the
+  /// problem records them for the enactor (framework::context::raise_device_error)
+  std::uint32_t device_errors = 0;
+  const char* device_error_detail = nullptr;  ///< out (cuda): the description of device_errors
 };
 
 /**
@@ -511,25 +515,26 @@ class sssp_openmp_engine {
 
 /**
  * @brief CUDA backend, fused engine: the update (MOSP-CUDA's sospUpdateGpu(), the persistent
- *        cooperative kernel), timed as the profiler stage sssp.enact_fused.
+ *        cooperative kernel); sssp_problem::enact_fused runs it in the stage sssp.enact_fused.
  *
  * `run.graph` and `run.changes` hold device pointers, `run.distances` / `run.parents` the device
  * arrays of the result, `run.cuda_ws` the leased device workspace. Synchronizes the stream once
- * (the control block is read back).
+ * (the control block is read back). A negative or too large input distance (the tree does not
+ * belong to the graph) and a parent cycle of the input tree are reported in `run.device_errors`
+ * (device_error::invalid_input, device_error::parent_cycle), not thrown.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
  * @param[in]     res Resources of the CUDA backend.
  * @param[in,out] run The run.
- * @throws invalid_argument_error if an input distance does not fit the packing (the tree does not
- *         belong to the graph) or the input tree has a parent cycle.
- * @throws not_supported_error    if the kernel cannot be launched cooperatively.
+ * @throws not_supported_error if the kernel cannot be launched cooperatively.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_cuda_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
 
 /**
- * @brief CUDA backend, fused engine: compute() (MOSP-CUDA's sospFromScratchGpu()).
+ * @brief CUDA backend, fused engine: compute() (MOSP-CUDA's sospFromScratchGpu());
+ *        sssp_problem::compute_fused runs it in the stage sssp.enact_fused.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
@@ -623,8 +628,8 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   void poison() noexcept;
 
   /**
-   * @brief compute(): lease and size the workspace (sssp.workspace), bind the engine of the
-   *        call's backend to the state's arrays.
+   * @brief compute(): allocate the result's arrays (host vectors, device buffers on cuda), lease
+   *        and size the workspace (sssp.workspace), bind the engine of the call's backend.
    * @param[in,out] ctx        The run's context.
    * @param[in]     g          The graph.
    * @param[in]     delta      The near-far width (> 0).
@@ -653,16 +658,37 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   /// sssp.finalize: the engine's unpack and `affected`, then the stats.
   void finalize(framework::context& ctx, stats_type& stats);
 
+  // ---- Tier B (cuda), on G_{t+1} ---------------------------------------------------------------
+
+  /**
+   * @brief The engine of the call: engine::fused (the persistent cooperative kernel) on the CUDA
+   *        backend, engine::operators (the Tier A hooks) on the host backends. begin_update and
+   *        compute() have already rejected the CUDA engines this release does not have.
+   * @return The engine.
+   */
+  [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
+
+  /// sssp.enact_fused: the fused CUDA engine (sssp_cuda_update), then the stats; the device
+  /// errors of its control block are recorded for the enactor.
+  void enact_fused(framework::context& ctx, new_graph g, const applied& applied, stats_type& stats);
+
   // ---- compute(), static enactor ---------------------------------------------------------------
 
   /// sssp.reset: every vertex unreachable, the source at 0.
   void reset(framework::context& ctx);
   /// sssp.seed: the source.
   void seed_static(framework::context& ctx, new_graph g, frontier& f);
+  /// sssp.enact_fused (cuda): sssp_cuda_compute.
+  void compute_fused(framework::context& ctx, new_graph g, stats_type& stats);
 
  private:
-  /// Bind the engine of the call's backend to run_ (sequential or OpenMP).
+  /// Bind the engine of the call's backend to run_ (sequential or OpenMP; the CUDA engine is a
+  /// function of the run).
   void bind_engine(const resources& res);
+  /// The counters of the run in the stats.
+  void fill_stats(stats_type& stats) const;
+  /// Record the device errors of a fused run for the enactor.
+  void raise_device_errors(framework::context& ctx) const;
   /// Run `fn` on the bound engine.
   template <typename fn_t>
   void on_engine(fn_t&& fn);
@@ -674,6 +700,7 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   sssp_changes<vertex_t> changes_;  ///< the objective's change list (resume)
   sssp_run<vertex_t, edge_t, weight_t> run_;  ///< the engine's run (resume, bind_static)
   std::optional<workspace_pool::lease<sssp_workspace<vertex_t>>> host_ws_;        ///< host scratch
+  std::optional<workspace_pool::lease<sssp_cuda_workspace<vertex_t>>> cuda_ws_;   ///< device
   std::optional<sssp_sequential_engine<vertex_t, edge_t, weight_t>> sequential_;  ///< engine
   std::optional<sssp_openmp_engine<vertex_t, edge_t, weight_t>> openmp_;          ///< engine
 };

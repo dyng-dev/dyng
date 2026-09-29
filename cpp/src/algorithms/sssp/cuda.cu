@@ -8,6 +8,11 @@
  *        MOSP-CUDA's sospUpdateGpu() / sospFromScratchGpu(), ported straight; the kernel is in
  *        fused.cuh.
  *
+ * sssp_problem's enact_fused / compute_fused hooks call sssp_cuda_update / sssp_cuda_compute
+ * inside the enactor's stage sssp.enact_fused (the scope of MOSP-CUDA's per-objective
+ * "sosp_update_gpu" timer); the device errors the control block reports are recorded in the run
+ * and thrown by the enactor at the end of the phase.
+ *
  * Mechanical changes only: names, templates on the index types, namespace dyng::detail,
  * exceptions instead of `bool` + `cerr` (invalid_argument_error for a tree that does not belong to
  * the graph, not_supported_error when the kernel cannot run cooperatively), the stream and device
@@ -20,6 +25,7 @@
  */
 #include "algorithms/sssp/fused.cuh"
 #include "algorithms/sssp/problem.hpp"
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
 #include "graph/instantiate.hpp"
@@ -28,7 +34,6 @@
 #include "util/kernel_registry.hpp"
 
 #include <dyng/core/error.hpp>
-#include <dyng/core/profiler.hpp>
 
 #include <cuda_runtime.h>
 
@@ -145,9 +150,14 @@ int grid_blocks(const resources& res, sssp_cuda_workspace<vertex_t>& ws) {
   return ws.grid_blocks;
 }
 
+/// One cooperative launch and the read-back of its control block (one host synchronization).
+/// A device error (a tree that does not belong to the graph) is recorded in `run` for the
+/// enactor, which throws it at the end of the phase (framework/context.hpp); the counters are then
+/// not set.
 template <typename vertex_t, typename edge_t, typename weight_t>
 void run_persistent(const resources& res, sssp_fused::params<vertex_t, edge_t, weight_t>& params,
-                    sssp_cuda_workspace<vertex_t>& ws, sssp_counters& stats) {
+                    sssp_cuda_workspace<vertex_t>& ws, sssp_run<vertex_t, edge_t, weight_t>& run) {
+  sssp_counters& stats = run.counters;
   using control_type = sssp_fused::control<vertex_t>;
   params.packed = ws.packed.data();
   params.stamp = ws.stamp.data();
@@ -179,17 +189,22 @@ void run_persistent(const resources& res, sssp_fused::params<vertex_t, edge_t, w
   DYNG_CUDA_TRY(cudaMemcpyAsync(mirror, ws.control.data(), sizeof(control_type),
                                 cudaMemcpyDeviceToHost, stream));
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  note_host_sync();  // the budget of the phase (I9) counts it
   const control_type result = *mirror;
   if (result.overflow != 0) {
-    throw_device_errors(bits_of(device_error::invalid_input), "sssp::update",
-                        "an input distance is negative or larger than (n - 1) * max weight; the "
-                        "initial tree does not belong to this graph");
+    run.device_errors = bits_of(device_error::invalid_input);
+    run.device_error_detail =
+        "an input distance is negative or larger than (n - 1) * max weight; the initial tree "
+        "does not belong to this graph";
+    return;
   }
   if (!params.from_scratch && result.rounds == params.max_rounds && result.rounds > 0 &&
       result.active[(result.rounds - 1) % 3] != 0) {
-    throw_device_errors(bits_of(device_error::parent_cycle), "sssp::update",
-                        "the input shortest-path tree has a parent cycle (pointer jumping did not "
-                        "reach a root in ceil(log2 n) + 1 rounds)");
+    run.device_errors = bits_of(device_error::parent_cycle);
+    run.device_error_detail =
+        "the input shortest-path tree has a parent cycle (pointer jumping did not reach a root "
+        "in ceil(log2 n) + 1 rounds)";
+    return;
   }
   ws.generation = std::max(ws.generation, result.generation);
   stats.invalidated = static_cast<std::int64_t>(result.invalidated);
@@ -251,10 +266,11 @@ vertex_t list_length(std::size_t count, const char* what) {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_cuda_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run) {
-  scoped_stage stage(res, "sssp.enact_fused");
   const scoped_device guard(res.device());
   const vertex_t n = run.graph.num_vertices;
   run.counters = sssp_counters{};
+  run.device_errors = 0;
+  run.device_error_detail = nullptr;
   if (n == 0) {
     return;
   }
@@ -282,15 +298,16 @@ void sssp_cuda_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>
   params.max_rounds = rounds + 1;
   params.distances = reinterpret_cast<long long*>(run.distances);
   params.parent = run.parents;
-  run_persistent(res, params, ws, run.counters);
+  run_persistent(res, params, ws, run);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_cuda_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run) {
-  scoped_stage stage(res, "sssp.enact_fused");
   const scoped_device guard(res.device());
   const vertex_t n = run.graph.num_vertices;
   run.counters = sssp_counters{};
+  run.device_errors = 0;
+  run.device_error_detail = nullptr;
   if (n == 0) {
     return;
   }
@@ -308,7 +325,7 @@ void sssp_cuda_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t
   params.delta = static_cast<u64>(run.delta);
   params.distances = reinterpret_cast<long long*>(run.distances);
   params.parent = run.parents;
-  run_persistent(res, params, ws, run.counters);
+  run_persistent(res, params, ws, run);
 }
 
 #define DYNG_INSTANTIATE_SSSP_CUDA(V, E, W)                                      \
