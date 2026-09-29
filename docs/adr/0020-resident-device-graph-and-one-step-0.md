@@ -124,7 +124,8 @@ avoids on CUDA (its device merge reads the prepared batch).
   Both are measured (`parity/timed_regions/cycle_count.toml`, `[reference.cycle_enum_cuda]`).
 - A chain of updates on the device downloads nothing as long as nobody reads the host CSR (point
   7). The sort and deduplication of Step 0 stay on the host, as the original's `prepare_batch()`
-  (a radix sort whose cost does not depend on the order of the batch; `sort_and_dedup`); a fully
+  (a bucket sort that costs less than the original's `std::sort` on sorted and on shuffled input,
+  with no shortcut for sorted lists; `sort_and_dedup`); a fully
   device Step 0 remains future work.
 - Weighted graphs and graphs with other batch semantics keep the M1b behaviour (host apply,
   re-upload); the cycle_count update then builds its insert-phase owner array itself

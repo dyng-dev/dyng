@@ -51,7 +51,7 @@ cycle_count is an **aggregate-delta** problem (template card in
 
 | Step | Hook (profiler stage) | What it does | Original |
 |---|---|---|---|
-| 0 | `normalize` (`cycle_count.normalize`) | the net structural change on G_t: deletions of existing edges, insertions of new (or deleted and re-inserted) edges, each sorted by (source, destination) without repeats; self-loops dropped. Under `batch_semantics::as_sets` the framework computes it once for every result and the commit (ADR 0020) | `prepare_batch` |
+| 0 | `normalize` (`cycle_count.normalize`) | the net structural change on G_t: deletions of existing edges, insertions of new (or deleted and re-inserted) edges, each sorted by (source, destination) without repeats (from 256 changes on a bucket sort: 0.7x of the original's `std::sort` on sorted input, 0.3x on shuffled input, with no shortcut for sorted lists); self-loops dropped. Under `batch_semantics::as_sets` the framework computes it once for every result and the commit (ADR 0020); with `self_loop::keep` a self-loop stays in the lists (the graph stores it) and the phases skip it, since it lies on no cycle. On a resident CUDA graph whose host copy is stale the membership of each change in G_t is tested on the device, so a chain of updates never downloads the graph | `prepare_batch` |
 | 1a | `before_apply` = count(-) (`cycle_count.count_minus`) | for every deleted edge in id order, the cycles through it on G_t that contain no deleted edge of smaller id (ownership = the smallest id, `changed_edge_index`) | delete phase of `update_static_histogram` |
 | apply | commit (`cycle_count.commit` > `graph.apply`) | the batch applied once; no transposition (the searches read the out-edges only). On cuda under set semantics without weight columns the batch is merged into the resident graph on the device | `apply_batch` (CUDA: `build_next_rows_kernel`) |
 | 1b | `identify_affected` (`cycle_count.identify_affected`) | the inserted edges and their ownership index | – |
@@ -85,9 +85,9 @@ Python: planned (M5; PLAN Section 5.5, `dyng.cycle_count.compute(cg, max_length=
 
 | Option | Default | Meaning |
 |---|---|---|
-| `max_length` | -1 | longest counted length (>= 2), or -1: no bound. The histogram has min(k, max(n, 2)) + 1 entries (no simple cycle is longer than n), so a bound far above n costs nothing. Without a bound see Section 5 for the cost per backend |
-| `method` | `search_method::johnson` | the search (the only one) |
-| `mode` | `cycle_mode::simple` | static simple cycles (time-window and temporal modes: 0.4) |
+| `max_length` | -1 | longest counted length (>= 2), or -1: no bound. The histogram has min(k, max(n, 2)) + 1 entries (no simple cycle is longer than n), so a bound far above n costs nothing. Without a bound see Section 5 for the cost per backend. Fixed at `compute()` |
+| `method` | `search_method::johnson` | the search (the only one); fixed at `compute()` |
+| `mode` | `cycle_mode::simple` | static simple cycles (time-window and temporal modes: 0.4); fixed at `compute()` |
 | `cuda_engine` | `engine::automatic` | cuda only: `automatic` and `fused` run the fused kernels (Tier B); `operators` throws `not_supported_error` (no operators engine in 0.1) |
 | `scheduler` | `cuda_scheduler::work_queue` | cuda `compute()` only: the work queue, or `naive` (one thread per root; the original's debugging and parity path) |
 | `work_items` | `cuda_work_items::automatic` | cuda `compute()` with the work queue: `roots`, `edges` (r -> v1, v1 > r), `two_hop` (r -> v1 -> v2, numbered implicitly), or `automatic` (the original's rule: edges up to k = 3 and at k = 4 below 16 edges per vertex, two-hop otherwise). Every cycle has exactly one prefix of each kind: the counts never depend on it |
@@ -99,7 +99,10 @@ edges searched, deletions + insertions), `iterations` (always 0: no iterative lo
 `fallback_used` (always false), `converged` (always true), `engine_used` (`engine::operators`
 on the host backends, `engine::fused` on cuda). Every counter is deterministic for cycle_count, including the two that
 `update_stats` calls schedule-dependent. `result`: `counts()`, `count(len)`, `total()`,
-`bound()` (min(k, max(n, 2))), `get_options()`, `clone()`.
+`bound()` (min(k, max(n, 2))), `get_options()`, `set_options()` (the tunables `cuda_engine`,
+`scheduler` and `work_items` change; `max_length`, `method` and `mode` are fixed at `compute()`
+and a change throws `invalid_argument_error`), `clone()`. A result poisoned by a failed update
+throws `stale_result_error` from every accessor except the `noexcept` `graph_version()`.
 `dyng::update(res, g, batch, r1, r2, ...)` updates cycle_count together with other results on one
 graph (e.g. sssp on a weighted graph with the default properties; weights are ignored).
 
@@ -161,9 +164,11 @@ offsets they are the original's 32-bit ones). Two things differ by design:
   on the device (the original's `build_next_rows_kernel`, which it runs and discards), so the next
   update finds G_{t+1} on the device; the insertion ids that kernel writes are the owner array of
   the insert phase. The host copy of the graph is then stale and is downloaded when something reads
-  it (`g.view()`, `g.to_csr()`, a host backend, or Step 0 of the next batch, which reads G_t's rows
-  on the host as the original's `prepare_batch` does). Other semantics and weighted graphs apply the
-  batch on the host and upload the new graph (ADR 0020).
+  it (`g.view()`, `g.to_csr()`, a host backend), on the stream of the resources that built the
+  state. Step 0 of the next batch does not read it: it sorts the batch on the host, as the
+  original's `prepare_batch` does, and tests the membership of each change in G_t with one binary
+  search per change on the device, so a chain of updates stays on the device. Other semantics and
+  weighted graphs apply the batch on the host and upload the new graph (ADR 0020).
 - **Scratch memory is leased.** The item arrays, owner arrays, prefix sums and histograms come from
   the workspace pool of the resources handle (ADR 0015), on its stream; the original allocates them
   with `cudaMalloc` on every call (inside its timed kernel region).
@@ -247,37 +252,62 @@ both end-to-end times. Each is read in two scopes (`dyng-compat-cycle-enum --sco
 graph on the device before the call, dynG's model). The gate is PLAN 8.6 at locked GPU clocks
 (ADR 0018, `parity/cycle_count_perf.py run --backend cuda`).
 
-Measured in M2b (`parity/results/M2b.md` section 4: RTX A5000, GPU clocks locked at 1695 MHz for
-both programs, the unpatched original, medians of 21 alternating rounds; the COLLAB update at the
-1170 MHz lock, 11 rounds, because the GPU cannot hold the higher clock through its 6.5 s prior),
-port `94523c5`:
+Measured after the M2b review (`parity/results/M2b.md` section 8: RTX A5000, GPU clocks locked at
+1695 MHz for both programs, the unpatched original, medians of 21 alternating rounds; the static
+kernels at `297ece6`, the updates at `b38de7e`; the COLLAB update at the 1170 MHz lock, 11 rounds,
+because the GPU cannot hold the higher clock through its 6.5 s prior, which ADR 0021 (Proposed,
+pending the author) would allow):
 
 | Case | Region | CycleEnumeration-GPU (ms) | dynG, original scope (ms) | ratio | dynG, resident scope (ms) | ratio |
 |---|---|---:|---:|---:|---:|---:|
-| DD k = 4 | static kernel | 1.396 | 0.967 | 0.692 | 0.948 | 0.679 |
-| GitHub k = 4 | static kernel | 58.183 | 57.523 | 0.989 | 58.048 | 0.998 |
-| Twitch k = 4 | static kernel | 39.083 | 38.997 | 0.998 | 38.222 | 0.978 |
-| COLLAB k = 3 | static kernel | 52.112 | 51.786 | 0.994 | 52.286 | 1.003 |
-| DD 25K+25K, k = 4 | update | 5.609 | 3.272 | 0.583 | 2.918 | 0.520 |
-| DD 50K+50K, k = 4 | update | 7.092 | 4.794 | 0.676 | 4.553 | 0.642 |
-| DD 100K+100K, k = 4 | update | 10.867 | 8.058 | 0.742 | 7.510 | 0.691 |
-| GitHub 25K+25K, k = 4 | update | 15.013 | 11.675 | 0.778 | 8.499 | 0.566 |
-| Twitch 25K+25K, k = 4 | update | 25.203 | 20.663 | 0.820 | 8.636 | 0.343 |
-| COLLAB 25K+25K, k = 4 | update | 218.1 | 215.3 | 0.987 | 205.7 | 0.943 |
+| DD k = 4 | static kernel | 1.402 | 0.955 | 0.682 | 0.944 | 0.674 |
+| GitHub k = 4 | static kernel | 58.302 | 58.198 | 0.998 | 58.191 | 0.998 |
+| Twitch k = 4 | static kernel | 39.283 | 38.838 | 0.989 | 38.626 | 0.983 |
+| COLLAB k = 3 | static kernel | 52.455 | 52.135 | 0.994 | 52.317 | 0.997 |
+| DD 25K+25K, k = 4 | update | 5.579 | 3.801 | 0.681 | 3.438 | 0.616 |
+| DD 50K+50K, k = 4 | update | 7.126 | 5.955 | 0.836 | 5.471 | 0.768 |
+| DD 100K+100K, k = 4 | update | 10.781 | 10.027 | 0.930 | 9.476 | 0.879 |
+| GitHub 25K+25K, k = 4 | update | 14.810 | 12.101 | 0.817 | 9.470 | 0.639 |
+| Twitch 25K+25K, k = 4 | update | 24.820 | 20.833 | 0.839 | 9.593 | 0.386 |
+| COLLAB 25K+25K, k = 4 | update (base lock) | 218.24 | 215.95 | 0.989 | 206.27 | 0.945 |
 
-Every gate is met in both scopes (<= 1.05x, <= 1.10x below 10 ms); end to end 0.88-0.99x. The
-static kernels of 38 ms and more are the original's own kernels and run at the same speed; DD's
-short kernel is faster because the original allocates its item arrays with `cudaMalloc` inside the
-timed region, which dynG leases from its workspace pool. The updates run the original's kernels
-too; in the original scope the difference is on the host and in allocation (dynG's Step 0 does
-not sort lists that are already sorted, and its scratch is leased instead of allocated per call),
-and in the resident scope G_t is not uploaded again (on Twitch the upload is 11.9 ms of dynG's
-20.7 ms original-scope update). All 33 kernels have the original's registers, stack and 100 %
-theoretical occupancy (`parity/cycle_count_perf.py kernels`), and the peak device memory of every
-case equals the original's (`parity/cycle_count_perf.py memory`).
+The resident scope across batches: four chained updates on the same graph and result (batches of
+seeds 1-4, generated before the first; `dyng-compat-cycle-enum --chain 4`), each against the
+original's per-call update. Every update after the first reads a state that a device apply
+produced; Step 0 tests its changes against the device copy, so nothing is downloaded:
 
-At default clocks (recorded, not gated, ADR 0018; 11 rounds, `parity/results/M2b.md` section 4.7)
-the readings are the same within a few percent:
+| Case | Original, per call (ms) | dynG steady state: median of updates 2-4 (ms) | ratio | dynG slowest update of the chain (ms) | ratio |
+|---|---:|---:|---:|---:|---:|
+| DD 25K+25K | 5.579 | 1.822 | 0.327 | 3.421 | 0.613 |
+| DD 50K+50K | 7.126 | 3.261 | 0.458 | 5.561 | 0.780 |
+| DD 100K+100K | 10.781 | 6.214 | 0.576 | 9.540 | 0.885 |
+| GitHub 25K+25K | 14.810 | 5.699 | 0.385 | 9.023 | 0.609 |
+| Twitch 25K+25K | 24.820 | 5.614 | 0.226 | 9.119 | 0.367 |
+| COLLAB 25K+25K (base lock) | 218.24 | 211.98 | 0.971 | 217.91 | 0.998 |
+
+The slowest update of a chain is its first (the host copy is current then and Step 0 reads it).
+Before the review, the resident column above was the first update only, and every later update
+of a chain downloaded G_t (on Twitch about 10-12 ms per update, and a 26 ms spike when the graph
+outgrew its host arrays), which the table did not show.
+
+Every gate is met in both scopes (<= 1.05x, <= 1.10x below 10 ms); end to end 0.90-0.99x. The
+update regions are host clocks on both sides (the original's region runs its Step 0 and its
+histogram delta on the host and has no device timer); for the cases under 10 ms dynG's CUDA-event
+time of the update is recorded next to them and reads 0.1-0.2 ms above its host clock, so the host
+clock hides no device time. The static kernels of 38 ms and more are the original's own kernels
+and run at the same speed; DD's short kernel is faster because the original allocates its item
+arrays with `cudaMalloc` inside the timed region, which dynG leases from its workspace pool. The
+updates run the original's kernels too; in the original scope the difference is on the host and
+in allocation (dynG's Step 0 sorts with a bucket sort, 0.7x of the original's `std::sort` on the
+generator's sorted batches and 0.3x on shuffled ones, and its scratch is leased instead of
+allocated per call), and in the resident scope G_t is not uploaded again (on Twitch the upload is
+about 11 ms of dynG's 20.8 ms original-scope update). All 33 kernels have the original's registers,
+stack and 100 % theoretical occupancy (`parity/cycle_count_perf.py kernels`), and the peak device
+memory of every case equals the original's (`parity/cycle_count_perf.py memory`).
+
+At default clocks (recorded, not gated, ADR 0018; 11 rounds; the static kernels at `94523c5`,
+`parity/results/M2b.md` section 4.7, the updates after the review, section 8) the readings are the
+same within a few percent:
 
 | Case | Region | CycleEnumeration-GPU (ms) | dynG, original scope (ms) | ratio | dynG, resident scope (ms) | ratio |
 |---|---|---:|---:|---:|---:|---:|
@@ -285,12 +315,12 @@ the readings are the same within a few percent:
 | GitHub k = 4 | static kernel | 59.476 | 57.634 | 0.969 | 57.782 | 0.972 |
 | Twitch k = 4 | static kernel | 38.681 | 38.376 | 0.992 | 38.010 | 0.983 |
 | COLLAB k = 3 | static kernel | 51.306 | 51.644 | 1.007 | 51.539 | 1.005 |
-| DD 25K+25K, k = 4 | update | 5.528 | 3.224 | 0.583 | 2.926 | 0.529 |
-| DD 50K+50K, k = 4 | update | 7.013 | 4.797 | 0.684 | 4.486 | 0.640 |
-| DD 100K+100K, k = 4 | update | 10.710 | 7.944 | 0.742 | 7.451 | 0.696 |
-| GitHub 25K+25K, k = 4 | update | 14.753 | 11.595 | 0.786 | 8.425 | 0.571 |
-| Twitch 25K+25K, k = 4 | update | 25.295 | 20.294 | 0.802 | 8.556 | 0.338 |
-| COLLAB 25K+25K, k = 4 | update | 199.4 | 197.2 | 0.989 | 186.9 | 0.937 |
+| DD 25K+25K, k = 4 | update | 5.497 | 3.790 | 0.690 | 3.401 | 0.619 |
+| DD 50K+50K, k = 4 | update | 6.922 | 5.883 | 0.850 | 5.488 | 0.793 |
+| DD 100K+100K, k = 4 | update | 10.587 | 9.985 | 0.943 | 9.477 | 0.895 |
+| GitHub 25K+25K, k = 4 | update | 14.821 | 12.050 | 0.813 | 9.420 | 0.636 |
+| Twitch 25K+25K, k = 4 | update | 25.050 | 20.617 | 0.823 | 9.494 | 0.379 |
+| COLLAB 25K+25K, k = 4 | update | 200.17 | 197.80 | 0.988 | 186.97 | 0.934 |
 
 One reported region reads above the gate's bound: DD's static `total_ms` in the original scope
 (upload, count and copy-back; 1.10x, not gated) includes the first allocation of the workspace's
@@ -309,9 +339,14 @@ kernels do not carry over.
   linear per cycle.
 - The CUDA backend counts cycles of at most 64 vertices: the effective bound max(min(k, n), 2)
   must be <= 64 (`invalid_argument_error` otherwise). Without a bound (the default options) it
-  therefore works only on graphs of at most 64 vertices; set `max_length`.
-- On cuda, Step 0 of an update reads the host copy of G_t: after a device apply, the next update
-  downloads the graph once (ADR 0020). A device Step 0 is future work.
+  therefore works only on graphs of at most 64 vertices; set `max_length`. As in the original, a
+  graph without edges counts (the zero histogram) before the bound is checked; `update()` checks
+  it on every batch.
+- On cuda the per-length sums on the device wrap at 2^64, as the original's do (only the host-side
+  merge of an update's two phases throws `capacity_error`), and a normalized batch of 0x7f7f7f7f
+  or more deletions or insertions exceeds the 32-bit change ids (`capacity_error`, nothing changed).
+- On cuda the sort of Step 0 runs on the host, as the original's (only the membership test of the
+  changes in G_t runs on the device); a fully device Step 0 is future work.
 - The vertex type is `int32_t` (the ownership table keys two 32-bit ids); offsets may be 32 or 64
   bits.
 - Graphs with parallel edges or unsorted rows are rejected (`invalid_argument_error`).

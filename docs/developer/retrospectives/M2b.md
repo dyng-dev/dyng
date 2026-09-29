@@ -261,6 +261,54 @@ The commit after `6894e2a` (this one) changes only documents and adds the perfor
 `ci/docs.sh` and the quick steps of `ci/check.sh` (format, REUSE, provenance, harness,
 pre-commit) passed on it.
 
+## Step 5: the independent review and its fixes (review-fix)
+
+An independent review of `79a323e` confirmed 19 findings (each verified by a second reviewer).
+All are fixed on the branch; none is deferred. Commits in order:
+
+| Commit | Findings fixed |
+|---|---|
+| `58f00fb` | **Self-loops under set semantics with `self_loop::keep`** (high): the normalized lists kept a self-loop as a change edge, and every backend counted a spurious 2-cycle through it (a later deletion drove a bucket negative; CUDA and sequential disagreed on longer spurious cycles). The phases now skip self-loop change edges (`count_cycles_through_edge()`, `item_counts_kernel`) without renumbering; "set, self-loops kept" variants (directed and undirected) in `EverySemanticsMatchesCompute` and `SetSemanticsWithKeptSelfLoopsMatchesCompute` on all three backends, both failing without the fix. ADR 0020 point 9 |
+| `ed2ef4f` | **The recorded mutations were only in the host code**: `DYNG_MUTATION_CUDA_DOUBLE_COUNT_5` (the closing increment of `extend_prefix`) and `DYNG_MUTATION_CUDA_WEAK_OWNERSHIP` (the owner test of the update kernel) mutate the device kernels, where the original recorded them; `cycle_count.mutation.cuda.*` (labels `gpu;mutation;cycle_count`, run by `ci/gpu_local.sh`) links the gpu suite against them: killed by 22 and 19 failing tests, the control passes |
+| `37c0c03` | **Host-only kernel tests in the gpu executable**: `cycle_count_kernels_test.cpp` runs in the cpu executable only (14 tests were counted twice) |
+| `d5a702c` | **Staging errors named `dyng::update`**: the name comes from the commit stage (`cycle_count.commit` gives `cycle_count::update`) |
+| `17e12f0` | **`result::set_options()`** for the tunables (PLAN 5.1, ADR 0006 point 2; the test no longer writes the detail state); **poisoned `bound()` and `get_options()`** throw `stale_result_error` (ADR 0006 point 5); **the edgeless graph on cuda** returns the zero histogram before the 64-vertex check, as the original; **the 32-bit change-id limit** raises `capacity_error` and is documented; **the `capacity_error` contract** says that the device sums wrap on cuda (two findings); the copy-policy test asserts the function name |
+| `fc78fdb` | **The original's large-graph device test** (`CudaCountersMatchBruteForceOnLargerGraphs`): its seven shapes with every scheduler and kind of work item, the 300,000-vertex graph at k = 5, and a 20K + 20K update with far more items than resident threads, in the gpu suite the sanitizers run |
+| `1dcb684` | **The DD 50K and 100K gates passed only through the sortedness skip** (high): Step 0 now sorts with a least-significant-digit radix sort (stable on the batch order, so the lists are unchanged; its cost does not depend on the order of the batch) and the skip is gone. 100K records: shuffled 1.39 ms against the original's `std::sort` 5.78 ms, sorted 1.39 against 1.18 ms. `SetSemantics.StepZeroListsEqualAStableSortOnLargeBatches` |
+| `5463ad5` | **Chained updates downloaded G_t every time** (high): Step 0 of a graph whose host copy is stale runs against the device copy (the membership of each requested change in G_t tested on the device, the sort on the host); `DeviceStepZeroEqualsTheHostStepZero`, `ChainedUpdatesNeverDownloadTheGraph`. ADR 0020 point 7 |
+| `f30a58b` | **The download used the legacy default stream and pageable memory**: it is ordered on the stream of the state's buffers; a growing vector is released first and reserved with room (no regrowth copy). ADR 0020 point 8 |
+| `632528d` | **No steady-state allocation test for the CUDA update**; the device apply's scratch (change rows, degrees, scan scratch) is pooled; `SteadyStateUpdatesAllocateOnlyTheNextGraph` pins that an update allocates exactly the three arrays of G_{t+1}. ADR 0020 point 10 |
+| `41d6de4`, `297ece6` | **The resident scope was measured on the first update only**: `dyng-compat-cycle-enum --chain n` and the regions `update_chain_steady` / `update_chain_worst` (gated as the resident scope); **the short updates claimed CUDA events**: dynG's CUDA-event time of the update is recorded next to the host clocks (region `update_device`, a separate process), and the deviation is recorded below; **the CPU-load threshold** is recorded in the protocol and in every case's monitor record |
+| `ace78d5` | **The public graph documentation** describes both apply paths |
+| `6dc3187` | **ADR 0020 claimed an acceptance nobody gave** and **ADR 0018 was amended after its acceptance**: ADR 0020 is Proposed (with the review's points 7-10), ADR 0018 is back to its accepted text, and the base-lock rule is the new ADR 0021 (Proposed) |
+| `91d02ca` | **README**: the M2b certificate and the set-semantics graph row |
+| `f120131` | **The radix sort still missed DD 100K** (1.055x in the first campaign after the review, `b38de7e`'s intermediate record): Step 0 sorts with a bucket sort (0.70x of the original's `std::sort` on sorted input, 0.29x on shuffled), and the DD 100K update reads 0.930x |
+| `b38de7e`, `c9e0347`, `34f3fca` | the gate records after the review (`parity/results/M2b.md` section 8.2-8.3) |
+| the documentation commit | the algorithm page, CHANGELOG, ADR 0020's sort wording, `parity/results/M2b.md` section 8 and the certificate, this section |
+
+**Deviations recorded by this step:**
+
+1. **The short update regions are host clocks on both sides** (PLAN 8.6 asks for CUDA events or
+   nsys kernel sums over >= 20 runs below 10 ms). The original's update region is host-side by
+   construction (its `update_seconds` is a `steady_clock` around `update_histogram()`, which runs
+   `prepare_batch` and `apply_histogram_delta` on the host) and has no device timer, so the gate
+   compares the same host clock on both sides over 21 rounds, as M1b did for sssp (M1b
+   retrospective). dynG's CUDA-event time of the whole update is recorded next to it for the
+   cases under 10 ms (`update_device`, `parity/results/M2b.md` section 8.2): it reads 0.14-0.20 ms
+   above dynG's host clock of the same case (its stage events synchronize the stream), so the host
+   clock hides no device time. The certificate row no longer
+   claims CUDA events for these regions.
+2. **Step 0's membership test runs on the device** for a graph that a device apply produced
+   (not in the original, which re-uploads G_t per call and tests on the host); the lists are the
+   host path's. The sort stays on the host.
+3. **The COLLAB update at the base lock is pending the author** (ADR 0021): its reading is
+   recorded, and acceptance criterion 4 is met for it only once the author accepts the rule.
+
+**Lesson.** A performance fix must be judged on inputs the gate does not use. The sortedness
+skip made the gate pass on the one input order the generator produces; the radix sort passes on
+every order. The same goes for scopes: a resident scope measured once after the upload says
+nothing about the resident graph across batches, which is what it claims.
+
 ## Milestone summary (M2b)
 
 M2b was done in four steps on 2026-09-28 on the branch `m2b-cycle-cuda` (from `main` at
@@ -304,7 +352,7 @@ the branch against the merge commit `c8d5d5d` (added lines, tracked files):
 | 1 | `--no-ff` merge of `m2-cycle`; no conflict markers; ADRs renumbered from 0020; docs consistent (tables, roadmap, short plan, repository settings with the `main` ruleset); a fresh clone passes `ci/check.sh --parity`, `ci/gpu_local.sh`, `ci/docs.sh` | `c8d5d5d` (parents `eda8b8b`, `0876d28`); `git grep` for conflict markers is empty; M2a wrote no ADR (its decisions amend ADR 0010), so the first M2b ADR is 0020; the documents of steps 1 and 4; the fresh-clone runs above | met |
 | 2 | No regression from the merge: sssp 495 / 495 on sequential, OpenMP, CUDA; the sssp OpenMP and CUDA gates on roadNet-CA and road_usa; cycle_count CPU parity unchanged; the OpenMP update gate on DD and GitHub | step 1 (`parity/results/M2b.md` section 1); the CPU corpus again after every change of the update (72 / 72 at `6123e1d` and `94523c5`, sections 2 and 5); the gates again on the final code (section 7) | met |
 | 3 | CUDA histograms bit-identical to the original's CUDA backend (fixtures, DD k = 3..7, GitHub / Twitch k = 4, COLLAB k = 3, the seed-1 update deltas); CUDA = OpenMP = sequential; k <= 64 with a clear error; memcheck, racecheck, synccheck clean | `parity/results/M2b.md` sections 2, 5 and 6: 72 / 72 CUDA replays (cuda, cuda:resident, cuda:int64), 23 / 23 on openmp:56, 72 / 72 CPU replays, the CUDA fixtures and randomized chains; the bound tests; the sanitizers of `ci/gpu_local.sh` | met |
-| 4 | CUDA gates in both scopes at locked clocks, >= 20 runs for regions < 10 ms; default clocks recorded; registers and occupancy recorded | section 4: 20 / 20 gated readings within the gate (0.34-1.003x), end to end 0.88-0.99x; default clocks 0.34-1.007x; 33 / 33 kernels with the original's registers, stack and occupancy; device memory 1.000-1.001x | met (the COLLAB update at the base lock, ADR 0018 update) |
+| 4 | CUDA gates in both scopes at locked clocks, >= 20 runs for regions < 10 ms; default clocks recorded; registers and occupancy recorded | section 4, and on the review-fixed code section 8: every gated reading within its gate at the boost lock (static kernels 0.674-0.998x, updates 0.386-0.930x, chained updates 0.226-0.885x), end to end 0.90-0.99x; the short updates on host clocks on both sides with dynG's CUDA-event time next to them (deviation 1 of step 5); default clocks recorded; 33 / 33 kernels with the original's registers, stack and occupancy; device memory 1.000-1.001x | met, except the COLLAB update: read at the base lock (0.989x original scope, 0.945x resident; `parity/results/M2b.md` section 8.2), which is within the gate only once the author accepts ADR 0021 |
 | 5 | The algorithm page covers the CUDA backend; CHANGELOG; this retrospective with the M2 summary and a re-estimate | steps 2-4 | met |
 
 ### Deviations, consolidated
@@ -316,21 +364,24 @@ M2b:
    helpers are the graph's device apply (PLAN 6.4.1), used for every resident graph under
    `as_sets` without weight columns and with 32-bit vertex ids; other graphs keep M1b's host
    apply and re-upload. G_{t+1} is built even for a batch without insertions.
-2. **The host copy is lazy.** After a device apply the host CSR is downloaded when read; Step 0
-   of the next update reads it, so a chain of updates downloads G_t once per update. A device
-   Step 0 is future work.
+2. **The host copy is lazy.** After a device apply the host CSR is downloaded when read, on the
+   stream of the state; Step 0 of the next update tests the changes against the device copy
+   (step 5), so a chain of updates never downloads G_t. A fully device Step 0 (the sort on the
+   device) is future work.
 3. **Step 0 once per update**, through `update_participant::use_normalized()`, on every backend
-   (also a CPU speed-up), with `std::sort` by (source, target, position) instead of
-   `std::stable_sort`.
-4. **The 64-vertex bound** applies to the effective bound max(min(k, n), 2), as in the original.
+   (also a CPU speed-up), with a bucket sort (step 5) instead of `std::stable_sort`.
+4. **The 64-vertex bound** applies to the effective bound max(min(k, n), 2), as in the original,
+   and an edgeless graph counts before the check, as in the original.
 5. **Files and harness**: `work_queue.hpp` (host-only) instead of `work_queue.cuh`; no
    `framework/work_items.cuh` or `expand_work_items` operator yet (one user; M3); the original's
    environment tuning variables are not ported; the CUDA fixtures and goldens are a new set next
    to the unchanged M2a data; the COLLAB update is replayed on cuda only; `dyng-compat-cycle-enum`
    uses `int32_t` offsets on cuda by default.
-6. **Measurement**: the COLLAB update is gated at the base clock lock (ADR 0018 update); the
-   resident count scope uploads with a 2-cycle count; device memory is compared as the peak of
-   live allocations; two cases of the main campaign were repeated after another user's GPU job.
+6. **Measurement**: the COLLAB update is read at the base clock lock (ADR 0021, Proposed, pending
+   the author); the resident count scope uploads with a 2-cycle count; device memory is compared
+   as the peak of live allocations; two cases of the main campaign were repeated after another
+   user's GPU job; the short update regions are host clocks on both sides, with dynG's CUDA-event
+   time recorded next to them (step 5).
 
 ### Lessons
 
@@ -350,8 +401,9 @@ M2b:
    duplicate array (1.5-2x the original's peak); timing alone never showed it.
 5. **A harness must write what it measured, per case**, and survive a case it cannot measure; on
    a shared GPU the per-case record also lets one case be repeated alone.
-6. **Stable sorts are not free.** `std::stable_sort` of 16-byte records cost 1.5x the original's
-   `std::sort`; an unstable sort with the position as the last key gives the same order.
+6. **Stable sorts are not free, and neither are shortcuts.** `std::stable_sort` of 16-byte
+   records cost 1.5x the original's `std::sort`; skipping the sort of sorted lists made the gate
+   pass only on the generator's input order (step 5). A sort must be judged on every input order.
 
 ## M2 summary (M2a and M2b)
 
@@ -366,9 +418,9 @@ working weeks, the M1a re-estimate at 4-6 days of focused work.
 | | M2a (CPU) | M2b (CUDA) |
 |---|---|---|
 | Parity | 72 / 72 replays of the 24-case corpus of the original's OpenMP backend (sequential, OpenMP 4 and 56); the parser, CSR, generated batches and normalized batches byte-equal first | 72 / 72 replays of the 24-case corpus of the original's CUDA backend (cuda, cuda:resident, cuda:int64), 23 / 23 on OpenMP; CUDA = OpenMP = sequential |
-| Performance | OpenMP 56 threads: static end to end 0.29-0.93x, update 0.44-0.65x | CUDA at locked clocks, both scopes: static kernels 0.68-1.00x, updates 0.34-0.99x, end to end 0.88-0.99x; device memory 1.00x |
-| Correctness tooling | subset-DP, brute-force and edge-set-recount oracles; the recorded mutations fail the suite | the shared suites on cuda; memcheck, racecheck and synccheck clean |
-| Decisions | ADR 0010 amendment (set semantics, the unweighted graph) | ADR 0020 (the resident graph, Step 0 once), ADR 0018 update (the base lock) |
+| Performance | OpenMP 56 threads: static end to end 0.29-0.93x, update 0.44-0.65x | CUDA at locked clocks, both scopes (review-fixed code): static kernels 0.67-1.00x, updates 0.39-0.93x, chained updates 0.23-0.89x, end to end 0.90-0.99x; device memory 1.00x |
+| Correctness tooling | subset-DP, brute-force and edge-set-recount oracles; the recorded mutations fail the suite | the shared suites on cuda; the recorded mutations in the CUDA kernels fail the gpu suite; memcheck, racecheck and synccheck clean |
+| Decisions | ADR 0010 amendment (set semantics, the unweighted graph) | ADR 0020 (the resident graph, Step 0 once) and ADR 0021 (the base lock), both Proposed |
 
 What M2 means for M3: `cycle_count` is the aggregate-delta counterpart of `sssp`'s fixed point.
 Both run through `run_update` with a normalize stage, participants and one commit. After M2 the
@@ -413,15 +465,16 @@ per group of commits) to keep the lock time within the estimate.
 
 For **the author**:
 
-1. Confirm that the COLLAB update may be read at the base clock lock (ADR 0018 update, step 3):
-   the GPU cannot hold the boost lock through its 6.5 s prior under its 230 W power cap.
+1. Decide ADR 0021 (Proposed): whether the COLLAB update may be read at the base clock lock (the
+   GPU cannot hold the boost lock through its 6.5 s prior under its 230 W power cap); and accept
+   (or amend) ADR 0020 (Proposed), recording the acceptances in GOVERNANCE.md.
 2. The open decisions of the short plan (O3, the NOTICE line); DCO becomes a required check once
    the organization membership is public.
 
 For **M2b's review, M3 and later**:
 
-3. A device Step 0 (sorting and classifying a batch on the device), so a chain of CUDA updates
-   never downloads G_t (ADR 0020).
+3. A fully device Step 0 (the sort on the device as well); the membership test already runs
+   there, so a chain of CUDA updates never downloads G_t (ADR 0020, point 7).
 4. The one-time pinned-buffer allocation of the first static call (about 0.85 ms of DD's
    reported static total in the original scope); `warm_up()` could pre-allocate it.
 5. The clock monitor checks only busy 50 ms samples; non-busy samples below the lock were seen on

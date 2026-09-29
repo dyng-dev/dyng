@@ -3,7 +3,9 @@
 Date: 2026-09-28. Format: PLAN Section 8.3 ("Parity certificate"). M2b merges the accepted M2a
 branch (`cycle_count` on the CPU backends) and ports `cycle_count` to CUDA. This file starts with
 the re-verification after the merge (section 1), then the parity of the CUDA port (section 2);
-the performance gates follow.
+the performance gates follow. Section 8 re-verifies parity and the gates after the fixes of the
+milestone's independent review; where it supersedes an earlier reading, the certificate (section 6)
+cites section 8.
 
 ## 1. Merge re-verification
 
@@ -234,10 +236,10 @@ DD 50K + 50K and 100K + 100K, against CycleEnumeration-GPU@0a976ad's CUDA backen
 | Harness | `parity/cycle_count_perf.py run --backend cuda` (`parity/perf_ab.py cycle_count run`), the regions of `[reference.cycle_enum_cuda]` in `parity/timed_regions/cycle_count.toml` |
 | GPU | GPU 0 (RTX A5000, sm_86, driver 590.48.01); both programs see only it (`CUDA_VISIBLE_DEVICES=0`, `--cuda-device 0`), `CUDA_MODULE_LOADING=EAGER` |
 | Clocks | locked for the whole A/B (ADR 0018, option B): `--lock-clocks boost` (SM 1695 MHz, memory 7601 MHz), the COLLAB update `--lock-clocks base` (SM 1170 MHz, memory 7601 MHz; section 4.5). Every busy GPU sample of every side in every accepted round was at the locked clocks |
-| Lock and monitor | exclusive `perf.lock`; the machine monitor rejects and repeats a round with a foreign GPU process, a busy sample off the locked clocks, or more than 2 foreign CPU cores on either side |
+| Lock and monitor | exclusive `perf.lock`; the machine monitor rejects and repeats a round with a foreign GPU process, a busy sample off the locked clocks, or more than 2 foreign CPU cores on either side (`--max-foreign-cpu 2.0`, the default; the records of section 8 store the value) |
 | Order | per case one untimed round (page cache; the three histograms must be identical and equal to the golden), then rounds of A (original), B (dynG, original scope), B (dynG, resident scope) |
 | Runs | 21 accepted rounds per case (11 for the COLLAB update, whose region is >= 10 ms: PLAN 8.6 asks for >= 5; and for the default-clock readings); medians compared |
-| Timers | static: `kernel_ms` of both programs' `--report-timing` (CUDA events: building the work items, the counting kernel, the synchronization); update: `update_seconds` of the original (host clock around `update_histogram`) and dynG's `update_ms` (host clock around `cycle_count::update()`); end to end: the harness's clock around each process |
+| Timers | static: `kernel_ms` of both programs' `--report-timing` (CUDA events: building the work items, the counting kernel, the synchronization); update: `update_seconds` of the original (host clock around `update_histogram`) and dynG's `update_ms` (host clock around `cycle_count::update()`), so the updates under 10 ms (DD 25K and 50K) are host clocks over 21 rounds on both sides, not CUDA events: a deviation from PLAN 8.6 (the original's region is host-side and has no device timer), recorded in the M2b retrospective, step 5; section 8 adds dynG's CUDA-event time next to it; end to end: the harness's clock around each process |
 | Gates | >= 10 ms: <= 1.05x; < 10 ms (DD static and DD 25K/50K updates): <= 1.10x with >= 20 runs; end to end <= 1.10x |
 | Correctness guard | in every timed round the three histograms were compared with each other (and, before the first round, with the golden of `cycle_count_cuda`); none differed |
 
@@ -275,7 +277,8 @@ than `--runs`; the campaign's record marks both cases incomplete) and
 | COLLAB 25K+25K (base lock) | update | 197 | 218.1 | 215.3 | 0.987 | 205.7 | 0.943 | <= 1.05 ok / ok | 0.986 | 11 / 0 |
 
 **Every gated region is within its gate in both scopes: 20 / 20 readings (0.34-1.003x), and all
-ten end-to-end readings (0.88-0.99x).** The first campaign's partial reading of COLLAB k = 3 (15
+ten end-to-end readings (0.88-0.99x).** (Superseded for the updates by section 8.2: the DD 50K and 100K readings
+here relied on the sortedness skip of section 4.4.) The first campaign's partial reading of COLLAB k = 3 (15
 rounds before it was stopped) was 1.005x / 1.007x, the same as the repeat. The DD update reads
 above PLAN's 4.4 ms on the original's side because PLAN quotes default, DVFS-raised clocks
 (ADR 0018); at the same locked clocks both programs ran the same kernels.
@@ -382,6 +385,9 @@ original's `std::sort` on 100K changes and with a merge buffer. It now sorts wit
 unique, and checks first whether a list is already in that order (generated batches are): Step 0
 8.8 -> 4.7 ms, the update 12.2 -> 8.0 ms (0.74x; `8e4d453`). The histograms and every normalized
 list are unchanged (section 5); the CPU backends use the same Step 0 and get the same saving.
+**Superseded by the review (section 8.2):** the skip of already sorted lists helped only the
+generator's sorted batches; with a full sort the DD 50K and 100K gates failed. Step 0 now uses a
+bucket sort with no shortcut, and the gates hold without the skip.
 
 ### 4.5 The COLLAB update and the power cap
 
@@ -539,8 +545,8 @@ M2b acceptance criteria 1-4 (criteria 3 and 4 against CycleEnumeration-GPU@0a976
 | 3: cross-backend equality (CUDA = OpenMP = sequential) | the CUDA set on openmp:56 (23 / 23), the CPU corpus on sequential and OpenMP (72 / 72), the randomized chains of `cycle_count_cuda_test.cpp` | **pass** |
 | 3: `max_length <= 64` on cuda with a clear error | `CycleCountCuda.EveryBoundUpToSixtyFourMatchesTheSequentialCount`, `BoundsBeyondSixtyFourAreRejectedWithAClearError` (`invalid_argument_error` before anything changes) and `UpdatesAtEveryCapacityBoundaryMatchTheSequentialUpdate`, the CLI cases with bounds 64 and 65 | **pass** |
 | 3: compute-sanitizer clean | memcheck (0 errors, 0 leaks), racecheck (0 hazards), synccheck (0 errors) on `dyng_cycle_count_cuda_tests` (`ci/gpu_local.sh`, section 5) | **pass** |
-| 4: CUDA gates, both scopes, clocks locked, >= 20 runs with CUDA events for regions < 10 ms | section 4.2: 20 / 20 gated readings within the gate (0.34-1.003x), end to end 0.88-0.99x | **pass** (the COLLAB update at the base lock, section 4.5) |
-| 4: default-clock readings; registers and occupancy | sections 4.7 and 4.6 (33 / 33 kernels equal to the original's) | recorded |
+| 4: CUDA gates, both scopes, clocks locked, >= 20 runs for regions < 10 ms (CUDA events for the static kernels; the short updates are host clocks on both sides, with dynG's CUDA-event time next to them, a recorded deviation) | section 8.2 on the review-fixed code: every gated reading within its gate at the boost lock (static kernels 0.674-0.998x, updates 0.386-0.930x, chained updates 0.226-0.885x), end to end 0.90-0.99x. Superseded: section 4.2, whose DD 50K and 100K update readings relied on skipping the sort of already sorted lists | **pass**, except the COLLAB update (0.989x / 0.945x at the base lock): **pending the author's decision on ADR 0021** |
+| 4: default-clock readings; registers and occupancy | sections 4.7, 8.2 and 4.6 (33 / 33 kernels equal to the original's) | recorded |
 | 1 and 2: the gate scripts from a fresh clone; no regression on the final code | section 7: `ci/check.sh --parity`, `ci/gpu_local.sh` and `ci/docs.sh` pass in a fresh clone of `6894e2a`; the sssp CUDA and OpenMP gates and the cycle_count OpenMP update gate within their gates on the final code | **pass** |
 | PLAN 8.6: device memory <= 1.05x | section 4.8: the peak of live allocations 1.000-1.001x on all ten cases | **pass** (not an M2b criterion; fixed in this step) |
 
@@ -598,4 +604,137 @@ for gr in roadNet-CA:21 road_usa_g:11; do
   parity/perf_ab.py run --backend openmp --exe build/parity/tools/compat/dyng-compat-mosp \
       --graph $g --runs $runs --json parity/results/M2b-final-perf-openmp-$g.json
 done
+```
+
+## 8. After the review (step review-fix)
+
+The milestone's independent review of `79a323e` confirmed 19 findings, all fixed on the branch
+(the M2b retrospective, step 5, lists them with their commits). Four change what this certificate
+measures: Step 0 of set semantics (a bucket sort instead of the sortedness skip; the membership
+test of a stale-host resident graph on the device), the self-loop change edges the phases now skip
+(a mode no corpus case uses: `cycle_enum_compatible()` drops self-loops), the pooled scratch of the
+device apply, and the harness (chained updates, dynG's update device time, the recorded CPU
+threshold). So the corpora and the gates were run again.
+
+### 8.1 Parity
+
+On the review-fixed code (`parity` and `parity-cuda` presets built at `c9e0347`, whose library is
+that of `b38de7e`):
+
+| Corpus | Configurations | Result | Record |
+|---|---|---|---|
+| `cycle_count_cuda`, 24 cases | cuda, cuda:resident, cuda:int64 (GPU 1) | **72 / 72 replays equal** (histograms and generated batches) | `M2b-review-cycle_count-cuda-set-parity-cuda-preset.json` |
+| `cycle_count_cuda` | openmp:56 | **23 / 23 equal** (COLLAB's update is replayed on cuda only) | `M2b-review-cycle_count-cuda-set-openmp-parity-preset.json` |
+| `cycle_count`, 24 cases | sequential, openmp:4, openmp:56 (`--full`) | **72 / 72 replays equal** | `M2b-review-cycle_count-parity-preset.json` |
+| every timed round of section 8.2 | cuda, both scopes and the chain | the histograms identical in every round and equal to the golden before the first; every chain's final histogram equal to a recompute | the performance records |
+
+The new tests (the kept self-loops on all backends, the device Step 0 against the host Step 0,
+the chained updates, the original's large-graph device test, the steady-state allocations) and the
+CUDA mutants (`cycle_count.mutation.cuda.*`: the double count killed by 22 failing tests, the weak
+ownership by 19, the control passes) run in `ci/gpu_local.sh` (section 8.4).
+
+### 8.2 The CUDA gates
+
+Protocol of section 4.1 (boost lock, GPU 0, 21 rounds, exclusive lock, both scopes), plus, per
+update case, a chain of four updates on the resident graph (`--chain 4`; regions
+`update_chain_steady` and `update_chain_worst`, gated as the resident scope) and, for the updates
+under 10 ms, a port process with `--report-timing` (region `update_device`: dynG's CUDA-event time
+of the whole update, reported next to the host clocks). Records:
+
+- `M2b-review-radix-cuda-perf-cycle_count.json`: the whole campaign on the first fix of Step 0 (a
+  least-significant-digit radix sort; binary built at `297ece6`; the record names `91d02ca+dirty`,
+  the documentation commits and an uncommitted page written during the run). Every reading within
+  its gate **except DD 100K+100K in the original scope: 1.055x (gate 1.05)**: the radix sort cost
+  1.13x of the original's `std::sort` on the generator's sorted batches. Its static cases are the
+  final ones (the static count does not run Step 0, and its code is unchanged since).
+- `M2b-review-cuda-perf-cycle_count-updates.json`: the five boost-lock update cases on the final
+  Step 0 (the bucket sort, `b38de7e`, clean).
+- `M2b-review-cuda-perf-cycle_count-collab-update-base.json`: the COLLAB update at the base lock
+  (ADR 0021, Proposed), 11 rounds.
+- `M2b-review-cuda-perf-cycle_count-default-clocks.json`: the six update cases at default clocks
+  (recorded, not gated), 11 rounds.
+
+| Case | Region | Original (ms) | dynG, original scope (ms) | ratio | dynG, resident (ms) | ratio | chain steady (ms) | ratio | chain slowest (ms) | ratio | Gate | Rejected |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|
+| DD k = 4 | kernel | 1.402 | 0.955 | 0.682 | 0.944 | 0.674 | | | | | <= 1.10 ok | 2 |
+| GitHub k = 4 | kernel | 58.302 | 58.198 | 0.998 | 58.191 | 0.998 | | | | | <= 1.05 ok | 11 |
+| Twitch k = 4 | kernel | 39.283 | 38.838 | 0.989 | 38.626 | 0.983 | | | | | <= 1.05 ok | 3 |
+| COLLAB k = 3 | kernel | 52.455 | 52.135 | 0.994 | 52.317 | 0.997 | | | | | <= 1.05 ok | 4 |
+| DD 25K+25K | update | 5.579 | 3.801 | 0.681 | 3.438 | 0.616 | 1.822 | 0.327 | 3.421 | 0.613 | <= 1.10 ok | 0 |
+| DD 50K+50K | update | 7.126 | 5.955 | 0.836 | 5.471 | 0.768 | 3.261 | 0.458 | 5.561 | 0.780 | <= 1.10 ok | 0 |
+| DD 100K+100K | update | 10.781 | 10.027 | 0.930 | 9.476 | 0.879 | 6.214 | 0.576 | 9.540 | 0.885 | <= 1.05 ok | 0 |
+| GitHub 25K+25K | update | 14.810 | 12.101 | 0.817 | 9.470 | 0.639 | 5.699 | 0.385 | 9.023 | 0.609 | <= 1.05 ok | 15 |
+| Twitch 25K+25K | update | 24.820 | 20.833 | 0.839 | 9.593 | 0.386 | 5.614 | 0.226 | 9.119 | 0.367 | <= 1.05 ok | 13 |
+| COLLAB 25K+25K (base lock) | update | 218.24 | 215.95 | 0.989 | 206.27 | 0.945 | 211.98 | 0.971 | 217.91 | 0.998 | <= 1.05 ok, pending ADR 0021 | 1 |
+
+End to end (original scope): static 0.899-0.974x, updates 0.938-0.993x. The CUDA-event time of the
+short updates (`update_device`): DD 25K 4.001 ms original scope / 3.589 ms resident, DD 50K 6.092 /
+5.671 ms, 0.14-0.20 ms above dynG's host clock of the same case (a separate process whose stage
+events synchronize the stream): the host clock of the gate hides no device time.
+
+**Step 0 without the skip.** The DD 100K+100K update's Step 0 (`cycle_count.normalize`) was 4.7 ms
+with the sortedness skip of section 4.4, 12.3 ms with a full `std::sort` of the 16-byte records
+(the review's experiment), 8.2 ms with the radix sort and 6.75 ms with the bucket sort. The bucket
+sort (one counting pass over about size / 4 buckets by the top bits of (source, target), a stable
+scatter, an insertion sort per bucket, `std::sort` by (source, target, position) for crowded
+buckets) costs, on 100K records (g++ -O3, best of 9), 0.87 ms on sorted input against the
+original's `std::sort` of 8-byte records at 1.24 ms, and 1.78 ms on shuffled input against 6.03
+ms; there is no shortcut for sorted lists, so no improvement is folded into the gated ratio that a
+batch in another order would not get.
+
+**The resident graph across batches.** Before the review the resident column was the first update
+after the prior only. In a chain, every later update downloaded G_t for Step 0 (the review
+measured, on Twitch, 3.6 / 13.1 / 36.7 / 13.0 ms of Step 0 in four chained updates, a 1.65x update
+when the host arrays had to grow). Now Step 0 tests the changes against the device copy: the
+chained updates after the first are the fastest of the chain (steady 0.23-0.58x on the boost-lock
+cases), and the slowest update of every chain is its first.
+
+At default clocks (11 rounds, ungated): original scope 0.690 (DD 25K), 0.850 (DD 50K), 0.943
+(DD 100K), 0.813 (GitHub), 0.823 (Twitch), 0.988 (COLLAB); resident 0.379-0.934; chained steady
+0.224-0.945, slowest 0.361-0.971.
+
+### 8.3 The OpenMP update gate
+
+Step 0 is shared by the host backends, so the OpenMP 56 update gate was re-checked
+(`M2b-review-perf-openmp-cycle_count.json`, `c9e0347`, 11 rounds, no flagged run): DD 25K+25K
+0.499x, DD 50K+50K 0.532x, GitHub 25K+25K 0.437x, Twitch 25K+25K 0.479x; end to end
+0.566-0.870x. The sssp gates were not re-run: sssp's graphs use MOSP's batch semantics, whose apply
+path the review did not change (the fixes touch the set-semantics Step 0, the set device apply and
+cycle_count; the staging-name fix changes an error message only); its golden corpus is replayed
+by the fresh-clone run of section 8.4.
+
+### 8.4 The gate scripts from a fresh clone
+
+FRESH_CLONE
+
+### 8.5 Reproducing
+
+```bash
+source scripts/dev_env.sh
+cmake --build --preset parity-cuda && cmake --build --preset parity
+E=build/parity-cuda/tools/compat/dyng-compat-cycle-enum
+# --max-foreign-cpu 2.0 (the default) was used for every record; on a busy machine the long
+# static kernels may be rejected more often than --runs allows ("not measured"): re-run the case
+# alone, or raise the threshold for the GPU-bound event-timed regions (for example 4), which the
+# JSON then records (protocol.max_foreign_cpu_cores and each case's monitor record)
+parity/perf_ab.py cycle_count run --backend cuda --gpu 0 --runs 21 --exe $E \
+    --cases DD_k4_25000_25000_s1,DD_k4_50000_50000_s1,DD_k4_100000_100000_s1,github_k4_25000_25000_s1,twitch_k4_25000_25000_s1 \
+    --json parity/results/M2b-review-cuda-perf-cycle_count-updates.json
+parity/perf_ab.py cycle_count run --backend cuda --gpu 0 --runs 11 --lock-clocks base --exe $E \
+    --cases collab_k4_25000_25000_s1 --json parity/results/M2b-review-cuda-perf-cycle_count-collab-update-base.json
+parity/perf_ab.py cycle_count run --backend cuda --gpu 0 --runs 11 --lock-clocks none --exe $E \
+    --cases DD_k4_25000_25000_s1,DD_k4_50000_50000_s1,DD_k4_100000_100000_s1,github_k4_25000_25000_s1,twitch_k4_25000_25000_s1,collab_k4_25000_25000_s1 \
+    --json parity/results/M2b-review-cuda-perf-cycle_count-default-clocks.json
+parity/perf_ab.py cycle_count run --exe build/parity/tools/compat/dyng-compat-cycle-enum \
+    --cases DD_k4_25000_25000_s1,DD_k4_50000_50000_s1,github_k4_25000_25000_s1,twitch_k4_25000_25000_s1 \
+    --runs 11 --json parity/results/M2b-review-perf-openmp-cycle_count.json
+CUDA_VISIBLE_DEVICES=1 flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 parity/compare.py cycle_count \
+    --exe $E --set cycle_count_cuda --configs cuda,cuda:resident,cuda:int64 \
+    --json parity/results/M2b-review-cycle_count-cuda-set-parity-cuda-preset.json
+flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 parity/compare.py cycle_count \
+    --exe build/parity/tools/compat/dyng-compat-cycle-enum --set cycle_count_cuda --configs openmp:56 \
+    --json parity/results/M2b-review-cycle_count-cuda-set-openmp-parity-preset.json
+flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 parity/compare.py cycle_count \
+    --exe build/parity/tools/compat/dyng-compat-cycle-enum --full \
+    --json parity/results/M2b-review-cycle_count-parity-preset.json
 ```

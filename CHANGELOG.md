@@ -396,7 +396,8 @@ Before 0.1.0 anything may change.
   (equal to the original's) are recorded.
 - Faster Step 0 under set semantics: `std::sort` by (source, target, position) instead of
   `std::stable_sort`, and no sort for lists already in order (every backend; the DD 100K+100K
-  CUDA update 12.2 -> 8.0 ms). Results unchanged.
+  CUDA update 12.2 -> 8.0 ms). Results unchanged. (Replaced by the review's bucket sort: the skip
+  helped only the gate's already sorted batches.)
 - Less device memory in the CUDA `cycle_count` update: the static-count work items are returned
   when an update begins, and the deletion marks of G_t are computed once per update and shared
   by the cycle_count delete phase and the device apply (ADR 0020, point 6).
@@ -408,8 +409,9 @@ Before 0.1.0 anything may change.
   `--runs`) as incomplete and continues, writes the JSON after every case, keeps the original's
   monitor window apart from the port's and summarizes the GPU clocks per side; `memory` records
   the peak device memory of both sides per case (Nsight Systems' memory trace).
-- ADR 0018 update: a case whose GPU cannot hold the boost lock under its power cap (the COLLAB
-  update, whose prior counts for 6.5 s) is read at the base lock, applied equally to both sides.
+- A case whose GPU cannot hold the boost lock under its power cap (the COLLAB update, whose prior
+  counts for 6.5 s) is read at the base lock, applied equally to both sides: first written as an
+  update of the accepted ADR 0018, now the Proposed ADR 0021, pending the author.
 
 ### M2b: close-out (branch `m2b-cycle-cuda`)
 
@@ -424,6 +426,41 @@ Before 0.1.0 anything may change.
   the acceptance record and the final verification from a fresh clone.
 - `parity/results/M2b.md` section 7: the three gate scripts pass in a fresh clone, and the sssp
   CUDA and OpenMP gates and the cycle_count OpenMP update gate hold on the final code.
+
+### M2b: review fixes (branch `m2b-cycle-cuda`)
+
+- Fixed: under `batch_semantics::set()` with `self_loop::keep` the `cycle_count` update counted
+  a spurious 2-cycle through every self-loop of a batch on every backend (the normalized lists
+  keep self-loops as change edges); the phases now skip them.
+- Fixed: a chain of CUDA updates on a resident graph downloaded all of G_t in every update after
+  the first (Step 0 read the stale host copy). Step 0 of such a graph now tests the membership of
+  the changes in G_t on the device (`graph_access::normalize`); the graph is downloaded only when
+  something reads it on the host, on the stream of the resources that built the state (no longer
+  the legacy default stream), without copying stale content into a regrown vector.
+- Changed: Step 0's sort under set semantics is a bucket sort (stable, no shortcut for sorted
+  lists; 0.7x of the original's `std::sort` on sorted input, 0.3x on shuffled input). The
+  sortedness skip of the gate campaign is gone.
+- Added: `cycle_count::result::set_options()` for the tunables `cuda_engine`, `scheduler` and
+  `work_items` (`max_length`, `method` and `mode` stay fixed at `compute()`).
+- Changed: `bound()` and `get_options()` of a poisoned `cycle_count` result throw
+  `stale_result_error`; `compute()` on cuda counts an edgeless graph of any size (the zero
+  histogram before the 64-vertex check, as the original); the 32-bit change-id limit of the cuda
+  update raises `capacity_error`; the documentation says that the device sums wrap at 2^64 on
+  cuda, as the original's.
+- Fixed: staging errors of `cycle_count::update` name it instead of `dyng::update`.
+- The device set apply keeps its scratch in the pooled normalized batch: a steady CUDA update
+  allocates only the arrays of G_{t+1}.
+- Tests: the recorded mutations in the CUDA kernels (`cycle_count.mutation.cuda.*`, label
+  `gpu`), the original's large-graph device test (300,000 vertices), device Step 0 against host
+  Step 0, chained updates, steady-state allocations, kept self-loops on all backends; the
+  host-only kernel tests no longer run in the gpu executable.
+- Harness: `dyng-compat-cycle-enum --chain n`; the CUDA gate records chained updates on the
+  resident graph (`update_chain_steady`, `update_chain_worst`), dynG's CUDA-event time of the
+  short updates (`update_device`) and the CPU-load threshold.
+- Docs: the public graph documentation covers the device merge; ADR 0020 is Proposed (it had
+  been marked Accepted without an acceptance) with the review's amendments; the M2b clock rule
+  that had been appended to the accepted ADR 0018 is ADR 0021 (Proposed), pending the author;
+  README lists the M2b certificate.
 
 ## [0.0.1] - 2026-09-27
 
