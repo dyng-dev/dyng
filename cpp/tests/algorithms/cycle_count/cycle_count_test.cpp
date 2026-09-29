@@ -262,8 +262,51 @@ TEST_P(CycleCountBackends, NegativeBucketPoisonsTheResult) {
   EXPECT_EQ(g.version(), 1U);  // the graph was updated
   EXPECT_THROW((void)r.counts(), dyng::stale_result_error);
   EXPECT_THROW((void)r.total(), dyng::stale_result_error);
+  // Every later use but the noexcept queries throws (ADR 0006 point 5): the bound and the options
+  // describe a histogram that no longer matches the graph.
+  EXPECT_THROW((void)r.bound(), dyng::stale_result_error);
+  EXPECT_THROW((void)r.get_options(), dyng::stale_result_error);
+  EXPECT_THROW(r.set_options(bound(3)), dyng::stale_result_error);
+  EXPECT_THROW((void)r.clone(res_), dyng::stale_result_error);
+  EXPECT_EQ(r.graph_version(), 0U);
   EXPECT_THROW((void)cycle_count::update(res_, g, b.view(), r), dyng::stale_result_error);
   r = cycle_count::compute(res_, g, bound(3));
+  EXPECT_EQ(r.total(), 0U);
+}
+
+// PLAN 5.1 / ADR 0006 point 2: the tunables change with set_options(); max_length, method and mode
+// are fixed at compute().
+TEST_P(CycleCountBackends, SetOptionsChangesOnlyTheTunables) {
+  graph_u g = cc_graph<graph_u>(res_, 4, overlapping_cycles());
+  cycle_count::result r = cycle_count::compute(res_, g, bound(4));
+  cycle_count::options opt = r.get_options();
+  opt.cuda_engine = dyng::engine::fused;
+  opt.scheduler = cycle_count::cuda_scheduler::naive;
+  opt.work_items = cycle_count::cuda_work_items::edges;
+  r.set_options(opt);
+  EXPECT_EQ(r.get_options().cuda_engine, dyng::engine::fused);
+  EXPECT_EQ(r.get_options().scheduler, cycle_count::cuda_scheduler::naive);
+  EXPECT_EQ(r.get_options().work_items, cycle_count::cuda_work_items::edges);
+  EXPECT_EQ(r.get_options().max_length, 4);
+  cycle_count::options longer = opt;
+  longer.max_length = 5;
+  EXPECT_THROW(r.set_options(longer), dyng::invalid_argument_error);
+  cycle_count::options bad_items = opt;
+  bad_items.work_items = static_cast<cycle_count::cuda_work_items>(9);
+  EXPECT_THROW(r.set_options(bad_items), dyng::invalid_argument_error);
+  EXPECT_EQ(r.get_options().work_items, cycle_count::cuda_work_items::edges);  // unchanged
+  const auto b = cc_batch<unweighted>({{0, 1}}, {{3, 0}});
+  (void)cycle_count::update(res_, g, b.view(), r);
+  EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(4))));
+}
+
+// A graph without edges has no cycle, whatever its size and the bound: on cuda as well (the
+// original's device counters return an empty histogram before they check the length bound).
+TEST_P(CycleCountBackends, EdgelessGraphsOfAnySizeCount) {
+  graph_u g = cc_graph<graph_u>(res_, 100, {});
+  const cycle_count::result r = cycle_count::compute(res_, g, cycle_count::options{});
+  EXPECT_EQ(r.bound(), 100);
+  EXPECT_EQ(cc_counts(r), hist(101, 0));
   EXPECT_EQ(r.total(), 0U);
 }
 

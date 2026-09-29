@@ -401,10 +401,13 @@ class cycle_count_participant final : public update_participant<vertex_t, edge_t
     cuda_ws_.emplace(resources_access::workspaces(res).acquire<cuda_workspace_type>(res));
     cuda_workspace_type& cws = cuda_ws_->get();
     constexpr std::int64_t id_limit = no_change_id;
-    DYNG_EXPECTS(static_cast<std::int64_t>(ws.change.deletions.size()) < id_limit &&
-                     static_cast<std::int64_t>(ws.change.insertions.size()) < id_limit,
-                 "cycle_count::update: the batch exceeds the 32-bit change ids of the cuda "
-                 "backend");
+    if (static_cast<std::int64_t>(ws.change.deletions.size()) >= id_limit ||
+        static_cast<std::int64_t>(ws.change.insertions.size()) >= id_limit) {
+      // A size limit of the backend, not a malformed batch (PLAN 4.7.3); nothing is changed yet.
+      throw capacity_error(
+          "dyng: cycle_count::update: the batch exceeds the 32-bit change ids of the cuda "
+          "backend (at most 2,139,062,142 deletions and as many insertions after normalization)");
+    }
     if constexpr (sizeof(vertex_t) == 4) {
       device_changes_ = normalized_ != nullptr
                             ? upload_normalized_batch(res, *normalized_)
@@ -613,11 +616,27 @@ std::uint64_t result::total() const {
 }
 
 std::int64_t result::bound() const {
-  return detail::cycle_count_access::state(*this).bound;
+  const detail::cycle_count_state& st = detail::cycle_count_access::state(*this);
+  detail::expect_not_poisoned(st, "cycle_count::result::bound");
+  return st.bound;
 }
 
 const options& result::get_options() const {
-  return detail::cycle_count_access::state(*this).opt;
+  const detail::cycle_count_state& st = detail::cycle_count_access::state(*this);
+  detail::expect_not_poisoned(st, "cycle_count::result::get_options");
+  return st.opt;
+}
+
+void result::set_options(const options& opt) {
+  detail::cycle_count_state& st = detail::cycle_count_access::state(*this);
+  detail::expect_not_poisoned(st, "cycle_count::result::set_options");
+  detail::expect_options(opt);
+  DYNG_EXPECTS(
+      opt.max_length == st.opt.max_length && opt.method == st.opt.method && opt.mode == st.opt.mode,
+      "cycle_count::result::set_options: max_length, method and mode are fixed at "
+      "compute() (the histogram counts cycles under them; recompute to change them); "
+      "only cuda_engine, scheduler and work_items can change");
+  st.opt = opt;
 }
 
 std::uint64_t result::graph_version() const noexcept {
@@ -659,9 +678,17 @@ cycle_count::result cycle_count_compute(const resources& res,
   state->bound = detail::histogram_bound(opt, g);
   if (res.get_backend() == backend::cuda) {
     detail::expect_cuda_engine(opt, "cycle_count::compute");
+    state->counts.assign(static_cast<std::size_t>(state->bound) + 1, 0);
+    if (g.num_edges() == 0) {
+      // No edge, no cycle: the original's device counters return an empty histogram before they
+      // check the length bound, so an edgeless graph of any size counts (update() checks the
+      // bound once a batch adds edges).
+      state->version = g.version();
+      state->graph_state = detail::graph_access::impl(g).state_id;
+      return detail::cycle_count_access::make(std::move(state));
+    }
     const std::int64_t length = detail::expect_device_length(
         opt, static_cast<std::int64_t>(g.num_vertices()), "cycle_count::compute");
-    state->counts.assign(static_cast<std::size_t>(state->bound) + 1, 0);
 #if DYNG_HAS_CUDA
     // count_simple_cycles_johnson[_queue]_device on the resident graph (stages cycle_count.reset,
     // cycle_count.count and cycle_count.finalize inside).

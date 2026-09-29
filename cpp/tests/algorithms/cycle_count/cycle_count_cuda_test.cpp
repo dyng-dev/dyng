@@ -19,7 +19,9 @@
 #include "support/cycle_count_support.hpp"
 #include "support/test_seeds.hpp"
 
+#include <dyng/core/copy.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/cycle_count.hpp>
 #include <dyng/generators/legacy.hpp>
@@ -178,12 +180,65 @@ TEST_F(CycleCountCuda, OperatorsEngineIsNotSupported) {
   cycle_count::result r = cycle_count::compute(cuda_, g, opt);
   const batch_u b = cc_batch<unweighted>({{0, 1}}, {{2, 0}});
   EXPECT_EQ(cycle_count::update(cuda_, g, b.view(), r).engine_used, dyng::engine::fused);
-  // An update of a result whose options ask for operators is rejected before anything changes.
+  // An update of a result whose options ask for operators (a tunable: set_options()) is rejected
+  // before anything changes; switching back makes the result usable again.
   cycle_count::result bad = r.clone(cuda_);
-  dyng::detail::cycle_count_access::state(bad).opt.cuda_engine = dyng::engine::operators;
+  cycle_count::options operators = bad.get_options();
+  operators.cuda_engine = dyng::engine::operators;
+  bad.set_options(operators);
   const std::uint64_t version = g.version();
   EXPECT_THROW((void)cycle_count::update(cuda_, g, b.view(), bad), dyng::not_supported_error);
   EXPECT_EQ(g.version(), version);
+  operators.cuda_engine = dyng::engine::automatic;
+  bad.set_options(operators);
+  (void)cycle_count::update(cuda_, g, b.view(), bad);
+  EXPECT_EQ(cc_counts(bad), cc_counts(cycle_count::compute(cuda_, g, opt)));
+}
+
+// ---- the length bound of an edgeless graph, and the copy policy ------------------------------
+
+TEST_F(CycleCountCuda, EdgelessGraphsCountBeforeTheLengthCheck) {
+  // 100 isolated vertices without a bound: the original returns the empty histogram before its
+  // length check, so compute() succeeds; the first batch that adds edges needs the bound.
+  graph_u g = cc_graph<graph_u>(cuda_, 100, {});
+  cycle_count::result r = cycle_count::compute(cuda_, g, cycle_count::options{});
+  const graph_u gs = cc_graph<graph_u>(seq_, 100, {});
+  EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(seq_, gs, cycle_count::options{})));
+  const batch_u b = cc_batch<unweighted>({}, {{0, 1}, {1, 0}});
+  EXPECT_THROW((void)cycle_count::update(cuda_, g, b.view(), r), dyng::invalid_argument_error);
+  EXPECT_EQ(g.version(), 0U);  // nothing was applied
+  EXPECT_EQ(r.total(), 0U);    // and the result is still usable
+  // With a bound the same graph updates.
+  cycle_count::result bounded = cycle_count::compute(cuda_, g, bound(4));
+  (void)cycle_count::update(cuda_, g, b.view(), bounded);
+  EXPECT_EQ(bounded.count(2), 1U);
+}
+
+// copy_policy::error turns the implicit copy of a device batch into invalid_argument_error before
+// anything changes, and the message names the function the user called.
+TEST_F(CycleCountCuda, TheCopyPolicyErrorNamesCycleCountUpdate) {
+  graph_u g = cc_graph<graph_u>(cuda_, 5, ring_with_block(5, 4));
+  cycle_count::result r = cycle_count::compute(cuda_, g, bound(4));
+  const batch_u b = cc_batch<unweighted>({{0, 1}}, {{2, 0}});
+  const auto host = b.view();
+  const auto device_src = dyng::to_space(cuda_, host.insert_src, dyng::memory_space::device);
+  cuda_.synchronize();
+  auto view = host;
+  view.insert_src = device_src.view();
+  resources res = resources::cuda();  // an independent handle for the policy
+  res.set_copy_policy(dyng::copy_policy::error);
+  try {
+    (void)cycle_count::update(res, g, view, r);
+    FAIL() << "copy_policy::error allowed an implicit copy";
+  } catch (const dyng::invalid_argument_error& error) {
+    const std::string what = error.what();
+    EXPECT_NE(what.find("cycle_count::update"), std::string::npos) << what;
+    EXPECT_EQ(what.find("dyng::update"), std::string::npos) << what;
+    EXPECT_NE(what.find("insert_src"), std::string::npos) << what;
+  }
+  EXPECT_EQ(g.version(), 0U);
+  (void)cycle_count::update(cuda_, g, view, r);  // allowed under the default policy
+  EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(cuda_, g, bound(4))));
 }
 
 // ---- every scheduler and kind of work item ----------------------------------------------------

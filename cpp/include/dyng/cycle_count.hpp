@@ -107,7 +107,11 @@ enum class cuda_work_items : std::uint8_t {
 };
 
 /**
- * @brief Options of compute() (an aggregate; fields are only ever appended). Fixed at compute().
+ * @brief Options of compute() and update() (an aggregate; fields are only ever appended).
+ *
+ * max_length, method and mode are fixed at compute() (the histogram counts the cycles they
+ * define). cuda_engine, scheduler and work_items are tunables: they choose how the cuda backend
+ * searches, never what it counts, and result::set_options() changes them.
  * @ingroup cycle_count
  */
 struct options {
@@ -127,19 +131,21 @@ struct options {
   /// On the **cuda** backend the searches keep their paths in thread-local arrays of at most 64
   /// vertices: the effective bound min(max_length, n) (min(-1 -> n, n) without a bound) must be at
   /// most 64, or compute() and update() throw invalid_argument_error (a bound above 64 is accepted
-  /// while the graph has at most 64 vertices, as the original's).
+  /// while the graph has at most 64 vertices, as the original's). As in the original, compute() of
+  /// a graph without edges returns the zero histogram before it checks the bound; update() checks
+  /// it on every batch. Fixed at compute().
   int max_length = -1;
-  search_method method = search_method::johnson;  ///< the search (Johnson)
-  cycle_mode mode = cycle_mode::simple;           ///< the cycles counted (simple)
+  search_method method = search_method::johnson;  ///< the search (Johnson); fixed at compute()
+  cycle_mode mode = cycle_mode::simple;  ///< the cycles counted (simple); fixed at compute()
 
   /// The CUDA engine: automatic and fused select the fused kernels (the work queue of the static
   /// count, the per-change searches of the update; Tier B, PLAN Section 4.5.4); operators throws
   /// not_supported_error (cycle_count has no operators engine in 0.1). Ignored on the host
-  /// backends.
+  /// backends. A tunable (result::set_options()).
   engine cuda_engine = engine::automatic;
-  /// The scheduler of the static count on the cuda backend (ignored elsewhere).
+  /// The scheduler of the static count on the cuda backend (ignored elsewhere). A tunable.
   cuda_scheduler scheduler = cuda_scheduler::work_queue;
-  /// The work items of the work-queue scheduler (ignored elsewhere).
+  /// The work items of the work-queue scheduler (ignored elsewhere). A tunable.
   cuda_work_items work_items = cuda_work_items::automatic;
 };
 
@@ -207,8 +213,10 @@ namespace dyng::cycle_count {
  * always 0. The array has bound() + 1 entries, bound() = min(k, max(num_vertices, 2)) for
  * options::max_length = k, max(num_vertices, 2) without a bound: no simple cycle is longer than
  * the vertex count, so the lengths past it (up to k) are not stored and count() returns 0 for
- * them. The array grows with the graph. Counts are 64-bit; a count that would exceed 2^64 - 1
- * throws capacity_error.
+ * them. The array grows with the graph. Counts are 64-bit; on the host backends a count that
+ * would exceed 2^64 - 1 throws capacity_error. On cuda the per-length sums on the device wrap at
+ * 2^64, as the original's do; only the host-side merge of an update's two phases into the
+ * histogram is checked (more than 10^19 cycles of one length: not reachable in practice).
  * The scratch memory of the engines is leased from the resources handle (ADR 0015), not owned.
  * @ingroup cycle_count
  */
@@ -263,15 +271,26 @@ class result {
    * @return min(options::max_length, max(num_vertices, 2)), or without a bound max(num_vertices, 2),
    *         of the graph the result matches (get_options().max_length is the requested bound).
    * @throws invalid_argument_error for a moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
   [[nodiscard]] std::int64_t bound() const;
 
   /**
    * @brief The options.
-   * @return The options given at compute().
+   * @return The options given at compute(), as changed by set_options().
    * @throws invalid_argument_error for a moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
   [[nodiscard]] const options& get_options() const;
+
+  /**
+   * @brief Change the tunables (cuda_engine, scheduler, work_items); the next update() uses them.
+   * @param[in] opt The new options; max_length, method and mode must stay the same.
+   * @throws invalid_argument_error if `opt.max_length`, `opt.method` or `opt.mode` differs from
+   *         the result's, a field holds an invalid value, or for a moved-from result.
+   * @throws stale_result_error     if a failed update left the result unusable (poisoned).
+   */
+  void set_options(const options& opt);
 
   /**
    * @brief The graph version this result matches.
@@ -367,7 +386,8 @@ namespace dyng::cycle_count {
  *         the effective bound exceeds 64, or `g` belongs to another backend than `res`.
  * @throws not_supported_error    if the backend of `res` is not available for cycle_count, or
  *         options::cuda_engine is engine::operators on cuda.
- * @throws capacity_error         if a count exceeds 2^64 - 1.
+ * @throws capacity_error         if a count exceeds 2^64 - 1 (host backends; on cuda the per-length
+ *         device sums wrap at 2^64 as the original's do).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
  * @sync The histogram is complete on return (a host array on every backend).
@@ -419,8 +439,11 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *         options::cuda_engine is engine::operators on cuda (nothing is changed).
  * @throws internal_error         if a bucket would become negative (then the graph was updated and
  *         `r` is left unusable).
- * @throws capacity_error         if a count exceeds 2^64 - 1 (raised after the batch was applied,
- *         it leaves `r` unusable).
+ * @throws capacity_error         if a count exceeds 2^64 - 1 (host backends, and on cuda the
+ *         host-side merge of the two phases; the per-length device sums of a phase wrap at 2^64 as
+ *         the original's do; raised after the batch was applied, it leaves `r` unusable), or if on
+ *         cuda the normalized batch has 0x7f7f7f7f (2,139,062,143) or more deletions or insertions,
+ *         the limit of the backend's 32-bit change ids (nothing is changed).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
  * @sync The graph and the histogram are updated on return.
