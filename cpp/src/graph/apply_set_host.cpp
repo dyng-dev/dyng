@@ -58,15 +58,106 @@ bool edge_index_less(const change<vertex_t>& a, const change<vertex_t>& b) noexc
   return a.target != b.target ? a.target < b.target : a.index < b.index;
 }
 
-/// sort_and_dedup(): sorted by (source, target); of equal pairs the first in batch order stays.
-/// std::sort as the original's (a stable sort costs 1.5x on 100K changes and allocates a buffer);
-/// the position breaks ties, so the first in batch order stays as before. A list already in that
-/// order is not sorted again (one linear check: generated batches and CSR-ordered changes are).
-template <typename vertex_t>
-void sort_and_dedup(std::vector<change<vertex_t>>& changes) {
-  if (!std::is_sorted(changes.begin(), changes.end(), edge_index_less<vertex_t>)) {
-    std::sort(changes.begin(), changes.end(), edge_index_less<vertex_t>);
+/// Number of bits of a non-negative value (0 for 0).
+inline int bit_width(std::uint64_t value) noexcept {
+  int bits = 0;
+  while (value != 0) {
+    ++bits;
+    value >>= 1;
   }
+  return bits;
+}
+
+/// Lists shorter than this are sorted with std::sort (the radix sort's counters cost more).
+constexpr std::size_t radix_sort_threshold = 256;
+/// Digit width of the radix sort (2048 counters per pass).
+constexpr int radix_digit_bits = 11;
+
+/// Sort a requested list by (source, target, position in the batch).
+///
+/// Precondition: the list is in batch order (positions non-decreasing), as normalize_set_batch()
+/// builds it. A least-significant-digit radix sort on the key (source, target) is stable, so equal
+/// pairs stay in batch order: the result is the one of sorting by (source, target, position), a
+/// total order, whatever the order of the input. Its cost does not depend on the order of the input
+/// (the original's std::sort of 8-byte EdgeChange records is fast on sorted input and slow on
+/// shuffled input; std::sort of these 16-byte records with a three-key comparator is slower than
+/// the original's on both). Short lists, and keys wider than 64 bits (64-bit ids), use std::sort
+/// with the same total order.
+/// @param[in,out] changes  The list.
+/// @param[in,out] scratch  A second list of the same capacity class (swapped with `changes`).
+/// @param[in,out] counters The digit counters (reused).
+template <typename vertex_t>
+void sort_changes(std::vector<change<vertex_t>>& changes, std::vector<change<vertex_t>>& scratch,
+                  std::vector<std::uint32_t>& counters) {
+  const std::size_t size = changes.size();
+  if (size < radix_sort_threshold ||
+      size > static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max())) {
+    std::sort(changes.begin(), changes.end(), edge_index_less<vertex_t>);
+    return;
+  }
+#ifndef NDEBUG
+  for (std::size_t i = 1; i < size; ++i) {
+    if (changes[i].index < changes[i - 1].index) {
+      DYNG_FAIL("apply (set semantics): a requested list is not in batch order");
+    }
+  }
+#endif
+  std::uint64_t max_source = 0;
+  std::uint64_t max_target = 0;
+  for (const change<vertex_t>& c : changes) {  // ids are validated non-negative
+    max_source = std::max(max_source, static_cast<std::uint64_t>(c.source));
+    max_target = std::max(max_target, static_cast<std::uint64_t>(c.target));
+  }
+  const int target_bits = bit_width(max_target);
+  const int key_bits = bit_width(max_source) + target_bits;
+  if (key_bits > 64) {
+    std::sort(changes.begin(), changes.end(), edge_index_less<vertex_t>);
+    return;
+  }
+  const auto key = [target_bits](const change<vertex_t>& c) noexcept {
+    return target_bits == 64 ? static_cast<std::uint64_t>(c.target)
+                             : (static_cast<std::uint64_t>(c.source) << target_bits) |
+                                   static_cast<std::uint64_t>(c.target);
+  };
+  constexpr std::size_t radix = std::size_t{1} << radix_digit_bits;
+  constexpr std::uint64_t digit_mask = radix - 1;
+  const int passes = (key_bits + radix_digit_bits - 1) / radix_digit_bits;
+  counters.assign(static_cast<std::size_t>(passes) * radix, 0);
+  for (const change<vertex_t>& c : changes) {
+    const std::uint64_t k = key(c);
+    for (int p = 0; p < passes; ++p) {
+      ++counters[static_cast<std::size_t>(p) * radix +
+                 ((k >> (p * radix_digit_bits)) & digit_mask)];
+    }
+  }
+  scratch.resize(size);
+  for (int p = 0; p < passes; ++p) {
+    std::uint32_t* count = counters.data() + static_cast<std::size_t>(p) * radix;
+    const int shift = p * radix_digit_bits;
+    if (count[(key(changes[0]) >> shift) & digit_mask] == size) {
+      continue;  // every key has the same digit here: the pass would not move anything
+    }
+    std::uint32_t sum = 0;
+    for (std::size_t d = 0; d < radix; ++d) {
+      const std::uint32_t c = count[d];
+      count[d] = sum;
+      sum += c;
+    }
+    const change<vertex_t>* from = changes.data();
+    change<vertex_t>* to = scratch.data();
+    for (std::size_t i = 0; i < size; ++i) {
+      to[count[(key(from[i]) >> shift) & digit_mask]++] = from[i];
+    }
+    changes.swap(scratch);  // O(1); both keep their capacity for the next update
+  }
+}
+
+/// sort_and_dedup(): sorted by (source, target); of equal pairs the first in batch order stays
+/// (its position supplies the weights of an insertion and names it in error messages).
+template <typename vertex_t>
+void sort_and_dedup(std::vector<change<vertex_t>>& changes, std::vector<change<vertex_t>>& scratch,
+                    std::vector<std::uint32_t>& counters) {
+  sort_changes(changes, scratch, counters);
   changes.erase(std::unique(changes.begin(), changes.end(),
                             [](const change<vertex_t>& a, const change<vertex_t>& b) {
                               return a.source == b.source && a.target == b.target;
@@ -104,6 +195,7 @@ void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
   out.deletions_marked = false;
 
   // --- Step 0: the requested operations (ids, self-loops, vertex growth, undirected expansion) --
+  // Both lists are built in batch order (sort_changes relies on it).
   std::vector<change<vertex_t>>& insertions = out.requested_insertions;
   std::vector<change<vertex_t>>& deletions = out.requested_deletions;
   insertions.clear();
@@ -149,8 +241,8 @@ void normalize_set_batch(const csr<vertex_t, edge_t, weight_t>& original,
   }
 
   // --- prepare_batch(): sorted, duplicate-free lists without no-ops ------------------------------
-  sort_and_dedup(deletions);
-  sort_and_dedup(insertions);
+  sort_and_dedup(deletions, out.sort_scratch, out.sort_counters);
+  sort_and_dedup(insertions, out.sort_scratch, out.sort_counters);
   std::vector<change<vertex_t>>& del_kept = out.deletions;
   del_kept.clear();
   del_kept.reserve(deletions.size());

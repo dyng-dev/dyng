@@ -61,6 +61,8 @@ struct normalized_batch {
   std::uint64_t state_id = 0;  ///< the graph state (graph_impl::state_id) it was computed for
   std::vector<set_change<vertex_t>> requested_deletions;   ///< scratch: requested deletions
   std::vector<set_change<vertex_t>> requested_insertions;  ///< scratch: requested insertions
+  std::vector<set_change<vertex_t>> sort_scratch;          ///< scratch: the radix sort's copy
+  std::vector<std::uint32_t> sort_counters;                ///< scratch: the radix sort's counters
 
   /// Device copy of the lists (CUDA backend, 32-bit ids): the deletions, then the insertions, as
   /// (source, target) pairs, uploaded once per update by upload_normalized_batch() and read by
@@ -82,8 +84,9 @@ struct normalized_batch {
    */
   [[nodiscard]] std::size_t bytes() const noexcept {
     return (deletions.capacity() + insertions.capacity() + requested_deletions.capacity() +
-            requested_insertions.capacity()) *
+            requested_insertions.capacity() + sort_scratch.capacity()) *
                sizeof(set_change<vertex_t>) +
+           sort_counters.capacity() * sizeof(std::uint32_t) +
            (device_lists.size() + staging.size()) * sizeof(std::uint32_t) +
            deletion_owner.size() * sizeof(int);
   }

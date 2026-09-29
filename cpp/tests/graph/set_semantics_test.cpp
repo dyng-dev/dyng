@@ -14,6 +14,7 @@
  * pairs, new vertices), each with the original's prepare_batch() and apply_batch() output.
  */
 #include "graph/graph_impl.hpp"
+#include "graph/normalized_batch.hpp"
 #include "support/cycle_enum_text.hpp"
 #include "support/data_paths.hpp"
 #include "support/gtest_helpers.hpp"
@@ -532,6 +533,102 @@ TEST(SetSemantics, WeightedGraphWeights) {
   EXPECT_EQ(out.row_ptr, (std::vector<std::int64_t>{0, 2, 3, 4}));
   EXPECT_EQ(out.col_ind, (std::vector<std::int32_t>{1, 2, 2, 0}));
   EXPECT_EQ(out.weights, (std::vector<std::int32_t>{5, 1, 6, 4, 50, 10, 60, 40}));
+}
+
+// Step 0 sorts the requested lists with a radix sort from 256 changes on (normalize_set_batch):
+// its lists must equal a stable sort by (source, target) that keeps the first of equal pairs in
+// batch order, whatever the order of the batch (shuffled, sorted, reversed), on directed and
+// undirected graphs, with ids wide enough for several digit passes. The batch position kept (the
+// first of a pair's) supplies an insertion's weights and names it in error messages.
+TEST(SetSemantics, StepZeroListsEqualAStableSortOnLargeBatches) {
+  using graph_t = dyng::graph<std::int32_t, std::int64_t, std::int32_t>;
+  using change_t = dyng::detail::set_change<std::int32_t>;
+  const auto res = dyng::resources::sequential();
+  std::mt19937_64 rng(20260929);
+  for (const bool directed : {true, false}) {
+    for (const std::int32_t n : {50, 5000, 3000000}) {
+      for (int order = 0; order < 3; ++order) {
+        SCOPED_TRACE(::testing::Message()
+                     << (directed ? "directed" : "undirected") << " n=" << n << " order " << order);
+        std::uniform_int_distribution<std::int32_t> vertex(0, n - 1);
+        dyng::edge_list<std::int32_t, std::int32_t> list;
+        list.num_vertices = n;
+        list.num_weights = 1;
+        std::vector<std::pair<std::int32_t, std::int32_t>> present;
+        for (int i = 0; i < 2000; ++i) {
+          const std::int32_t u = vertex(rng);
+          const std::int32_t v = vertex(rng);
+          list.add_edge(u, v, {1});
+          present.emplace_back(u, v);
+          if (!directed) {
+            list.add_edge(v, u, {1});
+          }
+        }
+        graph_properties props = graph_properties::cycle_enum_compatible();
+        props.directed = directed;
+        props.num_weights = 1;
+        const graph_t g = graph_t::from_edges(res, list.view(), props);
+        // Pairs with repeats (a small n repeats many), some present edges; three orders.
+        std::vector<std::pair<std::int32_t, std::int32_t>> ins;
+        std::vector<std::pair<std::int32_t, std::int32_t>> del;
+        for (int i = 0; i < 1500; ++i) {
+          ins.emplace_back(vertex(rng), vertex(rng));
+          del.emplace_back(i % 3 == 0 ? present[rng() % present.size()]
+                                      : std::pair{vertex(rng), vertex(rng)});
+        }
+        if (order == 1) {
+          std::sort(ins.begin(), ins.end());
+          std::sort(del.begin(), del.end());
+        } else if (order == 2) {
+          std::sort(ins.rbegin(), ins.rend());
+          std::sort(del.rbegin(), del.rend());
+        }
+        dyng::edge_batch<std::int32_t, std::int32_t> b(1);
+        for (std::size_t i = 0; i < ins.size(); ++i) {
+          b.insert_edge(ins[i].first, ins[i].second, {static_cast<std::int32_t>(i + 2)});
+        }
+        for (const auto& [u, v] : del) {
+          b.delete_edge(u, v);
+        }
+        dyng::detail::normalized_batch<std::int32_t> nb;
+        dyng::detail::normalize_set_batch(dyng::detail::graph_access::impl(g).host_edges(),
+                                          b.view(), props, nb);
+        // The reference: requested lists in batch order, stable sort, first of equal pairs.
+        const auto reference = [&](const std::vector<std::pair<std::int32_t, std::int32_t>>& ops) {
+          std::vector<change_t> out;
+          for (std::size_t i = 0; i < ops.size(); ++i) {
+            const auto [u, v] = ops[i];
+            if (u == v) {
+              continue;  // dropped (cycle_enum_compatible)
+            }
+            out.push_back({u, v, i});
+            if (!directed) {
+              out.push_back({v, u, i});
+            }
+          }
+          std::stable_sort(out.begin(), out.end(), [](const change_t& a, const change_t& c) {
+            return a.source != c.source ? a.source < c.source : a.target < c.target;
+          });
+          out.erase(std::unique(out.begin(), out.end(),
+                                [](const change_t& a, const change_t& c) {
+                                  return a.source == c.source && a.target == c.target;
+                                }),
+                    out.end());
+          return out;
+        };
+        const auto same = [](const std::vector<change_t>& a, const std::vector<change_t>& c) {
+          return a.size() == c.size() &&
+                 std::equal(
+                     a.begin(), a.end(), c.begin(), [](const change_t& x, const change_t& y) {
+                       return x.source == y.source && x.target == y.target && x.index == y.index;
+                     });
+        };
+        EXPECT_TRUE(same(nb.requested_insertions, reference(ins)));
+        EXPECT_TRUE(same(nb.requested_deletions, reference(del)));
+        EXPECT_GE(nb.requested_insertions.size(), 256U);  // the radix path
+      }
+    }
+  }
 }
 
 TEST(SetSemantics, UnweightedInputsRejectWeights) {
