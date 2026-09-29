@@ -129,6 +129,7 @@ dyng_add_module(
     src/core/logging.cpp
     src/core/memory.cpp
     src/core/memory_cuda.cpp
+    src/core/names.cpp
     src/core/profiler.cpp
     src/core/registry.cpp
     src/core/resources.cpp

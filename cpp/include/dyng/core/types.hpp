@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <string_view>
 #include <type_traits>
 
 namespace dyng {
@@ -112,5 +113,21 @@ enum class determinism : std::uint8_t {
   exact_value,  ///< identical values (e.g. counts); internal order may differ
   tolerance,    ///< equal within a documented tolerance
 };
+
+/**
+ * @brief The lower-case name of an engine ("automatic", "fused", "operators").
+ * @param[in] e The engine.
+ * @return A static string naming `e` (the enumerator's name).
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(engine e) noexcept;
+
+/**
+ * @brief The lower-case name of a determinism level ("bitwise", "exact_value", "tolerance").
+ * @param[in] d The level.
+ * @return A static string naming `d` (the enumerator's name, as in the manifests).
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(determinism d) noexcept;
 
 }  // namespace dyng

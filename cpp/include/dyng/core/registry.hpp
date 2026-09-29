@@ -56,6 +56,39 @@ enum class oracle_kind : std::uint8_t {
 };
 
 /**
+ * @brief The name of an update family, as in the manifests ("fixed_point", "aggregate_delta").
+ * @param[in] family The family.
+ * @return A static string naming `family`.
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(algorithm_family family) noexcept;
+
+/**
+ * @brief The name of a container kind, as in the manifests ("graph", "hypergraph").
+ * @param[in] container The container kind.
+ * @return A static string naming `container`.
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(container_kind container) noexcept;
+
+/**
+ * @brief The name of a maturity level, as in the manifests ("experimental", "stable",
+ *        "deprecated").
+ * @param[in] maturity The maturity level.
+ * @return A static string naming `maturity`.
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(maturity_level maturity) noexcept;
+
+/**
+ * @brief The name of an oracle kind, as in the manifests ("compute", "reference").
+ * @param[in] oracle The oracle kind.
+ * @return A static string naming `oracle`.
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(oracle_kind oracle) noexcept;
+
+/**
  * @brief One registered algorithm, as its manifest (cpp/src/algorithms/NAME/manifest.toml)
  *        declares it.
  *
@@ -81,7 +114,7 @@ struct algorithm_info {
  *
  * A build that selects a subset (the CMake option DYNG_ALGORITHMS) lists only that subset.
  * @return The registry (built on first use; valid for the life of the program).
- * @throws std::bad_alloc on the first call if the table cannot be allocated.
+ * @throws out_of_memory_error on the first call if the table cannot be allocated.
  * @ingroup core
  */
 [[nodiscard]] const std::vector<algorithm_info>& algorithms();
@@ -90,7 +123,7 @@ struct algorithm_info {
  * @brief Look up a compiled algorithm by name.
  * @param[in] name The algorithm's name (e.g. "cycle_count").
  * @return Its entry, or nullptr if this library does not contain it.
- * @throws std::bad_alloc as algorithms().
+ * @throws out_of_memory_error as algorithms().
  * @ingroup core
  */
 [[nodiscard]] const algorithm_info* find_algorithm(std::string_view name);

@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string_view>
 
 namespace dyng {
 
@@ -41,6 +42,14 @@ enum class copy_policy : std::uint8_t {
   warn,   ///< copy; log at warn level (the default inside timed benchmark runs)
   error,  ///< throw invalid_argument_error instead of copying
 };
+
+/**
+ * @brief The lower-case name of a copy policy ("allow", "warn", "error").
+ * @param[in] policy The policy.
+ * @return A static string naming `policy` (the enumerator's name).
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(copy_policy policy) noexcept;
 
 /**
  * @brief Execution resources: backend, device, stream, memory resource, thread count, profiler.

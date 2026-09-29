@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -34,6 +35,14 @@ enum class memory_space : std::uint8_t {
   device,       ///< device memory of one GPU
   managed,      ///< CUDA managed (unified) memory
 };
+
+/**
+ * @brief The lower-case name of a memory space ("host", "pinned_host", "device", "managed").
+ * @param[in] space The memory space.
+ * @return A static string naming `space` (the enumerator's name).
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(memory_space space) noexcept;
 
 /**
  * @brief Whether host code may dereference memory of a space.
