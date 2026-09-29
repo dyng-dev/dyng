@@ -14,6 +14,7 @@
  * run on cuda in the same executable (DYNG_TEST_CUDA=1).
  */
 #include "algorithms/cycle_count/problem.hpp"
+#include "core/resources_access.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/normalized_batch.hpp"
 #include "support/cycle_count_support.hpp"
@@ -32,6 +33,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <random>
 #include <set>
@@ -740,6 +742,77 @@ TEST_F(CycleCountCuda, ChainedUpdatesNeverDownloadTheGraph) {
     EXPECT_EQ(g.to_csr(cuda_).col_ind, gs.to_csr(seq_).col_ind);  // the one download
     EXPECT_TRUE(impl.host_current());
   }
+}
+
+/// Counts the calls into an upstream device resource.
+class counting_resource {
+ public:
+  explicit counting_resource(dyng::memory_resource_ref upstream) : upstream_(upstream) {}
+  void* allocate(dyng::stream_ref s, std::size_t b, std::size_t a) {
+    ++allocations;
+    return upstream_.allocate(s, b, a);
+  }
+  void deallocate(dyng::stream_ref s, void* p, std::size_t b, std::size_t a) noexcept {
+    upstream_.deallocate(s, p, b, a);
+  }
+  void* allocate_sync(std::size_t b, std::size_t a) {
+    ++allocations;
+    return upstream_.allocate_sync(b, a);
+  }
+  void deallocate_sync(void* p, std::size_t b, std::size_t a) noexcept {
+    upstream_.deallocate_sync(p, b, a);
+  }
+  [[nodiscard]] dyng::memory_space space() const noexcept {
+    return upstream_.space();
+  }
+  std::atomic<int> allocations{0};
+
+ private:
+  dyng::memory_resource_ref upstream_;
+};
+
+/// Invariant I9 / conformance C8 on the CUDA backend: once a stable workload has run a batch,
+/// an update allocates exactly the arrays of the next graph state (the device apply's row offsets,
+/// neighbours and insertion ids: container growth, not the algorithm's), and nothing else: the
+/// change lists, the deletion marks, the merge's scratch, the device Step 0 and the phases reuse
+/// the pooled workspaces.
+TEST_F(CycleCountCuda, SteadyStateUpdatesAllocateOnlyTheNextGraph) {
+  auto res = resources::cuda();
+  counting_resource counter(res.memory());
+  res.set_memory_resource(counter);
+  dyng::test::cc_spec spec;
+  spec.vertex_count = 2000;
+  spec.edge_probability = 8.0 / 2000.0;
+  std::mt19937_64 rng(7);
+  const std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+  graph_u32 g = cc_graph<graph_u32>(res, spec.vertex_count, edges);
+  graph_u32 gs = cc_graph<graph_u32>(seq_, spec.vertex_count, edges);
+  cycle_count::result r = cycle_count::compute(res, g, bound(4));
+  cycle_count::result rs = cycle_count::compute(seq_, gs, bound(4));
+  auto& pool = dyng::detail::resources_access::workspaces(res);
+  for (int round = 0; round < 6; ++round) {
+    SCOPED_TRACE("batch " + std::to_string(round));
+    legacy::cycle_enum_batch_options params;
+    params.num_deletions = 100;
+    params.num_insertions = 100;
+    params.seed = rng();
+    const auto b = legacy::cycle_enum_batch(gs.to_csr(seq_).view(), params);
+    const std::uint64_t created = pool.statistics().created;
+    const int before = counter.allocations.load();
+    (void)cycle_count::update(res, g, b.view(), r);
+    const int during = counter.allocations.load() - before;
+    (void)cycle_count::update(seq_, gs, b.view(), rs);
+    EXPECT_EQ(cc_counts(r), cc_counts(rs));
+    // Rounds 0 and 1 size the workspaces (round 0 normalizes against the host copy, round 1 is
+    // the first against the device copy); from round 2 on only G_{t+1} is allocated.
+    if (round >= 2) {
+      EXPECT_EQ(during, 3);  // out_row_ptr, out_col_ind, insertion_ids
+      EXPECT_EQ(pool.statistics().created, created);
+    }
+  }
+  res.synchronize();
+  g = graph_u32();
+  res.release_workspaces();  // the workspaces' buffers were allocated through `counter`
 }
 
 // ---- the host-commit fallbacks: weight columns, other batch semantics --------------------------

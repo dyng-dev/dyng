@@ -198,15 +198,29 @@ cudaStream_t native(const resources& res) noexcept {
   return static_cast<cudaStream_t>(res.stream().get());
 }
 
-/// Exclusive prefix sum of `counts` (n values) into `offsets` (n + 1 values; counts[n] is 0).
+/// A scratch buffer of at least `size` elements from the memory resource of `res` (kept, and
+/// reallocated only to grow or to follow another memory resource).
 template <typename value_t>
-void exclusive_scan(const resources& res, const value_t* counts, value_t* offsets, std::size_t n) {
+value_t* scratch(const resources& res, buffer<value_t>& b, std::size_t size) {
+  size = std::max<std::size_t>(size, 1);
+  if (b.size() < size || b.memory_resource() != res.memory()) {
+    b = buffer<value_t>();  // release first: the peak holds one array
+    b = buffer<value_t>(res, size);
+  }
+  return b.data();
+}
+
+/// Exclusive prefix sum of `counts` (n values) into `offsets` (n + 1 values; counts[n] is 0), with
+/// the scan's scratch in `temp`.
+template <typename value_t>
+void exclusive_scan(const resources& res, const value_t* counts, value_t* offsets, std::size_t n,
+                    buffer<unsigned char>& temp) {
   std::size_t temp_bytes = 0;
   DYNG_CUDA_TRY(
       cub::DeviceScan::ExclusiveSum(nullptr, temp_bytes, counts, offsets, n + 1, native(res)));
-  buffer<unsigned char> temp(res, std::max<std::size_t>(temp_bytes, 1));
+  unsigned char* bytes = scratch(res, temp, temp_bytes);
   DYNG_CUDA_TRY(
-      cub::DeviceScan::ExclusiveSum(temp.data(), temp_bytes, counts, offsets, n + 1, native(res)));
+      cub::DeviceScan::ExclusiveSum(bytes, temp_bytes, counts, offsets, n + 1, native(res)));
 }
 
 }  // namespace
@@ -340,31 +354,34 @@ void apply_set_batch_device(const resources& res,
   next.num_vertices = static_cast<vertex_t>(next_count);
   next.num_edges = static_cast<edge_t>(next_edges);
   next.num_weights = 0;
-  buffer<std::uint32_t> deletion_rows(res, std::size_t{next_count} + 1);
-  buffer<std::uint32_t> insertion_rows(res, std::size_t{next_count} + 1);
+  // The scratch of the merge is kept in `normalized` (a pooled workspace): a steady workload
+  // allocates only the arrays of G_{t+1} below.
+  const std::size_t rows = std::size_t{next_count} + 1;
+  std::uint32_t* deletion_rows = scratch(res, normalized.apply_rows, 2 * rows);
+  std::uint32_t* insertion_rows = deletion_rows + rows;
+  auto* degree = reinterpret_cast<offset_t*>(
+      scratch(res, normalized.apply_degree, rows * sizeof(offset_t)));  // aligned by the resource
   change_rows_kernel<<<grid_for(std::uint64_t{next_count} + 1), set_apply_block_size, 0, stream>>>(
-      deletions, deletion_count, next_count, deletion_rows.data());
+      deletions, deletion_count, next_count, deletion_rows);
   DYNG_CHECK_KERNEL(stream);
   change_rows_kernel<<<grid_for(std::uint64_t{next_count} + 1), set_apply_block_size, 0, stream>>>(
-      insertions, insertion_count, next_count, insertion_rows.data());
+      insertions, insertion_count, next_count, insertion_rows);
   DYNG_CHECK_KERNEL(stream);
-  buffer<offset_t> degree(res, std::size_t{next_count} + 1);
-  DYNG_CUDA_TRY(
-      cudaMemsetAsync(degree.data(), 0, sizeof(offset_t) * (std::size_t{next_count} + 1), stream));
+  DYNG_CUDA_TRY(cudaMemsetAsync(degree, 0, sizeof(offset_t) * rows, stream));
   if (next_count > 0) {
     next_degree_kernel<offset_t><<<grid_for(next_count), set_apply_block_size, 0, stream>>>(
-        old_graph, next_count, deletion_rows.data(), insertion_rows.data(), degree.data());
+        old_graph, next_count, deletion_rows, insertion_rows, degree);
     DYNG_CHECK_KERNEL(stream);
   }
-  next.out_row_ptr = buffer<edge_t>(res, std::size_t{next_count} + 1);
-  exclusive_scan(res, degree.data(), reinterpret_cast<offset_t*>(next.out_row_ptr.data()),
-                 next_count);
+  next.out_row_ptr = buffer<edge_t>(res, rows);
+  exclusive_scan(res, degree, reinterpret_cast<offset_t*>(next.out_row_ptr.data()), next_count,
+                 normalized.apply_scan_temp);
   next.out_col_ind = buffer<vertex_t>(res, next_edges);
   next.insertion_ids = buffer<std::int32_t>(res, std::max<std::size_t>(next_edges, 1));
   if (next_count > 0) {
     build_next_rows_kernel<offset_t><<<grid_for(static_cast<std::uint64_t>(next_count) * 32U),
                                        set_apply_block_size, 0, stream>>>(
-        old_graph, deletion_owner, insertions, insertion_rows.data(), next_count,
+        old_graph, deletion_owner, insertions, insertion_rows, next_count,
         reinterpret_cast<const offset_t*>(next.out_row_ptr.data()),
         reinterpret_cast<device_vertex*>(next.out_col_ind.data()), next.insertion_ids.data());
     DYNG_CHECK_KERNEL(stream);

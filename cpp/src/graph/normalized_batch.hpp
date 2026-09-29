@@ -85,6 +85,13 @@ struct normalized_batch {
   mutable buffer<std::uint8_t> device_present;
   mutable buffer<std::uint8_t> present_staging;  ///< pinned host staging of device_present
 
+  /// Scratch of the device apply (apply_set_batch_device), kept across updates so a steady
+  /// workload allocates only the arrays of the next graph state (invariant I9): the change rows
+  /// of both lists (2 x (n + 1)), the degrees (n + 1, the width of edge_t) and the scan's scratch.
+  mutable buffer<std::uint32_t> apply_rows;
+  mutable buffer<unsigned char> apply_degree;     ///< degrees (bytes, read as the unsigned edge_t)
+  mutable buffer<unsigned char> apply_scan_temp;  ///< CUB scratch of the degree scan
+
   /**
    * @brief The memory held (for workspace reports).
    * @return Bytes of the vectors' capacity and of the device and staging buffers.
@@ -95,7 +102,8 @@ struct normalized_batch {
                sizeof(set_change<vertex_t>) +
            sort_counters.capacity() * sizeof(std::uint32_t) + present.capacity() +
            (device_lists.size() + staging.size()) * sizeof(std::uint32_t) +
-           deletion_owner.size() * sizeof(int) + device_present.size() + present_staging.size();
+           deletion_owner.size() * sizeof(int) + device_present.size() + present_staging.size() +
+           apply_rows.size() * sizeof(std::uint32_t) + apply_degree.size() + apply_scan_temp.size();
   }
 };
 
