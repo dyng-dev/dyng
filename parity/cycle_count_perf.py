@@ -52,9 +52,15 @@ resident before it) and `--report-timing` for the count, so one round is A, B[or
 B[resident]. The GPU clocks are locked for the whole A/B (--lock-clocks, default boost: ADR 0018,
 option B; `none` records a default-clock reading, not a gate), and the machine monitor of
 parity/perf_ab.py samples the GPU: a round is repeated when a busy sample ran at other clocks, a
-foreign process used the GPU or the CPUs were busy outside the harness (--max-foreign-cpu). The
-default cuda cases are the gate of M2b acceptance criterion 4 (M2B_CUDA_CASES); the golden set is
-cycle_count_cuda. A case with more rejected rounds than --runs (for example a long kernel under
+foreign process used the GPU or the CPUs were busy outside the harness (--max-foreign-cpu, default
+2 cores; the value is recorded in the JSON's protocol and in every case's monitor record, so a
+re-run at another threshold is told apart). The update cases run two extra port processes per round
+(M2b review): with --report-timing (--update-events short: when the original's update is under
+10 ms; the region update_device, dynG's CUDA-event time next to the host clocks, reported) and
+--scope resident --chain N (--chain, default 4: chained updates on the resident graph; the regions
+update_chain_steady and update_chain_worst, gated as the resident scope, and the final histogram
+must equal a recompute). The default cuda cases are the gate of M2b acceptance criterion 4
+(M2B_CUDA_CASES); the golden set is cycle_count_cuda. A case with more rejected rounds than --runs (for example a long kernel under
 the GPU's power cap, which cannot hold the boost lock) is recorded as incomplete and the run goes on
 with the next case; the JSON is written after every case.
 
@@ -117,7 +123,17 @@ PORT_REPORT = [
     "memcpy_ms",
     "total_ms",
     "update_device_ms",
+    "chain_steady_ms",
+    "chain_worst_ms",
 ]
+# The extra port processes of an update case on cuda (region key `process` of the region map):
+# "events" reruns the port with --report-timing (dynG's CUDA-event time of the update; a separate
+# process, since the per-stage event synchronization would perturb the gated host-clock region),
+# "chain" runs --chain N updates on the resident graph (M2b review: the resident graph across
+# batches).
+PROCESSES = ["events", "chain"]
+CHAIN_ITEM = re.compile(r"\bchain_ms=([0-9.eE+,-]+)")
+CHAIN_MATCH = re.compile(r"\bchain_match=(\w+)")
 SCOPES = ["original", "resident"]
 # M2b acceptance criterion 4: the static kernel on DD, GitHub, Twitch (k = 4) and COLLAB (k = 3),
 # the update 25K + 25K k = 4 on DD, GitHub, Twitch and COLLAB, and DD 50K + 50K, 100K + 100K.
@@ -171,6 +187,8 @@ def load_regions(backend: str = "openmp") -> list[dict]:
         for scope in r.get("scopes", []):
             if scope not in SCOPES:
                 raise SystemExit(f"{REGION_MAP}: region {r['name']}: unknown scope {scope}")
+        if r.get("process", "main") not in ["main", *PROCESSES]:
+            raise SystemExit(f"{REGION_MAP}: region {r['name']}: unknown process {r['process']}")
         for key in r.get("port_report", []):
             if key != WALL and key not in PORT_REPORT:
                 raise SystemExit(f"{REGION_MAP}: region {r['name']}: unknown port key {key}")
@@ -473,11 +491,29 @@ def monitored(monitor: perf_ab.MachineMonitor, cmd: list, env: dict) -> tuple:
     return wall, out, err, window
 
 
-def scoped_regions(regions: list[dict], scope: str) -> list[dict]:
-    """The regions read in one port scope, named "<region>[<scope>]"."""
+def scoped_regions(regions: list[dict], scope: str, process: str = "main") -> list[dict]:
+    """The regions read in one port scope from one kind of port process, named
+    "<region>[<scope>]"."""
     return [
-        dict(r, name=f"{r['name']}[{scope}]") for r in regions if scope in r.get("scopes", SCOPES)
+        dict(r, name=f"{r['name']}[{scope}]")
+        for r in regions
+        if scope in r.get("scopes", SCOPES) and r.get("process", "main") == process
     ]
+
+
+def parse_chain(values: dict, stderr: str) -> bool:
+    """Add chain_steady_ms (the median of the updates after the first) and chain_worst_ms (the
+    slowest update) of a --chain run to `values`; returns whether its final histogram matched the
+    recompute."""
+    m = CHAIN_ITEM.search(stderr)
+    match = CHAIN_MATCH.search(stderr)
+    if m is None or match is None:
+        raise SystemExit(f"no chain_ms / chain_match in the port's standard error:\n{stderr}")
+    times = [float(x) for x in m.group(1).split(",")]
+    values["chain_ms"] = times
+    values["chain_steady_ms"] = statistics.median(times[1:]) if len(times) > 1 else times[0]
+    values["chain_worst_ms"] = max(times)
+    return match.group(1) == "yes"
 
 
 def run_cuda(args: argparse.Namespace) -> int:
@@ -518,6 +554,19 @@ def run_cuda(args: argparse.Namespace) -> int:
                         sc: [exe, *cli, *report_timing, "--scope", sc, "--timing", timing]
                         for sc in scopes
                     }
+                    # The extra port processes of an update: (process, scope) -> command.
+                    extra_cmds: dict = {}
+                    if case.update and args.chain > 1 and "resident" in scopes:
+                        extra_cmds[("chain", "resident")] = [
+                            exe,
+                            *cli,
+                            "--scope",
+                            "resident",
+                            "--chain",
+                            str(args.chain),
+                            "--timing",
+                            timing,
+                        ]
                     with perf_ab.MachineMonitor(
                         args.gpu,
                         args.max_foreign_cpu,
@@ -525,11 +574,26 @@ def run_cuda(args: argparse.Namespace) -> int:
                         locked=clocks.locked,
                     ) as monitor:
                         # Untimed first round: page cache, and the outputs must be identical.
-                        _, out_a, _, _ = monitored(monitor, a_cmd, env)
+                        _, out_a, err_first, _ = monitored(monitor, a_cmd, env)
                         for sc, cmd in b_cmds.items():
                             _, out_b, _, _ = monitored(monitor, cmd, env)
                             if out_a != out_b:
                                 raise SystemExit(f"{case.rel} [{sc}]: the histograms differ")
+                        if case.update and args.update_events != "none":
+                            # dynG's CUDA-event time of the update, next to the host clock of
+                            # both sides, for the regions under 10 ms ("short") or all.
+                            first = parse_original(0.0, err_first).get("update_seconds", 0.0)
+                            if args.update_events == "all" or first < SHORT_REGION_MS:
+                                for sc in scopes:
+                                    extra_cmds[("events", sc)] = [
+                                        exe,
+                                        *cli,
+                                        "--report-timing",
+                                        "--scope",
+                                        sc,
+                                        "--timing",
+                                        timing,
+                                    ]
                         golden = golden_root / case.rel / "histogram.csv"
                         checked = golden.is_file()
                         if checked and golden.read_text() != out_a:
@@ -539,7 +603,11 @@ def run_cuda(args: argparse.Namespace) -> int:
                             + (" and equal to the golden" if checked else ""),
                             flush=True,
                         )
-                        samples = {sc: {"original": [], "port": [], "stages": []} for sc in scopes}
+                        samples = {
+                            sc: {"original": [], "port": [], "stages": []}
+                            | {f"{x}{k}": [] for x in PROCESSES for k in ("", "_stages")}
+                            for sc in scopes
+                        }
                         windows, rejected = [], []
                         r = 0
                         while r < args.runs:
@@ -551,9 +619,33 @@ def run_cuda(args: argparse.Namespace) -> int:
                                     failures.append(f"{case.rel} [{sc}] round {r + 1}: differ")
                                 values_b, stages = parse_port(wall_b, err_b, timing)
                                 round_b[sc] = (values_b, stages, win_b)
-                            reasons = [f"original: {x}" for x in win_a["reasons"]] + [
-                                f"{sc}: {x}" for sc, v in round_b.items() for x in v[2]["reasons"]
-                            ]
+                            round_x = {}
+                            for (proc, sc), cmd in extra_cmds.items():
+                                wall_x, out_x, err_x, win_x = monitored(monitor, cmd, env)
+                                if out_a != out_x:
+                                    failures.append(
+                                        f"{case.rel} [{proc} {sc}] round {r + 1}: differ"
+                                    )
+                                values_x, stages_x = parse_port(wall_x, err_x, timing)
+                                if proc == "chain" and not parse_chain(values_x, err_x):
+                                    failures.append(
+                                        f"{case.rel} [chain] round {r + 1}: the chained histogram "
+                                        "differs from the recompute"
+                                    )
+                                round_x[(proc, sc)] = (values_x, stages_x, win_x)
+                            reasons = (
+                                [f"original: {x}" for x in win_a["reasons"]]
+                                + [
+                                    f"{sc}: {x}"
+                                    for sc, v in round_b.items()
+                                    for x in v[2]["reasons"]
+                                ]
+                                + [
+                                    f"{proc} {sc}: {x}"
+                                    for (proc, sc), v in round_x.items()
+                                    for x in v[2]["reasons"]
+                                ]
+                            )
                             if reasons and not args.keep_contaminated:
                                 rejected.append({"before_round": r + 1, "reasons": reasons})
                                 print(f"{case.rel}: round {r + 1} rejected ({'; '.join(reasons)})")
@@ -572,11 +664,15 @@ def run_cuda(args: argparse.Namespace) -> int:
                                 samples[sc]["original"].append(values_a)
                                 samples[sc]["port"].append(values_b)
                                 samples[sc]["stages"].append(stages)
+                            for (proc, sc), (values_x, stages_x, _) in round_x.items():
+                                samples[sc][proc].append(values_x)
+                                samples[sc][f"{proc}_stages"].append(stages_x)
                             windows.append(
                                 {
                                     "round": r,
                                     "original": win_a,
-                                    "port": {sc: v[2] for sc, v in round_b.items()},
+                                    "port": {sc: v[2] for sc, v in round_b.items()}
+                                    | {f"{p}:{sc}": v[2] for (p, sc), v in round_x.items()},
                                 }
                             )
                             key_a = "update_seconds" if case.update else "kernel_ms"
@@ -596,7 +692,9 @@ def run_cuda(args: argparse.Namespace) -> int:
                         "complete": r == args.runs,
                         "regions": [],
                         "port_stages_median_ms": {},
+                        "extra_processes": sorted(f"{p}[{sc}]" for p, sc in extra_cmds),
                         "monitor": {
+                            "max_foreign_cpu_cores": args.max_foreign_cpu,
                             "rounds": windows,
                             "rejected": rejected,
                             "clocks_locked_in_every_round": all(
@@ -611,6 +709,22 @@ def run_cuda(args: argparse.Namespace) -> int:
                         entry["regions"] += summarize(
                             scoped_regions(regions, sc), task, samples[sc], r
                         )
+                        for proc in PROCESSES:
+                            if samples[sc][proc]:
+                                entry["regions"] += summarize(
+                                    scoped_regions(regions, sc, proc),
+                                    task,
+                                    {
+                                        "original": samples[sc]["original"],
+                                        "port": samples[sc][proc],
+                                        "stages": samples[sc][f"{proc}_stages"],
+                                    },
+                                    r,
+                                )
+                        if samples[sc]["chain"]:
+                            entry["chain_ms_by_round"] = [
+                                v["chain_ms"] for v in samples[sc]["chain"]
+                            ]
                         names = sorted({n for st in samples[sc]["stages"] for n in st})
                         entry["port_stages_median_ms"][sc] = {
                             n: statistics.median(st.get(n, 0.0) for st in samples[sc]["stages"])
@@ -1050,6 +1164,9 @@ def write_json(args, results, build, ref, marker, regions, clocks=None) -> None:
                 "monitor": "parity/perf_ab.py MachineMonitor: rounds with foreign GPU "
                 "processes, off-lock busy samples or more than --max-foreign-cpu foreign cores "
                 "are repeated",
+                "max_foreign_cpu_cores": args.max_foreign_cpu,
+                "update_events": args.update_events,
+                "chain": args.chain,
             }
             if cuda
             else {
@@ -1104,7 +1221,26 @@ def main(argv: list[str] | None = None) -> int:
         help="--backend cuda: lock the GPU clocks for the whole A/B (ADR 0018); none records a "
         "default-clock reading (not a gate)",
     )
-    r.add_argument("--max-foreign-cpu", type=float, default=perf_ab.MAX_FOREIGN_CPU)
+    r.add_argument(
+        "--max-foreign-cpu",
+        type=float,
+        default=perf_ab.MAX_FOREIGN_CPU,
+        help="--backend cuda: a round with more foreign CPU load (cores, averaged over a process) "
+        f"is repeated (default {perf_ab.MAX_FOREIGN_CPU}; recorded in the JSON)",
+    )
+    r.add_argument(
+        "--update-events",
+        choices=["short", "all", "none"],
+        default="short",
+        help="--backend cuda: also run the port with --report-timing for the update cases "
+        "(dynG's CUDA-event time; short: when the original's update is under 10 ms)",
+    )
+    r.add_argument(
+        "--chain",
+        type=int,
+        default=4,
+        help="--backend cuda: chained updates on the resident graph per update case (1: none)",
+    )
     r.add_argument("--keep-contaminated", action="store_true")
     r.add_argument("--runs", type=int, default=11)
     r.add_argument("--threads", type=int, default=goldens.THREADS)

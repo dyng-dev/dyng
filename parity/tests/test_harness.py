@@ -488,6 +488,36 @@ def test_cycle_count_summarize_with_a_port_baseline() -> None:
     assert out["update"]["original_ms"] == 30.0 and out["update"]["ratio"] == pytest.approx(0.5)
 
 
+def test_cycle_count_cuda_extra_processes() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    regions = perf.load_regions("cuda")
+    main = {r["name"] for r in perf.scoped_regions(regions, "resident")}
+    chain = {r["name"] for r in perf.scoped_regions(regions, "resident", "chain")}
+    events = {r["name"] for r in perf.scoped_regions(regions, "original", "events")}
+    assert "update[resident]" in main and "update_chain_steady[resident]" not in main
+    assert chain == {"update_chain_steady[resident]", "update_chain_worst[resident]"}
+    assert events == {"update_device[original]"}
+    assert not perf.scoped_regions(regions, "original", "chain")  # resident only
+    values: dict = {}
+    err = "RESULT task=update update_ms=9.4 chain_ms=9.4,5.9,6.3,5.8 chain_match=yes\n"
+    assert perf.parse_chain(values, err)
+    assert values["chain_steady_ms"] == pytest.approx(5.9) and values["chain_worst_ms"] == 9.4
+    assert not perf.parse_chain({}, "chain_ms=1,2 chain_match=no\n")
+    samples = {
+        "original": [{perf.WALL: 1.0, "update_seconds": 20.0}] * 21,
+        "port": [values] * 21,
+        "stages": [{}] * 21,
+    }
+    out = {
+        e["region"]: e
+        for e in perf.summarize(
+            perf.scoped_regions(regions, "resident", "chain"), "update", samples, 21
+        )
+    }
+    assert out["update_chain_worst[resident]"]["ratio"] == pytest.approx(0.47)
+    assert out["update_chain_steady[resident]"]["within_gate"]
+
+
 def test_contamination_monitor() -> None:
     cont = load("parity/contamination.py")
     with cont.Monitor() as m:

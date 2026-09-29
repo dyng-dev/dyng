@@ -172,7 +172,9 @@ the prior histogram (the static count of the same backend) and generate_batch.""
 # Protocol: PLAN 8.6 and ADR 0018 (option B): the parity-cuda preset, GPU 0, the clocks locked for
 # the whole A/B (`--lock-clocks boost`, every busy sample checked), the exclusive perf lock, >= 20
 # alternating runs for regions under 10 ms (else >= 5), medians; default-clock readings are
-# recorded, not gated. Fields as above, plus `scopes` (the port scopes the region is read in).
+# recorded, not gated. Fields as above, plus `scopes` (the port scopes the region is read in) and
+# `process` (main, the default: the port process of the scope; events or chain: an extra port
+# process of the update cases, see the regions below).
 
 [reference.cycle_enum_cuda]
 repo = "CycleEnumeration-GPU"
@@ -243,6 +245,58 @@ docs/RESULTS.md "Incremental update" (CUDA new). Scope original: dynG uploads G_
 (graph.upload), as the original does; scope resident: G_t is on the device already. In both, dynG
 also applies the batch to its graph (the device merge of build_next_rows_kernel, which the original
 runs as well but discards) and keeps G_{t+1} on the device."""
+
+# The update's device time, dynG's side only (PLAN 8.6 asks for CUDA events or nsys kernel sums
+# over >= 20 runs below 10 ms; the original's update region is host-side by construction: its
+# update_seconds is a steady_clock around update_histogram(), which runs prepare_batch and
+# apply_histogram_delta on the host, and it has no device timer). Read from a separate port process
+# (`process = "events"`: --report-timing, CUDA events around every stage, whose synchronizations
+# would perturb the gated host-clock region) for the cases whose original update is under 10 ms
+# (cycle_count_perf.py --update-events). The ratio is against the original's host clock: a
+# cross-check that the host clock of the short regions is not hiding device time, not a gate.
+[[reference.cycle_enum_cuda.region]]
+name = "update_device"
+task = "update"
+process = "events"
+original = ["update_seconds (engine::update_histogram, backend cuda; the host clock)"]
+original_report = ["update_seconds"]
+port = ["cycle_count.update"]
+port_report = ["update_device_ms"]
+scopes = ["original", "resident"]
+gate = "none"
+note = """
+dynG's CUDA-event time of the stage cycle_count.update (from the event before Step 0 to the event
+after the histogram copy, on its stream), next to the original's host clock."""
+
+# The resident graph across batches (PLAN 6.4.3; M2b review): --chain N updates on the same graph
+# and result (`process = "chain"`, scope resident), the batches of seeds s .. s + N - 1 generated
+# from the graph before the first update. The first update is the resident region above; the
+# updates after it read a graph that a device apply produced (Step 0 against the device copy, no
+# download). Steady: the median of the updates after the first; worst: the slowest update of the
+# chain. Each against the original's per-call update, gated as the resident scope is.
+[[reference.cycle_enum_cuda.region]]
+name = "update_chain_steady"
+task = "update"
+process = "chain"
+original = ["update_seconds (engine::update_histogram, backend cuda)"]
+original_report = ["update_seconds"]
+port = []
+port_report = ["chain_steady_ms"]
+scopes = ["resident"]
+gate = "compute"
+note = "The median of the chained updates after the first (steady_clock around each update())."
+
+[[reference.cycle_enum_cuda.region]]
+name = "update_chain_worst"
+task = "update"
+process = "chain"
+original = ["update_seconds (engine::update_histogram, backend cuda)"]
+original_report = ["update_seconds"]
+port = []
+port_report = ["chain_worst_ms"]
+scopes = ["resident"]
+gate = "compute"
+note = "The slowest update of the chain, the first included."
 
 [[reference.cycle_enum_cuda.region]]
 name = "update_end_to_end"
