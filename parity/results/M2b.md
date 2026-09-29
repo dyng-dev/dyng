@@ -229,7 +229,7 @@ DD 50K + 50K and 100K + 100K, against CycleEnumeration-GPU@0a976ad's CUDA backen
 
 | Item | Value |
 |---|---|
-| Port | dynG `94523c5` (`parity-cuda` preset, `-O3`; every record says `94523c5`, no uncommitted change). A complete campaign on `fe753d2` (before the device-memory change of section 4.8) read the same, within 0.02 in every ratio; it is superseded and not committed |
+| Port | dynG `94523c5` (`parity-cuda` preset, `-O3`; every performance and replay record says `94523c5`, no uncommitted change; the device memory record says `11a9b2f`, a harness-only commit on top of it). A complete campaign on `fe753d2` (before the device-memory change of section 4.8) read the same, within 0.02 in every ratio; it is superseded and not committed |
 | Reference | the **unpatched** copy of CycleEnumeration-GPU `0a976ad` (`git archive`, built by `parity/build_reference.sh` with the original's documented Release build: `-DCYCLE_ENUM_ENABLE_CUDA=ON -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCMAKE_CUDA_ARCHITECTURES=86`, nvcc 13.1, GCC 12.2), `build/cycle-enum` |
 | Harness | `parity/cycle_count_perf.py run --backend cuda` (`parity/perf_ab.py cycle_count run`), the regions of `[reference.cycle_enum_cuda]` in `parity/timed_regions/cycle_count.toml` |
 | GPU | GPU 0 (RTX A5000, sm_86, driver 590.48.01); both programs see only it (`CUDA_VISIBLE_DEVICES=0`, `--cuda-device 0`), `CUDA_MODULE_LOADING=EAGER` |
@@ -257,8 +257,8 @@ The two scopes (PLAN 6.4.3; `dyng-compat-cycle-enum --scope`):
 Ratio = dynG / original, medians. PLAN = the original's numbers quoted by PLAN 6.4.3 (its
 RESULTS.md, default clocks). Records: `M2b-cuda-perf-cycle_count.json` (boost, eight cases),
 `M2b-cuda-perf-cycle_count-repeat.json` (boost: COLLAB k = 3 and DD 25K+25K, repeated because
-another user's GPU job ran on GPU 0 during the first campaign and the monitor rejected more rounds
-than `--runs`; the first campaign records both cases as incomplete) and
+another user's GPU job ran on GPU 0 during the campaign and the monitor rejected more rounds
+than `--runs`; the campaign's record marks both cases incomplete) and
 `M2b-cuda-perf-cycle_count-collab-update-base.json` (base).
 
 | Case | Region | PLAN (ms) | Original (ms) | dynG, original scope (ms) | ratio | dynG, resident scope (ms) | ratio | Gate | End to end (ratio) | Rounds / rejected |
@@ -523,9 +523,11 @@ presets rebuilt at that commit):
 | `cycle_count`, 24 cases (the M2a corpus of the original's OpenMP backend) | sequential, openmp:4, openmp:56 (`--full`) | **72 / 72 replays equal** | `M2b-final-cycle_count-parity-preset.json` |
 | every timed round of section 4 | cuda, both scopes | the three histograms identical in every round and equal to the golden before the first | the performance records |
 
-`ci/check.sh --parity`, `ci/gpu_local.sh` (the gpu suites, the CUDA corpora of sssp and
-cycle_count, memcheck, synccheck and racecheck) and `ci/docs.sh` passed on the final commit of this
-step (section 6).
+`ci/check.sh --parity` (all steps, including `ctest -L parity` 4 / 4), `ci/gpu_local.sh` (all ten
+steps: 155 gpu tests, 414 cpu tests in the CUDA build, the CUDA corpora of sssp and cycle_count,
+memcheck, synccheck and racecheck) and `ci/docs.sh` passed on `98a0dd3` (this step's records and
+documents on top of `94523c5`) in the working tree; the fresh-clone runs of acceptance criterion 1
+are the milestone's close-out.
 
 ## 6. Certificate
 
