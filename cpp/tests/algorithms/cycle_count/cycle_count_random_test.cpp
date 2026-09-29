@@ -397,6 +397,13 @@ TEST_P(CycleCountRandom, EverySemanticsMatchesCompute) {
     p.directed = false;
     variants.emplace_back("undirected upsert", p);
   }
+  {
+    dyng::graph_properties p = dyng::graph_properties::cycle_enum_compatible();
+    p.semantics.on_self_loop = dyng::batch_semantics::self_loop::keep;
+    variants.emplace_back("set, self-loops kept", p);
+    p.directed = false;
+    variants.emplace_back("undirected set, self-loops kept", p);
+  }
   for (const auto& [name, props] : variants) {
     for (const std::uint64_t seed : test_seeds(777, 25)) {
       std::mt19937_64 rng(seed);
@@ -436,6 +443,64 @@ TEST_P(CycleCountRandom, EverySemanticsMatchesCompute) {
                   dyng::test::cc_resize(dyng::test::cc_oracle(res_, g, k), cc_counts(r).size()));
       }
     }
+  }
+}
+
+// batch_semantics::set() with self_loop::keep: the graph stores the self-loops of a batch and the
+// normalized lists keep them as change edges; a self-loop lies on no cycle, so the phases skip
+// it (M2b review: counted as a 2-cycle, the histograms went wrong on every backend). Unweighted
+// graphs, so on cuda the batches are merged on the device and chains of updates normalize against
+// the resident graph; every batch has self-loops (inserted, deleted, and inserted twice).
+TEST_P(CycleCountRandom, SetSemanticsWithKeptSelfLoopsMatchesCompute) {
+  for (const bool directed : {true, false}) {
+    dyng::graph_properties props = dyng::graph_properties::cycle_enum_compatible();
+    props.semantics.on_self_loop = dyng::batch_semantics::self_loop::keep;
+    props.directed = directed;
+    std::size_t checked = 0;
+    for (const std::uint64_t seed : test_seeds(311, 40)) {
+      std::mt19937_64 rng(seed);
+      const int trial = trial_of(seed, 311);
+      SCOPED_TRACE(seed_trace(seed));
+      // At most 12 vertices: four steps add at most four, within the oracle's 16.
+      dyng::test::cc_spec spec = dyng::test::cc_random_spec(rng, 3, 12);
+      spec.self_loop_probability = 0.3;
+      std::vector<cc_edge> edges = dyng::test::cc_random_edges(spec, rng);
+      if (!directed) {
+        const std::size_t m = edges.size();
+        for (std::size_t i = 0; i < m; ++i) {
+          edges.emplace_back(edges[i].second, edges[i].first);
+        }
+      }
+      graph_u g = cc_graph<graph_u>(res_, spec.vertex_count, edges, props);
+      const int k = trial % 5 == 0 ? -1 : 2 + trial % 7;
+      cycle_count::result r = cycle_count::compute(res_, g, bound(k));
+      for (int step = 0; step < 4; ++step) {
+        std::uniform_int_distribution<std::int32_t> vertex(0, g.num_vertices());
+        std::vector<cc_edge> deletions;
+        std::vector<cc_edge> insertions;
+        for (std::uint64_t i = rng() % 6; i > 0; --i) {
+          deletions.emplace_back(vertex(rng), vertex(rng));
+        }
+        for (std::uint64_t i = rng() % 6; i > 0; --i) {
+          insertions.emplace_back(vertex(rng), vertex(rng));
+        }
+        const std::int32_t loop = vertex(rng);
+        insertions.emplace_back(loop, loop);
+        insertions.emplace_back(loop, loop);
+        const std::int32_t gone = vertex(rng);
+        deletions.emplace_back(gone, gone);
+        const auto batch = cc_batch<unweighted>(deletions, insertions);
+        SCOPED_TRACE(::testing::Message() << (directed ? "directed" : "undirected") << " trial "
+                                          << trial << " step " << step << " k=" << k);
+        (void)cycle_count::update(res_, g, batch.view(), r);
+        // compute() reads the resident copy on cuda (no download of the host copy).
+        EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(k))));
+      }
+      EXPECT_EQ(cc_counts(r),
+                dyng::test::cc_resize(dyng::test::cc_oracle(res_, g, k), cc_counts(r).size()));
+      ++checked;
+    }
+    EXPECT_GE(checked, required_checks(40));
   }
 }
 

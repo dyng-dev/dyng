@@ -195,15 +195,19 @@ __global__ void mark_owners_kernel(const device_csr<offset_t> graph, const devic
 }
 
 /// Number of items of each change: the out-degree of its target (0 for a target with no edges,
-/// which closes no cycle) (item_counts_kernel).
+/// which closes no cycle) (item_counts_kernel). A self-loop change gets no items: it lies on no
+/// simple cycle (the original's prepare_batch() drops it; under batch_semantics::as_sets with
+/// self_loop::keep the normalized lists keep it), and its id never decides an ownership.
 template <typename offset_t>
 __global__ void item_counts_kernel(const device_csr<offset_t> graph, const device_edge* changes,
                                    const std::uint32_t change_count, unsigned long long* counts) {
   const std::uint32_t stride = gridDim.x * blockDim.x;
   for (std::uint32_t w = blockIdx.x * blockDim.x + threadIdx.x; w < change_count; w += stride) {
+    const device_vertex source = changes[w].source;
     const device_vertex target = changes[w].target;
-    counts[w] =
-        target < graph.vertex_count ? graph.offsets[target + 1] - graph.offsets[target] : 0ULL;
+    counts[w] = target < graph.vertex_count && source != target
+                    ? graph.offsets[target + 1] - graph.offsets[target]
+                    : 0ULL;
   }
 }
 

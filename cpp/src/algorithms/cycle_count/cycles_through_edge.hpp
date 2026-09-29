@@ -59,7 +59,12 @@ std::size_t count_cycles_through_edge(const cycle_graph<vertex_t, edge_t>& graph
                                       const changed_edge_index& phase_changes,
                                       const std::size_t max_length,
                                       cycle_count_thread<vertex_t>& scratch) {
-  if (max_length < 2 || static_cast<std::size_t>(target) >= graph.vertex_count ||
+  // A self-loop lies on no simple cycle of length >= 2. The original's prepare_batch() drops
+  // self-loop changes; under batch_semantics::as_sets with self_loop::keep the normalized lists
+  // keep them (the graph stores the loop), so the change is skipped here without renumbering the
+  // ids (a self-loop's id never decides the ownership of a cycle).
+  if (max_length < 2 || source == target ||
+      static_cast<std::size_t>(target) >= graph.vertex_count ||
       static_cast<std::size_t>(source) >= graph.vertex_count) {
     return 0;
   }
