@@ -83,14 +83,16 @@ target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/sr
 
 # cycle_count (CycleEnumeration-GPU@0a976ad): API, the original's suites, randomized differential
 # tests against the oracles and parity with the original's histograms on the committed fixtures.
+# The shared suites run on the host backends here and on cuda in dyng_cycle_count_cuda_tests;
+# cycle_count_kernels_test.cpp tests host-only pieces (the host searches, the ownership table,
+# the workspace, the host planning of the CUDA work items) and runs here only.
 set(DYNG_CYCLE_COUNT_TEST_SOURCES
     algorithms/cycle_count/cycle_count_test.cpp algorithms/cycle_count/cycle_count_random_test.cpp
     algorithms/cycle_count/cycle_count_fixture_test.cpp
-    algorithms/cycle_count/cycle_count_kernels_test.cpp
 )
 dyng_add_test(
   NAME dyng_cycle_count_tests
-  SOURCES ${DYNG_CYCLE_COUNT_TEST_SOURCES}
+  SOURCES ${DYNG_CYCLE_COUNT_TEST_SOURCES} algorithms/cycle_count/cycle_count_kernels_test.cpp
   LABELS cpu cycle_count
   LIBRARIES dyng::testing
 )
