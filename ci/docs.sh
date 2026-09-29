@@ -11,8 +11,10 @@
 #
 # 1. Doxygen on the public headers with warnings as errors (every public entity documented, every
 #    parameter and return value described), then ci/doxygen_coverage.py on its XML (a @brief
-#    everywhere, every namespace-scope entity in a group, @backends / @determinism / @paper on
-#    compute() and update()).
+#    everywhere, every namespace-scope entity in a group, @backends / @determinism / @paper /
+#    @guarantee on compute() and update()), then ci/api_snapshot.py: the public declarations must
+#    match the committed API baseline cpp/tests/api/api_snapshot/public_api.txt (the 0.1 freeze,
+#    ADR 0023; after a reviewed API change: ci/api_snapshot.py --update).
 # 2. The Sphinx site (MyST pages + Breathe over the Doxygen XML) with warnings as errors and
 #    nitpicky references: every page in a toctree, every cross-reference and C++ name resolved.
 #    This is also the check of the site's own links: a Markdown link or {doc} to a missing page,
@@ -36,7 +38,7 @@ for arg in "$@"; do
     --doxygen-only) sphinx=0 ;;
     --no-linkcheck) linkcheck=0 ;;
     -h | --help)
-      sed -n '5,29p' "${BASH_SOURCE[0]}"
+      sed -n '5,31p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -62,6 +64,7 @@ mkdir -p "${DYNG_DOXYGEN_OUTPUT}"
 rm -rf "${DYNG_DOXYGEN_OUTPUT}/xml"
 doxygen docs/Doxyfile
 python3 ci/doxygen_coverage.py "${DYNG_DOXYGEN_OUTPUT}/xml"
+python3 ci/api_snapshot.py --xml "${DYNG_DOXYGEN_OUTPUT}/xml"
 echo "Doxygen XML written to ${DYNG_DOXYGEN_OUTPUT}/xml"
 
 if [ "${sphinx}" = "0" ]; then
