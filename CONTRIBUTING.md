@@ -407,14 +407,18 @@ exempt (`.github/dco.yml`). Commits made in GitHub's web editor are signed off a
    the library.
 2. **Decide the family:** a per-element value that converges (distances, labels) is a
    *fixed-point* algorithm; a global count (cycles, triads) is an *aggregate-delta* algorithm.
-3. **Create the files of an algorithm**: the public header
-   `cpp/include/dyng/<algo>.hpp`, the implementation folder `cpp/src/algorithms/<algo>/`
-   (`manifest.toml`, `CMakeLists.txt`, the sequential reference backend first, then OpenMP and
-   CUDA), tests under `cpp/tests/algorithms/<algo>/`, an example under `examples/`, the page
-   `docs/algorithms/<algo>.md`, the BibTeX entry in `docs/references.bib` and a CHANGELOG entry.
-   `cpp/src/algorithms/sssp/` is the model to follow; the scaffolding script
-   `scripts/new_algorithm.py` and the conformance kit arrive with the 0.1 framework (milestone
-   M3).
+3. **Scaffold the files of an algorithm** with
+   `python3 scripts/new_algorithm.py <algo> --family fixed_point|aggregate_delta --backends seq,omp`:
+   the public header `cpp/include/dyng/<algo>.hpp`, the implementation folder
+   `cpp/src/algorithms/<algo>/` (`manifest.toml`, `CMakeLists.txt`, the sequential reference
+   backend, OpenMP), the tests under `cpp/tests/algorithms/<algo>/` (the `test_traits` of the
+   conformance kit and hand cases), the page `docs/algorithms/<algo>.md` and a CHANGELOG entry;
+   it then runs `scripts/regen.py` (the algorithm tables, CODEOWNERS, the registries). The result
+   builds and passes the conformance kit at once (its update recomputes from scratch); make it
+   incremental while `ctest -L <algo>` stays green, then add a CUDA backend, an example under
+   `examples/` and the BibTeX entry in `docs/references.bib`. The guide is
+   [docs/developer/conformance.md](docs/developer/conformance.md); `cpp/src/algorithms/sssp/` and
+   `cycle_count/` are the ported examples.
 4. **Ports** keep the original's behaviour exactly: first a straight port with the provenance
    header and parity goldens, then one pull request per refactor, each still passing parity
    ([parity/README.md](parity/README.md)). Code you did not write yourself needs the copyright
