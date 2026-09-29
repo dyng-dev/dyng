@@ -284,7 +284,8 @@ All are fixed on the branch; none is deferred. Commits in order:
 | `91d02ca` | **README**: the M2b certificate and the set-semantics graph row |
 | `f120131` | **The radix sort still missed DD 100K** (1.055x in the first campaign after the review, `b38de7e`'s intermediate record): Step 0 sorts with a bucket sort (0.70x of the original's `std::sort` on sorted input, 0.29x on shuffled), and the DD 100K update reads 0.930x |
 | `b38de7e`, `c9e0347`, `34f3fca` | the gate records after the review (`parity/results/M2b.md` section 8.2-8.3) |
-| the documentation commit | the algorithm page, CHANGELOG, ADR 0020's sort wording, `parity/results/M2b.md` section 8 and the certificate, this section |
+| `843f6bb`, `3d11c26` | the corpora replayed on the review-fixed code (72 / 72, 23 / 23, 72 / 72); the algorithm page, CHANGELOG, ADR 0020's sort wording, `parity/results/M2b.md` section 8 and the certificate, this section |
+| `65ac05a`, `f7c9d00` | two defects the first fresh-clone run found (a docstring over 100 columns; a seed-count assertion that failed under `DYNG_TEST_SEEDS=2`); the second fresh clone of `f7c9d00` passes `ci/check.sh --parity`, `ci/gpu_local.sh` and `ci/docs.sh` (`parity/results/M2b.md` section 8.4) |
 
 **Deviations recorded by this step:**
 

@@ -705,7 +705,20 @@ by the fresh-clone run of section 8.4.
 
 ### 8.4 The gate scripts from a fresh clone
 
-FRESH_CLONE
+A fresh `git clone` of the branch at `f7c9d00` into the scratch area (the commits after it change
+this file and the retrospective only), then `ci/check.sh --parity`, `ci/gpu_local.sh` and
+`ci/docs.sh`:
+
+| Command | Result |
+|---|---|
+| `ci/check.sh --parity` (14 min 39 s) | every step OK: clang-format; `cpu-only` 408 / 408 and `dev` 421 / 421 (`ctest -L cpu`, `-Werror`); clang-tidy naming; REUSE; provenance; harness tests; Doxygen (116 compounds) and the Sphinx site with link check; pre-commit; `parity` preset `ctest -L parity` 4 / 4 (the sssp and cycle_count corpora included) |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1, 30 min) | all ten steps passed: build, `ctest -L gpu` 154 / 154 (the CUDA mutants and their control included), `ctest -L cpu` 421 / 421, the sssp CUDA goldens 495 / 495, the cycle_count CUDA goldens 48 / 48, memcheck (0 errors, 0 leaks), synccheck on the sssp and cycle_count suites (0 errors), racecheck on the cycle_count suite (0 hazards), clang-tidy on the CUDA branches |
+| `ci/docs.sh` | OK |
+
+The first fresh-clone run (at `3d11c26`) failed two steps, both fixed before the run above: a
+docstring line of `parity/cycle_count_perf.py` over 100 columns (pre-commit; `65ac05a`) and a
+seed-count assertion of a new test under the sanitizers' `DYNG_TEST_SEEDS=2` (`f7c9d00`); the
+sanitizers themselves reported no error in that run either.
 
 ### 8.5 Reproducing
 
