@@ -24,6 +24,18 @@ Before 0.1.0 anything may change.
   the performance re-checked after each (`parity/results/M3.md`). No change to the public API,
   the profiler stages or the results. `parity/perf_ab.py run --baseline-exe` times dynG against
   an earlier dynG build.
+- `cycle_count` runs through the framework (M3): `detail::cycle_count_problem`, an aggregate-delta
+  problem with the ownership rule `ownership::min_member`, runs the Tier A hooks on the sequential
+  and OpenMP backends (`count` on the old view subtracts on G_t, `count` on the new view adds on
+  G_{t+1}, `finalize` applies the signed delta) and the ported CUDA kernels behind `enact_fused` /
+  `compute_fused` (Tier B), with the resident device graph and Step 0 once per update (ADR 0020)
+  unchanged; migrated one backend per commit with the golden parity (72 / 72 on the CPU and the
+  CUDA corpus) and the performance re-checked (`parity/results/M3.md`). The public multi-result
+  `dyng::update` now composes two framework problems. Profiles: under set semantics
+  `cycle_count.normalize` is called twice per update (the framework's Step 0 and the hook that
+  takes its lists), and on CUDA the ported code's stages sit inside a new `cycle_count.enact_fused`
+  stage; every other stage is unchanged. The CUDA engines of both algorithms and the graph's device
+  paths count their host synchronizations for the budgets (I9).
 - Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
   accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for

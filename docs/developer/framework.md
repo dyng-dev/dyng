@@ -253,8 +253,11 @@ These are not counted: a user-installed memory resource, `std::vector` growth of
 (a test binary can count host allocations by calling `detail::note_allocation()` from a
 replacement `operator new`), and synchronizations an engine makes with the CUDA runtime directly.
 Such an engine calls `detail::note_host_sync()` next to the call. sssp's fused engine does this
-at its one `cudaStreamSynchronize` (`run_persistent` in `algorithms/sssp/cuda.cu`); the migration
-of cycle_count adds it at its sites. Run budget checks without
+at its one `cudaStreamSynchronize` (`run_persistent` in `algorithms/sssp/cuda.cu`); cycle_count's
+CUDA engines at theirs (`cuda.cu`: the item count of a phase, the staging of the change lists, the
+histogram copy; `static_cuda.cu`: the scalar read-backs, the end of the count, the histogram
+copy), and the graph module's device paths (`graph/apply_set_device.cu`,
+`graph/device_graph.cu`) at theirs. Run budget checks without
 concurrent library calls, and without `profiler_options::sync_stages`, whose synchronizations
 count.
 
@@ -270,30 +273,49 @@ leaves the graph unchanged. An error after it poisons the result (through `run_u
 ## How sssp and cycle_count map onto the hooks
 
 These are the hooks and stages of the two algorithms. The migration commits keep every stage name
-and scope: `parity/timed_regions/*.toml` sum these stages. sssp runs through the enactors since
-its migration (M3): `sssp_problem` in `algorithms/sssp/problem.hpp`, one problem type for the
-three backends. Its `select_engine` picks the Tier A hooks on the host backends (the engine of
-the call's backend, `sssp_sequential_engine` or `sssp_openmp_engine`, is bound in `resume`) and
-`enact_fused` on CUDA; the fused engine's control-block errors go through
-`ctx.raise_device_error` (parity/results/M3.md has the log of the migration).
+and scope: `parity/timed_regions/*.toml` sum these stages. Both algorithms run through the
+enactors since their migration (M3; parity/results/M3.md has the log):
 
-| Step | sssp (host backends) | sssp (cuda) | cycle_count |
-|---|---|---|---|
-| framework Step 0 | `sssp.normalize` (as_sets only) | same | `cycle_count.normalize` (as_sets) |
-| `begin_update` | backend, stale and poisoned checks, graph requirements, placement, engine | same | same, workspace lease |
-| `select_engine` | `operators` (the OpenMP engine reports `fused` in `finalize`, as since M1a) | `fused` | – |
-| `normalize` | – | – | own Step 0 (other semantics; `compute_structural_change`) or the copy of the framework's lists |
-| `prepare` | `sssp.prepare`: weights, largest weight, delta, 62-bit check | same | – |
-| `count(-)` | – | – | `cycle_count.count_minus` (host phase or device phase) |
-| commit | `sssp.commit` | same | `cycle_count.commit` |
-| `resume` | grow, `sssp.workspace` lease, change list, bind the backend's engine | grow, `sssp.workspace` lease, `sssp.changes` upload | the Debug check of the normalized batch, the bound after the batch |
-| `identify_affected` | `sssp.identify_affected` (roots, subtree invalidation) | Tier B | `cycle_count.identify_affected` (insertion index / device graph) |
-| `seed` | `sssp.seed` (pull pass) | Tier B | – |
-| `loop` / `count(+)` | `sssp.loop` (internal_frontier: one call runs to the fixed point) | Tier B | `cycle_count.count_plus` |
-| `finalize` | `sssp.finalize` (parent recovery, `affected`) | Tier B | `cycle_count.finalize` (histogram delta) |
-| `enact_fused` | – | `sssp.enact_fused` (persistent cooperative kernel; its control-block errors via `raise_device_error`) | – |
-| `end_update` | stamp the result, return the workspace | same | |
-| compute() | `sssp.reset` → `sssp.seed` → `sssp.loop` → `sssp.finalize` | `compute_fused` in `sssp.enact_fused` | `cycle_count.reset` → `cycle_count.count` → `cycle_count.finalize` |
+- **sssp** is `sssp_problem` in `algorithms/sssp/problem.hpp`, one problem type for the three
+  backends. Its `select_engine` picks the Tier A hooks on the host backends (the engine of the
+  call's backend, `sssp_sequential_engine` or `sssp_openmp_engine`, is bound in `resume`) and
+  `enact_fused` on CUDA; the fused engine's control-block errors go through
+  `ctx.raise_device_error`.
+- **cycle_count** is `cycle_count_problem` in `algorithms/cycle_count/problem.hpp`
+  (`family::aggregate_delta`, `ownership_type = ownership::min_member`). The host backends run the
+  Tier A hooks: `count` on the old view is the delete phase on G_t, `count` on the new view the
+  insert phase on G_{t+1} (and, in compute(), the static count). On CUDA `select_engine` picks
+  Tier B: the subtraction on G_t stays a framework hook (`count(-)` runs the delete phase of the
+  ported kernels on the resident device graph), and `enact_fused` runs the insert phase, the copy
+  of both histograms and the delta; `compute_fused` runs the static device counters. The ported
+  code keeps its own stages inside `cycle_count.enact_fused` (`cycle_count.identify_affected`,
+  `cycle_count.count_plus` and `cycle_count.finalize` in an update; `cycle_count.reset`,
+  `cycle_count.count` and `cycle_count.finalize` in compute()), so every region of
+  `parity/timed_regions/cycle_count.toml` reads the same stages as before.
+
+| Step | sssp (host backends) | sssp (cuda) | cycle_count (host backends) | cycle_count (cuda) |
+|---|---|---|---|---|
+| framework Step 0 | `sssp.normalize` (as_sets only) | same | `cycle_count.normalize` (as_sets only) | same |
+| `begin_update` | backend, stale and poisoned checks, graph requirements, placement, engine | same | backend, stale and poisoned checks, graph requirements, placement; the host workspace lease | same, and the CUDA engine |
+| `select_engine` | `operators` (the OpenMP engine reports `fused` in `finalize`, as since M1a) | `fused` | `operators` | `fused` |
+| `normalize` | – | – | `cycle_count.normalize`: own Step 0 (other semantics; `compute_structural_change`) or the copy of the framework's lists (as_sets) | same, plus the check that the bound after the batch fits the device counters |
+| `prepare` | `sssp.prepare`: weights, largest weight, delta, 62-bit check | same | – | – |
+| `count(-)` | – | – | `cycle_count.count_minus`: the host phase on G_t (ownership index over the deletions) | `cycle_count.count_minus`: the change lists uploaded, the device phase on the resident G_t |
+| commit | `sssp.commit` | same | `cycle_count.commit` (no transposition: `reads_prepared_graph` is false) | same (the device merge under set semantics) |
+| `resume` | grow, `sssp.workspace` lease, change list, bind the backend's engine | grow, `sssp.workspace` lease, `sssp.changes` upload | the Debug check of the normalized batch, the bound after the batch | same |
+| `identify_affected` | `sssp.identify_affected` (roots, subtree invalidation) | Tier B | `cycle_count.identify_affected` (the ownership index over the insertions) | Tier B |
+| `seed` | `sssp.seed` (pull pass) | Tier B | – | – |
+| `loop` / `count(+)` | `sssp.loop` (internal_frontier: one call runs to the fixed point) | Tier B | `cycle_count.count_plus` (the host phase on G_{t+1}) | Tier B |
+| `finalize` | `sssp.finalize` (parent recovery, `affected`) | Tier B | `cycle_count.finalize` (histogram delta, `internal_error` for a negative bucket) | Tier B |
+| `enact_fused` | – | `sssp.enact_fused` (persistent cooperative kernel; its control-block errors via `raise_device_error`) | – | `cycle_count.enact_fused` > { `cycle_count.identify_affected` (the device graph), `cycle_count.count_plus` (the device phase, the histogram copy), `cycle_count.finalize` } |
+| `end_update` | stamp the result, return the workspace | same | stamp the result, return the workspaces | same |
+| compute() | `sssp.reset` → `sssp.seed` → `sssp.loop` → `sssp.finalize` | `compute_fused` in `sssp.enact_fused` | `cycle_count.reset` → `cycle_count.count` → `cycle_count.finalize` | `compute_fused` in `cycle_count.enact_fused` > { `cycle_count.reset`, `cycle_count.count`, `cycle_count.finalize` } |
+
+Under set semantics `cycle_count.normalize` is called twice in `cycle_count::update`: the
+framework's Step 0 in `run_update` (once for every result and the commit, ADR 0020) and the
+problem's `normalize` hook, which takes the framework's lists as its change lists. The profile
+has the same rows as before the migration, with `calls = 2` on that row. Under
+`dyng::update(res, g, batch, ...)` the framework's Step 0 is `update.normalize`.
 
 ## Testing the framework
 
@@ -333,5 +355,7 @@ Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
 | Validation and bookkeeping | lifecycle members `begin_update`, `resume`, `end_update`, `poison`, `target` | They are the `<algo>.cpp` duties of PLAN 4.8, so the participant adapter can run any problem. |
 | `run_update(ctx, g, batch, problems...)` returning a tuple | `run_update(res, g, batch, participants, n, stage)` + `problem_participant` / `update_one` / `make_participant` | The type-erased participants of M1a let `dyng::update` combine results of algorithms compiled in different translation units. |
 | frontier table | `internal_frontier` only | Both algorithms keep their frontiers in their workspaces (rule of two). |
+| Tier B replaces `identify_affected` … `finalize` | cycle_count's `enact_fused` / `compute_fused` open the ported code's own stages inside `<algo>.enact_fused` | The regions of `parity/timed_regions/cycle_count.toml` (the paper's `kernel_ms` is `cycle_count.count`) keep their stages; the only new row is `cycle_count.enact_fused` on CUDA. |
+| the problem's `normalize` after the framework's | under set semantics cycle_count's `normalize` hook takes the framework's lists (a second call of the `cycle_count.normalize` stage) | The hook is Step 0 for every semantics; the stage rows are unchanged. |
 | `schedule`, `sync_rule`, `tie_break` | not yet | No two users. |
 | `snapshot.hpp`, `budget.hpp` | `views.hpp`, `budgets.hpp` | Names of the extraction task. |
