@@ -40,7 +40,14 @@
  * finalize (cycle_count.finalize).
  *
  * The host backends run these hooks (Tier A) with the engines of sequential.cpp / openmp.cpp
- * (static_sequential.cpp / static_openmp.cpp for compute()).
+ * (static_sequential.cpp / static_openmp.cpp for compute()). The CUDA backend is Tier B
+ * (select_engine: engine::fused): enact_fused (cycle_count.enact_fused) runs the insert phase of
+ * the ported kernels (cuda.cu) in the sub-stages cycle_count.identify_affected and
+ * cycle_count.count_plus, and the histogram delta in cycle_count.finalize; compute_fused
+ * (cycle_count.enact_fused) runs the static counters (static_cuda.cu) with their sub-stages
+ * cycle_count.reset, cycle_count.count and cycle_count.finalize. The framework still owns
+ * normalize and the subtraction on G_t (count(-) on the resident device graph, the delete phase),
+ * the commit, the stats and the checks.
  */
 #pragma once
 
@@ -661,6 +668,7 @@ class cycle_count_problem final
   using applied = framework::applied_batch<vertex_t>;                ///< what the commit did
   using frontier = framework::internal_frontier;                     ///< frontiers are internal
   using workspace_type = cycle_count_workspace<vertex_t>;            ///< the host scratch
+  using cuda_workspace_type = cycle_count_cuda_workspace<edge_t>;    ///< the device scratch
 
   /**
    * @brief The problem of one update of `r`.
@@ -760,10 +768,32 @@ class cycle_count_problem final
    */
   void finalize(framework::context& ctx, stats_type& stats);
 
+  // ---- Tier B (cuda), on G_{t+1} ---------------------------------------------------------------
+
+  /**
+   * @brief The engine of the call: engine::fused (the ported CUDA kernels) on the CUDA backend,
+   *        engine::operators (the Tier A hooks) on the host backends. begin_update and compute()
+   *        have already rejected options::cuda_engine = engine::operators on cuda.
+   * @return The engine.
+   */
+  [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
+
+  /**
+   * @brief cycle_count.enact_fused: the insert phase on the resident G_{t+1}
+   *        (cycle_count.identify_affected: the device graph; cycle_count.count_plus: the phase and
+   *        the copy of both histograms), then the signed delta (cycle_count.finalize).
+   * @throws internal_error, capacity_error as finalize; cuda_error.
+   */
+  void enact_fused(framework::context& ctx, new_graph g, const applied& applied, stats_type& stats);
+
   // ---- compute(), static enactor ---------------------------------------------------------------
 
   /// cycle_count.reset: the zero histogram of the bound.
   void reset(framework::context& ctx);
+
+  /// cycle_count.enact_fused (cuda): the static counters on the resident graph
+  /// (cycle_count_cuda_compute, with its sub-stages reset, count and finalize).
+  void compute_fused(framework::context& ctx, new_graph g, stats_type& stats);
 
  private:
   /// One host phase: the OpenMP phase with more than one thread, the sequential phase otherwise
@@ -772,6 +802,8 @@ class cycle_count_problem final
                       std::size_t max_length, std::vector<std::uint64_t>& phase);
   /// The counters of the update in the stats (all but the histogram delta).
   void fill_counts(stats_type& stats) const;
+  /// CUDA, count(-): the change lists on the device and the delete phase on the resident G_t.
+  void count_minus_cuda(framework::context& ctx, const container_type& g);
 
   cycle_count::result* result_ = nullptr;         ///< update(): the result
   cycle_count_state* state_ = nullptr;            ///< its state (begin_update) or compute()'s
@@ -783,7 +815,10 @@ class cycle_count_problem final
   std::int64_t bound_after_ = 2;                  ///< the histogram bound of G_{t+1}
   std::int64_t device_length_ = 2;                ///< cuda: the bound of the device phases
   const normalized_batch<vertex_t>* normalized_ = nullptr;   ///< the framework's Step 0, if any
+  const std::uint32_t* device_changes_ = nullptr;            ///< cuda: the change lists (pairs)
+  cycle_device_graph<edge_t> device_graph_;                  ///< cuda compute(): the graph
   std::optional<workspace_pool::lease<workspace_type>> ws_;  ///< the host scratch
+  std::optional<workspace_pool::lease<cuda_workspace_type>> cuda_ws_;  ///< the device scratch
 };
 
 /**

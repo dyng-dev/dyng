@@ -362,8 +362,9 @@ TEST_P(CycleCountBackends, ProfilerStagesFollowTheHooks) {
 /// builds and are left out). The framework's enactors open exactly these stages
 /// (parity/timed_regions/cycle_count.toml sums them; parity/results/M3.md records the migration).
 TEST_P(CycleCountBackends, TheEnactorsOpenTheStagesOfTheTimedRegions) {
-  // M3 migration: the backends that run through the framework's enactors so far.
-  const bool framework = GetParam() != backend::cuda;
+  // cuda is Tier B: enact_fused / compute_fused open the hooks' stages inside
+  // cycle_count.enact_fused.
+  const bool cuda = GetParam() == backend::cuda;
   for (const bool as_sets : {true, false}) {
     SCOPED_TRACE(as_sets ? "batch_semantics::set()" : "batch_semantics::upsert_last_wins()");
     dyng::graph_properties props = dyng::graph_properties::cycle_enum_compatible();
@@ -388,19 +389,27 @@ TEST_P(CycleCountBackends, TheEnactorsOpenTheStagesOfTheTimedRegions) {
       }
       (i < after_compute ? compute_names : update_names).push_back(name);
     }
-    const std::vector<std::string> compute_expected = {
-        "cycle_count.reset", "cycle_count.count", "cycle_count.finalize", "cycle_count.compute"};
+    std::vector<std::string> compute_expected = {"cycle_count.reset", "cycle_count.count",
+                                                 "cycle_count.finalize"};
+    if (cuda) {
+      compute_expected.emplace_back("cycle_count.enact_fused");
+    }
+    compute_expected.emplace_back("cycle_count.compute");
     // Under set semantics Step 0 runs once in run_update() (ADR 0020); the problem's normalize
     // hook then takes its lists.
     std::vector<std::string> update_expected = {"cycle_count.normalize"};
-    if (as_sets && framework) {
+    if (as_sets) {
       update_expected.emplace_back("cycle_count.normalize");
     }
     for (const char* name :
          {"cycle_count.count_minus", "cycle_count.commit", "cycle_count.identify_affected",
-          "cycle_count.count_plus", "cycle_count.finalize", "cycle_count.update"}) {
+          "cycle_count.count_plus", "cycle_count.finalize"}) {
       update_expected.emplace_back(name);
     }
+    if (cuda) {
+      update_expected.emplace_back("cycle_count.enact_fused");
+    }
+    update_expected.emplace_back("cycle_count.update");
     EXPECT_EQ(compute_names, compute_expected);
     EXPECT_EQ(update_names, update_expected);
     EXPECT_EQ(cc_counts(r), cc_counts(cycle_count::compute(res_, g, bound(4))));

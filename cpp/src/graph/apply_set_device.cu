@@ -25,6 +25,7 @@
  * it is the graph's next state), and a stream synchronization at the end instead of the original's
  * cudaDeviceSynchronize before the histograms are copied.
  */
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
 #include "graph/device_graph.hpp"
@@ -246,6 +247,7 @@ const std::uint32_t* upload_normalized_batch(const resources& res,
   } else {
     // The staging buffer may still be read by the copy of an earlier update on this stream.
     DYNG_CUDA_TRY(cudaStreamSynchronize(native(res)));
+    note_host_sync();  // counted by the budgets (I9)
   }
   std::uint32_t* host = nb.staging.data();
   std::size_t k = 0;
@@ -389,6 +391,7 @@ void apply_set_batch_device(const resources& res,
   // The state is complete before it becomes the graph's (its host copy may be downloaded on
   // another stream; the scratch above is released on this stream).
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  note_host_sync();  // counted by the budgets (I9)
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -426,6 +429,7 @@ void device_edge_membership(const resources& res,
   } else {
     // The staging buffer may still be read by the copy of an earlier update on this stream.
     DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+    note_host_sync();  // counted by the budgets (I9)
   }
   if (nb.device_present.size() < pairs || nb.device_present.memory_resource() != res.memory()) {
     nb.device_present = buffer<std::uint8_t>();
@@ -459,6 +463,7 @@ void device_edge_membership(const resources& res,
   DYNG_CUDA_TRY(cudaMemcpyAsync(nb.present_staging.data(), nb.device_present.data(), pairs,
                                 cudaMemcpyDeviceToHost, stream));
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  note_host_sync();  // counted by the budgets (I9)
   std::copy(nb.present_staging.data(), nb.present_staging.data() + pairs, present.begin());
 }
 

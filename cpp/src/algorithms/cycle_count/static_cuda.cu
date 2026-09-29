@@ -31,6 +31,7 @@
 #include "algorithms/cycle_count/dfs.cuh"
 #include "algorithms/cycle_count/problem.hpp"
 #include "algorithms/cycle_count/work_queue.hpp"
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
 #include "util/cuda_check.hpp"
@@ -258,6 +259,7 @@ value_t read_back(const resources& res, cycle_count_cuda_workspace<edge_t>& ws,
   DYNG_CUDA_TRY(
       cudaMemcpyAsync(host, device_value, sizeof(value_t), cudaMemcpyDeviceToHost, native(res)));
   DYNG_CUDA_TRY(cudaStreamSynchronize(native(res)));
+  note_host_sync();  // the budget of the phase (I9) counts it
   value_t value{};
   std::memcpy(&value, host, sizeof(value_t));
   return value;
@@ -407,6 +409,7 @@ void cycle_count_cuda_compute(const resources& res, const cycle_device_graph<edg
       }
     }
     DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+    note_host_sync();  // the budget of the phase (I9) counts it
     stage.stop();
 
     // The histogram copy (the original's download region).
@@ -415,6 +418,7 @@ void cycle_count_cuda_compute(const resources& res, const cycle_device_graph<edg
     DYNG_CUDA_TRY(cudaMemcpyAsync(host, histogram, sizeof(unsigned long long) * (cap + 1),
                                   cudaMemcpyDeviceToHost, stream));
     DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+    note_host_sync();  // the budget of the phase (I9) counts it
     for (std::int64_t len = 2; len <= length && len < static_cast<std::int64_t>(counts.size());
          ++len) {
       counts[static_cast<std::size_t>(len)] = host[len];
