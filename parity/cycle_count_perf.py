@@ -58,6 +58,11 @@ cycle_count_cuda. A case with more rejected rounds than --runs (for example a lo
 the GPU's power cap, which cannot hold the boost lock) is recorded as incomplete and the run goes on
 with the next case; the JSON is written after every case.
 
+`memory` records the device memory of PLAN 8.6 per case: the peak of live device allocations
+(cudaMalloc and cudaMallocAsync) of the original and of the port in both scopes, one process each
+under `nsys profile --cuda-memory-usage=true` (run it under the shared perf lock; the default GPU is
+1, since the times do not matter).
+
 `kernels` records, for every cycle-count kernel of both sides (the fused counting kernels, the
 work-item builders and the G_{t+1} kernels), the registers, stack and shared memory
 (cuobjdump --dump-resource-usage) and the theoretical sm_86 occupancy at its launch block size, and
@@ -859,6 +864,132 @@ def kernels(args: argparse.Namespace) -> int:
     return 0
 
 
+def peak_device_bytes(events: list[tuple]) -> int:
+    """The high-water mark of live device allocations from Nsight Systems'
+    CUDA_GPU_MEMORY_USAGE_EVENTS rows (start, bytes, operation, address) of memory kind Device:
+    operation 0 allocates, 1 frees (by address)."""
+    live = peak = 0
+    sizes: dict = {}
+    for _, nbytes, op, address in sorted(events):
+        if op == 0:
+            sizes[address] = nbytes
+            live += nbytes
+            peak = max(peak, live)
+        else:
+            live -= sizes.pop(address, nbytes)
+    return peak
+
+
+def device_memory(cmd: list, env: dict, report: Path) -> dict:
+    """One process under `nsys profile --cuda-memory-usage=true`: the peak of its live device
+    allocations (cudaMalloc and cudaMallocAsync) and the largest stream-ordered pool it reported."""
+    import sqlite3
+
+    nsys = os.environ.get("NSYS", "/usr/local/cuda-13.1/bin/nsys")
+    subprocess.run(
+        [
+            nsys,
+            "profile",
+            "-t",
+            "cuda",
+            "--cuda-memory-usage=true",
+            "-o",
+            str(report),
+            "-f",
+            "true",
+            "--export=sqlite",
+            *map(str, cmd),
+        ],
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=True,
+    )
+    database = Path(str(report) + ".sqlite")
+    try:
+        db = sqlite3.connect(str(database))
+        rows = db.execute(
+            "select start, bytes, memoryOperationType, address, localMemoryPoolSize "
+            "from CUDA_GPU_MEMORY_USAGE_EVENTS where memKind = 2"
+        ).fetchall()
+        db.close()
+    finally:
+        for f in [database, Path(str(report) + ".nsys-rep")]:
+            f.unlink(missing_ok=True)
+    return {
+        "peak_live_mib": round(peak_device_bytes([r[:4] for r in rows]) / 2**20, 1),
+        "pool_mib": round(max((r[4] or 0 for r in rows), default=0) / 2**20, 1),
+    }
+
+
+def memory(args: argparse.Namespace) -> int:
+    """PLAN 8.6 device memory: the peak of live device allocations of the original and the port
+    (both scopes) per case, from Nsight Systems' CUDA memory trace (one process each)."""
+    exe = args.exe.resolve()
+    ref = perf_ab.reference_copy(goldens.REFERENCE)
+    original = ref / "build" / "cycle-enum"
+    cases = goldens.select(goldens.cuda_cases(), ",".join(args.cases or M2B_CUDA_CASES))
+    env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(args.gpu), CUDA_MODULE_LOADING="EAGER")
+    work = Path(tempfile.mkdtemp(prefix="dyng-mem-cc-", dir=perf_ab.SCRATCH / "runs"))
+    results: dict = {}
+    try:
+        for case in cases:
+            cli = [*case.cli_args(args.datasets), "--backend", "cuda", "--cuda-device", "0"]
+            row = {"original": device_memory([original, *cli], env, work / "a")}
+            for sc in SCOPES:
+                row[f"port[{sc}]"] = device_memory([exe, *cli, "--scope", sc], env, work / "b")
+            base = row["original"]["peak_live_mib"]
+            for side, value in row.items():
+                if side != "original":
+                    value["ratio"] = value["peak_live_mib"] / base if base else float("nan")
+            results[case.rel] = row
+            print(
+                f"{case.rel}: "
+                + ", ".join(f"{s} {v['peak_live_mib']} MiB" for s, v in row.items()),
+                flush=True,
+            )
+    finally:
+        subprocess.run(["rm", "-rf", str(work)], check=False)
+    print(
+        "\n| case | original (MiB) | dynG original scope | ratio | dynG resident scope | ratio | "
+        "dynG pool (MiB) |\n|---|---:|---:|---:|---:|---:|---:|"
+    )
+    for case, row in results.items():
+        o, p, r = row["original"], row["port[original]"], row["port[resident]"]
+        print(
+            f"| {case} | {o['peak_live_mib']} | {p['peak_live_mib']} | {p['ratio']:.3f} | "
+            f"{r['peak_live_mib']} | {r['ratio']:.3f} | {max(p['pool_mib'], r['pool_mib'])} |"
+        )
+    if args.json:
+        head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
+        dirty = subprocess.run(
+            ["git", "-C", REPO, "diff", "--quiet", "HEAD", "--", ".", ":(exclude)parity/results"]
+        ).returncode
+        doc = {
+            "schema": 1,
+            "algorithm": "cycle_count",
+            "what": "device memory (PLAN 8.6): the peak of live device allocations per process "
+            "(nsys --cuda-memory-usage, memory kind Device: cudaMalloc and cudaMallocAsync), "
+            "and the largest stream-ordered pool size nsys reported for the port",
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "reference": {
+                "name": goldens.REFERENCE,
+                "commit": goldens.COMMIT,
+                "binary": perf_ab.portable_path(original),
+            },
+            "port": {
+                "commit": head + ("+dirty" if dirty else ""),
+                "binary": perf_ab.portable_path(exe),
+            },
+            "gpu": args.gpu,
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0
+
+
 def write_json(args, results, build, ref, marker, regions, clocks=None) -> None:
     head = subprocess.check_output(["git", "-C", REPO, "rev-parse", "HEAD"], text=True).strip()
     dirty = (
@@ -1001,9 +1132,17 @@ def main(argv: list[str] | None = None) -> int:
     k = sub.add_parser("kernels")
     k.add_argument("--library", type=Path, required=True, help="libdyng.so of the parity-cuda tree")
     k.add_argument("--json", type=Path)
+    m = sub.add_parser("memory")
+    m.add_argument("--exe", type=Path, required=True, help="dyng-compat-cycle-enum (parity-cuda)")
+    m.add_argument("--cases", type=lambda s: [c for c in s.split(",") if c], default=None)
+    m.add_argument("--gpu", type=int, default=1, help="the GPU (timing does not matter here)")
+    m.add_argument("--datasets", type=Path, default=perf_ab.SCRATCH / "datasets" / "cycle")
+    m.add_argument("--json", type=Path)
     args = parser.parse_args(argv)
     if args.command == "kernels":
         return kernels(args)
+    if args.command == "memory":
+        return memory(args)
     if args.cases is None:
         args.cases = M2B_CUDA_CASES if args.backend == "cuda" else DEFAULT_CASES
     if args.goldens is None:

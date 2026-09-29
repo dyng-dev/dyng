@@ -581,3 +581,11 @@ def test_cycle_count_cuda_gpu_summary_keeps_both_sides() -> None:
         "rounds_with_busy_samples": 1,
     }
     assert got["port[original]"]["sm_mhz_min"] == 1500
+
+
+def test_cycle_count_peak_device_bytes() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    # (start, bytes, operation 0 = allocate / 1 = free, address), out of order on purpose
+    events = [(3, 0, 1, 0xA), (1, 100, 0, 0xA), (2, 50, 0, 0xB), (4, 70, 0, 0xC), (5, 0, 1, 0xB)]
+    assert perf.peak_device_bytes(events) == 150
+    assert perf.peak_device_bytes([]) == 0
