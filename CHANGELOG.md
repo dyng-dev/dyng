@@ -10,6 +10,14 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- Framework (M3, internal-stable): the update template as code in `cpp/src/framework/`:
+  `problem_base` (CRTP hooks with no-op defaults, families `fixed_point` and `aggregate_delta`),
+  `update_enactor` and `static_enactor` (the fixed hook order, one profiler stage per implemented
+  hook, the convergence cap with `on_limit`, the device error check), `old_view` / `new_view`
+  (invariant I1), `context`, the policies, the budgets of the algorithm phase (invariant I9, with
+  allocation and host-synchronization counters in `DYNG_DEBUG_BUDGETS` builds), compile-time
+  conformance checks, and the participant adapter for `run_update` composition. The guide is
+  `docs/developer/framework.md`.
 - Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
   accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for

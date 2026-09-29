@@ -1,0 +1,329 @@
+# The framework: the update template in code
+
+**Status:** internal-stable from 0.1 (PLAN Section 4.5). The headers live in `cpp/src/framework/`
+and are not installed; they change only with a note in the CHANGELOG and this page. This page is
+the guide for writing an algorithm on the framework. The "how to add an algorithm" guide (PLAN
+9.4) starts from here.
+
+Every dynamic algorithm in dynG follows one template, the one in Chapter 3 of the thesis plus
+ten mechanisms that the corrected research codes leave implicit (PLAN 4.5.1). The framework
+turns that template into code:
+
+- a **problem** is a class with *hooks*, one per step of the template;
+- an **enactor** calls the hooks in a fixed order, opens one profiler stage per hook, applies the
+  convergence policy, checks the device error word and measures the budget;
+- **composition** lets several problems share one commit of a batch (`dyng::update(res, g, batch,
+  r1, r2, ...)`).
+
+## The template card
+
+```text
+normalize → translate → prepare → [before_apply → (AG: count −)] → commit →
+identify_affected → seed → { FP: loop until is_converged | AG: count + } → finalize
+```
+
+FP is `family::fixed_point` and AG is `family::aggregate_delta`. Everything left of `commit`
+reads G_t, the graph before the batch. Everything right of it reads G_{t+1}, the graph after the
+batch. `translate` is on the card but has no hook yet: no algorithm in 0.1 uses it (see
+[Differences from PLAN 4.5](#differences-from-plan-45)).
+
+## The files
+
+| File | Contents |
+|---|---|
+| `framework/problem.hpp` | `family`, `not_provided`, `problem_base<derived_t, family>` (the CRTP base with no-op default hooks) |
+| `framework/enactor.hpp` | `update_enactor<problem_t>` (update), `static_enactor<problem_t>` (compute), `hook_stages` / `stages_of<problem_t>()` (stage names) |
+| `framework/views.hpp` | `old_view<container_t>` (G_t), `new_view<container_t>` (G_{t+1}); invariant I1 |
+| `framework/context.hpp` | `context`: the resources, the algorithm name, the workspace pool, the device error word of one run |
+| `framework/policies.hpp` | `convergence`, `on_limit`, `sign`, `ownership::min_member` |
+| `framework/frontier.hpp` | `internal_frontier`, the `has_empty` trait |
+| `framework/budgets.hpp` | `budget`, `budget_scope`, `check_budget`, `last_budget_report` (invariant I9) |
+| `framework/conformance.hpp` | the compile-time checks (`static_assert`s with plain-English messages) |
+| `framework/composition.hpp` | `requested_batch`, `applied_batch`, `problem_participant<problem_t>`, `make_participant`, `update_one`, `expect_current_result`, `stamp_result` |
+| `framework/composition.cpp` | `run_update()`: Step 0 of set semantics once, every before-commit half, one commit, every after-commit half |
+| `framework/workspace.hpp`, `scratch_buffer.hpp` | the workspace pool of a `resources` handle (ADR 0015) |
+| `core/budget_counters.hpp` | the process-wide allocation and host-synchronization counters behind I9 |
+
+Everything new lives in `dyng::detail::framework`. The M1b/M2 pieces keep their namespace
+`dyng::detail`: the workspace pool, `scratch_buffer`, `update_participant` and `run_update`.
+PLAN 4.2 names `snapshot.hpp` and `budget.hpp`; this extraction calls them `views.hpp` and
+`budgets.hpp`.
+
+## Families
+
+- **`family::fixed_point`**: a value per element, and Step 2 iterates to a fixed point. Examples:
+  `sssp`, later `mosp` (by composition), `hyper_sssp`, `label_propagation`. Required hook:
+  `loop` (Tier A) or `enact_fused` (Tier B).
+- **`family::aggregate_delta`**: one global aggregate.
+  P_{t+1} = P_t − Σ contrib(G_t, owned by the deletions) + Σ contrib(G_{t+1}, owned by the
+  insertions). Step 2 is one signed count per side under an ownership rule, with no iteration.
+  Examples: `cycle_count`, later `triad_count`. Required: `ownership_type`, `count` on the old
+  view (the subtraction, before the commit), and `count` on the new view (Tier A) or `enact_fused`
+  (Tier B).
+
+## Writing a problem
+
+```cpp
+class my_problem : public framework::problem_base<my_problem, framework::family::fixed_point> {
+ public:
+  static constexpr std::string_view name = "my_algo";  // stages "my_algo.<hook>"
+  using container_type = graph<std::int32_t, std::int64_t, float>;
+  using stats_type = my_algo::stats;                   // derives from update_stats
+  // using frontier_type = ...;                        // optional (internal_frontier)
+  // using ownership_type = framework::ownership::min_member;   // aggregate_delta only
+
+  const void* target() const noexcept { return &result_; }
+  void identify_affected(framework::context&, framework::new_view<container_type>,
+                         const framework::applied_batch<std::int32_t>&,
+                         framework::internal_frontier&);
+  void loop(framework::context&, framework::new_view<container_type>,
+            framework::internal_frontier& in, framework::internal_frontier& out);
+  void finalize(framework::context&, my_algo::stats&);
+};
+```
+
+A default hook of `problem_base` returns `not_provided`. The enactors test the return type of each
+hook call at compile time. They neither call a hook that returns `not_provided` nor open its
+stage, so the profile of an algorithm lists exactly the hooks it implements. A hook the problem
+defines hides the default of the same name (ordinary C++ name hiding). This is why the base has
+at most one overload per hook name: `compute_fused` is the static twin of `enact_fused`, and
+`seed_static` the static twin of `seed`.
+
+### Hooks
+
+| Hook | Stage | When | Reads |
+|---|---|---|---|
+| `normalize(ctx, old, batch)` | `<algo>.normalize` | Step 0: the problem's own normalization (the framework's set normalization has already run; `batch.normalized`) | G_t |
+| `prepare(ctx, old, batch)` | `<algo>.prepare` | Step 0: classify, summarize, check the batch | G_t |
+| `before_apply(ctx, old, batch, f)` | `<algo>.before_apply` | Step 1a: read G_t before it changes | G_t |
+| `count(ctx, old, f, sign::minus, o)` | `<algo>.count_minus` | Step 1a (AG): the subtraction | G_t |
+| — commit — | `<algo>.commit` / `update.commit` | `run_update()`, once for every result | |
+| `identify_affected(ctx, new, applied, f)` | `<algo>.identify_affected` | Step 1b: roots, invalidation, the affected frontier | G_{t+1} |
+| `seed(ctx, new, f)` | `<algo>.seed` | Step 1b: initial values of new or invalidated elements | G_{t+1} |
+| `loop(ctx, new, in, out)` | `<algo>.loop` (one stage for all of Step 2) | Step 2 (FP), until `is_converged` | G_{t+1} |
+| `count(ctx, new, f, sign::plus, o)` | `<algo>.count_plus` | Step 2 (AG): the addition | G_{t+1} |
+| `finalize(ctx, stats)` | `<algo>.finalize` | finish: combine, apply deltas, unpack, fill the stats | – |
+| `enact_fused(ctx, new, applied, stats)` | `<algo>.enact_fused` | Tier B: replaces `identify_affected` … `finalize` | G_{t+1} |
+
+compute() runs the static enactor: `reset(ctx)` (`<algo>.reset`) → `seed_static(ctx, new, f)`
+(`<algo>.seed`) → `loop` until converged (FP, `<algo>.loop`) or `count(ctx, new, f, sign::plus,
+o)` (AG, `<algo>.count`) → `finalize` (`<algo>.finalize`). In Tier B it runs
+`compute_fused(ctx, new, stats)` (`<algo>.enact_fused`) instead.
+
+**Policy hooks** (no stage):
+
+- `is_converged(ctx, f, iteration)`. Default: `f.empty()` for a frontier with `empty()`. For an
+  `internal_frontier` it returns "the loop hook has run once", so that call iterates to the fixed
+  point inside the engine.
+- `convergence_policy(ctx) -> convergence`. Default: no cap.
+- `select_engine(ctx) -> engine`. Default: `fused` if the problem has `enact_fused`, else
+  `operators`.
+- `algorithm_budget(ctx) -> budget`. Default: `budget::unchecked()`.
+- `recompute(ctx, new, stats)`. Needed only for `on_limit::fallback_recompute`.
+
+**Lifecycle members**. The participant adapter uses them; they have no stage, and they are the
+"argument validation, version check, result bookkeeping" of `<algo>.cpp` (PLAN 4.8):
+
+- `target()`: the result's address, so that a result passed twice is rejected. Required for
+  `run_update()`.
+- `begin_update(ctx, old, batch)`: validate the call and bind the result before Step 0. It must
+  change nothing visible, because a later participant can still reject the batch.
+- `resume(ctx, new, applied)`: re-bind to G_{t+1}. Grow the result for new vertices, lease and
+  size the workspace, and build per-run inputs; it may open sub-stages of its own, such as
+  `sssp.workspace` and `sssp.changes`.
+- `end_update(ctx, new, stats)`: record the graph state the result now matches (`stamp_result`).
+- `poison()`: the algorithm phase failed, so the result is unusable until it is recomputed.
+- `reads_prepared_graph()`: whether the commit must build the in-edges or the device copy for
+  this problem. Default true.
+
+### The common stats
+
+The enactor sets the fields of `update_stats` that it decides:
+
+- `engine_used`: `fused` when `enact_fused` ran, `operators` otherwise. `finalize` may refine it;
+  sssp's OpenMP engine is the ported paper engine and reports `fused`.
+- `converged`: false only under `on_limit::report`.
+- `fallback_used`: true after `on_limit::fallback_recompute`.
+
+The adapter copies the commit's `apply_summary` into `stats.batch` when the stats type has that
+field. The problem fills everything else in `finalize` or `enact_fused`: `affected`,
+`iterations`, `frontier_visits` and its own counters.
+
+## Tier A and Tier B
+
+- **Tier A (framework-composed).** Steps 1b-2 are written as hooks. This is the default for new
+  algorithms and for the tutorials.
+- **Tier B (custom engine).** `enact_fused(ctx, new, applied, stats)` replaces `identify_affected`
+  … `finalize` for one backend (usually CUDA): the persistent cooperative SOSP kernel, the
+  CycleEnum work queue. The framework still owns `normalize`, `prepare`, `before_apply` and the
+  AG subtraction, the commit, the stats, the profiler stages, the device error check and the
+  tests. Tier B is fully legitimate. A fused paper kernel is not pushed into an abstraction that
+  costs 20 %.
+
+`select_engine` decides at run time. If it chooses an engine the problem does not have, the
+enactor throws `not_supported_error`. That happens, for example, for a Tier-B-only problem on a
+backend without the fused engine.
+
+## Frontiers
+
+The enactor owns two frontiers of `frontier_type` for one run: the input and the output of a
+loop round. It swaps them after every `loop` call. A frontier type must be default-constructible
+without allocating or throwing (checked), because its storage belongs in the pooled workspace.
+In 0.1 both algorithms keep their frontiers inside their engines' workspaces:
+
+- sssp: the affected lists, the near-far piles and the invalidation lists;
+- cycle_count: the change lists with their ownership index.
+
+So `internal_frontier` is the only framework frontier. The sparse, dense, bucketed and binned
+frontiers of PLAN 4.5.3 and the work items enter `frontier.hpp` with their second user (rule of
+two). Until then a problem may define its own frontier type; the framework tests use a list
+frontier.
+
+## Policies
+
+- `convergence { kind, tolerance, max_iterations = -1, at_limit = on_limit::error }`. The enactor
+  applies the cap. The rule itself is evaluated by `is_converged`.
+- `on_limit::error` throws `convergence_error`. `on_limit::report` finalizes the partial result
+  with `converged = false`. `on_limit::fallback_recompute` calls `recompute` instead of the rest
+  of Step 2 and `finalize`. compute() treats a fallback as an error, because compute() is itself
+  the recomputation.
+- `sign::minus` and `sign::plus` are the two sides of an aggregate-delta count.
+- `ownership::min_member` is cycle_count's rule: a structure that contains several changed
+  elements of one phase belongs to the changed element with the smallest id. An
+  aggregate-delta problem must name its rule as `ownership_type`, and the enactor passes it to
+  every count, so there is no default rule to forget (I2).
+
+The plan's `schedule`, `sync_rule` and `tie_break` policies arrive with their first two users
+(the sssp operators engine and label_propagation). The engine choice is public: `dyng::engine`.
+
+## Composition
+
+`run_update(res, g, batch, participants, n, commit_stage)` (`composition.cpp`) runs these steps:
+
+1. It stages the batch to the host.
+2. Under `batch_semantics::as_sets` it normalizes the batch **once** (stage `<algo>.normalize`,
+   or `update.normalize` for `dyng::update`; ADR 0020).
+3. It runs every participant's before-commit half on G_t.
+4. It commits once (`<algo>.commit` or `update.commit`).
+5. It runs every participant's after-commit half on G_{t+1}. A participant that fails there is
+   poisoned, the others still run, and the first exception is rethrown.
+
+`problem_participant<problem_t>` is the participant of one problem: `begin_update` +
+`update_enactor::before_commit`, then `update_enactor::after_commit` + `end_update`. On top of it:
+
+- `update_one<problem_t>(res, g, batch, args...)` is the body of `<algo>::update(res, g, batch,
+  r)`: the stage `<algo>.update`, one participant, the commit stage `<algo>.commit`;
+- `make_participant<problem_t>(stats, args...)` is what an algorithm's `update_traits` returns
+  for `dyng::update(res, g, batch, r1, r2, ...)` and `dyng::update_each`.
+
+Algorithm-level composition is plain C++. `mosp` holds K `sssp` problems and a static `sssp` over
+the combined graph; `hyper_sssp` holds one `sssp` problem over a line-graph view.
+
+## Invariants I1-I9
+
+| # | Invariant | Mechanism in the framework |
+|---|---|---|
+| I1 | Subtract on G_t, add on G_{t+1} | `old_view` and `new_view` are distinct types, and the enactor orders the calls. In Debug builds a view checks the graph's version on every access, so an `old_view` kept past the commit throws `internal_error` (`Views.OldViewAfterTheCommitThrowsInDebugBuilds`). The AG subtraction requires a `count` on the old view (compile-time check). |
+| I2 | Exactly-once counting | `ownership_type` is required for `family::aggregate_delta` and has no default. The enactor passes it to every `count`. |
+| I3 | Fixed-point termination | `convergence.max_iterations` + `on_limit`, applied by the enactor. sssp needs no cap: its invalidation step routes invalidating changes and its distances only decrease. |
+| I4 | No oscillating schedules | arrives with `sync_rule` (label_propagation, 0.3) |
+| I5 | Canonical outputs | inside the algorithms (sssp's packed (distance, id) words); `tie_break` arrives with its second user |
+| I6 | Race freedom | inside the algorithms (owner-group writes, documented atomics); racecheck in the GPU jobs |
+| I7 | 64-bit aggregates | inside the algorithms (`count_t = uint64_t`, checked additions) |
+| I8 | An oracle exists | `check_problem` requires a stats type derived from `update_stats`; the conformance kit (`DYNG_CONFORMANCE_SUITE`) checks `compute()`, the sequential backend and the oracle kind |
+| I9 | Budgets of the algorithm phase | `algorithm_budget` + `budget_scope` around `after_commit`; `check_budget` throws in `DYNG_DEBUG_BUDGETS` builds (see below) |
+
+## Budgets (I9)
+
+With `-DDYNG_DEBUG_BUDGETS=ON` (the default in Debug and in the `dev` preset) the library counts
+two things (`core/budget_counters.hpp`, process-wide atomics):
+
+- every allocation of its own memory resources (host, pinned host, CUDA stream-ordered pool);
+- every host synchronization through `detail::cuda_synchronize()`, which `resources::synchronize()`
+  uses, and the synchronization of a pinned deallocation.
+
+`update_enactor::after_commit` measures its phase (`resume` … `finalize`, or `enact_fused`). Once
+the result and the workspaces are reserved, the phase must stay within `algorithm_budget(ctx)`,
+for example `budget::steady_state(1)` for a fused CUDA engine that reads its control block back
+once. The commit is not in the phase: container growth is reported, not failed.
+`last_budget_report()` returns the last measurement on the calling thread; conformance check C8
+reads it.
+
+These are not counted: a user-installed memory resource, `std::vector` growth of the host engines
+(a test binary can count host allocations by calling `detail::note_allocation()` from a
+replacement `operator new`), and synchronizations an engine makes with the CUDA runtime directly.
+Such an engine calls `detail::note_host_sync()` next to the call. The migration commits of sssp
+and cycle_count do that at their `cudaStreamSynchronize` sites. Run budget checks without
+concurrent library calls, and without `profiler_options::sync_stages`, whose synchronizations
+count.
+
+## Device errors
+
+A hook that reads back a device error word records it with `ctx.raise_device_error(bits,
+detail)`. Reading the word back must be merged into a synchronization the hook makes anyway, for
+example the control block of a persistent kernel. The enactor checks the recorded bits at the end
+of each half and throws the precise exception there (`throw_device_errors`: `capacity_error`,
+`invalid_argument_error` or `internal_error`). An error recorded before the commit therefore
+leaves the graph unchanged. An error after it poisons the result (through `run_update`).
+
+## How sssp and cycle_count map onto the hooks
+
+These are the hooks and stages of the two algorithms as they run today. The migration commits
+keep every stage name and scope: `parity/timed_regions/*.toml` sum these stages.
+
+| Step | sssp (host backends) | sssp (cuda) | cycle_count |
+|---|---|---|---|
+| framework Step 0 | `sssp.normalize` (as_sets only) | same | `cycle_count.normalize` (as_sets) |
+| `begin_update` | backend, stale and poisoned checks, graph requirements, placement, engine | same | same, workspace lease |
+| `normalize` | – | – | own Step 0 (other semantics; `compute_structural_change`) or the copy of the framework's lists |
+| `prepare` | `sssp.prepare`: weights, largest weight, delta, 62-bit check | same | – |
+| `count(-)` | – | – | `cycle_count.count_minus` (host phase or device phase) |
+| commit | `sssp.commit` | same | `cycle_count.commit` |
+| `resume` | grow, `sssp.workspace` lease, change list | grow, lease, `sssp.changes` upload | the Debug check of the normalized batch, the bound after the batch |
+| `identify_affected` | `sssp.identify_affected` (roots, subtree invalidation) | Tier B | `cycle_count.identify_affected` (insertion index / device graph) |
+| `seed` | `sssp.seed` (pull pass) | Tier B | – |
+| `loop` / `count(+)` | `sssp.loop` (internal_frontier: one call runs to the fixed point) | Tier B | `cycle_count.count_plus` |
+| `finalize` | `sssp.finalize` (parent recovery, `affected`) | Tier B | `cycle_count.finalize` (histogram delta) |
+| `enact_fused` | – | `sssp.enact_fused` (persistent cooperative kernel) | – |
+| compute() | `sssp.reset` → `sssp.seed` → `sssp.loop` → `sssp.finalize` | `compute_fused` in `sssp.enact_fused` | `cycle_count.reset` → `cycle_count.count` → `cycle_count.finalize` |
+
+## Testing the framework
+
+`cpp/tests/framework/fake_problems.hpp` has one small problem per family:
+
+- `levels_problem`: BFS levels, fixed point, with a list frontier and a Tier B path;
+- `pairs_problem`: reciprocal pairs, aggregate delta, `ownership::min_member`.
+
+`enactor_test.cpp` checks these properties:
+
+- the hook order and the graph version each hook sees;
+- one stage per implemented hook;
+- update chains equal compute;
+- the cap and the three `on_limit` policies;
+- Tier B;
+- device errors before and after the commit;
+- the Debug check of I1;
+- the budgets;
+- composition: two problems, one commit, equal to separate updates on copies.
+
+`cpp/tests/compile_fail/framework_conformance.cpp` checks the `static_assert` messages of
+`conformance.hpp` (CTest `framework.conformance.*`).
+
+## Differences from PLAN 4.5
+
+Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
+
+| PLAN 4.5.2 sketch | The framework | Why |
+|---|---|---|
+| `reserve(ctx, capacity)` hook | none | Workspaces are sized by their lease (ADR 0015); no enactor calls a reserve step. |
+| `translate` hook | none yet | No 0.1 algorithm uses it; it arrives with hyper_sssp or mosp (rule of two). |
+| `prepare(ctx, batch)` | `prepare(ctx, old_view, batch)` | sssp's prepare reads G_t (MOSP computes the weight summary before the batch). |
+| – | `normalize(ctx, old_view, batch)` hook | cycle_count reduces batches of other semantics itself; the task's hook order starts with `normalize`. |
+| `finalize(ctx)` | `finalize(ctx, stats&)` | The stats are filled at the end of the phase in both algorithms. |
+| `count(ctx, snapshot, frontier const&, sign, ownership)` | `count(ctx, view, frontier&, sign, ownership)`, overloaded on the view type | The view type states G_t or G_{t+1} (I1); a `const&` hook also binds. |
+| `enact_fused` for compute() | `compute_fused(ctx, new_view, stats&)` | One overload per hook name (name hiding); the stage is still `<algo>.enact_fused`. |
+| Validation and bookkeeping | lifecycle members `begin_update`, `resume`, `end_update`, `poison`, `target` | They are the `<algo>.cpp` duties of PLAN 4.8, so the participant adapter can run any problem. |
+| `run_update(ctx, g, batch, problems...)` returning a tuple | `run_update(res, g, batch, participants, n, stage)` + `problem_participant` / `update_one` / `make_participant` | The type-erased participants of M1a let `dyng::update` combine results of algorithms compiled in different translation units. |
+| frontier table | `internal_frontier` only | Both algorithms keep their frontiers in their workspaces (rule of two). |
+| `schedule`, `sync_rule`, `tie_break` | not yet | No two users. |
+| `snapshot.hpp`, `budget.hpp` | `views.hpp`, `budgets.hpp` | Names of the extraction task. |
