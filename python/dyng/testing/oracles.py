@@ -16,8 +16,8 @@ from collections.abc import Iterable, Sequence
 
 __all__ = ["GraphModel", "dijkstra", "simple_cycle_histogram", "INFINITE_DISTANCE"]
 
-#: The library's "unreachable" distance (max(int64) // 4).
 INFINITE_DISTANCE = (2**63 - 1) // 4
+"""The library's "unreachable" distance (max(int64) // 4)."""
 
 
 class GraphModel:

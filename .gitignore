@@ -13,6 +13,8 @@ compile_commands.json
 .cache/
 
 # Python
+# sphinx-autoapi's generated pages (docs/conf.py writes and deletes them during the build)
+/docs/api/python/reference/
 __pycache__/
 *.py[cod]
 .pytest_cache/

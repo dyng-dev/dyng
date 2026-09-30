@@ -90,19 +90,33 @@ class Options:
 
 @dataclass(frozen=True)
 class Stats:
-    """Counters of one :func:`update` (C++ ``dyng::cycle_count::stats``); all deterministic."""
+    """Counters of one :func:`update` (C++ ``dyng::cycle_count::stats``); all deterministic.
 
-    affected: int  #: lengths whose count changed
-    iterations: int  #: always 0
-    frontier_visits: int  #: change edges searched (deletions + insertions)
-    fallback_used: bool  #: always False
-    converged: bool  #: always True
-    engine_used: str  #: "operators" on the host backends, "fused" on cuda
-    batch: ApplySummary  #: what applying the batch did to the graph
-    deletions: int  #: edges of the net change that were deleted
-    insertions: int  #: edges of the net change that were inserted
-    cycles_removed: int  #: cycles of length <= the bound the batch destroyed
-    cycles_added: int  #: cycles of length <= the bound the batch created
+    Attributes:
+        affected: Lengths whose count changed.
+        iterations: Always 0.
+        frontier_visits: Change edges searched (deletions + insertions).
+        fallback_used: Always False.
+        converged: Always True.
+        engine_used: ``"operators"`` on the host backends, ``"fused"`` on cuda.
+        batch: What applying the batch did to the graph.
+        deletions: Edges of the net change that were deleted.
+        insertions: Edges of the net change that were inserted.
+        cycles_removed: Cycles of length <= the bound the batch destroyed.
+        cycles_added: Cycles of length <= the bound the batch created.
+    """
+
+    affected: int
+    iterations: int
+    frontier_visits: int
+    fallback_used: bool
+    converged: bool
+    engine_used: str
+    batch: ApplySummary
+    deletions: int
+    insertions: int
+    cycles_removed: int
+    cycles_added: int
 
     @classmethod
     def _from_native(cls, s: Any) -> Stats:
@@ -151,7 +165,7 @@ class Result:
 
     @property
     def bound(self) -> int:
-        """The longest length the histogram covers: min(max_length, max(n, 2)), or max(n, 2)."""
+        """The longest length the histogram covers, min(max_length, max(n, 2)) or max(n, 2)."""
         return int(self._native.bound)
 
     def to_dict(self) -> dict[int, int]:

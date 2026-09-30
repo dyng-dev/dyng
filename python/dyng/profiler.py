@@ -26,23 +26,38 @@ __all__ = ["Profiler", "StageRecord", "StageSample", "profile"]
 
 @dataclass(frozen=True)
 class StageRecord:
-    """One stage: its totals over every call."""
+    """One stage: its totals over every call.
 
-    name: str  #: ``<algo>.<hook>[.<sub>]``
-    depth: int  #: nesting depth at the first call (0 = outermost)
-    calls: int  #: completed calls
-    host_ms: float  #: total host wall time (ms)
-    device_ms: float  #: total device time (ms; 0 without CUDA events)
+    Attributes:
+        name: The stage name, ``<algo>.<hook>[.<sub>]``.
+        depth: Nesting depth at the first call (0 = outermost).
+        calls: Completed calls.
+        host_ms: Total host wall time (ms).
+        device_ms: Total device time (ms; 0 without CUDA events).
+    """
+
+    name: str
+    depth: int
+    calls: int
+    host_ms: float
+    device_ms: float
 
 
 @dataclass(frozen=True)
 class StageSample:
-    """One completed call of a stage."""
+    """One completed call of a stage.
 
-    name: str  #: the stage
-    depth: int  #: nesting depth of this call
-    host_ms: float  #: host wall time (ms)
-    device_ms: float  #: device time (ms; 0 without CUDA events)
+    Attributes:
+        name: The stage.
+        depth: Nesting depth of this call.
+        host_ms: Host wall time (ms).
+        device_ms: Device time (ms; 0 without CUDA events).
+    """
+
+    name: str
+    depth: int
+    host_ms: float
+    device_ms: float
 
 
 class Profiler:

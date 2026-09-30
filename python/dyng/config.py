@@ -9,12 +9,10 @@ import sys
 from typing import IO, Any, Literal
 
 from . import _backend
-from ._backend import native
+from ._backend import native, use_cpu_only
 from ._convert import enum_member, enum_name
 
 __all__ = ["config", "show_config", "set_log_level", "get_log_level", "use_cpu_only"]
-
-use_cpu_only = _backend.use_cpu_only
 
 LogLevelName = Literal["off", "error", "warn", "info", "debug", "trace"]
 

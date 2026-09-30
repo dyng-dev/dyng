@@ -198,18 +198,31 @@ def make_properties(
 
 @dataclass(frozen=True)
 class ApplySummary:
-    """What applying a batch did to a graph (C++ ``dyng::apply_summary``)."""
+    """What applying a batch did to a graph (C++ ``dyng::apply_summary``).
 
-    inserted_edges: int = 0  #: insertions that added a new edge
-    updated_edges: int = 0  #: insertions that overwrote an existing edge (upsert)
-    deleted_edges: int = 0  #: deletions that removed an edge
-    ignored_deletions: int = 0  #: deletions of edges that did not exist
-    dropped_self_loops: int = 0  #: self-loop operations skipped
-    cancelled_pairs: int = 0  #: insert/delete pairs of one edge (set semantics)
-    inserted_vertices: int = 0  #: vertices added (by vertex growth)
-    deleted_vertices: int = 0  #: vertices removed
-    num_vertices_after: int = 0  #: the vertex count after the batch
-    ignored_insertions: int = 0  #: insertions of existing edges left unchanged (ignore)
+    Attributes:
+        inserted_edges: Insertions that added a new edge.
+        updated_edges: Insertions that overwrote an existing edge (upsert).
+        deleted_edges: Deletions that removed an edge.
+        ignored_deletions: Deletions of edges that did not exist.
+        dropped_self_loops: Self-loop operations skipped.
+        cancelled_pairs: Insert/delete pairs of one edge (set semantics).
+        inserted_vertices: Vertices added (by vertex growth).
+        deleted_vertices: Vertices removed.
+        num_vertices_after: The vertex count after the batch.
+        ignored_insertions: Insertions of existing edges left unchanged (ignore).
+    """
+
+    inserted_edges: int = 0
+    updated_edges: int = 0
+    deleted_edges: int = 0
+    ignored_deletions: int = 0
+    dropped_self_loops: int = 0
+    cancelled_pairs: int = 0
+    inserted_vertices: int = 0
+    deleted_vertices: int = 0
+    num_vertices_after: int = 0
+    ignored_insertions: int = 0
 
     @classmethod
     def _from_native(cls, s: Any) -> ApplySummary:
@@ -217,11 +230,17 @@ class ApplySummary:
 
 
 class CSR(NamedTuple):
-    """A host copy of the out-edges of a graph."""
+    """A host copy of the out-edges of a graph.
 
-    row_ptr: np.ndarray  #: num_vertices + 1 offsets (the edge offset dtype)
-    col_ind: np.ndarray  #: the neighbour of each edge, in row order (the vertex dtype)
-    weights: np.ndarray | None  #: shape (num_edges, K) int32 (a view), or None if unweighted
+    Attributes:
+        row_ptr: The num_vertices + 1 row offsets (the edge offset dtype).
+        col_ind: The neighbour of each edge, in row order (the vertex dtype).
+        weights: Shape (num_edges, K) int32 (a view), or None if unweighted.
+    """
+
+    row_ptr: np.ndarray
+    col_ind: np.ndarray
+    weights: np.ndarray | None
 
 
 def _edge_dtype(requested: Any, vertex: np.dtype, stored_edges: int) -> np.dtype:
@@ -238,8 +257,8 @@ class Graph:
     Build one with :meth:`from_edges`, :meth:`from_csr` or a reader of :mod:`dyng.io`. The graph
     holds a version counter that grows by one with every applied batch; results remember the
     version (and the graph state) they match. The instantiation (id and weight types) is chosen
-    from the input dtypes (see :mod:`dyng._dtypes`); :attr:`vertex_dtype`, :attr:`edge_dtype`
-    and :attr:`weighted` report it.
+    from the input dtypes (the dtype rules of the Python API guide in the documentation);
+    :attr:`vertex_dtype`, :attr:`edge_dtype` and :attr:`weighted` report it.
 
     A graph is not thread-safe in C++; the Python binding serializes calls that change it
     (:meth:`apply`, the algorithms' ``update``) against every other call on it.
@@ -493,7 +512,7 @@ class Graph:
 
     @property
     def space(self) -> str:
-        """Where the storage lives: ``"host"``, or ``"device"`` for a graph of CUDA resources."""
+        """Where the storage lives, ``"host"`` (or ``"device"`` for a graph of CUDA resources)."""
         return enum_name(self._native.space)
 
     @property
@@ -513,7 +532,7 @@ class Graph:
 
     @property
     def weighted(self) -> bool:
-        """Whether the weight type is int32 (False: the unweighted instantiation)."""
+        """Whether the weight type is int32 (otherwise the unweighted instantiation)."""
         return self._type.weighted
 
     @property

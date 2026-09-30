@@ -39,6 +39,7 @@ dependencies:
   - sphinx-copybutton=0.5.2
   - sphinx-design=0.7.0
   - sphinxcontrib-bibtex=2.7.0
+  - sphinx-autoapi=3.8.1         # the Python API reference, from the sources (no compiled module)
   - pre-commit
   - reuse
   - pytest
@@ -51,3 +52,5 @@ dependencies:
   - nanobind=3.1.0
   - scikit-build-core=1.1.0
   - hypothesis=6.167.1
+  # the Python API check (ci/api_check.sh, .github/workflows/api-check.yml; PLAN Section 5.9)
+  - griffe=2.3.0

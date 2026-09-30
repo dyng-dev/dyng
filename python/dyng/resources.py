@@ -136,7 +136,7 @@ class Resources:
 
     @property
     def backend(self) -> BackendName:
-        """The backend: ``"sequential"``, ``"openmp"`` or ``"cuda"``."""
+        """The backend, ``"sequential"``, ``"openmp"`` or ``"cuda"``."""
         return enum_name(self._native.backend)  # type: ignore[return-value]
 
     @property
@@ -146,17 +146,17 @@ class Resources:
 
     @property
     def num_threads(self) -> int:
-        """Host threads: 1 (sequential), the OpenMP team size, or the host threads of cuda."""
+        """The host threads, 1 (sequential), the OpenMP team size, or the host threads of cuda."""
         return int(self._native.num_threads)
 
     @property
     def default_space(self) -> str:
-        """Where results are placed: ``"host"`` or ``"device"``."""
+        """Where results are placed, ``"host"`` or ``"device"``."""
         return enum_name(self._native.default_space)
 
     @property
     def copy_policy(self) -> CopyPolicyName:
-        """What an implicit copy of an input between memory spaces does: ``"allow"`` (the
+        """What an implicit copy of an input between memory spaces does, ``"allow"`` (the
         default), ``"warn"`` or ``"error"`` (raise instead of copying). Shared by every copy."""
         return enum_name(self._native.copy_policy)  # type: ignore[return-value]
 

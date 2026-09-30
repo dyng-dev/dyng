@@ -56,23 +56,38 @@ PathLike = str | os.PathLike[str]
 
 @dataclass(frozen=True)
 class EdgeListInfo:
-    """What :func:`read_edge_list` found besides the edges (C++ ``io::edge_list_info``)."""
+    """What :func:`read_edge_list` found besides the edges (C++ ``io::edge_list_info``).
 
-    external_ids: np.ndarray  #: ``ids="compact"``: the id in the file of graph vertex i
-    timestamps: np.ndarray  #: ``duplicates="keep"``: the timestamp of every edge
-    matrix_market: bool  #: the file had a ``%%MatrixMarket`` banner
-    symmetric: bool  #: its symmetry was symmetric, skew-symmetric or hermitian
+    Attributes:
+        external_ids: With ``ids="compact"``, the id in the file of graph vertex i.
+        timestamps: With ``duplicates="keep"``, the timestamp of every edge.
+        matrix_market: The file had a ``%%MatrixMarket`` banner.
+        symmetric: Its symmetry was symmetric, skew-symmetric or hermitian.
+    """
+
+    external_ids: np.ndarray
+    timestamps: np.ndarray
+    matrix_market: bool
+    symmetric: bool
 
 
 @dataclass(frozen=True)
 class EdgeList:
-    """An edge list read from a file (the arrays own their memory)."""
+    """An edge list read from a file (the arrays own their memory).
 
-    num_vertices: int  #: ids lie in [0, num_vertices)
-    src: np.ndarray  #: source of each edge
-    dst: np.ndarray  #: destination of each edge
-    weights: np.ndarray | None  #: shape (m, K) int32, or None for an unweighted list
-    info: EdgeListInfo | None = None  #: only from :func:`read_edge_list_arrays`
+    Attributes:
+        num_vertices: Ids lie in [0, num_vertices).
+        src: Source of each edge.
+        dst: Destination of each edge.
+        weights: Shape (m, K) int32, or None for an unweighted list.
+        info: Only from :func:`read_edge_list_arrays`.
+    """
+
+    num_vertices: int
+    src: np.ndarray
+    dst: np.ndarray
+    weights: np.ndarray | None
+    info: EdgeListInfo | None = None
 
     @property
     def num_edges(self) -> int:

@@ -8,5 +8,5 @@ from ._backend import native
 
 __all__ = ["__version__"]
 
-#: The version string (PEP 440), e.g. ``"0.1.0"``.
 __version__: str = str(native.__version__)
+"""The version string (PEP 440), for example ``"0.1.0"``."""

@@ -32,7 +32,16 @@ class Array:
 
     Attributes are those of a 1-D array: :attr:`shape`, :attr:`dtype`, :attr:`size`,
     :attr:`ndim`, ``len(a)``, iteration and indexing (which read through a copy-free NumPy
-    view).
+    view). ``np.asarray(a)`` (through ``__array_interface__``), ``np.from_dlpack(a)`` and
+    ``torch.from_dlpack(a)`` (through ``__dlpack__``) view the library's memory without a copy,
+    and the view keeps the result alive.
+
+    **Lifetime** (as in C++, where these views are "valid until the next update"): an Array
+    belongs to one state of its result. Once the result is updated, using the Array raises
+    :class:`~dyng.StaleResultError`; read the property again for the new state. Views that NumPy
+    or another library already made show the result's memory, which an update changes in place
+    (or reallocates when the graph grows), so take a copy (:meth:`to_numpy`, the default) of
+    anything that must outlive the next update.
     """
 
     __slots__ = ("_nd", "_view", "_is_current", "_what", "__weakref__")
@@ -87,7 +96,7 @@ class Array:
 
     @property
     def device(self) -> str:
-        """``"cpu"`` for host memory, ``"cuda:<n>"`` for device memory."""
+        """The device, ``"cpu"`` for host memory or ``"cuda:<n>"`` for device memory."""
         kind, dev = self.__dlpack_device__()
         return "cpu" if kind in (1, 3) else f"cuda:{dev}"
 

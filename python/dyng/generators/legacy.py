@@ -28,18 +28,31 @@ __all__ = ["MospChangeReport", "mosp_changes", "cycle_enum_batch"]
 
 @dataclass(frozen=True)
 class MospChangeReport:
-    """What :func:`mosp_changes` did (the report line of ``mospPrep changes``)."""
+    """What :func:`mosp_changes` did (the report line of ``mospPrep changes``).
 
-    inserts: int  #: insertions of new edges
-    reweights: int  #: insertions that overwrite existing edges
-    deletes: int  #: deletions kept
-    requested_deletes: int  #: deletions before the safe filter
-    safe_rounds: int  #: rounds of the safe filter
-    safe: bool  #: the safe filter ran
-    centre: int  #: centre of a local batch, -1 otherwise
-    local_hops: int  #: radius of a local batch
-    region: int  #: vertices of the local region
-    summary: str  #: the report in ``mospPrep changes`` format
+    Attributes:
+        inserts: Insertions of new edges.
+        reweights: Insertions that overwrite existing edges.
+        deletes: Deletions kept.
+        requested_deletes: Deletions before the safe filter.
+        safe_rounds: Rounds of the safe filter.
+        safe: The safe filter ran.
+        centre: Centre of a local batch, -1 otherwise.
+        local_hops: Radius of a local batch.
+        region: Vertices of the local region.
+        summary: The report in ``mospPrep changes`` format.
+    """
+
+    inserts: int
+    reweights: int
+    deletes: int
+    requested_deletes: int
+    safe_rounds: int
+    safe: bool
+    centre: int
+    local_hops: int
+    region: int
+    summary: str
 
 
 def mosp_changes(

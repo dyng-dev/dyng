@@ -38,8 +38,8 @@ from .resources import Resources, resolve
 
 __all__ = ["Options", "Stats", "Result", "compute", "update", "INFINITE_DISTANCE"]
 
-#: The "unreachable" distance: max(int64) // 4 = 2**61 - 1 (MOSP's DISTANCE_INF).
 INFINITE_DISTANCE: int = int(np.iinfo(np.int64).max) // 4
+"""The "unreachable" distance, max(int64) // 4 = 2**61 - 1 (MOSP's DISTANCE_INF)."""
 
 EngineName = Literal["automatic", "fused", "operators"]
 
@@ -81,19 +81,32 @@ class Stats:
 
     ``invalidated``, ``affected``, ``batch`` and ``packed_parents`` are deterministic;
     ``iterations``, ``frontier_visits``, ``epochs`` and ``pushes`` depend on the schedule.
+
+    Attributes:
+        affected: Vertices whose distance or parent changed.
+        iterations: Rounds of the Step 2 loop.
+        frontier_visits: Frontier entries processed.
+        fallback_used: A fallback path ran.
+        converged: The iteration converged.
+        engine_used: ``"fused"`` or ``"operators"``.
+        batch: What applying the batch did to the graph.
+        invalidated: Vertices of invalidated subtrees.
+        epochs: Raises of the near-far threshold.
+        pushes: Vertex expansions of Step 2.
+        packed_parents: Distances and parents packed in 64-bit words.
     """
 
-    affected: int  #: vertices whose distance or parent changed
-    iterations: int  #: rounds of the Step 2 loop
-    frontier_visits: int  #: frontier entries processed
-    fallback_used: bool  #: a fallback path ran
-    converged: bool  #: the iteration converged
-    engine_used: str  #: "fused" or "operators"
-    batch: ApplySummary  #: what applying the batch did to the graph
-    invalidated: int  #: vertices of invalidated subtrees
-    epochs: int  #: raises of the near-far threshold
-    pushes: int  #: vertex expansions of Step 2
-    packed_parents: bool  #: distances and parents packed in 64-bit words
+    affected: int
+    iterations: int
+    frontier_visits: int
+    fallback_used: bool
+    converged: bool
+    engine_used: str
+    batch: ApplySummary
+    invalidated: int
+    epochs: int
+    pushes: int
+    packed_parents: bool
 
     @classmethod
     def _from_native(cls, s: Any) -> Stats:
@@ -105,7 +118,7 @@ class Result:
     """A shortest-path tree kept up to date by :func:`update` (C++ ``dyng::sssp::result``).
 
     Arrays are read-only, zero-copy :class:`dyng.Array` views that belong to the current state
-    of the result (see :mod:`dyng.array` for their lifetime).
+    of the result (see :class:`dyng.Array` for their lifetime).
     """
 
     __slots__ = ("_native", "_generation", "_resources", "_vertex", "__weakref__")
@@ -133,12 +146,12 @@ class Result:
 
     @property
     def distances(self) -> Array:
-        """One distance per vertex (int64); :data:`INFINITE_DISTANCE` for unreachable vertices."""
+        """One distance per vertex (int64), :data:`INFINITE_DISTANCE` for unreachable vertices."""
         return self._array(self._native.distances, "distances")
 
     @property
     def parents(self) -> Array:
-        """One parent per vertex (the graph's vertex dtype): the lowest-id in-neighbour on a
+        """One parent per vertex (the graph's vertex dtype), the lowest-id in-neighbour on a
         shortest path (unless kept from a non-canonical imported tree); -1 for the source and
         unreachable vertices."""
         return self._array(self._native.parents, "parents")
@@ -161,7 +174,7 @@ class Result:
 
     @property
     def space(self) -> str:
-        """Where the arrays live: ``"host"`` or ``"device"``."""
+        """Where the arrays live, ``"host"`` or ``"device"``."""
         return enum_name(self._native.space)
 
     @property
