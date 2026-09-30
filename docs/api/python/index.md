@@ -57,11 +57,19 @@ inputs:
 Result arrays (`tree.distances`, `tree.parents`, `hist.counts`) are {py:class}`dyng.Array`
 objects: read-only, zero-copy views with `__dlpack__`, `__dlpack_device__` and
 `__array_interface__`, so `np.asarray(a)`, `np.from_dlpack(a)` and `torch.from_dlpack(a)` see the
-library's memory without a copy, and every view keeps its result alive. An Array belongs to one
+library's memory without a copy, and every view keeps that memory alive. An Array belongs to one
 state of its result: once the result is updated, using it raises
 {py:class}`dyng.StaleResultError`; read the property again. `a.to_numpy()` returns a copy (the
-default), `a.to_numpy(copy=False)` the read-only view, which follows the C++ rule "valid until the
-next update".
+default), `a.to_numpy(copy=False)` the read-only view. Views that NumPy or another library made
+keep showing the state they were made from, unchanged: while such a view is alive, an update
+copies the result's state first and changes the copy (copy-on-write), so exported memory is
+never changed or freed under a view. That costs one copy of the result's arrays per update while
+a view is alive; drop views you no longer need to update in place. DLPack consumers that ask for
+DLPack >= 1.0 get a read-only zero-copy capsule; the unversioned capsule of older consumers,
+which cannot be marked read-only, is a copy. PyTorch and CuPy have no read-only arrays: a tensor
+from `a.to_torch()` or `torch.from_dlpack(a)` aliases the result and must not be written.
+`copy.copy` / `copy.deepcopy` of a result or a graph are `clone()`; batches, resources and arrays
+pickle, graphs and results explain how to send them (`to_csr()`, `Result.from_arrays()`).
 
 ## Results, versions and stale results
 
@@ -100,6 +108,9 @@ The GIL is released around every native call that runs an algorithm or I/O, so s
 threads can run dynG at once. Graphs and results are not thread-safe in C++; the binding keeps
 them memory-safe with a reader/writer lock per object: calls that change a graph or a result
 (`apply`, the updates) are serialized against every other call on it, and reads run in parallel.
+Setting `Resources.copy_policy` and entering or leaving `dyng.profile()` change the shared
+resources handle, so they wait until no native call runs in any thread. A batch reads its arrays
+at every use: do not change them while a call that uses the batch runs.
 
 ## Profiling
 
