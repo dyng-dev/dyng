@@ -88,7 +88,7 @@ stats update(const resources& res, hypergraph<vertex_t, weight_t>& hg,
 |---|---|
 | Uniform skeleton | yes; `result` is not a template (a histogram of counts, as `cycle_count::result`) |
 | Frozen headers needed | `stats : update_stats`, `engine`, `array_view`; `dyng::update()` works once the hypergraph provides `participant_of` (see {doc}`hypergraph`) |
-| Differences from PLAN 5.3 / 5.5 | the plan's `stats::delta` (a signed per-bin vector) is replaced by `triads_removed` / `triads_added` plus the result's counts before and after, like cycle_count's `cycles_removed` / `cycles_added`: a vector in `stats` would be the only allocating field of any stats; the per-bin delta is `counts()` after minus before, which the Python layer can offer as `st.delta` |
+| Differences from PLAN 5.3 / 5.5 | the plan's `stats::delta` (a signed per-bin vector) is replaced by `triads_removed` / `triads_added` plus the result's counts before and after, like cycle_count's `cycles_removed` / `cycles_added`: the stats of an update are returned by value from every call, and a per-bin `std::vector` would add one more allocation to each (the `batch` summary's `inserted_ids` already allocates, and mosp's per-objective stats do; a fixed-size `std::array<std::int64_t, 30>` would not, open question 1); the per-bin delta is `counts()` after minus before, which the Python layer can offer as `st.delta` |
 | Python | `dyng.triad_count.compute(hg)`, `kind="h_motif"`; `hist.counts` (30 values) |
 
 ## Open questions (decided in M9)

@@ -73,9 +73,11 @@ stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
   edge: count, scan, fill), solves it statically with the `sssp` engine, and computes the path
   costs. This is the framework's composition of PLAN 4.5.1; `mosp_problem` holds the K
   `sssp_problem`s.
-- **Stages:** `mosp.normalize`, `mosp.commit`, `mosp.objective.<k>` around each sssp update
-  (whose own `sssp.*` stages nest inside), `mosp.combine`, `mosp.combined_sssp`, `mosp.path_costs`,
-  `mosp.finalize`. The paper's regions: "(a) compute" = the K updates + combine + combined solve,
+- **Stages:** `mosp.normalize`, `mosp.commit`, `mosp.objective` around each sssp update (one
+  stage for all K objectives, called K times; whose own `sssp.*` stages nest inside; the frozen
+  profiler rule wants every dotted part to start with a letter, so the objective's index is not a
+  name part: `mosp.objective.0` would be rejected, and the per-objective times are the stage's
+  samples in order), `mosp.combine`, `mosp.combined_sssp`, `mosp.path_costs`, `mosp.finalize`. The paper's regions: "(a) compute" = the K updates + combine + combined solve,
   "(b) end to end".
 
 ## Contract and registry

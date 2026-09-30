@@ -17,7 +17,8 @@ namespace dyng::hyper_sssp {
 
 enum class budget_action : std::uint8_t {
   recompute,   ///< over budget: recompute from scratch (stats::fallback_used = true)
-  error,       ///< over budget: throw convergence_error (nothing of the update is kept)
+  error,       ///< over budget: throw convergence_error; the budget counts Step 2, after the
+               ///< commit, so the hypergraph keeps the batch and the result is poisoned (basic)
 };
 
 struct options {                                   ///< an aggregate; fields are only appended
@@ -90,7 +91,7 @@ stats update(const resources& res, hypergraph<vertex_t, weight_t>& hg,
 | Determinism | `bitwise` |
 | Container requirements | weighted hyperedges (`weight_t = int32_t`, weights in [1, 2^28], a stricter limit than sssp's, documented), a line graph (`line_graph_policy::slack_csr` for incidence edits) |
 | Backends | sequential (the host emulation `emulateSospUpdate`), cuda |
-| `@guarantee` | strong before the commit (and for `budget_action::error`: the check runs before anything is kept); basic after it (result poisoned) |
+| `@guarantee` | strong before the commit; basic after it, `budget_action::error` included (the frontier visits are counted in Step 2, after the commit: the hypergraph holds G_{t+1} and the result is poisoned). A strong `error` would need a pre-commit estimate of the work, which the paper does not have |
 
 ## Review against the 0.1 contract
 
