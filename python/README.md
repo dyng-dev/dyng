@@ -5,6 +5,7 @@ edge insertions and deletions, without recomputing from scratch. It unifies the 
 DynaMOSP (dynamic shortest paths) and TruCy / DynTruCy (cycle counting), with more algorithms
 (multi-objective shortest paths, hypergraph motifs, label propagation) to follow.
 
+<!-- snippet: pypi-readme -->
 ```python
 import dyng
 
