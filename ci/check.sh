@@ -30,6 +30,9 @@
 #              doxygen is missing; fails if the Sphinx packages of environment.yml are missing)
 #   regen      scripts/regen.py --check: the algorithm tables, the CODEOWNERS block and the
 #              registries are up to date with the manifests (PLAN Section 4.8)
+#   python     ci/python.sh: the development install of the Python package (pip install -e .),
+#              the committed stubs (scripts/regen.py --stubs --check) and the pytest suite
+#              python/tests (skipped if scikit-build-core or nanobind is missing, except in CI)
 #   scaffold   ci/scaffold_check.sh: scripts/new_algorithm.py generates a throwaway algorithm of
 #              each family, which builds and passes its conformance kit (a nested build in a
 #              temporary copy of the tree)
@@ -59,7 +62,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,54p' "${BASH_SOURCE[0]}"
+      sed -n '5,57p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -197,6 +200,22 @@ if ! skipped harness; then
     echo "harness: OK"
   else
     failed+=("harness")
+  fi
+fi
+
+if ! skipped python; then
+  step "Python package: development install, stubs, pytest (ci/python.sh)"
+  if ! python -c "import scikit_build_core, nanobind" >/dev/null 2>&1; then
+    if [ -n "${CI:-}" ]; then
+      echo "scikit-build-core / nanobind not found (in CI the step must run)"
+      failed+=("python")
+    else
+      echo "scikit-build-core / nanobind not found (conda env update -f environment.yml); skipped"
+    fi
+  elif heavy ci/python.sh; then
+    echo "python: OK"
+  else
+    failed+=("python")
   fi
 fi
 
