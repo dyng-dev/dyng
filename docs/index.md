@@ -2,7 +2,7 @@
 
 **dynamic graph and hypergraph updates on GPUs**
 
-dynG is a C++17/CUDA library (Python bindings are planned) that keeps the results of graph and
+dynG is a C++17/CUDA library with a Python package that keeps the results of graph and
 hypergraph algorithms up to date while the structure changes in **batches** of insertions,
 deletions and weight changes, without recomputing from scratch. Every algorithm follows one
 update model, the template of {doc}`concepts/update_model`, and has the same two verbs:
@@ -10,9 +10,9 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Pre-alpha.** dynG has not been released. APIs, file formats and build options may change
-without notice until 0.1.0 (see the {doc}`roadmap`). The PyPI package `dyng` 0.0.1 is only a
-name reservation.
+**Pre-release.** dynG 0.1.0 is being prepared and has not been published yet: APIs may still
+change until it is tagged (see the {doc}`roadmap`). The PyPI package `dyng` 0.0.1 is only a name
+reservation; until 0.1.0 is out, install the Python package from a clone (`pip install .`).
 :::
 
 ## Algorithms
@@ -31,10 +31,13 @@ name reservation.
 The {doc}`algorithms/index` page explains the columns; the {doc}`roadmap` says what each
 release will contain.
 
-## Install and build
+## Install
 
-There is no release yet, so dynG is built from source. No GPU is needed for the CPU backends;
-the CUDA backend has its own presets (`dev-cuda`, {doc}`getting_started/install`).
+```bash
+pip install dyng                       # the Python package (CPU backends), once 0.1.0 is published
+```
+
+or build from source (the C++ library, the CUDA backend, the development tools):
 
 ```bash
 git clone https://github.com/dyng-dev/dyng.git
@@ -42,14 +45,23 @@ cd dyng
 conda env create -f environment.yml    # the pinned tools: CMake, Ninja, clang-format, Doxygen, Sphinx
 source scripts/dev_env.sh              # activates the environment
 cmake --preset dev && cmake --build --preset dev && ctest --preset dev
+pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build   # Python
 ```
 
 {doc}`getting_started/install` has the requirements, the presets and how to use dynG from
-your own CMake project; {doc}`getting_started/first_update_cpp` runs a first update.
+your own CMake project.
 
-## A first update in C++
+## A first update
 
-From `examples/cpp/first_update.cpp`, which CTest builds and runs
+In Python ({doc}`getting_started/first_update_python`):
+
+```{literalinclude} ../README.md
+:language: python
+:start-at: "import dyng"
+:end-before: "```"
+```
+
+In C++, from `examples/cpp/first_update.cpp`, which CTest builds and runs
 ({doc}`getting_started/first_update_cpp`):
 
 ```{literalinclude} ../examples/cpp/first_update.cpp
@@ -63,7 +75,7 @@ From `examples/cpp/first_update.cpp`, which CTest builds and runs
 
 If you use dynG in academic work, please cite the software and the paper behind each algorithm
 you use. {doc}`citing` has the BibTeX entries (from `docs/references.bib`, the same entries that
-`dyng::citation()` returns) and the `CITATION.cff` record that GitHub's "Cite this repository"
+`dyng::citation()` and `dyng.citation()` return) and the `CITATION.cff` record that GitHub's "Cite this repository"
 button uses.
 
 ## Contents
@@ -102,6 +114,13 @@ concepts/index
 
 algorithms/index
 api/index
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: History
+
+history/index
 ```
 
 ```{toctree}
