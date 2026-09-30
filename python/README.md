@@ -18,6 +18,15 @@ hist = dyng.cycle_count.compute(g, max_length=4)                     # simple cy
 print(hist.counts.tolist(), hist.total)
 ```
 
+The package also installs the `dyng` command line, which reads and writes the formats of the
+original tools:
+
+```console
+$ dyng cycle_count compute --graph DD_A.txt --max-length 6       # histogram CSV
+$ dyng sssp compute --graph roadNet-CA_ --out init                # MOSP's distance and tree files
+$ dyng sssp update --graph roadNet-CA_ --changes batch --init init --out updated
+```
+
 This wheel contains the sequential and OpenMP backends (`dyng.Resources("openmp")`); the CUDA
 backends follow as plugin wheels in the 0.1.x releases. The C++ library, the documentation and
 the parity reports with the original codes are at <https://github.com/dyng-dev/dyng>.
