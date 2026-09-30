@@ -11,12 +11,11 @@ change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in 
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
 
-Status: 2026-09-28. M1a, M1b (CUDA `sssp`) and M4 (this infrastructure) are done and merged
-into `main` (integration INT1). M2 (`cycle_count`) is done on the branch `m2b-cycle-cuda`, which
-merges its CPU half (M2a) and adds the CUDA backend (M2b): bit-identical to the original's CUDA
-backend and within its performance gates (the COLLAB update, which the GPU cannot run at the boost
-clock lock of ADR 0018 under its power cap, is read at the base lock, ADR 0021, accepted
-2026-09-29); it reaches `main` through a pull request. Next: M3.
+Status: 2026-09-29. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`) and M4 (this infrastructure) are
+done and merged into `main`. M3 is done on the branch `m3-framework`: the framework extracted from
+the two algorithms, both moved onto it with parity and performance unchanged, the conformance kit,
+the scaffold, and the 0.1 API review and freeze (ADR 0023); it reaches `main` through a pull
+request. Next: M5.
 
 ## 1. What dynG is
 
@@ -153,31 +152,29 @@ insert-only MOSP of thesis Chapter 5; incident-vertex and temporal triads; open 
 implicit line-graph policy; new dynamic algorithms (k-core, connected components, PageRank,
 BFS); a HIP backend; multi-GPU only if a research need appears.
 
-## 4. Estimate (re-estimated after M2)
+## 4. Estimate (re-estimated after M3)
 
 The plan estimated 0.1 at 12-17 working weeks. With the AI assistant doing the coding, each port
-of a good original so far (M1a, M1b, M2a, M2b) took about a day of wall-clock time including its
-gates, and each independent review found real defects (M1a 25, M1b 19, M2a 16) and took about
-half a day more to fix. What dominates now is measurement time on the one shared machine (the
-exclusive perf lock, other users' jobs, the GPU's power cap), reviews and their fix steps, the
-author's decisions and account actions, and merges of parallel branches. The remaining
-milestones are less mechanical (M3 refactors two algorithms under unchanged parity and gates; M8
-merges two diverged copies of a data structure; M10 needs calibrated float tolerances), so the
-speed-up of the ports is applied only in part (details: the M2b retrospective):
+of a good original (M1a, M1b, M2a, M2b) took about a day of wall-clock time including its gates,
+and M3 (the framework, both migrations, the kit, the scaffold and the API freeze) one long day for
+its five steps; each independent review found real defects (M1a 25, M1b 19, M2a 16) and took
+about half a day more to fix. What dominates now is measurement time on the one shared machine
+(the exclusive perf lock, other users' jobs, the GPU's power cap; a full M3 campaign is four to
+five hours of lock time), reviews and their fix steps, the author's decisions and account
+actions, and merges of parallel branches (details: the M3 retrospective):
 
 | Milestone | Plan (working weeks) | Focused effort, incl. review and fix | Calendar, incl. author gates | Main risk |
 |---|---|---|---|---|
-| M1a, M1b, M2, M4 | 7-10 | done (M2b's review and fix step: 0.5-1 day) | | |
-| M3 framework + API freeze | 2-3 | 2-4 days | 1-2 weeks | parity and gates re-run per refactor commit (lock time); the author's API sign-off |
-| M5 Python, CLI, docs | 2-3 | 2-4 days | 1-2 weeks | nanobind + scikit-build-core, stubs, the TestPyPI release candidate |
-| **0.1.0** | **12-17** | **about 1-2 weeks from now** | **about 3-5 weeks** | the API review and the release approval |
+| M1a, M1b, M2, M3, M4 | 9-13 | done (M3's review and fix step: 0.5-1 day) | | |
+| M5 Python, CLI, docs | 2-3 | 2-4 days | 1-2 weeks | nanobind + scikit-build-core, stubs, the TestPyPI release candidate; binding the variadic `dyng::update` |
+| **0.1.0** | **12-17** | **about 1 week from now** | **about 2-4 weeks** | the release approval |
 | 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 4-7 days | 2-3 weeks | the GPU runner decision (O11); wheel sizes; A4 |
-| 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | the operators engine within 1.05x of the fused one; the staged CBST merge; memory within 1.05x |
+| 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 1.5-2 weeks | 4-6 weeks | the operators engine within 1.05x of the fused one; the staged CBST merge; memory within 1.05x; layout control in the parity preset |
 | 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
-| **Up to 0.3.0** | **about 32-47** | **about 5-8.5 weeks** | **about 13-20 weeks** | |
+| **Up to 0.3.0** | **about 32-47** | **about 4.5-7.5 weeks** | **about 12-19 weeks** | |
 
 The calendar column assumes the author reviews at each gate within a few days. The estimate is
-revisited in the M3 retrospective.
+revisited in the M5 retrospective.
 
 ## 5. Risks
 
