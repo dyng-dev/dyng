@@ -79,8 +79,10 @@ M5 does not rediscover them:
    dump of `libdyng.so` does not see, and PLAN 5.9 adds `abidiff` at 1.0.
 3. **Changing the API** follows "Updating the API baseline" in
    `docs/developer/api_review_checklist.md`: the checklist, a CHANGELOG entry and the `api-change`
-   label, then `ci/docs.sh --doxygen-only && ci/api_snapshot.py --update` and the new baseline in
-   the same pull request. The `api-check.yml` workflow of M5 adds the label check and `griffe`.
+   label, then `ci/docs.sh --update-api` and the new baseline in the same pull request. (Amended
+   in the M3 review: the first text, `ci/docs.sh --doxygen-only && ci/api_snapshot.py --update`,
+   could never update the baseline, because `ci/docs.sh` runs the check itself and fails while the
+   API differs; `--update-api` runs Doxygen and writes the baseline.) The `api-check.yml` workflow of M5 adds the label check and `griffe`.
 4. **Every function that changes a container or a result states its exception guarantee** with
    `@guarantee`, checked by `ci/doxygen_coverage.py`; host allocation failures leave the library as
    `out_of_memory_error`, also from header-inline code.

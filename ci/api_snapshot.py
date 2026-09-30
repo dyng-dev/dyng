@@ -24,8 +24,10 @@ baseline is updated (docs/developer/api_review_checklist.md, "Updating the API b
   1. go through the API review checklist for the change;
   2. add the CHANGELOG entry (Added / Changed / Deprecated / Removed; a migration note for a
      break) and give the pull request the `api-change` label;
-  3. run `ci/docs.sh --doxygen-only && ci/api_snapshot.py --update` and commit the new baseline
-     in the same pull request, so the reviewers see the API diff next to the code.
+  3. run `ci/docs.sh --update-api` (Doxygen, then this script with --update; or, by hand,
+     `ci/docs.sh --doxygen-only; ci/api_snapshot.py --update`: the first command fails while the
+     API differs, so the two must not be joined with `&&`) and commit the new baseline in the
+     same pull request, so the reviewers see the API diff next to the code.
 
 Headers are marked `frozen` (the 0.1 API: core/*, graph/*, update.hpp, sssp.hpp, cycle_count.hpp
 and the top-level library headers) or `tracked` (io/*, generators/*, testing/*: listed and
@@ -289,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
         "\napi-snapshot: the public C++ API differs from the baseline (above: - baseline, "
         "+ headers).\nIf the change is intended: go through docs/developer/api_review_checklist.md,"
         " add a CHANGELOG entry and the `api-change` label, then run\n"
-        "  ci/docs.sh --doxygen-only && ci/api_snapshot.py --update\n"
+        "  ci/docs.sh --update-api\n"
         "and commit the new baseline with the change (ADR 0023).",
         file=sys.stderr,
     )

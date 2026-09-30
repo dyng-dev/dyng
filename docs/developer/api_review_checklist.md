@@ -123,10 +123,12 @@ To change the API on purpose:
    to the code:
 
    ```bash
-   ci/docs.sh --doxygen-only      # Doxygen XML of the public headers (build/doxygen/xml)
-   ci/api_snapshot.py --update    # rewrite cpp/tests/api/api_snapshot/public_api.txt
+   ci/docs.sh --update-api        # Doxygen XML, then rewrite cpp/tests/api/api_snapshot/public_api.txt
    git diff cpp/tests/api/api_snapshot/public_api.txt
    ```
+
+   (`ci/docs.sh --doxygen-only` checks the baseline and fails while the API differs, so it
+   cannot be chained with `&&` to `ci/api_snapshot.py --update`.)
 
 A pull request whose baseline diff has no `api-change` label and no CHANGELOG entry is not
 merged. The `api-check.yml` workflow of M5 adds the label check and `griffe` for the Python API;
