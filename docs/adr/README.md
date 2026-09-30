@@ -27,6 +27,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0022](0022-conformance-kit-registry-and-scaffold.md) | The conformance kit, the algorithm registry and the scaffold (registry-driven kit, C8's reservations and container work, the scope of new_algorithm.py) | Accepted under delegation (2026-09-29) |
 | [0023](0023-api-review-and-freeze-0-1.md) | The 0.1 API review and freeze (the review's findings and fixes, `@guarantee`, the committed public-API listing and its check) | Accepted under delegation (2026-09-29) |
 | [0024](0024-reading-a-refactor-against-earlier-dyng.md) | Reading a refactor against an earlier dynG build (rounds over heap layouts, bimodal regions read mode by mode) | Accepted under delegation (2026-09-30) |
+| [0025](0025-cli-and-distributions.md) | The command line as a Python console script (generated flags, `dyng prep` with mospPrep's syntax, the originals' output formats), and the build of the distributions (cibuildwheel in CI, the local manylinux_2_28 build, `release.yml` for v0.1.0+) | Accepted under delegation (2026-09-30) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

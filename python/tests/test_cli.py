@@ -613,3 +613,30 @@ def test_convert_round_trips(
     (tmp_path / "u.txt").write_text("0 1\n1 2\n")
     status, _, err = run(capsys, "convert", tmp_path / "u.txt", f"{tmp_path}/x_", "--to", "csr")
     assert status == 2 and "needs weights" in err
+
+
+def test_every_flag_is_documented() -> None:
+    """docs/api/cli.md mentions every flag of every command (the reference stays complete)."""
+    doc = Path(__file__).resolve().parents[2] / "docs" / "api" / "cli.md"
+    if not doc.is_file():
+        pytest.skip("docs/api/cli.md is not in this tree")
+    text = doc.read_text()
+
+    def walk(parser: object) -> set[str]:
+        out = set()
+        for a in parser._actions:  # type: ignore[attr-defined]
+            out |= {s for s in a.option_strings if s not in ("-h", "--help")}
+            for sub in getattr(a, "choices", None) or {}:
+                if a.__class__.__name__ == "_SubParsersAction":
+                    out |= walk(a.choices[sub])
+        return out
+
+    import re
+
+    def documented(flag: str) -> bool:
+        if flag.startswith("--no-"):  # the negative form of a boolean flag
+            flag = "--" + flag[len("--no-") :]
+        return re.search(rf"(?<![\w-]){re.escape(flag)}(?![\w-])", text) is not None
+
+    missing = sorted(f for f in walk(build_parser()) if not documented(f))
+    assert not missing, f"flags missing from docs/api/cli.md: {missing}"

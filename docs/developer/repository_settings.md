@@ -115,9 +115,13 @@ Settings → sidebar **Actions** → **General**:
 
    ```text
    pypa/gh-action-pypi-publish@*,
+   pypa/cibuildwheel@*,
    crazy-max/ghaction-github-labeler@*,
    mamba-org/setup-micromamba@*
    ```
+
+   (`pypa/cibuildwheel` is new in M5, for `wheels.yml`; **to add** to the setting before the M5
+   pull request runs, or `wheels.yml` fails at its first step.)
 
    and tick **Require actions to be pinned to a full-length commit SHA** (every workflow in
    `.github/workflows/` already is; dependabot keeps the pins current). **Save**.
@@ -236,9 +240,11 @@ Required checks (the job names as they appear in a pull request's checks list):
 | `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF` |
 | `cuda-build.yml` | `CUDA 13.1.1 (ci-cuda13)`, `CUDA 13.4.1 (ci-cuda13)`, `CUDA 12.9.2 (ci-cuda12)` (the job `compile`, named `CUDA <toolkit> (<preset>)` per matrix entry; compile-only, no GPU) |
 | `docs.yml` | `site` (not `external-links`, which runs only weekly and on demand) |
+| `python.yml` (M5; **to add** once it has run on the M5 pull request) | `Editable install, stubs, pytest`, `From the sdist (Python 3.12)`, `From the sdist (Python 3.13)` |
 | DCO app | `DCO` (not required yet; step 7) |
 
-Do **not** require checks of workflows that run only for some files (`labels.yml`), only on
+Do **not** require checks of workflows that run only for some files (`labels.yml`, and
+`wheels.yml`, which runs on pull requests only when they touch the packaging), only on
 tags (`release.yml`), only on some events (`welcome.yml`, the first-interaction greeting) or
 only on a schedule (the `external-links` job of `docs.yml`): a required check that never runs
 blocks every pull request. When a

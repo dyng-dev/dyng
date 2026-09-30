@@ -75,3 +75,23 @@ workers; the result does not depend on the count). Errors are `io_error` with th
 line of the first malformed row in file order.
 
 The writer writes `src dst [w1..wK]` per edge, 0-based.
+
+## Text batches of the command line (`dyng cycle_count update --batch`, `dyng generate cycle_enum_batch`)
+
+One change per line: `- u v` for a deletion, `+ u v [w1 .. wK]` for an insertion (without
+weights into a weighted graph, the weight 1 in every column), in graph ids; blank lines and lines
+starting with `#` are skipped. `dyng generate cycle_enum_batch` writes the deletions first, then
+the insertions, each sorted by (source, destination): the text of CycleEnumeration-GPU's batch
+generator (the goldens of `parity/cycle_count_goldens.py` and `dyng-compat-cycle-enum
+--write-batch`). This is a command-line format of 0.1, read by the Python package only; the
+versioned batch format of the library is `.dgt` (PLAN Section 5.7, not in 0.1).
+
+## MOSP's binary graph cache (`dyng prep cache`)
+
+The file `mosp --cache` reads (MOSP's `saveCsrGraphBinary()`, format version 2), little-endian:
+the magic `MOSPCSR2`; a uint32 length L and L bytes of source identity (for each of
+`<prefix>RowPtr.txt`, `ColInd.txt`, `Values.txt`: its canonical path, its size and its
+modification time as libstdc++'s `file_time_type` counts it, nanoseconds since 2174-01-01, each
+followed by a newline); int32 n and K; int64 m; then n + 1 int32 row offsets, m int32 column
+indices and m * K int32 weights, edge-major. `dyng prep cache` writes the same bytes as
+`mospPrep cache`. The versioned cache of dynG is `.dgc` (PLAN Section 5.7, not in 0.1).

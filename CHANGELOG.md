@@ -34,6 +34,23 @@ Before 0.1.0 anything may change.
   against pure-Python Dijkstra and brute-force cycle oracles), and Python-level parity with the
   committed goldens of MOSP-OpenMP (byte-identical files) and CycleEnumeration-GPU (identical
   histograms). `environment.yml` pins nanobind, scikit-build-core and Hypothesis.
+- The `dyng` command line (M5, PLAN Section 5.6; ADR 0025), a console script of the Python
+  package (also `python -m dyng`): `dyng sssp compute|update` (MOSP's distance and tree files,
+  byte-identical to `mospPrep init` and `mosp`), `dyng cycle_count compute|update`
+  (CycleEnumeration-GPU's histogram CSV), `dyng prep mtx2csr|widen|cache|changes|init|expected`
+  (the `mospPrep` subcommands with their arguments and outputs, the binary cache included),
+  `dyng convert` (MOSP CSR, Matrix Market, edge lists) and `dyng generate mosp_changes|cycle_enum_batch`.
+  Option flags are the option fields in kebab case (`--max-length`). Reference:
+  `docs/api/cli.md`; tests against the originals' fixtures in `python/tests/test_cli.py`.
+- The distributions (M5, PLAN Section 7.7; ADR 0025): `[tool.cibuildwheel]` and
+  `.github/workflows/wheels.yml` (the sdist and the manylinux_2_28 x86_64 abi3 CPU wheel with
+  libgomp bundled, a pytest subset in the built wheel under 3.12 and 3.13, install tests of the
+  wheel alone, artifacts), `.github/workflows/python.yml` (editable install, stubs, pytest; the
+  suite against an installed sdist on 3.12 and 3.13), `ci/wheel_check.py` (the 90 MB budget,
+  tags, contents), and the local build `ci/wheels.sh` / `ci/check.sh --wheels`
+  (`docs/developer/wheels.md`). `release.yml` builds the real distributions for tags v0.1.0 and
+  later through `wheels.yml` (TestPyPI first, PyPI for final versions after the author's
+  approval); v0.0.1 still builds the name reservation. Nothing has been published.
 - Framework (M3, internal-stable): the update template as code in `cpp/src/framework/`:
   `problem_base` (CRTP hooks with no-op defaults, families `fixed_point` and `aggregate_delta`),
   `update_enactor` and `static_enactor` (the fixed hook order, one profiler stage per implemented
