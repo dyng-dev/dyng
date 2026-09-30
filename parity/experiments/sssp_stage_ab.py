@@ -82,6 +82,7 @@ def main() -> int:
         json.dumps(
             {"a": args.a, "b": args.b, "graph": args.graph, "batch": args.batch, "rounds": rounds}
         )  # fmt: skip
+        + "\n"
     )
     objectives = len(rounds["A"][0]["sssp.loop"])
     for o in range(objectives):
