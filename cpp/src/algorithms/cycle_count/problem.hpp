@@ -825,10 +825,14 @@ class cycle_count_problem final
   std::int64_t bound_before_ = 2;                 ///< the histogram bound of G_t
   std::int64_t bound_after_ = 2;                  ///< the histogram bound of G_{t+1}
   std::int64_t device_length_ = 2;                ///< cuda: the bound of the device phases
-  const normalized_batch<vertex_t>* normalized_ = nullptr;   ///< the framework's Step 0, if any
-  const std::uint32_t* device_changes_ = nullptr;            ///< cuda: the change lists (pairs)
-  cycle_device_graph<edge_t> device_graph_;                  ///< cuda compute(): the graph
-  std::optional<workspace_pool::lease<workspace_type>> ws_;  ///< the host scratch
+  const normalized_batch<vertex_t>* normalized_ = nullptr;  ///< the framework's Step 0, if any
+  /// cuda under as_sets: the engine reads the framework's lists (no copy in the workspace).
+  bool lists_shared_ = false;
+  std::size_t deletions_ = 0;                      ///< the length of the normalized deletion list
+  std::size_t insertions_ = 0;                     ///< the length of the normalized insertion list
+  const std::uint32_t* device_changes_ = nullptr;  ///< cuda: the change lists (pairs)
+  cycle_device_graph<edge_t> device_graph_;        ///< cuda compute(): the graph
+  std::optional<workspace_pool::lease<workspace_type>> ws_;            ///< the host scratch
   std::optional<workspace_pool::lease<cuda_workspace_type>> cuda_ws_;  ///< the device scratch
 };
 

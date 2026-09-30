@@ -257,17 +257,19 @@ void copy_changes(const std::vector<set_change<vertex_t>>& from,
 }
 
 /// Under batch_semantics::as_sets the commit's normalized batch (apply_delta) must equal the lists
-/// of Step 0 (Debug builds only: an O(batch) check of the graph module's two paths).
+/// of Step 0 (Debug builds only: an O(batch) check of the graph module's two paths): the
+/// workspace's copy, or on cuda (which reads the framework's lists, not a copy) the framework's.
 template <typename vertex_t, typename edge_t, typename weight_t>
 void check_normalized_batch([[maybe_unused]] const graph<vertex_t, edge_t, weight_t>& g,
                             [[maybe_unused]] const apply_delta<vertex_t>& delta,
-                            [[maybe_unused]] const cycle_count_workspace<vertex_t>& ws) {
+                            [[maybe_unused]] const cycle_count_workspace<vertex_t>& ws,
+                            [[maybe_unused]] const normalized_batch<vertex_t>* shared) {
 #ifndef NDEBUG
   if (!g.properties().semantics.as_sets) {
     return;
   }
-  const auto same = [](const std::vector<edge_change<vertex_t>>& list,
-                       const std::vector<vertex_t>& src, const std::vector<vertex_t>& dst) {
+  const auto same = [](const auto& list, const std::vector<vertex_t>& src,
+                       const std::vector<vertex_t>& dst) {
     if (list.size() != src.size() || list.size() != dst.size()) {
       return false;
     }
@@ -278,8 +280,12 @@ void check_normalized_batch([[maybe_unused]] const graph<vertex_t, edge_t, weigh
     }
     return true;
   };
-  if (!same(ws.change.deletions, delta.delete_src, delta.delete_dst) ||
-      !same(ws.change.insertions, delta.insert_src, delta.insert_dst)) {
+  const bool equal = shared != nullptr
+                         ? same(shared->deletions, delta.delete_src, delta.delete_dst) &&
+                               same(shared->insertions, delta.insert_src, delta.insert_dst)
+                         : same(ws.change.deletions, delta.delete_src, delta.delete_dst) &&
+                               same(ws.change.insertions, delta.insert_src, delta.insert_dst);
+  if (!equal) {
     DYNG_FAIL("cycle_count::update: the normalized batch of Step 0 differs from the commit's");
   }
 #endif
@@ -368,14 +374,31 @@ void cycle_count_problem<vertex_t, edge_t, weight_t>::normalize(framework::conte
   workspace_type& ws = ws_->get();
   const container_type& graph = g.get();
   normalized_ = batch.normalized;
+  lists_shared_ = false;
   if (normalized_ != nullptr) {
-    // Normalized once by the framework (run_update(), stage <algo>.normalize; ADR 0020): its lists
-    // become the engines' change lists.
-    copy_changes(normalized_->deletions, ws.change.deletions);
-    copy_changes(normalized_->insertions, ws.change.insertions);
+    // Normalized once by the framework (run_update(), stage <algo>.normalize; ADR 0020). The
+    // device engine reads the framework's device copy of these lists (upload_normalized_batch,
+    // shared with the device apply) and only their lengths on the host, so on cuda the lists are
+    // not copied; the host engines read them as the workspace's change lists.
+    if constexpr (sizeof(vertex_t) == 4) {
+      lists_shared_ = cuda_;
+    }
+    if (lists_shared_) {
+      ws.change.deletions.clear();
+      ws.change.insertions.clear();
+      deletions_ = normalized_->deletions.size();
+      insertions_ = normalized_->insertions.size();
+    } else {
+      copy_changes(normalized_->deletions, ws.change.deletions);
+      copy_changes(normalized_->insertions, ws.change.insertions);
+    }
   } else {
     compute_structural_change(graph_access::out_view(graph), batch.edges, graph.properties(),
                               ws.change);
+  }
+  if (!lists_shared_) {
+    deletions_ = ws.change.deletions.size();
+    insertions_ = ws.change.insertions.size();
   }
   if (cuda_) {
     // The effective bound after the batch, with every vertex the batch may add (the original's
@@ -420,7 +443,7 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 void cycle_count_problem<vertex_t, edge_t, weight_t>::resume(framework::context& /*ctx*/,
                                                              new_graph g, const applied& applied) {
   const container_type& graph = g.get();
-  check_normalized_batch(graph, applied.delta, ws_->get());
+  check_normalized_batch(graph, applied.delta, ws_->get(), lists_shared_ ? normalized_ : nullptr);
   bound_after_ = histogram_bound(state_->opt, graph);
 }
 
@@ -476,12 +499,10 @@ void cycle_count_problem<vertex_t, edge_t, weight_t>::finalize(framework::contex
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void cycle_count_problem<vertex_t, edge_t, weight_t>::fill_counts(stats_type& stats) const {
-  const workspace_type& ws = ws_->get();
   stats.iterations = 0;
-  stats.frontier_visits =
-      static_cast<std::int64_t>(ws.change.deletions.size() + ws.change.insertions.size());
-  stats.deletions = static_cast<std::int64_t>(ws.change.deletions.size());
-  stats.insertions = static_cast<std::int64_t>(ws.change.insertions.size());
+  stats.frontier_visits = static_cast<std::int64_t>(deletions_ + insertions_);
+  stats.deletions = static_cast<std::int64_t>(deletions_);
+  stats.insertions = static_cast<std::int64_t>(insertions_);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -549,8 +570,8 @@ void cycle_count_problem<vertex_t, edge_t, weight_t>::count_minus_cuda(
   cuda_ws_.emplace(ctx.workspaces().acquire<cuda_workspace_type>(res));
   cuda_workspace_type& cws = cuda_ws_->get();
   constexpr std::int64_t id_limit = no_change_id;
-  if (static_cast<std::int64_t>(ws.change.deletions.size()) >= id_limit ||
-      static_cast<std::int64_t>(ws.change.insertions.size()) >= id_limit) {
+  if (static_cast<std::int64_t>(deletions_) >= id_limit ||
+      static_cast<std::int64_t>(insertions_) >= id_limit) {
     // A size limit of the backend, not a malformed batch (PLAN 4.7.3); nothing is changed yet.
     throw capacity_error(
         "dyng: cycle_count::update: the batch exceeds the 32-bit change ids of the cuda "
@@ -573,8 +594,7 @@ void cycle_count_problem<vertex_t, edge_t, weight_t>::count_minus_cuda(
     }
   }
   cycle_count_cuda_phase(res, device_engine_graph(d), owner, device_changes_,
-                         static_cast<std::uint32_t>(ws.change.deletions.size()), device_length_, 0,
-                         cws);
+                         static_cast<std::uint32_t>(deletions_), device_length_, 0, cws);
 #else
   throw not_supported_error("dyng: cycle_count::update: the cuda backend is not built");
 #endif
@@ -598,11 +618,10 @@ void cycle_count_problem<vertex_t, edge_t, weight_t>::enact_fused(
   cycle_count_hook(res, "cycle_count.count_plus", [&] {
     const bool merged = d->insertion_ids.size() >= static_cast<std::size_t>(d->num_edges) &&
                         !d->insertion_ids.empty() && normalized_ != nullptr;
-    const std::uint32_t* insertions =
-        device_changes_ + 2 * static_cast<std::size_t>(ws.change.deletions.size());
+    const std::uint32_t* insertions = device_changes_ + 2 * deletions_;
     cycle_count_cuda_phase(res, device_engine_graph(*d), merged ? d->insertion_ids.data() : nullptr,
-                           insertions, static_cast<std::uint32_t>(ws.change.insertions.size()),
-                           device_length_, 1, cws);
+                           insertions, static_cast<std::uint32_t>(insertions_), device_length_, 1,
+                           cws);
     cycle_count_cuda_end_update(res, device_length_, cws, ws.removed, ws.added);
     // Lengths past the bound after the batch hold no cycle (a simple cycle has at most n
     // vertices); the device bound may be larger when the batch names vertices it does not add.
