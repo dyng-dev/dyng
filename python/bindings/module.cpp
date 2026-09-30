@@ -22,8 +22,8 @@ std::string suffixed(const char* base, std::initializer_list<const char*> codes,
   return out;
 }
 
-std::shared_mutex& native_call_mutex() {
-  static std::shared_mutex m;
+call_gate& native_call_mutex() {
+  static call_gate m;
   return m;
 }
 

@@ -135,7 +135,8 @@ def profile(
 
     Every copy of the handle records into it (graphs remember their resources, so pass the
     graph's: ``dyng.profile(g.resources)``). The previous profiler, if any, is attached again on
-    exit.
+    exit. Attaching and detaching wait until no native call is running in any thread, so a call
+    that runs while another thread enters or leaves the block records wholly into one profiler.
 
     Args:
         resources: Default: the default resources.

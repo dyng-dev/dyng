@@ -60,6 +60,11 @@ class Resources:
     ``dyng::resources``). Pickling, for another process, rebuilds equal resources (backend,
     threads, device, copy policy) with a handle of their own.
 
+    **Threads.** One Resources may be used by several Python threads at once. Setting
+    :attr:`copy_policy` and entering or leaving :func:`dyng.profile` wait until no native call
+    is running (in any thread), so they never change the handle under a running call; every
+    other operation runs concurrently.
+
     Args:
         backend: ``"sequential"``, ``"openmp"``, ``"cuda"``, or None for the default backend
             (CUDA if available, else OpenMP, else sequential).

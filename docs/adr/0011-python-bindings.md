@@ -73,7 +73,12 @@ records the decisions taken while binding them.
    thread-safe: every graph and result holder has a reader/writer lock (exclusive for `apply` and
    the updates, shared otherwise; taken in address order after the GIL is released), and every
    native call holds a process-wide lock in shared mode that reading a profiler's records takes
-   exclusively (ADR 0023 note 5: the records are copied while no call can be recording). Two
+   exclusively (ADR 0023 note 5: the records are copied while no call can be recording).
+   *Amended in the M5 review:* attaching a profiler (`dyng.profile()`) and setting
+   `Resources.copy_policy` take it exclusively too, because both are plain fields of the shared
+   handle that every call reads (`resources.hpp`: "during setup, not while another thread uses
+   the handle"); the lock prefers writers, so these waits end even while other threads keep
+   calling. Two
    Python threads updating one graph are therefore serialized: each call sees the state the
    previous one left (a result that the other thread's call did not update is then stale and
    raises `StaleResultError`, the library's normal contract).

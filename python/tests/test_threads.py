@@ -123,3 +123,37 @@ def test_reading_arrays_while_another_thread_updates() -> None:
         t.join()
     assert not bad, bad
     assert tree.distances.to_numpy().tolist() == list(range(size))
+
+
+def test_profile_and_copy_policy_while_other_threads_compute() -> None:
+    # Attaching a profiler and setting the copy policy of a handle wait for running calls
+    # (they are plain fields of the shared handle that every call reads).
+    res = dyng.Resources.openmp(2)
+    src = np.arange(2_000)
+    g = dyng.Graph.from_edges(src, src + 1, np.ones(2_000, np.int32), resources=res)
+    done = threading.Event()
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            while not done.is_set():
+                dyng.sssp.compute(g, 0)
+        except BaseException as e:  # pragma: no cover - reported below
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker) for _ in range(3)]
+    for t in threads:
+        t.start()
+    try:
+        for i in range(50):
+            with dyng.profile(res) as p:
+                dyng.sssp.compute(g, 0)
+            assert p.total_host_ms("sssp.compute") >= 0.0
+            res.copy_policy = "warn" if i % 2 else "allow"
+            assert res.copy_policy in ("warn", "allow")
+    finally:
+        done.set()
+        for t in threads:
+            t.join()
+    assert not errors, errors
+    assert not res._native.has_profiler()

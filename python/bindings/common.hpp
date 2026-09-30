@@ -13,9 +13,10 @@
  * (PLAN Section 5.4 rule 3). Two locks then keep concurrent Python threads memory-safe:
  *   - every container and result holder has a reader/writer lock: calls that only read it share
  *     it, calls that change it (apply, update) take it exclusively;
- *   - every native call holds a process-wide lock in shared mode; reading a profiler's records
- *     takes it exclusively, so the records are never read while a call may write them (ADR 0023,
- *     note 5).
+ *   - every native call holds a process-wide lock (call_gate, writer-preferring) in shared mode;
+ *     reading a profiler's records, attaching a profiler and changing a handle's copy policy take
+ *     it exclusively (while_idle), so the records are never read while a call may write them
+ *     (ADR 0023, note 5) and the shared handle's fields never change under a running call.
  * Locks are always taken after the GIL is released and released before it is taken back, so a
  * thread waiting for a lock never holds the GIL.
  *
@@ -35,6 +36,7 @@
 #include <nanobind/ndarray.h>
 
 #include <atomic>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -201,11 +203,69 @@ class result_holder {
 };
 
 /**
- * @brief The process-wide lock of native calls (shared by every call, exclusive for reading a
- *        profiler's records).
+ * @brief A reader/writer lock that prefers writers: once a thread waits for exclusive ownership,
+ *        new shared owners wait behind it.
+ *
+ * The native-call lock needs this: every native call holds it shared, and with a
+ * reader-preferring lock (glibc's std::shared_mutex) a thread waiting to read a profiler's
+ * records or to attach one would wait forever while other threads keep calling. Shared owners
+ * never take it again while they hold it (native calls do not nest), so the preference cannot
+ * deadlock. Meets the SharedMutex requirements used by std::shared_lock and std::unique_lock.
+ */
+class call_gate {
+ public:
+  call_gate() = default;                            ///< unlocked
+  call_gate(const call_gate&) = delete;             ///< not copyable
+  call_gate& operator=(const call_gate&) = delete;  ///< not copyable
+  call_gate(call_gate&&) = delete;                  ///< not movable
+  call_gate& operator=(call_gate&&) = delete;       ///< not movable
+  ~call_gate() = default;                           ///< must be unlocked
+
+  /// @brief Take shared ownership (waits while a writer holds or waits for the lock).
+  void lock_shared() {
+    std::unique_lock<std::mutex> l(mutex_);
+    changed_.wait(l, [this] { return !writer_ && waiting_writers_ == 0; });
+    ++readers_;
+  }
+
+  /// @brief Release shared ownership.
+  void unlock_shared() {
+    std::lock_guard<std::mutex> l(mutex_);
+    if (--readers_ == 0) {
+      changed_.notify_all();
+    }
+  }
+
+  /// @brief Take exclusive ownership (waits for the shared owners to finish).
+  void lock() {
+    std::unique_lock<std::mutex> l(mutex_);
+    ++waiting_writers_;
+    changed_.wait(l, [this] { return !writer_ && readers_ == 0; });
+    --waiting_writers_;
+    writer_ = true;
+  }
+
+  /// @brief Release exclusive ownership.
+  void unlock() {
+    std::lock_guard<std::mutex> l(mutex_);
+    writer_ = false;
+    changed_.notify_all();
+  }
+
+ private:
+  std::mutex mutex_;
+  std::condition_variable changed_;
+  std::size_t readers_ = 0;
+  std::size_t waiting_writers_ = 0;
+  bool writer_ = false;
+};
+
+/**
+ * @brief The process-wide lock of native calls (shared by every call; exclusive for reading a
+ *        profiler's records, attaching a profiler and changing a handle's copy policy).
  * @return The lock.
  */
-std::shared_mutex& native_call_mutex();
+call_gate& native_call_mutex();
 
 /**
  * @brief Run `f` without the GIL, holding the native-call lock in shared mode.
@@ -218,7 +278,7 @@ std::shared_mutex& native_call_mutex();
 template <typename function_t>
 decltype(auto) without_gil(function_t&& f) {
   nb::gil_scoped_release release;
-  std::shared_lock<std::shared_mutex> call_lock(native_call_mutex());
+  std::shared_lock<call_gate> call_lock(native_call_mutex());
   return std::forward<function_t>(f)();
 }
 
@@ -233,7 +293,7 @@ decltype(auto) without_gil(function_t&& f) {
 template <typename function_t>
 decltype(auto) while_idle(function_t&& f) {
   nb::gil_scoped_release release;
-  std::unique_lock<std::shared_mutex> lock(native_call_mutex());
+  std::unique_lock<call_gate> lock(native_call_mutex());
   return std::forward<function_t>(f)();
 }
 

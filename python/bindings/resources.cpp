@@ -92,18 +92,29 @@ void bind_resources(nb::module_& m) {
           [](const resources& r) { return reinterpret_cast<std::uintptr_t>(r.stream().get()); })
       .def_prop_ro("num_threads", &resources::num_threads)
       .def_prop_ro("default_space", &resources::default_space)
-      .def_prop_rw("copy_policy", &resources::get_copy_policy, &resources::set_copy_policy)
+      // The copy policy and the attached profiler are plain fields of the shared handle state,
+      // read by every native call (C++: "during setup, not while another thread uses the
+      // handle"). They are changed while no native call runs (while_idle) and read under the
+      // shared native-call lock, so a Python thread entering dyng.profile() or setting the policy
+      // never races with another thread's call.
+      .def_prop_rw(
+          "copy_policy",
+          [](const resources& r) { return without_gil([&] { return r.get_copy_policy(); }); },
+          [](resources& r, copy_policy p) { while_idle([&] { r.set_copy_policy(p); }); })
       .def_prop_ro("workspace_bytes", &resources::workspace_bytes)
       .def("release_workspaces",
            [](const resources& r) { without_gil([&] { r.release_workspaces(); }); })
       .def("warm_up", [](const resources& r) { without_gil([&] { r.warm_up(); }); })
       .def("synchronize", [](const resources& r) { without_gil([&] { r.synchronize(); }); })
       .def(
-          "attach_profiler", [](resources& r, profiler* p) { r.attach_profiler(p); },
+          "attach_profiler",
+          [](resources& r, profiler* p) { while_idle([&] { r.attach_profiler(p); }); },
           nb::arg("profiler").none(), nb::keep_alive<1, 2>(),
           "Attach a profiler to the handle (None detaches); the profiler is kept alive by this "
           "object.")
-      .def("has_profiler", [](const resources& r) { return r.get_profiler() != nullptr; });
+      .def("has_profiler", [](const resources& r) {
+        return without_gil([&] { return r.get_profiler() != nullptr; });
+      });
 
   m.attr("__version__") = DYNG_VERSION_STRING;
   m.def(
