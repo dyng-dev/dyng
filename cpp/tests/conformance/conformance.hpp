@@ -76,7 +76,7 @@
 namespace dyng::conformance {
 
 /// The registered algorithms built into this test binary (their test_traits are defined).
-using registered_algorithms = typename filter<manifest_algorithms, has_traits>::type;
+using registered_algorithms = typename filter<manifest_algorithms, has_test_traits>::type;
 
 /// One typed case of the suite: an algorithm on one of its graph types.
 template <typename tag_t, typename graph_t>

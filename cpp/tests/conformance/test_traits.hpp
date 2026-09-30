@@ -84,4 +84,10 @@ struct has_traits : std::false_type {};
 template <typename tag_t>
 struct has_traits<tag_t, std::void_t<decltype(sizeof(test_traits<tag_t>))>> : std::true_type {};
 
+/// The one-parameter form of has_traits, for template template parameters such as filter's
+/// predicate. Clang < 19 does not apply C++17's relaxed template template matching (P0522) by
+/// default, so has_traits itself (with its defaulted SFINAE parameter) is not accepted there.
+template <typename tag_t>
+using has_test_traits = has_traits<tag_t>;
+
 }  // namespace dyng::conformance

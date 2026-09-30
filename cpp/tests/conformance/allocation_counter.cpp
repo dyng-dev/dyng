@@ -51,7 +51,9 @@ void* counted(std::size_t size, std::size_t alignment) {
       void* frames[32];
       const int depth = ::backtrace(frames, 32);
       ::backtrace_symbols_fd(frames, depth, STDERR_FILENO);
-      static_cast<void>(::write(STDERR_FILENO, "----\n", 5));
+      // A named result: GCC with _FORTIFY_SOURCE (Ubuntu's default in optimized builds) warns
+      // about write()'s unused result even through a cast to void.
+      [[maybe_unused]] const ssize_t written = ::write(STDERR_FILENO, "----\n", 5);
       counting.store(true);
     }
 #endif
