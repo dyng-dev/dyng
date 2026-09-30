@@ -115,7 +115,8 @@ dist = (0, 3, 1, 4) with 1 reached through 2. The batch deletes 2 -> 1 and inser
 The worked example: the shortest-path tree before the batch (left) and after `update()` (right).
 Deleting the tree edge 2 -> 1 invalidates the subtree {1, 3}; seeding repairs vertex 1 through
 0 and vertex 3 through the inserted edge 2 -> 3. `d` is the distance, `p` the parent. This is
-the program of {doc}`../getting_started/first_update_cpp`.
+the program of {doc}`../getting_started/first_update_cpp` and
+{doc}`../getting_started/first_update_python`.
 ```
 
 1. Step 0 validates both changes; the commit applies them.
@@ -125,6 +126,16 @@ the program of {doc}`../getting_started/first_update_cpp`.
    2 through vertex 2 (the insertion head is seeded too).
 4. loop: no further decrease; the frontier is empty.
 5. finalize: dist = (0, 4, 1, 2), parents = (-1, 0, 0, 2), and `stats.invalidated == 2`.
+
+The profiler shows these steps as stages; in Python:
+
+```python
+with dyng.profile(g.resources) as prof:
+    st = dyng.sssp.update(g, batch, tree)
+print([s.name for s in prof.stages])
+# ['sssp.update', 'sssp.prepare', 'sssp.commit', 'graph.apply', 'graph.transpose',
+#  'sssp.workspace', 'sssp.identify_affected', 'sssp.seed', 'sssp.loop', 'sssp.finalize']
+```
 
 The answers to the four challenges: (1) subtree invalidation below changed tree edges; (2) only
 vertices whose distance decreased are expanded, and distances only decrease after the

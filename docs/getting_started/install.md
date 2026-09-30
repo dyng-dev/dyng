@@ -1,5 +1,8 @@
 # Install
 
+Python users need only `pip install dyng` (section [Python](#python) below). The rest of the
+page builds the C++ library from source, with or without CUDA, and uses it from CMake.
+
 ## Requirements
 
 | Tool | Version |
@@ -8,6 +11,7 @@
 | C++ compiler | GCC 11 or newer, or Clang 15 or newer (CI builds with GCC 12/13 and Clang 17/18) |
 | CMake | 3.30 or newer, and Ninja |
 | OpenMP | optional; enables the `openmp` backend |
+| Python | 3.12 or newer, for the Python package (NumPy >= 1.26) |
 | CUDA | optional; the toolkit 12.4 or newer builds the `cuda` backend, which runs on an NVIDIA GPU of compute capability 7.5 (Turing) or newer |
 
 The conda environment in `environment.yml` provides CMake, Ninja, the formatters, Doxygen and
@@ -83,5 +87,35 @@ namespace `dyng`, and `#include <dyng/dyng.hpp>` includes the whole public API
 
 ## Python
 
-Planned for 0.1: `pip install dyng` (CPU backends), and CUDA plugin wheels
-(`pip install "dyng[cu13]"`) in 0.1.x. The `dyng` 0.0.1 package on PyPI only reserves the name.
+The Python package `dyng` is one wheel for CPython 3.12 and newer on Linux x86-64 (abi3,
+manylinux_2_28; OpenMP's runtime is bundled). It contains the sequential and OpenMP backends and
+the `dyng` command line ({doc}`../api/cli`); NumPy is its only dependency.
+
+```bash
+pip install dyng                   # from PyPI once 0.1.0 is published
+python -c "import dyng; dyng.show_config()"
+```
+
+Until 0.1.0 is on PyPI, build the same package from a clone (it compiles the C++ core, so it
+needs CMake >= 3.30, Ninja and a C++17 compiler, for example from the `dyng-dev` environment):
+
+```bash
+pip install .                      # the wheel of this checkout
+python -m build                    # or: the sdist and the wheel into dist/
+```
+
+For development, an editable install rebuilds the extension when `dyng` is imported after a C++
+change:
+
+```bash
+source scripts/dev_env.sh
+pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build
+ci/python.sh                       # the editable install, the stubs check, pytest
+```
+
+`dyng.show_config()` prints the backends of the active native module; `dyng.Resources("cuda")`
+raises `NotSupportedError` in the CPU wheel. The CUDA backends come as plugin wheels in 0.1.x
+(`pip install "dyng[cu13]"`, PLAN Section 7.7); until then, use CUDA from C++. The PyPI version
+0.0.1 is only the name reservation and contains no library. {doc}`first_update_python` runs a
+first update; the local build of the release wheels is described in
+{doc}`../developer/wheels`.
