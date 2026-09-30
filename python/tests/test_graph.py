@@ -189,3 +189,17 @@ def test_semantics_errors() -> None:
 
 def test_capacity_error_is_memory_error() -> None:
     assert issubclass(dyng.CapacityError, MemoryError)
+
+
+def test_buffer_protocol_inputs_declare_their_dtype() -> None:
+    import array
+
+    wide = dyng.Graph.from_edges(array.array("q", [0, 1]), array.array("q", [1, 2]), [1, 1])
+    assert wide.vertex_dtype == np.int64  # int64 buffers never select int32 ids on their own
+    view = dyng.Graph.from_edges(
+        memoryview(array.array("q", [0, 1])), memoryview(array.array("q", [1, 2])), [1, 1]
+    )
+    assert view.vertex_dtype == np.int64
+    narrow = dyng.Graph.from_edges(array.array("i", [0, 1]), array.array("i", [1, 2]), [1, 1])
+    assert narrow.vertex_dtype == np.int32
+    assert dyng.Graph.from_edges([0, 1], [1, 2], [1, 1]).vertex_dtype == np.int32  # lists

@@ -6,13 +6,14 @@ The compiled library holds five graph types (PLAN Section 4.4.3): ``(vertex, edg
 weight)`` = ``(int32, int32, int32)``, ``(int32, int64, int32)``, ``(int64, int64, int32)``,
 ``(int32, int32, unweighted)`` and ``(int32, int64, unweighted)``.
 
-The rules (ADR 0025):
+The rules (ADR 0011, item 3):
 
 - The vertex id type comes from the declared dtype of the id arrays: int32 selects int32 and
   int64 selects int64; narrower integer types (int8, int16, uint8, uint16) are widened to int32
   and uint32 to int64. An int64 array is **never narrowed** to int32 on its own: pass
-  ``vertex_dtype="int32"`` to ask for it, and every value is then checked. Inputs without a dtype
-  (Python lists, ranges) take int32 when every value fits, else int64.
+  ``vertex_dtype="int32"`` to ask for it, and every value is then checked. Objects with the
+  buffer protocol (``array.array``, ``memoryview``) declare their element format the same way.
+  Inputs without a dtype (Python lists, ranges) take int32 when every value fits, else int64.
 - Where an instantiation is already chosen (a batch or a tree for an existing graph), ids are
   converted to the graph's type with a range check: a value that does not fit raises
   :class:`~dyng.InvalidArgumentError` instead of wrapping.
@@ -115,10 +116,18 @@ def id_dtype(name: Any, what: str) -> np.dtype:
 
 
 def _declared_dtype(x: Any) -> np.dtype | None:
-    """The dtype an input declares (NumPy, and anything with a NumPy-compatible dtype)."""
+    """The dtype an input declares: its ``dtype`` (NumPy, and anything with a NumPy-compatible
+    dtype), or the element format of an object with the buffer protocol (``array.array``,
+    ``memoryview``); None for Python sequences, which declare nothing."""
     dt = getattr(x, "dtype", None)
     if dt is None:
-        return None
+        if isinstance(x, list | tuple | range):
+            return None
+        try:
+            view = memoryview(x)
+        except TypeError:
+            return None
+        return np.asarray(view).dtype
     try:
         return np.dtype(dt)
     except TypeError:
