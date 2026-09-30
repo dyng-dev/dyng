@@ -198,8 +198,12 @@ def checked_cast(a: np.ndarray, dtype: np.dtype, what: str) -> np.ndarray:
     return np.ascontiguousarray(a, dtype=dtype)
 
 
-def weights_matrix(w: Any, count: int, what: str) -> np.ndarray:
-    """Weights as a C-contiguous int32 matrix of shape (count, K) (1-D input: K = 1)."""
+def weights_view(w: Any, count: int, what: str) -> np.ndarray:
+    """Weights as a matrix of shape (count, K) (1-D input: K = 1), without converting them.
+
+    Checks the shape and that the values are integers; the conversion to int32 (with a range
+    check) is :func:`weights_matrix`. For NumPy input the result views the caller's array.
+    """
     a = np.asarray(w) if not isinstance(w, np.ndarray) else w
     if a.ndim == 1:
         a = a.reshape(-1, 1)
@@ -208,8 +212,14 @@ def weights_matrix(w: Any, count: int, what: str) -> np.ndarray:
             f"{what}: expected {count} weights (shape ({count},) or ({count}, K)), got shape "
             f"{a.shape}"
         )
-    if a.dtype.kind == "f" and a.size:
+    if a.size and (a.dtype.kind == "b" or a.dtype.kind not in "iu"):
         raise InvalidArgumentError(
             f"{what}: weights must be integers (int32 in 0.1), got dtype {a.dtype.name}"
         )
+    return a
+
+
+def weights_matrix(w: Any, count: int, what: str) -> np.ndarray:
+    """Weights as a C-contiguous int32 matrix of shape (count, K) (1-D input: K = 1)."""
+    a = weights_view(w, count, what)
     return checked_cast(a.reshape(-1), INT32, what).reshape(a.shape)

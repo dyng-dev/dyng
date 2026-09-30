@@ -34,9 +34,11 @@ class EdgeBatch:
     (:class:`dyng.BatchSemantics`; by default deletions first, then insertions, an insertion of an
     existing edge overwriting its weights).
 
-    The arrays are kept as given (no copy when they are C-contiguous arrays of the graph's id and
-    weight types) and converted, with range checks, to the types of the graph a batch is used
-    with. The batch reads its arrays at every use: do not change them while a call runs.
+    The arrays are kept as given, not copied, and converted, with range checks, to the id and
+    weight types of the graph at **every** use (no copy when they already are C-contiguous
+    arrays of those types). A batch therefore always applies the current contents of its arrays,
+    whatever their dtypes: refilling the arrays between two uses applies the new values. Do not
+    change them while a call that uses the batch runs.
 
     Args:
         insert: ``(src, dst)`` or ``(src, dst, weights)``; weights of shape (n,) or (n, K).
@@ -62,7 +64,6 @@ class EdgeBatch:
         "_ins_v",
         "_labels",
         "_del_v",
-        "_cache",
     )
 
     def __init__(
@@ -84,7 +85,9 @@ class EdgeBatch:
             raise InvalidArgumentError("EdgeBatch: the insert src and dst differ in length")
         self._ins_w: np.ndarray | None = None
         if w is not None:
-            self._ins_w = _dtypes.weights_matrix(w, int(self._ins_src.size), "EdgeBatch: weights")
+            n = int(self._ins_src.size)
+            self._ins_w = _dtypes.weights_view(w, n, "EdgeBatch: weights")
+            _dtypes.weights_matrix(self._ins_w, n, "EdgeBatch: weights")  # early range check
         self._del_src = self._ids(ds, "delete src")
         self._del_dst = self._ids(dd, "delete dst")
         if self._del_src.size != self._del_dst.size:
@@ -93,16 +96,13 @@ class EdgeBatch:
             None if insert_vertices is None else self._ids(insert_vertices, "insert_vertices")
         )
         self._labels = (
-            None
-            if vertex_labels is None
-            else _dtypes.checked_cast(
-                _dtypes.to_numpy(vertex_labels, "vertex_labels"), np.dtype(np.int8), "vertex_labels"
-            )
+            None if vertex_labels is None else _dtypes.to_numpy(vertex_labels, "vertex_labels")
         )
+        if self._labels is not None:
+            _dtypes.checked_cast(self._labels, np.dtype(np.int8), "vertex_labels")
         self._del_v = (
             None if delete_vertices is None else self._ids(delete_vertices, "delete_vertices")
         )
-        self._cache: dict[tuple[str, int], Any] = {}
 
     @staticmethod
     def _ids(x: Any, what: str) -> np.ndarray:
@@ -133,8 +133,11 @@ class EdgeBatch:
 
     @property
     def insert_weights(self) -> np.ndarray | None:
-        """Weights of the insertions, shape (n, K) int32, or None."""
-        return self._ins_w
+        """Weights of the insertions, shape (n, K) int32 (a view when given as a C-contiguous
+        int32 array), or None."""
+        if self._ins_w is None:
+            return None
+        return _dtypes.weights_matrix(self._ins_w, self.num_insertions, "EdgeBatch: weights")
 
     @property
     def delete_src(self) -> np.ndarray:
@@ -179,15 +182,15 @@ class EdgeBatch:
 
     # -- native --------------------------------------------------------------------------------
     def _native_for(self, graph: Graph) -> Any:
-        """The native batch for the id and weight types of ``graph`` (cached per type)."""
+        """The native batch for the id and weight types of ``graph``."""
         return self._native_for_type(graph._type, graph.num_weights)
 
     def _native_for_type(self, gtype: _dtypes.GraphType, k_graph: int) -> Any:
-        """The native batch for a graph type with ``k_graph`` weight columns (cached)."""
-        key = (gtype.batch_code, k_graph)
-        cached = self._cache.get(key)
-        if cached is not None:
-            return cached
+        """The native batch for a graph type with ``k_graph`` weight columns.
+
+        Built from the arrays' current contents at every call (never cached): a batch applies
+        the same values whether or not its arrays need a conversion.
+        """
         v = gtype.vertex
 
         def ids(a: np.ndarray, what: str) -> np.ndarray:
@@ -197,7 +200,9 @@ class EdgeBatch:
         k = self.num_weights
         if gtype.weighted:
             if self._ins_w is not None:
-                w = np.ascontiguousarray(self._ins_w).reshape(-1)
+                w = _dtypes.weights_matrix(
+                    self._ins_w, self.num_insertions, "EdgeBatch: weights"
+                ).reshape(-1)
             elif self.num_insertions == 0:
                 k = k_graph  # no insertions: nothing to weigh
         elif self._ins_w is not None and self.num_insertions > 0:
@@ -206,7 +211,12 @@ class EdgeBatch:
             )
         else:
             k = 0
-        native_batch = gtype.native_batch_class(
+        labels = (
+            None
+            if self._labels is None
+            else _dtypes.checked_cast(self._labels, np.dtype(np.int8), "vertex_labels")
+        )
+        return gtype.native_batch_class(
             ids(self._ins_src, "insert src"),
             ids(self._ins_dst, "insert dst"),
             w,
@@ -214,8 +224,6 @@ class EdgeBatch:
             ids(self._del_dst, "delete dst"),
             k,
             None if self._ins_v is None else ids(self._ins_v, "insert_vertices"),
-            self._labels,
+            labels,
             None if self._del_v is None else ids(self._del_v, "delete_vertices"),
         )
-        self._cache[key] = native_batch
-        return native_batch
