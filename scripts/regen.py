@@ -177,6 +177,14 @@ def _check_manifest(root: Path, algo: Algorithm, keys: set[str]) -> list[str]:
     if "cuda" in backends:
         files.append(f"cpp/src/algorithms/{name}/cuda.cu")
     problems += [f"missing file {f} (PLAN Section 4.8)" for f in files if not (root / f).is_file()]
+    # The manifest must list every backend the folder implements: the registry, the algorithm
+    # tables and the conformance kit (which runs the listed backends only) read `backends`.
+    for backend, source in (("openmp", "openmp.cpp"), ("cuda", "cuda.cu")):
+        if backend not in backends and (root / f"cpp/src/algorithms/{name}/{source}").is_file():
+            problems.append(
+                f"cpp/src/algorithms/{name}/{source} exists but `backends` does not list "
+                f"`{backend}` (the kit would not test it and the registry would misreport it)"
+            )
     return problems
 
 
@@ -338,7 +346,8 @@ def codeowners_block(reg: Registry) -> str:
             f"/cpp/tests/algorithms/{a.name}/",
             f"/docs/algorithms/{a.name}.md",
         ):
-            lines.append(f"{path:<36}{owners}")
+            # At least one space between the path and the owners, however long the path.
+            lines.append(f"{path:<35} {owners}")
     return "\n".join(lines)
 
 
