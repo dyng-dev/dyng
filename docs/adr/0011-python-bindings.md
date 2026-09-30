@@ -125,6 +125,15 @@ records the decisions taken while binding them.
     `Result.from_arrays()`, `counts.to_numpy()`), because they carry a graph version and may live
     in device memory. `Resources` copies share the handle (as in C++); pickling rebuilds equal
     resources in the receiving process. A `dyng.Array` pickles and deep-copies as a NumPy copy.
+14. **Choosing the native module** (added in the M5 review). PLAN 5.4 asks that
+    `dyng.use_cpu_only()` (before first use) force the CPU module. The first version chose the
+    module at `import dyng` and imported `_core` unconditionally, so `use_cpu_only()` could only
+    confirm `_core` and a plugin process would have loaded two static `libdyng` copies and two
+    bundled OpenMP runtimes. Now `dyng._backend.native` is a proxy that chooses the module on the
+    first attribute access (the first graph, resources, reader, `dyng.__version__`, ...), imports
+    only the chosen module, and runs the registration hooks (the exception classes) then;
+    `use_cpu_only()` before that forces `_core`, and after a plugin was chosen it raises
+    `RuntimeError`. Importing `dyng` loads no native module.
 
 ## Consequences
 

@@ -24,7 +24,9 @@ InternalError            Error, RuntimeError                      internal_error
 
 from __future__ import annotations
 
-from ._backend import native
+from types import ModuleType
+
+from ._backend import on_activate
 
 __all__ = [
     "Error",
@@ -126,17 +128,21 @@ class InternalError(Error, RuntimeError):
     """A broken internal invariant: a library bug. Please report it."""
 
 
-native._set_error_types(
-    {
-        "Error": Error,
-        "InvalidArgumentError": InvalidArgumentError,
-        "StaleResultError": StaleResultError,
-        "FileFormatError": FileFormatError,
-        "CapacityError": CapacityError,
-        "NotSupportedError": NotSupportedError,
-        "ConvergenceError": ConvergenceError,
-        "CudaError": CudaError,
-        "OutOfMemoryError": OutOfMemoryError,
-        "InternalError": InternalError,
-    }
-)
+def _register(module: ModuleType) -> None:
+    # The native module's translator maps each C++ exception type to these classes.
+    module._set_error_types(_CLASSES)
+
+
+_CLASSES = {
+    "Error": Error,
+    "InvalidArgumentError": InvalidArgumentError,
+    "StaleResultError": StaleResultError,
+    "FileFormatError": FileFormatError,
+    "CapacityError": CapacityError,
+    "NotSupportedError": NotSupportedError,
+    "ConvergenceError": ConvergenceError,
+    "CudaError": CudaError,
+    "OutOfMemoryError": OutOfMemoryError,
+    "InternalError": InternalError,
+}
+on_activate(_register)

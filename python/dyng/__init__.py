@@ -23,12 +23,12 @@ wheel (the CUDA plugins follow in 0.1.x). Cite with :func:`citation`.
 
 from __future__ import annotations
 
+from typing import Any
+
 from . import cycle_count, generators, io, sssp, testing  # noqa: E402  (after the core names)
-from . import errors as _errors  # registers the exception classes with the native module
-from ._backend import native as _native
+from . import errors as _errors  # registers the exception classes for the native module
 from ._registry import AlgorithmInfo, algorithms, citation, citation_keys
 from ._update import update
-from ._version import __version__
 from .array import Array
 from .batch import EdgeBatch
 from .config import config, get_log_level, set_log_level, show_config, use_cpu_only
@@ -48,7 +48,20 @@ from .graph import CSR, ApplySummary, BatchSemantics, Graph, GraphProperties
 from .profiler import Profiler, StageRecord, StageSample, profile
 from .resources import Resources, get_default_resources, set_default_resources
 
-del _errors, _native
+del _errors
+
+
+def __getattr__(name: str) -> Any:
+    # dyng.__version__ comes from the native module, which is chosen on first use (not at
+    # import: dyng.use_cpu_only() must still be able to choose it).
+    if name == "__version__":
+        from . import _version
+
+        return _version.__getattr__("__version__")
+    raise AttributeError(f"module 'dyng' has no attribute {name!r}")
+
+
+__version__: str  # resolved by __getattr__ (the version string, PEP 440)
 
 __all__ = [
     "__version__",
