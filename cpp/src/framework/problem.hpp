@@ -53,13 +53,20 @@
  *
  * Policy hooks (no stage): is_converged(ctx, frontier, iteration) (default below),
  * convergence_policy(ctx) -> convergence (default: no cap), select_engine(ctx) -> engine
- * (default: fused if the problem has enact_fused, else operators), algorithm_budget(ctx) -> budget
- * (default: unchecked), recompute(ctx, new, stats&) (needed only for on_limit::fallback_recompute).
+ * (default: engine::automatic), fused_available(ctx) -> bool (whether the fused engine can run in
+ * this call, e.g. on the CUDA backend with cooperative launch; default: not provided, read as
+ * true), algorithm_budget(ctx) -> budget (default: unchecked), recompute(ctx, new, stats&)
+ * (needed only for on_limit::fallback_recompute). engine::automatic resolves to fused when the
+ * problem has a fused engine and it can run (fused_available), else to operators; a problem with
+ * both a Tier A engine and a fused one must provide fused_available or select_engine
+ * (framework/conformance.hpp), because a fused engine is written for one backend (PLAN 4.5.4).
+ * The enactor chooses the engine before the commit and records it (context::chosen_engine()).
  *
  * Lifecycle members, used by the participant adapter of framework/composition.hpp (no stage; they
  * are the "argument validation, version check, result bookkeeping" of the algorithm's .cpp file,
  * PLAN Section 4.8): target() (required there), begin_update(ctx, old, batch) (validate and bind
- * before Step 0; must change nothing visible), resume(ctx, new, applied) (re-bind to G_{t+1} after
+ * before Step 0; must change nothing visible; the update enactor calls it first, before it
+ * chooses the engine), resume(ctx, new, applied) (re-bind to G_{t+1} after
  * the commit: grow the result, lease and size the workspace, build per-run inputs; its own
  * sub-stages if any), end_update(ctx, new, stats) (record the graph state the result now matches),
  * poison() (a failed algorithm phase left the result unusable), reads_prepared_graph() (whether
@@ -164,11 +171,20 @@ struct problem_base {
   // ---- policies (no profiler stage) --------------------------------------------------------
 
   /**
-   * @brief The engine of this run (default: fused if the problem has enact_fused, else
-   *        operators).
+   * @brief The engine of this run (default: engine::automatic, see the file comment).
    * @return not_provided.
    */
   not_provided select_engine(context& /*ctx*/) {
+    return {};
+  }
+
+  /**
+   * @brief Whether the fused engine (enact_fused / compute_fused) can run in this call, for
+   *        example only on the CUDA backend and only with cooperative launch (default: not
+   *        provided, read as true).
+   * @return not_provided.
+   */
+  not_provided fused_available(context& /*ctx*/) {
     return {};
   }
 
@@ -181,7 +197,8 @@ struct problem_base {
   }
 
   /**
-   * @brief The budget of the algorithm phase (default: budget::unchecked()).
+   * @brief The budget of the update's algorithm work, both halves around the commit (default:
+   *        budget::unchecked(); framework/budgets.hpp).
    * @return not_provided.
    */
   not_provided algorithm_budget(context& /*ctx*/) {

@@ -403,7 +403,9 @@ void cycle_count_problem<vertex_t, edge_t, weight_t>::count(framework::context& 
   workspace_type& ws = ws_->get();
   const container_type& graph = g.get();
   bound_before_ = histogram_bound(state_->opt, graph);
-  if (cuda_) {
+  if (ctx.chosen_engine() == engine::fused) {
+    // The engine the enactor chose before the commit (select_engine: fused on cuda): the fused
+    // engine's own subtraction, the delete phase on the resident G_t.
     count_minus_cuda(ctx, graph);
     return;
   }
@@ -531,7 +533,7 @@ engine cycle_count_problem<vertex_t, edge_t, weight_t>::select_engine(
 template <typename vertex_t, typename edge_t, typename weight_t>
 framework::budget cycle_count_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
     framework::context& ctx) const noexcept {
-  return framework::budget::steady_state(ctx.on_cuda() ? 2 : 0);
+  return framework::budget::steady_state(ctx.on_cuda() ? 4 : 0);
 }
 
 /// CUDA, count(-): the change lists on the device (the framework's copy, shared with the device

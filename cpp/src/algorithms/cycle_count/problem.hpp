@@ -780,8 +780,11 @@ class cycle_count_problem final
   [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
 
   /**
-   * @brief The budget of the algorithm phase (invariant I9; conformance check C8): once reserved,
-   *        no allocation, and at most two host synchronizations on CUDA (the insert phase reads its item counts back, and the two histograms are copied back once) and none on the host backends.
+   * @brief The budget of the update's algorithm work, both halves (invariant I9; conformance check
+   *        C8): once reserved, no allocation, and at most four host synchronizations on CUDA
+   *        (the staging of the change lists without set semantics, the item counts of the delete
+   *        phase on G_t and of the insert phase on G_{t+1}, and the copy of both histograms) and
+   *        none on the host backends.
    * @return The budget (checked by the update enactor in DYNG_DEBUG_BUDGETS builds).
    */
   [[nodiscard]] framework::budget algorithm_budget(framework::context& ctx) const noexcept;

@@ -24,6 +24,7 @@
 
 #include <dyng/core/backend.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/types.hpp>
 
 #include <cstdint>
 #include <string>
@@ -107,6 +108,24 @@ class context {
   }
 
   /**
+   * @brief The engine the enactor chose for this run (before the commit of an update, before
+   *        reset() of a compute()); hooks that differ between the engines read it (for example
+   *        the subtraction on G_t of an aggregate_delta problem whose fused engine has its own).
+   * @return engine::fused or engine::operators; engine::automatic before the enactor chose.
+   */
+  [[nodiscard]] engine chosen_engine() const noexcept {
+    return engine_;
+  }
+
+  /**
+   * @brief Record the enactor's choice of engine (the enactors call this).
+   * @param[in] e engine::fused or engine::operators.
+   */
+  void set_chosen_engine(engine e) noexcept {
+    engine_ = e;
+  }
+
+  /**
    * @brief Record device error bits (device_error in util/device_error_flags.hpp); the enactor
    *        throws after the phase's last hook.
    * @param[in] bits   The error word read back from the device (0 records nothing).
@@ -149,6 +168,7 @@ class context {
  private:
   const resources* res_;
   std::string_view algorithm_;
+  engine engine_ = engine::automatic;
   std::uint32_t errors_ = 0;
   std::string error_detail_;
 };

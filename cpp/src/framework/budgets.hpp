@@ -2,17 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file budgets.hpp
- * @brief Budgets of the algorithm phase of an update (invariant I9, PLAN Section 4.5.5; checked by
+ * @brief Budgets of the algorithm work of an update (invariant I9, PLAN Section 4.5.5; checked by
  *        conformance check C8 in builds with DYNG_DEBUG_BUDGETS=ON).
  *
- * The algorithm phase is everything the update enactor runs after the commit: resume,
- * identify_affected, seed, loop or count(+), finalize, or enact_fused. Once the result and the
- * handle's workspaces have been reserved (by compute(), clone() or an earlier update of the same
- * size), that phase allocates nothing and synchronizes with the host a bounded number of times.
- * A problem states its bound with the hook `budget algorithm_budget(context&)`; the default is
- * budget::unchecked(). The enactor measures the phase with a budget_scope (the calling thread's
- * counters of core/budget_counters.hpp) and records a budget_report. The commit is measured
- * separately (container growth is reported, not failed: PLAN 4.5.5).
+ * The algorithm work of an update is everything the update enactor runs except the commit: the
+ * half before it (begin_update, normalize, prepare, before_apply and, for aggregate_delta, the
+ * subtraction count(-) on G_t) and the algorithm phase after it (resume, identify_affected, seed,
+ * loop or count(+), finalize, or enact_fused). PLAN I9 names only the phase after the commit; the
+ * half before it is measured too, because an aggregate_delta problem does half of its algorithm
+ * work there (cycle_count's delete phase). Once the result and the handle's workspaces have been
+ * reserved (by compute(), clone() or an earlier update of the same size), that work allocates
+ * nothing and synchronizes with the host a bounded number of times. A problem states its bound
+ * with the hook `budget algorithm_budget(context&)`, one budget for both halves; the default is
+ * budget::unchecked(). The enactor measures each half with a budget_scope (the calling thread's
+ * counters of core/budget_counters.hpp), adds them, and records a budget_report. The commit is
+ * measured separately (container growth is reported, not failed: PLAN 4.5.5).
  *
  * An over-budget phase. In a budgets build the enactor compares the report with the problem's
  * budget. By default an excess is logged (log_level::warn) and the update succeeds: the check runs

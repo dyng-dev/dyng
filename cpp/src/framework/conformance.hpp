@@ -105,6 +105,14 @@ struct has_recompute<problem_t, std::void_t<decltype(std::declval<problem_t&>().
                                     std::declval<typename problem_t::stats_type&>()))>>
     : std::true_type {};
 
+/// Whether a problem decides where its fused engine runs (fused_available or select_engine).
+template <typename problem_t>
+struct decides_engine
+    : std::bool_constant<is_provided_v<decltype(std::declval<problem_t&>().fused_available(
+                             std::declval<context&>()))> ||
+                         is_provided_v<decltype(std::declval<problem_t&>().select_engine(
+                             std::declval<context&>()))>> {};
+
 template <typename problem_t, typename = void>
 struct has_target : std::false_type {};
 template <typename problem_t>
@@ -183,6 +191,16 @@ constexpr bool check_problem() {
 template <typename problem_t, typename applied_t>
 constexpr bool check_update_hooks() {
   constexpr bool fused = hook_detail::has_enact_fused<problem_t, applied_t>::value;
+  constexpr bool operators =
+      problem_t::problem_family == family::fixed_point
+          ? hook_detail::has_loop<problem_t>::value
+          : hook_detail::has_count<problem_t, new_view<typename problem_t::container_type>>::value;
+  static_assert(!(fused && operators) || hook_detail::decides_engine<problem_t>::value,
+                "dyng framework: a problem with both a Tier A engine and enact_fused must say "
+                "where its fused engine runs: provide `bool fused_available(context&)` (e.g. "
+                "`return ctx.on_cuda();`) or `engine select_engine(context&)`; a fused engine "
+                "is written for one backend (PLAN 4.5.4), so engine::automatic cannot pick it "
+                "everywhere");
   if constexpr (problem_t::problem_family == family::fixed_point) {
     static_assert(hook_detail::has_loop<problem_t>::value || fused,
                   "dyng framework: a fixed_point problem must provide `loop(context&, "
@@ -210,6 +228,14 @@ constexpr bool check_update_hooks() {
 template <typename problem_t>
 constexpr bool check_static_hooks() {
   constexpr bool fused = hook_detail::has_compute_fused<problem_t>::value;
+  constexpr bool operators =
+      problem_t::problem_family == family::fixed_point
+          ? hook_detail::has_loop<problem_t>::value
+          : hook_detail::has_count<problem_t, new_view<typename problem_t::container_type>>::value;
+  static_assert(!(fused && operators) || hook_detail::decides_engine<problem_t>::value,
+                "dyng framework: a problem with both a Tier A engine and compute_fused must say "
+                "where its fused engine runs: provide `bool fused_available(context&)` (e.g. "
+                "`return ctx.on_cuda();`) or `engine select_engine(context&)`");
   if constexpr (problem_t::problem_family == family::fixed_point) {
     static_assert(hook_detail::has_loop<problem_t>::value || fused,
                   "dyng framework: compute() of a fixed_point problem needs `loop(context&, "

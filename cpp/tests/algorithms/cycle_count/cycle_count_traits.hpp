@@ -131,10 +131,11 @@ struct test_traits<tags::cycle_count> {
         },
     };
   }
-  /// C8: host synchronizations of the algorithm phase on CUDA (the insert phase's item counts, the
-  /// copy of both histograms).
+  /// C8: host synchronizations of the update's algorithm work on CUDA (the staging of the change
+  /// lists without set semantics, the item counts of the delete phase on G_t and of the insert
+  /// phase on G_{t+1}, the copy of both histograms).
   static std::int64_t host_sync_budget(backend b) {
-    return b == backend::cuda ? 2 : 0;
+    return b == backend::cuda ? 4 : 0;
   }
 };
 

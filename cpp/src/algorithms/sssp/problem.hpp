@@ -670,8 +670,10 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
 
   /**
-   * @brief The budget of the algorithm phase (invariant I9; conformance check C8): once reserved,
-   *        no allocation, and at most one host synchronization on CUDA (the fused kernel's control block is read back once, ADR 0017) and none on the host backends.
+   * @brief The budget of the update's algorithm work, both halves (invariant I9; conformance check
+   *        C8): once reserved, no allocation, and at most one host synchronization on CUDA (the
+   *        fused kernel's control block is read back once, ADR 0017) and none on the host
+   *        backends.
    * @return The budget (checked by the update enactor in DYNG_DEBUG_BUDGETS builds).
    */
   [[nodiscard]] framework::budget algorithm_budget(framework::context& ctx) const noexcept;

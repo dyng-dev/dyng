@@ -12,6 +12,8 @@
  *   DYNG_CF_AG_NO_OWNER   an aggregate_delta problem without ownership_type (invariant I2)
  *   DYNG_CF_AG_NO_MINUS   an aggregate_delta problem without count on the old view (I1)
  *   DYNG_CF_NO_TARGET     a problem in run_update() without target()
+ *   DYNG_CF_MIXED_TIERS   a problem with loop and enact_fused that does not say where its fused
+ *                         engine runs (no fused_available, no select_engine)
  */
 #include "framework/composition.hpp"
 #include "framework/enactor.hpp"
@@ -45,6 +47,16 @@ struct problem : fw::problem_base<problem, fw::family::fixed_point> {
   using container_type = graph_type;
   using stats_type = ::stats_type;
 };
+#elif defined(DYNG_CF_MIXED_TIERS)
+struct problem : fw::problem_base<problem, fw::family::fixed_point> {
+  static constexpr std::string_view name = "cf";
+  using container_type = graph_type;
+  using stats_type = ::stats_type;
+  void loop(fw::context&, fw::new_view<graph_type>, fw::internal_frontier&,
+            fw::internal_frontier&) {}
+  void enact_fused(fw::context&, fw::new_view<graph_type>, const applied_type&, stats_type&) {}
+  void compute_fused(fw::context&, fw::new_view<graph_type>, stats_type&) {}
+};
 #elif defined(DYNG_CF_AG_NO_OWNER)
 struct problem : fw::problem_base<problem, fw::family::aggregate_delta> {
   static constexpr std::string_view name = "cf";
@@ -74,11 +86,13 @@ struct problem : fw::problem_base<problem, fw::family::aggregate_delta> {
 }  // namespace
 
 /// Instantiates both enactors (and the participant adapter) for `problem`.
-void instantiate(const dyng::resources& res, const graph_type& g, const applied_type& applied) {
+void instantiate(const dyng::resources& res, const graph_type& g, const applied_type& applied,
+                 const fw::requested_batch<std::int32_t, dyng::unweighted>& requested) {
   problem p;
   fw::context ctx(res, "cf");
   stats_type stats;
   fw::update_enactor<problem> update(p);
+  update.before_commit<applied_type>(ctx, fw::old_view<graph_type>(g), requested);
   update.after_commit(ctx, fw::new_view<graph_type>(g), applied, stats);
   fw::static_enactor<problem> compute(p);
   (void)compute.run(ctx, fw::new_view<graph_type>(g));

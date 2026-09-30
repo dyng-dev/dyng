@@ -309,6 +309,149 @@ TEST(UpdateEnactor, TierBReplacesIdentifyAffectedToFinalize) {
   EXPECT_EQ(s.affected, 1);
 }
 
+// --- the engine is chosen and checked before the commit (strong guarantee) ----------------------
+
+// A fused engine that cannot run in this call (fused_available() is false) is rejected before the
+// batch is applied: the graph keeps its version and the result stays usable.
+TEST(UpdateEnactor, AFusedEngineThatCannotRunIsRejectedBeforeTheCommit) {
+  const resources res = resources::sequential();
+  graph_type g = make_graph(res, 4, path(3));
+  hook_log log;
+  levels_result r = compute_levels(res, g, 0, log);
+  log.calls.clear();
+  levels_options opt;
+  opt.fused = true;
+  opt.fused_runs = false;
+  EXPECT_THROW((void)update_levels(res, g, make_batch({}, {{2, 3}}), r, log, opt),
+               dyng::not_supported_error);
+  EXPECT_EQ(g.version(), 0U);
+  EXPECT_EQ(g.num_edges(), 2);
+  EXPECT_FALSE(r.poisoned);
+  EXPECT_EQ(log.calls, (strings{"begin_update@0"}));  // nothing after the choice ran
+  // The same result updates normally afterwards.
+  EXPECT_NO_THROW((void)update_levels(res, g, make_batch({}, {{2, 3}}), r, log));
+  EXPECT_EQ(r.level, bfs(g, 0));
+}
+
+// engine::automatic is backend-aware: fused only where the problem says its fused engine runs.
+TEST(UpdateEnactor, AutomaticPicksTheFusedEngineOnlyWhereItRuns) {
+  const resources res = resources::sequential();
+  for (const bool runs : {false, true}) {
+    SCOPED_TRACE(runs ? "fused runs" : "fused does not run");
+    graph_type g = make_graph(res, 4, path(3));
+    hook_log log;
+    levels_options opt;
+    opt.automatic = true;
+    opt.fused_runs = runs;
+    levels_result r = compute_levels(res, g, 0, log, opt);
+    const levels_stats s = update_levels(res, g, make_batch({}, {{2, 3}}), r, log, opt);
+    EXPECT_EQ(s.engine_used, runs ? dyng::engine::fused : dyng::engine::operators);
+    EXPECT_EQ(r.level, bfs(g, 0));
+    const bool fused_ran =
+        std::find(log.calls.begin(), log.calls.end(), "enact_fused@1") != log.calls.end();
+    EXPECT_EQ(fused_ran, runs);
+  }
+}
+
+/// The result of the two small problems below.
+struct tiny_result {
+  std::uint64_t version = 0;      ///< graph version matched
+  std::uint64_t graph_state = 0;  ///< graph state matched
+  bool poisoned = false;          ///< a failed update left it unusable
+};
+
+/// Their stats.
+struct tiny_stats : dyng::update_stats {};
+
+/// The lifecycle members both share.
+template <typename derived_t>
+class tiny_problem : public fw::problem_base<derived_t, fw::family::fixed_point> {
+ public:
+  using container_type = graph_type;  ///< the container
+  using stats_type = tiny_stats;      ///< the stats
+
+  explicit tiny_problem(tiny_result& r) : r_(r) {}
+  [[nodiscard]] const void* target() const noexcept {
+    return &r_;
+  }
+  void begin_update(fw::context& /*ctx*/, fw::old_view<graph_type> g,
+                    const fw::requested_batch<std::int32_t, dyng::unweighted>& /*batch*/) {
+    fw::expect_current_result("tiny::update", r_.version, r_.graph_state, g.get());
+  }
+  void end_update(fw::context& /*ctx*/, fw::new_view<graph_type> g, const tiny_stats& /*s*/) {
+    fw::stamp_result(r_.version, r_.graph_state, g.get());
+  }
+  void poison() noexcept {
+    r_.poisoned = true;
+  }
+  [[nodiscard]] bool reads_prepared_graph() const noexcept {
+    return false;
+  }
+
+ private:
+  tiny_result& r_;
+};
+
+/// Tier B only (no loop) whose select_engine asks for engine::operators, as options.engine could.
+class fused_only_problem : public tiny_problem<fused_only_problem> {
+ public:
+  static constexpr std::string_view name = "test_fused_only";  ///< stage prefix
+  using tiny_problem::tiny_problem;
+  [[nodiscard]] dyng::engine select_engine(fw::context& /*ctx*/) const noexcept {
+    return dyng::engine::operators;
+  }
+  void enact_fused(fw::context& /*ctx*/, fw::new_view<graph_type> /*g*/,
+                   const fw::applied_batch<std::int32_t>& /*applied*/, tiny_stats& /*s*/) {}
+};
+
+/// Tier A without a recompute hook, whose policy asks for on_limit::fallback_recompute.
+class no_recompute_problem : public tiny_problem<no_recompute_problem> {
+ public:
+  static constexpr std::string_view name = "test_no_recompute";  ///< stage prefix
+  using tiny_problem::tiny_problem;
+  [[nodiscard]] fw::convergence convergence_policy(fw::context& /*ctx*/) const noexcept {
+    fw::convergence c;
+    c.max_iterations = 0;
+    c.at_limit = fw::on_limit::fallback_recompute;
+    return c;
+  }
+  void loop(fw::context& /*ctx*/, fw::new_view<graph_type> /*g*/, fw::internal_frontier& /*in*/,
+            fw::internal_frontier& /*out*/) {}
+};
+
+TEST(UpdateEnactor, AnEngineThatDoesNotExistIsRejectedBeforeTheCommit) {
+  const resources res = resources::sequential();
+  graph_type g = make_graph(res, 3, path(3));
+  tiny_result r;
+  fw::stamp_result(r.version, r.graph_state, g);
+  const auto b = make_batch({}, {{2, 0}});
+  EXPECT_THROW((void)fw::update_one<fused_only_problem>(res, g, b.view(), r),
+               dyng::not_supported_error);
+  EXPECT_EQ(g.version(), 0U);
+  EXPECT_FALSE(r.poisoned);
+}
+
+TEST(UpdateEnactor, FallbackRecomputeWithoutARecomputeHookIsRejectedBeforeTheCommit) {
+  const resources res = resources::sequential();
+  graph_type g = make_graph(res, 3, path(3));
+  tiny_result r;
+  fw::stamp_result(r.version, r.graph_state, g);
+  const auto b = make_batch({}, {{2, 0}});
+  EXPECT_THROW((void)fw::update_one<no_recompute_problem>(res, g, b.view(), r),
+               dyng::not_supported_error);
+  EXPECT_EQ(g.version(), 0U);
+  EXPECT_FALSE(r.poisoned);
+}
+
+// The choice is visible to every hook, before and after the commit.
+TEST(UpdateEnactor, TheChosenEngineIsVisibleThroughTheContext) {
+  const resources res = resources::sequential();
+  fw::context ctx(res, "test_levels");
+  EXPECT_EQ(ctx.chosen_engine(), dyng::engine::automatic);
+  ctx.set_chosen_engine(dyng::engine::fused);
+  EXPECT_EQ(ctx.chosen_engine(), dyng::engine::fused);
+}
+
 // --- convergence cap and on_limit (I3) -----------------------------------------------------------
 
 TEST(UpdateEnactor, CapWithOnLimitErrorThrowsConvergenceError) {

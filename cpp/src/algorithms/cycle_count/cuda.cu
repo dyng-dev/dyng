@@ -272,7 +272,7 @@ void run_phase(const resources& res, const device_csr<offset_t> graph, const int
   DYNG_CUDA_TRY(cudaMemcpyAsync(host, offsets + change_count, sizeof(unsigned long long),
                                 cudaMemcpyDeviceToHost, stream));
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
-  note_host_sync();  // the budget of the phase (I9) counts it
+  note_host_sync();  // the update's budget (I9, both halves of the update) counts it
   const unsigned long long item_count = *host;
   if (item_count == 0) {
     return;
@@ -319,7 +319,7 @@ const std::uint32_t* cycle_count_cuda_upload_changes(
   } else {
     // The staging buffer may still be read by the copy of an earlier update on this stream.
     DYNG_CUDA_TRY(cudaStreamSynchronize(native(res)));
-    note_host_sync();  // the budget of the phase (I9) counts it
+    note_host_sync();  // the update's budget (I9, both halves of the update) counts it
   }
   std::uint32_t* host = ws.host_changes.data();
   std::size_t k = 0;
@@ -387,7 +387,7 @@ void cycle_count_cuda_end_update(const resources& res, std::int64_t length,
   DYNG_CUDA_TRY(cudaMemcpyAsync(host, ws.histograms.data(), sizeof(unsigned long long) * 2 * slot,
                                 cudaMemcpyDeviceToHost, native(res)));
   DYNG_CUDA_TRY(cudaStreamSynchronize(native(res)));
-  note_host_sync();  // the budget of the phase (I9) counts it
+  note_host_sync();  // the update's budget (I9, both halves of the update) counts it
   const auto size = static_cast<std::size_t>(length) + 1;
   removed.assign(size, 0);
   added.assign(size, 0);

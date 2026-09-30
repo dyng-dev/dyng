@@ -9,9 +9,11 @@
  * update_enactor<problem_t> runs one update of one result in two halves, because several results
  * share one commit (framework/composition.hpp, run_update()):
  *
- *     before_commit(ctx, old_view, batch):  normalize -> prepare -> before_apply
- *                                           [-> AG: count(-) on G_t, stage count_minus]
- *                                           -> device error check
+ *     before_commit<applied_t>(ctx, old_view, batch):
+ *         begin_update -> choose the engine (select_engine / fused_available; an engine that
+ *         does not exist or cannot run throws not_supported_error here, before anything changed)
+ *         -> normalize -> prepare -> before_apply [-> AG: count(-) on G_t, stage count_minus]
+ *         -> device error check
  *     ... the commit (G_t -> G_{t+1}, once for every result) ...
  *     after_commit(ctx, new_view, applied, stats):
  *         resume -> Tier B: enact_fused
@@ -19,7 +21,14 @@
  *                           -> { FP: loop until is_converged (stage loop, cap + on_limit)
  *                              | AG: count(+) on G_{t+1}, stage count_plus }
  *                           -> finalize
- *         -> device error check -> budget check (DYNG_DEBUG_BUDGETS)
+ *         -> device error check -> budget check of both halves (DYNG_DEBUG_BUDGETS)
+ *
+ * The engine is chosen once, before the commit (so a configuration error keeps the strong
+ * guarantee), and stays visible to every hook through context::chosen_engine() (cycle_count's
+ * count(-) on G_t runs the engine's own subtraction). The default choice of engine::automatic is
+ * backend-aware: fused when the problem has a fused engine and fused_available(ctx) says it can
+ * run here, otherwise operators; a problem with both tiers must say where its fused engine runs
+ * (fused_available or select_engine; framework/conformance.hpp checks it).
  *
  * static_enactor<problem_t>::run(ctx, view) runs compute(): reset -> seed_static (stage seed) ->
  * { FP: loop until is_converged | AG: count (stage count) } -> finalize, or compute_fused (stage
@@ -129,16 +138,57 @@ inline void throw_if_device_errors(context& ctx, const std::string& function) {
   }
 }
 
-/// The engine of a run: the problem's choice, or fused if it has a fused engine.
+/// Whether the fused engine can run in this call: the problem's fused_available(ctx), or true
+/// when the problem does not say (a problem with only a fused engine, or one whose select_engine
+/// decides).
 template <typename problem_t>
-engine choose_engine(problem_t& p, context& ctx, bool has_fused) {
+bool fused_can_run(problem_t& p, context& ctx) {
+  if constexpr (is_provided_v<decltype(p.fused_available(ctx))>) {
+    return p.fused_available(ctx);
+  } else {
+    return true;
+  }
+}
+
+/**
+ * The engine of a run, checked: the problem's select_engine (default engine::automatic), with
+ * engine::automatic resolved to fused when the problem has a fused engine that can run here
+ * (fused_can_run) and to operators otherwise.
+ * @throws not_supported_error if the chosen engine does not exist for the problem or cannot run on
+ *         this backend (the enactor calls this before anything is changed).
+ */
+template <typename problem_t>
+engine choose_engine(problem_t& p, context& ctx, bool has_fused, bool has_operators,
+                     const std::string& function) {
   using chosen_t = decltype(p.select_engine(ctx));
   engine e = engine::automatic;
   if constexpr (is_provided_v<chosen_t>) {
     e = p.select_engine(ctx);
   }
+  const bool fused_here = has_fused && fused_can_run(p, ctx);
   if (e == engine::automatic) {
-    e = has_fused ? engine::fused : engine::operators;
+    if (fused_here) {
+      return engine::fused;
+    }
+    if (has_operators) {
+      return engine::operators;
+    }
+    throw not_supported_error(concat_message(
+        "dyng: ", function, ": no engine can run on the ", to_string(ctx.get_backend()),
+        " backend in this release (the fused engine does not run here and there is no operators "
+        "engine yet)"));
+  }
+  if (e == engine::fused && !fused_here) {
+    throw not_supported_error(concat_message(
+        "dyng: ", function, ": ",
+        has_fused ? "the fused engine cannot run on the " : "there is no fused engine for the ",
+        to_string(ctx.get_backend()), " backend; use engine::operators or engine::automatic"));
+  }
+  if (e == engine::operators && !has_operators) {
+    throw not_supported_error(concat_message(
+        "dyng: ", function,
+        ": there is no operators engine for this backend in this release; use engine::fused "
+        "or engine::automatic"));
   }
   return e;
 }
@@ -212,19 +262,50 @@ class update_enactor {
   explicit update_enactor(problem_t& problem) noexcept : p_(problem) {}
 
   /**
-   * @brief Steps 0 and 1a on G_t: normalize, prepare, before_apply and (aggregate_delta) the
-   *        subtraction count(-). Nothing visible may change here (a later participant can still
-   *        reject the batch).
-   * @tparam batch_t The requested batch (framework::requested_batch for graphs).
+   * @brief Steps 0 and 1a on G_t: begin_update, the choice of the engine, normalize, prepare,
+   *        before_apply and (aggregate_delta) the subtraction count(-). Nothing visible may
+   *        change here (a later participant can still reject the batch).
+   *
+   * The engine is chosen and checked here, so an engine that does not exist or cannot run on the
+   * backend (and on_limit::fallback_recompute without a recompute hook) throws
+   * not_supported_error before the commit: the graph and the result stay unchanged. The choice is
+   * kept for after_commit() and readable by every hook through ctx.chosen_engine().
+   * @tparam applied_t What the commit will report (framework::applied_batch for graphs): it
+   *                   decides whether the problem has a fused engine.
+   * @tparam batch_t   The requested batch (framework::requested_batch for graphs).
    * @param[in,out] ctx   The run's context.
    * @param[in]     g     G_t.
    * @param[in]     batch The requested batch.
+   * @throws not_supported_error if the chosen engine does not exist or cannot run here, or the
+   *                             convergence policy asks for a fallback the problem cannot make.
    * @throws what the hooks throw; the recorded device errors (throw_device_errors).
    */
-  template <typename batch_t>
+  template <typename applied_t, typename batch_t>
   void before_commit(context& ctx, old_view<container_type> g, const batch_t& batch) {
+    static_assert(check_update_hooks<problem_t, applied_t>());
+    constexpr bool has_fused = hook_detail::has_enact_fused<problem_t, applied_t>::value;
+    constexpr bool has_operators =
+        problem_t::problem_family == family::fixed_point
+            ? hook_detail::has_loop<problem_t>::value
+            : hook_detail::has_count<problem_t, new_view<container_type>>::value;
     const hook_stages& names = stages_of<problem_t>();
     const resources& res = ctx.res();
+    const budget_scope half;  // the work of this half counts against the budget too (I9)
+    if constexpr (is_provided_v<decltype(p_.begin_update(ctx, g, batch))>) {
+      p_.begin_update(ctx, g, batch);
+    }
+    chosen_ =
+        enactor_detail::choose_engine(p_, ctx, has_fused, has_operators, names.update_function);
+    if constexpr (problem_t::problem_family == family::fixed_point &&
+                  !hook_detail::has_recompute<problem_t>::value) {
+      if (chosen_ == engine::operators &&
+          enactor_detail::convergence_of(p_, ctx).at_limit == on_limit::fallback_recompute) {
+        throw not_supported_error(
+            concat_message("dyng: ", names.update_function,
+                           ": on_limit::fallback_recompute needs the problem's recompute hook"));
+      }
+    }
+    ctx.set_chosen_engine(chosen_);
     if constexpr (is_provided_v<decltype(p_.normalize(ctx, g, batch))>) {
       scoped_stage stage(res, names.normalize);
       p_.normalize(ctx, g, batch);
@@ -242,20 +323,21 @@ class update_enactor {
       p_.count(ctx, g, in_, sign::minus, typename problem_t::ownership_type{});
     }
     enactor_detail::throw_if_device_errors(ctx, names.update_function);
+    before_used_ = half.used();
   }
 
   /**
-   * @brief The algorithm phase on G_{t+1}: resume, then Tier B (enact_fused) or Tier A
-   *        (identify_affected, seed, loop or count(+), finalize); then the device error and budget
-   *        checks.
+   * @brief The algorithm phase on G_{t+1}: resume, then the engine chosen in before_commit():
+   *        Tier B (enact_fused) or Tier A (identify_affected, seed, loop or count(+), finalize);
+   *        then the device error check and the budget check of both halves.
    * @tparam applied_t What the commit reports (framework::applied_batch for graphs).
    * @param[in,out] ctx     The run's context.
    * @param[in]     g       G_{t+1}.
    * @param[in]     applied What the commit did.
    * @param[in,out] stats   The update's stats (common fields set here, the rest by the hooks).
-   * @throws convergence_error   if the cap is reached under on_limit::error.
-   * @throws not_supported_error if the chosen engine does not exist for the problem.
-   * @throws internal_error      if the phase exceeds its budget (DYNG_DEBUG_BUDGETS builds).
+   * @throws convergence_error if the cap is reached under on_limit::error.
+   * @throws internal_error    if before_commit() did not run, or the update exceeds its budget
+   *                           under strict budgets (framework/budgets.hpp).
    * @throws what the hooks throw; the recorded device errors (throw_device_errors).
    */
   template <typename applied_t>
@@ -269,35 +351,30 @@ class update_enactor {
             : hook_detail::has_count<problem_t, new_view<container_type>>::value;
     const hook_stages& names = stages_of<problem_t>();
     const resources& res = ctx.res();
+    if (chosen_ == engine::automatic) {
+      DYNG_FAIL("framework: ", names.update_function,
+                ": after_commit() without before_commit() (the engine is chosen there)");
+    }
     const budget_scope phase;
     stats.fallback_used = false;
     stats.converged = true;
     if constexpr (is_provided_v<decltype(p_.resume(ctx, g, applied))>) {
       p_.resume(ctx, g, applied);
     }
-    const engine chosen = enactor_detail::choose_engine(p_, ctx, has_fused);
-    if (chosen == engine::fused) {
+    if (chosen_ == engine::fused) {
       if constexpr (has_fused) {
         stats.engine_used = engine::fused;
         scoped_stage stage(res, names.enact_fused);
         p_.enact_fused(ctx, g, applied, stats);
-      } else {
-        throw not_supported_error(
-            concat_message("dyng: ", names.update_function, ": this backend has no fused engine"));
       }
     } else {
       if constexpr (has_operators) {
         stats.engine_used = engine::operators;
         run_operators(ctx, g, applied, stats);
-      } else {
-        throw not_supported_error(concat_message(
-            "dyng: ", names.update_function,
-            ": there is no operators engine for this backend in this release; use engine::fused "
-            "or engine::automatic"));
       }
     }
     enactor_detail::throw_if_device_errors(ctx, names.update_function);
-    check_budget(problem_t::name, budget_of(ctx), phase.used());
+    check_budget(problem_t::name, budget_of(ctx), before_used_.plus(phase.used()));
   }
 
  private:
@@ -331,9 +408,9 @@ class update_enactor {
           stats.fallback_used = true;
           return;  // the recompute replaces the rest of Step 2 and finalize
         } else {
-          throw not_supported_error(
-              concat_message("dyng: ", names.update_function,
-                             ": on_limit::fallback_recompute needs the problem's recompute hook"));
+          // before_commit() rejected fallback_recompute without a recompute hook.
+          DYNG_FAIL("framework: ", names.update_function,
+                    ": on_limit::fallback_recompute without a recompute hook");
         }
       }
     } else {
@@ -346,7 +423,7 @@ class update_enactor {
     }
   }
 
-  /// The problem's budget of the algorithm phase (default: unchecked).
+  /// The problem's budget of the update's algorithm work (default: unchecked).
   budget budget_of(context& ctx) {
     if constexpr (is_provided_v<decltype(p_.algorithm_budget(ctx))>) {
       return p_.algorithm_budget(ctx);
@@ -358,6 +435,8 @@ class update_enactor {
   problem_t& p_;
   frontier_type in_{};
   frontier_type out_{};
+  engine chosen_ = engine::automatic;  ///< set by before_commit()
+  budget_counters before_used_{};      ///< the counts of before_commit()
 };
 
 /**
@@ -389,7 +468,8 @@ class static_enactor {
    * @return The stats the hooks filled (compute() itself returns only the result).
    * @throws convergence_error   if the cap is reached (on_limit::error, or
    *                             fallback_recompute, which compute() cannot fall back from).
-   * @throws not_supported_error if the chosen engine does not exist for the problem.
+   * @throws not_supported_error if the chosen engine does not exist for the problem or cannot run
+   *                             on this backend.
    * @throws what the hooks throw; the recorded device errors (throw_device_errors).
    */
   stats_type run(context& ctx, new_view<container_type> g) {
@@ -401,25 +481,19 @@ class static_enactor {
     const hook_stages& names = stages_of<problem_t>();
     const resources& res = ctx.res();
     stats_type stats;
-    const engine chosen = enactor_detail::choose_engine(p_, ctx, has_fused);
+    const engine chosen =
+        enactor_detail::choose_engine(p_, ctx, has_fused, has_operators, names.compute_function);
+    ctx.set_chosen_engine(chosen);
     if (chosen == engine::fused) {
       if constexpr (has_fused) {
         stats.engine_used = engine::fused;
         scoped_stage stage(res, names.enact_fused);
         p_.compute_fused(ctx, g, stats);
-      } else {
-        throw not_supported_error(
-            concat_message("dyng: ", names.compute_function, ": this backend has no fused engine"));
       }
     } else {
       if constexpr (has_operators) {
         stats.engine_used = engine::operators;
         run_operators(ctx, g, stats);
-      } else {
-        throw not_supported_error(concat_message(
-            "dyng: ", names.compute_function,
-            ": there is no operators engine for this backend in this release; use engine::fused "
-            "or engine::automatic"));
       }
     }
     enactor_detail::throw_if_device_errors(ctx, names.compute_function);

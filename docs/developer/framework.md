@@ -116,18 +116,24 @@ o)` (AG, `<algo>.count`) → `finalize` (`<algo>.finalize`). In Tier B it runs
   `internal_frontier` it returns "the loop hook has run once", so that call iterates to the fixed
   point inside the engine.
 - `convergence_policy(ctx) -> convergence`. Default: no cap.
-- `select_engine(ctx) -> engine`. Default: `fused` if the problem has `enact_fused`, else
-  `operators`.
+- `select_engine(ctx) -> engine`. Default: `engine::automatic`, which resolves to `fused` when
+  the problem has a fused engine and `fused_available(ctx)` says it can run in this call, and to
+  `operators` otherwise.
+- `fused_available(ctx) -> bool`. Whether the fused engine can run in this call, for example
+  `ctx.on_cuda()` (and cooperative launch). Default: not provided, read as true. A problem with
+  both a Tier A engine and a fused one must provide `fused_available` or `select_engine`
+  (a compile-time check), because a fused engine is written for one backend.
 - `algorithm_budget(ctx) -> budget`. Default: `budget::unchecked()`.
 - `recompute(ctx, new, stats)`. Needed only for `on_limit::fallback_recompute`.
 
-**Lifecycle members**. The participant adapter uses them; they have no stage, and they are the
-"argument validation, version check, result bookkeeping" of `<algo>.cpp` (PLAN 4.8):
+**Lifecycle members**. The enactor and the participant adapter use them; they have no stage, and
+they are the "argument validation, version check, result bookkeeping" of `<algo>.cpp` (PLAN 4.8):
 
 - `target()`: the result's address, so that a result passed twice is rejected. Required for
   `run_update()`.
 - `begin_update(ctx, old, batch)`: validate the call and bind the result before Step 0. It must
-  change nothing visible, because a later participant can still reject the batch.
+  change nothing visible, because a later participant can still reject the batch. The update
+  enactor calls it first in `before_commit`, then chooses the engine.
 - `resume(ctx, new, applied)`: re-bind to G_{t+1}. Grow the result for new vertices, lease and
   size the workspace, and build per-run inputs; it may open sub-stages of its own, such as
   `sssp.workspace` and `sssp.changes`.
@@ -160,9 +166,14 @@ field. The problem fills everything else in `finalize` or `enact_fused`: `affect
   tests. Tier B is fully legitimate. A fused paper kernel is not pushed into an abstraction that
   costs 20 %.
 
-`select_engine` decides at run time. If it chooses an engine the problem does not have, the
-enactor throws `not_supported_error`. That happens, for example, for a Tier-B-only problem on a
-backend without the fused engine.
+The enactor chooses the engine once, in `before_commit`, before the batch is applied:
+`select_engine`, with `engine::automatic` resolved through `fused_available`. If the choice is an
+engine the problem does not have or one that cannot run in this call (`fused_available` false),
+or the convergence policy asks for `on_limit::fallback_recompute` and the problem has no
+`recompute` hook, the enactor throws `not_supported_error` there, so the graph and the result stay
+unchanged (the strong guarantee of `update()`). The choice is kept for `after_commit` and every
+hook can read it through `ctx.chosen_engine()`; cycle_count's `count(-)` on G_t uses it to run
+the fused engine's own subtraction.
 
 ## Frontiers
 
@@ -231,7 +242,7 @@ the combined graph; `hyper_sssp` holds one `sssp` problem over a line-graph view
 | I6 | Race freedom | inside the algorithms (owner-group writes, documented atomics); racecheck in the GPU jobs |
 | I7 | 64-bit aggregates | inside the algorithms (`count_t = uint64_t`, checked additions) |
 | I8 | An oracle exists | `check_problem` requires a stats type derived from `update_stats`; the conformance kit (`DYNG_CONFORMANCE_SUITE`) checks `compute()`, the sequential backend and the oracle kind |
-| I9 | Budgets of the algorithm phase | `algorithm_budget` + `budget_scope` around `after_commit`; `check_budget` logs an excess in `DYNG_DEBUG_BUDGETS` builds and throws under strict budgets (the conformance kit; see below) |
+| I9 | Budgets of the algorithm work | `algorithm_budget` + a `budget_scope` around each half (`before_commit`, `after_commit`); `check_budget` logs an excess in `DYNG_DEBUG_BUDGETS` builds and throws under strict budgets (the conformance kit; see below) |
 
 ## Budgets (I9)
 
@@ -242,11 +253,16 @@ two things (`core/budget_counters.hpp`, per calling thread):
 - every host synchronization through `detail::cuda_synchronize()`, which `resources::synchronize()`
   uses, and the synchronization of a pinned deallocation.
 
-`update_enactor::after_commit` measures its phase (`resume` … `finalize`, or `enact_fused`). Once
-the result and the workspaces are reserved, the phase must stay within `algorithm_budget(ctx)`,
-for example `budget::steady_state(1)` for a fused CUDA engine that reads its control block back
-once. The commit is not in the phase: `run_update()` measures it separately
-(`last_commit_counts()`), and container growth is reported, not failed.
+The update enactor measures both halves of the update: `before_commit` (`begin_update`,
+`normalize`, `prepare`, `before_apply` and, for `aggregate_delta`, `count(-)` on G_t) and
+`after_commit` (`resume` … `finalize`, or `enact_fused`), and checks their sum. PLAN I9 names only
+the phase after the commit; the half before it is measured as well because an `aggregate_delta`
+problem does half of its algorithm work there (cycle_count's delete phase on the device), and an
+allocation or synchronization regression there is the same class of bug. Once the result and the
+workspaces are reserved, the two halves together must stay within `algorithm_budget(ctx)`, for
+example `budget::steady_state(1)` for a fused CUDA engine that reads its control block back once.
+The commit is not included: `run_update()` measures it separately (`last_commit_counts()`), and
+container growth is reported, not failed.
 `last_budget_report()` returns the last measurement on the calling thread; conformance check C8
 reads it.
 
@@ -285,8 +301,10 @@ of the library.
   against a problem's budget.
 
 The budgets of the two algorithms: no allocation once reserved; host synchronizations 0 on the
-host backends, 1 for sssp on CUDA (the control block) and 2 for cycle_count on CUDA (the insert
-phase's item counts and the histogram copy).
+host backends, 1 for sssp on CUDA (the control block) and 4 for cycle_count on CUDA (the staging
+of the change lists when the graph has no set semantics, the item counts of the delete phase on
+G_t and of the insert phase on G_{t+1}, and the histogram copy). Before the half before the commit
+was measured (M3 review), cycle_count's budget was 2 and covered the insert phase only.
 
 These are not counted: a user-installed memory resource, `std::vector` growth of the host engines
 (the conformance executables count host allocations too: `cpp/tests/conformance/

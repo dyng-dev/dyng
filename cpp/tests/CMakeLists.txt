@@ -143,6 +143,7 @@ foreach(
   "aggregate_delta_without_ownership|-DDYNG_CF_AG_NO_OWNER|must declare `using ownership_type"
   "aggregate_delta_without_count_minus|-DDYNG_CF_AG_NO_MINUS|count.context&, old_view"
   "participant_without_target|-DDYNG_CF_NO_TARGET|must provide `const void. target"
+  "mixed_tiers_without_engine_choice|-DDYNG_CF_MIXED_TIERS|must say where its fused engine runs"
 )
   string(REPLACE "|" ";" _parts "${_case}")
   list(GET _parts 0 _name)

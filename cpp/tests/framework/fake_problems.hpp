@@ -154,6 +154,8 @@ struct list_frontier {
 struct levels_options {
   fw::convergence policy;  ///< the convergence policy of Step 2
   bool fused = false;      ///< select the fused engine (enact_fused / compute_fused)
+  bool automatic = false;  ///< select engine::automatic (overrides `fused`)
+  bool fused_runs = true;  ///< fused_available(): the fused engine can run in this call
   fw::budget limit = fw::budget::unchecked();  ///< the budget of the algorithm phase
   misbehaviour bad;                            ///< deliberate faults
 };
@@ -201,7 +203,13 @@ class levels_problem : public fw::problem_base<levels_problem, fw::family::fixed
 
   // ---- policies ----
   [[nodiscard]] engine select_engine(fw::context& /*ctx*/) const noexcept {
+    if (opt_.automatic) {
+      return engine::automatic;
+    }
     return opt_.fused ? engine::fused : engine::operators;
+  }
+  [[nodiscard]] bool fused_available(fw::context& /*ctx*/) const noexcept {
+    return opt_.fused_runs;
   }
   [[nodiscard]] fw::convergence convergence_policy(fw::context& /*ctx*/) const noexcept {
     return opt_.policy;

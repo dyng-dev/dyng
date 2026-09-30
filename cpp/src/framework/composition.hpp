@@ -12,7 +12,7 @@
  * before_apply on G_t, commits once (stage "<algo>.commit" or "update.commit"), then runs every
  * participant's after_apply on G_{t+1}; a participant that fails after the commit is poisoned and
  * the others still run. problem_participant<problem_t> is the participant of one problem: its
- * before_apply is begin_update + update_enactor::before_commit, its after_apply is
+ * before_apply is update_enactor::before_commit (begin_update first), its after_apply is
  * update_enactor::after_commit + end_update. So
  *
  *   - `<algo>::update(res, g, batch, r)` is `update_one<problem_t>(res, g, batch, r, ...)`, and
@@ -158,7 +158,8 @@ class problem_participant final
   }
 
   /**
-   * @brief begin_update, then Steps 0 and 1a on G_t (update_enactor::before_commit).
+   * @brief begin_update, the choice of the engine, then Steps 0 and 1a on G_t
+   *        (update_enactor::before_commit).
    * @param[in] res   Execution resources.
    * @param[in] g     G_t.
    * @param[in] batch The batch (host memory).
@@ -167,10 +168,7 @@ class problem_participant final
     ctx_.emplace(res, problem_t::name);
     const old_view<graph_type> view(g);
     const typename types::requested requested{batch, normalized_};
-    if constexpr (is_provided_v<decltype(problem_.begin_update(*ctx_, view, requested))>) {
-      problem_.begin_update(*ctx_, view, requested);
-    }
-    enactor_.before_commit(*ctx_, view, requested);
+    enactor_.template before_commit<typename types::applied>(*ctx_, view, requested);
   }
 
   /**
