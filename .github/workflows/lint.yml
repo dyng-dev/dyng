@@ -104,7 +104,7 @@ jobs:
         run: python scripts/regen.py --check
       - name: Smoke tests of the parity harness and tests of the CI scripts
         run: |
-          python -m pip install pytest
+          python -m pip install pytest pyyaml==6.0.3
           python -m pytest -q parity/tests ci/tests
 
   name-reservation:
