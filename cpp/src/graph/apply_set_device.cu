@@ -237,10 +237,12 @@ const std::uint32_t* upload_normalized_batch(const resources& res,
   }
   const scoped_device guard(res.device());
   if (nb.device_lists.size() < words || nb.device_lists.memory_resource() != res.memory()) {
+    note_reservation();  // a deliberate growth of a reusable array (I9)
     nb.device_lists = buffer<std::uint32_t>();
     nb.device_lists = buffer<std::uint32_t>(res, words);
   }
   if (nb.staging.size() < words) {
+    note_reservation();  // a deliberate growth of a reusable array (I9)
     nb.staging = buffer<std::uint32_t>();
     nb.staging = buffer<std::uint32_t>(words, res.stream(), resources_access::staging_memory(res),
                                        res.device());
@@ -288,6 +290,7 @@ const int* mark_normalized_deletions(const resources& res,
   const std::uint32_t* lists = upload_normalized_batch(res, normalized);
   if (normalized.deletion_owner.size() < m ||
       normalized.deletion_owner.memory_resource() != res.memory()) {
+    note_reservation();                         // a deliberate growth of a reusable array (I9)
     normalized.deletion_owner = buffer<int>();  // release first: the peak holds one array
     normalized.deletion_owner = buffer<int>(res, m);
   }

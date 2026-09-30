@@ -313,6 +313,7 @@ const std::uint32_t* cycle_count_cuda_upload_changes(
   const std::size_t words = std::max<std::size_t>(2 * (deletions.size() + insertions.size()), 2);
   std::uint32_t* device = ws.changes.reserve(res, words);
   if (ws.host_changes.size() < words) {
+    note_reservation();  // a deliberate growth of a reusable array (I9)
     ws.host_changes = buffer<std::uint32_t>();
     ws.host_changes = buffer<std::uint32_t>(words, res.stream(),
                                             resources_access::staging_memory(res), res.device());
