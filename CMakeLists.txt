@@ -138,7 +138,7 @@ if(DYNG_WITH_NVTX AND NOT _dyng_nvtx_found)
                       "with its headers (nvtx3/nvToolsExt.h)"
   )
 endif()
-foreach(_dyng_unavailable DYNG_BUILD_PYTHON DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS)
+foreach(_dyng_unavailable DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS)
   if(${_dyng_unavailable})
     message(WARNING "${_dyng_unavailable}=ON has no effect yet (added in a later milestone)")
   endif()
@@ -180,6 +180,15 @@ endif()
 
 if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms)
   add_subdirectory(tools/compat)
+endif()
+
+# The Python extension module dyng._core (PLAN Section 5.4; built by the root pyproject.toml
+# through scikit-build-core, or in any CMake build with -DDYNG_BUILD_PYTHON=ON).
+if(DYNG_BUILD_PYTHON)
+  if(NOT _dyng_both_algorithms)
+    message(FATAL_ERROR "DYNG_BUILD_PYTHON=ON needs every 0.1 algorithm (DYNG_ALGORITHMS=all)")
+  endif()
+  add_subdirectory(python)
 endif()
 
 # `cmake --build --preset <p> --target docs-doxygen`: the Doxygen check of ci/docs.sh on this
