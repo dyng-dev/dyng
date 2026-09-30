@@ -16,7 +16,9 @@
 #include "framework/policies.hpp"
 #include "util/device_error_flags.hpp"
 
+#include <dyng/core/buffer.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/logging.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/update.hpp>
@@ -24,10 +26,13 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <random>
 #include <set>
 #include <string>
+#include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -460,6 +465,7 @@ TEST(Budgets, AnAllocationAfterTheCommitExceedsASteadyStateBudget) {
   levels_options opt;
   opt.limit = fw::budget::steady_state(0);
   opt.bad.allocate_after_commit = true;
+  const fw::strict_budgets_scope strict;  // an excess throws (the conformance kit's mode)
   if (dyng::detail::budgets_enabled()) {
     EXPECT_THROW((void)update_levels(res, g, make_batch({}, {{2, 3}}), r, log, opt),
                  dyng::internal_error);
@@ -471,8 +477,104 @@ TEST(Budgets, AnAllocationAfterTheCommitExceedsASteadyStateBudget) {
   }
 }
 
+// Without strict budgets (the default of a Debug build) an excess is logged, and the update, which
+// is correct, succeeds: the check runs after the commit, so a throw would poison a correct result.
+TEST(Budgets, AnExcessIsLoggedUnlessBudgetsAreStrict) {
+  const resources res = resources::sequential();
+  graph_type g = make_graph(res, 4, path(3));
+  hook_log log;
+  levels_result r = compute_levels(res, g, 0, log);
+  levels_options opt;
+  opt.limit = fw::budget::steady_state(0);
+  opt.bad.allocate_after_commit = true;
+  const bool was_strict = fw::strict_budgets();
+  fw::set_strict_budgets(false);
+  std::vector<std::string> warnings;
+  const dyng::log_level level = dyng::get_log_level();
+  dyng::set_log_level(dyng::log_level::warn);
+  dyng::set_log_sink([&](dyng::log_level l, std::string_view m) {
+    if (l == dyng::log_level::warn) {
+      warnings.emplace_back(m);
+    }
+  });
+  EXPECT_NO_THROW((void)update_levels(res, g, make_batch({}, {{2, 3}}), r, log, opt));
+  dyng::set_log_sink(nullptr);
+  dyng::set_log_level(level);
+  fw::set_strict_budgets(was_strict);
+  EXPECT_FALSE(r.poisoned);
+  EXPECT_EQ(r.version, 1U);
+  EXPECT_EQ(r.level, bfs(g, 0));
+  if (dyng::detail::budgets_enabled()) {
+    ASSERT_EQ(warnings.size(), 1U);
+    EXPECT_NE(warnings[0].find("invariant I9"), std::string::npos) << warnings[0];
+  } else {
+    EXPECT_TRUE(warnings.empty());
+  }
+}
+
+// Counting is per thread: allocations and synchronizations of library calls on another thread are
+// not charged to an update measured on this one (PLAN 4.7.4: concurrent calls on distinct
+// containers), even with strict budgets.
+TEST(Budgets, OtherThreadsAreNotChargedToAnUpdate) {
+  const fw::strict_budgets_scope strict;
+  std::atomic<bool> stop{false};
+  std::thread noisy([&] {
+    const resources other = resources::sequential();
+    while (!stop.load()) {
+      const dyng::buffer<int> scratch(other, 64);  // allocations through the library
+      dyng::detail::note_host_sync();              // and synchronizations, on another thread
+      std::this_thread::yield();
+    }
+  });
+  const resources res = resources::sequential();
+  graph_type g = make_graph(res, 64, path(64));
+  hook_log log;
+  levels_result r = compute_levels(res, g, 0, log);
+  levels_options opt;
+  opt.limit = fw::budget::steady_state(0);
+  int failures = 0;
+  for (int i = 0; i < 200; ++i) {
+    log.calls.clear();
+    const auto b = i % 2 == 0 ? make_batch({}, {{63, 0}}) : make_batch({{63, 0}}, {});
+    try {
+      (void)update_levels(res, g, b, r, log, opt);
+    } catch (const dyng::internal_error&) {
+      ++failures;
+    }
+  }
+  stop.store(true);
+  noisy.join();
+  EXPECT_EQ(failures, 0);
+  EXPECT_FALSE(r.poisoned);
+  EXPECT_EQ(r.level, bfs(g, 0));
+}
+
+// The profiler's synchronizations (profiler_options::sync_stages) are instrumentation: counted,
+// recorded as such and not held against a budget; nested scopes count once.
+TEST(Budgets, InstrumentationIsNotHeldAgainstTheBudget) {
+  if (!dyng::detail::budgets_enabled()) {
+    GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build";
+  }
+  const fw::budget_scope scope;
+  {
+    const dyng::detail::instrumentation_scope outer;
+    dyng::detail::note_host_sync();
+    {
+      const dyng::detail::container_scope inner;
+      dyng::detail::note_host_sync();
+    }
+  }
+  const dyng::detail::budget_counters used = scope.used();
+  EXPECT_EQ(used.host_syncs, 2);
+  EXPECT_EQ(used.container_host_syncs, 1);
+  EXPECT_EQ(used.instrumentation_host_syncs, 1);
+  EXPECT_EQ(used.own_host_syncs(), 0);
+  EXPECT_TRUE(fw::budget::steady_state(0).allows(used));
+}
+
 // "Once reserved": a phase that notes a reservation may allocate (reported, not failed).
 TEST(Budgets, AReservingPhaseMayAllocate) {
+  const fw::strict_budgets_scope strict;
   const resources res = resources::sequential();
   graph_type g = make_graph(res, 4, path(3));
   hook_log log;

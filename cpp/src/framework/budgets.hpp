@@ -10,10 +10,17 @@
  * handle's workspaces have been reserved (by compute(), clone() or an earlier update of the same
  * size), that phase allocates nothing and synchronizes with the host a bounded number of times.
  * A problem states its bound with the hook `budget algorithm_budget(context&)`; the default is
- * budget::unchecked(). The enactor measures the phase with a budget_scope (the process-wide
- * counters of core/budget_counters.hpp) and, in a budgets build, throws internal_error if the
- * phase exceeded the problem's budget. The commit is measured separately (container growth is
- * reported, not failed: PLAN 4.5.5).
+ * budget::unchecked(). The enactor measures the phase with a budget_scope (the calling thread's
+ * counters of core/budget_counters.hpp) and records a budget_report. The commit is measured
+ * separately (container growth is reported, not failed: PLAN 4.5.5).
+ *
+ * An over-budget phase. In a budgets build the enactor compares the report with the problem's
+ * budget. By default an excess is logged (log_level::warn) and the update succeeds: the check runs
+ * after the commit, so throwing would fail, and poison, a result that is correct. With strict
+ * budgets (set_strict_budgets(true), strict_budgets_scope, or the environment variable
+ * DYNG_STRICT_BUDGETS=1) an excess throws internal_error instead. The conformance kit (check C8)
+ * and the framework's tests arm strict budgets; a strict failure poisons the result like any
+ * failure after the commit.
  *
  * "Once reserved": a phase that grew a reusable array on purpose (a new or enlarged workspace, a
  * grown scratch buffer, a result grown for new vertices; note_reservation() in
@@ -21,14 +28,15 @@
  * host synchronizations are still checked. A phase that reserved nothing must stay within the
  * whole budget, so the steady state (the same shapes again) allocates nothing. The graph's own
  * materializations inside the phase (its device copy uploaded on first use, core/
- * budget_counters.hpp container_scope) are container work: counted and reported, never held
- * against the problem's budget.
+ * budget_counters.hpp container_scope) are container work, and the profiler's synchronizations of
+ * profiler_options::sync_stages are instrumentation (instrumentation_scope): both are counted and
+ * reported, never held against the problem's budget.
  *
  * The measurement of the last update enactor run on the calling thread stays readable through
  * last_budget_report() (for the tests of C8), and the commit of the last run_update() on the
- * calling thread through last_commit_counts() (container growth: reported, never failed). Counting is process-wide, so run budget checks
- * without concurrent library calls on other threads, and without profiler_options::sync_stages
- * (whose synchronizations count as host synchronizations).
+ * calling thread through last_commit_counts() (container growth: reported, never failed).
+ * Counting is per calling thread, so updates on other threads are not charged to this one; only
+ * the worker threads of OpenMP regions share one tally (core/budget_counters.hpp, "Attribution").
  *
  * PLAN Section 4.2 names this header budget.hpp; the task that extracted the framework named it
  * budgets.hpp (docs/developer/framework.md).
@@ -124,7 +132,7 @@ class budget_scope {
 
   /**
    * @brief The counts since construction.
-   * @return The differences of the process-wide counters (all zero if counting is off).
+   * @return The differences of the calling thread's counters (all zero if counting is off).
    */
   [[nodiscard]] budget_counters used() const noexcept {
     return budget_snapshot().since(start_);
@@ -155,12 +163,49 @@ class budget_scope {
 void record_commit_counts(const budget_counters& used) noexcept;
 
 /**
- * @brief Store the report of an algorithm phase and, in a budgets build, check it.
+ * @brief Store the report of an algorithm phase and, in a budgets build, check it (see the file
+ *        comment, "An over-budget phase").
  * @param[in] algorithm The algorithm's name (for the message).
  * @param[in] limit     The problem's budget.
  * @param[in] used      The counts of the phase.
- * @throws internal_error if budgets_enabled() and the counts exceed the budget.
+ * @throws internal_error if budgets_enabled(), strict_budgets() and the counts exceed the budget
+ *         (otherwise an excess is logged at log_level::warn).
  */
 void check_budget(std::string_view algorithm, const budget& limit, const budget_counters& used);
+
+/**
+ * @brief Whether an over-budget phase throws internal_error (strict) or is logged (the default).
+ * @return The current setting (initially true only if the environment variable
+ *         DYNG_STRICT_BUDGETS is set to a value other than 0).
+ */
+[[nodiscard]] bool strict_budgets() noexcept;
+
+/**
+ * @brief Make an over-budget phase throw (true) or log (false); process-wide. For tests.
+ * @param[in] on The new setting.
+ */
+void set_strict_budgets(bool on) noexcept;
+
+/**
+ * @brief Arms strict budgets for its lifetime and restores the previous setting after (tests).
+ */
+class strict_budgets_scope {
+ public:
+  /// @brief Arm strict budgets.
+  strict_budgets_scope() noexcept : previous_(strict_budgets()) {
+    set_strict_budgets(true);
+  }
+  strict_budgets_scope(const strict_budgets_scope&) = delete;             ///< not copyable
+  strict_budgets_scope& operator=(const strict_budgets_scope&) = delete;  ///< not copyable
+  strict_budgets_scope(strict_budgets_scope&&) = delete;                  ///< not movable
+  strict_budgets_scope& operator=(strict_budgets_scope&&) = delete;       ///< not movable
+  /// @brief Restore the previous setting.
+  ~strict_budgets_scope() {
+    set_strict_budgets(previous_);
+  }
+
+ private:
+  bool previous_;
+};
 
 }  // namespace dyng::detail::framework

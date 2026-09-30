@@ -4,6 +4,7 @@
  * @file profiler.cpp
  * @brief The instance-based profiler.
  */
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 
 #include <dyng/core/backend.hpp>
@@ -174,6 +175,8 @@ void profiler::write_json(std::ostream& out) const {
 scoped_stage::scoped_stage(const resources& res, std::string_view name)
     : res_(&res), profiler_(res.get_profiler()) {
   if (profiler_ != nullptr) {
+    // Measurement, not algorithm work: the budgets (invariant I9) do not charge it.
+    const detail::instrumentation_scope instrumentation;
     if (profiler_->options().sync_stages) {
       res.synchronize();
     }
@@ -206,6 +209,7 @@ void scoped_stage::stop() noexcept {
   }
   profiler* p = profiler_;
   profiler_ = nullptr;
+  const detail::instrumentation_scope instrumentation;  // not charged to a budget (I9)
   double device_ms = 0.0;
   bool balanced = false;
   try {

@@ -15,6 +15,7 @@
  */
 #include "algorithms/sssp/problem.hpp"
 #include "core/resources_access.hpp"
+#include "framework/budgets.hpp"
 #include "framework/workspace.hpp"
 #include "graph/graph_impl.hpp"
 #include "support/gtest_helpers.hpp"
@@ -46,6 +47,7 @@
 #include <random>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -716,6 +718,79 @@ TEST_F(SsspCuda, ProfilerRecordsTheDeviceTimeOfTheFusedEngine) {
                                "graph.upload", "sssp.workspace", "sssp.changes"}) {
     EXPECT_NE(std::find(names.begin(), names.end(), expected), names.end()) << expected;
   }
+}
+
+/// A random mosp-compatible graph of n vertices and 4n edges (one weight), and a batch of it.
+graph_t random_graph(const dyng::resources& res, std::int32_t n, std::mt19937& rng) {
+  std::vector<edge> edges;
+  for (std::int32_t i = 0; i < 4 * n; ++i) {
+    edges.push_back(edge{std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng),
+                         std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng),
+                         std::uniform_int_distribution<std::int32_t>(1, 50)(rng)});
+  }
+  return make_graph(res, n, edges);
+}
+
+batch_t random_batch(std::int32_t n, std::mt19937& rng) {
+  batch_t b(1);
+  for (int i = 0; i < 20; ++i) {
+    b.insert_edge(std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng),
+                  std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng),
+                  {std::uniform_int_distribution<std::int32_t>(1, 50)(rng)});
+  }
+  return b;
+}
+
+// Invariant I9 is checked per calling thread and does not charge the profiler's synchronizations
+// (profiler_options::sync_stages): with strict budgets, a correct update never fails because of
+// them (in a DYNG_DEBUG_BUDGETS build; elsewhere the test only checks the results).
+TEST_F(SsspCuda, BudgetsIgnoreTheProfilersSynchronizations) {
+  const dyng::detail::framework::strict_budgets_scope strict;
+  auto res = dyng::resources::cuda();
+  dyng::profiler prof(dyng::profiler_options{true, false, false});
+  res.attach_profiler(&prof);
+  std::mt19937 rng(11);
+  graph_t g = random_graph(res, 500, rng);
+  result_t r = dyng::sssp::compute(res, g, 0);
+  for (int i = 0; i < 6; ++i) {
+    SCOPED_TRACE("update " + std::to_string(i));
+    const batch_t b = random_batch(500, rng);
+    ASSERT_NO_THROW((void)dyng::sssp::update(res, g, b.view(), r));
+  }
+  res.attach_profiler(nullptr);
+  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
+}
+
+TEST_F(SsspCuda, BudgetsIgnoreLibraryCallsOnOtherThreads) {
+  const dyng::detail::framework::strict_budgets_scope strict;
+  std::atomic<bool> stop{false};
+  std::thread other([&] {
+    const auto res = dyng::resources::cuda();
+    std::mt19937 rng(12);
+    const graph_t g = random_graph(res, 800, rng);
+    while (!stop.load()) {
+      (void)dyng::sssp::compute(res, g, 0);  // allocations and synchronizations on its own handle
+    }
+  });
+  const auto res = dyng::resources::cuda();
+  std::mt19937 rng(13);
+  graph_t g = random_graph(res, 500, rng);
+  result_t r = dyng::sssp::compute(res, g, 0);
+  int failures = 0;
+  for (int i = 0; i < 40; ++i) {
+    const batch_t b = random_batch(500, rng);
+    try {
+      (void)dyng::sssp::update(res, g, b.view(), r);
+    } catch (const dyng::internal_error& e) {
+      ADD_FAILURE() << e.what();
+      ++failures;
+      break;
+    }
+  }
+  stop.store(true);
+  other.join();
+  EXPECT_EQ(failures, 0);
+  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
 }
 
 TEST_F(SsspCuda, WarmUpLoadsTheSsspKernels) {

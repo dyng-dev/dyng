@@ -781,6 +781,9 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
     GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build (the dev presets are)";
   }
   namespace fw = ::dyng::detail::framework;
+  // Strict budgets: an excess throws internal_error here (a Debug build of the library only logs
+  // it, framework/budgets.hpp).
+  const fw::strict_budgets_scope strict;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
     for (const kit_detail::preset& p : kit_detail::presets<traits>()) {

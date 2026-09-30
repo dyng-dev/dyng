@@ -42,7 +42,7 @@ batch. `translate` is on the card but has no hook yet: no algorithm in 0.1 uses 
 | `framework/composition.hpp` | `requested_batch`, `applied_batch`, `problem_participant<problem_t>`, `make_participant`, `update_one`, `expect_current_result`, `stamp_result` |
 | `framework/composition.cpp` | `run_update()`: Step 0 of set semantics once, every before-commit half, one commit, every after-commit half |
 | `framework/workspace.hpp`, `scratch_buffer.hpp` | the workspace pool of a `resources` handle (ADR 0015) |
-| `core/budget_counters.hpp` | the process-wide allocation and host-synchronization counters behind I9 |
+| `core/budget_counters.hpp` | the per-thread allocation and host-synchronization counters behind I9 |
 
 Everything new lives in `dyng::detail::framework`. The M1b/M2 pieces keep their namespace
 `dyng::detail`: the workspace pool, `scratch_buffer`, `update_participant` and `run_update`.
@@ -231,12 +231,12 @@ the combined graph; `hyper_sssp` holds one `sssp` problem over a line-graph view
 | I6 | Race freedom | inside the algorithms (owner-group writes, documented atomics); racecheck in the GPU jobs |
 | I7 | 64-bit aggregates | inside the algorithms (`count_t = uint64_t`, checked additions) |
 | I8 | An oracle exists | `check_problem` requires a stats type derived from `update_stats`; the conformance kit (`DYNG_CONFORMANCE_SUITE`) checks `compute()`, the sequential backend and the oracle kind |
-| I9 | Budgets of the algorithm phase | `algorithm_budget` + `budget_scope` around `after_commit`; `check_budget` throws in `DYNG_DEBUG_BUDGETS` builds (see below) |
+| I9 | Budgets of the algorithm phase | `algorithm_budget` + `budget_scope` around `after_commit`; `check_budget` logs an excess in `DYNG_DEBUG_BUDGETS` builds and throws under strict budgets (the conformance kit; see below) |
 
 ## Budgets (I9)
 
 With `-DDYNG_DEBUG_BUDGETS=ON` (the default in Debug and in the `dev` preset) the library counts
-two things (`core/budget_counters.hpp`, process-wide atomics):
+two things (`core/budget_counters.hpp`, per calling thread):
 
 - every allocation of its own memory resources (host, pinned host, CUDA stream-ordered pool);
 - every host synchronization through `detail::cuda_synchronize()`, which `resources::synchronize()`
@@ -249,6 +249,20 @@ once. The commit is not in the phase: `run_update()` measures it separately
 (`last_commit_counts()`), and container growth is reported, not failed.
 `last_budget_report()` returns the last measurement on the calling thread; conformance check C8
 reads it.
+
+**What an excess does.** The check runs after the commit, so a throw there would fail, and poison,
+a result that is correct. In a plain `DYNG_DEBUG_BUDGETS` build an excess is therefore logged at
+`log_level::warn` and the update succeeds. Under *strict budgets* it throws `internal_error`:
+`framework::set_strict_budgets(true)`, the RAII `framework::strict_budgets_scope`, or the
+environment variable `DYNG_STRICT_BUDGETS=1`. Conformance check C8 and the framework's own tests
+arm strict budgets, so a budget regression still fails the test suites.
+
+**Attribution.** The counters belong to the calling thread, so library calls on other user threads
+(which PLAN 4.7.4 allows on distinct containers) are not charged to an update. The worker threads
+of an OpenMP region cannot name the thread that opened it; their counts (the growth of their
+per-thread lists and, in the conformance executables, host heap allocations) go to one shared
+tally that every snapshot includes, which is exact while one thread at a time runs OpenMP regions
+of the library.
 
 "Once reserved" is made precise by two more counters:
 
@@ -265,6 +279,10 @@ reads it.
   on first use after a host commit, the host copy downloaded) run in a `detail::container_scope`:
   counted, recorded as container work (`budget_counters::container_allocations`,
   `container_host_syncs`) and never held against a problem's budget.
+- **Instrumentation.** The profiler's synchronizations of `profiler_options::sync_stages` (and
+  its CUDA event timers) run in a `detail::instrumentation_scope`: counted, recorded as
+  instrumentation (`instrumentation_allocations`, `instrumentation_host_syncs`) and never held
+  against a problem's budget.
 
 The budgets of the two algorithms: no allocation once reserved; host synchronizations 0 on the
 host backends, 1 for sssp on CUDA (the control block) and 2 for cycle_count on CUDA (the insert
@@ -280,9 +298,7 @@ at its one `cudaStreamSynchronize` (`run_persistent` in `algorithms/sssp/cuda.cu
 CUDA engines at theirs (`cuda.cu`: the item count of a phase, the staging of the change lists, the
 histogram copy; `static_cuda.cu`: the scalar read-backs, the end of the count, the histogram
 copy), and the graph module's device paths (`graph/apply_set_device.cu`,
-`graph/device_graph.cu`) at theirs. Run budget checks without
-concurrent library calls, and without `profiler_options::sync_stages`, whose synchronizations
-count.
+`graph/device_graph.cu`) at theirs.
 
 ## Device errors
 
