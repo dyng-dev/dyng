@@ -71,8 +71,7 @@ interpreter exit, or nanobind reports them as leaked when the module is finalize
 
 ## Releasing (the author's steps)
 
-The release checklist is PLAN Section 10.3 (`docs/developer/release.md` once written). For the
-Python distributions:
+The release checklist is {doc}`release` (PLAN Section 10.3). For the Python distributions:
 
 1. Bump `VERSION` (for example `0.1.0rc1`, then `0.1.0`), `CITATION.cff` and the CHANGELOG.
 2. Push the tag `v<VERSION>`. `release.yml` selects the package: a `v0.0.x` tag equal to
