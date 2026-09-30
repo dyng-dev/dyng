@@ -134,7 +134,7 @@ def test_a_signature_or_default_change_fails_with_a_diff(tmp_path: Path, capsys)
     assert "+  template <typename id_t> [[nodiscard]] id_t dyng::invalid_id(int base) noexcept" in (
         captured.out
     )
-    assert "api_snapshot.py --update" in captured.err
+    assert "ci/docs.sh --update-api" in captured.err  # a command that can succeed
     _xml(tmp_path, default="1")  # a changed default value is a change of the API (PLAN 5.9)
     assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 1
 
@@ -154,3 +154,34 @@ def test_the_committed_baseline_is_well_formed() -> None:
         "dyng/core/resources.hpp",
     ):
         assert f"[{header}] frozen\n" in text
+
+
+def test_the_detail_contract_is_read_from_the_source() -> None:
+    source = """
+namespace dyng::detail {
+/// A comment { with a brace.
+template <typename v_t>
+inline constexpr bool x_supported_v = std::is_same_v<v_t, int>;
+template <>
+struct update_traits<x::result> {
+  using stats_type = x::stats;  ///< the stats
+  template <typename c_t> static int make_participant(int r) { return r; }
+};
+struct unrelated { using type = int; };
+}  // namespace dyng::detail
+"""
+    lines = api_snapshot.detail_contract(source)
+    assert lines == [
+        "template <typename v_t> inline constexpr bool x_supported_v = std::is_same_v<v_t, int>;",
+        "template <> struct update_traits<x::result> { using stats_type = x::stats; }",
+    ]
+    changed = source.replace("x::stats;", "x::other_stats;")
+    assert api_snapshot.detail_contract(changed) != lines
+
+
+def test_the_umbrella_includes_are_listed() -> None:
+    source = "#pragma once\n#include <dyng/a.hpp>\n#include <dyng/b.hpp>\n"
+    assert api_snapshot.umbrella_includes(source) == [
+        "#include <dyng/a.hpp>",
+        "#include <dyng/b.hpp>",
+    ]

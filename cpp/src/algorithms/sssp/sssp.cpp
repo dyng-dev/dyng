@@ -1148,9 +1148,14 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::result::from_arrays (", g.num_vertices(
 // compute / update
 // ------------------------------------------------------------------------------------------------
 
+}  // namespace dyng::sssp
+
+namespace dyng::detail {
+
 template <typename vertex_t, typename edge_t, typename weight_t>
-result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-                         vertex_t source, const options& opt) try {
+sssp::result<vertex_t> sssp_compute(const resources& res,
+                                    const graph<vertex_t, edge_t, weight_t>& g, vertex_t source,
+                                    const sssp::options& opt) try {
   detail::expect_supported_backend(res, "sssp::compute");
   scoped_stage stage(res, "sssp.compute");
   detail::expect_options(opt);
@@ -1191,8 +1196,9 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::compute (", g.num_vertices(), " vertice
                                   " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result<vertex_t>& r) try {
+sssp::stats sssp_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+                        const edge_batch_view<vertex_t, weight_t>& batch,
+                        sssp::result<vertex_t>& r) try {
   // Stage sssp.update around run_update() with the commit stage sssp.commit (framework::update_one).
   return detail::framework::update_one<detail::sssp_problem<vertex_t, edge_t, weight_t>>(res, g,
                                                                                          batch, r);
@@ -1201,6 +1207,10 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::update (", g.num_vertices(), " vertices
                                   " edges; batch of ", batch.num_insertions(), " insertions, ",
                                   batch.num_deletions(), " deletions)")
 
+}  // namespace dyng::detail
+
+namespace dyng::sssp {
+
 // ------------------------------------------------------------------------------------------------
 // Explicit instantiations (PLAN Section 4.4.3)
 // ------------------------------------------------------------------------------------------------
@@ -1208,12 +1218,9 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::update (", g.num_vertices(), " vertices
 template class result<std::int32_t, std::int64_t>;
 template class result<std::int64_t, std::int64_t>;
 
-#define DYNG_INSTANTIATE_SSSP(V, E, W)                                                             \
-  template result<V> compute<V, E, W>(const resources&, const graph<V, E, W>&, V, const options&); \
-  template stats update<V, E, W>(const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&,  \
-                                 result<V>&);                                                      \
-  template result<V> result<V>::from_arrays<E, W>(const resources&, const graph<V, E, W>&, V,      \
-                                                  array_view<const std::int64_t>,                  \
+#define DYNG_INSTANTIATE_SSSP(V, E, W)                                                        \
+  template result<V> result<V>::from_arrays<E, W>(const resources&, const graph<V, E, W>&, V, \
+                                                  array_view<const std::int64_t>,             \
                                                   array_view<const V>, bool, const options&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP)
 #undef DYNG_INSTANTIATE_SSSP
@@ -1222,8 +1229,12 @@ DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP)
 
 namespace dyng::detail {
 
-#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)           \
-  template std::unique_ptr<update_participant<V, E, W>> \
+#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)                                                \
+  template sssp::result<V> sssp_compute<V, E, W>(const resources&, const graph<V, E, W>&, V, \
+                                                 const sssp::options&);                      \
+  template sssp::stats sssp_update<V, E, W>(const resources&, graph<V, E, W>&,               \
+                                            const edge_batch_view<V, W>&, sssp::result<V>&); \
+  template std::unique_ptr<update_participant<V, E, W>>                                      \
   make_sssp_participant<V, E, W, std::int64_t>(sssp::result<V, std::int64_t>&, sssp::stats&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP_DETAIL)
 #undef DYNG_INSTANTIATE_SSSP_DETAIL

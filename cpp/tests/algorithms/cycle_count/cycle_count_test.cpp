@@ -33,6 +33,19 @@
 
 namespace {
 
+// Every cycle_count enumeration prints its enumerator's name.
+TEST(CycleCountOptions, EnumerationsHaveTheirNames) {
+  namespace cc = dyng::cycle_count;
+  EXPECT_EQ(cc::to_string(cc::search_method::johnson), "johnson");
+  EXPECT_EQ(cc::to_string(cc::cycle_mode::simple), "simple");
+  EXPECT_EQ(cc::to_string(cc::cuda_scheduler::work_queue), "work_queue");
+  EXPECT_EQ(cc::to_string(cc::cuda_scheduler::naive), "naive");
+  EXPECT_EQ(cc::to_string(cc::cuda_work_items::automatic), "automatic");
+  EXPECT_EQ(cc::to_string(cc::cuda_work_items::roots), "roots");
+  EXPECT_EQ(cc::to_string(cc::cuda_work_items::edges), "edges");
+  EXPECT_EQ(cc::to_string(cc::cuda_work_items::two_hop), "two_hop");
+}
+
 /// io::write_histogram_csv into a string.
 [[maybe_unused]] std::string histogram_csv(dyng::array_view<const std::uint64_t> counts,
                                            bool include_total = true) {

@@ -18,8 +18,10 @@ namespace dyng {
  *        its own fields.
  *
  * Each field is documented as *deterministic* (identical across runs and backends, so tests may
- * assert it) or *schedule-dependent* (it may vary with the thread schedule; log it only). Timing
- * is never a statistic: it goes through the profiler.
+ * assert it), *deterministic per backend* (identical across runs on one backend, but it may differ
+ * between backends because it describes the backend's engine; tests may compare it between runs of
+ * one backend only) or *schedule-dependent* (it may vary with the thread schedule; log it only).
+ * Timing is never a statistic: it goes through the profiler.
  *
  * @ingroup core
  */
@@ -36,8 +38,9 @@ struct update_stats {
   bool fallback_used = false;
   /// Deterministic: false if an iteration cap was reached (reported under `on_limit::report`).
   bool converged = true;
-  /// Deterministic: the engine that ran (engine::fused for a ported paper engine,
-  /// engine::operators for a hook-by-hook composition).
+  /// Deterministic per backend: the engine that ran (engine::fused for a ported paper engine,
+  /// engine::operators for a hook-by-hook composition). It differs between backends when they run
+  /// different engines (for sssp: operators on sequential, fused on openmp and cuda).
   engine engine_used = engine::automatic;
 };
 

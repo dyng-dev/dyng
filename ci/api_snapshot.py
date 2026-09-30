@@ -12,9 +12,20 @@ The listing is generated from the Doxygen XML of the public headers (ci/docs.sh 
 Doxyfile excludes dyng::detail), so it contains what a user can name: for every header, its
 classes and structs (template parameters, bases, public members with their types, default
 arguments and member initializers), its enumerations with their values, its functions,
-variables, type aliases and macros, in declaration order. Documentation text, line numbers and
-function bodies are not part of it, so a comment edit never changes the listing; a changed
-signature, default value, enumerator, field or a new or removed entity does.
+variables, type aliases and macros (every #define of the header, in a group or not), in
+declaration order. Documentation text, line numbers and function bodies are not part of it, so a
+comment edit never changes the listing; a changed signature, default value, enumerator, field or
+a new or removed entity does.
+
+Two more parts are read from the header sources, because Doxygen does not show them:
+
+  * the #include lines of the umbrella header dyng/dyng.hpp (what `#include <dyng/dyng.hpp>`
+    brings in);
+  * the parts of dyng::detail that the public signatures depend on (DETAIL_CONTRACT): the
+    update_traits / participant_of / stats_of specializations (their stats_type, type,
+    batch_type and static run(), which decide the return type of dyng::update() and the
+    containers it accepts) and the *_supported_v traits (which graph types compute() and
+    update() accept). They are listed as `detail: <statement>` lines, normalized to one line.
 
 The baseline is cpp/tests/api/api_snapshot/public_api.txt (committed). ci/docs.sh runs the check
 after Doxygen, so the docs job of CI and the local gate (ci/check.sh, step docs) fail when the
@@ -46,6 +57,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "cpp" / "tests" / "api" / "api_snapshot" / "public_api.txt"
+INCLUDE_DIR = REPO / "cpp" / "include"
 DEFAULT_XML = REPO / "build" / "doxygen" / "xml"
 
 # The 0.1 freeze (PLAN Section 5, M3): these headers are the frozen 0.1 API.
@@ -170,7 +182,69 @@ def render_member(member: ET.Element, in_class: bool) -> str:
     return f"{kind} {shown}"
 
 
-def listing(xml_dir: Path) -> str:
+# dyng::detail entities whose definition is part of the public contract (see the module docstring).
+DETAIL_STRUCTS = ("update_traits", "participant_of", "stats_of")
+UMBRELLA = "dyng/dyng.hpp"
+
+
+def strip_comments(text: str) -> str:
+    text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
+    return re.sub(r"//[^\n]*", " ", text)
+
+
+def matching_brace(text: str, open_at: int) -> int:
+    """The index of the brace that closes the one at `open_at`."""
+    depth = 0
+    for i in range(open_at, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+    return len(text) - 1
+
+
+def detail_contract(source: str) -> list[str]:
+    """The DETAIL_CONTRACT statements of one header's source, in order."""
+    text = strip_comments(source)
+    out: list[str] = []
+    for block in re.finditer(r"namespace\s+(?:dyng::)?detail\s*\{", text):
+        start = block.end() - 1
+        body = text[start + 1 : matching_brace(text, start)]
+        items: list[tuple[int, str]] = []
+        for m in re.finditer(r"inline\s+constexpr\s+bool\s+\w+_supported_v\s*=[^;]*;", body):
+            tpl = re.search(r"template\s*<[^;{}]*>\s*$", body[: m.start()])
+            head = squash(tpl.group(0)) + " " if tpl else ""
+            items.append((m.start(), head + squash(m.group(0))))
+        names = "|".join(DETAIL_STRUCTS)
+        pattern = rf"struct\s+({names})\b\s*(<[^{{;]*>)?\s*\{{"
+        for m in re.finditer(pattern, body):
+            brace = m.end() - 1
+            inner = body[brace + 1 : matching_brace(body, brace)]
+            tpl = re.search(r"template\s*<[^;{}]*>\s*$", body[: m.start()])
+            name = m.group(1) + (squash(m.group(2)) if m.group(2) else "")
+            parts = [
+                squash(s.group(0))
+                for s in re.finditer(
+                    r"(?:using\s+\w+\s*=|static\s+constexpr\s+\w+\s+\w+\s*=)[^;]*;", inner
+                )
+            ]
+            parts += [
+                squash(s.group(0)).rstrip("{").strip()
+                for s in re.finditer(r"static\s+[^;{}=]*\brun\s*\([^)]*\)\s*\{", inner)
+            ]
+            head = squash(tpl.group(0)) + " " if tpl else ""
+            items.append((m.start(), f"{head}struct {name} {{ {' '.join(parts)} }}"))
+        out += [text for _, text in sorted(items)]
+    return out
+
+
+def umbrella_includes(source: str) -> list[str]:
+    return [f"#include <{m}>" for m in re.findall(r"^#include\s+<([^>]+)>", source, re.MULTILINE)]
+
+
+def listing(xml_dir: Path, include_dir: Path | None = None) -> str:
     index = ET.parse(xml_dir / "index.xml").getroot()
     compounds = []
     for entry in index.findall("compound"):
@@ -191,6 +265,13 @@ def listing(xml_dir: Path) -> str:
             header = squash(text_of(cdef.find("compoundname")))
             path = location(cdef)[0] or header
             headers.add(path)
+            # Macros outside any group (a grouped one is listed with its group).
+            for member in cdef.iter("memberdef"):
+                if member.get("kind") != "define" or member.get("id") in seen_members:
+                    continue
+                seen_members.add(member.get("id"))
+                m_header, line, column = location(member)
+                add(m_header or path, line, column, 0, [render_member(member, in_class=False)])
             continue
         if kind == "group":
             # Namespace-scope entities (every one is in a group: ci/doxygen_coverage.py).
@@ -239,6 +320,12 @@ def listing(xml_dir: Path) -> str:
         for _, _, _, lines in sorted(entries.get(header, [])):
             for text in lines:
                 out.append(f"  {text}\n")
+        source_path = (include_dir / header) if include_dir is not None else None
+        if source_path is not None and source_path.is_file():
+            source = source_path.read_text(encoding="utf-8")
+            if header == UMBRELLA:
+                out += [f"  {line}\n" for line in umbrella_includes(source)]
+            out += [f"  detail: {line}\n" for line in detail_contract(source)]
     return "".join(out)
 
 
@@ -246,6 +333,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--xml", type=Path, default=DEFAULT_XML, help="Doxygen XML directory")
     parser.add_argument("--baseline", type=Path, default=BASELINE, help="the committed listing")
+    parser.add_argument(
+        "--include-dir",
+        type=Path,
+        default=INCLUDE_DIR,
+        help="the public headers' root (for the umbrella's includes and the detail contract)",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--update", action="store_true", help="rewrite the baseline")
     mode.add_argument("--print", action="store_true", help="print the listing")
@@ -257,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    current = listing(args.xml)
+    current = listing(args.xml, args.include_dir)
     if args.print:
         sys.stdout.write(current)
         return 0

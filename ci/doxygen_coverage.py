@@ -7,8 +7,9 @@ Doxygen (run by ci/docs.sh with WARN_AS_ERROR) already fails on undocumented ent
 missing @param / @return. This script reads its XML output and additionally requires:
 
   * every public header has an @file comment with a @brief;
-  * every class, struct, function, enumeration, typedef and variable at namespace scope belongs
-    to a group (@ingroup / @defgroup); members of a class inherit the group of their class;
+  * every class, struct, function, enumeration, typedef, variable and macro at namespace (or file)
+    scope belongs to a group (@ingroup / @defgroup); members of a class inherit the group of their
+    class;
   * every documented entity has a one-line @brief (a non-empty brief description);
   * compute() and update() of every algorithm namespace (one per manifest under
     cpp/src/algorithms/) carry @backends, @determinism, @paper and @guarantee (the exception
@@ -178,6 +179,14 @@ def main(argv: list[str]) -> int:
         if kind == "file":
             if not text_of(cdef.find("briefdescription")):
                 problems.append(f"{loc}: header has no @file / @brief")
+            # A grouped macro is listed with its group; one left in the file compound is not.
+            for member in cdef.iter("memberdef"):
+                if member.get("kind") == "define":
+                    mloc = member.find("location")
+                    problems.append(
+                        f"{mloc.get('file')}:{mloc.get('line')}: macro "
+                        f"{text_of(member.find('name'))} is not in any group (@ingroup)"
+                    )
             continue
         if kind == "namespace":
             if name in IGNORED_NAMESPACES:

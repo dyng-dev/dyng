@@ -297,6 +297,10 @@
   enum class dyng::cycle_count::cycle_mode : std::uint8_t { simple }
   enum class dyng::cycle_count::cuda_scheduler : std::uint8_t { work_queue, naive }
   enum class dyng::cycle_count::cuda_work_items : std::uint8_t { automatic, roots, edges, two_hop }
+  [[nodiscard]] std::string_view dyng::cycle_count::to_string(search_method m) noexcept
+  [[nodiscard]] std::string_view dyng::cycle_count::to_string(cycle_mode m) noexcept
+  [[nodiscard]] std::string_view dyng::cycle_count::to_string(cuda_scheduler s) noexcept
+  [[nodiscard]] std::string_view dyng::cycle_count::to_string(cuda_work_items w) noexcept
   struct dyng::cycle_count::options
       int max_length = -1
       search_method method = search_method::johnson
@@ -310,6 +314,7 @@
       std::int64_t insertions = 0
       std::uint64_t cycles_removed = 0
       std::uint64_t cycles_added = 0
+  #define DYNG_CYCLE_COUNT_TYPES_MESSAGE
   class dyng::cycle_count::result
       result(result &&other) noexcept
       result & operator=(result &&other) noexcept
@@ -327,8 +332,42 @@
       [[nodiscard]] result clone(const resources &res) const
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] result dyng::cycle_count::compute(const resources &res, const graph< vertex_t, edge_t, weight_t > &g, const options &opt={})
   template <typename vertex_t, typename edge_t, typename weight_t> stats dyng::cycle_count::update(const resources &res, graph< vertex_t, edge_t, weight_t > &g, const edge_batch_view< vertex_t, weight_t > &batch, result &r)
+  detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool cycle_count_supported_v = std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>) && (is_unweighted_v<weight_t> || std::is_same_v<weight_t, std::int32_t>);
+  detail: template <> struct update_traits<cycle_count::result> { using stats_type = cycle_count::stats; }
 
 [dyng/dyng.hpp] frozen
+  #include <dyng/citation.hpp>
+  #include <dyng/config.hpp>
+  #include <dyng/core/array_view.hpp>
+  #include <dyng/core/backend.hpp>
+  #include <dyng/core/buffer.hpp>
+  #include <dyng/core/copy.hpp>
+  #include <dyng/core/error.hpp>
+  #include <dyng/core/logging.hpp>
+  #include <dyng/core/memory.hpp>
+  #include <dyng/core/profiler.hpp>
+  #include <dyng/core/registry.hpp>
+  #include <dyng/core/resources.hpp>
+  #include <dyng/core/stats.hpp>
+  #include <dyng/core/stream.hpp>
+  #include <dyng/core/types.hpp>
+  #include <dyng/cycle_count.hpp>
+  #include <dyng/generators/legacy.hpp>
+  #include <dyng/graph/apply_summary.hpp>
+  #include <dyng/graph/csr.hpp>
+  #include <dyng/graph/edge_batch.hpp>
+  #include <dyng/graph/edge_list.hpp>
+  #include <dyng/graph/graph.hpp>
+  #include <dyng/graph/graph_properties.hpp>
+  #include <dyng/graph/graph_view.hpp>
+  #include <dyng/io/batch_io.hpp>
+  #include <dyng/io/csr_triplet.hpp>
+  #include <dyng/io/edge_list_io.hpp>
+  #include <dyng/io/matrix_market.hpp>
+  #include <dyng/io/result_io.hpp>
+  #include <dyng/sssp.hpp>
+  #include <dyng/update.hpp>
+  #include <dyng/version.hpp>
 
 [dyng/generators/legacy.hpp] tracked
   enum class dyng::generators::legacy::mosp_change_mode : std::uint8_t { uniform, targeted, reweight, increase }
@@ -504,6 +543,12 @@
       batch_semantics semantics = batch_semantics::upsert_last_wins()
       [[nodiscard]] static constexpr graph_properties mosp_compatible() noexcept
       [[nodiscard]] static constexpr graph_properties cycle_enum_compatible() noexcept
+  [[nodiscard]] std::string_view dyng::to_string(row_layout layout) noexcept
+  [[nodiscard]] std::string_view dyng::to_string(row_order order) noexcept
+  [[nodiscard]] std::string_view dyng::to_string(multi_edges rule) noexcept
+  [[nodiscard]] std::string_view dyng::to_string(batch_semantics::existing_insert rule) noexcept
+  [[nodiscard]] std::string_view dyng::to_string(batch_semantics::missing_delete rule) noexcept
+  [[nodiscard]] std::string_view dyng::to_string(batch_semantics::self_loop rule) noexcept
 
 [dyng/graph/graph_view.hpp] frozen
   template <typename vertex_t, typename edge_t, typename weight_t> struct dyng::graph_view
@@ -599,8 +644,11 @@
       [[nodiscard]] memory_space space() const noexcept
       [[nodiscard]] result clone(const resources &res) const
       template <typename edge_t, typename weight_t> [[nodiscard]] static result from_arrays(const resources &res, const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, array_view< const distance_t > distances, array_view< const vertex_t > parents, bool canonicalize=true, const options &opt={})
+  #define DYNG_SSSP_TYPES_MESSAGE
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] result< vertex_t > dyng::sssp::compute(const resources &res, const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, const options &opt={})
   template <typename vertex_t, typename edge_t, typename weight_t> stats dyng::sssp::update(const resources &res, graph< vertex_t, edge_t, weight_t > &g, const edge_batch_view< vertex_t, weight_t > &batch, result< vertex_t > &r)
+  detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool sssp_supported_v = std::is_same_v<weight_t, std::int32_t> && ((std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) || (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>));
+  detail: template <typename vertex_t, typename distance_t> struct update_traits<sssp::result<vertex_t, distance_t>> { using stats_type = sssp::stats; }
 
 [dyng/testing/check_sssp.hpp] tracked
   struct dyng::testing::check_sssp_options
@@ -635,6 +683,9 @@
   template <typename container_t, typename batch_view_t, typename... results_t> std::tuple< typename detail::stats_of< results_t >::type... > dyng::update(const resources &res, container_t &g, const batch_view_t &batch, results_t &... results)
   template <typename container_t, typename batch_view_t, typename result_t> std::vector< typename detail::stats_of< result_t >::type > dyng::update_each(const resources &res, container_t &g, const batch_view_t &batch, array_view< result_t *const > results)
   template <typename container_t, typename batch_view_t, typename result_t> std::vector< typename detail::stats_of< result_t >::type > dyng::update_each(const resources &res, container_t &g, const batch_view_t &batch, array_view< result_t * > results)
+  detail: template <typename container_t> struct participant_of { static constexpr bool supported = false; }
+  detail: template <typename vertex_t, typename edge_t, typename weight_t> struct participant_of<graph<vertex_t, edge_t, weight_t>> { static constexpr bool supported = true; using type = update_participant<vertex_t, edge_t, weight_t>; using batch_type = edge_batch_view<vertex_t, weight_t>; static apply_summary run(const resources& res, graph<vertex_t, edge_t, weight_t>& g, const batch_type& batch, type* const* participants, std::size_t count, std::string_view commit_stage) }
+  detail: template <typename result_t> struct stats_of { using type = typename update_traits<result_t>::stats_type; }
 
 [dyng/version.hpp] frozen
   #define DYNG_VERSION_MAJOR

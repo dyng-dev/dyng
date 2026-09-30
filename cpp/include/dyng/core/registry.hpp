@@ -37,7 +37,7 @@ enum class container_kind : std::uint8_t {
 };
 
 /**
- * @brief How settled an algorithm's API and behaviour are (PLAN Section 4.8, "Maturity levels").
+ * @brief How settled an algorithm's API and behaviour are (experimental, beta, stable; docs/glossary.md).
  * @ingroup core
  */
 enum class maturity_level : std::uint8_t {
@@ -47,7 +47,7 @@ enum class maturity_level : std::uint8_t {
 };
 
 /**
- * @brief What "correct" means for an algorithm's update (PLAN Section 5.1, "Oracle").
+ * @brief What "correct" means for an algorithm's update (the oracle the conformance kit checks it against).
  * @ingroup core
  */
 enum class oracle_kind : std::uint8_t {

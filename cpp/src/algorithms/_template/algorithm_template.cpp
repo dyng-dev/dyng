@@ -294,9 +294,16 @@ result result::clone(const resources& res) const {
   return result(std::make_unique<detail::algorithm_template_state>(st));
 }
 
+}  // namespace dyng::algorithm_template
+
+namespace dyng::detail {
+
+// compute() and update() behind the public wrappers of the header (which static_assert the
+// supported graph types).
 template <typename vertex_t, typename edge_t, typename weight_t>
-result compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-               const options& opt) {
+algorithm_template::result algorithm_template_compute(const resources& res,
+                                                      const graph<vertex_t, edge_t, weight_t>& g,
+                                                      const algorithm_template::options& opt) {
   using problem_t = detail::algorithm_template_problem<vertex_t, edge_t, weight_t>;
   detail::expect_backend(res, "algorithm_template::compute");
   detail::graph_access::expect_placement(res, g, "algorithm_template::compute");
@@ -326,15 +333,12 @@ result compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result& r) {
+algorithm_template::stats algorithm_template_update(
+    const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+    const edge_batch_view<vertex_t, weight_t>& batch, algorithm_template::result& r) {
   using problem_t = detail::algorithm_template_problem<vertex_t, edge_t, weight_t>;
   return detail::framework::update_one<problem_t>(res, g, batch, r);
 }
-
-}  // namespace dyng::algorithm_template
-
-namespace dyng::detail {
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 std::unique_ptr<update_participant<vertex_t, edge_t, weight_t>> make_algorithm_template_participant(
@@ -344,23 +348,17 @@ std::unique_ptr<update_participant<vertex_t, edge_t, weight_t>> make_algorithm_t
 }
 
 // Explicit instantiations (PLAN Section 4.4.3).
-#define DYNG_INSTANTIATE_ALGORITHM_TEMPLATE(V, E, W)                        \
-  template class algorithm_template_problem<V, E, W>;                       \
-  template std::unique_ptr<update_participant<V, E, W>>                     \
-  make_algorithm_template_participant<V, E, W>(algorithm_template::result&, \
-                                               algorithm_template::stats&);
+#define DYNG_INSTANTIATE_ALGORITHM_TEMPLATE(V, E, W)                                \
+  template class algorithm_template_problem<V, E, W>;                               \
+  template std::unique_ptr<update_participant<V, E, W>>                             \
+  make_algorithm_template_participant<V, E, W>(algorithm_template::result&,         \
+                                               algorithm_template::stats&);         \
+  template algorithm_template::result algorithm_template_compute<V, E, W>(          \
+      const resources&, const graph<V, E, W>&, const algorithm_template::options&); \
+  template algorithm_template::stats algorithm_template_update<V, E, W>(            \
+      const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&,              \
+      algorithm_template::result&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_ALGORITHM_TEMPLATE)
 #undef DYNG_INSTANTIATE_ALGORITHM_TEMPLATE
 
 }  // namespace dyng::detail
-
-namespace dyng::algorithm_template {
-
-#define DYNG_INSTANTIATE_ALGORITHM_TEMPLATE(V, E, W)                                              \
-  template result compute<V, E, W>(const resources&, const graph<V, E, W>&, const options&);      \
-  template stats update<V, E, W>(const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, \
-                                 result&);
-DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_ALGORITHM_TEMPLATE)
-#undef DYNG_INSTANTIATE_ALGORITHM_TEMPLATE
-
-}  // namespace dyng::algorithm_template

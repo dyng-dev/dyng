@@ -99,7 +99,11 @@ with the algorithm). `--remove` undoes a scaffold: it deletes only an algorithm 
 still carries the template's "scaffolded by scripts/new_algorithm.py" line (`--force` overrides)
 and puts back the `planned.toml` entry the scaffold replaced. Names that cannot compile are
 refused: C++ keywords, names already declared in `namespace dyng` (`engine`, `resources`, ...) and
-the generated headers `version` and `config`. In 0.1 the scaffold writes graphs and the host
+the generated headers `version` and `config`. The public `compute()` and `update()` are inline
+wrappers that `static_assert` the instantiated graph types with a plain-English message (the rule
+of sssp and cycle_count since the M3 review), so an unsupported graph type fails to compile at the
+call instead of failing to link; keep the trait `detail::<name>_supported_v` in step with the
+explicit instantiations. In 0.1 the scaffold writes graphs and the host
 backends; a CUDA backend is added by hand, and the hypergraph container arrives in 0.2.
 
 Then, in the order of PLAN Section 9.4: write `compute()` (the sequential static solve) and the

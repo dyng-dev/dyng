@@ -578,4 +578,24 @@ TEST(GraphApply, OpenmpAssemblyEqualsSequential) {
   }
 }
 
+// Every graph enumeration prints its enumerator's name (the spelling the CLI and Python take).
+TEST(GraphProperties, EnumerationsHaveTheirNames) {
+  EXPECT_EQ(dyng::to_string(dyng::row_layout::compact), "compact");
+  EXPECT_EQ(dyng::to_string(dyng::row_layout::slotted), "slotted");
+  EXPECT_EQ(dyng::to_string(dyng::row_layout::slack), "slack");
+  EXPECT_EQ(dyng::to_string(dyng::row_order::sorted), "sorted");
+  EXPECT_EQ(dyng::to_string(dyng::row_order::append), "append");
+  EXPECT_EQ(dyng::to_string(dyng::multi_edges::forbid), "forbid");
+  EXPECT_EQ(dyng::to_string(dyng::multi_edges::allow), "allow");
+  using sem = dyng::batch_semantics;
+  EXPECT_EQ(dyng::to_string(sem::existing_insert::upsert), "upsert");
+  EXPECT_EQ(dyng::to_string(sem::existing_insert::error), "error");
+  EXPECT_EQ(dyng::to_string(sem::existing_insert::ignore), "ignore");
+  EXPECT_EQ(dyng::to_string(sem::missing_delete::ignore), "ignore");
+  EXPECT_EQ(dyng::to_string(sem::missing_delete::error), "error");
+  EXPECT_EQ(dyng::to_string(sem::self_loop::keep), "keep");
+  EXPECT_EQ(dyng::to_string(sem::self_loop::drop), "drop");
+  EXPECT_EQ(dyng::to_string(sem::self_loop::error), "error");
+}
+
 }  // namespace

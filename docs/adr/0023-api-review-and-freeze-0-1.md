@@ -57,7 +57,12 @@ M5 does not rediscover them:
    bound; the `array_view` overloads are.
 4. `resources` copies share one handle, and a default CUDA stream is per thread: two Python
    threads using one `Resources` run on two streams (the class documentation says so).
-5. `profiler` is not thread-safe; the binding holds the GIL while it reads the records.
+5. `profiler` recording is thread-safe (amended in the M3 review: it was not, although copies
+   of a `resources` handle, which share its profiler, may be used concurrently). Holding the GIL
+   while reading the records is not enough, because the binding releases the GIL around every
+   native call (PLAN 5.4 rule 3) and the records are written during those calls: the binding reads
+   `p.stages` etc. only when no call through a handle with that profiler is running, or copies the
+   records under its own lock after each call.
 6. The enumerations accept their `to_string` names (finding 5).
 
 ## Decision
@@ -92,6 +97,26 @@ M5 does not rediscover them:
    `hyperedge_batch`, `triad_count`, `label_propagation`, `hyper_sssp`) are in
    `docs/design/sketches/`, written against the frozen contract. They are not contracts; each is
    frozen by the milestone that implements it.
+
+## Amendments after the M3 review (2026-09-29, accepted under delegation)
+
+Independent reviewers of the M3 branch found gaps in this review. The fixes below change frozen
+headers before 0.1 is tagged (nothing was released), each with a baseline diff and a CHANGELOG
+entry ("Fixed (M3 review)"). None changes a rule the author approved.
+
+| # | Finding | Resolution |
+|---|---|---|
+| A1 | `dyng::update()` / `update_each()` called the qualified `detail::run_update()`, which binds where the template is defined: the hypergraph (0.2) could not have joined without editing `update.hpp`, although the hypergraph sketch said it could. | The dispatch is the class template `detail::participant_of<container_t>` (participant interface, `batch_type`, static `run()`), which a container header specializes; a test drives a container declared after `<dyng/update.hpp>`. |
+| A2 | Finding 4 called the contract uniform, but an unsupported graph type failed to link for sssp and stopped at a `static_assert` for cycle_count; `sssp::result`'s `distance_t` accepted any type and only `int64_t` worked. | `sssp::compute()` / `update()` are inline wrappers that `static_assert` `detail::sssp_supported_v` (`DYNG_SSSP_TYPES_MESSAGE`), as cycle_count; `distance_t` and `vertex_t` of `sssp::result` are `static_assert`ed. The template of `new_algorithm.py` follows the rule. |
+| A3 | Finding 5 left ten frozen enumerations without `to_string()` (`row_layout`, `row_order`, `multi_edges`, `batch_semantics::existing_insert` / `missing_delete` / `self_loop`, `cycle_count::search_method` / `cycle_mode` / `cuda_scheduler` / `cuda_work_items`), which note 6 promised the Python layer. | Added, with tests. |
+| A4 | Finding 7 required `@guarantee` on six functions only, although the checklist asks it of every function that changes a container or a result; `edge_batch::insert_edge` / `delete_edge` left a batch inconsistent after an allocation failure. | The builders are strong (they roll back); every mutating member of the container, batch and result classes states its guarantee, and `ci/doxygen_coverage.py` checks it. |
+| A5 | Finding 8 missed `to_vector()`, which let `std::length_error` escape. | Translated to `out_of_memory_error`; a test injects allocation failures. |
+| A6 | The API snapshot did not see the `dyng::detail` entities public signatures depend on, ungrouped macros, or the umbrella header's includes, so, for example, changing `update_traits<sssp::result>::stats_type` passed. | `ci/api_snapshot.py` lists the `update_traits` / `participant_of` / `stats_of` specializations and the `*_supported_v` traits (`detail:` lines, read from the sources), every macro, and the includes of `dyng/dyng.hpp`; `ci/doxygen_coverage.py` requires `@ingroup` on macros. |
+| A7 | The profiler was unsynchronized although copies of a handle, which share it, may be used concurrently (and note 5 relied on the GIL, which native calls release). | Recording is serialized, with a per-thread stage stack; the rule for reading the records is documented, note 5 corrected. |
+| A8 | The threading rules of PLAN 4.7.4 for graphs and results were not documented in the frozen headers. | "Thread safety" paragraphs on `graph`, both results, `dyng::update()` and `attach_profiler()`, and a section in `docs/concepts/results_and_versions.md`. |
+| A9 | `edge_list` and `edge_list_view` froze different positional field orders; `update_each()` with an empty list applied the batch and left every result stale, and it read a device list on the host; misusing `dyng::update()` (the owning batch) failed deep in the header. | `edge_list`'s `num_weights` moved last; `update_each()` rejects an empty or device list; plain-English `static_assert`s name `batch.view()`. |
+| A10 | Documentation: 23 references to the unpublished plan in the public headers; `update_stats` called `engine_used` deterministic across backends; the sssp group text contradicted `update()`'s `@sync`; `dyng.hpp` claimed to include stable headers only. | Replaced by the rule itself or a published page; "deterministic per backend" defined and used; texts corrected. |
+| A11 | The documented baseline update (`ci/docs.sh --doxygen-only && ci/api_snapshot.py --update`) could never run the update. | `ci/docs.sh --update-api`; Decision 3 amended. |
 
 ## Consequences
 

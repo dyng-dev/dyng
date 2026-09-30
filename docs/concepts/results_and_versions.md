@@ -38,10 +38,28 @@ The one error that can only be detected afterwards comes from a corrupt imported
 `sssp`: a tree with a parent cycle adopted through `result::from_arrays()`); it leaves the
 result *poisoned*, and every later use of it throws until it is recomputed.
 
-## Results own their workspace
+## Results and their workspace
 
-A result is opaque and move-only (`clone()` is the deep copy). It owns its arrays, its options,
-the version it matches, and the workspace of the incremental engine, which is allocated once
-when the result is created and reused by every `update()`. Updates therefore do not allocate in
-their algorithm phase once the result exists (invariant I9, checked by allocation budgets in
-debug builds).
+A result is opaque and move-only (`clone()` is the deep copy). It owns its arrays, its options and
+the version it matches. The scratch memory of the incremental engine is not part of it: every
+`compute()` and `update()` leases a workspace from the `resources` handle it runs with, sizes it
+once and returns it, so results updated one after another through one handle share it (ADR 0015).
+Updates therefore do not allocate in their algorithm work once the result and the workspace exist
+(invariant I9, checked by allocation budgets in debug builds; an excess is logged there, and is an
+error under `DYNG_STRICT_BUDGETS=1`, which the conformance kit sets).
+
+## Threads
+
+Graphs and results are not thread-safe:
+
+- Calls that only read a graph or a result (`view()`, the accessors, `to_csr()`, an algorithm's
+  `compute()` on a graph nobody changes) may run concurrently.
+- A call that changes a graph (`apply()`, an algorithm's `update()`, `dyng::update()`) must not
+  overlap any other call on that graph or on a result being updated with it. Two concurrent
+  updates of one graph, or reading a result while another thread or stream updates it, are
+  undefined unless you order them (a mutex, or stream events on CUDA).
+- Distinct graphs and results may be used concurrently, also through copies of one `resources`
+  handle: each concurrent call gets its own workspace. The setters of a handle
+  (`set_memory_resource()`, `set_copy_policy()`, `attach_profiler()`) affect every copy; call them
+  during setup. An attached profiler may record from several threads at once; read its records
+  after the calls returned.

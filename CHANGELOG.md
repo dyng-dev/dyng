@@ -306,6 +306,21 @@ Before 0.1.0 anything may change.
   `ci/docs.sh --update-api` updates the API baseline (the documented `&&` command never could).
 - The kit: C4 is exercised on a fake two-engine algorithm, the registration rules have
   compile-fail tests, and C0 catches a manifest that drops a backend.
+- `sssp::compute()` / `update()` stop at a plain-English `static_assert` for an unsupported graph
+  type (they failed to link), as cycle_count's do; `sssp::result`'s `distance_t` must be
+  `std::int64_t` (the only width in 0.1). The scaffold's template follows the same rule.
+- `to_string()` for `row_layout`, `row_order`, `multi_edges`, `batch_semantics::existing_insert` /
+  `missing_delete` / `self_loop` and `cycle_count::search_method` / `cycle_mode` /
+  `cuda_scheduler` / `cuda_work_items`.
+- `profiler` recording is thread-safe (copies of a `resources` handle share it and may run
+  concurrently); graphs, results and `dyng::update()` document their thread safety.
+- The API snapshot also lists the `dyng::detail` contract of the public signatures
+  (`update_traits`, `participant_of`, `stats_of`, the `*_supported_v` traits), every macro, and
+  the includes of `<dyng/dyng.hpp>`; macros need `@ingroup`.
+- Documentation: no references to the unpublished plan in the public headers; "deterministic per
+  backend" defined for `update_stats::engine_used` and `sssp::stats::packed_parents`; the sssp
+  synchronization text and the umbrella header's description corrected; sketch fixes (`mosp`
+  stage names, `hyper_sssp`'s budget guarantee, `triad_count`, the hypergraph's `hyperedge_list`).
 
 ### Changed
 

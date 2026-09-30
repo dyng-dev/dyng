@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file dyng.hpp
- * @brief Umbrella header: includes every stable public header of dynG.
+ * @brief Umbrella header: includes every public header of dynG outside dyng/testing/.
+ *
+ * That is the frozen 0.1 API (core, graph, update, the algorithms, citation, config, version) and
+ * the headers of io/ and generators/, which are public but not frozen before the command-line
+ * tools and the Python layer (0.1 API review, ADR 0023: they may still change in a minor release).
+ * The list of includes is part of the API baseline.
  * @ingroup core
  */
 #pragma once

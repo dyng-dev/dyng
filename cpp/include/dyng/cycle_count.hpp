@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string_view>
 #include <type_traits>
 
 /**
@@ -107,6 +108,38 @@ enum class cuda_work_items : std::uint8_t {
 };
 
 /**
+ * @brief The lower-case name of a search method ("johnson").
+ * @param[in] m The method.
+ * @return A static string naming `m` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(search_method m) noexcept;
+
+/**
+ * @brief The lower-case name of a cycle mode ("simple").
+ * @param[in] m The mode.
+ * @return A static string naming `m` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(cycle_mode m) noexcept;
+
+/**
+ * @brief The lower-case name of a CUDA scheduler ("work_queue", "naive").
+ * @param[in] s The scheduler.
+ * @return A static string naming `s` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(cuda_scheduler s) noexcept;
+
+/**
+ * @brief The lower-case name of a work-item kind ("automatic", "roots", "edges", "two_hop").
+ * @param[in] w The kind.
+ * @return A static string naming `w` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(cuda_work_items w) noexcept;
+
+/**
  * @brief Options of compute() and update() (an aggregate; fields are only ever appended).
  *
  * max_length, method and mode are fixed at compute() (the histogram counts the cycles they
@@ -139,7 +172,7 @@ struct options {
   cycle_mode mode = cycle_mode::simple;  ///< the cycles counted (simple); fixed at compute()
 
   /// The CUDA engine: automatic and fused select the fused kernels (the work queue of the static
-  /// count, the per-change searches of the update; Tier B, PLAN Section 4.5.4); operators throws
+  /// count, the per-change searches of the update: the Tier B engine of docs/developer/framework.md); operators throws
   /// not_supported_error (cycle_count has no operators engine in 0.1). Ignored on the host
   /// backends. A tunable (result::set_options()).
   engine cuda_engine = engine::automatic;
@@ -197,7 +230,10 @@ inline constexpr bool cycle_count_supported_v =
     (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>) &&
     (is_unweighted_v<weight_t> || std::is_same_v<weight_t, std::int32_t>);
 
-/// The message of the static_assert of an unsupported graph type.
+/**
+ * @brief The message of cycle_count's static_assert for an unsupported graph type.
+ * @ingroup cycle_count
+ */
 #define DYNG_CYCLE_COUNT_TYPES_MESSAGE                                                          \
   "dyng::cycle_count supports graph<int32_t, int32_t or int64_t, unweighted or int32_t> only "  \
   "(int32_t vertex ids: the ownership table keys two 32-bit ids); see 'Graph requirements' in " \
@@ -218,6 +254,10 @@ namespace dyng::cycle_count {
  * 2^64, as the original's do; only the host-side merge of an update's two phases into the
  * histogram is checked (more than 10^19 cycles of one length: not reachable in practice).
  * The scratch memory of the engines is leased from the resources handle (ADR 0015), not owned.
+ *
+ * **Thread safety.** A result is not thread-safe: its accessors may run concurrently with each
+ * other, but not with an update() of it (or a dyng::update() that includes it), which must also
+ * not overlap another call on its graph; see graph, "Thread safety".
  * @ingroup cycle_count
  */
 class result {

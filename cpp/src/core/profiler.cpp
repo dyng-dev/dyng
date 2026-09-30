@@ -13,9 +13,12 @@
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
 
+#include <algorithm>
 #include <cstdio>
 #include <exception>
+#include <mutex>
 #include <ostream>
+#include <thread>
 
 #if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
 #include <nvtx3/nvToolsExt.h>
@@ -31,6 +34,13 @@ bool is_name_start(char c) noexcept {
 
 bool is_name_char(char c) noexcept {
   return is_name_start(c) || (c >= '0' && c <= '9') || c == '_';
+}
+
+/// Serializes the recording of every profiler (a stage boundary is rare: a lock costs nothing
+/// measurable next to it). One lock for all profilers keeps the class copyable.
+std::mutex& recording_lock() {
+  static std::mutex lock;
+  return lock;
 }
 
 std::string format_ms(double ms) {
@@ -65,6 +75,10 @@ bool profiler::is_valid_name(std::string_view name) noexcept {
 void profiler::begin_stage(std::string_view name) {
   DYNG_EXPECTS(is_valid_name(name), "profiler stage name '", name,
                "' does not follow <algo>.<hook>[.<sub>] in dotted lower case");
+  const std::thread::id self = std::this_thread::get_id();
+  const std::lock_guard<std::mutex> guard(recording_lock());
+  const auto depth = static_cast<int>(std::count_if(
+      open_.begin(), open_.end(), [&](const open_stage& s) { return s.thread == self; }));
   std::size_t index = stages_.size();
   for (std::size_t i = 0; i < stages_.size(); ++i) {
     if (stages_[i].name == name) {
@@ -75,10 +89,10 @@ void profiler::begin_stage(std::string_view name) {
   if (index == stages_.size()) {
     stage_record record;
     record.name = std::string(name);
-    record.depth = static_cast<int>(open_.size());
+    record.depth = depth;
     stages_.push_back(std::move(record));
   }
-  open_.push_back(open_stage{index, std::chrono::steady_clock::now()});
+  open_.push_back(open_stage{index, std::chrono::steady_clock::now(), self});
 #if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
   if (options_.nvtx) {
     nvtxRangePushA(stages_[index].name.c_str());
@@ -88,25 +102,33 @@ void profiler::begin_stage(std::string_view name) {
 
 void profiler::end_stage(double device_ms) {
   const auto now = std::chrono::steady_clock::now();
-  DYNG_EXPECTS(!open_.empty(), "profiler::end_stage() without an open stage");
+  const std::thread::id self = std::this_thread::get_id();
+  const std::lock_guard<std::mutex> guard(recording_lock());
+  // The innermost stage this thread opened (other threads' stages may be open around it).
+  auto top = std::find_if(open_.rbegin(), open_.rend(),
+                          [&](const open_stage& s) { return s.thread == self; });
+  DYNG_EXPECTS(top != open_.rend(), "profiler::end_stage() without an open stage");
 #if defined(DYNG_HAS_NVTX) && DYNG_HAS_NVTX
   if (options_.nvtx) {
     nvtxRangePop();
   }
 #endif
-  const open_stage top = open_.back();
-  open_.pop_back();
-  const double host_ms = std::chrono::duration<double, std::milli>(now - top.start).count();
-  stage_record& record = stages_[top.record];
+  const open_stage closed = *top;
+  open_.erase(std::next(top).base());
+  const auto depth = static_cast<int>(std::count_if(
+      open_.begin(), open_.end(), [&](const open_stage& s) { return s.thread == self; }));
+  const double host_ms = std::chrono::duration<double, std::milli>(now - closed.start).count();
+  stage_record& record = stages_[closed.record];
   record.calls += 1;
   record.host_ms += host_ms;
   record.device_ms += device_ms;
-  samples_.push_back(stage_sample{record.name, static_cast<int>(open_.size()), host_ms, device_ms});
+  samples_.push_back(stage_sample{record.name, depth, host_ms, device_ms});
 }
 
 void profiler::add_counter(std::string_view name, std::int64_t value) {
   DYNG_EXPECTS(is_valid_name(name), "profiler counter name '", name,
                "' does not follow <algo>.<name>[.<sub>] in dotted lower case");
+  const std::lock_guard<std::mutex> guard(recording_lock());
   for (auto& c : counters_) {
     if (c.name == name) {
       c.value += value;
@@ -135,6 +157,7 @@ std::int64_t profiler::counter(std::string_view name) const noexcept {
 }
 
 void profiler::reset() {
+  const std::lock_guard<std::mutex> guard(recording_lock());
   DYNG_EXPECTS(open_.empty(), "profiler::reset() while ", open_.size(), " stage(s) are open");
   stages_.clear();
   samples_.clear();

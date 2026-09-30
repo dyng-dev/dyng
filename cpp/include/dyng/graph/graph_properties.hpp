@@ -6,11 +6,12 @@
  * @ingroup graph
  *
  * The properties belong to the GRAPH, so every result maintained on one graph agrees on how a
- * batch is interpreted (PLAN Section 5.2, ADR 0010).
+ * batch is interpreted (ADR 0010).
  */
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 
 namespace dyng {
 
@@ -187,5 +188,53 @@ struct graph_properties {
     return props;
   }
 };
+
+/**
+ * @brief The lower-case name of a row layout ("compact", "slotted", "slack").
+ * @param[in] layout The layout.
+ * @return A static string naming `layout` (the enumerator's name).
+ * @ingroup graph
+ */
+[[nodiscard]] std::string_view to_string(row_layout layout) noexcept;
+
+/**
+ * @brief The lower-case name of a row order ("sorted", "append").
+ * @param[in] order The order.
+ * @return A static string naming `order` (the enumerator's name).
+ * @ingroup graph
+ */
+[[nodiscard]] std::string_view to_string(row_order order) noexcept;
+
+/**
+ * @brief The lower-case name of a parallel-edge rule ("forbid", "allow").
+ * @param[in] rule The rule.
+ * @return A static string naming `rule` (the enumerator's name).
+ * @ingroup graph
+ */
+[[nodiscard]] std::string_view to_string(multi_edges rule) noexcept;
+
+/**
+ * @brief The lower-case name of an existing-edge insertion rule ("upsert", "error", "ignore").
+ * @param[in] rule The rule.
+ * @return A static string naming `rule` (the enumerator's name).
+ * @ingroup graph
+ */
+[[nodiscard]] std::string_view to_string(batch_semantics::existing_insert rule) noexcept;
+
+/**
+ * @brief The lower-case name of a missing-edge deletion rule ("ignore", "error").
+ * @param[in] rule The rule.
+ * @return A static string naming `rule` (the enumerator's name).
+ * @ingroup graph
+ */
+[[nodiscard]] std::string_view to_string(batch_semantics::missing_delete rule) noexcept;
+
+/**
+ * @brief The lower-case name of a self-loop rule ("keep", "drop", "error").
+ * @param[in] rule The rule.
+ * @return A static string naming `rule` (the enumerator's name).
+ * @ingroup graph
+ */
+[[nodiscard]] std::string_view to_string(batch_semantics::self_loop rule) noexcept;
 
 }  // namespace dyng

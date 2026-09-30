@@ -6,8 +6,8 @@
 // (BatchParams, generate_batch)
 /**
  * @file legacy.hpp
- * @brief generators::legacy: bit-exact reproductions of the original repositories' generators
- *        (PLAN Section 5.8), for the parity harness and for reproducing published experiments.
+ * @brief generators::legacy: bit-exact reproductions of the original repositories' generators,
+ *        for the parity harness and for reproducing published experiments.
  * @ingroup generators
  */
 #pragma once

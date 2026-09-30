@@ -27,7 +27,7 @@ struct resources_access;
 
 /**
  * @brief What to do when an input array lives in another memory space than the one the library
- *        reads it in (PLAN Section 4.7.1).
+ *        reads it in.
  *
  * The library then copies the array once. In this release batches, graph builds and imported
  * trees are read on the host on every backend (the batch is applied on the host, as the original
@@ -56,7 +56,7 @@ enum class copy_policy : std::uint8_t {
  *
  * Cheap to copy: copies share one handle, so set_memory_resource(), set_copy_policy() and
  * attach_profiler() affect every copy. Call them during setup, not while another thread uses the
- * handle; for independent settings create a new resources object (PLAN Section 4.7.4).
+ * handle; for independent settings create a new resources object.
  * The library never creates streams, sets environment variables, or changes the global OpenMP
  * thread count on its own.
  * A moved-from handle stays valid: moving shares the handle like a copy (the source keeps it), so
@@ -67,9 +67,8 @@ enum class copy_policy : std::uint8_t {
  * such a handle share the device, memory resource, profiler and workspaces, but work enqueued
  * through them on two threads runs on two streams: synchronize() and the release of memory wait
  * for (or are ordered on) the calling thread's stream only, and ordering work across threads is
- * the caller's job (PLAN Section 4.7.4), as with two explicit streams. A handle created with an
- * explicit stream uses that one stream on every thread. (ADR 0016 item 10; PLAN 4.7.4 says a copy
- * "refers to the same stream", which holds for explicit streams only.)
+ * the caller's job, as with two explicit streams. A handle created with an
+ * explicit stream uses that one stream on every thread (ADR 0016 item 10).
  *
  * **Scratch memory.** The handle also caches the engines' workspaces (scratch memory such as the
  * frontier lists of sssp): a compute() or update() leases one from the handle, sizes it once and
@@ -234,6 +233,11 @@ class resources {
 
   /**
    * @brief Attach a profiler that records the library's stages and counters.
+   *
+   * Every copy of the handle records into it. Library calls that run concurrently through copies
+   * may record at the same time (profiler recording is thread-safe); read the records after those
+   * calls returned (see profiler). Like the other setters, call it during setup, not while another
+   * thread uses the handle.
    * @param[in] p The profiler (not owned; must outlive its attachment); nullptr detaches.
    */
   void attach_profiler(profiler* p) noexcept;

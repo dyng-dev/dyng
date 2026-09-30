@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 
 /**
  * @defgroup sssp sssp
@@ -48,7 +49,8 @@
  * Backends: sequential (the reference), openmp (MOSP-OpenMP's sospUpdateCpu) and cuda (MOSP-CUDA's
  * persistent cooperative kernel, the fused engine; options::cuda_engine). On cuda the graph must
  * be built with (or cloned for) the CUDA resources, the result arrays live in device memory
- * (copy them with to_vector()), and compute() and update() synchronize the stream once. Near the
+ * (copy them with to_vector()), and compute() synchronizes the stream once, update() once per
+ * result and once per batch inside the commit (the new graph state's upload). Near the
  * packing limit the two parallel engines choose the word format slightly differently (MOSP-CUDA
  * packs when (n - 1) * max weight fits, MOSP-OpenMP when one more edge fits too), so
  * stats::packed_parents may differ between cuda and the host backends there; the trees are
@@ -92,11 +94,11 @@ struct stats : update_stats {
   std::int64_t epochs = 0;
   /// Schedule-dependent: vertex expansions of the Step 2 loop.
   std::int64_t pushes = 0;
-  /// Deterministic per backend: false if distances do not fit next to the parent ids in 64-bit
-  /// words, so the engine kept distances only and recovered every parent with the lowest-id rule
-  /// after the search. The sequential engine reports the OpenMP engine's value and applies the same
-  /// recovery, so both return the same tree; the CUDA engine uses MOSP-CUDA's slightly larger
-  /// packing limit (see @ref sssp), so its value can differ right at the limit.
+  /// Deterministic per backend (update_stats): false if distances do not fit next to the parent
+  /// ids in 64-bit words, so the engine kept distances only and recovered every parent with the
+  /// lowest-id rule after the search. The sequential engine reports the OpenMP engine's value and
+  /// applies the same recovery, so both return the same tree; the CUDA engine uses MOSP-CUDA's
+  /// slightly larger packing limit (see @ref sssp), so its value can differ right at the limit.
   bool packed_parents = true;
 };
 
@@ -122,12 +124,26 @@ namespace dyng::sssp {
  * (ADR 0015). The results stay independent: nothing in the workspace carries over from one run to
  * the next.
  *
+ * **Thread safety.** A result is not thread-safe: its accessors may run concurrently with each
+ * other, but not with an update() of it (or a dyng::update() that includes it), which must also
+ * not overlap another call on its graph; see graph, "Thread safety". On CUDA, reading its device
+ * arrays on one stream while another stream updates it is undefined unless the streams are
+ * ordered.
+ *
  * @tparam vertex_t   Vertex id type (int32_t or int64_t).
- * @tparam distance_t Distance type (int64_t).
+ * @tparam distance_t Distance type: std::int64_t, the only width in 0.1 (the packed (distance, id)
+ *                    words and the engines are 64-bit); the parameter keeps room for a later
+ *                    width, and another value fails to compile.
  * @ingroup sssp
  */
 template <typename vertex_t, typename distance_t = std::int64_t>
 class result {
+  static_assert(std::is_same_v<distance_t, std::int64_t>,
+                "dyng::sssp::result: distance_t is std::int64_t in 0.1 (the packed (distance, id) "
+                "words of the engines are 64-bit)");
+  static_assert(std::is_same_v<vertex_t, std::int32_t> || std::is_same_v<vertex_t, std::int64_t>,
+                "dyng::sssp::result: vertex_t is std::int32_t or std::int64_t");
+
  public:
   /**
    * @brief Move constructor.
@@ -275,6 +291,69 @@ class result {
   std::unique_ptr<state_type> impl_;
 };
 
+}  // namespace dyng::sssp
+
+namespace dyng::detail {
+
+/**
+ * @brief Whether sssp is instantiated for graph<vertex_t, edge_t, weight_t>: int32_t weights with
+ *        int32_t ids and int32_t or int64_t offsets, or int64_t ids and offsets.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+inline constexpr bool sssp_supported_v =
+    std::is_same_v<weight_t, std::int32_t> &&
+    ((std::is_same_v<vertex_t, std::int32_t> &&
+      (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) ||
+     (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>));
+
+/**
+ * @brief The message of sssp's static_assert for an unsupported graph type.
+ * @ingroup sssp
+ */
+#define DYNG_SSSP_TYPES_MESSAGE                                                                  \
+  "dyng::sssp supports graph<int32_t, int32_t or int64_t, int32_t> and graph<int64_t, int64_t, " \
+  "int32_t> only (integer weights in [1, 2^31 - 1]); see 'Graph requirements' in "               \
+  "docs/algorithms/sssp.md"
+
+/**
+ * @brief sssp::compute() for a supported graph type (instantiated in the library).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in] res    Execution resources.
+ * @param[in] g      The graph.
+ * @param[in] source The source vertex.
+ * @param[in] opt    Options.
+ * @return The shortest-path tree.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+[[nodiscard]] sssp::result<vertex_t> sssp_compute(const resources& res,
+                                                  const graph<vertex_t, edge_t, weight_t>& g,
+                                                  vertex_t source, const sssp::options& opt);
+
+/**
+ * @brief sssp::update() for a supported graph type (instantiated in the library).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res   Execution resources.
+ * @param[in,out] g     The graph.
+ * @param[in]     batch The batch.
+ * @param[in,out] r     The result.
+ * @return The update's counters.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+sssp::stats sssp_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+                        const edge_batch_view<vertex_t, weight_t>& batch,
+                        sssp::result<vertex_t>& r);
+
+}  // namespace dyng::detail
+
+namespace dyng::sssp {
+
 /**
  * @brief Compute the canonical shortest-path tree of `g` from `source` (the static solve).
  *
@@ -313,7 +392,10 @@ class result {
 template <typename vertex_t, typename edge_t, typename weight_t>
 [[nodiscard]] result<vertex_t> compute(const resources& res,
                                        const graph<vertex_t, edge_t, weight_t>& g, vertex_t source,
-                                       const options& opt = {});
+                                       const options& opt = {}) {
+  static_assert(detail::sssp_supported_v<vertex_t, edge_t, weight_t>, DYNG_SSSP_TYPES_MESSAGE);
+  return detail::sssp_compute(res, g, source, opt);
+}
 
 /**
  * @brief Apply a batch of edge changes to `g` and update the shortest-path tree `r`.
@@ -370,7 +452,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result<vertex_t>& r);
+             const edge_batch_view<vertex_t, weight_t>& batch, result<vertex_t>& r) {
+  static_assert(detail::sssp_supported_v<vertex_t, edge_t, weight_t>, DYNG_SSSP_TYPES_MESSAGE);
+  return detail::sssp_update(res, g, batch, r);
+}
 
 }  // namespace dyng::sssp
 
@@ -409,6 +494,10 @@ struct update_traits<sssp::result<vertex_t, distance_t>> {
   template <typename container_t>
   static std::unique_ptr<typename participant_of<container_t>::type> make_participant(
       sssp::result<vertex_t, distance_t>& r, sssp::stats& out) {
+    static_assert(
+        sssp_supported_v<typename container_t::vertex_type, typename container_t::edge_type,
+                         typename container_t::weight_type>,
+        DYNG_SSSP_TYPES_MESSAGE);
     return make_sssp_participant<vertex_t, typename container_t::edge_type,
                                  typename container_t::weight_type, distance_t>(r, out);
   }

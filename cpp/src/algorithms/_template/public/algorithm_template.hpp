@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 
 /**
  * @defgroup algorithm_template algorithm_template
@@ -168,6 +169,68 @@ class result {
   std::unique_ptr<detail::algorithm_template_state> impl_;
 };
 
+}  // namespace dyng::algorithm_template
+
+namespace dyng::detail {
+
+/**
+ * @brief Whether algorithm_template is instantiated for graph<vertex_t, edge_t, weight_t> (the
+ *        explicit instantiations of algorithm_template.cpp: int32_t weights with int32_t ids and
+ *        int32_t or int64_t offsets, or int64_t ids and offsets).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+inline constexpr bool algorithm_template_supported_v =
+    std::is_same_v<weight_t, std::int32_t> &&
+    ((std::is_same_v<vertex_t, std::int32_t> &&
+      (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) ||
+     (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>));
+
+/**
+ * @brief The message of algorithm_template's static_assert for an unsupported graph type.
+ * @ingroup algorithm_template
+ */
+#define DYNG_ALGORITHM_TEMPLATE_TYPES_MESSAGE                                          \
+  "dyng::algorithm_template supports graph<int32_t, int32_t or int64_t, int32_t> and " \
+  "graph<int64_t, int64_t, int32_t> only; see docs/algorithms/algorithm_template.md"
+
+/**
+ * @brief algorithm_template::compute() for a supported graph type (instantiated in the library).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in] res Execution resources.
+ * @param[in] g   The graph.
+ * @param[in] opt Options.
+ * @return The result.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+[[nodiscard]] algorithm_template::result algorithm_template_compute(
+    const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+    const algorithm_template::options& opt);
+
+/**
+ * @brief algorithm_template::update() for a supported graph type (instantiated in the library).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res   Execution resources.
+ * @param[in,out] g     The graph.
+ * @param[in]     batch The batch.
+ * @param[in,out] r     The result.
+ * @return The update's counters.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+algorithm_template::stats algorithm_template_update(
+    const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+    const edge_batch_view<vertex_t, weight_t>& batch, algorithm_template::result& r);
+
+}  // namespace dyng::detail
+
+namespace dyng::algorithm_template {
+
 /**
  * @brief Compute the result of `g` (the static solve, the oracle of update()).
  * @tparam vertex_t Vertex id type.
@@ -190,7 +253,11 @@ class result {
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 [[nodiscard]] result compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-                             const options& opt = {});
+                             const options& opt = {}) {
+  static_assert(detail::algorithm_template_supported_v<vertex_t, edge_t, weight_t>,
+                DYNG_ALGORITHM_TEMPLATE_TYPES_MESSAGE);
+  return detail::algorithm_template_compute(res, g, opt);
+}
 
 /**
  * @brief Apply a batch of edge changes to `g` and update `r`.
@@ -220,7 +287,11 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result& r);
+             const edge_batch_view<vertex_t, weight_t>& batch, result& r) {
+  static_assert(detail::algorithm_template_supported_v<vertex_t, edge_t, weight_t>,
+                DYNG_ALGORITHM_TEMPLATE_TYPES_MESSAGE);
+  return detail::algorithm_template_update(res, g, batch, r);
+}
 
 }  // namespace dyng::algorithm_template
 
@@ -256,6 +327,10 @@ struct update_traits<algorithm_template::result> {
   template <typename container_t>
   static std::unique_ptr<typename participant_of<container_t>::type> make_participant(
       algorithm_template::result& r, algorithm_template::stats& out) {
+    static_assert(algorithm_template_supported_v<typename container_t::vertex_type,
+                                                 typename container_t::edge_type,
+                                                 typename container_t::weight_type>,
+                  DYNG_ALGORITHM_TEMPLATE_TYPES_MESSAGE);
     return make_algorithm_template_participant<typename container_t::vertex_type,
                                                typename container_t::edge_type,
                                                typename container_t::weight_type>(r, out);

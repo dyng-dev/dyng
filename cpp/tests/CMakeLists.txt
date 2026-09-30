@@ -171,6 +171,25 @@ foreach(
   endif()
 endforeach()
 
+# Compile-failure tests: sssp on an unsupported graph type stops at the static_assert that names the
+# supported types (as cycle_count's), not at a link error; so does another distance type.
+foreach(_case "compute;;dyng::sssp supports graph<" "update;-DDYNG_COMPILE_FAIL_UPDATE;dyng::sssp supports graph<"
+        "multi_update;-DDYNG_COMPILE_FAIL_MULTI;dyng::sssp supports graph<"
+        "distance_type;-DDYNG_COMPILE_FAIL_DISTANCE;distance_t is std::int64_t in 0.1"
+)
+  list(GET _case 0 _name)
+  list(GET _case 1 _define)
+  list(GET _case 2 _message)
+  add_test(NAME sssp.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/sssp_unsupported_types.cpp
+  )
+  set_tests_properties(
+    sssp.static_assert.${_name} PROPERTIES LABELS "cpu;sssp" PASS_REGULAR_EXPRESSION "${_message}"
+  )
+endforeach()
+
 # Compile-failure tests of dyng::update()'s argument checks (plain-English static_asserts instead
 # of an error inside the header): the owning batch instead of its view, and a type that is not a
 # container of dyng::update(). The control case must compile.

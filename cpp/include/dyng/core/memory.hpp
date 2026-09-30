@@ -8,7 +8,7 @@
  * memory_resource_ref has the member names and argument order of the CCCL 3.x memory-resource
  * concept (cuda::mr::resource: allocate(stream, bytes, alignment), deallocate(stream, ptr, bytes,
  * alignment), allocate_sync, deallocate_sync; checked against the CCCL 3.1 of CUDA 13.1, ADR
- * 0003), so adapters in both directions are trivial (PLAN Section 4.7.2). The built-in resources
+ * 0003), so adapters in both directions are trivial. The built-in resources
  * are host_memory_resource (host backends), cuda_async_memory_resource (the default of the CUDA
  * backend: a stream-ordered cudaMallocAsync pool) and pinned_host_memory_resource (page-locked
  * host memory for staging). The header needs no CUDA headers.

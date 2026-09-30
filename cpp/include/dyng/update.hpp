@@ -38,7 +38,8 @@ struct normalized_batch;
  * @brief One result taking part in an update (type-erased; each algorithm implements it).
  *
  * run_update() calls before_apply() of every participant on G_t, commits the batch once, then
- * calls after_apply() of every participant on G_{t+1} (PLAN Section 4.5.1, invariant I1). The
+ * calls after_apply() of every participant on G_{t+1} (invariant I1: subtract on G_t,
+ * add on G_{t+1}). The
  * participant of an algorithm is the framework's adapter of its problem (problem_participant in
  * the library's cpp/src/framework/composition.hpp): before_apply() runs the problem's Steps 0 and
  * 1a through its update_enactor, after_apply() its Steps 1b and 2.
@@ -226,6 +227,10 @@ struct stats_of {
  * every result is updated on G_{t+1}. Every result must match `g.version()`, and no result may be
  * passed twice. The postcondition of each algorithm's own update() holds for each result (for
  * sssp: equal to sssp::compute() on the new graph).
+ *
+ * Thread safety: the call changes `g` and every result, so it must not overlap any other call on
+ * `g` or on one of the results (graph, "Thread safety"); updates of distinct graphs may run
+ * concurrently.
  *
  * @tparam container_t  The container type (graph<V,E,W>).
  * @tparam batch_view_t The batch view type (edge_batch_view<V,W>).

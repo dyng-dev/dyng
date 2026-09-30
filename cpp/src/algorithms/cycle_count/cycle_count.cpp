@@ -51,6 +51,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -676,6 +677,46 @@ array_view<const std::uint64_t> result::counts() const {
   const detail::cycle_count_state& st = detail::cycle_count_access::state(*this);
   detail::expect_not_poisoned(st, "cycle_count::result::counts");
   return host_view(st.counts);
+}
+
+std::string_view to_string(search_method m) noexcept {
+  switch (m) {
+    case search_method::johnson:
+      return "johnson";
+  }
+  return "unknown";
+}
+
+std::string_view to_string(cycle_mode m) noexcept {
+  switch (m) {
+    case cycle_mode::simple:
+      return "simple";
+  }
+  return "unknown";
+}
+
+std::string_view to_string(cuda_scheduler s) noexcept {
+  switch (s) {
+    case cuda_scheduler::work_queue:
+      return "work_queue";
+    case cuda_scheduler::naive:
+      return "naive";
+  }
+  return "unknown";
+}
+
+std::string_view to_string(cuda_work_items w) noexcept {
+  switch (w) {
+    case cuda_work_items::automatic:
+      return "automatic";
+    case cuda_work_items::roots:
+      return "roots";
+    case cuda_work_items::edges:
+      return "edges";
+    case cuda_work_items::two_hop:
+      return "two_hop";
+  }
+  return "unknown";
 }
 
 std::uint64_t result::count(std::int64_t length) const {
