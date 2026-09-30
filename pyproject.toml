@@ -1,0 +1,118 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Python package `dyng` (PLAN Sections 5.4 and 7.7): scikit-build-core builds the extension
+# module dyng._core (nanobind, CPython's stable ABI from 3.12: one abi3 wheel per platform) with
+# the sequential and OpenMP backends and links libdyng statically; python/dyng is the typed layer.
+# The root placement means the sdist contains VERSION, cpp/ and python/.
+#
+#   pip install .                                        # build and install the wheel
+#   python -m build                                      # sdist + wheel into dist/
+#   pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build
+#                                                        # development (rebuilds on import)
+#
+# The name-reservation package 0.0.1 lives in tools/name_reservation (ADR 0014) and is not
+# affected by this file.
+[build-system]
+# nanobind is pinned exactly: the committed stubs (python/dyng/_core.pyi) are its output.
+requires = ["scikit-build-core>=1.1.0", "nanobind==3.1.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "dyng"
+dynamic = ["version"]
+description = "dynG: dynamic graph and hypergraph algorithms that update their results under batches of changes"
+readme = "python/README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "LICENSES/Apache-2.0.txt"]
+authors = [{ name = "S M Shovan", email = "sm.shovan@gmail.com" }]
+keywords = [
+  "dynamic graph",
+  "batch update",
+  "shortest paths",
+  "cycle counting",
+  "GPU",
+  "OpenMP",
+  "graph algorithms",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Typing :: Typed",
+]
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+# cu12 / cu13 (the CUDA plugin wheels dyng-cu12 / dyng-cu13 at the same version) are added by
+# the release script of 0.1.x, when those distributions exist (PLAN Section 7.7).
+test = ["pytest>=8", "hypothesis>=6.100"]
+torch = ["torch"]
+pandas = ["pandas"]
+
+[project.urls]
+Homepage = "https://github.com/dyng-dev/dyng"
+Repository = "https://github.com/dyng-dev/dyng"
+Issues = "https://github.com/dyng-dev/dyng/issues"
+Changelog = "https://github.com/dyng-dev/dyng/blob/main/CHANGELOG.md"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+cmake.version = ">=3.30"
+ninja.version = ">=1.11"
+cmake.build-type = "Release"
+build.targets = ["_core"]
+install.components = ["python"]
+wheel.py-api = "cp312"  # one abi3 wheel per platform (nanobind STABLE_ABI)
+wheel.packages = ["python/dyng"]
+editable.verbose = false
+# The sdist: what the CPU build needs, plus the Python tests and their small fixtures.
+sdist.exclude = [
+  ".github/",
+  "build/",
+  "build-*/",
+  "dist/",
+  "parity/",
+  "benchmarks/",
+  "docs/",
+  "examples/",
+  "tools/",
+  "ci/",
+  "scripts/",
+  "cpp/tests/compile_fail/",
+  "cpp/tests/api/",
+]
+sdist.include = ["docs/references.bib"]
+
+[tool.scikit-build.cmake.define]
+DYNG_BUILD_PYTHON = "ON"
+DYNG_BUILD_TESTS = "OFF"
+BUILD_SHARED_LIBS = "OFF"
+DYNG_ENABLE_CUDA = "OFF"
+DYNG_BUILD_EXAMPLES = "OFF"
+DYNG_BUILD_TOOLS = "OFF"
+DYNG_BUILD_TUTORIALS = "OFF"
+DYNG_INSTALL = "OFF"
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "VERSION"
+regex = '(?P<value>\S+)'  # VERSION holds a bare version string
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "gpu: needs a CUDA device and a CUDA-enabled dyng module",
+  "slow: longer property-based runs",
+]
+filterwarnings = ["error::DeprecationWarning:dyng"]
