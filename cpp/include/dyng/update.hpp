@@ -9,6 +9,7 @@
 
 #include <dyng/core/array_view.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/edge_batch.hpp>
@@ -20,6 +21,7 @@
 #include <stdexcept>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -144,22 +146,67 @@ template <typename result_t>
 struct update_traits;
 
 /**
- * @brief The participant interface of a container type.
+ * @brief How dyng::update() drives a container type: its participant interface, its batch view
+ *        type and its run_update(). The customization point of the unified update: a container
+ *        header specializes it (graph<V,E,W> below; the hypergraph in 0.2), so update() and
+ *        update_each() need no change for a new container. The primary template marks a type that
+ *        is not a container of dyng::update().
  * @tparam container_t The container type.
  */
 template <typename container_t>
-struct participant_of;
+struct participant_of {
+  /// Whether dyng::update() accepts this container type.
+  static constexpr bool supported = false;
+};
 
 /**
- * @brief The participant interface of graph<V,E,W>.
+ * @brief The participant interface, batch view and run_update() of graph<V,E,W>.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 struct participant_of<graph<vertex_t, edge_t, weight_t>> {
+  static constexpr bool supported = true;                       ///< a container of update()
   using type = update_participant<vertex_t, edge_t, weight_t>;  ///< the interface
+  using batch_type = edge_batch_view<vertex_t, weight_t>;       ///< the batch view it takes
+
+  /**
+   * @brief Run one update over the participants (run_update() of graphs).
+   * @param[in]     res          Execution resources.
+   * @param[in,out] g            The graph.
+   * @param[in]     batch        The batch.
+   * @param[in]     participants The participants.
+   * @param[in]     count        Number of participants.
+   * @param[in]     commit_stage Profiler stage name of the commit.
+   * @return What the commit did.
+   */
+  static apply_summary run(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+                           const batch_type& batch, type* const* participants, std::size_t count,
+                           std::string_view commit_stage) {
+    return run_update(res, g, batch, participants, count, commit_stage);
+  }
 };
+
+/**
+ * @brief The plain-English checks of dyng::update()'s container and batch arguments.
+ * @tparam container_t  The container type.
+ * @tparam batch_view_t The batch argument's type.
+ * @return true (the checks are static_asserts).
+ */
+template <typename container_t, typename batch_view_t>
+constexpr bool check_update_arguments() {
+  static_assert(participant_of<container_t>::supported,
+                "dyng::update: the container is not one dyng::update() drives (in 0.1: "
+                "dyng::graph<V, E, W>)");
+  if constexpr (participant_of<container_t>::supported) {
+    static_assert(std::is_same_v<batch_view_t, typename participant_of<container_t>::batch_type>,
+                  "dyng::update: the batch must be the container's batch view, "
+                  "edge_batch_view<V, W> of the graph's vertex and weight types: pass "
+                  "`batch.view()` of an edge_batch");
+  }
+  return true;
+}
 
 /**
  * @brief The stats type of a result type.
@@ -211,6 +258,7 @@ template <typename container_t, typename batch_view_t, typename... results_t>
 auto update(const resources& res, container_t& g, const batch_view_t& batch, results_t&... results)
     -> std::tuple<typename detail::stats_of<results_t>::type...> {
   static_assert(sizeof...(results_t) > 0, "dyng::update() needs at least one result");
+  static_assert(detail::check_update_arguments<container_t, batch_view_t>());
   using participant_t = typename detail::participant_of<container_t>::type;
   std::tuple<typename detail::stats_of<results_t>::type...> out;
   try {
@@ -223,7 +271,8 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
           for (std::size_t i = 0; i < sizeof...(results_t); ++i) {
             raw[i] = owned[i].get();
           }
-          detail::run_update(res, g, batch, raw, sizeof...(results_t), "update.commit");
+          detail::participant_of<container_t>::run(res, g, batch, raw, sizeof...(results_t),
+                                                   "update.commit");
         },
         out);
   } catch (const std::bad_alloc& e) {
@@ -239,7 +288,8 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  *        (for example the K objectives of a multi-objective graph).
  *
  * The same contract as update(res, g, batch, results...), for a list whose length is known only at
- * run time.
+ * run time. The list must not be empty (the variadic update() rejects zero results at compile
+ * time; here it is invalid_argument_error, checked before anything changes).
  *
  * @tparam container_t  The container type (graph<V,E,W>).
  * @tparam batch_view_t The batch view type (edge_batch_view<V,W>).
@@ -248,13 +298,14 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  * @param[in,out] g       The container; its version increases by one.
  * @param[in]     batch   The batch (any memory space; read on the host in this release, so arrays
  *                        in device memory are copied once under res.get_copy_policy()).
- * @param[in,out] results Pointers to the results to update (host memory, none null).
+ * @param[in,out] results Pointers to the results to update (host memory, at least one, none
+ *                        null).
  * @return One stats object per result, in order.
  * @throws stale_result_error     if a result does not match `g` (its version, or the graph state
  *         it was computed on).
- * @throws invalid_argument_error if a pointer is null or a result is listed twice, the batch is
- *         invalid, or a batch array must be copied to the host and the copy policy is
- *         copy_policy::error.
+ * @throws invalid_argument_error if the list is empty or not in host memory, a pointer is null or
+ *         a result is listed twice, the batch is invalid, or a batch array must be copied to the
+ *         host and the copy policy is copy_policy::error.
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
  *         result (vertex operations before 0.3), or a batch array is in device memory and CUDA
  *         is not built.
@@ -273,7 +324,14 @@ template <typename container_t, typename batch_view_t, typename result_t>
 auto update_each(const resources& res, container_t& g, const batch_view_t& batch,
                  array_view<result_t* const> results)
     -> std::vector<typename detail::stats_of<result_t>::type> {
+  static_assert(detail::check_update_arguments<container_t, batch_view_t>());
   using participant_t = typename detail::participant_of<container_t>::type;
+  DYNG_EXPECTS(is_host_accessible(results.space()),
+               "dyng::update_each: the list of results must be in host memory (it is in ",
+               to_string(results.space()), ")");
+  DYNG_EXPECTS(!results.empty(),
+               "dyng::update_each: the list of results is empty (applying a batch without "
+               "updating any result would leave every result of the graph stale; use g.apply())");
   for (std::size_t i = 0; i < results.size(); ++i) {
     DYNG_EXPECTS(results[i] != nullptr, "dyng::update_each: result ", i, " is null");
   }
@@ -288,7 +346,8 @@ auto update_each(const resources& res, container_t& g, const batch_view_t& batch
           *results[i], out[i]));
       raw.push_back(owned.back().get());
     }
-    detail::run_update(res, g, batch, raw.data(), raw.size(), "update.commit");
+    detail::participant_of<container_t>::run(res, g, batch, raw.data(), raw.size(),
+                                             "update.commit");
     return out;
   } catch (const std::bad_alloc& e) {
     detail::throw_host_allocation_failure(

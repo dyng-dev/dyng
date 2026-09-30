@@ -36,6 +36,29 @@ struct hypergraph_properties {
 };
 }  // namespace dyng
 
+// cpp/include/dyng/hypergraph/hyperedge_list.hpp (PLAN 4.2: a CSR of member lists + its view)
+namespace dyng {
+template <typename vertex_t, typename weight_t = unweighted>
+struct hyperedge_list_view {               ///< non-owning input of from_hyperedges(), any memory space
+  vertex_t num_vertices = 0;               ///< vertex ids are in [0, num_vertices)
+  array_view<const std::int64_t> offsets;  ///< members of hyperedge i: [offsets[i], offsets[i+1])
+  array_view<const vertex_t> members;
+  array_view<const weight_t> weights;      ///< one per hyperedge; empty for unweighted
+  [[nodiscard]] std::int64_t num_hyperedges() const noexcept;
+};
+template <typename vertex_t, typename weight_t = unweighted>
+struct hyperedge_list {                    ///< owning host list (to_hyperedge_list(), file readers)
+  vertex_t num_vertices = 0;
+  std::vector<std::int64_t> offsets{0};
+  std::vector<vertex_t> members;
+  std::vector<weight_t> weights;           ///< the field order matches the view (members, then
+                                           ///< weights), unlike 0.1's edge_list, fixed in M3
+  void add_hyperedge(std::initializer_list<vertex_t> m, weight_t w = {});
+  [[nodiscard]] std::int64_t num_hyperedges() const noexcept;
+  [[nodiscard]] hyperedge_list_view<vertex_t, weight_t> view() const noexcept;
+};
+}
+
 // cpp/include/dyng/hypergraph/hypergraph_view.hpp
 namespace dyng {
 template <typename id_t> struct incidence_view;   ///< rows of sorted members, any memory space;
@@ -133,7 +156,7 @@ class hypergraph {                          ///< pimpl, move-only, resident
 | Need | 0.1 |
 |---|---|
 | `array_view`, `resources`, errors, profiler, `unweighted`, `invalid_id` | frozen in `core/*` |
-| `dyng::update()` on a hypergraph | `update.hpp` dispatches on `detail::participant_of<container_t>`; M8 adds the hypergraph specialization and a `hypergraph` `run_update()` (one commit, the same poison rules). The frozen `update()` template needs no change |
+| `dyng::update()` on a hypergraph | `update()` and `update_each()` reach a container only through the class template `detail::participant_of<container_t>`: its participant interface `type`, its `batch_type` (the argument check) and its static `run(res, c, batch, participants, n, stage)`. A class template specialization is found at instantiation, wherever it is declared, so M8 adds `participant_of<hypergraph<V, W>>` (with `run()` forwarding to a hypergraph `run_update()`: one commit, the same poison rules) in `hypergraph.hpp`, and the frozen `update()` template needs no change. (The first 0.1 draft called the qualified function `detail::run_update()`, which binds at the template's definition and would not have found a later overload; the M3 review moved the dispatch into `participant_of`, and `cpp/tests/core/update_dispatch_test.cpp` drives a container declared after `<dyng/update.hpp>`.) |
 | the registry's container kind | `container_kind::hypergraph` exists in `core/registry.hpp` |
 | stale-result detection | the same `version()` + state identity scheme as `graph` |
 

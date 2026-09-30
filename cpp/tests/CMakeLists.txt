@@ -23,6 +23,7 @@ dyng_add_test(
     core/profiler_test.cpp
     core/resources_test.cpp
     core/types_test.cpp
+    core/update_dispatch_test.cpp
     core/version_test.cpp
   LABELS cpu core
 )
@@ -160,6 +161,34 @@ foreach(
     set_tests_properties(
       framework.conformance.${_name} PROPERTIES LABELS "cpu;framework" PASS_REGULAR_EXPRESSION
                                                 "${_message}"
+    )
+  endif()
+endforeach()
+
+# Compile-failure tests of dyng::update()'s argument checks (plain-English static_asserts instead
+# of an error inside the header): the owning batch instead of its view, and a type that is not a
+# container of dyng::update(). The control case must compile.
+foreach(
+  _case
+  "control||"
+  "owning_batch|-DDYNG_CF_OWNING_BATCH|the batch must be the container's batch view"
+  "not_a_container|-DDYNG_CF_NOT_A_CONTAINER|the container is not one dyng::update.. drives"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME update.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/update_arguments.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(update.static_assert.${_name} PROPERTIES LABELS "cpu;core")
+  else()
+    set_tests_properties(
+      update.static_assert.${_name} PROPERTIES LABELS "cpu;core" PASS_REGULAR_EXPRESSION
+                                               "${_message}"
     )
   endif()
 endforeach()
