@@ -8,6 +8,7 @@ import pickle
 from pathlib import Path
 
 import dyng
+import numpy as np
 import pytest
 from dyng._backend import native
 
@@ -83,3 +84,28 @@ def test_value_error_is_caught_as_such() -> None:
     g = dyng.Graph.from_edges([0], [1], [1])
     with pytest.raises(ValueError):
         dyng.sssp.compute(g, 5)
+
+
+@pytest.mark.parametrize("bad", [1.9, "1", True, None, 1.0])
+def test_integer_arguments_are_never_truncated_or_parsed(bad: object) -> None:
+    g = dyng.Graph.from_edges([0, 1], [1, 2], [1, 1])
+    with pytest.raises(dyng.InvalidArgumentError, match="source: expected an integer"):
+        dyng.sssp.compute(g, bad)  # type: ignore[arg-type]
+    with pytest.raises(dyng.InvalidArgumentError, match="delta: expected an integer"):
+        dyng.sssp.compute(g, 0, delta=bad)
+    with pytest.raises(dyng.InvalidArgumentError, match="max_length: expected an integer"):
+        dyng.cycle_count.compute(g, max_length=bad)
+
+
+def test_integer_arguments_accept_numpy_integers() -> None:
+    g = dyng.Graph.from_edges([0, 1], [1, 2], [1, 1])
+    assert dyng.sssp.compute(g, np.int64(1)).source == 1
+    assert dyng.cycle_count.compute(g, max_length=np.int32(3)).bound == 3
+
+
+def test_boolean_options_must_be_booleans() -> None:
+    g = dyng.Graph.from_edges([0, 1], [1, 2], [1, 1])
+    with pytest.raises(dyng.InvalidArgumentError, match="validate_inputs: expected True or False"):
+        dyng.sssp.compute(g, 0, validate_inputs="no")
+    with pytest.raises(dyng.InvalidArgumentError, match="directed: expected True or False"):
+        dyng.Graph.from_edges([0], [1], directed=1)  # type: ignore[arg-type]

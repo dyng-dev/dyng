@@ -31,7 +31,7 @@ import numpy as np
 
 from . import _dtypes
 from ._backend import native
-from ._convert import copy_fields, enum_member, enum_name, with_options
+from ._convert import as_int, copy_fields, enum_member, enum_name, with_options
 from .array import Array
 from .batch import EdgeBatch
 from .errors import NotSupportedError
@@ -69,7 +69,7 @@ class Options:
 
     def _to_native(self) -> Any:
         o = native.CycleCountOptions()
-        o.max_length = int(self.max_length)
+        o.max_length = as_int(self.max_length, "cycle_count.Options.max_length")
         o.method = enum_member(native.SearchMethod, self.method, "cycle_count.Options.method")
         o.mode = enum_member(native.CycleMode, self.mode, "cycle_count.Options.mode")
         o.cuda_engine = enum_member(
@@ -152,7 +152,7 @@ class Result:
 
     def count(self, length: int) -> int:
         """The number of cycles of one length (0 outside [2, bound])."""
-        return int(self._native.count(int(length)))
+        return int(self._native.count(as_int(length, "cycle_count.Result.count: length")))
 
     @property
     def total(self) -> int:

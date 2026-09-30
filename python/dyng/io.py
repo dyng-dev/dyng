@@ -23,7 +23,7 @@ import numpy as np
 
 from . import _dtypes
 from ._backend import native
-from ._convert import enum_member
+from ._convert import as_bool, as_int, enum_member
 from .array import Array
 from .batch import EdgeBatch
 from .errors import InvalidArgumentError
@@ -157,13 +157,13 @@ def read_edge_list_arrays(
     if weighted is False and num_weights != 0:
         raise InvalidArgumentError("read_edge_list: weighted=False with num_weights > 0")
     opt = native.EdgeListOptions()
-    opt.num_weights = int(num_weights)
+    opt.num_weights = as_int(num_weights, "read_edge_list: num_weights")
     opt.ids = enum_member(native.VertexIds, ids, "read_edge_list: ids")
-    opt.index_base = int(index_base)
-    opt.symmetrize = bool(symmetrize)
-    opt.drop_self_loops = bool(drop_self_loops)
+    opt.index_base = as_int(index_base, "read_edge_list: index_base")
+    opt.symmetrize = as_bool(symmetrize, "read_edge_list: symmetrize")
+    opt.drop_self_loops = as_bool(drop_self_loops, "read_edge_list: drop_self_loops")
     opt.duplicates = enum_member(native.DuplicateEdges, duplicates, "read_edge_list: duplicates")
-    opt.threads = int(threads)
+    opt.threads = as_int(threads, "read_edge_list: threads")
     wcode = "i32" if num_weights > 0 else "u"
     reader = getattr(native, f"read_edge_list_{_vcode(vertex_dtype)}_{wcode}")
     parts, info = reader(_path(path), opt)
@@ -318,9 +318,15 @@ def read_matrix_market_arrays(
         weights = "random" if random_weights is not None else "automatic"
     opt.weights = enum_member(native.MatrixMarketWeights, weights, "read_matrix_market: weights")
     lo, hi, seed = random_weights if random_weights is not None else (1, 100, 12345)
-    opt.set_random(int(num_weights), int(lo), int(hi), int(seed))
-    opt.drop_self_loops = bool(drop_self_loops)
-    opt.sort_and_dedupe = bool(sort_and_dedupe)
+    what = "read_matrix_market"
+    opt.set_random(
+        as_int(num_weights, f"{what}: num_weights"),
+        as_int(lo, f"{what}: random_weights[0]"),
+        as_int(hi, f"{what}: random_weights[1]"),
+        as_int(seed, f"{what}: random_weights[2]"),
+    )
+    opt.drop_self_loops = as_bool(drop_self_loops, f"{what}: drop_self_loops")
+    opt.sort_and_dedupe = as_bool(sort_and_dedupe, f"{what}: sort_and_dedupe")
     reader = getattr(native, f"read_matrix_market_{_vcode(vertex_dtype)}_i32")
     n, src, dst, w = _edge_list(reader(_path(path), opt))
     if w is not None and w.shape[1] == 0:
@@ -391,7 +397,7 @@ def write_matrix_market(
     weights, else ``integer`` with column ``weight_column``)."""
     vcode, n, s, d, w, k = _prepared(edges)
     getattr(native, f"write_matrix_market_{vcode}_i32")(
-        _path(path), n, s, d, w, k, int(weight_column)
+        _path(path), n, s, d, w, k, as_int(weight_column, "write_matrix_market: weight_column")
     )
 
 
@@ -430,7 +436,7 @@ def read_csr_triplet(
         edge = _dtypes.INT64
     gtype = _dtypes.find_graph_type(vertex, edge, True)
     row_ptr, col_ind, w_km, k = getattr(native, f"read_csr_triplet_{gtype.code}")(
-        _path(prefix), int(num_weights)
+        _path(prefix), as_int(num_weights, "read_csr_triplet: num_weights")
     )
     props = make_properties(properties, directed=directed, semantics=semantics)  # type: ignore[arg-type]
     return Graph._from_csr_objective_major(
@@ -471,9 +477,9 @@ def read_legacy_batch(
     parts = reader(
         _path(insert_path),
         _path(delete_path),
-        int(num_weights),
-        int(num_vertices),
-        bool(mosp_lenient),
+        as_int(num_weights, "read_legacy_batch: num_weights"),
+        as_int(num_vertices, "read_legacy_batch: num_vertices"),
+        as_bool(mosp_lenient, "read_legacy_batch: mosp_lenient"),
     )
     return EdgeBatch._from_arrays(parts)
 
@@ -502,12 +508,14 @@ def write_legacy_batch(insert_path: PathLike, delete_path: PathLike, batch: Edge
 def read_distances(path: PathLike, num_vertices: int) -> np.ndarray:
     """Read a MOSP distance file (``v d`` or ``v INF`` per vertex) as int64 (INF reads as
     :data:`dyng.sssp.INFINITE_DISTANCE`)."""
-    return native.read_distances(_path(path), int(num_vertices))
+    return native.read_distances(_path(path), as_int(num_vertices, "read_distances: num_vertices"))
 
 
 def read_parents(path: PathLike, num_vertices: int, *, vertex_dtype: Any = "int32") -> np.ndarray:
     """Read a MOSP SSSP-tree file (``v p`` per vertex, -1 for none)."""
-    return getattr(native, f"read_parents_{_vcode(vertex_dtype)}")(_path(path), int(num_vertices))
+    return getattr(native, f"read_parents_{_vcode(vertex_dtype)}")(
+        _path(path), as_int(num_vertices, "read_parents: num_vertices")
+    )
 
 
 def _host_array(a: Any, what: str) -> np.ndarray:
@@ -542,7 +550,7 @@ def histogram_csv(counts: Any, *, include_total: bool = True) -> str:
         if c.dtype != np.uint64
         else np.ascontiguousarray(c)
     )
-    return str(native.histogram_csv(c, bool(include_total)))
+    return str(native.histogram_csv(c, as_bool(include_total, "histogram_csv: include_total")))
 
 
 def write_histogram_csv(

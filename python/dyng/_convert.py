@@ -6,10 +6,38 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import operator
 from collections.abc import Mapping
 from typing import Any
 
+import numpy as np
+
 from .errors import InvalidArgumentError
+
+
+def as_int(value: Any, what: str) -> int:
+    """An integer argument or option field: ``int`` or a NumPy integer, nothing else.
+
+    ``operator.index`` semantics: floats (``1.9``), strings (``"1"``) and booleans are rejected
+    with :class:`~dyng.InvalidArgumentError` instead of being truncated or parsed.
+    """
+    if isinstance(value, bool | np.bool_):
+        raise InvalidArgumentError(f"{what}: expected an integer, got the bool {value!r}")
+    try:
+        return operator.index(value)
+    except TypeError:
+        raise InvalidArgumentError(
+            f"{what}: expected an integer, got {type(value).__name__} {value!r}"
+        ) from None
+
+
+def as_bool(value: Any, what: str) -> bool:
+    """A boolean argument or option field: ``True`` / ``False`` (or a NumPy bool) only."""
+    if isinstance(value, bool | np.bool_):
+        return bool(value)
+    raise InvalidArgumentError(
+        f"{what}: expected True or False, got {type(value).__name__} {value!r}"
+    )
 
 
 def enum_member(enum_type: type[enum.Enum], value: Any, what: str) -> enum.Enum:

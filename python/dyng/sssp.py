@@ -29,7 +29,7 @@ import numpy as np
 
 from . import _dtypes
 from ._backend import native
-from ._convert import copy_fields, enum_member, enum_name, with_options
+from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name, with_options
 from .array import Array
 from .batch import EdgeBatch
 from .errors import NotSupportedError, StaleResultError
@@ -64,10 +64,10 @@ class Options:
 
     def _to_native(self) -> Any:
         o = native.SsspOptions()
-        o.delta = int(self.delta)
-        o.objective = int(self.objective)
+        o.delta = as_int(self.delta, "sssp.Options.delta")
+        o.objective = as_int(self.objective, "sssp.Options.objective")
         o.cuda_engine = enum_member(native.Engine, self.cuda_engine, "sssp.Options.cuda_engine")
-        o.validate_inputs = bool(self.validate_inputs)
+        o.validate_inputs = as_bool(self.validate_inputs, "sssp.Options.validate_inputs")
         return o
 
     @classmethod
@@ -230,7 +230,13 @@ class Result:
             "sssp.Result.from_arrays: parents",
         )
         handle = native.sssp_from_arrays(
-            res._native, graph._native, int(source), d, p, bool(canonicalize), opt._to_native()
+            res._native,
+            graph._native,
+            as_int(source, "sssp.Result.from_arrays: source"),
+            d,
+            p,
+            as_bool(canonicalize, "sssp.Result.from_arrays: canonicalize"),
+            opt._to_native(),
         )
         return cls._wrap(handle, graph.vertex_dtype, res)
 
@@ -304,7 +310,8 @@ def compute(
     _check_graph(graph)
     opt = with_options(Options, options, kwargs, "sssp.compute")
     res = resolve(resources, graph._resources)
-    handle = native.sssp_compute(res._native, graph._native, int(source), opt._to_native())
+    src = as_int(source, "sssp.compute: source")
+    handle = native.sssp_compute(res._native, graph._native, src, opt._to_native())
     return Result._wrap(handle, graph.vertex_dtype, res)
 
 

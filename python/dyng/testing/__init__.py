@@ -22,6 +22,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .._backend import native
+from .._convert import as_bool, as_int
 from ..graph import Graph
 from ..sssp import Result as SsspResult
 from ..sssp import _check_graph
@@ -53,7 +54,11 @@ def dijkstra(graph: Graph, source: int, *, objective: int = 0) -> tuple[np.ndarr
         unreachable) and parents (-1 for the source and unreachable vertices).
     """
     _check_graph(graph)
-    d, p = native.testing_dijkstra(graph._native, int(source), int(objective))
+    d, p = native.testing_dijkstra(
+        graph._native,
+        as_int(source, "testing.dijkstra: source"),
+        as_int(objective, "testing.dijkstra: objective"),
+    )
     return d, p
 
 
@@ -62,7 +67,11 @@ def check_sssp_tree(
 ) -> SsspTreeCheck:
     """Check a tree of :mod:`dyng.sssp` against Dijkstra on ``graph``'s current state."""
     _check_graph(graph)
-    c = native.testing_check_sssp_tree(graph._native, tree._native, bool(require_canonical))
+    c = native.testing_check_sssp_tree(
+        graph._native,
+        tree._native,
+        as_bool(require_canonical, "check_sssp_tree: require_canonical"),
+    )
     return SsspTreeCheck(
         int(c.distance_mismatches),
         int(c.inconsistent_parents),
@@ -81,4 +90,8 @@ def simple_cycles(graph: Graph, max_length: int = -1, *, brute_force: bool = Fal
     vertex count."""
     if not isinstance(graph, Graph):
         raise TypeError("simple_cycles: graph must be a dyng.Graph")
-    return native.testing_simple_cycles(graph._native, int(max_length), bool(brute_force))
+    return native.testing_simple_cycles(
+        graph._native,
+        as_int(max_length, "testing: max_length"),
+        as_bool(brute_force, "testing: brute_force"),
+    )

@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from .._backend import native
-from .._convert import copy_fields, enum_member
+from .._convert import as_bool, as_int, copy_fields, enum_member
 from ..batch import EdgeBatch
 from ..errors import NotSupportedError
 from ..graph import Graph
@@ -95,15 +95,15 @@ def mosp_changes(
     if not graph.weighted:
         raise NotSupportedError("mosp_changes: MOSP's generator needs a weighted graph")
     opt = native.MospChangeOptions()
-    opt.num_changes = int(num_changes)
+    opt.num_changes = as_int(num_changes, "mosp_changes: num_changes")
     opt.insertion_percentage = float(insertion_percentage)
     opt.mode = enum_member(native.MospChangeMode, mode, "mosp_changes: mode")
-    opt.weight_min = int(weight_min)
-    opt.weight_max = int(weight_max)
-    opt.seed = int(seed)
-    opt.local_hops = int(local_hops)
-    opt.safe_deletions = bool(safe_deletions)
-    opt.source = int(source)
+    opt.weight_min = as_int(weight_min, "mosp_changes: weight_min")
+    opt.weight_max = as_int(weight_max, "mosp_changes: weight_max")
+    opt.seed = as_int(seed, "mosp_changes: seed")
+    opt.local_hops = as_int(local_hops, "mosp_changes: local_hops")
+    opt.safe_deletions = as_bool(safe_deletions, "mosp_changes: safe_deletions")
+    opt.source = as_int(source, "mosp_changes: source")
     parts, report = native.mosp_changes(graph._native, opt)
     names = (
         "inserts",
@@ -145,9 +145,13 @@ def cycle_enum_batch(
     if not isinstance(graph, Graph):
         raise TypeError("cycle_enum_batch: graph must be a dyng.Graph")
     opt = native.CycleEnumBatchOptions()
-    opt.num_deletions = int(num_deletions)
-    opt.num_insertions = int(num_insertions)
-    opt.seed = int(seed)
-    opt.locality_window = -1 if locality_window is None else int(locality_window)
+    opt.num_deletions = as_int(num_deletions, "cycle_enum_batch: num_deletions")
+    opt.num_insertions = as_int(num_insertions, "cycle_enum_batch: num_insertions")
+    opt.seed = as_int(seed, "cycle_enum_batch: seed")
+    opt.locality_window = (
+        -1
+        if locality_window is None
+        else as_int(locality_window, "cycle_enum_batch: locality_window")
+    )
     parts: Any = native.cycle_enum_batch(graph._native, opt)
     return EdgeBatch._from_arrays(parts)

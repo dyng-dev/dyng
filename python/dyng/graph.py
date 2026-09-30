@@ -12,7 +12,7 @@ import numpy as np
 
 from . import _dtypes
 from ._backend import native
-from ._convert import copy_fields, enum_member, enum_name
+from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name
 from .errors import InvalidArgumentError
 from .resources import Resources, resolve
 
@@ -74,9 +74,11 @@ class BatchSemantics:
             native.MissingDelete, self.on_missing_delete, "on_missing_delete"
         )
         s.on_self_loop = enum_member(native.SelfLoop, self.on_self_loop, "on_self_loop")
-        s.deletions_first = bool(self.deletions_first)
-        s.allow_vertex_growth = bool(self.allow_vertex_growth)
-        s.as_sets = bool(self.as_sets)
+        s.deletions_first = as_bool(self.deletions_first, "BatchSemantics.deletions_first")
+        s.allow_vertex_growth = as_bool(
+            self.allow_vertex_growth, "BatchSemantics.allow_vertex_growth"
+        )
+        s.as_sets = as_bool(self.as_sets, "BatchSemantics.as_sets")
         return s
 
 
@@ -136,9 +138,9 @@ class GraphProperties:
 
     def _to_native(self) -> Any:
         p = native.GraphProperties()
-        p.directed = bool(self.directed)
-        p.store_transposed = bool(self.store_transposed)
-        p.num_weights = int(self.num_weights)
+        p.directed = as_bool(self.directed, "GraphProperties.directed")
+        p.store_transposed = as_bool(self.store_transposed, "GraphProperties.store_transposed")
+        p.num_weights = as_int(self.num_weights, "GraphProperties.num_weights")
         p.layout = enum_member(native.RowLayout, self.layout, "layout")
         p.headroom = float(self.headroom)
         p.order = enum_member(native.RowOrder, self.order, "order")
@@ -182,9 +184,9 @@ def make_properties(
     else:
         raise TypeError("properties must be a preset name or a dyng.GraphProperties")
     if directed is not None:
-        props.directed = bool(directed)
+        props.directed = as_bool(directed, "directed")
     if store_transposed is not None:
-        props.store_transposed = bool(store_transposed)
+        props.store_transposed = as_bool(store_transposed, "store_transposed")
     if layout is not None:
         props.layout = layout  # type: ignore[assignment]
     if row_order is not None:
@@ -366,9 +368,11 @@ class Graph:
         gtype = _dtypes.find_graph_type(vertex, edge, weights is not None)
         if num_vertices is None:
             num_vertices = int(max(s.max(initial=-1), d.max(initial=-1))) + 1
+        else:
+            num_vertices = as_int(num_vertices, "Graph.from_edges: num_vertices")
         props.num_weights = k
         handle = gtype.native_class.from_edges(
-            res._native, int(num_vertices), s, d, w, k, props._to_native()
+            res._native, num_vertices, s, d, w, k, props._to_native()
         )
         return cls._wrap(handle, gtype, res)
 
@@ -584,7 +588,7 @@ class Graph:
     def reserve(self, edge_capacity: int, *, resources: Resources | None = None) -> None:
         """Pre-size the current storage for ``edge_capacity`` edges."""
         res = resolve(resources, self._resources)
-        self._native.reserve(res._native, int(edge_capacity))
+        self._native.reserve(res._native, as_int(edge_capacity, "Graph.reserve: edge_capacity"))
 
     def check_integrity(self, *, resources: Resources | None = None) -> None:
         """Check the storage invariants; raises :class:`~dyng.InternalError` if one is broken."""
