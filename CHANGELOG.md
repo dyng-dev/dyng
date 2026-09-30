@@ -10,6 +10,30 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- The Python package `dyng` (M5, PLAN Sections 5.4 and 7.7; ADR 0011): a root `pyproject.toml`
+  (scikit-build-core, nanobind 3.1.0, one abi3 wheel for CPython >= 3.12, the version from
+  `VERSION`), the CMake option `DYNG_BUILD_PYTHON` building the extension module `dyng._core`
+  (stable ABI, nanobind and `libdyng` linked statically, the sequential and OpenMP backends), and
+  the typed layer in `python/dyng`: `Resources` (sequential, openmp; `cuda` raises
+  `NotSupportedError` in the CPU wheel and names the CUDA plugins of 0.1.x) and the default
+  resources, `Graph` (`from_edges` / `from_csr` with dtype dispatch that never narrows ids
+  silently, property presets by name), `EdgeBatch`, `dyng.sssp` and `dyng.cycle_count`
+  (`compute` / `update` / `Options` / `Result` / `Stats`), `dyng.update(graph, batch, *results)`,
+  the exception hierarchy (`InvalidArgumentError` is a `ValueError`, `FileFormatError` an
+  `OSError` with `.path` / `.line`, ...), `dyng.io` (edge lists, Matrix Market, MOSP's CSR,
+  batches, distances, trees, histogram CSV), `dyng.generators.legacy`, `dyng.testing` (native
+  oracles, pure-Python oracles, Hypothesis strategies), `profile()`, `citation()`,
+  `show_config()`, `algorithms()`, `__version__`. Result arrays are zero-copy `dyng.Array` views
+  (`__dlpack__`, `__array_interface__`, `to_numpy()`) that keep their result alive and raise
+  `StaleResultError` once it is updated. The GIL is released around native work. The stubs
+  `python/dyng/_core.pyi` are committed and checked with `python scripts/regen.py --stubs
+  --check`; `scripts/regen.py` also generates `python/dyng/_algorithms.py`. What 0.1 does not
+  bind is listed in `docs/developer/python_gaps.md`.
+- The pytest suite `python/tests` (M5): API surface, dtype dispatch, DLPack / NumPy round trips,
+  exception mapping, stale results, threads, a Hypothesis profile (random graphs and batches
+  against pure-Python Dijkstra and brute-force cycle oracles), and Python-level parity with the
+  committed goldens of MOSP-OpenMP (byte-identical files) and CycleEnumeration-GPU (identical
+  histograms). `environment.yml` pins nanobind, scikit-build-core and Hypothesis.
 - Framework (M3, internal-stable): the update template as code in `cpp/src/framework/`:
   `problem_base` (CRTP hooks with no-op defaults, families `fixed_point` and `aggregate_delta`),
   `update_enactor` and `static_enactor` (the fixed hook order, one profiler stage per implemented
