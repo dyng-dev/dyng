@@ -1,7 +1,8 @@
 # sssp: dynamic single-source shortest paths
 
 Maturity: **experimental** (sequential and OpenMP backends since M1a, the CUDA backend with the
-fused engine since M1b; the Python binding arrives in M5 and the operators engine in 0.2).
+fused engine since M1b, the Python binding and the `dyng sssp` command line since M5; the
+operators engine arrives in 0.2).
 Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md)).
 
@@ -100,7 +101,59 @@ std::vector<std::int64_t> dist = dyng::to_vector(gpu, dtree.distances());
 | `cuda_engine` | automatic | CUDA engine: `automatic` and `fused` run the persistent cooperative kernel and throw `not_supported_error` on a device without cooperative launch (the operators engine that would be the fallback arrives in 0.2); `operators` throws in 0.1; ignored on the CPU |
 | `validate_inputs` | true | O(n) checks of trees adopted with `result::from_arrays()` |
 
-Python: planned (M5).
+**Python** (`dyng.sssp`; the options are keywords with the C++ field names, and
+`dyng.sssp.Options` holds them): one tree per objective of a two-objective graph, both kept
+current by one `dyng.update()` call, which applies the batch once:
+
+<!-- snippet: sssp-python -->
+```python
+import numpy as np
+import dyng
+
+# Two weight columns (objectives). MOSP's semantics: an insertion of an existing edge overwrites
+# its weights (upsert); rows keep their insertion order and parallel edges.
+src, dst = np.array([0, 0, 2, 1, 1]), np.array([1, 2, 1, 3, 2])
+w = np.array([[4, 1], [1, 5], [2, 1], [1, 1], [3, 3]], dtype=np.int32)
+res = dyng.Resources.openmp()                          # or dyng.Resources.sequential()
+g = dyng.Graph.from_edges(src, dst, w, properties="mosp_compatible", resources=res)
+trees = [dyng.sssp.compute(g, source=0, objective=k) for k in range(g.num_weights)]
+
+batch = dyng.EdgeBatch(insert=(np.array([2]), np.array([3]), np.array([[1, 9]])),
+                       delete=(np.array([2]), np.array([1])))
+stats = dyng.update(g, batch, *trees)                  # one apply, both trees updated
+for k, (t, st) in enumerate(zip(trees, stats)):
+    print(k, t.distances.tolist(), t.parents.tolist(), st.invalidated, st.engine_used)
+assert all(dyng.testing.check_sssp_tree(g, t).ok for t in trees)   # Dijkstra, lowest-id ties
+```
+
+<!-- snippet-output: sssp-python -->
+```text
+0 [0, 4, 1, 2] [-1, 0, 0, 2] 2 fused
+1 [0, 1, 4, 2] [-1, 0, 1, 1] 0 fused
+```
+
+`dyng.sssp.update(g, batch, tree)` updates one tree; `tree.distances` and `tree.parents` are
+zero-copy {py:class}`dyng.Array` views (`.to_numpy()` copies; `dyng.sssp.INFINITE_DISTANCE` marks
+unreachable vertices); `dyng.sssp.Result.from_arrays(g, 0, distances, parents,
+canonicalize=True)` adopts a tree computed elsewhere (MOSP's `--init` files, read with
+`dyng.io.read_distances` / `read_parents`). `examples/python/sssp_update.py` runs the update on
+MOSP's text files and writes MOSP's output files. The reference is {doc}`../api/python/index`.
+
+**Command line** ({doc}`../api/cli`): MOSP's files in, MOSP's files out, byte-identical to the
+original's `mospPrep init` and `mosp` driver:
+
+```console
+$ dyng prep mtx2csr roadNet-CA.mtx roadNet-CA_ 3 1 100 12345    # text CSR, 3 seeded objectives
+$ dyng prep changes roadNet-CA_ batch --changes 50000 --ins 50 --safe --seed 777
+$ dyng sssp compute --graph roadNet-CA_ --out init              # init/obj<k>/SSSPTreeOriginal.txt
+$ dyng sssp update --graph roadNet-CA_ --changes batch --init init --out updated
+obj0: invalidated ..., affected ..., iterations ..., engine fused
+...
+```
+
+`dyng sssp update` updates every objective's tree with one application of the batch
+(`dyng.update`); `--objective K` selects one, `--backend sequential|openmp` and `--threads T` the
+backend, and `--delta`, `--cuda-engine` and `--no-validate-inputs` are the options above.
 
 ## 4. Backends, engines and determinism
 

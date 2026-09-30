@@ -1,7 +1,7 @@
 # cycle_count: exact k-bounded directed simple-cycle histograms
 
-Maturity: **experimental** (M2a: sequential and OpenMP backends; M2b: the CUDA backend; the
-Python binding arrives in M5). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
+Maturity: **experimental** (M2a: sequential and OpenMP backends; M2b: the CUDA backend; M5: the
+Python binding and the `dyng cycle_count` command line). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
 Ported from CycleEnumeration-GPU@0a976ad, the code of TruCy / DynTruCy (Khanda, Shovan, Satpathy,
 Das; submitted to IEEE Transactions on Computers). dynG implements the exact k-bounded
 enumeration of that code, **not** the paper's approximate kappa-truncated TruCy search (Section 7).
@@ -89,7 +89,71 @@ auto st = dyng::cycle_count::update(res, g, batch.view(), hist);
 dyng::io::write_histogram_csv(std::cout, hist.counts());   // "# cycle_size, num_of_cycles" ...
 ```
 
-Python: planned (M5; PLAN Section 5.5, `dyng.cycle_count.compute(cg, max_length=4)`).
+**Python** (`dyng.cycle_count`; the options are keywords with the C++ field names):
+
+<!-- snippet: cycle-count-python -->
+```python
+import numpy as np
+import dyng
+
+# CycleEnumeration-GPU's graph: sorted rows, no parallel edges, set semantics (deleting a missing
+# edge or inserting an existing one is a no-op).
+src = np.array([0, 1, 2, 2, 3, 3, 1], dtype=np.int32)
+dst = np.array([1, 2, 0, 3, 0, 1, 0], dtype=np.int32)
+g = dyng.Graph.from_edges(src, dst, properties="cycle_enum_compatible")
+hist = dyng.cycle_count.compute(g, max_length=4)          # cycles of length 2..4
+print(hist.counts.tolist(), hist.total)
+
+st = dyng.cycle_count.update(g, dyng.EdgeBatch(insert=([0], [3]), delete=([2], [0])), hist)
+print(hist.to_dict(), st.cycles_removed, st.cycles_added)
+assert hist.counts.tolist() == dyng.cycle_count.compute(g, max_length=4).counts.tolist()
+print(dyng.io.histogram_csv(hist), end="")                # the original's CSV
+```
+
+<!-- snippet-output: cycle-count-python -->
+```text
+[0, 0, 1, 2, 1] 4
+{2: 2, 3: 2, 4: 1} 1 2
+# cycle_size, num_of_cycles
+2, 2
+3, 2
+4, 1
+Total, 5
+```
+
+`hist.counts[len]` is the number of cycles of length `len` (a zero-copy {py:class}`dyng.Array`;
+indices 0 and 1 are always 0), `hist.count(len)`, `hist.total` and `hist.to_dict()` read it.
+`dyng.io.read_edge_list("DD_A.txt", properties="cycle_enum_compatible")` loads a TUDataset file
+the way the original's parser does, and `dyng.generators.legacy.cycle_enum_batch(g,
+num_deletions=..., num_insertions=..., seed=...)` makes the original's batches, bit for bit
+(`examples/python/cycle_count_update.py`). `dyng.update(g, batch, tree, hist)` updates a
+cycle histogram together with `sssp` trees on one weighted graph with the default properties.
+
+**Command line** ({doc}`../api/cli`): the histogram CSV of CycleEnumeration-GPU's `cycle-enum`,
+byte for byte (here on the TUDataset fixture of the tests):
+
+```console
+$ dyng cycle_count compute --graph tudataset_A.txt --max-length 4
+# cycle_size, num_of_cycles
+2, 88
+3, 470
+4, 3388
+Total, 3946
+$ dyng cycle_count update --graph tudataset_A.txt --max-length 4 \
+      --num-deletions 40 --num-insertions 40 --seed 1 --compare-recompute
+update_seconds=...
+recompute_seconds=...
+match=yes
+# cycle_size, num_of_cycles
+2, 60
+3, 341
+4, 2228
+Total, 2629
+```
+
+`--num-deletions`, `--num-insertions` and `--seed` generate the batch as the original's
+`--deletes`, `--inserts` and `--batch-seed` do (`dyng generate cycle_enum_batch` writes it to a
+file, `--batch FILE` reads it back); `--backend` and `--threads` choose the backend.
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -359,8 +423,7 @@ kernels do not carry over.
 - The vertex type is `int32_t` (the ownership table keys two 32-bit ids); offsets may be 32 or 64
   bits.
 - Graphs with parallel edges or unsorted rows are rejected (`invalid_argument_error`).
-- No time-window or temporal modes yet (0.4), no Read-Tarjan or brute-force method, no Python
-  binding yet (M5). The original's CUDA time-window and temporal kernels are not ported (0.4), nor
+- No time-window or temporal modes yet (0.4), no Read-Tarjan or brute-force method. The original's CUDA time-window and temporal kernels are not ported (0.4), nor
   its environment tuning (`CYCLE_ENUM_CUDA_BLOCK_SIZE`, `CYCLE_ENUM_CUDA_BLOCKS_PER_SM`: the
   defaults, 128 threads and the occupancy limit, are fixed).
 - No approximate (kappa-truncated) mode (Section 7).
