@@ -6,9 +6,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
-
 import dyng
+import numpy as np
 
 
 def test_sssp_example(data: Path, res: dyng.Resources) -> None:
