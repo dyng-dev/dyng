@@ -57,8 +57,8 @@
 namespace dyng::detail {
 
 /**
- * @brief A snapshot of the process-wide counters (differences of two snapshots are the counts of
- *        a phase).
+ * @brief A snapshot of the calling thread's counters (differences of two snapshots are the counts
+ *        of a phase).
  */
 struct budget_counters {
   std::int64_t allocations = 0;      ///< allocations through the library's memory resources

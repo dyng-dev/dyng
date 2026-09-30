@@ -95,6 +95,7 @@ Decisions the lead maintainer still has to take; each moves to the approvals log
 |---|---|
 | O3: confirm the institution line and the years of `NOTICE` ("software developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors") | the draft wording stays in `NOTICE` |
 | Whether a co-author wrote code of the originals outside git (docs/developer/provenance.md) | co-authors credited as research collaborators only |
+| M3 acceptance criterion 3 (the 2 % bar against pre-M3 dynG, not delegated): on the final code the short OpenMP sssp batches read 1.01-1.11x of `019ef13` (rgg local10k up to 1.09x), roadNet-PA safe50k objective 2 1.022x and cycle_count's CUDA DD updates 1.014-1.028x; the review located the difference in code placement (within 1.2 % when both builds align functions to 64 bytes; `parity/results/M3.md` section 5.4). Accept as placement, or control the layout of the parity and release builds (a PLAN 8.6 per-algorithm flag)? | (a): the readings are recorded as a known placement effect and M3 proceeds to its pull request; the layout option is evaluated with retrospective open item 1 before the 0.2 gates (`docs/developer/retrospectives/M3.md`, open item 1b) |
 
 ## License consent and IP record
 

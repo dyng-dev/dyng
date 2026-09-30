@@ -172,9 +172,9 @@ struct options {
   cycle_mode mode = cycle_mode::simple;  ///< the cycles counted (simple); fixed at compute()
 
   /// The CUDA engine: automatic and fused select the fused kernels (the work queue of the static
-  /// count, the per-change searches of the update: the Tier B engine of docs/developer/framework.md); operators throws
-  /// not_supported_error (cycle_count has no operators engine in 0.1). Ignored on the host
-  /// backends. A tunable (result::set_options()).
+  /// count, the per-change searches of the update: the Tier B engine of
+  /// docs/developer/framework.md); operators throws not_supported_error (cycle_count has no
+  /// operators engine in 0.1). Ignored on the host backends. A tunable (result::set_options()).
   engine cuda_engine = engine::automatic;
   /// The scheduler of the static count on the cuda backend (ignored elsewhere). A tunable.
   cuda_scheduler scheduler = cuda_scheduler::work_queue;

@@ -306,6 +306,11 @@ Before 0.1.0 anything may change.
   `ci/docs.sh --update-api` updates the API baseline (the documented `&&` command never could).
 - The kit: C4 is exercised on a fake two-engine algorithm, the registration rules have
   compile-fail tests, and C0 catches a manifest that drops a backend.
+- Measurement: `parity/perf_ab.py memory` measures sssp's device memory against MOSP-CUDA
+  (0.81-0.86x; cycle_count 1.000x); the gate suites, parity replays and the readings against
+  pre-M3 dynG were repeated on the final code (`parity/results/M3.md` section 5, which also
+  corrects the conclusions of section 4.2); `parity/experiments/sssp_stage_ab.py` compares two
+  builds stage by stage.
 - `sssp::compute()` / `update()` stop at a plain-English `static_assert` for an unsupported graph
   type (they failed to link), as cycle_count's do; `sssp::result`'s `distance_t` must be
   `std::int64_t` (the only width in 0.1). The scaffold's template follows the same rule.
