@@ -32,8 +32,12 @@
 #   regen      scripts/regen.py --check: the algorithm tables, the CODEOWNERS block and the
 #              registries are up to date with the manifests (PLAN Section 4.8)
 #   python     ci/python.sh: the development install of the Python package (pip install -e .),
-#              the committed stubs (scripts/regen.py --stubs --check) and the pytest suite
-#              python/tests (skipped if scikit-build-core or nanobind is missing, except in CI)
+#              the committed stubs (scripts/regen.py --stubs --check), mypy --strict and the
+#              pytest suite python/tests (skipped if scikit-build-core or nanobind is missing,
+#              except in CI). The install goes into the active environment unless its dyng is
+#              an editable install of another checkout (the shared dyng-dev and a fresh clone):
+#              then into the throwaway venv build/py-venv of this checkout, so the shared
+#              environment keeps pointing where it did (DYNG_PYTHON_INSTALL=force re-points it)
 #   api        ci/api_check.sh: griffe compares the Python API with the base branch (origin/main,
 #              else main) and fails on a breaking change (the api-change label accepts one in CI;
 #              locally set DYNG_API_CHANGE=1); skipped if griffe is missing, except in CI

@@ -110,7 +110,7 @@ change:
 ```bash
 source scripts/dev_env.sh
 pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build
-ci/python.sh                       # the editable install, the stubs check, pytest
+ci/python.sh                       # the editable install, the stubs check, mypy, pytest
 ```
 
 `dyng.show_config()` prints the backends of the active native module; `dyng.Resources("cuda")`

@@ -26,9 +26,17 @@ otherwise).
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `python.yml` | pull requests, `main` | `ci/python.sh` (the editable development install, the stubs check `scripts/regen.py --stubs --check`, the pytest suite with the Hypothesis profile `ci`); the sdist built, installed into a fresh venv (an isolated build from PyPI) and tested on Python 3.12 and 3.13 |
+| `python.yml` | pull requests, `main` | `ci/python.sh` (the editable development install, the stubs check `scripts/regen.py --stubs --check`, `mypy --strict`, the pytest suite with the Hypothesis profile `ci`); the sdist built, installed into a fresh venv (an isolated build from PyPI) and tested on Python 3.12 and 3.13 |
 | `wheels.yml` | pull requests that touch the packaging, manual, and called by `release.yml` | the sdist; the wheel built **from that sdist** (its artifact, cibuildwheel's `package-dir`) with cibuildwheel in the manylinux_2_28 image (`[tool.cibuildwheel]` in `pyproject.toml`: built for cp312, a pytest subset run in the built wheel under cp312 and again under cp313); `twine check` and `ci/wheel_check.py`; the wheel alone installed into fresh venvs on 3.12 and 3.13 with the whole pytest suite; artifacts `sdist` and `wheel-cpu-manylinux_2_28_x86_64` |
 | `release.yml` | a tag `v*` | see below |
+
+`ci/python.sh` locally installs into the active environment, except when that environment's
+`dyng` is an editable install of another checkout (the shared `dyng-dev` environment seen from a
+fresh clone or a review worktree): re-pointing it would break the environment once the clone is
+deleted, and concurrent runs would race on it, so the script then uses a throwaway venv
+`build/py-venv` of the checkout (`--system-site-packages`, reusing the environment's packages).
+`DYNG_PYTHON_INSTALL=force` re-points the environment anyway, `=venv` always uses the venv, `=0`
+installs nothing.
 
 ## Locally (no container runtime)
 
