@@ -91,6 +91,15 @@ not fit what exists.
    verified by `ci/scaffold_check.sh` (a build of one algorithm of each family in a copy of the
    tree, with sssp, through `-DDYNG_ALGORITHMS`), which is why subset builds now configure.
 
+   *Amendment (2026-09-30, the M3 acceptance review):* a subset without sssp configured but did
+   not link (`generators::legacy::mosp_changes`, part of `libdyng`, builds its SOSP trees with
+   `sssp::compute`, and the shared suites use sssp as the partner of C10), so PLAN 9.4's
+   `-DDYNG_ALGORITHMS=dynamic_kcore` failed. sssp is now part of every build: a list without it
+   gets it added at configure time (a status message says so), and `ci/scaffold_check.sh` builds
+   every target of the probes-only subset, so a subset that does not link fails the check. The
+   generators keep calling sssp (a second Dijkstra in the library would have to stay bit-equal to
+   it for the MOSP batches).
+
 ## Consequences
 
 - A new algorithm is registered by its manifest alone; `regen.py --check` (pre-commit,

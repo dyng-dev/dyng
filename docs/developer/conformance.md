@@ -80,7 +80,7 @@ backend (C8). Optional: `compare` (required for `determinism::tolerance`), an in
 ```bash
 python3 scripts/new_algorithm.py dynamic_kcore --family fixed_point --backends seq,omp \
     --title "Dynamic k-core decomposition" --computes "k-core numbers"
-cmake --preset dev -DDYNG_ALGORITHMS="dynamic_kcore;sssp"
+cmake --preset dev -DDYNG_ALGORITHMS=dynamic_kcore
 cmake --build --preset dev
 ctest --preset dev -L dynamic_kcore
 cmake --preset cpu-only && ci/docs.sh --update-api   # the new header joins the API baseline
@@ -116,8 +116,9 @@ request with the checklist.
 `ci/scaffold_check.sh` (CTest `scaffold.new_algorithm`, label `scaffold`; step `scaffold` of
 `ci/check.sh`; job `scaffold` of `cpu.yml`) keeps the template honest: in a throwaway copy of the
 tree it scaffolds one algorithm of each family, checks `regen.py --check`, the formatting and
-`ci/github_meta_check.py` (the generated CODEOWNERS lines), builds them with sssp
-(`-DDYNG_ALGORITHMS`, Debug, warnings as errors, budgets on), runs their conformance kits, hand
+`ci/github_meta_check.py` (the generated CODEOWNERS lines), builds every target of the subset
+`-DDYNG_ALGORITHMS=<the probes>` (to which the build adds sssp; Debug, warnings as errors, budgets
+on), runs their conformance kits, hand
 cases and the registry test, runs the docs steps on the result (Doxygen with the coverage check,
 `ci/docs.sh --update-api`, which must add only the probes' headers to the baseline, and the Sphinx
 build with warnings as errors; skipped with a message when Doxygen or Sphinx is not installed),

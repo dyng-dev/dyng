@@ -8,11 +8,11 @@
 # In a throwaway copy of the working tree (the tracked and the untracked, not ignored files) it
 # generates one algorithm of each family (scaffold_probe_fp: fixed_point on sequential and OpenMP;
 # scaffold_probe_ad: aggregate_delta on sequential), checks that scripts/regen.py --check passes
-# on the result, configures a Debug build of the probes with sssp (-DDYNG_ALGORITHMS: the subset
-# build of the "add an algorithm" guide; sssp is the partner of the composition check C10) with
-# warnings as errors and the budgets on, builds everything and runs the probes' tests (their
-# conformance kits and hand cases), the registry test and the header self-containment build, then
-# deletes the copy.
+# on the result, configures a Debug build of the probes alone (-DDYNG_ALGORITHMS=<the probes>: the
+# subset build of the "add an algorithm" guide, PLAN 9.4 step 3; the build adds sssp, which the
+# library's generators and the composition check C10 need) with warnings as errors and the budgets
+# on, builds every target (so a subset that does not link fails here) and runs the probes' tests
+# (their conformance kits and hand cases) and the registry test, then deletes the copy.
 #
 #   ci/scaffold_check.sh                     # uses a temporary directory
 #   DYNG_SCAFFOLD_DIR=/path ci/scaffold_check.sh   # a work directory of your choice (kept on failure)
@@ -63,15 +63,17 @@ if command -v clang-format >/dev/null 2>&1; then
     cpp/src/algorithms/scaffold_probe_*/*.[ch]pp cpp/tests/algorithms/scaffold_probe_*/*.[ch]pp)
 fi
 
-echo "==> configure and build (Debug, warnings as errors, budgets on; sssp and the probes)"
+echo "==> configure and build (Debug, warnings as errors, budgets on; the probes, sssp added)"
 cmake -S "${src}" -B "${work}/build" -G Ninja -DCMAKE_BUILD_TYPE=Debug -DDYNG_BUILD_TESTS=ON \
   -DDYNG_WARNINGS_AS_ERRORS=ON -DDYNG_DEBUG_BUDGETS=ON -DDYNG_ENABLE_CUDA=OFF \
-  "-DDYNG_ALGORITHMS=sssp;scaffold_probe_fp;scaffold_probe_ad" -DDYNG_MUTATION_TESTS=OFF \
+  "-DDYNG_ALGORITHMS=scaffold_probe_fp;scaffold_probe_ad" -DDYNG_MUTATION_TESTS=OFF \
   -DDYNG_BUILD_EXAMPLES=OFF -DDYNG_BUILD_COMPAT_TOOLS=OFF >"${work}/configure.log" ||
   { cat "${work}/configure.log"; exit 1; }
-cmake --build "${work}/build" --target dyng_scaffold_probe_fp_conformance_tests \
-  dyng_scaffold_probe_ad_conformance_tests dyng_scaffold_probe_fp_tests dyng_scaffold_probe_ad_tests \
-  dyng_conformance_registry_tests dyng_header_self_contained
+grep -q "dynG: sssp added to DYNG_ALGORITHMS" "${work}/configure.log" ||
+  { echo "scaffold_check: the subset build did not add sssp" >&2; exit 1; }
+# Every target, as the guide's `cmake --build --preset dev` (the libraries, every suite of the
+# subset and the header self-containment build).
+cmake --build "${work}/build"
 
 echo "==> the probes' tests, the registry test"
 ctest --test-dir "${work}/build" --output-on-failure -j "$(nproc)" \

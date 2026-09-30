@@ -30,12 +30,13 @@ maintainer confirms the name: it says what is computed, never the paper's acrony
 ```bash
 python3 scripts/new_algorithm.py dynamic_kcore --family fixed_point --backends seq,omp \
     --title "Dynamic k-core decomposition" --computes "k-core numbers"
-cmake --preset dev -DDYNG_ALGORITHMS="dynamic_kcore;sssp"
+cmake --preset dev -DDYNG_ALGORITHMS=dynamic_kcore
 cmake --build --preset dev
 ctest --preset dev -L dynamic_kcore
 ```
 
-Everything is green on the first build: the placeholder `update()` applies the batch and
+The build adds `sssp` to the list by itself (the library's generators and the composition check
+C10 need it). Everything is green on the first build: the placeholder `update()` applies the batch and
 recomputes (`stats.fallback_used` is true), and the conformance kit C1-C12 runs on it
 ({doc}`../developer/conformance`, "Adding an algorithm"). `--remove` undoes the scaffold.
 

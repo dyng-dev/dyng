@@ -351,7 +351,12 @@ Before 0.1.0 anything may change.
   trees.
 - A build of a subset of the algorithms (`-DDYNG_ALGORITHMS=...`) configures: the suites of an
   algorithm are built with it, and the examples and compat tools (sssp and cycle_count) only when
-  both are built.
+  both are built. sssp is part of every build (the library's MOSP batch generator and the shared
+  suites call it): a list without it gets it added, so `-DDYNG_ALGORITHMS=<name>` builds and links
+  (it failed to link before); `ci/scaffold_check.sh` builds every target of such a subset.
+- CUDA `cycle_count` under set semantics reads the framework's normalized change lists (their
+  device copy and their lengths) instead of copying them into its workspace first; the same
+  histograms and stats (the DD 25K + 25K update: about 0.07 ms less of 3.4 ms).
 - `.github/workflows/welcome.yml` no longer greets owners, organization members and repository
   collaborators (the event's `author_association`); first-time outside contributors are greeted
   as before.

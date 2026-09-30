@@ -56,6 +56,15 @@ set(DYNG_SANITIZE "" CACHE STRING "Host sanitizers: empty, 'address;undefined' o
 set(DYNG_INDEX_TYPES "default" CACHE STRING "Instantiated index types: default or minimal")
 set_property(CACHE DYNG_INDEX_TYPES PROPERTY STRINGS default minimal)
 set(DYNG_ALGORITHMS "all" CACHE STRING "Semicolon list of algorithms to build, or 'all'")
+# sssp is part of every build: the library itself calls it (generators::legacy::mosp_changes
+# builds its SOSP trees with sssp::compute) and the shared suites use it as the partner of the
+# composition checks. A subset that leaves it out gets it added (PLAN 9.4's
+# -DDYNG_ALGORITHMS=<name> builds and links; ADR 0022).
+if(NOT DYNG_ALGORITHMS STREQUAL "all" AND NOT "sssp" IN_LIST DYNG_ALGORITHMS)
+  message(STATUS "dynG: sssp added to DYNG_ALGORITHMS (the library's generators and the shared "
+                 "test suites need it)")
+  list(APPEND DYNG_ALGORITHMS sssp)
+endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(_dyng_budgets_default ON)
 else()
