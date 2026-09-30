@@ -174,6 +174,35 @@ def test_arrays_of_an_updated_result_are_stale(tree: dyng.sssp.Result) -> None:
     assert g_arr.is_current  # another result is not affected
 
 
+class _LegacyConsumer:
+    """Asks for the unversioned DLPack capsule, as consumers without DLPack 1.0 do."""
+
+    def __init__(self, a: dyng.Array) -> None:
+        self._a = a
+
+    def __dlpack__(self, **_kwargs: object) -> object:
+        return self._a.__dlpack__()
+
+    def __dlpack_device__(self) -> tuple[int, int]:
+        return self._a.__dlpack_device__()
+
+
+def test_legacy_dlpack_exports_are_copies(tree: dyng.sssp.Result) -> None:
+    d = tree.distances
+    legacy = np.from_dlpack(_LegacyConsumer(d))
+    ptr = int(np.asarray(d).__array_interface__["data"][0])
+    assert legacy.tolist() == [0, 4, 1, 6]
+    assert int(legacy.__array_interface__["data"][0]) != ptr
+    if legacy.flags.writeable:
+        legacy[0] = 12345  # a consumer writing into its export does not reach the result
+    assert tree.distances.tolist() == [0, 4, 1, 6]
+    with pytest.raises(BufferError, match="read-only"):
+        d.__dlpack__(copy=False)
+    versioned = np.from_dlpack(d)  # NumPy >= 2.1 asks for DLPack 1.0: zero-copy, read-only
+    assert int(versioned.__array_interface__["data"][0]) == ptr
+    assert not versioned.flags.writeable
+
+
 def test_cycle_counts_array() -> None:
     g = dyng.Graph.from_edges([0, 1, 2, 1], [1, 2, 0, 0])
     h = dyng.cycle_count.compute(g, max_length=3)

@@ -63,7 +63,11 @@ records the decisions taken while binding them.
    (copy-on-write), so exported memory is never changed or freed under a view: an old view keeps
    showing the state it was made from. Without live exports an update works in place, as before.
    `Array.to_numpy()` still **copies by default** (as PLAN 5.5's comment on `.to_numpy()` says);
-   `to_numpy(copy=False)` returns the read-only view. `Result.__copy__` / `__deepcopy__` are `clone()`.
+   `to_numpy(copy=False)` returns the read-only view. DLPack exports are read-only: a consumer
+   that asks for the unversioned (legacy) capsule, which cannot carry DLPack 1.0's read-only
+   flag, gets a copy (as NumPy's own `__dlpack__` refuses a read-only legacy export). PyTorch and
+   CuPy have no read-only arrays, so `to_torch()` stays a zero-copy view that is documented as
+   not writable. `Result.__copy__` / `__deepcopy__` are `clone()`.
 5. **The GIL** is released around every native call that runs algorithms or I/O (rule 3). Two
    locks keep concurrent Python threads memory-safe, because the C++ containers are not
    thread-safe: every graph and result holder has a reader/writer lock (exclusive for `apply` and

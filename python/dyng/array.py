@@ -15,6 +15,11 @@ were made from, unchanged: while any such view (or the Array itself) is alive, a
 copies the result's state and changes the copy (copy-on-write), so exported memory is never
 changed or freed under a view. The price is one copy of the result's arrays per update while a
 view is alive; drop views you no longer need (``del``) to update in place.
+
+Exports are read-only: DLPack consumers that ask for DLPack >= 1.0 get a zero-copy capsule with
+the read-only flag, and a consumer that asks for the unversioned (legacy) capsule, which cannot
+carry the flag, gets a copy. PyTorch and CuPy have no read-only arrays: tensors from
+:meth:`Array.to_torch` / ``torch.from_dlpack`` alias the result and must not be written.
 """
 
 from __future__ import annotations
@@ -137,11 +142,47 @@ class Array:
             return v.astype(dtype)
         return v
 
-    def __dlpack__(self, **kwargs: Any) -> Any:
-        """Export through DLPack (zero-copy; ``stream``, ``max_version``, ``dl_device`` and
-        ``copy`` as in the Python array API)."""
+    def __dlpack__(
+        self,
+        *,
+        stream: Any = None,
+        max_version: tuple[int, int] | None = None,
+        dl_device: Any = None,
+        copy: bool | None = None,
+    ) -> Any:
+        """Export through DLPack (``stream``, ``max_version``, ``dl_device`` and ``copy`` as in
+        the Python array API).
+
+        A consumer that asks for DLPack >= 1.0 (``max_version=(1, 0)`` or later: NumPy >= 2.1,
+        recent PyTorch, CuPy and JAX) gets a zero-copy capsule carrying the read-only flag. The
+        unversioned (legacy) capsule, which older consumers ask for, cannot carry that flag:
+        they get an independent copy (``copy=False`` then raises ``BufferError``), so no
+        consumer can write into the result's state.
+        """
         self._check()
-        return self._nd.__dlpack__(**kwargs)
+        legacy = max_version is None or tuple(max_version) < (1, 0)
+        if not legacy:
+            kwargs: dict[str, Any] = {"max_version": max_version}
+            if stream is not None:
+                kwargs["stream"] = stream
+            if dl_device is not None:
+                kwargs["dl_device"] = dl_device
+            if copy is not None:
+                kwargs["copy"] = copy
+            return self._nd.__dlpack__(**kwargs)
+        if copy is False:
+            raise BufferError(
+                f"dyng.Array ({self._what}): a zero-copy export is read-only, which the "
+                "unversioned DLPack capsule cannot express; ask for max_version=(1, 0) or allow "
+                "a copy"
+            )
+        kind, _ = self.__dlpack_device__()
+        if kind == 2:
+            raise BufferError(
+                f"dyng.Array ({self._what}): device memory is exported through DLPack >= 1.0 "
+                "only (max_version=(1, 0)), whose capsule is read-only"
+            )
+        return self._numpy_view().copy().__dlpack__(stream=stream)
 
     def __dlpack_device__(self) -> tuple[int, int]:
         """The DLPack device: (1, 0) for host memory, (2, n) for CUDA device n."""
@@ -164,7 +205,12 @@ class Array:
         return self._numpy_view().tolist()
 
     def to_torch(self) -> Any:
-        """A PyTorch tensor viewing the elements (zero-copy through DLPack; needs torch)."""
+        """A PyTorch tensor viewing the elements (zero-copy through DLPack; needs torch).
+
+        PyTorch has no read-only tensors: the tensor aliases the result's state and **must not
+        be written** (an in-place change would corrupt what later updates compute from). Use
+        ``torch.from_numpy(a.to_numpy())`` for a tensor you may change.
+        """
         import torch  # lazy: an optional dependency
 
         self._check()
@@ -172,7 +218,11 @@ class Array:
 
     def to_cupy(self) -> Any:
         """A CuPy array of the elements (zero-copy for device memory; host memory is copied to
-        the current device; needs cupy)."""
+        the current device; needs cupy).
+
+        A zero-copy CuPy array aliases the result's state and must not be written (CuPy has no
+        read-only arrays).
+        """
         import cupy  # lazy: an optional dependency
 
         self._check()
