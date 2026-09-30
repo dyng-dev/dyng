@@ -105,7 +105,14 @@ def batch_text(batch: dyng.EdgeBatch) -> str:
 
 def read_text_batch(path: str, g: dyng.Graph) -> dyng.EdgeBatch:
     """Read the text batch of :func:`batch_text` (``+ u v [w1 .. wK]`` / ``- u v``, ``#``
-    comments). Insertions without weights into a weighted graph get the weight 1."""
+    comments). Insertions without weights into a weighted graph get the weight 1. A file named
+    ``*.dgt`` is read as the library's batch text format (:func:`dyng.io.read_batches`) and must
+    hold one batch."""
+    if path.endswith(".dgt"):
+        batches = dyng.io.read_batches(path, num_vertices=-1)
+        if len(batches) != 1:
+            raise UsageError(f"{path}: holds {len(batches)} batches; the command applies one")
+        return batches[0]
     ins: list[list[int]] = []
     dele: list[tuple[int, int]] = []
     k = g.num_weights if g.weighted else 0
@@ -325,7 +332,7 @@ def add_cycle_count(sub: argparse._SubParsersAction[argparse.ArgumentParser]) ->
         metavar="FILE",
         default=None,
         help="a text batch: '- u v' per deletion, '+ u v' per insertion (the output of `dyng "
-        "generate cycle_enum_batch`)",
+        "generate cycle_enum_batch`), or a .dgt batch file holding one batch",
     )
     add_mosp_batch_flags(u, required=False)
     gen = add_function_flags(

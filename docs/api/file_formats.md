@@ -21,6 +21,44 @@ K is inferred from the first non-blank line of `Values.txt`; a graph without edg
 `csr_triplet_options::num_weights`. The writer produces the same bytes as MOSP's
 `writeCsrGraph()`. In memory the weights are objective-major (`csr::weights[k * m + e]`).
 
+## dynG batch text (`.dgt`: `read_batches` / `write_batches`)
+
+The library's batch format (PLAN Section 5.7), for tests, examples and hand edits: a sequence of
+batches in one ASCII text file, one operation per line.
+
+- Lines are separated by `\n` (a trailing `\r` is ignored). Blank lines and lines whose first
+  token starts with `#` are skipped; `#` later on a line is not a comment.
+- An optional first line `%dgt 1` names the format version (only version 1 exists).
+- `%batch <id>` starts a batch; the ids are non-negative decimal integers, strictly increasing
+  (the writer numbers the batches 0, 1, ...). A file without `%batch` lines holds one batch (none
+  if it holds no operation); in a file with `%batch` lines every operation follows one.
+- `+e u v [w1 .. wK]` inserts the edge (u, v) with exactly K weights; `-e u v` deletes it. Ids
+  are 0-based, `>= 0` and, when the reader is given a vertex count, below it; weights must fit
+  the weight type. K is the reader's `num_weights`, or (the default, `-1` / `None`) the count of
+  the first insertion of the file, which every other insertion must then match.
+- Within a batch the insertions and the deletions each keep file order. Which of the two applies
+  first is the graph's batch semantics (`BatchSemantics.deletions_first`), not the file's.
+- Reserved and rejected by 0.1 with an `io_error` / `FileFormatError`: the vertex operations
+  `+v u [label]`, `-v u` (label_propagation, 0.3) and the hypergraph operations `+h v1 v2 ...
+  [; w]`, `-h id`, `+i h v`, `-i h v` (0.2).
+- Every token is a whole decimal integer; errors report the path, line and column.
+
+The writer writes `%dgt 1`, then per batch `%batch <i>`, its deletions and its insertions in batch
+order, and requires one K for every batch with insertions. C++: `dyng::io::read_batches<V, W>()`
+and `write_batches<V, W>()` in `<dyng/io/batch_io.hpp>` (`W` may be `dyng::unweighted`);
+Python: `dyng.io.read_batches()` (int64 ids, converted with range checks to the graph's types
+when a batch is applied) and `dyng.io.write_batches()`; the command line reads a one-batch
+`.dgt` file with `dyng cycle_count update --batch FILE.dgt`.
+
+```text
+%dgt 1
+%batch 0
+-e 0 1
++e 0 3 7
+%batch 1
++e 2 0 1
+```
+
 ## MOSP batches (`read_legacy_batch` / `write_legacy_batch`)
 
 `insert.txt` holds one insertion per line, `u v w1 .. wK`; `delete.txt` one deletion per line,
@@ -84,7 +122,8 @@ starting with `#` are skipped. `dyng generate cycle_enum_batch` writes the delet
 the insertions, each sorted by (source, destination): the text of CycleEnumeration-GPU's batch
 generator (the goldens of `parity/cycle_count_goldens.py` and `dyng-compat-cycle-enum
 --write-batch`). This is a command-line format of 0.1, read by the Python package only; the
-versioned batch format of the library is `.dgt` (PLAN Section 5.7, not in 0.1).
+versioned batch format of the library is `.dgt` (above), which `--batch` also reads when the file
+name ends in `.dgt`.
 
 ## MOSP's binary graph cache (`dyng prep cache`)
 

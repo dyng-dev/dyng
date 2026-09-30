@@ -21,6 +21,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace dyng::python {
 namespace {
@@ -137,6 +138,33 @@ void bind_weighted_io(nb::module_& m) {
         });
       },
       nb::arg("insert_path"), nb::arg("delete_path"), nb::arg("batch"));
+  m.def(
+      suffixed("read_batches", {v, w}, "_").c_str(),
+      [](const std::string& path, int num_weights, std::int64_t num_vertices) {
+        io::batch_file_options opt;
+        opt.num_weights = num_weights;
+        opt.num_vertices = num_vertices;
+        auto batches = without_gil([&] { return io::read_batches<vertex_t, weight_t>(path, opt); });
+        nb::list out;
+        for (const auto& b : batches) {
+          out.append(batch_to_numpy(b));
+        }
+        return out;
+      },
+      nb::arg("path"), nb::arg("num_weights"), nb::arg("num_vertices"),
+      "The batches of a .dgt file, each as the tuple of batch_to_numpy().");
+  m.def(
+      suffixed("write_batches", {v, w}, "_").c_str(),
+      [](const std::string& path, const nb::list& batches) {
+        // The views read the batches' arrays, which the list keeps alive during the call.
+        std::vector<edge_batch_view<vertex_t, weight_t>> views;
+        views.reserve(nb::len(batches));
+        for (nb::handle b : batches) {
+          views.push_back(nb::cast<const batch_arrays<vertex_t, weight_t>&>(b).view());
+        }
+        without_gil([&] { io::write_batches<vertex_t, weight_t>(path, views); });
+      },
+      nb::arg("path"), nb::arg("batches"), "Write native batches as a .dgt file.");
   m.def(
       suffixed("read_parents", {v}, "_").c_str(),
       [](const std::string& path, std::int64_t num_vertices) {

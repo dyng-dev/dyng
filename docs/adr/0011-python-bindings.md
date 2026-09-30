@@ -121,7 +121,10 @@ records the decisions taken while binding them.
     batches are built from arrays.
 12. **What 0.1 leaves out** is listed in `docs/developer/python_gaps.md` (PLAN 5.4 rule 8), for
     example `copy=False` on inputs, `__cuda_array_interface__` and DLPack stream ordering (CUDA,
-    0.1.x), the `.dgt` batch files, `dyng.interop` and memory resources.
+    0.1.x), the `.dgb` binary batch files, `dyng.interop` and memory resources. *Amended in the
+    M5 review:* the first version also left out the `.dgt` batch text files, which PLAN 5.7
+    lists for 0.1 and PLAN 5.5's first example reads; they are now in the C++ library
+    (`io::read_batches()` / `write_batches()`) and in `dyng.io`.
 13. **Copying and pickling** (added in the M5 review). `EdgeBatch` and the option, stats and
     record dataclasses are plain values: they copy and pickle. `Graph` and the results copy
     (`copy.copy`, `copy.deepcopy`) as `clone()`, never as aliases of one native object; pickling

@@ -16,6 +16,7 @@ the vertex id type is int32 unless ``vertex_dtype="int64"`` is given.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import IO, Any, Literal
 
@@ -41,6 +42,8 @@ __all__ = [
     "write_matrix_market",
     "read_csr_triplet",
     "write_csr_triplet",
+    "read_batches",
+    "write_batches",
     "read_legacy_batch",
     "write_legacy_batch",
     "read_distances",
@@ -482,6 +485,72 @@ def read_legacy_batch(
         as_bool(mosp_lenient, "read_legacy_batch: mosp_lenient"),
     )
     return EdgeBatch._from_arrays(parts)
+
+
+def read_batches(
+    path: PathLike,
+    *,
+    num_weights: int | None = None,
+    num_vertices: int = -1,
+    resources: Resources | None = None,
+) -> list[EdgeBatch]:
+    """Read a ``.dgt`` batch text file: its batches, in file order (PLAN Section 5.7).
+
+    One operation per line: ``+e u v [w1 .. wK]`` (an edge insertion) or ``-e u v`` (an edge
+    deletion); ``%batch <id>`` starts a batch, an optional first line ``%dgt 1`` names the
+    format version, and lines starting with ``#`` are comments. The format is specified in
+    :doc:`/api/file_formats`.
+
+    Args:
+        path: The file.
+        num_weights: K, the weights of every insertion; None: taken from the first insertion.
+        num_vertices: Ids must be < num_vertices (-1: only ids >= 0 are checked).
+        resources: Accepted for symmetry with the graph readers; batches are host objects that
+            are converted to the graph's types and memory space when they are used.
+
+    Returns:
+        One :class:`dyng.EdgeBatch` per batch (int64 ids, int32 weights; converted with range
+        checks to the types of the graph each is applied to).
+
+    Raises:
+        FileFormatError: the file is missing or malformed (with ``.path`` and ``.line``).
+
+    Example:
+        >>> import dyng, tempfile, os
+        >>> path = os.path.join(tempfile.mkdtemp(), "b.dgt")
+        >>> dyng.io.write_batches(path, [dyng.EdgeBatch(insert=([0], [2], [5]), delete=([0], [1]))])
+        >>> [(b.num_insertions, b.num_deletions) for b in dyng.io.read_batches(path)]
+        [(1, 1)]
+    """
+    if resources is not None:
+        resolve(resources)  # type check only
+    k = -1 if num_weights is None else as_int(num_weights, "read_batches: num_weights")
+    parts = native.read_batches_i64_i32(
+        _path(path), k, as_int(num_vertices, "read_batches: num_vertices")
+    )
+    out = []
+    for ins_src, ins_dst, w, del_src, del_dst, kk in parts:
+        weights = None if kk == 0 else w
+        out.append(EdgeBatch._from_arrays((ins_src, ins_dst, weights, del_src, del_dst, kk)))
+    return out
+
+
+def write_batches(path: PathLike, batches: Iterable[EdgeBatch]) -> None:
+    """Write batches as a ``.dgt`` batch text file (read back by :func:`read_batches`).
+
+    Writes ``%dgt 1``, then per batch ``%batch <i>``, its deletions (``-e u v``) and its
+    insertions (``+e u v w1 .. wK``). Every batch with insertions must have the same K.
+
+    Raises:
+        InvalidArgumentError: a batch has vertex operations (0.3) or a different K.
+    """
+    gtype = _dtypes.GraphType(_dtypes.INT64, _dtypes.INT64, True)
+    native_batches = []
+    for i, b in enumerate(batches):
+        if not isinstance(b, EdgeBatch):
+            raise TypeError(f"write_batches: item {i} is not a dyng.EdgeBatch")
+        native_batches.append(b._native_for_type(gtype, b.num_weights))
+    native.write_batches_i64_i32(_path(path), native_batches)
 
 
 def write_legacy_batch(insert_path: PathLike, delete_path: PathLike, batch: EdgeBatch) -> None:

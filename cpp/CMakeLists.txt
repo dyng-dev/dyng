@@ -170,6 +170,7 @@ dyng_add_module(
   NAME io
   SOURCES
     src/io/batch_io.cpp
+    src/io/batch_text.cpp
     src/io/csr_triplet.cpp
     src/io/edge_list_io.cpp
     src/io/matrix_market.cpp

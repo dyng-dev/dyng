@@ -10,13 +10,19 @@ import dyng
 import numpy as np
 
 
-def test_sssp_example(data: Path, res: dyng.Resources) -> None:
+def test_sssp_example(data: Path, res: dyng.Resources, tmp_path: Path) -> None:
     g = dyng.io.read_matrix_market(
         data / "mosp_graph_io" / "mtx" / "m1_general.mtx",
         random_weights=(1, 100, 12345),
         resources=res,
     )
+    batches = tmp_path / "m1.safe.dgt"  # the stand-in for roadNet-CA.safe50k.dgt
+    (batches).write_text("%dgt 1\n%batch 0\n+e 0 3 7\n-e 0 1\n%batch 1\n+e 2 0 1\n")
     tree = dyng.sssp.compute(g, source=0)
+    for batch in dyng.io.read_batches(batches, resources=res):
+        st = dyng.sssp.update(g, batch, tree)
+        print(st.invalidated, st.engine_used)
+    assert g.version == 2 and dyng.testing.check_sssp_tree(g, tree)
     dist = tree.distances.to_numpy()  # copy to host (int64, length n)
     assert dist.dtype == np.int64 and dist.size == g.num_vertices
     assert dyng.testing.check_sssp_tree(g, tree)  # oracle: Dijkstra with lowest-id ties

@@ -33,6 +33,6 @@ the 0.1 Python package does not bind, and why; each entry names the release that
 | CUDA: `Resources.cuda()`, `__cuda_array_interface__`, DLPack stream ordering (rule 4) | `Resources.cuda()` raises `NotSupportedError` in the CPU wheel | the CUDA plugin wheels `dyng-cu12` / `dyng-cu13`, 0.1.x |
 | `copy=False` on inputs (rule 1: raise instead of copying) | inputs of another dtype or layout are converted with one copy; `Resources.copy_policy` governs host/device copies | 0.1.x |
 | `dyng.interop.from_networkx()`, `from_scipy()`, `from_cudf()` (rule 6) | `Graph.from_csr(csr.indptr, csr.indices, csr.data)` covers SciPy | 0.2 |
-| `.dgt` / `.dgb` batch files, `dyng.io.read_batches()` (PLAN 5.7) | not in the C++ library of 0.1 either; MOSP's `insert.txt` / `delete.txt` are read by `read_legacy_batch()` | 0.2 |
+| `.dgb` binary batch files and the streaming `batch_reader` (PLAN 5.7) | `.dgt` text batches are read and written (`dyng.io.read_batches()` / `write_batches()`), MOSP's `insert.txt` / `delete.txt` by `read_legacy_batch()` | 0.2 |
 | `Graph.with_capacity()`, vertex insertions and deletions | `EdgeBatch(insert_vertices=...)` exists; applying it raises `NotSupportedError` | 0.3 |
 | `dyng.Hypergraph`, `HyperedgeBatch` | none | 0.2 |

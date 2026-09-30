@@ -147,3 +147,44 @@ def test_histogram_csv(tmp_path: Path) -> None:
 def test_write_csr_triplet_needs_weights(tmp_path: Path) -> None:
     with pytest.raises(dyng.InvalidArgumentError):
         dyng.io.write_csr_triplet(tmp_path / "x", dyng.Graph.from_edges([0], [1]))
+
+
+def test_batch_text_files_round_trip(tmp_path: Path) -> None:
+    path = tmp_path / "sub" / "b.dgt"
+    batches = [
+        dyng.EdgeBatch(insert=([0, 1], [2, 3], [[5, 6], [7, 8]]), delete=([0], [1])),
+        dyng.EdgeBatch(delete=([4], [5])),
+        dyng.EdgeBatch(),
+    ]
+    dyng.io.write_batches(path, batches)
+    assert path.read_text().splitlines()[:4] == ["%dgt 1", "%batch 0", "-e 0 1", "+e 0 2 5 6"]
+    back = dyng.io.read_batches(path)
+    assert [(b.num_insertions, b.num_deletions) for b in back] == [(2, 1), (0, 1), (0, 0)]
+    assert back[0].insert_weights is not None
+    assert back[0].insert_weights.tolist() == [[5, 6], [7, 8]]
+    assert back[1].delete_src.tolist() == [4] and back[0].insert_src.dtype == np.int64
+
+
+def test_batch_text_errors_carry_the_location(tmp_path: Path) -> None:
+    path = tmp_path / "bad.dgt"
+    path.write_text("%batch 0\n+e 0 1 3\n+v 4\n")
+    with pytest.raises(dyng.FileFormatError, match="reserved") as e:
+        dyng.io.read_batches(path)
+    assert e.value.path == str(path) and e.value.line == 3
+    path.write_text("+e 0 1\n")
+    with pytest.raises(dyng.FileFormatError):
+        dyng.io.read_batches(path, num_weights=1)
+    assert dyng.io.read_batches(path)[0].num_weights == 0  # K taken from the file
+    with pytest.raises(dyng.InvalidArgumentError, match="vertex operations"):
+        dyng.io.write_batches(tmp_path / "v.dgt", [dyng.EdgeBatch(insert_vertices=[3])])
+
+
+def test_batch_text_files_apply_to_graphs_of_every_id_type(tmp_path: Path) -> None:
+    path = tmp_path / "b.dgt"
+    path.write_text("+e 0 2 4\n-e 0 1\n")
+    for vertex in ("int32", "int64"):
+        g = dyng.Graph.from_edges([0, 1], [1, 2], [1, 1], vertex_dtype=vertex)
+        (batch,) = dyng.io.read_batches(path)
+        g.apply(batch)
+        src, dst, w = g.edges()
+        assert list(zip(src.tolist(), dst.tolist(), strict=True)) == [(0, 2), (1, 2)]

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file batch_io.hpp
- * @brief Legacy MOSP batch files: `insert.txt` ("u v w1 .. wK") and `delete.txt` ("u v").
+ * @brief Batch files: the dynG batch text format `.dgt` (read_batches(), write_batches()) and
+ *        the legacy MOSP files `insert.txt` ("u v w1 .. wK") and `delete.txt` ("u v").
  * @ingroup io
  */
 #pragma once
@@ -11,8 +12,69 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace dyng::io {
+
+/**
+ * @brief Options of read_batches().
+ * @ingroup io
+ */
+struct batch_file_options {
+  /**
+   * @brief Weights per edge insertion (K), or -1: taken from the first insertion of the file
+   *        (then every insertion must carry as many). Must be 0 or -1 for unweighted batches.
+   */
+  int num_weights = -1;
+  std::int64_t num_vertices = -1;  ///< ids must be < num_vertices; -1: only ids >= 0 are checked
+};
+
+/**
+ * @brief Read a `.dgt` batch text file: a sequence of batches (PLAN Section 5.7).
+ *
+ * One operation per line; blank lines and lines whose first token starts with `#` are skipped.
+ * An optional first line `%dgt 1` names the format version (only version 1 exists). A line
+ * `%batch <id>` starts a batch (the ids are non-negative and strictly increasing); a file
+ * without `%batch` lines holds one batch (or none if it holds no operation). The graph
+ * operations of 0.1 are `+e u v [w1 .. wK]` (an edge insertion with exactly K weights) and
+ * `-e u v` (an edge deletion), ids 0-based. Within a batch the insertions and the deletions each
+ * keep file order (which of the two applies first is the graph's batch semantics, not the
+ * file's). The vertex operations `+v u [label]` and `-v u` (label_propagation, 0.3) and the
+ * hypergraph operations `+h`, `-h`, `+i`, `-i` (0.2) are reserved: 0.1 rejects them with an
+ * io_error. Every token must be a whole decimal integer; weights must fit `weight_t`.
+ *
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Weight type (integral, or dyng::unweighted).
+ * @param[in] path    The file.
+ * @param[in] options K and the vertex count used for validation.
+ * @return The batches in file order.
+ * @throws io_error               if the file is missing or malformed (with path, line and column).
+ * @throws invalid_argument_error if the options are invalid.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @ingroup io
+ */
+template <typename vertex_t, typename weight_t>
+[[nodiscard]] std::vector<edge_batch<vertex_t, weight_t>> read_batches(
+    const std::string& path, const batch_file_options& options = {});
+
+/**
+ * @brief Write batches as a `.dgt` batch text file (read back by read_batches()).
+ *
+ * Writes `%dgt 1`, then for batch i the line `%batch i`, its deletions (`-e u v`) and its
+ * insertions (`+e u v w1 .. wK`), each in batch order.
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Weight type (integral, or dyng::unweighted).
+ * @param[in] path    The file (parent directories are created).
+ * @param[in] batches The batches (host memory; every batch with insertions has the same K).
+ * @throws io_error               if the file cannot be written.
+ * @throws invalid_argument_error if a batch has vertex operations, inconsistent sizes, or a K
+ *                                that differs from another batch's.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @ingroup io
+ */
+template <typename vertex_t, typename weight_t>
+void write_batches(const std::string& path,
+                   const std::vector<edge_batch_view<vertex_t, weight_t>>& batches);
 
 /**
  * @brief Options of read_legacy_batch().

@@ -43,6 +43,135 @@ dyng::io_error expect_io_error(const body_t& body) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// .dgt batch text files
+// ---------------------------------------------------------------------------------------------
+
+class BatchText : public ::testing::Test {
+ protected:
+  template <typename weight_t = std::int32_t>
+  std::vector<dyng::edge_batch<std::int32_t, weight_t>> read(const std::string& text, int k = -1,
+                                                             std::int64_t n = -1) {
+    const std::string path = tmp_.path("b" + std::to_string(count_++) + ".dgt");
+    write_text(path, text);
+    dyng::io::batch_file_options options;
+    options.num_weights = k;
+    options.num_vertices = n;
+    return dyng::io::read_batches<std::int32_t, weight_t>(path, options);
+  }
+  temp_dir tmp_;
+  int count_ = 0;
+};
+
+TEST_F(BatchText, ReadsBatchesWithDirectivesAndComments) {
+  const auto b = read(
+      "# a comment\n%dgt 1\n%batch 0\n+e 0 1 5 6\n-e 2 3\n\n%batch 7\n  -e 1 0\n+e 3 4 7 8\r\n+e 3 "
+      "5 1 2\n",
+      -1);
+  ASSERT_EQ(b.size(), 2u);
+  EXPECT_EQ(b[0].num_weights(), 2);
+  EXPECT_EQ(b[0].insert_src(), (std::vector<std::int32_t>{0}));
+  EXPECT_EQ(b[0].insert_weights(), (std::vector<std::int32_t>{5, 6}));
+  EXPECT_EQ(b[0].delete_src(), (std::vector<std::int32_t>{2}));
+  EXPECT_EQ(b[1].delete_dst(), (std::vector<std::int32_t>{0}));
+  EXPECT_EQ(b[1].insert_dst(), (std::vector<std::int32_t>{4, 5}));
+}
+
+TEST_F(BatchText, CommentTokensAfterAnOperationAreErrors) {
+  // '#' starts a comment only as the first token of a line.
+  const auto e = expect_io_error([&] { (void)read("+e 3 5 1 # note\n", 1); });
+  EXPECT_EQ(e.line(), 1);
+}
+
+TEST_F(BatchText, AFileWithoutBatchLinesIsOneBatch) {
+  const auto b = read("-e 0 1\n+e 1 2 9\n");
+  ASSERT_EQ(b.size(), 1u);
+  EXPECT_EQ(b[0].num_weights(), 1);  // taken from the insertion, deletions kept
+  EXPECT_EQ(b[0].delete_src(), (std::vector<std::int32_t>{0}));
+  EXPECT_TRUE(read("# nothing\n").empty());
+  EXPECT_EQ(read("%batch 0\n%batch 1\n").size(), 2u);  // empty batches are kept
+}
+
+TEST_F(BatchText, RejectsMalformedFiles) {
+  struct bad_case {
+    const char* text;
+    int k;
+    std::int64_t line;
+  };
+  const bad_case cases[] = {
+      {"+e 0 1 5\n%batch 0\n", -1, 2},  // operations before the first %batch
+      {"%batch 1\n%batch 1\n", -1, 2},  // ids not increasing
+      {"%batch 0\n%dgt 1\n", -1, 2},    // %dgt not first
+      {"%dgt 2\n", -1, 1},              // unknown version
+      {"+e 0 1\n", 1, 1},               // missing weight
+      {"+e 0 1 2 3\n", 1, 1},           // extra weight
+      {"+e 0 1 5\n+e 1 2\n", -1, 2},    // K taken from the first insertion
+      {"-e 0\n", -1, 1},                // incomplete deletion
+      {"-e 0 1 2\n", -1, 1},            // extra token
+      {"+e 0 9 1\n", -1, 1},            // id out of range (n = 4)
+      {"+e 0 x 1\n", -1, 1},            // not an integer
+      {"+v 3 1\n", -1, 1},              // vertex operations: 0.3
+      {"-h 4\n", -1, 1},                // hypergraph operations: 0.2
+      {"%bach 0\n", -1, 1},             // unknown directive
+      {"* 0 1\n", -1, 1},               // unknown operation
+  };
+  for (const bad_case& c : cases) {
+    SCOPED_TRACE(c.text);
+    const auto e = expect_io_error([&] { (void)read(c.text, c.k, 4); });
+    EXPECT_EQ(e.line(), c.line);
+  }
+}
+
+TEST_F(BatchText, RoundTripsThroughTheWriter) {
+  dyng::edge_batch<std::int32_t, std::int32_t> a(2), b(2), c(2);
+  a.insert_edge(0, 1, {3, 4});
+  a.delete_edge(5, 6);
+  c.insert_edge(2147483647, 0, {-1, 2147483647});
+  const std::string path = tmp_.path("out/rt.dgt");
+  dyng::io::write_batches<std::int32_t, std::int32_t>(path, {a.view(), b.view(), c.view()});
+  EXPECT_EQ(read_text(path),
+            "%dgt 1\n%batch 0\n-e 5 6\n+e 0 1 3 4\n%batch 1\n%batch 2\n"
+            "+e 2147483647 0 -1 2147483647\n");
+  dyng::io::batch_file_options options;
+  const auto back = dyng::io::read_batches<std::int32_t, std::int32_t>(path, options);
+  ASSERT_EQ(back.size(), 3u);
+  EXPECT_EQ(back[0].insert_weights(), a.insert_weights());
+  EXPECT_EQ(back[0].delete_dst(), a.delete_dst());
+  EXPECT_TRUE(back[1].empty());
+  EXPECT_EQ(back[2].insert_src(), c.insert_src());
+  EXPECT_EQ(back[2].insert_weights(), c.insert_weights());
+}
+
+TEST_F(BatchText, UnweightedBatches) {
+  const auto b = read<dyng::unweighted>("+e 0 1\n-e 1 0\n");
+  ASSERT_EQ(b.size(), 1u);
+  EXPECT_EQ(b[0].num_weights(), 0);
+  EXPECT_EQ(b[0].insert_dst(), (std::vector<std::int32_t>{1}));
+  EXPECT_THROW((void)read<dyng::unweighted>("+e 0 1 4\n"), dyng::io_error);
+  const std::string path = tmp_.path("u.dgt");
+  dyng::io::write_batches<std::int32_t, dyng::unweighted>(path, {b[0].view()});
+  EXPECT_EQ(read_text(path), "%dgt 1\n%batch 0\n-e 1 0\n+e 0 1\n");
+}
+
+TEST_F(BatchText, WriterRejectsMixedWeightCountsAndVertexOperations) {
+  dyng::edge_batch<std::int32_t, std::int32_t> one(1), two(2);
+  one.insert_edge(0, 1, {1});
+  two.insert_edge(0, 1, {1, 2});
+  EXPECT_THROW((dyng::io::write_batches<std::int32_t, std::int32_t>(tmp_.path("m.dgt"),
+                                                                    {one.view(), two.view()})),
+               dyng::invalid_argument_error);
+  auto v = one.view();
+  const std::int32_t vertex = 3;
+  v.insert_vertices = dyng::host_view(&vertex, 1);
+  EXPECT_THROW((dyng::io::write_batches<std::int32_t, std::int32_t>(tmp_.path("v.dgt"), {v})),
+               dyng::invalid_argument_error);
+}
+
+TEST_F(BatchText, InvalidOptions) {
+  EXPECT_THROW((void)read("", -2), dyng::invalid_argument_error);
+  EXPECT_THROW((void)read<dyng::unweighted>("", 1), dyng::invalid_argument_error);
+}
+
+// ---------------------------------------------------------------------------------------------
 // CSR triplet
 // ---------------------------------------------------------------------------------------------
 

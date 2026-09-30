@@ -1111,6 +1111,12 @@ def read_legacy_batch_i32_i32(insert_path: str, delete_path: str, num_weights: i
 
 def write_legacy_batch_i32_i32(insert_path: str, delete_path: str, batch: EdgeBatchI32I32) -> None: ...
 
+def read_batches_i32_i32(path: str, num_weights: int, num_vertices: int) -> list:
+    """The batches of a .dgt file, each as the tuple of batch_to_numpy()."""
+
+def write_batches_i32_i32(path: str, batches: list) -> None:
+    """Write native batches as a .dgt file."""
+
 def read_parents_i32(path: str, num_vertices: int) -> Annotated[NDArray[numpy.int32], dict(shape=(None,))]: ...
 
 @overload
@@ -1126,6 +1132,12 @@ def write_matrix_market_i64_i32(path: str, num_vertices: int, src: Annotated[NDA
 def read_legacy_batch_i64_i32(insert_path: str, delete_path: str, num_weights: int, num_vertices: int, mosp_lenient: bool) -> tuple: ...
 
 def write_legacy_batch_i64_i32(insert_path: str, delete_path: str, batch: EdgeBatchI64I32) -> None: ...
+
+def read_batches_i64_i32(path: str, num_weights: int, num_vertices: int) -> list:
+    """The batches of a .dgt file, each as the tuple of batch_to_numpy()."""
+
+def write_batches_i64_i32(path: str, batches: list) -> None:
+    """Write native batches as a .dgt file."""
 
 def read_parents_i64(path: str, num_vertices: int) -> Annotated[NDArray[numpy.int64], dict(shape=(None,))]: ...
 

@@ -244,6 +244,15 @@ def test_cycle_count_update_from_batch_files(
     (tmp_path / "m" / "delete.txt").write_text("".join(f"{u} {v}\n" for u, v in dele))
     s4, from_mosp, _ = run(capsys, "cycle_count", "update", *common, "--changes", tmp_path / "m")
     assert s4 == 0 and from_mosp == generated
+    # ... and as a .dgt batch file
+    dgt = tmp_path / "b.dgt"
+    dgt.write_text(
+        "%dgt 1\n%batch 0\n"
+        + "".join(f"-e {u} {v}\n" for u, v in dele)
+        + "".join(f"+e {u} {v}\n" for u, v in ins)
+    )
+    s6, from_dgt, err = run(capsys, "cycle_count", "update", *common, "--batch", dgt)
+    assert s6 == 0 and from_dgt == generated, err
     # the recomputed histogram of the updated graph
     cg = dyng.io.read_edge_list(g, properties="cycle_enum_compatible")
     b = dyng.generators.legacy.cycle_enum_batch(cg, num_deletions=50, num_insertions=60, seed=12345)
