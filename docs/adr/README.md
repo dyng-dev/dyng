@@ -25,6 +25,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0021](0021-power-cap-and-base-lock-in-the-cycle-count-gate.md) | The power cap and the base clock lock in the cycle_count CUDA gate (a case whose GPU cannot hold the boost lock is read at the base lock) | Accepted (2026-09-29, by the author) |
 | [0022](0022-conformance-kit-registry-and-scaffold.md) | The conformance kit, the algorithm registry and the scaffold (registry-driven kit, C8's reservations and container work, the scope of new_algorithm.py) | Accepted under delegation (2026-09-29) |
 | [0023](0023-api-review-and-freeze-0-1.md) | The 0.1 API review and freeze (the review's findings and fixes, `@guarantee`, the committed public-API listing and its check) | Accepted under delegation (2026-09-29) |
+| [0024](0024-reading-a-refactor-against-earlier-dyng.md) | Reading a refactor against an earlier dynG build (rounds over heap layouts, bimodal regions read mode by mode) | Accepted under delegation (2026-09-30) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0011 Python, 0012 versioning and stability.

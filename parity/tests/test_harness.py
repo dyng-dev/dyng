@@ -297,14 +297,19 @@ def test_perf_ab_run_takes_a_dyng_baseline() -> None:
     assert "f664f96 (ms)" in lines[0]
 
 
-def test_perf_ab_layouts_cycle_the_timing_file_name() -> None:
+def test_perf_ab_layouts_cycle_the_timing_file_name(tmp_path: Path) -> None:
     perf = load("parity/perf_ab.py")
     args = type("Args", (), {"layouts": 3})()
-    names = [perf.layout_timing(Path("/w"), "timing", args, r).name for r in range(4)]
+    names = [perf.layout_timing(tmp_path, "timing", args, r).name for r in range(4)]
     assert names == ["timing.csv", "timing" + "x" * 8 + ".csv", "timing" + "x" * 16 + ".csv",
                      "timing.csv"]  # fmt: skip
     one = type("Args", (), {"layouts": 1})()
-    assert perf.layout_timing(Path("/w"), "timing", one, 5).name == "timing.csv"
+    assert perf.layout_timing(tmp_path, "timing", one, 5) == tmp_path / "timing.csv"
+    # Long pads go into directories (a file name has at most 255 characters).
+    many = type("Args", (), {"layouts": 100})()
+    deep = perf.layout_timing(tmp_path, "timing", many, 99)
+    assert len(str(deep)) - len(str(tmp_path / "timing.csv")) == 8 * 99 + 3  # three separators
+    assert deep.parent.is_dir() and max(len(p) for p in deep.parts) <= 255
     # Only for a dynG-against-dynG A/B: the originals take no --timing file.
     proc = subprocess.run(
         [sys.executable, REPO / "parity/perf_ab.py", "run", "--exe", "x", "--layouts", "3"],

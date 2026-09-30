@@ -1148,8 +1148,14 @@ def layout_timing(work: Path, stem: str, args: argparse.Namespace, r: int) -> Pa
     moves the program's heap layout (parity/results/M3.md section 6.3), so the rounds of a
     dynG-against-dynG A/B cycle through N layouts instead of reading a single one."""
     layouts = getattr(args, "layouts", 1)
-    pad = "x" * (LAYOUT_STEP * (r % layouts)) if layouts > 1 else ""
-    return work / f"{stem}{pad}.csv"
+    extra = LAYOUT_STEP * (r % layouts) if layouts > 1 else 0
+    # Directory components of at most 200 characters carry what does not fit in the file name.
+    folder = work
+    while extra > 200:
+        folder = folder / ("x" * 200)
+        extra -= 200
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{stem}{'x' * extra}.csv"
 
 
 def batch_args(data: Path, batch: str) -> list:
