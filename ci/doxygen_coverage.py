@@ -14,7 +14,10 @@ missing @param / @return. This script reads its XML output and additionally requ
     cpp/src/algorithms/) carry @backends, @determinism, @paper and @guarantee (the exception
     guarantee, PLAN Section 4.7.3; the 0.1 API review, ADR 0023), and so do the other functions
     that mutate a container or a result: graph::apply(), dyng::update() and dyng::update_each()
-    (@guarantee only);
+    (@guarantee only), and every public member function of the container, batch and result
+    classes (GUARANTEE_CLASSES) that can change the object or consume an argument: non-const,
+    not noexcept, not a constructor, destructor or assignment (a noexcept function is no-throw by
+    its signature), plus the static factories that take an rvalue reference (they consume it);
   * every CUDA-capable function carries @sync or @async and documents its exceptions (at least
     one @throws, or `noexcept`; destructors are exempt from the latter): every function that
     takes a `resources`, a `stream_ref` or a `memory_resource_ref`, and the members that do
@@ -36,6 +39,31 @@ REQUIRED_ALGO_PARS = ("Backends:", "Determinism:", "Paper:", "Exception safety:"
 # Functions outside the algorithm namespaces that change a container or a result: each states
 # its exception guarantee (strong / basic) with @guarantee.
 GUARANTEED_FUNCTIONS = {"dyng::graph::apply", "dyng::update", "dyng::update_each"}
+# The container, batch and result classes of the public API: their mutating members state their
+# guarantee (see the module docstring).
+GUARANTEE_CLASSES = {
+    "dyng::graph",
+    "dyng::edge_batch",
+    "dyng::edge_list",
+    "dyng::sssp::result",
+    "dyng::cycle_count::result",
+}
+
+
+def needs_guarantee(class_name: str, member: ET.Element) -> bool:
+    """Whether a member function of a GUARANTEE_CLASSES class must carry @guarantee."""
+    if class_name not in GUARANTEE_CLASSES or member.get("kind") != "function":
+        return False
+    mname = text_of(member.find("name"))
+    short = class_name.rsplit("::", 1)[1]
+    if mname in (short, "~" + short, "operator="):
+        return False
+    args = text_of(member.find("argsstring"))
+    if "noexcept" in args:
+        return False
+    if member.get("static") == "yes":
+        return any(text_of(p.find("type")).endswith("&&") for p in member.findall("param"))
+    return member.get("const") != "yes"
 
 
 def algorithm_namespaces(root: Path = REPO) -> set[str]:
@@ -222,7 +250,7 @@ def main(argv: list[str]) -> int:
                             problems.append(f"{at}: {qualified} has no {tag}")
             if member.get("kind") == "function":
                 qualified = text_of(member.find("qualifiedname")) or f"{name}::{mname}"
-                if qualified in GUARANTEED_FUNCTIONS:
+                if qualified in GUARANTEED_FUNCTIONS or needs_guarantee(name, member):
                     titles = {text_of(t) for t in member.iter("title")}
                     if "Exception safety:" not in titles:
                         problems.append(f"{at}: {qualified} has no @guarantee")

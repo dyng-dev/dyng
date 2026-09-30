@@ -53,10 +53,10 @@ struct edge_list_view {
 template <typename vertex_t, typename weight_t>
 struct edge_list {
   vertex_t num_vertices = 0;      ///< ids lie in [0, num_vertices)
-  int num_weights = 0;            ///< weights per edge (0: unweighted)
   std::vector<vertex_t> src;      ///< source of each edge
   std::vector<vertex_t> dst;      ///< destination of each edge
   std::vector<weight_t> weights;  ///< num_weights per edge, edge-major
+  int num_weights = 0;            ///< weights per edge (0: unweighted); last, as in edge_list_view
 
   /**
    * @brief Number of edges.
@@ -73,17 +73,27 @@ struct edge_list {
    * @param[in] w Its num_weights weights.
    * @throws invalid_argument_error if `w` does not hold num_weights values.
    * @throws out_of_memory_error    if the arrays cannot grow.
+   * @guarantee Strong: after an exception the list is unchanged.
    */
   void add_edge(vertex_t u, vertex_t v, std::initializer_list<weight_t> w = {}) {
     DYNG_EXPECTS(w.size() == static_cast<std::size_t>(num_weights), "edge_list::add_edge got ",
                  w.size(), " weights, expected ", num_weights);
+    const std::size_t n = src.size();
+    const std::size_t nw = weights.size();
+    const auto undo = [&]() noexcept {
+      src.erase(src.begin() + static_cast<std::ptrdiff_t>(n), src.end());
+      dst.erase(dst.begin() + static_cast<std::ptrdiff_t>(n), dst.end());
+      weights.erase(weights.begin() + static_cast<std::ptrdiff_t>(nw), weights.end());
+    };
     try {
       src.push_back(u);
       dst.push_back(v);
       weights.insert(weights.end(), w.begin(), w.end());
     } catch (const std::bad_alloc& e) {
+      undo();
       detail::throw_host_allocation_failure("edge_list::add_edge", e.what());
     } catch (const std::length_error& e) {
+      undo();
       detail::throw_host_allocation_failure("edge_list::add_edge", e.what());
     }
   }

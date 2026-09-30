@@ -437,10 +437,10 @@
       [[nodiscard]] std::size_t num_edges() const noexcept
   template <typename vertex_t, typename weight_t> struct dyng::edge_list
       vertex_t num_vertices = 0
-      int num_weights = 0
       std::vector< vertex_t > src
       std::vector< vertex_t > dst
       std::vector< weight_t > weights
+      int num_weights = 0
       [[nodiscard]] std::size_t num_edges() const noexcept
       void add_edge(vertex_t u, vertex_t v, std::initializer_list< weight_t > w={})
       [[nodiscard]] edge_list_view< vertex_t, weight_t > view() const noexcept

@@ -41,6 +41,12 @@ dyng_add_test(
   LABELS cpu graph
   LIBRARIES dyng::testing
 )
+# Host allocation failures in header-inline code (its own executable: it replaces operator new).
+dyng_add_test(
+  NAME dyng_allocation_failure_tests
+  SOURCES graph/allocation_failure_test.cpp
+  LABELS cpu graph
+)
 dyng_add_test(
   NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp LABELS cpu io
 )

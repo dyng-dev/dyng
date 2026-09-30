@@ -167,6 +167,9 @@ class graph {
    *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
+   * @guarantee Strong for every error in the input (invalid_argument_error, not_supported_error):
+   *            `csr` is unchanged, because its arrays are taken over only once they are known to
+   *            be final. Basic for out_of_memory_error: `csr` may have been left empty.
    */
   [[nodiscard]] static graph from_csr(const resources& res, csr_type&& csr,
                                       const graph_properties& props = {});
@@ -230,6 +233,8 @@ class graph {
    * @throws invalid_argument_error if `edge_capacity` is negative or the graph was moved from.
    * @throws out_of_memory_error    if the storage cannot be allocated.
    * @sync
+   * @guarantee Strong for the contents: the edges, the version and every result's validity are
+   *            unchanged (some arrays may keep a larger capacity).
    */
   void reserve(const resources& res, edge_t edge_capacity);
 

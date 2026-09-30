@@ -187,6 +187,7 @@ class result {
    * @throws invalid_argument_error if `opt.objective` differs or `opt.delta` is negative, or for a
    *         moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
+   * @guarantee Strong: every check runs before the options change.
    */
   void set_options(const options& opt);
 

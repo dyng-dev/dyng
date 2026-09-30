@@ -289,6 +289,7 @@ class result {
    * @throws invalid_argument_error if `opt.max_length`, `opt.method` or `opt.mode` differs from
    *         the result's, a field holds an invalid value, or for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
+   * @guarantee Strong: every check runs before the options change.
    */
   void set_options(const options& opt);
 

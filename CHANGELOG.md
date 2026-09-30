@@ -279,6 +279,34 @@ Before 0.1.0 anything may change.
   end 0.53-0.93x, update 0.44-0.65x of the original, COLLAB k = 3 0.29x) with the improvements
   isolated in their own section.
 
+### Fixed (M3 review)
+
+- Budgets (invariant I9) count per calling thread and exclude the profiler's `sync_stages`
+  synchronizations; an excess is logged in a Debug build and throws only under strict budgets
+  (`DYNG_STRICT_BUDGETS=1`, armed by the conformance kit), so a correct update on another thread
+  no longer fails and poisons its result. The half before the commit is measured too (cycle_count's
+  CUDA budget: 4 host synchronizations).
+- The framework chooses and checks the engine before the commit (an engine that does not exist or
+  cannot run, or `fallback_recompute` without a recompute hook, leaves the graph and the result
+  unchanged); `engine::automatic` picks a fused engine only where the problem's new
+  `fused_available(ctx)` says it runs.
+- `dyng::update()` / `update_each()` dispatch through `detail::participant_of<container_t>::run()`,
+  so a later container (the hypergraph) needs no change to `update.hpp`; passing the owning batch
+  or a non-container stops at a plain-English `static_assert`; `update_each()` rejects an empty
+  list and a list in device memory (`invalid_argument_error`, before anything changes).
+- `edge_batch::insert_edge` / `delete_edge` and `edge_list::add_edge` are strong under allocation
+  failure (a failed call leaves the arrays as they were); `to_vector()` reports allocation failure
+  as `out_of_memory_error`. Every mutating member of the container, batch and result classes states
+  its guarantee (`@guarantee`, checked by `ci/doxygen_coverage.py`).
+- `edge_list`'s fields are in the order of `edge_list_view` (`num_weights` last) (**breaking** for
+  positional brace-initialization of `edge_list`; the API baseline is updated).
+- Tooling: `regen.py` writes a space between long CODEOWNERS paths and their owners and rejects a
+  manifest that omits a backend whose source exists; `new_algorithm.py` refuses names that cannot
+  compile, removes only scaffolds (restoring their `planned.toml` entry) and writes the API page;
+  `ci/docs.sh --update-api` updates the API baseline (the documented `&&` command never could).
+- The kit: C4 is exercised on a fake two-engine algorithm, the registration rules have
+  compile-fail tests, and C0 catches a manifest that drops a backend.
+
 ### Changed
 
 - Exception guarantees (the 0.1 API review): `compute()`, `update()`, `from_arrays()`,
