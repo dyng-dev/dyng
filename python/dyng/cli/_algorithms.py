@@ -168,7 +168,7 @@ def _add_sssp_common(p: argparse.ArgumentParser) -> list[str]:
     return names
 
 
-def add_sssp(sub: argparse._SubParsersAction) -> None:
+def add_sssp(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p = sub.add_parser("sssp", help="dynamic single-source shortest paths", description=_SSSP_HELP)
     verbs = p.add_subparsers(dest="verb", metavar="VERB", required=True)
     c = verbs.add_parser(
@@ -297,7 +297,7 @@ def _add_cycle_common(p: argparse.ArgumentParser) -> list[str]:
     return names
 
 
-def add_cycle_count(sub: argparse._SubParsersAction) -> None:
+def add_cycle_count(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p = sub.add_parser(
         "cycle_count", help="directed simple-cycle histograms", description=_CYCLE_HELP
     )
@@ -367,11 +367,13 @@ def run_cycle_update(args: argparse.Namespace) -> int:
         raise UsageError("give one batch: --batch, --changes/--insert/--delete or generator flags")
     opt = _cycle_options(args)
     hist = dyng.cycle_count.compute(g, options=opt)
+    batch: dyng.EdgeBatch
     if args.batch is not None:
         batch = read_text_batch(args.batch, g)
     elif sources[1]:
-        batch = read_mosp_batch(args, g)
-        assert batch is not None
+        mosp_batch = read_mosp_batch(args, g)
+        assert mosp_batch is not None
+        batch = mosp_batch
     else:
         batch = dyng.generators.legacy.cycle_enum_batch(g, **gen)
     if args.write_batch is not None:

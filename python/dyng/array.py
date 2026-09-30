@@ -197,7 +197,8 @@ class Array:
 
     def __dlpack_device__(self) -> tuple[int, int]:
         """The DLPack device: (1, 0) for host memory, (2, n) for CUDA device n."""
-        return tuple(self._nd.__dlpack_device__())  # type: ignore[return-value]
+        kind, dev = self._nd.__dlpack_device__()
+        return int(kind), int(dev)
 
     def to_numpy(self, *, copy: bool = True) -> np.ndarray:
         """The elements as a NumPy array.
@@ -213,7 +214,8 @@ class Array:
 
     def tolist(self) -> list[Any]:
         """The elements as a Python list."""
-        return self._numpy_view().tolist()
+        out: list[Any] = self._numpy_view().tolist()
+        return out
 
     def to_torch(self) -> Any:
         """A PyTorch tensor viewing the elements (zero-copy through DLPack; needs torch).

@@ -79,6 +79,8 @@ class Resources:
     """
 
     __slots__ = ("_native", "_profiler", "__weakref__")
+    _native: Any
+    _profiler: Any
 
     def __init__(
         self, backend: BackendName | None = None, *, num_threads: int = 0, device: int = 0

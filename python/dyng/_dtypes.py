@@ -112,7 +112,8 @@ def id_dtype(name: Any, what: str) -> np.dtype:
         raise InvalidArgumentError(f"{what}: {name!r} is not a dtype") from e
     if dt not in (INT32, INT64):
         raise NotSupportedError(f"{what}: {dt.name} is not supported (int32 or int64)")
-    return dt
+    out: np.dtype = dt
+    return out
 
 
 def _declared_dtype(x: Any) -> np.dtype | None:
@@ -127,12 +128,13 @@ def _declared_dtype(x: Any) -> np.dtype | None:
             view = memoryview(x)
         except TypeError:
             return None
-        return np.asarray(view).dtype
+        return np.dtype(np.asarray(view).dtype)
     try:
-        return np.dtype(dt)
+        declared: np.dtype = np.dtype(dt)
+        return declared
     except TypeError:
         # e.g. torch.int32: go through NumPy
-        return np.asarray(x).dtype
+        return np.dtype(np.asarray(x).dtype)
 
 
 def to_numpy(x: Any, what: str) -> np.ndarray:

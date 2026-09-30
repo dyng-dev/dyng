@@ -25,6 +25,7 @@ InternalError            Error, RuntimeError                      internal_error
 from __future__ import annotations
 
 from types import ModuleType
+from typing import Any
 
 from ._backend import on_activate
 
@@ -87,7 +88,9 @@ class FileFormatError(Error, OSError):
     def __str__(self) -> str:
         return str(self.args[0]) if self.args else ""
 
-    def __reduce__(self):  # keeps the attributes through pickling (multiprocessing)
+    def __reduce__(
+        self,
+    ) -> tuple[Any, ...]:  # keeps the attributes through pickling (multiprocessing)
         return (type(self), (str(self), self.path, self.line, self.column))
 
 
@@ -116,7 +119,7 @@ class CudaError(Error, RuntimeError):
         super().__init__(message)
         self.code = code
 
-    def __reduce__(self):
+    def __reduce__(self) -> tuple[Any, ...]:
         return (type(self), (str(self), self.code))
 
 

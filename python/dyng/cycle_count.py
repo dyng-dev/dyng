@@ -132,6 +132,8 @@ class Result:
     """
 
     __slots__ = ("_native", "_resources", "__weakref__")
+    _native: Any
+    _resources: Resources
 
     def __init__(self) -> None:
         raise TypeError("use dyng.cycle_count.compute()")

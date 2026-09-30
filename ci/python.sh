@@ -14,7 +14,9 @@
 #      environment.yml / pyproject.toml in the environment, and CMake >= 3.30 and Ninja)
 #   2. python scripts/regen.py --stubs --check: python/dyng/_core.pyi equals nanobind.stubgen's
 #      output for the built module (regenerate with `python scripts/regen.py --stubs`)
-#   3. python -m pytest python/tests (the Hypothesis profile: DYNG_HYPOTHESIS_PROFILE=dyng|ci|dev)
+#   3. mypy (strict, [tool.mypy] of pyproject.toml) over the typed layer python/dyng and its
+#      stubs; skipped with a note when mypy is not installed, required in CI
+#   4. python -m pytest python/tests (the Hypothesis profile: DYNG_HYPOTHESIS_PROFILE=dyng|ci|dev)
 #
 # Heavy steps take the shared perf lock and run niced when ci/check.sh calls this script (it
 # wraps the whole script); run alone, wrap it the same way on the shared machine:
@@ -35,6 +37,16 @@ echo "==> installed: $("${python}" -c 'import dyng; print(dyng.__version__, dyng
 
 echo "==> scripts/regen.py --stubs --check"
 "${python}" scripts/regen.py --stubs --check
+
+echo "==> mypy (strict) over python/dyng"
+if "${python}" -m mypy --version >/dev/null 2>&1; then
+  "${python}" -m mypy
+elif [ -n "${CI:-}" ]; then
+  echo "mypy not found (in CI the step must run)" >&2
+  exit 1
+else
+  echo "mypy not installed (conda env update -f environment.yml); skipped"
+fi
 
 echo "==> pytest python/tests"
 "${python}" -m pytest -q python/tests

@@ -74,6 +74,7 @@ class Profiler:
     """
 
     __slots__ = ("_native",)
+    _native: Any
 
     def __init__(
         self, *, sync_stages: bool = False, nvtx: bool = False, cuda_events: bool = False

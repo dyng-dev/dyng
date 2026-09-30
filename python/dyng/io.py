@@ -508,14 +508,17 @@ def write_legacy_batch(insert_path: PathLike, delete_path: PathLike, batch: Edge
 def read_distances(path: PathLike, num_vertices: int) -> np.ndarray:
     """Read a MOSP distance file (``v d`` or ``v INF`` per vertex) as int64 (INF reads as
     :data:`dyng.sssp.INFINITE_DISTANCE`)."""
-    return native.read_distances(_path(path), as_int(num_vertices, "read_distances: num_vertices"))
+    out: np.ndarray = native.read_distances(
+        _path(path), as_int(num_vertices, "read_distances: num_vertices")
+    )
+    return out
 
 
 def read_parents(path: PathLike, num_vertices: int, *, vertex_dtype: Any = "int32") -> np.ndarray:
     """Read a MOSP SSSP-tree file (``v p`` per vertex, -1 for none)."""
-    return getattr(native, f"read_parents_{_vcode(vertex_dtype)}")(
-        _path(path), as_int(num_vertices, "read_parents: num_vertices")
-    )
+    reader = getattr(native, f"read_parents_{_vcode(vertex_dtype)}")
+    out: np.ndarray = reader(_path(path), as_int(num_vertices, "read_parents: num_vertices"))
+    return out
 
 
 def _host_array(a: Any, what: str) -> np.ndarray:
@@ -559,9 +562,9 @@ def write_histogram_csv(
     """Write :func:`histogram_csv` to a path or an open text file."""
     text = histogram_csv(counts, include_total=include_total)
     if hasattr(file, "write"):
-        file.write(text)  # type: ignore[union-attr]
+        file.write(text)
         return
-    path = _path(file)  # type: ignore[arg-type]
+    path = _path(file)
     parent = os.path.dirname(path)
     if parent:
         os.makedirs(parent, exist_ok=True)

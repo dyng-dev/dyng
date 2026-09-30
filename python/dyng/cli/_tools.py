@@ -37,7 +37,7 @@ MOSP's rows as stored; mtx: sorted and deduplicated; edges: by source, in file o
 """
 
 
-def add_convert(sub: argparse._SubParsersAction) -> None:
+def add_convert(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p = sub.add_parser("convert", help="convert a graph between formats", description=_CONVERT_HELP)
     p.add_argument("input", metavar="INPUT", help="the input graph (see --format)")
     p.add_argument("output", metavar="OUTPUT", help="the output (a prefix for csr)")
@@ -102,7 +102,7 @@ insertion, in graph ids). The flags are the generators' keyword arguments.
 """
 
 
-def add_generate(sub: argparse._SubParsersAction) -> None:
+def add_generate(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p = sub.add_parser("generate", help="seeded batch generators", description=_GENERATE_HELP)
     gens = p.add_subparsers(dest="generator", metavar="GENERATOR", required=True)
 

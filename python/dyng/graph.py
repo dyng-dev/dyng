@@ -178,7 +178,7 @@ def make_properties(
     if properties is None:
         props = GraphProperties()
     elif isinstance(properties, str):
-        props = GraphProperties.preset(properties)  # type: ignore[arg-type]
+        props = GraphProperties.preset(properties)
     elif isinstance(properties, GraphProperties):
         props = dataclasses.replace(properties)
     else:
@@ -267,6 +267,9 @@ class Graph:
     """
 
     __slots__ = ("_native", "_type", "_resources", "__weakref__")
+    _native: Any
+    _type: _dtypes.GraphType
+    _resources: Resources
 
     def __init__(self) -> None:
         raise TypeError("use dyng.Graph.from_edges(), dyng.Graph.from_csr() or a reader of dyng.io")

@@ -122,6 +122,9 @@ class Result:
     """
 
     __slots__ = ("_native", "_resources", "_vertex", "__weakref__")
+    _native: Any
+    _resources: Resources
+    _vertex: np.dtype
 
     def __init__(self) -> None:
         raise TypeError("use dyng.sssp.compute() or dyng.sssp.Result.from_arrays()")

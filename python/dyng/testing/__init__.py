@@ -90,8 +90,9 @@ def simple_cycles(graph: Graph, max_length: int = -1, *, brute_force: bool = Fal
     vertex count."""
     if not isinstance(graph, Graph):
         raise TypeError("simple_cycles: graph must be a dyng.Graph")
-    return native.testing_simple_cycles(
+    out: np.ndarray = native.testing_simple_cycles(
         graph._native,
         as_int(max_length, "testing: max_length"),
         as_bool(brute_force, "testing: brute_force"),
     )
+    return out

@@ -199,7 +199,7 @@ def add_option_flags(
     return names
 
 
-def options_from(args: argparse.Namespace, options_cls: type, names: Iterable[str]) -> Any:
+def options_from[T](args: argparse.Namespace, options_cls: type[T], names: Iterable[str]) -> T:
     """The ``Options`` object of the given flags (unset flags keep the field's default)."""
     kw = {n: getattr(args, "opt_" + n) for n in names if getattr(args, "opt_" + n) is not None}
     return options_cls(**kw)

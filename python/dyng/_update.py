@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, overload
 
 from ._backend import native
 from .batch import EdgeBatch
@@ -12,9 +12,63 @@ from .errors import InvalidArgumentError
 from .graph import Graph
 from .resources import Resources, resolve
 
+if TYPE_CHECKING:
+    from . import cycle_count, sssp
+
 __all__ = ["update"]
 
 
+@overload
+def update(
+    graph: Graph, batch: EdgeBatch, r1: sssp.Result, /, *, resources: Resources | None = None
+) -> tuple[sssp.Stats]: ...
+@overload
+def update(
+    graph: Graph,
+    batch: EdgeBatch,
+    r1: cycle_count.Result,
+    /,
+    *,
+    resources: Resources | None = None,
+) -> tuple[cycle_count.Stats]: ...
+@overload
+def update(
+    graph: Graph,
+    batch: EdgeBatch,
+    r1: sssp.Result,
+    r2: cycle_count.Result,
+    /,
+    *,
+    resources: Resources | None = None,
+) -> tuple[sssp.Stats, cycle_count.Stats]: ...
+@overload
+def update(
+    graph: Graph,
+    batch: EdgeBatch,
+    r1: cycle_count.Result,
+    r2: sssp.Result,
+    /,
+    *,
+    resources: Resources | None = None,
+) -> tuple[cycle_count.Stats, sssp.Stats]: ...
+@overload
+def update(
+    graph: Graph, batch: EdgeBatch, *results: sssp.Result, resources: Resources | None = None
+) -> tuple[sssp.Stats, ...]: ...
+@overload
+def update(
+    graph: Graph,
+    batch: EdgeBatch,
+    *results: cycle_count.Result,
+    resources: Resources | None = None,
+) -> tuple[cycle_count.Stats, ...]: ...
+@overload
+def update(
+    graph: Graph,
+    batch: EdgeBatch,
+    *results: sssp.Result | cycle_count.Result,
+    resources: Resources | None = None,
+) -> tuple[sssp.Stats | cycle_count.Stats, ...]: ...
 def update(
     graph: Graph, batch: EdgeBatch, *results: Any, resources: Resources | None = None
 ) -> tuple[Any, ...]:
@@ -59,7 +113,7 @@ def update(
             "dyng.update: no results (applying a batch without updating any result would leave "
             "every result of the graph stale; use Graph.apply())"
         )
-    kinds = []
+    kinds: list[type[sssp.Stats] | type[cycle_count.Stats]] = []
     for i, r in enumerate(results):
         if isinstance(r, sssp.Result):
             sssp._check_graph(graph)

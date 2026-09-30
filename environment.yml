@@ -52,5 +52,6 @@ dependencies:
   - nanobind=3.1.0
   - scikit-build-core=1.1.0
   - hypothesis=6.167.1
+  - mypy=1.18.2                  # the typed layer, strict (ci/python.sh; pyproject.toml [tool.mypy])
   # the Python API check (ci/api_check.sh, .github/workflows/api-check.yml; PLAN Section 5.9)
   - griffe=2.3.0

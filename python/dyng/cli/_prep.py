@@ -254,7 +254,7 @@ def _tree_flags(p: argparse.ArgumentParser) -> None:
     add_backend_flags(p)
 
 
-def add_prep(sub: argparse._SubParsersAction) -> None:
+def add_prep(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     p = sub.add_parser("prep", help="MOSP's input preparation (mospPrep)", description=_DESCRIPTION)
     cmds = p.add_subparsers(dest="prep_command", metavar="COMMAND", required=True)
 
