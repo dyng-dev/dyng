@@ -297,6 +297,23 @@ def test_perf_ab_run_takes_a_dyng_baseline() -> None:
     assert "f664f96 (ms)" in lines[0]
 
 
+def test_perf_ab_layouts_cycle_the_timing_file_name() -> None:
+    perf = load("parity/perf_ab.py")
+    args = type("Args", (), {"layouts": 3})()
+    names = [perf.layout_timing(Path("/w"), "timing", args, r).name for r in range(4)]
+    assert names == ["timing.csv", "timing" + "x" * 8 + ".csv", "timing" + "x" * 16 + ".csv",
+                     "timing.csv"]  # fmt: skip
+    one = type("Args", (), {"layouts": 1})()
+    assert perf.layout_timing(Path("/w"), "timing", one, 5).name == "timing.csv"
+    # Only for a dynG-against-dynG A/B: the originals take no --timing file.
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity/perf_ab.py", "run", "--exe", "x", "--layouts", "3"],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode != 0 and "--baseline-exe" in proc.stderr
+
+
 def test_perf_ab_monitor_sees_foreign_cpu_load() -> None:
     perf = load("parity/perf_ab.py")
     # A spinning process that is not the timed program: foreign load of about one core.

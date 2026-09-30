@@ -1139,6 +1139,19 @@ def batch_list(args: argparse.Namespace) -> list[str]:
     return batches
 
 
+LAYOUT_STEP = 8  # bytes of file name added per layout (--layouts)
+
+
+def layout_timing(work: Path, stem: str, args: argparse.Namespace, r: int) -> Path:
+    """The --timing file of round r (0-based). With --layouts N > 1 its name grows by
+    LAYOUT_STEP * (r mod N) characters, the same on both sides of the round: the argument's length
+    moves the program's heap layout (parity/results/M3.md section 6.3), so the rounds of a
+    dynG-against-dynG A/B cycle through N layouts instead of reading a single one."""
+    layouts = getattr(args, "layouts", 1)
+    pad = "x" * (LAYOUT_STEP * (r % layouts)) if layouts > 1 else ""
+    return work / f"{stem}{pad}.csv"
+
+
 def batch_args(data: Path, batch: str) -> list:
     return [
         "--graph",
@@ -1243,6 +1256,7 @@ def run(args: argparse.Namespace) -> int:
                     r = 0
                     while r < args.runs:
                         before = os.getloadavg()[0]
+                        timing = layout_timing(work, "timing", args, r)
                         if baseline is not None:
                             log_a, win_a = monitor.run(
                                 [*side_a, *common, "--no-output", "--timing", timing], env
@@ -1678,6 +1692,13 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
                 + ("kept and flagged" if args.keep_contaminated else "repeated")
             ),
             "statistic": "median",
+            "layouts": (
+                f"{args.layouts} heap layouts, round r in layout r mod {args.layouts} (the "
+                f"--timing file name {LAYOUT_STEP} * (r mod {args.layouts}) characters longer, "
+                "the same on both sides)"
+                if getattr(args, "layouts", 1) > 1
+                else "one (a fixed --timing file name)"
+            ),
             "outputs": "--no-output on both",
             "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
         },
@@ -1831,6 +1852,15 @@ def main() -> int:
                 help="the name of side A in the report with --baseline-exe (e.g. a commit)",
             )
             r.add_argument(
+                "--layouts",
+                type=int,
+                default=1,
+                metavar="N",
+                help="with --baseline-exe: cycle the rounds through N heap layouts (the --timing "
+                "file name grows by 8 characters per layout, the same on both sides; M3.md "
+                "section 6.3); 1 (the default) reads one layout",
+            )
+            r.add_argument(
                 "--lock-clocks",
                 choices=["boost", "base", "none"],
                 default="boost",
@@ -1847,6 +1877,13 @@ def main() -> int:
     args = parser.parse_args()
     if args.command != "prepare" and args.runs < 5:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
+    if getattr(args, "layouts", 1) < 1:
+        parser.error("--layouts must be >= 1")
+    if getattr(args, "layouts", 1) > 1 and not getattr(args, "baseline_exe", None):
+        parser.error(
+            "--layouts is for a dynG-against-dynG A/B (--baseline-exe): the originals "
+            "take no --timing file, so only the port's layout would move"
+        )
     if args.command == "prepare" and args.hops is None:
         if args.graph not in HOPS:
             parser.error(f"--hops is required for {args.graph} (known: {sorted(HOPS)})")

@@ -390,6 +390,12 @@ def run(args: argparse.Namespace) -> int:
                 foreign: dict[str, list] = {"original": [], "port": []}
                 for r in range(args.runs):
                     before = os.getloadavg()[0]
+                    if args.layouts > 1:
+                        # The same file name length on both sides, one layout per round.
+                        timing_a = perf_ab.layout_timing(work, "timing-a", args, r)
+                        timing = perf_ab.layout_timing(work, "timing-b", args, r)
+                        a_cmd = [original, *cli, "--timing", timing_a]
+                        b_cmd = [exe, *cli, "--timing", timing]
                     wall_a, out_a, err_a, cont_a = timed_run(a_cmd, env)
                     wall_b, out_b, err_b, cont_b = timed_run(b_cmd, env)
                     loads.append((before, os.getloadavg()[0]))
@@ -1251,6 +1257,13 @@ def write_json(args, results, build, ref, marker, regions, clocks=None) -> None:
                 "env": " ".join(args.env) or "no OMP_* variables (the libgomp defaults) on both",
                 "lock": "perf.lock (exclusive)",
                 "statistic": "median",
+                "layouts": (
+                    f"{args.layouts} heap layouts, round r in layout r mod {args.layouts} (both "
+                    f"--timing file names {perf_ab.LAYOUT_STEP} * (r mod {args.layouts}) "
+                    "characters longer)"
+                    if args.layouts > 1
+                    else "one (fixed --timing file names)"
+                ),
                 "outputs": "standard output captured (the histogram CSV), compared every round",
                 "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
             }
@@ -1339,6 +1352,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     r.add_argument("--baseline-kind", choices=["original", "port"], default="original")
     r.add_argument("--baseline-label", default="original")
+    r.add_argument(
+        "--layouts",
+        type=int,
+        default=1,
+        metavar="N",
+        help="openmp, --baseline-kind port: cycle the rounds through N heap layouts (the --timing "
+        "file names grow by 8 characters per layout, the same on both sides; M3.md section 6.3)",
+    )
     k = sub.add_parser("kernels")
     k.add_argument("--library", type=Path, required=True, help="libdyng.so of the parity-cuda tree")
     k.add_argument("--json", type=Path)
@@ -1367,6 +1388,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
     if args.baseline_exe and args.baseline_label == "original":
         parser.error("--baseline-exe needs a --baseline-label naming the experiment")
+    if args.layouts < 1:
+        parser.error("--layouts must be >= 1")
+    if args.layouts > 1 and (args.backend != "openmp" or args.baseline_kind != "port"):
+        parser.error("--layouts is for a dynG-against-dynG A/B on openmp (--baseline-kind port)")
     return run(args)
 
 
