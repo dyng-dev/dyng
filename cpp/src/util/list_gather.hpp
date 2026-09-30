@@ -14,7 +14,8 @@
  *
  * Changed (M3, invariant I9): the offsets live in an inline array for up to 256 threads instead of
  * a std::vector per gather, so the near-far rounds, which build two gathers each, allocate nothing
- * (conformance check C8 counts host allocations); a larger team falls back to a heap array.
+ * (conformance check C8 counts host allocations); a larger team falls back to a heap array. The
+ * inline array is aligned to a cache line, away from the members every thread reads.
  *
  * Added: gather_pair(), which gathers two lists of a region with the barriers of one gather.
  * ListGather's gather() costs two barriers (before and after the prefix sum), so a region that
@@ -150,7 +151,12 @@ class list_gather {
   std::vector<value_t>& out_;
   std::size_t base_;
   std::size_t* offsets_ = nullptr;  ///< inline_offsets_ or heap_offsets_ (max_threads + 1 entries)
-  std::array<std::size_t, inline_offsets> inline_offsets_;
+  /// Starts on a cache line of its own: every thread writes its entry, and without the alignment
+  /// the first entries shared a line with out_, base_ and offsets_, which every thread reads in
+  /// the same region, and the line's position depended on where the object fell on the stack.
+  /// ListGather's heap array never shared a line with them. (No timing difference could be
+  /// separated from the code-placement effects of the M3 review, parity/results/M3.md section 5.)
+  alignas(64) std::array<std::size_t, inline_offsets> inline_offsets_;
   std::vector<std::size_t> heap_offsets_;
 };
 
