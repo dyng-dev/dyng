@@ -102,6 +102,24 @@ run locally.
    nanobind reported the `Resources` as leaked. An `atexit` hook now drops it first, and the
    install tests fail on any nanobind leak report.
 
+10. **Distribution hygiene** (added in the M5 review). The wheel contains third-party code:
+    nanobind (BSD-3-Clause) and its robin-map (MIT) linked statically, the GCC runtime
+    (libgomp bundled by auditwheel, parts of libstdc++ and libgcc linked statically;
+    GPL-3.0-or-later WITH GCC-exception-3.1). Their licences are reproduced in
+    `THIRD_PARTY_LICENSES.txt`, which `license-files` puts into `.dist-info/licenses` and
+    `ci/wheel_check.py` requires; whether `License-Expression` should also name them (NumPy's
+    style) is a licensing decision for the author, so it stays `Apache-2.0` meanwhile. The sdist
+    excludes the repository-only files (the CC-BY-SA-4.0 Code of Conduct, governance pages, tool
+    configuration), so every file in it is Apache-2.0. The version comes through the standard
+    `[[tool.dynamic-metadata]]` table (the `tool.scikit-build.metadata` form is deprecated in
+    scikit-build-core 1.1), and the build requirement is bounded (`scikit-build-core>=1.1,<2`)
+    so the published sdist keeps building. `VERSION` must be a canonical PEP 440 version:
+    `release.yml` checks it (`ci/wheel_check.py --version-info`) before building and takes the
+    pre-release flag from the same parse. `wheels.yml` builds the wheel from its sdist, as
+    `ci/wheels.sh` does, so the published sdist is built and tested in the release run. The
+    local toolchain pins the GCC 12 runtime (`ci/wheel-toolchain.yml`), whose libgomp the local
+    wheel bundles.
+
 ## Consequences
 
 - One install gives the library and the command line; the CLI's flags cannot drift from the

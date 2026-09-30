@@ -20,3 +20,8 @@ channels:
 dependencies:
   - gxx_linux-64=12
   - sysroot_linux-64=2.28
+  # the runtime libraries of the same GCC: without the pin conda-forge resolves the newest
+  # libgomp / libgcc / libstdcxx (GCC 16), and auditwheel would bundle that libgomp
+  - libgomp=12.*
+  - libgcc=12.*
+  - libstdcxx=12.*

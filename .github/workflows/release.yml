@@ -57,21 +57,24 @@ jobs:
           if [ "${tag}" = "${reservation_version}" ]; then
             kind=reservation
             version="${reservation_version}"
+            prerelease=false  # 0.0.1, a final version
           elif printf '%s' "${tag}" | grep -Eq '^0\.0\.'; then
             echo "::error::tag v${tag}: 0.0.x tags are the name reservation (${reservation_version}) only"
             exit 1
           else
             kind=package
-            version="$(tr -d '[:space:]' < VERSION)"
-            if [ "${version}" != "${tag}" ]; then
-              echo "::error::tag v${tag} does not match VERSION ${version} (bump VERSION and CITATION.cff first: docs/developer/release.md)"
+            # VERSION must be canonical PEP 440 (the distributions carry that spelling); the same
+            # parse says whether it is a pre-release (a, b, rc, dev), which stops at TestPyPI.
+            if ! info="$(python ci/wheel_check.py --version-info)"; then
+              echo "::error::VERSION is not a canonical PEP 440 version (0.1.0, 0.1.0rc1; not 0.1.0-rc.1): docs/developer/release.md"
               exit 1
             fi
-          fi
-          if printf '%s' "${version}" | grep -Eq '(a|b|rc|dev)[0-9]*$'; then
-            prerelease=true
-          else
-            prerelease=false
+            version="${info% *}"
+            prerelease="${info#* }"
+            if [ "${version}" != "${tag}" ]; then
+              echo "::error::tag v${tag} does not match VERSION ${version}: for a release candidate VERSION holds X.Y.ZrcN, for the release X.Y.Z (steps 5 and 9 of docs/developer/release.md)"
+              exit 1
+            fi
           fi
           {
             echo "kind=${kind}"

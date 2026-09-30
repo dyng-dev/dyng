@@ -141,6 +141,14 @@ records the decisions taken while binding them.
     only the chosen module, and runs the registration hooks (the exception classes) then;
     `use_cpu_only()` before that forces `_core`, and after a plugin was chosen it raises
     `RuntimeError`. Importing `dyng` loads no native module.
+15. **Extras** (recorded in the M5 review; they differ from PLAN 7.7's list). `pyproject.toml`
+    has `test = [pytest, hypothesis]`, `torch` and `pandas`. Left out until what they install
+    exists: `cu12` / `cu13` (the CUDA plugin wheels of 0.1.x, whose release script adds them) and
+    `cupy-cu12` / `cupy-cu13` (CuPy is only useful with the plugins; `Array.to_cupy()` imports it
+    lazily and `test_arrays.py` skips without it); `networkx` and `scipy` in `test` (the
+    interoperability layer `dyng.interop` that they would test comes in 0.2; the oracles of the
+    suite are dynG's own). Added: `pandas`, for `Profiler.to_dataframe()` (PLAN 5.4's table,
+    "pandas optional").
 
 ## Consequences
 

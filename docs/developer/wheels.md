@@ -9,8 +9,8 @@ of the `pypi` deployment.
 
 | Distribution | Contents | Built by |
 |---|---|---|
-| `dyng-<version>.tar.gz` | the source of the root `pyproject.toml`: `VERSION`, `CMakeLists.txt`, `cmake/`, `cpp/`, `python/` and the licence files (no `parity/`, `docs/`, `tools/`, `ci/`, `.github/`) | `python -m build --sdist` |
-| `dyng-<version>-cp312-abi3-manylinux_2_28_x86_64.whl` | `dyng/_core.abi3.so` (nanobind stable ABI, sequential + OpenMP backends, libdyng and libstdc++ linked in), the typed layer `dyng/*.py` with `py.typed` and `_core.pyi`, the `dyng` console script, and `dyng.libs/libgomp-*.so*` bundled by auditwheel | cibuildwheel (CI), `ci/wheels.sh` (locally) |
+| `dyng-<version>.tar.gz` | the source of the root `pyproject.toml`: `VERSION`, `CMakeLists.txt`, `cmake/`, `cpp/`, `python/` and the licence files (no `parity/`, `docs/`, `tools/`, `ci/`, `.github/`, and none of the repository-only files: the CC-BY-SA-4.0 Code of Conduct, governance pages, tool configuration, so every file is Apache-2.0 as `License-Expression` says) | `python -m build --sdist` |
+| `dyng-<version>-cp312-abi3-manylinux_2_28_x86_64.whl` | `dyng/_core.abi3.so` (nanobind stable ABI, sequential + OpenMP backends, libdyng and libstdc++ linked in), the typed layer `dyng/*.py` with `py.typed` and `_core.pyi`, the `dyng` console script, `dyng.libs/libgomp-*.so*` bundled by auditwheel, and in `.dist-info/licenses` `LICENSE`, `NOTICE`, `LICENSES/Apache-2.0.txt` and `THIRD_PARTY_LICENSES.txt` (the licences of nanobind, robin-map and the GCC runtime, which the wheel contains) | cibuildwheel from the sdist (CI), `ci/wheels.sh` from the sdist (locally) |
 
 One abi3 wheel serves every CPython from 3.12. The CUDA plugin wheels (`dyng-cu12`,
 `dyng-cu13`) follow in 0.1.x.
@@ -18,14 +18,16 @@ One abi3 wheel serves every CPython from 3.12. The CUDA plugin wheels (`dyng-cu1
 Every distribution passes `twine check --strict` and `ci/wheel_check.py`: the size budget of
 PLAN 7.7 (a wheel above 90 MB fails; the CPU wheel is about 1.8 MB), the file name and tags
 (`cp312-abi3`, `manylinux_2_28_x86_64`), the contents listed above and, for the sdist, the files
-a source build needs and none of the excluded trees.
+a source build needs and none of the excluded trees or repository-only files. `ci/wheel_check.py
+--version-info` checks that `VERSION` is a canonical PEP 440 version (`release.yml` refuses a tag
+otherwise).
 
 ## In CI
 
 | Workflow | Trigger | What it does |
 |---|---|---|
 | `python.yml` | pull requests, `main` | `ci/python.sh` (the editable development install, the stubs check `scripts/regen.py --stubs --check`, the pytest suite with the Hypothesis profile `ci`); the sdist built, installed into a fresh venv (an isolated build from PyPI) and tested on Python 3.12 and 3.13 |
-| `wheels.yml` | pull requests that touch the packaging, manual, and called by `release.yml` | the sdist; the wheel with cibuildwheel in the manylinux_2_28 image (`[tool.cibuildwheel]` in `pyproject.toml`: built for cp312, a pytest subset run in the built wheel under cp312 and again under cp313); `twine check` and `ci/wheel_check.py`; the wheel alone installed into fresh venvs on 3.12 and 3.13 with the whole pytest suite; artifacts `sdist` and `wheel-cpu-manylinux_2_28_x86_64` |
+| `wheels.yml` | pull requests that touch the packaging, manual, and called by `release.yml` | the sdist; the wheel built **from that sdist** (its artifact, cibuildwheel's `package-dir`) with cibuildwheel in the manylinux_2_28 image (`[tool.cibuildwheel]` in `pyproject.toml`: built for cp312, a pytest subset run in the built wheel under cp312 and again under cp313); `twine check` and `ci/wheel_check.py`; the wheel alone installed into fresh venvs on 3.12 and 3.13 with the whole pytest suite; artifacts `sdist` and `wheel-cpu-manylinux_2_28_x86_64` |
 | `release.yml` | a tag `v*` | see below |
 
 ## Locally (no container runtime)
@@ -61,6 +63,7 @@ The differences from the CI build:
 | build front end | `build` (isolated, dependencies from PyPI) | `pip wheel --no-build-isolation` from the sdist, with the pinned scikit-build-core and nanobind of `environment.yml` |
 | repair | auditwheel inside the image | auditwheel from `$DYNG_SCRATCH/tools/wheeltools`, `--plat manylinux_2_28_x86_64 --only-plat`, libgomp from the conda toolchain |
 | tests | a pytest subset in the built wheel (cibuildwheel), then the whole suite (install-test job) | the whole suite in fresh venvs |
+| bundled OpenMP runtime | the image's libgomp (GCC 12 toolset) | the conda toolchain's libgomp, pinned to GCC 12 (`libgomp=12.*` in `ci/wheel-toolchain.yml`) |
 
 The system GCC alone cannot produce a manylinux_2_28 wheel: linked against glibc 2.36 and the
 system libstdc++, `auditwheel show` reports `manylinux_2_34`. Two pitfalls found while setting this

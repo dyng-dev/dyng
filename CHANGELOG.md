@@ -11,7 +11,7 @@ Before 0.1.0 anything may change.
 ### Release 0.1.0 (draft)
 
 This summary becomes the head of the section `## [0.1.0] - <date>` when the author tags
-`v0.1.0` (docs/developer/release.md, step 5); the entries below it are the detailed record of
+`v0.1.0` (docs/developer/release.md, steps 5 and 9); the entries below it are the detailed record of
 milestones M1a to M5 and move with it.
 
 dynG 0.1.0 is the first release of the library: two dynamic algorithms, each ported from a

@@ -10,12 +10,16 @@ platform tag, e.g. ``manylinux_2_28_x86_64``), the contents (the extension modul
 ``dyng`` console script in ``entry_points.txt``) and, with ``--require-libgomp``, the OpenMP
 runtime bundled by auditwheel under ``dyng.libs/``. For every sdist: the files a source build
 needs (``VERSION``, ``pyproject.toml``, ``CMakeLists.txt``, ``cpp/``, ``python/``) and none of the
-excluded trees (``parity/``, ``.github/``, ...), and its size.
+excluded trees (``parity/``, ``.github/``, ...) or repository-only files (the CC-BY-SA-4.0 Code
+of Conduct, governance and tool configuration), and its size. ``VERSION`` must be a canonical
+PEP 440 version (the distributions carry the normalised form, so any other spelling would give
+file names that no check expects).
 
 Usage::
 
     python3 ci/wheel_check.py dist/*.whl dist/*.tar.gz --platform manylinux_2_28_x86_64 \\
         --require-libgomp
+    python3 ci/wheel_check.py --version-info   # "<VERSION> <pre-release: true|false>"
     python3 ci/wheel_check.py --self-test
 
 Exit status 0 when every file passes; the report lists each check.
@@ -39,14 +43,53 @@ MAX_WHEEL_BYTES = 90 * 1000 * 1000
 #: An sdist far above this has picked up build trees or data.
 MAX_SDIST_BYTES = 20 * 1000 * 1000
 
-SDIST_REQUIRED = ("VERSION", "pyproject.toml", "CMakeLists.txt", "LICENSE", "NOTICE")
+SDIST_REQUIRED = (
+    "VERSION",
+    "pyproject.toml",
+    "CMakeLists.txt",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_LICENSES.txt",
+)
 SDIST_REQUIRED_DIRS = ("cpp/include/dyng/", "cpp/src/", "python/dyng/", "python/bindings/")
 SDIST_FORBIDDEN_DIRS = (".github/", "parity/", "build/", "docs/adr/", "tools/", "ci/")
+#: Repository-only files (pyproject.toml's sdist.exclude): the sdist is Apache-2.0 only.
+SDIST_FORBIDDEN_FILES = (
+    "CODE_OF_CONDUCT.md",
+    "LICENSES/CC-BY-SA-4.0.txt",
+    "GOVERNANCE.md",
+    "MAINTAINERS.md",
+    "SUPPORT.md",
+    "CMakePresets.json",
+    ".pre-commit-config.yaml",
+    ".readthedocs.yaml",
+    ".clang-tidy",
+)
+#: The licence files every distribution carries (pyproject.toml's license-files).
+LICENSE_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_LICENSES.txt")
+
+#: A canonical PEP 440 public version (what packaging.version.Version(v) prints back unchanged),
+#: without epoch and local part: 0.1.0, 0.1.0rc1, 0.1.0.post1, 0.1.0.dev0.
+_CANONICAL = re.compile(
+    r"(?:0|[1-9]\d*)(?:\.(?:0|[1-9]\d*))*"
+    r"(?P<pre>(?:a|b|rc)(?:0|[1-9]\d*))?(?:\.post(?:0|[1-9]\d*))?(?P<dev>\.dev(?:0|[1-9]\d*))?"
+)
+
+
+def canonical_version(v: str) -> tuple[str, bool]:
+    """``(v, is_prerelease)`` for a canonical PEP 440 version; ValueError otherwise."""
+    m = _CANONICAL.fullmatch(v)
+    if m is None:
+        raise ValueError(
+            f"VERSION {v!r} is not a canonical PEP 440 version (e.g. 0.1.0, 0.1.0rc1, "
+            "0.1.0.dev0; SemVer spellings such as 0.1.0-rc.1 are not)"
+        )
+    return v, bool(m.group("pre") or m.group("dev"))
 
 
 def version() -> str:
-    """The version of VERSION."""
-    return (ROOT / "VERSION").read_text().strip()
+    """The version of VERSION (canonical PEP 440; ValueError otherwise)."""
+    return canonical_version((ROOT / "VERSION").read_text().strip())[0]
 
 
 def check_wheel(
@@ -81,10 +124,9 @@ def check_wheel(
     ):
         if required not in names:
             errors.append(f"missing {required}")
-    if not any(n.endswith("licenses/LICENSE") for n in names):
-        errors.append("missing the LICENSE file in .dist-info/licenses")
-    if not any(n.endswith("licenses/NOTICE") for n in names):
-        errors.append("missing the NOTICE file in .dist-info/licenses")
+    for lic in LICENSE_FILES:
+        if not any(n.endswith(f".dist-info/licenses/{lic}") for n in names):
+            errors.append(f"missing the licence file {lic} in .dist-info/licenses")
     if not re.search(r"^dyng\s*=\s*dyng\.cli:main\s*$", entry_text, re.M):
         errors.append("entry_points.txt has no console script dyng = dyng.cli:main")
     if "Root-Is-Purelib: false" not in wheel_text:
@@ -120,12 +162,19 @@ def check_sdist(path: Path, *, expect_version: str) -> list[str]:
         bad = [n for n in names if n.startswith(d)]
         if bad:
             errors.append(f"excluded directory {d} is in the sdist ({len(bad)} files)")
+    for f in SDIST_FORBIDDEN_FILES:
+        if f in present:
+            errors.append(f"repository-only file {f} is in the sdist")
     return errors
 
 
 def run(paths: list[Path], *, platform: str | None, require_libgomp: bool) -> int:
     """Check every file; print a report; return the exit status."""
-    v = version()
+    try:
+        v = version()
+    except ValueError as e:
+        print(f"wheel_check: {e}", file=sys.stderr)
+        return 1
     failed = 0
     if not paths:
         print("wheel_check: no files given", file=sys.stderr)
@@ -172,6 +221,7 @@ def _self_test() -> int:
             "dyng.libs/libgomp-1234abcd.so.1.0.0": "x",
             f"{info}/licenses/LICENSE": "",
             f"{info}/licenses/NOTICE": "",
+            f"{info}/licenses/THIRD_PARTY_LICENSES.txt": "",
             f"{info}/entry_points.txt": "[console_scripts]\ndyng = dyng.cli:main\n",
             f"{info}/WHEEL": "Wheel-Version: 1.0\nRoot-Is-Purelib: false\n",
         }
@@ -183,6 +233,9 @@ def _self_test() -> int:
             "no libgomp": {k: x for k, x in good_files.items() if "libgomp" not in k},
             "no script": {**good_files, f"{info}/entry_points.txt": ""},
             "stray": {**good_files, "dyng/x.cpp": ""},
+            "no third-party licences": {
+                k: x for k, x in good_files.items() if "THIRD_PARTY" not in k
+            },
         }
         for label, files in cases.items():
             bad = wheel(f"dyng-{v}-cp312-abi3-{plat}.whl", files)
@@ -212,6 +265,15 @@ def _self_test() -> int:
         assert not check_sdist(sdist(good_sdist), expect_version=v)
         assert check_sdist(sdist([*good_sdist, "parity/compare.py"]), expect_version=v)
         assert check_sdist(sdist(good_sdist[1:]), expect_version=v)
+        assert check_sdist(sdist([*good_sdist, "CODE_OF_CONDUCT.md"]), expect_version=v)
+        for good_v, pre in (("0.1.0", False), ("0.1.0rc1", True), ("0.1.0.dev0", True)):
+            assert canonical_version(good_v) == (good_v, pre), good_v
+        for bad_v in ("0.1.0-rc.1", "0.1.0RC1", "v0.1.0", "0.1.0-dev", "0.01.0", "0.1.0rc"):
+            try:
+                canonical_version(bad_v)
+            except ValueError:
+                continue
+            raise AssertionError(f"{bad_v} accepted as canonical")
     print("wheel_check self-test: ok")
     return 0
 
@@ -224,9 +286,23 @@ def main(argv: list[str] | None = None) -> int:
         "--require-libgomp", action="store_true", help="the OpenMP runtime must be bundled"
     )
     p.add_argument("--self-test", action="store_true", help="check the checks, then exit")
+    p.add_argument(
+        "--version-info",
+        action="store_true",
+        help="print '<VERSION> <true|false>' (a pre-release?) after checking that VERSION is "
+        "canonical PEP 440 (release.yml's select job)",
+    )
     args = p.parse_args(argv)
     if args.self_test:
         return _self_test()
+    if args.version_info:
+        try:
+            v, pre = canonical_version((ROOT / "VERSION").read_text().strip())
+        except ValueError as e:
+            print(f"wheel_check: {e}", file=sys.stderr)
+            return 1
+        print(v, "true" if pre else "false")
+        return 0
     return run(args.files, platform=args.platform, require_libgomp=args.require_libgomp)
 
 
