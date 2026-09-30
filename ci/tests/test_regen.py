@@ -45,6 +45,7 @@ PATHS = (
     "cpp/src/core/registry_table.inc",
     "cpp/tests/algorithms",
     "cpp/tests/conformance",
+    "python/dyng/_algorithms.py",
 )
 
 
