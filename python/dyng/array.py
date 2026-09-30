@@ -126,6 +126,17 @@ class Array:
         v = self._numpy_view()
         return f"dyng.Array({np.array2string(v, threshold=20)}, dtype={v.dtype.name})"
 
+    # -- copying and pickling ------------------------------------------------------------------
+    def __copy__(self) -> Array:
+        return self  # a read-only view: a shallow copy is the same view
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> np.ndarray:
+        return self.to_numpy()
+
+    def __reduce__(self) -> Any:
+        # Pickles (and deep-copies) as an independent NumPy array of the elements.
+        return (np.asarray, (self.to_numpy(),))
+
     # -- interop -------------------------------------------------------------------------------
     @property
     def __array_interface__(self) -> dict[str, Any]:

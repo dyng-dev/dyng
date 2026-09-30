@@ -591,6 +591,19 @@ class Graph:
         res = resolve(resources, self._resources)
         self._native.check_integrity(res._native)
 
+    def __copy__(self) -> Graph:
+        return self.clone()
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Graph:
+        return self.clone()
+
+    def __reduce__(self) -> Any:
+        raise TypeError(
+            "dyng.Graph cannot be pickled (it may live in device memory and carries a version); "
+            "send g.to_csr() and g.properties and rebuild it with dyng.Graph.from_csr(), or use "
+            "copy.deepcopy(g) / g.clone() within a process"
+        )
+
     def __repr__(self) -> str:
         w = "int32" if self.weighted else "unweighted"
         return (

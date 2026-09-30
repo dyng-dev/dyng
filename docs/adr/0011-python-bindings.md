@@ -113,6 +113,13 @@ records the decisions taken while binding them.
 12. **What 0.1 leaves out** is listed in `docs/developer/python_gaps.md` (PLAN 5.4 rule 8), for
     example `copy=False` on inputs, `__cuda_array_interface__` and DLPack stream ordering (CUDA,
     0.1.x), the `.dgt` batch files, `dyng.interop` and memory resources.
+13. **Copying and pickling** (added in the M5 review). `EdgeBatch` and the option, stats and
+    record dataclasses are plain values: they copy and pickle. `Graph` and the results copy
+    (`copy.copy`, `copy.deepcopy`) as `clone()`, never as aliases of one native object; pickling
+    them raises `TypeError` naming the supported path (`to_csr()` + `Graph.from_csr()`,
+    `Result.from_arrays()`, `counts.to_numpy()`), because they carry a graph version and may live
+    in device memory. `Resources` copies share the handle (as in C++); pickling rebuilds equal
+    resources in the receiving process. A `dyng.Array` pickles and deep-copies as a NumPy copy.
 
 ## Consequences
 

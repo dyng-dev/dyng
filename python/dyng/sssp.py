@@ -240,6 +240,14 @@ class Result:
     def __deepcopy__(self, memo: dict[int, Any]) -> Result:
         return self.clone()
 
+    def __reduce__(self) -> Any:
+        raise TypeError(
+            "dyng.sssp.Result cannot be pickled (it belongs to one state of one graph); send "
+            "result.distances.to_numpy() and result.parents.to_numpy() and rebuild it with "
+            "dyng.sssp.Result.from_arrays(graph, source, distances, parents), or use "
+            "copy.deepcopy(result) / result.clone() within a process"
+        )
+
     def __repr__(self) -> str:
         return (
             f"dyng.sssp.Result(source={self.source}, num_vertices={len(self.distances)}, "

@@ -202,6 +202,13 @@ class Result:
     def __deepcopy__(self, memo: dict[int, Any]) -> Result:
         return self.clone()
 
+    def __reduce__(self) -> Any:
+        raise TypeError(
+            "dyng.cycle_count.Result cannot be pickled (it belongs to one state of one graph); "
+            "send result.counts.to_numpy() (the histogram), or use copy.deepcopy(result) / "
+            "result.clone() within a process"
+        )
+
     def __repr__(self) -> str:
         return f"dyng.cycle_count.Result({self.to_dict()}, graph_version={self.graph_version})"
 

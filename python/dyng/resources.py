@@ -55,8 +55,10 @@ def _stream_handle(stream: Any) -> int:
 class Resources:
     """Execution resources: backend, device, stream, thread count and profiler.
 
-    Cheap to copy: copies share one handle, so :attr:`copy_policy` and :func:`dyng.profile`
-    affect every copy (as in C++, ``dyng::resources``).
+    Cheap to copy: copies (``copy.copy``, ``copy.deepcopy``) share one handle, so
+    :attr:`copy_policy` and :func:`dyng.profile` affect every copy (as in C++,
+    ``dyng::resources``). Pickling, for another process, rebuilds equal resources (backend,
+    threads, device, copy policy) with a handle of their own.
 
     Args:
         backend: ``"sequential"``, ``"openmp"``, ``"cuda"``, or None for the default backend
@@ -181,9 +183,34 @@ class Resources:
         """Wait for the work enqueued on the handle's stream (a no-op on the host backends)."""
         self._native.synchronize()
 
+    def __copy__(self) -> Resources:
+        return Resources._wrap(self._native)  # copies share the handle, as in C++
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Resources:
+        return Resources._wrap(self._native)  # a handle, not data: shared as well
+
+    def __reduce__(self) -> Any:
+        # Pickling (another process) rebuilds equal resources: same backend, threads, device and
+        # copy policy; the profiler and the cached workspaces are per process and not sent.
+        return (_restore, (self.backend, self.num_threads, self.device, self.copy_policy))
+
     def __repr__(self) -> str:
         extra = f", device={self.device}" if self.backend == "cuda" else ""
         return f"dyng.Resources({self.backend!r}, num_threads={self.num_threads}{extra})"
+
+
+def _restore(
+    backend: BackendName, num_threads: int, device: int, policy: CopyPolicyName
+) -> Resources:
+    """Rebuild pickled resources (Resources.__reduce__)."""
+    if backend == "sequential":
+        r = Resources.sequential()
+    elif backend == "openmp":
+        r = Resources.openmp(num_threads)
+    else:
+        r = Resources.cuda(device=device, host_threads=num_threads)
+    r.copy_policy = policy
+    return r
 
 
 _default_lock = threading.Lock()
