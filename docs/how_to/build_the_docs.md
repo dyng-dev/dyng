@@ -32,5 +32,10 @@ Read the Docs' pre-build use); `--no-linkcheck` skips step 3. The build
 directory is `DYNG_BUILD_DIR` (default `build/cpu-only`), the output `DYNG_DOCS_OUTPUT`
 (default `build/docs`).
 
+From CMake: configure with `-DDYNG_BUILD_DOCS=ON` (it needs doxygen and sphinx-build) and the
+target `docs`, part of `all`, runs `ci/docs.sh` for that build tree, writing the site to
+`<build>/docs/html`: `cmake --preset cpu-only -DDYNG_BUILD_DOCS=ON && cmake --build --preset
+cpu-only --target docs`.
+
 How to write pages (MyST Markdown, where things go, the C++ reference) is in
 {doc}`../developer/documentation`.
