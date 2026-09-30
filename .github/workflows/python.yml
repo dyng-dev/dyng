@@ -1,0 +1,79 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The Python package on GitHub-hosted runners (PLAN Sections 5.4 and 8.8; ADR 0011, ADR 0025):
+#   * dev:   the development install of PLAN 7.7 (pip install -e . --no-build-isolation
+#            -Ceditable.rebuild=true -Cbuild-dir=build) through ci/python.sh, the same command as
+#            the local `python` step of ci/check.sh: the committed stubs are current
+#            (scripts/regen.py --stubs --check) and the pytest suite passes, with the Hypothesis
+#            profile `ci`;
+#   * sdist: the sdist is built, installed with pip (an isolated build from PyPI's
+#            scikit-build-core and nanobind of pyproject.toml) into a fresh venv on Python 3.12
+#            and 3.13, and the pytest suite runs against that installation.
+# The manylinux wheel itself is built and tested by wheels.yml.
+name: python
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dev:
+    name: Editable install, stubs, pytest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build tools (the pins of pyproject.toml and environment.yml)
+        run: |
+          python -m pip install "cmake>=3.30,<4.5" ninja "scikit-build-core==1.1.0" \
+            "nanobind==3.1.0" numpy "pytest>=8" "hypothesis==6.167.1"
+      - name: ci/python.sh (editable install, stubs check, pytest)
+        env:
+          DYNG_HYPOTHESIS_PROFILE: ci
+          OMP_NUM_THREADS: "2"
+        run: ci/python.sh
+
+  sdist:
+    name: From the sdist (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Build the sdist and install it into a fresh venv
+        run: |
+          python -m pip install build
+          python -m build --sdist --outdir dist
+          python -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/python" -m pip install dist/*.tar.gz "pytest>=8" \
+            "hypothesis==6.167.1"
+      - name: pytest against the installed package
+        env:
+          DYNG_HYPOTHESIS_PROFILE: ci
+          OMP_NUM_THREADS: "2"
+        run: |
+          "${RUNNER_TEMP}/venv/bin/python" -c "import dyng; print(dyng.__version__, dyng.__file__)"
+          "${RUNNER_TEMP}/venv/bin/python" -m pytest -q -p no:cacheprovider python/tests
