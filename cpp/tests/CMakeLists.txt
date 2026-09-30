@@ -164,6 +164,48 @@ foreach(
   endif()
 endforeach()
 
+# Compile-failure tests of the conformance kit's registration rules (invariant I8, PLAN Section
+# 8.2): test_traits that break a rule stop DYNG_CONFORMANCE_SUITE at a static_assert with a
+# plain-English message (conformance.hpp, registration_check). The control case must compile.
+set(_dyng_kit_cf_includes
+    -I${PROJECT_SOURCE_DIR}/cpp/tests -I${PROJECT_SOURCE_DIR}/cpp/src
+    -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+    "-I$<JOIN:$<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>,$<SEMICOLON>-I>"
+    "-I$<JOIN:$<TARGET_PROPERTY:GTest::gmock,INTERFACE_INCLUDE_DIRECTORIES>,$<SEMICOLON>-I>"
+)
+# name|define|expected message (a regular expression)
+foreach(
+  _case
+  "control||"
+  "no_traits|-DDYNG_CF_NO_TRAITS|the algorithm has no test_traits specialisation"
+  "no_compute|-DDYNG_CF_NO_COMPUTE|cannot be registered without compute"
+  "no_update|-DDYNG_CF_NO_UPDATE|test_traits::update<graph_t>.res, g, batch, result. must"
+  "no_oracle_kind|-DDYNG_CF_NO_ORACLE|must declare its oracle kind"
+  "no_determinism_level|-DDYNG_CF_NO_LEVEL|must declare its determinism level"
+  "stats_without_batch|-DDYNG_CF_STATS_NO_BATCH|contain `apply_summary batch`"
+  "tolerance_without_compare|-DDYNG_CF_TOLERANCE_NO_CMP|determinism::tolerance must provide"
+  "reference_without_near_reference|-DDYNG_CF_REFERENCE_NO_NEAR|oracle_kind::reference needs"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME conformance.registration.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   ${_dyng_kit_cf_includes}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/conformance_registration.cpp
+           COMMAND_EXPAND_LISTS
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(conformance.registration.${_name} PROPERTIES LABELS "cpu;conformance")
+  else()
+    set_tests_properties(
+      conformance.registration.${_name} PROPERTIES LABELS "cpu;conformance"
+                                                   PASS_REGULAR_EXPRESSION "${_message}"
+    )
+  endif()
+endforeach()
+
 # Mutation tests (PLAN Section 8.4): the recorded mutations of CycleEnumeration-GPU (double counting
 # 5-cycles; a weakened ownership rule) must make the randomized cycle_count suite fail. Each is
 # compiled into a copy of libdyng whose cycle_count module is rebuilt with DYNG_MUTATION_<NAME>
@@ -404,7 +446,7 @@ endforeach()
 # The registry and the kit agree: every algorithm of dyng::algorithms() has test_traits here.
 dyng_add_test(
   NAME dyng_conformance_registry_tests
-  SOURCES conformance/registry_test.cpp
+  SOURCES conformance/registry_test.cpp conformance/engines_agree_test.cpp
   LABELS cpu conformance
 )
 target_compile_definitions(dyng_conformance_registry_tests PRIVATE ${_dyng_algorithm_defines})

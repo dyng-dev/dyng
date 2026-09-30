@@ -12,7 +12,7 @@
  *
  * | Check | Property |
  * |---|---|
- * | C0  | the traits agree with the registry (the manifest): oracle kind, determinism level, a sequential backend first (invariant I8) |
+ * | C0  | the traits agree with the registry (the manifest): oracle kind, determinism level, a sequential backend first (invariant I8); a backend of this binary that the manifest does not list rejects compute() with not_supported_error (so the manifest cannot drop a backend the library runs) |
  * | C1  | update(empty batch) leaves the result unchanged, affected == 0 |
  * | C2  | the oracle over random graphs x sizes x batch mixes x 3 batches: oracle = compute: after every batch the result equals compute(G_i) (and an independent oracle, if the traits have one); oracle = reference: both are near the converged reference |
  * | C3  | the backends agree (sequential == OpenMP == CUDA) at the declared level, deterministic counters included |
@@ -176,6 +176,18 @@ template <typename traits_t>
 struct has_extra_properties<traits_t, std::void_t<decltype(traits_t::extra_properties())>>
     : std::true_type {};
 
+template <typename traits_t, typename = void>
+struct has_oracle_kind : std::false_type {};
+template <typename traits_t>
+struct has_oracle_kind<traits_t, std::void_t<decltype(traits_t::oracle)>>
+    : std::is_same<std::decay_t<decltype(traits_t::oracle)>, oracle_kind> {};
+
+template <typename traits_t, typename = void>
+struct has_level : std::false_type {};
+template <typename traits_t>
+struct has_level<traits_t, std::void_t<decltype(traits_t::level)>>
+    : std::is_same<std::decay_t<decltype(traits_t::level)>, determinism> {};
+
 template <typename stats_t, typename = void>
 struct has_batch : std::false_type {};
 template <typename stats_t>
@@ -199,7 +211,8 @@ constexpr bool registration_check_graph() {
   static_assert(kit_detail::has_update<traits_t, graph_t>::value,
                 "dyng conformance kit: test_traits::update<graph_t>(res, g, batch, result) must "
                 "exist for every graph type of graph_types");
-  static_assert(traits_t::oracle != oracle_kind::reference ||
+  static_assert(!kit_detail::has_oracle_kind<traits_t>::value ||
+                    traits_t::oracle != oracle_kind::reference ||
                     kit_detail::has_near_reference<traits_t, graph_t>::value,
                 "dyng conformance kit: oracle_kind::reference needs "
                 "test_traits::near_reference<graph_t>(res, g, snapshot) (the converged reference "
@@ -227,19 +240,20 @@ constexpr bool registration_check() {
   using traits_t = test_traits<tag_t>;
   static_assert(traits_t::graph_types::size > 0,
                 "dyng conformance kit: test_traits::graph_types lists no graph type");
-  static_assert(std::is_same_v<std::decay_t<decltype(traits_t::oracle)>, oracle_kind>,
+  static_assert(kit_detail::has_oracle_kind<traits_t>::value,
                 "dyng conformance kit: test_traits must declare its oracle kind, `static constexpr "
                 "oracle_kind oracle = oracle_kind::compute;` (or reference); invariant I8");
-  static_assert(std::is_same_v<std::decay_t<decltype(traits_t::level)>, determinism>,
+  static_assert(kit_detail::has_level<traits_t>::value,
                 "dyng conformance kit: test_traits must declare its determinism level, `static "
                 "constexpr determinism level = ...;`");
   static_assert(kit_detail::has_batch<typename traits_t::stats>::value,
                 "dyng conformance kit: the algorithm's stats must derive from update_stats and "
                 "contain `apply_summary batch` (ADR 0006)");
-  static_assert(
-      traits_t::level != determinism::tolerance || kit_detail::has_compare<traits_t>::value,
-      "dyng conformance kit: an algorithm with determinism::tolerance must provide "
-      "test_traits::compare(expected, actual) with its tolerance");
+  static_assert(!kit_detail::has_level<traits_t>::value ||
+                    traits_t::level != determinism::tolerance ||
+                    kit_detail::has_compare<traits_t>::value,
+                "dyng conformance kit: an algorithm with determinism::tolerance must provide "
+                "test_traits::compare(expected, actual) with its tolerance");
   return registration_check_graphs<traits_t>(typename traits_t::graph_types{});
 }
 
@@ -415,6 +429,50 @@ graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_
   return random_model<typename case_t::graph_type>(case_t::traits::shape(size), rng);
 }
 
+/**
+ * C4 on `backends`: where a backend runs both a fused and an operators engine (compute() with
+ * engine::fused and engine::operators, and the updates report different stats::engine_used), the
+ * two results agree at the traits' level and so do the deterministic counters. Returns whether
+ * some backend compared (C4 is skipped otherwise). Also used by the kit's own test with a fake
+ * two-engine algorithm (engines_agree_test.cpp).
+ */
+template <typename case_t>
+bool engines_agree(const std::vector<backend>& backends) {
+  using traits = typename case_t::traits;
+  using graph_t = typename case_t::graph_type;
+  bool compared = false;
+  for (const backend b : backends) {
+    SCOPED_TRACE(std::string(to_string(b)));
+    const preset p = presets<traits>().front();
+    std::mt19937_64 rng(4000);
+    graph_model<graph_t> model = model_of<case_t>(size_class::small, rng);
+    std::optional<chain<case_t>> fused;
+    std::optional<chain<case_t>> operators;
+    try {
+      fused.emplace(resources_for(b), model, p.props, engine::fused);
+      operators.emplace(resources_for(b), model, p.props, engine::operators);
+    } catch (const not_supported_error&) {
+      continue;  // this backend has one engine
+    }
+    const generated_batch<graph_t> gen = random_batch(model, batch_mix::mixed, rng);
+    typename traits::stats sf;
+    typename traits::stats so;
+    try {
+      sf = fused->step(gen.batch);
+      so = operators->step(gen.batch);
+    } catch (const not_supported_error&) {
+      continue;
+    }
+    if (sf.engine_used == so.engine_used) {
+      continue;  // the backend ignores the choice (one engine)
+    }
+    compared = true;
+    EXPECT_TRUE(same<traits>(fused->take(), operators->take()));
+    EXPECT_EQ(traits::deterministic(sf), traits::deterministic(so));
+  }
+  return compared;
+}
+
 }  // namespace kit_detail
 
 // ------------------------------------------------------------------------------------------------
@@ -439,6 +497,23 @@ TYPED_TEST_P(conformance, C0_TheTraitsAgreeWithTheRegistry) {
   EXPECT_EQ(info->backends.front(), backend::sequential)
       << "invariant I8: every algorithm has the sequential reference backend";
   EXPECT_EQ(info->container, container_kind::graph);
+  // The kit runs the manifest's backends only: a backend the library runs but the manifest omits
+  // would lose its conformance coverage silently (and the registry would misreport it).
+  using graph_t = typename TypeParam::graph_type;
+  for (const backend b : test::suite_backends()) {
+    if (std::find(info->backends.begin(), info->backends.end(), b) != info->backends.end()) {
+      continue;
+    }
+    SCOPED_TRACE(std::string(to_string(b)) + " (not in the manifest)");
+    std::mt19937_64 rng(10);
+    const resources res = kit_detail::resources_for(b);
+    const graph_t g = kit_detail::model_of<TypeParam>(size_class::tiny, rng)
+                          .build(res, kit_detail::presets<traits>().front().props);
+    EXPECT_THROW((void)traits::template compute<graph_t>(res, g, engine::automatic),
+                 not_supported_error)
+        << traits::name << " runs on " << to_string(b)
+        << ", which its manifest does not list in `backends`";
+  }
   if (kit_detail::backends<traits>().empty()) {
     GTEST_SKIP() << "no backend of " << traits::name << " in this test binary";
   }
@@ -561,38 +636,7 @@ TYPED_TEST_P(conformance, C3_BackendsAgree) {
 // C4: the fused engine equals the operators engine where a backend has both.
 TYPED_TEST_P(conformance, C4_EnginesAgree) {
   using traits = typename TypeParam::traits;
-  using graph_t = typename TypeParam::graph_type;
-  bool compared = false;
-  for (const backend b : kit_detail::backends<traits>()) {
-    SCOPED_TRACE(std::string(to_string(b)));
-    const kit_detail::preset p = kit_detail::presets<traits>().front();
-    std::mt19937_64 rng(4000);
-    graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
-    std::optional<kit_detail::chain<TypeParam>> fused;
-    std::optional<kit_detail::chain<TypeParam>> operators;
-    try {
-      fused.emplace(kit_detail::resources_for(b), model, p.props, engine::fused);
-      operators.emplace(kit_detail::resources_for(b), model, p.props, engine::operators);
-    } catch (const not_supported_error&) {
-      continue;  // this backend has one engine
-    }
-    const generated_batch<graph_t> gen = random_batch(model, batch_mix::mixed, rng);
-    typename traits::stats sf;
-    typename traits::stats so;
-    try {
-      sf = fused->step(gen.batch);
-      so = operators->step(gen.batch);
-    } catch (const not_supported_error&) {
-      continue;
-    }
-    if (sf.engine_used == so.engine_used) {
-      continue;  // the backend ignores the choice (one engine)
-    }
-    compared = true;
-    EXPECT_TRUE(kit_detail::same<traits>(fused->take(), operators->take()));
-    EXPECT_EQ(traits::deterministic(sf), traits::deterministic(so));
-  }
-  if (!compared) {
+  if (!kit_detail::engines_agree<TypeParam>(kit_detail::backends<traits>())) {
     GTEST_SKIP() << "no backend of " << traits::name
                  << " in this build has both a fused and an operators engine";
   }

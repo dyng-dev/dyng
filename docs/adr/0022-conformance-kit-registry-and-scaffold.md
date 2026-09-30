@@ -47,6 +47,15 @@ not fit what exists.
    the sequential backend first, an oracle kind, known cite keys and the files every algorithm has;
    CMake refuses an algorithm without a conformance suite; `DYNG_CONFORMANCE_SUITE` static_asserts
    `compute()`, `update()`, the oracle kind, the determinism level and the stats' batch summary.
+   PLAN 8.2 says the suite "fails to compile if the algorithm has no ... sequential backend"; the
+   backends are data of the registry (the manifest), not of the traits' types, so that rule is
+   checked when `regen.py` reads the manifest and at run time by C0, not by the compiler (recorded
+   in the M3 review). The registration static_asserts have compile-fail tests
+   (`conformance.registration.*`, `cpp/tests/compile_fail/conformance_registration.cpp`). Since the
+   M3 review C0 also requires every backend of the test binary that the manifest does not list to
+   reject `compute()` with `not_supported_error`, and `regen.py` rejects a manifest that omits a
+   backend whose source file (`openmp.cpp`, `cuda.cu`) exists, so a manifest cannot silently drop a
+   backend from the kit.
 5. **Generated batches from a host model.** The kit keeps a host model of the graph (a map of
    edges and weights) and generates each batch mix from it, so every batch is valid under both
    semantics presets (deletions of existing edges, insertions of absent ones, no duplicates or
@@ -67,7 +76,12 @@ not fit what exists.
    `std::vector` per gather (`list_gather` now keeps its offsets inline), and cycle_count's CUDA
    phase was charged for the graph's upload after a host commit (now container work).
 7. **C4 is skipped in 0.1.** No backend of the two algorithms has both a fused and an operators
-   engine (the CUDA operators engines arrive in 0.2); the check runs as soon as one does.
+   engine (the CUDA operators engines arrive in 0.2); the check runs as soon as one does. Its body
+   is `kit_detail::engines_agree()`, which the kit's own test (`engines_agree_test.cpp`, M3 review)
+   runs with test_traits over the framework's fake `levels_problem`, which has both engines on the
+   sequential backend: C4 compares and passes, and fails when the fused engine is broken. The
+   traits' `compute(res, g, engine)` passes the engine to the algorithm's options, so a traits file
+   decides which backend the choice reaches (sssp's reaches `options.cuda_engine` only).
 8. **The scaffold's scope in 0.1.** `new_algorithm.py` writes graph algorithms on the host
    backends (`--backends seq[,omp]`); a CUDA backend is added by hand after the host backends pass
    the kit, and `--container hypergraph` waits for the hypergraph container (0.2). The template is
