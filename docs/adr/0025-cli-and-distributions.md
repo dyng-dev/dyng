@@ -59,8 +59,13 @@ run locally.
    list; cycle_count reads `*.mtx` with CycleEnumeration-GPU's parser, as the original does).
    Exit status 0, 1 (a failure; `dyng: error: ...`), 2 (usage). The CLI is not a drop-in clone of
    `cycle-enum`: its flags follow rule 2 (`--max-length`, `--num-deletions`, ...), and where the
-   original fails on `--openmp-threads 0` or `--task update` without counts, dynG runs (the OpenMP
-   default, an empty batch). `docs/api/cli.md` has the flag table.
+   original fails on `--openmp-threads 0`, dynG runs (the OpenMP default). *Corrected in the M5
+   review:* this item first said that the original also fails on "`--task update` without
+   counts" and that dynG then runs an empty batch; the original's case (`cycle-enum --task
+   update` without `--max-cycle-length`, fixture `c11`) fails because the bound is missing, and
+   dynG ran an unbounded update that did not finish. `dyng cycle_count update` now requires
+   `--max-length` too (a usage error, exit status 2), and the test asserts `c11`.
+   `docs/api/cli.md` has the flag table, including the renamed CUDA flags and value spellings.
 5. **Tests** (`python/tests/test_cli.py`) compare the CLI byte for byte with the committed
    fixtures of the originals: the 34 sssp cases (`compute` = `mospPrep init`, `update` = `mosp`
    from the original's initial trees and from computed ones, `prep init` / `prep expected`), the

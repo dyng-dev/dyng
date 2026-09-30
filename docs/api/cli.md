@@ -51,7 +51,9 @@ for sssp and MOSP's generator, `cycle_enum_compatible` for cycle_count and its g
 `DIR/delete.txt` with `u v`), or `--insert FILE --delete FILE`; they are read with MOSP's
 accept and reject rules. The text batch of CycleEnumeration-GPU's generator: `--batch FILE`, one
 change per line, `- u v` for a deletion and `+ u v [w1 .. wK]` for an insertion, in graph ids
-(the output of `dyng generate cycle_enum_batch`; see {doc}`file_formats`).
+(the output of `dyng generate cycle_enum_batch`; see {doc}`file_formats`). A `--batch` file
+whose name ends in `.dgt` is read as the library's batch text format (`+e u v [w..]` / `-e u v`,
+{doc}`file_formats`) and must hold one batch.
 
 ## `dyng sssp`
 
@@ -61,9 +63,13 @@ dyng sssp update  --graph G (--changes DIR | --insert F --delete F) [--init DIR 
                   [--source S] [options] --out DIR [--write-graph PREFIX]
 ```
 
-Options: `--delta`, `--objective`, `--cuda-engine`, `--validate-inputs` / `--no-validate-inputs`
-(the fields of `dyng.sssp.Options`). Without `--objective` every weight column of the graph gets
-its own tree, as MOSP computes one tree per objective.
+Options: `--delta`, `--objective`, `--cuda-engine`, and on `update` `--validate-inputs` /
+`--no-validate-inputs` (the fields of `dyng.sssp.Options`; `validate_inputs` checks the trees
+read with `--init`, so `compute` has no such flag). Without `--objective` every weight column of
+the graph gets its own tree, as MOSP computes one tree per objective (`--help` says so). The
+graph needs integer weights: a Matrix Market file without them (a `pattern` or `real` matrix)
+needs `--random-weights MIN,MAX,SEED` (and `--num-weights K` for K objectives), and the error
+message says so; `--source` must name a vertex of the graph.
 
 `compute` writes `DIR/obj<k>/distancesOriginal.txt` and `DIR/obj<k>/SSSPTreeOriginal.txt`, the
 files of `mospPrep init`. `update` reads the initial trees from `--init` (the same layout; with
@@ -92,7 +98,9 @@ dyng cycle_count update  --graph G [options] [--output FILE]
 
 Options: `--max-length`, `--method`, `--mode`, `--cuda-engine`, `--scheduler`, `--work-items`
 (the fields of `dyng.cycle_count.Options`). Set `--max-length` for large graphs: without a bound
-the count can take exponential time.
+`compute` can take exponential time. `update` requires `--max-length` (a usage error, exit
+status 2, without it), as the original's `--task update` requires `--max-cycle-length`: the
+update enumerates the simple paths through the changed edges up to that length.
 
 The histogram is printed in CycleEnumeration-GPU's CSV (`# cycle_size, num_of_cycles`, one
 `len, count` line per non-zero length, `Total, N`), byte for byte as its `cycle-enum` prints it.
@@ -112,8 +120,16 @@ The original's flags and dynG's:
 | `--algorithm`, `--mode` | `--method`, `--mode` |
 | `--deletes`, `--inserts`, `--batch-seed`, `--batch-locality` | `--num-deletions`, `--num-insertions`, `--seed`, `--locality-window` |
 | `--compare-recompute` | `--compare-recompute` |
+| `--backend openmp\|omp\|cpu`, `--backend cuda\|gpu`, `--backend seq` | `--backend openmp`, `--backend cuda`, `--backend sequential` (the names only) |
+| `--cuda-scheduler` (alias `--scheduler`) `naive\|work-queue` (also `work_queue`, `workqueue`, `queue`) | `--scheduler naive\|work_queue` |
+| `--cuda-work-items auto\|roots\|edges\|two-hop` (also `root`, `edge`, `two_hop`, `twohop`) | `--work-items automatic\|roots\|edges\|two_hop` |
+| `--cuda-device` (alias `--device`) | `--device` |
 
-The drop-in clone with the original's flags, exit statuses and timing lines is the C++ tool
+The value names are the enumerators of `dyng.cycle_count.Options` (`work_queue`, `automatic`,
+`two_hop`); the original's other spellings are not accepted. On standard error `dyng
+cycle_count update` prints `update_seconds=` (and `recompute_seconds=`, `match=`), not the
+original's `deletions=N insertions=M` line; the batch's size is in the histogram's input (or
+`--write-batch`). The drop-in clone with the original's flags, exit statuses and timing lines is the C++ tool
 `dyng-compat-cycle-enum` (`tools/compat`, for the parity harness).
 
 ## `dyng prep`

@@ -72,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _message(e: BaseException) -> str:
+    # The library's messages start with "dyng: " (C++ io_error, ...); the CLI adds its own.
+    return str(e).removeprefix("dyng: ")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the ``dyng`` command with ``argv`` (default: ``sys.argv[1:]``); returns the exit
     status."""
@@ -84,10 +89,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_prep(args)
         return int(args.func(args))
     except UsageError as e:
-        print(f"dyng: error: {e}", file=sys.stderr)
+        print(f"dyng: error: {_message(e)}", file=sys.stderr)
         return 2
     except (dyng.Error, OSError, CliError, ValueError) as e:
-        print(f"dyng: error: {e}", file=sys.stderr)
+        print(f"dyng: error: {_message(e)}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         return 130

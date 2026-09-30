@@ -183,9 +183,18 @@ def _add_typed_flag(
 
 
 def add_option_flags(
-    p: argparse.ArgumentParser, options_cls: type, title: str, *, skip: Iterable[str] = ()
+    p: argparse.ArgumentParser,
+    options_cls: type,
+    title: str,
+    *,
+    skip: Iterable[str] = (),
+    defaults: dict[str, str] | None = None,
 ) -> list[str]:
-    """One flag per field of an ``Options`` dataclass; returns the field names."""
+    """One flag per field of an ``Options`` dataclass; returns the field names.
+
+    ``defaults`` replaces the "(default: ...)" text of fields whose unset flag does something
+    other than the dataclass default (``--objective``: every weight column).
+    """
     hints = typing.get_type_hints(options_cls)
     helps = doc_section(options_cls, "Attributes")
     g = p.add_argument_group(title, f"the fields of {options_cls.__module__}.Options")
@@ -194,6 +203,8 @@ def add_option_flags(
         if f.name in skip:
             continue
         default = f.default if f.default is not dataclasses.MISSING else None
+        if defaults and f.name in defaults:
+            default = defaults[f.name]
         _add_typed_flag(g, f.name, hints[f.name], default, helps.get(f.name, ""), "opt_" + f.name)
         names.append(f.name)
     return names

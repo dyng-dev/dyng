@@ -83,6 +83,10 @@ def _flags(parser: object) -> set[str]:
 def test_every_option_field_has_a_flag(path: tuple[str, ...], cls: type) -> None:
     flags = _flags(_subparser(*path))
     for f in dataclasses.fields(cls):
+        if path == ("sssp", "compute") and f.name == "validate_inputs":
+            # validate_inputs checks imported trees (update --init) and does nothing on compute
+            assert "--validate-inputs" not in flags
+            continue
         assert "--" + f.name.replace("_", "-") in flags, f.name
 
 
@@ -201,12 +205,15 @@ def test_cycle_count_prints_the_originals_output(
     argv = _translate_cycle_enum(line, data)
     if status != 0:
         # The original's error cases: dynG fails too where its rules agree (a bound below 2, more
-        # deletions than edges, a malformed or missing file); the others are no error in dynG
-        # (`--openmp-threads 0` is the OpenMP default, `--task update` without counts an empty
-        # batch) or are usage errors (status 2).
-        if argv is not None and name in ("c12", "c14", "c15", "c16"):
+        # deletions than edges, a malformed or missing file; c11, `--task update` without
+        # --max-cycle-length, is a usage error, status 2, as every missing flag); the others are
+        # no error in dynG (`--openmp-threads 0` is the OpenMP default) or are usage errors.
+        if argv is not None and name in ("c11", "c12", "c14", "c15", "c16"):
             got, out, err = run(capsys, *argv)
-            assert got == 1 and out == "" and "dyng: error:" in err, (name, err)
+            expected = 2 if name == "c11" else 1
+            assert got == expected and out == "" and "dyng: error:" in err, (name, err)
+            if name == "c11":
+                assert "requires --max-length" in err
         return
     assert argv is not None, line
     if "--backend" in argv and argv[argv.index("--backend") + 1] == "openmp":
@@ -267,12 +274,28 @@ def test_text_batch_errors(capsys: pytest.CaptureFixture[str], data: Path, tmp_p
     for text in ("* 1 2\n", "+ 1\n", "- 1 x\n"):
         (tmp_path / "bad.txt").write_text(text)
         status, _, err = run(
-            capsys, "cycle_count", "update", "--graph", g, "--batch", tmp_path / "bad.txt"
+            capsys,
+            "cycle_count",
+            "update",
+            "--graph",
+            g,
+            "--batch",
+            tmp_path / "bad.txt",
+            "--max-length",
+            "3",
         )
         assert status == 1 and "bad.txt:1" in err, (text, err)
     (tmp_path / "far.txt").write_text(f"+ 0 {2**40}\n")
     status, _, err = run(
-        capsys, "cycle_count", "update", "--graph", g, "--batch", tmp_path / "far.txt"
+        capsys,
+        "cycle_count",
+        "update",
+        "--graph",
+        g,
+        "--batch",
+        tmp_path / "far.txt",
+        "--max-length",
+        "3",
     )
     assert status == 1 and "dyng: error:" in err  # range-checked, never narrowed
 
@@ -377,11 +400,41 @@ def test_sssp_errors(capsys: pytest.CaptureFixture[str], data: Path, tmp_path: P
     status, _, err = run(
         capsys, "sssp", "compute", "--graph", inp / "graphCsr", "--source", 99, "--out", tmp_path
     )
-    assert status == 1 and "dyng: error:" in err
+    assert status == 1 and "--source 99 is out of range" in err
     status, _, err = run(
         capsys, "sssp", "compute", "--graph", tmp_path / "nothing", "--out", tmp_path
     )
-    assert status == 1 and "dyng: error:" in err
+    assert status == 1 and "dyng: error:" in err and "dyng: error: dyng:" not in err
+    # Matrix Market input without integer weights: the hint names the command-line flags
+    pattern = tmp_path / "p.mtx"
+    pattern.write_text("%%MatrixMarket matrix coordinate pattern general\n3 3 2\n1 2\n2 3\n")
+    real = tmp_path / "r.mtx"
+    real.write_text("%%MatrixMarket matrix coordinate real general\n3 3 1\n1 2 0.5\n")
+    for path in (pattern, real):
+        status, _, err = run(capsys, "sssp", "compute", "--graph", path, "--out", tmp_path)
+        assert status == 1 and "--random-weights MIN,MAX,SEED" in err, err
+        assert "weights=" not in err and "matrix_market_weights" not in err, err
+    status, _, _ = run(
+        capsys,
+        "sssp",
+        "compute",
+        "--graph",
+        pattern,
+        "--random-weights",
+        "1,9,7",
+        "--out",
+        tmp_path / "ok",
+    )
+    assert status == 0
+
+
+def test_sssp_help_describes_what_unset_flags_do(capsys: pytest.CaptureFixture[str]) -> None:
+    for verb in ("compute", "update"):
+        with pytest.raises(SystemExit):
+            main(["sssp", verb, "--help"])
+        out = capsys.readouterr().out
+        assert "(default: every weight column, one tree each)" in out
+        assert ("--validate-inputs" in out) == (verb == "update")
 
 
 @pytest.mark.parametrize("backend", BACKENDS)

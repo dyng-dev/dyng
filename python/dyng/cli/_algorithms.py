@@ -17,6 +17,7 @@ import numpy as np
 import dyng
 
 from ._common import (
+    CliError,
     Stopwatch,
     UsageError,
     add_backend_flags,
@@ -165,10 +166,17 @@ def _objectives(g: dyng.Graph, objective: int | None) -> list[int]:
     return list(range(max(g.num_weights, 1)))
 
 
-def _add_sssp_common(p: argparse.ArgumentParser) -> list[str]:
+def _add_sssp_common(p: argparse.ArgumentParser, *, imports_trees: bool) -> list[str]:
     add_graph_flags(p, default_properties="mosp_compatible")
     p.add_argument("--source", type=int, default=0, metavar="S", help="source vertex (default 0)")
-    names = add_option_flags(p, dyng.sssp.Options, "sssp options")
+    # validate_inputs checks imported trees (Result.from_arrays): `update --init` only.
+    names = add_option_flags(
+        p,
+        dyng.sssp.Options,
+        "sssp options",
+        skip=() if imports_trees else ("validate_inputs",),
+        defaults={"objective": "every weight column, one tree each"},
+    )
     p.add_argument("--out", required=True, metavar="DIR", help="output directory")
     p.add_argument("--quiet", action="store_true", help="no report lines on standard output")
     add_backend_flags(p)
@@ -185,7 +193,7 @@ def add_sssp(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
         "each objective and write <out>/obj<k>/distancesOriginal.txt and SSSPTreeOriginal.txt, "
         "byte-identical to `mospPrep init`.",
     )
-    names = _add_sssp_common(c)
+    names = _add_sssp_common(c, imports_trees=False)
     c.set_defaults(func=run_sssp_compute, option_names=names)
     u = verbs.add_parser(
         "update",
@@ -194,7 +202,7 @@ def add_sssp(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
         "update every tree with it (dyng.update), then write <out>/obj<k>/distancesUpdated.txt "
         "and SSSPTreeUpdated.txt, byte-identical to MOSP's `mosp` driver.",
     )
-    names = _add_sssp_common(u)
+    names = _add_sssp_common(u, imports_trees=True)
     add_mosp_batch_flags(u, required=True)
     u.add_argument(
         "--init",
@@ -221,9 +229,35 @@ def _sssp_options(args: argparse.Namespace) -> dyng.sssp.Options:
     return options_from(args, dyng.sssp.Options, args.option_names)
 
 
+_WEIGHTS_HINT = (
+    "sssp needs integer edge weights: give a Matrix Market graph seeded random weights with "
+    "--random-weights MIN,MAX,SEED (and --num-weights K for K objectives), or read an edge list "
+    "with weight columns (--num-weights K)"
+)
+
+
+def _load_sssp_graph(args: argparse.Namespace, res: dyng.Resources) -> dyng.Graph:
+    """The graph of an sssp command, with errors phrased in the command line's flags."""
+    try:
+        g = load_graph(args, res)
+    except dyng.FileFormatError as e:
+        text = str(e).removeprefix("dyng: ")
+        if "no integer weights" in text:
+            raise CliError(f"{text.split('; read it with')[0]}; {_WEIGHTS_HINT}") from None
+        raise
+    if not g.weighted:
+        raise CliError(f"{args.graph}: the graph has no weights; {_WEIGHTS_HINT}")
+    if not 0 <= args.source < g.num_vertices:
+        raise CliError(
+            f"--source {args.source} is out of range: the graph has {g.num_vertices} vertices "
+            f"(0 to {g.num_vertices - 1})"
+        )
+    return g
+
+
 def run_sssp_compute(args: argparse.Namespace) -> int:
     res = make_resources(args)
-    g = load_graph(args, res)
+    g = _load_sssp_graph(args, res)
     opt = _sssp_options(args)
     for k in _objectives(g, args.opt_objective):
         t = Stopwatch()
@@ -237,7 +271,7 @@ def run_sssp_compute(args: argparse.Namespace) -> int:
 
 def run_sssp_update(args: argparse.Namespace) -> int:
     res = make_resources(args)
-    g = load_graph(args, res)
+    g = _load_sssp_graph(args, res)
     batch = read_mosp_batch(args, g)
     assert batch is not None
     opt = _sssp_options(args)
@@ -373,6 +407,14 @@ def run_cycle_update(args: argparse.Namespace) -> int:
     if sum(sources) > 1:
         raise UsageError("give one batch: --batch, --changes/--insert/--delete or generator flags")
     opt = _cycle_options(args)
+    if opt.max_length == -1:
+        # As the original (`cycle-enum --task update` requires --max-cycle-length): without a
+        # bound the update enumerates every simple path through the changed edges, which does
+        # not finish on graphs of a few hundred edges.
+        raise UsageError(
+            "cycle_count update requires --max-length (the update enumerates the simple paths "
+            "through the changed edges up to that length)"
+        )
     hist = dyng.cycle_count.compute(g, options=opt)
     batch: dyng.EdgeBatch
     if args.batch is not None:
