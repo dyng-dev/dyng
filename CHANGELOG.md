@@ -378,6 +378,55 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   end 0.53-0.93x, update 0.44-0.65x of the original, COLLAB k = 3 0.29x) with the improvements
   isolated in their own section.
 
+### Fixed (M5 review)
+
+- Result arrays exported from Python (`np.from_dlpack`, `np.asarray`, `to_numpy(copy=False)`,
+  DLPack consumers) read freed memory after an update that grew the vertex set: the result's
+  state now lives in reference-counted storage, every export holds a reference to the state it
+  views, and an update copies the state first while an export is alive (copy-on-write). The
+  staleness counter of `dyng.Array` moved into the native result, so `copy.copy(result)` can no
+  longer bypass `StaleResultError`; `Result.__copy__` / `__deepcopy__` clone (ADR 0011 item 4).
+- `EdgeBatch` cached converted id arrays but read same-dtype arrays live, so a refilled batch
+  applied a mix of old and new values depending on the id dtype; it now converts its arrays at
+  every use.
+- Scalar arguments and option fields were coerced with `int()` / `bool()` (`sssp.compute(g, 1.9)`
+  ran from vertex 1, `max_length=2.7` counted with bound 2); they are checked with
+  `operator.index` semantics and raise `InvalidArgumentError` naming the argument.
+- `dyng.profile()` and `Resources.copy_policy` changed the shared resources handle while other
+  threads' calls read it; they now wait until no native call runs (a writer-preferring
+  native-call lock, so the wait ends under load).
+- Buffer-protocol inputs (`array.array('q')`, `memoryview`) now declare their element type for the
+  dtype dispatch (int64 buffers no longer select int32 ids).
+- `pickle` / `copy` of a used `EdgeBatch` failed; batches, `Resources` (rebuilt), `Array` (a NumPy
+  copy) now pickle, and `Graph` / results explain the supported path (ADR 0011 item 13).
+- The native module is chosen on first use instead of at `import dyng`, so `dyng.use_cpu_only()`
+  works as PLAN 5.4 says and a plugin process never loads `dyng._core` (ADR 0011 item 14).
+- `dyng cycle_count update` without `--max-length` ran an unbounded update that did not finish;
+  it is a usage error, as in the original. sssp CLI errors name the command line's flags
+  (`--random-weights`), `--source` is range-checked with a readable message, and the library's
+  `dyng:` prefix is no longer doubled.
+- The typed layer passes `mypy --strict` (checked in `ci/python.sh` and `python.yml`), and
+  `dyng.update` has overloads for its stats types.
+- Packaging: the wheel carries `THIRD_PARTY_LICENSES.txt` (nanobind, robin-map, the GCC runtime);
+  the sdist leaves out the repository-only files (the CC-BY-SA-4.0 Code of Conduct, governance,
+  tool configuration); the version uses `[[tool.dynamic-metadata]]` and scikit-build-core is
+  bounded below 2; `release.yml` requires a canonical PEP 440 `VERSION` and derives the
+  pre-release flag from it; `wheels.yml` builds the wheel from the sdist; the local toolchain
+  pins the GCC 12 runtime; `release.md` sets `VERSION` to `X.Y.ZrcN` for a candidate.
+- `ci/python.sh` no longer re-points an environment whose `dyng` is an editable install of another
+  checkout (it uses a throwaway venv); `python.yml` builds the module with Clang 18 too;
+  `DYNG_BUILD_DOCS=ON` builds the site (target `docs`).
+- Documentation: the "add an algorithm" guide's bindings step, the CLI in the algorithm pages'
+  mapping tables, the cycle-enum flag table, the MOSP-OpenMP history (the `-O3` baseline, the
+  packed-format boundary fix), the CUDA message of the CPU wheel, and a getting-started link.
+
+### Changed (M5 review)
+
+- `dyng.Array.__dlpack__()` without `max_version >= (1, 0)` (the unversioned capsule, which
+  cannot mark an export read-only) returns a copy; `copy=False` then raises `BufferError`.
+- `dyng sssp compute` no longer has `--validate-inputs` (it only checks trees read with
+  `update --init`).
+
 ### Fixed (M3 review)
 
 - Budgets (invariant I9) count per calling thread and exclude the profiler's `sync_stages`
