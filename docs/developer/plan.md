@@ -11,11 +11,11 @@ change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in 
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
 
-Status: 2026-09-29. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`) and M4 (this infrastructure) are
-done and merged into `main`. M3 is done on the branch `m3-framework`: the framework extracted from
-the two algorithms, both moved onto it with parity and performance unchanged, the conformance kit,
-the scaffold, and the 0.1 API review and freeze (ADR 0023); it reaches `main` through a pull
-request. Next: M5.
+Status: 2026-09-30. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
+conformance kit and the 0.1 API freeze) and M4 (this infrastructure) are done and merged into
+`main`. M5 is done on the branch `m5-python`: the Python package (a CPU wheel), the `dyng` command
+line and the documentation of 0.1; it reaches `main` through a pull request. Next: the release
+0.1.0 (the checklist and its state: the M5 retrospective, {doc}`retrospectives/M5`).
 
 ## 1. What dynG is
 
@@ -130,9 +130,9 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 | **M1a** Walking skeleton: CPU `sssp` | repository, presets, minimal core, `graph` (compact rows, MOSP semantics), MOSP I/O, `sssp` sequential + OpenMP, parity harness (first slice), `ci/check.sh`, `cpu.yml`, ADRs 0001/0002/0004/0006/0010/0013 | byte-identical to MOSP-OpenMP@c352151 on the small corpus; updated CSR byte-equal to `applyChangeBatch`; OpenMP A/B recorded; a retrospective with a re-estimate | **done** (495/495 golden cases byte-identical on every CPU backend) |
 | **M1b** CUDA `sssp` (fused) + performance harness | CUDA build, streams, CCCL-shaped memory resources, device buffers; resident device graph; the persistent cooperative kernel behind `enact_fused`; `generators::legacy`; `parity/perf_ab.py`; the `edge_t` benchmark (ADR 0009) | byte parity with MOSP-CUDA@e220ee2 and CUDA = OpenMP = sequential; the performance gate on roadNet-PA/CA, rgg_n_2_20_s0, road_usa | **done** (495/495 golden cases byte-identical on the CUDA backend; gates recorded in the M1b parity certificate; ADR 0009 fixes `edge_t` = int32) |
 | **M2** `cycle_count` (parallel with M1b) | sorted-rows / set-semantics preset, the CycleEnum parser, static Johnson and the update on 3 backends, work queue, ported tests, randomized parity suites | bit-identical histograms on the golden corpus; generator identity; performance gate (DD, GitHub, Twitch, COLLAB); two recorded mutations fail | **done** (M2a, the CPU backends, and M2b, CUDA: bit-identical to CycleEnumeration-GPU@0a976ad's OpenMP and CUDA backends on their golden corpora, cross-backend equal; every OpenMP gate met, every CUDA gate met in both scopes (the COLLAB update read at the base clock lock, ADR 0021, accepted 2026-09-29); device memory equal to the original's; on the branch `m2b-cycle-cuda`, merged by pull request) |
-| **M3** Framework extraction + 0.1 API freeze | `problem_base`, enactors, views, workspace, policies, `run_update`; both algorithms moved onto it one commit at a time; conformance kit C1-C12; `new_algorithm.py` + template; `regen.py`; API review | both algorithms pass the kit on every backend with parity and performance unchanged; the scaffold is green on first build; the API review recorded | |
+| **M3** Framework extraction + 0.1 API freeze | `problem_base`, enactors, views, workspace, policies, `run_update`; both algorithms moved onto it one commit at a time; conformance kit C1-C12; `new_algorithm.py` + template; `regen.py`; API review | both algorithms pass the kit on every backend with parity and performance unchanged; the scaffold is green on first build; the API review recorded | **done** (merged into `main` by pull request #3; ADRs 0022-0024) |
 | **M4** GitHub repository and infrastructure (parallel) | community files, issue forms, PR template, CODEOWNERS, labels, DCO; workflows `lint`, `cpu`, `docs`; this documentation site; the repository-settings guide | hosted workflows green; a contributor goes from clone to green build with the documented commands | **done** (merged into `main` with M1b in INT1; the hosted runs start with the first push) |
-| **M5** Python CPU wheel, CLI, docs for 0.1 | root `pyproject.toml`, nanobind bindings, stubs, pytest; the CPU wheel + sdist; CLI; getting started, the update-model page, the `sssp` and `cycle_count` pages, the API reference, history pages | pytest green against the goldens; `pip install` of the release candidate works on a clean CPU machine; docs build with `-W` | |
+| **M5** Python CPU wheel, CLI, docs for 0.1 | root `pyproject.toml`, nanobind bindings, stubs, pytest; the CPU wheel + sdist; CLI; getting started, the update-model page, the `sssp` and `cycle_count` pages, the API reference, history pages | pytest green against the goldens; `pip install` of the release candidate works on a clean CPU machine; docs build with `-W` | **done** on `m5-python` (ADRs 0011 and 0025; the wheel installs and passes the suite in fresh venvs on Python 3.12 and 3.13; the release candidate on TestPyPI waits for the author's tag); `dyng prep` of M7 was delivered here |
 | **0.1.0** | | the release checklist, including the parity certificate | |
 | **M6** 0.1.x hardening | CUDA plugin wheels; the tutorial algorithms `dynamic_bfs` and `triangle_delta`; Read the Docs and Zenodo (A4); fuzzers; mutation checks; sanitizer jobs | `pip install "dyng[cu13]"` works; tutorials pass the kit; mutations fail as expected | |
 | **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | |
@@ -166,8 +166,8 @@ actions, and merges of parallel branches (details: the M3 retrospective):
 | Milestone | Plan (working weeks) | Focused effort, incl. review and fix | Calendar, incl. author gates | Main risk |
 |---|---|---|---|---|
 | M1a, M1b, M2, M3, M4 | 9-13 | done (M3's review and fix step: 0.5-1 day) | | |
-| M5 Python, CLI, docs | 2-3 | 2-4 days | 1-2 weeks | nanobind + scikit-build-core, stubs, the TestPyPI release candidate; binding the variadic `dyng::update` |
-| **0.1.0** | **12-17** | **about 1 week from now** | **about 2-4 weeks** | the release approval |
+| M5 Python, CLI, docs | 2-3 | done in 1 day (3 steps) | | the first hosted runs of `wheels.yml`, `python.yml` and `api-check.yml` |
+| **0.1.0** | **12-17** | **the release steps only** (an RC tag, smoke installs, the final tag) | **days, at the author's pace** | the release approval |
 | 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 4-7 days | 2-3 weeks | the GPU runner decision (O11); wheel sizes; A4 |
 | 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 1.5-2 weeks | 4-6 weeks | the operators engine within 1.05x of the fused one; the staged CBST merge; memory within 1.05x; layout control in the parity preset |
 | 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
