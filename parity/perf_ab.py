@@ -15,6 +15,8 @@ CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py).
     parity/perf_ab.py kernels --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--json ...]
     parity/perf_ab.py edge-type --backend openmp|cuda --exe <parity build> [--runs 21] ...
+    parity/perf_ab.py memory --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--gpu 0]
+                          [--graph roadNet-CA] [--batches ...] [--json ...]
     parity/perf_ab.py run --baseline-exe <earlier dynG build> --baseline-label <commit> --exe ...
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
@@ -73,6 +75,12 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          at the end in any case. --lock-clocks none keeps the default clocks (DVFS): the
          as-measured reading, in which a program's own GPU work before the timed region decides
          the P-state of its kernels.
+
+memory   (cuda) the device-memory gate of PLAN 8.6 (<= 1.05x): each side (MOSP-CUDA's bin/mosp and
+         dyng-compat-mosp --backend cuda) runs once per batch under `nsys profile
+         --cuda-memory-usage=true`; the peak of its live device allocations (cudaMalloc and
+         cudaMallocAsync; memory kind Device) is compared, with the largest stream-ordered pool
+         size nsys reports for the port (as `perf_ab.py cycle_count memory`).
 
 kernels  (cuda) runs both sides A/B/A/B under Nsight Compute with the GPU clocks locked to base
          (`ncu --clock-control base --cache-control none`, no root needed) and compares the
@@ -1684,6 +1692,65 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
     print(f"wrote {args.json}")
 
 
+def memory(args: argparse.Namespace) -> int:
+    """PLAN 8.6 device memory of sssp on CUDA: the peak live device allocations of MOSP-CUDA and
+    of the port per batch, each measured in one process under Nsight Systems."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import cycle_count_perf
+
+    exe, build = check_port_build(args)
+    data, k = bench_inputs(args.graph)
+    reference = REFERENCES["cuda"]
+    build_reference(reference["name"])
+    ref = reference_copy(reference["name"])
+    env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(args.gpu), CUDA_MODULE_LOADING="EAGER")
+    work = Path(tempfile.mkdtemp(prefix="dyng-mem-sssp-", dir=SCRATCH / "runs"))
+    results: dict = {}
+    try:
+        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for batch in batch_list(args):
+                common = [*batch_args(data, batch), "--no-output"]
+                row = {
+                    "original": cycle_count_perf.device_memory(
+                        [ref / "bin" / "mosp", *common], env, work / "a"
+                    ),
+                    "port": cycle_count_perf.device_memory(
+                        [exe, *common, "--backend", "cuda"], env, work / "b"
+                    ),
+                }
+                base = row["original"]["peak_live_mib"]
+                row["ratio"] = row["port"]["peak_live_mib"] / base if base else float("nan")
+                results[batch] = row
+                print(
+                    f"{args.graph} {batch}: original {base} MiB, port "
+                    f"{row['port']['peak_live_mib']} MiB (pool {row['port']['pool_mib']} MiB), "
+                    f"ratio {row['ratio']:.3f}",
+                    flush=True,
+                )
+    finally:
+        subprocess.run(["rm", "-rf", str(work)], check=False)
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "sssp",
+            "backend": "cuda",
+            "what": "device memory (PLAN 8.6): the peak of live device allocations per process "
+            "(nsys --cuda-memory-usage, memory kind Device: cudaMalloc and cudaMallocAsync), "
+            "and the largest stream-ordered pool size nsys reported for the port",
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "graph": args.graph,
+            "objectives": k,
+            "reference": {"name": reference["name"], "binary": portable_path(ref / "bin" / "mosp")},
+            "port": {"commit": port_commit(), "binary": portable_path(exe), "build": build},
+            "gpu": args.gpu,
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0
+
+
 def main() -> int:
     if sys.argv[1:2] == ["cycle_count"]:  # cycle_count against CycleEnumeration-GPU
         sys.path.insert(0, str(REPO / "parity"))
@@ -1702,13 +1769,14 @@ def main() -> int:
         ("run", "the port against the unpatched original (the gates)"),
         ("edge-type", "the edge_t benchmark: the port with int32 (A) vs int64 (B) edge offsets"),
         ("kernels", "cuda: the fused kernels of both under Nsight Compute, clocks locked to base"),
+        ("memory", "cuda: the peak device memory of both under Nsight Systems (PLAN 8.6)"),
     ]:
         r = sub.add_parser(command, help=help_text)
         r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
         r.add_argument(
             "--backend",
             choices=sorted(REFERENCES),
-            default="cuda" if command == "kernels" else "openmp",
+            default="cuda" if command in ("kernels", "memory") else "openmp",
             help="openmp: against MOSP-OpenMP c352151; cuda: against MOSP-CUDA e220ee2",
         )
         r.add_argument("--gpu", type=int, default=0, help="--backend cuda: the GPU of both sides")
@@ -1786,7 +1854,13 @@ def main() -> int:
     # SIGTERM / SIGHUP unwind like Ctrl-C, so that a clock lock is always released.
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, lambda signum, frame: sys.exit(128 + signum))
-    commands = {"prepare": prepare, "run": run, "edge-type": edge_type, "kernels": kernels}
+    commands = {
+        "prepare": prepare,
+        "run": run,
+        "edge-type": edge_type,
+        "kernels": kernels,
+        "memory": memory,
+    }
     return commands[args.command](args)
 
 
