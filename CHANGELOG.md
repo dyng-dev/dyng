@@ -327,6 +327,19 @@ Before 0.1.0 anything may change.
   synchronization text and the umbrella header's description corrected; sketch fixes (`mosp`
   stage names, `hyper_sssp`'s budget guarantee, `triad_count`, the hypergraph's `hyperedge_list`).
 
+### Fixed (M3 acceptance)
+
+- cycle_count's CUDA DD 25K + 25K update read 1.02x of the pre-M3 dynG: the redundant host copy
+  of the normalized lists is gone (see "Changed"); 0.989-0.998x now.
+- `-DDYNG_ALGORITHMS=<one algorithm>` (PLAN 9.4) links: sssp is added to every subset.
+- Measurement (ADR 0024, accepted under delegation): a dynG-against-dynG A/B cycles its rounds
+  through heap layouts (`perf_ab.py run --layouts N`, `cycle_count_perf.py run --layouts N`),
+  because the same two builds read 0.99x or 1.10x of each other depending on the length of the
+  `--timing` file name; `parity/ab_modes.py` reads bimodal regions mode by mode with a bootstrap
+  interval; `parity/experiments/cycle_count_stage_ab.py` and `sssp_layout_scan.py`. Every suite
+  re-measured on the final code (`parity/results/M3.md` section 6): the gates against the
+  originals hold, and no gated region regresses by more than 2 % against `019ef13`.
+
 ### Changed
 
 - Exception guarantees (the 0.1 API review): `compute()`, `update()`, `from_arrays()`,
