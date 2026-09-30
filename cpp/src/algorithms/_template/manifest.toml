@@ -4,6 +4,7 @@
 # The algorithm_template manifest (PLAN Section 4.8). scripts/regen.py reads it (the algorithm
 # tables, the CODEOWNERS block and the registries; `python3 scripts/regen.py` after an edit); CMake
 # does not.
+# scaffolded by scripts/new_algorithm.py: `--remove` deletes the algorithm only while this line is here
 name        = "algorithm_template"
 title       = "{{title}}"
 computes    = "{{computes}}"

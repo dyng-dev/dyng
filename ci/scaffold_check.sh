@@ -52,6 +52,12 @@ python3 "${src}/scripts/new_algorithm.py" scaffold_probe_fp --family fixed_point
 python3 "${src}/scripts/new_algorithm.py" scaffold_probe_ad --family aggregate_delta --backends seq \
   --title "Scaffold probe (aggregate delta)" --computes "a scaffold check" --root "${src}"
 python3 "${src}/scripts/regen.py" --check --root "${src}"
+# The generated CODEOWNERS lines (a long name once ran the path into the owner).
+if python3 -c "import yaml" 2>/dev/null; then
+  python3 "${src}/ci/github_meta_check.py" --root "${src}"
+else
+  echo "scaffold_check: PyYAML missing, github_meta_check skipped"
+fi
 if command -v clang-format >/dev/null 2>&1; then
   (cd "${src}" && clang-format --dry-run --Werror cpp/include/dyng/scaffold_probe_*.hpp \
     cpp/src/algorithms/scaffold_probe_*/*.[ch]pp cpp/tests/algorithms/scaffold_probe_*/*.[ch]pp)
@@ -75,6 +81,39 @@ count="$(ctest --test-dir "${work}/build" -N -L 'scaffold_probe_fp|scaffold_prob
 if [ "${count:-0}" -lt 20 ]; then
   echo "scaffold_check: only ${count:-0} tests of the probes were found" >&2
   exit 1
+fi
+
+# The docs of the scaffolded algorithms: Doxygen and its coverage check, the API baseline (the
+# documented step adds the probes' headers, and nothing else changes), then the Sphinx site with
+# warnings as errors (the probes' API pages and algorithm pages).
+if command -v doxygen >/dev/null 2>&1; then
+  echo "==> docs: Doxygen, the API baseline, Sphinx"
+  baseline="cpp/tests/api/api_snapshot/public_api.txt"
+  cp "${src}/${baseline}" "${work}/public_api.before"
+  (cd "${src}" && DYNG_BUILD_DIR="${work}/build" DYNG_DOXYGEN_OUTPUT="${work}/doxygen" \
+    ci/docs.sh --update-api)
+  python3 - "${work}/public_api.before" "${src}/${baseline}" <<'PY'
+import sys
+
+before = open(sys.argv[1]).read().splitlines()
+after = open(sys.argv[2]).read().splitlines()
+added = [line for line in after if line not in before]
+removed = [line for line in before if line not in after]
+bad = [line for line in added if line.startswith("[") and "scaffold_probe_" not in line]
+if removed or bad:
+    sys.exit(f"scaffold_check: the scaffold changed the API baseline beyond its headers: {removed + bad}")
+if not any(line.startswith("[dyng/scaffold_probe_fp.hpp]") for line in added):
+    sys.exit("scaffold_check: the probe's header is missing from the API baseline")
+PY
+  if python3 -c "import sphinx, myst_parser, breathe, pydata_sphinx_theme" 2>/dev/null; then
+    (cd "${src}" && DYNG_BUILD_DIR="${work}/build" DYNG_DOXYGEN_OUTPUT="${work}/doxygen" \
+      DYNG_DOCS_OUTPUT="${work}/docs" ci/docs.sh --no-linkcheck)
+  else
+    echo "scaffold_check: the Sphinx packages are missing, the Sphinx build of the probes skipped"
+  fi
+  cp "${work}/public_api.before" "${src}/${baseline}"
+else
+  echo "scaffold_check: doxygen not found, the docs steps skipped"
 fi
 echo "==> scripts/new_algorithm.py --remove"
 python3 "${src}/scripts/new_algorithm.py" scaffold_probe_fp --remove --root "${src}"

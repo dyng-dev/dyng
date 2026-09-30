@@ -11,9 +11,15 @@ update() applies the batch and recomputes from scratch (stats.fallback_used = tr
 writes the public header, the algorithm folder (manifest, CMakeLists.txt, <name>.cpp, problem.hpp,
 sequential.cpp, openmp.cpp with --backends seq,omp), the tests (test_traits, the one-line
 conformance suite, hand cases), the docs page, the add_subdirectory() line and a CHANGELOG entry,
-then runs scripts/regen.py (the algorithm tables, CODEOWNERS and the registries). Next:
+the API reference page docs/api/cpp/<name>.md, then runs scripts/regen.py (the algorithm tables,
+CODEOWNERS and the registries). Next:
 
     cmake --preset dev && cmake --build --preset dev && ctest --preset dev -L <name>
+    ci/docs.sh --update-api       # the new header joins the public API baseline (as `tracked`)
+
+`--remove` undoes a scaffold: it deletes only an algorithm whose manifest still carries the
+scaffold line (the template's "scaffolded by scripts/new_algorithm.py"; `--force` overrides), and
+it puts back the [[planned]] entry of cpp/src/algorithms/planned.toml that the scaffold replaced.
 
 In 0.1 the scaffold covers graphs (--container graph) and the host backends; a CUDA backend is
 added by hand (the operators arrive with their second user; see sssp and cycle_count), and the
@@ -41,6 +47,24 @@ BACKEND_NAMES = {
 }
 BACKEND_DOC = {"sequential": "sequential", "openmp": "openmp"}
 MARKER = re.compile(r"^\s*(?://|#)@@\s+(\S+)\s*$")
+# The scaffold line of the template's manifest.toml (remove() deletes only such algorithms).
+SCAFFOLD_LINE = "# scaffolded by scripts/new_algorithm.py"
+# The [[planned]] entry a scaffold replaced, kept as comments at the end of its manifest.toml.
+PLANNED_MARK = "# planned entry replaced by this scaffold (restored by --remove), index "
+# C++ keywords and alternative tokens (a namespace dyng::<name> must compile).
+CPP_KEYWORDS = set(
+    """alignas alignof and and_eq asm auto bitand bitor bool break case catch char char8_t
+    char16_t char32_t class compl concept const consteval constexpr constinit const_cast continue
+    co_await co_return co_yield decltype default delete do double dynamic_cast else enum explicit
+    export extern false float for friend goto if inline int long mutable namespace new noexcept not
+    not_eq nullptr operator or or_eq private protected public register reinterpret_cast requires
+    return short signed sizeof static static_assert static_cast struct switch template this
+    thread_local throw true try typedef typeid typename union unsigned using virtual void volatile
+    wchar_t while xor xor_eq""".split()
+)
+# Headers generated at configure time (cpp/include/dyng/<stem>.hpp.in): a header of that name would
+# shadow them.
+GENERATED_HEADERS = {"version", "config"}
 RESERVED = {
     "update",
     "compute",
@@ -75,7 +99,45 @@ def destinations(name: str) -> dict[str, str]:
         f"tests/{TEMPLATE}_test.cpp": f"{tests}/{name}_test.cpp",
         "tests/CMakeLists.txt": f"{tests}/CMakeLists.txt",
         f"docs/{TEMPLATE}.md": f"docs/algorithms/{name}.md",
+        f"docs/api_{TEMPLATE}.md": f"docs/api/cpp/{name}.md",
     }
+
+
+def dyng_entities(root: Path) -> set[str]:
+    """Names declared at namespace scope of dyng (types, enumerations, aliases, namespaces) and the
+    header stems of cpp/include/dyng: a namespace dyng::<name> cannot reuse them."""
+    names: set[str] = set()
+    include = root / "cpp/include/dyng"
+    declaration = re.compile(
+        r"^(?:template\s*<[^;{]*>\s*)?(?:class|struct|union|enum(?:\s+class)?|using)\s+"
+        r"([a-z_][a-z0-9_]*)\b",
+        re.MULTILINE,
+    )
+    namespace = re.compile(r"^namespace\s+dyng::([a-z_][a-z0-9_]*)", re.MULTILINE)
+    for header in sorted(include.rglob("*.hpp*")):
+        text = header.read_text(encoding="utf-8")
+        names.update(declaration.findall(text))
+        names.update(namespace.findall(text))
+        if header.parent == include:
+            names.add(header.name.split(".")[0])
+    return names
+
+
+def name_problem(root: Path, name: str, removing: bool) -> str | None:
+    """Why `name` cannot be an algorithm's name (None if it can)."""
+    if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
+        return "not snake_case"
+    if keyword.iskeyword(name):
+        return "a Python keyword"
+    if name in RESERVED:
+        return "reserved by the library"
+    if name in CPP_KEYWORDS:
+        return "a C++ keyword"
+    if name in GENERATED_HEADERS:
+        return f"the generated header <dyng/{name}.hpp>"
+    if not removing and name in dyng_entities(root):
+        return "already the name of a declaration or header of namespace dyng"
+    return None
 
 
 def camel(name: str) -> str:
@@ -142,18 +204,54 @@ def add_changelog(root: Path, line: str) -> None:
         path.write_text(text.replace(anchor, anchor + line, 1), encoding="utf-8")
 
 
-def drop_planned(root: Path, name: str) -> bool:
-    """Remove the [[planned]] entry of `name` (its port starts now); True if there was one."""
+def _planned_blocks(text: str) -> list[str]:
+    """planned.toml as [header, block, block, ...]."""
+    return re.split(r"(?m)^(?=\[\[planned\]\])", text)
+
+
+def _join_planned(blocks: list[str]) -> str:
+    """planned.toml from its blocks: the header, then the entries separated by one blank line."""
+    entries = [b.rstrip("\n") + "\n" for b in blocks[1:]]
+    return blocks[0] + "\n".join(entries)
+
+
+def drop_planned(root: Path, name: str) -> tuple[int, str] | None:
+    """Remove the [[planned]] entry of `name` (its port starts now); its index and text, or None."""
     path = root / "cpp/src/algorithms/planned.toml"
     if not path.is_file():
-        return False
-    text = path.read_text(encoding="utf-8")
-    blocks = re.split(r"(?m)^(?=\[\[planned\]\])", text)
-    kept = [b for b in blocks if not re.search(rf'(?m)^name\s*=\s*"{re.escape(name)}"', b)]
-    if len(kept) == len(blocks):
-        return False
-    path.write_text("".join(kept).rstrip("\n") + "\n", encoding="utf-8")
-    return True
+        return None
+    blocks = _planned_blocks(path.read_text(encoding="utf-8"))
+    for i, block in enumerate(blocks[1:], start=1):
+        if re.search(rf'(?m)^name\s*=\s*"{re.escape(name)}"', block):
+            del blocks[i]
+            path.write_text(_join_planned(blocks), encoding="utf-8")
+            return i, block.rstrip("\n") + "\n"
+    return None
+
+
+def keep_planned(manifest: Path, entry: tuple[int, str]) -> None:
+    """Record a replaced [[planned]] entry as comments at the end of the new manifest."""
+    index, block = entry
+    lines = [f"{PLANNED_MARK}{index}:\n"] + [
+        f"# {line}".rstrip() + "\n" for line in block.splitlines()
+    ]
+    text = manifest.read_text(encoding="utf-8")
+    manifest.write_text(text.rstrip("\n") + "\n" + "".join(lines), encoding="utf-8")
+
+
+def restore_planned(root: Path, manifest_text: str) -> bool:
+    """Put back the [[planned]] entry a manifest recorded (keep_planned); True if there was one."""
+    lines = manifest_text.splitlines()
+    for at, line in enumerate(lines):
+        if line.startswith(PLANNED_MARK):
+            index = int(line[len(PLANNED_MARK) :].rstrip(":"))
+            block = "".join(entry[2:] + "\n" for entry in lines[at + 1 :] if entry.startswith("# "))
+            path = root / "cpp/src/algorithms/planned.toml"
+            blocks = _planned_blocks(path.read_text(encoding="utf-8"))
+            blocks.insert(min(index, len(blocks)), block)
+            path.write_text(_join_planned(blocks), encoding="utf-8")
+            return True
+    return False
 
 
 def format_sources(root: Path, files: list[Path]) -> None:
@@ -163,6 +261,27 @@ def format_sources(root: Path, files: list[Path]) -> None:
         print("new_algorithm.py: clang-format not found; run pre-commit on the new files")
         return
     subprocess.check_call([tool, "-i", "--style=file", *map(str, files)], cwd=root)
+
+
+API_INDEX = "docs/api/cpp/index.md"
+
+
+def add_api_page(root: Path, name: str) -> None:
+    """List docs/api/cpp/<name>.md in the C++ API toctree (after the last algorithm page)."""
+    path = root / API_INDEX
+    text = path.read_text(encoding="utf-8")
+    if f"\n{name}\n" in text:
+        return
+    anchor = "\ngenerators\n"  # the algorithm pages come before the generators page
+    if anchor not in text:
+        raise SystemExit(f"new_algorithm.py: {API_INDEX} has no `generators` toctree entry")
+    path.write_text(text.replace(anchor, f"\n{name}{anchor}", 1), encoding="utf-8")
+
+
+def remove_api_page(root: Path, name: str) -> None:
+    path = root / API_INDEX
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace(f"\n{name}\n", "\n", 1), encoding="utf-8")
 
 
 def run_regen(root: Path) -> int:
@@ -222,9 +341,12 @@ def create(args: argparse.Namespace, root: Path) -> int:
         dst.write_text(render(text, name, fields, enabled, src), encoding="utf-8")
     format_sources(root, [p for p in targets.values() if p.suffix in (".hpp", ".cpp")])
     add_subdirectory(root, name)
+    add_api_page(root, name)
     if not args.no_changelog:
         add_changelog(root, changelog_line(name, args.family))
     planned = drop_planned(root, name)
+    if planned is not None:
+        keep_planned(targets["manifest.toml"], planned)
     status = 0 if args.no_regen else run_regen(root)
     if status != 0:
         return status
@@ -237,6 +359,10 @@ def create(args: argparse.Namespace, root: Path) -> int:
         "next: cmake --preset dev && cmake --build --preset dev && "
         f"ctest --preset dev -L {name}   (docs/developer/conformance.md)"
     )
+    print(
+        f"then: ci/docs.sh --update-api   (<dyng/{name}.hpp> joins the public API baseline "
+        "cpp/tests/api/api_snapshot/public_api.txt; commit it with the algorithm)"
+    )
     return 0
 
 
@@ -246,7 +372,15 @@ def remove(args: argparse.Namespace, root: Path) -> int:
     if not manifest.is_file():
         print(f"new_algorithm.py: `{name}` has no manifest", file=sys.stderr)
         return 2
-    family = tomllib.loads(manifest.read_text(encoding="utf-8")).get("family", "")
+    manifest_text = manifest.read_text(encoding="utf-8")
+    if SCAFFOLD_LINE not in manifest_text and not args.force:
+        print(
+            f"new_algorithm.py: `{name}` is not a scaffold (its manifest has no "
+            f"`{SCAFFOLD_LINE}` line); refusing to delete it (--force overrides)",
+            file=sys.stderr,
+        )
+        return 2
+    family = tomllib.loads(manifest_text).get("family", "")
     for dst in destinations(name).values():
         path = root / dst
         if path.is_file():
@@ -255,11 +389,15 @@ def remove(args: argparse.Namespace, root: Path) -> int:
         if (root / folder).is_dir():
             shutil.rmtree(root / folder)
     remove_subdirectory(root, name)
+    remove_api_page(root, name)
+    restored = restore_planned(root, manifest_text)
     changelog = root / "CHANGELOG.md"
     text = changelog.read_text(encoding="utf-8")
     changelog.write_text(text.replace(changelog_line(name, family), ""), encoding="utf-8")
     status = 0 if args.no_regen else run_regen(root)
     print(f"new_algorithm.py: removed {name}")
+    if restored:
+        print("  restored its entry in cpp/src/algorithms/planned.toml")
     return status
 
 
@@ -274,17 +412,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--maintainer", default="SMShovan", help="GitHub handle (CODEOWNERS)")
     parser.add_argument("--since", default="0.1", help="the first release that contains it")
     parser.add_argument("--remove", action="store_true", help="remove a scaffolded algorithm")
+    parser.add_argument(
+        "--force", action="store_true", help="--remove also an algorithm that is not a scaffold"
+    )
     parser.add_argument("--no-regen", action="store_true", help="do not run scripts/regen.py")
     parser.add_argument("--no-changelog", action="store_true", help="no CHANGELOG entry")
     parser.add_argument("--root", type=Path, default=REPO, help="repository root (tests)")
     args = parser.parse_args(argv)
     root = args.root.resolve()
-    if (
-        not re.fullmatch(r"[a-z][a-z0-9_]*", args.name)
-        or keyword.iskeyword(args.name)
-        or (args.name in RESERVED)
-    ):
-        parser.error(f"`{args.name}` is not a valid algorithm name (snake_case, not reserved)")
+    # An existing algorithm's name is reported by create() ("exists already") or removed.
+    existing = (root / f"cpp/src/algorithms/{args.name}").exists()
+    problem = name_problem(root, args.name, removing=args.remove or existing)
+    if problem is not None:
+        parser.error(f"`{args.name}` is not a valid algorithm name: {problem}")
     if args.remove:
         return remove(args, root)
     if args.family is None:

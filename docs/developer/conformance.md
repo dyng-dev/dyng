@@ -83,16 +83,24 @@ python3 scripts/new_algorithm.py dynamic_kcore --family fixed_point --backends s
 cmake --preset dev -DDYNG_ALGORITHMS="dynamic_kcore;sssp"
 cmake --build --preset dev
 ctest --preset dev -L dynamic_kcore
+cmake --preset cpu-only && ci/docs.sh --update-api   # the new header joins the API baseline
+ci/docs.sh --no-linkcheck                            # the API page builds (Sphinx -W)
 ```
 
 `scripts/new_algorithm.py` copies `cpp/src/algorithms/_template` (its `README.md` lists the
 placeholders and where each file goes), keeps the parts of the chosen family and backends, adds
-the `add_subdirectory()` line and a CHANGELOG entry, removes a `planned.toml` entry of the same
-name, formats the C++ files and runs `regen.py`. The algorithm is green on the first build: its
-`update()` applies the batch and recomputes from scratch (`stats.fallback_used` is true), and
-the kit checks it from then on. `--remove` undoes a scaffold. In 0.1 the scaffold writes graphs
-and the host backends; a CUDA backend is added by hand, and the hypergraph container arrives in
-0.2.
+the `add_subdirectory()` line, a CHANGELOG entry and the API reference page
+`docs/api/cpp/<name>.md` (listed in the C++ API toctree), removes a `planned.toml` entry of the
+same name, formats the C++ files and runs `regen.py`. The algorithm is green on the first build:
+its `update()` applies the batch and recomputes from scratch (`stats.fallback_used` is true), and
+the kit checks it from then on. The new public header is not yet in the API baseline, so the docs
+check fails until `ci/docs.sh --update-api` adds it (as a `tracked` header; commit the baseline
+with the algorithm). `--remove` undoes a scaffold: it deletes only an algorithm whose manifest
+still carries the template's "scaffolded by scripts/new_algorithm.py" line (`--force` overrides)
+and puts back the `planned.toml` entry the scaffold replaced. Names that cannot compile are
+refused: C++ keywords, names already declared in `namespace dyng` (`engine`, `resources`, ...) and
+the generated headers `version` and `config`. In 0.1 the scaffold writes graphs and the host
+backends; a CUDA backend is added by hand, and the hypergraph container arrives in 0.2.
 
 Then, in the order of PLAN Section 9.4: write `compute()` (the sequential static solve) and the
 traits; make the update incremental in `problem.hpp` (the template card at its top names the hooks
@@ -103,7 +111,10 @@ request with the checklist.
 
 `ci/scaffold_check.sh` (CTest `scaffold.new_algorithm`, label `scaffold`; step `scaffold` of
 `ci/check.sh`; job `scaffold` of `cpu.yml`) keeps the template honest: in a throwaway copy of the
-tree it scaffolds one algorithm of each family, checks `regen.py --check` and the formatting,
-builds them with sssp (`-DDYNG_ALGORITHMS`, Debug, warnings as errors, budgets on), runs their
-conformance kits, hand cases and the registry test, removes them again and checks that nothing is
-left behind.
+tree it scaffolds one algorithm of each family, checks `regen.py --check`, the formatting and
+`ci/github_meta_check.py` (the generated CODEOWNERS lines), builds them with sssp
+(`-DDYNG_ALGORITHMS`, Debug, warnings as errors, budgets on), runs their conformance kits, hand
+cases and the registry test, runs the docs steps on the result (Doxygen with the coverage check,
+`ci/docs.sh --update-api`, which must add only the probes' headers to the baseline, and the Sphinx
+build with warnings as errors; skipped with a message when Doxygen or Sphinx is not installed),
+removes them again and checks that nothing is left behind.
