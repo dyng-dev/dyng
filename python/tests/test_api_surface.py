@@ -135,3 +135,20 @@ def test_stubs_are_committed() -> None:
     text = stub.read_text(encoding="utf-8")
     assert "def sssp_compute" in text and "class GraphI32I32I32" in text
     assert (importlib.resources.files(pkg) / "py.typed").is_file()
+
+
+@pytest.mark.parametrize(
+    ("cls", "native_name"),
+    [
+        (dyng.sssp.Options, "SsspOptions"),
+        (dyng.cycle_count.Options, "CycleCountOptions"),
+        (dyng.GraphProperties, "GraphProperties"),
+        (dyng.BatchSemantics, "BatchSemantics"),
+    ],
+)
+def test_python_defaults_equal_the_cpp_defaults(cls: type, native_name: str) -> None:
+    # ADR 0011 item 9: the dataclasses carry the C++ field names and defaults; a changed C++
+    # default must not drift silently from the Python one.
+    from dyng._backend import native
+
+    assert cls() == cls._from_native(getattr(native, native_name)())
