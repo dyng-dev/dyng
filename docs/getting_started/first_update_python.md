@@ -56,6 +56,7 @@ print(tree.distances.tolist(), hist.counts.tolist(), st_hist.cycles_removed, st_
 `dyng.sssp.update(g, batch, tree)` alone would have left `hist` stale: its next use raises
 `dyng.StaleResultError`.
 
-The same four-vertex update from the command line, on files in MOSP's formats, is in
-{doc}`../api/cli`. The next steps are the algorithm pages, {doc}`../algorithms/sssp` and
+The same steps from the command line, on files in MOSP's formats, are in {doc}`../api/cli`
+(`dyng sssp compute` and `dyng sssp update`) and in the tutorial
+{doc}`../tutorials/sssp_mosp_files`. The next steps are the algorithm pages, {doc}`../algorithms/sssp` and
 {doc}`../algorithms/cycle_count`, which have longer Python and CLI examples.

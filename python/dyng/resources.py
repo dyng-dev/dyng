@@ -27,8 +27,8 @@ CopyPolicyName = Literal["allow", "warn", "error"]
 _CUDA_PLUGIN_MESSAGE = (
     "this dyng installation is the CPU wheel (sequential and OpenMP backends); the CUDA backends "
     "come as the plugin wheels dyng-cu12 and dyng-cu13 of the 0.1.x releases "
-    '(pip install "dyng[cu13]" once they are published), or build dyng from source with CUDA '
-    "(docs: getting started, 'Building from source')"
+    '(pip install "dyng[cu13]" once they are published); until then, use the CUDA backend '
+    "from C++ (docs: getting started, 'Install', section 'Python')"
 )
 
 

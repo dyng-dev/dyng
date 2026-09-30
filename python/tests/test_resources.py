@@ -35,6 +35,7 @@ def test_cuda_in_the_cpu_wheel_points_to_the_plugins() -> None:
     with pytest.raises(dyng.NotSupportedError, match="dyng-cu12 and dyng-cu13") as e:
         dyng.Resources.cuda()
     assert isinstance(e.value, NotImplementedError)
+    assert "from source" not in str(e.value) and "use the CUDA backend from C++" in str(e.value)
     with pytest.raises(dyng.NotSupportedError):
         dyng.Resources("cuda")
 
