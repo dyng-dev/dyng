@@ -36,7 +36,7 @@ void bind_functions(nb::module_& m) {
             locks.add(g.mutex, true);
             locks.add(r.mutex, true);
             locks.lock();
-            return cycle_count::update(res, g.value, b.view(), r.value);
+            return cycle_count::update(res, g.value, b.view(), r.for_update(res));
           });
         },
         nb::arg("resources"), nb::arg("graph"), nb::arg("batch"), nb::arg("result"));
@@ -85,40 +85,30 @@ void bind_cycle_count(nb::module_& m) {
   nb::class_<cycle_count_holder>(m, "CycleCountResult", "A cycle_count::result (private).",
                                  nb::is_weak_referenceable())
       .def("counts",
-           [](nb::handle self) {
-             const cycle_count_holder& h = nb::cast<const cycle_count_holder&>(self);
-             const auto v = without_gil([&] {
-               std::shared_lock<std::shared_mutex> lock(h.mutex);
-               return h.value.counts();
-             });
-             return owned_view(v, self);
+           [](const cycle_count_holder& h) {
+             return export_array(h, [](const cycle_count::result& r) { return r.counts(); });
            })
       .def(
           "count",
           [](const cycle_count_holder& h, std::int64_t length) {
-            return without_gil([&] {
-              std::shared_lock<std::shared_mutex> lock(h.mutex);
-              return h.value.count(length);
-            });
+            return read_result(h, [&](const cycle_count::result& r) { return r.count(length); });
           },
           nb::arg("length"))
       .def_prop_ro("total",
                    [](const cycle_count_holder& h) {
-                     return without_gil([&] {
-                       std::shared_lock<std::shared_mutex> lock(h.mutex);
-                       return h.value.total();
-                     });
+                     return read_result(h, [](const cycle_count::result& r) { return r.total(); });
                    })
       .def_prop_ro("bound",
                    [](const cycle_count_holder& h) {
-                     return without_gil([&] {
-                       std::shared_lock<std::shared_mutex> lock(h.mutex);
-                       return h.value.bound();
-                     });
+                     return read_result(h, [](const cycle_count::result& r) { return r.bound(); });
                    })
-      .def_prop_ro(
-          "options",
-          [](const cycle_count_holder& h) -> cycle_count::options { return h.value.get_options(); })
+      .def_prop_ro("generation", &cycle_count_holder::generation,
+                   "The number of updates of this result (dyng.Array's staleness check).")
+      .def_prop_ro("options",
+                   [](const cycle_count_holder& h) -> cycle_count::options {
+                     return read_result(
+                         h, [](const cycle_count::result& r) { return r.get_options(); });
+                   })
       .def(
           "set_options",
           [](cycle_count_holder& h, const cycle_count::options& opt) {
@@ -126,13 +116,19 @@ void bind_cycle_count(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, true);
               locks.lock();
-              h.value.set_options(opt);
+              h.for_options().set_options(opt);
             });
           },
           nb::arg("options"))
       .def_prop_ro("graph_version",
-                   [](const cycle_count_holder& h) { return h.value.graph_version(); })
-      .def_prop_ro("space", [](const cycle_count_holder& h) { return h.value.space(); })
+                   [](const cycle_count_holder& h) {
+                     return read_result(
+                         h, [](const cycle_count::result& r) { return r.graph_version(); });
+                   })
+      .def_prop_ro("space",
+                   [](const cycle_count_holder& h) {
+                     return read_result(h, [](const cycle_count::result& r) { return r.space(); });
+                   })
       .def(
           "clone",
           [](const cycle_count_holder& h, const resources& res) {
@@ -140,7 +136,7 @@ void bind_cycle_count(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, false);
               locks.lock();
-              return new cycle_count_holder(h.value.clone(res));
+              return new cycle_count_holder(h.get().clone(res));
             });
           },
           nb::arg("resources"), nb::rv_policy::take_ownership);

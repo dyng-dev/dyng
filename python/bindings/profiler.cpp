@@ -23,14 +23,6 @@
 namespace dyng::python {
 namespace {
 
-/// Run `f` while no native call runs (the native-call lock held exclusively, without the GIL).
-template <typename function_t>
-decltype(auto) while_idle(function_t&& f) {
-  nb::gil_scoped_release release;
-  std::unique_lock<std::shared_mutex> lock(native_call_mutex());
-  return std::forward<function_t>(f)();
-}
-
 using stage_row = std::tuple<std::string, int, std::int64_t, double, double>;
 using sample_row = std::tuple<std::string, int, double, double>;
 using counter_row = std::tuple<std::string, std::int64_t>;

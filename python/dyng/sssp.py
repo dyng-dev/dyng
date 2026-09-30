@@ -121,7 +121,7 @@ class Result:
     of the result (see :class:`dyng.Array` for their lifetime).
     """
 
-    __slots__ = ("_native", "_generation", "_resources", "_vertex", "__weakref__")
+    __slots__ = ("_native", "_resources", "_vertex", "__weakref__")
 
     def __init__(self) -> None:
         raise TypeError("use dyng.sssp.compute() or dyng.sssp.Result.from_arrays()")
@@ -130,14 +130,12 @@ class Result:
     def _wrap(cls, handle: Any, vertex: np.dtype, resources: Resources) -> Result:
         self = object.__new__(cls)
         self._native = handle
-        self._generation = 0
         self._resources = resources
         self._vertex = vertex
         return self
 
     def _array(self, getter: Any, what: str) -> Array:
-        generation = self._generation
-        return Array(getter(), lambda: self._generation == generation, f"sssp.Result.{what}")
+        return _result_array(self._native, getter, f"sssp.Result.{what}")
 
     @property
     def source(self) -> int:
@@ -236,11 +234,27 @@ class Result:
         )
         return cls._wrap(handle, graph.vertex_dtype, res)
 
+    def __copy__(self) -> Result:
+        return self.clone()
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Result:
+        return self.clone()
+
     def __repr__(self) -> str:
         return (
             f"dyng.sssp.Result(source={self.source}, num_vertices={len(self.distances)}, "
             f"graph_version={self.graph_version})"
         )
+
+
+def _result_array(handle: Any, getter: Any, what: str) -> Array:
+    """An Array of a native result's current state, stale once the result is updated.
+
+    The generation is read before the array, so an update in between makes the Array stale
+    (never current with an older state's memory).
+    """
+    generation = handle.generation
+    return Array(getter(), lambda: bool(handle.generation == generation), what)
 
 
 def _check_graph(graph: Graph) -> None:
@@ -320,5 +334,4 @@ def update(
         )
     res = resolve(resources, graph._resources)
     nb = batch._native_for(graph)
-    result._generation += 1
     return Stats._from_native(native.sssp_update(res._native, graph._native, nb, result._native))

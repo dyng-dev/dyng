@@ -745,6 +745,10 @@ class SsspResultI32:
     def parents(self) -> Annotated[Any, dict(dtype='int32', shape=(None,), writable=False)]: ...
 
     @property
+    def generation(self) -> int:
+        """The number of updates of this result (dyng.Array's staleness check)."""
+
+    @property
     def options(self) -> SsspOptions: ...
 
     def set_options(self, options: SsspOptions) -> None: ...
@@ -766,6 +770,10 @@ class SsspResultI64:
     def distances(self) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]: ...
 
     def parents(self) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]: ...
+
+    @property
+    def generation(self) -> int:
+        """The number of updates of this result (dyng.Array's staleness check)."""
 
     @property
     def options(self) -> SsspOptions: ...
@@ -924,6 +932,10 @@ class CycleCountResult:
 
     @property
     def bound(self) -> int: ...
+
+    @property
+    def generation(self) -> int:
+        """The number of updates of this result (dyng.Array's staleness check)."""
 
     @property
     def options(self) -> CycleCountOptions: ...

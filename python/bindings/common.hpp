@@ -9,7 +9,7 @@
  * the dtype dispatch and passes arrays of exactly the element type a function takes (the array
  * arguments are `noconvert`, so nothing is converted, and nothing is narrowed, here).
  *
- * Locking (ADR 0025). The GIL is released around every native call that runs algorithms or I/O
+ * Locking (ADR 0011, item 5). The GIL is released around every native call that runs algorithms or I/O
  * (PLAN Section 5.4 rule 3). Two locks then keep concurrent Python threads memory-safe:
  *   - every container and result holder has a reader/writer lock: calls that only read it share
  *     it, calls that change it (apply, update) take it exclusively;
@@ -18,15 +18,23 @@
  *     note 5).
  * Locks are always taken after the GIL is released and released before it is taken back, so a
  * thread waiting for a lock never holds the GIL.
+ *
+ * Result arrays (ADR 0011, item 6). A result's state lives in reference-counted storage
+ * (result_holder). Every exported array (dyng.Array, and through it NumPy, DLPack and the array
+ * interface) holds a reference to the state it views, and an update copies the state first
+ * (copy-on-write) while such a reference exists, so an exported array never sees its memory
+ * change or go away: it keeps showing the state it was read from.
  */
 #pragma once
 
 #include <dyng/core/array_view.hpp>
+#include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
 
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -109,6 +117,90 @@ struct holder {
 };
 
 /**
+ * @brief A result owned by a Python object: its state in reference-counted storage, a generation
+ *        counter and a reader/writer lock.
+ *
+ * Arrays exported from the state (owned_view()) share its ownership, so the memory they view
+ * lives as long as they do. for_update() gives an update a state no export references: the
+ * current one when nothing else holds it, otherwise a clone (copy-on-write), so an export keeps
+ * showing the state it was taken from, unchanged. The generation counts the updates; dyng.Array
+ * compares it with the generation it was read at to raise StaleResultError.
+ * @tparam value_t sssp::result<V> or cycle_count::result.
+ */
+template <typename value_t>
+class result_holder {
+ public:
+  /**
+   * @brief Take ownership of `v`.
+   * @param[in] v The result.
+   */
+  explicit result_holder(value_t&& v) : state_(std::make_shared<value_t>(std::move(v))) {}
+  result_holder(const result_holder&) = delete;             ///< not copyable
+  result_holder& operator=(const result_holder&) = delete;  ///< not copyable
+  result_holder(result_holder&&) = delete;                  ///< not movable (the lock)
+  result_holder& operator=(result_holder&&) = delete;       ///< not movable (the lock)
+  ~result_holder() = default;                               ///< drops this reference to the state
+
+  /**
+   * @brief The current state (call with `mutex` held, shared or exclusive).
+   * @return The state.
+   */
+  [[nodiscard]] const value_t& get() const noexcept {
+    return *state_;
+  }
+
+  /**
+   * @brief The current state, shared with the caller (call with `mutex` held; for exports).
+   * @return A reference that keeps the state alive.
+   */
+  [[nodiscard]] std::shared_ptr<const value_t> share() const {
+    return state_;
+  }
+
+  /**
+   * @brief The state to change in place without affecting its arrays (set_options(); call with
+   *        `mutex` held exclusively).
+   * @return The state.
+   */
+  [[nodiscard]] value_t& for_options() noexcept {
+    return *state_;
+  }
+
+  /**
+   * @brief The state an update may change (call with `mutex` held exclusively): a clone for
+   *        `res` when an export still references the current state; advances the generation.
+   * @param[in] res The resources of the update (those of the clone).
+   * @return The state to update.
+   */
+  [[nodiscard]] value_t& for_update(const resources& res) {
+    // Exports are only created under the shared lock, so while the exclusive lock is held the
+    // count can only fall. The acquire fence orders this thread's writes after the reads of an
+    // export released on another thread.
+    if (state_.use_count() > 1) {
+      state_ = std::make_shared<value_t>(state_->clone(res));
+    } else {
+      std::atomic_thread_fence(std::memory_order_acquire);
+    }
+    generation_.fetch_add(1, std::memory_order_acq_rel);
+    return *state_;
+  }
+
+  /**
+   * @brief The number of updates so far (starts at 0).
+   * @return The generation.
+   */
+  [[nodiscard]] std::uint64_t generation() const noexcept {
+    return generation_.load(std::memory_order_acquire);
+  }
+
+  mutable std::shared_mutex mutex;  ///< shared: read-only calls; exclusive: update, set_options
+
+ private:
+  std::shared_ptr<value_t> state_;
+  std::atomic<std::uint64_t> generation_{0};
+};
+
+/**
  * @brief The process-wide lock of native calls (shared by every call, exclusive for reading a
  *        profiler's records).
  * @return The lock.
@@ -127,6 +219,21 @@ template <typename function_t>
 decltype(auto) without_gil(function_t&& f) {
   nb::gil_scoped_release release;
   std::shared_lock<std::shared_mutex> call_lock(native_call_mutex());
+  return std::forward<function_t>(f)();
+}
+
+/**
+ * @brief Run `f` while no native call runs: without the GIL, holding the native-call lock
+ *        exclusively (reading a profiler's records, attaching a profiler, changing the copy
+ *        policy of a shared resources handle).
+ * @tparam function_t A callable without arguments.
+ * @param[in] f The work.
+ * @return What `f` returns.
+ */
+template <typename function_t>
+decltype(auto) while_idle(function_t&& f) {
+  nb::gil_scoped_release release;
+  std::unique_lock<std::shared_mutex> lock(native_call_mutex());
   return std::forward<function_t>(f)();
 }
 
@@ -230,20 +337,58 @@ nb::ndarray<nb::numpy, value_t, nb::ndim<2>> to_numpy_2d(std::vector<value_t>&& 
 
 /**
  * @brief A read-only, framework-neutral array (nanobind's array-API object: the buffer protocol,
- *        __dlpack__ and __dlpack_device__) viewing memory that `owner` keeps alive (no copy).
+ *        __dlpack__ and __dlpack_device__) viewing memory that `keep` keeps alive (no copy).
  * @tparam value_t The element type.
- * @param[in] v     The elements (host memory).
- * @param[in] owner The Python object that owns the memory (kept alive by the array).
- * @return The array.
+ * @param[in] v    The elements.
+ * @param[in] keep The owner of the memory (a result state, shared with its holder).
+ * @return The array; it holds a reference to `keep` until the last view of it is gone.
  */
 template <typename value_t>
-nb::ndarray<nb::array_api, const value_t, nb::ndim<1>> owned_view(array_view<const value_t> v,
-                                                                  nb::handle owner) {
+nb::ndarray<nb::array_api, const value_t, nb::ndim<1>> owned_view(
+    array_view<const value_t> v, std::shared_ptr<const void> keep) {
+  auto* heap = new std::shared_ptr<const void>(std::move(keep));
+  nb::capsule owner(heap,
+                    [](void* p) noexcept { delete static_cast<std::shared_ptr<const void>*>(p); });
   const std::size_t shape[1] = {v.size()};
   const bool device = !is_host_accessible(v.space()) || v.space() == memory_space::managed;
   return nb::ndarray<nb::array_api, const value_t, nb::ndim<1>>(
       v.data(), 1, shape, owner, nullptr, nb::dtype<value_t>(),
       device ? nb::device::cuda::value : nb::device::cpu::value, device ? v.device() : 0);
+}
+
+/**
+ * @brief Export one array of a result's current state (the shared lock is taken without the GIL).
+ * @tparam value_t    The result type.
+ * @tparam function_t `array_view<const T>(const value_t&)`: which array.
+ * @param[in] h     The holder.
+ * @param[in] which Picks the array.
+ * @return The array (owned_view()).
+ */
+template <typename value_t, typename function_t>
+auto export_array(const result_holder<value_t>& h, function_t&& which) {
+  std::shared_ptr<const value_t> state;
+  const auto v = without_gil([&] {
+    std::shared_lock<std::shared_mutex> lock(h.mutex);
+    state = h.share();
+    return which(*state);
+  });
+  return owned_view(v, std::shared_ptr<const void>(std::move(state)));
+}
+
+/**
+ * @brief Read something of a result's current state under its shared lock (without the GIL).
+ * @tparam value_t    The result type.
+ * @tparam function_t `T(const value_t&)`.
+ * @param[in] h The holder.
+ * @param[in] f The read.
+ * @return What `f` returns.
+ */
+template <typename value_t, typename function_t>
+decltype(auto) read_result(const result_holder<value_t>& h, function_t&& f) {
+  return without_gil([&] {
+    std::shared_lock<std::shared_mutex> lock(h.mutex);
+    return f(h.get());
+  });
 }
 
 // ---------------------------------------------------------------------------------------------

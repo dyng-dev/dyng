@@ -22,27 +22,24 @@ void bind_result(nb::module_& m) {
   const std::string name = suffixed("SsspResult", {type_code<vertex_t>::upper}, "");
   nb::class_<holder_t>(m, name.c_str(), "An sssp::result (private).", nb::is_weak_referenceable())
       .def_prop_ro("source",
-                   [](const holder_t& h) { return static_cast<std::int64_t>(h.value.source()); })
+                   [](const holder_t& h) {
+                     return read_result(
+                         h, [](const auto& r) { return static_cast<std::int64_t>(r.source()); });
+                   })
       .def("distances",
-           [](nb::handle self) {
-             const holder_t& h = nb::cast<const holder_t&>(self);
-             const auto v = without_gil([&] {
-               std::shared_lock<std::shared_mutex> lock(h.mutex);
-               return h.value.distances();
-             });
-             return owned_view(v, self);
+           [](const holder_t& h) {
+             return export_array(h, [](const auto& r) { return r.distances(); });
            })
       .def("parents",
-           [](nb::handle self) {
-             const holder_t& h = nb::cast<const holder_t&>(self);
-             const auto v = without_gil([&] {
-               std::shared_lock<std::shared_mutex> lock(h.mutex);
-               return h.value.parents();
-             });
-             return owned_view(v, self);
+           [](const holder_t& h) {
+             return export_array(h, [](const auto& r) { return r.parents(); });
            })
+      .def_prop_ro("generation", &holder_t::generation,
+                   "The number of updates of this result (dyng.Array's staleness check).")
       .def_prop_ro("options",
-                   [](const holder_t& h) -> sssp::options { return h.value.get_options(); })
+                   [](const holder_t& h) -> sssp::options {
+                     return read_result(h, [](const auto& r) { return r.get_options(); });
+                   })
       .def(
           "set_options",
           [](holder_t& h, const sssp::options& opt) {
@@ -50,12 +47,17 @@ void bind_result(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, true);
               locks.lock();
-              h.value.set_options(opt);
+              h.for_options().set_options(opt);
             });
           },
           nb::arg("options"))
-      .def_prop_ro("graph_version", [](const holder_t& h) { return h.value.graph_version(); })
-      .def_prop_ro("space", [](const holder_t& h) { return h.value.space(); })
+      .def_prop_ro("graph_version",
+                   [](const holder_t& h) {
+                     return read_result(h, [](const auto& r) { return r.graph_version(); });
+                   })
+      .def_prop_ro(
+          "space",
+          [](const holder_t& h) { return read_result(h, [](const auto& r) { return r.space(); }); })
       .def(
           "clone",
           [](const holder_t& h, const resources& res) {
@@ -63,7 +65,7 @@ void bind_result(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, false);
               locks.lock();
-              return new holder_t(h.value.clone(res));
+              return new holder_t(h.get().clone(res));
             });
           },
           nb::arg("resources"), nb::rv_policy::take_ownership);
@@ -98,7 +100,7 @@ void bind_functions(nb::module_& m) {
             locks.add(g.mutex, true);
             locks.add(r.mutex, true);
             locks.lock();
-            return sssp::update(res, g.value, b.view(), r.value);
+            return sssp::update(res, g.value, b.view(), r.for_update(res));
           });
         },
         nb::arg("resources"), nb::arg("graph"), nb::arg("batch"), nb::arg("result"));

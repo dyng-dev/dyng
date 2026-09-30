@@ -7,12 +7,14 @@ returned as :class:`Array`. An Array does not copy: ``np.asarray(a)`` (through
 ``__array_interface__``), ``np.from_dlpack(a)`` and ``torch.from_dlpack(a)`` (through
 ``__dlpack__``) view the library's memory, and the view keeps the result alive.
 
-**Lifetime** (as in C++, where these views are "valid until the next update"): an Array belongs to
-one state of its result. Once the result is updated (``update``, ``dyng.update``), using the
-Array raises :class:`~dyng.StaleResultError`; read the property again for the new state. Views
-that NumPy or another library already made follow the C++ rule: they show the result's memory,
-which an update changes in place (or reallocates when the graph grows), so take a copy
-(:meth:`Array.to_numpy`, the default) of anything that must outlive the next update.
+**Lifetime.** An Array belongs to one state of its result. Once the result is updated
+(``update``, ``dyng.update``), using the Array raises :class:`~dyng.StaleResultError`; read the
+property again for the new state. Views that NumPy or another library made from an Array
+(``np.asarray``, ``np.from_dlpack``, ``to_numpy(copy=False)``, ...) keep showing the state they
+were made from, unchanged: while any such view (or the Array itself) is alive, an update first
+copies the result's state and changes the copy (copy-on-write), so exported memory is never
+changed or freed under a view. The price is one copy of the result's arrays per update while a
+view is alive; drop views you no longer need (``del``) to update in place.
 """
 
 from __future__ import annotations
@@ -36,18 +38,16 @@ class Array:
     ``torch.from_dlpack(a)`` (through ``__dlpack__``) view the library's memory without a copy,
     and the view keeps the result alive.
 
-    **Lifetime** (as in C++, where these views are "valid until the next update"): an Array
-    belongs to one state of its result. Once the result is updated, using the Array raises
-    :class:`~dyng.StaleResultError`; read the property again for the new state. Views that NumPy
-    or another library already made show the result's memory, which an update changes in place
-    (or reallocates when the graph grows), so take a copy (:meth:`to_numpy`, the default) of
-    anything that must outlive the next update.
+    **Lifetime**: once the result is updated, using the Array raises
+    :class:`~dyng.StaleResultError`; read the property again for the new state. Views already
+    made from it keep showing the old state, unchanged (the update copies the result's state
+    while a view is alive; see the module description).
     """
 
     __slots__ = ("_nd", "_view", "_is_current", "_what", "__weakref__")
 
     def __init__(self, nd: Any, is_current: Callable[[], bool], what: str) -> None:
-        self._nd = nd  # nanobind's array-API object: owns a reference to the result
+        self._nd = nd  # nanobind's array-API object: holds a reference to the result's state
         self._view: np.ndarray | None = None
         self._is_current = is_current
         self._what = what
@@ -152,8 +152,9 @@ class Array:
 
         Args:
             copy: True (the default): an independent copy, safe to keep across updates.
-                False: a read-only view of the library's memory (valid until the next update of
-                the result).
+                False: a read-only view of the library's memory; it keeps showing this state of
+                the result after an update (which then copies the state; see the module
+                description).
         """
         v = self._numpy_view()
         return v.copy() if copy else v

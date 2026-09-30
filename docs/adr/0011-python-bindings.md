@@ -48,14 +48,22 @@ records the decisions taken while binding them.
    or when `row_ptr` is declared int64. Weights are int32 (range-checked; floats are rejected).
    An unsupported combination raises `NotSupportedError` listing the five supported ones.
 4. **Arrays.** Result arrays are `dyng.Array`, a read-only view with `__dlpack__`,
-   `__dlpack_device__` and `__array_interface__` (nanobind's array-API object underneath, whose
-   owner is the native result, so every view keeps the result alive). ADR 0023 note 2 asked to
-   "check the owner's version on access or copy": an Array belongs to one state of its result and
-   raises `StaleResultError` when used after the result was updated (a per-result generation
-   counter, raised before the update runs, so a failed update also retires its arrays).
-   Consumers' views (NumPy, PyTorch) follow the C++ rule, "valid until the next update"; therefore
-   `Array.to_numpy()` **copies by default** (as PLAN 5.5's comment on `.to_numpy()` says) and
-   `to_numpy(copy=False)` returns the read-only view.
+   `__dlpack_device__` and `__array_interface__` (nanobind's array-API object underneath). ADR
+   0023 note 2 asked to "check the owner's version on access or copy": an Array belongs to one
+   state of its result and raises `StaleResultError` when used after the result was updated. The
+   generation counter lives in the native result holder and is advanced, under the result's
+   exclusive lock, by every update path before the update runs (so a failed update also retires
+   its arrays, and every Python wrapper of one native result sees it). *Amended in the M5 review
+   (2026-09-30):* the first version kept the counter in the Python wrapper and made the native
+   holder the owner of every export, so `copy.copy(result)` bypassed the check and views exported
+   through NumPy or DLPack read freed memory after an update that grew the vertex set. Now the
+   result's state lives in reference-counted storage; every export (the Array's DLPack capsule,
+   and so every NumPy, PyTorch or buffer-protocol view made from it) holds a reference to the
+   state it views, and an update **copies the state first while such a reference exists**
+   (copy-on-write), so exported memory is never changed or freed under a view: an old view keeps
+   showing the state it was made from. Without live exports an update works in place, as before.
+   `Array.to_numpy()` still **copies by default** (as PLAN 5.5's comment on `.to_numpy()` says);
+   `to_numpy(copy=False)` returns the read-only view. `Result.__copy__` / `__deepcopy__` are `clone()`.
 5. **The GIL** is released around every native call that runs algorithms or I/O (rule 3). Two
    locks keep concurrent Python threads memory-safe, because the C++ containers are not
    thread-safe: every graph and result holder has a reader/writer lock (exclusive for `apply` and
@@ -108,7 +116,9 @@ records the decisions taken while binding them.
   CUDA plugins of 0.1.x reuse the same bindings under another `NB_DOMAIN`.
 - The typed layer is what `griffe` checks for breaking changes; the native names may change.
 - The array rule is stricter than NumPy's usual views: an Array that outlives an update raises
-  instead of showing changed or freed memory, and the default `to_numpy()` is a copy.
+  instead of showing changed or freed memory, views made from it keep showing their state, and
+  the default `to_numpy()` is a copy. The price of the copy-on-write is one copy of the result's
+  arrays per update while an export of the current state is alive.
 - Concurrent Python threads cannot corrupt a graph or a result; they pay a lock per call, which
   is negligible next to the native work of a call.
 - A nanobind upgrade regenerates the stubs in its own commit (`regen.py --stubs`).

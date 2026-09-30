@@ -80,7 +80,5 @@ def update(
             raise StaleResultError("dyng.update: an sssp result was computed on another graph")
     res = resolve(resources, graph._resources)
     nb = batch._native_for(graph)
-    for r in results:
-        r._generation += 1
     out = native.update(res._native, graph._native, nb, [r._native for r in results])
     return tuple(kind._from_native(s) for kind, s in zip(kinds, out, strict=True))

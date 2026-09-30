@@ -43,7 +43,7 @@ void bind_testing_type(nb::module_& m) {
             locks.add(g.mutex, false);
             locks.add(r.mutex, false);
             locks.lock();
-            return testing::check_sssp_tree(g.value, r.value, require_canonical);
+            return testing::check_sssp_tree(g.value, r.get(), require_canonical);
           });
         },
         nb::arg("graph"), nb::arg("result"), nb::arg("require_canonical"));

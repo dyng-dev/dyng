@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import copy
 import gc
 import weakref
 
@@ -48,7 +49,7 @@ def test_numpy_round_trips_are_zero_copy(tree: dyng.sssp.Result) -> None:
     assert np.array(d, dtype=np.float64).tolist() == [0.0, 4.0, 1.0, 6.0]
 
 
-def test_views_keep_their_owner_alive() -> None:
+def test_views_keep_their_memory_alive() -> None:
     g = dyng.Graph.from_edges([0, 1], [1, 2], [2, 3])
     tree = dyng.sssp.compute(g, 0)
     owner = weakref.ref(tree._native)
@@ -56,11 +57,101 @@ def test_views_keep_their_owner_alive() -> None:
     view = np.from_dlpack(arr)
     del tree, arr
     gc.collect()
-    assert owner() is not None  # the NumPy view keeps the native result alive
+    # The view holds the result's state (not the Python object): its memory stays valid.
+    assert owner() is None
+    junk = [np.full(3, 777) for _ in range(200)]
     assert view.tolist() == [0, 2, 5]
-    del view
-    gc.collect()
-    assert owner() is None  # and releases it
+    del junk
+
+
+def _grow(n: int, extra: int) -> dyng.EdgeBatch:
+    src = np.arange(n - 1, n - 1 + extra, dtype=np.int64)
+    return dyng.EdgeBatch(insert=(src, src + 1, np.ones(extra, dtype=np.int32)))
+
+
+EXPORTS = {
+    "from_dlpack": np.from_dlpack,
+    "asarray": np.asarray,
+    "to_numpy(copy=False)": lambda a: a.to_numpy(copy=False),
+    "memoryview": lambda a: np.asarray(memoryview(a._nd)),
+}
+
+
+@pytest.mark.parametrize("how", sorted(EXPORTS))
+def test_exports_survive_an_update_that_grows_the_graph(how: str) -> None:
+    # An update that adds vertices reallocates the result's arrays; views exported before it
+    # must keep showing the old state (the update copies the state while a view is alive).
+    n = 20_000
+    src = np.arange(n - 1)
+    g = dyng.Graph.from_edges(src, src + 1, np.ones(n - 1, dtype=np.int32))
+    tree = dyng.sssp.compute(g, 0)
+    arr = tree.distances
+    view = EXPORTS[how](arr)
+    expected = np.arange(n, dtype=np.int64)
+    assert np.array_equal(view, expected)
+    dyng.sssp.update(g, _grow(n, 30_000), tree)
+    junk = [np.full(64, 777) for _ in range(2000)]  # reuse freed heap memory, if any
+    assert np.array_equal(view, expected)
+    assert not arr.is_current
+    with pytest.raises(dyng.StaleResultError):
+        arr.tolist()
+    now = tree.distances.to_numpy()
+    assert now.size == n + 30_000 and now[-1] == n + 30_000 - 1
+    del junk
+
+
+def test_update_copies_the_state_only_while_a_view_is_alive() -> None:
+    g = dyng.Graph.from_edges([0, 1, 2], [1, 2, 3], [5, 5, 5])
+    tree = dyng.sssp.compute(g, 0)
+
+    def data_pointer() -> int:
+        return int(np.from_dlpack(tree.distances).__array_interface__["data"][0])
+
+    before = data_pointer()
+    dyng.sssp.update(g, dyng.EdgeBatch(insert=([0], [2], [1])), tree)  # no view alive
+    assert data_pointer() == before  # updated in place
+    view = np.from_dlpack(tree.distances)
+    dyng.sssp.update(g, dyng.EdgeBatch(insert=([0], [3], [1])), tree)
+    assert view.tolist() == [0, 5, 1, 6]  # the old state, unchanged
+    assert tree.distances.tolist() == [0, 5, 1, 1]
+    assert data_pointer() != int(view.__array_interface__["data"][0])
+
+
+def test_cycle_count_exports_survive_updates() -> None:
+    g = dyng.Graph.from_edges([0, 1, 2], [1, 2, 0])
+    hist = dyng.cycle_count.compute(g, max_length=3)
+    arr = hist.counts
+    view = np.from_dlpack(arr)
+    dyng.cycle_count.update(g, dyng.EdgeBatch(delete=([2], [0])), hist)
+    assert view.tolist() == [0, 0, 0, 1] and hist.counts.tolist() == [0, 0, 0, 0]
+    assert not arr.is_current
+
+
+def test_copies_of_a_result_are_independent() -> None:
+    g = dyng.Graph.from_edges([0, 1], [1, 2], [1, 1])
+    tree = dyng.sssp.compute(g, 0)
+    arr = tree.distances
+    for twin in (copy.copy(tree), copy.deepcopy(tree)):
+        assert twin._native is not tree._native
+        assert twin.distances.tolist() == [0, 1, 2]
+    alias = copy.copy(tree)
+    dyng.sssp.update(g, _grow(3, 5_000), alias)  # updating the copy leaves the original stale
+    assert arr.is_current and arr.tolist() == [0, 1, 2]
+    assert len(alias.distances) == 5_003
+    hist = dyng.cycle_count.compute(dyng.Graph.from_edges([0, 1], [1, 0]), max_length=2)
+    assert copy.deepcopy(hist).counts.tolist() == hist.counts.tolist()
+    assert copy.copy(hist)._native is not hist._native
+
+
+def test_generation_lives_in_the_native_result() -> None:
+    # Any wrapper of the same native result sees the update (no per-wrapper counter).
+    g = dyng.Graph.from_edges([0, 1], [1, 2], [1, 1])
+    tree = dyng.sssp.compute(g, 0)
+    arr = tree.distances
+    twin = dyng.sssp.Result._wrap(tree._native, tree.vertex_dtype, tree._resources)
+    dyng.sssp.update(g, dyng.EdgeBatch(insert=([0], [2], [1])), twin)
+    assert not arr.is_current
+    assert tree._native.generation == 1
 
 
 def test_arrays_of_an_updated_result_are_stale(tree: dyng.sssp.Result) -> None:

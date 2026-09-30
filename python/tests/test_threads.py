@@ -87,3 +87,39 @@ def test_profiler_reads_while_other_threads_compute() -> None:
         t.join()
     assert any(s.name.startswith("cycle_count.") for s in p.stages)
     del g
+
+
+def test_reading_arrays_while_another_thread_updates() -> None:
+    # A reader's Array either shows a complete state or raises StaleResultError, never memory
+    # an update is changing or has freed (the state is copied while a view is alive).
+    n = 1_000
+    src = np.arange(n - 1)
+    g = dyng.Graph.from_edges(src, src + 1, np.ones(n - 1, dtype=np.int32))
+    tree = dyng.sssp.compute(g, 0)
+    done = threading.Event()
+    bad: list[str] = []
+
+    def reader() -> None:
+        while not done.is_set():
+            a = tree.distances
+            try:
+                v = a.to_numpy(copy=False)
+            except dyng.StaleResultError:
+                continue
+            if not np.array_equal(v, np.arange(v.size)):
+                bad.append(f"torn read of {v.size} distances")
+                return
+
+    t = threading.Thread(target=reader)
+    t.start()
+    try:
+        size = n
+        for _ in range(40):
+            s = np.arange(size - 1, size + 499, dtype=np.int64)
+            dyng.sssp.update(g, dyng.EdgeBatch(insert=(s, s + 1, np.ones(500, np.int32))), tree)
+            size += 500
+    finally:
+        done.set()
+        t.join()
+    assert not bad, bad
+    assert tree.distances.to_numpy().tolist() == list(range(size))

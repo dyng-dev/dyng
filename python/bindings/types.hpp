@@ -24,10 +24,10 @@ using graph_holder = holder<graph<vertex_t, edge_t, weight_t>>;
 
 /// The holder of an sssp result.
 template <typename vertex_t>
-using sssp_holder = holder<sssp::result<vertex_t>>;
+using sssp_holder = result_holder<sssp::result<vertex_t>>;
 
 /// The holder of a cycle_count result.
-using cycle_count_holder = holder<cycle_count::result>;
+using cycle_count_holder = result_holder<cycle_count::result>;
 
 /**
  * @brief A batch of edge changes whose arrays are Python arrays (kept alive, never copied).

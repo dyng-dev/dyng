@@ -131,7 +131,7 @@ class Result:
     are 0); the array has :attr:`bound` + 1 entries.
     """
 
-    __slots__ = ("_native", "_generation", "_resources", "__weakref__")
+    __slots__ = ("_native", "_resources", "__weakref__")
 
     def __init__(self) -> None:
         raise TypeError("use dyng.cycle_count.compute()")
@@ -140,19 +140,15 @@ class Result:
     def _wrap(cls, handle: Any, resources: Resources) -> Result:
         self = object.__new__(cls)
         self._native = handle
-        self._generation = 0
         self._resources = resources
         return self
 
     @property
     def counts(self) -> Array:
         """The histogram (uint64), a zero-copy view of the current state."""
-        generation = self._generation
-        return Array(
-            self._native.counts(),
-            lambda: self._generation == generation,
-            "cycle_count.Result.counts",
-        )
+        from .sssp import _result_array
+
+        return _result_array(self._native, self._native.counts, "cycle_count.Result.counts")
 
     def count(self, length: int) -> int:
         """The number of cycles of one length (0 outside [2, bound])."""
@@ -199,6 +195,12 @@ class Result:
         """A deep copy for ``resources``."""
         res = resolve(resources, self._resources)
         return Result._wrap(self._native.clone(res._native), res)
+
+    def __copy__(self) -> Result:
+        return self.clone()
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> Result:
+        return self.clone()
 
     def __repr__(self) -> str:
         return f"dyng.cycle_count.Result({self.to_dict()}, graph_version={self.graph_version})"
@@ -264,7 +266,6 @@ def update(
         raise TypeError("dyng.cycle_count.update: batch must be a dyng.EdgeBatch")
     res = resolve(resources, graph._resources)
     nb = batch._native_for(graph)
-    result._generation += 1
     return Stats._from_native(
         native.cycle_count_update(res._native, graph._native, nb, result._native)
     )

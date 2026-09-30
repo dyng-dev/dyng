@@ -41,54 +41,65 @@ void bind_update_type(nb::module_& m) {
         DYNG_EXPECTS(nb::len(results) > 0,
                      "dyng.update: no results (applying a batch without updating any result "
                      "would leave every result of the graph stale; use Graph.apply())");
-        // One slot per result: its stats, filled by its participant.
+        // One slot per result: its stats, filled by its participant. The holders are found with
+        // the GIL; the participants are made under the locks, from the states the update may
+        // change (result_holder::for_update(): a copy when an exported array still views the
+        // current state).
         using slot = std::variant<sssp::stats, cycle_count::stats>;
         std::vector<slot> stats(nb::len(results));
-        std::vector<std::shared_mutex*> result_locks;
-        std::vector<std::unique_ptr<participant_t>> owned;
-        std::vector<participant_t*> raw;
-        try {
-          owned.reserve(stats.size());
-          for (std::size_t i = 0; i < stats.size(); ++i) {
-            nb::handle item = results[i];
-            if (nb::isinstance<sssp_holder<vertex_t>>(item)) {
-              if constexpr (sssp_ok) {
-                auto& r = nb::cast<sssp_holder<vertex_t>&>(item);
-                stats[i] = sssp::stats{};
-                owned.push_back(
-                    detail::make_sssp_participant<vertex_t, edge_t, weight_t, std::int64_t>(
-                        r.value, std::get<sssp::stats>(stats[i])));
-                result_locks.push_back(&r.mutex);
-                continue;
-              }
+        std::vector<sssp_holder<vertex_t>*> sssp_results(stats.size(), nullptr);
+        std::vector<cycle_count_holder*> cycle_results(stats.size(), nullptr);
+        for (std::size_t i = 0; i < stats.size(); ++i) {
+          nb::handle item = results[i];
+          if (nb::isinstance<sssp_holder<vertex_t>>(item)) {
+            if constexpr (sssp_ok) {
+              sssp_results[i] = &nb::cast<sssp_holder<vertex_t>&>(item);
+              stats[i] = sssp::stats{};
+              continue;
             }
-            if (nb::isinstance<cycle_count_holder>(item)) {
-              if constexpr (cycle_ok) {
-                auto& r = nb::cast<cycle_count_holder&>(item);
-                stats[i] = cycle_count::stats{};
-                owned.push_back(detail::make_cycle_count_participant<vertex_t, edge_t, weight_t>(
-                    r.value, std::get<cycle_count::stats>(stats[i])));
-                result_locks.push_back(&r.mutex);
-                continue;
-              }
+          }
+          if (nb::isinstance<cycle_count_holder>(item)) {
+            if constexpr (cycle_ok) {
+              cycle_results[i] = &nb::cast<cycle_count_holder&>(item);
+              stats[i] = cycle_count::stats{};
+              continue;
             }
-            throw invalid_argument_error(
-                "dyng.update: result " + std::to_string(i) +
-                " is not a result of an algorithm that supports this graph type");
           }
-          for (const auto& p : owned) {
-            raw.push_back(p.get());
-          }
-        } catch (const std::bad_alloc& e) {
-          detail::throw_host_allocation_failure("dyng.update (the participants)", e.what());
+          throw invalid_argument_error(
+              "dyng.update: result " + std::to_string(i) +
+              " is not a result of an algorithm that supports this graph type");
         }
         without_gil([&] {
           lock_set locks;
           locks.add(g.mutex, true);
-          for (std::shared_mutex* l : result_locks) {
-            locks.add(*l, true);
+          for (std::size_t i = 0; i < stats.size(); ++i) {
+            locks.add(sssp_results[i] != nullptr ? sssp_results[i]->mutex : cycle_results[i]->mutex,
+                      true);
           }
           locks.lock();
+          std::vector<std::unique_ptr<participant_t>> owned;
+          std::vector<participant_t*> raw;
+          try {
+            owned.reserve(stats.size());
+            raw.reserve(stats.size());
+            for (std::size_t i = 0; i < stats.size(); ++i) {
+              if (sssp_results[i] != nullptr) {
+                if constexpr (sssp_ok) {
+                  owned.push_back(
+                      detail::make_sssp_participant<vertex_t, edge_t, weight_t, std::int64_t>(
+                          sssp_results[i]->for_update(res), std::get<sssp::stats>(stats[i])));
+                }
+              } else {
+                if constexpr (cycle_ok) {
+                  owned.push_back(detail::make_cycle_count_participant<vertex_t, edge_t, weight_t>(
+                      cycle_results[i]->for_update(res), std::get<cycle_count::stats>(stats[i])));
+                }
+              }
+              raw.push_back(owned.back().get());
+            }
+          } catch (const std::bad_alloc& e) {
+            detail::throw_host_allocation_failure("dyng.update (the participants)", e.what());
+          }
           (void)detail::participant_of<container_t>::run(res, g.value, b.view(), raw.data(),
                                                          raw.size(), "update.commit");
         });
