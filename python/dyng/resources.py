@@ -11,6 +11,7 @@ Section 5.4).
 
 from __future__ import annotations
 
+import atexit
 import threading
 from typing import Any, Literal
 
@@ -211,6 +212,15 @@ def set_default_resources(resources: Resources | BackendName | None) -> None:
         raise TypeError("set_default_resources: expected a dyng.Resources, a backend name or None")
     with _default_lock:
         _default = resources
+
+
+@atexit.register
+def _drop_default_resources() -> None:
+    # The default resources live in a module global, which the interpreter may clear only after
+    # the native module is finalized: drop it first, so nanobind does not report it as leaked.
+    global _default
+    with _default_lock:
+        _default = None
 
 
 def resolve(resources: Resources | None, fallback: Resources | None = None) -> Resources:
