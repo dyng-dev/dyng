@@ -88,6 +88,48 @@ significant one.
 - [ ] `dyng::experimental` and algorithms at maturity `experimental` may change in any minor
       release, but the change is still in the CHANGELOG.
 
-The API check workflow (`api-check.yml`, from milestone M5) will diff a snapshot of the public
-headers and require the `api-change` label on any pull request that changes it; until then this
-checklist and the review are the check.
+## Exception guarantees and host-compilability
+
+- [ ] Every function that changes a container or a result states its exception guarantee with
+      `@guarantee` (strong: nothing changed if it throws; basic: what state is left, e.g. a
+      poisoned result), and `ci/doxygen_coverage.py` requires it on `compute()`, `update()`,
+      `graph::apply()`, `dyng::update()` and `dyng::update_each()`.
+- [ ] Host allocation failures leave the library as `out_of_memory_error`, also from
+      header-inline code (catch `std::bad_alloc` and `std::length_error` and call
+      `detail::throw_host_allocation_failure`).
+- [ ] The header compiles alone with the host compiler and pulls in no CUDA, CUB, Thrust or
+      libcu++ header (`cpp/tests/api`, the header self-containment targets).
+- [ ] Anything the Python layer (M5) cannot bind directly (a variadic template, an
+      `std::initializer_list` overload, a view that an update invalidates) has a bindable
+      equivalent or is noted in ADR 0023's list of binding notes.
+
+## Updating the API baseline
+
+The public declarations are frozen in a committed listing,
+`cpp/tests/api/api_snapshot/public_api.txt`, generated from the Doxygen XML by
+`ci/api_snapshot.py` (ADR 0023). `ci/docs.sh` compares the headers with it after Doxygen, so the
+`docs` job of CI and the local gate (`ci/check.sh`, step `docs`) fail on any change of a public
+signature, default value, enumerator, field or entity that the baseline does not contain. The
+listing ignores comments and line numbers, so documentation edits never need it. Headers are
+marked `frozen` (the reviewed 0.1 API) or `tracked` (`io/*`, `generators/*`, `testing/*`: checked
+the same way, reviewed and frozen with the CLI and the Python layer in M5).
+
+To change the API on purpose:
+
+1. Go through this checklist for the change; a significant change also gets an ADR.
+2. Add the CHANGELOG entry (`Added`, `Changed`, `Deprecated` or `Removed`; a migration note for a
+   break) and give the pull request the `api-change` label.
+3. Regenerate the baseline and commit it with the change, so the reviewers see the API diff next
+   to the code:
+
+   ```bash
+   ci/docs.sh --update-api        # Doxygen XML, then rewrite cpp/tests/api/api_snapshot/public_api.txt
+   git diff cpp/tests/api/api_snapshot/public_api.txt
+   ```
+
+   (`ci/docs.sh --doxygen-only` checks the baseline and fails while the API differs, so it
+   cannot be chained with `&&` to `ci/api_snapshot.py --update`.)
+
+A pull request whose baseline diff has no `api-change` label and no CHANGELOG entry is not
+merged. The `api-check.yml` workflow of M5 adds the label check and `griffe` for the Python API;
+until then the reviewers check the label by hand.

@@ -4,6 +4,7 @@
  * @file graph.cpp
  * @brief graph<V,E,W> member functions and their explicit instantiations.
  */
+#include "core/budget_counters.hpp"
 #include "core/resources_access.hpp"
 #include "core/staging.hpp"
 #include "graph/apply_common.hpp"
@@ -435,6 +436,7 @@ graph_impl<vertex_t, edge_t, weight_t>::device_edges(const resources& res, bool 
   if (!device_built_.load(std::memory_order_acquire) ||
       (in_edges && !device_in_built_.load(std::memory_order_acquire))) {
     const std::lock_guard<std::mutex> lock(device_mutex_);
+    const container_scope container;  // the graph's own work (budgets, I9)
     if (!device_built_.load(std::memory_order_relaxed)) {
       scoped_stage stage(res, "graph.upload");
       auto built = std::make_unique<device_type>();
@@ -478,6 +480,7 @@ graph_impl<vertex_t, edge_t, weight_t>::host_edges() const {
   if (!host_current_.load(std::memory_order_acquire)) {
     const std::lock_guard<std::mutex> lock(host_mutex_);
     if (!host_current_.load(std::memory_order_relaxed)) {
+      const container_scope container;  // the graph's own work (budgets, I9)
       download_device_graph(*device_, out_);
       host_current_.store(true, std::memory_order_release);
     }

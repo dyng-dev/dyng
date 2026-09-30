@@ -38,4 +38,5 @@ ALIASES                = "sync=@par Synchronization:^^Blocks until the work has 
                          "async=@par Synchronization:^^Stream-ordered; returns before the work completes (asynchronous)." \
                          "backends=@par Backends:^^" \
                          "determinism=@par Determinism:^^" \
-                         "paper=@par Paper:^^"
+                         "paper=@par Paper:^^" \
+                         "guarantee=@par Exception safety:^^"

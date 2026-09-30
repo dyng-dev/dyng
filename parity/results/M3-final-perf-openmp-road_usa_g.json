@@ -1,0 +1,883 @@
+{
+ "schema": 3,
+ "algorithm": "sssp",
+ "backend": "openmp",
+ "date": "2026-09-29T22:17:09Z",
+ "graph": "road_usa_g",
+ "reference": {
+  "name": "MOSP-OpenMP",
+  "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/MOSP-OpenMP@c352151/unpatched/bin/mosp",
+  "build": "name=MOSP-OpenMP\ncommit=c35215135341d5b5d1553458afe4b2226edc38fb\nvariant=unpatched\narchive_sha256=40a7367307e5bd903d9850abef78b8505ca04b4e6c76aac84cbdbadfab4985cf\nexported=2026-09-27T20:20:40Z\nbuild=make -j16 all stressTest parallelStressTest\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=none\n"
+ },
+ "port": {
+  "commit": "06a22ddffbb498472335aa0d24007c012a4be013+dirty",
+  "binary": "build/parity/tools/compat/dyng-compat-mosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "OFF",
+   "DYNG_CUDA_ARCHITECTURES": null,
+   "CMAKE_CUDA_FLAGS_RELEASE": null,
+   "CMAKE_CUDA_COMPILER": null,
+   "build_dir": "build/parity",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/sssp.toml",
+  "regions": [
+   "sosp_update",
+   "sosp_total",
+   "apply",
+   "end_to_end"
+  ]
+ },
+ "protocol": {
+  "runs": 11,
+  "order": "A/B/A/B (side A first: the original)",
+  "threads": 28,
+  "env": "OMP_PROC_BIND=close OMP_PLACES=cores",
+  "lock": "perf.lock: held exclusively by this process",
+  "gpu_clocks": "not applicable",
+  "contamination_monitor": "per round and side: foreign CPU load (machine busy time minus the harness and its programs), run queue, GPU P-state / clocks / utilization every 50 ms and foreign compute processes on the GPU every second; limit 2.0 cores; contaminated rounds repeated",
+  "statistic": "median",
+  "outputs": "--no-output on both",
+  "short_regions": "< 10.0 ms need >= 20 runs"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "inputs_sha256": [
+  "9cfb42a6e2d0db7989542909fceb1209d1272084377de661684e72c7d7fb7954  changes_50000_50/delete.txt",
+  "8b1a7e13b761a21f639d0e54a4741ef3f0903819cb4774982d06a82ebc5cd188  changes_50000_50/insert.txt",
+  "d6ed3bc9409789ea40c1a0fe2355093a65ddb148a256279cbab2dfd82e346364  changes_50000_50_safe/delete.txt",
+  "8b1a7e13b761a21f639d0e54a4741ef3f0903819cb4774982d06a82ebc5cd188  changes_50000_50_safe/insert.txt",
+  "10d20b83290012e4bbcfdfe5a66d0c8429a3bc740e27e7630e839150360b7f04  changes_local_10000_50_safe/delete.txt",
+  "6dea3fecc967be495fa4c778b9b2fcc3e942d872466561983df853ec88ebe36c  changes_local_10000_50_safe/insert.txt",
+  "658fc3bcb75dda9e73b23645dd3af7cf48483ce1b4300b56c8cb60af2c2b488b  csr/graphCsrColInd.txt",
+  "4397575ecc0c2379a7fd927c20bd4320760e2fa2739600ee76838cfa751ce042  csr/graphCsrRowPtr.txt",
+  "21d763c05f72d12bf54dcd4536ff53c44302ce02e9076cb57a18438ed612d998  csr/graphCsrValues.txt",
+  "173f8e5c37f198d8eb18a8555aa236a330020186e58ab025c25770dcf269c0af  init/obj0/SSSPTreeOriginal.txt",
+  "f5923c32ebc7f333a977f14d65a4363da57051e87ace9e2ed59cd28ec1b90e85  init/obj0/distancesOriginal.txt",
+  "9f524e10ed6dceaa3b40e0fa8a6f0277143e73f4e4fc65f8f72840e6087d14e7  init/obj1/SSSPTreeOriginal.txt",
+  "148c958ec7d862d14cb64eb0204d7395be0be91e7af72d72a0e644583af07ed6  init/obj1/distancesOriginal.txt",
+  "40748cbf3466c261596ddeeda1544d59e386030f471e0cbae67f072cefd10ea5  init/obj2/SSSPTreeOriginal.txt",
+  "013f17d8d6c444edc5df78513bd53a42cf48d41d94c56488d2ea793707b4f626  init/obj2/distancesOriginal.txt"
+ ],
+ "results": {
+  "safe50k": {
+   "regions": [
+    {
+     "region": "sosp_update obj0",
+     "reading": "as measured",
+     "original_ms": 314.061,
+     "port_ms": 279.655627,
+     "ratio": 0.8904500304081054,
+     "original_spread": 0.03750226866755191,
+     "port_spread": 0.08023187389681956,
+     "original_samples": [
+      320.664,
+      320.556,
+      314.061,
+      314.011,
+      319.87,
+      313.361,
+      312.926,
+      324.699,
+      319.715,
+      314.003,
+      312.921
+     ],
+     "port_samples": [
+      280.276354,
+      300.28882799999997,
+      280.86855799999995,
+      279.655627,
+      278.848198,
+      277.85153299999996,
+      279.516121,
+      279.20007,
+      280.78087200000004,
+      279.713383,
+      279.640072
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj1",
+     "reading": "as measured",
+     "original_ms": 276.741,
+     "port_ms": 260.265753,
+     "ratio": 0.9404669094929917,
+     "original_spread": 0.06071742170477088,
+     "port_spread": 0.0699738931844791,
+     "original_samples": [
+      276.267,
+      283.698,
+      276.308,
+      276.741,
+      282.912,
+      277.785,
+      276.246,
+      293.049,
+      281.747,
+      276.394,
+      276.51
+     ],
+     "port_samples": [
+      260.265753,
+      277.548036,
+      261.726789,
+      261.185724,
+      259.68325899999996,
+      259.336228,
+      259.996258,
+      259.53538299999997,
+      261.30068,
+      260.255883,
+      260.510492
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj2",
+     "reading": "as measured",
+     "original_ms": 277.708,
+     "port_ms": 259.857725,
+     "ratio": 0.9357228635833321,
+     "original_spread": 0.0657561179368256,
+     "port_spread": 0.07193036497183222,
+     "original_samples": [
+      277.747,
+      284.703,
+      277.708,
+      276.888,
+      283.426,
+      277.524,
+      276.883,
+      294.609,
+      282.713,
+      276.348,
+      276.467
+     ],
+     "port_samples": [
+      259.857725,
+      276.378918,
+      260.356438,
+      261.07737099999997,
+      257.796694,
+      257.687257,
+      258.516678,
+      258.307067,
+      260.047744,
+      260.049318,
+      259.516922
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_total",
+     "reading": "as measured",
+     "original_ms": 868.6700000000001,
+     "port_ms": 800.018584,
+     "ratio": 0.9209695097102467,
+     "original_spread": 0.05348291065652095,
+     "port_spread": 0.07417423193259225,
+     "original_samples": [
+      874.678,
+      888.9569999999999,
+      868.077,
+      867.64,
+      886.208,
+      868.6700000000001,
+      866.055,
+      912.357,
+      884.175,
+      866.745,
+      865.8979999999999
+     ],
+     "port_samples": [
+      800.3998320000001,
+      854.215782,
+      802.951785,
+      801.918722,
+      796.3281509999998,
+      794.875018,
+      798.0290570000001,
+      797.04252,
+      802.129296,
+      800.018584,
+      799.6674859999999
+     ],
+     "gate_kind": "none",
+     "noisy": false
+    },
+    {
+     "region": "apply",
+     "reading": "as measured",
+     "original_ms": 1812.6,
+     "port_ms": 1331.043088,
+     "ratio": 0.7343280856228621,
+     "original_spread": 0.023281474125565388,
+     "port_spread": 0.029182826123507335,
+     "original_samples": [
+      1813.4,
+      1816.1999999999998,
+      1847.6,
+      1812.9,
+      1809.3000000000002,
+      1805.4,
+      1808.9,
+      1817.0,
+      1808.3000000000002,
+      1812.6,
+      1810.9
+     ],
+     "port_samples": [
+      1331.043088,
+      1363.86803,
+      1328.853177,
+      1341.361971,
+      1341.81338,
+      1332.378035,
+      1326.62707,
+      1325.653521,
+      1336.519483,
+      1329.338865,
+      1325.0244309999998
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "end_to_end",
+     "reading": "as measured",
+     "original_ms": 7325.549,
+     "port_ms": 5510.02,
+     "ratio": 0.7521647865572942,
+     "original_spread": 0.2735150635126461,
+     "port_spread": 0.021615166551119662,
+     "original_samples": [
+      7827.351000000001,
+      5844.527,
+      7120.311000000001,
+      7848.175000000001,
+      6717.255,
+      7404.58,
+      6310.2519999999995,
+      7325.549,
+      6884.96,
+      7649.272,
+      7676.464
+     ],
+     "port_samples": [
+      5526.5,
+      5536.36,
+      5510.02,
+      5543.47,
+      5532.99,
+      5424.37,
+      5487.44,
+      5497.61,
+      5429.6,
+      5530.0,
+      5480.2
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     17043767,
+     15989663,
+     16311741
+    ],
+    "port": [
+     17043767,
+     15989663,
+     16311741
+    ],
+    "equal_in_every_sample": true
+   },
+   "threads": {
+    "original": 28,
+    "port": 28
+   },
+   "load_average": {
+    "min": 4.52880859375,
+    "max": 8.93408203125
+   },
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "foreign_cpu_cores_max": 0.390216325227744
+   }
+  },
+  "unsafe50k": {
+   "regions": [
+    {
+     "region": "sosp_update obj0",
+     "reading": "as measured",
+     "original_ms": 316.736,
+     "port_ms": 279.62096600000007,
+     "ratio": 0.8828202856637707,
+     "original_spread": 0.023369620125277792,
+     "port_spread": 0.06737287360633747,
+     "original_samples": [
+      319.083,
+      316.859,
+      313.881,
+      320.383,
+      316.596,
+      320.331,
+      312.981,
+      314.661,
+      319.826,
+      316.736,
+      315.762
+     ],
+     "port_samples": [
+      279.62096600000007,
+      278.806914,
+      297.287109,
+      280.508153,
+      278.794886,
+      278.448241,
+      279.651764,
+      279.836817,
+      278.464341,
+      279.215595,
+      280.083307
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj1",
+     "reading": "as measured",
+     "original_ms": 277.568,
+     "port_ms": 259.293142,
+     "ratio": 0.9341607894281762,
+     "original_spread": 0.029099175697486736,
+     "port_spread": 0.06461054029728244,
+     "original_samples": [
+      284.829,
+      277.838,
+      277.568,
+      284.611,
+      276.844,
+      283.541,
+      277.069,
+      277.3,
+      283.645,
+      276.752,
+      276.811
+     ],
+     "port_samples": [
+      259.598432,
+      259.293142,
+      275.119862,
+      258.751187,
+      259.049592,
+      259.004267,
+      259.703232,
+      259.652688,
+      258.36679200000003,
+      259.281074,
+      259.427142
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj2",
+     "reading": "as measured",
+     "original_ms": 277.767,
+     "port_ms": 258.394358,
+     "ratio": 0.9302557827243697,
+     "original_spread": 0.026223417468597753,
+     "port_spread": 0.06396492604532787,
+     "original_samples": [
+      283.419,
+      277.134,
+      277.279,
+      283.207,
+      278.077,
+      283.807,
+      277.003,
+      277.767,
+      284.247,
+      277.18,
+      276.963
+     ],
+     "port_samples": [
+      258.08222,
+      258.214684,
+      274.474764,
+      257.950093,
+      258.459678,
+      258.394358,
+      258.556651,
+      259.010248,
+      257.946588,
+      258.560764,
+      258.352059
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_total",
+     "reading": "as measured",
+     "original_ms": 871.517,
+     "port_ms": 797.209433,
+     "ratio": 0.9147376735049344,
+     "original_spread": 0.02426573434597377,
+     "port_spread": 0.0653579998469485,
+     "original_samples": [
+      887.331,
+      871.831,
+      868.728,
+      888.201,
+      871.517,
+      887.6790000000001,
+      867.053,
+      869.7280000000001,
+      887.7180000000001,
+      870.668,
+      869.5360000000001
+     ],
+     "port_samples": [
+      797.3016180000001,
+      796.31474,
+      846.8817349999999,
+      797.209433,
+      796.3041559999999,
+      795.8468660000001,
+      797.911647,
+      798.4997529999999,
+      794.777721,
+      797.057433,
+      797.8625079999999
+     ],
+     "gate_kind": "none",
+     "noisy": false
+    },
+    {
+     "region": "apply",
+     "reading": "as measured",
+     "original_ms": 1801.3000000000002,
+     "port_ms": 1330.083565,
+     "ratio": 0.7384020235385553,
+     "original_spread": 0.01398989618608785,
+     "port_spread": 0.05771571728277084,
+     "original_samples": [
+      1819.2,
+      1801.3000000000002,
+      1799.3000000000002,
+      1808.0,
+      1796.7,
+      1811.3000000000002,
+      1811.1,
+      1794.0,
+      1805.9,
+      1800.5,
+      1799.8
+     ],
+     "port_samples": [
+      1329.722419,
+      1329.3758280000002,
+      1323.626976,
+      1336.055165,
+      1338.784403,
+      1400.393703,
+      1343.133743,
+      1330.083565,
+      1328.424335,
+      1330.076307,
+      1331.920048
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "end_to_end",
+     "reading": "as measured",
+     "original_ms": 6785.787,
+     "port_ms": 5529.55,
+     "ratio": 0.8148723206313431,
+     "original_spread": 0.3207669206239453,
+     "port_spread": 0.03474242931160758,
+     "original_samples": [
+      6785.787,
+      5769.938,
+      7029.983,
+      7755.232,
+      6278.504,
+      7916.242,
+      5758.594,
+      7904.029,
+      7698.152999999999,
+      6766.509999999999,
+      5739.586
+     ],
+     "port_samples": [
+      5511.18,
+      5491.69,
+      5554.28,
+      5529.55,
+      5547.56,
+      5621.44,
+      5544.51,
+      5511.11,
+      5542.58,
+      5429.33,
+      5526.16
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     17046218,
+     15994408,
+     16314393
+    ],
+    "port": [
+     17046218,
+     15994408,
+     16314393
+    ],
+    "equal_in_every_sample": true
+   },
+   "threads": {
+    "original": 28,
+    "port": 28
+   },
+   "load_average": {
+    "min": 5.33642578125,
+    "max": 8.8193359375
+   },
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "foreign_cpu_cores_max": 0.19778360579315574
+   }
+  },
+  "local10k": {
+   "regions": [
+    {
+     "region": "sosp_update obj0",
+     "reading": "as measured",
+     "original_ms": 74.437,
+     "port_ms": 55.178643,
+     "ratio": 0.7412797802168277,
+     "original_spread": 0.17528917070811562,
+     "port_spread": 0.11512106232840834,
+     "original_samples": [
+      86.444,
+      73.396,
+      74.651,
+      76.573,
+      74.198,
+      73.706,
+      74.437,
+      75.967,
+      73.533,
+      74.411,
+      75.765
+     ],
+     "port_samples": [
+      59.62592000000001,
+      54.98987700000001,
+      59.586193,
+      54.799827,
+      54.294049,
+      53.993509,
+      60.10874200000001,
+      55.178643,
+      58.522324,
+      54.606671000000006,
+      60.345732999999996
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "sosp_update obj1",
+     "reading": "as measured",
+     "original_ms": 62.37,
+     "port_ms": 52.815083,
+     "ratio": 0.8468026775693442,
+     "original_spread": 0.18061568061568065,
+     "port_spread": 0.10396005625892905,
+     "original_samples": [
+      72.947,
+      62.074,
+      62.194,
+      62.325,
+      62.974,
+      62.354,
+      62.37,
+      61.682,
+      62.406,
+      62.385,
+      63.129
+     ],
+     "port_samples": [
+      57.343566,
+      51.956253,
+      57.152639,
+      52.815083,
+      51.852906999999995,
+      51.893820000000005,
+      57.175008000000005,
+      52.272461,
+      55.854221,
+      52.353684,
+      57.190101999999996
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "sosp_update obj2",
+     "reading": "as measured",
+     "original_ms": 62.607,
+     "port_ms": 52.866598,
+     "ratio": 0.8444199210950852,
+     "original_spread": 0.1798680658712284,
+     "port_spread": 0.11013691480582881,
+     "original_samples": [
+      73.33,
+      62.34,
+      62.536,
+      62.827,
+      63.226,
+      62.607,
+      62.592,
+      62.069,
+      62.141,
+      62.658,
+      62.669
+     ],
+     "port_samples": [
+      57.247167,
+      52.26437,
+      57.956294,
+      52.866598,
+      52.13373,
+      52.245236000000006,
+      57.250085999999996,
+      52.531803,
+      56.60283,
+      52.723375000000004,
+      57.560446999999996
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "sosp_total",
+     "reading": "as measured",
+     "original_ms": 199.454,
+     "port_ms": 160.481508,
+     "ratio": 0.8046041092181655,
+     "original_spread": 0.17503283965225064,
+     "port_spread": 0.10570511962038609,
+     "original_samples": [
+      232.721,
+      197.81,
+      199.381,
+      201.725,
+      200.398,
+      198.667,
+      199.399,
+      199.71800000000002,
+      198.07999999999998,
+      199.454,
+      201.563
+     ],
+     "port_samples": [
+      174.216653,
+      159.21050000000002,
+      174.695126,
+      160.481508,
+      158.280686,
+      158.13256500000003,
+      174.533836,
+      159.98290699999998,
+      170.979375,
+      159.68373,
+      175.09628199999997
+     ],
+     "gate_kind": "none",
+     "noisy": true
+    },
+    {
+     "region": "apply",
+     "reading": "as measured",
+     "original_ms": 1795.6,
+     "port_ms": 1309.916387,
+     "ratio": 0.7295145839830698,
+     "original_spread": 0.021329917576297718,
+     "port_spread": 0.014162794804398325,
+     "original_samples": [
+      1786.1,
+      1823.9,
+      1790.6,
+      1795.6,
+      1799.8000000000002,
+      1789.0,
+      1787.8,
+      1804.8,
+      1797.1,
+      1785.6,
+      1800.5
+     ],
+     "port_samples": [
+      1309.1701520000001,
+      1310.2301400000001,
+      1313.0344049999999,
+      1324.221396,
+      1313.9662560000002,
+      1307.109653,
+      1309.2156479999999,
+      1309.916387,
+      1310.170484,
+      1306.340765,
+      1305.669319
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "end_to_end",
+     "reading": "as measured",
+     "original_ms": 6620.945000000001,
+     "port_ms": 4826.98,
+     "ratio": 0.7290469864951301,
+     "original_spread": 0.31193462564633895,
+     "port_spread": 0.026523830635304012,
+     "original_samples": [
+      6994.772,
+      6620.945000000001,
+      7060.835999999999,
+      7108.009,
+      5213.488,
+      6256.726000000001,
+      6216.516,
+      5666.446,
+      6240.612,
+      6906.070000000001,
+      7278.79
+     ],
+     "port_samples": [
+      4826.98,
+      4793.74,
+      4886.08,
+      4838.0,
+      4810.11,
+      4835.22,
+      4796.5,
+      4776.35,
+      4842.6,
+      4780.35,
+      4904.38
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     261871,
+     254274,
+     230241
+    ],
+    "port": [
+     261871,
+     254274,
+     230241
+    ],
+    "equal_in_every_sample": true
+   },
+   "threads": {
+    "original": 28,
+    "port": 28
+   },
+   "load_average": {
+    "min": 5.75634765625,
+    "max": 10.97998046875
+   },
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "foreign_cpu_cores_max": 0.198705310224001
+   }
+  }
+ },
+ "compacted": "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the rejected rounds) were dropped to keep the repository small; the verdicts, samples, rejected rounds with their reasons, clock check and GPU summary are unchanged; the full record: $DYNG_SCRATCH/m3-final/runs/M3-final-perf-openmp-road_usa_g.json"
+}

@@ -46,20 +46,28 @@ normalize -> translate -> prepare -> [before_apply -> (AG: count -)] -> commit -
 identify_affected -> seed -> { AG: count + } -> finalize
 ```
 
-cycle_count is an **aggregate-delta** problem (template card in
-`cpp/src/algorithms/cycle_count/problem.hpp`; tier: custom engine).
+cycle_count is an **aggregate-delta** problem: `detail::cycle_count_problem` in
+`cpp/src/algorithms/cycle_count/problem.hpp` (the template card is at its top), run by the
+framework's enactors (`docs/developer/framework.md`) with the ownership rule
+`ownership::min_member` (invariant I2). The host backends run the hooks below (Tier A); the CUDA
+backend is Tier B: the framework runs `normalize` and the subtraction on G_t (`count(-)`, the delete
+phase of the ported kernels on the resident device graph), and `enact_fused`
+(`cycle_count.enact_fused`) runs the insert phase, the histogram copy and the delta inside the same
+stages as the host backends.
 
 | Step | Hook (profiler stage) | What it does | Original |
 |---|---|---|---|
 | 0 | `normalize` (`cycle_count.normalize`) | the net structural change on G_t: deletions of existing edges, insertions of new (or deleted and re-inserted) edges, each sorted by (source, destination) without repeats (from 256 changes on a bucket sort: 0.7x of the original's `std::sort` on sorted input, 0.3x on shuffled input, with no shortcut for sorted lists); self-loops dropped. Under `batch_semantics::as_sets` the framework computes it once for every result and the commit (ADR 0020); with `self_loop::keep` a self-loop stays in the lists (the graph stores it) and the phases skip it, since it lies on no cycle. On a resident CUDA graph whose host copy is stale the membership of each change in G_t is tested on the device, so a chain of updates never downloads the graph | `prepare_batch` |
-| 1a | `before_apply` = count(-) (`cycle_count.count_minus`) | for every deleted edge in id order, the cycles through it on G_t that contain no deleted edge of smaller id (ownership = the smallest id, `changed_edge_index`) | delete phase of `update_static_histogram` |
+| 1a | `count` on the old view = count(-) (`cycle_count.count_minus`) | for every deleted edge in id order, the cycles through it on G_t that contain no deleted edge of smaller id (ownership = the smallest id, `changed_edge_index`) | delete phase of `update_static_histogram` |
 | apply | commit (`cycle_count.commit` > `graph.apply`) | the batch applied once; no transposition (the searches read the out-edges only). On cuda under set semantics without weight columns the batch is merged into the resident graph on the device | `apply_batch` (CUDA: `build_next_rows_kernel`) |
 | 1b | `identify_affected` (`cycle_count.identify_affected`) | the inserted edges and their ownership index | – |
-| 2 | count(+) (`cycle_count.count_plus`) | the owned cycles through every inserted edge on G_{t+1} | insert phase |
+| 2 | `count` on the new view = count(+) (`cycle_count.count_plus`) | the owned cycles through every inserted edge on G_{t+1} | insert phase |
 | finish | `finalize` (`cycle_count.finalize`) | counts += added - removed; a bucket that would become negative throws `internal_error` and poisons the result | `apply_histogram_delta` |
 
 `compute()` is the static enactor: `cycle_count.reset` -> `cycle_count.count` ->
-`cycle_count.finalize`.
+`cycle_count.finalize` (on cuda inside `cycle_count.enact_fused`, the Tier B `compute_fused`).
+Under set semantics the `cycle_count.normalize` stage is called twice per update: the framework's
+Step 0 and the hook that takes its lists.
 
 The four Chapter 3 challenges: (i) the affected set is the set of change edges (a cycle changes
 only if it contains a changed edge); (ii) the propagation scope is a depth-bounded search from each

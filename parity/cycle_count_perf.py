@@ -37,7 +37,9 @@ run   rebuilds (idempotently) and verifies the UNPATCHED copy of CycleEnumeratio
       side A by another binary, either a variant of the original (--baseline-kind original, e.g.
       parity/experiments/cycle_enum/build_variant.sh) or another dynG build
       (--baseline-kind port, e.g. the compat driver of an earlier commit). The record then names
-      the baseline (--baseline-label) and its verdicts are not gates.
+      the baseline (--baseline-label) and its verdicts are not gates. On --backend cuda a port
+      baseline runs in every --scopes entry next to the port (A[scope], B[scope], ...), and the
+      extra port processes (--update-events, --chain) are off: they have no side A.
 
 The default cases are the gate of acceptance criterion 4 of M2a: the static count DD k = 3..7,
 GitHub and Twitch k = 3, 4 and the update 25K + 25K k = 4 (seed 1) on DD, GitHub and Twitch.
@@ -388,6 +390,12 @@ def run(args: argparse.Namespace) -> int:
                 foreign: dict[str, list] = {"original": [], "port": []}
                 for r in range(args.runs):
                     before = os.getloadavg()[0]
+                    if args.layouts > 1:
+                        # The same file name length on both sides, one layout per round.
+                        timing_a = perf_ab.layout_timing(work, "timing-a", args, r)
+                        timing = perf_ab.layout_timing(work, "timing-b", args, r)
+                        a_cmd = [original, *cli, "--timing", timing_a]
+                        b_cmd = [exe, *cli, "--timing", timing]
                     wall_a, out_a, err_a, cont_a = timed_run(a_cmd, env)
                     wall_b, out_b, err_b, cont_b = timed_run(b_cmd, env)
                     loads.append((before, os.getloadavg()[0]))
@@ -531,6 +539,15 @@ def run_cuda(args: argparse.Namespace) -> int:
     ref = perf_ab.reference_copy(name)
     original = ref / "build" / "cycle-enum"
     marker = ref / ".dyng-reference"
+    baseline_port = bool(args.baseline_exe) and args.baseline_kind == "port"
+    if args.baseline_exe:
+        original = args.baseline_exe.resolve()
+        if not original.is_file():
+            raise SystemExit(f"--baseline-exe {original} does not exist")
+    if baseline_port and (args.update_events != "none" or args.chain > 1):
+        print("a port baseline: --update-events none and --chain 1 (no side A for them)")
+        args.update_events = "none"
+        args.chain = 1
     cases = goldens.select(goldens.cuda_cases(), ",".join(args.cases))
     env = dict(os.environ)
     env["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
@@ -542,6 +559,7 @@ def run_cuda(args: argparse.Namespace) -> int:
     incomplete: list[str] = []
     work = Path(tempfile.mkdtemp(prefix="dyng-perf-cc-cuda-", dir=perf_ab.SCRATCH / "runs"))
     timing = work / "timing.csv"
+    timing_a = work / "timing-a.csv"
     clocks = perf_ab.ClockLock(args.gpu, args.lock_clocks)
     try:
         with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
@@ -555,6 +573,23 @@ def run_cuda(args: argparse.Namespace) -> int:
                         sc: [exe, *cli, *report_timing, "--scope", sc, "--timing", timing]
                         for sc in scopes
                     }
+                    # A port baseline runs in each scope, right before the port in that scope.
+                    a_cmds = (
+                        {
+                            sc: [
+                                original,
+                                *cli,
+                                *report_timing,
+                                "--scope",
+                                sc,
+                                "--timing",
+                                timing_a,
+                            ]
+                            for sc in scopes
+                        }
+                        if baseline_port
+                        else {}
+                    )
                     # The extra port processes of an update: (process, scope) -> command.
                     extra_cmds: dict = {}
                     if case.update and args.chain > 1 and "resident" in scopes:
@@ -575,8 +610,14 @@ def run_cuda(args: argparse.Namespace) -> int:
                         locked=clocks.locked,
                     ) as monitor:
                         # Untimed first round: page cache, and the outputs must be identical.
-                        _, out_a, err_first, _ = monitored(monitor, a_cmd, env)
+                        _, out_a, err_first, _ = monitored(
+                            monitor, a_cmds[scopes[0]] if baseline_port else a_cmd, env
+                        )
                         for sc, cmd in b_cmds.items():
+                            if baseline_port:
+                                _, out_x, _, _ = monitored(monitor, a_cmds[sc], env)
+                                if out_a != out_x:
+                                    raise SystemExit(f"{case.rel} [A {sc}]: the histograms differ")
                             _, out_b, _, _ = monitored(monitor, cmd, env)
                             if out_a != out_b:
                                 raise SystemExit(f"{case.rel} [{sc}]: the histograms differ")
@@ -612,9 +653,16 @@ def run_cuda(args: argparse.Namespace) -> int:
                         windows, rejected = [], []
                         r = 0
                         while r < args.runs:
-                            wall_a, out_a, err_a, win_a = monitored(monitor, a_cmd, env)
+                            round_a = {}
+                            if not baseline_port:
+                                wall_a, out_a, err_a, win_a = monitored(monitor, a_cmd, env)
                             round_b = {}
                             for sc, cmd in b_cmds.items():
+                                if baseline_port:
+                                    wall_a, out_a, err_a, win_a = monitored(
+                                        monitor, a_cmds[sc], env
+                                    )
+                                    round_a[sc] = (parse_port(wall_a, err_a, timing_a)[0], win_a)
                                 wall_b, out_b, err_b, win_b = monitored(monitor, cmd, env)
                                 if out_a != out_b:
                                     failures.append(f"{case.rel} [{sc}] round {r + 1}: differ")
@@ -634,6 +682,15 @@ def run_cuda(args: argparse.Namespace) -> int:
                                         "differs from the recompute"
                                     )
                                 round_x[(proc, sc)] = (values_x, stages_x, win_x)
+                            if baseline_port:
+                                win_a = {
+                                    "reasons": [
+                                        f"{sc}: {x}"
+                                        for sc, v in round_a.items()
+                                        for x in v[1]["reasons"]
+                                    ],
+                                    "baseline": {sc: v[1] for sc, v in round_a.items()},
+                                }
                             reasons = (
                                 [f"original: {x}" for x in win_a["reasons"]]
                                 + [
@@ -660,9 +717,11 @@ def run_cuda(args: argparse.Namespace) -> int:
                                 time.sleep(5.0)
                                 continue
                             r += 1
-                            values_a = parse_original(wall_a, err_a)
+                            values_a = {} if baseline_port else parse_original(wall_a, err_a)
                             for sc, (values_b, stages, _) in round_b.items():
-                                samples[sc]["original"].append(values_a)
+                                samples[sc]["original"].append(
+                                    round_a[sc][0] if baseline_port else values_a
+                                )
                                 samples[sc]["port"].append(values_b)
                                 samples[sc]["stages"].append(stages)
                             for (proc, sc), (values_x, stages_x, _) in round_x.items():
@@ -678,9 +737,17 @@ def run_cuda(args: argparse.Namespace) -> int:
                             )
                             key_a = "update_seconds" if case.update else "kernel_ms"
                             key_b = "update_ms" if case.update else "kernel_ms"
+                            side_a = (
+                                ", ".join(
+                                    f"{args.baseline_label} {sc} {v[0][key_b]:.3f} ms"
+                                    for sc, v in round_a.items()
+                                )
+                                if baseline_port
+                                else f"{args.baseline_label} {values_a[key_a]:.3f} ms"
+                            )
+                            key = key_b if baseline_port else key_a
                             print(
-                                f"{case.rel} round {r}/{args.runs}: {key_a} original "
-                                f"{values_a[key_a]:.3f} ms, "
+                                f"{case.rel} round {r}/{args.runs}: {key} {side_a}, "
                                 + ", ".join(
                                     f"{sc} {v[0][key_b]:.3f} ms" for sc, v in round_b.items()
                                 ),
@@ -701,14 +768,18 @@ def run_cuda(args: argparse.Namespace) -> int:
                             "clocks_locked_in_every_round": all(
                                 win.get("gpu", {}).get("clocks_locked", True)
                                 for w in windows
-                                for win in [w["original"], *w["port"].values()]
+                                for win in [
+                                    w["original"],
+                                    *w["original"].get("baseline", {}).values(),
+                                    *w["port"].values(),
+                                ]
                             ),
                             "gpu_summary": gpu_summary(windows, scopes),
                         },
                     }
                     for sc in scopes if r > 0 else []:
                         entry["regions"] += summarize(
-                            scoped_regions(regions, sc), task, samples[sc], r
+                            scoped_regions(regions, sc), task, samples[sc], r, args.baseline_kind
                         )
                         for proc in PROCESSES:
                             if samples[sc][proc]:
@@ -736,7 +807,7 @@ def run_cuda(args: argparse.Namespace) -> int:
                         write_json(args, results, build, ref, marker, regions, clocks.record)
     finally:
         subprocess.run(["rm", "-rf", str(work)], check=False)
-    report_cuda(results)
+    report_cuda(results, args.baseline_label)
     exceeded = [
         f"{c}: {e['region']} {e['ratio']:.3f} > {e['gate']:.2f}"
         for c, res in results.items()
@@ -754,7 +825,7 @@ def run_cuda(args: argparse.Namespace) -> int:
         print(f"not measured (more rejected rounds than --runs): {', '.join(incomplete)}")
     if exceeded:
         print("gate exceeded: " + "; ".join(exceeded))
-        if args.enforce_gates and args.lock_clocks != "none":
+        if args.enforce_gates and args.lock_clocks != "none" and not args.baseline_exe:
             return 1
     return 1 if incomplete else 0
 
@@ -763,9 +834,13 @@ def gpu_summary(windows: list[dict], scopes: list[str]) -> dict:
     """Per side (the original, the port in each scope), over the accepted rounds: the lowest SM
     clock of any GPU sample, busy or not, and the number of busy samples (the lock check reads the
     busy ones; a kernel shorter than the sampling period may leave none)."""
-    sides = {"original": [w["original"] for w in windows]} | {
-        f"port[{sc}]": [w["port"][sc] for w in windows] for sc in scopes
-    }
+    if windows and "baseline" in windows[0]["original"]:  # a port baseline, in every scope
+        sides = {
+            f"baseline[{sc}]": [w["original"]["baseline"][sc] for w in windows] for sc in scopes
+        }
+    else:
+        sides = {"original": [w["original"] for w in windows]}
+    sides |= {f"port[{sc}]": [w["port"][sc] for w in windows] for sc in scopes}
     out = {}
     for side, wins in sides.items():
         gpus = [w.get("gpu", {}) for w in wins]
@@ -778,9 +853,9 @@ def gpu_summary(windows: list[dict], scopes: list[str]) -> dict:
     return out
 
 
-def report_cuda(results: dict) -> None:
+def report_cuda(results: dict, baseline: str = "original") -> None:
     print(
-        "\n| case | region | original (ms) | dynG (ms) | ratio | gate | spread A / B |\n"
+        f"\n| case | region | {baseline} (ms) | dynG (ms) | ratio | gate | spread A / B |\n"
         "|---|---|---:|---:|---:|---|---|"
     )
     for case, res in results.items():
@@ -1151,8 +1226,12 @@ def write_json(args, results, build, ref, marker, regions, clocks=None) -> None:
         "protocol": (
             {
                 "runs": args.runs,
-                "order": "A, B[scope] for every --scopes entry, repeated; one untimed round "
-                "per case first",
+                "order": (
+                    "A[scope], B[scope] for every --scopes entry (a port baseline), repeated; "
+                    if args.baseline_exe and args.baseline_kind == "port"
+                    else "A, B[scope] for every --scopes entry, repeated; "
+                )
+                + "one untimed round per case first",
                 "backend": "cuda (--backend cuda --cuda-device 0 on both; CUDA_VISIBLE_DEVICES "
                 f"= {args.gpu}, CUDA_MODULE_LOADING=EAGER)",
                 "scopes": args.scopes,
@@ -1178,6 +1257,13 @@ def write_json(args, results, build, ref, marker, regions, clocks=None) -> None:
                 "env": " ".join(args.env) or "no OMP_* variables (the libgomp defaults) on both",
                 "lock": "perf.lock (exclusive)",
                 "statistic": "median",
+                "layouts": (
+                    f"{args.layouts} heap layouts, round r in layout r mod {args.layouts} (both "
+                    f"--timing file names {perf_ab.LAYOUT_STEP} * (r mod {args.layouts}) "
+                    "characters longer)"
+                    if args.layouts > 1
+                    else "one (fixed --timing file names)"
+                ),
                 "outputs": "standard output captured (the histogram CSV), compared every round",
                 "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
             }
@@ -1266,6 +1352,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     r.add_argument("--baseline-kind", choices=["original", "port"], default="original")
     r.add_argument("--baseline-label", default="original")
+    r.add_argument(
+        "--layouts",
+        type=int,
+        default=1,
+        metavar="N",
+        help="openmp, --baseline-kind port: cycle the rounds through N heap layouts (the --timing "
+        "file names grow by 8 characters per layout, the same on both sides; M3.md section 6.3)",
+    )
     k = sub.add_parser("kernels")
     k.add_argument("--library", type=Path, required=True, help="libdyng.so of the parity-cuda tree")
     k.add_argument("--json", type=Path)
@@ -1294,6 +1388,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
     if args.baseline_exe and args.baseline_label == "original":
         parser.error("--baseline-exe needs a --baseline-label naming the experiment")
+    if args.layouts < 1:
+        parser.error("--layouts must be >= 1")
+    if args.layouts > 1 and (args.backend != "openmp" or args.baseline_kind != "port"):
+        parser.error("--layouts is for a dynG-against-dynG A/B on openmp (--baseline-kind port)")
     return run(args)
 
 

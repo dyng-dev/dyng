@@ -4,6 +4,7 @@
  * @file memory.cpp
  * @brief Host memory resource, stream_ref and cross-space byte copies (host part).
  */
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 
 #include <dyng/config.hpp>
@@ -65,6 +66,7 @@ void host_memory_resource::deallocate(stream_ref /*stream*/, void* ptr, std::siz
 
 void* host_memory_resource::allocate_sync(std::size_t bytes, std::size_t alignment) {
   DYNG_EXPECTS(is_power_of_two(alignment), "alignment ", alignment, " is not a power of two");
+  detail::note_allocation(bytes);  // invariant I9 (counts only with DYNG_DEBUG_BUDGETS)
   try {
     return ::operator new(bytes == 0 ? 1 : bytes, std::align_val_t{alignment});
   } catch (const std::bad_alloc&) {

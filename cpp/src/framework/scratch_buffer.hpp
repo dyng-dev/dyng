@@ -14,6 +14,8 @@
  */
 #pragma once
 
+#include "core/budget_counters.hpp"
+
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/memory.hpp>
 #include <dyng/core/resources.hpp>
@@ -39,6 +41,7 @@ class scratch_buffer {
    */
   value_t* reserve(const resources& res, std::size_t count) {
     if (count > storage_.size() || storage_.memory_resource() != res.memory()) {
+      note_reservation();            // a deliberate growth (invariant I9, budget_counters.hpp)
       storage_ = buffer<value_t>();  // release first: the peak holds one array, not two
       storage_ = buffer<value_t>(res, count);
     }

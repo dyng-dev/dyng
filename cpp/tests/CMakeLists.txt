@@ -23,6 +23,7 @@ dyng_add_test(
     core/profiler_test.cpp
     core/resources_test.cpp
     core/types_test.cpp
+    core/update_dispatch_test.cpp
     core/version_test.cpp
   LABELS cpu core
 )
@@ -40,13 +41,19 @@ dyng_add_test(
   LABELS cpu graph
   LIBRARIES dyng::testing
 )
+# Host allocation failures in header-inline code (its own executable: it replaces operator new).
+dyng_add_test(
+  NAME dyng_allocation_failure_tests
+  SOURCES graph/allocation_failure_test.cpp
+  LABELS cpu graph
+)
 dyng_add_test(
   NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp LABELS cpu io
 )
 dyng_add_test(
   NAME dyng_framework_tests
   SOURCES framework/workspace_test.cpp framework/thread_list_test.cpp
-          framework/list_gather_test.cpp
+          framework/list_gather_test.cpp framework/enactor_test.cpp
   LABELS cpu framework
 )
 if(DYNG_ENABLE_OPENMP)
@@ -59,18 +66,22 @@ dyng_add_test(
 )
 # Parity with CycleEnumeration-GPU@0a976ad on the TUDataset graphs (outside the repository; the
 # test skips when they are missing). Label parity, not cpu: run with `ctest -L parity`.
-dyng_add_test(
-  NAME dyng_cycle_enum_parity_tests
-  SOURCES parity/cycle_enum_datasets_test.cpp parity/cycle_count_datasets_test.cpp
-  LABELS parity cycle_count
-)
-foreach(_dyng_test dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests
-                   dyng_cycle_enum_parity_tests
-)
+set(_dyng_private_tests dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests)
+if(TARGET dyng_cycle_count)
+  dyng_add_test(
+    NAME dyng_cycle_enum_parity_tests
+    SOURCES parity/cycle_enum_datasets_test.cpp parity/cycle_count_datasets_test.cpp
+    LABELS parity cycle_count
+  )
+  list(APPEND _dyng_private_tests dyng_cycle_enum_parity_tests)
+endif()
+foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 endforeach()
 
+# The suites of one algorithm are built when the algorithm is (DYNG_ALGORITHMS).
+if(TARGET dyng_sssp)
 dyng_add_test(
   NAME dyng_sssp_tests
   SOURCES algorithms/sssp/sssp_test.cpp algorithms/sssp/sssp_random_test.cpp
@@ -80,12 +91,14 @@ dyng_add_test(
 )
 target_compile_definitions(dyng_sssp_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
 target_include_directories(dyng_sssp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+endif()
 
 # cycle_count (CycleEnumeration-GPU@0a976ad): API, the original's suites, randomized differential
 # tests against the oracles and parity with the original's histograms on the committed fixtures.
 # The shared suites run on the host backends here and on cuda in dyng_cycle_count_cuda_tests;
 # cycle_count_kernels_test.cpp tests host-only pieces (the host searches, the ownership table,
 # the workspace, the host planning of the CUDA work items) and runs here only.
+if(TARGET dyng_cycle_count)
 set(DYNG_CYCLE_COUNT_TEST_SOURCES
     algorithms/cycle_count/cycle_count_test.cpp algorithms/cycle_count/cycle_count_random_test.cpp
     algorithms/cycle_count/cycle_count_fixture_test.cpp
@@ -117,6 +130,134 @@ foreach(_case "compute;" "update;-DDYNG_COMPILE_FAIL_UPDATE")
     PROPERTIES LABELS "cpu;cycle_count" PASS_REGULAR_EXPRESSION
                "dyng::cycle_count supports graph<int32_t, int32_t or int64_t"
   )
+endforeach()
+
+endif()
+
+# Compile-failure tests of the framework's conformance checks (framework/conformance.hpp, PLAN
+# Section 8.2): a problem missing a required declaration or hook stops at a static_assert with a
+# plain-English message. The control case (no define) must compile.
+set(_dyng_framework_cf_includes
+    -I${PROJECT_SOURCE_DIR}/cpp/src -I${PROJECT_SOURCE_DIR}/cpp/include
+    -I${DYNG_GENERATED_INCLUDE_DIR}
+)
+# name|define|expected message (a regular expression)
+foreach(
+  _case
+  "control||"
+  "no_base|-DDYNG_CF_NO_BASE|a problem must derive from"
+  "fixed_point_without_loop|-DDYNG_CF_FP_NO_LOOP|a fixed_point problem must provide `loop"
+  "aggregate_delta_without_ownership|-DDYNG_CF_AG_NO_OWNER|must declare `using ownership_type"
+  "aggregate_delta_without_count_minus|-DDYNG_CF_AG_NO_MINUS|count.context&, old_view"
+  "participant_without_target|-DDYNG_CF_NO_TARGET|must provide `const void. target"
+  "mixed_tiers_without_engine_choice|-DDYNG_CF_MIXED_TIERS|must say where its fused engine runs"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME framework.conformance.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   ${_dyng_framework_cf_includes}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/framework_conformance.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(framework.conformance.${_name} PROPERTIES LABELS "cpu;framework")
+  else()
+    set_tests_properties(
+      framework.conformance.${_name} PROPERTIES LABELS "cpu;framework" PASS_REGULAR_EXPRESSION
+                                                "${_message}"
+    )
+  endif()
+endforeach()
+
+# Compile-failure tests: sssp on an unsupported graph type stops at the static_assert that names the
+# supported types (as cycle_count's), not at a link error; so does another distance type.
+foreach(_case "compute;;dyng::sssp supports graph<" "update;-DDYNG_COMPILE_FAIL_UPDATE;dyng::sssp supports graph<"
+        "multi_update;-DDYNG_COMPILE_FAIL_MULTI;dyng::sssp supports graph<"
+        "distance_type;-DDYNG_COMPILE_FAIL_DISTANCE;distance_t is std::int64_t in 0.1"
+)
+  list(GET _case 0 _name)
+  list(GET _case 1 _define)
+  list(GET _case 2 _message)
+  add_test(NAME sssp.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/sssp_unsupported_types.cpp
+  )
+  set_tests_properties(
+    sssp.static_assert.${_name} PROPERTIES LABELS "cpu;sssp" PASS_REGULAR_EXPRESSION "${_message}"
+  )
+endforeach()
+
+# Compile-failure tests of dyng::update()'s argument checks (plain-English static_asserts instead
+# of an error inside the header): the owning batch instead of its view, and a type that is not a
+# container of dyng::update(). The control case must compile.
+foreach(
+  _case
+  "control||"
+  "owning_batch|-DDYNG_CF_OWNING_BATCH|the batch must be the container's batch view"
+  "not_a_container|-DDYNG_CF_NOT_A_CONTAINER|the container is not one dyng::update.. drives"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME update.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/update_arguments.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(update.static_assert.${_name} PROPERTIES LABELS "cpu;core")
+  else()
+    set_tests_properties(
+      update.static_assert.${_name} PROPERTIES LABELS "cpu;core" PASS_REGULAR_EXPRESSION
+                                               "${_message}"
+    )
+  endif()
+endforeach()
+
+# Compile-failure tests of the conformance kit's registration rules (invariant I8, PLAN Section
+# 8.2): test_traits that break a rule stop DYNG_CONFORMANCE_SUITE at a static_assert with a
+# plain-English message (conformance.hpp, registration_check). The control case must compile.
+set(_dyng_kit_cf_includes
+    -I${PROJECT_SOURCE_DIR}/cpp/tests -I${PROJECT_SOURCE_DIR}/cpp/src
+    -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+    "-I$<JOIN:$<TARGET_PROPERTY:GTest::gtest,INTERFACE_INCLUDE_DIRECTORIES>,$<SEMICOLON>-I>"
+    "-I$<JOIN:$<TARGET_PROPERTY:GTest::gmock,INTERFACE_INCLUDE_DIRECTORIES>,$<SEMICOLON>-I>"
+)
+# name|define|expected message (a regular expression)
+foreach(
+  _case
+  "control||"
+  "no_traits|-DDYNG_CF_NO_TRAITS|the algorithm has no test_traits specialisation"
+  "no_compute|-DDYNG_CF_NO_COMPUTE|cannot be registered without compute"
+  "no_update|-DDYNG_CF_NO_UPDATE|test_traits::update<graph_t>.res, g, batch, result. must"
+  "no_oracle_kind|-DDYNG_CF_NO_ORACLE|must declare its oracle kind"
+  "no_determinism_level|-DDYNG_CF_NO_LEVEL|must declare its determinism level"
+  "stats_without_batch|-DDYNG_CF_STATS_NO_BATCH|contain `apply_summary batch`"
+  "tolerance_without_compare|-DDYNG_CF_TOLERANCE_NO_CMP|determinism::tolerance must provide"
+  "reference_without_near_reference|-DDYNG_CF_REFERENCE_NO_NEAR|oracle_kind::reference needs"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME conformance.registration.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   ${_dyng_kit_cf_includes}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/conformance_registration.cpp
+           COMMAND_EXPAND_LISTS
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(conformance.registration.${_name} PROPERTIES LABELS "cpu;conformance")
+  else()
+    set_tests_properties(
+      conformance.registration.${_name} PROPERTIES LABELS "cpu;conformance"
+                                                   PASS_REGULAR_EXPRESSION "${_message}"
+    )
+  endif()
 endforeach()
 
 # Mutation tests (PLAN Section 8.4): the recorded mutations of CycleEnumeration-GPU (double counting
@@ -266,6 +407,7 @@ if(DYNG_ENABLE_CUDA)
 
   # sssp on the cuda backend: the shared sssp suites compiled with DYNG_TEST_CUDA=1 (their cases
   # run on cuda, the randomized ones against the host backends) plus the CUDA-only cases.
+  if(TARGET dyng_sssp)
   dyng_add_test(
     NAME dyng_sssp_cuda_tests
     SOURCES algorithms/sssp/sssp_test.cpp algorithms/sssp/sssp_random_test.cpp
@@ -282,10 +424,12 @@ if(DYNG_ENABLE_CUDA)
   if(DYNG_ENABLE_OPENMP)
     target_link_libraries(dyng_sssp_cuda_tests PRIVATE OpenMP::OpenMP_CXX)
   endif()
+  endif()
 
   # cycle_count on the cuda backend (M2b): the shared cycle_count suites compiled with
   # DYNG_TEST_CUDA=1 (their cases run on cuda; the fixtures against the original's CUDA backend)
   # plus the CUDA-only cases (bounds, schedulers, cross-backend chains, the resident graph).
+  if(TARGET dyng_cycle_count)
   dyng_add_test(
     NAME dyng_cycle_count_cuda_tests
     SOURCES ${DYNG_CYCLE_COUNT_TEST_SOURCES} algorithms/cycle_count/cycle_count_cuda_test.cpp
@@ -301,7 +445,86 @@ if(DYNG_ENABLE_CUDA)
   if(DYNG_ENABLE_OPENMP)
     target_link_libraries(dyng_cycle_count_cuda_tests PRIVATE OpenMP::OpenMP_CXX)
   endif()
+  endif()
 endif()
+
+# The conformance kit (PLAN Section 8.2; cpp/tests/conformance): one executable per built
+# algorithm (labels cpu, conformance and the algorithm's name), and in CUDA builds a second one
+# compiled with DYNG_TEST_CUDA=1 (labels gpu, conformance, name). The suite is the algorithm's
+# one-line algorithms/<name>/<name>_conformance_test.cpp; conformance/registry.hpp (generated by
+# scripts/regen.py) includes the test_traits of every algorithm built here (DYNG_ALGORITHM_<NAME>),
+# for the composition check C10. conformance/allocation_counter.cpp counts host heap allocations
+# for the budget check C8.
+get_property(_dyng_algorithms GLOBAL PROPERTY DYNG_BUILT_ALGORITHMS)
+set(_dyng_algorithm_defines)
+foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
+  string(TOUPPER "${_dyng_algorithm}" _dyng_upper)
+  list(APPEND _dyng_algorithm_defines DYNG_ALGORITHM_${_dyng_upper}=1)
+endforeach()
+foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
+  set(_suite "algorithms/${_dyng_algorithm}/${_dyng_algorithm}_conformance_test.cpp")
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_suite}")
+    message(FATAL_ERROR "dynG: ${_dyng_algorithm} has no conformance suite (cpp/tests/${_suite}); "
+                        "an algorithm cannot be registered without one (PLAN 8.2, invariant I8)")
+  endif()
+  set(_variants host)
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _variants cuda)
+  endif()
+  foreach(_variant IN LISTS _variants)
+    if(_variant STREQUAL "host")
+      set(_target dyng_${_dyng_algorithm}_conformance_tests)
+      dyng_add_test(
+        NAME ${_target}
+        SOURCES ${_suite} conformance/allocation_counter.cpp
+        LABELS cpu conformance ${_dyng_algorithm}
+        LIBRARIES dyng::testing
+      )
+    else()
+      set(_target dyng_${_dyng_algorithm}_conformance_cuda_tests)
+      dyng_add_test(
+        NAME ${_target}
+        SOURCES ${_suite} conformance/allocation_counter.cpp
+        LABELS gpu conformance ${_dyng_algorithm}
+        LIBRARIES dyng::testing
+        TEST_PREFIX "cuda."
+      )
+      target_compile_definitions(${_target} PRIVATE DYNG_TEST_CUDA=1)
+      dyng_set_cuda_options(${_target})  # the streams of C12
+    endif()
+    target_compile_definitions(${_target} PRIVATE ${_dyng_algorithm_defines})
+    target_include_directories(${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  endforeach()
+endforeach()
+
+# The registry and the kit agree: every algorithm of dyng::algorithms() has test_traits here.
+dyng_add_test(
+  NAME dyng_conformance_registry_tests
+  SOURCES conformance/registry_test.cpp conformance/engines_agree_test.cpp
+  LABELS cpu conformance
+)
+target_compile_definitions(dyng_conformance_registry_tests PRIVATE ${_dyng_algorithm_defines})
+target_include_directories(dyng_conformance_registry_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+
+# The scaffold check (PLAN Section 4.8): scripts/new_algorithm.py generates a throwaway algorithm of
+# each family in a copy of the source tree, which is configured, built and must pass its
+# conformance kit (ci/scaffold_check.sh; a nested build of a few minutes). Label scaffold only (not
+# cpu): run it with `ctest -L scaffold` or through ci/check.sh (step scaffold) and cpu.yml.
+find_program(DYNG_BASH bash)
+find_package(Git QUIET)
+if(DYNG_BASH AND GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
+  add_test(NAME scaffold.new_algorithm COMMAND "${DYNG_BASH}"
+                                               "${PROJECT_SOURCE_DIR}/ci/scaffold_check.sh")
+  set_tests_properties(scaffold.new_algorithm PROPERTIES LABELS "scaffold" TIMEOUT 3600)
+endif()
+
+# Algorithms may add their own test folder (scripts/new_algorithm.py writes one for its
+# <name>_test.cpp); sssp and cycle_count are listed above.
+foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/algorithms/${_dyng_algorithm}/CMakeLists.txt")
+    add_subdirectory(algorithms/${_dyng_algorithm})
+  endif()
+endforeach()
 
 add_subdirectory(api)
 

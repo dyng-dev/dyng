@@ -10,6 +10,69 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- Framework (M3, internal-stable): the update template as code in `cpp/src/framework/`:
+  `problem_base` (CRTP hooks with no-op defaults, families `fixed_point` and `aggregate_delta`),
+  `update_enactor` and `static_enactor` (the fixed hook order, one profiler stage per implemented
+  hook, the convergence cap with `on_limit`, the device error check), `old_view` / `new_view`
+  (invariant I1), `context`, the policies, the budgets of the algorithm phase (invariant I9, with
+  allocation and host-synchronization counters in `DYNG_DEBUG_BUDGETS` builds), compile-time
+  conformance checks, and the participant adapter for `run_update` composition. The guide is
+  `docs/developer/framework.md`.
+- `sssp` runs through the framework (M3): `detail::sssp_problem` with the Tier A hooks on the
+  sequential and OpenMP backends and the fused persistent kernel behind `enact_fused` (Tier B) on
+  CUDA; migrated one backend per commit with the golden parity (495 / 495 on every backend) and
+  the performance re-checked after each (`parity/results/M3.md`). No change to the public API,
+  the profiler stages or the results. `parity/perf_ab.py run --baseline-exe` times dynG against
+  an earlier dynG build.
+- `cycle_count` runs through the framework (M3): `detail::cycle_count_problem`, an aggregate-delta
+  problem with the ownership rule `ownership::min_member`, runs the Tier A hooks on the sequential
+  and OpenMP backends (`count` on the old view subtracts on G_t, `count` on the new view adds on
+  G_{t+1}, `finalize` applies the signed delta) and the ported CUDA kernels behind `enact_fused` /
+  `compute_fused` (Tier B), with the resident device graph and Step 0 once per update (ADR 0020)
+  unchanged; migrated one backend per commit with the golden parity (72 / 72 on the CPU and the
+  CUDA corpus) and the performance re-checked (`parity/results/M3.md`). The public multi-result
+  `dyng::update` now composes two framework problems. Profiles: under set semantics
+  `cycle_count.normalize` is called twice per update (the framework's Step 0 and the hook that
+  takes its lists), and on CUDA the ported code's stages sit inside a new `cycle_count.enact_fused`
+  stage; every other stage is unchanged. The CUDA engines of both algorithms and the graph's device
+  paths count their host synchronizations for the budgets (I9).
+- The conformance kit (M3, PLAN Section 8.2; `cpp/tests/conformance/`,
+  `docs/developer/conformance.md`): checks C0-C12 for every registered algorithm on every backend
+  and graph type, from a `test_traits` specialisation and one line `DYNG_CONFORMANCE_SUITE(<name>)`
+  (`dyng_<name>_conformance_tests`, labels `cpu;conformance;<name>`, and
+  `dyng_<name>_conformance_cuda_tests` in CUDA builds); sssp and cycle_count pass it on
+  sequential, OpenMP and CUDA. C8 runs in `DYNG_DEBUG_BUDGETS` builds (the dev presets) and counts
+  host heap allocations too (a counting `operator new` in the conformance executables).
+- The algorithm registry: `dyng::algorithms()` / `dyng::find_algorithm()` in
+  `<dyng/core/registry.hpp>` (name, title, family, container, maturity, determinism, oracle kind,
+  backends, cite keys of every algorithm built into the library), generated from the manifests;
+  `dyng::citation()` knows every registered algorithm.
+- `scripts/regen.py` (the algorithm tables of the README, the landing page and the algorithms
+  index, the CODEOWNERS block, the registries; `--check` in pre-commit, `ci/check.sh` and
+  `lint.yml`; it enforces the registration rules of invariant I8) and `scripts/new_algorithm.py`
+  with `cpp/src/algorithms/_template` (a fixed-point or aggregate-delta algorithm on the host
+  backends that builds and passes the kit on the first build; `ci/scaffold_check.sh`, CTest
+  `scaffold.new_algorithm`, job `scaffold` of `cpu.yml`). The manifests gain `computes`, `paper`
+  and `since`; the planned algorithms are listed in `cpp/src/algorithms/planned.toml`. The README
+  has the generated algorithm table.
+- The 0.1 API freeze (M3, ADR 0023, accepted under delegation; ADR 0006, the algorithm contract,
+  accepted with it): the review of `core/*`, `graph/*`, `update.hpp`, `sssp.hpp`,
+  `cycle_count.hpp` and the top-level headers, and the committed public-API listing
+  `cpp/tests/api/api_snapshot/public_api.txt`, generated from the Doxygen XML by
+  `ci/api_snapshot.py` and checked by `ci/docs.sh` (so by the `docs` workflow and `ci/check.sh`):
+  a change of a public signature, default value, field or enumerator fails until it is reviewed
+  and the baseline updated (`docs/developer/api_review_checklist.md`, "Updating the API
+  baseline"). The frozen headers are marked `frozen`, `io/*`, `generators/*` and `testing/*`
+  `tracked` (frozen in M5).
+- `to_string()` for `engine`, `determinism`, `memory_space`, `copy_policy`, `algorithm_family`,
+  `container_kind`, `maturity_level` and `oracle_kind` (the enumerators' own names, as in the
+  manifests).
+- Reviewed API sketches of the later algorithms, written against the frozen contract:
+  `docs/design/sketches/` (`mosp`, the `hypergraph` with `hyperedge_batch`, `triad_count`,
+  `label_propagation`, `hyper_sssp`).
+- The "Add an algorithm" guide outline (`docs/how_to/add_an_algorithm.md`, PLAN Section 9.4) and
+  the M3 retrospective with the re-estimate (`docs/developer/retrospectives/M3.md`); the M3 gate
+  suites on the final code in `parity/results/M3.md` section 4.
 - Governance: ADRs 0020 and 0021 accepted by the author (2026-09-29); technical ADRs may be
   accepted under delegation; the maintainer's commits are SSH-signed so that the DCO app exempts them.
 - ADR 0018 accepted (option B): the CUDA performance gate is read with the GPU clocks locked for
@@ -216,8 +279,100 @@ Before 0.1.0 anything may change.
   end 0.53-0.93x, update 0.44-0.65x of the original, COLLAB k = 3 0.29x) with the improvements
   isolated in their own section.
 
+### Fixed (M3 review)
+
+- Budgets (invariant I9) count per calling thread and exclude the profiler's `sync_stages`
+  synchronizations; an excess is logged in a Debug build and throws only under strict budgets
+  (`DYNG_STRICT_BUDGETS=1`, armed by the conformance kit), so a correct update on another thread
+  no longer fails and poisons its result. The half before the commit is measured too (cycle_count's
+  CUDA budget: 4 host synchronizations).
+- The framework chooses and checks the engine before the commit (an engine that does not exist or
+  cannot run, or `fallback_recompute` without a recompute hook, leaves the graph and the result
+  unchanged); `engine::automatic` picks a fused engine only where the problem's new
+  `fused_available(ctx)` says it runs.
+- `dyng::update()` / `update_each()` dispatch through `detail::participant_of<container_t>::run()`,
+  so a later container (the hypergraph) needs no change to `update.hpp`; passing the owning batch
+  or a non-container stops at a plain-English `static_assert`; `update_each()` rejects an empty
+  list and a list in device memory (`invalid_argument_error`, before anything changes).
+- `edge_batch::insert_edge` / `delete_edge` and `edge_list::add_edge` are strong under allocation
+  failure (a failed call leaves the arrays as they were); `to_vector()` reports allocation failure
+  as `out_of_memory_error`. Every mutating member of the container, batch and result classes states
+  its guarantee (`@guarantee`, checked by `ci/doxygen_coverage.py`).
+- `edge_list`'s fields are in the order of `edge_list_view` (`num_weights` last) (**breaking** for
+  positional brace-initialization of `edge_list`; the API baseline is updated).
+- Tooling: `regen.py` writes a space between long CODEOWNERS paths and their owners and rejects a
+  manifest that omits a backend whose source exists; `new_algorithm.py` refuses names that cannot
+  compile, removes only scaffolds (restoring their `planned.toml` entry) and writes the API page;
+  `ci/docs.sh --update-api` updates the API baseline (the documented `&&` command never could).
+- The kit: C4 is exercised on a fake two-engine algorithm, the registration rules have
+  compile-fail tests, and C0 catches a manifest that drops a backend.
+- Measurement: `parity/perf_ab.py memory` measures sssp's device memory against MOSP-CUDA
+  (0.81-0.86x; cycle_count 1.000x); the gate suites, parity replays and the readings against
+  pre-M3 dynG were repeated on the final code (`parity/results/M3.md` section 5, which also
+  corrects the conclusions of section 4.2); `parity/experiments/sssp_stage_ab.py` compares two
+  builds stage by stage.
+- `sssp::compute()` / `update()` stop at a plain-English `static_assert` for an unsupported graph
+  type (they failed to link), as cycle_count's do; `sssp::result`'s `distance_t` must be
+  `std::int64_t` (the only width in 0.1). The scaffold's template follows the same rule.
+- `to_string()` for `row_layout`, `row_order`, `multi_edges`, `batch_semantics::existing_insert` /
+  `missing_delete` / `self_loop` and `cycle_count::search_method` / `cycle_mode` /
+  `cuda_scheduler` / `cuda_work_items`.
+- `profiler` recording is thread-safe (copies of a `resources` handle share it and may run
+  concurrently); graphs, results and `dyng::update()` document their thread safety.
+- The API snapshot also lists the `dyng::detail` contract of the public signatures
+  (`update_traits`, `participant_of`, `stats_of`, the `*_supported_v` traits), every macro, and
+  the includes of `<dyng/dyng.hpp>`; macros need `@ingroup`.
+- Documentation: no references to the unpublished plan in the public headers; "deterministic per
+  backend" defined for `update_stats::engine_used` and `sssp::stats::packed_parents`; the sssp
+  synchronization text and the umbrella header's description corrected; sketch fixes (`mosp`
+  stage names, `hyper_sssp`'s budget guarantee, `triad_count`, the hypergraph's `hyperedge_list`).
+
+### Fixed (M3 acceptance)
+
+- cycle_count's CUDA DD 25K + 25K update read 1.02x of the pre-M3 dynG: the redundant host copy
+  of the normalized lists is gone (see "Changed"); 0.989-0.998x now.
+- `-DDYNG_ALGORITHMS=<one algorithm>` (PLAN 9.4) links: sssp is added to every subset.
+- Measurement (ADR 0024, accepted under delegation): a dynG-against-dynG A/B cycles its rounds
+  through heap layouts (`perf_ab.py run --layouts N`, `cycle_count_perf.py run --layouts N`),
+  because the same two builds read 0.99x or 1.10x of each other depending on the length of the
+  `--timing` file name; `parity/ab_modes.py` reads bimodal regions mode by mode with a bootstrap
+  interval; `parity/experiments/cycle_count_stage_ab.py` and `sssp_layout_scan.py`. Every suite
+  re-measured on the final code (`parity/results/M3.md` section 6): the gates against the
+  originals hold, and no gated region regresses by more than 2 % against `019ef13`.
+
 ### Changed
 
+- Exception guarantees (the 0.1 API review): `compute()`, `update()`, `from_arrays()`,
+  `graph::apply()`, `dyng::update()` and `dyng::update_each()` state them in a new `@guarantee`
+  paragraph (strong before the commit; basic after it, with the result poisoned; `graph::apply()`
+  strong), and `ci/doxygen_coverage.py` requires it. The checker takes the algorithm namespaces
+  from the manifests (it checked only `sssp` before). `dyng::update()`, `update_each()` and
+  `dyng::algorithms()` report host allocation failures as `out_of_memory_error` instead of
+  letting `std::bad_alloc` leave the library; `sssp::compute()` / `update()` document
+  `cuda_error`.
+- The header self-containment targets (`cpp/tests/api`) also fail when a public header includes a
+  CUDA, CUB, Thrust or libcu++ header.
+- Budgets (I9): a run that grows a reusable array on purpose (`detail::note_reservation()`: a new
+  workspace, a grown scratch buffer or per-thread list, a grown result) is a reserving run whose
+  allocations are reported, not failed; the graph's own materializations inside an update (its
+  device copy uploaded on first use, `detail::container_scope`) are container work and never held
+  against a problem's budget; `run_update()` records the commit's counts. sssp and cycle_count
+  declare their budgets (no allocation once reserved; 0 host syncs on the host backends, 1 and 2
+  on CUDA), checked by the update enactor in `DYNG_DEBUG_BUDGETS` builds.
+- OpenMP `sssp`: `list_gather` keeps its offsets in an inline array (up to 256 threads) instead of
+  a `std::vector` per gather, so the near-far rounds allocate nothing (found by C8); the same
+  trees.
+- A build of a subset of the algorithms (`-DDYNG_ALGORITHMS=...`) configures: the suites of an
+  algorithm are built with it, and the examples and compat tools (sssp and cycle_count) only when
+  both are built. sssp is part of every build (the library's MOSP batch generator and the shared
+  suites call it): a list without it gets it added, so `-DDYNG_ALGORITHMS=<name>` builds and links
+  (it failed to link before); `ci/scaffold_check.sh` builds every target of such a subset.
+- CUDA `cycle_count` under set semantics reads the framework's normalized change lists (their
+  device copy and their lengths) instead of copying them into its workspace first; the same
+  histograms and stats (the DD 25K + 25K update: about 0.07 ms less of 3.4 ms).
+- `.github/workflows/welcome.yml` no longer greets owners, organization members and repository
+  collaborators (the event's `author_association`); first-time outside contributors are greeted
+  as before.
 - The default edge offset type is `int32`: `dyng::graph<>` is `graph<int32, int32, int32>`, and
   building or updating a graph past 2^31 - 1 edges throws `capacity_error` naming the int64
   instantiation (ADR 0009, from the `edge_t` benchmark).

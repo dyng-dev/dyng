@@ -6,7 +6,9 @@
  */
 #include <dyng/citation.hpp>
 #include <dyng/core/error.hpp>
+#include <dyng/core/registry.hpp>
 
+#include <algorithm>
 #include <array>
 #include <string>
 #include <string_view>
@@ -84,8 +86,20 @@ std::string entry_text(std::string_view key) {
 }  // namespace
 
 std::vector<std::string> citation_keys(std::string_view what) {
-  const cite_entry& e = find_entry(what);
   std::vector<std::string> keys{std::string(library_key)};
+  // An algorithm of the registry that the table does not name (e.g. one added with
+  // scripts/new_algorithm.py) is cited with its manifest's keys.
+  const bool listed = std::any_of(cite_table.begin(), cite_table.end(),
+                                  [&](const cite_entry& e) { return e.name == what; });
+  if (!listed) {
+    if (const algorithm_info* info = find_algorithm(what)) {
+      for (const std::string_view k : info->cite) {
+        keys.emplace_back(k);
+      }
+      return keys;
+    }
+  }
+  const cite_entry& e = find_entry(what);
   for (auto k : e.keys) {
     if (!k.empty()) {
       keys.emplace_back(k);

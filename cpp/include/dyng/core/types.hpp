@@ -5,7 +5,7 @@
  * @brief Scalar conventions shared by every module: sentinels, weight tags, engine and determinism.
  * @ingroup core
  *
- * PLAN Section 4.4.2: public ids are 0-based; "none" is invalid_id<T>() == -1 for signed ids;
+ * Conventions: public ids are 0-based; "none" is invalid_id<T>() == -1 for signed ids;
  * shortest-path distances use infinite_distance<T>() == max / 4 (the MOSP DISTANCE_INF, kept for
  * byte parity with the original tools).
  */
@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <string_view>
 #include <type_traits>
 
 namespace dyng {
@@ -94,7 +95,8 @@ constexpr distance_t infinite_distance() noexcept {
 }
 
 /**
- * @brief Which CUDA update engine an algorithm uses (PLAN Section 4.5.4).
+ * @brief Which update engine an algorithm uses: a fused engine (a ported paper kernel) or the
+ *        composition of the framework's operators, or automatic (fused where it can run).
  * @ingroup core
  */
 enum class engine : std::uint8_t {
@@ -104,7 +106,8 @@ enum class engine : std::uint8_t {
 };
 
 /**
- * @brief What two runs of an algorithm are guaranteed to agree on (PLAN Section 5.1).
+ * @brief What two runs of an algorithm are guaranteed to agree on (the algorithm contract, ADR
+ *        0006).
  * @ingroup core
  */
 enum class determinism : std::uint8_t {
@@ -112,5 +115,21 @@ enum class determinism : std::uint8_t {
   exact_value,  ///< identical values (e.g. counts); internal order may differ
   tolerance,    ///< equal within a documented tolerance
 };
+
+/**
+ * @brief The lower-case name of an engine ("automatic", "fused", "operators").
+ * @param[in] e The engine.
+ * @return A static string naming `e` (the enumerator's name).
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(engine e) noexcept;
+
+/**
+ * @brief The lower-case name of a determinism level ("bitwise", "exact_value", "tolerance").
+ * @param[in] d The level.
+ * @return A static string naming `d` (the enumerator's name, as in the manifests).
+ * @ingroup core
+ */
+[[nodiscard]] std::string_view to_string(determinism d) noexcept;
 
 }  // namespace dyng

@@ -16,6 +16,7 @@
  * and the split kernel (edge-major to objective-major) is gone. The download of a stale host copy
  * (download_device_graph) is ordered on the stream the state was built on.
  */
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "graph/device_graph.hpp"
 #include "graph/instantiate.hpp"
@@ -176,6 +177,7 @@ void download_device_graph(const device_graph<vertex_t, edge_t, weight_t>& g,
   copy(host.col_ind, g.out_col_ind);
   copy(host.weights, g.out_weights);
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  note_host_sync();  // counted by the budgets (I9)
 }
 
 #define DYNG_INSTANTIATE_DEVICE_GRAPH(V, E, W)                                            \

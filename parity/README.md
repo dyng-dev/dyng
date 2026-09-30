@@ -32,7 +32,9 @@ $DYNG_SCRATCH/
 | `goldens.toml` | GENERATED manifest: the SHA-256 of each golden set's `MANIFEST.sha256` and one digest per case |
 | `compare.py` | verifies the goldens, then replays every case through `tools/compat` (dynG; `--configs sequential,openmp:<t>,cuda[:<device>]`) or through another original's copy, byte for byte |
 | `timed_regions/<algo>.toml` | the original's timers -> dynG profiler stages (written before each port); `perf_ab.py` loads it |
-| `perf_ab.py` | `prepare` the benchmark inputs with the original's own tool; `run` the A/B/A/B comparison under the perf lock (`--backend openmp` against MOSP-OpenMP, `--backend cuda` against MOSP-CUDA) |
+| `perf_ab.py` | `prepare` the benchmark inputs with the original's own tool; `run` the A/B/A/B comparison under the perf lock (`--backend openmp` against MOSP-OpenMP, `--backend cuda` against MOSP-CUDA; `--baseline-exe` against an earlier dynG build instead, for refactors: reported, not gated; with `--layouts N` the rounds cycle through N heap layouts, ADR 0024) |
+| `ab_modes.py` | reads the records of a dynG-against-dynG A/B by ADR 0024: every gated region's ratio of medians with its bootstrap interval, and a bimodal region by its within-mode ratios and the Fisher test of equal mode fractions; exit 1 if a region is outside the bar |
+| `experiments/` | one-off diagnostics, not gates: `sssp_stage_ab.py` and `cycle_count_stage_ab.py` (two builds stage by stage), `sssp_layout_scan.py` (two builds over heap layouts), the cycle_count variants of M2 |
 | `clock_lock/clock_holder.cu` | the idle helper through which `perf_ab.py run --backend cuda --lock-clocks boost` (the default; or `base`) keeps the GPU clocks locked for the whole A/B with Nsight Compute, without root (ADR 0018) |
 | `tests/` | smoke tests of the scripts (pytest; run by `ci/check.sh` and `lint.yml`) |
 | `fixtures/` | scripts that regenerate the small committed test fixtures (`cpp/tests/data`) from the same scratch copies |

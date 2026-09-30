@@ -40,7 +40,7 @@ struct graph_access;
  * graph state (a process-wide unique value that every construction and every batch renews and
  * clone() copies), so a result is detected as stale when it is used with another graph, or with
  * a graph variable that was reassigned since, even if the version counters are equal. The storage
- * belongs to the backend of the resources that created it (PLAN Section 4.6 rule 5): algorithms
+ * belongs to the backend of the resources that created it: algorithms
  * refuse resources of the other kind (host backends versus cuda) instead of copying the graph
  * silently, and to_backend(res) (or clone(res)) makes a copy for other resources.
  *
@@ -60,9 +60,17 @@ struct graph_access;
  *     applies it) and the device copy is dropped, then uploaded again on first use.
  * num_vertices() and num_edges() never download.
  *
+ * **Thread safety.** A graph is not thread-safe. Calls that only read it (view(), the accessors,
+ * to_csr(), an algorithm's compute() on it) may run concurrently with each other. A call that
+ * changes it (apply(), reserve(), an algorithm's update(), dyng::update()) must not overlap any
+ * other call on the same graph or on a result being updated with it: two concurrent updates of one
+ * graph, or reading a result on one thread (or stream) while another updates it, are undefined
+ * unless the caller orders them (a mutex, or stream events on CUDA). Distinct graphs and results
+ * may be used concurrently through copies of one resources handle.
+ *
  * Instantiated for (vertex_t, edge_t, weight_t) = (int32, int32, int32), (int32, int64, int32)
  * and (int64, int64, int32), and without weights for (int32, int32, unweighted) and
- * (int32, int64, unweighted) (PLAN Section 4.4.3). A graph with weight_t = unweighted has no
+ * (int32, int64, unweighted). A graph with weight_t = unweighted has no
  * weight columns. The default edge offset type is int32, the originals' type, fixed by the edge_t
  * benchmark (ADR 0009: 64-bit offsets cost more than 3 % on the parity suites). Construction is
  * checked: a graph whose edge count does not fit edge_t (from_edges(), or a batch that grows it
@@ -167,6 +175,9 @@ class graph {
    *         cannot be applied (as graph(const graph_properties&)).
    * @throws out_of_memory_error    if host memory cannot be allocated.
    * @sync
+   * @guarantee Strong for every error in the input (invalid_argument_error, not_supported_error):
+   *            `csr` is unchanged, because its arrays are taken over only once they are known to
+   *            be final. Basic for out_of_memory_error: `csr` may have been left empty.
    */
   [[nodiscard]] static graph from_csr(const resources& res, csr_type&& csr,
                                       const graph_properties& props = {});
@@ -203,7 +214,8 @@ class graph {
 
   /**
    * @brief The graph for the backend of `res`: the explicit move between the host backends and
-   *        cuda that the placement errors name (PLAN Section 4.6 rule 5).
+   *        cuda that the placement errors name (a graph is never copied
+   *        between them silently).
    *
    * In this release the same as clone(res) (a deep copy that belongs to the backend of `res`; the
    * original is unchanged), since a CUDA graph keeps its authoritative CSR on the host; ADR 0017
@@ -224,12 +236,14 @@ class graph {
    * straight port of MOSP's applyChangeBatch(), which builds a new CSR per batch, so the first
    * apply() after reserve() allocates new arrays and the reserved capacity is released. It gives
    * no guarantee against reallocation until the resident apply replaces the port (invariant I9
-   * exempts the port until then; PLAN Section 4.5.5).
+   * exempts the port until then; docs/developer/framework.md, "Budgets").
    * @param[in] res           Execution resources.
    * @param[in] edge_capacity Expected maximum number of stored edges.
    * @throws invalid_argument_error if `edge_capacity` is negative or the graph was moved from.
    * @throws out_of_memory_error    if the storage cannot be allocated.
    * @sync
+   * @guarantee Strong for the contents: the edges, the version and every result's validity are
+   *            unchanged (some arrays may keep a larger capacity).
    */
   void reserve(const resources& res, edge_t edge_capacity);
 
@@ -325,6 +339,9 @@ class graph {
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error (device merge).
    * @sync
+   * @guarantee Strong: the batch is validated and the next state is built completely before it
+   *            replaces the current one, so a throwing apply() leaves the graph (storage, version,
+   *            state identity) unchanged.
    */
   apply_summary apply(const resources& res, const edge_batch_view<vertex_t, weight_t>& batch);
 

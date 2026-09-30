@@ -5,8 +5,9 @@
 // defaultDelta, the choosePacking precondition)
 /**
  * @file sssp.cpp
- * @brief sssp: argument validation, version checks, backend dispatch and result bookkeeping
- *        (compute, update, result, from_arrays) and the explicit instantiations.
+ * @brief sssp: the members of sssp_problem (argument validation, version checks, Step 0, the
+ *        binding of the backend's engine, result bookkeeping), compute() and update() through the
+ *        framework's enactors, sssp::result and from_arrays, and the explicit instantiations.
  *
  * The per-objective preparation follows MOSP-OpenMP@c352151 mospUpdate(): the largest weight
  * (original graph and batch insertions, at least 1) and the weight sum of the original graph give
@@ -15,9 +16,14 @@
  * insertion heads are the heads of all insertions.
  */
 #include "algorithms/sssp/problem.hpp"
+#include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
 #include "core/resources_access.hpp"
 #include "core/staging.hpp"
+#include "framework/composition.hpp"
+#include "framework/context.hpp"
+#include "framework/enactor.hpp"
+#include "framework/views.hpp"
 #include "graph/apply_host.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
@@ -53,6 +59,7 @@ void sssp_workspace<vertex_t>::reserve(std::int64_t requested) {
   if (requested <= capacity) {
     return;
   }
+  note_reservation();  // invariant I9: a reserving run (core/budget_counters.hpp)
   const auto n = static_cast<std::size_t>(requested);
   packed.assign(n, ~0ULL);
   stamp.assign(n, 0);
@@ -370,24 +377,6 @@ void assign_host(const resources& res, std::vector<value_t>& out, array_view<con
   copy_to_host(res, out.data(), in.data(), in.space(), in.device(), in.size_bytes());
 }
 
-template <typename vertex_t, typename edge_t, typename weight_t>
-void run_update_engine(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run) {
-  if (res.get_backend() == backend::openmp) {
-    sssp_openmp_update(res, run);
-  } else {
-    sssp_sequential_update(res, run);
-  }
-}
-
-template <typename vertex_t, typename edge_t, typename weight_t>
-void run_compute_engine(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run) {
-  if (res.get_backend() == backend::openmp) {
-    sssp_openmp_compute(res, run);
-  } else {
-    sssp_sequential_compute(res, run);
-  }
-}
-
 /// MOSP's canonicalizeTree(): for every edge (u,v) with dist[u] + w(u,v) == dist[v] and
 /// u < parent[v], parent[v] becomes u.
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -565,264 +554,379 @@ void normalize_imported_tree(const resources& res, std::vector<std::int64_t>& di
                ")");
 }
 
-/// The participant of one sssp result in run_update() (and dyng::update()).
-template <typename vertex_t, typename edge_t, typename weight_t, typename distance_t>
-class sssp_participant final : public update_participant<vertex_t, edge_t, weight_t> {
-  static_assert(std::is_same_v<distance_t, std::int64_t>, "sssp: distance_t must be int64_t");
-
- public:
-  using graph_type = graph<vertex_t, edge_t, weight_t>;
-  using batch_type = edge_batch_view<vertex_t, weight_t>;
-
-  sssp_participant(sssp::result<vertex_t, distance_t>& r, sssp::stats& out)
-      : result_(r), out_(out) {}
-
-  [[nodiscard]] const void* target() const noexcept override {
-    return &result_;
-  }
-
-  void before_apply(const resources& res, const graph_type& g, const batch_type& batch) override {
-    expect_supported_backend(res, "sssp::update");
-    state_ = &sssp_access::state(result_);
-    expect_not_poisoned(*state_, "sssp::update");
-    if (state_->version != g.version()) {
-      throw stale_result_error(detail::concat_message(
-          "dyng: sssp::update: the result matches graph version ", state_->version,
-          " but the graph is at version ", g.version(),
-          " (the graph was changed without updating this result; recompute it, or update all "
-          "results together with dyng::update(res, g, batch, results...))"));
-    }
-    if (state_->graph_state != graph_access::impl(g).state_id) {
-      throw stale_result_error(detail::concat_message(
-          "dyng: sssp::update: the result was computed on another graph (or on an earlier state "
-          "of a graph variable that was reassigned since), although both are at version ",
-          g.version(), "; recompute it on this graph"));
-    }
-    const sssp::options& opt = state_->opt;
-    expect_graph(g, opt, "sssp::update");
-    graph_access::expect_placement(res, g, "sssp::update");
-    expect_result_placement(res, *state_, "sssp::update");
-    select_cuda_engine(res, opt.cuda_engine, "sssp::update");
-    DYNG_EXPECTS(static_cast<std::int64_t>(state_->num_vertices()) ==
-                     static_cast<std::int64_t>(g.num_vertices()),
-                 "sssp::update: the result has ", state_->num_vertices(),
-                 " vertices but the graph has ", g.num_vertices(),
-                 " (is it a result of this graph?)");
-
-    // ---- prepare (on G_t, as MOSP's mospUpdate() does before applying the batch) ----
-    scoped_stage stage(res, "sssp.prepare");
-    const int k = opt.objective;
-    const int num_weights = g.num_weights();
-    DYNG_EXPECTS(batch.num_weights == num_weights, "sssp::update: the batch has ",
-                 batch.num_weights, " weight(s) per insertion but the graph has ", num_weights);
-    const std::size_t num_inserts = batch.num_insertions();
-    DYNG_EXPECTS(batch.insert_weights.size() == num_inserts * static_cast<std::size_t>(num_weights),
-                 "sssp::update: the batch has ", batch.insert_weights.size(),
-                 " insertion weights for ", num_inserts, " insertions of ", num_weights,
-                 " weight(s)");
-    // Every array before any host read (run_update() stages device arrays to the host first).
-    expect_host_batch(batch, "sssp::update");
-    std::int64_t largest = 1;
-    std::int64_t max_id = -1;
-    for (std::size_t i = 0; i < num_inserts; ++i) {
-      const auto w =
-          static_cast<std::int64_t>(batch.insert_weights[i * static_cast<std::size_t>(num_weights) +
-                                                         static_cast<std::size_t>(k)]);
-      DYNG_EXPECTS(w >= 1, "sssp::update: insertion ", i, " has weight ", w, " in objective ", k,
-                   "; sssp needs weights in [1, 2^31 - 1]");
-      largest = std::max(largest, w);
-      if (i < batch.insert_src.size() && i < batch.insert_dst.size()) {
-        max_id = std::max<std::int64_t>(
-            max_id, std::max<std::int64_t>(batch.insert_src[i], batch.insert_dst[i]));
-      }
-    }
-    const column_summary column = summarize_column(res, graph_access::out_view(g).weight_column(k));
-    max_weight_ = std::max(largest, column.max_weight);
-    const std::int64_t n = g.num_vertices();
-    const std::int64_t m = g.num_edges();
-    delta_ = opt.delta > 0 ? opt.delta
-                           : sssp_default_delta(std::max<std::int64_t>(m, 1), n, column.weight_sum);
-    std::int64_t n_after = n;
-    if (g.properties().semantics.allow_vertex_growth) {
-      n_after = std::max(n_after, max_id + 1);
-    }
-    DYNG_EXPECTS(sssp_distances_fit(n_after, max_weight_), "sssp::update: distances up to ",
-                 max_weight_, " * ", n_after - 1, " do not fit in 62 bits");
-  }
-
-  void after_apply(const resources& res, const graph_type& g, const apply_summary& summary,
-                   const apply_delta<vertex_t>& delta) override {
-    sssp_state<vertex_t, distance_t>& st = *state_;
-    const auto n = static_cast<std::size_t>(g.num_vertices());
-    // New vertices (vertex growth) start unreachable.
-    if (n > st.num_vertices()) {
-      grow(res, st, n);
-    }
-    DYNG_EXPECTS(sssp_distances_fit(static_cast<std::int64_t>(n), max_weight_),
-                 "sssp::update: distances up to ", max_weight_, " * ", n - 1,
-                 " do not fit in 62 bits");
-    sssp_counters counters =
-        is_cuda(res) ? update_cuda(res, g, delta, st) : update_host(res, g, delta, st);
-
-    sssp::stats s;
-    s.affected = counters.affected;
-    s.iterations = counters.iterations;
-    s.frontier_visits = counters.pushes;
-    s.fallback_used = false;
-    s.converged = true;
-    s.engine_used = res.get_backend() == backend::sequential ? engine::operators : engine::fused;
-    s.batch = summary;
-    s.invalidated = counters.invalidated;
-    s.epochs = counters.epochs;
-    s.pushes = counters.pushes;
-    s.packed_parents = counters.packed_parents;
-    out_ = s;
-    st.version = g.version();
-    st.graph_state = graph_access::impl(g).state_id;
-  }
-
-  void poison() noexcept override {
-    if (state_ != nullptr) {
-      state_->poisoned = true;
+/// The change list of objective k: every deletion, then every insertion that raised the
+/// objective's weight (MOSP's weightIncreaseMask, one byte per insertion and objective here);
+/// the insertion heads are the heads of all insertions.
+template <typename vertex_t>
+void build_changes(const apply_delta<vertex_t>& delta, int k, std::vector<vertex_t>& changed_from,
+                   std::vector<vertex_t>& changed_to) {
+  changed_from.assign(delta.delete_src.begin(), delta.delete_src.end());
+  changed_to.assign(delta.delete_dst.begin(), delta.delete_dst.end());
+  const std::size_t num_ins = delta.insert_src.size();
+  const auto num_objectives = static_cast<std::size_t>(delta.num_weights);
+  for (std::size_t i = 0; i < num_ins; ++i) {
+    if (delta.weight_increased[i * num_objectives + static_cast<std::size_t>(k)] != 0) {
+      changed_from.push_back(delta.insert_src[i]);
+      changed_to.push_back(delta.insert_dst[i]);
     }
   }
+}
 
- private:
-  /// The change list of objective k: every deletion, then every insertion that raised the
-  /// objective's weight (MOSP's weightIncreaseMask, one byte per insertion and objective here);
-  /// the insertion heads are the heads of all insertions.
-  static void build_changes(const apply_delta<vertex_t>& delta, int k,
-                            std::vector<vertex_t>& changed_from,
-                            std::vector<vertex_t>& changed_to) {
-    changed_from.assign(delta.delete_src.begin(), delta.delete_src.end());
-    changed_to.assign(delta.delete_dst.begin(), delta.delete_dst.end());
-    const std::size_t num_ins = delta.insert_src.size();
-    const auto num_objectives = static_cast<std::size_t>(delta.num_weights);
-    for (std::size_t i = 0; i < num_ins; ++i) {
-      if (delta.weight_increased[i * num_objectives + static_cast<std::size_t>(k)] != 0) {
-        changed_from.push_back(delta.insert_src[i]);
-        changed_to.push_back(delta.insert_dst[i]);
-      }
-    }
+/// Vertex growth: the new vertices are unreachable (INF, parent -1).
+template <typename vertex_t, typename distance_t>
+void grow(const resources& res, sssp_state<vertex_t, distance_t>& st, std::size_t n) {
+  note_reservation();  // invariant I9: a reserving run (core/budget_counters.hpp)
+  if (st.space == memory_space::host) {
+    st.distances.resize(n, sssp_infinity);
+    st.parents.resize(n, vertex_t{-1});
+    return;
   }
-
-  /// Vertex growth: the new vertices are unreachable (INF, parent -1).
-  static void grow(const resources& res, sssp_state<vertex_t, distance_t>& st, std::size_t n) {
-    if (st.space == memory_space::host) {
-      st.distances.resize(n, sssp_infinity);
-      st.parents.resize(n, vertex_t{-1});
-      return;
-    }
 #if DYNG_HAS_CUDA
-    const std::size_t old_n = st.num_vertices();
-    buffer<distance_t> distances(res, n);
-    buffer<vertex_t> parents(res, n);
-    copy_bytes(distances.data(), memory_space::device, st.device_distances.data(),
-               memory_space::device, old_n * sizeof(distance_t), res.stream(), res.device());
-    copy_bytes(parents.data(), memory_space::device, st.device_parents.data(), memory_space::device,
-               old_n * sizeof(vertex_t), res.stream(), res.device());
-    {
-      const scoped_device guard(res.device());
-      fill_async(res.stream(), distances.data() + old_n, n - old_n, distance_t{sssp_infinity});
-      fill_async(res.stream(), parents.data() + old_n, n - old_n, vertex_t{-1});
-    }
-    // The old arrays are released on res.stream(), after the copies above that read them: the
-    // result may have been computed (and its arrays allocated) on another stream, whose earlier
-    // work the caller has ordered before this call (PLAN 4.7.4). Released on their own stream they
-    // could be reused by another allocation before the copies ran.
-    st.device_distances.set_stream(res.stream());
-    st.device_parents.set_stream(res.stream());
-    st.device_distances = std::move(distances);
-    st.device_parents = std::move(parents);
+  const std::size_t old_n = st.num_vertices();
+  buffer<distance_t> distances(res, n);
+  buffer<vertex_t> parents(res, n);
+  copy_bytes(distances.data(), memory_space::device, st.device_distances.data(),
+             memory_space::device, old_n * sizeof(distance_t), res.stream(), res.device());
+  copy_bytes(parents.data(), memory_space::device, st.device_parents.data(), memory_space::device,
+             old_n * sizeof(vertex_t), res.stream(), res.device());
+  {
+    const scoped_device guard(res.device());
+    fill_async(res.stream(), distances.data() + old_n, n - old_n, distance_t{sssp_infinity});
+    fill_async(res.stream(), parents.data() + old_n, n - old_n, vertex_t{-1});
+  }
+  // The old arrays are released on res.stream(), after the copies above that read them: the
+  // result may have been computed (and its arrays allocated) on another stream, whose earlier
+  // work the caller has ordered before this call (PLAN 4.7.4). Released on their own stream they
+  // could be reused by another allocation before the copies ran.
+  st.device_distances.set_stream(res.stream());
+  st.device_parents.set_stream(res.stream());
+  st.device_distances = std::move(distances);
+  st.device_parents = std::move(parents);
 #else
-    (void)res;
-    DYNG_FAIL("sssp: a device result without the cuda backend");
+  (void)res;
+  DYNG_FAIL("sssp: a device result without the cuda backend");
 #endif
-  }
-
-  /// Host backends: the objective's change list in the pooled workspace, then the engine.
-  sssp_counters update_host(const resources& res, const graph_type& g,
-                            const apply_delta<vertex_t>& delta,
-                            sssp_state<vertex_t, distance_t>& st) const {
-    const int k = st.opt.objective;
-    // The scratch memory of the engines, shared with the other results run through `res` (the K
-    // objectives of dyng::update_each() use one workspace one after the other, as MOSP's
-    // mospUpdate() shares its SospWorkspace; ADR 0015).
-    auto ws = lease_workspace<vertex_t>(res, static_cast<std::int64_t>(g.num_vertices()));
-    // Kept in the workspace, whose capacity is reused from batch to batch.
-    build_changes(delta, k, ws->changed_from, ws->changed_to);
-    sssp_changes<vertex_t> changes;
-    changes.changed_from = ws->changed_from.data();
-    changes.changed_to = ws->changed_to.data();
-    changes.num_changed = ws->changed_to.size();
-    changes.insert_heads = delta.insert_dst.data();
-    changes.num_insert_heads = delta.insert_dst.size();
-
-    sssp_run<vertex_t, edge_t, weight_t> run;
-    run.graph = objective_graph(res, g, k);
-    run.changes = &changes;
-    run.source = st.source;
-    run.delta = delta_;
-    run.max_weight = max_weight_;
-    run.distances = st.distances.data();
-    run.parents = st.parents.data();
-    run.ws = &ws.get();
-    run_update_engine(res, run);
-    return run.counters;
-  }
-
-  /// CUDA backend: the change lists are built on the host (as mospUpdate() builds them) and
-  /// uploaded into the pooled device workspace (stage sssp.changes), then the fused engine runs
-  /// (stage sssp.enact_fused, MOSP's per-objective "sosp_update_gpu" region).
-  sssp_counters update_cuda(const resources& res, const graph_type& g,
-                            const apply_delta<vertex_t>& delta,
-                            sssp_state<vertex_t, distance_t>& st) const {
-    const int k = st.opt.objective;
-    auto ws = lease_cuda_workspace<vertex_t>(res, static_cast<std::int64_t>(g.num_vertices()));
-    sssp_changes<vertex_t> changes;
-    {
-      scoped_stage stage(res, "sssp.changes");
-      build_changes(delta, k, ws->changed_from, ws->changed_to);
-      const std::size_t num_changed = ws->changed_to.size();
-      const std::size_t num_heads = delta.insert_dst.size();
-      vertex_t* from = ws->device_changed_from.reserve(res, num_changed);
-      vertex_t* to = ws->device_changed_to.reserve(res, num_changed);
-      vertex_t* heads = ws->device_insert_heads.reserve(res, num_heads);
-      upload(res, from, ws->changed_from.data(), num_changed);
-      upload(res, to, ws->changed_to.data(), num_changed);
-      upload(res, heads, delta.insert_dst.data(), num_heads);
-      changes.changed_from = from;
-      changes.changed_to = to;
-      changes.num_changed = num_changed;
-      changes.insert_heads = heads;
-      changes.num_insert_heads = num_heads;
-    }
-    sssp_run<vertex_t, edge_t, weight_t> run;
-    run.graph = device_objective_graph(res, g, k);
-    run.changes = &changes;
-    run.source = st.source;
-    run.delta = delta_;
-    run.max_weight = max_weight_;
-    run.distances = st.device_distances.data();
-    run.parents = st.device_parents.data();
-    run.cuda_ws = &ws.get();
-    sssp_cuda_update(res, run);
-    return run.counters;
-  }
-
-  sssp::result<vertex_t, distance_t>& result_;
-  sssp::stats& out_;
-  sssp_state<vertex_t, distance_t>* state_ = nullptr;
-  std::int64_t max_weight_ = 1;
-  std::int64_t delta_ = 1;
-};
+}
 
 }  // namespace
+
+// ------------------------------------------------------------------------------------------------
+// sssp_problem: the hooks (problem.hpp), run by the framework's enactors
+// ------------------------------------------------------------------------------------------------
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::begin_update(framework::context& ctx, old_graph g,
+                                                            const requested& /*batch*/) {
+  const resources& res = ctx.res();
+  expect_supported_backend(res, "sssp::update");
+  state_ = &sssp_access::state(*result_);
+  expect_not_poisoned(*state_, "sssp::update");
+  const container_type& graph = g.get();
+  framework::expect_current_result("sssp::update", state_->version, state_->graph_state, graph);
+  const sssp::options& opt = state_->opt;
+  expect_graph(graph, opt, "sssp::update");
+  graph_access::expect_placement(res, graph, "sssp::update");
+  expect_result_placement(res, *state_, "sssp::update");
+  select_cuda_engine(res, opt.cuda_engine, "sssp::update");
+  DYNG_EXPECTS(static_cast<std::int64_t>(state_->num_vertices()) ==
+                   static_cast<std::int64_t>(graph.num_vertices()),
+               "sssp::update: the result has ", state_->num_vertices(),
+               " vertices but the graph has ", graph.num_vertices(),
+               " (is it a result of this graph?)");
+}
+
+/// On G_t, as MOSP's mospUpdate() does before applying the batch.
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::prepare(framework::context& ctx, old_graph g,
+                                                       const requested& requested_batch) {
+  const resources& res = ctx.res();
+  const container_type& graph = g.get();
+  const edge_batch_view<vertex_t, weight_t>& batch = requested_batch.edges;
+  const int k = state_->opt.objective;
+  const int num_weights = graph.num_weights();
+  DYNG_EXPECTS(batch.num_weights == num_weights, "sssp::update: the batch has ", batch.num_weights,
+               " weight(s) per insertion but the graph has ", num_weights);
+  const std::size_t num_inserts = batch.num_insertions();
+  DYNG_EXPECTS(batch.insert_weights.size() == num_inserts * static_cast<std::size_t>(num_weights),
+               "sssp::update: the batch has ", batch.insert_weights.size(),
+               " insertion weights for ", num_inserts, " insertions of ", num_weights,
+               " weight(s)");
+  // Every array before any host read (run_update() stages device arrays to the host first).
+  expect_host_batch(batch, "sssp::update");
+  std::int64_t largest = 1;
+  std::int64_t max_id = -1;
+  for (std::size_t i = 0; i < num_inserts; ++i) {
+    const auto w =
+        static_cast<std::int64_t>(batch.insert_weights[i * static_cast<std::size_t>(num_weights) +
+                                                       static_cast<std::size_t>(k)]);
+    DYNG_EXPECTS(w >= 1, "sssp::update: insertion ", i, " has weight ", w, " in objective ", k,
+                 "; sssp needs weights in [1, 2^31 - 1]");
+    largest = std::max(largest, w);
+    if (i < batch.insert_src.size() && i < batch.insert_dst.size()) {
+      max_id = std::max<std::int64_t>(
+          max_id, std::max<std::int64_t>(batch.insert_src[i], batch.insert_dst[i]));
+    }
+  }
+  const column_summary column =
+      summarize_column(res, graph_access::out_view(graph).weight_column(k));
+  max_weight_ = std::max(largest, column.max_weight);
+  const std::int64_t n = graph.num_vertices();
+  const std::int64_t m = graph.num_edges();
+  delta_ = state_->opt.delta > 0
+               ? state_->opt.delta
+               : sssp_default_delta(std::max<std::int64_t>(m, 1), n, column.weight_sum);
+  std::int64_t n_after = n;
+  if (graph.properties().semantics.allow_vertex_growth) {
+    n_after = std::max(n_after, max_id + 1);
+  }
+  DYNG_EXPECTS(sssp_distances_fit(n_after, max_weight_), "sssp::update: distances up to ",
+               max_weight_, " * ", n_after - 1, " do not fit in 62 bits");
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::resume(framework::context& ctx, new_graph g,
+                                                      const applied& applied) {
+  const resources& res = ctx.res();
+  const container_type& graph = g.get();
+  state_type& st = *state_;
+  const auto n = static_cast<std::size_t>(graph.num_vertices());
+  // New vertices (vertex growth) start unreachable.
+  if (n > st.num_vertices()) {
+    grow(res, st, n);
+  }
+  DYNG_EXPECTS(sssp_distances_fit(static_cast<std::int64_t>(n), max_weight_),
+               "sssp::update: distances up to ", max_weight_, " * ", n - 1,
+               " do not fit in 62 bits");
+  const int k = st.opt.objective;
+  const apply_delta<vertex_t>& delta = applied.delta;
+  run_ = sssp_run<vertex_t, edge_t, weight_t>{};
+  run_.changes = &changes_;
+  run_.source = st.source;
+  run_.delta = delta_;
+  run_.max_weight = max_weight_;
+  if (ctx.on_cuda()) {
+    // The change lists are built on the host (as mospUpdate() builds them) and uploaded into the
+    // pooled device workspace (stage sssp.changes); the fused engine runs in enact_fused (stage
+    // sssp.enact_fused, MOSP's per-objective "sosp_update_gpu" region). Leased until end_update().
+    cuda_ws_.emplace(lease_cuda_workspace<vertex_t>(res, static_cast<std::int64_t>(n)));
+    sssp_cuda_workspace<vertex_t>& ws = cuda_ws_->get();
+    {
+      scoped_stage stage(res, "sssp.changes");
+      build_changes(delta, k, ws.changed_from, ws.changed_to);
+      const std::size_t num_changed = ws.changed_to.size();
+      const std::size_t num_heads = delta.insert_dst.size();
+      vertex_t* from = ws.device_changed_from.reserve(res, num_changed);
+      vertex_t* to = ws.device_changed_to.reserve(res, num_changed);
+      vertex_t* heads = ws.device_insert_heads.reserve(res, num_heads);
+      upload(res, from, ws.changed_from.data(), num_changed);
+      upload(res, to, ws.changed_to.data(), num_changed);
+      upload(res, heads, delta.insert_dst.data(), num_heads);
+      changes_ = sssp_changes<vertex_t>{};
+      changes_.changed_from = from;
+      changes_.changed_to = to;
+      changes_.num_changed = num_changed;
+      changes_.insert_heads = heads;
+      changes_.num_insert_heads = num_heads;
+    }
+    run_.graph = device_objective_graph(res, graph, k);
+    run_.distances = st.device_distances.data();
+    run_.parents = st.device_parents.data();
+    run_.cuda_ws = &ws;
+    return;
+  }
+  // The scratch memory of the engines, shared with the other results run through `res` (the K
+  // objectives of dyng::update_each() use one workspace one after the other, as MOSP's
+  // mospUpdate() shares its SospWorkspace; ADR 0015). Returned in end_update(), before the next
+  // result's resume().
+  host_ws_.emplace(lease_workspace<vertex_t>(res, static_cast<std::int64_t>(n)));
+  sssp_workspace<vertex_t>& ws = host_ws_->get();
+  // Kept in the workspace, whose capacity is reused from batch to batch.
+  build_changes(delta, k, ws.changed_from, ws.changed_to);
+  changes_ = sssp_changes<vertex_t>{};
+  changes_.changed_from = ws.changed_from.data();
+  changes_.changed_to = ws.changed_to.data();
+  changes_.num_changed = ws.changed_to.size();
+  changes_.insert_heads = delta.insert_dst.data();
+  changes_.num_insert_heads = delta.insert_dst.size();
+  run_.graph = objective_graph(res, graph, k);
+  run_.distances = st.distances.data();
+  run_.parents = st.parents.data();
+  run_.ws = &ws;
+  bind_engine(res);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::end_update(framework::context& /*ctx*/, new_graph g,
+                                                          const stats_type& /*stats*/) {
+  framework::stamp_result(state_->version, state_->graph_state, g.get());
+  sequential_.reset();
+  openmp_.reset();
+  host_ws_.reset();
+  cuda_ws_.reset();
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::poison() noexcept {
+  if (state_ != nullptr) {
+    state_->poisoned = true;
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& ctx, new_graph g,
+                                                           std::int64_t delta,
+                                                           std::int64_t max_weight) {
+  const resources& res = ctx.res();
+  const container_type& graph = g.get();
+  state_type& st = *state_;
+  const std::int64_t n = graph.num_vertices();
+  run_ = sssp_run<vertex_t, edge_t, weight_t>{};
+  run_.source = st.source;
+  run_.delta = delta;
+  run_.max_weight = max_weight;
+  if (ctx.on_cuda()) {
+    // MOSP-CUDA's sospFromScratchGpu(): the kernel writes every entry of both arrays.
+    st.space = memory_space::device;
+    st.device = res.device();
+    st.device_distances = buffer<std::int64_t>(res, static_cast<std::size_t>(n));
+    st.device_parents = buffer<vertex_t>(res, static_cast<std::size_t>(n));
+    cuda_ws_.emplace(lease_cuda_workspace<vertex_t>(res, n));  // pooled scratch (ADR 0015)
+    run_.graph = device_objective_graph(res, graph, st.opt.objective);
+    run_.distances = st.device_distances.data();
+    run_.parents = st.device_parents.data();
+    run_.cuda_ws = &cuda_ws_->get();
+    return;
+  }
+  st.distances.assign(static_cast<std::size_t>(n), sssp_infinity);
+  st.parents.assign(static_cast<std::size_t>(n), vertex_t{-1});
+  host_ws_.emplace(lease_workspace<vertex_t>(res, n));  // the handle's pooled scratch (ADR 0015)
+  // The OpenMP engine computes from scratch with pushes only; the sequential engine also reads
+  // the in-edges.
+  run_.graph =
+      objective_graph(res, graph, st.opt.objective, res.get_backend() == backend::sequential);
+  run_.distances = st.distances.data();
+  run_.parents = st.parents.data();
+  run_.ws = &host_ws_->get();
+  bind_engine(res);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::bind_engine(const resources& res) {
+  if (res.get_backend() == backend::openmp) {
+    openmp_.emplace(res, run_);
+  } else {
+    sequential_.emplace(run_);
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+template <typename fn_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::on_engine(fn_t&& fn) {
+  if (openmp_) {
+    fn(*openmp_);
+  } else {
+    fn(*sequential_);
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::identify_affected(framework::context& /*ctx*/,
+                                                                 new_graph /*g*/,
+                                                                 const applied& /*applied*/,
+                                                                 frontier& /*f*/) {
+  on_engine([](auto& engine) { engine.identify_affected(); });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::seed(framework::context& /*ctx*/, new_graph /*g*/,
+                                                    frontier& /*f*/) {
+  on_engine([](auto& engine) { engine.seed(); });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::loop(framework::context& /*ctx*/, new_graph /*g*/,
+                                                    frontier& /*in*/, frontier& /*out*/) {
+  on_engine([](auto& engine) { engine.loop(); });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::finalize(framework::context& /*ctx*/,
+                                                        stats_type& stats) {
+  on_engine([](auto& engine) { engine.finalize(); });
+  fill_stats(stats);
+  if (openmp_) {
+    // The OpenMP engine is the ported paper engine (MOSP-OpenMP's sospUpdateCpu), reported as
+    // fused, as since M1a; the sequential engine is the hook-by-hook reference (operators).
+    stats.engine_used = engine::fused;
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::fill_stats(stats_type& stats) const {
+  const sssp_counters& counters = run_.counters;
+  stats.affected = counters.affected;
+  stats.iterations = counters.iterations;
+  stats.frontier_visits = counters.pushes;
+  stats.invalidated = counters.invalidated;
+  stats.epochs = counters.epochs;
+  stats.pushes = counters.pushes;
+  stats.packed_parents = counters.packed_parents;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+engine sssp_problem<vertex_t, edge_t, weight_t>::select_engine(
+    framework::context& ctx) const noexcept {
+  return ctx.on_cuda() ? engine::fused : engine::operators;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+framework::budget sssp_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
+    framework::context& ctx) const noexcept {
+  return framework::budget::steady_state(ctx.on_cuda() ? 1 : 0);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::raise_device_errors(framework::context& ctx) const {
+  if (run_.device_errors != 0) {
+    ctx.raise_device_error(run_.device_errors, run_.device_error_detail != nullptr
+                                                   ? std::string_view(run_.device_error_detail)
+                                                   : std::string_view());
+  }
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::enact_fused(framework::context& ctx, new_graph /*g*/,
+                                                           const applied& /*applied*/,
+                                                           stats_type& stats) {
+  sssp_cuda_update(ctx.res(), run_);
+  raise_device_errors(ctx);
+  fill_stats(stats);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::compute_fused(framework::context& ctx,
+                                                             new_graph /*g*/, stats_type& stats) {
+  sssp_cuda_compute(ctx.res(), run_);
+  raise_device_errors(ctx);
+  fill_stats(stats);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::reset(framework::context& /*ctx*/) {
+  on_engine([](auto& engine) { engine.reset(); });
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::seed_static(framework::context& /*ctx*/,
+                                                           new_graph /*g*/, frontier& /*f*/) {
+  on_engine([](auto& engine) { engine.seed_static(); });
+}
 
 template <typename vertex_t, typename edge_t, typename weight_t, typename distance_t>
 std::unique_ptr<update_participant<vertex_t, edge_t, weight_t>> make_sssp_participant(
     sssp::result<vertex_t, distance_t>& r, sssp::stats& out) {
-  return std::make_unique<sssp_participant<vertex_t, edge_t, weight_t, distance_t>>(r, out);
+  static_assert(std::is_same_v<distance_t, std::int64_t>, "sssp: distance_t must be int64_t");
+  return framework::make_participant<sssp_problem<vertex_t, edge_t, weight_t>>(out, r);
 }
 
 }  // namespace dyng::detail
@@ -1044,9 +1148,14 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::result::from_arrays (", g.num_vertices(
 // compute / update
 // ------------------------------------------------------------------------------------------------
 
+}  // namespace dyng::sssp
+
+namespace dyng::detail {
+
 template <typename vertex_t, typename edge_t, typename weight_t>
-result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
-                         vertex_t source, const options& opt) try {
+sssp::result<vertex_t> sssp_compute(const resources& res,
+                                    const graph<vertex_t, edge_t, weight_t>& g, vertex_t source,
+                                    const sssp::options& opt) try {
   detail::expect_supported_backend(res, "sssp::compute");
   scoped_stage stage(res, "sssp.compute");
   detail::expect_options(opt);
@@ -1069,55 +1178,38 @@ result<vertex_t> compute(const resources& res, const graph<vertex_t, edge_t, wei
   state->opt = opt;
   state->version = g.version();
   state->graph_state = detail::graph_access::impl(g).state_id;
-  detail::sssp_run<vertex_t, edge_t, weight_t> run;
-  run.source = source;
-  run.delta = opt.delta > 0 ? opt.delta
-                            : detail::sssp_default_delta(std::max<std::int64_t>(g.num_edges(), 1),
-                                                         n, column.weight_sum);
-  run.max_weight = column.max_weight;
-  if (detail::is_cuda(res)) {
-    // MOSP-CUDA's sospFromScratchGpu(): the kernel writes every entry of both arrays.
-    state->space = memory_space::device;
-    state->device = res.device();
-    state->device_distances = buffer<std::int64_t>(res, static_cast<std::size_t>(n));
-    state->device_parents = buffer<vertex_t>(res, static_cast<std::size_t>(n));
-    auto ws = detail::lease_cuda_workspace<vertex_t>(res, n);  // pooled scratch (ADR 0015)
-    run.graph = detail::device_objective_graph(res, g, opt.objective);
-    run.distances = state->device_distances.data();
-    run.parents = state->device_parents.data();
-    run.cuda_ws = &ws.get();
-    detail::sssp_cuda_compute(res, run);
-    return detail::sssp_access::make(std::move(state));
-  }
-  state->distances.assign(static_cast<std::size_t>(n), detail::sssp_infinity);
-  state->parents.assign(static_cast<std::size_t>(n), vertex_t{-1});
-  auto ws = detail::lease_workspace<vertex_t>(res, n);  // the handle's pooled scratch (ADR 0015)
-  // The OpenMP engine computes from scratch with pushes only; the sequential engine also reads
-  // the in-edges.
-  run.graph =
-      detail::objective_graph(res, g, opt.objective, res.get_backend() == backend::sequential);
-  run.distances = state->distances.data();
-  run.parents = state->parents.data();
-  run.ws = &ws.get();
-  detail::run_compute_engine(res, run);
+  const std::int64_t delta =
+      opt.delta > 0 ? opt.delta
+                    : detail::sssp_default_delta(std::max<std::int64_t>(g.num_edges(), 1), n,
+                                                 column.weight_sum);
+  // The static enactor: reset -> seed_static -> loop -> finalize (host backends), or the fused
+  // engine in sssp.enact_fused (cuda).
+  using problem_type = detail::sssp_problem<vertex_t, edge_t, weight_t>;
+  problem_type problem(*state);
+  detail::framework::context ctx(res, problem_type::name);
+  const detail::framework::new_view<graph<vertex_t, edge_t, weight_t>> view(g);
+  problem.bind_static(ctx, view, delta, column.max_weight);
+  (void)detail::framework::static_enactor<problem_type>(problem).run(ctx, view);
   return detail::sssp_access::make(std::move(state));
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::compute (", g.num_vertices(), " vertices, ", g.num_edges(),
                                   " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
-             const edge_batch_view<vertex_t, weight_t>& batch, result<vertex_t>& r) try {
-  scoped_stage stage(res, "sssp.update");
-  stats out;
-  detail::sssp_participant<vertex_t, edge_t, weight_t, std::int64_t> participant(r, out);
-  detail::update_participant<vertex_t, edge_t, weight_t>* participants[] = {&participant};
-  detail::run_update(res, g, batch, participants, 1, "sssp.commit");
-  return out;
+sssp::stats sssp_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
+                        const edge_batch_view<vertex_t, weight_t>& batch,
+                        sssp::result<vertex_t>& r) try {
+  // Stage sssp.update around run_update() with the commit stage sssp.commit (framework::update_one).
+  return detail::framework::update_one<detail::sssp_problem<vertex_t, edge_t, weight_t>>(res, g,
+                                                                                         batch, r);
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::update (", g.num_vertices(), " vertices, ", g.num_edges(),
                                   " edges; batch of ", batch.num_insertions(), " insertions, ",
                                   batch.num_deletions(), " deletions)")
+
+}  // namespace dyng::detail
+
+namespace dyng::sssp {
 
 // ------------------------------------------------------------------------------------------------
 // Explicit instantiations (PLAN Section 4.4.3)
@@ -1126,12 +1218,9 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::update (", g.num_vertices(), " vertices
 template class result<std::int32_t, std::int64_t>;
 template class result<std::int64_t, std::int64_t>;
 
-#define DYNG_INSTANTIATE_SSSP(V, E, W)                                                             \
-  template result<V> compute<V, E, W>(const resources&, const graph<V, E, W>&, V, const options&); \
-  template stats update<V, E, W>(const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&,  \
-                                 result<V>&);                                                      \
-  template result<V> result<V>::from_arrays<E, W>(const resources&, const graph<V, E, W>&, V,      \
-                                                  array_view<const std::int64_t>,                  \
+#define DYNG_INSTANTIATE_SSSP(V, E, W)                                                        \
+  template result<V> result<V>::from_arrays<E, W>(const resources&, const graph<V, E, W>&, V, \
+                                                  array_view<const std::int64_t>,             \
                                                   array_view<const V>, bool, const options&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP)
 #undef DYNG_INSTANTIATE_SSSP
@@ -1140,8 +1229,12 @@ DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP)
 
 namespace dyng::detail {
 
-#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)           \
-  template std::unique_ptr<update_participant<V, E, W>> \
+#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)                                                \
+  template sssp::result<V> sssp_compute<V, E, W>(const resources&, const graph<V, E, W>&, V, \
+                                                 const sssp::options&);                      \
+  template sssp::stats sssp_update<V, E, W>(const resources&, graph<V, E, W>&,               \
+                                            const edge_batch_view<V, W>&, sssp::result<V>&); \
+  template std::unique_ptr<update_participant<V, E, W>>                                      \
   make_sssp_participant<V, E, W, std::int64_t>(sssp::result<V, std::int64_t>&, sssp::stats&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP_DETAIL)
 #undef DYNG_INSTANTIATE_SSSP_DETAIL

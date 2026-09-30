@@ -122,18 +122,26 @@ dyng_add_module(
   NAME core
   SOURCES
     src/core/backend.cpp
+    src/core/budget_counters.cpp
     src/core/citation.cpp
     src/core/cuda_runtime.cpp
     src/core/error.cpp
     src/core/logging.cpp
     src/core/memory.cpp
     src/core/memory_cuda.cpp
+    src/core/names.cpp
     src/core/profiler.cpp
+    src/core/registry.cpp
     src/core/resources.cpp
     src/core/staging.cpp
     src/core/version.cpp
     "${PROJECT_BINARY_DIR}/cpp/generated/references_bib.cpp"
 )
+if(DYNG_DEBUG_BUDGETS)
+  # Invariant I9: the allocation and host-synchronization counters count (core/budget_counters.cpp;
+  # every other file calls them unconditionally, so only this module needs the define).
+  target_compile_definitions(dyng_core PRIVATE DYNG_DEBUG_BUDGETS=1)
+endif()
 if(DYNG_WITH_NVTX)
   # Header-only (NVTX 3 loads its tool at run time); nothing appears in the export set.
   target_link_libraries(dyng_core PRIVATE $<BUILD_INTERFACE:CUDA::nvtx3>)
@@ -153,7 +161,7 @@ dyng_add_module(
 
 dyng_add_module(
   NAME graph
-  SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp
+  SOURCES src/graph/apply_host.cpp src/graph/apply_set_host.cpp src/graph/graph.cpp src/graph/names.cpp
           src/graph/structural_change.cpp
   CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu
 )
@@ -168,7 +176,10 @@ dyng_add_module(
     src/io/result_io.cpp
 )
 
-dyng_add_module(NAME framework SOURCES src/framework/composition.cpp src/framework/workspace.cpp)
+dyng_add_module(
+  NAME framework SOURCES src/framework/budgets.cpp src/framework/composition.cpp
+                         src/framework/workspace.cpp
+)
 
 dyng_add_module(
   NAME generators SOURCES src/generators/legacy.cpp src/generators/legacy_cycle_enum.cpp
@@ -177,6 +188,13 @@ dyng_add_module(
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
 add_subdirectory(src/algorithms)
+# The registry (core/registry.cpp) lists the algorithms built here: DYNG_ALGORITHM_<NAME> selects
+# their entries of the generated table (scripts/regen.py writes src/core/registry_table.inc).
+get_property(DYNG_BUILT_ALGORITHMS GLOBAL PROPERTY DYNG_BUILT_ALGORITHMS)
+foreach(_dyng_algorithm IN LISTS DYNG_BUILT_ALGORITHMS)
+  string(TOUPPER "${_dyng_algorithm}" _dyng_upper)
+  target_compile_definitions(dyng_core PRIVATE DYNG_ALGORITHM_${_dyng_upper}=1)
+endforeach()
 
 # dyng::testing: host-only oracles for users and the test suites (PLAN Section 5.8). It shares no
 # code with the algorithms it checks.

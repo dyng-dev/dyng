@@ -7,11 +7,18 @@ Doxygen (run by ci/docs.sh with WARN_AS_ERROR) already fails on undocumented ent
 missing @param / @return. This script reads its XML output and additionally requires:
 
   * every public header has an @file comment with a @brief;
-  * every class, struct, function, enumeration, typedef and variable at namespace scope belongs
-    to a group (@ingroup / @defgroup); members of a class inherit the group of their class;
+  * every class, struct, function, enumeration, typedef, variable and macro at namespace (or file)
+    scope belongs to a group (@ingroup / @defgroup); members of a class inherit the group of their
+    class;
   * every documented entity has a one-line @brief (a non-empty brief description);
-  * compute() and update() of every algorithm namespace carry @backends and @determinism, and
-    @paper for the published algorithms (all algorithms ported so far are published);
+  * compute() and update() of every algorithm namespace (one per manifest under
+    cpp/src/algorithms/) carry @backends, @determinism, @paper and @guarantee (the exception
+    guarantee, PLAN Section 4.7.3; the 0.1 API review, ADR 0023), and so do the other functions
+    that mutate a container or a result: graph::apply(), dyng::update() and dyng::update_each()
+    (@guarantee only), and every public member function of the container, batch and result
+    classes (GUARANTEE_CLASSES) that can change the object or consume an argument: non-const,
+    not noexcept, not a constructor, destructor or assignment (a noexcept function is no-throw by
+    its signature), plus the static factories that take an rvalue reference (they consume it);
   * every CUDA-capable function carries @sync or @async and documents its exceptions (at least
     one @throws, or `noexcept`; destructors are exempt from the latter): every function that
     takes a `resources`, a `stream_ref` or a `memory_resource_ref`, and the members that do
@@ -24,12 +31,58 @@ Usage: ci/doxygen_coverage.py <doxygen-xml-dir>
 from __future__ import annotations
 
 import sys
+import tomllib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-ALGORITHM_NAMESPACES = {"dyng::sssp"}
-REQUIRED_ALGO_PARS = ("Backends:", "Determinism:", "Paper:")
+REPO = Path(__file__).resolve().parent.parent
+REQUIRED_ALGO_PARS = ("Backends:", "Determinism:", "Paper:", "Exception safety:")
+# Functions outside the algorithm namespaces that change a container or a result: each states
+# its exception guarantee (strong / basic) with @guarantee.
+GUARANTEED_FUNCTIONS = {"dyng::graph::apply", "dyng::update", "dyng::update_each"}
+# The container, batch and result classes of the public API: their mutating members state their
+# guarantee (see the module docstring).
+GUARANTEE_CLASSES = {
+    "dyng::graph",
+    "dyng::edge_batch",
+    "dyng::edge_list",
+    "dyng::sssp::result",
+    "dyng::cycle_count::result",
+}
+
+
+def needs_guarantee(class_name: str, member: ET.Element) -> bool:
+    """Whether a member function of a GUARANTEE_CLASSES class must carry @guarantee."""
+    if class_name not in GUARANTEE_CLASSES or member.get("kind") != "function":
+        return False
+    mname = text_of(member.find("name"))
+    short = class_name.rsplit("::", 1)[1]
+    if mname in (short, "~" + short, "operator="):
+        return False
+    args = text_of(member.find("argsstring"))
+    if "noexcept" in args:
+        return False
+    if member.get("static") == "yes":
+        return any(text_of(p.find("type")).endswith("&&") for p in member.findall("param"))
+    return member.get("const") != "yes"
+
+
+def algorithm_namespaces(root: Path = REPO) -> set[str]:
+    """dyng::<name> of every algorithm manifest (cpp/src/algorithms/<name>/manifest.toml; the
+    scaffold's _template is not an algorithm)."""
+    names = set()
+    for manifest in sorted((root / "cpp" / "src" / "algorithms").glob("*/manifest.toml")):
+        if manifest.parent.name.startswith("_"):
+            continue
+        names.add("dyng::" + tomllib.loads(manifest.read_text())["name"])
+    return names
+
+
+ALGORITHM_NAMESPACES = algorithm_namespaces()
 IGNORED_NAMESPACES = {"std"}
+
+
+ALIAS_OF = {"Exception safety:": "@guarantee"}
 
 
 def text_of(node: ET.Element | None) -> str:
@@ -126,6 +179,14 @@ def main(argv: list[str]) -> int:
         if kind == "file":
             if not text_of(cdef.find("briefdescription")):
                 problems.append(f"{loc}: header has no @file / @brief")
+            # A grouped macro is listed with its group; one left in the file compound is not.
+            for member in cdef.iter("memberdef"):
+                if member.get("kind") == "define":
+                    mloc = member.find("location")
+                    problems.append(
+                        f"{mloc.get('file')}:{mloc.get('line')}: macro "
+                        f"{text_of(member.find('name'))} is not in any group (@ingroup)"
+                    )
             continue
         if kind == "namespace":
             if name in IGNORED_NAMESPACES:
@@ -194,8 +255,14 @@ def main(argv: list[str]) -> int:
                     titles = {text_of(t) for t in member.iter("title")}
                     for required in REQUIRED_ALGO_PARS:
                         if required not in titles:
-                            tag = "@" + required.rstrip(":").lower()
+                            tag = ALIAS_OF.get(required, "@" + required.rstrip(":").lower())
                             problems.append(f"{at}: {qualified} has no {tag}")
+            if member.get("kind") == "function":
+                qualified = text_of(member.find("qualifiedname")) or f"{name}::{mname}"
+                if qualified in GUARANTEED_FUNCTIONS or needs_guarantee(name, member):
+                    titles = {text_of(t) for t in member.iter("title")}
+                    if "Exception safety:" not in titles:
+                        problems.append(f"{at}: {qualified} has no @guarantee")
 
     for problem in sorted(set(problems)):
         print(f"doxygen-coverage: {problem}")

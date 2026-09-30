@@ -15,6 +15,9 @@ CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py).
     parity/perf_ab.py kernels --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--json ...]
     parity/perf_ab.py edge-type --backend openmp|cuda --exe <parity build> [--runs 21] ...
+    parity/perf_ab.py memory --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--gpu 0]
+                          [--graph roadNet-CA] [--batches ...] [--json ...]
+    parity/perf_ab.py run --baseline-exe <earlier dynG build> --baseline-label <commit> --exe ...
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
 roadNet-CA, rgg (rgg_n_2_20_s0) and road_usa_g (road_usa); --hops defaults to the local-batch
@@ -47,6 +50,13 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          the original's median is below 10 ms), "end_to_end" <= 1.10x. --enforce-gates exits
          non-zero on an exceeded gate.
 
+--baseline-exe replaces side A (the original) by an earlier dynG build's dyng-compat-mosp (for
+         example the code before a refactor, PLAN 6.3 step 8, or main before a milestone), run
+         with the same arguments and read through the same profiler stages as side B. The
+         correctness guards stay (byte-identical outputs, equal invalidated counters); the region
+         ratios are the change of the refactor and are reported, not gated. The record's
+         "reference" names the baseline (--baseline-label).
+
 --backend cuda compares dynG's cuda backend (`dyng-compat-mosp --backend cuda`, parity-cuda
          preset) with the UNPATCHED MOSP-CUDA@e220ee2 (bin/mosp) on the same prepared inputs,
          with the regions of [[reference.mosp_cuda.region]]. Both run on GPU --gpu (default 0, the
@@ -65,6 +75,12 @@ run      rebuilds (idempotently) and verifies the unpatched copy, checks that --
          at the end in any case. --lock-clocks none keeps the default clocks (DVFS): the
          as-measured reading, in which a program's own GPU work before the timed region decides
          the P-state of its kernels.
+
+memory   (cuda) the device-memory gate of PLAN 8.6 (<= 1.05x): each side (MOSP-CUDA's bin/mosp and
+         dyng-compat-mosp --backend cuda) runs once per batch under `nsys profile
+         --cuda-memory-usage=true`; the peak of its live device allocations (cudaMalloc and
+         cudaMallocAsync; memory kind Device) is compared, with the largest stream-ordered pool
+         size nsys reports for the port (as `perf_ab.py cycle_count memory`).
 
 kernels  (cuda) runs both sides A/B/A/B under Nsight Compute with the GPU clocks locked to base
          (`ncu --clock-control base --cache-control none`, no root needed) and compares the
@@ -964,7 +980,8 @@ def summarize(
     return out
 
 
-def report(results: dict, labels: tuple[str, str] = ("original", "dynG")) -> list[str]:
+def report(results: dict, labels: tuple[str, str] | None = None) -> list[str]:
+    labels = labels or ("original", "dynG")
     lines = [
         f"| batch | region | reading | {labels[0]} (ms) | {labels[1]} (ms) | ratio | gate | "
         f"spread A / B | {labels[1]} device (ms) |",
@@ -1122,6 +1139,25 @@ def batch_list(args: argparse.Namespace) -> list[str]:
     return batches
 
 
+LAYOUT_STEP = 8  # bytes of file name added per layout (--layouts)
+
+
+def layout_timing(work: Path, stem: str, args: argparse.Namespace, r: int) -> Path:
+    """The --timing file of round r (0-based). With --layouts N > 1 its name grows by
+    LAYOUT_STEP * (r mod N) characters, the same on both sides of the round: the argument's length
+    moves the program's heap layout (parity/results/M3.md section 6.3), so the rounds of a
+    dynG-against-dynG A/B cycle through N layouts instead of reading a single one."""
+    layouts = getattr(args, "layouts", 1)
+    extra = LAYOUT_STEP * (r % layouts) if layouts > 1 else 0
+    # Directory components of at most 200 characters carry what does not fit in the file name.
+    folder = work
+    while extra > 200:
+        folder = folder / ("x" * 200)
+        extra -= 200
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / f"{stem}{'x' * extra}.csv"
+
+
 def batch_args(data: Path, batch: str) -> list:
     return [
         "--graph",
@@ -1178,13 +1214,23 @@ def run(args: argparse.Namespace) -> int:
     keys = report_keys(regions)
     reference = REFERENCES[args.backend]
     exe, build = check_port_build(args)
-    # Rebuild (idempotent) and verify the unpatched copy before timing it.
-    build_reference(reference["name"])
-    ref = reference_copy(reference["name"])
-    mosp = ref / "bin" / "mosp"
-    marker = ref / ".dyng-reference"
     data, k = bench_inputs(args.graph)
     env, port_args = run_env(args)
+    baseline = args.baseline_exe.resolve() if args.baseline_exe else None
+    if baseline is not None:
+        # Side A is an earlier dynG build (PLAN 6.3 step 8: a refactor against the code before
+        # it), read through the same profiler stages as side B; the ratios are reported, not gated.
+        if not baseline.is_file():
+            raise SystemExit(f"--baseline-exe {baseline} does not exist")
+        regions = [dict(r, gate="none") for r in regions]
+        ref, marker = baseline.parent, baseline.parent / ".no-reference-marker"
+        side_a = [baseline, *port_args]
+    else:
+        # Rebuild (idempotent) and verify the unpatched copy before timing it.
+        build_reference(reference["name"])
+        ref = reference_copy(reference["name"])
+        marker = ref / ".dyng-reference"
+        side_a = [ref / "bin" / "mosp"]
     batches = batch_list(args)
     results = {}
     failures = []
@@ -1199,9 +1245,9 @@ def run(args: argparse.Namespace) -> int:
             for batch in batches:
                 common = batch_args(data, batch)
                 # Correctness guard: both write their outputs once; the files must be identical.
-                run_one([mosp, *common, "--out", work / "A"], env)
+                run_one([*side_a, *common, "--out", work / "A"], env)
                 run_one([exe, *common, *port_args, "--out", work / "B"], env)
-                same_outputs(work / "A", work / "B", k, f"{batch}: the original and the port")
+                same_outputs(work / "A", work / "B", k, f"{batch}: side A and the port")
                 print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
                 samples: dict[str, list] = {"original": [], "port": []}
                 loads = []
@@ -1216,8 +1262,18 @@ def run(args: argparse.Namespace) -> int:
                     r = 0
                     while r < args.runs:
                         before = os.getloadavg()[0]
-                        log_a, win_a = monitor.run([mosp, *common, "--no-output"], env)
-                        orig = parse_original(log_a, k, keys)
+                        timing = layout_timing(work, "timing", args, r)
+                        if baseline is not None:
+                            log_a, win_a = monitor.run(
+                                [*side_a, *common, "--no-output", "--timing", timing], env
+                            )
+                            orig = parse_port(log_a, timing, k)
+                            orig["objectives"] = [
+                                stage_sum(orig, regions[0]["port"], o) for o in range(k)
+                            ]
+                        else:
+                            log_a, win_a = monitor.run([*side_a, *common, "--no-output"], env)
+                            orig = parse_original(log_a, k, keys)
                         log, win_b = monitor.run(
                             [exe, *common, *port_args, "--no-output", "--timing", timing], env
                         )
@@ -1250,12 +1306,13 @@ def run(args: argparse.Namespace) -> int:
                     k,
                     args.runs,
                     loads,
+                    a_value=port_value if baseline is not None else None,
                     monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
                 )
     finally:
         with contextlib.suppress(OSError):
             subprocess.run(["rm", "-rf", str(work)], check=False)
-    report(results)
+    report(results, labels=(args.baseline_label, "dynG") if baseline is not None else None)
     exceeded = [
         f"{b}: {e['region']} ({e['reading']}) {e['ratio']:.3f} > {e['gate']:.2f}"
         for b, res in results.items()
@@ -1550,7 +1607,9 @@ def kernels(args: argparse.Namespace) -> int:
             "port": {"commit": port_commit(), "binary": portable_path(args.exe), "build": build},
             "protocol": {
                 "runs": args.runs,
-                "order": "A/B/A/B (original first)",
+                "order": "A/B/A/B (side A first: "
+                + ("the dynG baseline" if getattr(args, "baseline_exe", None) else "the original")
+                + ")",
                 "tool": subprocess.run([NCU, "--version"], capture_output=True, text=True)
                 .stdout.strip()
                 .splitlines()[-1],
@@ -1592,13 +1651,22 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
         "backend": args.backend,
         "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "graph": args.graph,
-        "reference": {
-            "name": reference["name"],
-            "commit": reference["commit"],
-            "variant": "unpatched",
-            "binary": portable_path(ref / "bin" / "mosp"),
-            "build": marker.read_text() if marker.is_file() else None,
-        },
+        "reference": (
+            {
+                "name": reference["name"],
+                "commit": reference["commit"],
+                "variant": "unpatched",
+                "binary": portable_path(ref / "bin" / "mosp"),
+                "build": marker.read_text() if marker.is_file() else None,
+            }
+            if not getattr(args, "baseline_exe", None)
+            else {
+                "name": "dynG baseline (--baseline-exe; not a gate)",
+                "label": args.baseline_label,
+                "binary": portable_path(args.baseline_exe),
+                "build": port_build(args.baseline_exe.resolve(), args.backend),
+            }
+        ),
         "port": {
             "commit": port_commit(),
             "binary": portable_path(args.exe),
@@ -1607,7 +1675,9 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
         "region_map": {"file": portable_path(REGION_MAP), "regions": [r["name"] for r in regions]},
         "protocol": {
             "runs": args.runs,
-            "order": "A/B/A/B (original first)",
+            "order": "A/B/A/B (side A first: "
+            + ("the dynG baseline" if getattr(args, "baseline_exe", None) else "the original")
+            + ")",
             "threads": args.threads,
             "env": " ".join(
                 ["OMP_PROC_BIND=close", "OMP_PLACES=cores"]
@@ -1628,6 +1698,13 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
                 + ("kept and flagged" if args.keep_contaminated else "repeated")
             ),
             "statistic": "median",
+            "layouts": (
+                f"{args.layouts} heap layouts, round r in layout r mod {args.layouts} (the "
+                f"--timing file name {LAYOUT_STEP} * (r mod {args.layouts}) characters longer, "
+                "the same on both sides)"
+                if getattr(args, "layouts", 1) > 1
+                else "one (a fixed --timing file name)"
+            ),
             "outputs": "--no-output on both",
             "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
         },
@@ -1640,6 +1717,65 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
     args.json.parent.mkdir(parents=True, exist_ok=True)
     args.json.write_text(json.dumps(doc, indent=1) + "\n")
     print(f"wrote {args.json}")
+
+
+def memory(args: argparse.Namespace) -> int:
+    """PLAN 8.6 device memory of sssp on CUDA: the peak live device allocations of MOSP-CUDA and
+    of the port per batch, each measured in one process under Nsight Systems."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import cycle_count_perf
+
+    exe, build = check_port_build(args)
+    data, k = bench_inputs(args.graph)
+    reference = REFERENCES["cuda"]
+    build_reference(reference["name"])
+    ref = reference_copy(reference["name"])
+    env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(args.gpu), CUDA_MODULE_LOADING="EAGER")
+    work = Path(tempfile.mkdtemp(prefix="dyng-mem-sssp-", dir=SCRATCH / "runs"))
+    results: dict = {}
+    try:
+        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
+            for batch in batch_list(args):
+                common = [*batch_args(data, batch), "--no-output"]
+                row = {
+                    "original": cycle_count_perf.device_memory(
+                        [ref / "bin" / "mosp", *common], env, work / "a"
+                    ),
+                    "port": cycle_count_perf.device_memory(
+                        [exe, *common, "--backend", "cuda"], env, work / "b"
+                    ),
+                }
+                base = row["original"]["peak_live_mib"]
+                row["ratio"] = row["port"]["peak_live_mib"] / base if base else float("nan")
+                results[batch] = row
+                print(
+                    f"{args.graph} {batch}: original {base} MiB, port "
+                    f"{row['port']['peak_live_mib']} MiB (pool {row['port']['pool_mib']} MiB), "
+                    f"ratio {row['ratio']:.3f}",
+                    flush=True,
+                )
+    finally:
+        subprocess.run(["rm", "-rf", str(work)], check=False)
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "sssp",
+            "backend": "cuda",
+            "what": "device memory (PLAN 8.6): the peak of live device allocations per process "
+            "(nsys --cuda-memory-usage, memory kind Device: cudaMalloc and cudaMallocAsync), "
+            "and the largest stream-ordered pool size nsys reported for the port",
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "graph": args.graph,
+            "objectives": k,
+            "reference": {"name": reference["name"], "binary": portable_path(ref / "bin" / "mosp")},
+            "port": {"commit": port_commit(), "binary": portable_path(exe), "build": build},
+            "gpu": args.gpu,
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    return 0
 
 
 def main() -> int:
@@ -1660,13 +1796,14 @@ def main() -> int:
         ("run", "the port against the unpatched original (the gates)"),
         ("edge-type", "the edge_t benchmark: the port with int32 (A) vs int64 (B) edge offsets"),
         ("kernels", "cuda: the fused kernels of both under Nsight Compute, clocks locked to base"),
+        ("memory", "cuda: the peak device memory of both under Nsight Systems (PLAN 8.6)"),
     ]:
         r = sub.add_parser(command, help=help_text)
         r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
         r.add_argument(
             "--backend",
             choices=sorted(REFERENCES),
-            default="cuda" if command == "kernels" else "openmp",
+            default="cuda" if command in ("kernels", "memory") else "openmp",
             help="openmp: against MOSP-OpenMP c352151; cuda: against MOSP-CUDA e220ee2",
         )
         r.add_argument("--gpu", type=int, default=0, help="--backend cuda: the GPU of both sides")
@@ -1709,6 +1846,27 @@ def main() -> int:
         )
         if command == "run":
             r.add_argument(
+                "--baseline-exe",
+                type=Path,
+                help="replace side A (the original) by an earlier dynG build's dyng-compat-mosp, "
+                "read through the same profiler stages (PLAN 6.3 step 8: a refactor against the "
+                "code before it); the ratios are reported, not gated",
+            )
+            r.add_argument(
+                "--baseline-label",
+                default="baseline",
+                help="the name of side A in the report with --baseline-exe (e.g. a commit)",
+            )
+            r.add_argument(
+                "--layouts",
+                type=int,
+                default=1,
+                metavar="N",
+                help="with --baseline-exe: cycle the rounds through N heap layouts (the --timing "
+                "file name grows by 8 characters per layout, the same on both sides; M3.md "
+                "section 6.3); 1 (the default) reads one layout",
+            )
+            r.add_argument(
                 "--lock-clocks",
                 choices=["boost", "base", "none"],
                 default="boost",
@@ -1725,6 +1883,13 @@ def main() -> int:
     args = parser.parse_args()
     if args.command != "prepare" and args.runs < 5:
         parser.error("--runs must be >= 5 (PLAN Section 6.3 step 7)")
+    if getattr(args, "layouts", 1) < 1:
+        parser.error("--layouts must be >= 1")
+    if getattr(args, "layouts", 1) > 1 and not getattr(args, "baseline_exe", None):
+        parser.error(
+            "--layouts is for a dynG-against-dynG A/B (--baseline-exe): the originals "
+            "take no --timing file, so only the port's layout would move"
+        )
     if args.command == "prepare" and args.hops is None:
         if args.graph not in HOPS:
             parser.error(f"--hops is required for {args.graph} (known: {sorted(HOPS)})")
@@ -1732,7 +1897,13 @@ def main() -> int:
     # SIGTERM / SIGHUP unwind like Ctrl-C, so that a clock lock is always released.
     for sig in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(sig, lambda signum, frame: sys.exit(128 + signum))
-    commands = {"prepare": prepare, "run": run, "edge-type": edge_type, "kernels": kernels}
+    commands = {
+        "prepare": prepare,
+        "run": run,
+        "edge-type": edge_type,
+        "kernels": kernels,
+        "memory": memory,
+    }
     return commands[args.command](args)
 
 

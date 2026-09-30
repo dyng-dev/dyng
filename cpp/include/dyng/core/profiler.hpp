@@ -7,7 +7,7 @@
  *
  * A profiler is attached to dyng::resources (resources::attach_profiler); there is no global
  * registry. Stage and counter names follow the fixed scheme `<algo>.<hook>[.<sub>]` in dotted
- * lower case, e.g. `sssp.identify_affected` or `graph.apply` (PLAN Section 4.7.5), so every
+ * lower case, e.g. `sssp.identify_affected` or `graph.apply`, so every
  * algorithm's profile has the same shape. Output: CSV `kind,name,value` (compatible with the
  * MOSP `--timing` CSV) and JSON.
  */
@@ -19,6 +19,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace dyng {
@@ -80,8 +81,13 @@ struct counter_record {
 /**
  * @brief Records stage times and counters of library calls.
  *
- * Not thread-safe: record from the thread that calls the library (library code records stages
- * only outside its parallel regions).
+ * Thread safety: recording is safe from several threads at once. Library calls that run
+ * concurrently through copies of one resources handle (which share its profiler) record into the
+ * same profiler; the stages of each calling thread nest separately (a stage's depth is its depth
+ * on its own thread), and the aggregated records combine every thread's calls. Reading the
+ * records (stages(), samples(), counters(), write_csv(), write_json()) and reset() must not
+ * overlap a call that records: read them after the calls returned (the references stay valid
+ * until the next recording or reset()).
  * @ingroup core
  */
 class profiler {
@@ -191,6 +197,7 @@ class profiler {
   struct open_stage {
     std::size_t record;
     std::chrono::steady_clock::time_point start;
+    std::thread::id thread;  ///< the thread that opened it (stages nest per thread)
   };
 
   profiler_options options_;

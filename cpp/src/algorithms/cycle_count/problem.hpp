@@ -5,49 +5,76 @@
 // apply_histogram_delta)
 /**
  * @file problem.hpp
- * @brief The cycle_count problem: state, workspace and the hook entry points shared by the
- *        sequential and OpenMP backends.
+ * @brief The cycle_count problem on the framework (cpp/src/framework): its hooks, its state and
+ *        workspaces, and the engines of the three backends.
  *
  * Template card (PLAN Section 4.5.2):
  *
  *     normalize -> translate -> prepare -> [before_apply -> (AG: count -)] -> commit ->
  *     identify_affected -> seed -> { AG: count + } -> finalize
  *
- * cycle_count is an aggregate-delta problem (family::aggregate_delta). Its hooks, one profiler
+ * cycle_count is an aggregate-delta problem (cycle_count_problem below, family::aggregate_delta,
+ * ownership_type = ownership::min_member; its members are defined in cycle_count.cpp, which runs
+ * it through framework::update_enactor and framework::static_enactor). Its hooks, one profiler
  * stage each:
+ *   - begin_update (no stage): the backend, poisoned and stale-result checks, the graph's
+ *     requirements, the placement and the CUDA engine; the lease of the host workspace;
  *   - normalize (cycle_count.normalize, on G_t): the net structural change of the batch
- *     (graph/structural_change.hpp, CycleEnumeration-GPU's prepare_batch);
- *   - before_apply = count(-) (cycle_count.count_minus, on G_t): the cycles through the deleted
+ *     (graph/structural_change.hpp, CycleEnumeration-GPU's prepare_batch), or under
+ *     batch_semantics::as_sets the framework's lists of Step 0 (run_update(), ADR 0020) as the
+ *     engines' change lists; on cuda the check that the bound after the batch fits the device
+ *     counters;
+ *   - count(-) on the old view (cycle_count.count_minus, on G_t): the cycles through the deleted
  *     edges, each attributed to the deleted edge with the smallest id on it
- *     (ownership::min_member over the change index);
- *   - commit (cycle_count.commit): graph::apply under the graph's batch_semantics;
+ *     (ownership::min_member over the change index, changed_edge_index);
+ *   - commit (cycle_count.commit, run_update()): graph::apply under the graph's batch_semantics;
+ *   - resume (no stage): the Debug check of the normalized batch, the bound after the batch;
  *   - identify_affected (cycle_count.identify_affected): the inserted edges and their ownership
  *     index;
- *   - count(+) (cycle_count.count_plus, on G_{t+1}): the cycles through the inserted edges, each
- *     attributed to the inserted edge with the smallest id on it;
+ *   - count(+) on the new view (cycle_count.count_plus, on G_{t+1}): the cycles through the
+ *     inserted edges, each attributed to the inserted edge with the smallest id on it;
  *   - finalize (cycle_count.finalize): the signed delta applied to the histogram
- *     (apply_histogram_delta; internal_error if a bucket would go negative).
+ *     (apply_histogram_delta; internal_error if a bucket would go negative), the stats;
+ *   - end_update (no stage): record the graph state the result matches, return the workspaces.
  * compute() is the static enactor: reset (cycle_count.reset) -> count (cycle_count.count) ->
  * finalize (cycle_count.finalize).
  *
- * The code stays organized by these hooks so that M3 can extract the framework (count_delta with
- * an ownership policy) without rewriting the engines.
+ * The host backends run these hooks (Tier A) with the engines of sequential.cpp / openmp.cpp
+ * (static_sequential.cpp / static_openmp.cpp for compute()). The CUDA backend is Tier B
+ * (select_engine: engine::fused): enact_fused (cycle_count.enact_fused) runs the insert phase of
+ * the ported kernels (cuda.cu) in the sub-stages cycle_count.identify_affected and
+ * cycle_count.count_plus, and the histogram delta in cycle_count.finalize; compute_fused
+ * (cycle_count.enact_fused) runs the static counters (static_cuda.cu) with their sub-stages
+ * cycle_count.reset, cycle_count.count and cycle_count.finalize. The framework still owns
+ * normalize and the subtraction on G_t (count(-) on the resident device graph, the delete phase),
+ * the commit, the stats and the checks.
  */
 #pragma once
 
+#include "framework/budgets.hpp"
+#include "framework/context.hpp"
+#include "framework/frontier.hpp"
+#include "framework/policies.hpp"
+#include "framework/problem.hpp"
 #include "framework/scratch_buffer.hpp"
+#include "framework/views.hpp"
 #include "framework/workspace.hpp"
 #include "graph/structural_change.hpp"
 
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/types.hpp>
 #include <dyng/cycle_count.hpp>
+#include <dyng/graph/graph.hpp>
+#include <dyng/update.hpp>
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -605,6 +632,209 @@ void cycle_count_cuda_end_update(const resources& res, std::int64_t length,
                                  cycle_count_cuda_workspace<edge_t>& ws,
                                  std::vector<std::uint64_t>& removed,
                                  std::vector<std::uint64_t>& added);
+
+namespace framework {
+template <typename vertex_t, typename weight_t>
+struct requested_batch;
+template <typename vertex_t>
+struct applied_batch;
+}  // namespace framework
+
+/**
+ * @brief The cycle_count problem (family::aggregate_delta) that framework::update_enactor and
+ *        framework::static_enactor run: the hooks of the file comment. Its members are defined in
+ *        cycle_count.cpp, the only translation unit that runs it.
+ *
+ * One problem serves one call: an update of one result (constructed from the result; the
+ * participant adapter of framework/composition.hpp owns it) or a compute() (constructed from the
+ * state being built, then bind_static()). From begin_update() to end_update() (or the problem's
+ * destruction) it holds the lease of the pooled host workspace, whose change lists and ownership
+ * index are the problem's frontier (internal_frontier).
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+class cycle_count_problem final
+    : public framework::problem_base<cycle_count_problem<vertex_t, edge_t, weight_t>,
+                                     framework::family::aggregate_delta> {
+ public:
+  static constexpr std::string_view name = "cycle_count";    ///< stages "cycle_count.<hook>"
+  using container_type = graph<vertex_t, edge_t, weight_t>;  ///< the container
+  using stats_type = cycle_count::stats;                     ///< the stats of update()
+  using ownership_type = framework::ownership::min_member;   ///< the counting rule (I2)
+  using old_graph = framework::old_view<container_type>;     ///< G_t
+  using new_graph = framework::new_view<container_type>;     ///< G_{t+1}
+  using requested = framework::requested_batch<vertex_t, weight_t>;  ///< the batch before commit
+  using applied = framework::applied_batch<vertex_t>;                ///< what the commit did
+  using frontier = framework::internal_frontier;                     ///< frontiers are internal
+  using workspace_type = cycle_count_workspace<vertex_t>;            ///< the host scratch
+  using cuda_workspace_type = cycle_count_cuda_workspace<edge_t>;    ///< the device scratch
+
+  /**
+   * @brief The problem of one update of `r`.
+   * @param[in,out] r The result (must outlive the problem).
+   */
+  explicit cycle_count_problem(cycle_count::result& r) noexcept : result_(&r) {}
+
+  /**
+   * @brief The problem of one compute() that fills `st` (bind_static() follows).
+   * @param[in,out] st The state of the result being built (must outlive the problem).
+   */
+  explicit cycle_count_problem(cycle_count_state& st) noexcept : state_(&st), computing_(true) {}
+
+  // ---- lifecycle (no stage) ------------------------------------------------------------------
+
+  /**
+   * @brief The result this problem updates.
+   * @return Its address (nullptr for compute()).
+   */
+  [[nodiscard]] const void* target() const noexcept {
+    return result_;
+  }
+
+  /**
+   * @brief The commit need not build the in-edges or the device copy: the engines read the
+   *        out-edges only (on cuda graph_access::device_out, resident across batches).
+   * @return false.
+   */
+  [[nodiscard]] bool reads_prepared_graph() const noexcept {
+    return false;
+  }
+
+  /**
+   * @brief Validate the call before Step 0 (backend, poisoned and stale result, the graph's
+   *        requirements, the placement, the CUDA engine) and lease the host workspace.
+   * @throws not_supported_error, stale_result_error, invalid_argument_error.
+   */
+  void begin_update(framework::context& ctx, old_graph g, const requested& batch);
+
+  /**
+   * @brief Re-bind to G_{t+1}: the Debug check of the normalized batch, the bound after the batch.
+   */
+  void resume(framework::context& ctx, new_graph g, const applied& applied);
+
+  /**
+   * @brief Record the graph state the result matches; return the workspaces.
+   */
+  void end_update(framework::context& ctx, new_graph g, const stats_type& stats);
+
+  /**
+   * @brief Mark the result unusable (its algorithm phase failed).
+   */
+  void poison() noexcept;
+
+  /**
+   * @brief compute(): bind the graph and the engine of the call's backend.
+   * @param[in,out] ctx The run's context.
+   * @param[in]     g   The graph.
+   */
+  void bind_static(framework::context& ctx, new_graph g);
+
+  // ---- Step 0 and Step 1a, on G_t --------------------------------------------------------------
+
+  /**
+   * @brief cycle_count.normalize: the net structural change of the batch (or the framework's
+   *        lists under as_sets).
+   * @throws invalid_argument_error for a malformed batch, or on cuda a bound after the batch
+   *         above 64.
+   */
+  void normalize(framework::context& ctx, old_graph g, const requested& batch);
+
+  /**
+   * @brief cycle_count.count_minus: the owned cycles through the deleted edges on G_t.
+   * @throws capacity_error if a count exceeds 2^64 - 1.
+   */
+  void count(framework::context& ctx, old_graph g, frontier& f, framework::sign s,
+             ownership_type rule);
+
+  // ---- Tier A, on G_{t+1} ----------------------------------------------------------------------
+
+  /// cycle_count.identify_affected: the inserted edges and their ownership index.
+  void identify_affected(framework::context& ctx, new_graph g, const applied& applied, frontier& f);
+
+  /**
+   * @brief update(): cycle_count.count_plus, the owned cycles through the inserted edges on
+   *        G_{t+1}; compute(): cycle_count.count, the static count of the whole graph.
+   * @throws capacity_error if a count exceeds 2^64 - 1.
+   */
+  void count(framework::context& ctx, new_graph g, frontier& f, framework::sign s,
+             ownership_type rule);
+
+  /**
+   * @brief update(): cycle_count.finalize, the signed delta applied to the histogram and the
+   *        stats; compute(): cycle_count.finalize, the graph state the histogram matches.
+   * @throws internal_error if a bucket would become negative (nothing is written then).
+   * @throws capacity_error if a count exceeds 2^64 - 1.
+   */
+  void finalize(framework::context& ctx, stats_type& stats);
+
+  // ---- Tier B (cuda), on G_{t+1} ---------------------------------------------------------------
+
+  /**
+   * @brief The engine of the call: engine::fused (the ported CUDA kernels) on the CUDA backend,
+   *        engine::operators (the Tier A hooks) on the host backends. begin_update and compute()
+   *        have already rejected options::cuda_engine = engine::operators on cuda.
+   * @return The engine.
+   */
+  [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
+
+  /**
+   * @brief The budget of the update's algorithm work, both halves (invariant I9; conformance check
+   *        C8): once reserved, no allocation, and at most four host synchronizations on CUDA
+   *        (the staging of the change lists without set semantics, the item counts of the delete
+   *        phase on G_t and of the insert phase on G_{t+1}, and the copy of both histograms) and
+   *        none on the host backends.
+   * @return The budget (checked by the update enactor in DYNG_DEBUG_BUDGETS builds).
+   */
+  [[nodiscard]] framework::budget algorithm_budget(framework::context& ctx) const noexcept;
+
+  /**
+   * @brief cycle_count.enact_fused: the insert phase on the resident G_{t+1}
+   *        (cycle_count.identify_affected: the device graph; cycle_count.count_plus: the phase and
+   *        the copy of both histograms), then the signed delta (cycle_count.finalize).
+   * @throws internal_error, capacity_error as finalize; cuda_error.
+   */
+  void enact_fused(framework::context& ctx, new_graph g, const applied& applied, stats_type& stats);
+
+  // ---- compute(), static enactor ---------------------------------------------------------------
+
+  /// cycle_count.reset: the zero histogram of the bound.
+  void reset(framework::context& ctx);
+
+  /// cycle_count.enact_fused (cuda): the static counters on the resident graph
+  /// (cycle_count_cuda_compute, with its sub-stages reset, count and finalize).
+  void compute_fused(framework::context& ctx, new_graph g, stats_type& stats);
+
+ private:
+  /// One host phase: the OpenMP phase with more than one thread, the sequential phase otherwise
+  /// (update_static_histogram_openmp()).
+  void run_host_phase(const container_type& g, const std::vector<edge_change<vertex_t>>& changes,
+                      std::size_t max_length, std::vector<std::uint64_t>& phase);
+  /// The counters of the update in the stats (all but the histogram delta).
+  void fill_counts(stats_type& stats) const;
+  /// CUDA, count(-): the change lists on the device and the delete phase on the resident G_t.
+  void count_minus_cuda(framework::context& ctx, const container_type& g);
+
+  cycle_count::result* result_ = nullptr;         ///< update(): the result
+  cycle_count_state* state_ = nullptr;            ///< its state (begin_update) or compute()'s
+  bool computing_ = false;                        ///< the problem serves a compute()
+  const container_type* static_graph_ = nullptr;  ///< compute(): the graph
+  int threads_ = 1;                               ///< host threads of the phases
+  bool cuda_ = false;                             ///< the call runs on the cuda backend
+  std::int64_t bound_before_ = 2;                 ///< the histogram bound of G_t
+  std::int64_t bound_after_ = 2;                  ///< the histogram bound of G_{t+1}
+  std::int64_t device_length_ = 2;                ///< cuda: the bound of the device phases
+  const normalized_batch<vertex_t>* normalized_ = nullptr;  ///< the framework's Step 0, if any
+  /// cuda under as_sets: the engine reads the framework's lists (no copy in the workspace).
+  bool lists_shared_ = false;
+  std::size_t deletions_ = 0;                      ///< the length of the normalized deletion list
+  std::size_t insertions_ = 0;                     ///< the length of the normalized insertion list
+  const std::uint32_t* device_changes_ = nullptr;  ///< cuda: the change lists (pairs)
+  cycle_device_graph<edge_t> device_graph_;        ///< cuda compute(): the graph
+  std::optional<workspace_pool::lease<workspace_type>> ws_;            ///< the host scratch
+  std::optional<workspace_pool::lease<cuda_workspace_type>> cuda_ws_;  ///< the device scratch
+};
 
 /**
  * @brief Run one hook inside its profiler stage `cycle_count.<hook>`.

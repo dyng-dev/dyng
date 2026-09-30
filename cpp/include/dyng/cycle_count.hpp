@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string_view>
 #include <type_traits>
 
 /**
@@ -107,6 +108,38 @@ enum class cuda_work_items : std::uint8_t {
 };
 
 /**
+ * @brief The lower-case name of a search method ("johnson").
+ * @param[in] m The method.
+ * @return A static string naming `m` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(search_method m) noexcept;
+
+/**
+ * @brief The lower-case name of a cycle mode ("simple").
+ * @param[in] m The mode.
+ * @return A static string naming `m` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(cycle_mode m) noexcept;
+
+/**
+ * @brief The lower-case name of a CUDA scheduler ("work_queue", "naive").
+ * @param[in] s The scheduler.
+ * @return A static string naming `s` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(cuda_scheduler s) noexcept;
+
+/**
+ * @brief The lower-case name of a work-item kind ("automatic", "roots", "edges", "two_hop").
+ * @param[in] w The kind.
+ * @return A static string naming `w` (the enumerator's name).
+ * @ingroup cycle_count
+ */
+[[nodiscard]] std::string_view to_string(cuda_work_items w) noexcept;
+
+/**
  * @brief Options of compute() and update() (an aggregate; fields are only ever appended).
  *
  * max_length, method and mode are fixed at compute() (the histogram counts the cycles they
@@ -139,9 +172,9 @@ struct options {
   cycle_mode mode = cycle_mode::simple;  ///< the cycles counted (simple); fixed at compute()
 
   /// The CUDA engine: automatic and fused select the fused kernels (the work queue of the static
-  /// count, the per-change searches of the update; Tier B, PLAN Section 4.5.4); operators throws
-  /// not_supported_error (cycle_count has no operators engine in 0.1). Ignored on the host
-  /// backends. A tunable (result::set_options()).
+  /// count, the per-change searches of the update: the Tier B engine of
+  /// docs/developer/framework.md); operators throws not_supported_error (cycle_count has no
+  /// operators engine in 0.1). Ignored on the host backends. A tunable (result::set_options()).
   engine cuda_engine = engine::automatic;
   /// The scheduler of the static count on the cuda backend (ignored elsewhere). A tunable.
   cuda_scheduler scheduler = cuda_scheduler::work_queue;
@@ -197,7 +230,10 @@ inline constexpr bool cycle_count_supported_v =
     (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>) &&
     (is_unweighted_v<weight_t> || std::is_same_v<weight_t, std::int32_t>);
 
-/// The message of the static_assert of an unsupported graph type.
+/**
+ * @brief The message of cycle_count's static_assert for an unsupported graph type.
+ * @ingroup cycle_count
+ */
 #define DYNG_CYCLE_COUNT_TYPES_MESSAGE                                                          \
   "dyng::cycle_count supports graph<int32_t, int32_t or int64_t, unweighted or int32_t> only "  \
   "(int32_t vertex ids: the ownership table keys two 32-bit ids); see 'Graph requirements' in " \
@@ -218,6 +254,10 @@ namespace dyng::cycle_count {
  * 2^64, as the original's do; only the host-side merge of an update's two phases into the
  * histogram is checked (more than 10^19 cycles of one length: not reachable in practice).
  * The scratch memory of the engines is leased from the resources handle (ADR 0015), not owned.
+ *
+ * **Thread safety.** A result is not thread-safe: its accessors may run concurrently with each
+ * other, but not with an update() of it (or a dyng::update() that includes it), which must also
+ * not overlap another call on its graph; see graph, "Thread safety".
  * @ingroup cycle_count
  */
 class result {
@@ -289,6 +329,7 @@ class result {
    * @throws invalid_argument_error if `opt.max_length`, `opt.method` or `opt.mode` differs from
    *         the result's, a field holds an invalid value, or for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
+   * @guarantee Strong: every check runs before the options change.
    */
   void set_options(const options& opt);
 
@@ -393,6 +434,8 @@ namespace dyng::cycle_count {
  * @sync The histogram is complete on return (a host array on every backend).
  * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms on every backend and thread count.
+ * @guarantee Strong: `g` is not modified (on cuda its device copy may be uploaded, which changes
+ *            no observable state), and nothing is kept if the call throws.
  * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
  *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib. Exact counts; the
  *        kappa-truncated search of the paper is not implemented.
@@ -449,6 +492,12 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @sync The graph and the histogram are updated on return.
  * @backends sequential, openmp, cuda
  * @determinism Exact values: identical histograms and counters on every backend and thread count.
+ * @guarantee Strong for every error found before the batch is applied (the ones marked "nothing is
+ *            changed" above, and allocation failures of the normalization): `g` and `r` are
+ *            unchanged. Basic for an error after the commit (a negative bucket, a count past
+ *            2^64 - 1 in the merge, a CUDA or allocation failure): `g` holds the new version and
+ *            `r` is poisoned, so every later use of it throws stale_result_error until it is
+ *            recomputed.
  * @paper TruCy / DynTruCy (submitted to IEEE Transactions on Computers):
  *        `dyng::citation("cycle_count")`, key trucy2026 in docs/references.bib.
  * @ingroup cycle_count

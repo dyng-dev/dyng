@@ -284,6 +284,41 @@ def test_perf_ab_edge_type_summary_reads_the_port_on_both_sides() -> None:
     assert by_name["apply"]["original_ms"] == pytest.approx(13.3)
 
 
+def test_perf_ab_run_takes_a_dyng_baseline() -> None:
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity/perf_ab.py", "run", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "--baseline-exe" in proc.stdout and "--baseline-label" in proc.stdout
+    perf = load("parity/perf_ab.py")
+    lines = perf.report({}, labels=("f664f96", "dynG"))
+    assert "f664f96 (ms)" in lines[0]
+
+
+def test_perf_ab_layouts_cycle_the_timing_file_name(tmp_path: Path) -> None:
+    perf = load("parity/perf_ab.py")
+    args = type("Args", (), {"layouts": 3})()
+    names = [perf.layout_timing(tmp_path, "timing", args, r).name for r in range(4)]
+    assert names == ["timing.csv", "timing" + "x" * 8 + ".csv", "timing" + "x" * 16 + ".csv",
+                     "timing.csv"]  # fmt: skip
+    one = type("Args", (), {"layouts": 1})()
+    assert perf.layout_timing(tmp_path, "timing", one, 5) == tmp_path / "timing.csv"
+    # Long pads go into directories (a file name has at most 255 characters).
+    many = type("Args", (), {"layouts": 100})()
+    deep = perf.layout_timing(tmp_path, "timing", many, 99)
+    assert len(str(deep)) - len(str(tmp_path / "timing.csv")) == 8 * 99 + 3  # three separators
+    assert deep.parent.is_dir() and max(len(p) for p in deep.parts) <= 255
+    # Only for a dynG-against-dynG A/B: the originals take no --timing file.
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity/perf_ab.py", "run", "--exe", "x", "--layouts", "3"],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode != 0 and "--baseline-exe" in proc.stderr
+
+
 def test_perf_ab_monitor_sees_foreign_cpu_load() -> None:
     perf = load("parity/perf_ab.py")
     # A spinning process that is not the timed program: foreign load of about one core.
@@ -486,6 +521,26 @@ def test_cycle_count_summarize_with_a_port_baseline() -> None:
     }
     out = {e["region"]: e for e in perf.summarize(regions, "update", samples, 5, "port")}
     assert out["update"]["original_ms"] == 30.0 and out["update"]["ratio"] == pytest.approx(0.5)
+
+
+def test_cycle_count_cuda_gpu_summary_of_a_port_baseline() -> None:
+    perf = load("parity/cycle_count_perf.py")
+    gpu = {"gpu": {"sm_mhz": {"min": 1695}, "busy_samples": 3}}
+    windows = [
+        {
+            "original": {"reasons": [], "baseline": {"original": gpu, "resident": gpu}},
+            "port": {"original": gpu, "resident": gpu},
+        }
+    ]
+    out = perf.gpu_summary(windows, ["original", "resident"])
+    assert set(out) == {
+        "baseline[original]",
+        "baseline[resident]",
+        "port[original]",
+        "port[resident]",
+    }
+    assert out["baseline[resident]"]["sm_mhz_min"] == 1695
+    assert out["port[original]"]["busy_samples"] == 3
 
 
 def test_cycle_count_cuda_extra_processes() -> None:

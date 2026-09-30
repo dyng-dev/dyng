@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# cycle_count CUDA update DD_k4_25000_25000_s1, original scope, GPU 1, 21 alternating rounds, idle
+# parent (the stage medians of the --timing CSV, summed per process): 019ef13 (base) against the
+# final code (new). Parity preset builds, then both rebuilt with -falign-functions=64.
+#
+# parity preset:
+cycle_count.normalize                base    1.8194 new    1.9485 diff  +0.1292 ratio 1.071
+cycle_count.count_minus              base    1.0719 new    1.0893 diff  +0.0174 ratio 1.016
+graph.apply                          base    0.4423 new    0.4425 diff  +0.0003 ratio 1.001
+cycle_count.commit                   base    0.4438 new    0.4475 diff  +0.0037 ratio 1.008
+cycle_count.count_plus               base    0.2246 new    0.2260 diff  +0.0014 ratio 1.006
+cycle_count.update                   base    3.7052 new    3.7836 diff  +0.0784 ratio 1.021
+#
+# both with -falign-functions=64:
+cycle_count.normalize                base    1.8484 new    1.9151 diff  +0.0667 ratio 1.036
+cycle_count.count_minus              base    1.0827 new    1.0843 diff  +0.0016 ratio 1.001
+cycle_count.commit                   base    0.4438 new    0.4473 diff  +0.0035 ratio 1.008
+cycle_count.count_plus               base    0.2262 new    0.2277 diff  +0.0016 ratio 1.007
+cycle_count.update                   base    3.7437 new    3.7642 diff  +0.0205 ratio 1.005

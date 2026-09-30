@@ -28,6 +28,11 @@
 #              convention check ci/doxygen_coverage.py, then the Sphinx site with warnings as
 #              errors and ci/docs_links.py (repository URLs, the site's anchors) (skipped if
 #              doxygen is missing; fails if the Sphinx packages of environment.yml are missing)
+#   regen      scripts/regen.py --check: the algorithm tables, the CODEOWNERS block and the
+#              registries are up to date with the manifests (PLAN Section 4.8)
+#   scaffold   ci/scaffold_check.sh: scripts/new_algorithm.py generates a throwaway algorithm of
+#              each family, which builds and passes its conformance kit (a nested build in a
+#              temporary copy of the tree)
 #   precommit  pre-commit run --all-files (skipped if pre-commit is missing)
 #   parity     only with --parity (or DYNG_CHECK_PARITY=1): configure and build the `parity`
 #              preset and run `ctest -L parity`, the byte-for-byte replay of the golden corpus
@@ -35,9 +40,9 @@
 #              parity/build_reference.sh and parity/export_goldens.py (parity/README.md). With
 #              --parity, missing goldens are an error, not a skip.
 #
-# The GitHub workflows mirror these steps: cpu.yml runs `build`; lint.yml runs `precommit`
-# (which includes clang-format, REUSE and provenance), `harness`, `tidy` (on a configured
-# cpu-only tree) and the name-reservation package check; docs.yml runs `docs`. Only `parity`
+# The GitHub workflows mirror these steps: cpu.yml runs `build` and `scaffold`; lint.yml runs
+# `precommit` (which includes clang-format, REUSE, provenance and regen), `harness`, `tidy` (on a
+# configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`. Only `parity`
 # (it needs the goldens, which are not in the repository) runs locally only. The CUDA tests
 # are not part of this gate: ci/gpu_local.sh runs them on a GPU machine, and cuda-build.yml
 # compiles the CUDA presets on hosted runners (no GPU).
@@ -54,7 +59,7 @@ for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
     -h | --help)
-      sed -n '5,49p' "${BASH_SOURCE[0]}"
+      sed -n '5,54p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -142,7 +147,8 @@ if ! skipped tidy; then
     # include directory stands in for them. libstdc++ 12's get_temporary_buffer is deprecated
     # for clang (not for GCC); that diagnostic is not ours.
     gcc_include="$("${CXX:-g++}" -print-file-name=include)"
-    if git ls-files 'cpp/src/*.cpp' | heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
+    # cpp/src/algorithms/_template is not compiled (scripts/new_algorithm.py instantiates it).
+    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' | heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
       -p "${tidy_db}" --quiet --checks='-*,readability-identifier-naming' --warnings-as-errors='*' \
       "--extra-arg=-isystem${gcc_include}" --extra-arg=-Wno-deprecated-declarations; then
       echo "clang-tidy: OK"
@@ -175,12 +181,31 @@ if ! skipped provenance; then
   fi
 fi
 
+if ! skipped regen; then
+  step "scripts/regen.py --check (the files generated from the manifests)"
+  if python3 scripts/regen.py --check; then
+    :
+  else
+    failed+=("regen")
+  fi
+fi
+
 if ! skipped harness; then
   step "parity harness (Python): compile and smoke tests"
-  if python3 -m py_compile parity/*.py ci/*.py && heavy python3 -m pytest -q parity/tests ci/tests; then
+  if python3 -m py_compile parity/*.py ci/*.py scripts/*.py &&
+    heavy python3 -m pytest -q parity/tests ci/tests; then
     echo "harness: OK"
   else
     failed+=("harness")
+  fi
+fi
+
+if ! skipped scaffold; then
+  step "scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)"
+  if heavy ci/scaffold_check.sh; then
+    :
+  else
+    failed+=("scaffold")
   fi
 fi
 

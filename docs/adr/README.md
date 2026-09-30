@@ -11,7 +11,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0002](0002-license-and-credit.md) | License and credit | Accepted |
 | [0003](0003-language-and-toolkit-floors.md) | Language and toolkit floors (C++17, CUDA >= 12.4, sm_75, CCCL 3.x memory-resource shape) | Accepted |
 | [0004](0004-naming.md) | Naming conventions | Accepted |
-| [0006](0006-algorithm-contract.md) | Algorithm contract | Proposed (M1a draft) |
+| [0006](0006-algorithm-contract.md) | Algorithm contract | Accepted under delegation with the 0.1 API freeze (2026-09-29, ADR 0023) |
 | [0009](0009-default-index-types.md) | Default index types (edge_t = int32 with checked construction) | Accepted (M1b) |
 | [0010](0010-batch-and-graph-semantics.md) | Batch and graph semantics | Proposed (M1a draft; amended in M2a: set semantics and the unweighted graph) |
 | [0013](0013-parity-and-goldens.md) | Parity and goldens | Proposed (M1a draft) |
@@ -23,6 +23,9 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0019](0019-merge-policy.md) | Merge policy (merge commits for milestone and integration work, squash for contributions, no rebase) | Accepted (INT1) |
 | [0020](0020-resident-device-graph-and-one-step-0.md) | The resident device graph under set semantics (device set apply, lazily downloaded host copy), and Step 0 once per update | Accepted (2026-09-29, by the author; written in M2b, amended by the M2b review) |
 | [0021](0021-power-cap-and-base-lock-in-the-cycle-count-gate.md) | The power cap and the base clock lock in the cycle_count CUDA gate (a case whose GPU cannot hold the boost lock is read at the base lock) | Accepted (2026-09-29, by the author) |
+| [0022](0022-conformance-kit-registry-and-scaffold.md) | The conformance kit, the algorithm registry and the scaffold (registry-driven kit, C8's reservations and container work, the scope of new_algorithm.py) | Accepted under delegation (2026-09-29) |
+| [0023](0023-api-review-and-freeze-0-1.md) | The 0.1 API review and freeze (the review's findings and fixes, `@guarantee`, the committed public-API listing and its check) | Accepted under delegation (2026-09-29) |
+| [0024](0024-reading-a-refactor-against-earlier-dyng.md) | Reading a refactor against an earlier dynG build (rounds over heap layouts, bimodal regions read mode by mode) | Accepted under delegation (2026-09-30) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0011 Python, 0012 versioning and stability.

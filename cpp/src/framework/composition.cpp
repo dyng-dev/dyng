@@ -10,6 +10,7 @@
  */
 #include "core/resources_access.hpp"
 #include "core/staging.hpp"
+#include "framework/budgets.hpp"
 #include "framework/workspace.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/instantiate.hpp"
@@ -102,6 +103,7 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
   apply_summary summary;
   {
     scoped_stage stage(res, commit_stage);
+    const framework::budget_scope commit;  // container growth: reported, never failed (I9)
     summary = graph_access::apply(res, g, host, &delta, normalized);
     // What the engines read of G_{t+1} is built once here, inside the commit, for every
     // participant: the host in-edges (the graph builds them lazily; MOSP-OpenMP builds its reverse
@@ -115,6 +117,7 @@ apply_summary run_update(const resources& res, graph<vertex_t, edge_t, weight_t>
     if (prepare) {
       graph_access::prepare(res, g);
     }
+    framework::record_commit_counts(commit.used());
   }
   // Steps 1b and 2 on G_{t+1}. A failing participant is poisoned; the others still run.
   std::exception_ptr first_error;

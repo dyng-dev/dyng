@@ -1,0 +1,209 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "backend": "openmp",
+ "date": "2026-09-30T12:14:17Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/cycle-enum",
+  "build": "name=CycleEnumeration-GPU\ncommit=0a976adfa801a712135bf1adb51a228f353a0751\nvariant=unpatched\narchive_sha256=53eef2ed4394c0d8ab079f9ef50b2394946f4a0d611a0425a0a32b7892fe39c3\nexported=2026-09-28T00:00:24Z\nbuild=env NVCC=/usr/local/cuda-13.1/bin/nvcc cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCYCLE_ENUM_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.1/bin/nvcc -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++ -DCMAKE_CUDA_ARCHITECTURES=86 && cmake --build build -j16\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "baseline": {
+  "experiment": true,
+  "label": "019ef13",
+  "kind": "port",
+  "binary": "$DYNG_SCRATCH/m3-final/base019/build/parity/tools/compat/dyng-compat-cycle-enum",
+  "note": "side A is this binary, not the unpatched original: the verdicts are not gates (PLAN 8.6: improvements reported separately)"
+ },
+ "port": {
+  "commit": "8d5922185d0e28728bbda4f69170acfe7c3c38bf+dirty",
+  "binary": "build/parity/tools/compat/dyng-compat-cycle-enum",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "OFF",
+   "DYNG_CUDA_ARCHITECTURES": null,
+   "CMAKE_CUDA_FLAGS_RELEASE": null,
+   "CMAKE_CUDA_COMPILER": null,
+   "build_dir": "build/parity",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/cycle_count.toml",
+  "key": "cycle_enum_openmp",
+  "regions": [
+   "static_end_to_end",
+   "static_count",
+   "static_read",
+   "update",
+   "update_end_to_end"
+  ]
+ },
+ "protocol": {
+  "runs": 5,
+  "order": "A/B/A/B (original first), one untimed round per case first",
+  "threads": 56,
+  "backend": "openmp (--backend openmp --openmp-threads N on both)",
+  "env": "no OMP_* variables (the libgomp defaults) on both",
+  "lock": "perf.lock (exclusive)",
+  "statistic": "median",
+  "outputs": "standard output captured (the histogram CSV), compared every round",
+  "short_regions": "< 10.0 ms need >= 20 runs"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "datasets_sha256": {
+  "collab": "043c465d207992054d2567a277bfba9fad24d994040241987e61f9e9daa12ae4"
+ },
+ "results": {
+  "count/collab_k3": {
+   "task": "count",
+   "golden_checked": true,
+   "regions": [
+    {
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 14754.273329861462,
+     "original_samples": [
+      14755.078170448542,
+      14771.581772714853,
+      14731.906897388399,
+      14748.137188144028,
+      14754.273329861462
+     ],
+     "original_spread": 0.002689042993812232,
+     "port_ms": 14534.39369238913,
+     "port_samples": [
+      14534.39369238913,
+      14533.136232756078,
+      14546.736449934542,
+      14503.909279592335,
+      14547.460202127695
+     ],
+     "port_spread": 0.0029964044911047856,
+     "ratio": 0.985097223525925,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": 12363.4,
+     "original_samples": [
+      12373.3,
+      12365.6,
+      12350.3,
+      12363.4,
+      12357.1
+     ],
+     "original_spread": 0.0018603296827733472,
+     "port_ms": 12142.3,
+     "port_samples": [
+      12142.3,
+      12133.3,
+      12135.8,
+      12145.1,
+      12151.7
+     ],
+     "port_spread": 0.0015153636460968232,
+     "port_stage_ms": 12142.318392,
+     "ratio": 0.9821165698756006,
+     "noisy": false
+    },
+    {
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": 2377.487,
+     "original_samples": [
+      2374.653,
+      2398.801,
+      2374.566,
+      2377.487,
+      2386.4750000000004
+     ],
+     "original_spread": 0.01019353628432043,
+     "port_ms": 2388.821,
+     "port_samples": [
+      2385.239,
+      2392.902,
+      2403.6510000000003,
+      2342.8869999999997,
+      2388.821
+     ],
+     "port_spread": 0.025436815902070763,
+     "port_stage_ms": 110.249133,
+     "ratio": 1.0047672184958318,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "cycle_count.compute": 12142.318392,
+    "cycle_count.count": 12142.28284,
+    "cycle_count.finalize": 0.001001,
+    "cycle_count.reset": 0.002226,
+    "graph.build": 110.249133
+   },
+   "port_report_median_ms": {
+    "update_ms": 0.0,
+    "compute_ms": 12142.3,
+    "read_ms": 2280.23,
+    "build_ms": 110.279,
+    "prior_ms": 0.0,
+    "generate_ms": 0.0,
+    "kernel_ms": 0.0,
+    "memcpy_ms": 0.0,
+    "total_ms": 0.0,
+    "update_device_ms": 0.0
+   },
+   "load_average": {
+    "min": 39.0263671875,
+    "max": 51.94921875
+   },
+   "contamination": {
+    "original": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.03577329105876775,
+     "foreign_cores_max": 0.07523241936200226,
+     "flagged_runs": 0,
+     "runs": 5,
+     "foreign_cores_per_run": [
+      0.03,
+      0.075,
+      0.037,
+      0.026,
+      0.036
+     ]
+    },
+    "port": {
+     "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
+     "flag_cores": 2.0,
+     "foreign_cores_median": 0.034051157241682305,
+     "foreign_cores_max": 0.051335436912366146,
+     "flagged_runs": 0,
+     "runs": 5,
+     "foreign_cores_per_run": [
+      0.047,
+      0.051,
+      0.03,
+      0.034,
+      0.026
+     ]
+    }
+   }
+  }
+ }
+}

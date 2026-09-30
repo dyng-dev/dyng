@@ -1,9 +1,13 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# The sssp manifest (PLAN Section 4.8). scripts/regen.py (M3) reads it; CMake does not.
+# The sssp manifest (PLAN Section 4.8). scripts/regen.py reads it (the algorithm tables, the
+# CODEOWNERS block and the registries; `python3 scripts/regen.py` after an edit); CMake does not.
 name        = "sssp"
 title       = "Dynamic single-source shortest paths"
+computes    = "dynamic single-source shortest paths"   # the "Computes" column of the algorithm tables
+paper       = "DynaMOSP (IPDPS 2025, TPDS 2025)"
+since       = "0.1"                     # the first release that contains it
 family      = "fixed_point"
 container   = "graph"
 tier        = "custom_engine"

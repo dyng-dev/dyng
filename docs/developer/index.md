@@ -10,6 +10,8 @@ built the way it is. Start with the contributor guide, `CONTRIBUTING.md`
 
 plan
 contributing
+framework
+conformance
 api_review_checklist
 documentation
 parity
@@ -20,6 +22,12 @@ pypi_name_reservation
 retrospectives/index
 ```
 
+```{toctree}
+:maxdepth: 1
+:caption: Design
+
+../design/sketches/index
+```
+
 Planned design pages, each written when the milestone that needs it starts: architecture,
-style guide, framework guide (internal-stable, M3), API guidelines, performance rules, CI,
-packaging, release process, Python gaps.
+style guide, API guidelines, performance rules, CI, packaging, release process, Python gaps.

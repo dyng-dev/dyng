@@ -6,6 +6,8 @@
  */
 #include "framework/workspace.hpp"
 
+#include "core/budget_counters.hpp"
+
 #include <algorithm>
 #include <utility>
 
@@ -52,6 +54,7 @@ void workspace_pool::give_back(std::type_index key, std::unique_ptr<pooled_works
 }
 
 void workspace_pool::note_created() noexcept {
+  note_reservation();  // a new workspace is a reservation (invariant I9, budget_counters.hpp)
   const std::lock_guard<std::mutex> lock(mutex_);
   ++created_;
 }

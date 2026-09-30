@@ -7,7 +7,7 @@
  *
  * The library logs only diagnostics (fallbacks taken, capacity growth, implicit copies,
  * deprecations) and never results. The log level and the sink are the only process-global state
- * of the library (PLAN Section 4.7.5). The default sink writes one line per message to stderr;
+ * of the library. The default sink writes one line per message to stderr;
  * the Python layer installs a sink that forwards to logging.getLogger("dyng").
  */
 #pragma once

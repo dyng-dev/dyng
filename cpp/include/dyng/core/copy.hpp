@@ -15,6 +15,8 @@
 #include <dyng/core/resources.hpp>
 
 #include <cstddef>
+#include <new>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
 
@@ -51,7 +53,16 @@ using non_deduced = typename identity<type_t>::type;
 template <typename value_t>
 [[nodiscard]] std::vector<std::remove_const_t<value_t>> to_vector(const resources& res,
                                                                   array_view<value_t> src) {
-  std::vector<std::remove_const_t<value_t>> out(src.size());
+  std::vector<std::remove_const_t<value_t>> out;
+  try {
+    out.resize(src.size());
+  } catch (const std::bad_alloc& e) {
+    detail::throw_host_allocation_failure(
+        detail::concat_message("to_vector (", src.size(), " elements)"), e.what());
+  } catch (const std::length_error& e) {
+    detail::throw_host_allocation_failure(
+        detail::concat_message("to_vector (", src.size(), " elements)"), e.what());
+  }
   if (!src.empty()) {
     detail::copy_bytes(out.data(), memory_space::host, src.data(), src.space(), src.size_bytes(),
                        res.stream(), res.device());

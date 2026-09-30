@@ -8,6 +8,8 @@
 
 #include <sstream>
 #include <string>
+#include <thread>
+#include <vector>
 
 TEST(Profiler, NameScheme) {
   EXPECT_TRUE(dyng::profiler::is_valid_name("sssp.loop"));
@@ -142,4 +144,37 @@ TEST(Profiler, NvtxRangesDoNotChangeTheRecord) {
   EXPECT_EQ(prof.stages()[0].name, "test.outer");
   EXPECT_EQ(prof.stages()[1].depth, 1);
   EXPECT_EQ(prof.samples().size(), 2U);
+}
+
+// Library calls on several threads through copies of one resources handle record into one
+// profiler: recording is serialized and each thread's stages nest on their own.
+TEST(Profiler, ThreadsRecordIntoOneProfiler) {
+  dyng::profiler prof;
+  auto res = dyng::resources::sequential();
+  res.attach_profiler(&prof);
+  constexpr int rounds = 2000;
+  std::vector<std::thread> threads;
+  for (int t = 0; t < 4; ++t) {
+    threads.emplace_back([copy = res] {
+      for (int i = 0; i < rounds; ++i) {
+        dyng::scoped_stage outer(copy, "test.outer");
+        dyng::scoped_stage inner(copy, "test.inner");
+        copy.get_profiler()->add_counter("test.calls", 1);
+      }
+    });
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+  res.attach_profiler(nullptr);
+  ASSERT_EQ(prof.stages().size(), 2U);
+  for (const auto& s : prof.stages()) {
+    EXPECT_EQ(s.calls, 4 * rounds) << s.name;
+  }
+  EXPECT_EQ(prof.stages()[0].depth, 0);
+  EXPECT_EQ(prof.stages()[1].depth, 1);  // nested on its own thread, whatever the others do
+  for (const auto& sample : prof.samples()) {
+    EXPECT_EQ(sample.depth, sample.name == "test.inner" ? 1 : 0);
+  }
+  EXPECT_EQ(prof.counter("test.calls"), 4 * rounds);
 }

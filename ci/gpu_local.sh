@@ -176,8 +176,11 @@ if ! skipped memcheck; then
         --error-exitcode 1 "${exe}" --gtest_filter='-CudaApiErrors.*' --gtest_brief=1; then
         memcheck_ok=0
       fi
-      if ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 \
-        --report-api-errors no "${exe}" --gtest_filter='CudaApiErrors.*' --gtest_brief=1; then
+      # The second pass only where there are such tests: an executable that runs no test makes
+      # no CUDA call, which compute-sanitizer reports as an error.
+      if "${exe}" --gtest_list_tests --gtest_filter='CudaApiErrors.*' | grep -q '^  ' &&
+        ! heavy "${sanitizer}" --tool memcheck --leak-check full --error-exitcode 1 \
+          --report-api-errors no "${exe}" --gtest_filter='CudaApiErrors.*' --gtest_brief=1; then
         memcheck_ok=0
       fi
     done
@@ -237,7 +240,9 @@ if ! skipped tidy; then
     record clang-tidy skipped
   else
     gcc_include="$("${CXX:-g++}" -print-file-name=include)"
-    if git ls-files 'cpp/src/*.cpp' | heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
+    # cpp/src/algorithms/_template is not compiled (scripts/new_algorithm.py instantiates it).
+    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' |
+      heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
       -p "${build_dir}" --quiet --checks='-*,readability-identifier-naming' \
       --warnings-as-errors='*' "--extra-arg=-isystem${gcc_include}" \
       --extra-arg=-Wno-deprecated-declarations; then

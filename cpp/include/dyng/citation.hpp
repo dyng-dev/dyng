@@ -19,7 +19,9 @@ namespace dyng {
  * The entries come from docs/references.bib, compiled into the library.
  *
  * @param[in] what "dyng" (the library only), or an algorithm or storage name: "sssp", "mosp",
- *                 "cycle_count", "triad_count", "label_propagation", "hyper_sssp", "hypergraph".
+ *                 "cycle_count", "triad_count", "label_propagation", "hyper_sssp", "hypergraph",
+ *                 or any other algorithm of the registry (dyng::algorithms(), cited with its
+ *                 manifest's keys).
  * @return The BibTeX of the library followed by the entries of the algorithm's papers.
  * @throws invalid_argument_error if `what` is not a known name.
  * @ingroup core

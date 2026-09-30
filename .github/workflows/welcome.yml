@@ -9,6 +9,11 @@
 # `pull_request_target`. That trigger is safe here only because this workflow never checks out,
 # builds or runs anything from the pull request: it has no `actions/checkout` and no `run:` step,
 # and ci/github_meta_check.py rejects `pull_request_target` in any workflow that has either.
+#
+# People who already belong to the project are not greeted: the job is skipped when the author of
+# the issue or pull request is an OWNER, MEMBER (of the dyng-dev organization) or COLLABORATOR of
+# the repository (the event's author_association). first-interaction only looks at the author's
+# earlier issues and pull requests, so it would otherwise greet a maintainer's first issue.
 name: welcome
 
 on:
@@ -22,6 +27,10 @@ permissions:
 
 jobs:
   greet:
+    # Issues carry github.event.issue, pull requests github.event.pull_request; the other is null.
+    if: >-
+      ${{ !contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'),
+      github.event.issue.author_association || github.event.pull_request.author_association) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

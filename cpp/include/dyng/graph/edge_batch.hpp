@@ -107,6 +107,8 @@ class edge_batch {
    * @param[in] v       Destination.
    * @param[in] weights Its num_weights() weights.
    * @throws invalid_argument_error if `weights` does not hold num_weights() values.
+   * @throws out_of_memory_error    if the arrays cannot grow.
+   * @guarantee Strong: after an exception the batch is unchanged.
    */
   void insert_edge(vertex_t u, vertex_t v, std::initializer_list<weight_t> weights) {
     insert_edge(u, v, array_view<const weight_t>(weights.begin(), weights.size()));
@@ -119,6 +121,7 @@ class edge_batch {
    * @param[in] v Destination.
    * @throws invalid_argument_error if num_weights() is not 0.
    * @throws out_of_memory_error    if the arrays cannot grow.
+   * @guarantee Strong: after an exception the batch is unchanged.
    */
   void insert_edge(vertex_t u, vertex_t v) {
     insert_edge(u, v, array_view<const weight_t>());
@@ -131,18 +134,23 @@ class edge_batch {
    * @param[in] weights Its num_weights() weights (host memory).
    * @throws invalid_argument_error if `weights` does not hold num_weights() values.
    * @throws out_of_memory_error    if the arrays cannot grow.
+   * @guarantee Strong: after an exception the batch is unchanged.
    */
   void insert_edge(vertex_t u, vertex_t v, array_view<const weight_t> weights) {
     DYNG_EXPECTS(weights.size() == static_cast<std::size_t>(num_weights_),
                  "edge_batch::insert_edge got ", weights.size(), " weights, expected ",
                  num_weights_);
+    const std::size_t n = insert_src_.size();
+    const std::size_t w = insert_weights_.size();
     try {
       insert_src_.push_back(u);
       insert_dst_.push_back(v);
       insert_weights_.insert(insert_weights_.end(), weights.begin(), weights.end());
     } catch (const std::bad_alloc& e) {
+      shrink_insertions(n, w);
       detail::throw_host_allocation_failure("edge_batch::insert_edge", e.what());
     } catch (const std::length_error& e) {
+      shrink_insertions(n, w);
       detail::throw_host_allocation_failure("edge_batch::insert_edge", e.what());
     }
   }
@@ -152,14 +160,18 @@ class edge_batch {
    * @param[in] u Source.
    * @param[in] v Destination.
    * @throws out_of_memory_error if the arrays cannot grow.
+   * @guarantee Strong: after an exception the batch is unchanged.
    */
   void delete_edge(vertex_t u, vertex_t v) {
+    const std::size_t n = delete_src_.size();
     try {
       delete_src_.push_back(u);
       delete_dst_.push_back(v);
     } catch (const std::bad_alloc& e) {
+      shrink_deletions(n);
       detail::throw_host_allocation_failure("edge_batch::delete_edge", e.what());
     } catch (const std::length_error& e) {
+      shrink_deletions(n);
       detail::throw_host_allocation_failure("edge_batch::delete_edge", e.what());
     }
   }
@@ -169,6 +181,8 @@ class edge_batch {
    * @param[in] insertions Expected number of insertions.
    * @param[in] deletions  Expected number of deletions.
    * @throws out_of_memory_error if the capacity cannot be allocated.
+   * @guarantee Strong for the contents (the operations are unchanged; some arrays may keep a
+   *            larger capacity).
    */
   void reserve(std::size_t insertions, std::size_t deletions) {
     try {
@@ -186,6 +200,7 @@ class edge_batch {
 
   /**
    * @brief Remove every operation (keeps num_weights() and the capacity).
+   * @guarantee No-throw.
    */
   void clear() noexcept {
     insert_src_.clear();
@@ -283,6 +298,20 @@ class edge_batch {
   }
 
  private:
+  /// Undo a partial insertion: the arrays back to `n` insertions and `w` weights (no allocation).
+  void shrink_insertions(std::size_t n, std::size_t w) noexcept {
+    insert_src_.erase(insert_src_.begin() + static_cast<std::ptrdiff_t>(n), insert_src_.end());
+    insert_dst_.erase(insert_dst_.begin() + static_cast<std::ptrdiff_t>(n), insert_dst_.end());
+    insert_weights_.erase(insert_weights_.begin() + static_cast<std::ptrdiff_t>(w),
+                          insert_weights_.end());
+  }
+
+  /// Undo a partial deletion: the arrays back to `n` deletions (no allocation).
+  void shrink_deletions(std::size_t n) noexcept {
+    delete_src_.erase(delete_src_.begin() + static_cast<std::ptrdiff_t>(n), delete_src_.end());
+    delete_dst_.erase(delete_dst_.begin() + static_cast<std::ptrdiff_t>(n), delete_dst_.end());
+  }
+
   int num_weights_;
   std::vector<vertex_t> insert_src_;
   std::vector<vertex_t> insert_dst_;

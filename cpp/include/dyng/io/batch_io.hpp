@@ -27,8 +27,8 @@ struct legacy_batch_options {
    * As readChangeBatch() of MOSP-OpenMP\@c352151 / MOSP-CUDA\@e220ee2: integers after the first
    * 2 + K of an insertion line and after the first 2 of a deletion line are read and ignored,
    * and a deletion line with a single integer is skipped. The compatibility driver
-   * dyng-compat-mosp sets it (PLAN Section 8.3: equal input-rejection semantics); ADR 0010
-   * records why the default is strict.
+   * dyng-compat-mosp sets it (the parity harness needs the original's input-rejection
+   * semantics); ADR 0010 records why the default is strict.
    */
   bool mosp_lenient = false;
 };
