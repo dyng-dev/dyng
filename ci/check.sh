@@ -34,6 +34,9 @@
 #   python     ci/python.sh: the development install of the Python package (pip install -e .),
 #              the committed stubs (scripts/regen.py --stubs --check) and the pytest suite
 #              python/tests (skipped if scikit-build-core or nanobind is missing, except in CI)
+#   api        ci/api_check.sh: griffe compares the Python API with the base branch (origin/main,
+#              else main) and fails on a breaking change (the api-change label accepts one in CI;
+#              locally set DYNG_API_CHANGE=1); skipped if griffe is missing, except in CI
 #   scaffold   ci/scaffold_check.sh: scripts/new_algorithm.py generates a throwaway algorithm of
 #              each family, which builds and passes its conformance kit (a nested build in a
 #              temporary copy of the tree)
@@ -51,9 +54,10 @@
 # The GitHub workflows mirror these steps: cpu.yml runs `build` and `scaffold`; lint.yml runs
 # `precommit` (which includes clang-format, REUSE, provenance and regen), `harness`, `tidy` (on a
 # configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`;
-# python.yml runs `python` (and the suite against an installed sdist); wheels.yml builds the
-# distributions with cibuildwheel (the hosted counterpart of `wheels`). Only `parity` (it needs
-# the goldens, which are not in the repository) runs locally only. The CUDA tests
+# python.yml runs `python` (and the suite against an installed sdist); api-check.yml runs `api`;
+# wheels.yml builds the distributions with cibuildwheel (the hosted counterpart of `wheels`).
+# Only `parity` (it needs the goldens, which are not in the repository) runs locally only.
+# The CUDA tests
 # are not part of this gate: ci/gpu_local.sh runs them on a GPU machine, and cuda-build.yml
 # compiles the CUDA presets on hosted runners (no GPU).
 #
@@ -71,7 +75,7 @@ for arg in "$@"; do
     --parity) run_parity=1 ;;
     --wheels) run_wheels=1 ;;
     -h | --help)
-      sed -n '5,64p' "${BASH_SOURCE[0]}"
+      sed -n '5,68p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -225,6 +229,22 @@ if ! skipped python; then
     echo "python: OK"
   else
     failed+=("python")
+  fi
+fi
+
+if ! skipped api; then
+  step "Python API check: griffe against the base branch (ci/api_check.sh)"
+  if ! command -v griffe >/dev/null 2>&1; then
+    if [ -n "${CI:-}" ]; then
+      echo "griffe not found (in CI the step must run)"
+      failed+=("api")
+    else
+      echo "griffe not found (conda env update -f environment.yml); skipped"
+    fi
+  elif ci/api_check.sh; then
+    :
+  else
+    failed+=("api")
   fi
 fi
 

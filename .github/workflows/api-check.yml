@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The API check of pull requests (PLAN Sections 5.9 and 8.8): ci/api_check.sh runs griffe on the
+# typed layer python/dyng against the pull request's base branch and fails on a breaking change of
+# the Python API unless the pull request carries the label `api-change` and a CHANGELOG entry.
+# The C++ public API is checked against its committed baseline by ci/docs.sh in docs.yml
+# (ci/api_snapshot.py); both run without building the library.
+name: api-check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-api:
+    name: Python API (griffe)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0  # griffe reads the base revision from the history
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: griffe (the pin of environment.yml)
+        run: python -m pip install "griffe==2.3.0"
+      - name: ci/api_check.sh against the base branch
+        env:
+          DYNG_API_BASE: origin/${{ github.base_ref || 'main' }}
+          DYNG_API_CHANGE: ${{ contains(github.event.pull_request.labels.*.name, 'api-change') && '1' || '0' }}
+          DYNG_API_FORMAT: github
+        run: ci/api_check.sh
