@@ -381,7 +381,8 @@ take the connectivity-safe batch's time. The MOSP-level "(a) compute" totals of 
 | `canonicalizeTree`, `--init` files | `sssp::result::from_arrays(..., canonicalize)` |
 | `checkSospTree` | `testing::check_sssp_tree` |
 | `ListGather`; per-region `std::vector` thread lists | `detail::list_gather` (`cpp/src/util/list_gather.hpp`), plus `gather_pair()` (two lists between one pair of barriers); `thread_list`s kept in the workspace (`util/thread_list.hpp`) |
-| `mosp` driver (per-objective part) | `tools/compat` `dyng-compat-mosp` |
+| `mosp` driver (per-objective part) | the command `dyng sssp update` (the same output files; {doc}`../api/cli`); for parity runs, `tools/compat` `dyng-compat-mosp` |
+| `mospPrep` (`mtx2csr`, `widen`, `cache`, `init`, `expected`) | `dyng prep <subcommand>` with `mospPrep`'s syntax (`dyng prep init` = `dyng sssp compute`) |
 
 | MOSP-CUDA@e220ee2 | dynG |
 |---|---|
@@ -392,7 +393,7 @@ take the connectivity-safe batch's time. The MOSP-level "(a) compute" totals of 
 | `DeviceChanges` (per-objective change lists, `weightIncreaseMask`) | stage `sssp.changes`: the lists built from `detail::apply_delta` and uploaded |
 | `setenv("CUDA_MODULE_LOADING", "EAGER")` | `resources::warm_up()` |
 | `ScopedStage` with `cudaDeviceSynchronize` | `profiler` stages; `profiler_options::cuda_events` for device times |
-| `mospPrep changes` (`generateChangeBatch`) | `generators::legacy::mosp_changes()`; `dyng-compat-mosp changes` |
+| `mospPrep changes` (`generateChangeBatch`) | `generators::legacy::mosp_changes()` (Python `dyng.generators.legacy.mosp_changes()`); the commands `dyng prep changes` and `dyng generate mosp_changes`; `dyng-compat-mosp changes` |
 
 ## 10. How to cite
 

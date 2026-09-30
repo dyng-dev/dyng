@@ -1,8 +1,8 @@
 # Add an algorithm
 
 This is the outline of the guide for adding a dynamic algorithm to dynG (PLAN Section 9.4). Each
-step names the tool or page that does the work today; the steps marked *(from M5)* or
-*(from 0.2)* describe what the guide will cover once that part of the library exists. The full
+step names the tool or page that does the work today; the parts marked *(from 0.2)* describe
+what the guide will cover once that part of the library exists. The full
 guide, with a worked example (`dynamic_bfs`, one of the tutorial algorithms of M6), replaces this
 outline in 0.1.x.
 
@@ -58,10 +58,29 @@ OpenMP first, then CUDA: hooks with operators first, a fused engine only when a 
 the need (Tier B, the verbatim kernels of a port). The scaffold writes the host backends; a CUDA
 backend is added by hand in 0.1.
 
-## 7. Bindings, CLI and example *(from M5)*
+## 7. Bindings, CLI and example
 
-The Python binding (`python/src/`), the `dyng <name> compute|update` command and an example in
-`examples/`.
+- **The native binding**: `python/bindings/<name>.cpp` binds the `options`, `stats` and `result`
+  of the algorithm and its `compute()` / `update()` for every graph type the algorithm supports
+  (the files `sssp.cpp` and `cycle_count.cpp` are the models: results live in a
+  `result_holder`, arrays are exported with `export_array()`, every native call runs through
+  `without_gil()` and takes the holders' locks; `common.hpp` explains the rules). Register the
+  `bind_<name>()` function in `module.cpp`, and the result type in `update.cpp` when
+  `dyng.update()` should accept it.
+- **The typed module**: `python/dyng/<name>.py` with `Options` (a dataclass with the C++ field
+  names and defaults; `python/tests/test_api_surface.py` compares the defaults with the native
+  ones), `Stats`, `Result` (arrays as `dyng.Array` through `_result_array()`) and `compute()` /
+  `update()`, the names mirroring the C++ ones; import it in `python/dyng/__init__.py`.
+- **The stubs**: `python scripts/regen.py --stubs` regenerates `python/dyng/_core.pyi` (the CI
+  check is `--stubs --check`); `ci/python.sh` also runs `mypy --strict` over the typed layer.
+- **The command**: `dyng <name> compute|update` in `python/dyng/cli/_algorithms.py`
+  (`add_<name>()`, registered in `python/dyng/cli/__init__.py`). Its flags are generated from
+  `Options` (`add_option_flags()`), so every field gets a kebab-case flag; outputs use the
+  original's formats through `dyng.io`. Document it in `docs/api/cli.md` (a test checks that
+  every flag is mentioned) and compare it with the original's outputs in
+  `python/tests/test_cli.py`.
+- **Examples**: `examples/cpp/<name>_update.cpp` and `examples/python/<name>_update.py`, run by
+  CTest and `python/tests/test_examples.py`.
 
 ## 8. The documentation page
 

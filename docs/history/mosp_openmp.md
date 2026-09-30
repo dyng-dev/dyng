@@ -46,11 +46,23 @@ fixed code:
 - **MP5**, the work-efficient engine (invalidation, pull, near-far push) that dynG's OpenMP
   backend ports; **H-M1 / H-M2**, the in-memory pipeline; **M-d**, the preference vector of the
   combined graph (for `mosp`, 0.2); **M-e**, the seeded change generator.
+- **Packed format boundary** (a correctness fix of the input-validation work). The packed
+  (distance, parent) words were sized for (n - 1) * maxWeight, but a relaxation forms a distance
+  plus one more edge; at the boundary that candidate lost its top bits and a wrong small distance
+  won (a path of 65,537 vertices with weights 2^31 - 1). The packing now requires n * maxWeight
+  to fit, the counterpart of MOSP-CUDA's candidate-overflow fix. dynG's host backends keep the
+  rule (they pack only when one more edge fits; `sssp::stats::packed_parents` reports whether
+  the packed form was used).
+- **M-f**, allocation and list merging in the original propagation loop (`ebf3674`): the
+  candidate flags are allocated once and the thread lists merged at prefix-sum offsets
+  (`ListGather`, which dynG ports as `detail::list_gather`) instead of under `omp critical`.
 - Smaller fixes: `generateGraph` without `data/`, `runDijkstraCSR` on a graph whose batch deleted
-  every edge, input validation of the loaders.
+  every edge, input validation of the loaders (weights in [1, 2^31 - 1], range-checked indices,
+  complete tree files, a self-describing binary cache).
 
 On the connectivity-safe 50K batch the fixed code is 7-33x faster per objective than the paper's
-code; the table is on the {doc}`../algorithms/sssp` page ("Paper vs fixed code").
+code built with `-O3` (the paper's own build used no optimization; `-O3` alone cuts its compute
+by 2.4-2.6x); the table is on the {doc}`../algorithms/sssp` page ("Paper vs fixed code").
 
 ## What differs in dynG
 

@@ -497,8 +497,8 @@ modes).
 | `change_rows_kernel`, `next_degree_kernel`, `build_next_rows_kernel` (G_{t+1} on the device) | `detail::apply_set_batch_device` (`graph/apply_set_device.cu`), the commit of a resident graph |
 | `kMaxDeviceCycleLength` | `detail::cycle_count_max_device_length` (64) |
 | `engine::count_histogram`, `engine::update_histogram` | `cycle_count::compute`, `cycle_count::update` |
-| `cycle-enum` (CLI) | `dyng-compat-cycle-enum` (`tools/compat/cycle_enum`) |
-| `generate_batch`, `read_graph_view` | `generators::legacy::cycle_enum_batch`, `io::read_edge_list` |
+| `cycle-enum` (CLI) | the commands `dyng cycle_count compute` (`--task count`) and `dyng cycle_count update` (`--task update`), with the flag table of {doc}`../api/cli`; for parity runs, the drop-in clone `dyng-compat-cycle-enum` (`tools/compat/cycle_enum`) |
+| `generate_batch`, `read_graph_view` | `generators::legacy::cycle_enum_batch` (the command `dyng generate cycle_enum_batch`), `io::read_edge_list` |
 | `tests/support/cycle_oracles.hpp`, `count_simple_cycles_bruteforce` | `testing::oracle_simple_cycles`, `testing::brute_force_simple_cycles`, `testing::edge_set_after_batch` |
 
 ## 9. How to cite
