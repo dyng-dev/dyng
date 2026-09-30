@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The compiler of the LOCAL manylinux_2_28 wheel build (ci/wheels.sh; ADR 0025): conda-forge's GCC
+# 12 against a glibc 2.28 sysroot, so the extension module needs no glibc symbol newer than the
+# manylinux_2_28 policy allows (the system GCC 12 of Debian 12 links against glibc 2.36, whose
+# wheel auditwheel can only tag manylinux_2_34). ci/wheels.sh links libstdc++ and libgcc
+# statically and hides their symbols (-Wl,--exclude-libs,ALL: without it the module's references
+# bind to the libstdc++.so.6 another extension loaded first, and two half-initialised copies
+# crash, e.g. in std::ostringstream), which is what the manylinux images' gcc-toolset achieves
+# with libstdc++_nonshared; auditwheel bundles this environment's libgomp. GCC 12 is the
+# project's development compiler. CI does not use this file: wheels.yml builds in the
+# manylinux_2_28 image with cibuildwheel.
+#
+#   conda env create -p "$DYNG_SCRATCH/tools/manylinux228-tc" -f ci/wheel-toolchain.yml
+name: dyng-wheel-toolchain
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - gxx_linux-64=12
+  - sysroot_linux-64=2.28

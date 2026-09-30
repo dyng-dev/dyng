@@ -7,6 +7,7 @@
 #
 #   ci/check.sh                   # cpu-only and dev presets, clang-format, REUSE, docs, pre-commit
 #   ci/check.sh --parity          # ... and the golden parity replay (parity preset, needs goldens)
+#   ci/check.sh --wheels          # ... and the local build and install test of the distributions
 #   DYNG_CHECK_PRESETS=dev ci/check.sh
 #   DYNG_CHECK_SKIP="precommit docs" ci/check.sh
 #   DYNG_CHECK_ONLY="tidy" ci/check.sh    # only the named steps (the hosted `tidy` job)
@@ -42,11 +43,17 @@
 #              (PLAN Section 8.3). The goldens are not in the repository: create them first with
 #              parity/build_reference.sh and parity/export_goldens.py (parity/README.md). With
 #              --parity, missing goldens are an error, not a skip.
+#   wheels     only with --wheels (or DYNG_CHECK_WHEELS=1): ci/wheels.sh, the sdist and the
+#              manylinux_2_28 CPU wheel built locally, auditwheel, twine check, ci/wheel_check.py
+#              (the 90 MB budget) and the wheel alone in fresh venvs for Python 3.12 and 3.13 with
+#              the pytest suite (needs the tools of docs/developer/wheels.md)
 #
 # The GitHub workflows mirror these steps: cpu.yml runs `build` and `scaffold`; lint.yml runs
 # `precommit` (which includes clang-format, REUSE, provenance and regen), `harness`, `tidy` (on a
-# configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`. Only `parity`
-# (it needs the goldens, which are not in the repository) runs locally only. The CUDA tests
+# configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`;
+# python.yml runs `python` (and the suite against an installed sdist); wheels.yml builds the
+# distributions with cibuildwheel (the hosted counterpart of `wheels`). Only `parity` (it needs
+# the goldens, which are not in the repository) runs locally only. The CUDA tests
 # are not part of this gate: ci/gpu_local.sh runs them on a GPU machine, and cuda-build.yml
 # compiles the CUDA presets on hosted runners (no GPU).
 #
@@ -58,11 +65,13 @@
 set -euo pipefail
 
 run_parity="${DYNG_CHECK_PARITY:-0}"
+run_wheels="${DYNG_CHECK_WHEELS:-0}"
 for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
+    --wheels) run_wheels=1 ;;
     -h | --help)
-      sed -n '5,57p' "${BASH_SOURCE[0]}"
+      sed -n '5,64p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -265,6 +274,15 @@ if [ "${run_parity}" = "1" ] && ! skipped parity; then
     echo "parity: OK"
   else
     failed+=("parity")
+  fi
+fi
+
+if [ "${run_wheels}" = "1" ] && ! skipped wheels; then
+  step "wheels: the distributions built and installed locally (ci/wheels.sh)"
+  if heavy ci/wheels.sh; then
+    echo "wheels: OK"
+  else
+    failed+=("wheels")
   fi
 fi
 

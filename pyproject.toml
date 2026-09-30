@@ -113,6 +113,23 @@ provider = "scikit_build_core.metadata.regex"
 input = "VERSION"
 regex = '(?P<value>\S+)'  # VERSION holds a bare version string
 
+[tool.cibuildwheel]
+# The CPU wheel of PLAN Section 7.7, built by .github/workflows/wheels.yml on GitHub-hosted
+# runners inside the manylinux_2_28 image (auditwheel bundles libgomp). The wheel is abi3: it is
+# built once for cp312, and cibuildwheel tests that same wheel again under cp313. The local build
+# of this machine (no container runtime) is ci/wheels.sh (docs/developer/wheels.md).
+build = ["cp312-manylinux_x86_64", "cp313-manylinux_x86_64"]
+archs = ["x86_64"]
+manylinux-x86_64-image = "manylinux_2_28"
+build-frontend = "build"
+build-verbosity = 1
+# A small subset of python/tests in the installed wheel (the full suite runs in python.yml and in
+# the install-test job of wheels.yml): the API, both algorithms, the CLI and the parity subset.
+test-requires = ["pytest>=8", "hypothesis==6.167.1"]
+test-sources = ["pyproject.toml", "python/tests", "cpp/tests/data"]
+test-environment = { OMP_NUM_THREADS = "2", DYNG_HYPOTHESIS_PROFILE = "dev" }
+test-command = "python -m pytest -q -p no:cacheprovider python/tests/test_api_surface.py python/tests/test_sssp.py python/tests/test_cycle_count.py python/tests/test_cli.py python/tests/test_parity.py"
+
 [tool.pytest.ini_options]
 testpaths = ["python/tests"]
 addopts = "-ra --strict-markers"
