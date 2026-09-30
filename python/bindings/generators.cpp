@@ -3,13 +3,18 @@
 /**
  * @file generators.cpp
  * @brief dyng::generators::legacy: MOSP's change generator and CycleEnumeration-GPU's batch
- *        generator, bit-exact for a fixed seed.
+ *        generator, bit-exact for a fixed seed, and MOSP's weight stream (for `dyng prep widen`).
  */
 #include "types.hpp"
+#include "util/rng.hpp"  // private header of libdyng (cpp/src): the libstdc++ draws
 
 #include <dyng/generators/legacy.hpp>
 
 #include <nanobind/stl/string.h>
+
+#include <cstdint>
+#include <random>
+#include <vector>
 
 namespace dyng::python {
 namespace {
@@ -87,6 +92,27 @@ void bind_generators(nb::module_& m) {
       .def_rw("num_insertions", &legacy::cycle_enum_batch_options::num_insertions)
       .def_rw("seed", &legacy::cycle_enum_batch_options::seed)
       .def_rw("locality_window", &legacy::cycle_enum_batch_options::locality_window);
+
+  // MOSP's weight stream: `count` draws of std::uniform_int_distribution<int>(lo, hi) (libstdc++'s
+  // algorithm, reproduced by detail::legacy_uniform_int) from std::mt19937(seed), the weights of
+  // `mospPrep mtx2csr` and `mospPrep widen` in draw order (the CLI's `dyng prep widen`).
+  m.def(
+      "legacy_mosp_weights",
+      [](std::int64_t count, std::int32_t lo, std::int32_t hi, std::uint32_t seed) {
+        DYNG_EXPECTS(count >= 0, "legacy_mosp_weights: count must be >= 0, got ", count);
+        DYNG_EXPECTS(lo <= hi, "legacy_mosp_weights: min ", lo, " > max ", hi);
+        std::vector<std::int32_t> out = without_gil([&] {
+          std::vector<std::int32_t> w(static_cast<std::size_t>(count));
+          std::mt19937 engine(seed);
+          for (std::int32_t& x : w) {
+            x = static_cast<std::int32_t>(detail::legacy_uniform_int(engine, lo, hi));
+          }
+          return w;
+        });
+        return to_numpy(std::move(out));
+      },
+      nb::arg("count"), nb::arg("min"), nb::arg("max"), nb::arg("seed"),
+      "MOSP's weight stream: `count` draws in [min, max] from std::mt19937(seed).");
 
 #define DYNG_PY_BIND_GENERATORS(V, E, W) bind_generator_type<V, E, W>(m);
   DYNG_PY_FOR_EACH_GRAPH_TYPE(DYNG_PY_BIND_GENERATORS)

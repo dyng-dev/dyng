@@ -135,5 +135,10 @@ printf '%s\n' '%%MatrixMarket matrix coordinate integer general' '% first commen
 "${prep}" mtx2csr "${mtx}/m1_general.mtx" "${mtx}/m1_k1_seed12345_" 1 1 100 12345 >/dev/null
 "${prep}" mtx2csr "${mtx}/m1_general.mtx" "${mtx}/m1_k4_seed7_" 4 1 2147483647 7 >/dev/null
 
+# --- 6. mospPrep widen: objectives appended with seeded weights (dyng prep widen, M5) -----------
+"${prep}" widen "${mtx}/m1_k1_seed12345_" "${mtx}/m1_k1_seed12345_widen_k3_seed9_" 3 1 100 9 >/dev/null
+"${prep}" widen "${mtx}/m0_k3_seed12345_" "${mtx}/m0_k3_seed12345_widen_k5_seed4_" 5 1 2147483647 4 \
+  >/dev/null
+
 du -sh "${out}"
 echo "fixtures written to ${out}"

@@ -62,7 +62,10 @@ nanobind_add_module(
   bindings/testing.cpp
 )
 target_compile_features(_core PRIVATE cxx_std_17)
-target_include_directories(_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/bindings")
+# cpp/src: the private header util/rng.hpp (MOSP's weight stream of `dyng prep widen`).
+target_include_directories(_core PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/bindings"
+                                         "${PROJECT_SOURCE_DIR}/cpp/src"
+)
 target_link_libraries(_core PRIVATE dyng::dyng dyng::testing)
 dyng_set_warnings(_core)
 if(DYNG_WARNINGS_AS_ERRORS AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

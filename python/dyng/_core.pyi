@@ -1270,6 +1270,11 @@ class CycleEnumBatchOptions:
     @locality_window.setter
     def locality_window(self, arg: int, /) -> None: ...
 
+def legacy_mosp_weights(count: int, min: int, max: int, seed: int) -> Annotated[NDArray[numpy.int32], dict(shape=(None,))]:
+    """
+    MOSP's weight stream: `count` draws in [min, max] from std::mt19937(seed).
+    """
+
 @overload
 def mosp_changes(graph: GraphI32I32I32, options: MospChangeOptions) -> tuple: ...
 
