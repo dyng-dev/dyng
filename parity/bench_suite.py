@@ -7,7 +7,8 @@
     parity/bench_suite.py plan     benchmarks/paper/ieee_tc_dyntrucy.yaml [--readings cuda]
     parity/bench_suite.py run      benchmarks/paper/ieee_tc_dyntrucy.yaml --version 0.1.0rc1
                                    [--readings openmp,cuda] [--datasets ...] [--runs N]
-                                   [--build-root build] [--skip-existing] [--no-verify-inputs]
+                                   [--build-root build] [--skip-existing | --force]
+                                   [--no-verify-inputs] [--records DIR] [--out DIR]
     parity/bench_suite.py summarize benchmarks/paper/ieee_tc_dyntrucy.yaml --version 0.1.0rc1
 
 A suite file (docs/developer/benchmarks.md) is machine-readable: datasets with their SHA-256
@@ -30,15 +31,24 @@ run        verifies the inputs against the suite's digests (SHA-256 of every fil
            the GPU clocks for the whole A/B (--lock-clocks of the reading: boost, base, or none
            for the recorded default-clock reading). The cycle_count memory reading takes the
            shared lock (it times nothing). The full records go to --records (default
-           $DYNG_SCRATCH/runs/bench/<version>); then `summarize` runs.
+           $DYNG_SCRATCH/runs/bench/<version>), never over existing ones (--skip-existing keeps
+           them, --force replaces them); then `summarize` runs.
 summarize  reads the records of every planned command and writes, under
            benchmarks/results/<version>/ (--out), a compacted copy of each record (the per-round
            machine-monitor windows dropped; verdicts, samples, rejected rounds and clock checks
            kept) and <suite>.json: the readings with every region's medians, ratio, gate and
-           verdict, the inputs check and the overall verdict. It re-derives every gate from the
-           suite's tolerances and refuses a record whose gate, reference commit, inputs, clock
-           lock or build preset differs from the suite. Exit 1 if a gated region exceeds its
-           gate, a gated reading is missing or incomplete, or a check fails.
+           verdict, the NVIDIA driver each record names, the inputs check and the overall
+           verdict. It re-derives every gate from the suite's tolerances and refuses a record
+           whose gate, reference commit, inputs, clock lock or build preset differs from the
+           suite. The inputs of every record must be verified: by the digests the harness took
+           while measuring, or, for a record without them, by hashing the files again, each
+           unchanged since the execution started (the first command of <records>/<suite>.log).
+           Exit 1 if a gated region exceeds its gate, a gated reading is missing or incomplete,
+           or a check fails.
+
+--readings, --datasets and --runs narrow the suite: such an execution is written as
+<suite>.partial.json and only to an --out outside benchmarks/results/ (a release's summary covers
+the whole suite, and parity/certify.py checks that it does).
 """
 
 from __future__ import annotations
@@ -560,6 +570,102 @@ def verify_inputs(suite: dict, datasets: list[str] | None = None) -> dict:
     return report
 
 
+def record_datasets(suite: dict, job: dict, record: dict) -> list[str]:
+    """The suite datasets a record measured: the job's (sssp), or those its cases read."""
+    if suite["algorithm"] == "sssp":
+        return [job["dataset"]]
+    names = set()
+    for key in record.get("results", {}):
+        m = CASE_NAME.match(key.split("/", 1)[-1])
+        if m:
+            names.add(m["dataset"])
+    return sorted(names)
+
+
+def parse_stamp(text: str) -> datetime.datetime | None:
+    try:
+        stamp = datetime.datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    return (stamp if stamp.tzinfo else stamp.replace(tzinfo=datetime.UTC)).astimezone(datetime.UTC)
+
+
+def execution_started(records: Path, suite: dict) -> datetime.datetime | None:
+    """When the first command of the suite's executions in `records` started (the "== <time>"
+    lines `run` writes to <records>/<suite>.log); None without a log."""
+    log = records / f"{suite['suite']}.log"
+    if not log.is_file():
+        return None
+    stamps = [
+        parse_stamp(line.split()[1])
+        for line in log.read_text(errors="replace").splitlines()
+        if line.startswith("== ") and len(line.split()) > 1
+    ]
+    stamps = [s for s in stamps if s is not None]
+    return min(stamps) if stamps else None
+
+
+def unchanged_since(path: Path, want: str, start: datetime.datetime) -> str | None:
+    """None if `path` hashes to `want` now and was neither written nor replaced since `start`
+    (its modification and status-change times are earlier); else the reason."""
+    if not path.is_file():
+        return f"{path}: missing"
+    st = path.stat()
+    changed = datetime.datetime.fromtimestamp(max(st.st_mtime, st.st_ctime), datetime.UTC)
+    if changed >= start:
+        return f"{path}: changed at {changed:%Y-%m-%dT%H:%M:%SZ}, after {start:%Y-%m-%dT%H:%M:%SZ}"
+    got = sha256_file(path)
+    if got != want:
+        return f"{path}: SHA-256 {got}, the suite says {want}"
+    return None
+
+
+def check_record_inputs(
+    suite: dict, job: dict, record: dict, started: datetime.datetime | None
+) -> dict:
+    """How the inputs a record measured are known to be the suite's: digests the harness took
+    while measuring (sssp: `inputs_hashed: run start`; cycle_count: `datasets_sha256`, hashed by
+    the measuring process), or, for a record without them, the files hashed again now, each
+    unchanged since the execution started (modification and status-change times). Returns
+    {verified, how, datasets[, problems]}."""
+    names = record_datasets(suite, job, record)
+    by_name = {d["name"]: d for d in suite["datasets"]}
+    out: dict = {"datasets": names}
+    if suite["algorithm"] == "sssp" and record.get("inputs_hashed") == "run start":
+        got = {}
+        for line in record.get("inputs_sha256", []):
+            sha, rel = line.split(None, 1)
+            got[rel.strip()] = sha
+        ok = got == expected_inputs(suite, by_name[job["dataset"]])
+        return {**out, "verified": ok, "how": "hashed by the harness when the measurement started"}
+    if suite["algorithm"] == "cycle_count":
+        digests = record.get("datasets_sha256") or {}
+        if names and all(n in digests for n in names):
+            ok = all(digests[n] == by_name[n]["sha256"] for n in names)
+            return {**out, "verified": ok, "how": "hashed by the measuring process"}
+    # A record without digests taken while measuring (sssp records before 0.1.0rc1's review:
+    # their digests are the ones `prepare` wrote; memory records): hash the files again.
+    start = started or parse_stamp(record.get("date", ""))
+    if start is None:
+        return {**out, "verified": False, "how": "no digests and no measurement time"}
+    problems = []
+    for name in names:
+        root = input_root(suite, by_name[name])
+        for rel, want in expected_inputs(suite, by_name[name]).items():
+            reason = unchanged_since(root / rel, want, start)
+            if reason:
+                problems.append(reason)
+    out["how"] = "hashed again by summarize; every file unchanged since " + (
+        f"the execution started ({start:%Y-%m-%dT%H:%M:%SZ}, the suite's run log)"
+        if started
+        else f"the record's date ({start:%Y-%m-%dT%H:%M:%SZ}, no run log)"
+    )
+    out["verified"] = not problems
+    if problems:
+        out["problems"] = problems
+    return out
+
+
 # --- Running -------------------------------------------------------------------------------------
 
 
@@ -569,7 +675,13 @@ def lock_held_by_ancestor() -> bool:
     return bool(perf_ab.lock_holders(SCRATCH / "perf.lock") & perf_ab.ancestors())
 
 
-def run_jobs(jobs: list[dict], *, skip_existing: bool, log) -> list[dict]:
+def run_jobs(jobs: list[dict], *, skip_existing: bool, log, force: bool = False) -> list[dict]:
+    existing = [Path(j["record"]).name for j in jobs if Path(j["record"]).is_file()]
+    if existing and not (skip_existing or force):
+        raise SuiteError(
+            f"records exist already ({', '.join(existing)}): --skip-existing keeps them, "
+            "--force replaces them (move a record to replace to superseded/ first)"
+        )
     done = []
     for job in jobs:
         record = Path(job["record"])
@@ -632,7 +744,13 @@ def strip_dirty(commit: str) -> str:
     return commit.split("+", 1)[0]
 
 
-def read_record(suite: dict, job: dict, tol: dict, problems: list[str]) -> dict:
+def read_record(
+    suite: dict,
+    job: dict,
+    tol: dict,
+    problems: list[str],
+    started: datetime.datetime | None = None,
+) -> dict:
     """One reading's regions with their verdicts, checked against the suite."""
     path = Path(job["record"])
     reading = next(r for r in suite["readings"] if r["name"] == job["reading"])
@@ -669,8 +787,9 @@ def read_record(suite: dict, job: dict, tol: dict, problems: list[str]) -> dict:
         problems.append(
             f"{where}: clocks {clock_control(record)!r}, the reading says {reading['clocks']!r}"
         )
-    # Inputs: the record's digests must be the suite's.
-    if suite["algorithm"] == "sssp" and job["kind"] == "run":
+    # Inputs: every digest a record carries must be the suite's, and the inputs it measured must
+    # be verified (check_record_inputs).
+    if suite["algorithm"] == "sssp" and record.get("inputs_sha256"):
         dataset = next(d for d in suite["datasets"] if d["name"] == job["dataset"])
         got = {}
         for line in record.get("inputs_sha256", []):
@@ -678,11 +797,18 @@ def read_record(suite: dict, job: dict, tol: dict, problems: list[str]) -> dict:
             got[rel.strip()] = sha
         if got != expected_inputs(suite, dataset):
             problems.append(f"{where}: the inputs' SHA-256 differ from the suite's")
-    elif suite["algorithm"] == "cycle_count" and job["kind"] == "run":
+    elif suite["algorithm"] == "cycle_count":
         for name, sha in (record.get("datasets_sha256") or {}).items():
             want = next((d["sha256"] for d in suite["datasets"] if d["name"] == name), None)
             if want != sha:
                 problems.append(f"{where}: dataset {name} SHA-256 {sha} is not the suite's {want}")
+    inputs = check_record_inputs(suite, job, record, started)
+    if not inputs["verified"]:
+        problems.append(
+            f"{where}: the inputs are not verified ({inputs['how']}"
+            + (f": {'; '.join(inputs['problems'][:3])}" if inputs.get("problems") else "")
+            + ")"
+        )
     regions = []
     complete = True
     contaminated: dict[str, int] = {}
@@ -774,6 +900,8 @@ def read_record(suite: dict, job: dict, tol: dict, problems: list[str]) -> dict:
             if k in ("runs", "threads", "env", "lock", "statistic", "order", "scopes")
         },
         "host": record.get("host"),
+        "driver": record.get("driver"),
+        "inputs": inputs,
         "complete": complete,
         "contaminated_runs": contaminated,
         "regions": regions,
@@ -781,17 +909,30 @@ def read_record(suite: dict, job: dict, tol: dict, problems: list[str]) -> dict:
     }
 
 
+def summary_name(suite: dict, partial: dict | None) -> str:
+    """<suite>.json for a whole execution, <suite>.partial.json for a narrowed one."""
+    return f"{suite['suite']}{'.partial' if partial else ''}.json"
+
+
 def summarize(
-    suite: dict, jobs: list[dict], *, out: Path, version: str, records: Path, inputs: dict | None
+    suite: dict,
+    jobs: list[dict],
+    *,
+    out: Path,
+    version: str,
+    records: Path,
+    inputs: dict | None,
+    partial: dict | None = None,
 ) -> dict:
     tol = suite["tolerance"]
     problems: list[str] = []
     readings = []
     out.mkdir(parents=True, exist_ok=True)
+    started = execution_started(records, suite)
     for job in jobs:
         if job.get("rc", 0) != 0:
             problems.append(f"{Path(job['record']).name}: the harness exited {job['rc']}")
-        entry = read_record(suite, job, tol, problems)
+        entry = read_record(suite, job, tol, problems, started)
         raw = entry.pop("_raw", None)
         if raw is not None:
             full = (
@@ -826,6 +967,8 @@ def summarize(
     ]
     commits = sorted({r["port_commit"] for r in readings if r.get("port_commit")})
     ratios = [g["ratio"] for _, g in gated]
+    by_record = {r["record"]: r["inputs"] for r in readings if r.get("record")}
+    drivers = sorted({json.dumps(r["driver"], sort_keys=True) for r in readings if r.get("driver")})
     summary = {
         "schema": SCHEMA,
         "suite": suite["suite"],
@@ -840,7 +983,15 @@ def summarize(
         "port_commits": commits,
         "baselines": suite["baselines"],
         "tolerance": tol,
-        "inputs": inputs or "not verified by this summary (bench_suite.py run verifies them)",
+        "partial": partial,
+        "execution_started": started.strftime("%Y-%m-%dT%H:%M:%SZ") if started else None,
+        "inputs": {
+            "verified": bool(by_record) and all(v["verified"] for v in by_record.values()),
+            "run_check": inputs
+            or "not run by this summary (bench_suite.py run checks every input first)",
+            "by_record": by_record,
+        },
+        "drivers": [json.loads(d) for d in drivers],
         "readings": readings,
         "verdict": {
             "gated_regions": len(gated),
@@ -854,7 +1005,7 @@ def summarize(
             "passed": not (exceeded or provisional or missing or problems),
         },
     }
-    (out / f"{suite['suite']}.json").write_text(json.dumps(summary, indent=1) + "\n")
+    (out / summary_name(suite, partial)).write_text(json.dumps(summary, indent=1) + "\n")
     return summary
 
 
@@ -911,6 +1062,9 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument(
                 "--skip-existing", action="store_true", help="keep records that exist already"
             )
+            p.add_argument(
+                "--force", action="store_true", help="replace records that exist already"
+            )
             p.add_argument("--no-verify-inputs", action="store_true")
     args = parser.parse_args(argv)
 
@@ -935,6 +1089,20 @@ def main(argv: list[str] | None = None) -> int:
     version = args.version or (REPO / "VERSION").read_text().strip()
     records = args.records or SCRATCH / "runs" / "bench" / version
     out = args.out or REPO / "benchmarks" / "results" / version
+    # A narrowed execution (some readings or datasets, other runs) is never the suite's summary:
+    # it is written as <suite>.partial.json, and never into a release's results directory, whose
+    # full summary and compacted records it would otherwise replace.
+    partial = {
+        k: v
+        for k, v in (("readings", args.readings), ("datasets", args.datasets), ("runs", args.runs))
+        if v
+    } or None
+    results_root = (REPO / "benchmarks" / "results").resolve()
+    if partial and args.command != "plan" and out.resolve().is_relative_to(results_root):
+        parser.error(
+            "--readings, --datasets or --runs narrow the suite: give --out outside "
+            "benchmarks/results/ (the release's summary covers the whole suite)"
+        )
     jobs = plan(
         suite,
         records=records,
@@ -959,8 +1127,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[bench_suite] inputs: {inputs}", flush=True)
         records.mkdir(parents=True, exist_ok=True)
         with open(records / f"{suite['suite']}.log", "a") as log:
-            jobs = run_jobs(jobs, skip_existing=args.skip_existing, log=log)
-    summary = summarize(suite, jobs, out=out, version=version, records=records, inputs=inputs)
+            jobs = run_jobs(jobs, skip_existing=args.skip_existing, log=log, force=args.force)
+    summary = summarize(
+        suite, jobs, out=out, version=version, records=records, inputs=inputs, partial=partial
+    )
     print_summary(summary)
     return 0 if summary["verdict"]["passed"] else 1
 
