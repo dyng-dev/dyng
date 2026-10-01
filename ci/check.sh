@@ -7,6 +7,7 @@
 #
 #   ci/check.sh                   # cpu-only and dev presets, clang-format, REUSE, docs, pre-commit
 #   ci/check.sh --parity          # ... and the golden parity replay (parity preset, needs goldens)
+#   ci/check.sh --wheels          # ... and the local build and install test of the distributions
 #   DYNG_CHECK_PRESETS=dev ci/check.sh
 #   DYNG_CHECK_SKIP="precommit docs" ci/check.sh
 #   DYNG_CHECK_ONLY="tidy" ci/check.sh    # only the named steps (the hosted `tidy` job)
@@ -30,6 +31,16 @@
 #              doxygen is missing; fails if the Sphinx packages of environment.yml are missing)
 #   regen      scripts/regen.py --check: the algorithm tables, the CODEOWNERS block and the
 #              registries are up to date with the manifests (PLAN Section 4.8)
+#   python     ci/python.sh: the development install of the Python package (pip install -e .),
+#              the committed stubs (scripts/regen.py --stubs --check), mypy --strict and the
+#              pytest suite python/tests (skipped if scikit-build-core or nanobind is missing,
+#              except in CI). The install goes into the active environment unless its dyng is
+#              an editable install of another checkout (the shared dyng-dev and a fresh clone):
+#              then into the throwaway venv build/py-venv of this checkout, so the shared
+#              environment keeps pointing where it did (DYNG_PYTHON_INSTALL=force re-points it)
+#   api        ci/api_check.sh: griffe compares the Python API with the base branch (origin/main,
+#              else main) and fails on a breaking change (the api-change label accepts one in CI;
+#              locally set DYNG_API_CHANGE=1); skipped if griffe is missing, except in CI
 #   scaffold   ci/scaffold_check.sh: scripts/new_algorithm.py generates a throwaway algorithm of
 #              each family, which builds and passes its conformance kit (a nested build in a
 #              temporary copy of the tree)
@@ -39,11 +50,18 @@
 #              (PLAN Section 8.3). The goldens are not in the repository: create them first with
 #              parity/build_reference.sh and parity/export_goldens.py (parity/README.md). With
 #              --parity, missing goldens are an error, not a skip.
+#   wheels     only with --wheels (or DYNG_CHECK_WHEELS=1): ci/wheels.sh, the sdist and the
+#              manylinux_2_28 CPU wheel built locally, auditwheel, twine check, ci/wheel_check.py
+#              (the 90 MB budget) and the wheel alone in fresh venvs for Python 3.12 and 3.13 with
+#              the pytest suite (needs the tools of docs/developer/wheels.md)
 #
 # The GitHub workflows mirror these steps: cpu.yml runs `build` and `scaffold`; lint.yml runs
 # `precommit` (which includes clang-format, REUSE, provenance and regen), `harness`, `tidy` (on a
-# configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`. Only `parity`
-# (it needs the goldens, which are not in the repository) runs locally only. The CUDA tests
+# configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`;
+# python.yml runs `python` (and the suite against an installed sdist); api-check.yml runs `api`;
+# wheels.yml builds the distributions with cibuildwheel (the hosted counterpart of `wheels`).
+# Only `parity` (it needs the goldens, which are not in the repository) runs locally only.
+# The CUDA tests
 # are not part of this gate: ci/gpu_local.sh runs them on a GPU machine, and cuda-build.yml
 # compiles the CUDA presets on hosted runners (no GPU).
 #
@@ -55,11 +73,13 @@
 set -euo pipefail
 
 run_parity="${DYNG_CHECK_PARITY:-0}"
+run_wheels="${DYNG_CHECK_WHEELS:-0}"
 for arg in "$@"; do
   case "${arg}" in
     --parity) run_parity=1 ;;
+    --wheels) run_wheels=1 ;;
     -h | --help)
-      sed -n '5,54p' "${BASH_SOURCE[0]}"
+      sed -n '5,68p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -200,6 +220,38 @@ if ! skipped harness; then
   fi
 fi
 
+if ! skipped python; then
+  step "Python package: development install, stubs, pytest (ci/python.sh)"
+  if ! python -c "import scikit_build_core, nanobind" >/dev/null 2>&1; then
+    if [ -n "${CI:-}" ]; then
+      echo "scikit-build-core / nanobind not found (in CI the step must run)"
+      failed+=("python")
+    else
+      echo "scikit-build-core / nanobind not found (conda env update -f environment.yml); skipped"
+    fi
+  elif heavy ci/python.sh; then
+    echo "python: OK"
+  else
+    failed+=("python")
+  fi
+fi
+
+if ! skipped api; then
+  step "Python API check: griffe against the base branch (ci/api_check.sh)"
+  if ! command -v griffe >/dev/null 2>&1; then
+    if [ -n "${CI:-}" ]; then
+      echo "griffe not found (in CI the step must run)"
+      failed+=("api")
+    else
+      echo "griffe not found (conda env update -f environment.yml); skipped"
+    fi
+  elif ci/api_check.sh; then
+    :
+  else
+    failed+=("api")
+  fi
+fi
+
 if ! skipped scaffold; then
   step "scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)"
   if heavy ci/scaffold_check.sh; then
@@ -246,6 +298,15 @@ if [ "${run_parity}" = "1" ] && ! skipped parity; then
     echo "parity: OK"
   else
     failed+=("parity")
+  fi
+fi
+
+if [ "${run_wheels}" = "1" ] && ! skipped wheels; then
+  step "wheels: the distributions built and installed locally (ci/wheels.sh)"
+  if heavy ci/wheels.sh; then
+    echo "wheels: OK"
+  else
+    failed+=("wheels")
   fi
 fi
 

@@ -16,8 +16,10 @@
 #    everywhere, every namespace-scope entity in a group, @backends / @determinism / @paper /
 #    @guarantee on compute() and update()), then ci/api_snapshot.py: the public declarations must
 #    match the committed API baseline cpp/tests/api/api_snapshot/public_api.txt (the 0.1 freeze,
-#    ADR 0023; after a reviewed API change: ci/docs.sh --update-api).
-# 2. The Sphinx site (MyST pages + Breathe over the Doxygen XML) with warnings as errors and
+#    ADR 0023; after a reviewed API change: ci/docs.sh --update-api). Then ci/doc_snippets.py
+#    --check: the README quickstarts of PLAN 9.6 exist and keep their size (pytest runs every
+#    Python snippet, CTest compiles and runs the C++ quickstart).
+# 2. The Sphinx site (with the Python API reference from sphinx-autoapi) (MyST pages + Breathe over the Doxygen XML) with warnings as errors and
 #    nitpicky references: every page in a toctree, every cross-reference and C++ name resolved.
 #    This is also the check of the site's own links: a Markdown link or {doc} to a missing page,
 #    heading or local file is a MyST warning, so an error. Output: $DYNG_DOCS_OUTPUT/html.
@@ -45,7 +47,7 @@ for arg in "$@"; do
       sphinx=0
       ;;
     -h | --help)
-      sed -n '5,33p' "${BASH_SOURCE[0]}"
+      sed -n '5,36p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -71,6 +73,9 @@ mkdir -p "${DYNG_DOXYGEN_OUTPUT}"
 rm -rf "${DYNG_DOXYGEN_OUTPUT}/xml"
 doxygen docs/Doxyfile
 python3 ci/doxygen_coverage.py "${DYNG_DOXYGEN_OUTPUT}/xml"
+# The executable snippets of the READMEs and the pages (PLAN 9.6): the quickstarts exist and keep
+# their size; pytest runs the Python ones, CTest builds and runs the C++ quickstart.
+python3 ci/doc_snippets.py --check
 if [ "${api_mode}" = "update" ]; then
   python3 ci/api_snapshot.py --update --xml "${DYNG_DOXYGEN_OUTPUT}/xml"
 else

@@ -15,7 +15,9 @@ required; Appendix E and `GOVERNANCE.md` record the decisions.
 
 "Done" means applied by the lead maintainer (through the GitHub API, 2026-09-27) and checked
 against the read-only API on 2026-09-28 (`gh api repos/dyng-dev/dyng`, its `actions/permissions`,
-`rulesets`, `environments` and security endpoints, and `gh api orgs/dyng-dev`).
+`rulesets`, `environments` and security endpoints, and `gh api orgs/dyng-dev`). The state of
+2026-09-30 (the `DCO` check required, the signing key) was reported by the author and is recorded
+in the approvals log of `GOVERNANCE.md`.
 
 | # | Setting | When | Status |
 |---|---|---|---|
@@ -25,9 +27,9 @@ against the read-only API on 2026-09-28 (`gh api repos/dyng-dev/dyng`, its `acti
 | 4 | Pull requests: merge commits and squash merges, no rebase (ADR 0019) | now | **done** |
 | 5 | Actions: permissions, SHA pinning, fork approval | now | **done** (allow-list, SHA pinning required, approval for all external contributors, read-only workflow token) |
 | 6 | Security: private vulnerability reporting, Dependabot, secret scanning | now | **done** (private vulnerability reporting; Dependabot alerts and security updates; secret scanning with push protection; CodeQL, optional, not set up) |
-| 7 | The DCO app and web sign-off | now | **done** (DCO app installed on `dyng-dev/dyng` by the author; web sign-off required); the `DCO` check is **not yet** required in the `main` ruleset: the author's membership of `dyng-dev` is private, so the app does not exempt the maintainer's commits; add it once the membership is public (step 9) |
+| 7 | The DCO app and web sign-off | now | **done** (DCO app installed on `dyng-dev/dyng` by the author, integration id 1861; web sign-off required); `DCO` is a **required check** of the `main` ruleset since 2026-09-30. The author's membership of `dyng-dev` is public and the maintainer's commits are SSH-signed (the signing key "dynG commit signing", registered on the author's account on 2026-09-29), so the app exempts them as signed commits of an organization member |
 | 8 | Labels | after the M4 merge | pending: the `labels` workflow applies `.github/labels.yml` on the first push of `main` with the M4 merge |
-| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378) with the 17 required checks of step 9, strict; `DCO` follows (step 7) |
+| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378), strict; 17 required checks, and **18** with `DCO` from 2026-09-30. The M5 checks of `python.yml` (and `api-check.yml`) are to be added once they have run on the M5 pull request |
 | 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass) |
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
@@ -115,9 +117,13 @@ Settings → sidebar **Actions** → **General**:
 
    ```text
    pypa/gh-action-pypi-publish@*,
+   pypa/cibuildwheel@*,
    crazy-max/ghaction-github-labeler@*,
    mamba-org/setup-micromamba@*
    ```
+
+   (`pypa/cibuildwheel` is new in M5, for `wheels.yml`; **to add** to the setting before the M5
+   pull request runs, or `wheels.yml` fails at its first step.)
 
    and tick **Require actions to be pinned to a full-length commit SHA** (every workflow in
    `.github/workflows/` already is; dependabot keeps the pins current). **Save**.
@@ -163,9 +169,15 @@ request and reports a check named **DCO**. `.github/dco.yml` exempts members of 
 3. Select **Only select repositories** → choose **dyng-dev/dyng** → **Install**.
 4. After the next pull request, the check **DCO** appears; add it to the required checks
    (step 9) once the maintainers' membership of `dyng-dev` is public. The app exempts only
-   *public* members (`require.members: false`), so while a maintainer's membership is private
-   the check fails on their own commits, which carry no `Signed-off-by` line. (Status
-   2026-09-28: the author's membership is private, so `DCO` is not a required check yet.)
+   *public* members (`require.members: false`), and only for **signed** commits, so a
+   maintainer's commits carry no `Signed-off-by` line but must be signed (SSH or GPG, with the
+   key registered as a signing key on their GitHub account).
+   **Status (2026-09-30): done.** `DCO` is a required check of the `main` ruleset (id 24131378;
+   the check's source is the DCO app, integration id 1861), the 18th. The author's membership is
+   public (2026-09-29) and every commit of the maintainer is SSH-signed with the key "dynG commit
+   signing", registered as a signing key on the author's account on 2026-09-29; the local
+   repository signs automatically (`commit.gpgsign=true`, `gpg.format=ssh`). External
+   contributors sign off (`git commit -s`), as CONTRIBUTING.md says.
 5. So that contributors who fix a typo in GitHub's web editor pass the check: Settings →
    **General** → in the first section (below **Template repository**) tick **Require
    contributors to sign off on web-based commits**. GitHub then adds the `Signed-off-by` line
@@ -193,14 +205,14 @@ merges for contributions). While the lead maintainer is the only maintainer, **z
 are required (the author merges their own pull request once the checks pass); from the day a
 second maintainer exists, raise it to one.
 
-**Status: done (checked 2026-09-28).** The ruleset `main` (id 24131378) was created after pull
-request #1 (INT1, merged with the merge commit `eda8b8b`) had run every workflow: pull request
-required (0 approvals, stale approvals dismissed, conversation resolution required, merge
-methods merge and squash), the 17 required checks of the table below (4 `lint`, 9 `cpu`, 3
-`cuda-build`, 1 `docs`) with **Require branches to be up to date** (strict), deletions and
-force pushes blocked. The **Repository admin** role is on the bypass list in the mode **For
-pull requests only**: an administrator can merge a pull request whose checks are not green, but
-cannot push to `main` directly. The `DCO` check is not required yet (step 7). GitHub offers a
+**Status: done (checked 2026-09-28; `DCO` added 2026-09-30).** The ruleset `main` (id 24131378)
+was created after pull request #1 (INT1, merged with the merge commit `eda8b8b`) had run every
+workflow: pull request required (0 approvals, stale approvals dismissed, conversation resolution
+required, merge methods merge and squash), the required checks of the table below (4 `lint`, 9
+`cpu`, 3 `cuda-build`, 1 `docs`, and since 2026-09-30 `DCO`: 18 in all) with **Require branches
+to be up to date** (strict), deletions and force pushes blocked. The **Repository admin** role is
+on the bypass list in the mode **For pull requests only**: an administrator can merge a pull
+request whose checks are not green, but cannot push to `main` directly. GitHub offers a
 required check in the ruleset only after it has run in the last 7 days, which is why the
 ruleset had to wait for the first pull request. The steps below record how it was made.
 
@@ -236,9 +248,12 @@ Required checks (the job names as they appear in a pull request's checks list):
 | `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF` |
 | `cuda-build.yml` | `CUDA 13.1.1 (ci-cuda13)`, `CUDA 13.4.1 (ci-cuda13)`, `CUDA 12.9.2 (ci-cuda12)` (the job `compile`, named `CUDA <toolkit> (<preset>)` per matrix entry; compile-only, no GPU) |
 | `docs.yml` | `site` (not `external-links`, which runs only weekly and on demand) |
-| DCO app | `DCO` (not required yet; step 7) |
+| `python.yml` (M5; **to add** once it has run on the M5 pull request) | `Editable install, stubs, mypy, pytest (gcc)`, `Editable install, stubs, mypy, pytest (clang-18)`, `From the sdist (Python 3.12)`, `From the sdist (Python 3.13)` |
+| `api-check.yml` (M5; **to add** once it has run on the M5 pull request) | `Python API (griffe)` |
+| DCO app (integration id 1861) | `DCO` (required since 2026-09-30; step 7) |
 
-Do **not** require checks of workflows that run only for some files (`labels.yml`), only on
+Do **not** require checks of workflows that run only for some files (`labels.yml`, and
+`wheels.yml`, which runs on pull requests only when they touch the packaging), only on
 tags (`release.yml`), only on some events (`welcome.yml`, the first-interaction greeting) or
 only on a schedule (the `external-links` job of `docs.yml`): a required check that never runs
 blocks every pull request. When a

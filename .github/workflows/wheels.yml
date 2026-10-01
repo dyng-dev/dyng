@@ -1,0 +1,140 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The distributions of `dyng` (PLAN Sections 7.7 and 8.8; ADR 0025): the sdist and the CPU wheel
+# (manylinux_2_28 x86_64, abi3 for CPython >= 3.12, sequential + OpenMP, libgomp bundled by
+# auditwheel), built FROM THAT SDIST with cibuildwheel inside the manylinux_2_28 image (its configuration is
+# [tool.cibuildwheel] in pyproject.toml: a small pytest subset runs in the built wheel under
+# CPython 3.12 and 3.13). Every distribution passes `twine check` and ci/wheel_check.py (the size
+# budget: a wheel above 90 MB fails, tags, contents), and the wheel alone is installed and tested
+# with the whole pytest suite in fresh environments for Python 3.12 and 3.13.
+#
+# Nothing is published here: release.yml calls this workflow (workflow_call) for tags v0.1.0 and
+# later and publishes the artifacts `sdist` and `wheel-*`. The CUDA plugin wheels (dyng-cu12,
+# dyng-cu13) join in 0.1.x.
+name: wheels
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - pyproject.toml
+      - VERSION
+      - CMakeLists.txt
+      - cmake/**
+      - python/**
+      - ci/wheel_check.py
+      - .github/workflows/wheels.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  sdist:
+    name: sdist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build the sdist
+        run: |
+          python -m pip install build twine
+          python -m build --sdist --outdir dist
+      - name: twine check, ci/wheel_check.py
+        run: |
+          twine check --strict dist/*
+          python ci/wheel_check.py dist/*.tar.gz
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  wheel:
+    name: CPU wheel (manylinux_2_28 x86_64, abi3)
+    # Built from the sdist of the job above, so the sdist that release.yml publishes is the
+    # source of the published wheel and is built and tested in the same run (as ci/wheels.sh
+    # does locally).
+    needs: sdist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: sdist
+          path: dist/
+      - name: The sdist to build from
+        id: sdist
+        run: |
+          ls dist/dyng-*.tar.gz
+          echo "path=$(ls dist/dyng-*.tar.gz)" >> "${GITHUB_OUTPUT}"
+      - name: cibuildwheel from the sdist (build, auditwheel repair, the pytest subset under 3.12 and 3.13)
+        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae  # v4.2.1
+        with:
+          package-dir: ${{ steps.sdist.outputs.path }}
+          output-dir: wheelhouse
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: twine check, ci/wheel_check.py (size budget, tags, contents, bundled libgomp)
+        run: |
+          python -m pip install twine
+          twine check --strict wheelhouse/*.whl
+          python ci/wheel_check.py wheelhouse/*.whl --platform manylinux_2_28_x86_64 \
+            --require-libgomp
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: wheel-cpu-manylinux_2_28_x86_64
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  install-test:
+    name: Install test (Python ${{ matrix.python }})
+    needs: wheel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: wheel-cpu-manylinux_2_28_x86_64
+          path: wheelhouse/
+      - name: The wheel alone in a fresh venv, then the whole pytest suite
+        env:
+          OMP_NUM_THREADS: "2"
+        run: |
+          python -m venv "${RUNNER_TEMP}/venv"
+          "${RUNNER_TEMP}/venv/bin/python" -m pip install wheelhouse/*.whl "pytest>=8" \
+            "hypothesis==6.167.1"
+          cd "${RUNNER_TEMP}"
+          "${RUNNER_TEMP}/venv/bin/dyng" --version
+          "${RUNNER_TEMP}/venv/bin/dyng" config
+          cd "${GITHUB_WORKSPACE}"
+          "${RUNNER_TEMP}/venv/bin/python" -m pytest -q -p no:cacheprovider python/tests \
+            2>&1 | tee "${RUNNER_TEMP}/pytest.log"  # the default shell sets -o pipefail
+          if grep -q "nanobind: leaked" "${RUNNER_TEMP}/pytest.log"; then
+            echo "::error::nanobind reported leaked objects"
+            exit 1
+          fi

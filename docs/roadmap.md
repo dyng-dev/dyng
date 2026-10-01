@@ -6,15 +6,13 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 
 ## Where we are
 
-**Pre-alpha, before 0.1.0.** `sssp` works on all three backends (sequential, OpenMP and CUDA)
-and is byte-identical to the original MOSP-OpenMP and MOSP-CUDA codes on their 495-case golden
-corpus, within the performance gates against the originals. The project infrastructure (this
-site, CI, community files) is in place. `cycle_count` works on the sequential, OpenMP and CUDA backends
-and is bit-identical to the original CycleEnumeration-GPU code (its OpenMP and CUDA backends) on
-its golden corpus. Its CUDA backend is within the performance gates against the original, except
-one case still awaiting a decision: the COLLAB update, which the GPU cannot run at the locked
-clock the gate uses, is measured at a lower locked clock (within the gate there) and counts once
-the maintainer decides {doc}`ADR 0021 <adr/0021-power-cap-and-base-lock-in-the-cycle-count-gate>`.
+**0.1.0 is being prepared** (the release checklist is {doc}`developer/release`). Everything
+listed for 0.1.0 below exists on the development branch: `sssp` and `cycle_count` work on all
+three backends (sequential, OpenMP and CUDA), are byte-identical to the original MOSP-OpenMP,
+MOSP-CUDA and CycleEnumeration-GPU codes on their golden corpora, and are within the performance
+gates against the originals (ADR 0018 and ADR 0021 record how the CUDA gates are read); the
+Python package, the `dyng` command line and the documentation are complete. What remains is the
+release itself: the author tags `v0.1.0` and approves the PyPI upload.
 
 ## 0.1.0: the first release
 
@@ -25,12 +23,14 @@ the maintainer decides {doc}`ADR 0021 <adr/0021-power-cap-and-base-lock-in-the-c
 - The C++ API of these headers frozen for 0.1 (SemVer from here on).
 - `pip install dyng`: a CPU wheel (sequential and OpenMP backends) and a command-line
   interface.
-- Documentation: getting started, the update model, the algorithm pages, the API reference.
+- Documentation: getting started (Python and C++), the update model, the algorithm pages, the
+  C++, Python and CLI references, and the history of the ported research codes.
 
 ## 0.1.x: hardening
 
 - CUDA wheels as plugins: `pip install "dyng[cu12]"` or `"dyng[cu13]"`.
-- Tutorials on writing your own dynamic algorithm (`dynamic_bfs`, `triangle_delta`).
+- Tutorials on writing your own dynamic algorithm (`dynamic_bfs`, `triangle_delta`), and the
+  Python tutorials (dynamic SSSP in ten minutes, cycle counting on a changing graph).
 - Hosted documentation (Read the Docs) and a citable DOI per release (Zenodo).
 - Fuzzers for the file readers, mutation checks, sanitizer jobs.
 

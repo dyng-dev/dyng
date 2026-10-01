@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Development environment for dynG (CPU build, formatting, docs tooling, Python packaging).
+# Development environment for dynG (CPU build, formatting, docs tooling, the Python package).
 #
 #   conda env create -f environment.yml      # first time
 #   conda env update -f environment.yml      # after this file changes
@@ -39,9 +39,19 @@ dependencies:
   - sphinx-copybutton=0.5.2
   - sphinx-design=0.7.0
   - sphinxcontrib-bibtex=2.7.0
+  - sphinx-autoapi=3.8.1         # the Python API reference, from the sources (no compiled module)
   - pre-commit
   - reuse
   - pytest
   - numpy
   - python-build
   - twine
+  # the Python package (PLAN Section 7.7; pyproject.toml): the build backend and nanobind, pinned
+  # to the versions of pyproject.toml's [build-system] (the committed stubs python/dyng/_core.pyi
+  # are nanobind's output), and Hypothesis for the property tests of python/tests
+  - nanobind=3.1.0
+  - scikit-build-core=1.1.0
+  - hypothesis=6.167.1
+  - mypy=1.18.2                  # the typed layer, strict (ci/python.sh; pyproject.toml [tool.mypy])
+  # the Python API check (ci/api_check.sh, .github/workflows/api-check.yml; PLAN Section 5.9)
+  - griffe=2.3.0

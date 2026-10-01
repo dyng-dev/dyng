@@ -50,8 +50,10 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_design",
     "sphinxcontrib.bibtex",
+    "sphinx.ext.napoleon",  # the Google-style docstrings of python/dyng
+    "autoapi.extension",  # the Python API reference (below)
 ]
-source_suffix = {".md": "markdown"}
+source_suffix = {".md": "markdown", ".rst": "restructuredtext"}  # .rst: the autoapi pages
 root_doc = "index"
 # adr/README.md is the ADR index as GitHub shows it; the site includes it from adr/index.md.
 exclude_patterns = ["_build", "adr/README.md"]
@@ -101,6 +103,47 @@ breathe_domain_by_extension = {"hpp": "cpp", "cuh": "cpp"}
 breathe_show_include = True
 primary_domain = "cpp"
 highlight_language = "cpp"
+
+# -- sphinx-autoapi (the Python API reference) -----------------------------------------------------
+
+# PLAN Section 9.2: the Python reference is generated without compiling or importing the
+# extension. sphinx-autoapi parses the typed layer python/dyng/*.py and the committed stubs of the
+# native module (python/dyng/_core.pyi, checked by `scripts/regen.py --stubs --check`) statically,
+# so the site builds on CPU-only runners and on Read the Docs. The public API is what `import dyng`
+# exposes: the package page documents the names of `dyng.__all__` (re-exported from the private
+# implementation modules), and the algorithm and helper namespaces (dyng.sssp, dyng.cycle_count,
+# dyng.io, dyng.generators, dyng.testing) get a page each. Private modules (a leading underscore),
+# the implementation modules whose names the package re-exports, and the command line (documented
+# in api/cli.md) are left out.
+autoapi_type = "python"
+autoapi_dirs = [str(REPO_ROOT / "python" / "dyng")]
+autoapi_root = "api/python/reference"
+autoapi_file_patterns = ["*.pyi", "*.py"]
+autoapi_ignore = ["*/cli/*", "*/__main__.py"]
+# Parsed (so the package's re-exports resolve) but given no page of their own.
+_HIDDEN_MODULES = {
+    f"dyng.{name}"
+    for name in ("array", "batch", "config", "errors", "graph", "profiler", "resources")
+}
+autoapi_options = ["members", "show-inheritance", "show-module-summary", "imported-members"]
+autoapi_member_order = "groupwise"
+autoapi_add_toctree_entry = False  # api/python/index.md links the generated pages
+autoapi_keep_files = False
+autoapi_python_class_content = "both"
+autodoc_typehints = "signature"
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
+napoleon_use_rtype = False
+# `dyng._backend.native` is the native module chosen on first use (dyng._core, or a CUDA plugin
+# from 0.1.x), so it cannot be resolved statically; the stubs document dyng._core.
+suppress_warnings = ["autoapi.python_import_resolution"]
+# Names without a page: NumPy and the standard library (no inventory is loaded, so the build never
+# needs the network), and the string-literal aliases of the typed layer (their values are listed
+# in each docstring).
+nitpick_ignore_regex += [
+    (r"py:(class|obj|data)", r"(numpy|np|collections\.abc|typing|os|pathlib|enum)\..*"),
+    (r"py:(class|obj|data)", r"(PathLike|[A-Z][A-Za-z]*Name|Any|ArrayLike)"),
+]
 
 # -- Citations (docs/references.bib, the single source of citations) -------------------------------
 
@@ -158,9 +201,45 @@ def _edit_included_source(app, pagename, templatename, context, doctree):  # noq
     context["get_edit_provider_and_url"] = lambda: ("GitHub", url)
 
 
+def _python_domain_for_autoapi(app, docname, source):  # noqa: ANN001, ANN201
+    # The site's primary domain is C++ (the curated Breathe pages); the generated Python pages
+    # resolve the bare roles of the docstrings (:class:`Graph`, :func:`update`) in Python's.
+    if docname.startswith(autoapi_root + "/"):
+        source[0] = ".. default-domain:: py\n\n" + source[0]
+
+
+def _resolve_reexported(app, env, node, contnode):  # noqa: ANN001, ANN201
+    # Signatures name a class by its defining module (dyng.graph.Graph), but the reference
+    # documents it where users import it (dyng.Graph): resolve the former to the latter.
+    if node.get("refdomain") != "py":
+        return None
+    target = node.get("reftarget", "")
+    parts = target.split(".")
+    if len(parts) < 3 or parts[0] != "dyng" or ".".join(parts[:2]) not in _HIDDEN_MODULES:
+        return None
+    py = env.get_domain("py")
+    node = node.deepcopy()
+    node["reftarget"] = "dyng." + ".".join(parts[2:])
+    return py.resolve_xref(
+        env, node["refdoc"], app.builder, node["reftype"], node["reftarget"], node, contnode
+    )
+
+
+def _skip_hidden_modules(app, what, name, obj, skip, options):  # noqa: ANN001, ANN201, PLR0913
+    private = name.split(".")[-1].startswith("_")
+    if what in ("module", "package") and (name in _HIDDEN_MODULES or private):
+        return True
+    if name == "dyng.__version__":  # a special name, documented all the same
+        return False
+    return None
+
+
 def setup(app):  # noqa: ANN001, ANN201 (Sphinx's interface)
     # After the theme's own html-page-context handler (priority 500), which sets the default.
     app.connect("html-page-context", _edit_included_source, priority=900)
+    app.connect("source-read", _python_domain_for_autoapi)
+    app.connect("autoapi-skip-member", _skip_hidden_modules)
+    app.connect("missing-reference", _resolve_reexported)
 
 
 # -- Link check ------------------------------------------------------------------------------------

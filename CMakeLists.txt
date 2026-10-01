@@ -138,11 +138,10 @@ if(DYNG_WITH_NVTX AND NOT _dyng_nvtx_found)
                       "with its headers (nvtx3/nvToolsExt.h)"
   )
 endif()
-foreach(_dyng_unavailable DYNG_BUILD_PYTHON DYNG_BUILD_DOCS DYNG_BUILD_BENCHMARKS)
-  if(${_dyng_unavailable})
-    message(WARNING "${_dyng_unavailable}=ON has no effect yet (added in a later milestone)")
-  endif()
-endforeach()
+# The benchmark suites (nvbench, Google Benchmark, dyng-bench) come in 0.2 (PLAN Section 11.2).
+if(DYNG_BUILD_BENCHMARKS)
+  message(WARNING "DYNG_BUILD_BENCHMARKS=ON has no effect yet (the benchmark suites of 0.2)")
+endif()
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -182,9 +181,37 @@ if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms)
   add_subdirectory(tools/compat)
 endif()
 
+# The Python extension module dyng._core (PLAN Section 5.4; built by the root pyproject.toml
+# through scikit-build-core, or in any CMake build with -DDYNG_BUILD_PYTHON=ON).
+if(DYNG_BUILD_PYTHON)
+  if(NOT _dyng_both_algorithms)
+    message(FATAL_ERROR "DYNG_BUILD_PYTHON=ON needs every 0.1 algorithm (DYNG_ALGORITHMS=all)")
+  endif()
+  add_subdirectory(python)
+endif()
+
 # `cmake --build --preset <p> --target docs-doxygen`: the Doxygen check of ci/docs.sh on this
-# build tree's generated headers (the whole site: ci/docs.sh; DYNG_BUILD_DOCS arrives in M5).
+# build tree's generated headers. With DYNG_BUILD_DOCS=ON the target `docs` (part of `all`) builds
+# the whole site as ci/docs.sh does (Doxygen, the API baseline, Sphinx with -W, the link check)
+# into <build>/docs/html.
 find_program(DYNG_DOXYGEN_EXECUTABLE doxygen)
+if(DYNG_BUILD_DOCS)
+  find_program(DYNG_SPHINX_BUILD_EXECUTABLE sphinx-build)
+  if(NOT DYNG_DOXYGEN_EXECUTABLE OR NOT DYNG_SPHINX_BUILD_EXECUTABLE)
+    message(FATAL_ERROR "DYNG_BUILD_DOCS=ON needs doxygen and sphinx-build with the packages of "
+                        "environment.yml (conda env update -f environment.yml)"
+    )
+  endif()
+  add_custom_target(
+    docs ALL
+    COMMAND ${CMAKE_COMMAND} -E env "DYNG_BUILD_DIR=${PROJECT_BINARY_DIR}"
+            "DYNG_DOXYGEN_OUTPUT=${PROJECT_BINARY_DIR}/doxygen"
+            "DYNG_DOCS_OUTPUT=${PROJECT_BINARY_DIR}/docs" "${PROJECT_SOURCE_DIR}/ci/docs.sh"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    COMMENT "The documentation site (ci/docs.sh) into ${PROJECT_BINARY_DIR}/docs/html"
+    VERBATIM USES_TERMINAL
+  )
+endif()
 if(DYNG_DOXYGEN_EXECUTABLE AND PROJECT_IS_TOP_LEVEL)
   add_custom_target(
     docs-doxygen

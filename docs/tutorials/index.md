@@ -8,12 +8,15 @@ Lessons that take you through a complete task, step by step.
 sssp_mosp_files
 ```
 
+Until the Python tutorials exist, {doc}`../getting_started/first_update_python` and the Python
+sections of {doc}`../algorithms/sssp` and {doc}`../algorithms/cycle_count` show the same steps.
+
 Planned, each written when its code exists:
 
 | Tutorial | Release |
 |---|---|
-| Dynamic SSSP in Python in 10 minutes | 0.1 |
-| Cycle counting on a changing graph | 0.1 |
+| Dynamic SSSP in Python in 10 minutes | 0.1.x |
+| Cycle counting on a changing graph | 0.1.x |
 | **Your first dynamic algorithm** (`dynamic_bfs`: the fixed-point template, Tier A) | 0.1.x |
 | **Aggregate deltas** (`triangle_delta`: signed recounts with an ownership rule) | 0.1.x |
 | MOSP with preferences | 0.2 |

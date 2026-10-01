@@ -38,6 +38,16 @@ auto batch = dyng::io::read_legacy_batch<vertex, weight>("insert.txt", "delete.t
 dyng::sssp::update(res, g, batch.view(), tree);
 ```
 
+A sequence of batches in the library's text format (`.dgt`, {doc}`../api/file_formats`):
+
+```cpp
+dyng::io::batch_file_options fopts;
+fopts.num_vertices = g.num_vertices();
+for (const auto& b : dyng::io::read_batches<vertex, weight>("stream.dgt", fopts)) {
+  dyng::sssp::update(res, g, b.view(), tree);
+}
+```
+
 ## Results
 
 ```cpp

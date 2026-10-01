@@ -563,6 +563,11 @@
       [[nodiscard]] int num_weights() const noexcept
 
 [dyng/io/batch_io.hpp] tracked
+  struct dyng::io::batch_file_options
+      int num_weights = -1
+      std::int64_t num_vertices = -1
+  template <typename vertex_t, typename weight_t> [[nodiscard]] std::vector< edge_batch< vertex_t, weight_t > > dyng::io::read_batches(const std::string &path, const batch_file_options &options={})
+  template <typename vertex_t, typename weight_t> void dyng::io::write_batches(const std::string &path, const std::vector< edge_batch_view< vertex_t, weight_t > > &batches)
   struct dyng::io::legacy_batch_options
       int num_weights = 1
       std::int64_t num_vertices = -1

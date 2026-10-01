@@ -14,6 +14,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0006](0006-algorithm-contract.md) | Algorithm contract | Accepted under delegation with the 0.1 API freeze (2026-09-29, ADR 0023) |
 | [0009](0009-default-index-types.md) | Default index types (edge_t = int32 with checked construction) | Accepted (M1b) |
 | [0010](0010-batch-and-graph-semantics.md) | Batch and graph semantics | Proposed (M1a draft; amended in M2a: set semantics and the unweighted graph) |
+| [0011](0011-python-bindings.md) | The Python package (nanobind bindings, the typed layer, dtype dispatch, array lifetimes, locking) | Accepted under delegation (2026-09-30) |
 | [0013](0013-parity-and-goldens.md) | Parity and goldens | Proposed (M1a draft) |
 | [0014](0014-approval-checkpoints.md) | Approval checkpoints | Accepted |
 | [0015](0015-workspace-sharing.md) | Workspace sharing (scratch memory owned by `resources`) | Proposed (M1b) |
@@ -26,6 +27,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0022](0022-conformance-kit-registry-and-scaffold.md) | The conformance kit, the algorithm registry and the scaffold (registry-driven kit, C8's reservations and container work, the scope of new_algorithm.py) | Accepted under delegation (2026-09-29) |
 | [0023](0023-api-review-and-freeze-0-1.md) | The 0.1 API review and freeze (the review's findings and fixes, `@guarantee`, the committed public-API listing and its check) | Accepted under delegation (2026-09-29) |
 | [0024](0024-reading-a-refactor-against-earlier-dyng.md) | Reading a refactor against an earlier dynG build (rounds over heap layouts, bimodal regions read mode by mode) | Accepted under delegation (2026-09-30) |
+| [0025](0025-cli-and-distributions.md) | The command line as a Python console script (generated flags, `dyng prep` with mospPrep's syntax, the originals' output formats), and the build of the distributions (cibuildwheel in CI, the local manylinux_2_28 build, `release.yml` for v0.1.0+) | Accepted under delegation (2026-09-30) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
-0008 backends, 0011 Python, 0012 versioning and stability.
+0008 backends, 0012 versioning and stability.

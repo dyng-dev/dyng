@@ -1,10 +1,10 @@
 # dynG: dynamic graph and hypergraph updates on GPUs
 
-> **Pre-alpha.** dynG is under active development and has not been released. Nothing here is
-> stable yet: APIs, file formats and build options may change without notice until 0.1.0.
-> The PyPI package `dyng` 0.0.1 is only a name reservation.
+> **Pre-release.** dynG 0.1.0 is being prepared: the C++ library, the Python package and the
+> `dyng` command line described here are complete for 0.1 but not yet published. APIs may still
+> change until 0.1.0 is tagged; the PyPI package `dyng` 0.0.1 is only a name reservation.
 
-dynG is a C++17/CUDA library (with Python bindings planned) that keeps the results of graph and
+dynG is a C++17/CUDA library with Python bindings that keeps the results of graph and
 hypergraph algorithms up to date while the structure changes in **batches** of insertions,
 deletions and weight changes, without recomputing from scratch. It unifies the research codes
 of several published systems for dynamic graphs and hypergraphs on GPUs into one library with
@@ -30,6 +30,66 @@ counting, triad counting, label propagation.
 Each algorithm has a documentation page ([docs/algorithms](docs/algorithms/index.md)); the table
 is generated from the algorithms' manifests by `scripts/regen.py`.
 
+## Quickstart
+
+Python (`pip install dyng` once 0.1.0 is published; until then `pip install .` in a clone, see
+[Install](#install)):
+
+<!-- snippet: quickstart-python -->
+```python
+import dyng
+
+# A weighted directed graph: edges 0->1 (4), 0->2 (1), 2->1 (2), 1->3 (1).
+g = dyng.Graph.from_edges([0, 0, 2, 1], [1, 2, 1, 3], [4, 1, 2, 1])
+tree = dyng.sssp.compute(g, source=0)              # shortest paths from vertex 0
+print(tree.distances.tolist())
+
+batch = dyng.EdgeBatch(insert=([2], [3], [1]), delete=([2], [1]))
+stats = dyng.sssp.update(g, batch, tree)           # applies the batch, repairs the tree
+print(tree.distances.tolist(), stats.invalidated)
+```
+
+prints
+
+<!-- snippet-output: quickstart-python -->
+```text
+[0, 3, 1, 4]
+[0, 4, 1, 2] 2
+```
+
+C++ (the same steps):
+
+<!-- snippet: quickstart-cpp -->
+```cpp
+#include <dyng/dyng.hpp>
+#include <iostream>
+
+int main() {
+  auto res = dyng::resources::sequential();               // or openmp(), cuda()
+  dyng::edge_list<std::int32_t, std::int32_t> edges{4, {0, 0, 2, 1}, {1, 2, 1, 3}, {4, 1, 2, 1}, 1};
+  auto g = dyng::graph<>::from_edges(res, edges.view());  // 4 vertices, one weight per edge
+  auto tree = dyng::sssp::compute(res, g, /*source=*/0);  // shortest paths from vertex 0
+  dyng::edge_batch<std::int32_t, std::int32_t> batch;
+  batch.delete_edge(2, 1);
+  batch.insert_edge(2, 3, {1});
+  auto st = dyng::sssp::update(res, g, batch.view(), tree);  // applies the batch, repairs the tree
+  for (auto d : dyng::to_vector(res, tree.distances())) std::cout << d << ' ';
+  std::cout << "| invalidated " << st.invalidated << '\n';
+}
+```
+
+prints
+
+<!-- snippet-output: quickstart-cpp -->
+```text
+0 4 1 2 | invalidated 2
+```
+
+Both quickstarts are run by the test suite (`python/tests/test_doc_snippets.py` and the CTest
+`example.readme_quickstart`), so they always match the library. The command line does the same on
+files in the original tools' formats: `dyng sssp update --graph G --changes DIR --out OUT`
+([CLI reference](docs/api/cli.md)).
+
 ## Status
 
 | Area | State |
@@ -42,7 +102,7 @@ is generated from the algorithms' manifests by `scripts/regen.py`.
 | `cycle_count` on CUDA (the work-queue static counters, the update on a resident device graph) | working (M2b); bit-identical to CycleEnumeration-GPU@0a976ad's CUDA backend on its golden corpus and cross-backend equal, within the CUDA performance gates in both scopes (at the boost lock: static kernels 0.67-1.00x, updates 0.39-0.93x, chained updates on the resident graph 0.23-0.89x; the COLLAB update is read at the base lock, ADR 0021) and the original's device memory ([M2b certificate](parity/results/M2b.md)) |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
-| Python package (`pip install dyng`) | planned (0.1) |
+| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working (M5): a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64), byte-identical to the originals on the Python-level parity subset; to be published with 0.1.0. CUDA plugin wheels follow in 0.1.x |
 
 ## The name
 
@@ -51,7 +111,21 @@ identifiers are lower case (`namespace dyng`, `#include <dyng/...>`, `import dyn
 inspired by [Gunrock](https://github.com/gunrock/gunrock) and follows ideas of RAPIDS cuGraph
 and RAFT, but it is **not affiliated** with either project.
 
-## Building from source
+## Install
+
+### Python package
+
+```bash
+pip install dyng                         # from PyPI, once 0.1.0 is published (Python >= 3.12, Linux x86-64)
+pip install .                            # today: from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
+```
+
+The wheel contains the sequential and OpenMP backends and the `dyng` command line; CUDA plugin
+wheels (`pip install "dyng[cu13]"`) follow in 0.1.x. For development:
+`pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build` in the
+`dyng-dev` environment (below), then `ci/python.sh` runs the stubs check and the pytest suite.
+
+### C++ library from source
 
 Requirements: Linux, a C++17 compiler (GCC >= 11 or Clang >= 15; CI builds with GCC 12/13 and
 Clang 17/18), CMake >= 3.30, Ninja, and optionally OpenMP and the CUDA toolkit (>= 12.4; an
@@ -172,35 +246,10 @@ find_package(dyng 0.1 REQUIRED)
 target_link_libraries(my_app PRIVATE dyng::dyng)
 ```
 
-```cpp
-#include <dyng/dyng.hpp>
-
-int main() {
-  auto res = dyng::resources::openmp(8);   // or resources::sequential(), resources::cuda()
-  dyng::edge_list<std::int32_t, std::int32_t> edges;
-  edges.num_vertices = 4;
-  edges.num_weights = 1;
-  edges.add_edge(0, 1, {4});
-  edges.add_edge(0, 2, {1});
-  edges.add_edge(2, 1, {2});
-  edges.add_edge(1, 3, {1});
-  // graph<> = int32 vertex ids, int32 edge offsets (ADR 0009; int64 past 2^31 - 1 edges), int32
-  // weights.
-  auto g = dyng::graph<>::from_edges(res, edges.view());
-
-  auto tree = dyng::sssp::compute(res, g, /*source=*/0);    // canonical tree: lowest-id ties
-  dyng::edge_batch<std::int32_t, std::int32_t> batch;
-  batch.delete_edge(2, 1);
-  batch.insert_edge(2, 3, {1});
-  dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), tree);  // applies the batch
-  // tree.distances() == {0, 4, 1, 2}, tree.parents() == {-1, 0, 0, 2}; st.invalidated == 2
-}
-```
-
-With `resources::cuda()` the graph and the tree live in device memory: read the results with
-`dyng::to_vector(res, tree.distances())`. `examples/cpp/sssp_update.cpp` runs the same steps on
-MOSP's text files, and
-`dyng-compat-mosp` (`tools/compat`, built by the `dev` and `parity` presets and their CUDA
+The [quickstart](#quickstart) is a complete program. With `resources::cuda()` the graph and the
+tree live in device memory: read the results with `dyng::to_vector(res, tree.distances())`, as
+the quickstart does. `examples/cpp/sssp_update.cpp` runs the same steps on MOSP's text files,
+and `dyng-compat-mosp` (`tools/compat`, built by the `dev` and `parity` presets and their CUDA
 twins) reproduces the output files of MOSP's `mosp` driver for parity runs.
 
 ## How to cite
