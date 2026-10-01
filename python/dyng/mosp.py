@@ -447,8 +447,9 @@ def update(
 
     Raises:
         StaleResultError: ``result`` does not match the graph's current state.
-        InvalidArgumentError: an invalid id or weight in the batch, or another number of weights
-            than the graph's (nothing is changed).
+        InvalidArgumentError: an invalid id or weight in the batch, or insertions with another
+            number of weights than the graph's (a batch without insertions is accepted whatever
+            its number of weights; nothing is changed).
     """
     _check_graph(graph)
     if not isinstance(result, Result):

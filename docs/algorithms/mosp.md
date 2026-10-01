@@ -176,16 +176,27 @@ with `dyng-compat-mosp --mosp` and, where it is built, with MOSP-OpenMP's `mosp`
 | openmp | sssp OpenMP engine (`sospUpdateCpu`) | MOSP-OpenMP's `combinedGraphSospCpu` (relaxed atomics) | sssp OpenMP engine (`sospFromScratchCpu`) | host |
 | cuda | sssp fused or operators engine | MOSP-CUDA's `combinedGraphSospGpu` kernels (count, CUB scan, fill) | sssp fused or operators engine (`sospFromScratchGpu`) | host (the MOSP tree is downloaded) |
 
-Determinism: `bitwise`; every tree is canonical, so the trees, the combined arrays, the path costs,
-`affected`, `combined_edges` and the objectives' deterministic counters are identical on every
-backend and engine (conformance checks C3 and C4). On cuda the trees and the combined arrays are
+Determinism: `bitwise`; the trees, the combined arrays, the path costs, `affected`,
+`combined_edges` and the objectives' deterministic counters are identical on every backend and
+engine (conformance checks C3 and C4). The MOSP tree is always canonical (a static solve of the
+combined graph). The K trees are canonical after `compute()` and after `from_arrays(...,
+canonicalize = true)`; trees imported with `canonicalize = false` keep their tie parents where the
+batch does not reach, by sssp's tie rule (sssp page, section 1), which every backend applies the
+same way, with one exception: inside sssp's packing window (sssp page, section 4; ADR 0029,
+proposed) the host backends recover the lowest-id parents and cuda keeps the imported ones, so for
+such trees the K trees, and with them the combined files and the path costs, differ between the
+host backends and cuda, each byte-identical to its own original (`parity/results/M7.md` section
+11). The combined graph itself (weights at most L * (K + 1)) is far below the window. On cuda the trees and the combined arrays are
 device memory; the path costs are host memory on every backend in 0.2 (computed on the host as the
 original computes them, after one download of the MOSP tree).
 
 Host synchronizations of an update on cuda: one per objective with the fused engine (the
-operators engine: sssp's budget), one for the combined graph's size, the combined solve's (its
-unpack pass counts `affected`) and, with `compute_path_costs`, one for the download of the MOSP tree (timed in
-`mosp.path_costs`, outside the "(a) compute" region, as in the originals). The path costs run on
+operators engine: sssp's update budget, 3 + iterations + epochs), one for the combined graph's
+size, the combined solve's (one with the fused engine, 2 + iterations + epochs with the operators
+engine, a static solve; its unpack pass counts `affected`), with `compute_path_costs` one for the
+download of the MOSP tree (timed in `mosp.path_costs`, outside the "(a) compute" region, as in the
+originals), and, in an update that adds vertices, one for the release of the old pinned copy of the
+tree (a reserving run). The path costs run on
 the host threads of the resources handle (openmp and cuda; a level-synchronous traversal of the
 MOSP tree, M7) and sequentially on the sequential backend.
 

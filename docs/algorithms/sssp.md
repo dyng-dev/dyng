@@ -216,8 +216,9 @@ still make the cooperative launch fail, which surfaces as `cuda_error` (choose
 thread counts, backends and edge offset types, and byte-identical to both originals on the golden
 corpus. All backends return identical trees, from canonical and non-canonical input trees alike
 (the randomized test `NonCanonicalInputTreesAgreeOnEveryBackend` perturbs tie parents; the CUDA test
-executable runs it with cuda next to the host backends); `invalidated` and `affected` are
-deterministic, `iterations`, `epochs` and `pushes` depend on the schedule. (MOSP-CUDA@e220ee2
+executable runs it with cuda next to the host backends), with one exception, the packing window
+below; `invalidated` and `affected` are deterministic, `iterations`, `epochs` and `pushes` depend on
+the schedule. (MOSP-CUDA@e220ee2
 reads its `invalidated` count from the candidate-list counter while other threads already append
 the insertion heads to it, a data race that its plain runs happen not to expose; the ported
 kernel sums per-thread counts instead, ADR 0017 item 1, and the CUDA suite runs under
@@ -225,7 +226,21 @@ kernel sums per-thread counts instead, ADR 0017 item 1, and the CUDA suite runs 
 origin: right at the packing limit MOSP-CUDA packs (distance, parent) when (n - 1) * max weight
 fits next to the parent bits, MOSP-OpenMP only when one more edge fits too, so
 `stats::packed_parents` can differ between cuda and the host backends there (the packing-boundary
-cases n = 2^17 - 1; the trees are equal).
+cases n = 2^17 - 1).
+
+**The packing window** (ADR 0029, proposed; the author decides the rule). The host backends copy
+MOSP-OpenMP's rule and both CUDA engines MOSP-CUDA's, so in the window
+(n - 1) * W <= max_distance < n * W (W the largest weight, max_distance = 2^(64 - b) - 2 with b
+parent bits; with 32-bit weights only graphs of at least 65537 vertices reach it, for n = 65537 the
+window is W in [2147450881, 2147483647], for roadNet-CA a largest weight of 4462121 or 4462122)
+the host backends run distance-only and cuda runs packed. From canonical input trees the trees are
+still equal on every backend. From non-canonical input trees (`from_arrays(..., canonicalize =
+false)`) the host backends return the canonical tree (every parent recovered with the lowest id)
+while cuda keeps the tie parents of the vertices the batch does not re-evaluate: the distances are
+equal, the parents and `affected` differ, and each backend is byte-identical to its own original
+(`parity/results/M7.md` section 11; the test
+`SsspPackingWindow.NonCanonicalTreesFollowEachOriginalsPackingRule` pins it). No golden case and
+no randomized case lies in the window.
 
 **The CUDA backend.** A graph belongs to the backend of the resources that built it (PLAN 4.6
 rule 5): sssp on CUDA resources needs a graph built with them (or `g.clone(cuda_res)`), and a
@@ -237,10 +252,13 @@ every update, as MOSP-CUDA uploads the updated graph once per batch. Results kee
 device memory (`r.space() == memory_space::device`; copy them with `dyng::to_vector(res,
 r.distances())`), `r.clone(res)` moves a result between host and device, and
 `result::from_arrays()` accepts host or device arrays (checked on the host, then uploaded).
-`update()` synchronizes the stream once per result (the kernel's control block is read) and once
-per batch inside the commit, where the new graph state is uploaded (`graph.upload`); `compute()`
-synchronizes once, plus once for the upload if the graph state is not resident yet (ADR 0017 item
-7). The
+With the fused engine `update()` synchronizes the stream once per result (the kernel's control
+block is read) and once per batch inside the commit, where the new graph state is uploaded
+(`graph.upload`); `compute()` synchronizes once, plus once for the upload if the graph state is not
+resident yet (ADR 0017 item 7). The operators engine (`engine::operators`, or `engine::automatic`
+on a device without cooperative launch) synchronizes 3 + iterations + epochs times per result in
+`update()` and 2 + iterations + epochs times in `compute()` (once per near-far round, plus the
+checks of its first phases and the finalize step; ADR 0026), plus the same uploads. The
 scratch memory is the device workspace of the handle's pool (ADR 0015), the kernel's grid is the
 co-resident block count of each kernel instantiation (occupancy API), and `resources::warm_up()`
 loads the kernels ahead of timed work. Engine selection, placement and the device graph are

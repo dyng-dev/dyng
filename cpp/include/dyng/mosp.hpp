@@ -39,8 +39,12 @@
  * update() applies the batch once and updates the K trees incrementally (K sssp updates over the
  * objective views of the graph, one after the other on one shared workspace: dyng::update_each()
  * semantics), then rebuilds the combined graph from the K trees (count, scan, fill), solves it
- * from scratch with sssp's engine and recomputes the path costs. Every tree is canonical (lowest
- * parent id among equal distances), so every backend returns the same bytes.
+ * from scratch with sssp's engine and recomputes the path costs. The MOSP tree is always
+ * canonical (lowest parent id among equal distances); the K trees are canonical after compute()
+ * and after from_arrays() with canonicalize = true, and trees imported without it keep their tie
+ * parents by sssp's tie rule. Every backend returns the same bytes, except for such imported trees
+ * inside sssp's packing window (@ref sssp, ADR 0029), where the host backends and cuda each match
+ * their own original.
  *
  * Backends: sequential, openmp (MOSP-OpenMP's mospUpdate and combinedGraphSospCpu) and cuda
  * (MOSP-CUDA's mospUpdate and combinedGraphSospGpu; options::cuda_engine chooses sssp's fused or
@@ -387,7 +391,7 @@ namespace dyng::mosp {
  * @param[in] opt    Options.
  * @return The result, matching `g.version()`.
  * @throws invalid_argument_error if the source is out of range, the options are invalid (a
- *         preference below 1, as many preferences as objectives, lcm above
+ *         preference below 1, not one preference per objective (or none), lcm above
  *         max_preference_scale, num_objectives out of [0, num_weights], more than max_objectives
  *         objectives, a negative delta), a weight is below 1, the graph stores no in-edges or has
  *         no weight column, or `g` belongs to another backend than `res`.
@@ -436,8 +440,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *         parent changed (deterministic).
  * @throws stale_result_error     if r.graph_version() != g.version(), `r` was computed on another
  *         graph, or `r` was left unusable by a failed update.
- * @throws invalid_argument_error if a batch id or weight is invalid or the batch has another
- *         number of weights than the graph (nothing is changed); or, for trees imported without
+ * @throws invalid_argument_error if a batch id or weight is invalid or the batch has insertions
+ *         with another number of weights than the graph (a batch without insertions is accepted
+ *         whatever its number of weights; nothing is changed); or, for trees imported without
  *         validation, as sssp::update() (then the graph was updated and `r` is left unusable).
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
  *         cannot run (nothing is changed).
@@ -447,7 +452,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @sync
  * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs (trees, combined arrays, path costs,
- *              `affected`, `combined_edges` and the objectives' deterministic counters).
+ *              `affected`, `combined_edges` and the objectives' deterministic counters), except
+ *              for non-canonical imported trees inside sssp's packing window, where the K trees
+ *              (and so the combined arrays and path costs) differ between the host backends and
+ *              cuda, each as its original (@ref sssp, ADR 0029).
  * @guarantee Strong for every error found before the batch is applied; basic after the commit
  *            (`g` holds the new version and `r` is poisoned until it is recomputed).
  * @paper DynaMOSP (IPDPS 2025; IEEE TPDS 2025): `dyng::citation("mosp")`.
