@@ -806,7 +806,7 @@ def test_check_needs_evidence_and_records_it(cert, tmp_path: Path) -> None:
     with pytest.raises(SystemExit, match="needs --evidence"):
         cert.main([*args, "--result", "passed", "--scope", "packaging"])
     log = tmp_path / "wheels.log"
-    log.write_text("==> sdist\nnoise\n\x1b[32mPASSED\x1b[0m\nok     dyng.whl\n")
+    log.write_text("==> sdist\nnoise\n\x1b[32mPASSED\x1b[0m\nok     dyng.whl\n" + "x\n" * 400)
     assert (
         cert.main([*args, "--result", "passed", "--scope", "packaging", "--evidence", str(log)])
         == 0
@@ -816,6 +816,11 @@ def test_check_needs_evidence_and_records_it(cert, tmp_path: Path) -> None:
     assert entry["evidence"][0]["bytes"] == log.stat().st_size
     excerpt = (results / entry["evidence"][0]["excerpt"]).read_text()
     assert "==> sdist" in excerpt and "PASSED" in excerpt and "noise" not in excerpt
+    short = tmp_path / "short.log"
+    short.write_text("[mutate] control passed\n")  # a short log is copied whole
+    assert cert.main([*args, "--result", "passed", "--evidence", str(short)]) == 0
+    entry = json.loads((results / "checks.json").read_text())["checks"][0]
+    assert "[mutate] control passed" in (results / entry["evidence"][0]["excerpt"]).read_text()
     summary = tmp_path / "gpu.md"
     summary.write_text(
         "| step | result |\n|---|---|\n| memcheck | passed |\n| racecheck | skipped |\n"
