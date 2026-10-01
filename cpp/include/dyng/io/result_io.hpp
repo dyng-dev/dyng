@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file result_io.hpp
- * @brief Results in the originals' formats: shortest-path distance files ("v d" / "v INF") and
- *        SSSP-tree files ("v p", p = -1 for none) of MOSP, and cycle histograms in the CSV of
+ * @brief Results in the originals' formats: shortest-path distance files ("v d" / "v INF"),
+ *        SSSP-tree files ("v p", p = -1 for none) and path-cost files ("v c1 .. cK") of MOSP, and
+ *        cycle histograms in the CSV of
  *        CycleEnumeration-GPU ("# cycle_size, num_of_cycles" ... "Total, N").
  * @ingroup io
  */
@@ -49,6 +50,26 @@ void write_distances(const std::string& path, array_view<const distance_t> dista
  */
 template <typename vertex_t>
 void write_parents(const std::string& path, array_view<const vertex_t> parents);
+
+/**
+ * @brief Write MOSP path costs, one line "v c1 .. cK" per vertex; a cost >= infinite_distance() /
+ *        2 is "INF" (mosp::result::path_costs(), MOSP's combinedGraph/mospCosts.txt).
+ *
+ * Byte-identical to the writeCosts() of MOSP's `mosp` driver.
+ *
+ * @tparam distance_t     Signed integer distance type.
+ * @param[in] path           The file (parent directories are created).
+ * @param[in] costs          n * num_objectives costs, vertex-major (host memory).
+ * @param[in] num_objectives K (>= 1; the length of `costs` must be a multiple of it).
+ * @throws io_error               if the file cannot be written.
+ * @throws invalid_argument_error if the array is not host-accessible or K does not divide its
+ *         length.
+ * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @ingroup io
+ */
+template <typename distance_t>
+void write_path_costs(const std::string& path, array_view<const distance_t> costs,
+                      int num_objectives);
 
 /**
  * @brief Read a distance file: one line "v d" or "v INF" per vertex, each vertex exactly once.

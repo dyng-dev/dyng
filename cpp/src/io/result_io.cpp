@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from MOSP-CUDA@e220ee2:src/csrGraph.cu (readDistances, readParents, writeDistances,
-// writeParents)
+// writeParents) and src/mosp.cu (writeCosts)
 // Derived from CycleEnumeration-GPU@0a976ad:src/core/histogram.cpp (CycleHistogram::to_csv)
 /**
  * @file result_io.cpp
@@ -180,6 +180,34 @@ void write_distances(const std::string& path, array_view<const distance_t> dista
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_distances (", path, ")")
 
+template <typename distance_t>
+void write_path_costs(const std::string& path, array_view<const distance_t> costs,
+                      int num_objectives) try {
+  expect_host_array(costs, "write_path_costs");
+  DYNG_EXPECTS(num_objectives >= 1 && costs.size() % static_cast<std::size_t>(num_objectives) == 0,
+               "io::write_path_costs: ", costs.size(), " costs are not n * ", num_objectives,
+               " (num_objectives >= 1)");
+  const auto k = static_cast<std::size_t>(num_objectives);
+  const std::size_t n = costs.size() / k;
+  detail::text_writer out(path);
+  const distance_t unreachable = infinite_distance<distance_t>() / 2;
+  for (std::size_t v = 0; v < n; ++v) {
+    out.put(static_cast<std::int64_t>(v));
+    for (std::size_t j = 0; j < k; ++j) {
+      out.put_char(' ');
+      const distance_t c = costs[v * k + j];
+      if (c >= unreachable) {
+        out.put("INF");
+      } else {
+        out.put(static_cast<std::int64_t>(c));
+      }
+    }
+    out.put_char('\n');
+  }
+  out.close();
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE("io::write_path_costs (", path, ")")
+
 template <typename vertex_t>
 void write_parents(const std::string& path, array_view<const vertex_t> parents) try {
   expect_host_array(parents, "write_parents");
@@ -241,8 +269,9 @@ std::vector<vertex_t> read_parents(const std::string& path, std::int64_t num_ver
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("io::read_parents (", path, ", ", num_vertices, " vertices)")
 
-#define DYNG_INSTANTIATE_DISTANCE_IO(D)                                      \
-  template void write_distances<D>(const std::string&, array_view<const D>); \
+#define DYNG_INSTANTIATE_DISTANCE_IO(D)                                            \
+  template void write_distances<D>(const std::string&, array_view<const D>);       \
+  template void write_path_costs<D>(const std::string&, array_view<const D>, int); \
   template std::vector<D> read_distances<D>(const std::string&, std::int64_t);
 #define DYNG_INSTANTIATE_PARENT_IO(V)                                      \
   template void write_parents<V>(const std::string&, array_view<const V>); \
