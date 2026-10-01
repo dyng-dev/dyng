@@ -9,6 +9,7 @@
                             --gpu-summary build/dev-cuda/gpu_local_summary.md
     parity/certify.py check --version 0.1.0rc1 --name mutation-sssp \\
                             --command "parity/mutate.py run" --json-verdict mutation-sssp.json
+    parity/certify.py equivalence --version 0.1.0rc1 --measured d13d393 --clone <clean clone>
     parity/certify.py write --version 0.1.0rc1 [--results benchmarks/results/0.1.0rc1]
 
 Everything the certificate states is read from files under benchmarks/results/<version>/, which
@@ -22,26 +23,30 @@ are committed with it:
                     tolerance and the verdict;
   checks.json       the other release checks (sanitizer presets, compute-sanitizer, mutation
                     CTests, check scripts), each with its command, commit, result and counts,
-                    added one at a time by `certify.py check`.
+                    added one at a time by `certify.py check`;
+  equivalence.json  (only when needed) builds of a measured commit and of the release that
+                    differ only in METADATA_PATHS, compared by `certify.py equivalence`.
 
 `write` assembles benchmarks/results/<version>/parity.json: the commit of the release and the
 commits whose builds were measured (each must have the release commit's sources: `git diff
 <measured> <release> -- <paths>` is empty, with the library paths of CODE_PATHS for the gates, the
 replays and `check --scope library`, and the C++ tests too for a test-suite check, or the
-certificate fails), the hardware, driver, CUDA and compiler
-versions, the build presets of the measured builds, the pinned originals (commit, baseline SHA,
-upstream, which copy serves what), every golden set of parity/goldens.toml with its manifest
-SHA-256, the SHA-256 of every case and every replay's pass/fail matrix (case x backend x
+certificate fails; the one exception is a library-scope difference confined to METADATA_PATHS for
+which equivalence.json shows the measured programs unchanged), the hardware, driver, CUDA and
+compiler versions, the build presets of the measured builds, the pinned originals (commit,
+baseline SHA, upstream, which copy serves what), every golden set of parity/goldens.toml with its
+manifest SHA-256, the SHA-256 of every case and every replay's pass/fail matrix (case x backend x
 configuration), the tolerances used, the performance-gate table (every gated region: medians,
 ratio, gate, verdict; the recorded default-clock readings separately) and the checks. It also
-rewrites the generated part of README.md (between the certify markers) from the certificate.
-Exit 1 if any part failed or is missing; the certificate is written either way, with the reason.
+rewrites the generated part of README.md (between the certify markers) from the certificate. Exit
+1 if any part failed or is missing; the certificate is written either way, with the reason.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import platform
@@ -49,6 +54,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -67,6 +73,47 @@ LIBRARY_PATHS = [
     "CMakePresets.json",
 ]
 CODE_PATHS = {"library": LIBRARY_PATHS, "tests": [*LIBRARY_PATHS, "cpp/tests"]}
+# Library sources that no measured program reads: the algorithm registry's metadata (the manifests
+# and the table scripts/regen.py generates from them). A measured commit whose
+# library differs from the release's only in these files still certifies the release's
+# performance gates, golden replays and golden mutations (never a test-suite check, whose tests
+# read them) when equivalence.json shows, for both commits built in the same place with the same
+# VERSION, that the compat tools are byte-identical and libdyng differs only inside `functions`,
+# with every section and every symbol at the same address (`certify.py equivalence`).
+METADATA_PATHS = {
+    "cpp/src/core/registry_table.inc": {
+        "what": "the algorithm registry table generated from the manifests by scripts/regen.py "
+        "(names, titles, maturity, backends, citation keys), read only by dyng::algorithms()",
+        "functions": ["dyng::algorithms()", "dyng::algorithms() [clone .cold]"],
+    },
+    **{
+        f"cpp/src/algorithms/{name}/manifest.toml": {
+            "what": f"the manifest of {name} (PLAN 4.8), read only by scripts/regen.py, which "
+            "generates the registry table from it; no build reads it",
+            "functions": [],
+        }
+        for name in ("sssp", "cycle_count")
+    },
+}
+# What `equivalence` builds and compares: the measured programs and the library they load.
+EQUIVALENCE_PRESETS = ["parity", "parity-cuda"]
+EQUIVALENCE_TARGETS = ["dyng-compat-mosp", "dyng-compat-cycle-enum"]
+EQUIVALENCE_FILES = [
+    "cpp/libdyng.so",
+    "tools/compat/dyng-compat-mosp",
+    "tools/compat/dyng-compat-cycle-enum",
+]
+# Sections that may differ besides the listed functions' code: the build id, the unwind tables
+# (a listed function's frame range and call-site table) and the symbol tables (its size, which the
+# symbol comparison restricts to the listed functions).
+EQUIVALENCE_FREE_SECTIONS = {
+    ".note.gnu.build-id",
+    ".eh_frame",
+    ".eh_frame_hdr",
+    ".gcc_except_table",
+    ".symtab",
+    ".dynsym",
+}
 # The golden sets of parity/goldens.toml every 0.1 certificate must replay, and the backends
 # each must cover (a replay record names its configurations; "cuda" matches cuda, cuda/int64, ...).
 REQUIRED_REPLAYS = {
@@ -90,18 +137,60 @@ def head_commit() -> tuple[str, bool]:
     return head, dirty
 
 
-def same_code(commit: str, head: str, scope: str = "library") -> bool | None:
-    """True if `commit` has the sources of `head` in CODE_PATHS[scope]; None if unknown."""
+def resolve(commit: str) -> str | None:
+    """The full SHA of `commit` (a "+dirty" suffix ignored); None if it is not a known commit."""
     base = commit.split("+", 1)[0]
     if not re.fullmatch(r"[0-9a-f]{7,40}", base):
         return None
-    if subprocess.run(["git", "-C", str(REPO), "cat-file", "-e", f"{base}^{{commit}}"]).returncode:
+    out = subprocess.run(
+        ["git", "-C", str(REPO), "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}"],
+        capture_output=True,
+        text=True,
+    )
+    return out.stdout.strip() if out.returncode == 0 else None
+
+
+def code_diff(commit: str, head: str, scope: str = "library") -> list[str] | None:
+    """The files of CODE_PATHS[scope] that differ between `commit` and `head`; None if unknown."""
+    base = resolve(commit)
+    if base is None:
         return None
+    out = git("diff", "--name-only", base, head, "--", *CODE_PATHS[scope])
+    return sorted(out.splitlines())
+
+
+def equivalent(commit: str, head: str, diff: list[str], results: Path) -> dict | None:
+    """The passed equivalence.json pair that covers `commit` -> `head` with exactly `diff`."""
+    path = results / "equivalence.json"
+    base = resolve(commit)
+    if not diff or base is None or not set(diff) <= set(METADATA_PATHS) or not path.is_file():
+        return None
+    for pair in json.loads(path.read_text()).get("pairs", []):
+        if (
+            pair.get("passed") is True
+            and resolve(pair.get("measured", "")) == base
+            and sorted(pair.get("differing_paths", [])) == diff
+            and code_diff(pair.get("release", ""), head) == []
+        ):
+            return pair
+    return None
+
+
+def same_code(
+    commit: str, head: str, scope: str = "library", results: Path | None = None
+) -> bool | None:
+    """True if `commit` has the sources of `head` in CODE_PATHS[scope] (or, in the library scope
+    with `results`, differs only in METADATA_PATHS with a passed equivalence record there);
+    None if unknown."""
+    diff = code_diff(commit, head, scope)
+    if diff is None:
+        return None
+    if not diff:
+        return True
     return (
-        subprocess.run(
-            ["git", "-C", str(REPO), "diff", "--quiet", base, head, "--", *CODE_PATHS[scope]]
-        ).returncode
-        == 0
+        scope == "library"
+        and results is not None
+        and equivalent(commit, head, diff, results) is not None
     )
 
 
@@ -249,7 +338,7 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
                 )
                 ok = False
             commit = (record.get("port") or {}).get("commit", "unknown")
-            code = same_code(commit, head)
+            code = same_code(commit, head, "library", results)
             if code is not True:
                 problems.append(
                     f"{rep['file']}: measured commit {commit} does not have the release's code "
@@ -294,7 +383,9 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
 def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
     suites = []
     for path in sorted(results.glob("*.json")):
-        if path.name in ("parity.json", "checks.json") or path.name.startswith("parity-"):
+        if path.name in ("parity.json", "checks.json", "equivalence.json") or path.name.startswith(
+            "parity-"
+        ):
             continue
         doc = json.loads(path.read_text())
         if (
@@ -307,7 +398,7 @@ def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
         verdict = doc["verdict"]
         ok = bool(verdict.get("passed"))
         for commit in doc.get("port_commits", []):
-            code = same_code(commit, head)
+            code = same_code(commit, head, "library", results)
             if code is not True:
                 problems.append(
                     f"{path.name}: measured commit {commit} does not have the release's code"
@@ -478,7 +569,7 @@ def checks(results: Path, head: str, problems: list[str]) -> list[dict]:
         return []
     out = json.loads(path.read_text())["checks"]
     for c in out:
-        code = same_code(c.get("commit", ""), head, c.get("scope", "tests"))
+        code = same_code(c.get("commit", ""), head, c.get("scope", "tests"), results)
         c["release_code"] = code is True
         if c.get("result") != "passed":
             problems.append(f"check {c['name']}: {c.get('result')}")
@@ -488,6 +579,216 @@ def checks(results: Path, head: str, problems: list[str]) -> list[dict]:
                 f"{c.get('scope', 'tests')} sources"
             )
     return out
+
+
+# --- Equivalence of builds ----------------------------------------------------------------------
+
+
+def elf_sections(path: Path) -> list[dict]:
+    """The section headers of an ELF file (readelf -SW): name, type, address, offset, size,
+    flags."""
+    out = subprocess.run(["readelf", "-SW", str(path)], capture_output=True, text=True, check=True)
+    rows = []
+    pattern = (
+        r"\s*\[\s*(\d+)\]\s+(\S+)\s+(\S+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+([0-9a-f]+)\s+[0-9a-f]+"
+        r"\s+([A-Za-z]*)\s"
+    )
+    for line in out.stdout.splitlines():
+        m = re.match(pattern, line)
+        if m and m.group(1) != "0":
+            rows.append(
+                {
+                    "name": m.group(2),
+                    "type": m.group(3),
+                    "addr": int(m.group(4), 16),
+                    "offset": int(m.group(5), 16),
+                    "size": int(m.group(6), 16),
+                    "flags": m.group(7),
+                }
+            )
+    return rows
+
+
+def elf_symbols(path: Path) -> list[tuple[int, int, str, str]]:
+    """The defined symbols with a size (nm -C -S): (address, size, type, demangled name)."""
+    out = subprocess.run(
+        ["nm", "-C", "-S", "--defined-only", str(path)], capture_output=True, text=True, check=True
+    )
+    rows = []
+    for line in out.stdout.splitlines():
+        m = re.match(r"([0-9a-f]+) ([0-9a-f]+) (\S) (.*)$", line)
+        if m:
+            rows.append((int(m.group(1), 16), int(m.group(2), 16), m.group(3), m.group(4)))
+    return sorted(rows)
+
+
+def differing_offsets(a: bytes, b: bytes, chunk: int = 4096) -> list[int]:
+    """The offsets at which two equally long byte strings differ."""
+    out = []
+    for start in range(0, len(a), chunk):
+        if a[start : start + chunk] != b[start : start + chunk]:
+            out += [
+                start + i
+                for i, (x, y) in enumerate(
+                    zip(a[start : start + chunk], b[start : start + chunk], strict=True)
+                )
+                if x != y
+            ]
+    return out
+
+
+def compare_elf(
+    a: Path,
+    b: Path,
+    allowed: set[str],
+    *,
+    sections=elf_sections,
+    symbols=elf_symbols,
+) -> dict:
+    """Compare a measured build's file `a` with the release build's `b`: "identical" (the same
+    bytes), "equivalent" (every section and symbol at the same address, symbol sizes changed only
+    for `allowed` functions, and every differing byte inside an allowed function's code or a
+    section of EQUIVALENCE_FREE_SECTIONS) or "different" with the reasons."""
+    da, db = a.read_bytes(), b.read_bytes()
+    entry: dict = {
+        "sha256_measured": hashlib.sha256(da).hexdigest(),
+        "sha256_release": hashlib.sha256(db).hexdigest(),
+    }
+    if da == db:
+        return {**entry, "result": "identical"}
+    reasons: list[str] = []
+    if len(da) != len(db):
+        reasons.append(f"sizes differ ({len(da)} / {len(db)} bytes)")
+    sa, sb = sections(a), sections(b)
+    key = [(s["name"], s["addr"], s["offset"], s["size"]) for s in sa]
+    if key != [(s["name"], s["addr"], s["offset"], s["size"]) for s in sb]:
+        reasons.append("the section layout differs")
+    ya, yb = symbols(a), symbols(b)
+    if [(x[0], x[2], x[3]) for x in ya] != [(x[0], x[2], x[3]) for x in yb]:
+        reasons.append("the symbols differ in name, address or kind")
+    else:
+        resized = sorted({x[3] for x, y in zip(ya, yb, strict=True) if x[1] != y[1]} - allowed)
+        if resized:
+            reasons.append(f"functions changed size: {', '.join(resized[:5])}")
+    functions: set[str] = set()
+    counts: dict[str, int] = {}
+    if not reasons:
+        code = [x for x in ya + yb if x[2] in "tTwWi" and x[1] > 0]
+        for off in differing_offsets(da, db):
+            sec = next(
+                (
+                    s
+                    for s in sa
+                    if s["type"] != "NOBITS" and s["offset"] <= off < s["offset"] + s["size"]
+                ),
+                None,
+            )
+            name = sec["name"] if sec else "(outside every section)"
+            counts[name] = counts.get(name, 0) + 1
+            if sec and "X" in sec["flags"]:
+                vaddr = sec["addr"] + off - sec["offset"]
+                owner = next((x[3] for x in code if x[0] <= vaddr < x[0] + x[1]), None)
+                functions.add(owner or f"(no function at {vaddr:#x})")
+            elif name not in EQUIVALENCE_FREE_SECTIONS:
+                functions.add(f"(data in {name})")
+        outside = sorted(functions - allowed)
+        if outside:
+            reasons.append(f"bytes differ outside the allowed functions: {', '.join(outside[:5])}")
+    entry.update(
+        {
+            "result": "different" if reasons else "equivalent",
+            "differing_bytes_by_section": counts,
+            "differing_functions": sorted(functions),
+        }
+    )
+    if reasons:
+        entry["reasons"] = reasons
+    return entry
+
+
+def cmd_equivalence(args: argparse.Namespace) -> int:
+    """Build the measured commit and, in the same clone, the release's library paths over it
+    (everything else, VERSION included, stays the measured commit's), then compare the files."""
+    results = args.results or REPO / "benchmarks" / "results" / args.version
+    results.mkdir(parents=True, exist_ok=True)
+    head, dirty = head_commit()
+    measured = resolve(args.measured)
+    if measured is None:
+        raise SystemExit(f"{args.measured}: not a commit of this repository")
+    diff = code_diff(measured, head)
+    assert diff is not None
+    unlisted = [d for d in diff if d not in METADATA_PATHS]
+    if unlisted:
+        raise SystemExit(
+            f"the library differs outside METADATA_PATHS ({', '.join(unlisted)}): measure again"
+        )
+    clone = args.clone.resolve()
+
+    def run(*cmd: str) -> None:
+        print("+", " ".join(cmd), flush=True)
+        subprocess.run(cmd, cwd=clone, check=True)
+
+    if subprocess.run(
+        ["git", "-C", str(clone), "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip():
+        raise SystemExit(f"{clone}: not a clean clone")
+    allowed = {f for path in diff for f in METADATA_PATHS[path]["functions"]}
+    files: list[dict] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for state in ("measured", "release"):
+            run("git", "checkout", "-q", "--detach", measured)
+            if state == "release":
+                run("git", "checkout", "-q", head, "--", *LIBRARY_PATHS)
+            for preset in args.presets.split(","):
+                run("cmake", "--preset", preset)
+                run("cmake", "--build", "--preset", preset, "--target", *EQUIVALENCE_TARGETS)
+                for rel in EQUIVALENCE_FILES:
+                    src = (clone / "build" / preset / rel).resolve()
+                    dst = Path(tmp) / state / preset / rel
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dst)
+        run("git", "checkout", "-q", "--detach", measured)
+        run("git", "checkout", "-q", measured, "--", ".")
+        for preset in args.presets.split(","):
+            for rel in EQUIVALENCE_FILES:
+                a = Path(tmp) / "measured" / preset / rel
+                b = Path(tmp) / "release" / preset / rel
+                files.append({"preset": preset, "file": rel, **compare_elf(a, b, allowed)})
+    passed = all(f["result"] in ("identical", "equivalent") for f in files)
+    pair = {
+        "measured": measured,
+        "release": head + ("+dirty" if dirty else ""),
+        "differing_paths": diff,
+        "metadata": {path: METADATA_PATHS[path] for path in diff},
+        "presets": args.presets.split(","),
+        "how": "both built in one clone with the measured commit's VERSION and build system; the "
+        "release state is the measured commit with the release's library paths checked out",
+        "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "files": files,
+        "passed": passed and not dirty,
+    }
+    path = results / "equivalence.json"
+    doc = json.loads(path.read_text()) if path.is_file() else {"schema": SCHEMA, "pairs": []}
+    doc["pairs"] = [
+        p for p in doc["pairs"] if (p["measured"], p["release"]) != (measured, pair["release"])
+    ] + [pair]
+    path.write_text(json.dumps(doc, indent=1) + "\n")
+    for f in files:
+        extra = (
+            f" ({', '.join(f.get('differing_functions', []))})"
+            if f["result"] != "identical"
+            else ""
+        )
+        print(f"{f['result']:10} {f['preset']}/{f['file']}{extra}")
+        for r in f.get("reasons", []):
+            print(f"           - {r}")
+    if dirty:
+        print("the release tree is dirty: the pair is recorded as not passed")
+    print(f"equivalence {measured[:12]} -> {head[:12]}: {'passed' if pair['passed'] else 'FAILED'}")
+    return 0 if pair["passed"] else 1
 
 
 # --- README --------------------------------------------------------------------------------------
@@ -513,6 +814,14 @@ def readme_block(cert: dict) -> str:
         f"{len(env['hardware']['gpus'])}x {gpu}; driver {env['driver']['nvidia']}; "
         f"{env['toolchain']['nvcc']}; {env['toolchain']['cxx']}."
     )
+    for e in cert.get("equivalences", []):
+        files = ", ".join(f"{k} {v}" for k, v in e["files"].items())
+        lines += [
+            "",
+            f"Measured at `{e['measured'][:12]}`, whose library differs from the release's only in "
+            f"generated metadata ({', '.join(f'`{p}`' for p in e['differing_paths'])}); "
+            f"`equivalence.json` compares the builds of both: {files}.",
+        ]
     lines += [
         "",
         "### Golden parity",
@@ -609,6 +918,20 @@ def cmd_write(args: argparse.Namespace) -> int:
         | {c["commit"] for c in checklist}
     )
     version_file = (REPO / "VERSION").read_text().strip()
+    equivalences = []
+    for commit in measured:
+        diff = code_diff(commit, head)
+        pair = equivalent(commit, head, diff or [], results)
+        if pair is not None:
+            equivalences.append(
+                {
+                    "measured": pair["measured"],
+                    "release": pair["release"],
+                    "differing_paths": pair["differing_paths"],
+                    "files": {f"{f['preset']}/{f['file']}": f["result"] for f in pair["files"]},
+                    "record": "equivalence.json",
+                }
+            )
     cert = {
         "schema": SCHEMA,
         "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, "
@@ -622,7 +945,11 @@ def cmd_write(args: argparse.Namespace) -> int:
         "code_paths": CODE_PATHS,
         "code_rule": "every measured commit has the release commit's sources: the library scope "
         "for the performance gates, the golden replays and the golden mutations, the tests scope "
-        "for the test-suite checks (git diff <measured> <release> -- code_paths[scope] is empty)",
+        "for the test-suite checks (git diff <measured> <release> -- code_paths[scope] is empty); "
+        "in the library scope, a difference confined to metadata_paths is accepted when "
+        "equivalence.json shows the measured programs unchanged (equivalences)",
+        "metadata_paths": METADATA_PATHS,
+        "equivalences": equivalences,
         "environment": environment(),
         "originals": originals(),
         "golden_suites": goldens,
@@ -653,6 +980,17 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--version", default=(REPO / "VERSION").read_text().strip())
     w.add_argument("--results", type=Path, default=None)
     w.add_argument("--allow-dirty", action="store_true", help="a draft from an uncommitted tree")
+    e = sub.add_parser(
+        "equivalence",
+        help="compare the builds of a measured commit and of the release (METADATA_PATHS only)",
+    )
+    e.add_argument("--version", default=(REPO / "VERSION").read_text().strip())
+    e.add_argument("--results", type=Path, default=None)
+    e.add_argument("--measured", required=True, help="the commit whose builds were measured")
+    e.add_argument(
+        "--clone", required=True, type=Path, help="a clean clone with both commits (it is built)"
+    )
+    e.add_argument("--presets", default=",".join(EQUIVALENCE_PRESETS))
     c = sub.add_parser("check", help="record one release check in checks.json")
     c.add_argument("--version", default=(REPO / "VERSION").read_text().strip())
     c.add_argument("--results", type=Path, default=None)
@@ -676,7 +1014,8 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--result", choices=["passed", "failed"])
     c.add_argument("--details")
     args = parser.parse_args(argv)
-    return cmd_write(args) if args.command_name == "write" else cmd_check(args)
+    commands = {"write": cmd_write, "check": cmd_check, "equivalence": cmd_equivalence}
+    return commands[args.command_name](args)
 
 
 if __name__ == "__main__":

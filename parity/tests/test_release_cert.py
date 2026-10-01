@@ -410,6 +410,111 @@ def test_measured_commit_must_have_the_release_code(cert) -> None:
     assert cert.same_code("f" * 40, commit) is None
 
 
+def _fake_elf(cert, tmp_path: Path, a_bytes: bytes, b_bytes: bytes, *, b_symbols=None):
+    a, b = tmp_path / "a.so", tmp_path / "b.so"
+    a.write_bytes(a_bytes)
+    b.write_bytes(b_bytes)
+    secs = [
+        {
+            "name": ".text",
+            "type": "PROGBITS",
+            "addr": 0x1000,
+            "offset": 0,
+            "size": 64,
+            "flags": "AX",
+        },
+        {
+            "name": ".rodata",
+            "type": "PROGBITS",
+            "addr": 0x2000,
+            "offset": 64,
+            "size": 32,
+            "flags": "A",
+        },
+        {
+            "name": ".eh_frame",
+            "type": "PROGBITS",
+            "addr": 0x3000,
+            "offset": 96,
+            "size": 32,
+            "flags": "A",
+        },
+    ]
+    syms = [(0x1000, 32, "T", "dyng::algorithms()"), (0x1020, 32, "T", "dyng::sssp_kernel()")]
+    table = {a: syms, b: b_symbols or syms}
+    return lambda allowed: cert.compare_elf(
+        a, b, allowed, sections=lambda _: secs, symbols=lambda path: table[path]
+    )
+
+
+def test_equivalent_builds_differ_only_in_allowed_functions(cert, tmp_path: Path) -> None:
+    allowed = {"dyng::algorithms()"}
+    base = bytes(128)
+
+    def flip(*offsets: int) -> bytes:
+        out = bytearray(base)
+        for o in offsets:
+            out[o] = 1
+        return bytes(out)
+
+    assert _fake_elf(cert, tmp_path, base, base)(allowed)["result"] == "identical"
+    ok = _fake_elf(cert, tmp_path, base, flip(5, 100))(allowed)
+    assert ok["result"] == "equivalent", ok
+    assert ok["differing_functions"] == ["dyng::algorithms()"]
+    assert ok["differing_bytes_by_section"] == {".text": 1, ".eh_frame": 1}
+    # Code of another function, data, a moved symbol, another function resized, another size.
+    assert _fake_elf(cert, tmp_path, base, flip(40))(allowed)["result"] == "different"
+    assert _fake_elf(cert, tmp_path, base, flip(70))(allowed)["result"] == "different"
+    moved = [(0x1000, 32, "T", "dyng::algorithms()"), (0x1028, 24, "T", "dyng::sssp_kernel()")]
+    assert (
+        _fake_elf(cert, tmp_path, base, flip(5), b_symbols=moved)(allowed)["result"] == "different"
+    )
+    grown = [(0x1000, 32, "T", "dyng::algorithms()"), (0x1020, 30, "T", "dyng::sssp_kernel()")]
+    assert (
+        _fake_elf(cert, tmp_path, base, flip(5), b_symbols=grown)(allowed)["result"] == "different"
+    )
+    resized = [(0x1000, 30, "T", "dyng::algorithms()"), (0x1020, 32, "T", "dyng::sssp_kernel()")]
+    assert (
+        _fake_elf(cert, tmp_path, base, flip(5), b_symbols=resized)(allowed)["result"]
+        == "equivalent"
+    )
+    assert _fake_elf(cert, tmp_path, base, base + b"x")(allowed)["result"] == "different"
+
+
+def test_elf_readers_on_a_real_binary(cert, tmp_path: Path) -> None:
+    import shutil
+
+    if not (shutil.which("readelf") and shutil.which("nm")):
+        pytest.skip("binutils not installed")
+    exe = Path(sys.executable).resolve()
+    sections = cert.elf_sections(exe)
+    assert any(s["name"] == ".text" and "X" in s["flags"] for s in sections)
+    copy_ = tmp_path / "copy"
+    shutil.copy2(exe, copy_)
+    assert cert.compare_elf(exe, copy_, set())["result"] == "identical"
+
+
+def test_metadata_only_difference_needs_an_equivalence_record(
+    cert, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    measured, release = "a" * 40, "b" * 40
+    meta = sorted(cert.METADATA_PATHS)
+    diffs = {(measured, "library"): meta, (measured, "tests"): meta, (release, "library"): []}
+    monkeypatch.setattr(cert, "resolve", lambda c: c.split("+")[0] if c else None)
+    monkeypatch.setattr(cert, "code_diff", lambda c, h, scope="library": diffs.get((c, scope)))
+    assert cert.same_code(measured, release, "library", tmp_path) is False  # no record yet
+    pair = {"measured": measured, "release": release, "differing_paths": meta, "passed": True}
+    (tmp_path / "equivalence.json").write_text(json.dumps({"schema": 1, "pairs": [pair]}))
+    assert cert.same_code(measured, release, "library", tmp_path) is True
+    assert cert.same_code(measured, release, "library") is False  # without the results
+    assert cert.same_code(measured, release, "tests", tmp_path) is False  # tests read metadata
+    (tmp_path / "equivalence.json").write_text(json.dumps({"pairs": [{**pair, "passed": False}]}))
+    assert cert.same_code(measured, release, "library", tmp_path) is False
+    (tmp_path / "equivalence.json").write_text(json.dumps({"pairs": [pair]}))
+    diffs[(measured, "library")] = [*meta, "cpp/src/algorithms/sssp/sssp.cpp"]
+    assert cert.same_code(measured, release, "library", tmp_path) is False  # beyond metadata
+
+
 # --- mutate.py -----------------------------------------------------------------------------------
 
 
