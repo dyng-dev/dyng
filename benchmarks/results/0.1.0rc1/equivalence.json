@@ -1,0 +1,104 @@
+{
+ "schema": 1,
+ "pairs": [
+  {
+   "measured": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "release": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
+   "differing_paths": [
+    "cpp/src/algorithms/cycle_count/manifest.toml",
+    "cpp/src/algorithms/sssp/manifest.toml",
+    "cpp/src/core/registry_table.inc"
+   ],
+   "metadata": {
+    "cpp/src/algorithms/cycle_count/manifest.toml": {
+     "what": "the manifest of cycle_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+     "functions": []
+    },
+    "cpp/src/algorithms/sssp/manifest.toml": {
+     "what": "the manifest of sssp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+     "functions": []
+    },
+    "cpp/src/core/registry_table.inc": {
+     "what": "the algorithm registry table generated from the manifests by scripts/regen.py (names, titles, maturity, backends, citation keys), read only by dyng::algorithms()",
+     "functions": [
+      "dyng::algorithms()",
+      "dyng::algorithms() [clone .cold]"
+     ]
+    }
+   },
+   "presets": [
+    "parity",
+    "parity-cuda"
+   ],
+   "how": "both built in one clone with the measured commit's VERSION and build system; the release state is the measured commit with the release's library paths checked out",
+   "date": "2026-10-01T13:08:34Z",
+   "files": [
+    {
+     "preset": "parity",
+     "file": "cpp/libdyng.so",
+     "sha256_measured": "eca1b75958342f516013b1fbc176f4196492fa0ce3ccc1bcf4d41aefdc6ea4f5",
+     "sha256_release": "9ea8712a0660e879d1e189e16ebf0362176402c5332ca4ccd3f0cc6da8571ed2",
+     "result": "equivalent",
+     "differing_bytes_by_section": {
+      ".note.gnu.build-id": 20,
+      ".dynsym": 1,
+      ".text": 553,
+      ".eh_frame": 1,
+      ".gcc_except_table": 13,
+      ".symtab": 1
+     },
+     "differing_functions": [
+      "dyng::algorithms()"
+     ]
+    },
+    {
+     "preset": "parity",
+     "file": "tools/compat/dyng-compat-mosp",
+     "sha256_measured": "f2637bc3c1863d810719e41ce92972993f2f205c8c535c7e58ed099188267596",
+     "sha256_release": "f2637bc3c1863d810719e41ce92972993f2f205c8c535c7e58ed099188267596",
+     "result": "identical"
+    },
+    {
+     "preset": "parity",
+     "file": "tools/compat/dyng-compat-cycle-enum",
+     "sha256_measured": "c773869bf8ce558ebce24fa32c7e12eb6940354c188f24cac90e4e66e29ca3b1",
+     "sha256_release": "c773869bf8ce558ebce24fa32c7e12eb6940354c188f24cac90e4e66e29ca3b1",
+     "result": "identical"
+    },
+    {
+     "preset": "parity-cuda",
+     "file": "cpp/libdyng.so",
+     "sha256_measured": "05aabdd15ad9c4cc7df9e4b9f8efc89d18a80c7d4a8bfa81c850a205f9be1cf1",
+     "sha256_release": "4c0a04e335607b4fb1d7aa83478d4190b8c070f54b10ee468ca6a594de7d0826",
+     "result": "equivalent",
+     "differing_bytes_by_section": {
+      ".note.gnu.build-id": 20,
+      ".dynsym": 1,
+      ".text": 553,
+      ".eh_frame": 1,
+      ".gcc_except_table": 13,
+      ".symtab": 1
+     },
+     "differing_functions": [
+      "dyng::algorithms()"
+     ]
+    },
+    {
+     "preset": "parity-cuda",
+     "file": "tools/compat/dyng-compat-mosp",
+     "sha256_measured": "cb49f800c331e8dd3515b26827e23995fa9bacfe555457dc0b731c218a6914bd",
+     "sha256_release": "cb49f800c331e8dd3515b26827e23995fa9bacfe555457dc0b731c218a6914bd",
+     "result": "identical"
+    },
+    {
+     "preset": "parity-cuda",
+     "file": "tools/compat/dyng-compat-cycle-enum",
+     "sha256_measured": "262c758606c8d8b7fed9d1cfa136dd2a03908984ec5a72660b4e1f9542e0e6dd",
+     "sha256_release": "262c758606c8d8b7fed9d1cfa136dd2a03908984ec5a72660b4e1f9542e0e6dd",
+     "result": "identical"
+    }
+   ],
+   "passed": true
+  }
+ ]
+}

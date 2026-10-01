@@ -1,0 +1,174 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Benchmark-suite record (PLAN Section 8.5) of dynG's `cycle_count`: TruCy / DynTruCy (IEEE TC),
+# the static and the dynamic bounded simple-cycle histograms of CycleEnumeration-GPU, on the
+# TUDataset graphs of the paper. The case lists are the gates of M2a (OpenMP) and M2b (CUDA),
+# PLAN Sections 6.4.3 and 8.6.
+#
+# Machine-readable: parity/bench_suite.py validates this file, checks the datasets against the
+# SHA-256 digests below, and runs every reading through the A/B harness
+# (parity/perf_ab.py cycle_count, i.e. parity/cycle_count_perf.py) under the exclusive perf
+# lock; the results JSON goes to benchmarks/results/<version>/. docs/developer/benchmarks.md
+# describes the format.
+schema: 1
+suite: ieee_tc_dyntrucy
+title: "TruCy / DynTruCy: bounded simple-cycle histograms, static and dynamic (dynG cycle_count)"
+algorithm: cycle_count
+paper:
+  short: TruCy / DynTruCy
+  venue: IEEE Transactions on Computers
+  scope: >-
+    static counts (k = 3..7) and dynamic updates (deletions + insertions, k = 4) of the simple
+    cycles up to length k. The temporal datasets of the paper (CollegeMsg, email-Eu-core with
+    the time-window mode) need the time-window and temporal modes, which arrive in 0.4; they are
+    listed under `deferred` and not run.
+harness:
+  tool: perf_ab.cycle_count        # parity/perf_ab.py cycle_count run|memory
+  inputs: $DYNG_SCRATCH/datasets/cycle
+  executable: tools/compat/dyng-compat-cycle-enum
+  presets: {openmp: parity, cuda: parity-cuda}
+  region_map: parity/timed_regions/cycle_count.toml
+  goldens: {openmp: cycle_count, cuda: cycle_count_cuda}   # every round's histogram is compared
+datasets:
+  - name: DD
+    file: DD/DD_A.txt
+    source: {collection: TUDataset, id: DD, url: "https://www.chrsmrrs.com/graphkerneldatasets/DD.zip"}
+    recipe: the archive's DD_A.txt (an already bidirectional edge list), unchanged
+    sha256: e538ec13a262b84a0664db2f22e6ff720fb5bb74965536c37f4b8e962d156e4a
+  - name: github
+    file: github_stargazers/github_stargazers_A.txt
+    source: {collection: TUDataset, id: github_stargazers, url: "https://www.chrsmrrs.com/graphkerneldatasets/github_stargazers.zip"}
+    recipe: the archive's github_stargazers_A.txt, unchanged
+    sha256: a5a43e92b9a22054882017a2b5dea267535c8d94705ac4987d967e517448c9d4
+  - name: twitch
+    file: twitch_egos/twitch_egos_A.txt
+    source: {collection: TUDataset, id: twitch_egos, url: "https://www.chrsmrrs.com/graphkerneldatasets/twitch_egos.zip"}
+    recipe: the archive's twitch_egos_A.txt, unchanged
+    sha256: c2270e018af70321c8f6d1517abc097204105ec7bafe71527555b4f954fbea82
+  - name: collab
+    file: COLLAB/COLLAB_A.txt
+    source: {collection: TUDataset, id: COLLAB, url: "https://www.chrsmrrs.com/graphkerneldatasets/COLLAB.zip"}
+    recipe: the archive's COLLAB_A.txt, unchanged
+    sha256: 043c465d207992054d2567a277bfba9fad24d994040241987e61f9e9daa12ae4
+deferred:      # in the paper, not in 0.1 (the temporal modes arrive in 0.4)
+  - {name: CollegeMsg, source: "SNAP CollegeMsg", mode: time-window, reason: "time-window mode (0.4)"}
+  - {name: email-Eu-core, source: "SNAP email-Eu-core-temporal", mode: time-window, reason: "time-window mode (0.4)"}
+batches:       # the original's generator (cycle-enum --deletes D --inserts I --batch-seed S)
+  - {name: u25k, generator: legacy.cycle_enum_batch, deletions: 25000, insertions: 25000, seed: 1}
+  - {name: u50k, generator: legacy.cycle_enum_batch, deletions: 50000, insertions: 50000, seed: 1}
+  - {name: u100k, generator: legacy.cycle_enum_batch, deletions: 100000, insertions: 100000, seed: 1}
+cases:         # task count: the static histogram; task update: the prior count is untimed
+  - {task: count, dataset: DD, k: 3}
+  - {task: count, dataset: DD, k: 4}
+  - {task: count, dataset: DD, k: 5}
+  - {task: count, dataset: DD, k: 6}
+  - {task: count, dataset: DD, k: 7}
+  - {task: count, dataset: github, k: 3}
+  - {task: count, dataset: github, k: 4}
+  - {task: count, dataset: twitch, k: 3}
+  - {task: count, dataset: twitch, k: 4}
+  - {task: count, dataset: collab, k: 3}
+  - {task: update, dataset: DD, k: 4, batch: u25k}
+  - {task: update, dataset: github, k: 4, batch: u25k}
+  - {task: update, dataset: twitch, k: 4, batch: u25k}
+  - {task: update, dataset: collab, k: 4, batch: u25k}
+  - {task: update, dataset: DD, k: 4, batch: u50k}
+  - {task: update, dataset: DD, k: 4, batch: u100k}
+backends:
+  openmp:
+    threads: 56      # the original's docs/RESULTS.md
+    environment: no OMP_* variables (the libgomp defaults) on both sides
+    baseline: CycleEnumeration-GPU
+  cuda:
+    gpu: 0
+    scopes: [original, resident]   # the graph uploaded inside the timed call, or resident before it
+    environment: CUDA_MODULE_LOADING=EAGER on both sides
+    baseline: CycleEnumeration-GPU
+metrics:       # region (parity/timed_regions/cycle_count.toml) -> the dynG profiler stages
+  static_end_to_end:
+    gate: {openmp: compute, cuda: end_to_end}
+    openmp: {original: process wall time, port: [process wall time]}
+    cuda: {original: process wall time, port: [process wall time]}
+  static_kernel:
+    gate: compute
+    cuda: {original: kernel_ms, port: [cycle_count.count]}
+  update:
+    gate: compute
+    openmp: {original: update_seconds, port: [cycle_count.update]}
+    cuda: {original: update_seconds, port: [cycle_count.update]}
+  update_chain_steady:
+    gate: compute
+    cuda: {original: update_seconds, port: [chain_steady_ms]}
+  update_chain_worst:
+    gate: compute
+    cuda: {original: update_seconds, port: [chain_worst_ms]}
+  update_end_to_end:
+    gate: end_to_end
+    openmp: {original: process wall time, port: [process wall time]}
+    cuda: {original: process wall time, port: [process wall time]}
+  device_memory:
+    gate: memory
+    cuda: {original: "peak live device allocations (nsys)", port: "peak live device allocations (nsys)"}
+baselines:     # the pinned original, built from the UNPATCHED scratch copy (parity/build_reference.sh)
+  CycleEnumeration-GPU: {commit: 0a976adfa801a712135bf1adb51a228f353a0751, variant: unpatched, backend: [openmp, cuda]}
+tolerance:     # PLAN 8.6: port / original median
+  compute: 1.05
+  compute_short: 1.10
+  short_region_ms: 10.0
+  end_to_end: 1.10
+  memory: 1.05
+readings:      # what one execution of the suite runs; cases by name (<dataset>_k<k>[_<D>_<I>_s<seed>])
+  - name: openmp
+    kind: run
+    backend: openmp
+    runs: 11
+    gated: true
+    cases: [DD_k3, DD_k4, DD_k5, DD_k6, DD_k7, github_k3, github_k4, twitch_k3, twitch_k4,
+            DD_k4_25000_25000_s1, github_k4_25000_25000_s1, twitch_k4_25000_25000_s1]
+  - name: openmp-collab
+    kind: run
+    backend: openmp
+    runs: 5          # about 45 s per process
+    gated: true
+    cases: [collab_k3]
+  - name: cuda
+    kind: run
+    backend: cuda
+    clocks: boost    # ADR 0018
+    runs: 21
+    gated: true
+    cases: [DD_k4, github_k4, twitch_k4, collab_k3, DD_k4_25000_25000_s1, github_k4_25000_25000_s1,
+            twitch_k4_25000_25000_s1, DD_k4_50000_50000_s1, DD_k4_100000_100000_s1]
+  - name: cuda-collab-update
+    kind: run
+    backend: cuda
+    clocks: base     # ADR 0021: the 6.5 s prior cannot hold the boost lock under the power cap
+    runs: 11
+    gated: true
+    cases: [collab_k4_25000_25000_s1]
+  - name: cuda-default-clocks
+    kind: run
+    backend: cuda
+    clocks: none     # ADR 0018: recorded, not gated
+    runs: 11
+    gated: false
+    cases: [DD_k4, github_k4, twitch_k4, collab_k3, DD_k4_25000_25000_s1, github_k4_25000_25000_s1,
+            twitch_k4_25000_25000_s1, collab_k4_25000_25000_s1, DD_k4_50000_50000_s1,
+            DD_k4_100000_100000_s1]
+  - name: cuda-memory
+    kind: memory
+    backend: cuda
+    gpu: 1
+    gated: true
+    cases: [DD_k4, github_k4, twitch_k4, collab_k3, DD_k4_25000_25000_s1, github_k4_25000_25000_s1,
+            twitch_k4_25000_25000_s1, collab_k4_25000_25000_s1, DD_k4_50000_50000_s1,
+            DD_k4_100000_100000_s1]
+paper_reference:   # informational: the published numbers of the paper's code (PLAN 6.4.3, 8.5)
+  hardware: RTX A5000 (sm_86), Xeon Gold 6258R
+  static_kernel_ms_cuda: {DD_k4: 1.44, github_k4: 58.0, twitch_k4: 38.1, collab_k3: 51.4}
+  update_ms_cuda: {DD_k4_25000_25000_s1: 4.4, github_k4_25000_25000_s1: 14.3,
+                   twitch_k4_25000_25000_s1: 27.3, collab_k4_25000_25000_s1: 197,
+                   DD_k4_50000_50000_s1: 6.0, DD_k4_100000_100000_s1: 9.6}
+  update_ms_openmp56: {DD_k4_25000_25000_s1: 22.0, github_k4_25000_25000_s1: 276,
+                       twitch_k4_25000_25000_s1: 137}

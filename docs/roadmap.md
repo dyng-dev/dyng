@@ -6,13 +6,17 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 
 ## Where we are
 
-**0.1.0 is being prepared** (the release checklist is {doc}`developer/release`). Everything
-listed for 0.1.0 below exists on the development branch: `sssp` and `cycle_count` work on all
-three backends (sequential, OpenMP and CUDA), are byte-identical to the original MOSP-OpenMP,
-MOSP-CUDA and CycleEnumeration-GPU codes on their golden corpora, and are within the performance
-gates against the originals (ADR 0018 and ADR 0021 record how the CUDA gates are read); the
-Python package, the `dyng` command line and the documentation are complete. What remains is the
-release itself: the author tags `v0.1.0` and approves the PyPI upload.
+**0.1.0 is being released** (the release checklist is {doc}`developer/release`). Everything
+listed for 0.1.0 below is done: `sssp` and `cycle_count` work on all three backends (sequential,
+OpenMP and CUDA), are byte-identical to the original MOSP-OpenMP, MOSP-CUDA and
+CycleEnumeration-GPU codes on their golden corpora, and are within the performance gates against
+the originals (ADR 0018 and ADR 0021 record how the CUDA gates are read; the parity certificate
+of the release candidate is `benchmarks/results/0.1.0rc1/`); the Python package, the `dyng`
+command line and the documentation are complete. The release candidate 0.1.0rc1 goes to
+TestPyPI first (`pip install -i https://test.pypi.org/simple/ --extra-index-url
+https://pypi.org/simple/ dyng==0.1.0rc1`), then 0.1.0 to PyPI. For 0.1.0 the AI assistant that
+prepares the release pushes the tags and creates the GitHub Release on the author's behalf; the
+upload to PyPI waits for the author's approval.
 
 ## 0.1.0: the first release
 

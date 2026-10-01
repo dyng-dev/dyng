@@ -1,7 +1,8 @@
 # cycle_count: exact k-bounded directed simple-cycle histograms
 
-Maturity: **experimental** (M2a: sequential and OpenMP backends; M2b: the CUDA backend; M5: the
-Python binding and the `dyng cycle_count` command line). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
+Maturity: **stable** from 0.1.0 (SemVer applies; M2a: sequential and OpenMP backends; M2b: the
+CUDA backend; M5: the Python binding and the `dyng cycle_count` command line; 0.1.0rc1: the
+benchmark-suite record `benchmarks/paper/ieee_tc_dyntrucy.yaml`). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
 Ported from CycleEnumeration-GPU@0a976ad, the code of TruCy / DynTruCy (Khanda, Shovan, Satpathy,
 Das; submitted to IEEE Transactions on Computers). dynG implements the exact k-bounded
 enumeration of that code, **not** the paper's approximate kappa-truncated TruCy search (Section 7).

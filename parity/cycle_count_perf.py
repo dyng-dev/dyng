@@ -1172,12 +1172,24 @@ def memory(args: argparse.Namespace) -> int:
                 "binary": perf_ab.portable_path(exe),
             },
             "gpu": args.gpu,
+            "driver": perf_ab.driver_versions(),
+            "datasets_sha256": datasets_sha256(args.datasets, results),
+            "datasets_hashed": "after the measurements, by the measuring process",
             "results": results,
         }
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(doc, indent=1) + "\n")
         print(f"wrote {args.json}")
     return 0
+
+
+def datasets_sha256(datasets: Path, results: dict) -> dict[str, str]:
+    """SHA-256 of the dataset file of every graph the cases of `results` read (computed now)."""
+    return {
+        g: goldens.sha256_file(datasets / p)
+        for g, p in goldens.GRAPHS.items()
+        if any(c.split("/")[1].startswith(f"{g}_") for c in results)
+    }
 
 
 def write_json(args, results, build, ref, marker, regions, clocks=None) -> None:
@@ -1273,11 +1285,9 @@ def write_json(args, results, build, ref, marker, regions, clocks=None) -> None:
             "logical_cpus": os.cpu_count(),
             "kernel": platform.release(),
         },
-        "datasets_sha256": {
-            g: goldens.sha256_file(args.datasets / p)
-            for g, p in goldens.GRAPHS.items()
-            if any(c.split("/")[1].startswith(f"{g}_") for c in results)
-        },
+        "driver": perf_ab.driver_versions(),
+        "datasets_sha256": datasets_sha256(args.datasets, results),
+        "datasets_hashed": "after the runs, by the measuring process",
         "results": results,
     }
     args.json.parent.mkdir(parents=True, exist_ok=True)
