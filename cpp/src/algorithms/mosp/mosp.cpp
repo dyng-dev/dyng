@@ -111,13 +111,14 @@ state_t& checked(state_t* st, const char* what) {
 
 /// MOSP's preferenceScale(): L = lcm(preferences), 1 for none; the checks of options (K values,
 /// each >= 1, L <= 2^20) throw with the offending value.
-std::int64_t preference_scale_of(const std::vector<std::int32_t>& preferences, int K,
+std::int64_t preference_scale_of(const std::vector<std::int32_t>& preferences, int num_k,
                                  const char* what) {
   if (preferences.empty()) {
     return 1;
   }
-  DYNG_EXPECTS(static_cast<int>(preferences.size()) == K, what, ": options.preferences has ",
-               preferences.size(), " values for ", K, " objective(s) (one per objective, or none)");
+  DYNG_EXPECTS(static_cast<int>(preferences.size()) == num_k, what, ": options.preferences has ",
+               preferences.size(), " values for ", num_k,
+               " objective(s) (one per objective, or none)");
   std::int64_t scale = 1;
   for (std::size_t i = 0; i < preferences.size(); ++i) {
     const std::int64_t pref = preferences[i];
@@ -266,20 +267,20 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
                          mosp_state<vertex_t, distance_t>& st, bool count_affected) {
   finalize_counts out;
   const auto n = static_cast<std::size_t>(g.num_vertices());
-  const int K = st.num_objectives;
-  DYNG_EXPECTS(static_cast<std::uint64_t>(K) * n <=
+  const int num_k = st.num_objectives;
+  DYNG_EXPECTS(static_cast<std::uint64_t>(num_k) * n <=
                    static_cast<std::uint64_t>(std::numeric_limits<edge_t>::max()),
-               "mosp: the combined graph of ", K, " trees on ", n, " vertices can have ",
-               static_cast<std::uint64_t>(K) * n,
+               "mosp: the combined graph of ", num_k, " trees on ", n, " vertices can have ",
+               static_cast<std::uint64_t>(num_k) * n,
                " edges, more than the graph's edge offsets hold; use 64-bit edge offsets");
   size_combined(res, st, n);
   // The preference terms L / Pref_i and the base weight L * (K + 1) (combinedGraphSosp*).
   mosp_combine_input<vertex_t> in;
   in.num_vertices = static_cast<vertex_t>(n);
   in.source = st.source;
-  in.num_objectives = K;
-  in.base = static_cast<std::int32_t>(st.scale * (K + 1));
-  for (int k = 0; k < K; ++k) {
+  in.num_objectives = num_k;
+  in.base = static_cast<std::int32_t>(st.scale * (num_k + 1));
+  for (int k = 0; k < num_k; ++k) {
     in.parents[k] = sssp_access::state(st.objectives[static_cast<std::size_t>(k)]).parent_data();
     in.terms[k] = static_cast<std::int32_t>(
         st.opt.preferences.empty() ? st.scale
@@ -293,7 +294,7 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
   const vertex_t* tree = nullptr;  // the new MOSP tree in host memory (path costs)
   if (is_cuda(res)) {
     auto ws = pool.acquire<mosp_cuda_workspace<vertex_t, edge_t, weight_t>>(res);
-    ws->reserve(res, static_cast<std::int64_t>(n), K);
+    ws->reserve(res, static_cast<std::int64_t>(n), num_k);
     mosp_combined<vertex_t, edge_t, weight_t> combined;
     {
       scoped_stage stage(res, "mosp.combine");
@@ -321,7 +322,7 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
     if (costs) {
       tree = ws->host_parents.data();
       host_ws.emplace(pool.acquire<mosp_workspace<vertex_t, edge_t, weight_t>>(res));
-      (*host_ws)->reserve(n, K);
+      (*host_ws)->reserve(n, num_k);
       // The pinned copy of the tree stays valid while the device workspace is leased (to the end
       // of this function). Its download belongs to the path costs (the originals' Steps 2-3 end
       // with the tree on the device), so it is timed in their stage: one more synchronization.
@@ -330,12 +331,12 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
         mosp_download_tree_cuda(res, static_cast<std::int64_t>(n),
                                 st.device_combined_parents.data(), ws.get());
         out.host_syncs += 1;
-        if (st.path_costs.size() != n * static_cast<std::size_t>(K)) {
+        if (st.path_costs.size() != n * static_cast<std::size_t>(num_k)) {
           note_reservation();
-          st.path_costs.resize(n * static_cast<std::size_t>(K));
+          st.path_costs.resize(n * static_cast<std::size_t>(num_k));
         }
         const vertex_t missing =
-            mosp_path_costs_openmp(res, graph_access::out_view(g), tree, st.source, K,
+            mosp_path_costs_openmp(res, graph_access::out_view(g), tree, st.source, num_k,
                                    st.path_costs.data(), host_ws->get());
         DYNG_EXPECTS(missing < 0, "mosp: the MOSP tree edge (", tree[missing], ", ", missing,
                      ") is not an edge of the graph (do the trees belong to this graph?)");
@@ -346,7 +347,7 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
   }
   host_ws.emplace(pool.acquire<mosp_workspace<vertex_t, edge_t, weight_t>>(res));
   mosp_workspace<vertex_t, edge_t, weight_t>& ws = host_ws->get();
-  ws.reserve(n, K);
+  ws.reserve(n, num_k);
   mosp_combined<vertex_t, edge_t, weight_t> combined;
   {
     scoped_stage stage(res, "mosp.combine");
@@ -377,16 +378,17 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
   }
   if (costs) {
     scoped_stage stage(res, "mosp.path_costs");
-    if (st.path_costs.size() != n * static_cast<std::size_t>(K)) {
+    if (st.path_costs.size() != n * static_cast<std::size_t>(num_k)) {
       note_reservation();
-      st.path_costs.resize(n * static_cast<std::size_t>(K));
+      st.path_costs.resize(n * static_cast<std::size_t>(num_k));
     }
     tree = st.combined_parents.data();
-    const vertex_t missing = res.get_backend() == backend::openmp
-                                 ? mosp_path_costs_openmp(res, graph_access::out_view(g), tree,
-                                                          st.source, K, st.path_costs.data(), ws)
-                                 : mosp_path_costs(graph_access::out_view(g), tree, st.source, K,
-                                                   st.path_costs.data(), ws);
+    const vertex_t missing =
+        res.get_backend() == backend::openmp
+            ? mosp_path_costs_openmp(res, graph_access::out_view(g), tree, st.source, num_k,
+                                     st.path_costs.data(), ws)
+            : mosp_path_costs(graph_access::out_view(g), tree, st.source, num_k,
+                              st.path_costs.data(), ws);
     DYNG_EXPECTS(missing < 0, "mosp: the MOSP tree edge (", tree[missing], ", ", missing,
                  ") is not an edge of the graph (do the trees belong to this graph?)");
     st.has_path_costs = true;
@@ -431,10 +433,10 @@ class mosp_problem final : public update_participant<vertex_t, edge_t, weight_t>
    */
   mosp_problem(result_type& r, mosp::stats& out) : result_(&r), out_(out) {
     state_ = &mosp_access::state(r);
-    const auto K = static_cast<std::size_t>(state_->num_objectives);
-    stats_.objectives.resize(K);
-    objectives_.reserve(K);
-    for (std::size_t k = 0; k < K && k < state_->objectives.size(); ++k) {
+    const auto num_k = static_cast<std::size_t>(state_->num_objectives);
+    stats_.objectives.resize(num_k);
+    objectives_.reserve(num_k);
+    for (std::size_t k = 0; k < num_k && k < state_->objectives.size(); ++k) {
       objectives_.push_back(make_sssp_participant<vertex_t, edge_t, weight_t, distance_t>(
           state_->objectives[k], stats_.objectives[k]));
     }
@@ -727,22 +729,23 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::from_arrays(
   detail::graph_access::expect_placement(res, g, "mosp::result::from_arrays");
   const detail::resolved_options resolved =
       detail::resolve_options(opt, g.num_weights(), "mosp::result::from_arrays");
-  const int K = resolved.num_objectives;
+  const int num_k = resolved.num_objectives;
   DYNG_EXPECTS(is_host_accessible(distances.space()) && is_host_accessible(parents.space()),
                "mosp::result::from_arrays: the lists of arrays must be in host memory");
-  DYNG_EXPECTS(static_cast<int>(distances.size()) == K && static_cast<int>(parents.size()) == K,
-               "mosp::result::from_arrays: ", distances.size(), " distance and ", parents.size(),
-               " parent arrays for ", K, " objective(s)");
+  DYNG_EXPECTS(
+      static_cast<int>(distances.size()) == num_k && static_cast<int>(parents.size()) == num_k,
+      "mosp::result::from_arrays: ", distances.size(), " distance and ", parents.size(),
+      " parent arrays for ", num_k, " objective(s)");
   const std::int64_t n = g.num_vertices();
   DYNG_EXPECTS(source >= 0 && source < n, "mosp::result::from_arrays: source ", source,
                " is out of range [0, ", n, ")");
   auto st = std::make_unique<state_type>();
   st->source = source;
   st->opt = opt;
-  st->num_objectives = K;
+  st->num_objectives = num_k;
   st->scale = resolved.scale;
-  st->objectives.reserve(static_cast<std::size_t>(K));
-  for (int k = 0; k < K; ++k) {
+  st->objectives.reserve(static_cast<std::size_t>(num_k));
+  for (int k = 0; k < num_k; ++k) {
     const auto i = static_cast<std::size_t>(k);
     st->objectives.push_back(sssp::result<vertex_t, distance_t>::from_arrays(
         res, g, source, distances[i], parents[i], canonicalize, detail::objective_options(opt, k)));
@@ -773,14 +776,14 @@ mosp::result<vertex_t> mosp_compute(const resources& res,
   const std::int64_t n = g.num_vertices();
   DYNG_EXPECTS(source >= 0 && source < n, "mosp::compute: source ", source, " is out of range [0, ",
                n, ")");
-  const int K = resolved.num_objectives;
+  const int num_k = resolved.num_objectives;
   auto st = std::make_unique<mosp_state<vertex_t, std::int64_t>>();
   st->source = source;
   st->opt = opt;
-  st->num_objectives = K;
+  st->num_objectives = num_k;
   st->scale = resolved.scale;
-  st->objectives.reserve(static_cast<std::size_t>(K));
-  for (int k = 0; k < K; ++k) {
+  st->objectives.reserve(static_cast<std::size_t>(num_k));
+  for (int k = 0; k < num_k; ++k) {
     scoped_stage objective(res, "mosp.objective");
     st->objectives.push_back(sssp::compute(res, g, source, objective_options(opt, k)));
   }

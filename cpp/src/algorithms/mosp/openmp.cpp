@@ -68,7 +68,7 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_openmp(
   const int threads = resources_access::host_threads(res);
   const auto n = static_cast<std::int64_t>(in.num_vertices);
   const vertex_t source = in.source;
-  const int K = in.num_objectives;
+  const int num_k = in.num_objectives;
 
   // Step 2: count out-degrees, prefix sum, fill.
   ws.cursor.assign(static_cast<std::size_t>(n) + 1, edge_t{0});
@@ -80,7 +80,7 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_openmp(
     if (v == static_cast<std::int64_t>(source)) {
       continue;
     }
-    for (int k = 0; k < K; ++k) {
+    for (int k = 0; k < num_k; ++k) {
       vertex_t p = 0;
       weight_t weight = 0;
       if (combined_edge(in, static_cast<vertex_t>(v), k, p, weight)) {
@@ -104,7 +104,7 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_openmp(
     if (v == static_cast<std::int64_t>(source)) {
       continue;
     }
-    for (int k = 0; k < K; ++k) {
+    for (int k = 0; k < num_k; ++k) {
       vertex_t p = 0;
       weight_t weight = 0;
       if (combined_edge(in, static_cast<vertex_t>(v), k, p, weight)) {
@@ -152,7 +152,7 @@ vertex_t mosp_path_costs_openmp(const resources& res,
   if (threads <= 1 || n < parallel_path_cost_vertices) {
     return mosp_path_costs(out, parent, source, k, costs, ws);
   }
-  const auto K = static_cast<std::size_t>(k);
+  const auto num_k = static_cast<std::size_t>(k);
   const auto rows = static_cast<std::size_t>(n) + 1;
   // Within the reserved capacities (mosp_workspace::reserve); the per-thread sums grow once.
   ws.child_start.resize(rows);
@@ -170,7 +170,7 @@ vertex_t mosp_path_costs_openmp(const resources& res,
   const vertex_t* col_ind = out.col_ind.data();
   const weight_t* weights = out.weights.data();
   const auto m = static_cast<std::size_t>(out.col_ind.size());
-  const auto total = static_cast<std::int64_t>(static_cast<std::size_t>(n) * K);
+  const auto total = static_cast<std::int64_t>(static_cast<std::size_t>(n) * num_k);
   const auto s = static_cast<std::int64_t>(source);
   path_level levels[2];  // level i is levels[i % 2]; the next one is written into the other
   bool missing = false;  // set (relaxed) by any thread that finds a tree edge missing
@@ -189,9 +189,9 @@ vertex_t mosp_path_costs_openmp(const resources& res,
       __atomic_store_n(&missing, true, __ATOMIC_RELAXED);
       return false;
     }
-    for (std::size_t j = 0; j < K; ++j) {
-      costs[static_cast<std::size_t>(v) * K + j] =
-          costs[static_cast<std::size_t>(p) * K + j] +
+    for (std::size_t j = 0; j < num_k; ++j) {
+      costs[static_cast<std::size_t>(v) * num_k + j] =
+          costs[static_cast<std::size_t>(p) * num_k + j] +
           static_cast<std::int64_t>(weights[j * m + static_cast<std::size_t>(edge)]);
     }
     return true;
@@ -200,7 +200,7 @@ vertex_t mosp_path_costs_openmp(const resources& res,
 #pragma omp parallel num_threads(threads)
   {
     const auto t = static_cast<std::int64_t>(omp_get_thread_num());
-    const auto T = static_cast<std::int64_t>(omp_get_num_threads());
+    const auto team = static_cast<std::int64_t>(omp_get_num_threads());
 #pragma omp for schedule(static) nowait
     for (std::int64_t i = 0; i < total; ++i) {
       costs[i] = sssp_infinity;
@@ -216,8 +216,8 @@ vertex_t mosp_path_costs_openmp(const resources& res,
         __atomic_fetch_add(&child_start[parent[v] + 1], vertex_t{1}, __ATOMIC_RELAXED);
       }
     }
-    const std::int64_t lo = 1 + n * t / T;
-    const std::int64_t hi = 1 + n * (t + 1) / T;
+    const std::int64_t lo = 1 + n * t / team;
+    const std::int64_t hi = 1 + n * (t + 1) / team;
     std::int64_t local = 0;
     for (std::int64_t v = lo; v < hi; ++v) {
       local += child_start[v];
@@ -227,7 +227,7 @@ vertex_t mosp_path_costs_openmp(const resources& res,
 #pragma omp single
     {
       sums[0] = 0;
-      for (std::int64_t i = 0; i < T; ++i) {
+      for (std::int64_t i = 0; i < team; ++i) {
         sums[i + 1] += sums[i];
       }
     }
@@ -253,8 +253,8 @@ vertex_t mosp_path_costs_openmp(const resources& res,
     // The traversal from the source, one level per iteration.
 #pragma omp single
     {
-      for (std::size_t j = 0; j < K; ++j) {
-        costs[static_cast<std::size_t>(source) * K + j] = 0;
+      for (std::size_t j = 0; j < num_k; ++j) {
+        costs[static_cast<std::size_t>(source) * num_k + j] = 0;
       }
       queue[0] = source;
       levels[0] = path_level{0, 1, false};
@@ -266,7 +266,7 @@ vertex_t mosp_path_costs_openmp(const resources& res,
       }
       path_level& next = levels[level ^ 1];
       const std::int64_t width = here.end - here.begin;
-      if (width < nodes_per_thread * T) {
+      if (width < nodes_per_thread * team) {
 #pragma omp single
         {
           std::int64_t end = here.end;
@@ -281,8 +281,8 @@ vertex_t mosp_path_costs_openmp(const resources& res,
           next = path_level{here.end, end, __atomic_load_n(&missing, __ATOMIC_RELAXED)};
         }
       } else {
-        const std::int64_t first = here.begin + width * t / T;
-        const std::int64_t last = here.begin + width * (t + 1) / T;
+        const std::int64_t first = here.begin + width * t / team;
+        const std::int64_t last = here.begin + width * (t + 1) / team;
         std::int64_t count = 0;
         for (std::int64_t i = first; i < last; ++i) {
           const vertex_t p = queue[i];
@@ -293,12 +293,12 @@ vertex_t mosp_path_costs_openmp(const resources& res,
 #pragma omp single
         {
           std::int64_t offset = 0;
-          for (std::int64_t i = 0; i < T; ++i) {
+          for (std::int64_t i = 0; i < team; ++i) {
             const std::int64_t c = sums[i];
             sums[i] = offset;
             offset += c;
           }
-          sums[T] = offset;
+          sums[team] = offset;
         }
         std::int64_t position = here.end + sums[t];
         for (std::int64_t i = first; i < last; ++i) {
@@ -311,8 +311,8 @@ vertex_t mosp_path_costs_openmp(const resources& res,
         }
 #pragma omp barrier
 #pragma omp single
-        next =
-            path_level{here.end, here.end + sums[T], __atomic_load_n(&missing, __ATOMIC_RELAXED)};
+        next = path_level{here.end, here.end + sums[team],
+                          __atomic_load_n(&missing, __ATOMIC_RELAXED)};
       }
     }
   }

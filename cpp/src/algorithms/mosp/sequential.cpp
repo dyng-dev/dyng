@@ -173,8 +173,8 @@ vertex_t mosp_path_costs(const csr_view<vertex_t, edge_t, weight_t>& out, const 
                          vertex_t source, int k, std::int64_t* costs,
                          mosp_workspace<vertex_t, edge_t, weight_t>& ws) {
   const vertex_t n = out.num_vertices();
-  const auto K = static_cast<std::size_t>(k);
-  std::fill(costs, costs + static_cast<std::size_t>(n) * K, sssp_infinity);
+  const auto num_k = static_cast<std::size_t>(k);
+  std::fill(costs, costs + static_cast<std::size_t>(n) * num_k, sssp_infinity);
   if (n == 0) {
     return -1;
   }
@@ -197,8 +197,8 @@ vertex_t mosp_path_costs(const csr_view<vertex_t, edge_t, weight_t>& out, const 
       ws.children[static_cast<std::size_t>(ws.queue[static_cast<std::size_t>(parent[v])]++)] = v;
     }
   }
-  for (std::size_t j = 0; j < K; ++j) {
-    costs[static_cast<std::size_t>(source) * K + j] = 0;
+  for (std::size_t j = 0; j < num_k; ++j) {
+    costs[static_cast<std::size_t>(source) * num_k + j] = 0;
   }
   const edge_t* row_ptr = out.row_ptr.data();
   const vertex_t* col_ind = out.col_ind.data();
@@ -221,9 +221,9 @@ vertex_t mosp_path_costs(const csr_view<vertex_t, edge_t, weight_t>& out, const 
       if (edge < 0) {
         return v;
       }
-      for (std::size_t j = 0; j < K; ++j) {
-        costs[static_cast<std::size_t>(v) * K + j] =
-            costs[static_cast<std::size_t>(p) * K + j] +
+      for (std::size_t j = 0; j < num_k; ++j) {
+        costs[static_cast<std::size_t>(v) * num_k + j] =
+            costs[static_cast<std::size_t>(p) * num_k + j] +
             static_cast<std::int64_t>(weights[j * m + static_cast<std::size_t>(edge)]);
       }
       ws.queue.push_back(v);

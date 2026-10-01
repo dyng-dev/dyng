@@ -50,19 +50,19 @@ template <typename vertex_t>
 csr<vertex_t, std::int64_t, std::int32_t> combined_graph_reference(
     const std::vector<std::vector<vertex_t>>& parents, vertex_t source,
     const std::vector<std::int32_t>& preferences) try {
-  const std::size_t K = parents.size();
-  DYNG_EXPECTS(K >= 1 && K <= 64, "testing::combined_graph_reference: ", K,
+  const std::size_t num_k = parents.size();
+  DYNG_EXPECTS(num_k >= 1 && num_k <= 64, "testing::combined_graph_reference: ", num_k,
                " trees (1 to 64 are supported)");
   const std::size_t n = parents.front().size();
   for (const auto& tree : parents) {
     DYNG_EXPECTS(tree.size() == n, "testing::combined_graph_reference: trees of ", n, " and ",
                  tree.size(), " vertices");
   }
-  const std::int64_t scale = scale_of(preferences, K);
+  const std::int64_t scale = scale_of(preferences, num_k);
   // combinedEdgeWeight(): L * (K + 1) - sum over the trees in the mask of L / Pref_i.
   const auto weight_of = [&](std::uint64_t mask) {
-    std::int64_t w = scale * static_cast<std::int64_t>(K + 1);
-    for (std::size_t i = 0; i < K; ++i) {
+    std::int64_t w = scale * static_cast<std::int64_t>(num_k + 1);
+    for (std::size_t i = 0; i < num_k; ++i) {
       if ((mask >> i) & 1U) {
         w -= preferences.empty() ? scale : scale / preferences[i];
       }
@@ -74,7 +74,7 @@ csr<vertex_t, std::int64_t, std::int32_t> combined_graph_reference(
     if (static_cast<vertex_t>(v) == source) {
       continue;
     }
-    for (std::size_t k = 0; k < K; ++k) {
+    for (std::size_t k = 0; k < num_k; ++k) {
       const vertex_t p = parents[k][v];
       bool seen = p < 0;
       for (std::size_t j = 0; j < k && !seen; ++j) {
@@ -86,7 +86,7 @@ csr<vertex_t, std::int64_t, std::int32_t> combined_graph_reference(
       DYNG_EXPECTS(static_cast<std::size_t>(p) < n, "testing::combined_graph_reference: parent ", p,
                    " of vertex ", v, " is out of range");
       std::uint64_t mask = 0;
-      for (std::size_t j = 0; j < K; ++j) {
+      for (std::size_t j = 0; j < num_k; ++j) {
         mask |= parents[j][v] == p ? (std::uint64_t{1} << j) : 0U;
       }
       rows[static_cast<std::size_t>(p)].emplace_back(static_cast<vertex_t>(v), weight_of(mask));
@@ -112,13 +112,14 @@ std::vector<std::int64_t> mosp_path_costs_reference(const csr_view<vertex_t, edg
                                                     vertex_t source, int num_objectives) try {
   DYNG_EXPECTS(out.row_ptr.empty() || is_host_accessible(out.row_ptr.space()),
                "testing::mosp_path_costs_reference: the graph must be in host memory");
-  const int K = num_objectives == 0 ? out.num_weights : num_objectives;
-  DYNG_EXPECTS(K >= 1 && K <= out.num_weights, "testing::mosp_path_costs_reference: ", K,
-               " objectives for a graph with ", out.num_weights, " weight column(s)");
+  const int num_k = num_objectives == 0 ? out.num_weights : num_objectives;
+  DYNG_EXPECTS(num_k >= 1 && num_k <= out.num_weights,
+               "testing::mosp_path_costs_reference: ", num_k, " objectives for a graph with ",
+               out.num_weights, " weight column(s)");
   const auto n = static_cast<std::size_t>(out.num_vertices());
   DYNG_EXPECTS(parent.size() == n, "testing::mosp_path_costs_reference: ", parent.size(),
                " parents for ", n, " vertices");
-  const auto k = static_cast<std::size_t>(K);
+  const auto k = static_cast<std::size_t>(num_k);
   const std::int64_t inf = infinite_distance<std::int64_t>();
   std::vector<std::int64_t> costs(n * k, inf);
   // 0 unknown, 1 on the current walk, 2 done.
