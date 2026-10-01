@@ -73,22 +73,35 @@ parity/bench_suite.py run benchmarks/paper/ieee_tc_dyntrucy.yaml --version 0.1.0
 ```
 
 `run` first checks the SHA-256 of every input against the suite (`--no-verify-inputs` skips it),
-then runs each planned command; `--readings` and `--datasets` select a part, `--runs` overrides
-the rounds (at least 5), `--skip-existing` resumes an interrupted execution, and `--build-root`
-points at another checkout's build trees (for example a clean clone of the release commit). The
-full records go to `$DYNG_SCRATCH/runs/bench/<version>/`. `summarize` (run at the end of `run`, or
-on its own) writes to `benchmarks/results/<version>/`:
+then runs each planned command; `--skip-existing` resumes an interrupted execution, and
+`--build-root` points at another checkout's build trees (for example a clean clone of the release
+commit). The full records go to `$DYNG_SCRATCH/runs/bench/<version>/`, with the log of every
+command (`<suite>.log`); `run` never replaces a record that exists (`--skip-existing` keeps it,
+`--force` replaces it; to take a reading again, move its record to `superseded/` first).
+`--readings` and `--datasets` select a part and `--runs` overrides the rounds (at least 5): such
+a **narrowed** execution is summarized as `<suite>.partial.json` and only into an `--out` outside
+`benchmarks/results/` (a release's summary is the whole suite's; after taking readings again, run
+`summarize` for the whole suite). The harness records name the NVIDIA driver and the CUDA driver
+API version, and the inputs as measured: the sssp harness hashes every input file when a run
+starts, the cycle_count harness hashes the datasets in the measuring process. `summarize` (run at
+the end of `run`, or on its own) writes to `benchmarks/results/<version>/`:
 
 - `<suite>-<reading>[-<dataset>].json`: each harness record, compacted (the per-round
   machine-monitor windows are dropped; the samples, verdicts, rejected rounds and clock checks are
   kept; the record names its full copy);
 - `<suite>.json`: every reading with its regions (original and port medians, ratio, gate,
-  verdict), the commits that were measured and the verdict.
+  verdict), the commits that were measured, the driver each record names, when the execution
+  started, the inputs check and the verdict.
 
 The summary re-derives every gate from the suite's tolerances and fails if a record's gate,
 reference commit or variant, input digests, clock lock or build preset differ from the suite, if
-a gated reading is missing or incomplete, or if a gated region exceeds its gate or is provisional
-(a region under 10 ms read with fewer than 20 rounds). It lists, without failing (PLAN 8.6:
+a gated reading is missing or incomplete, if a gated region exceeds its gate or is provisional
+(a region under 10 ms read with fewer than 20 rounds), or if the inputs of a record are not
+verified. A record's inputs are verified by the digests the harness took while measuring; a
+record without such digests (the sssp records of 0.1.0rc1, whose digests are the ones
+`perf_ab.py prepare` wrote; the memory records of 0.1.0rc1) is verified only if every input file
+hashes to the suite's digest now **and** has not been written or replaced (modification and
+status-change times) since the execution started, the first command of `<suite>.log`. It lists, without failing (PLAN 8.6:
 flagged, not failed), the runs the OpenMP cycle_count harness flagged for foreign CPU load above
 its threshold (the other harnesses repeat such rounds); a reading with flagged runs is read again
 on a quiet machine before a release.
@@ -113,8 +126,11 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
    parity/certify.py check --version 0.1.0rc1 --name asan --command "ctest --preset asan" \
        --ctest-log asan-ctest.log --commit <the commit that was built>
    parity/certify.py check --version 0.1.0rc1 --name gpu_local --command ci/gpu_local.sh \
-       --gpu-summary build/dev-cuda/gpu_local_summary.md \
-       --require-steps memcheck,synccheck,racecheck
+       --scope repo --gpu-summary build/dev-cuda/gpu_local_summary.md \
+       --require-steps memcheck,synccheck,racecheck --tests-log gpu_local.log
+   parity/certify.py check --version 0.1.0rc1 --name check-parity --scope repo \
+       --command "ci/check.sh --parity" --result passed --evidence check-parity.log \
+       --tests-log check-parity.log
    ```
 
    (`--ctest-log` reads ctest's summary line, `--gpu-summary` the step table of
@@ -122,17 +138,73 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
    `mutation-sssp.json`, `--result passed|failed --details ...` anything else); they collect in
    `checks.json`.
 
+   Every check names the commit that was built and its **scope**, the paths that must be the
+   release's (below). A ctest log (`--ctest-log`, or `--tests-log` for another log with ctest
+   output, such as `ci/gpu_local.sh`'s) also gives the per-test results the committed fixtures
+   need. Every log a check names is recorded with its SHA-256 and size, and an excerpt (its step
+   headers and result lines) is committed under `benchmarks/results/<version>/checks/`; a check
+   recorded with `--result` alone must give its log with `--evidence`. A `--gpu-summary` check
+   records the steps it required (`--require-steps`; a skipped step passes only if it was not
+   required).
+
 Then, on the committed release tree, `parity/certify.py write --version <version>` writes
 `parity.json` and the generated part of `README.md` (between the `certify` markers; the text
-around it is written by hand). The certificate records the release commit; the commits whose
-builds were measured, each of which must have the release commit's sources (`git diff
-<measured> <release> -- <paths>` is empty: for the gates, the golden replays and a check recorded
-with `--scope library`, such as `mutate.py`, the library paths `cpp/include cpp/src
-cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json`; for a test-suite check, the
-default `--scope tests`, also `cpp/tests`);
-the hardware, the NVIDIA driver, the CUDA and compiler versions; the pinned originals (commit,
-the local `baseline-2026-09` SHA, upstream); every golden set with its manifest SHA-256, the
-SHA-256 of every case and every replay's case x configuration matrix and tolerance; the
-performance-gate table of every suite (gated, and recorded-only readings separately); and the
-checks. It exits 1, and says why in `verdict.problems`, if any part failed or is missing, if a
-replayed manifest is not the one of `goldens.toml`, or if a measured tree was dirty.
+around it is written by hand). The certificate records:
+
+- the release commit and the commits whose builds were measured, each of which must have the
+  release commit's sources in the paths of its scope (`git diff <measured> <release> --
+  <paths>` is empty):
+
+  | Scope | Paths | For |
+  |---|---|---|
+  | `library` | `cpp/include cpp/src cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json docs/references.bib` | the gates, the golden replays, `mutate.py` (`check --scope library`) |
+  | `tests` | the library paths and `cpp/tests` | a C++ test suite: the sanitizer presets, `ctest -L mutation` (the default of `check`) |
+  | `packaging` | the test paths, `python`, `pyproject.toml`, `VERSION`, `README.md`, `CHANGELOG.md`, `CITATION.cff`, the licence files, `ci/wheels.sh`, `ci/wheel_check.py`, `release.yml`, `wheels.yml` | the distributions (`select`, `ci/wheels.sh`, `twine check`, `wheel_check`, the fresh venvs) |
+  | `repo` | every tracked file but `benchmarks/results/` | a check of the whole tree: `ci/check.sh`, `ci/gpu_local.sh` |
+
+  `VERSION` is not a library path: it only names the build, so a release candidate's gates
+  certify the final release (step 9 of `docs/developer/release.md`).
+
+  **The one exception: generated metadata.** A measured commit whose library differs from the
+  release's **only** in `METADATA_PATHS` of `certify.py` (the manifests
+  `cpp/src/algorithms/{sssp,cycle_count}/manifest.toml`, which no build reads, and
+  `cpp/src/core/registry_table.inc`, the registry table `scripts/regen.py` generates from them,
+  read only by `dyng::algorithms()`) still certifies the gates, the golden replays and the golden
+  mutations, in the library scope only and never a test-suite check (whose tests read the
+  registry), if `equivalence.json` holds a passed pair for it whose release side has the
+  release's library. The pair is written by
+
+  ```bash
+  parity/certify.py equivalence --version <version> --measured <sha> --clone <a clean clone>
+  ```
+
+  which refuses a difference outside `METADATA_PATHS`, then builds, in that one clone and with
+  the measured commit's `VERSION` and build system, the presets `parity` and `parity-cuda`
+  (targets `dyng-compat-mosp`, `dyng-compat-cycle-enum`) twice: at the measured commit, and with
+  the release's library paths checked out over it. It compares `libdyng.so` and both compat
+  tools: each must be byte-identical, or equivalent, meaning every section and symbol at the same
+  address and every differing byte inside the listed functions' code (`dyng::algorithms()`) or in
+  the build id, unwind and symbol tables. The 0.1.0rc1 certificate uses it (measured at
+  `d13d393`, before the maturity change);
+- the hardware, the CUDA and compiler versions, and the NVIDIA driver **of the measurements**:
+  the one the records name (all equal, and equal to the driver seen when the certificate is
+  written), or, for CUDA records that predate the per-record field (0.1.0rc1), the driver seen
+  when the certificate is written, accepted only if it is shown unchanged since before the first
+  measurement (the loaded kernel module, the boot time, the module file and `libcuda.so.1`
+  installed before it);
+- the pinned originals (commit, the local `baseline-2026-09` SHA, upstream);
+- every golden set of `parity/goldens.toml` with its manifest SHA-256, the SHA-256 of every
+  case and every replay's case x configuration matrix and tolerance;
+- every **committed fixture set** of `cpp/tests/data` (`parity/fixtures/fixtures.toml`: the
+  generator script, the original and its commit, the CTests that compare the set) with the
+  SHA-256 of its files and the result of each of its tests in the release checks;
+- the performance-gate table of every suite (gated, and recorded-only readings separately) and
+  how each reading's inputs were verified;
+- the checks, with their scopes and evidence.
+
+It exits 1, and says why in `verdict.problems`, if any part failed or is missing, if a replayed
+manifest is not the one of `goldens.toml`, if a measured tree was dirty, if a suite summary is
+not of the committed suite file (SHA-256), is partial, or misses, repeats or has an incomplete
+reading of the suite's plan, if a summary's inputs are not verified, if the records' drivers
+disagree, if a directory of `cpp/tests/data` is not in `fixtures.toml`, or if a fixture test
+pattern was not passed by any release check (or failed in one).
