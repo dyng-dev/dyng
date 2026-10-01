@@ -20,6 +20,9 @@ CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py).
     parity/perf_ab.py memory --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--gpu 0]
                           [--graph roadNet-CA] [--batches ...] [--json ...]
     parity/perf_ab.py run --baseline-exe <earlier dynG build> --baseline-label <commit> --exe ...
+    parity/perf_ab.py mosp --backend openmp|cuda --exe <parity build>/dyng-compat-mosp [--gpu 0]
+                          [--runs 21] [--graph roadNet-CA] [-k K] [--pref p1,..,pK] [--json ...]
+    parity/perf_ab.py prepare --graph roadNet-CA-K4 --widen roadNet-CA:4
 
 The graphs of the PLAN 6.4.2 gate are the directories of $DYNG_SCRATCH/datasets/mosp: roadNet-PA,
 roadNet-CA, rgg (rgg_n_2_20_s0) and road_usa_g (road_usa); --hops defaults to the local-batch
@@ -103,6 +106,21 @@ engines  (cuda) dynG's fused engine (A, `dyng-compat-mosp --cuda-engine fused`) 
          region is sssp.enact_fused on A and identify_affected + seed + loop + finalize on B
          (the pseudo stage sssp.engine), host and device times. Reported, never gated.
 
+mosp     (M7, PLAN 6.4.4) dynG's MOSP update (`dyng-compat-mosp --mosp`, the parity or
+         parity-cuda preset) against the UNPATCHED original's bin/mosp (MOSP-OpenMP@c352151 with
+         --backend openmp, MOSP-CUDA@e220ee2 with --backend cuda), A/B/A/B with the protocol of
+         `run` (perf lock, contamination monitor, GPU clocks locked to boost on cuda). Both sides
+         WRITE every output file (the K trees and combinedGraph/), as the original's bench/run.sh
+         does, into a directory deleted after the run; before the timed rounds of a batch every
+         output file of both is compared byte for byte (and the invalidated counters in every
+         round). Regions from parity/timed_regions/mosp.toml: "(a) compute" (the K SOSP updates and
+         the combined step; <= 1.05x) and "(b) end to end" (<= 1.10x) gated, the per-objective
+         updates, the combined step and dynG's path costs reported. -k and --pref are passed to
+         both (`mosp -k K --pref ...`); --graph roadNet-CA-K4 with -k 2..4 is the K sweep.
+
+prepare --widen BASE:K  the K sweep's input: the CSR of BASE widened to K objectives (mospPrep
+         widen, weights [1, 100], seed 12345), its initial trees and its 50K safe batch (seed 777).
+
 The perf lock. The machine's convention is `flock $DYNG_SCRATCH/perf.lock <command>`, and this
 script also takes the lock itself. Both work: the script sees in /proc/locks that an ancestor
 process (flock(1)) holds the lock and runs under it; DYNG_PERF_LOCK_HELD=1 or --no-lock say so
@@ -137,6 +155,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 SCRATCH = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
 REGION_MAP = REPO / "parity" / "timed_regions" / "sssp.toml"
+MOSP_REGION_MAP = REPO / "parity" / "timed_regions" / "mosp.toml"  # `perf_ab.py mosp` (M7)
 # The original each backend of the port is compared with, and its section of sssp.toml.
 REFERENCES = {
     "openmp": {
@@ -165,6 +184,8 @@ REPORT = {
     "context": re.compile(r"context ([0-9.]+) ms"),
     "end_to_end_ms": re.compile(r"end_to_end_ms=([0-9.]+)"),
     "comb combined graph + SOSP": re.compile(r"^comb\s+combined graph \+ SOSP ([0-9.]+) ms", re.M),
+    # MospTimings::gpuCompute() (MOSP-CUDA) / compute() (MOSP-OpenMP): the "(a) compute" region.
+    "compute_ms": re.compile(r"^RESULT (?:gpu_)?compute_ms=([0-9.]+)", re.M),
 }
 PER_OBJECTIVE_REPORT = "obj<k> SOSP update"
 PORT_INVALIDATED = re.compile(r"^counter,sssp\.invalidated\.obj(\d+),(\d+)$", re.M)
@@ -360,26 +381,31 @@ def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
 # --- The region map ------------------------------------------------------------------------------
 
 
-def load_regions(backend: str = "openmp") -> list[dict]:
-    """The regions of sssp.toml for a backend, checked against what this script can measure."""
-    doc = tomllib.loads(REGION_MAP.read_text())
+def load_regions(
+    backend: str = "openmp",
+    path: Path = REGION_MAP,
+    required: tuple[str, ...] = ("sosp_update", "apply", "end_to_end"),
+) -> list[dict]:
+    """The regions of a region map (sssp.toml unless `path`) for a backend, checked against what
+    this script can measure."""
+    doc = tomllib.loads(path.read_text())
     regions = doc["reference"][REFERENCES[backend]["map"]]["region"]
     known = set(REPORT) | {PER_OBJECTIVE_REPORT}
     names = [r["name"] for r in regions]
-    for required in ["sosp_update", "apply", "end_to_end"]:
-        if required not in names:
-            raise SystemExit(f"{REGION_MAP}: region '{required}' is missing")
+    for name in required:
+        if name not in names:
+            raise SystemExit(f"{path}: region '{name}' is missing")
     for r in regions:
         for key in r.get("original_report", []) + r.get("original_report_subtract", []):
             if key not in known:
                 raise SystemExit(
-                    f"{REGION_MAP}: region {r['name']}: perf_ab.py cannot parse the "
+                    f"{path}: region {r['name']}: perf_ab.py cannot parse the "
                     f"original's report line '{key}' (known: {sorted(known)})"
                 )
         if r["gate"] not in ("compute", "end_to_end", "none"):
-            raise SystemExit(f"{REGION_MAP}: region {r['name']}: unknown gate '{r['gate']}'")
+            raise SystemExit(f"{path}: region {r['name']}: unknown gate '{r['gate']}'")
         if not r.get("port"):
-            raise SystemExit(f"{REGION_MAP}: region {r['name']}: no port stages")
+            raise SystemExit(f"{path}: region {r['name']}: no port stages")
     return regions
 
 
@@ -955,7 +981,7 @@ def summarize(
             "reading": reading,
             "original_ms": ma,
             "port_ms": mb,
-            "ratio": mb / ma if ma > 0 else float("nan"),
+            "ratio": mb / ma if ma > 0 else None,  # None: the original has no such timer
             "original_spread": spread(a),
             "port_spread": spread(b),
             "original_samples": a,
@@ -965,7 +991,7 @@ def summarize(
         if dev and all(x is not None for x in dev):
             e["port_device_ms"] = statistics.median(dev)
             e["port_device_samples"] = dev
-        if gate in ("compute", "end_to_end"):
+        if gate in ("compute", "end_to_end") and e["ratio"] is not None:
             e["gate"] = gate_limit(gate, ma)
             e["within_gate"] = e["ratio"] <= e["gate"]
             short = gate == "compute" and ma < SHORT_REGION_MS
@@ -1007,7 +1033,9 @@ def report(results: dict, labels: tuple[str, str] | None = None) -> list[str]:
             flag = " (noisy)" if e["noisy"] else ""
             lines.append(
                 f"| {batch} | {e['region']} | {e['reading']} | {e['original_ms']:.2f} | "
-                f"{e['port_ms']:.2f} | {e['ratio']:.3f} | {g} | "
+                f"{e['port_ms']:.2f} | "
+                + (f"{e['ratio']:.3f}" if e["ratio"] is not None else "-")
+                + f" | {g} | "
                 f"{e['original_spread'] * 100:.0f} % / {e['port_spread'] * 100:.0f} %"
                 f"{flag} | "
                 + (f"{e['port_device_ms']:.2f}" if "port_device_ms" in e else "-")
@@ -1049,14 +1077,27 @@ def prepare(args: argparse.Namespace) -> int:
     ref = reference_copy(name)
     build_reference(name)
     prep = ref / "bin" / "mospPrep"
-    src = SCRATCH / "datasets" / "mosp" / args.graph / "csr"
     dst = SCRATCH / "bench" / "mosp" / args.graph
     dst.mkdir(parents=True, exist_ok=True)
     csr_dir = dst / "csr"
-    if not csr_dir.exists():
-        csr_dir.symlink_to(src, target_is_directory=True)
-    prefix = csr_dir / "graphCsr"
     env = dict(os.environ, OMP_NUM_THREADS="28", OMP_PROC_BIND="close", OMP_PLACES="cores")
+    if args.widen:
+        # The K sweep (MOSP-CUDA@e220ee2 results/README.md: "roadNet-CA widened to 4 objectives
+        # (mospPrep widen), 50K safe batch generated for it"): a real CSR (not a symlink).
+        base, _, widen_k = args.widen.partition(":")
+        if not widen_k.isdigit():
+            raise SystemExit(f"--widen {args.widen}: expected BASE:K, e.g. roadNet-CA:4")
+        if not (csr_dir / "graphCsrValues.txt").is_file() or args.force:
+            csr_dir.mkdir(exist_ok=True)
+            src_prefix = SCRATCH / "datasets" / "mosp" / base / "csr" / "graphCsr"
+            cmd = ["widen", src_prefix, csr_dir / "graphCsr", widen_k, "1", "100", "12345"]
+            print(f"mospPrep {' '.join(map(str, cmd))}", flush=True)
+            check_call([prep, *cmd], env=env)
+    elif not csr_dir.exists():
+        csr_dir.symlink_to(
+            SCRATCH / "datasets" / "mosp" / args.graph / "csr", target_is_directory=True
+        )
+    prefix = csr_dir / "graphCsr"
     common = ["--ins", "50", "--seed", "777"]
     steps = [
         ("init", ["init", prefix, dst / "init"]),
@@ -1083,6 +1124,8 @@ def prepare(args: argparse.Namespace) -> int:
             ],
         ),
     ]
+    if args.widen:
+        steps = [x for x in steps if x[0] in ("init", BATCHES["safe50k"])]
     for name, cmd in steps:
         if (dst / name).is_dir() and not args.force:
             print(f"{dst / name}: exists (use --force to regenerate)")
@@ -1592,6 +1635,174 @@ def engines(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+# --- mosp: the MOSP update against the originals (M7, PLAN 6.4.4) ------------------------------
+
+MOSP_COMBINED = ["distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"]
+
+
+def same_mosp_outputs(a: Path, b: Path, k: int, what: str) -> None:
+    """Correctness guard of `mosp`: the K updated trees and the three combinedGraph/ files of two
+    runs must be byte-identical."""
+    same_outputs(a, b, k, what)
+    for f in MOSP_COMBINED:
+        if not filecmp.cmp(a / "combinedGraph" / f, b / "combinedGraph" / f, shallow=False):
+            raise SystemExit(f"{what}: combinedGraph/{f} differs")
+
+
+def mosp_options(args: argparse.Namespace) -> list:
+    """The MOSP options both sides take (`mosp` and `dyng-compat-mosp --mosp` share them)."""
+    out: list = []
+    if args.objectives:
+        out += ["-k", str(args.objectives)]
+    if args.pref:
+        out += ["--pref", args.pref]
+    return out
+
+
+def mosp_ab(args: argparse.Namespace) -> int:
+    """The MOSP update of dynG (`dyng-compat-mosp --mosp`) against the unpatched original
+    (`bin/mosp` of MOSP-OpenMP@c352151 or MOSP-CUDA@e220ee2), A/B/A/B under the perf lock (GPU
+    clocks locked on cuda), both sides writing every output file as the original's bench/run.sh
+    does; regions from parity/timed_regions/mosp.toml: "(a) compute" and "(b) end to end" gated,
+    the per-objective updates, the combined step and the path costs reported."""
+    regions = load_regions(args.backend, MOSP_REGION_MAP, ("compute", "end_to_end"))
+    keys = report_keys(regions)
+    reference = REFERENCES[args.backend]
+    exe, build = check_port_build(args)
+    data, k_graph = bench_inputs(args.graph)
+    k = min(args.objectives, k_graph) if args.objectives else k_graph
+    env, port_args = run_env(args)
+    if args.backend == "cuda" and args.cuda_engine != "automatic":
+        port_args = [*port_args, "--cuda-engine", args.cuda_engine]
+    build_reference(reference["name"])
+    ref = reference_copy(reference["name"])
+    marker = ref / ".dyng-reference"
+    side_a = [ref / "bin" / "mosp"]
+    side_b = [exe, "--mosp", *port_args]
+    extra = mosp_options(args)
+    batches = batch_list(args)
+    results, failures = {}, []
+    work = Path(tempfile.mkdtemp(prefix="dyng-perf-mosp-", dir=SCRATCH / "runs"))
+    mode = args.lock_clocks if args.backend == "cuda" else "none"
+    clocks = ClockLock(args.gpu, mode)
+
+    def clear(path: Path) -> None:
+        shutil.rmtree(path, ignore_errors=True)
+
+    try:
+        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock), clocks:
+            for batch in batches:
+                common = [*batch_args(data, batch), *extra]
+                # Correctness guard: every output file of both sides, byte for byte.
+                run_one([*side_a, *common, "--out", work / "A"], env)
+                run_one([*side_b, *common, "--out", work / "B"], env)
+                same_mosp_outputs(work / "A", work / "B", k, f"{batch}: the original and the port")
+                clear(work / "A")
+                clear(work / "B")
+                print(f"{batch}: every output file byte-identical ({k} objectives)", flush=True)
+                samples: dict[str, list] = {"original": [], "port": []}
+                loads, watched, rejected = [], [], []
+                with MachineMonitor(
+                    monitored_gpu(args),
+                    args.max_foreign_cpu,
+                    allowed_pids={clocks.pid} if clocks.pid else None,
+                    locked=clocks.locked,
+                ) as monitor:
+                    r = 0
+                    while r < args.runs:
+                        before = os.getloadavg()[0]
+                        timing = work / "timing.csv"
+                        # Both write their outputs (bench/run.sh), into a directory deleted after
+                        # the run, outside the timed program (or neither: --no-output).
+                        out_a = ["--no-output"] if args.no_output else ["--out", work / "A"]
+                        out_b = ["--no-output"] if args.no_output else ["--out", work / "B"]
+                        log_a, win_a = monitor.run([*side_a, *common, *out_a], env)
+                        clear(work / "A")
+                        orig = parse_original(log_a, k, keys)
+                        log_b, win_b = monitor.run(
+                            [*side_b, *common, *out_b, "--timing", timing], env
+                        )
+                        clear(work / "B")
+                        port = with_engine_stage(parse_port(log_b, timing, k), k)
+                        window = {"original": win_a, "port": win_b}
+                        if rejects(args, batch, r, window, rejected):
+                            continue
+                        r += 1
+                        window["round"] = r
+                        watched.append(window)
+                        loads.append((before, os.getloadavg()[0]))
+                        samples["original"].append(orig)
+                        samples["port"].append(port)
+                        if orig["invalidated"] != port["invalidated"]:
+                            failures.append(
+                                f"{batch} round {r}: invalidated original "
+                                f"{orig['invalidated']} != port {port['invalidated']}"
+                            )
+                        compute = next(x for x in regions if x["name"] == "compute")
+                        print(
+                            f"{batch} round {r}/{args.runs}: (a) original "
+                            f"{original_value(orig, compute, None):.1f} ms, port "
+                            f"{port_value(port, compute, None):.1f} ms; (b) original "
+                            f"{orig['report']['end_to_end_ms']:.0f} ms, port "
+                            f"{stage_sum(port, ['total.end_to_end']):.0f} ms; foreign CPU "
+                            f"{win_a['foreign_cpu_cores']:.2f} / {win_b['foreign_cpu_cores']:.2f}"
+                            " cores" + gpu_note(window),
+                            flush=True,
+                        )
+                results[batch] = summarize(
+                    regions,
+                    samples,
+                    k,
+                    args.runs,
+                    loads,
+                    monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
+                )
+    finally:
+        with contextlib.suppress(OSError):
+            subprocess.run(["rm", "-rf", str(work)], check=False)
+    report(results)
+    exceeded = [
+        f"{b}: {e['region']} {e['ratio']:.3f} > {e['gate']:.2f}"
+        for b, res in results.items()
+        for e in res["regions"]
+        if "gate" in e and not e["within_gate"]
+    ]
+    if args.backend == "cuda":
+        print(f"GPU clocks: {json.dumps(clocks.record)}")
+    if args.json:
+        write_json(
+            args,
+            results,
+            build,
+            ref,
+            marker,
+            regions,
+            reference,
+            clocks.record,
+            algorithm="mosp",
+            region_map=MOSP_REGION_MAP,
+            outputs=(
+                "--no-output on both (neither computes the path costs)"
+                if args.no_output
+                else "written by both (bench/run.sh), into a directory deleted after each run"
+            ),
+            extra={
+                "objectives": k,
+                "preferences": args.pref or "default (all 1)",
+                "cuda_engine": args.cuda_engine if args.backend == "cuda" else None,
+            },
+        )
+    for f in failures:
+        print(f"CORRECTNESS: {f}", file=sys.stderr)
+    if failures:
+        return 1
+    if exceeded:
+        print("gate exceeded: " + "; ".join(exceeded))
+        if args.enforce_gates:
+            return 1
+    return 0
+
+
 # --- kernels: the fused kernels at locked clocks (Nsight Compute) ---------------------------
 
 NCU = Path(os.environ.get("NCU", "/usr/local/cuda-13.1/bin/ncu"))
@@ -1800,11 +2011,24 @@ def port_commit() -> str:
     return head + ("+dirty" if dirty else "")
 
 
-def write_json(args, results, build, ref, marker, regions, reference, clocks=None) -> None:
+def write_json(
+    args,
+    results,
+    build,
+    ref,
+    marker,
+    regions,
+    reference,
+    clocks=None,
+    algorithm: str = "sssp",
+    region_map: Path = REGION_MAP,
+    outputs: str = "--no-output on both",
+    extra: dict | None = None,
+) -> None:
     # The records this script writes (parity/results/) do not make the measured code dirty.
     doc = {
         "schema": 3,
-        "algorithm": "sssp",
+        "algorithm": algorithm,
         "backend": args.backend,
         "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "graph": args.graph,
@@ -1829,7 +2053,7 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
             "binary": portable_path(args.exe),
             "build": build,
         },
-        "region_map": {"file": portable_path(REGION_MAP), "regions": [r["name"] for r in regions]},
+        "region_map": {"file": portable_path(region_map), "regions": [r["name"] for r in regions]},
         "protocol": {
             "runs": args.runs,
             "order": "A/B/A/B (side A first: "
@@ -1862,7 +2086,7 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
                 if getattr(args, "layouts", 1) > 1
                 else "one (a fixed --timing file name)"
             ),
-            "outputs": "--no-output on both",
+            "outputs": outputs,
             "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
         },
         "host": {"cpu": cpu_model(), "logical_cpus": os.cpu_count(), "kernel": platform.release()},
@@ -1871,6 +2095,8 @@ def write_json(args, results, build, ref, marker, regions, reference, clocks=Non
         .splitlines(),
         "results": results,
     }
+    if extra:
+        doc.update(extra)
     args.json.parent.mkdir(parents=True, exist_ok=True)
     args.json.write_text(json.dumps(doc, indent=1) + "\n")
     print(f"wrote {args.json}")
@@ -1949,12 +2175,20 @@ def main() -> int:
         "--hops", type=int, help="local batch radius (default: HOPS[graph]; roadNet-CA: 160)"
     )
     p.add_argument("--force", action="store_true")
+    p.add_argument(
+        "--widen",
+        metavar="BASE:K",
+        help="the K sweep input (M7): the CSR of BASE widened to K objectives with "
+        "`mospPrep widen <BASE csr> <out> K 1 100 12345` (the existing columns unchanged), its "
+        "initial trees and its 50K safe batch of seed 777, into bench/mosp/<--graph>/",
+    )
     for command, help_text in [
         ("run", "the port against the unpatched original (the gates)"),
         ("edge-type", "the edge_t benchmark: the port with int32 (A) vs int64 (B) edge offsets"),
         ("engines", "cuda: the port's fused (A) vs operators (B) engine, reported (M7)"),
         ("kernels", "cuda: the fused kernels of both under Nsight Compute, clocks locked to base"),
         ("memory", "cuda: the peak device memory of both under Nsight Systems (PLAN 8.6)"),
+        ("mosp", "the MOSP update against the original's bin/mosp, outputs written (M7 gates)"),
     ]:
         r = sub.add_parser(command, help=help_text)
         r.add_argument("--exe", type=Path, required=True, help="dyng-compat-mosp (parity preset)")
@@ -2002,7 +2236,28 @@ def main() -> int:
             action="store_true",
             help="record contaminated rounds instead of repeating them (flagged in the JSON)",
         )
-        if command == "engines":
+        if command == "mosp":
+            r.add_argument(
+                "-k",
+                "--objectives",
+                type=int,
+                default=0,
+                help="objectives used (`mosp -k`; default all of the graph's)",
+            )
+            r.add_argument("--pref", default="", help="preferences p1,..,pK (`mosp --pref`)")
+            r.add_argument(
+                "--cuda-engine",
+                choices=["automatic", "fused", "operators"],
+                default="automatic",
+                help="--backend cuda: dyng-compat-mosp --cuda-engine (default automatic)",
+            )
+            r.add_argument(
+                "--no-output",
+                action="store_true",
+                help="time both with --no-output (no files written, no path costs) instead of "
+                "writing every output file as bench/run.sh does (the published (b) scope)",
+            )
+        if command in ("engines", "mosp"):
             r.add_argument(
                 "--lock-clocks",
                 choices=["boost", "base", "none"],
@@ -2055,6 +2310,8 @@ def main() -> int:
             "--layouts is for a dynG-against-dynG A/B (--baseline-exe): the originals "
             "take no --timing file, so only the port's layout would move"
         )
+    if args.command == "prepare" and args.widen:
+        args.hops = 0  # the widened graph gets the 50K safe batch only
     if args.command == "prepare" and args.hops is None:
         if args.graph not in HOPS:
             parser.error(f"--hops is required for {args.graph} (known: {sorted(HOPS)})")
@@ -2069,6 +2326,7 @@ def main() -> int:
         "engines": engines,
         "kernels": kernels,
         "memory": memory,
+        "mosp": mosp_ab,
     }
     return commands[args.command](args)
 
