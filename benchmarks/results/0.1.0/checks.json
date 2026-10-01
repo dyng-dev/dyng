@@ -161,35 +161,6 @@
    "result": "passed"
   },
   {
-   "name": "check-parity",
-   "command": "ci/check.sh --parity, from a clean clone",
-   "commit": "454e61f156fb3187cd4c2f9867c3625d5b788613",
-   "scope": "repo",
-   "date": "2026-10-01T22:24:36Z",
-   "evidence": [
-    {
-     "file": "$DYNG_SCRATCH/runs/r011/review/repo/check-parity.log",
-     "sha256": "1f2e191f9b3e58fc26901fd0165abdcb0acb3dc874ff9224e4aacf369071f947",
-     "bytes": 516147,
-     "excerpt": "checks/check-parity.txt"
-    },
-    {
-     "file": "$DYNG_SCRATCH/runs/r011/review/repo/docs.log",
-     "sha256": "c42f9faa9c75c5b85963775f6ac1b3500bc41a535fffe33f6b9d3cd093b78617",
-     "bytes": 324,
-     "excerpt": "checks/check-parity-1.txt"
-    },
-    {
-     "file": "$DYNG_SCRATCH/runs/r011/review/repo/python.log",
-     "sha256": "78166ef743fd4f4db0e4d8ab9f9c2492d1bcf92a9dce247b55277537a552964b",
-     "bytes": 1670,
-     "excerpt": "checks/check-parity-2.txt"
-    }
-   ],
-   "details": "run again on the final tree after the R011 review (after the last change outside benchmarks/results): every step passed (clang-format, the cpu-only and dev presets with ctest -L cpu, clang-tidy, reuse, provenance, regen, the harness tests, ci/python.sh, the API check, the scaffold check, ci/docs.sh, pre-commit, and the parity preset's golden replays and dataset tests: 4 / 4); ci/docs.sh and ci/python.sh (396 passed, 4 skipped) also run on their own",
-   "result": "passed"
-  },
-  {
    "name": "gpu_local",
    "command": "ci/gpu_local.sh (dev-cuda, GPU 1), from a clean clone",
    "commit": "454e61f156fb3187cd4c2f9867c3625d5b788613",
@@ -311,6 +282,79 @@
     }
    ],
    "details": "run again on the final tree after the R011 review, in the ci/gpu_local.sh build; cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
+   "result": "passed"
+  },
+  {
+   "name": "check-parity",
+   "command": "ci/check.sh --parity, from a clean clone",
+   "commit": "454e61f156fb3187cd4c2f9867c3625d5b788613",
+   "scope": "repo",
+   "date": "2026-10-01T22:24:36Z",
+   "fixture_tests": {
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
+    "CycleCountDatasets.HistogramsEqualTheOriginal": "Passed",
+    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
+    "CycleEnumDatasets.DigestsEqualTheOriginal": "Passed",
+    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
+    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
+    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
+    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
+    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed",
+    "compat_cycle_enum.cli": "Passed",
+    "compat_mosp.c2i_0.openmp": "Passed",
+    "compat_mosp.c2i_0.openmp.int64": "Passed",
+    "compat_mosp.c2i_0.sequential": "Passed",
+    "compat_mosp.c2i_0.sequential.int64": "Passed",
+    "compat_mosp.h0.openmp": "Passed",
+    "compat_mosp.h0.openmp.int64": "Passed",
+    "compat_mosp.h0.sequential": "Passed",
+    "compat_mosp.h0.sequential.int64": "Passed",
+    "compat_mosp.testCase9.openmp": "Passed",
+    "compat_mosp.testCase9.openmp.int64": "Passed",
+    "compat_mosp.testCase9.sequential": "Passed",
+    "compat_mosp.testCase9.sequential.int64": "Passed"
+   },
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r011/review/repo/check-parity.log",
+     "sha256": "1f2e191f9b3e58fc26901fd0165abdcb0acb3dc874ff9224e4aacf369071f947",
+     "bytes": 516147,
+     "excerpt": "checks/check-parity.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r011/review/repo/docs.log",
+     "sha256": "c42f9faa9c75c5b85963775f6ac1b3500bc41a535fffe33f6b9d3cd093b78617",
+     "bytes": 324,
+     "excerpt": "checks/check-parity-1.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r011/review/repo/python.log",
+     "sha256": "78166ef743fd4f4db0e4d8ab9f9c2492d1bcf92a9dce247b55277537a552964b",
+     "bytes": 1670,
+     "excerpt": "checks/check-parity-2.txt"
+    }
+   ],
+   "details": "run again on the final tree after the R011 review (after the last change outside benchmarks/results): every step passed (clang-format, the cpu-only and dev presets with ctest -L cpu, clang-tidy, reuse, provenance, regen, the harness tests, ci/python.sh, the API check, the scaffold check, ci/docs.sh, pre-commit, and the parity preset's golden replays and dataset tests: 4 / 4); ci/docs.sh and ci/python.sh (396 passed, 4 skipped) also run on their own",
    "result": "passed"
   }
  ]
