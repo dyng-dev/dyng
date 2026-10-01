@@ -237,13 +237,13 @@ class Result:
 
     @property
     def combined_parents(self) -> Array:
-        """The MOSP tree: the canonical shortest-path tree of the combined graph (-1 for the
+        """The MOSP tree, the canonical shortest-path tree of the combined graph (-1 for the
         source and unreachable vertices)."""
         return self._array(self._native.combined_parents, "combined_parents")
 
     @property
     def path_costs(self) -> Array:
-        """The K objective values of the MOSP path to every vertex: an (n, K) int64 array in host
+        """The K objective values of the MOSP path to every vertex, an (n, K) int64 array in host
         memory (:data:`INFINITE_DISTANCE` for unreachable vertices).
 
         Raises:
@@ -254,7 +254,8 @@ class Result:
 
     @property
     def preference_scale(self) -> int:
-        """L = lcm(preferences): the unit of the combined distances is 1/L."""
+        """The preference scale L = lcm(preferences); the unit of the combined distances is
+        1/L."""
         return int(self._native.preference_scale)
 
     @property
