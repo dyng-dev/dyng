@@ -35,7 +35,7 @@ recorded in the approvals log of `GOVERNANCE.md`.
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
 | 13 | Read the Docs | later: checkpoint A4, milestone M6 | later |
-| 14 | Zenodo | later: checkpoint A4, before 0.1.0 is published | later |
+| 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); only before the GitHub Release of 0.1.0 if 0.1.0 is to get a DOI (section 14) | later |
 
 ## 1. Organization security
 
@@ -351,8 +351,15 @@ and takes the metadata from `CITATION.cff`.
    click **Grant** next to **dyng-dev**.
 3. On Zenodo: your account menu (top right) → **GitHub** → **Sync now** → find
    `dyng-dev/dyng` → switch it **On**.
-4. The next published GitHub Release (from 0.1.0; `release.yml` creates it) is archived and
-   gets a DOI. Add the DOI badge to `README.md` and the `doi` field to `CITATION.cff` in the
-   next pull request, and record A4 in `GOVERNANCE.md`.
+4. The next published GitHub Release (step 11 of {doc}`release`, created after the tag) is
+   archived and gets a DOI. Add the DOI badge to `README.md` and the `doi` field to
+   `CITATION.cff` in the next pull request, and record A4 in `GOVERNANCE.md`.
+
+Zenodo's GitHub integration archives only the releases **published after** the repository is
+switched on; it does not go back to earlier ones. With A4 in M6 (PLAN 11.2), the GitHub Release
+of 0.1.0 gets no DOI automatically: if 0.1.0 should have one, switch Zenodo on (steps 1-3)
+before the GitHub Release of 0.1.0 is created. Otherwise the first automatic DOI comes with the
+first release after A4 (0.1.1 or later), and 0.1.0 can only be uploaded to Zenodo by hand
+(**New upload**, the release's source archive and the metadata of `CITATION.cff`).
 
 Docs: <https://help.zenodo.org/docs/github/enable-repository/>.

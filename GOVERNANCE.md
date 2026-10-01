@@ -102,7 +102,7 @@ Decisions the lead maintainer still has to take; each moves to the approvals log
 
 | Decision | Default until then |
 |---|---|
-| O3: confirm the institution line and the years of `NOTICE` ("software developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors") | the draft wording stays in `NOTICE` |
+| O3: confirm the institution line and the years of `NOTICE` ("software developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors"); needed **before 0.1.0 reaches PyPI** (`NOTICE` ships in every distribution; raised for the author's approval of the `pypi` deployment, R010 retrospective) | the draft wording stays in `NOTICE` |
 | Whether a co-author wrote code of the originals outside git (docs/developer/provenance.md) | co-authors credited as research collaborators only |
 | Layout control for the 0.2 gates (retrospective open item 1): the parity preset's readings move with code placement and the heap layout on the Xeon Gold 6258R (`parity/results/M3.md` sections 5.4 and 6.3). Keep the one-layout protocol of ADRs 0018 / 0021 for the gates against the originals, read them over heap layouts as ADR 0024 does for refactors, or add a function / branch alignment flag to the parity and release presets (a PLAN 8.6 per-algorithm flag)? (M3's criterion 3 no longer waits on it: its 2 % bar is met under ADR 0024, M3.md section 6.5.) | the one-layout protocol; a measured proposal before the 0.2 gates |
 
