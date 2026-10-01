@@ -842,6 +842,30 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
   `cpp/tests/data/mosp_combined` (the thesis example with Pref {4, 1, 4} and {4, 4, 1}, K = 2..4,
   `-k` below the graph's columns) after MOSP-OpenMP and MOSP-CUDA agreed on them.
 
+### M7: parity and gates of `mosp` (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Changed (performance, same values): on the openmp and cuda backends `mosp`'s path costs run on
+  the host threads of the resources handle (a level-synchronous traversal of the MOSP tree; the
+  sequential port of `mospPathCosts` stays on the sequential backend and reports a missing tree
+  edge for the other two). On cuda the download of the MOSP tree for the path costs is timed in
+  `mosp.path_costs`, not `mosp.finalize`, and is one more synchronization of an update with
+  `compute_path_costs` (ADR 0027, amendment).
+- Parity tools: `parity/perf_ab.py mosp` (the MOSP update against MOSP-OpenMP@c352151's and
+  MOSP-CUDA@e220ee2's `mosp`, both writing every output file as the originals' `bench/run.sh`;
+  regions in the new `parity/timed_regions/mosp.toml`: "(a) compute" and "(b) end to end" gated,
+  the per-objective updates, the combined step and the path costs reported; `-k`, `--pref`,
+  `--cuda-engine`, `--no-output`), `parity/perf_ab.py prepare --widen BASE:K` (the K sweep's
+  input: `mospPrep widen`, its trees and its 50K safe batch), and the paper-scale goldens
+  `parity/export_goldens.py mosp_scale` / `parity/compare.py mosp_scale`
+  (`parity/mosp_scale_goldens.py`: the SHA-256 of every output file of MOSP-OpenMP's `mosp` on
+  20 benchmark cases, cross-checked with MOSP-CUDA, in `[sets.mosp_scale]` of
+  `parity/goldens.toml`). `dyng-compat-mosp --mosp --timing` writes the setup's stages as `setup`
+  rows.
+- Records: `parity/results/M7.md` sections 4-7 (the paper-scale parity, the K sweep, the mosp
+  gates on both backends, the sssp gate re-check).
+
 ## [0.0.1] - 2026-09-27
 
 ### Added
