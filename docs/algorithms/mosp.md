@@ -222,6 +222,13 @@ original, `parity/results/M7.md` section 6 for the other two batches):
 | rgg_n_2_20_s0 | 81.5 / 81.4 | 0.999 | 1,492 / 1,275 | 0.855 | 154.0 / 141.5 | 0.919 | 1,417 / 1,249 | 0.881 |
 | road_usa | 364.0 / 366.0 | 1.005 | 11,579 / 8,153 | 0.704 | 1,281.9 / 1,094.9 | 0.854 | 12,341 / 9,307 | 0.754 |
 
+Flagged readings (PLAN 8.6: shared-host variance above 10 % is flagged, not failed): every
+"(b) end to end" reading in the table is flagged (the originals' spreads 16-33 % over the rounds,
+dynG's 1-8 %, in the drivers' text input and output on the shared host), and so are OpenMP
+"(a)" on roadNet-PA and roadNet-CA here (the original's spread 12-13 %); the cuda "(a)" readings
+spread by at most 1 %. The verdicts hold with large margins (`parity/results/M7.md` section 6
+lists the spreads of every reading).
+
 The CUDA operators engine (`cuda_engine="operators"`, the fallback without cooperative launch)
 gives the same bytes; its K updates take 1.03-1.18x the fused engine's time on the 50K batches
 and 1.10-1.62x on the local 10K batches, whose many short near-far rounds each cost a host round
