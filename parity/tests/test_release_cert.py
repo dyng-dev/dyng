@@ -393,3 +393,25 @@ def test_measured_commit_must_have_the_release_code(cert) -> None:
     assert cert.same_code(commit + "+dirty", commit) is True
     assert cert.same_code("unknown", commit) is None
     assert cert.same_code("f" * 40, commit) is None
+
+
+# --- mutate.py -----------------------------------------------------------------------------------
+
+
+def test_mutation_points_match_the_code_once() -> None:
+    mutate = load("parity/mutate.py")
+    assert {m["config"] for m in mutate.MUTATIONS} == {"sequential", "openmp:4", "cuda"}
+    for m in mutate.MUTATIONS:
+        text = (REPO / m["file"]).read_text()
+        assert text.count(m["old"]) == 1, m["name"]
+        assert m["new"] != m["old"]
+
+
+def test_mutation_apply_refuses_an_ambiguous_point(tmp_path: Path) -> None:
+    mutate = load("parity/mutate.py")
+    (tmp_path / "f.cpp").write_text("a\na\n")
+    with pytest.raises(SystemExit, match="matches 2 times"):
+        mutate.apply(tmp_path, {"name": "x", "file": "f.cpp", "old": "a", "new": "b"})
+    (tmp_path / "f.cpp").write_text("a\n")
+    mutate.apply(tmp_path, {"name": "x", "file": "f.cpp", "old": "a", "new": "b"})
+    assert (tmp_path / "f.cpp").read_text() == "b\n"

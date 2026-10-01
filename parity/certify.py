@@ -7,6 +7,8 @@
                             --ctest-log asan-ctest.log [--commit <sha>]
     parity/certify.py check --version 0.1.0rc1 --name gpu_local --command ci/gpu_local.sh \\
                             --gpu-summary build/dev-cuda/gpu_local_summary.md
+    parity/certify.py check --version 0.1.0rc1 --name mutation-sssp \\
+                            --command "parity/mutate.py run" --json-verdict mutation-sssp.json
     parity/certify.py write --version 0.1.0rc1 [--results benchmarks/results/0.1.0rc1]
 
 Everything the certificate states is read from files under benchmarks/results/<version>/, which
@@ -428,10 +430,14 @@ def cmd_check(args: argparse.Namespace) -> int:
                 if steps.get(step) != "passed":
                     entry.setdefault("missing_steps", []).append(step)
                     passed = False
+    if args.json_verdict:
+        verdict = json.loads(Path(args.json_verdict).read_text())
+        entry["record"] = Path(args.json_verdict).name
+        passed &= verdict.get("passed") is True
     if args.result:
         passed &= args.result == "passed"
-    if not (args.ctest_log or args.gpu_summary or args.result):
-        raise SystemExit("check: give --ctest-log, --gpu-summary or --result")
+    if not (args.ctest_log or args.gpu_summary or args.json_verdict or args.result):
+        raise SystemExit("check: give --ctest-log, --gpu-summary, --json-verdict or --result")
     if args.details:
         entry["details"] = args.details
     entry["result"] = "passed" if passed else "FAILED"
@@ -631,6 +637,9 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--ctest-log", type=Path)
     c.add_argument("--gpu-summary", type=Path, help="ci/gpu_local.sh's gpu_local_summary.md")
     c.add_argument("--require-steps", help="with --gpu-summary: steps that must have passed")
+    c.add_argument(
+        "--json-verdict", type=Path, help='a JSON record with a top-level "passed" (mutate.py)'
+    )
     c.add_argument("--result", choices=["passed", "failed"])
     c.add_argument("--details")
     args = parser.parse_args(argv)
