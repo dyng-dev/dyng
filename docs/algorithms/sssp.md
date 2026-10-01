@@ -1,8 +1,8 @@
 # sssp: dynamic single-source shortest paths
 
 Maturity: **experimental** (sequential and OpenMP backends since M1a, the CUDA backend with the
-fused engine since M1b, the Python binding and the `dyng sssp` command line since M5; the
-operators engine arrives in 0.2).
+fused engine since M1b, the Python binding and the `dyng sssp` command line since M5, the CUDA
+operators engine since M7, for 0.2).
 Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md)).
 
@@ -59,7 +59,9 @@ framework's enactors running `detail::sssp_problem` (`cpp/src/algorithms/sssp/pr
 
 On the CUDA backend the four hooks from `identify_affected` to `finalize` are one fused engine
 (Tier B, PLAN 4.5.4): MOSP-CUDA's persistent cooperative kernel, one launch per objective, profiler
-stage `sssp.enact_fused`. The framework still owns everything around it: `sssp.prepare` on G_t,
+stage `sssp.enact_fused`. The CUDA operators engine (Tier A, M7) runs the four hooks as a sequence
+of kernels instead (stages `sssp.identify_affected`, `sssp.seed`, `sssp.loop`, `sssp.finalize`;
+section 4). The framework still owns everything around it: `sssp.prepare` on G_t,
 the commit (`graph.apply` on the host, then `graph.upload`: the updated graph is uploaded and its
 in-edges are built on the device, once for all results), `sssp.workspace` and `sssp.changes` (the
 objective's change list, built on the host from the commit's classification and uploaded).
@@ -98,7 +100,7 @@ std::vector<std::int64_t> dist = dyng::to_vector(gpu, dtree.distances());
 |---|---|---|
 | `delta` | 0 (automatic) | near-far bucket width: max(1, 32 * average weight / average out-degree) of the graph before the batch |
 | `objective` | 0 | the weight column (fixed at compute) |
-| `cuda_engine` | automatic | CUDA engine: `automatic` and `fused` run the persistent cooperative kernel and throw `not_supported_error` on a device without cooperative launch (the operators engine that would be the fallback arrives in 0.2); `operators` throws in 0.1; ignored on the CPU |
+| `cuda_engine` | automatic | CUDA engine: `fused` runs the persistent cooperative kernel (`not_supported_error` on a device without cooperative launch), `operators` the multi-kernel operators engine (the same bytes, any device), `automatic` the fused engine where it can and the operators engine otherwise; ignored on the CPU |
 | `validate_inputs` | true | O(n) checks of trees adopted with `result::from_arrays()` |
 
 **Python** (`dyng.sssp`; the options are keywords with the C++ field names, and
@@ -162,21 +164,34 @@ backend, and `--delta`, `--cuda-engine` and `--no-validate-inputs` are the optio
 | sequential | hook-by-hook reference (`engine::operators`) | `sequentialSOSPUpdate` adapted (Step 2 with `sospUpdateCpu`'s push rule) |
 | openmp | the ported paper engine (`engine::fused`) | `sospUpdateCpu` / `sospFromScratchCpu` ported straight |
 | cuda | the ported paper engine (`engine::fused`): one persistent cooperative kernel | `sospUpdateGpu` / `sospFromScratchGpu` ported verbatim (`cuda.cu`, `fused.cuh`) |
+| cuda | the operators engine (`engine::operators`, M7): the same phases as a sequence of kernels driven by the host | MOSP_ESCHER@4b86159's multi-kernel `sospUpdateGpu` (the MP1 structure) with MOSP-CUDA@e220ee2's semantics (`operators.cu`, `operators.cuh`; ADR 0026) |
 
-**Engines on CUDA** (`options::cuda_engine`, PLAN 4.5.4; ADR 0017). The choice is checked before
-the graph or the result is changed, so a refused call leaves both as they were:
+**Engines on CUDA** (`options::cuda_engine`, PLAN 4.5.4; ADRs 0017 and 0026). The choice is
+checked before the graph or the result is changed, so a refused call leaves both as they were:
 
 | `cuda_engine` | Device with cooperative launch | Device without it |
 |---|---|---|
-| `automatic` (default) | the fused engine | `not_supported_error`: there is no other CUDA engine in this release; the message names `resources::openmp()` / `resources::sequential()` |
-| `fused` | the fused engine: one persistent cooperative kernel per objective, grid = co-resident blocks of the instantiation (occupancy API), as MOSP-CUDA's `SospWorkspace` sizes it | `not_supported_error` (same message, without the `automatic` note) |
-| `operators` | `not_supported_error` (the multi-kernel engine arrives in 0.2, decision O24) | `not_supported_error` |
+| `automatic` (default) | the fused engine | the operators engine (decision O24: the non-cooperative fallback) |
+| `fused` | the fused engine: one persistent cooperative kernel per objective, grid = co-resident blocks of the instantiation (occupancy API), as MOSP-CUDA's `SospWorkspace` sizes it | `not_supported_error`; the message names `engine::operators` and `resources::openmp()` |
+| `operators` | the operators engine | the operators engine |
 
-`stats::engine_used` reports the engine that ran: `fused` on cuda and openmp (the ported paper
-engines), `operators` on the sequential reference. The no-cooperative-launch path is tested on the
-real device with a forced capability flag (`sssp_cuda_test.cpp`). Every GPU since Pascal
-supports cooperative launch; MPS or MIG limits can still make the launch fail, which surfaces as
-`cuda_error`.
+The operators engine runs each phase of the fused kernel as one kernel (pack the old tree, roots,
+pointer-jumping rounds, invalidation, insertion heads, the pull pass, then near-far rounds of push,
+minimum, threshold and split kernels, then unpack); the grid barriers become kernel boundaries,
+and the host reads a small control block once after Step 1, once per near-far round and once
+after the unpack (3 + iterations + epochs synchronizations per update, its budget under invariant
+I9). It returns the fused engine's bytes and the same `invalidated` and `affected` (conformance
+check C4, the golden corpus with `parity/compare.py --configs cuda-operators` and the randomized
+suites check it on every chain); `iterations`, `epochs` and `pushes` describe the schedule and may
+differ. It is slower than the fused engine on short updates (a host round trip per near-far
+round); `parity/results/M7.md` measures it on the gate graphs.
+
+`stats::engine_used` reports the engine that ran: `fused` on openmp and for the fused CUDA engine
+(the ported paper engines), `operators` on the sequential reference and for the CUDA operators
+engine. The no-cooperative-launch path is tested on the real device with a forced capability flag
+(`sssp_cuda_test.cpp`). Every GPU since Pascal supports cooperative launch; MPS or MIG limits can
+still make the cooperative launch fail, which surfaces as `cuda_error` (choose
+`engine::operators` there).
 
 **Determinism** (`determinism::bitwise`). Distances and parents are bit-identical across runs,
 thread counts, backends and edge offset types, and byte-identical to both originals on the golden
@@ -305,16 +320,16 @@ frontier lists (section "Scratch memory").
 - The graph must store its in-edges (`graph_properties::store_transposed`, the default).
 - Distances must fit 62 bits ((n - 1) * max weight); beyond that `compute` and `update` throw.
 - A tree imported with `validate_inputs = false` must be a shortest-path tree of the graph. All
-  engines still reject a parent cycle that no root of the batch breaks (the CUDA engine sees it
+  engines still reject a parent cycle that no root of the batch breaks (the CUDA engines see it
   when pointer jumping is still active after ceil(log2 n) + 1 rounds, which needs at least one
   deletion or weight increase in the batch; the batch is already applied, so the result is then
   poisoned and every later use of it throws `stale_result_error` until it is recomputed), and the
-  CUDA engine rejects a distance outside [0, (n - 1) * max weight] (MOSP-CUDA's "the initial tree
+  CUDA engines reject a distance outside [0, (n - 1) * max weight] (MOSP-CUDA's "the initial tree
   does not belong to this graph"); other corrupt inputs (for example wrong distances) give
   undefined, though memory-safe, results.
-- CUDA: the device must support cooperative launch (every GPU since Pascal does); the operators
-  engine that runs without it arrives in 0.2. A graph built with CUDA resources keeps a host copy
-  of its CSR as well as the device copy (the device apply comes later).
+- CUDA: the fused engine needs cooperative launch (every GPU since Pascal has it); without it
+  `engine::automatic` runs the operators engine. A graph built with CUDA resources keeps a host
+  copy of its CSR as well as the device copy (the device apply comes later).
 
 ## 7. Differences from the paper
 
@@ -324,7 +339,8 @@ counts to infinity, e.g. d(1) = 60 instead of 90 on the n = 6 stress seed), the 
 monotone near-far worklist without an iteration cap or a reachability pass, and ties go to the
 lowest parent id. On CUDA the whole update of one objective (roots, invalidation by pointer
 jumping, pull, near-far push, unpack) is one persistent cooperative kernel, where the paper's
-code ran Step 1 on the host and a loop of kernels with a host round trip per iteration. Weights
+code ran Step 1 on the host and a loop of kernels with a host round trip per iteration (the
+operators engine keeps that loop of kernels, with Step 1 on the device as well). Weights
 are integers (the paper uses real weights). Section 8 lists what the fixes changed.
 
 ## 8. Paper vs fixed code

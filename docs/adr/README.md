@@ -19,7 +19,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0014](0014-approval-checkpoints.md) | Approval checkpoints | Accepted |
 | [0015](0015-workspace-sharing.md) | Workspace sharing (scratch memory owned by `resources`) | Proposed (M1b) |
 | [0016](0016-cuda-execution-resources.md) | CUDA execution resources (streams, memory, errors, warm-up) | Proposed (M1b) |
-| [0017](0017-cuda-sssp-engine-and-placement.md) | The CUDA sssp engine, engine selection, placement and the resident device graph | Proposed (M1b) |
+| [0017](0017-cuda-sssp-engine-and-placement.md) | The CUDA sssp engine, engine selection, placement and the resident device graph | Proposed (M1b); item 2 superseded by 0026 |
 | [0018](0018-gpu-clock-state-in-the-cuda-gate.md) | The GPU clock state in the CUDA performance gate | Accepted (2026-09-28: option B, the gate is read at locked clocks; default-clock readings are reported, not gated) |
 | [0019](0019-merge-policy.md) | Merge policy (merge commits for milestone and integration work, squash for contributions, no rebase) | Accepted (INT1) |
 | [0020](0020-resident-device-graph-and-one-step-0.md) | The resident device graph under set semantics (device set apply, lazily downloaded host copy), and Step 0 once per update | Accepted (2026-09-29, by the author; written in M2b, amended by the M2b review) |
@@ -28,6 +28,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0023](0023-api-review-and-freeze-0-1.md) | The 0.1 API review and freeze (the review's findings and fixes, `@guarantee`, the committed public-API listing and its check) | Accepted under delegation (2026-09-29) |
 | [0024](0024-reading-a-refactor-against-earlier-dyng.md) | Reading a refactor against an earlier dynG build (rounds over heap layouts, bimodal regions read mode by mode) | Accepted under delegation (2026-09-30) |
 | [0025](0025-cli-and-distributions.md) | The command line as a Python console script (generated flags, `dyng prep` with mospPrep's syntax, the originals' output formats), and the build of the distributions (cibuildwheel in CI, the local manylinux_2_28 build, `release.yml` for v0.1.0+) | Accepted under delegation (2026-09-30) |
+| [0026](0026-sssp-operators-engine.md) | The sssp operators engine on CUDA (the multi-kernel, non-cooperative engine, byte-identical to the fused one) and the engine choice of 0.2 | Accepted under delegation (2026-09-30) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

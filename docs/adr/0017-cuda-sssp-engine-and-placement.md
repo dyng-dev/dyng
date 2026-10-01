@@ -1,7 +1,8 @@
 # ADR 0017: The CUDA sssp engine, engine selection, placement and the resident device graph
 
 - **Status:** Proposed (M1b); accepted with the 0.1 API freeze (M3). Amended by the M1b review
-  (see "Amendments")
+  (see "Amendments"). Item 2 (engine selection) superseded by
+  [ADR 0026](0026-sssp-operators-engine.md) (M7: the operators engine)
 - **Date:** 2026-09-27
 - **Deciders:** S M Shovan (lead maintainer)
 

@@ -776,6 +776,38 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   decision. The certificate and the retrospective point at ADR 0021 instead of the removed
   "ADR 0018 update".
 
+### M7: the sssp operators engine (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Added: the CUDA **operators engine** of `sssp` (decision O24, ADR 0026;
+  `cpp/src/algorithms/sssp/operators.{cuh,cu}`): MOSP_ESCHER@4b86159's multi-kernel host loop with
+  MOSP-CUDA@e220ee2's semantics, one framework hook per phase (Tier A), byte-identical to the fused
+  engine on every input (the same trees, `invalidated` and `affected`; conformance check C4). It
+  needs no cooperative launch and synchronizes 3 + iterations + epochs times per update.
+- Changed (behaviour, no signature change): on CUDA, `sssp::options::cuda_engine =
+  engine::automatic` runs the operators engine on a device without cooperative launch (it threw
+  `not_supported_error`), and `engine::operators` runs the operators engine (it threw everywhere);
+  `engine::fused` still throws `not_supported_error` without cooperative launch, and its message
+  now names `engine::operators`. `stats::engine_used` reports `operators` for it. ADR 0017 item 2
+  is superseded by ADR 0026.
+- Changed: the device building blocks the two CUDA engines share (packed words, stamp claims, the
+  warp-aggregated append, the warp reductions) moved unchanged from `fused.cuh` to `kernels.cuh`;
+  the fused kernel's SASS is identical for all three instantiations.
+- Changed: the conformance kit's C4 compares the two engines after `compute()` and after three
+  consecutive batches for every preset, the small and medium sizes and every batch mix (it
+  compared one batch); it runs for `sssp` on CUDA.
+- Tests: the CUDA `sssp` suites run both engines: the MOSP fixtures, the packing boundary
+  (n = 2^17 - 1), the distance-only fallback (320 x 320 grid, weights 2 * 10^9), the input checks
+  (an out-of-range distance, a parent cycle), the steady-state allocations, the budget with strict
+  budgets, and the randomized chains, where the CUDA executable compares the operators engine with
+  the fused engine and the host backends on every chain; a larger engine-equality test (30K-40K
+  vertices, many near-far rounds).
+- Parity tools: `dyng-compat-mosp --cuda-engine automatic|fused|operators` (also in `init`; the
+  per-objective report line names the engine), `parity/compare.py --configs
+  cuda-fused[:d],cuda-operators[:d]`, and `parity/perf_ab.py engines` (the operators engine
+  against the fused one, A/B/A/B at locked clocks; reported, not gated).
+
 ## [0.0.1] - 2026-09-27
 
 ### Added

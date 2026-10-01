@@ -49,7 +49,7 @@ backends) and, in CUDA builds, `dyng_<name>_conformance_cuda_tests` (labels `gpu
 | C1 | an empty batch changes nothing (`affected == 0`) |
 | C2 | the oracle over random graphs (three sizes) x seven batch mixes (insert-only, delete-only, mixed, local, heavy, reweight, vertex growth) x three consecutive batches x the property presets (the defaults, `batch_semantics::set()`, the traits' extras): after every batch the result equals `compute()` on the new graph at the declared level, and `compute()` equals the independent oracle of the traits (sssp: Dijkstra; cycle_count: the brute-force count); for `oracle_kind::reference` both are within the declared tolerance of the converged reference |
 | C3 | the backends agree with sequential, results and deterministic counters |
-| C4 | the fused engine equals the operators engine on a backend that has both (skipped in 0.1: no backend has both) |
+| C4 | the fused engine equals the operators engine on a backend that has both, after `compute()` and after three consecutive batches, for every preset, the small and medium sizes and every batch mix (sssp on CUDA since M7; skipped where a backend has one engine) |
 | C5 | a batch followed by its inverse (built from the host model, with the recorded weights) returns the original result |
 | C6 | two runs give identical results and deterministic counters |
 | C7 | invalid input is rejected with `invalid_argument_error` and changes nothing (negative ids, a batch with the wrong number of weight columns, a missing deletion under `missing_delete::error`, the traits' invalid options and graphs), or is counted as skipped (missing deletions, and under set semantics existing insertions and self-loops); duplicates still give `compute()` |

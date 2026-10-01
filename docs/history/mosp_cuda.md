@@ -59,8 +59,10 @@ section 8.
 - **Placement:** a graph belongs to the resources that built it; results live in device memory and
   are read with `to_vector()` or `dyng.Array` (host copies in Python); the device graph is uploaded
   once per batch inside the commit, as the original's is.
-- **Engines:** without cooperative launch, `engine::automatic` raises `not_supported_error`; the
-  multi-kernel operators engine that would run there arrives in 0.2 (decision O24).
+- **Engines:** without cooperative launch, `engine::automatic` runs the multi-kernel operators
+  engine (M7, decision O24; ADR 0026), which follows MOSP_ESCHER@4b86159's host loop of kernels
+  with this kernel's semantics and returns the same bytes; `engine::fused` raises
+  `not_supported_error` there.
 - **Registers:** the port keeps the original's 59 registers per thread of the int32 instantiation
   and the same co-resident grid (M1b certificate section 11).
 - **Not ported (yet):** the combined-graph kernels and the MOSP tree (`mosp`, 0.2), the
