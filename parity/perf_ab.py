@@ -1703,6 +1703,11 @@ def mosp_ab(args: argparse.Namespace) -> int:
     exe, build = check_port_build(args)
     data, k_graph = bench_inputs(args.graph)
     k = min(args.objectives, k_graph) if args.objectives else k_graph
+    if args.no_output or k < k_graph:
+        # mosp::update() computes no path costs then (dyng-compat-mosp: --no-output, or -k below
+        # the graph's columns, whose mospCosts.txt is written by the host reference while writing,
+        # as the original does): the reported region has no samples and is left out.
+        regions = [r for r in regions if r["name"] != "path_costs"]
     env, port_args = run_env(args)
     if args.backend == "cuda" and args.cuda_engine != "automatic":
         port_args = [*port_args, "--cuda-engine", args.cuda_engine]
