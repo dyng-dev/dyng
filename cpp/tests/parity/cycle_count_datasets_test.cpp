@@ -11,14 +11,17 @@
  * The OpenMP backend runs every case (threads: DYNG_CYCLE_PARITY_THREADS, default all). The
  * sequential backend runs the cases whose OpenMP count takes about a second at most (DD k <= 6
  * and the updates) unless DYNG_CYCLE_PARITY_FULL=1, which runs it on every case (a sequential
- * COLLAB k = 3 takes about half an hour). The datasets are read from $DYNG_CYCLE_DATASETS, else
- * $DYNG_SCRATCH/datasets/cycle, else ~/Projects/dyng-work/datasets/cycle; missing ones are skipped.
+ * COLLAB k = 3 takes about half an hour). A build without OpenMP (the tsan preset) runs the
+ * sequential cases of DD only, unless DYNG_CYCLE_PARITY_FULL=1. The datasets are read from
+ * $DYNG_CYCLE_DATASETS, else $DYNG_SCRATCH/datasets/cycle, else
+ * ~/Projects/dyng-work/datasets/cycle; missing ones are skipped.
  * The committed digests of the datasets test (cycle_enum_datasets_test.cpp) already tie the graphs
  * and the batches to the original's.
  */
 #include "support/cycle_count_support.hpp"
 #include "support/data_paths.hpp"
 
+#include <dyng/core/backend.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
 #include <dyng/cycle_count.hpp>
@@ -94,13 +97,20 @@ std::vector<count_line> read_lines() {
   return out;
 }
 
+/// OpenMP when this build has it, else the sequential backend (the tsan preset builds without
+/// OpenMP).
+bool have_openmp() {
+  return dyng::backend_available(dyng::backend::openmp);
+}
+
 const graph_t& graph_of(const std::string& path) {
   static std::map<std::string, std::unique_ptr<graph_t>> cache;
   auto& slot = cache[path];
   if (!slot) {
     const auto edges = dyng::io::read_edge_list<std::int32_t, unweighted>(path);
     slot = std::make_unique<graph_t>(graph_t::from_edges(
-        dyng::resources::openmp(), edges.view(), dyng::graph_properties::cycle_enum_compatible()));
+        have_openmp() ? dyng::resources::openmp() : dyng::resources::sequential(), edges.view(),
+        dyng::graph_properties::cycle_enum_compatible()));
   }
   return *slot;
 }
@@ -117,8 +127,15 @@ TEST(CycleCountDatasets, HistogramsEqualTheOriginal) {
       continue;
     }
     const int k = static_cast<int>(c.numbers[0]);
-    const bool small = c.what == "update" || (c.file.rfind("DD/", 0) == 0 && k <= 6);
-    std::vector<dyng::resources> backends = {dyng::resources::openmp(omp_threads())};
+    const bool dd = c.file.rfind("DD/", 0) == 0;
+    const bool small = c.what == "update" || (dd && k <= 6);
+    if (!have_openmp() && !full && !dd) {
+      continue;  // without OpenMP only DD's sequential cases (the other priors take hours there)
+    }
+    std::vector<dyng::resources> backends;
+    if (have_openmp()) {
+      backends.push_back(dyng::resources::openmp(omp_threads()));
+    }
     if (full || small) {
       backends.push_back(dyng::resources::sequential());
     }
