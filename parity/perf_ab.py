@@ -333,6 +333,32 @@ def ancestors() -> set[int]:
 LOCK_STATUS = "perf.lock: not taken"
 
 
+def blocking_flock(f, seconds: float) -> bool:
+    """Take an exclusive flock on f, waiting in the kernel for at most `seconds` (SIGALRM; the
+    main thread only). False on the timeout."""
+    if seconds <= 0:
+        return False
+
+    class _Timeout(Exception):
+        pass
+
+    def on_alarm(signum, frame):
+        raise _Timeout
+
+    previous = signal.signal(signal.SIGALRM, on_alarm)
+    try:
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            return True
+        except _Timeout:
+            return False
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+    finally:
+        signal.signal(signal.SIGALRM, previous)
+
+
 @contextlib.contextmanager
 def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
     """Hold the exclusive perf lock, or run under an ancestor's (flock(1)) hold of it."""
@@ -372,7 +398,11 @@ def perf_lock(path: Path, timeout: float = 3 * 3600.0, skip: bool = False):
                         f"waiting for {path} (held by {sorted(lock_holders(path))}) ...", flush=True
                     )
                     announced = True
-                time.sleep(1.0)
+                # Wait in the kernel, not by polling: a LOCK_NB poll every second starved behind
+                # back-to-back shared holders (another agent's `flock -s` chain of builds and
+                # suites), which take the lock again in the gap between two polls.
+                if blocking_flock(f, deadline - time.monotonic()):
+                    break
         LOCK_STATUS = "perf.lock: held exclusively by this process"
         try:
             yield

@@ -194,6 +194,33 @@ def test_perf_lock_times_out_on_another_holder(tmp_path: Path) -> None:
         holder.wait()
 
 
+def test_perf_lock_waits_in_the_kernel_behind_a_chain_of_shared_holders(tmp_path: Path) -> None:
+    # Another agent's builds and suites take the lock shared, one after the other, with gaps of a
+    # few milliseconds; a waiter that polls every second (as perf_lock once did) never got it.
+    lock = tmp_path / "perf.lock"
+    lock.touch()
+    chain = subprocess.Popen(
+        ["bash", "-c", f"for i in $(seq 40); do flock -s {lock} sleep 0.25; done"]
+    )
+    try:
+        for _ in range(100):  # wait until the chain holds the lock
+            if subprocess.run(["flock", "-n", lock, "true"]).returncode != 0:
+                break
+        script = (
+            f"import sys; sys.path.insert(0, {str(REPO / 'parity')!r}); import perf_ab\n"
+            "from pathlib import Path\n"
+            f"with perf_ab.perf_lock(Path({str(lock)!r}), timeout=6): print('ran')\n"
+        )
+        proc = subprocess.run(
+            [sys.executable, "-c", script], capture_output=True, text=True, timeout=60
+        )
+        assert proc.returncode == 0 and "ran" in proc.stdout, proc.stdout + proc.stderr
+        assert chain.poll() is None  # it got the lock while the chain was still running
+    finally:
+        chain.kill()
+        chain.wait()
+
+
 def test_region_map_loads() -> None:
     perf = load("parity/perf_ab.py")
     regions = perf.load_regions()
