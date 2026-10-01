@@ -11,7 +11,7 @@ fixes below one persistent cooperative CUDA kernel per objective, is the CUDA ba
 | Pinned commit | `e220ee20d1b0948ece3df135a02d1b898264c22f` (branch `fix/correctness-perf`) |
 | Paper snapshot | tag `baseline-2026-09` = `ac29545` ("Ported from SYCL to CUDA") |
 | History | 35 commits, 2025-08 to 2026-09; 34 by S M Shovan, 1 under the placeholder identity `CUDA <user@example.com>` (credited to S M Shovan); 33 AI-assisted |
-| Ported in | M1b (the fused kernel, the device graph, the CUDA resources) |
+| Ported in | M1b (the fused kernel, the device graph, the CUDA resources), M7 (the combined graph on the GPU and the MOSP tree: {doc}`../algorithms/mosp`) |
 | Parity | byte-identical on the 495-case golden corpus, which MOSP-CUDA's own export reproduces file for file; cross-backend equal; within the performance gates at locked clocks ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md), ADR 0018) |
 
 Before the port, the two originals were cross-checked once on the corpus: MOSP-CUDA@e220ee2 and
@@ -65,7 +65,11 @@ section 8.
   `not_supported_error` there.
 - **Registers:** the port keeps the original's 59 registers per thread of the int32 instantiation
   and the same co-resident grid (M1b certificate section 11).
-- **Not ported (yet):** the combined-graph kernels and the MOSP tree (`mosp`, 0.2), the
-  file-path API of the library, `main` writing into relative paths, `using namespace std`.
+- **Combined graph (M7):** `combinedGraphGpu.cu`'s `combinedEdge`, `countEdgesKernel`, the CUB
+  scan and `fillEdgesKernel` are `mosp`'s CUDA combine step (`cpp/src/algorithms/mosp/cuda.cu`);
+  `sospFromScratchGpu` on the combined graph is sssp's static solve on a view; `mospUpdate` is
+  `mosp::update()`.
+- **Not ported (yet):** the file-path API of the library (`parallelCombinedGraph`), `main` writing
+  into relative paths, `using namespace std`.
 
 The mapping of every name is section 9 of {doc}`../algorithms/sssp`.

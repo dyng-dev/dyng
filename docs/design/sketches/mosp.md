@@ -1,6 +1,9 @@
 # Sketch: `mosp` (0.2)
 
-**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M7.
+**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); implemented and frozen
+in M7 with the changes of ADR 0027 (`options::num_objectives`, `delta` of the K updates only, host
+path costs over the K objectives, `affected`; the open questions below are decided there). The
+algorithm page is `docs/algorithms/mosp.md`.
 **Computes:** multi-objective shortest paths from one source on a graph with K weight columns:
 the K single-objective shortest-path trees, the preference-weighted combined graph, its
 shortest-path tree (the MOSP tree) and the K path costs of every vertex along it.
