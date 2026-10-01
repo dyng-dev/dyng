@@ -76,6 +76,16 @@ jobs:
               echo "::error::tag v${tag} does not match VERSION ${version}: for a release candidate VERSION holds X.Y.ZrcN, for the release X.Y.Z (steps 5 and 9 of docs/developer/release.md)"
               exit 1
             fi
+            # VERSION, CHANGELOG.md and CITATION.cff must agree (the version, the section and its
+            # date, the link references); the date should be the day of the tag (checked before
+            # tagging, step 7 / 10 of docs/developer/release.md; only a warning here).
+            if ! python ci/wheel_check.py --release-metadata; then
+              echo "::error::VERSION, CHANGELOG.md and CITATION.cff disagree (steps 5, 6 and 9 of docs/developer/release.md)"
+              exit 1
+            fi
+            if ! python ci/wheel_check.py --release-metadata --release-date today; then
+              echo "::warning::the release date of CHANGELOG.md and CITATION.cff is not today (UTC)"
+            fi
           fi
           {
             echo "kind=${kind}"

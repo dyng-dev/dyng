@@ -16,13 +16,15 @@ metadata the author decided on 2026-09-30 (GOVERNANCE.md): ``License-Expression:
 :data:`LICENSE_EXPRESSION` in ``METADATA`` / ``PKG-INFO`` (which ``pyproject.toml``'s ``license``
 must equal) and a ``License-File:`` line for every licence file. ``VERSION`` must be a canonical
 PEP 440 version (the distributions carry the normalised form, so any other spelling would give
-file names that no check expects).
+file names that no check expects). ``--release-metadata`` checks ``VERSION``, ``CHANGELOG.md``
+and ``CITATION.cff`` against each other (:func:`check_release_metadata`).
 
 Usage::
 
     python3 ci/wheel_check.py dist/*.whl dist/*.tar.gz --platform manylinux_2_28_x86_64 \\
         --require-libgomp
     python3 ci/wheel_check.py --version-info   # "<VERSION> <pre-release: true|false>"
+    python3 ci/wheel_check.py --release-metadata [--release-date today]
     python3 ci/wheel_check.py --self-test
 
 Exit status 0 when every file passes; the report lists each check.
@@ -31,6 +33,7 @@ Exit status 0 when every file passes; the report lists each check.
 from __future__ import annotations
 
 import argparse
+import datetime
 import io
 import re
 import sys
@@ -101,6 +104,73 @@ def canonical_version(v: str) -> tuple[str, bool]:
 def version() -> str:
     """The version of VERSION (canonical PEP 440; ValueError otherwise)."""
     return canonical_version((ROOT / "VERSION").read_text().strip())[0]
+
+
+#: The repository whose CHANGELOG link references are checked.
+REPOSITORY_URL = "https://github.com/dyng-dev/dyng"
+
+
+def _cff_field(text: str, key: str) -> str | None:
+    """A top-level scalar of CITATION.cff (``key: value`` at column 0, quotes removed)."""
+    m = re.search(rf"(?m)^{re.escape(key)}:\s*\"?([^\"\n]*?)\"?\s*$", text)
+    return m.group(1) if m else None
+
+
+def check_release_metadata(root: Path = ROOT, release_date: str | None = None) -> list[str]:
+    """The failed checks of VERSION, CHANGELOG.md and CITATION.cff against each other
+    (docs/developer/release.md, steps 5, 6 and 9). For a release or a release candidate:
+    CITATION.cff's ``version`` is VERSION; CHANGELOG.md has an ``## [Unreleased]`` section and
+    under it ``## [VERSION] - <date>`` with ``<date>`` CITATION.cff's ``date-released``; the link
+    references ``[Unreleased]: .../compare/vVERSION...main`` and ``[VERSION]: .../vVERSION``
+    exist. With ``release_date`` (YYYY-MM-DD; the day of the tag), the date must be that day.
+    Between releases (a ``.devN`` VERSION) the last release is checked the same way: CITATION.cff
+    names it, and the CHANGELOG has its section with the same date."""
+    errors: list[str] = []
+    try:
+        v, _ = canonical_version((root / "VERSION").read_text().strip())
+    except ValueError as e:
+        return [str(e)]
+    cff = (root / "CITATION.cff").read_text()
+    changelog = (root / "CHANGELOG.md").read_text()
+    cited, date = _cff_field(cff, "version"), _cff_field(cff, "date-released")
+    dev = re.search(r"\.dev\d+$", v) is not None
+    release = cited if dev else v
+    if not dev and cited != v:
+        errors.append(f"CITATION.cff: version {cited}, VERSION is {v}")
+    if date is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        errors.append(f"CITATION.cff: date-released {date!r} is not YYYY-MM-DD")
+    headings = re.findall(r"(?m)^## \[([^\]]+)\](?: - (\S+))?\s*$", changelog)
+    names = [h[0] for h in headings]
+    if not names or names[0] != "Unreleased":
+        errors.append("CHANGELOG.md: the first section must be '## [Unreleased]'")
+    found = [d for name, d in headings if name == release]
+    if len(found) != 1:
+        errors.append(f"CHANGELOG.md: {len(found)} sections '## [{release}] - <date>' (want 1)")
+    elif found[0] != date:
+        errors.append(
+            f"CHANGELOG.md: '## [{release}] - {found[0]}', CITATION.cff date-released {date}"
+        )
+    elif names.index(release) != 1:
+        errors.append(f"CHANGELOG.md: '## [{release}]' must follow '## [Unreleased]'")
+    if not dev:
+        links = {
+            "Unreleased": f"[Unreleased]: {REPOSITORY_URL}/compare/v{v}...main",
+            v: f"[{v}]: {REPOSITORY_URL}/",
+        }
+        for name, prefix in links.items():
+            line = next((x for x in changelog.splitlines() if x.startswith(f"[{name}]: ")), None)
+            if (
+                line is None
+                or not line.startswith(prefix)
+                or (name == v and not line.rstrip().endswith(f"v{v}"))
+            ):
+                errors.append(f"CHANGELOG.md: link reference {line!r}, want {prefix}...")
+    if release_date is not None and date != release_date:
+        errors.append(
+            f"the release date {date} (CHANGELOG.md, CITATION.cff) is not the day of the tag "
+            f"{release_date}: fix both in a small pull request first"
+        )
+    return errors
 
 
 def check_pyproject(path: Path = ROOT / "pyproject.toml") -> list[str]:
@@ -377,9 +447,30 @@ def main(argv: list[str] | None = None) -> int:
         help="print '<VERSION> <true|false>' (a pre-release?) after checking that VERSION is "
         "canonical PEP 440 (release.yml's select job)",
     )
+    p.add_argument(
+        "--release-metadata",
+        action="store_true",
+        help="check VERSION, CHANGELOG.md and CITATION.cff against each other (release.yml's "
+        "select job, ci/tests; docs/developer/release.md before a tag)",
+    )
+    p.add_argument(
+        "--release-date",
+        metavar="YYYY-MM-DD|today",
+        help="with --release-metadata: the release date must be this day (today: UTC)",
+    )
     args = p.parse_args(argv)
     if args.self_test:
         return _self_test()
+    if args.release_metadata:
+        day = args.release_date
+        if day == "today":
+            day = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
+        errors = check_release_metadata(ROOT, day)
+        for e in errors:
+            print(f"wheel_check: {e}", file=sys.stderr)
+        if not errors:
+            print(f"release metadata: VERSION, CHANGELOG.md and CITATION.cff agree ({version()})")
+        return 1 if errors else 0
     if args.version_info:
         try:
             v, pre = canonical_version((ROOT / "VERSION").read_text().strip())
