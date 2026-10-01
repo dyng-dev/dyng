@@ -122,8 +122,11 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
 Then, on the committed release tree, `parity/certify.py write --version <version>` writes
 `parity.json` and the generated part of `README.md` (between the `certify` markers; the text
 around it is written by hand). The certificate records the release commit; the commits whose
-builds were measured, each of which must have the release commit's library and tool sources
-(`git diff <measured> <release> -- cpp tools cmake CMakeLists.txt CMakePresets.json` is empty);
+builds were measured, each of which must have the release commit's sources (`git diff
+<measured> <release> -- <paths>` is empty: for the gates, the golden replays and a check recorded
+with `--scope library`, such as `mutate.py`, the library paths `cpp/include cpp/src
+cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json`; for a test-suite check, the
+default `--scope tests`, also `cpp/tests`);
 the hardware, the NVIDIA driver, the CUDA and compiler versions; the pinned originals (commit,
 the local `baseline-2026-09` SHA, upstream); every golden set with its manifest SHA-256, the
 SHA-256 of every case and every replay's case x configuration matrix and tolerance; the
