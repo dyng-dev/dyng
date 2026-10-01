@@ -158,12 +158,15 @@ EQUIVALENCE_FREE_SECTIONS = {
     ".symtab",
     ".dynsym",
 }
-# The golden sets of parity/goldens.toml every 0.1 certificate must replay, and the backends
-# each must cover (a replay record names its configurations; "cuda" matches cuda, cuda/int64, ...).
+# The golden sets of parity/goldens.toml every certificate must replay, and the backends each
+# must cover (a replay record names its configurations; "cuda" matches cuda, cuda/int64,
+# cuda-operators, ...). mosp_scale (0.2, M7) is the paper-scale set of SHA-256 digests
+# (`compare.py mosp_scale`); it has no manifest, so its replays must cover every case instead.
 REQUIRED_REPLAYS = {
     "sssp": ["sequential", "openmp", "cuda"],
     "cycle_count": ["sequential", "openmp"],
     "cycle_count_cuda": ["cuda"],
+    "mosp_scale": ["sequential", "openmp", "cuda"],
 }
 # "100% tests passed out of 595" (CMake 4) or "95% tests passed, 1 tests failed out of 20".
 CTEST = re.compile(r"(\d+)% tests passed(?:, (\d+) tests? failed)? out of (\d+)")
@@ -495,15 +498,21 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
         replays.setdefault(replay_set(record), []).append({"file": path.name, "record": record})
     out = []
     for name, spec in doc["sets"].items():
+        cases = spec.get("cases", {})
         entry = {
             "set": name,
             "reference": spec["reference"],
             "commit": spec["commit"],
             "generated_by": spec.get("generated_by"),
             "cases": spec["num_cases"],
-            "files": spec["num_files"],
-            "manifest_sha256": spec["manifest_sha256"],
-            "case_sha256": {case: c["sha256"] for case, c in spec.get("cases", {}).items()},
+            # A paper-scale set (mosp_scale) stores the SHA-256 of each output file per case,
+            # no files and no manifest.
+            "files": spec.get("num_files", sum(len(c.get("outputs", {})) for c in cases.values())),
+            "manifest_sha256": spec.get("manifest_sha256"),
+            "case_sha256": {
+                case: c["sha256"] if "sha256" in c else dict(sorted(c.get("outputs", {}).items()))
+                for case, c in cases.items()
+            },
             "replays": [],
         }
         covered = set()
@@ -512,7 +521,15 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
             matrix, compared, failed = replay_matrix(record)
             goldens = record.get("goldens", {})
             ok = bool(record.get("passed")) and failed == 0
-            if goldens.get("manifest_sha256") != spec["manifest_sha256"]:
+            if "manifest_sha256" not in spec:
+                replayed = sorted(record.get("cases", []))
+                if replayed != sorted(cases):
+                    problems.append(
+                        f"{rep['file']}: replayed {len(replayed)} cases, not the "
+                        f"{len(cases)} cases of goldens.toml's [sets.{name}]"
+                    )
+                    ok = False
+            elif goldens.get("manifest_sha256") != spec["manifest_sha256"]:
                 problems.append(
                     f"{rep['file']}: replayed manifest {goldens.get('manifest_sha256')} "
                     f"is not goldens.toml's {spec['manifest_sha256']}"
@@ -530,7 +547,7 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
                 problems.append(f"{rep['file']}: measured from a dirty tree ({commit})")
                 ok = False
             configs = record.get("configs", [])
-            covered |= {c.split(":")[0].split("/")[0] for c in configs}
+            covered |= {c.split(":")[0].split("/")[0].split("-")[0] for c in configs}
             entry["replays"].append(
                 {
                     "record": rep["file"],

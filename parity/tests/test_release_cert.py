@@ -386,6 +386,18 @@ def _replays(cert, results: Path, commit: str) -> None:
             if name != "sssp":
                 record["set"] = name
             (results / f"parity-{name}-{i}.json").write_text(json.dumps(record))
+    # The paper-scale mosp goldens (M7): SHA-256 digests, no manifest; every case replayed.
+    for i, cfg in enumerate([["sequential", "openmp:28"], ["cuda-fused", "cuda-operators"]]):
+        record = {
+            "algorithm": "mosp",
+            "set": "mosp_scale",
+            "port": {"commit": commit},
+            "configs": cfg,
+            "cases": sorted(sets["mosp_scale"]["cases"]),
+            "matrix": {"gate": {c: {"cases": 12, "pass": 12, "fail": []} for c in cfg}},
+            "passed": True,
+        }
+        (results / f"parity-mosp_scale-{i}.json").write_text(json.dumps(record))
 
 
 @pytest.fixture()
@@ -424,9 +436,16 @@ def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> 
     ), json.loads((results / "parity.json").read_text())["verdict"]
     doc = json.loads((results / "parity.json").read_text())
     assert doc["verdict"]["passed"] and doc["commit"].startswith(commit)
-    assert {g["set"] for g in doc["golden_suites"]} >= {"sssp", "cycle_count", "cycle_count_cuda"}
+    assert {g["set"] for g in doc["golden_suites"]} >= {
+        "sssp",
+        "cycle_count",
+        "cycle_count_cuda",
+        "mosp_scale",
+    }
     sssp = next(g for g in doc["golden_suites"] if g["set"] == "sssp")
     assert len(sssp["case_sha256"]) == sssp["cases"]
+    scale = next(g for g in doc["golden_suites"] if g["set"] == "mosp_scale")
+    assert scale["passed"] and len(scale["case_sha256"]) == scale["cases"] == 20
     assert {o["name"] for o in doc["originals"]} >= {
         "MOSP-OpenMP",
         "MOSP-CUDA",
@@ -438,6 +457,7 @@ def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> 
         "mosp_changes",
         "mosp_graph_io",
         "mosp_sssp",
+        "mosp_combined",
         "cycle_enum",
     }
     assert doc["environment"]["driver"]["nvidia"] == DRIVER["nvidia"]
@@ -468,12 +488,17 @@ def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> 
     bad["goldens"]["manifest_sha256"] = "0" * 64
     (results / "parity-cycle_count_cuda-0.json").write_text(json.dumps(bad))
     (results / "parity-sssp-1.json").unlink()
+    # A paper-scale mosp replay of part of the set (no manifest to compare) fails as well.
+    partial = json.loads((results / "parity-mosp_scale-0.json").read_text())
+    partial["cases"] = partial["cases"][:-1]
+    (results / "parity-mosp_scale-0.json").write_text(json.dumps(partial))
     assert cert.main(["write", "--results", str(results), "--version", "t", "--allow-dirty"]) == 1
     problems = " ".join(json.loads((results / "parity.json").read_text())["verdict"]["problems"])
     assert (
         "check asan" in problems
         and "replayed manifest" in problems
         and "no replay on cuda" in problems
+        and "replayed 19 cases, not the 20 cases of goldens.toml's [sets.mosp_scale]" in problems
     )
 
 
