@@ -15,6 +15,8 @@ CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py).
     parity/perf_ab.py kernels --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--runs 21]
                           [--graph roadNet-CA] [--json ...]
     parity/perf_ab.py edge-type --backend openmp|cuda --exe <parity build> [--runs 21] ...
+    parity/perf_ab.py engines --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--gpu 0]
+                          [--runs 21] [--graph roadNet-CA] [--json ...]
     parity/perf_ab.py memory --exe build/parity-cuda/tools/compat/dyng-compat-mosp [--gpu 0]
                           [--graph roadNet-CA] [--batches ...] [--json ...]
     parity/perf_ab.py run --baseline-exe <earlier dynG build> --baseline-label <commit> --exe ...
@@ -94,6 +96,12 @@ kernels  (cuda) runs both sides A/B/A/B under Nsight Compute with the GPU clocks
 edge-type  the edge_t benchmark of ADR 0009: the port with 32-bit (A) against 64-bit (B) edge
          offsets (`dyng-compat-mosp --edge-type`), A/B/A/B, same inputs, regions and guards
          (outputs byte-identical, invalidated counters equal); the ratio is int64 / int32.
+
+engines  (cuda) dynG's fused engine (A, `dyng-compat-mosp --cuda-engine fused`) against its
+         operators engine (B, `--cuda-engine operators`; M7, decision O24), A/B/A/B at locked
+         clocks (--lock-clocks, default boost) with the guards of `run`; the per-objective SOSP
+         region is sssp.enact_fused on A and identify_affected + seed + loop + finalize on B
+         (the pseudo stage sssp.engine), host and device times. Reported, never gated.
 
 The perf lock. The machine's convention is `flock $DYNG_SCRATCH/perf.lock <command>`, and this
 script also takes the lock itself. Both work: the script sees in /proc/locks that an ancestor
@@ -1435,6 +1443,155 @@ def edge_type(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+# --- engines: the CUDA operators engine against the fused engine (M7, informational) ----------
+
+ENGINE_STAGES = [
+    "sssp.enact_fused",
+    "sssp.identify_affected",
+    "sssp.seed",
+    "sssp.loop",
+    "sssp.finalize",
+]
+ENGINE_STAGE = "sssp.engine"  # the stages of whichever engine ran, summed per objective
+
+
+def with_engine_stage(port: dict, k: int) -> dict:
+    """Add the pseudo stage sssp.engine: per objective, the sum of the engine stages that were
+    recorded (sssp.enact_fused for the fused engine, the four Tier A hooks for the operators
+    engine), host and device times."""
+    for kind in ["stages", "device"]:
+        rows = port.get(kind, {})
+        rows[ENGINE_STAGE] = [
+            sum(rows[s][o] for s in ENGINE_STAGES if s in rows and o < len(rows[s]))
+            for o in range(k)
+        ]
+    return port
+
+
+def engines(args: argparse.Namespace) -> int:
+    """dynG's fused CUDA engine (A) against its operators engine (B), A/B/A/B at locked clocks,
+    on the inputs and regions of `run --backend cuda` (both sides read through the port's
+    stages; the per-objective SOSP region is sssp.enact_fused on A and the four Tier A stages on
+    B). Reported, never gated (PLAN 4.5.4: the operators engine is the fallback of a device
+    without cooperative launch)."""
+    if args.backend != "cuda":
+        raise SystemExit("engines: the two engines are CUDA engines (--backend cuda)")
+    regions = []
+    for r in load_regions("cuda"):
+        r = dict(r, gate="none")
+        if "sssp.enact_fused" in r.get("port", []):
+            r["port"] = [ENGINE_STAGE if s == "sssp.enact_fused" else s for s in r["port"]]
+            r["port_device"] = [ENGINE_STAGE]
+        regions.append(r)
+    exe, build = check_port_build(args)
+    data, k = bench_inputs(args.graph)
+    env, port_args = run_env(args)
+    batches = batch_list(args)
+    sides = ["fused", "operators"]
+    results, failures = {}, []
+    work = Path(tempfile.mkdtemp(prefix="dyng-engines-", dir=SCRATCH / "runs"))
+    clocks = ClockLock(args.gpu, args.lock_clocks)
+    try:
+        with perf_lock(SCRATCH / "perf.lock", args.lock_timeout, args.no_lock), clocks:
+            for batch in batches:
+                common = batch_args(data, batch)
+                for side in sides:
+                    run_one(
+                        [exe, *common, *port_args, "--cuda-engine", side, "--out", work / side],
+                        env,
+                    )
+                same_outputs(work / "fused", work / "operators", k, f"{batch}: fused vs operators")
+                print(f"{batch}: outputs byte-identical ({k} objectives)", flush=True)
+                samples: dict[str, list] = {"original": [], "port": []}
+                loads = []
+                watched, rejected = [], []
+                with MachineMonitor(
+                    monitored_gpu(args),
+                    args.max_foreign_cpu,
+                    allowed_pids={clocks.pid} if clocks.pid else None,
+                    locked=clocks.locked,
+                ) as monitor:
+                    r = 0
+                    while r < args.runs:
+                        before = os.getloadavg()[0]
+                        timing = work / "timing.csv"
+                        got, window = {}, {}
+                        for side, key in zip(sides, ["original", "port"], strict=True):
+                            log, window[key] = monitor.run(
+                                [
+                                    exe,
+                                    *common,
+                                    *port_args,
+                                    "--cuda-engine",
+                                    side,
+                                    "--no-output",
+                                    "--timing",
+                                    timing,
+                                ],
+                                env,
+                            )
+                            got[key] = with_engine_stage(parse_port(log, timing, k), k)
+                        if rejects(args, batch, r, window, rejected):
+                            continue
+                        r += 1
+                        window["round"] = r
+                        watched.append(window)
+                        loads.append((before, os.getloadavg()[0]))
+                        for key in ["original", "port"]:
+                            samples[key].append(got[key])
+                        if got["original"]["invalidated"] != got["port"]["invalidated"]:
+                            failures.append(f"{batch} round {r}: invalidated differ")
+                        print(
+                            f"{batch} round {r}/{args.runs}: SOSP fused "
+                            f"{sum(got['original']['stages'][ENGINE_STAGE]):.2f} ms, operators "
+                            f"{sum(got['port']['stages'][ENGINE_STAGE]):.2f} ms" + gpu_note(window),
+                            flush=True,
+                        )
+                results[batch] = summarize(
+                    regions,
+                    samples,
+                    k,
+                    args.runs,
+                    loads,
+                    a_value=port_value,
+                    monitor=monitor_summary(watched, rejected, args.max_foreign_cpu),
+                )
+    finally:
+        with contextlib.suppress(OSError):
+            subprocess.run(["rm", "-rf", str(work)], check=False)
+    report(results, labels=("fused", "operators"))
+    print(f"GPU clocks: {json.dumps(clocks.record)}")
+    if args.json:
+        doc = {
+            "schema": 1,
+            "algorithm": "sssp",
+            "benchmark": "M7: dynG's CUDA engines, fused (A) vs operators (B); informational",
+            "backend": "cuda",
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "graph": args.graph,
+            "port": {"commit": port_commit(), "binary": portable_path(args.exe), "build": build},
+            "protocol": {
+                "runs": args.runs,
+                "order": "A/B/A/B (fused first)",
+                "gpu": args.gpu,
+                "clocks": clocks.record,
+                "lock": LOCK_STATUS,
+                "contamination_monitor": f"as `run`; limit {args.max_foreign_cpu} cores",
+                "statistic": "median",
+                "region": "per objective: sssp.enact_fused (A) / identify_affected + seed + "
+                "loop + finalize (B); host times, device times (CUDA events) next to them",
+            },
+            "host": {"cpu": cpu_model(), "logical_cpus": os.cpu_count()},
+            "results": results,
+        }
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(doc, indent=1) + "\n")
+        print(f"wrote {args.json}")
+    for f in failures:
+        print(f"CORRECTNESS: {f}", file=sys.stderr)
+    return 1 if failures else 0
+
+
 # --- kernels: the fused kernels at locked clocks (Nsight Compute) ---------------------------
 
 NCU = Path(os.environ.get("NCU", "/usr/local/cuda-13.1/bin/ncu"))
@@ -1795,6 +1952,7 @@ def main() -> int:
     for command, help_text in [
         ("run", "the port against the unpatched original (the gates)"),
         ("edge-type", "the edge_t benchmark: the port with int32 (A) vs int64 (B) edge offsets"),
+        ("engines", "cuda: the port's fused (A) vs operators (B) engine, reported (M7)"),
         ("kernels", "cuda: the fused kernels of both under Nsight Compute, clocks locked to base"),
         ("memory", "cuda: the peak device memory of both under Nsight Systems (PLAN 8.6)"),
     ]:
@@ -1803,7 +1961,7 @@ def main() -> int:
         r.add_argument(
             "--backend",
             choices=sorted(REFERENCES),
-            default="cuda" if command in ("kernels", "memory") else "openmp",
+            default="cuda" if command in ("kernels", "memory", "engines") else "openmp",
             help="openmp: against MOSP-OpenMP c352151; cuda: against MOSP-CUDA e220ee2",
         )
         r.add_argument("--gpu", type=int, default=0, help="--backend cuda: the GPU of both sides")
@@ -1844,6 +2002,13 @@ def main() -> int:
             action="store_true",
             help="record contaminated rounds instead of repeating them (flagged in the JSON)",
         )
+        if command == "engines":
+            r.add_argument(
+                "--lock-clocks",
+                choices=["boost", "base", "none"],
+                default="boost",
+                help="lock the GPU's clocks for the whole A/B (ADR 0018; as `run`)",
+            )
         if command == "run":
             r.add_argument(
                 "--baseline-exe",
@@ -1901,6 +2066,7 @@ def main() -> int:
         "prepare": prepare,
         "run": run,
         "edge-type": edge_type,
+        "engines": engines,
         "kernels": kernels,
         "memory": memory,
     }

@@ -42,6 +42,9 @@
  *   --device <d>         CUDA device of --backend cuda (default 0)
  *   --edge-type <t>      int32 | int64: the graph's edge-offset type (default int32, the
  *                        originals' type; int64 for the edge_t benchmark of ADR 0009)
+ *   --cuda-engine <e>    automatic | fused | operators: sssp::options::cuda_engine (default
+ *                        automatic; the operators engine is the multi-kernel engine of M7, compared
+ *                        with the fused one by parity/compare.py --configs cuda-operators)
  *
  * Report lines (without --quiet): the inputs, `obj<k>   SOSP update <ms> (invalidated ...)`,
  * `graph  read graph <ms>, read changes and trees <ms>, build <ms>` and `obj<k>   result import <ms>, workspace <ms>, validate <ms>` (the
@@ -54,7 +57,8 @@
  * SOSP region (parity/timed_regions/sssp.toml): on the host backends MOSP-OpenMP's
  * `obj<k>/sosp_update_compute` (sospUpdateCpu) = sssp.identify_affected + sssp.seed + sssp.loop +
  * sssp.finalize; on cuda MOSP-CUDA's `obj<k>/sosp_update_gpu` (sospUpdateGpu, host wall time up to
- * the synchronization that ends it) = sssp.enact_fused. (b) is the commit (the batch applied once,
+ * the synchronization that ends it) = sssp.enact_fused with the fused engine, and the four Tier A
+ * stages with the operators engine (--cuda-engine operators). (b) is the commit (the batch applied once,
  * with the transposition of the updated graph, or on cuda its upload and the in-edges built on the
  * device), and (c) the whole run, from reading the inputs to writing the outputs.
  *
@@ -70,6 +74,7 @@
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/types.hpp>
 #include <dyng/generators/legacy.hpp>
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
@@ -117,6 +122,7 @@ struct options {
   int threads = 0;
   int device = 0;
   bool edge64 = false;  // --edge-type int64: 64-bit edge offsets (the edge_t benchmark, ADR 0009)
+  dyng::engine cuda_engine = dyng::engine::automatic;  // --cuda-engine
   vertex_t source = 0;
   std::int64_t delta = 0;
   bool canonicalize = false;
@@ -137,9 +143,11 @@ void usage() {
                "                        [--write-graph prefix] [--timing file.csv] [--quiet]\n"
                "                        [--backend sequential|openmp|cuda] [--threads t]\n"
                "                        [--device d] [--edge-type int32|int64]\n"
+               "                        [--cuda-engine automatic|fused|operators]\n"
                "       dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K]\n"
                "                        [--backend sequential|openmp|cuda] [--threads t]\n"
                "                        [--device d] [--edge-type int32|int64]\n"
+               "                        [--cuda-engine automatic|fused|operators]\n"
                "       dyng-compat-mosp changes <csrPrefix> <outDir> [--changes N] [--ins PCT]\n"
                "                        [--mode uniform|targeted|reweight|increase]\n"
                "                        [--local HOPS] [--safe] [--seed S] [--source s]\n"
@@ -225,6 +233,18 @@ bool parse_edge_type(std::string_view value) {
   throw usage_error("--edge-type: expected int32 or int64, got '" + std::string(value) + "'");
 }
 
+/// `--cuda-engine automatic|fused|operators`: sssp::options::cuda_engine.
+dyng::engine parse_engine(std::string_view value) {
+  for (const dyng::engine e :
+       {dyng::engine::automatic, dyng::engine::fused, dyng::engine::operators}) {
+    if (value == dyng::to_string(e)) {
+      return e;
+    }
+  }
+  throw usage_error("--cuda-engine: expected automatic, fused or operators, got '" +
+                    std::string(value) + "'");
+}
+
 /// Read the CSR; like MOSP, a graph without edges takes K from -k.
 template <typename edge_t>
 dyng::csr<vertex_t, edge_t, weight_t> read_graph(const std::string& prefix, int K) {
@@ -268,6 +288,8 @@ int run_init(int argc, char** argv) {
       opt.device = parse_int<int>(value, a, 0, 1 << 10);
     } else if (a == "--edge-type") {
       opt.edge64 = parse_edge_type(value);
+    } else if (a == "--cuda-engine") {
+      opt.cuda_engine = parse_engine(value);
     } else {
       throw usage_error("unknown option: " + std::string(a));
     }
@@ -287,6 +309,7 @@ int run_init_typed(const options& opt, const std::string& prefix, const std::str
   for (int k = 0; k < K; ++k) {
     dyng::sssp::options sssp_options;
     sssp_options.objective = k;
+    sssp_options.cuda_engine = opt.cuda_engine;
     const auto start = clock_type::now();
     const result_t r = dyng::sssp::compute(res, g, opt.source, sssp_options);
     const double ms = ms_since(start);
@@ -392,6 +415,8 @@ options parse_update_options(int argc, char** argv) {
       opt.device = parse_int<int>(next(), a, 0, 1 << 10);
     } else if (a == "--edge-type") {
       opt.edge64 = parse_edge_type(next());
+    } else if (a == "--cuda-engine") {
+      opt.cuda_engine = parse_engine(next());
     } else if (a == "--source") {
       opt.source = parse_int<vertex_t>(next(), a, 0, INT32_MAX);
     } else if (a == "--delta") {
@@ -486,6 +511,7 @@ int run_update_typed(const options& opt) {
     sssp_options.objective = k;
     sssp_options.delta = opt.delta;
     sssp_options.validate_inputs = opt.validate;
+    sssp_options.cuda_engine = opt.cuda_engine;
     results.push_back(result_t::from_arrays(res, g, opt.source, dyng::host_view(dists[i]),
                                             dyng::host_view(trees[i]), opt.canonicalize,
                                             sssp_options));
@@ -510,23 +536,26 @@ int run_update_typed(const options& opt) {
   for (const dyng::stage_sample& s : prof.samples()) {
     calls[s.name].push_back(s.host_ms);
   }
+  // The engine's stages: sssp.enact_fused (the fused CUDA engine) or the four Tier A hooks (the
+  // host engines and the CUDA operators engine); a run has one or the other.
   std::vector<double> sosp_ms(static_cast<std::size_t>(K), 0.0);
   std::vector<double> sosp_device_ms(static_cast<std::size_t>(K), 0.0);
-  const std::vector<const char*> sosp_stages =
-      cuda ? std::vector<const char*>{"sssp.enact_fused"}
-           : std::vector<const char*>{"sssp.identify_affected", "sssp.seed", "sssp.loop",
-                                      "sssp.finalize"};
-  for (const char* stage : sosp_stages) {
+  const std::vector<std::string> sosp_stages{"sssp.enact_fused", "sssp.identify_affected",
+                                             "sssp.seed", "sssp.loop", "sssp.finalize"};
+  for (const std::string& stage : sosp_stages) {
     const std::vector<double>& samples = calls[stage];
     for (std::size_t k = 0; k < samples.size() && k < sosp_ms.size(); ++k) {
       sosp_ms[k] += samples[k];
     }
   }
   if (cuda) {
-    std::size_t k = 0;
+    std::map<std::string, std::size_t> seen;  // the k-th sample of a stage is objective k
     for (const dyng::stage_sample& s : prof.samples()) {
-      if (s.name == "sssp.enact_fused" && k < sosp_device_ms.size()) {
-        sosp_device_ms[k++] = s.device_ms;
+      if (std::find(sosp_stages.begin(), sosp_stages.end(), s.name) != sosp_stages.end()) {
+        const std::size_t k = seen[s.name]++;
+        if (k < sosp_device_ms.size()) {
+          sosp_device_ms[k] += s.device_ms;
+        }
       }
     }
   }
@@ -604,11 +633,11 @@ int run_update_typed(const options& opt) {
       }
       std::printf(
           "obj%d   SOSP update %.3f ms (invalidated %lld, iterations %lld, epochs %lld, pushes "
-          "%lld, affected %lld, packed %d%s)\n",
+          "%lld, affected %lld, packed %d, engine %s%s)\n",
           k, sosp_ms[static_cast<std::size_t>(k)], static_cast<long long>(s.invalidated),
           static_cast<long long>(s.iterations), static_cast<long long>(s.epochs),
           static_cast<long long>(s.pushes), static_cast<long long>(s.affected),
-          s.packed_parents ? 1 : 0, device);
+          s.packed_parents ? 1 : 0, std::string(dyng::to_string(s.engine_used)).c_str(), device);
     }
     std::map<std::string, std::vector<double>> setup;
     for (const dyng::stage_sample& s : setup_prof.samples()) {

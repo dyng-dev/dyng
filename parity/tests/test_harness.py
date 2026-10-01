@@ -214,6 +214,35 @@ def test_compare_edge_type_configs(tmp_path: Path) -> None:
         assert bad.returncode == 2 and "is not sequential" in bad.stderr, config
 
 
+def test_compare_cuda_engine_configs(tmp_path: Path) -> None:
+    # cuda-fused and cuda-operators force one CUDA engine (--cuda-engine); other names are refused.
+    compare = load("parity/compare.py")
+    calls = []
+
+    def fake_run(cmd: list, env: dict) -> tuple[int, str]:
+        calls.append([str(c) for c in cmd])
+        return 1, "stop"
+
+    compare.run = fake_run
+    golden = tmp_path / "case"
+    for config, engine in [("cuda-operators:1", "operators"), ("cuda-fused/int64", "fused")]:
+        calls.clear()
+        compare.replay_compat(Path("exe"), golden, {"num_objectives": 1}, config, tmp_path, {})
+        args = calls[0]
+        assert args[args.index("--backend") + 1] == "cuda", config
+        assert args[args.index("--cuda-engine") + 1] == engine, config
+    calls.clear()
+    compare.replay_compat(Path("exe"), golden, {"num_objectives": 1}, "cuda:1", tmp_path, {})
+    assert "--cuda-engine" not in calls[0]
+    (tmp_path / "MANIFEST.sha256").write_text("")
+    base = [sys.executable, REPO / "parity/compare.py", "--goldens", tmp_path, "--skip-verify"]
+    for config in ["cuda-warp", "cuda-operators:x"]:
+        bad = subprocess.run(
+            [*base, "--exe", sys.executable, "--configs", config], capture_output=True, text=True
+        )
+        assert bad.returncode == 2 and "is not sequential" in bad.stderr, config
+
+
 def test_export_compare_corpora_ignores_only_the_reference(tmp_path: Path) -> None:
     export = load("parity/export_goldens.py")
 
@@ -674,3 +703,21 @@ def test_cycle_count_peak_device_bytes() -> None:
     events = [(3, 0, 1, 0xA), (1, 100, 0, 0xA), (2, 50, 0, 0xB), (4, 70, 0, 0xC), (5, 0, 1, 0xB)]
     assert perf.peak_device_bytes(events) == 150
     assert perf.peak_device_bytes([]) == 0
+
+
+def test_perf_ab_engine_stage_sums_whichever_engine_ran() -> None:
+    perf = load("parity/perf_ab.py")
+    fused = {"stages": {"sssp.enact_fused": [2.0, 3.0]}, "device": {"sssp.enact_fused": [1.5, 2.5]}}
+    ops = {
+        "stages": {
+            "sssp.identify_affected": [1.0, 1.0],
+            "sssp.seed": [0.5, 0.5],
+            "sssp.loop": [2.0, 4.0],
+            "sssp.finalize": [0.25, 0.25],
+        },
+        "device": {"sssp.loop": [1.0, 2.0]},
+    }
+    assert perf.with_engine_stage(fused, 2)["stages"]["sssp.engine"] == [2.0, 3.0]
+    assert perf.with_engine_stage(fused, 2)["device"]["sssp.engine"] == [1.5, 2.5]
+    assert perf.with_engine_stage(ops, 2)["stages"]["sssp.engine"] == [3.75, 5.75]
+    assert perf.with_engine_stage(ops, 2)["device"]["sssp.engine"] == [1.0, 2.0]

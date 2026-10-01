@@ -15,9 +15,12 @@ digest must equal the one in parity/goldens.toml. Then every case is replayed wi
 configuration:
 
 driver "compat" (dynG, through tools/compat/dyng-compat-mosp), per configuration
-(sequential, openmp:<threads>, cuda[:<device>]; the cuda configurations run on
-CUDA_VISIBLE_DEVICES, default GPU 1, the development GPU; a suffix /int64, e.g. cuda/int64, runs
-the graph with 64-bit edge offsets, dyng-compat-mosp --edge-type int64, ADR 0009):
+(sequential, openmp:<threads>, cuda[:<device>], cuda-fused[:<device>], cuda-operators[:<device>];
+cuda runs the default engine (engine::automatic), cuda-fused and cuda-operators force one of the
+two CUDA engines (dyng-compat-mosp --cuda-engine; conformance check C4 on the corpus); the cuda
+configurations run on CUDA_VISIBLE_DEVICES, default GPU 1, the development GPU; a suffix /int64,
+e.g. cuda/int64, runs the graph with 64-bit edge offsets, dyng-compat-mosp --edge-type int64,
+ADR 0009):
   * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute;
     init_canonical/ for the noncanonical group, whose init/ holds perturbed tie parents)
   * `dyng-compat-mosp` update == updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt, from the
@@ -145,8 +148,10 @@ def replay_compat(
     k = meta["num_objectives"]
     base, _, edge_type = config.partition("/")
     backend, _, number = base.partition(":")
-    if backend == "cuda":
+    if backend.startswith("cuda"):
         extra = ["--backend", "cuda"] + (["--device", number] if number else [])
+        if backend != "cuda":  # cuda-fused, cuda-operators
+            extra += ["--cuda-engine", backend.removeprefix("cuda-")]
     else:
         extra = ["--backend", backend] + (["--threads", number] if number else [])
     if edge_type:
@@ -357,8 +362,9 @@ def main() -> int:
     parser.add_argument(
         "--configs",
         default="sequential,openmp:1,openmp:4,openmp:16",
-        help="driver compat: list of sequential, openmp[:threads], cuda[:device], each with an "
-        "optional /int32 or /int64 (edge-offset type)",
+        help="driver compat: list of sequential, openmp[:threads], cuda[:device], "
+        "cuda-fused[:device], cuda-operators[:device], each with an optional /int32 or /int64 "
+        "(edge-offset type)",
     )
     parser.add_argument("--groups", default="", help="restrict to these groups (comma list)")
     parser.add_argument("--jobs", type=int, default=8)
@@ -398,13 +404,14 @@ def main() -> int:
             base, slash, edge_type = c.partition("/")
             backend, _, number = base.partition(":")
             if (
-                backend not in ("sequential", "openmp", "cuda")
+                backend not in ("sequential", "openmp", "cuda", "cuda-fused", "cuda-operators")
                 or (number and not number.isdigit())
                 or (slash and edge_type not in ("int32", "int64"))
             ):
                 parser.error(
-                    f"--configs: '{c}' is not sequential, openmp[:<threads>] or cuda[:<device>], "
-                    "optionally followed by /int32 or /int64"
+                    f"--configs: '{c}' is not sequential, openmp[:<threads>], cuda[:<device>], "
+                    "cuda-fused[:<device>] or cuda-operators[:<device>], optionally followed by "
+                    "/int32 or /int64"
                 )
         if any(c.startswith("cuda") for c in configs):
             env.setdefault("CUDA_VISIBLE_DEVICES", "1")
