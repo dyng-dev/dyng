@@ -24,6 +24,7 @@
  * the check only matters for trees imported with validate_inputs = false).
  */
 #include "algorithms/sssp/fused.cuh"
+#include "algorithms/sssp/operators.cuh"
 #include "algorithms/sssp/problem.hpp"
 #include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
@@ -80,9 +81,12 @@ void sssp_cuda_workspace<vertex_t>::reserve(const resources& res, std::int64_t r
   far_b.reserve(res, n);
   candidates.reserve(res, n);
   frontier.reserve(res, n);
-  control.reserve(res, sizeof(sssp_fused::control<vertex_t>));
-  if (host_control.size() < sizeof(sssp_fused::control<vertex_t>)) {
-    host_control = buffer<unsigned char>(sizeof(sssp_fused::control<vertex_t>), res.stream(),
+  // One control block for either engine (the fused kernel's, or the operators engine's).
+  constexpr std::size_t control_bytes =
+      std::max(sizeof(sssp_fused::control<vertex_t>), sizeof(sssp_operators::control<vertex_t>));
+  control.reserve(res, control_bytes);
+  if (host_control.size() < control_bytes) {
+    host_control = buffer<unsigned char>(control_bytes, res.stream(),
                                          resources_access::staging_memory(res), res.device());
   }
   const cudaStream_t stream = native(res);

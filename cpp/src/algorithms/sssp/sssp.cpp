@@ -191,31 +191,33 @@ void expect_supported_backend(const resources& res, const char* what) {
   }
 }
 
-/// The engine of the CUDA backend (PLAN Section 4.5.4): engine::automatic and engine::fused run
-/// the fused persistent cooperative kernel; without cooperative launch there is no engine in this
-/// release (the operators engine arrives in 0.2, decision O24), so both throw, and so does
-/// engine::operators. Checked before anything is changed.
+/// Whether the CUDA device of `res` can run the fused engine (cooperative launch).
+bool cuda_fused_available(const resources& res) {
+  return resources_access::device_properties(res).cooperative_launch;
+}
+
+/// The engine of the CUDA backend (PLAN Section 4.5.4; decision O24): engine::fused runs the
+/// fused persistent cooperative kernel and needs cooperative launch, engine::operators runs the
+/// multi-kernel operators engine anywhere, and engine::automatic runs the fused engine where it
+/// can and the operators engine otherwise. Checked before anything is changed: only engine::fused
+/// on a device without cooperative launch is rejected.
 void select_cuda_engine(const resources& res, engine requested, const char* what) {
-  if (!is_cuda(res)) {
+  if (!is_cuda(res) || requested != engine::fused || cuda_fused_available(res)) {
     return;
   }
-  if (requested == engine::operators) {
-    throw not_supported_error(concat_message(
-        "dyng: ", what,
-        ": engine::operators of sssp on the cuda backend arrives in 0.2 (the multi-kernel "
-        "engine); use engine::fused or engine::automatic"));
-  }
   const cuda_device_properties& props = resources_access::device_properties(res);
-  if (!props.cooperative_launch) {
-    throw not_supported_error(concat_message(
-        "dyng: ", what, ": the fused sssp engine needs cooperative launch, which CUDA device ",
-        props.ordinal, " (", props.name, ") does not support",
-        requested == engine::automatic
-            ? "; engine::automatic has no other CUDA engine in this release (the operators engine "
-              "arrives in 0.2)"
-            : "",
-        "; run sssp with resources::openmp() or resources::sequential() instead"));
-  }
+  throw not_supported_error(concat_message(
+      "dyng: ", what, ": the fused sssp engine needs cooperative launch, which CUDA device ",
+      props.ordinal, " (", props.name,
+      ") does not support; use engine::automatic or engine::operators (the multi-kernel engine "
+      "runs without it), or run sssp with resources::openmp() or resources::sequential()"));
+}
+
+/// Whether a call on `res` with the requested CUDA engine runs the operators engine (the choice
+/// the enactors make through sssp_problem::select_engine and fused_available).
+bool cuda_runs_operators(const resources& res, engine requested) {
+  return is_cuda(res) && (requested == engine::operators ||
+                          (requested == engine::automatic && !cuda_fused_available(res)));
 }
 
 /// Host threads of the host-side work of a call (column summaries, tree import and checks).
@@ -732,6 +734,9 @@ void sssp_problem<vertex_t, edge_t, weight_t>::resume(framework::context& ctx, n
     run_.distances = st.device_distances.data();
     run_.parents = st.device_parents.data();
     run_.cuda_ws = &ws;
+    if (ctx.chosen_engine() == engine::operators) {
+      cuda_operators_.emplace(res, run_);  // the Tier A hooks run it (operators.cu)
+    }
     return;
   }
   // The scratch memory of the engines, shared with the other results run through `res` (the K
@@ -761,6 +766,7 @@ void sssp_problem<vertex_t, edge_t, weight_t>::end_update(framework::context& /*
   framework::stamp_result(state_->version, state_->graph_state, g.get());
   sequential_.reset();
   openmp_.reset();
+  cuda_operators_.reset();
   host_ws_.reset();
   cuda_ws_.reset();
 }
@@ -795,6 +801,9 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& c
     run_.distances = st.device_distances.data();
     run_.parents = st.device_parents.data();
     run_.cuda_ws = &cuda_ws_->get();
+    if (cuda_runs_operators(res, st.opt.cuda_engine)) {
+      cuda_operators_.emplace(res, run_);  // the static enactor's Tier A hooks run it
+    }
     return;
   }
   st.distances.assign(static_cast<std::size_t>(n), sssp_infinity);
@@ -822,7 +831,9 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_engine(const resources& res)
 template <typename vertex_t, typename edge_t, typename weight_t>
 template <typename fn_t>
 void sssp_problem<vertex_t, edge_t, weight_t>::on_engine(fn_t&& fn) {
-  if (openmp_) {
+  if (cuda_operators_) {
+    fn(*cuda_operators_);
+  } else if (openmp_) {
     fn(*openmp_);
   } else {
     fn(*sequential_);
@@ -830,11 +841,12 @@ void sssp_problem<vertex_t, edge_t, weight_t>::on_engine(fn_t&& fn) {
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp_problem<vertex_t, edge_t, weight_t>::identify_affected(framework::context& /*ctx*/,
+void sssp_problem<vertex_t, edge_t, weight_t>::identify_affected(framework::context& ctx,
                                                                  new_graph /*g*/,
                                                                  const applied& /*applied*/,
                                                                  frontier& /*f*/) {
   on_engine([](auto& engine) { engine.identify_affected(); });
+  raise_device_errors(ctx);  // the CUDA operators engine's input checks (thrown by the enactor)
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -876,13 +888,26 @@ void sssp_problem<vertex_t, edge_t, weight_t>::fill_stats(stats_type& stats) con
 template <typename vertex_t, typename edge_t, typename weight_t>
 engine sssp_problem<vertex_t, edge_t, weight_t>::select_engine(
     framework::context& ctx) const noexcept {
-  return ctx.on_cuda() ? engine::fused : engine::operators;
+  return ctx.on_cuda() ? state_->opt.cuda_engine : engine::operators;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+bool sssp_problem<vertex_t, edge_t, weight_t>::fused_available(framework::context& ctx) const {
+  return ctx.on_cuda() && cuda_fused_available(ctx.res());
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 framework::budget sssp_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
     framework::context& ctx) const noexcept {
-  return framework::budget::steady_state(ctx.on_cuda() ? 1 : 0);
+  if (!ctx.on_cuda()) {
+    return framework::budget::steady_state(0);
+  }
+  if (ctx.chosen_engine() == engine::operators) {
+    // identify_affected, the first split and finalize, plus one per push iteration and threshold
+    // raise (operators.cu).
+    return framework::budget::steady_state(3 + run_.counters.iterations + run_.counters.epochs);
+  }
+  return framework::budget::steady_state(1);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -1270,9 +1295,30 @@ void sssp_cuda_compute(const resources& /*res*/, sssp_run<vertex_t, edge_t, weig
   throw not_supported_error("dyng: sssp: the cuda backend is not built");
 }
 
-#define DYNG_INSTANTIATE_SSSP_CUDA_STUB(V, E, W)                                 \
-  template void sssp_cuda_update<V, E, W>(const resources&, sssp_run<V, E, W>&); \
-  template void sssp_cuda_compute<V, E, W>(const resources&, sssp_run<V, E, W>&);
+template <typename vertex_t, typename edge_t, typename weight_t>
+sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::sssp_cuda_operators_engine(
+    const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run)
+    : res_(res), run_(run) {
+  throw not_supported_error("dyng: sssp: the cuda backend is not built");
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::reset() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::seed_static() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::identify_affected() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::seed() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::loop() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::finalize() {}
+
+#define DYNG_INSTANTIATE_SSSP_CUDA_STUB(V, E, W)                                  \
+  template void sssp_cuda_update<V, E, W>(const resources&, sssp_run<V, E, W>&);  \
+  template void sssp_cuda_compute<V, E, W>(const resources&, sssp_run<V, E, W>&); \
+  template class sssp_cuda_operators_engine<V, E, W>;
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP_CUDA_STUB)
 #undef DYNG_INSTANTIATE_SSSP_CUDA_STUB
 #endif  // !DYNG_HAS_CUDA

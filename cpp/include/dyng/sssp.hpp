@@ -46,11 +46,14 @@
  *     fit next to the parent ids in 64 bits) every parent is recovered with the lowest-id rule
  *     after the search, so update() equals compute() on every input.
  *
- * Backends: sequential (the reference), openmp (MOSP-OpenMP's sospUpdateCpu) and cuda (MOSP-CUDA's
- * persistent cooperative kernel, the fused engine; options::cuda_engine). On cuda the graph must
- * be built with (or cloned for) the CUDA resources, the result arrays live in device memory
- * (copy them with to_vector()), and compute() synchronizes the stream once, update() once per
- * result and once per batch inside the commit (the new graph state's upload). Near the
+ * Backends: sequential (the reference), openmp (MOSP-OpenMP's sospUpdateCpu) and cuda, which has
+ * two engines (options::cuda_engine): the fused engine (MOSP-CUDA's persistent cooperative kernel)
+ * and the operators engine (the same algorithm as a sequence of kernels driven by the host; it
+ * needs no cooperative launch and returns the same bytes). On cuda the graph must be built with
+ * (or cloned for) the CUDA resources, the result arrays live in device memory (copy them with
+ * to_vector()), and with the fused engine compute() synchronizes the stream once and update()
+ * once per result, plus once per batch inside the commit (the new graph state's upload); the
+ * operators engine synchronizes once per near-far round as well. Near the
  * packing limit the two parallel engines choose the word format slightly differently (MOSP-CUDA
  * packs when (n - 1) * max weight fits, MOSP-OpenMP when one more edge fits too), so
  * stats::packed_parents may differ between cuda and the host backends there; the trees are
@@ -70,10 +73,11 @@ struct options {
   std::int64_t delta = 0;
   /// Which weight column of a multi-weight graph is the edge length. Fixed at compute().
   int objective = 0;
-  /// Engine of the CUDA backend; ignored by the host backends. engine::automatic and
-  /// engine::fused run the fused persistent cooperative kernel (MOSP-CUDA's sospUpdateGpu) and throw
-  /// not_supported_error on a device without cooperative launch (the operators engine that would be
-  /// the fallback arrives in 0.2); engine::operators throws not_supported_error in this release.
+  /// Engine of the CUDA backend; ignored by the host backends. engine::fused runs the fused
+  /// persistent cooperative kernel (MOSP-CUDA's sospUpdateGpu) and throws not_supported_error on a
+  /// device without cooperative launch; engine::operators runs the multi-kernel operators engine
+  /// (the same bytes, on any device); engine::automatic runs the fused engine where it can and the
+  /// operators engine otherwise. A tunable: it changes the schedule, never the result.
   engine cuda_engine = engine::automatic;
   /// O(n) checks on imported trees in result::from_arrays() (rooted at the source, no parent
   /// cycle, distances in range).
@@ -359,8 +363,8 @@ namespace dyng::sssp {
  *
  * The sequential backend runs the Step 2 loop of the sequential engine from the source; the
  * OpenMP backend runs the near-far search of MOSP-OpenMP's sospFromScratchCpu(), the cuda backend
- * MOSP-CUDA's sospFromScratchGpu() (the persistent kernel from the source). All return the
- * Dijkstra tree with lowest-id ties.
+ * MOSP-CUDA's sospFromScratchGpu() (the persistent kernel from the source; with the operators
+ * engine, its kernels one by one). All return the Dijkstra tree with lowest-id ties.
  *
  * @tparam vertex_t Vertex id type (int32_t or int64_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).
@@ -375,7 +379,7 @@ namespace dyng::sssp {
  *         objective is below 1, the graph stores no in-edges, distances could exceed 62 bits, or
  *         `g` belongs to another backend than `res`.
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
- *         of options::cuda_engine cannot run (engine::operators; no cooperative launch).
+ *         of options::cuda_engine cannot run (engine::fused without cooperative launch).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
  * @sync On cuda the stream is synchronized once (the control block of the kernel is read), and once

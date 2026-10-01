@@ -35,8 +35,11 @@
  * compute() is the static enactor: reset -> seed_static (the source) -> loop -> finalize.
  *
  * The engines behind the Tier A hooks are sssp_sequential_engine (sequential.cpp, the reference
- * backend) and sssp_openmp_engine (openmp.cpp, MOSP-OpenMP's sospUpdateCpu); the problem binds the
- * one of the call's backend in resume() (in compute(), in bind_static()).
+ * backend), sssp_openmp_engine (openmp.cpp, MOSP-OpenMP's sospUpdateCpu) and, on CUDA,
+ * sssp_cuda_operators_engine (operators.cu, the multi-kernel engine of decision O24); the problem
+ * binds the one of the call's backend in resume() (in compute(), in bind_static()). The CUDA
+ * backend's fused engine (cuda.cu, MOSP-CUDA's persistent cooperative kernel) runs in enact_fused
+ * and compute_fused instead; options::cuda_engine chooses (select_engine, fused_available).
  */
 #pragma once
 
@@ -546,6 +549,67 @@ void sssp_cuda_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_cuda_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
 
+/**
+ * @brief The CUDA operators engine (operators.cu, Tier A; decision O24): MOSP_ESCHER's
+ *        multi-kernel host loop with the fused engine's semantics, one member per hook, so the
+ *        framework's enactors run it like the host engines. It returns the fused engine's bytes
+ *        (conformance check C4) and needs no cooperative launch: engine::automatic falls back to
+ *        it on a device without one, and engine::operators selects it.
+ *
+ * Bound to one run (`run.graph` and `run.changes` hold device pointers, `run.cuda_ws` the leased
+ * device workspace, as for sssp_cuda_update). The constructor resets the counters and chooses the
+ * packing of the fused engine. Synchronizations: one at the end of identify_affected, one per
+ * near-far round in loop (plus the first split), one in finalize. Device errors (an input distance
+ * out of range, a parent cycle) are reported in `run.device_errors`, not thrown; the later hooks
+ * then do nothing.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+class sssp_cuda_operators_engine {
+ public:
+  /**
+   * @brief Bind the engine to a run.
+   * @param[in]     res Resources of the CUDA backend (must outlive the engine).
+   * @param[in,out] run The run (must outlive the engine; `run.cuda_ws` set and sized).
+   * @throws invalid_argument_error if delta is not positive, the source is out of range
+   *         (compute) or distances could overflow 62 bits.
+   * @throws not_supported_error    if the cuda backend is not built.
+   */
+  sssp_cuda_operators_engine(const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run);
+
+  /// compute(): every packed word INF except the source's, which is the frontier.
+  void reset();
+  /// compute(): the frontier is the source.
+  void seed_static();
+  /// update(): pack the old tree, roots, pointer-jumping invalidation, insertion heads.
+  void identify_affected();
+  /// update(): the pull pass.
+  void seed();
+  /// Step 2: the near-far propagation, to the fixed point.
+  void loop();
+  /// Unpack distances and parents (parent recovery in the distance-only mode), `affected`.
+  void finalize();
+
+ private:
+  /// Blocks of a grid-stride launch over `work` items (at most what the device holds at once).
+  [[nodiscard]] unsigned int grid(std::int64_t work) const noexcept;
+
+  const resources& res_;
+  sssp_run<vertex_t, edge_t, weight_t>& run_;
+  std::int64_t n_ = 0;
+  bool update_ = false;              ///< an update (else compute())
+  bool stopped_ = false;             ///< a device error was recorded: the later hooks do nothing
+  int parent_bits_ = 0;              ///< the packing (0: distance-only words)
+  std::uint64_t no_parent_ = 0;      ///< the packing's "no parent" value
+  std::uint64_t max_distance_ = 0;   ///< the bound (n - 1) * max weight
+  int max_rounds_ = 0;               ///< pointer-jumping rounds enqueued
+  int grid_cap_ = 1;                 ///< blocks the device holds at once
+  std::int64_t candidates_ = 0;      ///< candidates of the pull pass (identify_affected)
+  std::int64_t frontier_bound_ = 0;  ///< an upper bound of the frontier's length (seed)
+};
+
 namespace framework {
 template <typename vertex_t, typename weight_t>
 struct requested_batch;
@@ -662,18 +726,27 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   // ---- Tier B (cuda), on G_{t+1} ---------------------------------------------------------------
 
   /**
-   * @brief The engine of the call: engine::fused (the persistent cooperative kernel) on the CUDA
-   *        backend, engine::operators (the Tier A hooks) on the host backends. begin_update and
-   *        compute() have already rejected the CUDA engines this release does not have.
+   * @brief The engine of the call: options::cuda_engine on the CUDA backend (engine::automatic
+   *        resolves to fused where fused_available() and to operators elsewhere),
+   *        engine::operators (the Tier A hooks) on the host backends. begin_update and compute()
+   *        have already rejected engine::fused on a device without cooperative launch.
    * @return The engine.
    */
   [[nodiscard]] engine select_engine(framework::context& ctx) const noexcept;
 
   /**
+   * @brief Whether the fused engine can run in this call: on CUDA, when the device supports
+   *        cooperative launch (the operators engine runs everywhere; decision O24).
+   * @return true on a CUDA device with cooperative launch.
+   */
+  [[nodiscard]] bool fused_available(framework::context& ctx) const;
+
+  /**
    * @brief The budget of the update's algorithm work, both halves (invariant I9; conformance check
-   *        C8): once reserved, no allocation, and at most one host synchronization on CUDA (the
-   *        fused kernel's control block is read back once, ADR 0017) and none on the host
-   *        backends.
+   *        C8): once reserved, no allocation, and on CUDA at most one host synchronization with
+   *        the fused engine (the kernel's control block is read back once, ADR 0017) or
+   *        3 + iterations + epochs with the operators engine (operators.cu); none on the host
+   *        backends. Read after the phase, so the operators engine's counts are known.
    * @return The budget (checked by the update enactor in DYNG_DEBUG_BUDGETS builds).
    */
   [[nodiscard]] framework::budget algorithm_budget(framework::context& ctx) const noexcept;
@@ -692,7 +765,8 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   void compute_fused(framework::context& ctx, new_graph g, stats_type& stats);
 
  private:
-  /// Bind the engine of the call's backend to run_ (sequential or OpenMP; the CUDA engine is a
+  /// Bind the engine of the call's backend to run_ (sequential or OpenMP; the CUDA engines are
+  /// bound in resume() / bind_static(): the operators engine as an object, the fused one is a
   /// function of the run).
   void bind_engine(const resources& res);
   /// The counters of the run in the stats.
@@ -713,6 +787,7 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
   std::optional<workspace_pool::lease<sssp_cuda_workspace<vertex_t>>> cuda_ws_;   ///< device
   std::optional<sssp_sequential_engine<vertex_t, edge_t, weight_t>> sequential_;  ///< engine
   std::optional<sssp_openmp_engine<vertex_t, edge_t, weight_t>> openmp_;          ///< engine
+  std::optional<sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>> cuda_operators_;  ///< cuda
 };
 
 }  // namespace dyng::detail
