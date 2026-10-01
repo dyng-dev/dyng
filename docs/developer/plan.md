@@ -14,9 +14,10 @@ retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 Status: 2026-10-01. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
 conformance kit and the 0.1 API freeze), M4 (this infrastructure) and M5 (the Python package, a
 CPU wheel, the `dyng` command line and the documentation of 0.1; pull request #4, merged at
-`8842acf`) are done and merged into `main`. In progress: the release preparation R010 for
-0.1.0rc1 on the branch `release-0.1.0` (the certificate, the version and the release changes:
-{doc}`retrospectives/R010`); then 0.1.0 (the checklist: {doc}`release`). M7 (`mosp`) is developed
+`8842acf`) are done and merged into `main`. **0.1.0 is released**: the release preparation R010
+made the release candidate 0.1.0rc1 (pull request #5, on TestPyPI; {doc}`retrospectives/R010`),
+and the final-release pull request R011 made 0.1.0 with the certificate carried over
+({doc}`retrospectives/R011`; the checklist: {doc}`release`). M7 (`mosp`, for 0.2) is developed
 at the same time on its own branch.
 
 ## 1. What dynG is
@@ -135,7 +136,7 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 | **M3** Framework extraction + 0.1 API freeze | `problem_base`, enactors, views, workspace, policies, `run_update`; both algorithms moved onto it one commit at a time; conformance kit C1-C12; `new_algorithm.py` + template; `regen.py`; API review | both algorithms pass the kit on every backend with parity and performance unchanged; the scaffold is green on first build; the API review recorded | **done** (merged into `main` by pull request #3; ADRs 0022-0024) |
 | **M4** GitHub repository and infrastructure (parallel) | community files, issue forms, PR template, CODEOWNERS, labels, DCO; workflows `lint`, `cpu`, `docs`; this documentation site; the repository-settings guide | hosted workflows green; a contributor goes from clone to green build with the documented commands | **done** (merged into `main` with M1b in INT1; the hosted runs start with the first push) |
 | **M5** Python CPU wheel, CLI, docs for 0.1 | root `pyproject.toml`, nanobind bindings, stubs, pytest; the CPU wheel + sdist; CLI; getting started, the update-model page, the `sssp` and `cycle_count` pages, the API reference, history pages | pytest green against the goldens; `pip install` of the release candidate works on a clean CPU machine; docs build with `-W` | **done** on `m5-python` (ADRs 0011 and 0025; the wheel installs and passes the suite in fresh venvs on Python 3.12 and 3.13; merged into `main` by pull request #4); `dyng prep` of M7 was delivered here |
-| **0.1.0** | the release preparation R010: the benchmark-suite records, the parity certificate, `VERSION` 0.1.0rc1, the release changes | the release checklist, including the parity certificate | **in progress** (R010, {doc}`retrospectives/R010`: the 0.1.0rc1 certificate passed; the tags and the GitHub Release are pushed by the AI assistant on the author's behalf, the PyPI deployment waits for the author's approval) |
+| **0.1.0** | the release preparation R010: the benchmark-suite records, the parity certificate, `VERSION` 0.1.0rc1, the release changes; the final-release pull request R011 | the release checklist, including the parity certificate | **done** (R010, {doc}`retrospectives/R010`: 0.1.0rc1 with its certificate, on TestPyPI; R011, {doc}`retrospectives/R011`: `VERSION` 0.1.0, the certificate `benchmarks/results/0.1.0/` carried over; the tags and the GitHub Release are pushed by the AI assistant on the author's behalf, the PyPI deployment is approved by the author) |
 | **M6** 0.1.x hardening | CUDA plugin wheels; the tutorial algorithms `dynamic_bfs` and `triangle_delta`; Read the Docs and Zenodo (A4); fuzzers; mutation checks; sanitizer jobs | `pip install "dyng[cu13]"` works; tutorials pass the kit; mutations fail as expected | |
 | **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | |
 | **M8** ESCHER store + hypergraph | the staged CBST merge (ESCHER-GPU first, then the MOSP_ESCHER behaviours one by one); `hypergraph` with `escher` storage; `hyperedge_batch`; `.hg` I/O | CBST trace replay identical for both originals' policies after every merge step; integrity after every batch | |
