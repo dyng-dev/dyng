@@ -24,8 +24,8 @@ identify_affected → seed → { FP: loop until is_converged | AG: count + } →
 
 FP is `family::fixed_point` and AG is `family::aggregate_delta`. Everything left of `commit`
 reads G_t, the graph before the batch. Everything right of it reads G_{t+1}, the graph after the
-batch. `translate` is on the card but has no hook yet: no algorithm in 0.1 uses it (see
-[Differences from PLAN 4.5](#differences-from-plan-45)).
+batch. `translate` is on the card but has no hook yet: no algorithm uses it (mosp did not need one in
+0.2; see [Differences from PLAN 4.5](#differences-from-plan-45)).
 
 ## The files
 
@@ -416,7 +416,8 @@ Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
 | PLAN 4.5.2 sketch | The framework | Why |
 |---|---|---|
 | `reserve(ctx, capacity)` hook | none | Workspaces are sized by their lease (ADR 0015); no enactor calls a reserve step. |
-| `translate` hook | none yet | No 0.1 algorithm uses it; it arrives with hyper_sssp or mosp (rule of two). |
+| `translate` hook | none yet | No algorithm uses it. mosp (0.2) needed none: its objective projection is `sssp::options::objective` (each objective is an sssp problem on one weight column) plus the commit's per-objective classification of insertions (`apply_delta::weight_increased`), so it has no hook of its own; hyper_sssp's `incidence_delta` (0.3) is the first planned user (rule of two). |
+| a composite problem type (PLAN 4.5.2, "Composition") | none: `mosp_problem` is a hand-written `update_participant` that owns K `problem_participant<sssp_problem>` | mosp is the first composition (rule of two; ADR 0027). Each objective runs through its own `update_enactor`; mosp's participant does its finalize step's stages (`mosp.combine`, `mosp.combined_sssp`, `mosp.finalize`, `mosp.path_costs`), its I9 budget (the K sssp budgets plus the finalize step's synchronizations), its stats and its poisoning by hand. |
 | `prepare(ctx, batch)` | `prepare(ctx, old_view, batch)` | sssp's prepare reads G_t (MOSP computes the weight summary before the batch). |
 | – | `normalize(ctx, old_view, batch)` hook | cycle_count reduces batches of other semantics itself; the task's hook order starts with `normalize`. |
 | `finalize(ctx)` | `finalize(ctx, stats&)` | The stats are filled at the end of the phase in both algorithms. |

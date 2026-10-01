@@ -50,8 +50,9 @@ port = ["sssp.engine", "mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
 gate = "compute"
 note = """
 The port's side: the K objectives' SOSP updates (the stages sssp.toml compares with the original's
-per-objective timer) and the combined step. mosp.finalize is dynG's `affected` count against the
-previous MOSP tree (not in the original). Not in the region on either side: applying the batch and
+per-objective timer) and the combined step. On the host backends mosp.finalize is dynG's
+`affected` count against the previous MOSP tree (count_changed() and the swap of the spare pair;
+not in the original). Not in the region on either side: applying the batch and
 "prepare" (the commit), the per-objective classification (sssp.prepare), the path costs.
 """
 
@@ -122,8 +123,9 @@ port = ["sssp.engine", "mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
 port_device = ["sssp.engine", "mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
 gate = "compute"
 note = """
-Host times on both sides (the port's CUDA-event times are recorded next to them). The port's
-mosp.finalize is the `affected` count (one kernel and a synchronization; not in the original);
+Host times on both sides (the port's CUDA-event times are recorded next to them). On cuda the
+port's mosp.finalize only reads `affected`, which the combined solve counted in its unpack pass
+inside mosp.combined_sssp (since 5e20e0f: no kernel or synchronization of its own);
 the download of the MOSP tree for the host's path costs is timed in mosp.path_costs (the
 original downloads its results after the region, in "download").
 """

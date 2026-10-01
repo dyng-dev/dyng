@@ -15,9 +15,11 @@
  *
  *   - normalize, commit: run_update() (stages mosp.normalize under set semantics, mosp.commit),
  *     once for the K objectives, as MOSP's mospUpdate() applies the batch once;
- *   - translate: the objective projection. Objective k is an sssp problem on the k-th weight
- *     column (sssp::options::objective), and the commit classifies every insertion per objective
- *     (apply_delta::weight_increased, MOSP's weightIncreaseMask) for sssp's prepare;
+ *   - translate: no framework hook (the framework has none; docs/developer/framework.md,
+ *     "Differences from PLAN 4.5"). The objective projection is done by sssp::options::objective
+ *     (objective k is an sssp problem on the k-th weight column) and by the commit, which
+ *     classifies every insertion per objective (apply_delta::weight_increased, MOSP's
+ *     weightIncreaseMask) for sssp's prepare;
  *   - prepare .. finalize of each objective: the K sssp problems, each through its own
  *     update_enactor (framework::problem_participant<sssp_problem>), one after the other on the
  *     handle's one sssp workspace (ADR 0015; MOSP's shared SospWorkspace), each inside the stage
