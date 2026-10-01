@@ -139,6 +139,30 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
   cuda,cuda-operators`, the whole MOSP update per case) and runs synccheck on the CUDA mosp
   suite.
 
+### M7: review fixes (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Fixed: on CUDA, a `mosp::update()` that added vertices went one host synchronization over its
+  I9 budget (the release of the old pinned copy of the MOSP tree), which a Debug build logged and
+  strict budgets turned into `internal_error` and a poisoned result; the reserving run now counts
+  it. The budget of mosp's combined solve on the operators engine is a static solve's,
+  2 + iterations + epochs (it was the update's 3 + ..., one too many).
+- Fixed (tests): conformance check C8 runs with `engine::automatic` and, where a backend has a
+  second engine, `engine::operators`, against the budget of the engine that ran
+  (`test_traits::host_sync_budget(backend, stats)`, optional); it failed on a device without
+  cooperative launch, where `engine::automatic` runs the operators engine. The mosp test
+  executables run every test with strict budgets.
+- Docs: the packing window (ADR 0029, proposed, for the author): for non-canonical imported trees
+  inside (n - 1) * W <= max_distance < n * W the host backends (MOSP-OpenMP's packing rule) and
+  cuda (MOSP-CUDA's) return different tie parents, each byte-identical to its original; pinned by
+  `SsspPackingWindow.NonCanonicalTreesFollowEachOriginalsPackingRule`. The `@sync` contracts of
+  `sssp::compute()` / `update()` give the operators engine's counts; `mosp.hpp`'s determinism
+  and error texts corrected; the gate record lists PLAN 8.6's noisy flags; the `.dgb` batches
+  move to M8.
+- Merged `main` at 0.1.0rc1 (pull request #5); the release certificate (`parity/certify.py`)
+  knows mosp's paper-scale goldens and fixtures.
+
 ## [0.1.0rc1] - 2026-10-01
 
 ### Summary
