@@ -1,9 +1,9 @@
 # dynG: dynamic graph and hypergraph updates on GPUs
 
-> **Alpha: 0.1 release candidate.** dynG 0.1.0rc1 is the release candidate of the first
-> release: the C++ library, the Python package and the `dyng` command line described here.
-> `sssp` and `cycle_count` are stable (SemVer applies from 0.1.0); the release candidate is on
-> TestPyPI only, and the PyPI package `dyng` 0.0.1 is only a name reservation until 0.1.0.
+> **Alpha: 0.1.0.** dynG 0.1.0 is the first release: the C++ library, the Python package
+> (`pip install dyng`) and the `dyng` command line described here. `sssp` and `cycle_count` are
+> stable (SemVer applies from 0.1.0); the other algorithms of the table are planned for later
+> releases.
 
 dynG is a C++17/CUDA library with Python bindings that keeps the results of graph and
 hypergraph algorithms up to date while the structure changes in **batches** of insertions,
@@ -33,8 +33,7 @@ is generated from the algorithms' manifests by `scripts/regen.py`.
 
 ## Quickstart
 
-Python (`pip install dyng` once 0.1.0 is published; until then `pip install .` in a clone, see
-[Install](#install)):
+Python (`pip install dyng`, or `pip install .` in a clone, see [Install](#install)):
 
 <!-- snippet: quickstart-python -->
 ```python
@@ -117,8 +116,8 @@ and RAFT, but it is **not affiliated** with either project.
 ### Python package
 
 ```bash
-pip install dyng                         # from PyPI, once 0.1.0 is published (Python >= 3.12, Linux x86-64)
-pip install .                            # today: from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
+pip install dyng                         # from PyPI (Python >= 3.12, Linux x86-64)
+pip install .                            # or from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
 ```
 
 The wheel contains the sequential and OpenMP backends and the `dyng` command line; CUDA plugin

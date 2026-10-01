@@ -92,12 +92,12 @@ manylinux_2_28; OpenMP's runtime is bundled). It contains the sequential and Ope
 the `dyng` command line ({doc}`../api/cli`); NumPy is its only dependency.
 
 ```bash
-pip install dyng                   # from PyPI once 0.1.0 is published
+pip install dyng                   # from PyPI
 python -c "import dyng; dyng.show_config()"
 ```
 
-Until 0.1.0 is on PyPI, build the same package from a clone (it compiles the C++ core, so it
-needs CMake >= 3.30, Ninja and a C++17 compiler, for example from the `dyng-dev` environment):
+The same package can be built from a clone (it compiles the C++ core, so it needs CMake >=
+3.30, Ninja and a C++17 compiler, for example from the `dyng-dev` environment):
 
 ```bash
 pip install .                      # the wheel of this checkout

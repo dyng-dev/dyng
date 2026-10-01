@@ -10,10 +10,9 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Alpha: 0.1 release candidate.** dynG 0.1.0rc1 is the release candidate of the first release
-(see the {doc}`roadmap`); `sssp` and `cycle_count` are stable (SemVer applies from 0.1.0). The
-release candidate is on TestPyPI only, and the PyPI package `dyng` 0.0.1 is only a name
-reservation; until 0.1.0 is out, install the Python package from a clone (`pip install .`).
+**Alpha: 0.1.0.** dynG 0.1.0 is the first release (see the {doc}`roadmap`); `sssp` and
+`cycle_count` are stable (SemVer applies from 0.1.0), and the other algorithms of the table are
+planned for later releases. The Python package is on PyPI (`pip install dyng`).
 :::
 
 ## Algorithms
@@ -35,7 +34,7 @@ release will contain.
 ## Install
 
 ```bash
-pip install dyng                       # the Python package (CPU backends), once 0.1.0 is published
+pip install dyng                       # the Python package (CPU backends), from PyPI
 ```
 
 or build from source (the C++ library, the CUDA backend, the development tools):
