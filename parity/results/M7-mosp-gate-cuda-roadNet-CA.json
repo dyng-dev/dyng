@@ -1,0 +1,6722 @@
+{
+ "schema": 3,
+ "algorithm": "mosp",
+ "backend": "cuda",
+ "date": "2026-10-01T16:14:25Z",
+ "graph": "roadNet-CA",
+ "reference": {
+  "name": "MOSP-CUDA",
+  "commit": "e220ee20d1b0948ece3df135a02d1b898264c22f",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/unpatched/bin/mosp",
+  "build": "name=MOSP-CUDA\ncommit=e220ee20d1b0948ece3df135a02d1b898264c22f\nvariant=unpatched\narchive_sha256=52e7c0521d14f0605fdf065b75677d7ddde6e33682ede0303a5f984611db2c55\nexported=2026-09-27T20:21:05Z\nbuild=make -j16 all stressTest parallelStressTest NVCC=/usr/local/cuda-13.1/bin/nvcc\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "port": {
+  "commit": "33c7130c616f9f900c200404c1b6b4929536a46d",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-mosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/mosp.toml",
+  "regions": [
+   "compute",
+   "sosp_update",
+   "combined",
+   "end_to_end",
+   "path_costs"
+  ]
+ },
+ "protocol": {
+  "runs": 21,
+  "order": "A/B/A/B (side A first: the original)",
+  "threads": 28,
+  "env": "OMP_PROC_BIND=close OMP_PLACES=cores CUDA_VISIBLE_DEVICES=0 CUDA_MODULE_LOADING=EAGER",
+  "lock": "perf.lock: held exclusively by an ancestor (flock(1))",
+  "gpu_clocks": {
+   "control": "boost",
+   "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+   "how": "ncu --clock-control boost on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+   "before": {
+    "pstate": "P0",
+    "sm_mhz": 1695,
+    "memory_mhz": 8001
+   },
+   "locked": {
+    "pstate": "P2",
+    "sm_mhz": 1695,
+    "memory_mhz": 7601
+   },
+   "check": "every busy GPU sample of every accepted round at the locked clocks",
+   "after_reset": {
+    "pstate": "P0",
+    "sm_mhz": 1695,
+    "memory_mhz": 8001
+   }
+  },
+  "contamination_monitor": "per round and side: foreign CPU load (machine busy time minus the harness and its programs), run queue, GPU P-state / clocks / utilization every 50 ms and foreign compute processes on the GPU every second; limit 2.0 cores; contaminated rounds repeated",
+  "statistic": "median",
+  "layouts": "one (a fixed --timing file name)",
+  "outputs": "written by both (bench/run.sh), into a directory deleted after each run",
+  "short_regions": "< 10.0 ms need >= 20 runs"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "inputs_sha256": [
+  "966eb2f0e570784119cca02c40d451dba1228c444b0c6148385f7c0489f8fe78  changes_50000_50/delete.txt",
+  "aa83613347d1c6febeb06a06552b21b010dbfafc27a4a1a18b20abcad13cf273  changes_50000_50/insert.txt",
+  "b76c87ff03ead5d3883246cae64db3bbdb2ffd62059d7a18b2aa0423f7cbe7fc  changes_50000_50_safe/delete.txt",
+  "aa83613347d1c6febeb06a06552b21b010dbfafc27a4a1a18b20abcad13cf273  changes_50000_50_safe/insert.txt",
+  "0a01bd4d6440f792c8c2682e8eb5fcf56740c05ffda999900e1c523d8b423e2b  changes_local_10000_50_safe/delete.txt",
+  "177e8036a996189285d4e52da482b169d36ccdc486cefbce2b87f5aa2ed25844  changes_local_10000_50_safe/insert.txt",
+  "40b48ba4fe165708321064ecc792de2d7de92f154313249c387d53b8b5f002d7  csr/graphCsrColInd.txt",
+  "d72d6af99511677c43f368c9a0c34439c67a6f338bd0e4235e4ecf05ca2e7b1d  csr/graphCsrRowPtr.txt",
+  "1766cacfd7e467135d94653363d18df22b4756ab0fbd28ff03eb86431400d892  csr/graphCsrValues.txt",
+  "2b6c21443e555d7c115cb666f4dd9d6164fb863e236f3968ae7076878e8b2bbc  init/obj0/SSSPTreeOriginal.txt",
+  "0962f5f303b60fd9bdac23532c3f0853ead7dc951c041ac3bd350e01dd1a11c0  init/obj0/distancesOriginal.txt",
+  "d8a5dc5227b5a0856767c7d5df6046ea9fdfe959b237950c4f3a7e729265998c  init/obj1/SSSPTreeOriginal.txt",
+  "f0991b9d18ac5acb5f5128ad3d21a16979d93c8dbaba1b953bba14ca45cf67a9  init/obj1/distancesOriginal.txt",
+  "98a53310608fec31900742ee99caaaba2636efd65e2cacb92890c5bac10dc687  init/obj2/SSSPTreeOriginal.txt",
+  "6958d05a2a4d71196cea3a0e1b246ee7a82468e349223b800d8f7f8eb5d6ca8d  init/obj2/distancesOriginal.txt"
+ ],
+ "results": {
+  "safe50k": {
+   "regions": [
+    {
+     "region": "compute",
+     "reading": "as measured",
+     "original_ms": 31.244,
+     "port_ms": 31.023591,
+     "ratio": 0.992945557547049,
+     "original_spread": 0.005825118422737121,
+     "port_spread": 0.006477457751425569,
+     "original_samples": [
+      31.208,
+      31.219,
+      31.315,
+      31.248,
+      31.244,
+      31.148,
+      31.233,
+      31.212,
+      31.278,
+      31.311,
+      31.217,
+      31.33,
+      31.31,
+      31.247,
+      31.214,
+      31.292,
+      31.207,
+      31.253,
+      31.166,
+      31.238,
+      31.258
+     ],
+     "port_samples": [
+      30.983408,
+      31.02892,
+      31.071325999999996,
+      30.995019000000003,
+      31.091287,
+      31.001576,
+      31.060950000000002,
+      30.979259000000003,
+      30.97568,
+      31.015644,
+      30.988985,
+      31.047039999999996,
+      31.006364,
+      31.044005,
+      31.066527000000004,
+      31.157619000000004,
+      31.029445000000003,
+      30.956664999999997,
+      31.01954,
+      31.023591,
+      31.057681000000002
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj0",
+     "reading": "as measured",
+     "original_ms": 8.75,
+     "port_ms": 8.609199,
+     "ratio": 0.9839084571428571,
+     "original_spread": 0.012571428571428506,
+     "port_spread": 0.00992345513212069,
+     "original_samples": [
+      8.711,
+      8.776,
+      8.796,
+      8.759,
+      8.737,
+      8.724,
+      8.737,
+      8.765,
+      8.764,
+      8.77,
+      8.738,
+      8.765,
+      8.753,
+      8.738,
+      8.779,
+      8.75,
+      8.734,
+      8.731,
+      8.686,
+      8.76,
+      8.734
+     ],
+     "port_samples": [
+      8.641907,
+      8.640578,
+      8.620011,
+      8.575767,
+      8.643025,
+      8.585625,
+      8.635726,
+      8.614554,
+      8.594383,
+      8.606781,
+      8.603828,
+      8.609199,
+      8.604589,
+      8.631519,
+      8.601395,
+      8.6612,
+      8.608367,
+      8.605402,
+      8.608164,
+      8.631649,
+      8.634826
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 8.60323,
+     "port_device_samples": [
+      8.63584,
+      8.63475,
+      8.61142,
+      8.56976,
+      8.6369,
+      8.57974,
+      8.6295,
+      8.60874,
+      8.58858,
+      8.60109,
+      8.59811,
+      8.60323,
+      8.59872,
+      8.62566,
+      8.59574,
+      8.65552,
+      8.60266,
+      8.5999,
+      8.60227,
+      8.62602,
+      8.62918
+     ],
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj1",
+     "reading": "as measured",
+     "original_ms": 8.855,
+     "port_ms": 8.7931,
+     "ratio": 0.9930095990965556,
+     "original_spread": 0.008018068887634074,
+     "port_spread": 0.0066176888696818795,
+     "original_samples": [
+      8.877,
+      8.845,
+      8.848,
+      8.832,
+      8.835,
+      8.834,
+      8.89,
+      8.844,
+      8.855,
+      8.888,
+      8.856,
+      8.894,
+      8.893,
+      8.841,
+      8.826,
+      8.859,
+      8.831,
+      8.869,
+      8.853,
+      8.855,
+      8.897
+     ],
+     "port_samples": [
+      8.778973,
+      8.7931,
+      8.809228,
+      8.784542,
+      8.801162,
+      8.814695,
+      8.816397,
+      8.778121,
+      8.774639,
+      8.79161,
+      8.768026,
+      8.808399,
+      8.807025,
+      8.804528,
+      8.819791,
+      8.816414,
+      8.797725,
+      8.761601,
+      8.781165,
+      8.775197,
+      8.777388
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 8.78746,
+     "port_device_samples": [
+      8.77322,
+      8.78746,
+      8.80365,
+      8.77888,
+      8.79555,
+      8.80861,
+      8.8104,
+      8.77254,
+      8.76842,
+      8.78592,
+      8.76246,
+      8.80294,
+      8.80147,
+      8.79869,
+      8.79933,
+      8.8105,
+      8.79187,
+      8.756,
+      8.77546,
+      8.76954,
+      8.7719
+     ],
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj2",
+     "reading": "as measured",
+     "original_ms": 8.718,
+     "port_ms": 8.709191,
+     "ratio": 0.998989561826107,
+     "original_spread": 0.010667584308327595,
+     "port_spread": 0.009526372771018572,
+     "original_samples": [
+      8.706,
+      8.688,
+      8.754,
+      8.736,
+      8.759,
+      8.666,
+      8.706,
+      8.679,
+      8.73,
+      8.718,
+      8.698,
+      8.732,
+      8.742,
+      8.746,
+      8.705,
+      8.755,
+      8.723,
+      8.738,
+      8.709,
+      8.712,
+      8.718
+     ],
+     "port_samples": [
+      8.667476,
+      8.685432,
+      8.726137,
+      8.727896,
+      8.737647,
+      8.698269,
+      8.709191,
+      8.680029,
+      8.690768,
+      8.699541,
+      8.685975,
+      8.710144,
+      8.667456,
+      8.704204,
+      8.729226,
+      8.750423,
+      8.72739,
+      8.679385,
+      8.727704,
+      8.709885,
+      8.729274
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 8.70339,
+     "port_device_samples": [
+      8.66186,
+      8.67978,
+      8.7201,
+      8.72182,
+      8.73203,
+      8.69267,
+      8.70339,
+      8.67434,
+      8.68525,
+      8.69386,
+      8.68019,
+      8.70438,
+      8.66186,
+      8.69859,
+      8.72339,
+      8.7447,
+      8.72189,
+      8.67379,
+      8.72224,
+      8.70419,
+      8.72365
+     ],
+     "noisy": false
+    },
+    {
+     "region": "combined",
+     "reading": "as measured",
+     "original_ms": 4.919,
+     "port_ms": 4.90981,
+     "ratio": 0.9981317340922953,
+     "original_spread": 0.007928440739987743,
+     "port_spread": 0.007353441375531826,
+     "original_samples": [
+      4.914,
+      4.91,
+      4.917,
+      4.921,
+      4.914,
+      4.924,
+      4.9,
+      4.923,
+      4.928,
+      4.936,
+      4.924,
+      4.939,
+      4.922,
+      4.922,
+      4.905,
+      4.928,
+      4.919,
+      4.915,
+      4.919,
+      4.911,
+      4.908
+     ],
+     "port_samples": [
+      4.895052,
+      4.90981,
+      4.91595,
+      4.906813999999999,
+      4.909453,
+      4.902987,
+      4.899636,
+      4.906554999999999,
+      4.915889999999999,
+      4.917712,
+      4.931156,
+      4.919298,
+      4.927294,
+      4.903753999999999,
+      4.916115,
+      4.929582000000001,
+      4.895962999999999,
+      4.910277,
+      4.902507,
+      4.906859999999999,
+      4.916193
+     ],
+     "gate_kind": "none",
+     "noisy": false
+    },
+    {
+     "region": "end_to_end",
+     "reading": "as measured",
+     "original_ms": 1045.077,
+     "port_ms": 886.752,
+     "ratio": 0.8485039858307091,
+     "original_spread": 0.1653390132975849,
+     "port_spread": 0.051846514019703395,
+     "original_samples": [
+      1021.378,
+      947.897,
+      942.886,
+      1089.49,
+      952.549,
+      1057.248,
+      1045.077,
+      1069.23,
+      1018.07,
+      1043.594,
+      1106.206,
+      945.291,
+      950.612,
+      1043.665,
+      985.04,
+      1045.446,
+      1080.525,
+      1115.678,
+      1096.246,
+      1081.971,
+      1112.599
+     ],
+     "port_samples": [
+      876.844,
+      910.06,
+      900.76,
+      872.526,
+      899.115,
+      882.389,
+      875.223,
+      881.31,
+      881.276,
+      893.368,
+      907.465,
+      885.379,
+      915.835,
+      876.102,
+      886.752,
+      876.54,
+      904.804,
+      890.429,
+      876.849,
+      894.187,
+      918.501
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "path_costs",
+     "reading": "as measured",
+     "original_ms": 0.0,
+     "port_ms": 33.205815,
+     "ratio": null,
+     "original_spread": 0.0,
+     "port_spread": 0.5675803469964523,
+     "original_samples": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "port_samples": [
+      33.642389,
+      36.874091,
+      31.858984,
+      34.646875,
+      32.014244,
+      34.123128,
+      29.133232,
+      29.641755,
+      29.544019,
+      31.25846,
+      35.25995,
+      35.297,
+      33.205815,
+      34.637476,
+      34.163359,
+      32.904863,
+      40.208589,
+      32.972251,
+      31.241733,
+      28.220329,
+      47.067297
+     ],
+     "gate_kind": "none",
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     1651121,
+     1105632,
+     1022434
+    ],
+    "port": [
+     1651121,
+     1105632,
+     1022434
+    ],
+    "equal_in_every_sample": true
+   },
+   "threads": {
+    "original": null,
+    "port": 28
+   },
+   "load_average": {
+    "min": 3.47265625,
+    "max": 5.77734375
+   },
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 1.0959651470184326,
+       "program_cpu_s": 2.4887060000000005,
+       "foreign_cpu_cores": 1.1818450633969937,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 17,
+        "pstates_busy": {
+         "P2": 17
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9631514549255371,
+       "program_cpu_s": 5.755350999999999,
+       "foreign_cpu_cores": 1.1480478935085099,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 1
+     },
+     {
+      "original": {
+       "wall_s": 1.0226664543151855,
+       "program_cpu_s": 2.349565000000002,
+       "foreign_cpu_cores": 1.2146091173350684,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9951038360595703,
+       "program_cpu_s": 6.114056999999999,
+       "foreign_cpu_cores": 1.0326992650518678,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 25
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 4,
+        "pstates_busy": {
+         "P2": 4
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 2
+     },
+     {
+      "original": {
+       "wall_s": 1.0170438289642334,
+       "program_cpu_s": 2.3409019999999963,
+       "foreign_cpu_cores": 1.2011222774131491,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 20,
+        "pstates_busy": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9868068695068359,
+       "program_cpu_s": 5.812361000000003,
+       "foreign_cpu_cores": 1.1274627628347187,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 3
+     },
+     {
+      "original": {
+       "wall_s": 1.1652541160583496,
+       "program_cpu_s": 2.564578999999995,
+       "foreign_cpu_cores": 1.154681181692223,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9579954147338867,
+       "program_cpu_s": 5.723446000000003,
+       "foreign_cpu_cores": 1.1886017232513206,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 24
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 14,
+        "pstates_busy": {
+         "P2": 14
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 4
+     },
+     {
+      "original": {
+       "wall_s": 1.0264134407043457,
+       "program_cpu_s": 2.3450699999999998,
+       "foreign_cpu_cores": 1.0877536812244348,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 21
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.987708568572998,
+       "program_cpu_s": 5.991221000000003,
+       "foreign_cpu_cores": 1.2045810243135562,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 5
+     },
+     {
+      "original": {
+       "wall_s": 1.1321523189544678,
+       "program_cpu_s": 2.5277359999999973,
+       "foreign_cpu_cores": 1.1414524160886905,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 22,
+        "pstates_busy": {
+         "P2": 22
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9683568477630615,
+       "program_cpu_s": 5.8160330000000044,
+       "foreign_cpu_cores": 1.1501947880348578,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 9
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 6
+     },
+     {
+      "original": {
+       "wall_s": 1.1168079376220703,
+       "program_cpu_s": 2.5284639999999996,
+       "foreign_cpu_cores": 1.1854464464695604,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 8,
+        "pstates_busy": {
+         "P2": 8
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9640026092529297,
+       "program_cpu_s": 5.643517000000003,
+       "foreign_cpu_cores": 1.1282376101065432,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 17
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 15,
+        "pstates_busy": {
+         "P2": 15
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 7
+     },
+     {
+      "original": {
+       "wall_s": 1.1438605785369873,
+       "program_cpu_s": 2.5738119999999896,
+       "foreign_cpu_cores": 1.1252735019535496,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9669549465179443,
+       "program_cpu_s": 5.782149000000004,
+       "foreign_cpu_cores": 1.32125183771506,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 29
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 8
+     },
+     {
+      "original": {
+       "wall_s": 1.091848373413086,
+       "program_cpu_s": 2.4669230000000084,
+       "foreign_cpu_cores": 1.1667902162954358,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 5,
+        "pstates_busy": {
+         "P2": 5
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9655590057373047,
+       "program_cpu_s": 5.8320349999999905,
+       "foreign_cpu_cores": 1.2624655697423803,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 9
+     },
+     {
+      "original": {
+       "wall_s": 1.117553472518921,
+       "program_cpu_s": 2.5161599999999993,
+       "foreign_cpu_cores": 1.149885917674751,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 1,
+        "pstates_busy": {
+         "P2": 1
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9790475368499756,
+       "program_cpu_s": 6.012277000000012,
+       "foreign_cpu_cores": 1.2780288517504041,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 9
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 10
+     },
+     {
+      "original": {
+       "wall_s": 1.180988073348999,
+       "program_cpu_s": 2.6006149999999906,
+       "foreign_cpu_cores": 1.183654630356733,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 24,
+        "busy_samples": 15,
+        "pstates_busy": {
+         "P2": 15
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9984011650085449,
+       "program_cpu_s": 6.124037999999999,
+       "foreign_cpu_cores": 1.1357428647629275,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 7
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 11
+     },
+     {
+      "original": {
+       "wall_s": 1.021566390991211,
+       "program_cpu_s": 2.298922999999988,
+       "foreign_cpu_cores": 1.1089117761777907,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 10
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9714674949645996,
+       "program_cpu_s": 6.087022000000019,
+       "foreign_cpu_cores": 1.0228360750903573,
+       "procs_running": {
+        "median": 4.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 1,
+        "pstates_busy": {
+         "P2": 1
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 12
+     },
+     {
+      "original": {
+       "wall_s": 1.0249013900756836,
+       "program_cpu_s": 2.334606000000008,
+       "foreign_cpu_cores": 1.1004444050600242,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 7,
+        "pstates_busy": {
+         "P2": 7
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 1.0021030902862549,
+       "program_cpu_s": 6.003109999999992,
+       "foreign_cpu_cores": 1.1048843293191457,
+       "procs_running": {
+        "median": 4.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 16,
+        "pstates_busy": {
+         "P2": 16
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 13
+     },
+     {
+      "original": {
+       "wall_s": 1.1189463138580322,
+       "program_cpu_s": 2.535511000000014,
+       "foreign_cpu_cores": 1.0956262906863443,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.962615966796875,
+       "program_cpu_s": 5.841165999999987,
+       "foreign_cpu_cores": 0.9768682768415967,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 29
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 14
+     },
+     {
+      "original": {
+       "wall_s": 1.0590934753417969,
+       "program_cpu_s": 2.3793540000000064,
+       "foreign_cpu_cores": 1.1067984343116797,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.97269606590271,
+       "program_cpu_s": 5.887826999999987,
+       "foreign_cpu_cores": 1.14579778872787,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 15
+     },
+     {
+      "original": {
+       "wall_s": 1.1195013523101807,
+       "program_cpu_s": 2.532199999999989,
+       "foreign_cpu_cores": 1.9990668117441182,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 2,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9623336791992188,
+       "program_cpu_s": 5.642865000000029,
+       "foreign_cpu_cores": 1.1504491896582483,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 16
+     },
+     {
+      "original": {
+       "wall_s": 1.1559960842132568,
+       "program_cpu_s": 2.5747700000000293,
+       "foreign_cpu_cores": 1.1722851137855241,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 23,
+        "pstates_busy": {
+         "P2": 23
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9895217418670654,
+       "program_cpu_s": 6.010892999999982,
+       "foreign_cpu_cores": 1.2645957601380065,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 17
+     },
+     {
+      "original": {
+       "wall_s": 1.189774751663208,
+       "program_cpu_s": 2.624142000000006,
+       "foreign_cpu_cores": 1.1304316202233815,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 24,
+        "busy_samples": 6,
+        "pstates_busy": {
+         "P2": 6
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9769649505615234,
+       "program_cpu_s": 5.786632999999995,
+       "foreign_cpu_cores": 1.1719151239351364,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 18
+     },
+     {
+      "original": {
+       "wall_s": 1.1707241535186768,
+       "program_cpu_s": 2.581883999999974,
+       "foreign_cpu_cores": 1.1082397134056032,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 24,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9634628295898438,
+       "program_cpu_s": 5.671727000000033,
+       "foreign_cpu_cores": 1.0149815539243605,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 32
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 14,
+        "pstates_busy": {
+         "P2": 14
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 19
+     },
+     {
+      "original": {
+       "wall_s": 1.1555860042572021,
+       "program_cpu_s": 2.552964000000003,
+       "foreign_cpu_cores": 1.165270256791533,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.98946213722229,
+       "program_cpu_s": 5.607449000000031,
+       "foreign_cpu_cores": 1.1646923676782561,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 20
+     },
+     {
+      "original": {
+       "wall_s": 1.1875498294830322,
+       "program_cpu_s": 2.702678999999989,
+       "foreign_cpu_cores": 1.1678364688138583,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 24,
+        "busy_samples": 8,
+        "pstates_busy": {
+         "P2": 8
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 1.0046143531799316,
+       "program_cpu_s": 6.259799999999984,
+       "foreign_cpu_cores": 1.1621255434208388,
+       "procs_running": {
+        "median": 4.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 21
+     }
+    ],
+    "rejected": [
+     {
+      "before_round": 5,
+      "reasons": [
+       "port: foreign CPU load 2.28 cores > 2.0"
+      ],
+      "windows": {
+       "original": {
+        "wall_s": 1.0222961902618408,
+        "program_cpu_s": 2.3667170000000013,
+        "foreign_cpu_cores": 1.1885664949179304,
+        "procs_running": {
+         "median": 3.5,
+         "min": 3,
+         "max": 11
+        },
+        "foreign_runnable": {
+         "median": 1.0,
+         "min": 1,
+         "max": 2
+        },
+        "gpu": {
+         "samples": 21,
+         "busy_samples": 21,
+         "pstates_busy": {
+          "P2": 21
+         },
+         "sm_mhz": {
+          "median": 1695,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": false,
+        "reasons": []
+       },
+       "port": {
+        "wall_s": 0.9915132522583008,
+        "program_cpu_s": 5.916629,
+        "foreign_cpu_cores": 2.276703810399889,
+        "procs_running": {
+         "median": 4.5,
+         "min": 4,
+         "max": 32
+        },
+        "foreign_runnable": {
+         "median": 2.0,
+         "min": 2,
+         "max": 5
+        },
+        "gpu": {
+         "samples": 19,
+         "busy_samples": 1,
+         "pstates_busy": {
+          "P2": 1
+         },
+         "sm_mhz": {
+          "median": 1695,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": true,
+        "reasons": [
+         "foreign CPU load 2.28 cores > 2.0"
+        ]
+       }
+      }
+     },
+     {
+      "before_round": 12,
+      "reasons": [
+       "original: foreign CPU load 2.25 cores > 2.0",
+       "port: foreign CPU load 2.65 cores > 2.0"
+      ],
+      "windows": {
+       "original": {
+        "wall_s": 1.150453805923462,
+        "program_cpu_s": 2.5768149999999963,
+        "foreign_cpu_cores": 2.2537167402909204,
+        "procs_running": {
+         "median": 4.0,
+         "min": 4,
+         "max": 12
+        },
+        "foreign_runnable": {
+         "median": 2.0,
+         "min": 2,
+         "max": 2
+        },
+        "gpu": {
+         "samples": 23,
+         "busy_samples": 6,
+         "pstates_busy": {
+          "P2": 6
+         },
+         "sm_mhz": {
+          "median": 1695.0,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601.0,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": true,
+        "reasons": [
+         "foreign CPU load 2.25 cores > 2.0"
+        ]
+       },
+       "port": {
+        "wall_s": 0.9768824577331543,
+        "program_cpu_s": 5.898462000000009,
+        "foreign_cpu_cores": 2.645778905680795,
+        "procs_running": {
+         "median": 5,
+         "min": 4,
+         "max": 33
+        },
+        "foreign_runnable": {
+         "median": 2,
+         "min": 2,
+         "max": 4
+        },
+        "gpu": {
+         "samples": 20,
+         "busy_samples": 10,
+         "pstates_busy": {
+          "P2": 10
+         },
+         "sm_mhz": {
+          "median": 1695.0,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601.0,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": true,
+        "reasons": [
+         "foreign CPU load 2.65 cores > 2.0"
+        ]
+       }
+      }
+     }
+    ],
+    "foreign_cpu_cores_max": 1.9990668117441182,
+    "original_pstates_busy": {
+     "P2": 243
+    },
+    "original_sm_mhz_busy_median": 1695,
+    "port_pstates_busy": {
+     "P2": 210
+    },
+    "port_sm_mhz_busy_median": 1695,
+    "clocks_locked_in_every_round": true
+   }
+  },
+  "unsafe50k": {
+   "regions": [
+    {
+     "region": "compute",
+     "reading": "as measured",
+     "original_ms": 31.204,
+     "port_ms": 30.962261,
+     "ratio": 0.9922529483399565,
+     "original_spread": 0.00397384950647349,
+     "port_spread": 0.0038285640703047135,
+     "original_samples": [
+      31.171,
+      31.225,
+      31.194,
+      31.243,
+      31.206,
+      31.179,
+      31.187,
+      31.216,
+      31.228,
+      31.261,
+      31.208,
+      31.188,
+      31.189,
+      31.204,
+      31.201,
+      31.204,
+      31.246,
+      31.212,
+      31.156,
+      31.137,
+      31.242
+     ],
+     "port_samples": [
+      31.002584000000002,
+      30.937758,
+      30.993788,
+      30.96838,
+      30.984930000000002,
+      31.005365,
+      30.920439000000002,
+      30.972732999999998,
+      30.907619,
+      30.980093,
+      30.960167000000002,
+      30.984665999999997,
+      30.997545,
+      30.958187,
+      30.897461,
+      30.901335,
+      30.954464,
+      30.953081,
+      30.948276000000003,
+      31.016001999999997,
+      30.962261
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj0",
+     "reading": "as measured",
+     "original_ms": 8.755,
+     "port_ms": 8.584205,
+     "ratio": 0.9804917190177042,
+     "original_spread": 0.02010279840091378,
+     "port_spread": 0.007862230689970755,
+     "original_samples": [
+      8.73,
+      8.763,
+      8.768,
+      8.723,
+      8.729,
+      8.733,
+      8.757,
+      8.743,
+      8.745,
+      8.757,
+      8.727,
+      8.757,
+      8.757,
+      8.759,
+      8.736,
+      8.729,
+      8.808,
+      8.763,
+      8.632,
+      8.755,
+      8.761
+     ],
+     "port_samples": [
+      8.569769,
+      8.594582,
+      8.616177,
+      8.603538,
+      8.604133,
+      8.614896,
+      8.548686,
+      8.571344,
+      8.578212,
+      8.586615,
+      8.564652,
+      8.556569,
+      8.581671,
+      8.583315,
+      8.574945,
+      8.615029,
+      8.562606,
+      8.599228,
+      8.585774,
+      8.59559,
+      8.584205
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 8.57808,
+     "port_device_samples": [
+      8.56374,
+      8.58835,
+      8.61011,
+      8.59763,
+      8.59843,
+      8.60899,
+      8.54262,
+      8.56554,
+      8.57264,
+      8.5807,
+      8.55888,
+      8.55091,
+      8.57526,
+      8.57766,
+      8.5689,
+      8.60922,
+      8.55642,
+      8.59338,
+      8.57984,
+      8.58957,
+      8.57808
+     ],
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj1",
+     "reading": "as measured",
+     "original_ms": 8.816,
+     "port_ms": 8.797614,
+     "ratio": 0.9979144736842104,
+     "original_spread": 0.012590744101633466,
+     "port_spread": 0.011788196208653963,
+     "original_samples": [
+      8.778,
+      8.817,
+      8.787,
+      8.844,
+      8.848,
+      8.807,
+      8.81,
+      8.809,
+      8.816,
+      8.821,
+      8.825,
+      8.821,
+      8.81,
+      8.826,
+      8.783,
+      8.822,
+      8.8,
+      8.803,
+      8.867,
+      8.756,
+      8.819
+     ],
+     "port_samples": [
+      8.841945,
+      8.783164,
+      8.775509,
+      8.767802,
+      8.799232,
+      8.794101,
+      8.813403,
+      8.810391,
+      8.777825,
+      8.803141,
+      8.810939,
+      8.816994,
+      8.817596,
+      8.81162,
+      8.738237,
+      8.752775,
+      8.790533,
+      8.78906,
+      8.795927,
+      8.797614,
+      8.808807
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 8.79165,
+     "port_device_samples": [
+      8.83626,
+      8.7776,
+      8.76973,
+      8.76198,
+      8.79366,
+      8.78838,
+      8.80774,
+      8.80435,
+      8.77235,
+      8.79725,
+      8.80525,
+      8.8113,
+      8.81174,
+      8.80586,
+      8.73229,
+      8.74701,
+      8.78493,
+      8.78294,
+      8.79037,
+      8.79165,
+      8.80288
+     ],
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj2",
+     "reading": "as measured",
+     "original_ms": 8.736,
+     "port_ms": 8.690872,
+     "ratio": 0.9948342490842491,
+     "original_spread": 0.010416666666666586,
+     "port_spread": 0.010411498408905462,
+     "original_samples": [
+      8.756,
+      8.738,
+      8.73,
+      8.777,
+      8.736,
+      8.736,
+      8.686,
+      8.748,
+      8.758,
+      8.763,
+      8.746,
+      8.718,
+      8.711,
+      8.707,
+      8.77,
+      8.735,
+      8.71,
+      8.728,
+      8.737,
+      8.704,
+      8.748
+     ],
+     "port_samples": [
+      8.690872,
+      8.670983,
+      8.714489,
+      8.690874,
+      8.68327,
+      8.6895,
+      8.667729,
+      8.704158,
+      8.665456,
+      8.718488,
+      8.691327,
+      8.711346,
+      8.700451,
+      8.671719,
+      8.698781,
+      8.646054,
+      8.697011,
+      8.672676,
+      8.685048,
+      8.736539,
+      8.689314
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 8.68477,
+     "port_device_samples": [
+      8.68477,
+      8.66518,
+      8.70896,
+      8.68525,
+      8.67738,
+      8.68371,
+      8.66208,
+      8.69862,
+      8.6599,
+      8.71242,
+      8.68541,
+      8.70566,
+      8.69488,
+      8.66605,
+      8.69286,
+      8.64022,
+      8.69139,
+      8.66698,
+      8.67923,
+      8.73072,
+      8.68365
+     ],
+     "noisy": false
+    },
+    {
+     "region": "combined",
+     "reading": "as measured",
+     "original_ms": 4.912,
+     "port_ms": 4.890620999999999,
+     "ratio": 0.9956475977198697,
+     "original_spread": 0.008754071661237635,
+     "port_spread": 0.0071604403612547645,
+     "original_samples": [
+      4.908,
+      4.907,
+      4.909,
+      4.899,
+      4.893,
+      4.903,
+      4.935,
+      4.916,
+      4.909,
+      4.92,
+      4.91,
+      4.892,
+      4.912,
+      4.912,
+      4.913,
+      4.918,
+      4.927,
+      4.918,
+      4.92,
+      4.922,
+      4.914
+     ],
+     "port_samples": [
+      4.899998,
+      4.889029000000001,
+      4.887612999999999,
+      4.906166,
+      4.898295,
+      4.906868,
+      4.890620999999999,
+      4.886839999999999,
+      4.886126000000001,
+      4.871849,
+      4.893249,
+      4.899756999999999,
+      4.897827,
+      4.891533,
+      4.885498,
+      4.887477,
+      4.904314,
+      4.892117,
+      4.881526999999999,
+      4.886259000000001,
+      4.879935
+     ],
+     "gate_kind": "none",
+     "noisy": false
+    },
+    {
+     "region": "end_to_end",
+     "reading": "as measured",
+     "original_ms": 1072.913,
+     "port_ms": 886.32,
+     "ratio": 0.8260874833280984,
+     "original_spread": 0.1994206426802545,
+     "port_spread": 0.03282900081234766,
+     "original_samples": [
+      988.908,
+      1043.807,
+      951.199,
+      997.064,
+      1125.052,
+      997.505,
+      1107.822,
+      1036.942,
+      1014.544,
+      1115.183,
+      954.775,
+      995.759,
+      942.995,
+      1074.525,
+      1077.114,
+      1087.251,
+      1121.973,
+      1156.956,
+      1118.504,
+      1072.913,
+      1137.867
+     ],
+     "port_samples": [
+      888.583,
+      887.556,
+      892.109,
+      881.875,
+      896.848,
+      878.718,
+      883.671,
+      882.856,
+      888.228,
+      875.634,
+      892.614,
+      882.374,
+      882.476,
+      867.751,
+      881.165,
+      886.32,
+      894.884,
+      886.923,
+      889.22,
+      894.021,
+      881.636
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "path_costs",
+     "reading": "as measured",
+     "original_ms": 0.0,
+     "port_ms": 31.930431,
+     "ratio": null,
+     "original_spread": 0.0,
+     "port_spread": 0.4938609503893011,
+     "original_samples": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "port_samples": [
+      33.853829,
+      33.62482,
+      31.903046,
+      34.941815,
+      37.650751,
+      32.204188,
+      36.728718,
+      31.930431,
+      30.080189,
+      30.605867,
+      28.611732,
+      38.29849,
+      29.277057,
+      29.741346,
+      27.923355,
+      30.439065,
+      28.881174,
+      32.981726,
+      43.692548,
+      32.752328,
+      28.722287
+     ],
+     "gate_kind": "none",
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     1651536,
+     1106633,
+     1023496
+    ],
+    "port": [
+     1651536,
+     1106633,
+     1023496
+    ],
+    "equal_in_every_sample": true
+   },
+   "threads": {
+    "original": null,
+    "port": 28
+   },
+   "load_average": {
+    "min": 5.0986328125,
+    "max": 7.0126953125
+   },
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 1.0637869834899902,
+       "program_cpu_s": 2.414332999999999,
+       "foreign_cpu_cores": 1.1544952318553818,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 1,
+        "pstates_busy": {
+         "P2": 1
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9813709259033203,
+       "program_cpu_s": 5.809154000000035,
+       "foreign_cpu_cores": 1.2964904156461432,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 20
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 1
+     },
+     {
+      "original": {
+       "wall_s": 1.1190359592437744,
+       "program_cpu_s": 2.502685000000014,
+       "foreign_cpu_cores": 1.114836381483236,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 12,
+        "pstates_busy": {
+         "P2": 12
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.977637767791748,
+       "program_cpu_s": 6.039453999999978,
+       "foreign_cpu_cores": 1.2068692915665602,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 2
+     },
+     {
+      "original": {
+       "wall_s": 1.0255959033966064,
+       "program_cpu_s": 2.3753090000000157,
+       "foreign_cpu_cores": 1.166883560949813,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9780402183532715,
+       "program_cpu_s": 5.802796999999998,
+       "foreign_cpu_cores": 1.1937453882922053,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 31
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 3
+     },
+     {
+      "original": {
+       "wall_s": 1.0722026824951172,
+       "program_cpu_s": 2.455192000000011,
+       "foreign_cpu_cores": 1.2088516664934348,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 21,
+        "pstates_busy": {
+         "P2": 21
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9717309474945068,
+       "program_cpu_s": 5.836173999999971,
+       "foreign_cpu_cores": 1.2698175385198307,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 31
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 4
+     },
+     {
+      "original": {
+       "wall_s": 1.2003791332244873,
+       "program_cpu_s": 2.652651999999989,
+       "foreign_cpu_cores": 1.1056015247741042,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 24,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9879021644592285,
+       "program_cpu_s": 6.041956000000027,
+       "foreign_cpu_cores": 1.3237515293418767,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 16,
+        "pstates_busy": {
+         "P2": 16
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 5
+     },
+     {
+      "original": {
+       "wall_s": 1.071324110031128,
+       "program_cpu_s": 2.4141429999999957,
+       "foreign_cpu_cores": 1.1825730303205206,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9645209312438965,
+       "program_cpu_s": 5.932459999999992,
+       "foreign_cpu_cores": 1.097593598524812,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 6
+     },
+     {
+      "original": {
+       "wall_s": 1.1827030181884766,
+       "program_cpu_s": 2.65421699999996,
+       "foreign_cpu_cores": 1.1126504117991938,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 6,
+        "pstates_busy": {
+         "P2": 6
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9694242477416992,
+       "program_cpu_s": 5.889724000000058,
+       "foreign_cpu_cores": 1.2393882267777063,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 29
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 7
+     },
+     {
+      "original": {
+       "wall_s": 1.1124796867370605,
+       "program_cpu_s": 2.500900999999999,
+       "foreign_cpu_cores": 1.1412675809771078,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9679100513458252,
+       "program_cpu_s": 5.957378000000006,
+       "foreign_cpu_cores": 1.2628725133656076,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 8
+     },
+     {
+      "original": {
+       "wall_s": 1.0905427932739258,
+       "program_cpu_s": 2.4796139999999696,
+       "foreign_cpu_cores": 1.1295182602476894,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 22,
+        "pstates_busy": {
+         "P2": 22
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9780459403991699,
+       "program_cpu_s": 5.776496000000009,
+       "foreign_cpu_cores": 1.2004139583961977,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 9
+     },
+     {
+      "original": {
+       "wall_s": 1.1884329319000244,
+       "program_cpu_s": 2.7056389999999624,
+       "foreign_cpu_cores": 1.1135832449789653,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 5,
+        "pstates_busy": {
+         "P2": 5
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9613211154937744,
+       "program_cpu_s": 5.801045000000045,
+       "foreign_cpu_cores": 1.3006996103021473,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 10
+     },
+     {
+      "original": {
+       "wall_s": 1.029397964477539,
+       "program_cpu_s": 2.3284590000000094,
+       "foreign_cpu_cores": 1.1309212179833048,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 6
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 1,
+        "pstates_busy": {
+         "P2": 1
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9786553382873535,
+       "program_cpu_s": 5.78556500000002,
+       "foreign_cpu_cores": 1.2004072860219033,
+       "procs_running": {
+        "median": 5.0,
+        "min": 3,
+        "max": 31
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 20
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 20
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 11
+     },
+     {
+      "original": {
+       "wall_s": 1.0711712837219238,
+       "program_cpu_s": 2.4385900000000333,
+       "foreign_cpu_cores": 1.1872975123343217,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 21
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9733538627624512,
+       "program_cpu_s": 5.852717000000041,
+       "foreign_cpu_cores": 1.5390415123966463,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 6,
+        "pstates_busy": {
+         "P2": 6
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 12
+     },
+     {
+      "original": {
+       "wall_s": 1.016315221786499,
+       "program_cpu_s": 2.3295409999999492,
+       "foreign_cpu_cores": 1.1249305094672113,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9685418605804443,
+       "program_cpu_s": 5.835887000000014,
+       "foreign_cpu_cores": 1.28642968397954,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 13
+     },
+     {
+      "original": {
+       "wall_s": 1.14825439453125,
+       "program_cpu_s": 2.5946270000000027,
+       "foreign_cpu_cores": 1.1282856885367225,
+       "procs_running": {
+        "median": 3,
+        "min": 2,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 5,
+        "pstates_busy": {
+         "P2": 5
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9537591934204102,
+       "program_cpu_s": 5.6925620000000094,
+       "foreign_cpu_cores": 1.3200795435117438,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 14
+     },
+     {
+      "original": {
+       "wall_s": 1.1508429050445557,
+       "program_cpu_s": 2.584028999999987,
+       "foreign_cpu_cores": 1.3873561666140573,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9663734436035156,
+       "program_cpu_s": 5.747013999999979,
+       "foreign_cpu_cores": 1.3916473060240067,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 29
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 15
+     },
+     {
+      "original": {
+       "wall_s": 1.1602144241333008,
+       "program_cpu_s": 2.620078000000035,
+       "foreign_cpu_cores": 1.0599256270768078,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 23,
+        "pstates_busy": {
+         "P2": 23
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9725620746612549,
+       "program_cpu_s": 5.649986000000013,
+       "foreign_cpu_cores": 1.1636316387714587,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 16
+     },
+     {
+      "original": {
+       "wall_s": 1.1958119869232178,
+       "program_cpu_s": 2.6881230000000187,
+       "foreign_cpu_cores": 1.263375861196224,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 24,
+        "busy_samples": 6,
+        "pstates_busy": {
+         "P2": 6
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.980262279510498,
+       "program_cpu_s": 5.849778000000015,
+       "foreign_cpu_cores": 1.1748712823987235,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 17
+     },
+     {
+      "original": {
+       "wall_s": 1.2312657833099365,
+       "program_cpu_s": 2.816071999999963,
+       "foreign_cpu_cores": 1.18812040317554,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 25,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9731259346008301,
+       "program_cpu_s": 5.658965000000023,
+       "foreign_cpu_cores": 1.1940170933041476,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 15,
+        "pstates_busy": {
+         "P2": 15
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 18
+     },
+     {
+      "original": {
+       "wall_s": 1.193772792816162,
+       "program_cpu_s": 2.69602500000002,
+       "foreign_cpu_cores": 1.1594065537064002,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9753789901733398,
+       "program_cpu_s": 5.881571999999949,
+       "foreign_cpu_cores": 1.1081077318007493,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 19
+     },
+     {
+      "original": {
+       "wall_s": 1.1460239887237549,
+       "program_cpu_s": 2.5899670000000583,
+       "foreign_cpu_cores": 1.1961843852619534,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 23,
+        "pstates_busy": {
+         "P2": 23
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9800746440887451,
+       "program_cpu_s": 5.5555949999999825,
+       "foreign_cpu_cores": 1.5152743818837986,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 15
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 10,
+        "pstates_busy": {
+         "P2": 10
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 20
+     },
+     {
+      "original": {
+       "wall_s": 1.21274733543396,
+       "program_cpu_s": 2.7551469999999654,
+       "foreign_cpu_cores": 1.1080461361719864,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 24,
+        "busy_samples": 6,
+        "pstates_busy": {
+         "P2": 6
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9674069881439209,
+       "program_cpu_s": 5.647159999999985,
+       "foreign_cpu_cores": 1.0873851580179696,
+       "procs_running": {
+        "median": 7,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 14
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 21
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.5390415123966463,
+    "original_pstates_busy": {
+     "P2": 201
+    },
+    "original_sm_mhz_busy_median": 1695,
+    "port_pstates_busy": {
+     "P2": 208
+    },
+    "port_sm_mhz_busy_median": 1695.0,
+    "clocks_locked_in_every_round": true
+   }
+  },
+  "local10k": {
+   "regions": [
+    {
+     "region": "compute",
+     "reading": "as measured",
+     "original_ms": 18.503,
+     "port_ms": 18.447072,
+     "ratio": 0.9969773550235096,
+     "original_spread": 0.00453980435605035,
+     "port_spread": 0.003908370932796104,
+     "original_samples": [
+      18.534,
+      18.516,
+      18.503,
+      18.493,
+      18.497,
+      18.498,
+      18.472,
+      18.475,
+      18.471,
+      18.526,
+      18.466,
+      18.506,
+      18.521,
+      18.497,
+      18.53,
+      18.509,
+      18.48,
+      18.509,
+      18.45,
+      18.515,
+      18.53
+     ],
+     "port_samples": [
+      18.465577,
+      18.414583,
+      18.475435,
+      18.422192,
+      18.450643000000003,
+      18.459248,
+      18.403337000000004,
+      18.465125,
+      18.441841000000004,
+      18.41578,
+      18.416071000000002,
+      18.439275,
+      18.45281,
+      18.454844999999995,
+      18.451527,
+      18.470039,
+      18.441986999999997,
+      18.447072,
+      18.46459,
+      18.415720999999998,
+      18.431959
+     ],
+     "gate_kind": "compute",
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj0",
+     "reading": "as measured",
+     "original_ms": 3.5,
+     "port_ms": 3.389367,
+     "ratio": 0.9683905714285714,
+     "original_spread": 0.02771428571428571,
+     "port_spread": 0.012820978076437223,
+     "original_samples": [
+      3.506,
+      3.519,
+      3.502,
+      3.501,
+      3.486,
+      3.481,
+      3.51,
+      3.495,
+      3.493,
+      3.5,
+      3.443,
+      3.494,
+      3.503,
+      3.496,
+      3.54,
+      3.501,
+      3.496,
+      3.5,
+      3.446,
+      3.497,
+      3.502
+     ],
+     "port_samples": [
+      3.398166,
+      3.371425,
+      3.392244,
+      3.389922,
+      3.370213,
+      3.396471,
+      3.375971,
+      3.390626,
+      3.372988,
+      3.354711,
+      3.398016,
+      3.383132,
+      3.392144,
+      3.37939,
+      3.389168,
+      3.390261,
+      3.374862,
+      3.390275,
+      3.390483,
+      3.381161,
+      3.389367
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 3.3831,
+     "port_device_samples": [
+      3.39184,
+      3.36496,
+      3.38566,
+      3.38374,
+      3.36394,
+      3.38976,
+      3.3696,
+      3.38448,
+      3.3664,
+      3.34842,
+      3.39152,
+      3.37683,
+      3.38598,
+      3.37315,
+      3.38285,
+      3.3841,
+      3.3687,
+      3.38387,
+      3.38416,
+      3.37485,
+      3.3831
+     ],
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj1",
+     "reading": "as measured",
+     "original_ms": 3.08,
+     "port_ms": 3.079583,
+     "ratio": 0.9998646103896104,
+     "original_spread": 0.01266233766233771,
+     "port_spread": 0.007531863891961949,
+     "original_samples": [
+      3.097,
+      3.091,
+      3.085,
+      3.068,
+      3.076,
+      3.086,
+      3.063,
+      3.062,
+      3.078,
+      3.086,
+      3.081,
+      3.081,
+      3.101,
+      3.077,
+      3.074,
+      3.089,
+      3.076,
+      3.076,
+      3.08,
+      3.075,
+      3.086
+     ],
+     "port_samples": [
+      3.079868,
+      3.070275,
+      3.083101,
+      3.064662,
+      3.081204,
+      3.086194,
+      3.079305,
+      3.08169,
+      3.069019,
+      3.087093,
+      3.063898,
+      3.075893,
+      3.083981,
+      3.079583,
+      3.07891,
+      3.081033,
+      3.08107,
+      3.085598,
+      3.07917,
+      3.072553,
+      3.071071
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 3.07302,
+     "port_device_samples": [
+      3.07328,
+      3.06387,
+      3.07667,
+      3.05808,
+      3.07475,
+      3.07987,
+      3.07302,
+      3.07533,
+      3.06275,
+      3.08077,
+      3.0576,
+      3.06944,
+      3.07734,
+      3.07302,
+      3.07261,
+      3.07414,
+      3.07472,
+      3.07894,
+      3.07296,
+      3.06634,
+      3.06454
+     ],
+     "noisy": false
+    },
+    {
+     "region": "sosp_update obj2",
+     "reading": "as measured",
+     "original_ms": 3.431,
+     "port_ms": 3.433778,
+     "ratio": 1.0008096764791607,
+     "original_spread": 0.008452346254736204,
+     "port_spread": 0.010436318247714384,
+     "original_samples": [
+      3.44,
+      3.43,
+      3.431,
+      3.442,
+      3.426,
+      3.42,
+      3.428,
+      3.434,
+      3.431,
+      3.435,
+      3.44,
+      3.436,
+      3.444,
+      3.44,
+      3.425,
+      3.424,
+      3.431,
+      3.426,
+      3.44,
+      3.449,
+      3.428
+     ],
+     "port_samples": [
+      3.433778,
+      3.423644,
+      3.443264,
+      3.426124,
+      3.436575,
+      3.430227,
+      3.408067,
+      3.436845,
+      3.441587,
+      3.432243,
+      3.423907,
+      3.4395,
+      3.428674,
+      3.436255,
+      3.435055,
+      3.435563,
+      3.430977,
+      3.428564,
+      3.443903,
+      3.434987,
+      3.432768
+     ],
+     "gate_kind": "none",
+     "port_device_ms": 3.42752,
+     "port_device_samples": [
+      3.42752,
+      3.41728,
+      3.43667,
+      3.41994,
+      3.43021,
+      3.424,
+      3.40157,
+      3.42973,
+      3.43526,
+      3.42592,
+      3.41766,
+      3.43325,
+      3.4224,
+      3.42966,
+      3.4289,
+      3.42918,
+      3.42461,
+      3.42237,
+      3.4376,
+      3.42877,
+      3.42634
+     ],
+     "noisy": false
+    },
+    {
+     "region": "combined",
+     "reading": "as measured",
+     "original_ms": 8.491,
+     "port_ms": 8.548394,
+     "ratio": 1.0067593922977272,
+     "original_spread": 0.005299729124955827,
+     "port_spread": 0.004230268281971928,
+     "original_samples": [
+      8.491,
+      8.476,
+      8.485,
+      8.483,
+      8.509,
+      8.512,
+      8.471,
+      8.484,
+      8.469,
+      8.504,
+      8.502,
+      8.495,
+      8.472,
+      8.484,
+      8.491,
+      8.495,
+      8.477,
+      8.507,
+      8.484,
+      8.493,
+      8.514
+     ],
+     "port_samples": [
+      8.553765,
+      8.549239,
+      8.556826000000001,
+      8.541484,
+      8.562650999999999,
+      8.546356,
+      8.539994,
+      8.555964,
+      8.558247,
+      8.541733,
+      8.530249999999999,
+      8.540750000000001,
+      8.548010999999999,
+      8.559617,
+      8.548394,
+      8.563182,
+      8.555077999999998,
+      8.542635,
+      8.551034,
+      8.52702,
+      8.538753
+     ],
+     "gate_kind": "none",
+     "noisy": false
+    },
+    {
+     "region": "end_to_end",
+     "reading": "as measured",
+     "original_ms": 984.73,
+     "port_ms": 869.523,
+     "ratio": 0.8830065093985153,
+     "original_spread": 0.21951397845094597,
+     "port_spread": 0.03378174010348205,
+     "original_samples": [
+      953.105,
+      916.095,
+      905.777,
+      1013.716,
+      1067.789,
+      1079.028,
+      878.245,
+      1004.385,
+      967.754,
+      1047.89,
+      1019.91,
+      1056.934,
+      905.595,
+      866.0,
+      1059.981,
+      862.866,
+      1070.411,
+      984.73,
+      1045.396,
+      960.021,
+      918.671
+     ],
+     "port_samples": [
+      858.25,
+      882.935,
+      884.625,
+      857.085,
+      867.867,
+      868.262,
+      868.363,
+      858.511,
+      867.081,
+      869.987,
+      869.523,
+      863.993,
+      875.338,
+      857.407,
+      874.919,
+      855.251,
+      875.037,
+      878.18,
+      870.509,
+      882.868,
+      880.301
+     ],
+     "gate_kind": "end_to_end",
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "region": "path_costs",
+     "reading": "as measured",
+     "original_ms": 0.0,
+     "port_ms": 29.343194,
+     "ratio": null,
+     "original_spread": 0.0,
+     "port_spread": 0.32304983567910156,
+     "original_samples": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "port_samples": [
+      28.431426,
+      29.343194,
+      29.381527,
+      27.223367,
+      27.111304,
+      32.66807,
+      29.628796,
+      35.014243,
+      32.633255,
+      30.70757,
+      28.275392,
+      35.748959,
+      27.289207,
+      29.199446,
+      27.824301,
+      27.806546,
+      28.997867,
+      27.605202,
+      32.906767,
+      29.378127,
+      36.590618
+     ],
+     "gate_kind": "none",
+     "noisy": true
+    }
+   ],
+   "invalidated": {
+    "original": [
+     97792,
+     65160,
+     89277
+    ],
+    "port": [
+     97792,
+     65160,
+     89277
+    ],
+    "equal_in_every_sample": true
+   },
+   "threads": {
+    "original": null,
+    "port": 28
+   },
+   "load_average": {
+    "min": 5.35498046875,
+    "max": 6.986328125
+   },
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 1.028860092163086,
+       "program_cpu_s": 2.4131889999999885,
+       "foreign_cpu_cores": 1.204265778567206,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9426119327545166,
+       "program_cpu_s": 5.585526999999956,
+       "foreign_cpu_cores": 1.23851604142279,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 31
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 18,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 1
+     },
+     {
+      "original": {
+       "wall_s": 0.9934196472167969,
+       "program_cpu_s": 2.364350999999999,
+       "foreign_cpu_cores": 1.4376270920955754,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9694759845733643,
+       "program_cpu_s": 5.692942999999957,
+       "foreign_cpu_cores": 1.165035563359598,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 2
+     },
+     {
+      "original": {
+       "wall_s": 0.9828341007232666,
+       "program_cpu_s": 2.3339359999999942,
+       "foreign_cpu_cores": 1.1798420495617197,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9745988845825195,
+       "program_cpu_s": 5.7898870000000215,
+       "foreign_cpu_cores": 1.2325737478050125,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 3
+     },
+     {
+      "original": {
+       "wall_s": 1.0862021446228027,
+       "program_cpu_s": 2.476011000000028,
+       "foreign_cpu_cores": 1.1735237366849298,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9417054653167725,
+       "program_cpu_s": 5.541375999999957,
+       "foreign_cpu_cores": 1.224110980927936,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 29
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 4
+     },
+     {
+      "original": {
+       "wall_s": 1.144040584564209,
+       "program_cpu_s": 2.717613999999969,
+       "foreign_cpu_cores": 1.1477258922988793,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 5,
+        "pstates_busy": {
+         "P2": 5
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9524173736572266,
+       "program_cpu_s": 5.544891000000007,
+       "foreign_cpu_cores": 1.1401146497389731,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 5
+     },
+     {
+      "original": {
+       "wall_s": 1.1526250839233398,
+       "program_cpu_s": 2.687898000000075,
+       "foreign_cpu_cores": 1.138633036759572,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9526572227478027,
+       "program_cpu_s": 5.872263999999916,
+       "foreign_cpu_cores": 1.0483120002522333,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 6
+     },
+     {
+      "original": {
+       "wall_s": 0.952296257019043,
+       "program_cpu_s": 2.281649000000016,
+       "foreign_cpu_cores": 1.2095668681122813,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9530560970306396,
+       "program_cpu_s": 5.883330999999998,
+       "foreign_cpu_cores": 1.2252615581324375,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 29
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 7
+     },
+     {
+      "original": {
+       "wall_s": 1.0797460079193115,
+       "program_cpu_s": 2.4805000000000064,
+       "foreign_cpu_cores": 1.5572421545156772,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 2.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9442574977874756,
+       "program_cpu_s": 5.698522000000025,
+       "foreign_cpu_cores": 0.9146530497223182,
+       "procs_running": {
+        "median": 4.5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 8
+     },
+     {
+      "original": {
+       "wall_s": 1.041191577911377,
+       "program_cpu_s": 2.4284529999999904,
+       "foreign_cpu_cores": 1.1849826927883604,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9530270099639893,
+       "program_cpu_s": 5.672307999999987,
+       "foreign_cpu_cores": 1.3002726980544432,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 9
+     },
+     {
+      "original": {
+       "wall_s": 1.122365951538086,
+       "program_cpu_s": 2.645451000000037,
+       "foreign_cpu_cores": 1.3765171661829079,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9556360244750977,
+       "program_cpu_s": 5.810486999999966,
+       "foreign_cpu_cores": 1.1434751013344635,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 10
+     },
+     {
+      "original": {
+       "wall_s": 1.0934834480285645,
+       "program_cpu_s": 2.513663000000008,
+       "foreign_cpu_cores": 1.1407955022807565,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 4,
+        "pstates_busy": {
+         "P2": 4
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9558396339416504,
+       "program_cpu_s": 5.67827299999999,
+       "foreign_cpu_cores": 1.0824734211090072,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 11
+     },
+     {
+      "original": {
+       "wall_s": 1.130739450454712,
+       "program_cpu_s": 2.6722239999999715,
+       "foreign_cpu_cores": 1.1658830858394218,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 22,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9500904083251953,
+       "program_cpu_s": 5.785675000000026,
+       "foreign_cpu_cores": 1.1033739425655096,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 1,
+        "pstates_busy": {
+         "P2": 1
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 12
+     },
+     {
+      "original": {
+       "wall_s": 0.9797060489654541,
+       "program_cpu_s": 2.336127000000033,
+       "foreign_cpu_cores": 1.1909551857774379,
+       "procs_running": {
+        "median": 3.5,
+        "min": 3,
+        "max": 9
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9613704681396484,
+       "program_cpu_s": 5.7150009999999725,
+       "foreign_cpu_cores": 1.5545516010483198,
+       "procs_running": {
+        "median": 5,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 13
+     },
+     {
+      "original": {
+       "wall_s": 0.9403886795043945,
+       "program_cpu_s": 2.2324050000000284,
+       "foreign_cpu_cores": 1.1593227604840246,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9422638416290283,
+       "program_cpu_s": 5.600369999999998,
+       "foreign_cpu_cores": 1.2567233789160117,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 28
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 14
+     },
+     {
+      "original": {
+       "wall_s": 1.1337299346923828,
+       "program_cpu_s": 2.6765100000000075,
+       "foreign_cpu_cores": 1.1228776447129059,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9599418640136719,
+       "program_cpu_s": 5.746838000000025,
+       "foreign_cpu_cores": 1.266777756063871,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 10
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 15
+     },
+     {
+      "original": {
+       "wall_s": 0.936265230178833,
+       "program_cpu_s": 2.241166000000021,
+       "foreign_cpu_cores": 1.1572853128851184,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 19,
+        "pstates_busy": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9405055046081543,
+       "program_cpu_s": 5.5604900000000725,
+       "foreign_cpu_cores": 1.0770771621086515,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 18,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 16
+     },
+     {
+      "original": {
+       "wall_s": 1.144866943359375,
+       "program_cpu_s": 2.71238900000003,
+       "foreign_cpu_cores": 1.1686659380451727,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9599406719207764,
+       "program_cpu_s": 5.586900999999898,
+       "foreign_cpu_cores": 1.277019544990982,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 12
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 1,
+        "pstates_busy": {
+         "P2": 1
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 17
+     },
+     {
+      "original": {
+       "wall_s": 1.057525873184204,
+       "program_cpu_s": 2.482311000000095,
+       "foreign_cpu_cores": 1.1623498107740249,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 11,
+        "pstates_busy": {
+         "P2": 11
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9633581638336182,
+       "program_cpu_s": 5.788112999999953,
+       "foreign_cpu_cores": 1.1577428227599154,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 18
+     },
+     {
+      "original": {
+       "wall_s": 1.120143175125122,
+       "program_cpu_s": 2.642086000000063,
+       "foreign_cpu_cores": 1.140570266239122,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 23,
+        "busy_samples": 3,
+        "pstates_busy": {
+         "P2": 3
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9555156230926514,
+       "program_cpu_s": 5.851137999999992,
+       "foreign_cpu_cores": 1.1418829525388958,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 26
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 2,
+        "pstates_busy": {
+         "P2": 2
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 19
+     },
+     {
+      "original": {
+       "wall_s": 1.0354502201080322,
+       "program_cpu_s": 2.4181559999999536,
+       "foreign_cpu_cores": 1.1620829058016442,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 21,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 21
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.9680039882659912,
+       "program_cpu_s": 5.536727000000042,
+       "foreign_cpu_cores": 1.172449716218732,
+       "procs_running": {
+        "median": 4,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 20
+     },
+     {
+      "original": {
+       "wall_s": 0.9918050765991211,
+       "program_cpu_s": 2.3415370000000166,
+       "foreign_cpu_cores": 1.1512806567953364,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 11
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 19,
+        "busy_samples": 0,
+        "pstates": {
+         "P2": 19
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 0.965465784072876,
+       "program_cpu_s": 5.786781000000019,
+       "foreign_cpu_cores": 1.1130917497908772,
+       "procs_running": {
+        "median": 4.0,
+        "min": 3,
+        "max": 30
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 20,
+        "busy_samples": 14,
+        "pstates_busy": {
+         "P2": 14
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "round": 21
+     }
+    ],
+    "rejected": [
+     {
+      "before_round": 20,
+      "reasons": [
+       "port: foreign CPU load 2.30 cores > 2.0"
+      ],
+      "windows": {
+       "original": {
+        "wall_s": 1.046919584274292,
+        "program_cpu_s": 2.4769450000000006,
+        "foreign_cpu_cores": 1.6571435138325268,
+        "procs_running": {
+         "median": 4.0,
+         "min": 3,
+         "max": 14
+        },
+        "foreign_runnable": {
+         "median": 1.0,
+         "min": 1,
+         "max": 4
+        },
+        "gpu": {
+         "samples": 21,
+         "busy_samples": 21,
+         "pstates_busy": {
+          "P2": 21
+         },
+         "sm_mhz": {
+          "median": 1695,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": false,
+        "reasons": []
+       },
+       "port": {
+        "wall_s": 0.9680500030517578,
+        "program_cpu_s": 5.646162000000004,
+        "foreign_cpu_cores": 2.2980961641652438,
+        "procs_running": {
+         "median": 4.0,
+         "min": 4,
+         "max": 31
+        },
+        "foreign_runnable": {
+         "median": 2.0,
+         "min": 2,
+         "max": 7
+        },
+        "gpu": {
+         "samples": 19,
+         "busy_samples": 9,
+         "pstates_busy": {
+          "P2": 9
+         },
+         "sm_mhz": {
+          "median": 1695,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": true,
+        "reasons": [
+         "foreign CPU load 2.30 cores > 2.0"
+        ]
+       }
+      }
+     },
+     {
+      "before_round": 20,
+      "reasons": [
+       "original: foreign CPU load 2.36 cores > 2.0",
+       "port: foreign CPU load 2.62 cores > 2.0"
+      ],
+      "windows": {
+       "original": {
+        "wall_s": 1.4281651973724365,
+        "program_cpu_s": 2.706491999999912,
+        "foreign_cpu_cores": 2.355097299695611,
+        "procs_running": {
+         "median": 5.0,
+         "min": 3,
+         "max": 12
+        },
+        "foreign_runnable": {
+         "median": 2.0,
+         "min": 1,
+         "max": 6
+        },
+        "gpu": {
+         "samples": 28,
+         "busy_samples": 0,
+         "pstates": {
+          "P2": 28
+         },
+         "sm_mhz": {
+          "median": 1695.0,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601.0,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": true,
+        "reasons": [
+         "foreign CPU load 2.36 cores > 2.0"
+        ]
+       },
+       "port": {
+        "wall_s": 1.0145847797393799,
+        "program_cpu_s": 6.356969000000049,
+        "foreign_cpu_cores": 2.6155576668625624,
+        "procs_running": {
+         "median": 5.0,
+         "min": 4,
+         "max": 31
+        },
+        "foreign_runnable": {
+         "median": 2.5,
+         "min": 2,
+         "max": 3
+        },
+        "gpu": {
+         "samples": 21,
+         "busy_samples": 16,
+         "pstates_busy": {
+          "P2": 16
+         },
+         "sm_mhz": {
+          "median": 1695.0,
+          "min": 1695,
+          "max": 1695
+         },
+         "memory_mhz": {
+          "median": 7601.0,
+          "min": 7601,
+          "max": 7601
+         },
+         "foreign_processes": [],
+         "clocks_locked": true
+        },
+        "contaminated": true,
+        "reasons": [
+         "foreign CPU load 2.62 cores > 2.0"
+        ]
+       }
+      }
+     }
+    ],
+    "foreign_cpu_cores_max": 1.5572421545156772,
+    "original_pstates_busy": {
+     "P2": 198
+    },
+    "original_sm_mhz_busy_median": 1695.0,
+    "port_pstates_busy": {
+     "P2": 232
+    },
+    "port_sm_mhz_busy_median": 1695,
+    "clocks_locked_in_every_round": true
+   }
+  }
+ },
+ "objectives": 3,
+ "preferences": "default (all 1)",
+ "cuda_engine": "automatic"
+}
