@@ -1,6 +1,6 @@
 # Getting help
 
-dynG is pre-alpha and maintained by a small team in its spare research time. Help is given in
+dynG is alpha software (0.1 release candidate) and maintained by a small team in its spare research time. Help is given in
 public, so that answers are found by the next person with the same question.
 
 | You want to | Go to |

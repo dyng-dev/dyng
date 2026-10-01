@@ -1,8 +1,9 @@
 # sssp: dynamic single-source shortest paths
 
-Maturity: **experimental** (sequential and OpenMP backends since M1a, the CUDA backend with the
-fused engine since M1b, the Python binding and the `dyng sssp` command line since M5, the CUDA
-operators engine since M7, for 0.2).
+Maturity: **stable** from 0.1.0 (SemVer applies; sequential and OpenMP backends since M1a, the
+CUDA backend with the fused engine since M1b, the Python binding and the `dyng sssp` command line
+since M5, the benchmark-suite record `benchmarks/paper/ipdps25_dynamosp_sosp.yaml` since 0.1.0rc1,
+the CUDA operators engine since M7, for 0.2).
 Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md)).
 

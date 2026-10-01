@@ -10,6 +10,8 @@ import shutil
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[2]
 
 
@@ -142,6 +144,9 @@ def test_scaffold_and_remove_round_trip(tmp_path: Path) -> None:
     assert "`dynamic_kcore`" in (root / "README.md").read_text()
     assert "struct dynamic_kcore;" in (root / "cpp/tests/conformance/registry.hpp").read_text()
     assert "/cpp/src/algorithms/dynamic_kcore/" in (root / ".github/CODEOWNERS").read_text()
+    changelog = (root / "CHANGELOG.md").read_text()
+    entry = new_algorithm.changelog_line("dynamic_kcore", "fixed_point")
+    assert f"## [Unreleased]\n\n### Added\n\n{entry}" in changelog
     # A second scaffold of the same name is refused.
     assert new_algorithm.main(args) == 2
     assert new_algorithm.main(["dynamic_kcore", "--remove", "--root", str(root)]) == 0
@@ -248,3 +253,26 @@ def test_a_manifest_must_list_the_backends_its_folder_implements(tmp_path: Path)
         raise AssertionError("a manifest without its openmp backend was accepted")
     assert "openmp.cpp exists but `backends` does not list `openmp`" in message
     assert regen.main(["--check", "--root", str(root)]) == 2
+
+
+def test_the_changelog_entry_goes_under_unreleased_in_every_state(tmp_path: Path) -> None:
+    line = new_algorithm.changelog_line("dynamic_bfs", "fixed_point")
+    release = "## [0.1.0rc1] - 2026-10-01\n\n### Summary\n\nText.\n"
+    states = {
+        "empty after a release": "# Changelog\n\n## [Unreleased]\n\n" + release,
+        "with Added": "# Changelog\n\n## [Unreleased]\n\n### Added\n\n- x\n\n" + release,
+        "with Fixed only": "# Changelog\n\n## [Unreleased]\n\n### Fixed\n\n- y\n\n" + release,
+    }
+    for what, text in states.items():
+        (tmp_path / "CHANGELOG.md").write_text(text)
+        new_algorithm.add_changelog(tmp_path, line)
+        got = (tmp_path / "CHANGELOG.md").read_text()
+        assert got.split("## [0.1.0rc1]")[0].count(line) == 1, what
+        assert f"### Added\n\n{line}" in got, what
+        new_algorithm.add_changelog(tmp_path, line)  # idempotent
+        assert (tmp_path / "CHANGELOG.md").read_text() == got, what
+        new_algorithm.remove_changelog(tmp_path, line)
+        assert (tmp_path / "CHANGELOG.md").read_text() == text, what
+    (tmp_path / "CHANGELOG.md").write_text("# Changelog\n\n" + release)
+    with pytest.raises(SystemExit, match="Unreleased"):
+        new_algorithm.add_changelog(tmp_path, line)

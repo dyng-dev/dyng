@@ -1,0 +1,7 @@
+# Copy of $DYNG_SCRATCH/runs/r010/final3/docs.log (sha256 195a3e00db82872a84aa5b1afaacb707fd13a184106e436d8a869b0a2eba6ce4, 324 bytes), written by parity/certify.py check.
+doxygen-coverage: OK (119 compounds checked)
+doc-snippets: OK (6 snippets)
+api-snapshot: OK (627 declarations match public_api.txt)
+Doxygen XML written to build/doxygen/xml
+Documentation site written to build/docs/html/index.html
+docs_links: OK (repository URLs in 1519 files, relative links and anchors of build/docs/html)

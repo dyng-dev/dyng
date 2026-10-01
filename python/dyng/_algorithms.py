@@ -11,13 +11,13 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "title": "Dynamic single-source shortest paths",
         "since": "0.1",
         "container": "graph",
-        "maturity": "experimental",
+        "maturity": "stable",
     },
     "cycle_count": {
         "title": "Exact k-bounded directed simple-cycle histograms",
         "since": "0.1",
         "container": "graph",
-        "maturity": "experimental",
+        "maturity": "stable",
     },
     "mosp": {
         "title": "Dynamic multi-objective shortest paths",

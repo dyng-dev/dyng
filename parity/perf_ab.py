@@ -138,6 +138,7 @@ import csv
 import datetime
 import fcntl
 import filecmp
+import hashlib
 import json
 import os
 import platform
@@ -239,6 +240,50 @@ def reference_copy(name: str) -> Path:
 
 def check_call(cmd: list, **kw) -> None:
     subprocess.run([str(c) for c in cmd], check=True, **kw)
+
+
+def driver_versions() -> dict:
+    """The NVIDIA driver and the CUDA driver API version (nvidia-smi) when the record is taken;
+    None for each where no driver is visible (PLAN 8.5 item 2: the record names the driver)."""
+    out = {"nvidia": None, "cuda_driver_api": None}
+    if not shutil.which("nvidia-smi"):
+        return out
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        rows = subprocess.run(
+            ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        ).stdout.split()
+        out["nvidia"] = rows[0] if rows else None
+        banner = subprocess.run(["nvidia-smi"], capture_output=True, text=True, timeout=60).stdout
+        m = re.search(r"CUDA Version:\s*([0-9.]+)", banner)
+        out["cuda_driver_api"] = m.group(1) if m else None
+    return out
+
+
+def hash_inputs(data: Path) -> list[str]:
+    """SHA-256 of every input file that `prepare` listed in <data>/INPUTS.sha256, computed now
+    (when a measurement starts), in the same "<digest>  <path>" lines; exit if a file differs
+    from what `prepare` recorded or is missing."""
+    listed = (data / "INPUTS.sha256").read_text().splitlines()
+    lines = []
+    for line in listed:
+        if not line.strip():
+            continue
+        want, rel = line.split(None, 1)
+        rel = rel.strip()
+        path = data / rel
+        if not path.is_file():
+            raise SystemExit(f"{path}: missing (listed in INPUTS.sha256)")
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        if h.hexdigest() != want:
+            raise SystemExit(f"{path}: SHA-256 {h.hexdigest()}, INPUTS.sha256 says {want}")
+        lines.append(f"{h.hexdigest()}  {rel}")
+    return lines
 
 
 def cpu_model() -> str:
@@ -1298,6 +1343,8 @@ def run(args: argparse.Namespace) -> int:
     reference = REFERENCES[args.backend]
     exe, build = check_port_build(args)
     data, k = bench_inputs(args.graph)
+    # The inputs as measured: hashed now, before the first round (not prepare's digests).
+    args.inputs_sha256 = hash_inputs(data)
     env, port_args = run_env(args)
     baseline = args.baseline_exe.resolve() if args.baseline_exe else None
     if baseline is not None:
@@ -1702,6 +1749,8 @@ def mosp_ab(args: argparse.Namespace) -> int:
     reference = REFERENCES[args.backend]
     exe, build = check_port_build(args)
     data, k_graph = bench_inputs(args.graph)
+    # The inputs as measured: hashed now, before the first round (as `run`).
+    args.inputs_sha256 = hash_inputs(data)
     k = min(args.objectives, k_graph) if args.objectives else k_graph
     if args.no_output or k < k_graph:
         # mosp::update() computes no path costs then (dyng-compat-mosp: --no-output, or -k below
@@ -2048,6 +2097,16 @@ def port_commit() -> str:
     return head + ("+dirty" if dirty else "")
 
 
+def inputs_fields(args) -> dict:
+    """The record's input digests: hashed when the run started (hash_inputs), else (a record of
+    an older kind) the digests `prepare` wrote, marked as such."""
+    hashed = getattr(args, "inputs_sha256", None)
+    if hashed is not None:
+        return {"inputs_sha256": hashed, "inputs_hashed": "run start"}
+    listed = (SCRATCH / "bench" / "mosp" / args.graph / "INPUTS.sha256").read_text().splitlines()
+    return {"inputs_sha256": listed, "inputs_hashed": "prepare"}
+
+
 def write_json(
     args,
     results,
@@ -2127,9 +2186,8 @@ def write_json(
             "short_regions": f"< {SHORT_REGION_MS} ms need >= {SHORT_REGION_RUNS} runs",
         },
         "host": {"cpu": cpu_model(), "logical_cpus": os.cpu_count(), "kernel": platform.release()},
-        "inputs_sha256": (SCRATCH / "bench" / "mosp" / args.graph / "INPUTS.sha256")
-        .read_text()
-        .splitlines(),
+        "driver": driver_versions(),
+        **inputs_fields(args),
         "results": results,
     }
     if extra:
@@ -2148,6 +2206,7 @@ def memory(args: argparse.Namespace) -> int:
 
     exe, build = check_port_build(args)
     data, k = bench_inputs(args.graph)
+    args.inputs_sha256 = hash_inputs(data)
     reference = REFERENCES["cuda"]
     build_reference(reference["name"])
     ref = reference_copy(reference["name"])
@@ -2193,6 +2252,8 @@ def memory(args: argparse.Namespace) -> int:
             "reference": {"name": reference["name"], "binary": portable_path(ref / "bin" / "mosp")},
             "port": {"commit": port_commit(), "binary": portable_path(exe), "build": build},
             "gpu": args.gpu,
+            "driver": driver_versions(),
+            **inputs_fields(args),
             "results": results,
         }
         args.json.parent.mkdir(parents=True, exist_ok=True)

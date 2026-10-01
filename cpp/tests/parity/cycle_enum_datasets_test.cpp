@@ -18,6 +18,7 @@
 #include "support/cycle_enum_text.hpp"
 #include "support/data_paths.hpp"
 
+#include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
@@ -90,6 +91,13 @@ std::vector<digest_line> read_digests() {
   return out;
 }
 
+/// OpenMP when this build has it, else the sequential backend (the tsan preset builds without
+/// OpenMP); the graphs and the applied batches are the same on every backend.
+dyng::resources host_resources() {
+  return dyng::backend_available(dyng::backend::openmp) ? dyng::resources::openmp()
+                                                        : dyng::resources::sequential();
+}
+
 class CycleEnumDatasets : public ::testing::Test {
  protected:
   /// The cycle_enum_compatible() graph of a dataset (read once per test program).
@@ -98,9 +106,8 @@ class CycleEnumDatasets : public ::testing::Test {
     auto& slot = cache[path];
     if (!slot) {
       const auto edges = dyng::io::read_edge_list<std::int32_t, unweighted>(path);
-      slot = std::make_unique<graph_t>(
-          graph_t::from_edges(dyng::resources::openmp(), edges.view(),
-                              dyng::graph_properties::cycle_enum_compatible()));
+      slot = std::make_unique<graph_t>(graph_t::from_edges(
+          host_resources(), edges.view(), dyng::graph_properties::cycle_enum_compatible()));
     }
     return slot.get();
   }
@@ -146,7 +153,7 @@ TEST_F(CycleEnumDatasets, DigestsEqualTheOriginal) {
       const auto b = dyng::generators::legacy::cycle_enum_batch(graph_of(path)->view().out, opt);
       text = dyng::test::batch_text(b.delete_src(), b.delete_dst(), b.insert_src(), b.insert_dst());
     } else if (d.what == "apply-generated") {
-      const auto res = dyng::resources::openmp();
+      const auto res = host_resources();
       auto g = graph_of(path)->clone(res);
       const auto b = dyng::generators::legacy::cycle_enum_batch(g.view().out, opt);
       dyng::detail::apply_delta<std::int32_t> delta;

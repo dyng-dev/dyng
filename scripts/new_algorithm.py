@@ -196,12 +196,39 @@ def changelog_line(name: str, family: str) -> str:
     )
 
 
+UNRELEASED = "## [Unreleased]\n\n"
+ADDED = "### Added\n\n"
+
+
 def add_changelog(root: Path, line: str) -> None:
+    """Add `line` under "### Added" of the CHANGELOG's "## [Unreleased]" section, creating the
+    subsection when the section has none (as after a release); exit if there is no such
+    section."""
     path = root / "CHANGELOG.md"
     text = path.read_text(encoding="utf-8")
-    anchor = "## [Unreleased]\n\n### Added\n\n"
-    if anchor in text and line not in text:
-        path.write_text(text.replace(anchor, anchor + line, 1), encoding="utf-8")
+    if line in text:
+        return
+    if UNRELEASED not in text:
+        raise SystemExit(f"{path}: no '## [Unreleased]' section for the entry (--no-changelog)")
+    head, rest = text.split(UNRELEASED, 1)
+    if rest.startswith(ADDED):
+        rest = ADDED + line + rest[len(ADDED) :]
+    else:
+        rest = ADDED + line + "\n" + rest
+    path.write_text(head + UNRELEASED + rest, encoding="utf-8")
+
+
+def remove_changelog(root: Path, line: str) -> None:
+    """Remove `line`, and the "### Added" subsection of "## [Unreleased]" if it is left empty."""
+    path = root / "CHANGELOG.md"
+    text = path.read_text(encoding="utf-8").replace(line, "")
+    text = re.sub(
+        r"(?m)^(## \[Unreleased\]\n\n)### Added\n\n(?:\n(?=## |### )|(?=## |### ))",
+        r"\1",
+        text,
+        count=1,
+    )
+    path.write_text(text, encoding="utf-8")
 
 
 def _planned_blocks(text: str) -> list[str]:
@@ -391,9 +418,7 @@ def remove(args: argparse.Namespace, root: Path) -> int:
     remove_subdirectory(root, name)
     remove_api_page(root, name)
     restored = restore_planned(root, manifest_text)
-    changelog = root / "CHANGELOG.md"
-    text = changelog.read_text(encoding="utf-8")
-    changelog.write_text(text.replace(changelog_line(name, family), ""), encoding="utf-8")
+    remove_changelog(root, changelog_line(name, family))
     status = 0 if args.no_regen else run_regen(root)
     print(f"new_algorithm.py: removed {name}")
     if restored:

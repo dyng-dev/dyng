@@ -11,15 +11,20 @@ platform tag, e.g. ``manylinux_2_28_x86_64``), the contents (the extension modul
 runtime bundled by auditwheel under ``dyng.libs/``. For every sdist: the files a source build
 needs (``VERSION``, ``pyproject.toml``, ``CMakeLists.txt``, ``cpp/``, ``python/``) and none of the
 excluded trees (``parity/``, ``.github/``, ...) or repository-only files (the CC-BY-SA-4.0 Code
-of Conduct, governance and tool configuration), and its size. ``VERSION`` must be a canonical
+of Conduct, governance and tool configuration), and its size. Both kinds carry the licence
+metadata the author decided on 2026-09-30 (GOVERNANCE.md): ``License-Expression:``
+:data:`LICENSE_EXPRESSION` in ``METADATA`` / ``PKG-INFO`` (which ``pyproject.toml``'s ``license``
+must equal) and a ``License-File:`` line for every licence file. ``VERSION`` must be a canonical
 PEP 440 version (the distributions carry the normalised form, so any other spelling would give
-file names that no check expects).
+file names that no check expects). ``--release-metadata`` checks ``VERSION``, ``CHANGELOG.md``
+and ``CITATION.cff`` against each other (:func:`check_release_metadata`).
 
 Usage::
 
     python3 ci/wheel_check.py dist/*.whl dist/*.tar.gz --platform manylinux_2_28_x86_64 \\
         --require-libgomp
     python3 ci/wheel_check.py --version-info   # "<VERSION> <pre-release: true|false>"
+    python3 ci/wheel_check.py --release-metadata [--release-date today]
     python3 ci/wheel_check.py --self-test
 
 Exit status 0 when every file passes; the report lists each check.
@@ -28,11 +33,13 @@ Exit status 0 when every file passes; the report lists each check.
 from __future__ import annotations
 
 import argparse
+import datetime
 import io
 import re
 import sys
 import tarfile
 import tempfile
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -67,6 +74,13 @@ SDIST_FORBIDDEN_FILES = (
 )
 #: The licence files every distribution carries (pyproject.toml's license-files).
 LICENSE_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_LICENSES.txt")
+#: The SPDX licence expression of the distributions (core metadata 2.4, PEP 639): dynG's
+#: Apache-2.0 and the licences of what the wheel bundles or links statically
+#: (THIRD_PARTY_LICENSES.txt: nanobind, robin-map, the GCC runtime). The author's decision of
+#: 2026-09-30 (GOVERNANCE.md, approvals log); pyproject.toml's `license` must be this string.
+LICENSE_EXPRESSION = (
+    "Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1"
+)
 
 #: A canonical PEP 440 public version (what packaging.version.Version(v) prints back unchanged),
 #: without epoch and local part: 0.1.0, 0.1.0rc1, 0.1.0.post1, 0.1.0.dev0.
@@ -92,6 +106,100 @@ def version() -> str:
     return canonical_version((ROOT / "VERSION").read_text().strip())[0]
 
 
+#: The repository whose CHANGELOG link references are checked.
+REPOSITORY_URL = "https://github.com/dyng-dev/dyng"
+
+
+def _cff_field(text: str, key: str) -> str | None:
+    """A top-level scalar of CITATION.cff (``key: value`` at column 0, quotes removed)."""
+    m = re.search(rf"(?m)^{re.escape(key)}:\s*\"?([^\"\n]*?)\"?\s*$", text)
+    return m.group(1) if m else None
+
+
+def check_release_metadata(root: Path = ROOT, release_date: str | None = None) -> list[str]:
+    """The failed checks of VERSION, CHANGELOG.md and CITATION.cff against each other
+    (docs/developer/release.md, steps 5, 6 and 9). For a release or a release candidate:
+    CITATION.cff's ``version`` is VERSION; CHANGELOG.md has an ``## [Unreleased]`` section and
+    under it ``## [VERSION] - <date>`` with ``<date>`` CITATION.cff's ``date-released``; the link
+    references ``[Unreleased]: .../compare/vVERSION...main`` and ``[VERSION]: .../vVERSION``
+    exist. With ``release_date`` (YYYY-MM-DD; the day of the tag), the date must be that day.
+    Between releases (a ``.devN`` VERSION) the last release is checked the same way: CITATION.cff
+    names it, and the CHANGELOG has its section with the same date."""
+    errors: list[str] = []
+    try:
+        v, _ = canonical_version((root / "VERSION").read_text().strip())
+    except ValueError as e:
+        return [str(e)]
+    cff = (root / "CITATION.cff").read_text()
+    changelog = (root / "CHANGELOG.md").read_text()
+    cited, date = _cff_field(cff, "version"), _cff_field(cff, "date-released")
+    dev = re.search(r"\.dev\d+$", v) is not None
+    release = cited if dev else v
+    if not dev and cited != v:
+        errors.append(f"CITATION.cff: version {cited}, VERSION is {v}")
+    if date is None or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        errors.append(f"CITATION.cff: date-released {date!r} is not YYYY-MM-DD")
+    headings = re.findall(r"(?m)^## \[([^\]]+)\](?: - (\S+))?\s*$", changelog)
+    names = [h[0] for h in headings]
+    if not names or names[0] != "Unreleased":
+        errors.append("CHANGELOG.md: the first section must be '## [Unreleased]'")
+    found = [d for name, d in headings if name == release]
+    if len(found) != 1:
+        errors.append(f"CHANGELOG.md: {len(found)} sections '## [{release}] - <date>' (want 1)")
+    elif found[0] != date:
+        errors.append(
+            f"CHANGELOG.md: '## [{release}] - {found[0]}', CITATION.cff date-released {date}"
+        )
+    elif names.index(release) != 1:
+        errors.append(f"CHANGELOG.md: '## [{release}]' must follow '## [Unreleased]'")
+    if not dev:
+        links = {
+            "Unreleased": f"[Unreleased]: {REPOSITORY_URL}/compare/v{v}...main",
+            v: f"[{v}]: {REPOSITORY_URL}/",
+        }
+        for name, prefix in links.items():
+            line = next((x for x in changelog.splitlines() if x.startswith(f"[{name}]: ")), None)
+            if (
+                line is None
+                or not line.startswith(prefix)
+                or (name == v and not line.rstrip().endswith(f"v{v}"))
+            ):
+                errors.append(f"CHANGELOG.md: link reference {line!r}, want {prefix}...")
+    if release_date is not None and date != release_date:
+        errors.append(
+            f"the release date {date} (CHANGELOG.md, CITATION.cff) is not the day of the tag "
+            f"{release_date}: fix both in a small pull request first"
+        )
+    return errors
+
+
+def check_pyproject(path: Path = ROOT / "pyproject.toml") -> list[str]:
+    """The failed checks of pyproject.toml's licence metadata (empty if it passes)."""
+    project = tomllib.loads(path.read_text())["project"]
+    errors: list[str] = []
+    if project.get("license") != LICENSE_EXPRESSION:
+        errors.append(
+            f"pyproject.toml: license = {project.get('license')!r}, expected {LICENSE_EXPRESSION!r}"
+        )
+    return errors
+
+
+def check_metadata(text: str, where: str) -> list[str]:
+    """The failed checks of a core-metadata file (a wheel's METADATA, an sdist's PKG-INFO)."""
+    errors: list[str] = []
+    headers = text.split("\n\n", 1)[0]
+    expressions = re.findall(r"^License-Expression: (.*)$", headers, re.M)
+    if expressions != [LICENSE_EXPRESSION]:
+        errors.append(f"{where}: License-Expression {expressions} != [{LICENSE_EXPRESSION!r}]")
+    if re.search(r"^License: ", headers, re.M):
+        errors.append(f"{where}: a legacy License: field next to License-Expression")
+    files = set(re.findall(r"^License-File: (.*)$", headers, re.M))
+    for lic in LICENSE_FILES:
+        if lic not in files:
+            errors.append(f"{where}: no License-File: {lic}")
+    return errors
+
+
 def check_wheel(
     path: Path, *, platform: str | None, require_libgomp: bool, expect_version: str
 ) -> list[str]:
@@ -114,6 +222,8 @@ def check_wheel(
         entry_text = z.read(entry).decode() if entry else ""
         wheel_meta = next((n for n in names if n.endswith(".dist-info/WHEEL")), None)
         wheel_text = z.read(wheel_meta).decode() if wheel_meta else ""
+        meta = next((n for n in names if n.endswith(".dist-info/METADATA")), None)
+        meta_text = z.read(meta).decode() if meta else ""
     for required in (
         "dyng/_core.abi3.so",
         "dyng/__init__.py",
@@ -131,6 +241,10 @@ def check_wheel(
         errors.append("entry_points.txt has no console script dyng = dyng.cli:main")
     if "Root-Is-Purelib: false" not in wheel_text:
         errors.append("WHEEL: expected Root-Is-Purelib: false (a platform wheel)")
+    if meta is None:
+        errors.append("missing .dist-info/METADATA")
+    else:
+        errors += check_metadata(meta_text, "METADATA")
     libgomp = [n for n in names if re.match(r"dyng\.libs/libgomp[-.]", n)]
     if require_libgomp and not libgomp:
         errors.append("the OpenMP runtime is not bundled (dyng.libs/libgomp-*.so*)")
@@ -151,7 +265,13 @@ def check_sdist(path: Path, *, expect_version: str) -> list[str]:
         errors.append(f"the file name is not dyng-{expect_version}.tar.gz")
     with tarfile.open(path) as t:
         names = [n[len(top) :] for n in t.getnames() if n.startswith(top)]
+        pkg_info = t.extractfile(f"{top}PKG-INFO") if f"{top}PKG-INFO" in t.getnames() else None
+        pkg_info_text = pkg_info.read().decode() if pkg_info else ""
     present = set(names)
+    if pkg_info is None:
+        errors.append("missing PKG-INFO")
+    else:
+        errors += check_metadata(pkg_info_text, "PKG-INFO")
     for required in SDIST_REQUIRED:
         if required not in present:
             errors.append(f"missing {required}")
@@ -179,6 +299,9 @@ def run(paths: list[Path], *, platform: str | None, require_libgomp: bool) -> in
     if not paths:
         print("wheel_check: no files given", file=sys.stderr)
         return 1
+    for e in check_pyproject():
+        print(f"wheel_check: {e}", file=sys.stderr)
+        failed += 1
     for p in paths:
         if p.name.endswith(".whl"):
             errors = check_wheel(
@@ -211,6 +334,12 @@ def _self_test() -> int:
             return p
 
         info = f"dyng-{v}.dist-info"
+        good_meta = (
+            f"Metadata-Version: 2.4\nName: dyng\nVersion: {v}\n"
+            f"License-Expression: {LICENSE_EXPRESSION}\n"
+            + "".join(f"License-File: {lic}\n" for lic in LICENSE_FILES)
+            + "\n# dyng\n\nLicense: words in the description do not count\n"
+        )
         good_files = {
             "dyng/_core.abi3.so": "x",
             "dyng/__init__.py": "",
@@ -224,6 +353,7 @@ def _self_test() -> int:
             f"{info}/licenses/THIRD_PARTY_LICENSES.txt": "",
             f"{info}/entry_points.txt": "[console_scripts]\ndyng = dyng.cli:main\n",
             f"{info}/WHEEL": "Wheel-Version: 1.0\nRoot-Is-Purelib: false\n",
+            f"{info}/METADATA": good_meta,
         }
         plat = "manylinux_2_28_x86_64"
         good = wheel(f"dyng-{v}-cp312-abi3-{plat}.whl", good_files)
@@ -236,6 +366,21 @@ def _self_test() -> int:
             "no third-party licences": {
                 k: x for k, x in good_files.items() if "THIRD_PARTY" not in k
             },
+            "no METADATA": {k: x for k, x in good_files.items() if not k.endswith("METADATA")},
+            "Apache-2.0 only": {
+                **good_files,
+                f"{info}/METADATA": good_meta.replace(LICENSE_EXPRESSION, "Apache-2.0"),
+            },
+            "legacy License field": {
+                **good_files,
+                f"{info}/METADATA": good_meta.replace("Name:", "License: Apache\nName:"),
+            },
+            "no License-File of the third-party licences": {
+                **good_files,
+                f"{info}/METADATA": good_meta.replace(
+                    "License-File: THIRD_PARTY_LICENSES.txt\n", ""
+                ),
+            },
         }
         for label, files in cases.items():
             bad = wheel(f"dyng-{v}-cp312-abi3-{plat}.whl", files)
@@ -245,11 +390,14 @@ def _self_test() -> int:
         wrong_abi = wheel(f"dyng-{v}-cp313-cp313-{plat}.whl", good_files)
         assert check_wheel(wrong_abi, platform=plat, require_libgomp=True, expect_version=v)
 
-        def sdist(files: list[str]) -> Path:
+        def sdist(files: list[str], pkg_info: str | None = good_meta) -> Path:
             p = d / f"dyng-{v}.tar.gz"
+            contents = {n: "x" for n in files}
+            if pkg_info is not None:
+                contents["PKG-INFO"] = pkg_info
             with tarfile.open(p, "w:gz") as t:
-                for n in files:
-                    data = b"x"
+                for n, text in contents.items():
+                    data = text.encode()
                     ti = tarfile.TarInfo(f"dyng-{v}/{n}")
                     ti.size = len(data)
                     t.addfile(ti, io.BytesIO(data))
@@ -266,6 +414,13 @@ def _self_test() -> int:
         assert check_sdist(sdist([*good_sdist, "parity/compare.py"]), expect_version=v)
         assert check_sdist(sdist(good_sdist[1:]), expect_version=v)
         assert check_sdist(sdist([*good_sdist, "CODE_OF_CONDUCT.md"]), expect_version=v)
+        assert check_sdist(sdist(good_sdist, pkg_info=None), expect_version=v)
+        apache_only = good_meta.replace(LICENSE_EXPRESSION, "Apache-2.0")
+        assert check_sdist(sdist(good_sdist, pkg_info=apache_only), expect_version=v)
+        assert not check_pyproject(), "pyproject.toml's license differs from LICENSE_EXPRESSION"
+        bad_pyproject = d / "pyproject.toml"
+        bad_pyproject.write_text('[project]\nname = "dyng"\nlicense = "Apache-2.0"\n')
+        assert check_pyproject(bad_pyproject)
         for good_v, pre in (("0.1.0", False), ("0.1.0rc1", True), ("0.1.0.dev0", True)):
             assert canonical_version(good_v) == (good_v, pre), good_v
         for bad_v in ("0.1.0-rc.1", "0.1.0RC1", "v0.1.0", "0.1.0-dev", "0.01.0", "0.1.0rc"):
@@ -292,9 +447,30 @@ def main(argv: list[str] | None = None) -> int:
         help="print '<VERSION> <true|false>' (a pre-release?) after checking that VERSION is "
         "canonical PEP 440 (release.yml's select job)",
     )
+    p.add_argument(
+        "--release-metadata",
+        action="store_true",
+        help="check VERSION, CHANGELOG.md and CITATION.cff against each other (release.yml's "
+        "select job, ci/tests; docs/developer/release.md before a tag)",
+    )
+    p.add_argument(
+        "--release-date",
+        metavar="YYYY-MM-DD|today",
+        help="with --release-metadata: the release date must be this day (today: UTC)",
+    )
     args = p.parse_args(argv)
     if args.self_test:
         return _self_test()
+    if args.release_metadata:
+        day = args.release_date
+        if day == "today":
+            day = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
+        errors = check_release_metadata(ROOT, day)
+        for e in errors:
+            print(f"wheel_check: {e}", file=sys.stderr)
+        if not errors:
+            print(f"release metadata: VERSION, CHANGELOG.md and CITATION.cff agree ({version()})")
+        return 1 if errors else 0
     if args.version_info:
         try:
             v, pre = canonical_version((ROOT / "VERSION").read_text().strip())
