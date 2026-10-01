@@ -152,4 +152,5 @@ an error with `--release-date today` before the tag). Then install the wheel alo
 and run the wheel's test subset and the README quickstart from an empty directory.
 
 The readiness list of 0.1.0, with what is done and what waits for the author, is in the M5
-retrospective ({doc}`retrospectives/M5`) and the R010 retrospective ({doc}`retrospectives/R010`).
+retrospective ({doc}`retrospectives/M5`), the R010 retrospective ({doc}`retrospectives/R010`)
+and the R011 retrospective, the final-release record ({doc}`retrospectives/R011`).
