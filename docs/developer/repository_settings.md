@@ -16,8 +16,9 @@ required; Appendix E and `GOVERNANCE.md` record the decisions.
 "Done" means applied by the lead maintainer (through the GitHub API, 2026-09-27) and checked
 against the read-only API on 2026-09-28 (`gh api repos/dyng-dev/dyng`, its `actions/permissions`,
 `rulesets`, `environments` and security endpoints, and `gh api orgs/dyng-dev`). The state of
-2026-09-30 (the `DCO` check required, the signing key) was reported by the author and is recorded
-in the approvals log of `GOVERNANCE.md`.
+2026-09-30 (the `DCO` check required, the signing key) and of 2026-10-01 (M5 merged, the 24
+required checks, `pypa/cibuildwheel` on the Actions allow-list) was reported by the author and is
+recorded in the approvals log of `GOVERNANCE.md`.
 
 | # | Setting | When | Status |
 |---|---|---|---|
@@ -25,12 +26,12 @@ in the approvals log of `GOVERNANCE.md`.
 | 2 | About: description, website, topics | now | **done** (description and the 14 topics; no website until step 13) |
 | 3 | Features: Issues, Discussions, no wiki | now | **done** (Issues and Discussions on; wiki and projects off) |
 | 4 | Pull requests: merge commits and squash merges, no rebase (ADR 0019) | now | **done** |
-| 5 | Actions: permissions, SHA pinning, fork approval | now | **done** (allow-list, SHA pinning required, approval for all external contributors, read-only workflow token) |
+| 5 | Actions: permissions, SHA pinning, fork approval | now | **done** (allow-list, `pypa/cibuildwheel@*` included since 2026-09-30; SHA pinning required, approval for all external contributors, read-only workflow token) |
 | 6 | Security: private vulnerability reporting, Dependabot, secret scanning | now | **done** (private vulnerability reporting; Dependabot alerts and security updates; secret scanning with push protection; CodeQL, optional, not set up) |
 | 7 | The DCO app and web sign-off | now | **done** (DCO app installed on `dyng-dev/dyng` by the author, integration id 1861; web sign-off required); `DCO` is a **required check** of the `main` ruleset since 2026-09-30. The author's membership of `dyng-dev` is public and the maintainer's commits are SSH-signed (the signing key "dynG commit signing", registered on the author's account on 2026-09-29), so the app exempts them as signed commits of an organization member |
 | 8 | Labels | after the M4 merge | pending: the `labels` workflow applies `.github/labels.yml` on the first push of `main` with the M4 merge |
-| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378), strict; 17 required checks, and **18** with `DCO` from 2026-09-30. The M5 checks of `python.yml` (and `api-check.yml`) are to be added once they have run on the M5 pull request |
-| 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass) |
+| 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378), strict; 17 required checks, **18** with `DCO` from 2026-09-30, and **24** after pull request #4 (M5, merge commit `8842acf`): `scaffold`, the four checks of `python.yml` and `Python API (griffe)` added (2026-10-01) |
+| 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass; the tags `v0.1.0rc1` and `v0.1.0` may be pushed by the AI assistant on the author's behalf, GOVERNANCE.md 2026-09-30) |
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
 | 13 | Read the Docs | later: checkpoint A4, milestone M6 | later |
@@ -122,8 +123,8 @@ Settings → sidebar **Actions** → **General**:
    mamba-org/setup-micromamba@*
    ```
 
-   (`pypa/cibuildwheel` is new in M5, for `wheels.yml`; **to add** to the setting before the M5
-   pull request runs, or `wheels.yml` fails at its first step.)
+   (`pypa/cibuildwheel` is new in M5, for `wheels.yml`; added to the setting by the maintainer
+   through the API on 2026-09-30, before the M5 pull request ran.)
 
    and tick **Require actions to be pinned to a full-length commit SHA** (every workflow in
    `.github/workflows/` already is; dependabot keeps the pins current). **Save**.
@@ -205,12 +206,14 @@ merges for contributions). While the lead maintainer is the only maintainer, **z
 are required (the author merges their own pull request once the checks pass); from the day a
 second maintainer exists, raise it to one.
 
-**Status: done (checked 2026-09-28; `DCO` added 2026-09-30).** The ruleset `main` (id 24131378)
+**Status: done (checked 2026-09-28; `DCO` added 2026-09-30; the M5 checks added 2026-10-01).**
+The ruleset `main` (id 24131378)
 was created after pull request #1 (INT1, merged with the merge commit `eda8b8b`) had run every
 workflow: pull request required (0 approvals, stale approvals dismissed, conversation resolution
-required, merge methods merge and squash), the required checks of the table below (4 `lint`, 9
-`cpu`, 3 `cuda-build`, 1 `docs`, and since 2026-09-30 `DCO`: 18 in all) with **Require branches
-to be up to date** (strict), deletions and force pushes blocked. The **Repository admin** role is
+required, merge methods merge and squash), the required checks of the table below (4 `lint`,
+10 `cpu` (the 9 matrix jobs and `scaffold`), 3 `cuda-build`, 1 `docs`, 4 `python`, 1 `api-check`
+and `DCO`: **24** in all; 17 at creation, 18 with `DCO` from 2026-09-30, 24 with the M5 checks
+from 2026-10-01) with **Require branches to be up to date** (strict), deletions and force pushes blocked. The **Repository admin** role is
 on the bypass list in the mode **For pull requests only**: an administrator can merge a pull
 request whose checks are not green, but cannot push to `main` directly. GitHub offers a
 required check in the ruleset only after it has run in the last 7 days, which is why the
@@ -245,11 +248,11 @@ Required checks (the job names as they appear in a pull request's checks list):
 | Workflow | Check names |
 |---|---|
 | `lint.yml` | `pre-commit`, `tidy`, `harness`, `name-reservation` |
-| `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF` |
+| `cpu.yml` | `cpu-only / gcc-12 / openmp=ON`, `cpu-only / gcc-13 / openmp=ON`, `cpu-only / clang-18 / openmp=ON`, `cpu-only / gcc-13 / openmp=OFF`, `cpu-only / clang-17 / openmp=ON`, `dev / gcc-12 / openmp=ON`, `dev / gcc-13 / openmp=ON`, `dev / clang-18 / openmp=ON`, `dev / clang-18 / openmp=OFF`, `scaffold` (required since 2026-10-01) |
 | `cuda-build.yml` | `CUDA 13.1.1 (ci-cuda13)`, `CUDA 13.4.1 (ci-cuda13)`, `CUDA 12.9.2 (ci-cuda12)` (the job `compile`, named `CUDA <toolkit> (<preset>)` per matrix entry; compile-only, no GPU) |
 | `docs.yml` | `site` (not `external-links`, which runs only weekly and on demand) |
-| `python.yml` (M5; **to add** once it has run on the M5 pull request) | `Editable install, stubs, mypy, pytest (gcc)`, `Editable install, stubs, mypy, pytest (clang-18)`, `From the sdist (Python 3.12)`, `From the sdist (Python 3.13)` |
-| `api-check.yml` (M5; **to add** once it has run on the M5 pull request) | `Python API (griffe)` |
+| `python.yml` (M5; required since 2026-10-01) | `Editable install, stubs, mypy, pytest (gcc)`, `Editable install, stubs, mypy, pytest (clang-18)`, `From the sdist (Python 3.12)`, `From the sdist (Python 3.13)` |
+| `api-check.yml` (M5; required since 2026-10-01) | `Python API (griffe)` |
 | DCO app (integration id 1861) | `DCO` (required since 2026-09-30; step 7) |
 
 Do **not** require checks of workflows that run only for some files (`labels.yml`, and
@@ -274,7 +277,9 @@ Docs: <https://docs.github.com/en/repositories/configuring-branches-and-merges-i
 ## 10. Ruleset for release tags
 
 A tag `v*` publishes to TestPyPI and PyPI (`release.yml`), so only the lead maintainer may
-create one.
+create one, or, for the tags `v0.1.0rc1` and `v0.1.0`, the AI assistant on the lead maintainer's
+behalf (GOVERNANCE.md, approvals log, 2026-09-30). The PyPI upload still waits for the lead
+maintainer's approval of the `pypi` environment (step 11).
 
 1. Settings → **Rules** → **Rulesets** → **New ruleset** → **New tag ruleset**.
 2. **Ruleset name:** `release tags`. **Enforcement status:** **Active**.
