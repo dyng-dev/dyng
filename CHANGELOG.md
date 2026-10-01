@@ -79,6 +79,17 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (the Python, sdist, scaffold and API checks of M5 added), and the Actions allow-list includes
   `pypa/cibuildwheel` (`docs/developer/repository_settings.md`).
 - Fixed: the dataset parity tests run in builds without OpenMP.
+- Fixed (R010 review): the certificate requires each suite summary to cover the whole committed
+  suite (SHA-256 of the suite file, every reading of its plan once, complete) with verified
+  inputs; it names the driver of the measurements (the harness records it now), every committed
+  fixture set of `cpp/tests/data` with its digest, original and test results
+  (`parity/fixtures/fixtures.toml`), and each check's scope (new: `packaging`, `repo`) and
+  evidence (SHA-256 and a committed excerpt). `bench_suite.py` keeps a narrowed run out of the
+  release results (`<suite>.partial.json`) and never replaces records without `--force`; the
+  sssp harness hashes its inputs when a run starts. `ci/wheel_check.py --release-metadata`
+  checks `VERSION`, this file and `CITATION.cff` against each other (in `release.yml`'s
+  `select` job and `ci/tests`); `scripts/new_algorithm.py` writes its CHANGELOG entry again
+  when `Unreleased` is empty; the PyPI description names the bundled licences.
 
 ### Added
 
