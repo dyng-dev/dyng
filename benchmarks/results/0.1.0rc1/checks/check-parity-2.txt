@@ -1,0 +1,25 @@
+# Copy of $DYNG_SCRATCH/runs/r010/final3/python.log (sha256 75d1b9aaa3c6f7dadf4138febda6c0384ca58977aabe1501ae5267229b72e54a, 1669 bytes), written by parity/certify.py check.
+==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
+    (DYNG_PYTHON_INSTALL=force would): using the throwaway venv build/py-venv
+==> pip install -e . into /home/sskg8/Projects/dyng-work/r010/relclone/build/py-venv (build directory build/)
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: python -m pip install --upgrade pip
+==> installed: 0.1.0rc1 /home/sskg8/Projects/dyng-work/r010/relclone/python/dyng/__init__.py
+==> scripts/regen.py --stubs --check
+regen.py: 8 generated files up to date (2 algorithms)
+==> mypy (strict) over python/dyng
+Success: no issues found in 30 source files
+==> pytest python/tests
+.............................................................ss......s.. [ 18%]
+........................................................................ [ 36%]
+........................................................................ [ 54%]
+........................................................................ [ 72%]
+.......................................................................s [ 90%]
+........................................                                 [100%]
+=========================== short test summary info ============================
+SKIPPED [1] python/tests/test_arrays.py:215: could not import 'torch': No module named 'torch'
+SKIPPED [1] python/tests/test_arrays.py:222: could not import 'cupy': No module named 'cupy'
+SKIPPED [1] python/tests/test_batch.py:74: could not import 'torch': No module named 'torch'
+SKIPPED [1] python/tests/test_profiler.py:48: could not import 'pandas': No module named 'pandas'
+396 passed, 4 skipped in 11.39s

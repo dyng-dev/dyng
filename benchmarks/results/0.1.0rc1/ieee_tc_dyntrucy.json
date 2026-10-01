@@ -6,7 +6,7 @@
  "suite_file": "benchmarks/paper/ieee_tc_dyntrucy.yaml",
  "suite_sha256": "9b1b2715fb80a755a27ac1f376c31f180962f37f383e4676f872d20335cfb578",
  "version": "0.1.0rc1",
- "date": "2026-10-01T07:59:12Z",
+ "date": "2026-10-01T16:20:40Z",
  "port_commits": [
   "d13d393f8ea52cdfefb4a2983723b8fe78550628"
  ],
@@ -27,7 +27,68 @@
   "end_to_end": 1.1,
   "memory": 1.05
  },
- "inputs": "not verified by this summary (bench_suite.py run verifies them)",
+ "partial": null,
+ "execution_started": "2026-10-01T05:40:29Z",
+ "inputs": {
+  "verified": true,
+  "run_check": "not run by this summary (bench_suite.py run checks every input first)",
+  "by_record": {
+   "ieee_tc_dyntrucy-openmp.json": {
+    "datasets": [
+     "DD",
+     "github",
+     "twitch"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
+   },
+   "ieee_tc_dyntrucy-openmp-collab.json": {
+    "datasets": [
+     "collab"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
+   },
+   "ieee_tc_dyntrucy-cuda.json": {
+    "datasets": [
+     "DD",
+     "collab",
+     "github",
+     "twitch"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
+   },
+   "ieee_tc_dyntrucy-cuda-collab-update.json": {
+    "datasets": [
+     "collab"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
+   },
+   "ieee_tc_dyntrucy-cuda-default-clocks.json": {
+    "datasets": [
+     "DD",
+     "collab",
+     "github",
+     "twitch"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
+   },
+   "ieee_tc_dyntrucy-cuda-memory.json": {
+    "datasets": [
+     "DD",
+     "collab",
+     "github",
+     "twitch"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T05:40:29Z, the suite's run log)",
+    "verified": true
+   }
+  }
+ },
+ "drivers": [],
  "readings": [
   {
    "reading": "openmp",
@@ -56,6 +117,16 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "DD",
+     "github",
+     "twitch"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
    },
    "complete": true,
    "contaminated_runs": {
@@ -416,6 +487,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "collab"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -475,6 +554,17 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "DD",
+     "collab",
+     "github",
+     "twitch"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
    },
    "complete": true,
    "contaminated_runs": {},
@@ -1112,6 +1202,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "collab"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -1203,6 +1301,17 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "DD",
+     "collab",
+     "github",
+     "twitch"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process"
    },
    "complete": true,
    "contaminated_runs": {},
@@ -1890,6 +1999,17 @@
    },
    "protocol": {},
    "host": null,
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "DD",
+     "collab",
+     "github",
+     "twitch"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T05:40:29Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [

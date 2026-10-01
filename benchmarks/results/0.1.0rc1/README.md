@@ -12,7 +12,9 @@ are generated from it by `parity/certify.py write`. `benchmarks/README.md` (the 
   those of `main` at `8842acf` (the merge of M5); R010 adds harness scripts, documents and two
   test fixes. Every measured build comes from a clean `git clone` of the branch (the commit each
   record names); `parity.json` checks that every measured commit has the release commit's
-  library sources (and, for the test-suite checks, its C++ tests).
+  sources in the paths of its scope (`library` for the gates, the replays and the golden
+  mutations; `tests` for the C++ test suites; `packaging` for the distributions; `repo`, the
+  whole tree but this directory, for `ci/check.sh` and `ci/gpu_local.sh`).
 - **Golden parity** (`parity-*.json`, `parity/compare.py`, the `parity` and `parity-cuda`
   presets; CUDA replays on GPU 1): the sssp corpus of MOSP-OpenMP@c352151 (495 cases) on
   sequential, OpenMP 1 / 4 / 16 / 28 / 56 threads, int64 offsets, CUDA and CUDA int64 (byte
@@ -26,24 +28,46 @@ are generated from it by `parity/certify.py write`. `benchmarks/README.md` (the 
   clocks locked for the whole A/B (boost; the COLLAB update at base, ADR 0021), the default-clock
   readings recorded and not gated (ADR 0018); device memory under Nsight Systems on GPU 1. The
   records here are compacted (the per-round machine-monitor windows are dropped); each names its
-  full copy under `$DYNG_SCRATCH/runs/bench/0.1.0rc1/`.
+  full copy under `$DYNG_SCRATCH/runs/bench/0.1.0rc1/`. Each summary covers its whole suite
+  (`certify.py` checks it against the suite's plan and the suite file's SHA-256).
+- **Inputs and driver** (R010 review). The cycle_count run records carry the datasets' digests
+  their measuring process took. The sssp records carry the digests `perf_ab.py prepare` wrote
+  (the harness hashes at run start only since the review), and the memory records none: for
+  these, `bench_suite.py summarize` hashed every input file again and found each equal to the
+  suite's digest and unchanged (modification and status-change times) since the execution
+  started (sssp 2026-10-01 02:28 UTC, cycle_count 05:40 UTC; the files were last changed
+  between 2026-09-23 and 2026-09-27). The records predate the per-record driver field; `parity.json` shows the driver
+  seen when the certificate was written (590.48.01, CUDA driver API 13.1) unchanged since before
+  the first measurement (the loaded kernel module, boot 2026-08-10, the module file installed
+  2026-08-05, `libcuda.so.590.48.01` installed 2026-02-05).
+- **Committed fixtures** (`cpp/tests/data`, `parity/fixtures/fixtures.toml`): the four sets
+  exported from the originals (`mosp_changes`, the generator outputs of `mospPrep changes`;
+  `mosp_graph_io`; `mosp_sssp`; `cycle_enum`), each with the SHA-256 of its files and the results
+  of the CTests that compare it, taken from the per-test lines of the checks' ctest logs.
 - **Checks** (`checks.json`): the `asan` and `tsan` presets' test suites, `ci/gpu_local.sh` (the
   CUDA tests, the CUDA goldens, compute-sanitizer memcheck, synccheck and racecheck, clang-tidy on
-  the CUDA branches), the mutation CTests of cycle_count (`ctest -L mutation`, host and CUDA) and
-  the golden mutations of sssp (`mutation-sssp.json`, `parity/mutate.py`).
+  the CUDA branches), the mutation CTests of cycle_count (`ctest -L mutation`, host and CUDA),
+  the golden mutations of sssp (`mutation-sssp.json`, `parity/mutate.py`), `ci/check.sh
+  --parity` and the distributions as `release.yml` builds them for `v0.1.0rc1`. Every check
+  names its logs with their SHA-256; an excerpt (or, for a short log, a copy) of each is in
+  `checks/`. `ci/gpu_local.sh`, `ci/check.sh --parity` and the distributions were run again
+  after the R010 review on its final code (scopes `repo` and `packaging`); the C++ test suites
+  of `07d46e2` stand, since no test path changed after them.
 - **Readings taken again.** The first pass of the gate (2026-09-30 21:28 to 2026-10-01 01:51
   CDT, one clone at `d13d393`) ran partly under a foreign CPU load of about 27 cores on the shared
   machine. The CUDA sssp reading of `road_usa_g` at locked clocks and the default-clock reading of
   `roadNet-PA` stopped after 12 rejected rounds (the harness exits 1 by design); the OpenMP
   cycle_count reading, whose harness flags such runs instead of repeating them, had almost every
   run flagged (median foreign load 16-28 cores); the default-clock cycle_count reading was
-  interrupted. These four readings were taken again from the same clone and builds on
-  2026-10-01 between 02:04 and 02:58 CDT on a quiet machine (the flagged and the partial records
-  are kept under `$DYNG_SCRATCH/runs/bench/0.1.0rc1/superseded/` and are not used). In the
-  OpenMP cycle_count reading that replaced it, one run of 11 is flagged (`count/DD_k3`, original
-  side), which the median absorbs; the suite summary lists it under `contaminated`. Every other
-  reading of the first pass was taken without rejected or flagged rounds beyond the harness's
-  repeats and is kept.
+  interrupted, so the first pass never reached the cycle_count CUDA memory reading planned after
+  it. The four readings were taken again, and the memory reading was taken for the first time,
+  from the same clone and builds on 2026-10-01 between 02:04 and 02:58 CDT on a quiet machine:
+  five readings of the second session (the memory reading ran last, 02:55 to 02:58). The
+  flagged and the partial records are kept under `$DYNG_SCRATCH/runs/bench/0.1.0rc1/superseded/`
+  and are not used. In the OpenMP cycle_count reading that replaced the flagged one, one run of
+  11 is flagged (`count/DD_k3`, original side), which the median absorbs; the suite summary lists
+  it under `contaminated`. Every other reading comes from the first pass, taken without rejected
+  or flagged rounds beyond the harness's repeats, and is kept.
 - **The release commit and the measured builds.** Making `sssp` and `cycle_count` stable (R010,
   step 2) changes three files of `cpp/src` after the measurements: the two manifests, which no
   build reads, and the registry table `cpp/src/core/registry_table.inc` that `scripts/regen.py`

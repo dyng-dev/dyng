@@ -6,7 +6,7 @@
  "suite_file": "benchmarks/paper/ipdps25_dynamosp_sosp.yaml",
  "suite_sha256": "aeb08c17e29cb9f97a186e297cbcf21de3c67bb406f66061b83800ebebd9bb76",
  "version": "0.1.0rc1",
- "date": "2026-10-01T07:59:12Z",
+ "date": "2026-10-01T16:20:38Z",
  "port_commits": [
   "d13d393f8ea52cdfefb4a2983723b8fe78550628"
  ],
@@ -29,7 +29,127 @@
   "end_to_end": 1.1,
   "memory": 1.05
  },
- "inputs": "not verified by this summary (bench_suite.py run verifies them)",
+ "partial": null,
+ "execution_started": "2026-10-01T02:28:39Z",
+ "inputs": {
+  "verified": true,
+  "run_check": "not run by this summary (bench_suite.py run checks every input first)",
+  "by_record": {
+   "ipdps25_dynamosp_sosp-openmp-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-openmp-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-openmp-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-openmp-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-default-clocks-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-default-clocks-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-default-clocks-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-default-clocks-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-memory-roadNet-PA.json": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-memory-roadNet-CA.json": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-memory-rgg.json": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
+   "ipdps25_dynamosp_sosp-cuda-memory-road_usa_g.json": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   }
+  }
+ },
+ "drivers": [],
  "readings": [
   {
    "reading": "openmp",
@@ -58,6 +178,14 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
    },
    "complete": true,
    "contaminated_runs": {},
@@ -314,6 +442,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -568,6 +704,14 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
    },
    "complete": true,
    "contaminated_runs": {},
@@ -824,6 +968,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -1078,6 +1230,14 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
    },
    "complete": true,
    "contaminated_runs": {},
@@ -1334,6 +1494,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -1588,6 +1756,14 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
    },
    "complete": true,
    "contaminated_runs": {},
@@ -1844,6 +2020,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -2098,6 +2282,14 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
    },
    "complete": true,
    "contaminated_runs": {},
@@ -2354,6 +2546,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -2608,6 +2808,14 @@
     "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
+   },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
    },
    "complete": true,
    "contaminated_runs": {},
@@ -2864,6 +3072,14 @@
     "logical_cpus": 56,
     "kernel": "6.1.0-52-amd64"
    },
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -3108,6 +3324,14 @@
    },
    "protocol": {},
    "host": null,
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-PA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -3166,6 +3390,14 @@
    },
    "protocol": {},
    "host": null,
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "roadNet-CA"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -3224,6 +3456,14 @@
    },
    "protocol": {},
    "host": null,
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "rgg"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
@@ -3282,6 +3522,14 @@
    },
    "protocol": {},
    "host": null,
+   "driver": null,
+   "inputs": {
+    "datasets": [
+     "road_usa_g"
+    ],
+    "how": "hashed again by summarize; every file unchanged since the execution started (2026-10-01T02:28:39Z, the suite's run log)",
+    "verified": true
+   },
    "complete": true,
    "contaminated_runs": {},
    "regions": [
