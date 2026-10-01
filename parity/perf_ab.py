@@ -85,7 +85,9 @@ memory   (cuda) the device-memory gate of PLAN 8.6 (<= 1.05x): each side (MOSP-C
          dyng-compat-mosp --backend cuda) runs once per batch under `nsys profile
          --cuda-memory-usage=true`; the peak of its live device allocations (cudaMalloc and
          cudaMallocAsync; memory kind Device) is compared, with the largest stream-ordered pool
-         size nsys reports for the port (as `perf_ab.py cycle_count memory`).
+         size nsys reports for the port (as `perf_ab.py cycle_count memory`). The original runs the
+         whole MOSP update (the K SOSP updates and the combined graph); the port runs the K sssp
+         updates only, unless --mosp (M7: dyng-compat-mosp --mosp, the same scope as the original).
 
 kernels  (cuda) runs both sides A/B/A/B under Nsight Compute with the GPU clocks locked to base
          (`ncu --clock-control base --cache-control none`, no root needed) and compares the
@@ -2103,8 +2105,9 @@ def write_json(
 
 
 def memory(args: argparse.Namespace) -> int:
-    """PLAN 8.6 device memory of sssp on CUDA: the peak live device allocations of MOSP-CUDA and
-    of the port per batch, each measured in one process under Nsight Systems."""
+    """PLAN 8.6 device memory of sssp (or, with --mosp, of mosp) on CUDA: the peak live device
+    allocations of MOSP-CUDA and of the port per batch, each measured in one process under Nsight
+    Systems."""
     sys.path.insert(0, str(REPO / "parity"))
     import cycle_count_perf
 
@@ -2125,7 +2128,9 @@ def memory(args: argparse.Namespace) -> int:
                         [ref / "bin" / "mosp", *common], env, work / "a"
                     ),
                     "port": cycle_count_perf.device_memory(
-                        [exe, *common, "--backend", "cuda"], env, work / "b"
+                        [exe, *common, "--backend", "cuda", *(["--mosp"] if args.mosp else [])],
+                        env,
+                        work / "b",
                     ),
                 }
                 base = row["original"]["peak_live_mib"]
@@ -2142,7 +2147,7 @@ def memory(args: argparse.Namespace) -> int:
     if args.json:
         doc = {
             "schema": 1,
-            "algorithm": "sssp",
+            "algorithm": "mosp" if args.mosp else "sssp",
             "backend": "cuda",
             "what": "device memory (PLAN 8.6): the peak of live device allocations per process "
             "(nsys --cuda-memory-usage, memory kind Device: cudaMalloc and cudaMallocAsync), "
@@ -2256,6 +2261,13 @@ def main() -> int:
                 action="store_true",
                 help="time both with --no-output (no files written, no path costs) instead of "
                 "writing every output file as bench/run.sh does (the published (b) scope)",
+            )
+        if command == "memory":
+            r.add_argument(
+                "--mosp",
+                action="store_true",
+                help="run the port as dyng-compat-mosp --mosp (the whole MOSP update, the "
+                "original's scope; M7) instead of the K sssp updates",
             )
         if command in ("engines", "mosp"):
             r.add_argument(
