@@ -14,39 +14,39 @@
   {
    "name": "tsan",
    "command": "ctest --preset tsan -j 16 (tsan preset: Debug, DYNG_SANITIZE=thread, OpenMP off), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T03:04:49Z",
+   "date": "2026-10-01T13:31:17Z",
    "ctest": {
     "tests": 520,
     "failed": 0,
     "skipped": 42,
     "percent_passed": 100
    },
-   "details": "42 tests skip themselves in this preset (the OpenMP comparisons and the OpenMP-only tests, the conformance cases C3/C4/C10/C12 that need a second backend, engine or CUDA streams, allocation-failure tests, CUDA placement); the dataset parity tests ran on the sequential backend (dd09893), CycleEnumDatasets 1345 s; the cycle_count mutation CTests passed",
+   "details": "re-run on the release code (the maturity change touches cpp/src); the tests that skip themselves in this preset are those of the run at 1049068 (the OpenMP comparisons and OpenMP-only tests, the conformance cases C3/C4/C10/C12 that need a second backend, engine or CUDA streams, allocation-failure tests, CUDA placement); the dataset parity tests and the cycle_count mutation CTests passed",
    "result": "passed"
   },
   {
    "name": "asan",
    "command": "ctest --preset asan -j 16 (asan preset: Debug, DYNG_SANITIZE=address;undefined, OpenMP on), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T03:27:56Z",
+   "date": "2026-10-01T13:49:04Z",
    "ctest": {
     "tests": 595,
     "failed": 0,
     "skipped": 26,
     "percent_passed": 100
    },
-   "details": "26 tests skip themselves in this preset: 7 allocation-failure and allocation-count tests under ASan's allocator, 17 conformance cases C4/C10/C12 that need a second engine or CUDA streams, CycleCountBackend.PlacementIsChecked (CUDA), Resources.OpenmpNotBuiltThrows (OpenMP is built); the dataset parity tests and the cycle_count mutation CTests (control, double_count_5, weak_ownership, skip_workspace_resize) passed",
+   "details": "re-run on the release code (the maturity change touches cpp/src); the tests that skip themselves in this preset are those of the run at 1049068 (allocation-failure and allocation-count tests under ASan's allocator, conformance cases C4/C10/C12 that need a second engine or CUDA streams, CUDA placement, Resources.OpenmpNotBuiltThrows); the dataset parity tests and the cycle_count mutation CTests passed",
    "result": "passed"
   },
   {
    "name": "gpu_local",
    "command": "ci/gpu_local.sh (dev-cuda, GPU 1), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T04:11:34Z",
+   "date": "2026-10-01T14:39:55Z",
    "steps": {
     "build": "passed",
     "ctest -L gpu": "passed",
@@ -59,22 +59,40 @@
     "racecheck": "passed",
     "clang-tidy": "passed"
    },
-   "details": "ctest -L gpu 252 / 252, ctest -L cpu 605 / 605 (the CUDA build), the sssp CUDA goldens (495 cases) and the cycle_count CUDA goldens (cuda, cuda:resident); compute-sanitizer memcheck (leak check), synccheck and racecheck with 0 errors",
+   "details": "re-run on the release code: CUDA tests (ctest -L gpu, ctest -L cpu in the CUDA build), the sssp CUDA goldens (495 cases) and the cycle_count CUDA goldens (cuda, cuda:resident); compute-sanitizer memcheck (leak check), synccheck and racecheck; clang-tidy on the CUDA branches",
    "result": "passed"
   },
   {
    "name": "mutation-ctests",
    "command": "ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T04:14:06Z",
+   "date": "2026-10-01T14:45:30Z",
    "ctest": {
     "tests": 7,
     "failed": 0,
     "skipped": 0,
     "percent_passed": 100
    },
-   "details": "cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
+   "details": "re-run on the release code; cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
+   "result": "passed"
+  },
+  {
+   "name": "check-parity",
+   "command": "ci/check.sh --parity, from a clean clone",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
+   "scope": "tests",
+   "date": "2026-10-01T14:06:57Z",
+   "details": "every step passed: clang-format, the cpu-only and dev presets (ctest -L cpu), clang-tidy, reuse, provenance, regen, the harness tests, ci/python.sh (396 passed, 4 skipped), the API check, the scaffold check, ci/docs.sh, pre-commit, and the parity preset's golden replays (sssp mosp_openmp_c352151, cycle_count cycle_enum_0a976ad, the dataset digests and histograms: 4 / 4)",
+   "result": "passed"
+  },
+  {
+   "name": "distributions",
+   "command": "release.yml's select step for GITHUB_REF_NAME=v0.1.0rc1; ci/wheels.sh; twine check --strict; ci/wheel_check.py --platform manylinux_2_28_x86_64 --require-libgomp; fresh Python 3.12 and 3.13 venvs, from a clean clone",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
+   "scope": "tests",
+   "date": "2026-10-01T15:09:50Z",
+   "details": "select: kind=package, version=0.1.0rc1, prerelease=true (v0.1.0 refused); dyng-0.1.0rc1.tar.gz (0.79 MB) and dyng-0.1.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.50 MB), License-Expression 'Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1' in METADATA and PKG-INFO; twine check --strict and wheel_check passed; the wheel alone in fresh venvs: the whole pytest suite 396 passed, 4 skipped, the cibuildwheel test subset 253 passed, 1 skipped, and the README quickstart printing the README's output, on Python 3.12 and 3.13",
    "result": "passed"
   }
  ]
