@@ -119,6 +119,15 @@ def _region(name: str, original: float, port: float, kind: str = "compute", gate
     }
 
 
+DRIVER = {"nvidia": "590.48.01", "cuda_driver_api": "13.1"}
+CC_DIGESTS = {
+    "DD": "e538ec13a262b84a0664db2f22e6ff720fb5bb74965536c37f4b8e962d156e4a",
+    "github": "a5a43e92b9a22054882017a2b5dea267535c8d94705ac4987d967e517448c9d4",
+    "twitch": "c2270e018af70321c8f6d1517abc097204105ec7bafe71527555b4f954fbea82",
+    "collab": "043c465d207992054d2567a277bfba9fad24d994040241987e61f9e9daa12ae4",
+}
+
+
 def _cc_record(cases: list[str], commit: str, clocks: str | None = None, ratio: float = 0.9):
     record = {
         "schema": 1,
@@ -132,9 +141,8 @@ def _cc_record(cases: list[str], commit: str, clocks: str | None = None, ratio: 
         "baseline": {"experiment": False, "label": "original", "kind": "original"},
         "port": {"commit": commit, "build": {"parity_preset": True}},
         "protocol": {"runs": 11},
-        "datasets_sha256": {
-            "DD": "e538ec13a262b84a0664db2f22e6ff720fb5bb74965536c37f4b8e962d156e4a"
-        },
+        "driver": DRIVER,
+        "datasets_sha256": dict(CC_DIGESTS),
         "results": {},
     }
     if clocks:
@@ -156,6 +164,8 @@ def _write_cc_records(bench, suite, records: Path, commit: str, **kw) -> list[di
             rec = {
                 "reference": {"name": "CycleEnumeration-GPU", "binary": "$X/unpatched/cycle-enum"},
                 "port": {"commit": commit},
+                "driver": DRIVER,
+                "datasets_sha256": dict(CC_DIGESTS),
                 "results": {
                     c: {
                         "original": {"peak_live_mib": 18.0},
@@ -168,6 +178,80 @@ def _write_cc_records(bench, suite, records: Path, commit: str, **kw) -> list[di
             rec = _cc_record(reading["cases"], commit, reading.get("clocks"), **kw)
         Path(job["record"]).write_text(json.dumps(rec))
     return jobs
+
+
+def _write_sssp_records(bench, suite, records: Path, commit: str, ratio: float = 0.9):
+    records.mkdir(parents=True, exist_ok=True)
+    jobs = bench.plan(suite, records=records, build_root=Path("/b"))
+    for job in jobs:
+        reading = next(r for r in suite["readings"] if r["name"] == job["reading"])
+        dataset = next(d for d in suite["datasets"] if d["name"] == job["dataset"])
+        backend = reading["backend"]
+        base = suite["backends"][backend]["baseline"]
+        rec = {
+            "reference": {
+                "name": base,
+                "commit": suite["baselines"][base]["commit"],
+                "variant": "unpatched",
+            },
+            "port": {"commit": commit, "build": {"parity_preset": True}},
+            "date": "2026-10-01T00:00:00Z",
+            "driver": DRIVER,
+            "inputs_hashed": "run start",
+            "inputs_sha256": [
+                f"{sha}  {rel}" for rel, sha in bench.expected_inputs(suite, dataset).items()
+            ],
+            "results": {},
+        }
+        for batch in ("safe50k", "unsafe50k", "local10k"):
+            if job["kind"] == "memory":
+                rec["results"][batch] = {
+                    "original": {"peak_live_mib": 100.0},
+                    "port": {"peak_live_mib": 100.0 * ratio},
+                    "ratio": ratio,
+                }
+            else:
+                rec["results"][batch] = {"regions": [_region("apply", 50.0, 50.0 * ratio)]}
+        if backend == "cuda" and job["kind"] == "run":
+            rec["protocol"] = {"gpu_clocks": {"control": reading["clocks"]}}
+        Path(job["record"]).write_text(json.dumps(rec))
+    return jobs
+
+
+def _full_results(cert, bench, tmp_path: Path, commit: str) -> Path:
+    """A results directory with replays, both suites' whole summaries and a passed check that
+    ran every fixture test."""
+    results = tmp_path / "results"
+    results.mkdir()
+    _replays(cert, results, commit)
+    for path in SUITES:
+        suite = bench.load_suite(path)
+        write = _write_cc_records if suite["algorithm"] == "cycle_count" else _write_sssp_records
+        records = tmp_path / f"rec-{suite['suite']}"
+        jobs = write(bench, suite, records, commit)
+        summary = bench.summarize(
+            suite, jobs, out=results, version="t", records=records, inputs=None
+        )
+        assert summary["verdict"]["passed"], summary["verdict"]
+    return results
+
+
+def _ctest_log(names: list[str], failed: tuple[str, ...] = ()) -> str:
+    lines = [
+        f"{i + 1:3}/{len(names)} Test #{i + 1}: {n} ......   "
+        + ("***Failed" if n in failed else "Passed")
+        + "    0.01 sec"
+        for i, n in enumerate(names)
+    ]
+    ok = len(names) - len(failed)
+    pct = 100 * ok // len(names)
+    tail = f"{pct}% tests passed, {len(failed)} tests failed out of {len(names)}"
+    return "\n".join(lines) + "\n\n" + tail + "\n"
+
+
+def _fixture_test_names(cert) -> list[str]:
+    """One ctest name per fixtures.toml pattern (a pattern's '*' replaced by 'X')."""
+    return [p.replace("*", "X") for p in cert.fixture_patterns()]
 
 
 def test_summary_passes_and_compacts(bench, tmp_path: Path) -> None:
@@ -304,51 +388,26 @@ def _replays(cert, results: Path, commit: str) -> None:
             (results / f"parity-{name}-{i}.json").write_text(json.dumps(record))
 
 
-def test_certificate_from_results(cert, bench, tmp_path: Path) -> None:
+@pytest.fixture()
+def fixed_driver(cert, monkeypatch: pytest.MonkeyPatch):
+    """The driver seen "now" is the records' (the certificate compares the two)."""
+    real = cert.environment
+
+    def environment() -> dict:
+        env = real()
+        env["driver"] = dict(DRIVER)
+        return env
+
+    monkeypatch.setattr(cert, "environment", environment)
+
+
+def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> None:
     commit = head()
-    results = tmp_path / "results"
-    results.mkdir()
-    _replays(cert, results, commit)
-    for path in SUITES:
-        suite = bench.load_suite(path)
-        if suite["algorithm"] == "cycle_count":
-            jobs = _write_cc_records(bench, suite, tmp_path / "rec", commit)
-            bench.summarize(suite, jobs, out=results, version="t", records=tmp_path, inputs=None)
-        else:  # a minimal passing summary of the sssp suite
-            summary = {
-                "suite": suite["suite"],
-                "algorithm": "sssp",
-                "port_commits": [commit],
-                "readings": [
-                    {
-                        "reading": "cuda",
-                        "backend": "cuda",
-                        "clocks": "boost",
-                        "gated": True,
-                        "record": None,
-                        "regions": [
-                            {
-                                "case": "rgg/safe50k",
-                                "region": "apply",
-                                "ratio": 0.8,
-                                "gate": 1.1,
-                                "within_gate": True,
-                            }
-                        ],
-                    }
-                ],
-                "verdict": {
-                    "passed": True,
-                    "gated_regions": 1,
-                    "within_gate": 1,
-                    "ratio_range": [0.8, 0.8],
-                },
-            }
-            (results / f"{suite['suite']}.json").write_text(json.dumps(summary))
+    results = _full_results(cert, bench, tmp_path, commit)
     log = tmp_path / "asan.log"
     log.write_text(
-        "100% tests passed, 0 tests failed out of 12\n\n"
-        "The following tests did not run:\n\t7 - A.B (Skipped)\n"
+        _ctest_log(_fixture_test_names(cert))
+        + "\nThe following tests did not run:\n\t7 - A.B (Skipped)\n"
     )
     args = [
         "check",
@@ -373,9 +432,24 @@ def test_certificate_from_results(cert, bench, tmp_path: Path) -> None:
         "MOSP-CUDA",
         "CycleEnumeration-GPU",
     }
+    n = len(_fixture_test_names(cert))
+    assert all(f["passed"] for f in doc["committed_fixtures"])
+    assert {f["set"] for f in doc["committed_fixtures"]} == {
+        "mosp_changes",
+        "mosp_graph_io",
+        "mosp_sssp",
+        "cycle_enum",
+    }
+    assert doc["environment"]["driver"]["nvidia"] == DRIVER["nvidia"]
+    assert "named by" in doc["environment"]["driver"]["source"]
+    asan = next(c for c in doc["checks"] if c["name"] == "asan")
+    assert asan["evidence"][0]["sha256"] and (results / asan["evidence"][0]["excerpt"]).is_file()
     readme = (results / "README.md").read_text()
     assert cert.BEGIN in readme and "all parts passed" in readme
-    assert "| asan | `ctest --preset asan` | passed (12 / 12 tests, 1 skipped) |" in readme
+    assert (
+        f"| asan | `ctest --preset asan` | tests | passed ({n} / {n} tests, 1 skipped) |" in readme
+    )
+    assert "### Committed fixtures" in readme and "hashed by the" in readme
     # Rewriting keeps the hand-written text around the generated block.
     (results / "README.md").write_text("# Title\n\n" + readme + "\nNotes.\n")
     assert cert.main(["write", "--results", str(results), "--version", "t", "--allow-dirty"]) == 0
@@ -387,7 +461,8 @@ def test_certificate_from_results(cert, bench, tmp_path: Path) -> None:
     )
 
     # A failed check, a replay of another manifest and a missing backend fail the certificate.
-    log.write_text("95% tests passed, 1 test failed out of 20\n")
+    names = _fixture_test_names(cert)
+    log.write_text(_ctest_log(names, failed=(names[0],)))
     assert cert.main([*args, "--ctest-log", str(log)]) == 1
     bad = json.loads((results / "parity-cycle_count_cuda-0.json").read_text())
     bad["goldens"]["manifest_sha256"] = "0" * 64
@@ -553,3 +628,252 @@ def test_summary_lists_contaminated_runs_without_failing(bench, tmp_path: Path) 
     assert summary["verdict"]["contaminated"] == [
         "openmp: count/DD_k3 (3 runs above the foreign-load threshold)"
     ]
+
+
+# --- Review of R010: whole suites, verified inputs, the driver, evidence, scopes, fixtures --------
+
+
+def test_certificate_refuses_a_partial_or_changed_suite(
+    cert, bench, tmp_path: Path, fixed_driver
+) -> None:
+    commit = head()
+    results = _full_results(cert, bench, tmp_path, commit)
+    log = tmp_path / "asan.log"
+    log.write_text(_ctest_log(_fixture_test_names(cert)))
+    base = ["--results", str(results)]
+    check = ["check", *base, "--name", "asan", "--command", "ctest", "--ctest-log", str(log)]
+    assert cert.main(check) == 0
+    write = ["write", *base, "--version", "t", "--allow-dirty"]
+    assert cert.main(write) == 0
+
+    def problems() -> str:
+        return " ".join(json.loads((results / "parity.json").read_text())["verdict"]["problems"])
+
+    path = results / "ieee_tc_dyntrucy.json"
+    full = json.loads(path.read_text())
+    # One reading of six: a narrowed run's summary in place of the whole suite's.
+    cut = copy.deepcopy(full)
+    cut["readings"] = [r for r in cut["readings"] if r["reading"] == "cuda"]
+    path.write_text(json.dumps(cut))
+    assert cert.main(write) == 1
+    assert "the planned reading openmp is missing" in problems()
+    # An incomplete reading, a repeated one, a partial marker.
+    cut = copy.deepcopy(full)
+    cut["readings"][0]["complete"] = False
+    cut["readings"].append(cut["readings"][1])
+    cut["partial"] = {"readings": ["cuda"]}
+    path.write_text(json.dumps(cut))
+    assert cert.main(write) == 1
+    text = problems()
+    assert "is not complete" in text and "appears 2 times" in text and "partial" in text
+    # Another suite file than the one summarized; inputs that are not verified.
+    cut = copy.deepcopy(full)
+    cut["suite_sha256"] = "0" * 64
+    path.write_text(json.dumps(cut))
+    assert cert.main(write) == 1
+    assert "SHA-256 differs" in problems()
+    cut = copy.deepcopy(full)
+    cut["inputs"]["verified"] = False
+    path.write_text(json.dumps(cut))
+    assert cert.main(write) == 1
+    assert "inputs of the readings are not verified" in problems()
+    # A partial summary next to the whole one is refused too.
+    path.write_text(json.dumps(full))
+    (results / "ieee_tc_dyntrucy.partial.json").write_text(json.dumps(full))
+    assert cert.main(write) == 1
+    assert "partial execution's summary" in problems()
+
+
+def test_bench_suite_never_writes_a_narrowed_summary_into_the_results(
+    bench, tmp_path: Path
+) -> None:
+    suite_file = REPO / "benchmarks/paper/ieee_tc_dyntrucy.yaml"
+    with pytest.raises(SystemExit) as exc:
+        bench.main(["summarize", str(suite_file), "--readings", "cuda", "--version", "t"])
+    assert exc.value.code == 2
+    suite = bench.load_suite(suite_file)
+    jobs = _write_cc_records(bench, suite, tmp_path / "rec", head())
+    cuda = [j for j in jobs if j["reading"] == "cuda"]
+    out = tmp_path / "out"
+    summary = bench.summarize(
+        suite,
+        cuda,
+        out=out,
+        version="t",
+        records=tmp_path / "rec",
+        inputs=None,
+        partial={"readings": ["cuda"]},
+    )
+    assert summary["partial"] and (out / "ieee_tc_dyntrucy.partial.json").is_file()
+    assert not (out / "ieee_tc_dyntrucy.json").exists()
+    # run never replaces a record unless asked to.
+    with pytest.raises(bench.SuiteError, match="records exist already"):
+        bench.run_jobs(cuda, skip_existing=False, log=None)
+    done = bench.run_jobs(cuda, skip_existing=True, log=None)
+    assert done[0]["skipped"]
+
+
+def test_inputs_of_a_record_without_digests_are_hashed_again(bench, tmp_path: Path) -> None:
+    import datetime
+    import os
+
+    suite = bench.load_suite(REPO / "benchmarks/paper/ieee_tc_dyntrucy.yaml")
+    suite["harness"]["inputs"] = str(tmp_path)
+    data = tmp_path / "DD" / "DD_A.txt"
+    data.parent.mkdir()
+    data.write_text("1, 2\n")
+    suite["datasets"] = [dict(suite["datasets"][0], sha256=bench.sha256_file(data))]
+    job = {"reading": "cuda-memory", "dataset": None}
+    record = {"date": "2030-01-01T00:00:00Z", "results": {"count/DD_k4": {}}}
+    later = datetime.datetime(2030, 1, 1, tzinfo=datetime.UTC)
+    got = bench.check_record_inputs(suite, job, record, later)
+    assert got["verified"] and "unchanged since the execution started" in got["how"]
+    assert bench.check_record_inputs(suite, job, record, None)["verified"]  # the record's date
+    # A file written after the execution started, or with other content, is not verified.
+    earlier = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
+    got = bench.check_record_inputs(suite, job, record, earlier)
+    assert not got["verified"] and "changed at" in got["problems"][0]
+    data.write_text("1, 3\n")
+    os.utime(data, (0, 0))
+    got = bench.check_record_inputs(suite, job, record, later)
+    assert not got["verified"] and "SHA-256" in got["problems"][0]
+    # Digests the measuring process took are used as they are.
+    record["datasets_sha256"] = {"DD": suite["datasets"][0]["sha256"]}
+    got = bench.check_record_inputs(suite, job, record, earlier)
+    assert got["verified"] and got["how"] == "hashed by the measuring process"
+    # The run log gives the start of the execution.
+    (tmp_path / "ieee_tc_dyntrucy.log").write_text(
+        "== 2026-09-30T21:28:39-05:00 a\nrc=0 x\n== 2026-10-01T01:00:00-05:00 b\n"
+    )
+    start = bench.execution_started(tmp_path, suite)
+    assert start == datetime.datetime(2026, 10, 1, 2, 28, 39, tzinfo=datetime.UTC)
+
+
+def test_the_measured_driver(cert, monkeypatch: pytest.MonkeyPatch) -> None:
+    other = {"nvidia": "580.1", "cuda_driver_api": "13.0"}
+
+    def suite(*drivers):
+        return [
+            {
+                "execution_started": "2026-09-30T00:00:00Z",
+                "readings": [
+                    {"record": f"r{i}", "backend": "cuda", "kind": "run", "driver": d}
+                    for i, d in enumerate(drivers)
+                ],
+            }
+        ]
+
+    problems: list[str] = []
+    got = cert.measured_driver(suite(DRIVER, DRIVER), dict(DRIVER), problems)
+    assert not problems and got["nvidia"] == DRIVER["nvidia"]
+    cert.measured_driver(suite(DRIVER, other), dict(DRIVER), problems)
+    assert any("different drivers" in p for p in problems)
+    problems.clear()
+    cert.measured_driver(suite(other), dict(DRIVER), problems)
+    assert any("not the one seen now" in p for p in problems)
+    # Records without a driver: the driver seen now must be shown unchanged since they started.
+    problems.clear()
+    monkeypatch.setattr(
+        cert, "driver_unchanged_since", lambda start, v: {"verified": False, "since": "x"}
+    )
+    cert.measured_driver(suite(None), dict(DRIVER), problems)
+    assert any("name no driver" in p for p in problems)
+    problems.clear()
+    monkeypatch.setattr(
+        cert, "driver_unchanged_since", lambda start, v: {"verified": True, "since": "x"}
+    )
+    got = cert.measured_driver(suite(None), dict(DRIVER), problems)
+    assert not problems and "unchanged since before" in got["source"]
+
+
+def test_driver_unchanged_since_on_this_machine(cert) -> None:
+    import datetime
+
+    future = datetime.datetime(2100, 1, 1, tzinfo=datetime.UTC)
+    got = cert.driver_unchanged_since(future, None)
+    assert got["verified"] is False  # no driver version given: never verified
+    assert (
+        cert.driver_unchanged_since(datetime.datetime(1971, 1, 1, tzinfo=datetime.UTC), "1")[
+            "verified"
+        ]
+        is False
+    )
+
+
+def test_check_needs_evidence_and_records_it(cert, tmp_path: Path) -> None:
+    results = tmp_path / "r"
+    args = ["check", "--results", str(results), "--name", "dist", "--command", "ci/wheels.sh"]
+    with pytest.raises(SystemExit, match="needs --evidence"):
+        cert.main([*args, "--result", "passed", "--scope", "packaging"])
+    log = tmp_path / "wheels.log"
+    log.write_text("==> sdist\nnoise\n\x1b[32mPASSED\x1b[0m\nok     dyng.whl\n")
+    assert (
+        cert.main([*args, "--result", "passed", "--scope", "packaging", "--evidence", str(log)])
+        == 0
+    )
+    entry = json.loads((results / "checks.json").read_text())["checks"][0]
+    assert entry["scope"] == "packaging"
+    assert entry["evidence"][0]["bytes"] == log.stat().st_size
+    excerpt = (results / entry["evidence"][0]["excerpt"]).read_text()
+    assert "==> sdist" in excerpt and "PASSED" in excerpt and "noise" not in excerpt
+    summary = tmp_path / "gpu.md"
+    summary.write_text(
+        "| step | result |\n|---|---|\n| memcheck | passed |\n| racecheck | skipped |\n"
+    )
+    gpu = ["check", "--results", str(results), "--name", "gpu", "--command", "ci/gpu_local.sh"]
+    assert cert.main([*gpu, "--gpu-summary", str(summary)]) == 0
+    entry = json.loads((results / "checks.json").read_text())["checks"][-1]
+    assert entry["required_steps"] == []
+    assert cert.main([*gpu, "--gpu-summary", str(summary), "--require-steps", "racecheck"]) == 1
+    entry = json.loads((results / "checks.json").read_text())["checks"][-1]
+    assert entry["required_steps"] == ["racecheck"] and entry["missing_steps"] == ["racecheck"]
+
+
+def test_scopes_cover_what_each_check_depends_on(cert) -> None:
+    commit = head()
+    for scope in ("library", "tests", "packaging", "repo"):
+        assert cert.same_code(commit, commit, scope) is True
+    assert "pyproject.toml" in cert.CODE_PATHS["packaging"]
+    assert ".github/workflows/release.yml" in cert.CODE_PATHS["packaging"]
+    assert cert.CODE_PATHS["repo"] == [".", ":(exclude)benchmarks/results"]
+    parent = subprocess.check_output(
+        ["git", "-C", REPO, "rev-list", "--max-count=1", "--skip=40", "HEAD"], text=True
+    ).strip()
+    if parent:
+        changed = cert.code_diff(parent, commit, "repo")
+        assert changed is not None and not any(c.startswith("benchmarks/results/") for c in changed)
+
+
+def test_committed_fixtures(cert) -> None:
+    names = _fixture_test_names(cert)
+    ok = [{"name": "asan", "release_code": True, "fixture_tests": dict.fromkeys(names, "Passed")}]
+    problems: list[str] = []
+    sets = cert.committed_fixtures(ok, problems)
+    assert not problems and all(s["passed"] for s in sets)
+    for s in sets:
+        digest, count = cert.tree_digest(s["directory"])
+        assert (digest, count) == (s["sha256"], s["files"]) and count > 0
+        assert s["commit"] and len(s["commit"]) == 40
+    # A test that failed somewhere, a pattern no check ran, a check of other code.
+    bad = [{**ok[0], "fixture_tests": {**ok[0]["fixture_tests"], names[0]: "Failed"}}]
+    problems.clear()
+    cert.committed_fixtures(bad, problems)
+    assert any("Failed" in p for p in problems)
+    problems.clear()
+    cert.committed_fixtures([{**ok[0], "release_code": False}], problems)
+    assert any("no release check ran and passed" in p for p in problems)
+
+
+def test_ctest_progress_lines(cert) -> None:
+    text = (
+        "  1/3 Test #585: example.sssp ....   Passed    0.08 sec\n"
+        " 39/3 Test  #40: Host.Huge ......***Skipped   0.07 sec\n"
+        "  3/3 Test   #9: L.R<(anonymous namespace)::t<int,int>> ...***Failed  1.20 sec\n"
+        "\x1b[32m  2/2 Test #1: A.B ..   Passed    0.01 sec\x1b[0m\n"
+    )
+    assert cert.parse_ctest_tests(text) == {
+        "example.sssp": "Passed",
+        "Host.Huge": "Skipped",
+        "L.R<(anonymous namespace)::t<int,int>>": "Failed",
+        "A.B": "Passed",
+    }

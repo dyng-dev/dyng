@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The committed golden fixtures of cpp/tests/data (PLAN Section 8.3, "Golden storage": the small
+# goldens live in the repository): where each set comes from and the CTests that compare it with
+# the port. parity/certify.py write puts every set into the release certificate (the SHA-256 of
+# its files, the original and commit it was exported from, and the result of each test below in
+# the release checks); it fails for a directory of cpp/tests/data that is not listed here, and for
+# a test pattern that no release check ran and passed.
+#
+#   directory     the fixture directory (every tracked file under it is digested)
+#   reference     the original of parity/references.toml it was exported from (its pinned commit)
+#   generated_by  the script that regenerates the set from the patched scratch copy
+#   what          what the files are
+#   tests         ctest names (fnmatch patterns); each must match at least one test that passed
+#                 in a release check, and no matching test may have failed in any of them
+schema = 1
+
+[sets.mosp_changes]
+directory = "cpp/tests/data/mosp_changes"
+reference = "MOSP-OpenMP"
+generated_by = "parity/fixtures/generators/make_generator_fixtures.sh"
+what = "generator outputs: insert.txt, delete.txt and the report line of `mospPrep changes` for every case of cases.txt (MOSP-CUDA@e220ee2's mospPrep writes the same files); generators::legacy::mosp_changes must reproduce them byte for byte"
+tests = ["LegacyMospChanges.ReproducesMospPrepChangesByteForByte*"]
+
+[sets.mosp_graph_io]
+directory = "cpp/tests/data/mosp_graph_io"
+reference = "MOSP-OpenMP"
+generated_by = "parity/fixtures/graph_io/make_graph_io_fixtures.sh"
+what = "graph I/O: the CSR files of `mospPrep mtx2csr` (weights bit-exact), applyChangeBatch's updated CSR and the original's test cases (update_graph_csr as edge sets)"
+tests = ["MospApplyFixture.*", "MospPrepFixture.*"]
+
+[sets.mosp_sssp]
+directory = "cpp/tests/data/mosp_sssp"
+reference = "MOSP-OpenMP"
+generated_by = "parity/fixtures/sssp/make_sssp_fixtures.sh"
+what = "sssp: the original's distances and parents (SOSP compute and update) of the small cases; the committed subset of the sssp golden corpus, also the expected outputs of the compat tool's CLI tests"
+tests = ["SsspMospFixture.*", "cuda.SsspMospFixture.*", "compat_mosp.*"]
+
+[sets.cycle_enum]
+directory = "cpp/tests/data/cycle_enum"
+reference = "CycleEnumeration-GPU"
+generated_by = "parity/fixtures/cycle_enum/make_cycle_enum_fixtures.sh"
+what = "cycle_count and its graph layer: the parser and CSR outputs, the error lines, prepare_batch / apply_batch and the oracle histograms of 80 random cases (and their CUDA histograms), the generator outputs, the CLI outputs, and the digests and static histograms of the TUDataset graphs (datasets.txt, datasets_counts.txt)"
+tests = [
+  "ReadEdgeList.ParserOutputEqualsTheOriginal",
+  "ReadEdgeList.CsrEqualsBuildDirectedGraph",
+  "ReadEdgeList.MalformedFilesAsTheOriginal",
+  "SetApply.FixturesMatchPrepareAndApplyBatch*",
+  "StructuralChange.EqualsPrepareBatchOnTheFixtures",
+  "CycleEnumBatch.FixturesMatchGenerateBatch",
+  "CycleOracle.FixturesMatchTheOriginalOracles",
+  "Backends/CycleCountFixtures.*",
+  "cuda.Backends/CycleCountFixtures.*",
+  "compat_cycle_enum.cli",
+  "compat_cycle_enum.cli.cuda",
+  "CycleEnumDatasets.DigestsEqualTheOriginal",
+  "CycleCountDatasets.HistogramsEqualTheOriginal",
+]
