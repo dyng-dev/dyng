@@ -78,7 +78,9 @@ LIBRARY_PATHS = [
     "CMakePresets.json",
     "docs/references.bib",
 ]
-TEST_PATHS = [*LIBRARY_PATHS, "cpp/tests"]
+# The C++ test suites also build and run the examples and the README's C++ quickstart (extracted
+# from README.md at configure time, examples/cpp/CMakeLists.txt).
+TEST_PATHS = [*LIBRARY_PATHS, "cpp/tests", "examples", "README.md"]
 # What the distributions are built from and checked with: the sdist's sources (the library, the
 # tests, the Python package, the metadata files and the licences) and the scripts and workflows
 # that build and check them (release.yml's select, wheels.yml, ci/wheels.sh, ci/wheel_check.py).
@@ -87,7 +89,6 @@ PACKAGING_PATHS = [
     "python",
     "pyproject.toml",
     "VERSION",
-    "README.md",
     "CHANGELOG.md",
     "CITATION.cff",
     "LICENSE",

@@ -158,8 +158,8 @@ around it is written by hand). The certificate records:
   | Scope | Paths | For |
   |---|---|---|
   | `library` | `cpp/include cpp/src cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json docs/references.bib` | the gates, the golden replays, `mutate.py` (`check --scope library`) |
-  | `tests` | the library paths and `cpp/tests` | a C++ test suite: the sanitizer presets, `ctest -L mutation` (the default of `check`) |
-  | `packaging` | the test paths, `python`, `pyproject.toml`, `VERSION`, `README.md`, `CHANGELOG.md`, `CITATION.cff`, the licence files, `ci/wheels.sh`, `ci/wheel_check.py`, `release.yml`, `wheels.yml` | the distributions (`select`, `ci/wheels.sh`, `twine check`, `wheel_check`, the fresh venvs) |
+  | `tests` | the library paths, `cpp/tests`, `examples` and `README.md` (its C++ quickstart is a test) | a C++ test suite: the sanitizer presets, `ctest -L mutation` (the default of `check`) |
+  | `packaging` | the test paths, `python`, `pyproject.toml`, `VERSION`, `CHANGELOG.md`, `CITATION.cff`, the licence files, `ci/wheels.sh`, `ci/wheel_check.py`, `release.yml`, `wheels.yml` | the distributions (`select`, `ci/wheels.sh`, `twine check`, `wheel_check`, the fresh venvs) |
   | `repo` | every tracked file but `benchmarks/results/` | a check of the whole tree: `ci/check.sh`, `ci/gpu_local.sh` |
 
   `VERSION` is not a library path: it only names the build, so a release candidate's gates

@@ -103,17 +103,19 @@ release's state:
   candidates), `CONTRIBUTING.md` and `SUPPORT.md` (the "0.1 release candidate" wording),
   `docs/roadmap.md` ("Where we are") and `docs/developer/plan.md` (the status line);
 - the certificate (`benchmarks/results/X.Y.Z/`), one of:
-  - **carried over**, when no measured code changed since the release candidate's certificate
-    (`git diff <rc commit> HEAD -- <the paths of every scope>` touches no file the
-    certificate's checks depend on, which `certify.py write` verifies): copy the release
-    candidate's directory, `cp -r benchmarks/results/X.Y.ZrcN benchmarks/results/X.Y.Z`, and run
+  - **carried over**, when the library did not change since the release candidate's measured
+    commits (`git diff <measured> HEAD` over the library paths is empty, which `certify.py
+    write` verifies for every part in the paths of its scope): copy the release candidate's
+    directory, `cp -r benchmarks/results/X.Y.ZrcN benchmarks/results/X.Y.Z`, and run
     `parity/certify.py write --version X.Y.Z` on the committed final tree. It checks every
     measured commit against the final commit in the paths of its scope and writes a
     `parity.json` naming `X.Y.Z` and the final commit. `VERSION`, `CHANGELOG.md` and
-    `CITATION.cff` are outside the library and test scopes, so the gates, the replays and the
-    sanitizer checks carry over; the checks of the `packaging` and `repo` scopes (the
-    distributions, `ci/check.sh`, `ci/gpu_local.sh`) see the new `VERSION` and status lines
-    and are **run again** on the final tree and recorded with `certify.py check` first;
+    `CITATION.cff` are outside the library scope, so the gates, the replays and the golden
+    mutations carry over; the checks whose scope the final pull request touches are **run
+    again** on the final tree and recorded with `certify.py check` first: those of the
+    `packaging` and `repo` scopes (the distributions, `ci/check.sh`, `ci/gpu_local.sh`) always
+    (they see the new `VERSION`), and the C++ test suites of the `tests` scope (the sanitizer
+    presets, `ctest -L mutation`) when `README.md` changed, whose C++ quickstart is a test;
   - **measured again**, when code changed: steps 1-3 for `X.Y.Z`.
   Commit the directory with the release; `release.yml` publishes the version the certificate
   names.
