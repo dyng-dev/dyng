@@ -61,9 +61,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 SCHEMA = 1
-# What a measured build is made of (the library, the compat tools, the build system), and what a
-# test-suite check runs in addition (the C++ tests). The performance gates, the golden replays and
-# the golden mutations need the release's library sources; a test-suite check also its tests.
+# What a measured build is made of (the library, the compat tools, the build system, the
+# bibliography compiled in for dyng::citation()), and what a test-suite check runs in addition
+# (the C++ tests). The performance gates, the golden replays and the golden mutations need the
+# release's library sources; a test-suite check also its tests. VERSION is deliberately not a
+# library path: it only names the build (dyng::version(), the package version), and a release
+# candidate's measurements certify the final release whose VERSION differs only there
+# (docs/developer/release.md, step 9).
 LIBRARY_PATHS = [
     "cpp/include",
     "cpp/src",
@@ -72,6 +76,7 @@ LIBRARY_PATHS = [
     "cmake",
     "CMakeLists.txt",
     "CMakePresets.json",
+    "docs/references.bib",
 ]
 TEST_PATHS = [*LIBRARY_PATHS, "cpp/tests"]
 # What the distributions are built from and checked with: the sdist's sources (the library, the
@@ -89,7 +94,6 @@ PACKAGING_PATHS = [
     "LICENSES",
     "NOTICE",
     "THIRD_PARTY_LICENSES.txt",
-    "docs/references.bib",
     "ci/wheels.sh",
     "ci/wheel_check.py",
     ".github/workflows/release.yml",
