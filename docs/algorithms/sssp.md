@@ -184,7 +184,25 @@ I9). It returns the fused engine's bytes and the same `invalidated` and `affecte
 check C4, the golden corpus with `parity/compare.py --configs cuda-operators` and the randomized
 suites check it on every chain); `iterations`, `epochs` and `pushes` describe the schedule and may
 differ. It is slower than the fused engine on short updates (a host round trip per near-far
-round); `parity/results/M7.md` measures it on the gate graphs.
+round); `parity/results/M7.md` (section 2) measures it on the gate graphs, one objective's update
+summed over three objectives, RTX A5000 at locked boost clocks, medians of 21 rounds (no gate):
+
+| Graph | 50K safe batch: fused / operators (ms, sum of 3 objectives) | ratio | local 10K batch: fused / operators (ms) | ratio |
+|---|---|---:|---|---:|
+| roadNet-PA | 14.3 / 16.9 | 1.18 | 27.8 / 45.1 | 1.62 |
+| roadNet-CA | 26.1 / 29.9 | 1.15 | 9.9 / 15.4 | 1.55 |
+| rgg_n_2_20_s0 | 77.5 / 80.0 | 1.03 | 187.0 / 205.8 | 1.10 |
+| road_usa | 306.7 / 334.4 | 1.09 | 66.6 / 94.9 | 1.43 |
+
+The difference is about 8-9 us of host round trip per near-far round, so it grows with the
+number of short rounds (the local batches) and shrinks where rounds carry much work (rgg).
+
+**Choosing the engine from Python and the command line.** `cuda_engine` is an option like any
+other: `dyng.sssp.compute(g, 0, cuda_engine="operators")`, `tree.set_options(cuda_engine="fused")`
+(it is a tunable, so it can change between updates), `dyng.mosp.compute(g, 0,
+cuda_engine="operators")` for the K updates and the combined solve of mosp, and `--cuda-engine
+automatic|fused|operators` on `dyng sssp` and `dyng mosp`. `Stats.engine_used` (`"fused"` or
+`"operators"`) reports what ran. The host backends ignore the option.
 
 `stats::engine_used` reports the engine that ran: `fused` on openmp and for the fused CUDA engine
 (the ported paper engines), `operators` on the sequential reference and for the CUDA operators

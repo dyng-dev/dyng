@@ -30,6 +30,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0025](0025-cli-and-distributions.md) | The command line as a Python console script (generated flags, `dyng prep` with mospPrep's syntax, the originals' output formats), and the build of the distributions (cibuildwheel in CI, the local manylinux_2_28 build, `release.yml` for v0.1.0+) | Accepted under delegation (2026-09-30) |
 | [0026](0026-sssp-operators-engine.md) | The sssp operators engine on CUDA (the multi-kernel, non-cooperative engine, byte-identical to the fused one) and the engine choice of 0.2 | Accepted under delegation (2026-09-30) |
 | [0027](0027-mosp-api-and-composition.md) | The mosp API (0.2) and mosp as a composition of K sssp problems | Accepted under delegation (2026-09-30) |
+| [0028](0028-mosp-python-and-cli.md) | mosp in Python and on the command line (0.2) | Accepted under delegation (2026-10-01) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

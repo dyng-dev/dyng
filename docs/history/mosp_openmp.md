@@ -28,7 +28,7 @@ dynG's `sssp` is its SOSP update; the multi-objective combination becomes `mosp`
 | `src/mospUpdate.cpp` (`canonicalizeTree`, the per-objective loop) | `sssp::result::from_arrays(..., canonicalize)`, `dyng::update_each()`; the whole update: `mosp::update()` (M7) |
 | `src/combinedGraphCpu.cpp`, `headers/combinedGraphCpu.h`, `headers/parallelCombinedGraph.h` (`combinedGraphSospCpu`, `preferenceScale`, `combinedEdgeWeight`, `mospPathCosts`) | the combine step of `mosp` on the OpenMP and sequential backends (`cpp/src/algorithms/mosp/`), `mosp::result::path_costs()`, `io::write_path_costs()` (M7) |
 | `src/mospPrep.cpp` (`mtx2csr`, `widen`, `cache`, `changes`, `init`, `expected`) | `dyng prep ...` of the command line ({doc}`../api/cli`), byte-identical outputs |
-| `src/mosp.cpp` (the `mosp` driver, per objective) | `tools/compat` `dyng-compat-mosp` (parity runs) and `dyng sssp update` |
+| `src/mosp.cpp` (the `mosp` driver, per objective) | `tools/compat` `dyng-compat-mosp` (parity runs; `--mosp` for the whole driver, M7), `dyng sssp update` (the per-objective trees) and `dyng mosp update` (the whole driver, combined graph included, M7) |
 
 ## What was fixed in the original before the port
 

@@ -1,6 +1,7 @@
 # mosp: dynamic multi-objective shortest paths
 
-Maturity: **experimental** (sequential, OpenMP and CUDA backends since M7, for 0.2).
+Maturity: **experimental** (sequential, OpenMP and CUDA backends, the Python binding `dyng.mosp`
+and the command line `dyng mosp` since M7, for 0.2).
 Header: `<dyng/mosp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 on the MOSP golden corpus, combined graph included
 ([M7 record](https://github.com/dyng-dev/dyng/blob/main/parity/results/M7.md)).
@@ -100,6 +101,73 @@ changed), the K sssp stats in objective order, `combined_edges` and `preference_
 of K arrays) and builds the combined graph and the MOSP tree; `clone(res)` copies a result to any
 backend.
 
+**Python** (`dyng.mosp`; the options are keywords with the C++ field names, and
+`dyng.mosp.Options` holds them): the thesis example, updated by its batch:
+
+<!-- snippet: mosp-python -->
+```python
+import numpy as np
+import dyng
+
+# The graph of thesis Chapter 4 (u1..u7 are 0..6): three weight columns, one per objective.
+src = [0, 0, 1, 2, 2, 3, 4, 4, 4, 5]
+dst = [1, 2, 3, 1, 3, 4, 1, 5, 6, 6]
+w = np.array([[2, 1, 5], [4, 1, 1], [2, 4, 2], [10, 15, 2], [5, 16, 3],
+              [1, 1, 1], [4, 3, 2], [1, 2, 2], [5, 6, 2], [1, 1, 1]], dtype=np.int32)
+res = dyng.Resources.openmp()                          # or dyng.Resources.sequential()
+g = dyng.Graph.from_edges(src, dst, w, properties="mosp_compatible", resources=res)
+paths = dyng.mosp.compute(g, source=0, preferences=[4, 1, 4])   # L = lcm(4, 1, 4) = 4
+
+batch = dyng.EdgeBatch(insert=([3, 1], [5, 5], [[10, 2, 12], [12, 1, 14]]),
+                       delete=([1, 4], [3, 1]))
+st = dyng.mosp.update(g, batch, paths)                 # one apply, K trees + the MOSP tree
+print([o.invalidated for o in st.objectives], st.combined_edges, st.affected)
+print(paths.combined_parents.tolist())                 # the MOSP tree
+print(paths.path_costs.to_numpy()[6].tolist())         # the costs of the path to u7
+print(paths.parents(1).tolist(), paths.preference_scale)
+```
+
+<!-- snippet-output: mosp-python -->
+```text
+[4, 4, 0] 9 4
+[-1, 0, 0, 2, 3, 1, 5]
+[15, 3, 20]
+[-1, 0, 0, 2, 3, 1, 5] 4
+```
+
+`paths.distances(k)` and `paths.parents(k)` are objective k's tree, `paths.combined_distances`
+(units of 1/L) and `paths.combined_parents` the combined graph's, and `paths.path_costs` an
+(n, K) int64 array in host memory; all are zero-copy {py:class}`dyng.Array` views that go stale
+with the next update. `dyng.mosp.Stats.objectives` holds K `dyng.sssp.Stats`.
+`dyng.mosp.Result.from_arrays(g, 0, distances, parents)` adopts K trees (lists of arrays, e.g.
+read with `dyng.io.read_distances` / `read_parents` from MOSP's `--init` files), and
+`dyng.update(g, batch, paths, tree, ...)` updates a mosp result together with other results of
+the graph through one application of the batch. `dyng.io.write_path_costs()` writes MOSP's
+`mospCosts.txt`, and `dyng.testing.combined_graph()` / `mosp_path_costs()` are the references of
+the tests. `examples/python/mosp_update.py` (and `examples/cpp/mosp_update.cpp`) run the update
+on MOSP's text files and write the combined graph's files. The reference is
+{doc}`../api/python/index`.
+
+**Command line** ({doc}`../api/cli`): MOSP's files in, MOSP's files out, byte-identical to the
+original `mosp` driver (`--preferences` is its `--pref`, `--num-objectives` its `-k`):
+
+```console
+$ dyng prep mtx2csr roadNet-CA.mtx roadNet-CA_ 3 1 100 12345    # text CSR, 3 seeded objectives
+$ dyng prep changes roadNet-CA_ batch --changes 50000 --ins 50 --safe --seed 777
+$ dyng prep init roadNet-CA_ init                               # init/obj<k>/SSSPTreeOriginal.txt
+$ dyng mosp update --graph roadNet-CA_ --changes batch --init init --preferences 4,1,4 --out out
+obj0: invalidated ..., affected ..., iterations ..., engine fused
+...
+combined: L=4, reachable ... of ..., ... edges, affected ...
+```
+
+`dyng mosp update` writes `out/obj<k>/distancesUpdated.txt`, `SSSPTreeUpdated.txt` and
+`out/combinedGraph/{distancesCsr,SSSPTreeCsr,mospCosts}.txt`; `dyng mosp compute` writes the K
+trees as `mospPrep init` does and the combined files of the static solve. `--delta`,
+`--cuda-engine`, `--no-compute-path-costs`, `--no-validate-inputs`, `--backend` and `--threads`
+are the options above. The tests compare its output with the committed files of both originals,
+with `dyng-compat-mosp --mosp` and, where it is built, with MOSP-OpenMP's `mosp`.
+
 ## 4. Backends, engines and determinism
 
 | Backend | K updates | Combined graph | Combined solve | Path costs |
@@ -131,6 +199,22 @@ originals' `gpu_compute_ms` / `compute_ms`, and "(b) end to end" with their `end
 bench's batches, "(a) compute" is 0.99-1.01x of MOSP-CUDA's on cuda and 0.67-0.92x of
 MOSP-OpenMP's on OpenMP (gate 1.05), "(b) end to end" 0.70-0.91x and 0.75-0.92x (gate 1.10), and
 the peak device memory 0.93-1.02x of MOSP-CUDA's (gate 1.05).
+
+Medians of the A/B runs on the 50K safe batch (K = 3, default preferences; RTX A5000 at locked
+boost clocks with the fused engine, 28 OpenMP threads on a Xeon Gold 6258R; ratio dynG /
+original, `parity/results/M7.md` section 6 for the other two batches):
+
+| Graph | cuda "(a)" ms (MOSP-CUDA / dynG) | ratio | cuda "(b)" ms | ratio | OpenMP "(a)" ms (MOSP-OpenMP / dynG) | ratio | OpenMP "(b)" ms | ratio |
+|---|---|---:|---|---:|---|---:|---|---:|
+| roadNet-PA | 16.8 / 16.9 | 1.005 | 690 / 597 | 0.865 | 57.1 / 45.2 | 0.792 | 526 / 481 | 0.915 |
+| roadNet-CA | 31.2 / 31.0 | 0.993 | 1,045 / 887 | 0.849 | 98.4 / 79.7 | 0.810 | 954 / 807 | 0.846 |
+| rgg_n_2_20_s0 | 81.5 / 81.4 | 0.999 | 1,492 / 1,275 | 0.855 | 154.0 / 141.5 | 0.919 | 1,417 / 1,249 | 0.881 |
+| road_usa | 364.0 / 366.0 | 1.005 | 11,579 / 8,153 | 0.704 | 1,281.9 / 1,094.9 | 0.854 | 12,341 / 9,307 | 0.754 |
+
+The CUDA operators engine (`cuda_engine="operators"`, the fallback without cooperative launch)
+gives the same bytes; its K updates take 1.03-1.18x the fused engine's time on the 50K batches
+and 1.10-1.62x on the local 10K batches, whose many short near-far rounds each cost a host round
+trip (`parity/results/M7.md` section 2; no gate).
 
 Memory: the result holds the K trees (12 bytes per vertex each), the MOSP tree (12 bytes per
 vertex; on the host backends twice, the previous one being kept for `affected`; on cuda the
@@ -183,7 +267,8 @@ of the combined graph are built for the sequential engine's distance-only parent
 | `CombineWorkspace` | the pooled `detail::mosp_workspace` / `mosp_cuda_workspace` |
 | `mospPathCosts()` | `result::path_costs()`; `testing::mosp_path_costs_reference()` |
 | `combinedGraphReference()` | `testing::combined_graph_reference()` |
-| `mosp` driver | `dyng-compat-mosp --mosp` (tools/compat) |
+| `mosp` driver | `dyng mosp update` (the command line); `dyng-compat-mosp --mosp` (tools/compat, the drop-in clone with the original's flags and timing lines) |
+| `mosp --pref`, `-k` | `options::preferences`, `options::num_objectives` (`--preferences`, `--num-objectives`) |
 
 ## 10. How to cite
 

@@ -877,6 +877,36 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
 - Records: `parity/results/M7.md` sections 4-10 (the paper-scale parity, the K sweep, the mosp
   gates on both backends, the combined step, the device memory, the sssp gate re-check).
 
+### M7: `mosp` in Python and on the command line (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Added: **`dyng.mosp`** (ADR 0028): `compute(graph, source, *, options=None, resources=None,
+  **kwargs)`, `update(graph, batch, result, *, resources=None)`, `Options` (`preferences`,
+  `delta`, `cuda_engine`, `compute_path_costs`, `validate_inputs`, `num_objectives`), `Stats`
+  (with the K `dyng.sssp.Stats` in `objectives`, `combined_edges`, `preference_scale`) and
+  `Result` (`distances(k)`, `parents(k)`, `combined_distances`, `combined_parents`,
+  `path_costs` as a zero-copy (n, K) int64 array, `preference_scale`, `from_arrays()` over lists
+  of K arrays, `clone()`), and `MAX_OBJECTIVES` / `MAX_PREFERENCE_SCALE`. `dyng.update()`
+  accepts mosp results next to sssp and cycle_count results.
+- Added: `dyng.io.write_path_costs()` (MOSP's `mospCosts.txt`), `dyng.testing.combined_graph()`
+  and `dyng.testing.mosp_path_costs()` (the C++ references).
+- Added: the command line **`dyng mosp compute|update`**, MOSP's files in and out byte for byte
+  as the `mosp` driver writes them (`obj<k>/`, `combinedGraph/{distancesCsr,SSSPTreeCsr,
+  mospCosts}.txt`); `--preferences 4,1,4` is the driver's `--pref`, `--num-objectives` its `-k`.
+  List-valued option fields become comma-separated flags.
+- Added: `examples/cpp/mosp_update.cpp` and `examples/python/mosp_update.py` (the thesis
+  example's combined files, compared with the originals' in CTest and pytest).
+- Changed: `dyng.Array.ndim` and `.shape` report the array's dimensions (2 for the path costs;
+  every other result array is 1-D as before), and `len()` is the length of the first dimension.
+- Changed (build): `DYNG_BUILD_PYTHON=ON` needs mosp in the build (`DYNG_ALGORITHMS=all`).
+- Docs: the mosp page's Python and command-line sections and its performance table, the sssp
+  page's engine table (operators against fused) and engine choice from Python and the command
+  line, the command-line and Python API references, ADR 0028.
+- CI: `ci/gpu_local.sh` replays the golden corpus with both CUDA engines (`--configs
+  cuda,cuda-operators`, the whole MOSP update per case) and runs synccheck on the CUDA mosp
+  suite.
+
 ## [0.0.1] - 2026-09-27
 
 ### Added
