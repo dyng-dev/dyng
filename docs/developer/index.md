@@ -15,6 +15,7 @@ conformance
 api_review_checklist
 documentation
 parity
+benchmarks
 provenance
 labels
 repository_settings
