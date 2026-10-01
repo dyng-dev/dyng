@@ -685,8 +685,17 @@ def read_record(suite: dict, job: dict, tol: dict, problems: list[str]) -> dict:
                 problems.append(f"{where}: dataset {name} SHA-256 {sha} is not the suite's {want}")
     regions = []
     complete = True
+    contaminated: dict[str, int] = {}
     if job["kind"] == "run":
         for case, result in record.get("results", {}).items():
+            # Flagged, not repeated, by the OpenMP cycle_count harness (the others repeat them).
+            flagged = sum(
+                int(side.get("flagged_runs", 0))
+                for side in (result.get("contamination") or {}).values()
+                if isinstance(side, dict)
+            )
+            if flagged:
+                contaminated[case] = flagged
             if result.get("complete") is False:
                 complete = False
                 problems.append(f"{where}: {case} is incomplete (more rejected rounds than runs)")
@@ -766,6 +775,7 @@ def read_record(suite: dict, job: dict, tol: dict, problems: list[str]) -> dict:
         },
         "host": record.get("host"),
         "complete": complete,
+        "contaminated_runs": contaminated,
         "regions": regions,
         "_raw": record,
     }
@@ -804,6 +814,11 @@ def summarize(
     provisional = [
         f"{r['reading']}: {g['case']} {g['region']}" for r, g in gated if g.get("provisional")
     ]
+    contaminated = [
+        f"{r['reading']}: {case} ({n} runs above the foreign-load threshold)"
+        for r in readings
+        for case, n in (r.get("contaminated_runs") or {}).items()
+    ]
     missing = [
         f"{r['reading']}{'/' + r['dataset'] if r['dataset'] else ''}"
         for r in readings
@@ -833,6 +848,7 @@ def summarize(
             "ratio_range": [min(ratios), max(ratios)] if ratios else None,
             "exceeded": exceeded,
             "provisional": provisional,
+            "contaminated": contaminated,  # flagged, not failed (PLAN 8.6): read again
             "missing_or_incomplete": missing,
             "problems": problems,
             "passed": not (exceeded or provisional or missing or problems),
@@ -851,7 +867,7 @@ def print_summary(summary: dict) -> None:
         + (f" (ratios {rng[0]:.3f}-{rng[1]:.3f})" if rng else "")
         + (" PASSED" if v["passed"] else " FAILED")
     )
-    for key in ("exceeded", "provisional", "missing_or_incomplete", "problems"):
+    for key in ("exceeded", "provisional", "contaminated", "missing_or_incomplete", "problems"):
         for item in v[key]:
             print(f"  {key}: {item}")
 

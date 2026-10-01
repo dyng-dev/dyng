@@ -88,7 +88,10 @@ on its own) writes to `benchmarks/results/<version>/`:
 The summary re-derives every gate from the suite's tolerances and fails if a record's gate,
 reference commit or variant, input digests, clock lock or build preset differ from the suite, if
 a gated reading is missing or incomplete, or if a gated region exceeds its gate or is provisional
-(a region under 10 ms read with fewer than 20 rounds).
+(a region under 10 ms read with fewer than 20 rounds). It lists, without failing (PLAN 8.6:
+flagged, not failed), the runs the OpenMP cycle_count harness flagged for foreign CPU load above
+its threshold (the other harnesses repeat such rounds); a reading with flagged runs is read again
+on a quiet machine before a release.
 
 ## The release certificate
 

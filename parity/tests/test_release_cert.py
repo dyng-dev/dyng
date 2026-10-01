@@ -254,7 +254,18 @@ def test_bench_suite_cli(bench) -> None:
 
 def test_parsers(cert) -> None:
     log = "...\n100% tests passed, 0 tests failed out of 596\n\nTotal Test time (real) = 1 sec\n"
-    assert cert.parse_ctest(log) == {"tests": 596, "failed": 0, "percent_passed": 100}
+    assert cert.parse_ctest(log) == {"tests": 596, "failed": 0, "skipped": 0, "percent_passed": 100}
+    cmake4 = (
+        "100% tests passed out of 595\n\nThe following tests did not run:\n"
+        "\t161 - AllocationFailure.InsertEdgeIsStrong (Skipped)\n"
+        "\t162 - A.B (Skipped)\n"
+    )
+    assert cert.parse_ctest(cmake4) == {
+        "tests": 595,
+        "failed": 0,
+        "skipped": 2,
+        "percent_passed": 100,
+    }
     assert cert.parse_ctest("99% tests passed, 1 test failed out of 120")["failed"] == 1
     assert cert.parse_ctest("nothing") is None
     md = "### x\n\n| step | result |\n|---|---|\n| build | passed |\n| memcheck | FAILED |\n"
@@ -415,3 +426,21 @@ def test_mutation_apply_refuses_an_ambiguous_point(tmp_path: Path) -> None:
     (tmp_path / "f.cpp").write_text("a\n")
     mutate.apply(tmp_path, {"name": "x", "file": "f.cpp", "old": "a", "new": "b"})
     assert (tmp_path / "f.cpp").read_text() == "b\n"
+
+
+def test_summary_lists_contaminated_runs_without_failing(bench, tmp_path: Path) -> None:
+    suite = bench.load_suite(REPO / "benchmarks/paper/ieee_tc_dyntrucy.yaml")
+    jobs = _write_cc_records(bench, suite, tmp_path / "rec", head(), ratio=0.9)
+    omp = next(j for j in jobs if j["reading"] == "openmp")
+    rec = json.loads(Path(omp["record"]).read_text())
+    rec["results"]["count/DD_k3"]["contamination"] = {
+        "original": {"flagged_runs": 2},
+        "port": {"flagged_runs": 1},
+    }
+    Path(omp["record"]).write_text(json.dumps(rec))
+    out = tmp_path / "out"
+    summary = bench.summarize(suite, jobs, out=out, version="t", records=tmp_path, inputs=None)
+    assert summary["verdict"]["passed"]
+    assert summary["verdict"]["contaminated"] == [
+        "openmp: count/DD_k3 (3 runs above the foreign-load threshold)"
+    ]
