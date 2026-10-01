@@ -63,7 +63,10 @@
  * With --mosp the report adds `comb   combined graph + SOSP <ms> ms (...)` (mosp.combine +
  * mosp.combined_sssp + mosp.finalize, the original's combinedGraphSosp* region) and the summary
  * line begins with `RESULT compute_ms=<x>`, the K objectives' SOSP regions (a) plus that combined
- * region: the region MOSP times as gpu_compute_ms / compute_ms.
+ * region: the region MOSP times as gpu_compute_ms / compute_ms. Its --timing CSV writes the setup's
+ * stages (graph.build and mosp::result::from_arrays, which builds the MOSP tree of the initial
+ * trees) as `setup,<stage>,<ms>` rows, so that the `stage` rows of mosp.* are the update's only
+ * (parity/timed_regions/mosp.toml).
  *
  * Summary line (stable format):
  *   RESULT sosp_ms=<a> apply_ms=<b> end_to_end_ms=<c> threads=<t>
@@ -674,8 +677,11 @@ int run_mosp(const options& opt, dyng::resources& res, bool cuda, dyng::profiler
   if (!opt.timing.empty()) {
     std::ofstream csv(opt.timing);
     prof.write_csv(csv);
+    // The setup's stages (graph.build, mosp::result::from_arrays: its sssp stages and its own
+    // mosp.combine ... mosp.path_costs) are `setup` rows, so that the update's mosp.* stages are
+    // the only `stage` rows of their names (parity/timed_regions/mosp.toml).
     for (const dyng::stage_sample& s : setup_prof.samples()) {
-      csv << "stage," << s.name << ',' << s.host_ms << '\n';
+      csv << "setup," << s.name << ',' << s.host_ms << '\n';
     }
     csv << "stage,total.end_to_end," << end_to_end << '\n';
     csv << "stage,total.context," << in.context_ms << '\n';
