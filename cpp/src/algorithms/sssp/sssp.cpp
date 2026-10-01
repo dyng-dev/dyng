@@ -646,9 +646,10 @@ void sssp_problem<vertex_t, edge_t, weight_t>::prepare(framework::context& ctx, 
   const edge_batch_view<vertex_t, weight_t>& batch = requested_batch.edges;
   const int k = state_->opt.objective;
   const int num_weights = graph.num_weights();
-  DYNG_EXPECTS(batch.num_weights == num_weights, "sssp::update: the batch has ", batch.num_weights,
-               " weight(s) per insertion but the graph has ", num_weights);
   const std::size_t num_inserts = batch.num_insertions();
+  // A batch without insertions carries no weights (graph::apply accepts any count for it, M7).
+  DYNG_EXPECTS(num_inserts == 0 || batch.num_weights == num_weights, "sssp::update: the batch has ",
+               batch.num_weights, " weight(s) per insertion but the graph has ", num_weights);
   DYNG_EXPECTS(batch.insert_weights.size() == num_inserts * static_cast<std::size_t>(num_weights),
                "sssp::update: the batch has ", batch.insert_weights.size(),
                " insertion weights for ", num_inserts, " insertions of ", num_weights,
@@ -815,6 +816,32 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& c
       objective_graph(res, graph, st.opt.objective, res.get_backend() == backend::sequential);
   run_.distances = st.distances.data();
   run_.parents = st.parents.data();
+  run_.ws = &host_ws_->get();
+  bind_engine(res);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::bind_view(
+    framework::context& ctx, const sssp_graph<vertex_t, edge_t, weight_t>& view, std::int64_t delta,
+    std::int64_t max_weight, std::int64_t* distances, vertex_t* parents) {
+  const resources& res = ctx.res();
+  const std::int64_t n = view.num_vertices;
+  run_ = sssp_run<vertex_t, edge_t, weight_t>{};
+  run_.graph = view;
+  run_.source = state_->source;
+  run_.delta = delta;
+  run_.max_weight = max_weight;
+  run_.distances = distances;
+  run_.parents = parents;
+  if (ctx.on_cuda()) {
+    cuda_ws_.emplace(lease_cuda_workspace<vertex_t>(res, n));  // pooled scratch (ADR 0015)
+    run_.cuda_ws = &cuda_ws_->get();
+    if (cuda_runs_operators(res, state_->opt.cuda_engine)) {
+      cuda_operators_.emplace(res, run_);  // the static enactor's Tier A hooks run it
+    }
+    return;
+  }
+  host_ws_.emplace(lease_workspace<vertex_t>(res, n));
   run_.ws = &host_ws_->get();
   bind_engine(res);
 }
@@ -1221,6 +1248,39 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::compute (", g.num_vertices(), " vertice
                                   " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+sssp_solve_outcome sssp_solve_view(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+                                   const sssp_graph<vertex_t, edge_t, weight_t>& view,
+                                   vertex_t source, std::int64_t delta, std::int64_t max_weight,
+                                   engine cuda_engine, std::int64_t* distances, vertex_t* parents) {
+  expect_supported_backend(res, "sssp (a static solve)");
+  select_cuda_engine(res, cuda_engine, "sssp (a static solve)");
+  const std::int64_t n = view.num_vertices;
+  DYNG_EXPECTS(source >= 0 && source < n, "sssp: source ", source, " is out of range [0, ", n, ")");
+  DYNG_EXPECTS(delta > 0, "sssp: the near-far width delta must be > 0, got ", delta);
+  DYNG_EXPECTS(sssp_distances_fit(n, max_weight), "sssp: distances up to ", max_weight, " * ",
+               n - 1, " do not fit in 62 bits");
+  DYNG_EXPECTS(res.get_backend() != backend::sequential || sssp_packs_parents(n, max_weight) ||
+                   view.in_row_ptr != nullptr,
+               "sssp: the sequential engine needs the in-edges in the distance-only mode");
+  using problem_type = sssp_problem<vertex_t, edge_t, weight_t>;
+  sssp_state<vertex_t, std::int64_t> st;  // the problem's options and source; no arrays
+  st.source = source;
+  st.opt.cuda_engine = cuda_engine;
+  problem_type problem(st);
+  framework::context ctx(res, problem_type::name);
+  const framework::new_view<graph<vertex_t, edge_t, weight_t>> container(g);
+  problem.bind_view(ctx, view, delta, max_weight, distances, parents);
+  const sssp::stats stats = framework::static_enactor<problem_type>(problem).run(ctx, container);
+  sssp_solve_outcome out;
+  out.counters.iterations = stats.iterations;
+  out.counters.epochs = stats.epochs;
+  out.counters.pushes = stats.pushes;
+  out.counters.packed_parents = stats.packed_parents;
+  out.engine_used = stats.engine_used;
+  return out;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 sssp::stats sssp_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
                         const edge_batch_view<vertex_t, weight_t>& batch,
                         sssp::result<vertex_t>& r) try {
@@ -1254,13 +1314,16 @@ DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP)
 
 namespace dyng::detail {
 
-#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)                                                \
-  template sssp::result<V> sssp_compute<V, E, W>(const resources&, const graph<V, E, W>&, V, \
-                                                 const sssp::options&);                      \
-  template sssp::stats sssp_update<V, E, W>(const resources&, graph<V, E, W>&,               \
-                                            const edge_batch_view<V, W>&, sssp::result<V>&); \
-  template std::unique_ptr<update_participant<V, E, W>>                                      \
-  make_sssp_participant<V, E, W, std::int64_t>(sssp::result<V, std::int64_t>&, sssp::stats&);
+#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)                                                 \
+  template sssp::result<V> sssp_compute<V, E, W>(const resources&, const graph<V, E, W>&, V,  \
+                                                 const sssp::options&);                       \
+  template sssp::stats sssp_update<V, E, W>(const resources&, graph<V, E, W>&,                \
+                                            const edge_batch_view<V, W>&, sssp::result<V>&);  \
+  template std::unique_ptr<update_participant<V, E, W>>                                       \
+  make_sssp_participant<V, E, W, std::int64_t>(sssp::result<V, std::int64_t>&, sssp::stats&); \
+  template sssp_solve_outcome sssp_solve_view<V, E, W>(                                       \
+      const resources&, const graph<V, E, W>&, const sssp_graph<V, E, W>&, V, std::int64_t,   \
+      std::int64_t, engine, std::int64_t*, V*);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP_DETAIL)
 #undef DYNG_INSTANTIATE_SSSP_DETAIL
 

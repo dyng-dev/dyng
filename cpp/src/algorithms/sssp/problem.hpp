@@ -610,6 +610,44 @@ class sssp_cuda_operators_engine {
   std::int64_t frontier_bound_ = 0;  ///< an upper bound of the frontier's length (seed)
 };
 
+/**
+ * @brief What sssp_solve_view() reports: the counters of the run and the engine that ran.
+ */
+struct sssp_solve_outcome {
+  sssp_counters counters;                  ///< iterations, epochs, pushes, packed_parents
+  engine engine_used = engine::operators;  ///< the engine the static enactor chose
+};
+
+/**
+ * @brief compute() on a graph view that is not a container (mosp's combined graph, Step 3 of the
+ *        MOSP update: MOSP's sospFromScratchGpu / sospFromScratchCpu on the combined CSR), through
+ *        the framework's static enactor (stages sssp.reset, sssp.seed, sssp.loop, sssp.finalize,
+ *        or sssp.enact_fused) and the engine of the call's backend.
+ *
+ * The in-edges of `view` are read only by the sequential engine, and only in the distance-only
+ * mode (sssp_packs_parents(n, max_weight) is false): they may be null otherwise.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]  res         Execution resources (cuda: `view` and the arrays in device memory).
+ * @param[in]  g           The container the view derives from (the enactor's view; not read).
+ * @param[in]  view        The graph to solve (weights >= 1).
+ * @param[in]  source      The source vertex.
+ * @param[in]  delta       The near-far width (> 0).
+ * @param[in]  max_weight  The largest weight of `view` (>= 1; the packing bound).
+ * @param[in]  cuda_engine The CUDA engine (as sssp::options::cuda_engine).
+ * @param[out] distances   n distances.
+ * @param[out] parents     n parents (the canonical tree).
+ * @return The counters and the engine.
+ * @throws invalid_argument_error if distances could exceed 62 bits.
+ * @throws not_supported_error    if the engine cannot run.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+sssp_solve_outcome sssp_solve_view(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+                                   const sssp_graph<vertex_t, edge_t, weight_t>& view,
+                                   vertex_t source, std::int64_t delta, std::int64_t max_weight,
+                                   engine cuda_engine, std::int64_t* distances, vertex_t* parents);
+
 namespace framework {
 template <typename vertex_t, typename weight_t>
 struct requested_batch;
@@ -702,6 +740,22 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
    */
   void bind_static(framework::context& ctx, new_graph g, std::int64_t delta,
                    std::int64_t max_weight);
+
+  /**
+   * @brief A compute() on a graph that is not a container (mosp's combined graph): bind the run
+   *        to `view` (device pointers on cuda; the in-edges may be null when the engine packs the
+   *        parents, see sssp_solve_view()) and to the caller's output arrays, lease and size the
+   *        workspace (sssp.workspace), bind the engine of the call's backend.
+   * @param[in,out] ctx        The run's context.
+   * @param[in]     view       The graph to solve.
+   * @param[in]     delta      The near-far width (> 0).
+   * @param[in]     max_weight The largest weight of `view` (>= 1).
+   * @param[out]    distances  n distances, written by the engine (device memory on cuda).
+   * @param[out]    parents    n parents, written by the engine (device memory on cuda).
+   */
+  void bind_view(framework::context& ctx, const sssp_graph<vertex_t, edge_t, weight_t>& view,
+                 std::int64_t delta, std::int64_t max_weight, std::int64_t* distances,
+                 vertex_t* parents);
 
   // ---- Step 0, on G_t --------------------------------------------------------------------------
 
