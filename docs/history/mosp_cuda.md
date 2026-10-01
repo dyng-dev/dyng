@@ -55,7 +55,9 @@ section 8.
   counts (ADR 0017 item 1). The trees were never affected.
 - **The packing boundary:** at the limit where (distance, parent) still fits one 64-bit word,
   MOSP-CUDA packs one edge weight earlier than MOSP-OpenMP, so `stats::packed_parents` can differ
-  between the cuda and the host backends there (n = 2^17 - 1); the trees are equal.
+  between the cuda and the host backends there (n = 2^17 - 1). The trees are equal for canonical
+  input trees; for non-canonical imported trees inside the packing window the host backends (as
+  MOSP-OpenMP) and cuda (as MOSP-CUDA) return different tie parents (ADR 0029, proposed).
 - **Placement:** a graph belongs to the resources that built it; results live in device memory and
   are read with `to_vector()` or `dyng.Array` (host copies in Python); the device graph is uploaded
   once per batch inside the commit, as the original's is.

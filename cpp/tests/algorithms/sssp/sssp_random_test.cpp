@@ -566,4 +566,125 @@ TEST(SsspComposition, SeveralResultsOnOneGraphEqualSeparateUpdates) {
   }
 }
 
+// The packing window (M7 review; ADR 0029, proposed). The two originals choose the word format
+// differently near the packing limit: MOSP-CUDA@e220ee2 packs (distance, parent) when the bound
+// (n - 1) * W fits next to the parent bits, MOSP-OpenMP@c352151 only when (n - 1) * W + W fits too.
+// The host backends follow MOSP-OpenMP and both CUDA engines follow MOSP-CUDA, so for
+// (n - 1) * W <= max_distance < n * W the host backends run distance-only (every parent is
+// recovered with the lowest-id rule, as MOSP-OpenMP does) while cuda runs packed and keeps the
+// tie parents of the vertices the batch does not re-evaluate (as MOSP-CUDA does). From a
+// canonical tree both give compute()'s tree; from a non-canonical tree they differ. This test
+// pins that behaviour (each backend as its own original) until the author decides the rule.
+// With n = 65537 vertices (17 parent bits, max_distance = 2^47 - 2) the window is
+// W in [2147450881, 2147483647]; the heavy edge goes into the source, so it is never a tree edge.
+TEST(SsspPackingWindow, NonCanonicalTreesFollowEachOriginalsPackingRule) {
+  using vertex_t = std::int32_t;
+  using graph_t = dyng::graph<vertex_t, std::int32_t, std::int32_t>;
+  constexpr vertex_t n = 65537;
+  for (const std::int32_t heavy : {std::int32_t{2147450881}, std::int32_t{2147483647}}) {
+    SCOPED_TRACE("max weight " + std::to_string(heavy));
+    std::mt19937_64 rng(4242);
+    dyng::edge_list<vertex_t, std::int32_t> edges;
+    edges.num_vertices = n;
+    edges.num_weights = 1;
+    auto add = [&](vertex_t u, vertex_t v, std::int32_t w) {
+      edges.src.push_back(u);
+      edges.dst.push_back(v);
+      edges.weights.push_back(w);
+    };
+    // Each vertex has in-edges from its three predecessors with weights 1 or 2: many ties.
+    for (vertex_t v = 1; v < n; ++v) {
+      for (vertex_t u = std::max(0, v - 3); u < v; ++u) {
+        add(u, v, static_cast<std::int32_t>(1 + rng() % 2));
+      }
+    }
+    add(n - 1, 0, heavy);
+    const dyng::resources seq = dyng::resources::sequential();
+    const auto props = dyng::graph_properties::mosp_compatible();
+    const graph_t g0 = graph_t::from_edges(seq, edges.view(), props);
+    const auto init = dyng::testing::dijkstra(g0, vertex_t{0});
+    // The non-canonical tree: every vertex with several tight in-neighbours takes the highest id.
+    std::vector<vertex_t> perturbed = init.parents;
+    std::int64_t ties = 0;
+    for (std::size_t i = 0; i + 1 < edges.src.size(); ++i) {  // the heavy edge is never tight
+      const auto u = static_cast<std::size_t>(edges.src[i]);
+      const auto v = static_cast<std::size_t>(edges.dst[i]);
+      if (init.distances[u] + edges.weights[i] == init.distances[v] &&
+          edges.src[i] > perturbed[v]) {
+        ties += perturbed[v] == init.parents[v] ? 1 : 0;
+        perturbed[v] = edges.src[i];
+      }
+    }
+    ASSERT_GT(ties, 1000);
+    // A local batch: deletions and insertions among vertices 30000..30500; most vertices are not
+    // re-evaluated.
+    dyng::edge_batch<vertex_t, std::int32_t> batch(1);
+    for (vertex_t v = 30000; v < 30500; v += 5) {
+      batch.delete_edge(perturbed[static_cast<std::size_t>(v)], v);
+      batch.insert_edge(v - 7, v + 3, {static_cast<std::int32_t>(1 + rng() % 2)});
+    }
+    std::vector<vertex_t> canonical;
+    std::vector<std::int64_t> expected_distances;
+    struct run_t {
+      std::string name;
+      dyng::backend b;
+      dyng::engine e;
+    };
+    std::vector<run_t> runs;
+    for (const dyng::backend b : dyng::test::comparison_backends()) {
+      if (b == dyng::backend::cuda) {
+        runs.push_back({"cuda fused", b, dyng::engine::fused});
+        runs.push_back({"cuda operators", b, dyng::engine::operators});
+      } else {
+        runs.push_back({std::string(dyng::to_string(b)), b, dyng::engine::automatic});
+      }
+    }
+    std::vector<vertex_t> cuda_parents;
+    for (const run_t& run : runs) {
+      SCOPED_TRACE(run.name);
+      const auto res = dyng::test::make_resources(run.b, 4);
+      graph_t g = graph_t::from_edges(res, edges.view(), props);
+      dyng::sssp::options opt;
+      opt.cuda_engine = run.e;
+      auto r = dyng::sssp::result<vertex_t>::from_arrays(
+          res, g, 0,
+          dyng::array_view<const std::int64_t>(init.distances.data(), init.distances.size()),
+          dyng::array_view<const vertex_t>(perturbed.data(), perturbed.size()), false, opt);
+      const dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), r);
+      if (canonical.empty()) {
+        const auto ref = dyng::testing::dijkstra(g, vertex_t{0});
+        canonical = ref.parents;
+        expected_distances = ref.distances;
+      }
+      const auto d = dyng::test::host_copy(r.distances());
+      const auto p = dyng::test::host_copy(r.parents());
+      EXPECT_TRUE(
+          std::equal(d.begin(), d.end(), expected_distances.begin(), expected_distances.end()));
+      EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r, /*require_canonical=*/false).ok());
+      if (run.b != dyng::backend::cuda) {
+        // MOSP-OpenMP's rule: distance-only words, every parent recovered with the lowest id.
+        EXPECT_FALSE(st.packed_parents);
+        EXPECT_TRUE(std::equal(p.begin(), p.end(), canonical.begin(), canonical.end()));
+        continue;
+      }
+      // MOSP-CUDA's rule: packed words; the vertices the batch does not re-evaluate keep their
+      // imported tie parents, so the tree differs from the host backends' (and compute()'s).
+      EXPECT_TRUE(st.packed_parents);
+      std::int64_t kept = 0;
+      for (std::size_t v = 0; v < p.size(); ++v) {
+        if (p[v] != canonical[v]) {
+          ++kept;
+          EXPECT_EQ(p[v], perturbed[v]) << "vertex " << v;
+        }
+      }
+      EXPECT_GT(kept, 1000);
+      if (cuda_parents.empty()) {
+        cuda_parents = p;
+      } else {
+        EXPECT_TRUE(p == cuda_parents) << "the fused and the operators engine differ (C4)";
+      }
+    }
+  }
+}
+
 }  // namespace
