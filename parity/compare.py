@@ -4,7 +4,8 @@
 """Replay the sssp golden corpus and compare byte for byte (PLAN Sections 6.3 step 6 and 8.3).
 
 `parity/compare.py cycle_count ...` replays the cycle_count corpus instead
-(parity/cycle_count_goldens.py).
+(parity/cycle_count_goldens.py); `parity/compare.py mosp_scale ...` the paper-scale mosp goldens
+(parity/mosp_scale_goldens.py, M7).
 
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
@@ -363,6 +364,11 @@ def main() -> int:
         import cycle_count_goldens
 
         return cycle_count_goldens.compare_main(sys.argv[2:])
+    if sys.argv[1:2] == ["mosp_scale"]:  # the paper-scale mosp goldens (M7, SHA-256 only)
+        sys.path.insert(0, str(REPO / "parity"))
+        import mosp_scale_goldens
+
+        return mosp_scale_goldens.compare_main(sys.argv[2:])
     scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--goldens", type=Path, default=scratch / "goldens" / "sssp")

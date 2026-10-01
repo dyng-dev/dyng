@@ -4,7 +4,10 @@
 """Export the sssp golden corpus from the pinned original MOSP-OpenMP@c352151 (or MOSP-CUDA).
 
 `parity/export_goldens.py cycle_count ...` exports the cycle_count corpus from
-CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_goldens.py).
+CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_goldens.py); `parity/export_goldens.py
+mosp_scale ...` the paper-scale mosp goldens (SHA-256 of the outputs of MOSP-OpenMP@c352151's
+`mosp` on the benchmark inputs, cross-checked with MOSP-CUDA@e220ee2; parity/mosp_scale_goldens.py,
+M7).
 
 PLAN Sections 6.3 (steps 1-2) and 8.3. The goldens are written OUTSIDE the repository, to
 $DYNG_SCRATCH/goldens/sssp (default ~/Projects/dyng-work); the repository keeps only
@@ -700,9 +703,11 @@ manifest_sha256 = "{manifest_sha}"
     head += "".join(f"{g} = {by_group[g]}\n" for g in GROUPS if g in by_group)
     head += "\n[sets.sssp.cases]\n"
     path = REPO / "parity" / "goldens.toml"
-    # Keep the other sets (cycle_count, written by parity/cycle_count_goldens.py after sssp).
+    # Keep the other sets (cycle_count, written by parity/cycle_count_goldens.py after sssp, and
+    # mosp_scale, parity/mosp_scale_goldens.py).
     old = path.read_text() if path.is_file() else ""
-    kept = old[old.find("\n[sets.cycle_count]") :] if "\n[sets.cycle_count]" in old else ""
+    other = re.search(r"^\[sets\.(?!sssp[\].])[a-z_]+[\].]", old, re.M)
+    kept = "\n" + old[other.start() :] if other else ""
     path.write_text(head + "".join(rows) + kept)
 
 
@@ -794,6 +799,11 @@ def compare_corpora(ours: Path, theirs: Path) -> list[str]:
 
 def main() -> int:
     global REFERENCE, COMMIT
+    if sys.argv[1:2] == ["mosp_scale"]:  # the paper-scale mosp goldens (M7, SHA-256 only)
+        sys.path.insert(0, str(REPO / "parity"))
+        import mosp_scale_goldens
+
+        return mosp_scale_goldens.export_main(sys.argv[2:])
     if sys.argv[1:2] == ["cycle_count"]:  # the cycle_count corpus (CycleEnumeration-GPU)
         sys.path.insert(0, str(REPO / "parity"))
         import cycle_count_goldens

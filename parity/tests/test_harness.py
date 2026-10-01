@@ -721,3 +721,143 @@ def test_perf_ab_engine_stage_sums_whichever_engine_ran() -> None:
     assert perf.with_engine_stage(fused, 2)["device"]["sssp.engine"] == [1.5, 2.5]
     assert perf.with_engine_stage(ops, 2)["stages"]["sssp.engine"] == [3.75, 5.75]
     assert perf.with_engine_stage(ops, 2)["device"]["sssp.engine"] == [1.0, 2.0]
+
+
+# --- mosp (M7): the gates' region map and the paper-scale goldens -------------------------------
+
+MOSP_CUDA_LOG = "".join(
+    [
+        "graph  n=1971281 m=5534946 K=3; batch 25000 inserts, 23319 deletes\n",
+        "host   context 239.3 ms, read inputs 362.6 ms, apply batch 74.7 ms, upload 40.2 ms\n",
+        "obj0   SOSP update 8.784 ms (invalidated 1651121, jump rounds 8, iterations 144)\n",
+        "obj1   SOSP update 8.883 ms (invalidated 1105632, jump rounds 9, iterations 154)\n",
+        "obj2   SOSP update 8.716 ms (invalidated 1022434, jump rounds 9, iterations 143)\n",
+        "comb   combined graph + SOSP 4.942 ms (3046750 edges, L=1, delta 42)\n",
+        "RESULT gpu_compute_ms=31.325 end_to_end_ms=1112.047\n",
+    ]
+)
+MOSP_OPENMP_RESULT = "RESULT compute_ms=99.430 end_to_end_ms=1037.297 threads=28\n"
+
+
+@pytest.mark.parametrize("backend", ["openmp", "cuda"])
+def test_mosp_region_map_loads(backend: str) -> None:
+    perf = load("parity/perf_ab.py")
+    regions = {
+        r["name"]: r
+        for r in perf.load_regions(backend, perf.MOSP_REGION_MAP, ("compute", "end_to_end"))
+    }
+    assert regions["compute"]["gate"] == "compute"
+    assert regions["end_to_end"]["gate"] == "end_to_end"
+    assert regions["compute"]["port"] == [
+        "sssp.engine",
+        "mosp.combine",
+        "mosp.combined_sssp",
+        "mosp.finalize",
+    ]
+    assert "mosp.path_costs" not in regions["compute"]["port"]
+    assert regions["combined"]["gate"] == "none" and regions["sosp_update"]["per_objective"]
+
+
+def test_mosp_original_reports_parse() -> None:
+    perf = load("parity/perf_ab.py")
+    keys = ["compute_ms", "end_to_end_ms", "comb combined graph + SOSP"]
+    got = perf.parse_original(MOSP_CUDA_LOG, 3, keys)
+    assert got["report"] == {
+        "compute_ms": 31.325,
+        "end_to_end_ms": 1112.047,
+        "comb combined graph + SOSP": 4.942,
+    }
+    assert got["invalidated"] == [1651121, 1105632, 1022434]
+    lines = MOSP_CUDA_LOG.splitlines()[:-1]
+    omp = perf.parse_original("\n".join(lines) + "\n" + MOSP_OPENMP_RESULT, 3, keys)
+    assert omp["report"]["compute_ms"] == 99.430 and omp["threads"] == 28
+
+
+def test_mosp_summary_gates_compute_and_end_to_end(tmp_path: Path) -> None:
+    perf = load("parity/perf_ab.py")
+    regions = perf.load_regions("cuda", perf.MOSP_REGION_MAP, ("compute", "end_to_end"))
+    keys = perf.report_keys(regions)
+    orig = perf.parse_original(MOSP_CUDA_LOG, 3, keys)
+    timing = tmp_path / "t.csv"
+    rows = ["kind,name,value"]
+    rows += [f"stage,sssp.enact_fused,{v}" for v in (8.6, 8.8, 8.7, 4.2)]  # K + the combined solve
+    rows += ["stage,mosp.combine,0.6", "stage,mosp.combined_sssp,4.2", "stage,mosp.finalize,0.1"]
+    rows += ["stage,mosp.path_costs,40.0", "stage,total.end_to_end,1100.0"]
+    rows += ["setup,mosp.combine,9.0", "setup,mosp.path_costs,99.0"]  # not the update's
+    rows += [f"counter,sssp.invalidated.obj{o},{v}" for o, v in enumerate(orig["invalidated"])]
+    timing.write_text("\n".join(rows) + "\n")
+    port = perf.with_engine_stage(perf.parse_port("", timing, 3), 3)
+    assert port["stages"]["sssp.engine"] == [8.6, 8.8, 8.7]
+    out = perf.summarize(regions, {"original": [orig] * 5, "port": [port] * 5}, 3, 5, [(0, 0)])
+    by = {e["region"]: e for e in out["regions"]}
+    assert by["compute"]["port_ms"] == pytest.approx(8.6 + 8.8 + 8.7 + 0.6 + 4.2 + 0.1)
+    assert by["compute"]["original_ms"] == pytest.approx(31.325)
+    assert by["compute"]["within_gate"] and by["compute"]["gate"] == 1.05
+    assert by["end_to_end"]["ratio"] == pytest.approx(1100.0 / 1112.047)
+    assert by["combined"]["port_ms"] == pytest.approx(4.9) and "gate" not in by["combined"]
+    assert by["path_costs"]["ratio"] is None and "gate" not in by["path_costs"]
+    assert by["sosp_update obj1"]["port_ms"] == pytest.approx(8.8)
+    perf.report({"safe50k": out})  # prints a table; a region without an original timer reads "-"
+
+
+@pytest.mark.parametrize(
+    "command", [["parity/compare.py", "mosp_scale"], ["parity/export_goldens.py", "mosp_scale"]]
+)
+def test_mosp_scale_help(command: list[str]) -> None:
+    proc = subprocess.run(
+        [sys.executable, REPO / command[0], command[1], "--help"], capture_output=True, text=True
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "usage" in proc.stdout
+
+
+def test_mosp_scale_cases_and_section(tmp_path: Path, monkeypatch) -> None:
+    g = load("parity/mosp_scale_goldens.py")
+    cases = g.all_cases()
+    names = [c.name for c in cases]
+    assert len(cases) == 20 and len(set(names)) == 20
+    assert "ksweep/roadNet-CA-K4_safe50k_k4_pref4-1-4-2" in names
+    assert g.select(cases, "ksweep") == [c for c in cases if c.group == "ksweep"]
+    assert g.Case("pref", "roadNet-CA", "safe50k", 0, "4,1,4").options() == ["--pref", "4,1,4"]
+    meta = {
+        "case": "gate/roadNet-PA_safe50k",
+        "graph": "roadNet-PA",
+        "batch": "changes_50000_50_safe",
+        "k": 3,
+        "pref": "",
+        "command": "mosp --graph <bench>/roadNet-PA/csr/graphCsr",
+        "invalidated": [1, 2, 3],
+        "inputs": {"csr/graphCsrRowPtr.txt": "a" * 64},
+        "outputs": {"obj0/distancesUpdated.txt": "b" * 64, "combinedGraph/mospCosts.txt": "c" * 64},
+    }
+    section = g.toml_section([meta])
+    import tomllib
+
+    doc = tomllib.loads(section)
+    case = doc["sets"]["mosp_scale"]["cases"]["gate/roadNet-PA_safe50k"]
+    assert case["outputs"]["combinedGraph/mospCosts.txt"] == "c" * 64
+    assert case["invalidated"] == [1, 2, 3] and doc["sets"]["mosp_scale"]["groups"]["gate"] == 1
+    # The section survives the writers of the other sets.
+    cc = load("parity/cycle_count_goldens.py")
+    toml = tmp_path / "parity" / "goldens.toml"
+    toml.parent.mkdir()
+    toml.write_text("schema = 1\n\n[sets.sssp]\nnum_cases = 0\n\n[sets.sssp.cases]\n")
+    cc.write_toml("[sets.cycle_count]\nnum_cases = 1\n", cc.SET, toml)
+    cc.write_toml(section, g.SET, toml)
+    cc.write_toml("[sets.cycle_count]\nnum_cases = 2\n", cc.SET, toml)
+    exporter = load("parity/export_goldens.py")
+    monkeypatch.setattr(exporter, "REPO", tmp_path)
+    exporter.write_toml(tmp_path, [], "0" * 64, 0)
+    doc = tomllib.loads(toml.read_text())
+    assert doc["sets"]["cycle_count"]["num_cases"] == 2 and "sssp" in doc["sets"]
+    assert doc["sets"]["mosp_scale"]["num_cases"] == 1
+
+
+def test_perf_ab_mosp_help() -> None:
+    proc = subprocess.run(
+        [sys.executable, REPO / "parity" / "perf_ab.py", "mosp", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "--pref" in proc.stdout and "--objectives" in proc.stdout
