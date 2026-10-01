@@ -1,0 +1,14 @@
+# Copy of $DYNG_SCRATCH/runs/r010/mutate.out (sha256 16db91a91e61324d5e52111bd6f8f5468f0893d8d486d98e985a89403691f044, 555 bytes), written by parity/certify.py check.
+[mutate] control: build
+[mutate] control: replay on cuda,openmp:4,sequential
+[mutate] control: passed
+[mutate] sssp_roots_only_sequential: build
+[mutate] sssp_roots_only_sequential: replay on sequential
+[mutate] sssp_roots_only_sequential: detected
+[mutate] sssp_roots_only_openmp: build
+[mutate] sssp_roots_only_openmp: replay on openmp:4
+[mutate] sssp_roots_only_openmp: detected
+[mutate] sssp_roots_only_cuda: build
+[mutate] sssp_roots_only_cuda: replay on cuda
+[mutate] sssp_roots_only_cuda: detected
+[mutate] control passed; 3 / 3 mutations detected

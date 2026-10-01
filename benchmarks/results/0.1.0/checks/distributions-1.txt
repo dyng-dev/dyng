@@ -1,0 +1,10 @@
+# Copy of $DYNG_SCRATCH/runs/r011/tests/select-v0.1.0.log (sha256 d8eacf6918f86082c949c749cf1d54bfc2737e6e6f151e9901c35e21d4a7765d, 408 bytes), written by parity/certify.py check.
+select for GITHUB_REF_NAME=v0.1.0 in /home/sskg8/Projects/dyng-work/r011/clone-tests at 261d03de4c787adea52a228f0dfbd0e959748ee8 2026-10-01T14:13:28-05:00
+release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
+release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
+tag v0.1.0: package 0.1.0 (pre-release: false)
+rc=0
+GITHUB_OUTPUT:
+kind=package
+version=0.1.0
+prerelease=false

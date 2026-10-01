@@ -1,0 +1,105 @@
+# Excerpt of $DYNG_SCRATCH/runs/r011/repo/gpu_local.log (sha256 8f0b623d74510953ec45ebe35ba71e90e8fb62a8e3bc7b5b2ddbbf4033f6bb15, 328667 bytes): its step headers and result lines, written by parity/certify.py check.
+==> preset dev-cuda: configure and build
+==> ctest -L gpu (GPU 1)
+100% tests passed out of 252
+The following tests did not run:
+	483 - CudaResources.CallsDoNotChangeTheCurrentDevice (Skipped)
+	605 - cuda.Backends/CycleCountRandom.UnboundedUpdateCostsAboutTheBoundedOne/cuda (Skipped)
+	651 - cuda.sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	664 - cuda.sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	677 - cuda.sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	683 - cuda.sssp/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	742 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	755 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	768 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	774 - cuda.cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	781 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	787 - cuda.cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+==> ctest -L cpu (CUDA-enabled build)
+100% tests passed out of 605
+The following tests did not run:
+	 10 - Backend.CudaUnavailableWithoutCudaBuild (Skipped)
+	 19 - Copy.DeviceCopiesAreNotSupportedWithoutCuda (Skipped)
+	 56 - Resources.OpenmpNotBuiltThrows (Skipped)
+	 57 - Resources.CudaNotBuiltThrowsNotSupported (Skipped)
+	612 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	620 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	625 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	633 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	638 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	644 - sssp/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	646 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	690 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	698 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	703 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	711 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	716 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	722 - cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	724 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	729 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	735 - cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	737 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+==> golden corpus on cuda (GPU 1)
+| group | cases | cuda |
+| testcases | 10 | 10/10 |
+| regressions | 3 | 3/3 |
+| thesis | 1 | 1/1 |
+| escher | 4 | 4/4 |
+| fixtures | 17 | 17/17 |
+| sosp | 148 | 148/148 |
+| large_weights | 2 | 2/2 |
+| packing | 3 | 3/3 |
+| stress | 200 | 200/200 |
+| noncanonical | 107 | 107/107 |
+| **all** | 495 | 495/495 |
+| case | total | cuda | cuda:resident |
+| count/DD_k3 | 2,020,240 | equal | equal |
+| count/DD_k4 | 4,396,674 | equal | equal |
+| count/DD_k5 | 9,476,048 | equal | equal |
+| count/DD_k6 | 21,485,606 | equal | equal |
+| count/DD_k7 | 54,966,172 | equal | equal |
+| count/collab_k3 | 1,257,799,573 | equal | equal |
+| count/github_k3 | 7,112,157 | equal | equal |
+| count/github_k4 | 75,872,845 | equal | equal |
+| count/twitch_k3 | 48,891,585 | equal | equal |
+| count/twitch_k4 | 389,362,369 | equal | equal |
+| update/DD_k3_25000_25000_s1 | 1,943,758 | equal | equal |
+| update/DD_k4_100000_100000_s1 | 3,586,606 | equal | equal |
+| update/DD_k4_1000_1000_s1 | 4,388,002 | equal | equal |
+| update/DD_k4_25000_25000_s1 | 4,182,398 | equal | equal |
+| update/DD_k4_50000_50000_s1 | 3,975,602 | equal | equal |
+| update/DD_k5_25000_25000_s1 | 8,897,380 | equal | equal |
+| update/collab_k4_25000_25000_s1 | 198,933,705,678 | equal | equal |
+| update/github_k4_100000_100000_s1 | 71,068,705 | equal | equal |
+| update/github_k4_1000_1000_s1 | 75,819,437 | equal | equal |
+| update/github_k4_25000_25000_s1 | 74,644,109 | equal | equal |
+| update/github_k4_50000_50000_s1 | 73,432,075 | equal | equal |
+| update/twitch_k4_1000_1000_s1 | 389,293,913 | equal | equal |
+| update/twitch_k4_25000_25000_s1 | 387,651,174 | equal | equal |
+| update/twitch_k4_50000_50000_s1 | 385,936,907 | equal | equal |
+==> compute-sanitizer memcheck (GPU 1)
+[  PASSED  ] 26 tests.
+[  PASSED  ] 5 tests.
+[  PASSED  ] 56 tests.
+[  PASSED  ] 60 tests.
+[  PASSED  ] 35 tests.
+[  PASSED  ] 46 tests.
+==> compute-sanitizer synccheck, CUDA sssp suite (GPU 1)
+[  PASSED  ] 56 tests.
+[  PASSED  ] 60 tests.
+==> compute-sanitizer racecheck, CUDA cycle_count suite (GPU 1)
+[  PASSED  ] 60 tests.
+==> clang-tidy (naming rules, library sources, CUDA branches)
+### ci/gpu_local.sh: dev-cuda
+| step | result |
+| build | passed |
+| ctest -L gpu | passed |
+| ctest -L cpu | passed |
+| parity (cuda goldens) | passed |
+| parity (cycle_count cuda goldens) | passed |
+| memcheck | passed |
+| synccheck | passed |
+| synccheck (cycle_count) | passed |
+| racecheck | passed |
+| clang-tidy | passed |
+ci/gpu_local.sh: all steps passed

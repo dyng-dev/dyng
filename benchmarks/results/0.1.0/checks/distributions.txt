@@ -1,0 +1,108 @@
+# Copy of $DYNG_SCRATCH/runs/r011/tests/distributions.log (sha256 f1f7debbb9cdf4f434384bb0f55c3ae2101fa71bb0072124b7fa0029a3b5ec91, 4645 bytes), written by parity/certify.py check.
+relclone at 261d03de4c787adea52a228f0dfbd0e959748ee8 2026-10-01T14:11:44-05:00
+== select v0.1.0
+release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
+release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
+tag v0.1.0: package 0.1.0 (pre-release: false)
+rc=0
+== release metadata
+release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
+rc=0
+== select v0.1.0rc1 (must fail)
+::error::tag v0.1.0rc1 does not match VERSION 0.1.0: for a release candidate VERSION holds X.Y.ZrcN, for the release X.Y.Z (steps 5 and 9 of docs/developer/release.md)
+rc=1
+== select v0.1.0-rc.1 (must fail)
+::error::tag v0.1.0-rc.1 does not match VERSION 0.1.0: for a release candidate VERSION holds X.Y.ZrcN, for the release X.Y.Z (steps 5 and 9 of docs/developer/release.md)
+rc=1
+== release metadata, release date 2026-10-01
+release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
+rc=0
+== 2026-10-01T14:11:44-05:00 ci/wheels.sh
+rc=0 2026-10-01T14:13:00-05:00
+libraries, such as a recent manylinux image.
+==> twine check, ci/wheel_check.py
+Checking
+/home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0-cp312-abi3-manylinux
+_2_28_x86_64.whl: PASSED
+Checking /home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0.tar.gz: PASSED
+ok     dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl (1.51 MB)
+ok     dyng-0.1.0.tar.gz (0.79 MB)
+==> Python 3.12: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.12)
+    0.1.0 /home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.12/lib/python3.12/site-packages/dyng/__init__.py
+    sssp and cycle_count on sequential and openmp: ok
+dyng 0.1.0
+dynG 0.1.0
+  native module     : dyng._core
+  backends          : sequential (yes), openmp (yes), cuda (no)
+    pytest python/tests against the installed wheel
+396 passed, 4 skipped in 16.48s
+==> Python 3.13: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.13)
+    0.1.0 /home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.13/lib/python3.13/site-packages/dyng/__init__.py
+    sssp and cycle_count on sequential and openmp: ok
+dyng 0.1.0
+dynG 0.1.0
+  native module     : dyng._core
+  backends          : sequential (yes), openmp (yes), cuda (no)
+    pytest python/tests against the installed wheel
+396 passed, 4 skipped in 10.24s
+==> distributions in /home/sskg8/Projects/dyng-work/wheels/0.1.0/dist
+total 2244
+-rw-r--r-- 1 sskg8 domain users 1505007 Oct  1 14:12 dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl
+-rw-r--r-- 1 sskg8 domain users  788399 Oct  1 14:11 dyng-0.1.0.tar.gz
+total 2244
+-rw-r--r-- 1 sskg8 domain users 1505007 Oct  1 14:12 dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl
+-rw-r--r-- 1 sskg8 domain users  788399 Oct  1 14:11 dyng-0.1.0.tar.gz
+== collect: twine check --strict, wheel_check
+Checking
+/home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0-cp312-abi3-manylinux
+_2_28_x86_64.whl: PASSED
+Checking /home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0.tar.gz: PASSED
+twine rc=0
+sdist name ok
+/home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl
+ok     dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl (1.51 MB)
+ok     dyng-0.1.0.tar.gz (0.79 MB)
+wheel_check rc=0
+Metadata-Version: 2.4
+Name: dyng
+Version: 0.1.0
+License-Expression: Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1
+License-File: LICENSE
+License-File: LICENSES/Apache-2.0.txt
+License-File: NOTICE
+License-File: THIRD_PARTY_LICENSES.txt
+Metadata-Version: 2.4
+Name: dyng
+Version: 0.1.0
+License-Expression: Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1
+License-File: LICENSE
+License-File: LICENSES/Apache-2.0.txt
+License-File: NOTICE
+License-File: THIRD_PARTY_LICENSES.txt
+== 2026-10-01T14:13:00-05:00 Python 3.12 fresh venv
+dyng             0.1.0
+numpy            2.5.3
+subset rc=0
+SKIPPED [1] python/tests/test_cli.py:684: docs/api/cli.md is not in this tree
+253 passed, 1 skipped in 5.45s
+quickstart rc=0
+quickstart output matches the README
+0.1.0
+dynG 0.1.0
+  native module     : dyng._core
+  backends          : sequential (yes), openmp (yes), cuda (no)
+dyng 0.1.0
+== 2026-10-01T14:13:16-05:00 Python 3.13 fresh venv
+dyng             0.1.0
+numpy            2.5.3
+subset rc=0
+SKIPPED [1] python/tests/test_cli.py:684: docs/api/cli.md is not in this tree
+253 passed, 1 skipped in 5.07s
+quickstart rc=0
+quickstart output matches the README
+0.1.0
+dynG 0.1.0
+  native module     : dyng._core
+  backends          : sequential (yes), openmp (yes), cuda (no)
+dyng 0.1.0
+WHEELS-DONE 2026-10-01T14:13:30-05:00

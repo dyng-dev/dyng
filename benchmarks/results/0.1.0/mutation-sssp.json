@@ -1,0 +1,88 @@
+{
+ "schema": 1,
+ "what": "mutation checks of the sssp golden parity (PLAN 8.4)",
+ "date": "2026-10-01T02:18:31Z",
+ "commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+ "goldens": "sssp (MOSP-OpenMP@c352151), parity/goldens.toml",
+ "build": "parity-cuda preset, target dyng-compat-mosp, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "config": "cuda,openmp:4,sequential",
+   "rc": 0,
+   "passed": true,
+   "failed_cases": {
+    "cuda": 0,
+    "openmp:4": 0,
+    "sequential": 0
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "build": "ok",
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "sssp_roots_only_sequential",
+   "plan": "PLAN 8.4 sssp: a skipped subtree invalidation (sequential backend)",
+   "file": "cpp/src/algorithms/sssp/sequential.cpp",
+   "config": "sequential",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 365
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "build": "ok",
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "sssp_roots_only_openmp",
+   "plan": "PLAN 8.4 sssp: a skipped subtree invalidation (OpenMP backend, chain walk)",
+   "file": "cpp/src/algorithms/sssp/openmp.cpp",
+   "config": "openmp:4",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "openmp:4": 365
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "build": "ok",
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "sssp_roots_only_cuda",
+   "plan": "PLAN 8.4 sssp: a skipped subtree invalidation (CUDA fused kernel)",
+   "file": "cpp/src/algorithms/sssp/fused.cuh",
+   "config": "cuda",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 365
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "build": "ok",
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}
