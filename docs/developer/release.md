@@ -94,7 +94,7 @@ source scripts/dev_env.sh
 # the select job, for the tag about to be pushed: its run block, extracted from release.yml
 python -c 'import yaml; wf = yaml.safe_load(open(".github/workflows/release.yml")); print(next(
     s["run"] for s in wf["jobs"]["select"]["steps"] if s.get("id") == "select"))' > /tmp/select.sh
-GITHUB_REF_NAME=v0.1.0rc1 GITHUB_OUTPUT=/dev/stdout bash /tmp/select.sh
+GITHUB_REF_NAME=v0.1.0rc1 GITHUB_OUTPUT=/tmp/select.out bash /tmp/select.sh && cat /tmp/select.out
 # the package job (wheels.yml): the sdist, the wheel from the sdist, wheel_check, fresh venvs
 flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/wheels.sh
 # the collect job
