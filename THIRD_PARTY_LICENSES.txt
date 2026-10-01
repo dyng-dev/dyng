@@ -4,7 +4,10 @@ Third-party software in the binary distributions of dynG
 The wheels of the Python package `dyng` (and the extension module dyng/_core.abi3.so in them)
 contain third-party code besides dynG's own (Apache-2.0, see LICENSE and NOTICE). This file
 reproduces the licence of each, as their licences require for binary redistribution. The sdist
-contains only dynG's own sources; it lists this file for the wheels built from it.
+contains only dynG's own sources (all Apache-2.0); it lists this file for the wheels built from
+it. Its metadata carries the wheels' licence expression (one pyproject.toml serves both), which
+for the sdist alone is broader than its files: a repackager of the sources alone may declare
+Apache-2.0 for them.
 
   1. nanobind 3.1.0 (https://github.com/wjakob/nanobind), statically linked into
      dyng/_core.abi3.so. Licence: BSD-3-Clause (below).

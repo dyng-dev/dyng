@@ -34,4 +34,6 @@ the parity reports with the original codes are at <https://github.com/dyng-dev/d
 
 Cite dynG and the papers behind the algorithms you use: `dyng.citation("sssp")`.
 
-License: Apache-2.0.
+License: dynG is Apache-2.0. The wheel also contains nanobind (BSD-3-Clause), robin-map (MIT)
+and the GCC runtime (GPL-3.0-or-later WITH GCC-exception-3.1), which the distributions' licence
+expression names; their licences are in `THIRD_PARTY_LICENSES.txt`.

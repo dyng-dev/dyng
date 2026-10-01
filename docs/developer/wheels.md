@@ -10,7 +10,7 @@ the author's behalf, GOVERNANCE.md, 2026-09-30), and PyPI needs the author's app
 
 | Distribution | Contents | Built by |
 |---|---|---|
-| `dyng-<version>.tar.gz` | the source of the root `pyproject.toml`: `VERSION`, `CMakeLists.txt`, `cmake/`, `cpp/`, `python/` and the licence files (no `parity/`, `docs/`, `tools/`, `ci/`, `.github/`, and none of the repository-only files: the CC-BY-SA-4.0 Code of Conduct, governance pages, tool configuration: every file of the sdist is Apache-2.0) | `python -m build --sdist` |
+| `dyng-<version>.tar.gz` | the source of the root `pyproject.toml`: `VERSION`, `CMakeLists.txt`, `cmake/`, `cpp/`, `python/` and the licence files, and `docs/references.bib` (compiled into the library for `dyng::citation()`; no other part of `docs/`, no `parity/`, `tools/`, `ci/`, `.github/`, and none of the repository-only files: the CC-BY-SA-4.0 Code of Conduct, governance pages, tool configuration: every file of the sdist is Apache-2.0) | `python -m build --sdist` |
 | `dyng-<version>-cp312-abi3-manylinux_2_28_x86_64.whl` | `dyng/_core.abi3.so` (nanobind stable ABI, sequential + OpenMP backends, libdyng and libstdc++ linked in), the typed layer `dyng/*.py` with `py.typed` and `_core.pyi`, the `dyng` console script, `dyng.libs/libgomp-*.so*` bundled by auditwheel, and in `.dist-info/licenses` `LICENSE`, `NOTICE`, `LICENSES/Apache-2.0.txt` and `THIRD_PARTY_LICENSES.txt` (the licences of nanobind, robin-map and the GCC runtime, which the wheel contains) | cibuildwheel from the sdist (CI), `ci/wheels.sh` from the sdist (locally) |
 
 One abi3 wheel serves every CPython from 3.12. The CUDA plugin wheels (`dyng-cu12`,
@@ -39,7 +39,10 @@ into `_core.abi3.so`, and the GCC runtime (libstdc++ and libgcc linked staticall
 by auditwheel; GPL-3.0-or-later WITH GCC-exception-3.1). The expression is the author's decision of
 2026-09-30 (GOVERNANCE.md, approvals log; until then it was `Apache-2.0`). It comes from the one
 `[project]` table of `pyproject.toml` (`license`), so the sdist, whose own files are all
-Apache-2.0, carries the same expression as the wheel. `ci/wheel_check.py` fails when
+Apache-2.0, carries the same expression as the wheel: for the sdist it is broader than its
+files need (it names the licences of the wheels built from it), never narrower; a repackager
+of the sources alone (for example the conda-forge recipe from 0.3) can declare `Apache-2.0` for
+them (`THIRD_PARTY_LICENSES.txt` says the same). `ci/wheel_check.py` fails when
 `pyproject.toml`'s `license` differs from its `LICENSE_EXPRESSION`, when a wheel's `METADATA` or
 an sdist's `PKG-INFO` has another `License-Expression`, a legacy `License:` field, or no
 `License-File:` line for `LICENSE`, `NOTICE` or `THIRD_PARTY_LICENSES.txt`. Changing the
