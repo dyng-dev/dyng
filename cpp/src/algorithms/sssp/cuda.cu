@@ -298,6 +298,7 @@ void sssp_cuda_update(const resources& res, sssp_run<vertex_t, edge_t, weight_t>
       list_length<vertex_t>(changes.num_insert_heads, "insertion heads");
   params.source = run.source;
   params.from_scratch = false;
+  params.count_changes = true;
   params.delta = static_cast<u64>(run.delta);
   params.max_rounds = rounds + 1;
   params.distances = reinterpret_cast<long long*>(run.distances);
@@ -326,6 +327,7 @@ void sssp_cuda_compute(const resources& res, sssp_run<vertex_t, edge_t, weight_t
   params.in = params.out;
   params.source = run.source;
   params.from_scratch = true;
+  params.count_changes = run.count_changes;
   params.delta = static_cast<u64>(run.delta);
   params.distances = reinterpret_cast<long long*>(run.distances);
   params.parent = run.parents;

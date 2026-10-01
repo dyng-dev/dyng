@@ -105,6 +105,19 @@ snapshot take(const result_t& r) {
   return s;
 }
 
+/// The vertices whose combined distance or MOSP parent differ between two snapshots (stats::affected
+/// of the update between them; vertices new in `after` count against an unreachable `before`).
+std::int64_t changed_vertices(const snapshot& before, const snapshot& after) {
+  std::int64_t changed = 0;
+  for (std::size_t v = 0; v < after.combined_parents.size(); ++v) {
+    const bool old = v < before.combined_parents.size();
+    const std::int64_t d = old ? before.combined_distances[v] : inf;
+    const vertex_t p = old ? before.combined_parents[v] : vertex_t{-1};
+    changed += (d != after.combined_distances[v] || p != after.combined_parents[v]) ? 1 : 0;
+  }
+  return changed;
+}
+
 /// The references of the graph `g` (host copy): Dijkstra per objective, the combined graph and
 /// Dijkstra on it, the path costs.
 snapshot reference(const dyng::resources& res, const graph_t& g, vertex_t source, int K,
@@ -392,10 +405,12 @@ TEST_P(MospBackend, ComputePathCostsCanBeSwitchedOff) {
 TEST_P(MospBackend, StatsAndProfilerStages) {
   graph_t g = thesis_graph(res_);
   result_t r = dyng::mosp::compute(res_, g, 0);
+  const snapshot initial = take(r);
   dyng::profiler prof;
   res_.attach_profiler(&prof);
   const dyng::mosp::stats st = dyng::mosp::update(res_, g, thesis_batch().view(), r);
   res_.attach_profiler(nullptr);
+  EXPECT_EQ(st.affected, changed_vertices(initial, take(r)));
   EXPECT_EQ(st.batch.deleted_edges, 2);
   EXPECT_EQ(st.batch.inserted_edges, 2);
   EXPECT_EQ(st.preference_scale, 1);
@@ -438,8 +453,10 @@ TEST_P(MospBackend, NewVerticesJoinTheTrees) {
   batch_t b(3);
   b.insert_edge(6, 7, {1, 2, 3});
   b.insert_edge(8, 2, {1, 1, 1});  // vertex 8 is not reachable
-  (void)dyng::mosp::update(res_, g, b.view(), r);
+  const snapshot before = take(r);
+  const dyng::mosp::stats st = dyng::mosp::update(res_, g, b.view(), r);
   ASSERT_EQ(g.num_vertices(), 9);
+  EXPECT_EQ(st.affected, changed_vertices(before, take(r)));
   EXPECT_TRUE(take(r) == reference(res_, g, 0, 3, {}));
   EXPECT_EQ(dyng::test::host_copy(r.combined_parents())[8], -1);
 }
@@ -562,6 +579,27 @@ TEST_P(MospBackend, TheCombinedSolveInTheDistanceOnlyMode) {
       ++hops;
     }
     EXPECT_EQ(combined[static_cast<std::size_t>(v)], hops * w) << "vertex " << v;
+  }
+  // An update in the same mode: `affected` (on cuda counted by the solve's distance-only unpack,
+  // with either engine) is the number of changed vertices.
+  std::vector<dyng::engine> engines{dyng::engine::automatic};
+  if (GetParam() == dyng::backend::cuda) {
+    engines.push_back(dyng::engine::operators);
+  }
+  for (const dyng::engine e : engines) {
+    graph_t h = graph_t::from_edges(res_, list.view(), props);
+    dyng::mosp::options with = opt;
+    with.cuda_engine = e;
+    result_t s = dyng::mosp::compute(res_, h, 0, with);
+    batch_t b(1);
+    b.insert_edge(0, n / 2 + 1, {1});  // a shortcut to a deep subtree
+    b.delete_edge(0, 1);               // the left half hangs from the shortcut or is cut off
+    const snapshot before = take(s);
+    const dyng::mosp::stats st = dyng::mosp::update(res_, h, b.view(), s);
+    const snapshot after = take(s);
+    EXPECT_EQ(st.affected, changed_vertices(before, after));
+    EXPECT_GT(st.affected, 0);
+    EXPECT_EQ(after.combined_parents, after.parents[0]);
   }
 }
 

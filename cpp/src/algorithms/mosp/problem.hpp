@@ -25,8 +25,9 @@
  *   - finalize (mosp's own): Steps 2-3 of MOSP_Update. The combined graph of the K trees (count,
  *     scan, fill: stage mosp.combine; MOSP's combinedGraphSospGpu / combinedGraphSospCpu), its
  *     static solve through sssp's engine (mosp.combined_sssp; MOSP's sospFromScratch*), the
- *     `affected` count against the previous MOSP tree (mosp.finalize), and the path costs on the
- *     host (mosp.path_costs; MOSP's mospPathCosts).
+ *     `affected` count against the previous MOSP tree (mosp.finalize; on cuda the solve counts it
+ *     in its unpack pass, in place), and the path costs on the host (mosp.path_costs; MOSP's
+ *     mospPathCosts).
  *
  * compute() runs K sssp::compute() (each in mosp.objective) and the same finalize.
  * mosp_problem is the participant of one mosp result in run_update(): it owns the K sssp
@@ -79,12 +80,12 @@ struct mosp_state {
   /// previous tree stays for the `affected` count; the two pairs are swapped after it).
   std::vector<distance_t> combined_distances, spare_distances;
   std::vector<vertex_t> combined_parents, spare_parents;  ///< see combined_distances
-  buffer<distance_t> device_combined_distances;           ///< cuda: combined distances (device)
-  buffer<distance_t> device_spare_distances;              ///< cuda: the next solve's distances
-  buffer<vertex_t> device_combined_parents;               ///< cuda: the MOSP tree (device)
-  buffer<vertex_t> device_spare_parents;                  ///< cuda: the next solve's parents
-  std::vector<distance_t> path_costs;  ///< n * K, vertex-major (host, every backend)
-  bool has_path_costs = false;         ///< path_costs belongs to the current tree
+  /// cuda: the combined distances (device). One pair only: the solve overwrites it and counts
+  /// `affected` in its unpack pass (sssp_solve_view's count_changes; device memory, PLAN 8.6).
+  buffer<distance_t> device_combined_distances;
+  buffer<vertex_t> device_combined_parents;  ///< cuda: the MOSP tree (device)
+  std::vector<distance_t> path_costs;        ///< n * K, vertex-major (host, every backend)
+  bool has_path_costs = false;               ///< path_costs belongs to the current tree
 
   /**
    * @brief The number of vertices of the combined arrays.
@@ -203,7 +204,7 @@ struct mosp_cuda_workspace final : pooled_workspace {
   scratch_buffer<edge_t> cursor;            ///< n + 1 (degrees, then fill positions)
   scratch_buffer<vertex_t> col_ind;         ///< K * n
   scratch_buffer<weight_t> weights;         ///< K * n
-  scratch_buffer<unsigned long long> sums;  ///< [edge count, weight sum, affected]
+  scratch_buffer<unsigned long long> sums;  ///< [edge count, weight sum]
   scratch_buffer<unsigned char> scan_temp;  ///< CUB scan temporary storage
   buffer<unsigned long long> host_sums;     ///< pinned copy of sums
   buffer<vertex_t> host_parents;            ///< pinned copy of the MOSP tree (path costs)
@@ -276,29 +277,19 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_cuda(
     mosp_cuda_workspace<vertex_t, edge_t, weight_t>& ws);
 
 /**
- * @brief The end of the finalize step on CUDA: count the vertices whose combined distance or
- *        parent differs between the previous and the new MOSP tree (when `count`), and copy the
- *        new tree to the workspace's pinned host array (when `download`); one synchronization.
+ * @brief The download of the new MOSP tree for the host's path costs on CUDA: copy it to the
+ *        workspace's pinned host array; one synchronization.
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
- * @param[in]     res          Resources of the CUDA backend.
- * @param[in]     n            Number of vertices.
- * @param[in]     old_distance The previous combined distances (device).
- * @param[in]     old_parent   The previous MOSP tree (device).
- * @param[in]     new_distance The new combined distances (device).
- * @param[in]     new_parent   The new MOSP tree (device).
- * @param[in]     count        Count the changed vertices.
- * @param[in]     download     Copy new_parent to ws.host_parents.
- * @param[in,out] ws           The leased device workspace.
- * @return The number of changed vertices (0 without `count`).
+ * @param[in]     res     Resources of the CUDA backend.
+ * @param[in]     n       Number of vertices.
+ * @param[in]     parents The MOSP tree (device).
+ * @param[in,out] ws      The leased device workspace (ws.host_parents receives the tree).
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::int64_t mosp_finish_cuda(const resources& res, std::int64_t n,
-                              const std::int64_t* old_distance, const vertex_t* old_parent,
-                              const std::int64_t* new_distance, const vertex_t* new_parent,
-                              bool count, bool download,
-                              mosp_cuda_workspace<vertex_t, edge_t, weight_t>& ws);
+void mosp_download_tree_cuda(const resources& res, std::int64_t n, const vertex_t* parents,
+                             mosp_cuda_workspace<vertex_t, edge_t, weight_t>& ws);
 
 /**
  * @brief Step 3, last line: the K objective values of the MOSP path to every vertex (MOSP's

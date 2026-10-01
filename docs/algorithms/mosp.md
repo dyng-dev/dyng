@@ -115,8 +115,8 @@ device memory; the path costs are host memory on every backend in 0.2 (computed 
 original computes them, after one download of the MOSP tree).
 
 Host synchronizations of an update on cuda: one per objective with the fused engine (the
-operators engine: sssp's budget), one for the combined graph's size, the combined solve's, one for
-`affected` and, with `compute_path_costs`, one for the download of the MOSP tree (timed in
+operators engine: sssp's budget), one for the combined graph's size, the combined solve's (its
+unpack pass counts `affected`) and, with `compute_path_costs`, one for the download of the MOSP tree (timed in
 `mosp.path_costs`, outside the "(a) compute" region, as in the originals). The path costs run on
 the host threads of the resources handle (openmp and cuda; a level-synchronous traversal of the
 MOSP tree, M7) and sequentially on the sequential backend.
@@ -129,8 +129,10 @@ originals' `gpu_compute_ms` / `compute_ms`, and "(b) end to end" with their `end
 `dyng-compat-mosp --mosp` reports both (its `RESULT compute_ms=` line). The records are in
 `parity/results/M7.md`.
 
-Memory: the result holds the K trees (12 bytes per vertex each), the MOSP tree twice (the previous
-one is kept for `affected`; 24 bytes per vertex) and the path costs (8 K bytes per vertex, host).
+Memory: the result holds the K trees (12 bytes per vertex each), the MOSP tree (12 bytes per
+vertex; on the host backends twice, the previous one being kept for `affected`; on cuda the
+combined solve counts `affected` while it overwrites the previous tree) and the path costs (8 K
+bytes per vertex, host).
 The combined CSR (up to K n edges) is pooled scratch of the resources handle, shared by every mosp
 result run through it.
 

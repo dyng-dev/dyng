@@ -349,7 +349,8 @@ void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::loop() {
 }
 
 // ------------------------------------------------------------------------------------------------
-// finalize: unpack (MOSP-CUDA's unpack pass, with the `affected` counter of an update)
+// finalize: unpack (MOSP-CUDA's unpack pass, with the `affected` counter of an update and of a
+// compute() with run.count_changes)
 // ------------------------------------------------------------------------------------------------
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -363,8 +364,11 @@ void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::finalize() {
   ops::control<vertex_t>* c = device_control(ws);
   const sssp_kernels::packing packed{parent_bits_, no_parent_};
   auto* distances = reinterpret_cast<long long*>(run_.distances);
+  // The output arrays hold the previous tree: an update, or a compute() that counts the changes
+  // (mosp's combined solve).
+  const bool counted = update_ || run_.count_changes;
   if (packed.has_parents()) {
-    if (update_) {
+    if (counted) {
       ops::unpack_counted_kernel<vertex_t><<<grid(n_), block_size, 0, stream>>>(
           n_, ws.packed.data(), packed, distances, run_.parents, c);
     } else {
@@ -376,13 +380,13 @@ void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::finalize() {
     // Distance-only words: recover the lowest-id parent over tight edges (the old parents and the
     // "distance changed" marks of an update kept in `ancestor` and `candidates`, free here).
     ops::unpack_distances_kernel<vertex_t><<<grid(n_), block_size, 0, stream>>>(
-        n_, ws.packed.data(), run_.source, distances, run_.parents, update_, ws.ancestor.data(),
+        n_, ws.packed.data(), run_.source, distances, run_.parents, counted, ws.ancestor.data(),
         ws.candidates.data());
     DYNG_CHECK_KERNEL(stream);
     ops::recover_parents_kernel<vertex_t, edge_t, weight_t><<<grid(n_), block_size, 0, stream>>>(
         out_csr(run_.graph), ws.packed.data(), run_.source, run_.parents);
     DYNG_CHECK_KERNEL(stream);
-    if (update_) {
+    if (counted) {
       ops::count_affected_kernel<vertex_t><<<grid(n_), block_size, 0, stream>>>(
           n_, ws.ancestor.data(), ws.candidates.data(), run_.parents, c);
       DYNG_CHECK_KERNEL(stream);
@@ -391,7 +395,7 @@ void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::finalize() {
   // One synchronization: `affected`, and a result that is complete when the call returns (the
   // fused engine's contract, ADR 0017 item 7).
   const ops::control<vertex_t> result = read_control(res_, ws);
-  if (update_) {
+  if (counted) {
     run_.counters.affected = static_cast<std::int64_t>(result.affected);
   }
 }

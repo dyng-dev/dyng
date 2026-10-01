@@ -82,7 +82,7 @@ template <typename vertex_t>
 struct control {
   u64 minimum;             ///< min-reduction slot (packed_inf when idle)
   u64 threshold;           ///< the near-far threshold
-  u64 affected;            ///< vertices whose distance or parent changed (update only)
+  u64 affected;            ///< vertices whose distance or parent changed (counted runs only)
   vertex_t candidates;     ///< invalidated vertices + insertion heads (the pull's input)
   vertex_t frontier;       ///< vertices the pull pass improved (or the source)
   vertex_t near[2];        ///< the two near-frontier counts (current, next)

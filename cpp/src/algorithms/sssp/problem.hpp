@@ -372,6 +372,10 @@ struct sssp_run {
   sssp_workspace<vertex_t>* ws = nullptr;            ///< host scratch (leased from the pool)
   sssp_cuda_workspace<vertex_t>* cuda_ws = nullptr;  ///< device scratch (cuda backend)
   sssp_counters counters;                            ///< out
+  /// compute() on cuda (mosp's combined solve): `distances` and `parents` hold a previous tree on
+  /// entry, and counters.affected counts the vertices whose (distance, parent) the solve changes
+  /// (an update always counts them)
+  bool count_changes = false;
   /// out (cuda): device_error bits the fused engine's control block reported (0: none); the
   /// problem records them for the enactor (framework::context::raise_device_error)
   std::uint32_t device_errors = 0;
@@ -614,7 +618,7 @@ class sssp_cuda_operators_engine {
  * @brief What sssp_solve_view() reports: the counters of the run and the engine that ran.
  */
 struct sssp_solve_outcome {
-  sssp_counters counters;                  ///< iterations, epochs, pushes, packed_parents
+  sssp_counters counters;  ///< iterations, epochs, pushes, packed_parents (and affected, counted)
   engine engine_used = engine::operators;  ///< the engine the static enactor chose
 };
 
@@ -626,6 +630,11 @@ struct sssp_solve_outcome {
  *
  * The in-edges of `view` are read only by the sequential engine, and only in the distance-only
  * mode (sssp_packs_parents(n, max_weight) is false): they may be null otherwise.
+ *
+ * With `count_changes` (cuda only), `distances` and `parents` hold a previous tree on entry (any
+ * values: unreachable is sssp_infinity and -1) and counters.affected counts the vertices whose
+ * pair the solve changes; the engines count it in their unpack pass, as an update's `affected`,
+ * so mosp needs no second pair of arrays for its `affected` (M7).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
@@ -636,8 +645,9 @@ struct sssp_solve_outcome {
  * @param[in]  delta       The near-far width (> 0).
  * @param[in]  max_weight  The largest weight of `view` (>= 1; the packing bound).
  * @param[in]  cuda_engine The CUDA engine (as sssp::options::cuda_engine).
- * @param[out] distances   n distances.
- * @param[out] parents     n parents (the canonical tree).
+ * @param[in,out] distances n distances (with `count_changes`: the previous ones on entry).
+ * @param[in,out] parents   n parents, the canonical tree (with `count_changes`: as `distances`).
+ * @param[in]  count_changes cuda only: count the changed vertices into counters.affected.
  * @return The counters and the engine.
  * @throws invalid_argument_error if distances could exceed 62 bits.
  * @throws not_supported_error    if the engine cannot run.
@@ -646,7 +656,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 sssp_solve_outcome sssp_solve_view(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
                                    const sssp_graph<vertex_t, edge_t, weight_t>& view,
                                    vertex_t source, std::int64_t delta, std::int64_t max_weight,
-                                   engine cuda_engine, std::int64_t* distances, vertex_t* parents);
+                                   engine cuda_engine, std::int64_t* distances, vertex_t* parents,
+                                   bool count_changes = false);
 
 namespace framework {
 template <typename vertex_t, typename weight_t>
@@ -750,12 +761,16 @@ class sssp_problem final : public framework::problem_base<sssp_problem<vertex_t,
    * @param[in]     view       The graph to solve.
    * @param[in]     delta      The near-far width (> 0).
    * @param[in]     max_weight The largest weight of `view` (>= 1).
-   * @param[out]    distances  n distances, written by the engine (device memory on cuda).
-   * @param[out]    parents    n parents, written by the engine (device memory on cuda).
+   * @param[in,out] distances  n distances, written by the engine (device memory on cuda; with
+   *                           `count_changes` they hold a previous tree on entry).
+   * @param[in,out] parents    n parents, written by the engine (device memory on cuda; as
+   *                           `distances`).
+   * @param[in]     count_changes cuda only: count the vertices whose (distance, parent) the solve
+   *                           changes (sssp_run::count_changes).
    */
   void bind_view(framework::context& ctx, const sssp_graph<vertex_t, edge_t, weight_t>& view,
                  std::int64_t delta, std::int64_t max_weight, std::int64_t* distances,
-                 vertex_t* parents);
+                 vertex_t* parents, bool count_changes);
 
   // ---- Step 0, on G_t --------------------------------------------------------------------------
 

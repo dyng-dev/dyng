@@ -202,10 +202,10 @@ struct test_traits<tags::mosp> {
     };
   }
   /// C8: host synchronizations of the algorithm phase on CUDA: one per objective (the fused sssp
-  /// engine's control block), then the combined graph's size, the combined solve, the `affected`
-  /// count and the download of the MOSP tree for the path costs (compute_path_costs is on).
+  /// engine's control block), then the combined graph's size, the combined solve (which counts
+  /// `affected`) and the download of the MOSP tree for the path costs (compute_path_costs is on).
   static std::int64_t host_sync_budget(backend b) {
-    return b == backend::cuda ? num_weights + 4 : 0;
+    return b == backend::cuda ? num_weights + 3 : 0;
   }
 };
 

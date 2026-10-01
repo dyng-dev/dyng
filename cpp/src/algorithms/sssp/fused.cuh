@@ -41,9 +41,10 @@
  * Mechanical changes only (PLAN Section 6.3 step 5): names in snake_case; templates on the vertex,
  * edge and weight types (the int32 instantiation is the original's code); namespace
  * dyng::detail; DISTANCE_INF is sssp_infinity (the same value). One addition, in the unpack pass
- * of an update (not in compute(), whose input arrays are not a tree): the counter `affected`
- * (vertices whose distance or parent changed; update_stats), summed per warp and added to the
- * control block. With packed words the unpack compares each vertex's new pair with the old one it
+ * of an update (and of a compute() with `count_changes`, whose output arrays hold a previous tree:
+ * mosp's combined solve, M7; a plain compute() does not count): the counter `affected` (vertices
+ * whose distance or parent changed; update_stats), summed per warp and added to the control
+ * block. With packed words the unpack compares each vertex's new pair with the old one it
  * would overwrite and writes only changed pairs (the same bytes moved as the original's
  * unconditional write, the same output); in the distance-only mode it needs the old parents and
  * the "distance changed" marks, which the unpack pass keeps in the `ancestor` and `candidates`
@@ -126,7 +127,7 @@ struct control {
   int generation;  ///< last stamp generation used
   long long pushes;
   u64 minimum;   ///< min-reduction slot (packed_inf when idle)
-  u64 affected;  ///< added: vertices whose distance or parent changed (update only)
+  u64 affected;  ///< added: vertices whose distance or parent changed (p.count_changes only)
 };
 
 /// Parameters of the persistent kernel.
@@ -136,6 +137,7 @@ struct params {
   device_changes<vertex_t> changes;
   vertex_t source;
   bool from_scratch;
+  bool count_changes;  ///< added: count `affected` in the unpack (an update; see the file comment)
   packing packed_format;
   u64 max_distance;
   u64 delta;
@@ -415,11 +417,11 @@ __global__ void __launch_bounds__(block_size)
   }
 
   // ---- Unpack the result. -----------------------------------------------------------------------
-  const bool count_affected = !p.from_scratch;  // added: the input arrays of an update are a tree
+  const bool count_affected = p.count_changes;  // added: the arrays hold the previous tree
   u64 affected = 0;
   if (packed_format.has_parents()) {
     if (count_affected) {
-      // Added (update only): the arrays still hold the old tree, so only the entries that change
+      // Added (count_changes): the arrays still hold the old tree, so only the entries that change
       // are written (and counted). The unpack moves as many bytes as the original's (a read of
       // the old pair instead of a write of an unchanged one) and gives `affected` for free.
       for (vertex_t v = tid; v < n; v += threads) {

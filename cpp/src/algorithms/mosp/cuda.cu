@@ -19,8 +19,9 @@
  * 64-bit offsets use 64-bit atomics); the K parent arrays (one per sssp result) and the preference
  * terms are passed by value in the kernels' parameter block instead of an objective-major array
  * and a device copy of the terms; the stream of the resources handle; the pooled workspace; and
- * mosp_finish_cuda (not in the original): the `affected` count against the previous MOSP tree and
- * the download of the new tree for the host's path costs, behind one synchronization.
+ * mosp_download_tree_cuda (not in the original): the download of the new tree for the host's path
+ * costs. (`affected` is counted by the combined solve's unpack pass: sssp_solve_view's
+ * count_changes.)
  */
 #include "algorithms/mosp/problem.hpp"
 #include "core/budget_counters.hpp"
@@ -138,25 +139,6 @@ __global__ void __launch_bounds__(block_size)
   }
 }
 
-/// The vertices whose combined distance or parent differ between two trees (warp-reduced).
-template <typename vertex_t>
-__global__ void __launch_bounds__(block_size)
-    count_changed_kernel(std::int64_t n, const std::int64_t* old_distance,
-                         const vertex_t* old_parent, const std::int64_t* new_distance,
-                         const vertex_t* new_parent, unsigned long long* changed) {
-  const std::int64_t v = vertex_index();
-  unsigned long long count = 0;
-  if (v < n) {
-    count = (old_distance[v] != new_distance[v] || old_parent[v] != new_parent[v]) ? 1 : 0;
-  }
-  for (int offset = 16; offset > 0; offset >>= 1) {
-    count += __shfl_down_sync(0xffffffffu, count, offset);
-  }
-  if ((threadIdx.x & 31) == 0 && count > 0) {
-    atomicAdd(changed, count);
-  }
-}
-
 }  // namespace mosp_kernels
 
 namespace {
@@ -191,14 +173,14 @@ void mosp_cuda_workspace<vertex_t, edge_t, weight_t>::reserve(const resources& r
   cursor.reserve(res, nn + 1);
   col_ind.reserve(res, nn * kk);
   weights.reserve(res, nn * kk);
-  sums.reserve(res, 3);
+  sums.reserve(res, 2);
   std::size_t scan_bytes = 0;
   DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, scan_bytes, cursor.data(), row_ptr.data(),
                                               nn + 1, native(res)));
   scan_temp.reserve(res, std::max<std::size_t>(scan_bytes, 1));
-  if (host_sums.size() < 3) {
+  if (host_sums.size() < 2) {
     note_reservation();
-    host_sums = buffer<unsigned long long>(3, res.stream(), resources_access::staging_memory(res),
+    host_sums = buffer<unsigned long long>(2, res.stream(), resources_access::staging_memory(res),
                                            res.device());
   }
   if (host_parents.size() < nn) {
@@ -264,43 +246,25 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_cuda(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::int64_t mosp_finish_cuda(const resources& res, std::int64_t n,
-                              const std::int64_t* old_distance, const vertex_t* old_parent,
-                              const std::int64_t* new_distance, const vertex_t* new_parent,
-                              bool count, bool download,
-                              mosp_cuda_workspace<vertex_t, edge_t, weight_t>& ws) {
-  if (!count && !download) {
-    return 0;
-  }
+void mosp_download_tree_cuda(const resources& res, std::int64_t n, const vertex_t* parents,
+                             mosp_cuda_workspace<vertex_t, edge_t, weight_t>& ws) {
   const scoped_device guard(res.device());
   const cudaStream_t stream = native(res);
-  unsigned long long* changed = ws.sums.data() + 2;
-  if (count) {
-    DYNG_CUDA_TRY(cudaMemsetAsync(changed, 0, sizeof(unsigned long long), stream));
-    mosp_kernels::count_changed_kernel<vertex_t>
-        <<<blocks(n), mosp_kernels::block_size, 0, stream>>>(n, old_distance, old_parent,
-                                                             new_distance, new_parent, changed);
-    DYNG_CHECK_KERNEL(stream);
-    DYNG_CUDA_TRY(cudaMemcpyAsync(ws.host_sums.data() + 2, changed, sizeof(unsigned long long),
-                                  cudaMemcpyDeviceToHost, stream));
-  }
-  if (download && n > 0) {
-    DYNG_CUDA_TRY(cudaMemcpyAsync(ws.host_parents.data(), new_parent,
+  if (n > 0) {
+    DYNG_CUDA_TRY(cudaMemcpyAsync(ws.host_parents.data(), parents,
                                   static_cast<std::size_t>(n) * sizeof(vertex_t),
                                   cudaMemcpyDeviceToHost, stream));
   }
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
   note_host_sync();  // the update's budget (I9) counts it
-  return count ? static_cast<std::int64_t>(ws.host_sums.data()[2]) : 0;
 }
 
-#define DYNG_INSTANTIATE_MOSP_CUDA(V, E, W)                                               \
-  template struct mosp_cuda_workspace<V, E, W>;                                           \
-  template mosp_combined<V, E, W> mosp_combine_cuda<V, E, W>(                             \
-      const resources&, const mosp_combine_input<V>&, mosp_cuda_workspace<V, E, W>&);     \
-  template std::int64_t mosp_finish_cuda<V, E, W>(                                        \
-      const resources&, std::int64_t, const std::int64_t*, const V*, const std::int64_t*, \
-      const V*, bool, bool, mosp_cuda_workspace<V, E, W>&);
+#define DYNG_INSTANTIATE_MOSP_CUDA(V, E, W)                                                \
+  template struct mosp_cuda_workspace<V, E, W>;                                            \
+  template mosp_combined<V, E, W> mosp_combine_cuda<V, E, W>(                              \
+      const resources&, const mosp_combine_input<V>&, mosp_cuda_workspace<V, E, W>&);      \
+  template void mosp_download_tree_cuda<V, E, W>(const resources&, std::int64_t, const V*, \
+                                                 mosp_cuda_workspace<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_MOSP_CUDA)
 #undef DYNG_INSTANTIATE_MOSP_CUDA
 
@@ -311,7 +275,5 @@ DYNG_REGISTER_KERNEL(mosp_kernels::count_edges_kernel<std::int64_t, std::int64_t
 DYNG_REGISTER_KERNEL(mosp_kernels::fill_edges_kernel<std::int32_t, std::int32_t, std::int32_t>);
 DYNG_REGISTER_KERNEL(mosp_kernels::fill_edges_kernel<std::int32_t, std::int64_t, std::int32_t>);
 DYNG_REGISTER_KERNEL(mosp_kernels::fill_edges_kernel<std::int64_t, std::int64_t, std::int32_t>);
-DYNG_REGISTER_KERNEL(mosp_kernels::count_changed_kernel<std::int32_t>);
-DYNG_REGISTER_KERNEL(mosp_kernels::count_changed_kernel<std::int64_t>);
 
 }  // namespace dyng::detail

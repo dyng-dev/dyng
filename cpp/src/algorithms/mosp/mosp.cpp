@@ -21,8 +21,10 @@
  *
  * Changes from the originals: K up to 64 (the commit classifies one byte per insertion and
  * objective; MOSP stops at 32); the K trees are sssp results (separate arrays, not one
- * objective-major array); the combined arrays of the previous MOSP tree are kept for the
- * `affected` count (a second pair of arrays, swapped); the path costs are part of compute() and
+ * objective-major array); `affected` (the vertices whose combined distance or parent changed):
+ * on cuda the combined solve overwrites the previous MOSP tree in place and counts it in its
+ * unpack pass, on the host backends the previous tree is kept for the count (a second pair of
+ * arrays, swapped); the path costs are part of compute() and
  * update() (options::compute_path_costs; MOSP computes them while writing mospCosts.txt) and
  * cover the K objectives (MOSP's mospPathCosts covers every weight column of the graph); a
  * missing tree edge throws instead of failing the write.
@@ -184,8 +186,8 @@ void expect_result_placement(const resources& res, const mosp_state<vertex_t, di
   }
 }
 
-/// Size the combined arrays (and their spares) for `n` vertices: new vertices start unreachable
-/// in the current tree; the spares are written by the next solve.
+/// Size the combined arrays (and, on the host, their spares) for `n` vertices: new vertices start
+/// unreachable in the current tree; the spares are written by the next solve.
 template <typename vertex_t, typename distance_t>
 void size_combined(const resources& res, mosp_state<vertex_t, distance_t>& st, std::size_t n) {
   if (st.num_vertices() == n &&
@@ -220,12 +222,8 @@ void size_combined(const resources& res, mosp_state<vertex_t, distance_t>& st, s
   // Released on res.stream(), after the copies above (as sssp's grow()).
   st.device_combined_distances.set_stream(res.stream());
   st.device_combined_parents.set_stream(res.stream());
-  st.device_spare_distances.set_stream(res.stream());
-  st.device_spare_parents.set_stream(res.stream());
   st.device_combined_distances = std::move(distances);
   st.device_combined_parents = std::move(parents);
-  st.device_spare_distances = buffer<distance_t>(res, n);
-  st.device_spare_parents = buffer<vertex_t>(res, n);
   st.space = memory_space::device;
   st.device = res.device();
 #else
@@ -306,22 +304,19 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
     const std::int64_t delta =
         sssp_default_delta(combined.edges, static_cast<std::int64_t>(n), combined.weight_sum);
     {
+      // The solve overwrites the previous MOSP tree in place and counts `affected` in its unpack
+      // pass (the engines' update counter), so no second pair of arrays is kept on the device.
       scoped_stage stage(res, "mosp.combined_sssp");
       out.solve = sssp_solve_view(res, g, combined.view, st.source, delta, base, st.opt.cuda_engine,
-                                  st.device_spare_distances.data(), st.device_spare_parents.data());
+                                  st.device_combined_distances.data(),
+                                  st.device_combined_parents.data(), count_affected);
       out.host_syncs += out.solve.engine_used == engine::fused
                             ? 1
                             : 3 + out.solve.counters.iterations + out.solve.counters.epochs;
     }
     {
-      scoped_stage stage(res, "mosp.finalize");
-      out.affected =
-          mosp_finish_cuda(res, static_cast<std::int64_t>(n), st.device_combined_distances.data(),
-                           st.device_combined_parents.data(), st.device_spare_distances.data(),
-                           st.device_spare_parents.data(), count_affected, false, ws.get());
-      out.host_syncs += count_affected ? 1 : 0;
-      std::swap(st.device_combined_distances, st.device_spare_distances);
-      std::swap(st.device_combined_parents, st.device_spare_parents);
+      scoped_stage stage(res, "mosp.finalize");  // `affected` was counted by the solve
+      out.affected = count_affected ? out.solve.counters.affected : 0;
     }
     if (costs) {
       tree = ws->host_parents.data();
@@ -332,9 +327,8 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
       // with the tree on the device), so it is timed in their stage: one more synchronization.
       {
         scoped_stage stage(res, "mosp.path_costs");
-        (void)mosp_finish_cuda<vertex_t, edge_t, weight_t>(
-            res, static_cast<std::int64_t>(n), nullptr, nullptr, nullptr,
-            st.device_combined_parents.data(), false, true, ws.get());
+        mosp_download_tree_cuda(res, static_cast<std::int64_t>(n),
+                                st.device_combined_parents.data(), ws.get());
         out.host_syncs += 1;
         if (st.path_costs.size() != n * static_cast<std::size_t>(K)) {
           note_reservation();
@@ -414,8 +408,8 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
  * Budget (invariant I9): the whole algorithm work of the update (the K sssp halves before and
  * after the commit and the finalize step) is measured and checked against the sum of the K sssp
  * budgets and the finalize step's synchronizations (none on the host backends; on cuda one for
- * the combined graph's size, the combined solve's, one for `affected` and, with the path costs,
- * one for the download of the MOSP tree).
+ * the combined graph's size, the combined solve's (which counts `affected`) and, with the path
+ * costs, one for the download of the MOSP tree).
  * @tparam vertex_t   Vertex id type.
  * @tparam edge_t     Edge offset type.
  * @tparam weight_t   Weight type.
@@ -693,8 +687,6 @@ result<vertex_t, distance_t> result<vertex_t, distance_t>::clone(const resources
     copy->device = res.device();
     copy->device_combined_distances = buffer<distance_t>(res, n);
     copy->device_combined_parents = buffer<vertex_t>(res, n);
-    copy->device_spare_distances = buffer<distance_t>(res, n);
-    copy->device_spare_parents = buffer<vertex_t>(res, n);
     if (n > 0) {
       detail::copy_bytes(copy->device_combined_distances.data(), memory_space::device, d, from,
                          n * sizeof(distance_t), stream, device);
@@ -836,21 +828,18 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_cuda(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-std::int64_t mosp_finish_cuda(const resources& /*res*/, std::int64_t /*n*/,
-                              const std::int64_t* /*old_distance*/, const vertex_t* /*old_parent*/,
-                              const std::int64_t* /*new_distance*/, const vertex_t* /*new_parent*/,
-                              bool /*count*/, bool /*download*/,
-                              mosp_cuda_workspace<vertex_t, edge_t, weight_t>& /*ws*/) {
+void mosp_download_tree_cuda(const resources& /*res*/, std::int64_t /*n*/,
+                             const vertex_t* /*parents*/,
+                             mosp_cuda_workspace<vertex_t, edge_t, weight_t>& /*ws*/) {
   throw not_supported_error("dyng: mosp: the cuda backend is not built");
 }
 
-#define DYNG_INSTANTIATE_MOSP_CUDA_STUB(V, E, W)                                          \
-  template struct mosp_cuda_workspace<V, E, W>;                                           \
-  template mosp_combined<V, E, W> mosp_combine_cuda<V, E, W>(                             \
-      const resources&, const mosp_combine_input<V>&, mosp_cuda_workspace<V, E, W>&);     \
-  template std::int64_t mosp_finish_cuda<V, E, W>(                                        \
-      const resources&, std::int64_t, const std::int64_t*, const V*, const std::int64_t*, \
-      const V*, bool, bool, mosp_cuda_workspace<V, E, W>&);
+#define DYNG_INSTANTIATE_MOSP_CUDA_STUB(V, E, W)                                           \
+  template struct mosp_cuda_workspace<V, E, W>;                                            \
+  template mosp_combined<V, E, W> mosp_combine_cuda<V, E, W>(                              \
+      const resources&, const mosp_combine_input<V>&, mosp_cuda_workspace<V, E, W>&);      \
+  template void mosp_download_tree_cuda<V, E, W>(const resources&, std::int64_t, const V*, \
+                                                 mosp_cuda_workspace<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_MOSP_CUDA_STUB)
 #undef DYNG_INSTANTIATE_MOSP_CUDA_STUB
 #endif  // !DYNG_HAS_CUDA

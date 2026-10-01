@@ -823,10 +823,13 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& c
 template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_problem<vertex_t, edge_t, weight_t>::bind_view(
     framework::context& ctx, const sssp_graph<vertex_t, edge_t, weight_t>& view, std::int64_t delta,
-    std::int64_t max_weight, std::int64_t* distances, vertex_t* parents) {
+    std::int64_t max_weight, std::int64_t* distances, vertex_t* parents, bool count_changes) {
   const resources& res = ctx.res();
   const std::int64_t n = view.num_vertices;
+  DYNG_EXPECTS(!count_changes || ctx.on_cuda(),
+               "sssp: counting the changes of a static solve needs the cuda backend");
   run_ = sssp_run<vertex_t, edge_t, weight_t>{};
+  run_.count_changes = count_changes;
   run_.graph = view;
   run_.source = state_->source;
   run_.delta = delta;
@@ -1251,7 +1254,8 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 sssp_solve_outcome sssp_solve_view(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
                                    const sssp_graph<vertex_t, edge_t, weight_t>& view,
                                    vertex_t source, std::int64_t delta, std::int64_t max_weight,
-                                   engine cuda_engine, std::int64_t* distances, vertex_t* parents) {
+                                   engine cuda_engine, std::int64_t* distances, vertex_t* parents,
+                                   bool count_changes) {
   expect_supported_backend(res, "sssp (a static solve)");
   select_cuda_engine(res, cuda_engine, "sssp (a static solve)");
   const std::int64_t n = view.num_vertices;
@@ -1269,13 +1273,14 @@ sssp_solve_outcome sssp_solve_view(const resources& res, const graph<vertex_t, e
   problem_type problem(st);
   framework::context ctx(res, problem_type::name);
   const framework::new_view<graph<vertex_t, edge_t, weight_t>> container(g);
-  problem.bind_view(ctx, view, delta, max_weight, distances, parents);
+  problem.bind_view(ctx, view, delta, max_weight, distances, parents, count_changes);
   const sssp::stats stats = framework::static_enactor<problem_type>(problem).run(ctx, container);
   sssp_solve_outcome out;
   out.counters.iterations = stats.iterations;
   out.counters.epochs = stats.epochs;
   out.counters.pushes = stats.pushes;
   out.counters.packed_parents = stats.packed_parents;
+  out.counters.affected = count_changes ? stats.affected : 0;
   out.engine_used = stats.engine_used;
   return out;
 }
@@ -1323,7 +1328,7 @@ namespace dyng::detail {
   make_sssp_participant<V, E, W, std::int64_t>(sssp::result<V, std::int64_t>&, sssp::stats&); \
   template sssp_solve_outcome sssp_solve_view<V, E, W>(                                       \
       const resources&, const graph<V, E, W>&, const sssp_graph<V, E, W>&, V, std::int64_t,   \
-      std::int64_t, engine, std::int64_t*, V*);
+      std::int64_t, engine, std::int64_t*, V*, bool);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP_DETAIL)
 #undef DYNG_INSTANTIATE_SSSP_DETAIL
 

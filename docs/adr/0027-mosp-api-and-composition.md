@@ -105,6 +105,17 @@ Technical, no public signature and no gate rule changed (recorded in
   count only; the download of the MOSP tree for the host's path costs moved into
   `mosp.path_costs` (one more synchronization when `compute_path_costs` is true), so the
   "(a) compute" region (above) holds what the originals' Steps 2-3 hold.
+- **`affected` without a second MOSP tree on the device** (the device-memory gate, PLAN 8.6:
+  <= 1.05x). The second pair of combined arrays kept for the `affected` count (12 bytes per
+  vertex) put mosp's peak device memory at 1.068-1.075x of MOSP-CUDA's on the three road graphs
+  (`parity/results/M7.md`, section 8). On cuda the combined solve now overwrites the previous MOSP
+  tree in place and counts the changed vertices in its unpack pass, as an update counts its
+  `affected` (`sssp_solve_view(..., count_changes)`: the fused kernel's `count_changes`
+  parameter, which an update always sets, and the operators engine's counted unpack); the count
+  kernel and one synchronization of `mosp.finalize` are gone (an update with
+  `compute_path_costs` synchronizes K + 3 times with the fused engine). The host backends keep
+  the second pair (host memory has no gate; their engines write the arrays during the search).
+  Same values: `affected` is the count of the same comparison.
 
 ## Alternatives considered
 
