@@ -102,7 +102,7 @@ files in the original tools' formats: `dyng sssp update --graph G --changes DIR 
 | `cycle_count` on CUDA (the work-queue static counters, the update on a resident device graph) | working (M2b); bit-identical to CycleEnumeration-GPU@0a976ad's CUDA backend on its golden corpus and cross-backend equal, within the CUDA performance gates in both scopes (at the boost lock: static kernels 0.67-1.00x, updates 0.39-0.93x, chained updates on the resident graph 0.23-0.89x; the COLLAB update is read at the base lock, ADR 0021) and the original's device memory ([M2b certificate](parity/results/M2b.md)) |
 | `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
-| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working (M5): a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64), byte-identical to the originals on the Python-level parity subset; to be published with 0.1.0. CUDA plugin wheels follow in 0.1.x |
+| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; CUDA plugin wheels follow in 0.1.x |
 
 ## The name
 
