@@ -177,7 +177,8 @@ if(DYNG_BUILD_EXAMPLES AND _dyng_both_algorithms)
   add_subdirectory(examples/cpp)
 endif()
 
-if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms)
+# dyng-compat-mosp --mosp also needs mosp (M7).
+if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms AND TARGET dyng_mosp)
   add_subdirectory(tools/compat)
 endif()
 
