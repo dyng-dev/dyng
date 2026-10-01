@@ -346,7 +346,10 @@ def test_certificate_from_results(cert, bench, tmp_path: Path) -> None:
             }
             (results / f"{suite['suite']}.json").write_text(json.dumps(summary))
     log = tmp_path / "asan.log"
-    log.write_text("100% tests passed, 0 tests failed out of 12\n")
+    log.write_text(
+        "100% tests passed, 0 tests failed out of 12\n\n"
+        "The following tests did not run:\n\t7 - A.B (Skipped)\n"
+    )
     args = [
         "check",
         "--results",
@@ -372,6 +375,7 @@ def test_certificate_from_results(cert, bench, tmp_path: Path) -> None:
     }
     readme = (results / "README.md").read_text()
     assert cert.BEGIN in readme and "all parts passed" in readme
+    assert "| asan | `ctest --preset asan` | passed (12 / 12 tests, 1 skipped) |" in readme
     # Rewriting keeps the hand-written text around the generated block.
     (results / "README.md").write_text("# Title\n\n" + readme + "\nNotes.\n")
     assert cert.main(["write", "--results", str(results), "--version", "t", "--allow-dirty"]) == 0

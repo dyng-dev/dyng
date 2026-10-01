@@ -562,9 +562,9 @@ def readme_block(cert: dict) -> str:
     for c in cert["checks"]:
         detail = ""
         if "ctest" in c:
-            detail = (
-                f" ({c['ctest']['tests'] - c['ctest']['failed']} / {c['ctest']['tests']} tests)"
-            )
+            t = c["ctest"]
+            skipped = f", {t['skipped']} skipped" if t.get("skipped") else ""
+            detail = f" ({t['tests'] - t['failed']} / {t['tests']} tests{skipped})"
         elif "steps" in c:
             detail = " (" + ", ".join(f"{k} {v}" for k, v in c["steps"].items()) + ")"
         lines.append(f"| {c['name']} | `{c['command']}` | {c['result']}{detail} |")
