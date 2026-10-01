@@ -2,12 +2,12 @@
  "schema": 1,
  "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
  "version": "0.1.0rc1",
- "version_file": "0.1.0.dev0",
- "date": "2026-10-01T08:00:04Z",
- "commit": "b80ac389564b056a286bf4e954fd3267c527322d",
+ "version_file": "0.1.0rc1",
+ "date": "2026-10-01T15:11:32Z",
+ "commit": "26a330b28af4aa9a500702001b72fdc3a542e5f9",
  "branch": "release-0.1.0",
  "measured_commits": [
-  "1049068a55263ca048b02bc8c85d38cf74c84c75",
+  "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
   "d13d393f8ea52cdfefb4a2983723b8fe78550628"
  ],
  "code_paths": {
@@ -31,7 +31,44 @@
    "cpp/tests"
   ]
  },
- "code_rule": "every measured commit has the release commit's sources: the library scope for the performance gates, the golden replays and the golden mutations, the tests scope for the test-suite checks (git diff <measured> <release> -- code_paths[scope] is empty)",
+ "code_rule": "every measured commit has the release commit's sources: the library scope for the performance gates, the golden replays and the golden mutations, the tests scope for the test-suite checks (git diff <measured> <release> -- code_paths[scope] is empty); in the library scope, a difference confined to metadata_paths is accepted when equivalence.json shows the measured programs unchanged (equivalences)",
+ "metadata_paths": {
+  "cpp/src/core/registry_table.inc": {
+   "what": "the algorithm registry table generated from the manifests by scripts/regen.py (names, titles, maturity, backends, citation keys), read only by dyng::algorithms()",
+   "functions": [
+    "dyng::algorithms()",
+    "dyng::algorithms() [clone .cold]"
+   ]
+  },
+  "cpp/src/algorithms/sssp/manifest.toml": {
+   "what": "the manifest of sssp (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  },
+  "cpp/src/algorithms/cycle_count/manifest.toml": {
+   "what": "the manifest of cycle_count (PLAN 4.8), read only by scripts/regen.py, which generates the registry table from it; no build reads it",
+   "functions": []
+  }
+ },
+ "equivalences": [
+  {
+   "measured": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "release": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
+   "differing_paths": [
+    "cpp/src/algorithms/cycle_count/manifest.toml",
+    "cpp/src/algorithms/sssp/manifest.toml",
+    "cpp/src/core/registry_table.inc"
+   ],
+   "files": {
+    "parity/cpp/libdyng.so": "equivalent",
+    "parity/tools/compat/dyng-compat-mosp": "identical",
+    "parity/tools/compat/dyng-compat-cycle-enum": "identical",
+    "parity-cuda/cpp/libdyng.so": "equivalent",
+    "parity-cuda/tools/compat/dyng-compat-mosp": "identical",
+    "parity-cuda/tools/compat/dyng-compat-cycle-enum": "identical"
+   },
+   "record": "equivalence.json"
+  }
+ ],
  "environment": {
   "hardware": {
    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
@@ -5749,41 +5786,41 @@
   {
    "name": "tsan",
    "command": "ctest --preset tsan -j 16 (tsan preset: Debug, DYNG_SANITIZE=thread, OpenMP off), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T03:04:49Z",
+   "date": "2026-10-01T13:31:17Z",
    "ctest": {
     "tests": 520,
     "failed": 0,
     "skipped": 42,
     "percent_passed": 100
    },
-   "details": "42 tests skip themselves in this preset (the OpenMP comparisons and the OpenMP-only tests, the conformance cases C3/C4/C10/C12 that need a second backend, engine or CUDA streams, allocation-failure tests, CUDA placement); the dataset parity tests ran on the sequential backend (dd09893), CycleEnumDatasets 1345 s; the cycle_count mutation CTests passed",
+   "details": "re-run on the release code (the maturity change touches cpp/src); the tests that skip themselves in this preset are those of the run at 1049068 (the OpenMP comparisons and OpenMP-only tests, the conformance cases C3/C4/C10/C12 that need a second backend, engine or CUDA streams, allocation-failure tests, CUDA placement); the dataset parity tests and the cycle_count mutation CTests passed",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "asan",
    "command": "ctest --preset asan -j 16 (asan preset: Debug, DYNG_SANITIZE=address;undefined, OpenMP on), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T03:27:56Z",
+   "date": "2026-10-01T13:49:04Z",
    "ctest": {
     "tests": 595,
     "failed": 0,
     "skipped": 26,
     "percent_passed": 100
    },
-   "details": "26 tests skip themselves in this preset: 7 allocation-failure and allocation-count tests under ASan's allocator, 17 conformance cases C4/C10/C12 that need a second engine or CUDA streams, CycleCountBackend.PlacementIsChecked (CUDA), Resources.OpenmpNotBuiltThrows (OpenMP is built); the dataset parity tests and the cycle_count mutation CTests (control, double_count_5, weak_ownership, skip_workspace_resize) passed",
+   "details": "re-run on the release code (the maturity change touches cpp/src); the tests that skip themselves in this preset are those of the run at 1049068 (allocation-failure and allocation-count tests under ASan's allocator, conformance cases C4/C10/C12 that need a second engine or CUDA streams, CUDA placement, Resources.OpenmpNotBuiltThrows); the dataset parity tests and the cycle_count mutation CTests passed",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "gpu_local",
    "command": "ci/gpu_local.sh (dev-cuda, GPU 1), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T04:11:34Z",
+   "date": "2026-10-01T14:39:55Z",
    "steps": {
     "build": "passed",
     "ctest -L gpu": "passed",
@@ -5796,23 +5833,43 @@
     "racecheck": "passed",
     "clang-tidy": "passed"
    },
-   "details": "ctest -L gpu 252 / 252, ctest -L cpu 605 / 605 (the CUDA build), the sssp CUDA goldens (495 cases) and the cycle_count CUDA goldens (cuda, cuda:resident); compute-sanitizer memcheck (leak check), synccheck and racecheck with 0 errors",
+   "details": "re-run on the release code: CUDA tests (ctest -L gpu, ctest -L cpu in the CUDA build), the sssp CUDA goldens (495 cases) and the cycle_count CUDA goldens (cuda, cuda:resident); compute-sanitizer memcheck (leak check), synccheck and racecheck; clang-tidy on the CUDA branches",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "mutation-ctests",
    "command": "ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone",
-   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
    "scope": "tests",
-   "date": "2026-10-01T04:14:06Z",
+   "date": "2026-10-01T14:45:30Z",
    "ctest": {
     "tests": 7,
     "failed": 0,
     "skipped": 0,
     "percent_passed": 100
    },
-   "details": "cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
+   "details": "re-run on the release code; cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
+   "result": "passed",
+   "release_code": true
+  },
+  {
+   "name": "check-parity",
+   "command": "ci/check.sh --parity, from a clean clone",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
+   "scope": "tests",
+   "date": "2026-10-01T14:06:57Z",
+   "details": "every step passed: clang-format, the cpu-only and dev presets (ctest -L cpu), clang-tidy, reuse, provenance, regen, the harness tests, ci/python.sh (396 passed, 4 skipped), the API check, the scaffold check, ci/docs.sh, pre-commit, and the parity preset's golden replays (sssp mosp_openmp_c352151, cycle_count cycle_enum_0a976ad, the dataset digests and histograms: 4 / 4)",
+   "result": "passed",
+   "release_code": true
+  },
+  {
+   "name": "distributions",
+   "command": "release.yml's select step for GITHUB_REF_NAME=v0.1.0rc1; ci/wheels.sh; twine check --strict; ci/wheel_check.py --platform manylinux_2_28_x86_64 --require-libgomp; fresh Python 3.12 and 3.13 venvs, from a clean clone",
+   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
+   "scope": "tests",
+   "date": "2026-10-01T15:09:50Z",
+   "details": "select: kind=package, version=0.1.0rc1, prerelease=true (v0.1.0 refused); dyng-0.1.0rc1.tar.gz (0.79 MB) and dyng-0.1.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.50 MB), License-Expression 'Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1' in METADATA and PKG-INFO; twine check --strict and wheel_check passed; the wheel alone in fresh venvs: the whole pytest suite 396 passed, 4 skipped, the cibuildwheel test subset 253 passed, 1 skipped, and the README quickstart printing the README's output, on Python 3.12 and 3.13",
    "result": "passed",
    "release_code": true
   }
