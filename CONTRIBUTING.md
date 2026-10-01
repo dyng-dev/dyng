@@ -5,7 +5,8 @@ request. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 to [GitHub Discussions](https://github.com/dyng-dev/dyng/discussions) ([SUPPORT.md](SUPPORT.md));
 security problems are reported privately ([SECURITY.md](SECURITY.md)).
 
-dynG is **pre-alpha**: APIs, file formats and build options still change. For anything larger
+dynG is **alpha** (0.1 release candidate): the stable algorithms follow SemVer from 0.1.0, but
+the framework, file formats and build options still change. For anything larger
 than a small fix, please open an issue (or a discussion) first, so that we can agree on the
 approach before you invest time in it.
 

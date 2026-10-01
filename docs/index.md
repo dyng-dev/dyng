@@ -10,8 +10,9 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Pre-release.** dynG 0.1.0 is being prepared and has not been published yet: APIs may still
-change until it is tagged (see the {doc}`roadmap`). The PyPI package `dyng` 0.0.1 is only a name
+**Alpha: 0.1 release candidate.** dynG 0.1.0rc1 is the release candidate of the first release
+(see the {doc}`roadmap`); `sssp` and `cycle_count` are stable (SemVer applies from 0.1.0). The
+release candidate is on TestPyPI only, and the PyPI package `dyng` 0.0.1 is only a name
 reservation; until 0.1.0 is out, install the Python package from a clone (`pip install .`).
 :::
 

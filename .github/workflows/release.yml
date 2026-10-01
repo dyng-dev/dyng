@@ -5,7 +5,8 @@
 # (OIDC; no API tokens). The trusted publishers on TestPyPI and PyPI are bound to THIS file name
 # (release.yml) and to the GitHub environments `testpypi` and `pypi`: never rename them.
 #
-# Triggered by a tag `v*` (tags are created by the author only; the `release tags` ruleset):
+# Triggered by a tag `v*` (created by the author, or by the AI assistant on the author's behalf,
+# GOVERNANCE.md 2026-09-30; the `release tags` ruleset):
 #   * the tag must equal the version of the package being released (checked below);
 #   * every release goes to TestPyPI first; final versions then go to PyPI, which needs the
 #     author's approval (the required reviewer of the `pypi` environment); pre-releases
