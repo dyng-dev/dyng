@@ -3,9 +3,9 @@
 """The Python examples (examples/python, PLAN Section 9.6) run and give the originals' outputs.
 
 The documentation quotes these programs, so they are tested like the C++ examples: the first
-update prints what its page says, sssp_update writes MOSP's files byte for byte, and
-cycle_count_update prints the histogram of the original `cycle-enum --task update`. Skipped where
-the repository files are not present (the sdist leaves the examples out).
+update prints what its page says, sssp_update and mosp_update write MOSP's files byte for byte,
+and cycle_count_update prints the histogram of the original `cycle-enum --task update`. Skipped
+where the repository files are not present (the sdist leaves the examples out).
 """
 
 from __future__ import annotations
@@ -69,3 +69,23 @@ def test_cycle_count_update_equals_the_original(backend: str) -> None:
         backend,
     ).stdout
     assert out == (data / "cli" / "c06.out").read_text()
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_mosp_update_writes_the_originals_combined_files(backend: str, tmp_path: Path) -> None:
+    case = DATA / "mosp_combined" / "thesis" / "input"
+    expected = DATA / "mosp_combined" / "thesis_414" / "combined"
+    out = _run(
+        EXAMPLES / "mosp_update.py",
+        case / "graphCsr",
+        case / "insert.txt",
+        case / "delete.txt",
+        tmp_path,
+        "4,1,4",
+        backend,
+    ).stdout
+    assert out.startswith("K=3 L=4: invalidated [4, 4, 0], combined edges 9, affected 4\n")
+    assert "vertex 6: path costs [15, 3, 20]" in out  # the thesis' worked example
+    for name in ("distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"):
+        got = (tmp_path / "combinedGraph" / name).read_bytes()
+        assert got == (expected / name).read_bytes(), name

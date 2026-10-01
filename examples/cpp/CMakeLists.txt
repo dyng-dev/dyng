@@ -110,6 +110,53 @@ endif()
 # The C++ quickstart of README.md (PLAN Section 9.6): extracted at configure time, compiled with
 # the examples' warnings and run by CTest, which compares its output with the README's output
 # block, so the README cannot drift from the library. ci/doc_snippets.py checks its size.
+# mosp (0.2): left out of a subset build without it (DYNG_ALGORITHMS).
+if(TARGET dyng_mosp)
+  add_executable(dyng_example_mosp_update mosp_update.cpp)
+  target_link_libraries(dyng_example_mosp_update PRIVATE dyng::dyng)
+  target_compile_features(dyng_example_mosp_update PRIVATE cxx_std_17)
+  set_target_properties(dyng_example_mosp_update PROPERTIES OUTPUT_NAME mosp_update)
+  dyng_set_warnings(dyng_example_mosp_update)
+  dyng_enable_sanitizers(dyng_example_mosp_update)
+  if(DYNG_BUILD_TESTS)
+    # The combined graph's outputs of the thesis example (Pref 4,1,4) equal the originals'
+    # (cpp/tests/data/mosp_combined/thesis_414: MOSP-OpenMP's and MOSP-CUDA's `mosp --pref`).
+    set(_data "${PROJECT_SOURCE_DIR}/cpp/tests/data/mosp_combined")
+    set(_backends sequential)
+    if(DYNG_ENABLE_OPENMP)
+      list(APPEND _backends openmp)
+    endif()
+    foreach(_backend IN LISTS _backends)
+      set(_out "${CMAKE_CURRENT_BINARY_DIR}/out/mosp_update.${_backend}")
+      file(MAKE_DIRECTORY "${_out}")
+      add_test(
+        NAME example.mosp_update.${_backend}
+        COMMAND
+          ${CMAKE_COMMAND} -E env ${DYNG_TEST_ENVIRONMENT} sh -c
+          "\"$0\" \"$1/graphCsr\" \"$1/insert.txt\" \"$1/delete.txt\" \"$2\" 4,1,4 \"$3\" && cmp \"$2/distancesCsr.txt\" \"$4/distancesCsr.txt\" && cmp \"$2/SSSPTreeCsr.txt\" \"$4/SSSPTreeCsr.txt\" && cmp \"$2/mospCosts.txt\" \"$4/mospCosts.txt\""
+          $<TARGET_FILE:dyng_example_mosp_update> "${_data}/thesis/input" "${_out}" ${_backend}
+          "${_data}/thesis_414/combined"
+      )
+      set_tests_properties(example.mosp_update.${_backend} PROPERTIES LABELS "cpu;mosp;examples")
+    endforeach()
+    if(DYNG_ENABLE_CUDA)
+      # The same on the GPU (label gpu), skipped (77) when no device is visible.
+      set(_out "${CMAKE_CURRENT_BINARY_DIR}/out/mosp_update.cuda")
+      file(MAKE_DIRECTORY "${_out}")
+      add_test(
+        NAME example.mosp_update.cuda
+        COMMAND
+          ${CMAKE_COMMAND} -E env ${DYNG_TEST_ENVIRONMENT} sh -c
+          "\"$0\" \"$1/graphCsr\" \"$1/insert.txt\" \"$1/delete.txt\" \"$2\" 4,1,4 cuda && cmp \"$2/distancesCsr.txt\" \"$3/distancesCsr.txt\" && cmp \"$2/SSSPTreeCsr.txt\" \"$3/SSSPTreeCsr.txt\" && cmp \"$2/mospCosts.txt\" \"$3/mospCosts.txt\""
+          $<TARGET_FILE:dyng_example_mosp_update> "${_data}/thesis/input" "${_out}"
+          "${_data}/thesis_414/combined"
+      )
+      set_tests_properties(example.mosp_update.cuda PROPERTIES LABELS "gpu;mosp;examples"
+                                                               SKIP_RETURN_CODE 77)
+    endif()
+  endif()
+endif()
+
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_doc_snippet.cmake")
 dyng_extract_doc_snippet(
   "${PROJECT_SOURCE_DIR}/README.md" quickstart-cpp
