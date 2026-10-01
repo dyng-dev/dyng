@@ -6,15 +6,6 @@
 # algorithms index). An entry moves to cpp/src/algorithms/<name>/manifest.toml when its port
 # starts (scripts/new_algorithm.py); regen.py rejects a name that has both.
 [[planned]]
-name      = "mosp"
-computes  = "multi-objective shortest paths"
-container = "graph"
-family    = "fixed point (K x `sssp`)"
-backends  = "sequential, OpenMP, CUDA"
-paper     = "DynaMOSP"
-since     = "0.2"
-
-[[planned]]
 name      = "triad_count"
 computes  = "hypergraph h-motif triad counts"
 container = "hypergraph (ESCHER store)"

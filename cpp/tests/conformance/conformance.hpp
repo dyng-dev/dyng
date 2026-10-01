@@ -44,6 +44,7 @@
 #include "support/test_seeds.hpp"
 
 #include <dyng/config.hpp>
+#include <dyng/core/array_view.hpp>
 #include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/registry.hpp>
@@ -175,6 +176,21 @@ struct has_extra_properties : std::false_type {};
 template <typename traits_t>
 struct has_extra_properties<traits_t, std::void_t<decltype(traits_t::extra_properties())>>
     : std::true_type {};
+
+template <typename traits_t, typename = void>
+struct has_num_weights : std::false_type {};
+template <typename traits_t>
+struct has_num_weights<traits_t, std::void_t<decltype(traits_t::num_weights)>> : std::true_type {};
+
+/// The weight columns of the kit's weighted graphs: test_traits::num_weights, default 1.
+template <typename traits_t>
+constexpr int weight_columns() {
+  if constexpr (has_num_weights<traits_t>::value) {
+    return traits_t::num_weights;
+  } else {
+    return 1;
+  }
+}
 
 template <typename traits_t, typename = void>
 struct has_oracle_kind : std::false_type {};
@@ -426,7 +442,10 @@ std::vector<std::int64_t> counters(const typename traits_t::stats& s) {
 /// A random model of a size class.
 template <typename case_t>
 graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_64& rng) {
-  return random_model<typename case_t::graph_type>(case_t::traits::shape(size), rng);
+  graph_model<typename case_t::graph_type> m =
+      random_model<typename case_t::graph_type>(case_t::traits::shape(size), rng);
+  m.num_weights = weight_columns<typename case_t::traits>();
+  return m;
 }
 
 /**
@@ -739,9 +758,13 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
   using weight_t = typename graph_t::weight_type;
   using batch_t = edge_batch<vertex_t, weight_t>;
   constexpr bool weighted = !is_unweighted_v<weight_t>;
+  // Batches with the kit graph's weight columns (test_traits::num_weights), all weights 1.
+  constexpr int columns = kit_detail::weight_columns<traits>();
+  const auto make_batch = []() { return weighted ? batch_t(columns) : batch_t(); };
   const auto insert = [](batch_t& b, vertex_t u, vertex_t v) {
     if constexpr (weighted) {
-      b.insert_edge(u, v, {weight_t{1}});
+      const std::vector<weight_t> w(static_cast<std::size_t>(columns), weight_t{1});
+      b.insert_edge(u, v, host_view(w));
     } else {
       b.insert_edge(u, v);
     }
@@ -764,19 +787,21 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
       };
       {
-        batch_t b;
+        batch_t b = make_batch();
         insert(b, vertex_t{-1}, vertex_t{0});
         expect_rejected(b, "an insertion with a negative id");
       }
       {
-        batch_t b;
+        batch_t b = make_batch();
         b.delete_edge(vertex_t{0}, vertex_t{-2});
         expect_rejected(b, "a deletion with a negative id");
       }
       if constexpr (weighted) {
-        batch_t b(2);
-        b.insert_edge(vertex_t{0}, vertex_t{1}, {weight_t{1}, weight_t{2}});
-        expect_rejected(b, "a batch with two weight columns on a one-column graph");
+        // One weight column more than the graph has (K + 1 for a K-column graph).
+        batch_t b(columns + 1);
+        const std::vector<weight_t> w(static_cast<std::size_t>(columns) + 1, weight_t{1});
+        b.insert_edge(vertex_t{0}, vertex_t{1}, host_view(w));
+        expect_rejected(b, "a batch with one weight column more than the graph has");
       }
       // Bad options: each must throw invalid_argument_error.
       for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
@@ -799,7 +824,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       }
       ASSERT_NE(u, v) << "the generated graph is complete";
       {
-        batch_t b;
+        batch_t b = make_batch();
         b.delete_edge(u, v);
         const auto s = c.step(b);
         EXPECT_EQ(s.batch.ignored_deletions, 1) << "a deletion of a missing edge is counted";
@@ -808,7 +833,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       }
       if (p.props.semantics.as_sets && !model.weights.empty()) {
         const auto existing = model.weights.begin()->first;
-        batch_t b;
+        batch_t b = make_batch();
         insert(b, existing.first, existing.second);
         insert(b, vertex_t{0}, vertex_t{0});
         const auto s = c.step(b);
@@ -819,7 +844,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       }
       // Duplicates in one batch: the result still equals compute().
       {
-        batch_t b;
+        batch_t b = make_batch();
         insert(b, u, v);
         insert(b, u, v);
         (void)c.step(b);
@@ -831,7 +856,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         strict.semantics.on_missing_delete = batch_semantics::missing_delete::error;
         kit_detail::chain<TypeParam> s(kit_detail::resources_for(be), model, strict);
         const auto strict_before = s.take();
-        batch_t b;
+        batch_t b = make_batch();
         b.delete_edge(u, v);
         const std::uint64_t version = s.g->version();
         EXPECT_THROW((void)s.step(b), invalid_argument_error);
@@ -991,6 +1016,8 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
           shape.edges = std::min(shape.edges, theirs_shape.edges);
           std::mt19937_64 rng(10000 + (as_sets ? 1U : 0U));
           graph_model<graph_t> model = random_model<graph_t>(shape, rng);
+          model.num_weights =
+              std::max(kit_detail::weight_columns<traits>(), kit_detail::weight_columns<partner>());
           const resources res = kit_detail::resources_for(b);
           // Both results on one graph (plus one left out of the updates), and each alone on a
           // graph of its own.

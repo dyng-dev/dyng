@@ -29,3 +29,16 @@ table.push_back(algorithm_info{
     {"trucy2026"},
 });
 #endif
+#if defined(DYNG_ALGORITHM_MOSP)
+table.push_back(algorithm_info{
+    "mosp",
+    "Dynamic multi-objective shortest paths",
+    algorithm_family::fixed_point,
+    container_kind::graph,
+    maturity_level::experimental,
+    determinism::bitwise,
+    oracle_kind::compute,
+    {backend::sequential, backend::openmp, backend::cuda},
+    {"dynamosp2025", "dynamosptpds2025"},
+});
+#endif

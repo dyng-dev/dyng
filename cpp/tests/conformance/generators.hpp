@@ -10,6 +10,7 @@
 
 #include "conformance/test_traits.hpp"
 
+#include <dyng/core/array_view.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
 #include <dyng/graph/edge_batch.hpp>
@@ -70,6 +71,12 @@ inline std::vector<batch_mix> all_mixes() {
 /**
  * @brief A host model of a simple directed graph (no self-loops, no parallel edges): the edges
  *        and their weights (ignored for unweighted graphs).
+ *
+ * A weighted model has `num_weights` columns (test_traits::num_weights, default 1): the model
+ * stores the first column, and every further column is a fixed function of the edge and the
+ * first column's weight (column_weight()), so a batch that changes an edge's weight changes the
+ * other columns too, some up and some down (multi-objective algorithms see per-column increases
+ * and decreases).
  * @tparam graph_t The graph type.
  */
 template <typename graph_t>
@@ -79,25 +86,43 @@ struct graph_model {
   using edge = std::pair<vertex_type, vertex_type>;   ///< (u, v)
   /// Whether the graph has a weight column.
   static constexpr bool weighted = !is_unweighted_v<weight_type>;
+  /// The largest number of weight columns of a model.
+  static constexpr int max_columns = 64;
 
   vertex_type num_vertices = 0;          ///< n
-  std::map<edge, std::int32_t> weights;  ///< the edges and their weights
+  std::map<edge, std::int32_t> weights;  ///< the edges and their weights (column 0)
   int max_weight = 9;                    ///< new weights are drawn from [1, max_weight]
+  int num_weights = 1;                   ///< weight columns of a weighted graph
+
+  /// The weight of column `k` of the edge (u, v) whose column 0 holds `w` (in [1, max_weight]).
+  [[nodiscard]] std::int32_t column_weight(vertex_type u, vertex_type v, std::int32_t w,
+                                           int k) const {
+    if (k == 0) {
+      return w;
+    }
+    const auto h = static_cast<std::uint64_t>(w) * 2654435761ULL +
+                   static_cast<std::uint64_t>(k) * 40503ULL +
+                   static_cast<std::uint64_t>(u) * 97ULL + static_cast<std::uint64_t>(v) * 31ULL;
+    return static_cast<std::int32_t>(1 + (h >> 7) % static_cast<std::uint64_t>(max_weight));
+  }
 
   /// The graph of the model on `res` with `props`.
   [[nodiscard]] graph_t build(const resources& res, graph_properties props) const {
     edge_list<vertex_type, weight_type> list;
     list.num_vertices = num_vertices;
-    list.num_weights = weighted ? 1 : 0;
+    list.num_weights = weighted ? num_weights : 0;
     for (const auto& [e, w] : weights) {
+      list.src.push_back(e.first);
+      list.dst.push_back(e.second);
       if constexpr (weighted) {
-        list.add_edge(e.first, e.second, {static_cast<weight_type>(w)});
+        for (int k = 0; k < num_weights; ++k) {
+          list.weights.push_back(static_cast<weight_type>(column_weight(e.first, e.second, w, k)));
+        }
       } else {
         (void)w;
-        list.add_edge(e.first, e.second);
       }
     }
-    props.num_weights = weighted ? 1 : 0;
+    props.num_weights = weighted ? num_weights : 0;
     return graph_t::from_edges(res, list.view(), props);
   }
 };
@@ -140,11 +165,19 @@ struct generated_batch {
 namespace generators_detail {
 
 template <typename graph_t>
-void insert(edge_batch<typename graph_t::vertex_type, typename graph_t::weight_type>& b,
+void insert(const graph_model<graph_t>& m,
+            edge_batch<typename graph_t::vertex_type, typename graph_t::weight_type>& b,
             typename graph_t::vertex_type u, typename graph_t::vertex_type v, std::int32_t w) {
+  using weight_type = typename graph_t::weight_type;
   if constexpr (graph_model<graph_t>::weighted) {
-    b.insert_edge(u, v, {static_cast<typename graph_t::weight_type>(w)});
+    weight_type columns[graph_model<graph_t>::max_columns] = {};
+    for (int k = 0; k < m.num_weights; ++k) {
+      columns[k] = static_cast<weight_type>(m.column_weight(u, v, w, k));
+    }
+    b.insert_edge(u, v,
+                  array_view<const weight_type>(columns, static_cast<std::size_t>(m.num_weights)));
   } else {
+    (void)m;
     (void)w;
     b.insert_edge(u, v);
   }
@@ -169,6 +202,10 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
   using vertex_type = typename graph_t::vertex_type;
   using edge = typename graph_model<graph_t>::edge;
   generated_batch<graph_t> out;
+  if constexpr (graph_model<graph_t>::weighted) {
+    out.batch = edge_batch<vertex_type, typename graph_t::weight_type>(m.num_weights);
+    out.inverse = edge_batch<vertex_type, typename graph_t::weight_type>(m.num_weights);
+  }
   const std::int64_t n = m.num_vertices;
   const auto m_edges = static_cast<std::int64_t>(m.weights.size());
   const std::int64_t k = std::max<std::int64_t>(1, m_edges / 10);
@@ -220,14 +257,14 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
   for (std::int64_t i = 0; i < deletions && next < existing.size(); ++i, ++next) {
     const edge e = existing[next];
     out.batch.delete_edge(e.first, e.second);
-    generators_detail::insert<graph_t>(out.inverse, e.first, e.second, m.weights.at(e));
+    generators_detail::insert<graph_t>(m, out.inverse, e.first, e.second, m.weights.at(e));
     m.weights.erase(e);
   }
   std::vector<std::pair<edge, std::int32_t>> old_weights;
   for (std::int64_t i = 0; i < reweights && next < existing.size(); ++i, ++next) {
     const edge e = existing[next];
     const std::int32_t w = weight(rng);
-    generators_detail::insert<graph_t>(out.batch, e.first, e.second, w);
+    generators_detail::insert<graph_t>(m, out.batch, e.first, e.second, w);
     old_weights.emplace_back(e, m.weights.at(e));
     m.weights[e] = w;
   }
@@ -242,7 +279,7 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
       const auto old = static_cast<vertex_type>(old_vertex(rng));
       const edge e = (i % 2 == 0) ? edge{old, fresh} : edge{fresh, old};
       if (e.first != e.second && m.weights.emplace(e, weight(rng)).second) {
-        generators_detail::insert<graph_t>(out.batch, e.first, e.second, m.weights.at(e));
+        generators_detail::insert<graph_t>(m, out.batch, e.first, e.second, m.weights.at(e));
         grown = std::max<std::int64_t>(grown, static_cast<std::int64_t>(fresh) + 1);
       }
     }
@@ -267,7 +304,7 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
         }
         if (!deleted) {
           m.weights.emplace(e, weight(rng));
-          generators_detail::insert<graph_t>(out.batch, u, v, m.weights.at(e));
+          generators_detail::insert<graph_t>(m, out.batch, u, v, m.weights.at(e));
           inserted.push_back(e);
           ++i;
         }
@@ -278,7 +315,7 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
     out.inverse.delete_edge(e.first, e.second);
   }
   for (const auto& [e, w] : old_weights) {
-    generators_detail::insert<graph_t>(out.inverse, e.first, e.second, w);
+    generators_detail::insert<graph_t>(m, out.inverse, e.first, e.second, w);
   }
   return out;
 }

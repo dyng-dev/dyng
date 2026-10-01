@@ -17,6 +17,7 @@ batch
 io
 sssp
 cycle_count
+mosp
 generators
 testing
 ```

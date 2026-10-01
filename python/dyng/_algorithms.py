@@ -19,4 +19,10 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "container": "graph",
         "maturity": "experimental",
     },
+    "mosp": {
+        "title": "Dynamic multi-objective shortest paths",
+        "since": "0.2",
+        "container": "graph",
+        "maturity": "experimental",
+    },
 }

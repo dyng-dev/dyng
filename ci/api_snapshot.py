@@ -67,6 +67,7 @@ FROZEN = [
     "dyng/update.hpp",
     "dyng/sssp.hpp",
     "dyng/cycle_count.hpp",
+    "dyng/mosp.hpp",  # frozen in M7 (ADR 0027)
     "dyng/citation.hpp",
     "dyng/config.hpp",
     "dyng/dyng.hpp",
