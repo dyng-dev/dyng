@@ -1,14 +1,14 @@
 {
  "schema": 1,
  "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
- "version": "0.1.0rc1",
- "version_file": "0.1.0rc1",
- "date": "2026-10-01T17:38:09Z",
- "commit": "a21cb9abb1e9d5abca2302236cb1efc469312b84",
- "branch": "release-0.1.0",
+ "version": "0.1.0",
+ "version_file": "0.1.0",
+ "date": "2026-10-01T21:30:04Z",
+ "commit": "a4e2710895ace8afe5581806006a1e2cc6ddba43",
+ "branch": "release-0.1.0-final",
  "measured_commits": [
-  "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
-  "a764b46a2ad6786e5745005792403627a665a686",
+  "261d03de4c787adea52a228f0dfbd0e959748ee8",
+  "af69157a842d1fd67b3faed4a98f2511dad617ff",
   "d13d393f8ea52cdfefb4a2983723b8fe78550628"
  ],
  "code_paths": {
@@ -1323,7 +1323,7 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
@@ -1332,7 +1332,7 @@
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
@@ -1378,7 +1378,7 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
@@ -1390,7 +1390,7 @@
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
@@ -1432,14 +1432,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed"
@@ -1479,7 +1479,7 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
@@ -1488,7 +1488,7 @@
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
@@ -1597,14 +1597,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed"
@@ -1631,14 +1631,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed"
@@ -1665,14 +1665,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed"
@@ -1699,7 +1699,7 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
@@ -1709,7 +1709,7 @@
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
@@ -1745,14 +1745,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed"
@@ -1779,14 +1779,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed"
@@ -1813,14 +1813,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "CycleOracle.FixturesMatchTheOriginalOracles": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "CycleOracle.FixturesMatchTheOriginalOracles": "Passed"
@@ -1847,20 +1847,20 @@
      "result": "passed",
      "runs": [
       {
+       "check": "tsan",
+       "release_code": true,
+       "tests": {
+        "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+        "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed"
+       }
+      },
+      {
        "check": "asan",
        "release_code": true,
        "tests": {
         "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
         "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
         "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/openmp": "Passed",
-        "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed"
-       }
-      },
-      {
-       "check": "tsan",
-       "release_code": true,
-       "tests": {
-        "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
         "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed"
        }
       },
@@ -1938,14 +1938,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "CycleEnumDatasets.DigestsEqualTheOriginal": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "CycleEnumDatasets.DigestsEqualTheOriginal": "Passed"
@@ -1965,14 +1965,14 @@
      "result": "passed",
      "runs": [
       {
-       "check": "asan",
+       "check": "tsan",
        "release_code": true,
        "tests": {
         "CycleCountDatasets.HistogramsEqualTheOriginal": "Passed"
        }
       },
       {
-       "check": "tsan",
+       "check": "asan",
        "release_code": true,
        "tests": {
         "CycleCountDatasets.HistogramsEqualTheOriginal": "Passed"
@@ -6736,11 +6736,83 @@
  ],
  "checks": [
   {
+   "name": "mutation-sssp",
+   "command": "parity/mutate.py run",
+   "commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "scope": "library",
+   "date": "2026-10-01T02:18:31Z",
+   "record": "mutation-sssp.json",
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r010/mutate.out",
+     "sha256": "16db91a91e61324d5e52111bd6f8f5468f0893d8d486d98e985a89403691f044",
+     "bytes": 555,
+     "excerpt": "checks/mutation-sssp.txt"
+    }
+   ],
+   "details": "PLAN 8.4 sssp (a skipped subtree invalidation) on the sequential, OpenMP and CUDA backends: the control passes on all three, each mutation fails the sssp goldens",
+   "result": "passed",
+   "release_code": true
+  },
+  {
+   "name": "tsan",
+   "command": "ctest --preset tsan -j 16 (tsan preset: Debug, DYNG_SANITIZE=thread, OpenMP off), from a clean clone",
+   "commit": "261d03de4c787adea52a228f0dfbd0e959748ee8",
+   "scope": "tests",
+   "date": "2026-10-01T19:37:15Z",
+   "ctest": {
+    "tests": 520,
+    "failed": 0,
+    "skipped": 42,
+    "percent_passed": 100
+   },
+   "fixture_tests": {
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
+    "CycleCountDatasets.HistogramsEqualTheOriginal": "Passed",
+    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
+    "CycleEnumDatasets.DigestsEqualTheOriginal": "Passed",
+    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
+    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
+    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
+    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
+    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed"
+   },
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r011/tests/tsan-ctest.log",
+     "sha256": "31ce4433fb0148e82a16a89d35d1ae0f56c4d2f8f538368012a0d868489beed5",
+     "bytes": 169170,
+     "excerpt": "checks/tsan.txt"
+    }
+   ],
+   "details": "run again on the final tree (README.md, whose C++ quickstart is a test, changed): the same 520 tests and the same 42 self-skipping tests as for 0.1.0rc1 (the OpenMP comparisons and OpenMP-only tests, the conformance cases C3/C4/C10/C12 that need a second backend, engine or CUDA streams, allocation-failure tests, CUDA placement); the dataset parity tests and the cycle_count mutation CTests passed",
+   "result": "passed",
+   "release_code": true
+  },
+  {
    "name": "asan",
    "command": "ctest --preset asan -j 16 (asan preset: Debug, DYNG_SANITIZE=address;undefined, OpenMP on), from a clean clone",
-   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
+   "commit": "261d03de4c787adea52a228f0dfbd0e959748ee8",
    "scope": "tests",
-   "date": "2026-10-01T13:49:04Z",
+   "date": "2026-10-01T19:59:31Z",
    "ctest": {
     "tests": 595,
     "failed": 0,
@@ -6780,119 +6852,64 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final2/asan-ctest.log",
-     "sha256": "837448248897901f2a3801a5952eb16362e49082a0e1788a06eb725a7b4c4ab6",
-     "bytes": 190740,
+     "file": "$DYNG_SCRATCH/runs/r011/tests/asan-ctest.log",
+     "sha256": "5accf21dfcd3a73b9e80c59fc170abaf31cd94c78fb27043afd7065d009f4152",
+     "bytes": 190743,
      "excerpt": "checks/asan.txt"
     }
    ],
-   "details": "re-run on the release code (the maturity change touches cpp/src); the tests that skip themselves in this preset are those of the run at 1049068 (allocation-failure and allocation-count tests under ASan's allocator, conformance cases C4/C10/C12 that need a second engine or CUDA streams, CUDA placement, Resources.OpenmpNotBuiltThrows); the dataset parity tests and the cycle_count mutation CTests passed",
+   "details": "run again on the final tree (README.md, whose C++ quickstart is a test, changed): the same 595 tests and the same 26 self-skipping tests as for 0.1.0rc1 (allocation-failure and allocation-count tests under ASan's allocator, conformance cases C4/C10/C12 that need a second engine or CUDA streams, CUDA placement, Resources.OpenmpNotBuiltThrows); the dataset parity tests and the cycle_count mutation CTests passed",
    "result": "passed",
    "release_code": true
   },
   {
-   "name": "tsan",
-   "command": "ctest --preset tsan -j 16 (tsan preset: Debug, DYNG_SANITIZE=thread, OpenMP off), from a clean clone",
-   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
-   "scope": "tests",
-   "date": "2026-10-01T13:31:17Z",
-   "ctest": {
-    "tests": 520,
-    "failed": 0,
-    "skipped": 42,
-    "percent_passed": 100
-   },
-   "fixture_tests": {
-    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
-    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
-    "CycleCountDatasets.HistogramsEqualTheOriginal": "Passed",
-    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
-    "CycleEnumDatasets.DigestsEqualTheOriginal": "Passed",
-    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
-    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
-    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
-    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
-    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
-    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
-    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
-    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
-    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
-    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
-    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
-    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
-    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
-    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
-    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
-    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
-    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
-    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
-    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
-    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
-    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
-    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed"
-   },
+   "name": "distributions",
+   "command": "release.yml's select step for GITHUB_REF_NAME=v0.1.0; ci/wheel_check.py --release-metadata --release-date today and --release-date 2026-10-01; ci/wheels.sh; twine check --strict; ci/wheel_check.py --platform manylinux_2_28_x86_64 --require-libgomp; fresh Python 3.12 and 3.13 venvs, from a clean clone",
+   "commit": "261d03de4c787adea52a228f0dfbd0e959748ee8",
+   "scope": "packaging",
+   "date": "2026-10-01T19:13:29Z",
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final2/tsan-ctest.log",
-     "sha256": "57d6eeebb3156aa2ace872f409994557fc79caf843a7113168e85a50cfbf9f3c",
-     "bytes": 169167,
-     "excerpt": "checks/tsan.txt"
-    }
-   ],
-   "details": "re-run on the release code (the maturity change touches cpp/src); the tests that skip themselves in this preset are those of the run at 1049068 (the OpenMP comparisons and OpenMP-only tests, the conformance cases C3/C4/C10/C12 that need a second backend, engine or CUDA streams, allocation-failure tests, CUDA placement); the dataset parity tests and the cycle_count mutation CTests passed",
-   "result": "passed",
-   "release_code": true
-  },
-  {
-   "name": "mutation-ctests",
-   "command": "ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone",
-   "commit": "07d46e2f947b3f6f52d7e94099a6bdbf8b47ffce",
-   "scope": "tests",
-   "date": "2026-10-01T14:45:30Z",
-   "ctest": {
-    "tests": 7,
-    "failed": 0,
-    "skipped": 0,
-    "percent_passed": 100
-   },
-   "fixture_tests": {},
-   "evidence": [
+     "file": "$DYNG_SCRATCH/runs/r011/tests/distributions.log",
+     "sha256": "f1f7debbb9cdf4f434384bb0f55c3ae2101fa71bb0072124b7fa0029a3b5ec91",
+     "bytes": 4645,
+     "excerpt": "checks/distributions.txt"
+    },
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final2/mutation-ctest.log",
-     "sha256": "748019215666fc31b0708d4a843c1d420a5aeaddf9b51b68474fb5abbedd5294",
-     "bytes": 1308,
-     "excerpt": "checks/mutation-ctests.txt"
-    }
-   ],
-   "details": "re-run on the release code; cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
-   "result": "passed",
-   "release_code": true
-  },
-  {
-   "name": "mutation-sssp",
-   "command": "parity/mutate.py run",
-   "commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
-   "scope": "library",
-   "date": "2026-10-01T02:18:31Z",
-   "record": "mutation-sssp.json",
-   "evidence": [
+     "file": "$DYNG_SCRATCH/runs/r011/tests/select-v0.1.0.log",
+     "sha256": "d8eacf6918f86082c949c749cf1d54bfc2737e6e6f151e9901c35e21d4a7765d",
+     "bytes": 408,
+     "excerpt": "checks/distributions-1.txt"
+    },
     {
-     "file": "$DYNG_SCRATCH/runs/r010/mutate.out",
-     "sha256": "16db91a91e61324d5e52111bd6f8f5468f0893d8d486d98e985a89403691f044",
-     "bytes": 555,
-     "excerpt": "checks/mutation-sssp.txt"
+     "file": "$DYNG_SCRATCH/runs/r011/tests/wheels.log",
+     "sha256": "a697c6bb2d2d109586db14b5c46430054f42ff61114136e5c50bb16355386d3d",
+     "bytes": 2496,
+     "excerpt": "checks/distributions-2.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r011/tests/subset-3.12.log",
+     "sha256": "57d39a045897bae65cd08b1409bec724829ca2450e3f22a857bd8feed1a834f0",
+     "bytes": 510,
+     "excerpt": "checks/distributions-3.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r011/tests/subset-3.13.log",
+     "sha256": "910d3b73d0e87d825995fc4f4f16e52c7ee363c9ccd2d55037cc6098c9311f63",
+     "bytes": 510,
+     "excerpt": "checks/distributions-4.txt"
     }
    ],
-   "details": "PLAN 8.4 sssp (a skipped subtree invalidation) on the sequential, OpenMP and CUDA backends: the control passes on all three, each mutation fails the sssp goldens",
+   "details": "run again on the final tree (VERSION 0.1.0): select kind=package, version=0.1.0, prerelease=false (a final release; v0.1.0rc1 and v0.1.0-rc.1 refused; the release metadata agree, release date 2026-10-01); dyng-0.1.0.tar.gz (0.79 MB) and dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl (1.51 MB), Version 0.1.0 and License-Expression 'Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1' in METADATA and PKG-INFO; twine check --strict and wheel_check passed; the wheel alone in fresh venvs: the whole pytest suite 396 passed, 4 skipped, the cibuildwheel test subset 253 passed, 1 skipped, the README quickstart printing the README's output and dyng --version 0.1.0, on Python 3.12 and 3.13",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "gpu_local",
    "command": "ci/gpu_local.sh (dev-cuda, GPU 1), from a clean clone",
-   "commit": "a764b46a2ad6786e5745005792403627a665a686",
+   "commit": "af69157a842d1fd67b3faed4a98f2511dad617ff",
    "scope": "repo",
-   "date": "2026-10-01T17:26:44Z",
+   "date": "2026-10-01T21:24:00Z",
    "steps": {
     "build": "passed",
     "ctest -L gpu": "passed",
@@ -6972,28 +6989,28 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/gpu_local.log",
-     "sha256": "04c195ba60f8af60c5ddbd1faeee0ec7a5eb7be56b4d5885c47778cdcc40d8ed",
-     "bytes": 328536,
+     "file": "$DYNG_SCRATCH/runs/r011/repo/gpu_local.log",
+     "sha256": "8f0b623d74510953ec45ebe35ba71e90e8fb62a8e3bc7b5b2ddbbf4033f6bb15",
+     "bytes": 328667,
      "excerpt": "checks/gpu_local.txt"
     },
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/gpu_local_summary.md",
-     "sha256": "ffcd9f9636490e0ac6461870cf2bc30fd261847c684d627727ae8fd84bbab74f",
+     "file": "$DYNG_SCRATCH/runs/r011/repo/gpu_local_summary.md",
+     "sha256": "34f5f708d160f50633196896a3499517faa36ab332a3f8f0818cc696f875f20c",
      "bytes": 404,
      "excerpt": "checks/gpu_local-1.txt"
     }
    ],
-   "details": "run again after the R010 review on its final code: CUDA tests (ctest -L gpu, ctest -L cpu in the CUDA build), the sssp CUDA goldens (495 cases) and the cycle_count CUDA goldens (cuda, cuda:resident); compute-sanitizer memcheck (leak check), synccheck and racecheck; clang-tidy on the CUDA branches",
+   "details": "run again on the final tree (after the last change outside benchmarks/results): CUDA tests (ctest -L gpu, ctest -L cpu in the CUDA build), the sssp CUDA goldens (495 cases) and the cycle_count CUDA goldens (cuda, cuda:resident); compute-sanitizer memcheck (leak check), synccheck and racecheck; clang-tidy on the CUDA branches",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "check-parity",
    "command": "ci/check.sh --parity, from a clean clone",
-   "commit": "a764b46a2ad6786e5745005792403627a665a686",
+   "commit": "af69157a842d1fd67b3faed4a98f2511dad617ff",
    "scope": "repo",
-   "date": "2026-10-01T16:50:20Z",
+   "date": "2026-10-01T20:20:41Z",
    "fixture_tests": {
     "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
     "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
@@ -7040,61 +7057,50 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/check-parity.log",
-     "sha256": "5628f124dccfe090758b6f2f062463b6b97b2b08f191dfce1e2ee10294a8ef95",
-     "bytes": 516082,
+     "file": "$DYNG_SCRATCH/runs/r011/repo/check-parity.log",
+     "sha256": "a84f05d4eef2cb0418114aaf8d349c0f63c732d0da07141faa343f8d3a9b0ef3",
+     "bytes": 516146,
      "excerpt": "checks/check-parity.txt"
     },
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/docs.log",
-     "sha256": "195a3e00db82872a84aa5b1afaacb707fd13a184106e436d8a869b0a2eba6ce4",
+     "file": "$DYNG_SCRATCH/runs/r011/repo/docs.log",
+     "sha256": "c3c76fe4e82b51e38beca04a850e224f5f9d060a6809fb0f68dbc54e13c014d0",
      "bytes": 324,
      "excerpt": "checks/check-parity-1.txt"
     },
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/python.log",
-     "sha256": "75d1b9aaa3c6f7dadf4138febda6c0384ca58977aabe1501ae5267229b72e54a",
-     "bytes": 1669,
+     "file": "$DYNG_SCRATCH/runs/r011/repo/python.log",
+     "sha256": "8a26f6e412408662a74660822db99042c2652eaa2b826d1410b02b13e19dc251",
+     "bytes": 1670,
      "excerpt": "checks/check-parity-2.txt"
     }
    ],
-   "details": "run again after the R010 review on its final code: every step passed (clang-format, the cpu-only and dev presets with ctest -L cpu, clang-tidy, reuse, provenance, regen, the harness tests, ci/python.sh, the API check, the scaffold check, ci/docs.sh, pre-commit, and the parity preset's golden replays and dataset tests: 4 / 4); ci/docs.sh and ci/python.sh (396 passed, 4 skipped) also run on their own",
+   "details": "run again on the final tree (after the last change outside benchmarks/results): every step passed (clang-format, the cpu-only and dev presets with ctest -L cpu, clang-tidy, reuse, provenance, regen, the harness tests, ci/python.sh, the API check, the scaffold check, ci/docs.sh, pre-commit, and the parity preset's golden replays and dataset tests: 4 / 4); ci/docs.sh and ci/python.sh (396 passed, 4 skipped) also run on their own",
    "result": "passed",
    "release_code": true
   },
   {
-   "name": "distributions",
-   "command": "release.yml's select step for GITHUB_REF_NAME=v0.1.0rc1; ci/wheel_check.py --release-metadata --release-date today; ci/wheels.sh; twine check --strict; ci/wheel_check.py --platform manylinux_2_28_x86_64 --require-libgomp; fresh Python 3.12 and 3.13 venvs, from a clean clone",
-   "commit": "a764b46a2ad6786e5745005792403627a665a686",
-   "scope": "packaging",
-   "date": "2026-10-01T17:37:16Z",
+   "name": "mutation-ctests",
+   "command": "ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone",
+   "commit": "af69157a842d1fd67b3faed4a98f2511dad617ff",
+   "scope": "tests",
+   "date": "2026-10-01T21:27:30Z",
+   "ctest": {
+    "tests": 7,
+    "failed": 0,
+    "skipped": 0,
+    "percent_passed": 100
+   },
+   "fixture_tests": {},
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/distributions.log",
-     "sha256": "b5d9685aaa521016c1efd5e43cfce54670e65def48b4cf56ae3cdbfef1299425",
-     "bytes": 4402,
-     "excerpt": "checks/distributions.txt"
-    },
-    {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/wheels.log",
-     "sha256": "da994efa650e212ac725f96ae975ee4d39dd083b9bc4edc84029132762466fb5",
-     "bytes": 2556,
-     "excerpt": "checks/distributions-1.txt"
-    },
-    {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/subset-3.12.log",
-     "sha256": "b34d2b2a17cf6a29adaabd2119e9fdfe17bdac38420add09e506e98c6e8e0a4f",
-     "bytes": 510,
-     "excerpt": "checks/distributions-2.txt"
-    },
-    {
-     "file": "$DYNG_SCRATCH/runs/r010/final3/subset-3.13.log",
-     "sha256": "8c254f99856524d70171e36aed876e3fe03833bc25ae08ec83b6cf8526e68ebc",
-     "bytes": 510,
-     "excerpt": "checks/distributions-3.txt"
+     "file": "$DYNG_SCRATCH/runs/r011/repo/mutation-ctest.log",
+     "sha256": "b708739c1f46e9f0e42353d6fb72b5004f71aeaa4e6fba628f0fff3f641306b8",
+     "bytes": 1310,
+     "excerpt": "checks/mutation-ctests.txt"
     }
    ],
-   "details": "run again after the R010 review on its final code: select kind=package, version=0.1.0rc1, prerelease=true (the release metadata agree; v0.1.0 refused); dyng-0.1.0rc1.tar.gz (0.79 MB) and dyng-0.1.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.51 MB), License-Expression 'Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1' in METADATA and PKG-INFO and the bundled licences named in the long description; twine check --strict and wheel_check passed; the wheel alone in fresh venvs: the whole pytest suite 396 passed, 4 skipped, the cibuildwheel test subset 253 passed, 1 skipped, and the README quickstart printing the README's output, on Python 3.12 and 3.13",
+   "details": "run again on the final tree, in the ci/gpu_local.sh build; cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
    "result": "passed",
    "release_code": true
   }
