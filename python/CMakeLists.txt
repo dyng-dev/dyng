@@ -54,6 +54,7 @@ nanobind_add_module(
   bindings/batch.cpp
   bindings/sssp.cpp
   bindings/cycle_count.cpp
+  bindings/mosp.cpp
   bindings/update.cpp
   bindings/io.cpp
   bindings/generators.cpp

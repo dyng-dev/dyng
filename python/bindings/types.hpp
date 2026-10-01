@@ -12,6 +12,7 @@
 #include <dyng/cycle_count.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/graph.hpp>
+#include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
 
 #include <optional>
@@ -28,6 +29,10 @@ using sssp_holder = result_holder<sssp::result<vertex_t>>;
 
 /// The holder of a cycle_count result.
 using cycle_count_holder = result_holder<cycle_count::result>;
+
+/// The holder of a mosp result.
+template <typename vertex_t>
+using mosp_holder = result_holder<mosp::result<vertex_t>>;
 
 /**
  * @brief A batch of edge changes whose arrays are Python arrays (kept alive, never copied).

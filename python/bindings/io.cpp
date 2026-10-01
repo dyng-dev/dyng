@@ -278,6 +278,13 @@ void bind_io(nb::module_& m) {
       },
       nb::arg("path"), nb::arg("distances").noconvert());
   m.def(
+      "write_path_costs",
+      [](const std::string& path, const in_array<std::int64_t>& costs, int num_objectives) {
+        without_gil(
+            [&] { io::write_path_costs<std::int64_t>(path, view_of(costs), num_objectives); });
+      },
+      nb::arg("path"), nb::arg("costs").noconvert(), nb::arg("num_objectives"));
+  m.def(
       "histogram_csv",
       [](const in_array<std::uint64_t>& counts, bool include_total) {
         return without_gil([&] {

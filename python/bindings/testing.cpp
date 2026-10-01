@@ -2,16 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file testing.cpp
- * @brief dyng::testing: the host oracles (Dijkstra with lowest-id ties, the sssp tree check and
- *        the simple-cycle oracles), which share no code with the algorithms they check.
+ * @brief dyng::testing: the host oracles (Dijkstra with lowest-id ties, the sssp tree check, the
+ *        simple-cycle oracles and the mosp references), which share no code with the algorithms
+ *        they check.
  */
 #include "types.hpp"
 
 #include <dyng/testing/check_sssp.hpp>
 #include <dyng/testing/cycle_oracle.hpp>
 #include <dyng/testing/dijkstra.hpp>
+#include <dyng/testing/mosp_oracle.hpp>
 
 #include <nanobind/stl/string.h>
+#include <nanobind/stl/vector.h>
+
+#include <vector>
 
 namespace dyng::python {
 namespace {
@@ -47,6 +52,28 @@ void bind_testing_type(nb::module_& m) {
           });
         },
         nb::arg("graph"), nb::arg("result"), nb::arg("require_canonical"));
+    m.def(
+        "testing_mosp_path_costs",
+        [](const graph_t& g, const in_array<vertex_t>& parents, std::int64_t source,
+           int num_objectives) {
+          DYNG_EXPECTS(source >= 0 && source < static_cast<std::int64_t>(g.value.num_vertices()),
+                       "mosp_path_costs: the source ", source, " is out of range");
+          std::vector<vertex_t> tree(parents.data(), parents.data() + parents.shape(0));
+          std::size_t cols = 0;
+          auto costs = without_gil([&] {
+            lock_set locks;
+            locks.add(g.mutex, false);
+            locks.lock();
+            const auto out = g.value.view().out;
+            cols = static_cast<std::size_t>(num_objectives > 0 ? num_objectives : out.num_weights);
+            return testing::mosp_path_costs_reference(out, tree, static_cast<vertex_t>(source),
+                                                      num_objectives);
+          });
+          const std::size_t rows = cols == 0 ? 0 : costs.size() / cols;
+          return to_numpy_2d(std::move(costs), rows, cols);
+        },
+        nb::arg("graph"), nb::arg("parents").noconvert(), nb::arg("source"),
+        nb::arg("num_objectives"));
   }
   m.def(
       "testing_simple_cycles",
@@ -64,6 +91,27 @@ void bind_testing_type(nb::module_& m) {
       nb::arg("graph"), nb::arg("max_length"), nb::arg("brute_force"));
 }
 
+template <typename vertex_t>
+void bind_combined_graph(nb::module_& m) {
+  m.def(
+      suffixed("testing_combined_graph", {type_code<vertex_t>::lower}, "_").c_str(),
+      [](const std::vector<in_array<vertex_t>>& parents, std::int64_t source,
+         const std::vector<std::int32_t>& preferences) {
+        std::vector<std::vector<vertex_t>> trees;
+        trees.reserve(parents.size());
+        for (const auto& p : parents) {
+          trees.emplace_back(p.data(), p.data() + p.shape(0));
+        }
+        auto c = without_gil([&] {
+          return testing::combined_graph_reference(trees, static_cast<vertex_t>(source),
+                                                   preferences);
+        });
+        return nb::make_tuple(to_numpy(std::move(c.row_ptr)), to_numpy(std::move(c.col_ind)),
+                              to_numpy(std::move(c.weights)));
+      },
+      nb::arg("parents"), nb::arg("source"), nb::arg("preferences"));
+}
+
 }  // namespace
 
 void bind_testing(nb::module_& m) {
@@ -78,6 +126,8 @@ void bind_testing(nb::module_& m) {
 #define DYNG_PY_BIND_TESTING(V, E, W) bind_testing_type<V, E, W>(m);
   DYNG_PY_FOR_EACH_GRAPH_TYPE(DYNG_PY_BIND_TESTING)
 #undef DYNG_PY_BIND_TESTING
+  bind_combined_graph<std::int32_t>(m);
+  bind_combined_graph<std::int64_t>(m);
 }
 
 }  // namespace dyng::python

@@ -74,6 +74,7 @@ NB_MODULE(_core, m) {
   bind_batch(m);
   bind_sssp(m);
   bind_cycle_count(m);
+  bind_mosp(m);
   bind_update(m);
   bind_io(m);
   bind_generators(m);
