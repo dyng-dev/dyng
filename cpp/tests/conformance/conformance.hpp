@@ -432,9 +432,11 @@ graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_
 /**
  * C4 on `backends`: where a backend runs both a fused and an operators engine (compute() with
  * engine::fused and engine::operators, and the updates report different stats::engine_used), the
- * two results agree at the traits' level and so do the deterministic counters. Returns whether
- * some backend compared (C4 is skipped otherwise). Also used by the kit's own test with a fake
- * two-engine algorithm (engines_agree_test.cpp).
+ * two results agree at the traits' level and so do the deterministic counters, after compute()
+ * and after each of three consecutive batches, for every preset, the small and medium sizes and
+ * every applicable batch mix. Returns whether some backend compared (C4 is skipped otherwise);
+ * stops at the first disagreement. Also used by the kit's own test with a fake two-engine
+ * algorithm (engines_agree_test.cpp).
  */
 template <typename case_t>
 bool engines_agree(const std::vector<backend>& backends) {
@@ -443,32 +445,55 @@ bool engines_agree(const std::vector<backend>& backends) {
   bool compared = false;
   for (const backend b : backends) {
     SCOPED_TRACE(std::string(to_string(b)));
-    const preset p = presets<traits>().front();
-    std::mt19937_64 rng(4000);
-    graph_model<graph_t> model = model_of<case_t>(size_class::small, rng);
-    std::optional<chain<case_t>> fused;
-    std::optional<chain<case_t>> operators;
-    try {
-      fused.emplace(resources_for(b), model, p.props, engine::fused);
-      operators.emplace(resources_for(b), model, p.props, engine::operators);
-    } catch (const not_supported_error&) {
-      continue;  // this backend has one engine
+    for (const preset& p : presets<traits>()) {
+      SCOPED_TRACE(p.label);
+      for (const size_class size : {size_class::small, size_class::medium}) {
+        for (const batch_mix mix : all_mixes()) {
+          if (!mix_applies<graph_t>(mix, p.props)) {
+            continue;
+          }
+          SCOPED_TRACE("size " + std::to_string(static_cast<int>(size)) + ", mix " +
+                       std::string(to_string(mix)));
+          std::mt19937_64 rng(4000 + static_cast<std::uint64_t>(size) * 17 +
+                              static_cast<std::uint64_t>(mix));
+          graph_model<graph_t> model = model_of<case_t>(size, rng);
+          std::optional<chain<case_t>> fused;
+          std::optional<chain<case_t>> operators;
+          try {
+            fused.emplace(resources_for(b), model, p.props, engine::fused);
+            operators.emplace(resources_for(b), model, p.props, engine::operators);
+          } catch (const not_supported_error&) {
+            break;  // this backend has one engine
+          }
+          if (!same<traits>(fused->take(), operators->take())) {
+            ADD_FAILURE() << "compute(): the fused and the operators engine disagree";
+            return true;
+          }
+          for (int step = 0; step < 3; ++step) {
+            SCOPED_TRACE("batch " + std::to_string(step));
+            const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+            typename traits::stats sf;
+            typename traits::stats so;
+            try {
+              sf = fused->step(gen.batch);
+              so = operators->step(gen.batch);
+            } catch (const not_supported_error&) {
+              break;
+            }
+            if (sf.engine_used == so.engine_used) {
+              break;  // the backend ignores the choice (one engine)
+            }
+            compared = true;
+            const bool agree = same<traits>(fused->take(), operators->take());
+            EXPECT_TRUE(same<traits>(fused->take(), operators->take()));
+            EXPECT_EQ(traits::deterministic(sf), traits::deterministic(so));
+            if (!agree || traits::deterministic(sf) != traits::deterministic(so)) {
+              return true;  // the first disagreement is enough (its trace names the case)
+            }
+          }
+        }
+      }
     }
-    const generated_batch<graph_t> gen = random_batch(model, batch_mix::mixed, rng);
-    typename traits::stats sf;
-    typename traits::stats so;
-    try {
-      sf = fused->step(gen.batch);
-      so = operators->step(gen.batch);
-    } catch (const not_supported_error&) {
-      continue;
-    }
-    if (sf.engine_used == so.engine_used) {
-      continue;  // the backend ignores the choice (one engine)
-    }
-    compared = true;
-    EXPECT_TRUE(same<traits>(fused->take(), operators->take()));
-    EXPECT_EQ(traits::deterministic(sf), traits::deterministic(so));
   }
   return compared;
 }

@@ -6,7 +6,9 @@
  *        ties (testing::check_sssp_tree, canonical mode) and sssp::compute() on the new graph, and
  *        the sequential and OpenMP backends agree bit for bit (distances, parents and the
  *        deterministic counters), also from valid input trees with non-lowest tie parents
- *        (from_arrays with canonicalize = false).
+ *        (from_arrays with canonicalize = false). In the CUDA test executable the cuda backend
+ *        joins the comparison twice: with its fused engine and with its operators engine
+ *        (conformance check C4: the two engines agree bit for bit on every chain).
  *
  * Graph shapes: sparse and dense random graphs, road-like grids, hub-heavy graphs and long chains,
  * with parallel edges and self-loops under graph_properties::mosp_compatible(), simple sorted
@@ -366,7 +368,14 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
   props.directed = sc.directed;
   props.semantics.allow_vertex_growth = sc.growth;
 
-  const std::vector<dyng::backend> backends = dyng::test::comparison_backends();
+  // The configurations: every backend with its default engine, and on cuda the operators engine
+  // as well (conformance check C4 on randomized chains: fused == operators, bit for bit).
+  std::vector<dyng::backend> backends = dyng::test::comparison_backends();
+  std::vector<dyng::engine> engines(backends.size(), dyng::engine::automatic);
+  if (!backends.empty() && backends.back() == dyng::backend::cuda) {
+    backends.push_back(dyng::backend::cuda);
+    engines.push_back(dyng::engine::operators);
+  }
   const int threads = static_cast<int>(gen.uniform(1, 8));
   std::vector<dyng::resources> res;
   std::vector<graph_t> graphs;
@@ -381,12 +390,19 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
   if (gen.coin(0.3)) {
     opt.delta = gen.uniform(1, 300);  // the width changes the schedule, never the result
   }
+  std::vector<dyng::sssp::options> config_opt(backends.size(), opt);
+  for (std::size_t i = 0; i < backends.size(); ++i) {
+    config_opt[i].cuda_engine = engines[i];
+  }
+  const auto config_name = [&](std::size_t i) {
+    return std::string(dyng::to_string(backends[i])) +
+           (engines[i] == dyng::engine::operators ? " (operators engine)" : "");
+  };
   std::vector<dyng::sssp::result<vertex_t>> results;
   for (std::size_t i = 0; i < backends.size(); ++i) {
-    results.push_back(dyng::sssp::compute(res[i], graphs[i], source, opt));
+    results.push_back(dyng::sssp::compute(res[i], graphs[i], source, config_opt[i]));
     const auto check = dyng::testing::check_sssp_tree(graphs[i], results[i]);
-    ASSERT_TRUE(check.ok()) << "compute on " << dyng::to_string(backends[i]) << ": "
-                            << check.summary();
+    ASSERT_TRUE(check.ok()) << "compute on " << config_name(i) << ": " << check.summary();
   }
   if (sc.perturb_ties) {
     const auto csr = graphs[0].to_csr(res[0]);
@@ -396,7 +412,7 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
     for (std::size_t i = 0; i < backends.size(); ++i) {
       results[i] = dyng::sssp::result<vertex_t>::from_arrays(
           res[i], graphs[i], source, dyng::host_view(distances), dyng::host_view(parents),
-          /*canonicalize=*/false, opt);
+          /*canonicalize=*/false, config_opt[i]);
     }
   }
   const int rounds = static_cast<int>(gen.uniform(3, 5));
@@ -411,11 +427,10 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
       // A canonical input tree stays canonical; a perturbed one stays a valid shortest-path tree.
       const auto check = dyng::testing::check_sssp_tree(graphs[i], results[i],
                                                         /*require_canonical=*/!sc.perturb_ties);
-      ASSERT_TRUE(check.ok()) << "update on " << dyng::to_string(backends[i]) << ": "
-                              << check.summary();
+      ASSERT_TRUE(check.ok()) << "update on " << config_name(i) << ": " << check.summary();
       // update == compute on the new graph: bit for bit from a canonical tree; the distances
       // (and the parents in the distance-only mode) from a perturbed one.
-      const auto fresh = dyng::sssp::compute(res[i], graphs[i], source, opt);
+      const auto fresh = dyng::sssp::compute(res[i], graphs[i], source, config_opt[i]);
       const auto d = dyng::test::host_copy(results[i].distances());
       const auto fd = dyng::test::host_copy(fresh.distances());
       ASSERT_TRUE(std::equal(d.begin(), d.end(), fd.begin(), fd.end()));
@@ -428,8 +443,13 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
       EXPECT_LE(st[i].invalidated, static_cast<std::int64_t>(graphs[i].num_vertices()));
       EXPECT_EQ(results[i].graph_version(), graphs[i].version());
     }
-    // Cross-backend: identical trees and deterministic counters.
+    // Cross-backend (and cross-engine): identical trees and deterministic counters.
     for (std::size_t i = 1; i < backends.size(); ++i) {
+      SCOPED_TRACE("configuration " + config_name(i));
+      if (engines[i] == dyng::engine::operators) {
+        EXPECT_EQ(st[i].engine_used, dyng::engine::operators);
+        EXPECT_EQ(st[i].packed_parents, st[i - 1].packed_parents);  // the fused engine's packing
+      }
       const auto d0 = dyng::test::host_copy(results[0].distances());
       const auto di = dyng::test::host_copy(results[i].distances());
       ASSERT_TRUE(std::equal(d0.begin(), d0.end(), di.begin(), di.end()));
