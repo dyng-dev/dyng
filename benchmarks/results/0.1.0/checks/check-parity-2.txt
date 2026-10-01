@@ -1,4 +1,4 @@
-# Copy of $DYNG_SCRATCH/runs/r011/repo/python.log (sha256 8a26f6e412408662a74660822db99042c2652eaa2b826d1410b02b13e19dc251, 1670 bytes), written by parity/certify.py check.
+# Copy of $DYNG_SCRATCH/runs/r011/review/repo/python.log (sha256 78166ef743fd4f4db0e4d8ab9f9c2492d1bcf92a9dce247b55277537a552964b, 1670 bytes), written by parity/certify.py check.
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
     (DYNG_PYTHON_INSTALL=force would): using the throwaway venv build/py-venv
 ==> pip install -e . into /home/sskg8/Projects/dyng-work/r011/clone-repo/build/py-venv (build directory build/)
@@ -22,4 +22,4 @@ SKIPPED [1] python/tests/test_arrays.py:215: could not import 'torch': No module
 SKIPPED [1] python/tests/test_arrays.py:222: could not import 'cupy': No module named 'cupy'
 SKIPPED [1] python/tests/test_batch.py:74: could not import 'torch': No module named 'torch'
 SKIPPED [1] python/tests/test_profiler.py:48: could not import 'pandas': No module named 'pandas'
-396 passed, 4 skipped in 11.46s
+396 passed, 4 skipped in 11.51s

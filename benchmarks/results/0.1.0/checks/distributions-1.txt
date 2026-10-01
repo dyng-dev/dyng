@@ -1,10 +1,48 @@
-# Copy of $DYNG_SCRATCH/runs/r011/tests/select-v0.1.0.log (sha256 d8eacf6918f86082c949c749cf1d54bfc2737e6e6f151e9901c35e21d4a7765d, 408 bytes), written by parity/certify.py check.
-select for GITHUB_REF_NAME=v0.1.0 in /home/sskg8/Projects/dyng-work/r011/clone-tests at 261d03de4c787adea52a228f0dfbd0e959748ee8 2026-10-01T14:13:28-05:00
-release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
-release metadata: VERSION, CHANGELOG.md and CITATION.cff agree (0.1.0)
-tag v0.1.0: package 0.1.0 (pre-release: false)
-rc=0
-GITHUB_OUTPUT:
-kind=package
-version=0.1.0
-prerelease=false
+# Copy of $DYNG_SCRATCH/runs/r011/review/wheels.log (sha256 5477bb22ba1d239c5c9e8e6599947d1d6225459424d83a26eab684917d0ab993, 2495 bytes), written by parity/certify.py check.
+==> sdist
+==> wheel from the sdist (GCC 12, glibc 2.28 sysroot, static and hidden libstdc++)
+==> auditwheel repair --plat manylinux_2_28_x86_64
+dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl is consistent with the
+following platform tag: "manylinux_2_17_x86_64".
+
+The wheel references external versioned symbols in these
+system-provided shared libraries: libm.so.6 with versions
+{'GLIBC_2.2.5'}, libgomp-a25fd822.so.1.0.0 with versions {'GOMP_1.0',
+'GOMP_4.5', 'GOMP_4.0', 'OMP_1.0'}, libpthread.so.0 with versions
+{'GLIBC_2.2.5', 'GLIBC_2.3.4', 'GLIBC_2.3.2'}, libc.so.6 with versions
+{'GLIBC_2.17', 'GLIBC_2.2.5', 'GLIBC_2.6', 'GLIBC_2.14', 'GLIBC_2.3'},
+libdl.so.2 with versions {'GLIBC_2.2.5'}
+
+This constrains the platform tag to "manylinux_2_17_x86_64". In order
+to achieve a more compatible tag, you would need to recompile a new
+wheel from source on a system with earlier versions of these
+libraries, such as a recent manylinux image.
+==> twine check, ci/wheel_check.py
+Checking
+/home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0-cp312-abi3-manylinux
+_2_28_x86_64.whl: PASSED
+Checking /home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0.tar.gz: PASSED
+ok     dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl (1.51 MB)
+ok     dyng-0.1.0.tar.gz (0.79 MB)
+==> Python 3.12: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.12)
+    0.1.0 /home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.12/lib/python3.12/site-packages/dyng/__init__.py
+    sssp and cycle_count on sequential and openmp: ok
+dyng 0.1.0
+dynG 0.1.0
+  native module     : dyng._core
+  backends          : sequential (yes), openmp (yes), cuda (no)
+    pytest python/tests against the installed wheel
+396 passed, 4 skipped in 10.28s
+==> Python 3.13: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.13)
+    0.1.0 /home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.13/lib/python3.13/site-packages/dyng/__init__.py
+    sssp and cycle_count on sequential and openmp: ok
+dyng 0.1.0
+dynG 0.1.0
+  native module     : dyng._core
+  backends          : sequential (yes), openmp (yes), cuda (no)
+    pytest python/tests against the installed wheel
+396 passed, 4 skipped in 9.72s
+==> distributions in /home/sskg8/Projects/dyng-work/wheels/0.1.0/dist
+total 2244
+-rw-r--r-- 1 sskg8 domain users 1505011 Oct  1 17:01 dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl
+-rw-r--r-- 1 sskg8 domain users  788400 Oct  1 17:01 dyng-0.1.0.tar.gz

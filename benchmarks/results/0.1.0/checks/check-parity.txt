@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r011/repo/check-parity.log (sha256 a84f05d4eef2cb0418114aaf8d349c0f63c732d0da07141faa343f8d3a9b0ef3, 516146 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r011/review/repo/check-parity.log (sha256 1f2e191f9b3e58fc26901fd0165abdcb0acb3dc874ff9224e4aacf369071f947, 516147 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -67,7 +67,7 @@ reuse: OK
 provenance: OK (141 files checked)
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-119 passed in 17.94s
+119 passed in 43.84s
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
@@ -76,12 +76,12 @@ harness: OK
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng
 ==> pytest python/tests
-396 passed, 4 skipped in 11.59s
+396 passed, 4 skipped in 11.44s
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> griffe check dyng against origin/main (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.f8aPms/src
+==> copy of the working tree in /tmp/dyng-scaffold.AudKMj/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 github_meta_check: OK (labels, issue forms, chooser, CODEOWNERS, PR template, workflows)
 ==> configure and build (Debug, warnings as errors, budgets on; the probes, sssp added)
@@ -116,7 +116,7 @@ scaffold_check: OK (80 tests of the probes passed)
 doxygen-coverage: OK (119 compounds checked)
 doc-snippets: OK (6 snippets)
 api-snapshot: OK (627 declarations match public_api.txt)
-docs_links: OK (repository URLs in 1533 files, relative links and anchors of build/docs/html)
+docs_links: OK (repository URLs in 1549 files, relative links and anchors of build/docs/html)
 docs: OK
 ==> pre-commit run --all-files
 pre-commit: OK

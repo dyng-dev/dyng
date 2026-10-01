@@ -1,26 +1,26 @@
-# Copy of $DYNG_SCRATCH/runs/r011/repo/mutation-ctest.log (sha256 b708739c1f46e9f0e42353d6fb72b5004f71aeaa4e6fba628f0fff3f641306b8, 1310 bytes), written by parity/certify.py check.
+# Copy of $DYNG_SCRATCH/runs/r011/review/repo/mutation-ctest.log (sha256 fdff0152e755dc2e3ab85b7a4e3ef172950ddbd8b8edb8bac9118d101d691b62, 1310 bytes), written by parity/certify.py check.
 Test project /home/sskg8/Projects/dyng-work/r011/clone-repo/build/dev-cuda
     Start 820: cycle_count.mutation.control
-1/7 Test #820: cycle_count.mutation.control ....................   Passed   21.39 sec
+1/7 Test #820: cycle_count.mutation.control ....................   Passed   22.64 sec
     Start 821: cycle_count.mutation.cuda.control
-2/7 Test #821: cycle_count.mutation.cuda.control ...............   Passed   27.16 sec
+2/7 Test #821: cycle_count.mutation.cuda.control ...............   Passed  128.32 sec
     Start 822: cycle_count.mutation.double_count_5
-3/7 Test #822: cycle_count.mutation.double_count_5 .............   Passed   21.46 sec
+3/7 Test #822: cycle_count.mutation.double_count_5 .............   Passed   23.34 sec
     Start 823: cycle_count.mutation.weak_ownership
-4/7 Test #823: cycle_count.mutation.weak_ownership .............   Passed   15.91 sec
+4/7 Test #823: cycle_count.mutation.weak_ownership .............   Passed   16.82 sec
     Start 824: cycle_count.mutation.skip_workspace_resize
-5/7 Test #824: cycle_count.mutation.skip_workspace_resize ......   Passed   15.32 sec
+5/7 Test #824: cycle_count.mutation.skip_workspace_resize ......   Passed   16.73 sec
     Start 825: cycle_count.mutation.cuda.cuda_double_count_5
-6/7 Test #825: cycle_count.mutation.cuda.cuda_double_count_5 ...   Passed   27.47 sec
+6/7 Test #825: cycle_count.mutation.cuda.cuda_double_count_5 ...   Passed  108.53 sec
     Start 826: cycle_count.mutation.cuda.cuda_weak_ownership
-7/7 Test #826: cycle_count.mutation.cuda.cuda_weak_ownership ...   Passed   22.18 sec
+7/7 Test #826: cycle_count.mutation.cuda.cuda_weak_ownership ...   Passed   61.69 sec
 
 100% tests passed out of 7
 
 Label Time Summary:
-cpu            =  74.08 sec*proc (4 tests)
-cycle_count    = 150.89 sec*proc (7 tests)
-gpu            =  76.81 sec*proc (3 tests)
-mutation       = 150.89 sec*proc (7 tests)
+cpu            =  79.53 sec*proc (4 tests)
+cycle_count    = 378.07 sec*proc (7 tests)
+gpu            = 298.54 sec*proc (3 tests)
+mutation       = 378.07 sec*proc (7 tests)
 
-Total Test time (real) = 152.32 sec
+Total Test time (real) = 379.21 sec

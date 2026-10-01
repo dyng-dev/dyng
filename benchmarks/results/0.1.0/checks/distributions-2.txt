@@ -1,48 +1,8 @@
-# Copy of $DYNG_SCRATCH/runs/r011/tests/wheels.log (sha256 a697c6bb2d2d109586db14b5c46430054f42ff61114136e5c50bb16355386d3d, 2496 bytes), written by parity/certify.py check.
-==> sdist
-==> wheel from the sdist (GCC 12, glibc 2.28 sysroot, static and hidden libstdc++)
-==> auditwheel repair --plat manylinux_2_28_x86_64
-dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl is consistent with the
-following platform tag: "manylinux_2_17_x86_64".
-
-The wheel references external versioned symbols in these
-system-provided shared libraries: libm.so.6 with versions
-{'GLIBC_2.2.5'}, libgomp-a25fd822.so.1.0.0 with versions {'GOMP_4.0',
-'GOMP_4.5', 'OMP_1.0', 'GOMP_1.0'}, libpthread.so.0 with versions
-{'GLIBC_2.2.5', 'GLIBC_2.3.2', 'GLIBC_2.3.4'}, libc.so.6 with versions
-{'GLIBC_2.3', 'GLIBC_2.14', 'GLIBC_2.2.5', 'GLIBC_2.6', 'GLIBC_2.17'},
-libdl.so.2 with versions {'GLIBC_2.2.5'}
-
-This constrains the platform tag to "manylinux_2_17_x86_64". In order
-to achieve a more compatible tag, you would need to recompile a new
-wheel from source on a system with earlier versions of these
-libraries, such as a recent manylinux image.
-==> twine check, ci/wheel_check.py
-Checking
-/home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0-cp312-abi3-manylinux
-_2_28_x86_64.whl: PASSED
-Checking /home/sskg8/Projects/dyng-work/wheels/0.1.0/dist/dyng-0.1.0.tar.gz: PASSED
-ok     dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl (1.51 MB)
-ok     dyng-0.1.0.tar.gz (0.79 MB)
-==> Python 3.12: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.12)
-    0.1.0 /home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.12/lib/python3.12/site-packages/dyng/__init__.py
-    sssp and cycle_count on sequential and openmp: ok
-dyng 0.1.0
-dynG 0.1.0
-  native module     : dyng._core
-  backends          : sequential (yes), openmp (yes), cuda (no)
-    pytest python/tests against the installed wheel
-396 passed, 4 skipped in 16.48s
-==> Python 3.13: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.13)
-    0.1.0 /home/sskg8/Projects/dyng-work/wheels/0.1.0/venv-3.13/lib/python3.13/site-packages/dyng/__init__.py
-    sssp and cycle_count on sequential and openmp: ok
-dyng 0.1.0
-dynG 0.1.0
-  native module     : dyng._core
-  backends          : sequential (yes), openmp (yes), cuda (no)
-    pytest python/tests against the installed wheel
-396 passed, 4 skipped in 10.24s
-==> distributions in /home/sskg8/Projects/dyng-work/wheels/0.1.0/dist
-total 2244
--rw-r--r-- 1 sskg8 domain users 1505007 Oct  1 14:12 dyng-0.1.0-cp312-abi3-manylinux_2_28_x86_64.whl
--rw-r--r-- 1 sskg8 domain users  788399 Oct  1 14:11 dyng-0.1.0.tar.gz
+# Copy of $DYNG_SCRATCH/runs/r011/review/subset-3.12.log (sha256 7cdb7f3f53b70632253915a326ab57f33e28598d9197987340eed4b37ebfdbf6, 510 bytes), written by parity/certify.py check.
+........................................................................ [ 28%]
+...................................................s.................... [ 56%]
+........................................................................ [ 85%]
+......................................                                   [100%]
+=========================== short test summary info ============================
+SKIPPED [1] python/tests/test_cli.py:684: docs/api/cli.md is not in this tree
+253 passed, 1 skipped in 5.22s
