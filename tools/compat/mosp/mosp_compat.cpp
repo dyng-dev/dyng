@@ -51,7 +51,9 @@
  *                        with the fused one by parity/compare.py --configs cuda-operators)
  *   --mosp               the whole MOSP update (dyng::mosp) and the combinedGraph/ outputs
  *   --pref p1,..,pK      with --mosp: mosp::options::preferences (`mosp --pref`; default all 1)
- *   --no-path-costs      with --mosp: mosp::options::compute_path_costs = false (no mospCosts.txt)
+ *   --no-path-costs      with --mosp: mosp::options::compute_path_costs = false (no mospCosts.txt;
+ *                        with --no-output the costs are not computed either, as `mosp` computes
+ *                        them only to write mospCosts.txt)
  *
  * Report lines (without --quiet): the inputs, `obj<k>   SOSP update <ms> (invalidated ...)`,
  * `graph  read graph <ms>, read changes and trees <ms>, build <ms>` and `obj<k>   result import <ms>, workspace <ms>, validate <ms>` (the
@@ -519,7 +521,9 @@ int run_mosp(const options& opt, dyng::resources& res, bool cuda, dyng::profiler
   mopt.delta = opt.delta;
   mopt.cuda_engine = opt.cuda_engine;
   mopt.validate_inputs = opt.validate;
-  mopt.compute_path_costs = opt.path_costs && K == in.KG;
+  // `mosp` computes the path costs only to write mospCosts.txt (not with --no-output); so does
+  // the clone (with -k below the graph's columns they come from the reference, at write time).
+  mopt.compute_path_costs = opt.path_costs && opt.write_output && K == in.KG;
   mopt.num_objectives = K;
   std::vector<dyng::array_view<const std::int64_t>> dv;
   std::vector<dyng::array_view<const vertex_t>> pv;
