@@ -152,11 +152,32 @@ def doc_section(obj: Any, section: str) -> dict[str, str]:
     return {k: _clean(v) for k, v in out.items()}
 
 
+def int_list(text: str) -> list[int]:
+    """``"4,1,4"`` -> ``[4, 1, 4]`` (a list flag such as ``--preferences``, MOSP's ``--pref``
+    format)."""
+    try:
+        return [int(x) for x in text.split(",")]
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"expected comma-separated integers (e.g. 4,1,4), got {text!r}"
+        ) from None
+
+
 def _add_typed_flag(
     g: argparse._ArgumentGroup, name: str, hint: Any, default: Any, help_text: str, dest: str
 ) -> None:
     flag = flag_of(name)
     origin = typing.get_origin(hint)
+    if origin is list:
+        g.add_argument(
+            flag,
+            dest=dest,
+            type=int_list,
+            default=None,
+            metavar="N1,..,NK",
+            help=f"{help_text} (default: {default})".strip(),
+        )
+        return
     if hint is bool:
         g.add_argument(
             flag, dest=dest, action=argparse.BooleanOptionalAction, default=None, help=help_text

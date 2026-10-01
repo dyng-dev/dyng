@@ -3,7 +3,8 @@
 """The ``dyng`` command line (PLAN Section 5.6; ADR 0025) against the originals' outputs.
 
 The committed fixtures (cpp/tests/data) were written by the pinned originals: MOSP-OpenMP
-c352151's ``mospPrep`` and ``mosp`` (the files of ``dyng prep`` and ``dyng sssp``) and
+c352151's ``mospPrep`` and ``mosp`` (the files of ``dyng prep``, ``dyng sssp`` and ``dyng mosp``;
+the combined-graph fixtures were also checked against MOSP-CUDA e220ee2) and
 CycleEnumeration-GPU 0a976ad's ``cycle-enum`` (the standard output of ``dyng cycle_count``) and
 its batch generator (``dyng generate cycle_enum_batch``). Every comparison is byte for byte.
 """
@@ -76,6 +77,8 @@ def _flags(parser: object) -> set[str]:
     [
         (("sssp", "compute"), dyng.sssp.Options),
         (("sssp", "update"), dyng.sssp.Options),
+        (("mosp", "compute"), dyng.mosp.Options),
+        (("mosp", "update"), dyng.mosp.Options),
         (("cycle_count", "compute"), dyng.cycle_count.Options),
         (("cycle_count", "update"), dyng.cycle_count.Options),
     ],
@@ -83,7 +86,7 @@ def _flags(parser: object) -> set[str]:
 def test_every_option_field_has_a_flag(path: tuple[str, ...], cls: type) -> None:
     flags = _flags(_subparser(*path))
     for f in dataclasses.fields(cls):
-        if path == ("sssp", "compute") and f.name == "validate_inputs":
+        if path in (("sssp", "compute"), ("mosp", "compute")) and f.name == "validate_inputs":
             # validate_inputs checks imported trees (update --init) and does nothing on compute
             assert "--validate-inputs" not in flags
             continue
@@ -644,6 +647,232 @@ def test_prep_cache(capsys: pytest.CaptureFixture[str], data: Path, tmp_path: Pa
         capture_output=True,
     )
     assert (tmp_path / "c" / "orig.bin").read_bytes() == blob
+
+
+# -------------------------------------------------------------------------------------------------
+# mosp against the `mosp` driver (the fixtures, the compat driver, the original when built)
+# -------------------------------------------------------------------------------------------------
+
+
+def mosp_cases(data: Path) -> list[tuple[str, Path, Path, int, str]]:
+    """The preference cases of cpp/tests/data/mosp_combined: (name, input, init, K, Pref)."""
+    out = []
+    for line in (data / "mosp_combined" / "cases.txt").read_text().splitlines():
+        name, inp, init, k, pref = line.split()
+        out.append((name, data / inp, data / init, int(k), pref))
+    return out
+
+
+def _built(*candidates: Path) -> Path | None:
+    for exe in candidates:
+        if exe.is_file() and os.access(exe, os.X_OK):
+            return exe
+    return None
+
+
+def _compat_mosp() -> Path | None:
+    """dyng-compat-mosp of a build tree of this checkout (DYNG_COMPAT_MOSP wins)."""
+    env = os.environ.get("DYNG_COMPAT_MOSP")
+    if env:
+        return _built(Path(env))
+    root = Path(__file__).resolve().parents[2] / "build"
+    return _built(
+        *(root / p / "tools" / "compat" / "dyng-compat-mosp" for p in ("dev", "parity", "cpu-only"))
+    )
+
+
+def _reference_mosp() -> Path | None:
+    scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
+    return _built(scratch / "ref" / "MOSP-OpenMP@c352151" / "unpatched" / "bin" / "mosp")
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_mosp_update_equals_the_originals_combined_files(
+    capsys: pytest.CaptureFixture[str], data: Path, tmp_path: Path, backend: str
+) -> None:
+    cases = mosp_cases(data)
+    assert len(cases) >= 8
+    for name, inp, init, k, pref in cases:
+        out = tmp_path / name
+        status, text, err = run(
+            capsys,
+            "mosp",
+            "update",
+            "--graph",
+            inp / "graphCsr",
+            "--changes",
+            inp,
+            "--init",
+            init,
+            "--num-objectives",
+            k,
+            "--preferences",
+            pref,
+            "--out",
+            out,
+            "--backend",
+            backend,
+        )
+        assert status == 0, (name, err)
+        assert "combined: L=" in text and "update " in text
+        same_tree(out / "combinedGraph", data / "mosp_combined" / name / "combined")
+        assert sorted(p.name for p in out.iterdir()) == ["combinedGraph"] + [
+            f"obj{i}" for i in range(k)
+        ]
+
+
+def test_mosp_update_equals_the_compat_driver(
+    capsys: pytest.CaptureFixture[str], data: Path, tmp_path: Path
+) -> None:
+    """`dyng mosp update` writes the bytes of `dyng-compat-mosp --mosp` (the clone of MOSP's
+    `mosp` driver that the parity harness checks against both originals on the golden corpus)
+    on every committed case: the SOSP cases with the default preferences and the preference
+    cases."""
+    exe = _compat_mosp()
+    if exe is None:
+        pytest.skip("dyng-compat-mosp is not built in this checkout (build/dev, build/parity)")
+    runs: list[tuple[str, list[object], list[object]]] = []
+    for name, inp, k in sssp_cases(data):
+        init = data / "mosp_sssp" / name / "init"
+        common = ["--graph", inp / "graphCsr", "--changes", inp, "--init", init]
+        runs.append((name, [*common, "--num-weights", k], [*common, "-k", k]))
+    for name, inp, init, k, pref in mosp_cases(data):
+        common = ["--graph", inp / "graphCsr", "--changes", inp, "--init", init]
+        ours = [*common, "--num-objectives", k, "--preferences", pref]
+        runs.append((name, ours, [*common, "-k", k, "--pref", pref]))
+    for name, ours, theirs in runs:
+        mine, clone = tmp_path / name / "dyng", tmp_path / name / "compat"
+        status, _, err = run(
+            capsys, "mosp", "update", *ours, "--out", mine, "--backend", "sequential", "--quiet"
+        )
+        assert status == 0, (name, err)
+        subprocess.run(
+            [str(exe), *map(str, theirs), "--mosp", "--out", str(clone), "--backend",
+             "sequential", "--quiet"],
+            check=True,
+            capture_output=True,
+        )  # fmt: skip
+        same_tree(mine, clone)
+
+
+def test_mosp_update_equals_the_original_mosp(
+    capsys: pytest.CaptureFixture[str], data: Path, tmp_path: Path
+) -> None:
+    exe = _reference_mosp()
+    if exe is None:
+        pytest.skip("the reference mosp (parity/build_reference.sh) is not built here")
+    for name, inp, init, k, pref in mosp_cases(data):
+        common = ["--graph", inp / "graphCsr", "--changes", inp, "--init", init]
+        mine, orig = tmp_path / name / "dyng", tmp_path / name / "orig"
+        status, _, err = run(
+            capsys, "mosp", "update", *common, "--num-objectives", k, "--preferences", pref,
+            "--out", mine, "--quiet",
+        )  # fmt: skip
+        assert status == 0, (name, err)
+        subprocess.run(
+            [str(exe), *map(str, common), "-k", str(k), "--pref", pref, "--out", str(orig),
+             "--quiet"],
+            check=True,
+            capture_output=True,
+            env={**os.environ, "OMP_NUM_THREADS": "2"},
+        )  # fmt: skip
+        same_tree(mine, orig)
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_mosp_compute_writes_the_trees_and_the_combined_files(
+    capsys: pytest.CaptureFixture[str], data: Path, tmp_path: Path, backend: str
+) -> None:
+    for name, inp, k in sssp_cases(data)[:12]:
+        out = tmp_path / name
+        status, text, err = run(
+            capsys, "mosp", "compute", "--graph", inp / "graphCsr", "--num-weights", k,
+            "--out", out, "--backend", backend, "--preferences", ",".join(["2"] + ["1"] * (k - 1)),
+        )  # fmt: skip
+        assert status == 0, (name, err)
+        assert text.startswith("compute ") and "combined: L=" in text
+        # the K trees are the files of `mospPrep init`
+        for i in range(k):
+            same_tree(out / f"obj{i}", data / "mosp_sssp" / name / "init" / f"obj{i}")
+        # the combined files: the reference combined graph, Dijkstra on it, the path costs
+        g = dyng.io.read_csr_triplet(inp / "graphCsr", num_weights=k, properties="mosp_compatible")
+        parents = [
+            dyng.io.read_parents(out / f"obj{i}" / "SSSPTreeOriginal.txt", g.num_vertices)
+            for i in range(k)
+        ]
+        c = dyng.testing.combined_graph(parents, 0, [2] + [1] * (k - 1))
+        cg = dyng.Graph.from_csr(c.row_ptr, c.col_ind, c.weights)
+        d, p = dyng.testing.dijkstra(cg, 0)
+        want = tmp_path / name / "want"
+        dyng.io.write_distances(want / "distancesCsr.txt", d)
+        dyng.io.write_parents(want / "SSSPTreeCsr.txt", p)
+        dyng.io.write_path_costs(want / "mospCosts.txt", dyng.testing.mosp_path_costs(g, p, 0))
+        same_tree(out / "combinedGraph", want)
+
+
+def test_mosp_options_and_errors(
+    capsys: pytest.CaptureFixture[str], data: Path, tmp_path: Path
+) -> None:
+    name, inp, init, k, pref = mosp_cases(data)[0]
+    common = ["--graph", inp / "graphCsr", "--changes", inp, "--init", init]
+    status, _, _ = run(
+        capsys, "mosp", "update", *common, "--no-compute-path-costs", "--out", tmp_path / "a",
+        "--delta", 3, "--cuda-engine", "operators", "--no-validate-inputs", "--canonicalize",
+        "--write-graph", tmp_path / "a" / "g",
+    )  # fmt: skip
+    assert status == 0
+    assert sorted(p.name for p in (tmp_path / "a" / "combinedGraph").iterdir()) == [
+        "SSSPTreeCsr.txt",
+        "distancesCsr.txt",
+    ]
+    assert (tmp_path / "a" / "gRowPtr.txt").is_file()
+    status, _, err = run(
+        capsys, "mosp", "update", *common, "--preferences", "4,x", "--out", tmp_path
+    )
+    assert status == 2 and "comma-separated integers" in err
+    status, _, err = run(
+        capsys, "mosp", "update", *common, "--num-objectives", 9, "--out", tmp_path / "b"
+    )
+    assert status == 1 and "--num-objectives 9 is out of range" in err
+    status, _, err = run(
+        capsys, "mosp", "update", *common, "--preferences", "1,2", "--out", tmp_path / "c"
+    )
+    assert status == 1 and "dyng: error:" in err  # two preferences for three objectives
+    status, _, err = run(capsys, "mosp", "update", "--graph", inp / "graphCsr", "--out", tmp_path)
+    assert status == 2 and "a batch is required" in err
+    status, _, err = run(
+        capsys, "mosp", "compute", "--graph", inp / "graphCsr", "--source", 99, "--out", tmp_path
+    )
+    assert status == 1 and "--source 99 is out of range" in err
+
+
+def test_mosp_help_describes_the_preferences(capsys: pytest.CaptureFixture[str]) -> None:
+    for verb in ("compute", "update"):
+        with pytest.raises(SystemExit):
+            main(["mosp", verb, "--help"])
+        out = capsys.readouterr().out
+        assert "--preferences N1,..,NK" in out and "(default: all 1)" in out
+        assert ("--validate-inputs" in out) == (verb == "update")
+
+
+def test_sssp_cuda_engine_flag_takes_every_engine(
+    capsys: pytest.CaptureFixture[str], data: Path, tmp_path: Path
+) -> None:
+    """--cuda-engine names the three engines (dyng.sssp.Options.cuda_engine; ignored on the
+    host backends, so the bytes are the same)."""
+    inp = data / "mosp_sssp" / "c2i_1" / "input"
+    for engine in ("automatic", "fused", "operators"):
+        status, text, err = run(
+            capsys, "sssp", "update", "--graph", inp / "graphCsr", "--changes", inp,
+            "--cuda-engine", engine, "--out", tmp_path / engine,
+        )  # fmt: skip
+        assert status == 0, err
+        same_tree(tmp_path / engine, data / "mosp_sssp" / "c2i_1" / "updated")
+    status, _, err = run(
+        capsys, "sssp", "compute", "--graph", inp / "graphCsr", "--cuda-engine", "warp",
+        "--out", tmp_path / "x",
+    )  # fmt: skip
+    assert status == 2 and "invalid choice" in err
 
 
 # -------------------------------------------------------------------------------------------------

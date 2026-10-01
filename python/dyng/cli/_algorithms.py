@@ -1,9 +1,12 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
-"""``dyng sssp compute|update`` and ``dyng cycle_count compute|update``.
+"""``dyng sssp compute|update``, ``dyng mosp compute|update`` and ``dyng cycle_count
+compute|update``.
 
 The outputs are the originals' files: MOSP's ``<out>/obj<k>/distances*.txt`` and
-``SSSPTree*.txt`` (sssp), CycleEnumeration-GPU's histogram CSV (cycle_count), byte for byte.
+``SSSPTree*.txt`` (sssp, mosp), MOSP's ``<out>/combinedGraph/distancesCsr.txt``,
+``SSSPTreeCsr.txt`` and ``mospCosts.txt`` (mosp), CycleEnumeration-GPU's histogram CSV
+(cycle_count), byte for byte.
 """
 
 from __future__ import annotations
@@ -31,6 +34,7 @@ from ._common import (
     load_graph,
     make_resources,
     note,
+    objective_dir,
     options_from,
     write_text,
     write_tree,
@@ -306,6 +310,190 @@ def run_sssp_update(args: argparse.Namespace) -> int:
     info(
         args,
         f"update {fmt_ms(ms)} ms ({len(trees)} tree(s); batch: inserted {b.inserted_edges}, "
+        f"updated {b.updated_edges}, deleted {b.deleted_edges}, ignored deletions "
+        f"{b.ignored_deletions})",
+    )
+    if args.write_graph is not None:
+        dyng.io.write_csr_triplet(args.write_graph, g)
+    return 0
+
+
+# -------------------------------------------------------------------------------------------------
+# mosp
+# -------------------------------------------------------------------------------------------------
+
+_MOSP_HELP = """\
+Dynamic multi-objective shortest paths (dyng.mosp; the MOSP update of DynaMOSP). The K trees
+are written in MOSP's layout, <out>/obj<k>/distances<Suffix>.txt and SSSPTree<Suffix>.txt, and the
+combined graph's outputs as <out>/combinedGraph/distancesCsr.txt (units of 1/L, L =
+lcm(preferences)), SSSPTreeCsr.txt (the MOSP tree) and mospCosts.txt ("v c1 .. cK", the path
+costs), byte for byte as MOSP's `mosp` driver writes them.
+"""
+
+
+def _add_mosp_common(p: argparse.ArgumentParser, *, imports_trees: bool) -> list[str]:
+    add_graph_flags(p, default_properties="mosp_compatible")
+    p.add_argument("--source", type=int, default=0, metavar="S", help="source vertex (default 0)")
+    names = add_option_flags(
+        p,
+        dyng.mosp.Options,
+        "mosp options",
+        skip=() if imports_trees else ("validate_inputs",),
+        defaults={
+            "preferences": "all 1",
+            "num_objectives": "0, every weight column; MOSP's -k",
+        },
+    )
+    p.add_argument("--out", required=True, metavar="DIR", help="output directory")
+    p.add_argument("--quiet", action="store_true", help="no report lines on standard output")
+    add_backend_flags(p)
+    return names
+
+
+def add_mosp(sub: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    p = sub.add_parser(
+        "mosp", help="dynamic multi-objective shortest paths", description=_MOSP_HELP
+    )
+    verbs = p.add_subparsers(dest="verb", metavar="VERB", required=True)
+    c = verbs.add_parser(
+        "compute",
+        help="the K trees, the MOSP tree and the path costs",
+        description="Compute the canonical shortest-path tree of each objective, the combined "
+        "graph, its tree (the MOSP tree) and the path costs; write <out>/obj<k>/"
+        "distancesOriginal.txt and SSSPTreeOriginal.txt (the files of `mospPrep init`) and "
+        "<out>/combinedGraph/distancesCsr.txt, SSSPTreeCsr.txt and mospCosts.txt.",
+    )
+    names = _add_mosp_common(c, imports_trees=False)
+    c.set_defaults(func=run_mosp_compute, option_names=names)
+    u = verbs.add_parser(
+        "update",
+        help="apply a batch and update the MOSP (= mosp)",
+        description="Read (--init) or compute the K trees, apply the batch once to the graph, "
+        "update the trees and rebuild the combined graph, the MOSP tree and the path costs "
+        "(dyng.mosp.update), then write <out>/obj<k>/distancesUpdated.txt and "
+        "SSSPTreeUpdated.txt and <out>/combinedGraph/distancesCsr.txt, SSSPTreeCsr.txt and "
+        "mospCosts.txt, byte-identical to MOSP's `mosp` driver (`--preferences` is its --pref, "
+        "`--num-objectives` its -k).",
+    )
+    names = _add_mosp_common(u, imports_trees=True)
+    add_mosp_batch_flags(u, required=True)
+    u.add_argument(
+        "--init",
+        metavar="DIR",
+        default=None,
+        help="the initial trees <init>/obj<k>/distancesOriginal.txt and SSSPTreeOriginal.txt "
+        "(default: computed)",
+    )
+    u.add_argument(
+        "--canonicalize",
+        action="store_true",
+        help="--init: apply the lowest-id tie rule to the initial trees (MOSP's canonicalizeTree)",
+    )
+    u.add_argument(
+        "--write-graph",
+        metavar="PREFIX",
+        default=None,
+        help="also write the updated graph as <PREFIX>{RowPtr,ColInd,Values}.txt",
+    )
+    u.set_defaults(func=run_mosp_update, option_names=names)
+
+
+def _mosp_options(args: argparse.Namespace, g: dyng.Graph) -> tuple[dyng.mosp.Options, int]:
+    """The options of the flags and K (the number of objectives they select)."""
+    opt = options_from(args, dyng.mosp.Options, args.option_names)
+    k = opt.num_objectives or g.num_weights
+    if not 0 <= opt.num_objectives <= g.num_weights:
+        raise CliError(
+            f"--num-objectives {opt.num_objectives} is out of range: the graph has "
+            f"{g.num_weights} weight column(s)"
+        )
+    return opt, k
+
+
+def write_mosp(out: str, suffix: str, g: dyng.Graph, paths: dyng.mosp.Result) -> None:
+    """The K trees (``obj<k>/``) and the combined outputs (``combinedGraph/``) in MOSP's files.
+
+    MOSP's ``mospCosts.txt`` covers every weight column of the graph: with fewer objectives than
+    columns the costs of the other columns are summed along the same MOSP tree (as the original
+    does); without ``compute_path_costs`` no cost file is written.
+    """
+    for k in range(paths.num_objectives):
+        d = objective_dir(out, k)
+        dyng.io.write_distances(d / f"distances{suffix}.txt", paths.distances(k))
+        dyng.io.write_parents(d / f"SSSPTree{suffix}.txt", paths.parents(k))
+    comb = Path(out) / "combinedGraph"
+    comb.mkdir(parents=True, exist_ok=True)
+    dyng.io.write_distances(comb / "distancesCsr.txt", paths.combined_distances)
+    dyng.io.write_parents(comb / "SSSPTreeCsr.txt", paths.combined_parents)
+    if not paths.options.compute_path_costs:
+        return
+    if paths.num_objectives == g.num_weights:
+        costs: object = paths.path_costs
+    else:
+        costs = dyng.testing.mosp_path_costs(g, paths.combined_parents.to_numpy(), paths.source)
+    dyng.io.write_path_costs(comb / "mospCosts.txt", costs)
+
+
+def _combined_line(paths: dyng.mosp.Result, st: dyng.mosp.Stats | None) -> str:
+    reachable = int(
+        np.count_nonzero(paths.combined_distances.to_numpy() < dyng.sssp.INFINITE_DISTANCE)
+    )
+    stats = "" if st is None else f", {st.combined_edges} edges, affected {st.affected}"
+    return (
+        f"combined: L={paths.preference_scale}, reachable {reachable} of "
+        f"{len(paths.combined_parents)}{stats}"
+    )
+
+
+def run_mosp_compute(args: argparse.Namespace) -> int:
+    res = make_resources(args)
+    g = _load_sssp_graph(args, res)
+    opt, k = _mosp_options(args, g)
+    t = Stopwatch()
+    paths = dyng.mosp.compute(g, args.source, options=opt)
+    ms = t.ms()
+    write_mosp(args.out, "Original", g, paths)
+    info(args, f"compute {fmt_ms(ms)} ms ({k} objective(s))")
+    info(args, _combined_line(paths, None))
+    return 0
+
+
+def run_mosp_update(args: argparse.Namespace) -> int:
+    res = make_resources(args)
+    g = _load_sssp_graph(args, res)
+    batch = read_mosp_batch(args, g)
+    assert batch is not None
+    opt, k = _mosp_options(args, g)
+    if args.init is None:
+        paths = dyng.mosp.compute(g, args.source, options=opt)
+    else:
+        dist, parents = [], []
+        for i in range(k):
+            d = Path(args.init) / f"obj{i}"
+            dist.append(dyng.io.read_distances(d / "distancesOriginal.txt", g.num_vertices))
+            parents.append(
+                dyng.io.read_parents(
+                    d / "SSSPTreeOriginal.txt", g.num_vertices, vertex_dtype=g.vertex_dtype
+                )
+            )
+        paths = dyng.mosp.Result.from_arrays(
+            g, args.source, dist, parents, canonicalize=args.canonicalize, options=opt
+        )
+    t = Stopwatch()
+    st = dyng.mosp.update(g, batch, paths)
+    ms = t.ms()
+    write_mosp(args.out, "Updated", g, paths)
+    for i, s in enumerate(st.objectives):
+        info(
+            args,
+            f"obj{i}: invalidated {s.invalidated}, affected {s.affected}, iterations "
+            f"{s.iterations}, engine {s.engine_used}",
+        )
+    info(args, _combined_line(paths, st))
+    b = st.batch
+    info(
+        args,
+        f"update {fmt_ms(ms)} ms ({k} objective(s); batch: inserted {b.inserted_edges}, "
         f"updated {b.updated_edges}, deleted {b.deleted_edges}, ignored deletions "
         f"{b.ignored_deletions})",
     )
