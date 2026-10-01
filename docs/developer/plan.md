@@ -11,11 +11,13 @@ change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in 
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
 
-Status: 2026-09-30. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
-conformance kit and the 0.1 API freeze) and M4 (this infrastructure) are done and merged into
-`main`. M5 is done on the branch `m5-python`: the Python package (a CPU wheel), the `dyng` command
-line and the documentation of 0.1; it reaches `main` through a pull request. Next: the release
-0.1.0 (the checklist and its state: the M5 retrospective, {doc}`retrospectives/M5`).
+Status: 2026-10-01. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
+conformance kit and the 0.1 API freeze), M4 (this infrastructure) and M5 (the Python package, a
+CPU wheel, the `dyng` command line and the documentation of 0.1; pull request #4, merged at
+`8842acf`) are done and merged into `main`. In progress: the release preparation R010 for
+0.1.0rc1 on the branch `release-0.1.0` (the certificate, the version and the release changes:
+{doc}`retrospectives/R010`); then 0.1.0 (the checklist: {doc}`release`). M7 (`mosp`) is developed
+at the same time on its own branch.
 
 ## 1. What dynG is
 
@@ -132,8 +134,8 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 | **M2** `cycle_count` (parallel with M1b) | sorted-rows / set-semantics preset, the CycleEnum parser, static Johnson and the update on 3 backends, work queue, ported tests, randomized parity suites | bit-identical histograms on the golden corpus; generator identity; performance gate (DD, GitHub, Twitch, COLLAB); two recorded mutations fail | **done** (M2a, the CPU backends, and M2b, CUDA: bit-identical to CycleEnumeration-GPU@0a976ad's OpenMP and CUDA backends on their golden corpora, cross-backend equal; every OpenMP gate met, every CUDA gate met in both scopes (the COLLAB update read at the base clock lock, ADR 0021, accepted 2026-09-29); device memory equal to the original's; on the branch `m2b-cycle-cuda`, merged by pull request) |
 | **M3** Framework extraction + 0.1 API freeze | `problem_base`, enactors, views, workspace, policies, `run_update`; both algorithms moved onto it one commit at a time; conformance kit C1-C12; `new_algorithm.py` + template; `regen.py`; API review | both algorithms pass the kit on every backend with parity and performance unchanged; the scaffold is green on first build; the API review recorded | **done** (merged into `main` by pull request #3; ADRs 0022-0024) |
 | **M4** GitHub repository and infrastructure (parallel) | community files, issue forms, PR template, CODEOWNERS, labels, DCO; workflows `lint`, `cpu`, `docs`; this documentation site; the repository-settings guide | hosted workflows green; a contributor goes from clone to green build with the documented commands | **done** (merged into `main` with M1b in INT1; the hosted runs start with the first push) |
-| **M5** Python CPU wheel, CLI, docs for 0.1 | root `pyproject.toml`, nanobind bindings, stubs, pytest; the CPU wheel + sdist; CLI; getting started, the update-model page, the `sssp` and `cycle_count` pages, the API reference, history pages | pytest green against the goldens; `pip install` of the release candidate works on a clean CPU machine; docs build with `-W` | **done** on `m5-python` (ADRs 0011 and 0025; the wheel installs and passes the suite in fresh venvs on Python 3.12 and 3.13; the release candidate on TestPyPI waits for the author's tag); `dyng prep` of M7 was delivered here |
-| **0.1.0** | | the release checklist, including the parity certificate | |
+| **M5** Python CPU wheel, CLI, docs for 0.1 | root `pyproject.toml`, nanobind bindings, stubs, pytest; the CPU wheel + sdist; CLI; getting started, the update-model page, the `sssp` and `cycle_count` pages, the API reference, history pages | pytest green against the goldens; `pip install` of the release candidate works on a clean CPU machine; docs build with `-W` | **done** on `m5-python` (ADRs 0011 and 0025; the wheel installs and passes the suite in fresh venvs on Python 3.12 and 3.13; merged into `main` by pull request #4); `dyng prep` of M7 was delivered here |
+| **0.1.0** | the release preparation R010: the benchmark-suite records, the parity certificate, `VERSION` 0.1.0rc1, the release changes | the release checklist, including the parity certificate | **in progress** (R010, {doc}`retrospectives/R010`: the 0.1.0rc1 certificate passed; the tags and the GitHub Release are pushed by the AI assistant on the author's behalf, the PyPI deployment waits for the author's approval) |
 | **M6** 0.1.x hardening | CUDA plugin wheels; the tutorial algorithms `dynamic_bfs` and `triangle_delta`; Read the Docs and Zenodo (A4); fuzzers; mutation checks; sanitizer jobs | `pip install "dyng[cu13]"` works; tutorials pass the kit; mutations fail as expected | |
 | **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | |
 | **M8** ESCHER store + hypergraph | the staged CBST merge (ESCHER-GPU first, then the MOSP_ESCHER behaviours one by one); `hypergraph` with `escher` storage; `hyperedge_batch`; `.hg` I/O | CBST trace replay identical for both originals' policies after every merge step; integrity after every batch | |
@@ -167,7 +169,7 @@ actions, and merges of parallel branches (details: the M3 retrospective):
 |---|---|---|---|---|
 | M1a, M1b, M2, M3, M4 | 9-13 | done (M3's review and fix step: 0.5-1 day) | | |
 | M5 Python, CLI, docs | 2-3 | done in 1 day (3 steps) | | the first hosted runs of `wheels.yml`, `python.yml` and `api-check.yml` |
-| **0.1.0** | **12-17** | **the release steps only** (an RC tag, smoke installs, the final tag) | **days, at the author's pace** | the release approval |
+| **0.1.0** | **12-17** | **the release steps only** (R010; the RC tag, smoke installs, the final tag, pushed by the AI assistant on the author's behalf) | **days, until the author approves the PyPI deployment** | the release approval |
 | 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 4-7 days | 2-3 weeks | the GPU runner decision (O11); wheel sizes; A4 |
 | 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 1.5-2 weeks | 4-6 weeks | the operators engine within 1.05x of the fused one; the staged CBST merge; memory within 1.05x; layout control in the parity preset |
 | 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
