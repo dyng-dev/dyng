@@ -113,6 +113,23 @@ struct sssp_counters {
 };
 
 /**
+ * @brief The host synchronizations of one sssp run on cuda (invariant I9; operators.cu, file
+ *        comment): the fused engine reads its control block back once; the operators engine once
+ *        per push iteration and threshold raise, plus 3 for an update (identify_affected, the
+ *        first split and finalize) or 2 for a static solve (the first split and finalize: reset
+ *        and seed_static do not synchronize).
+ * @param[in] used     The engine that ran.
+ * @param[in] counters The run's counters.
+ * @param[in] update   true for an update, false for a static solve.
+ * @return The number of synchronizations the run makes.
+ */
+[[nodiscard]] constexpr std::int64_t sssp_cuda_host_syncs(engine used,
+                                                          const sssp_counters& counters,
+                                                          bool update) noexcept {
+  return used == engine::fused ? 1 : (update ? 3 : 2) + counters.iterations + counters.epochs;
+}
+
+/**
  * @brief Scratch space of the engines: leased from the workspace pool of the resources handle for
  *        one run and shared by every result run through that handle (ADR 0015).
  *
@@ -620,6 +637,8 @@ class sssp_cuda_operators_engine {
 struct sssp_solve_outcome {
   sssp_counters counters;  ///< iterations, epochs, pushes, packed_parents (and affected, counted)
   engine engine_used = engine::operators;  ///< the engine the static enactor chose
+  /// The solve's host synchronizations (I9): sssp_cuda_host_syncs() on cuda, 0 on the host.
+  std::int64_t host_syncs = 0;
 };
 
 /**

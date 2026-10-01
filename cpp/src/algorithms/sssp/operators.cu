@@ -21,7 +21,8 @@
  *   finalize           unpack (and `affected`); 1 sync
  * so an update synchronizes 3 + iterations + epochs times at most (the budget of
  * sssp_problem::algorithm_budget). compute() runs reset (the source only) and seed_static
- * instead of the first two hooks. Device errors (an input distance that does not fit, a parent
+ * instead of the first two hooks, neither of which synchronizes, so a static solve synchronizes
+ * 2 + iterations + epochs times (sssp_cuda_host_syncs(); mosp's combined solve is one). Device errors (an input distance that does not fit, a parent
  * cycle) are recorded in the run as the fused engine records them, and the remaining hooks then do
  * nothing.
  */

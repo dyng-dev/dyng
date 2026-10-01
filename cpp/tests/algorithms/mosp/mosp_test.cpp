@@ -10,7 +10,9 @@
  *        mode of the combined solve, and the path costs of a graph large enough for the parallel
  *        traversal (openmp, cuda).
  */
+#include "framework/budgets.hpp"
 #include "support/gtest_helpers.hpp"
+#include "support/strict_budgets_environment.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -36,6 +38,11 @@
 #include <vector>
 
 namespace {
+
+// Every test of the mosp executables (this file and mosp_random_test.cpp) runs with strict
+// budgets (I9): an excess throws instead of a hidden warning.
+const auto* const strict_budgets =
+    ::testing::AddGlobalTestEnvironment(new dyng::test::strict_budgets_environment);
 
 using vertex_t = std::int32_t;
 using graph_t = dyng::graph<vertex_t, std::int32_t, std::int32_t>;
@@ -459,6 +466,59 @@ TEST_P(MospBackend, NewVerticesJoinTheTrees) {
   EXPECT_EQ(st.affected, changed_vertices(before, take(r)));
   EXPECT_TRUE(take(r) == reference(res_, g, 0, 3, {}));
   EXPECT_EQ(dyng::test::host_copy(r.combined_parents())[8], -1);
+}
+
+// Invariant I9 with strict budgets (M7 review): updates that add vertices are reserving runs (on
+// cuda the pinned copy of the MOSP tree is released and reallocated, and the release synchronizes
+// the stream), and they stay within mosp's budget; steady-state updates allocate nothing and, with
+// either CUDA engine, use exactly their budget, so the budget of the combined (static) solve is not
+// one synchronization too generous (2 + rounds on the operators engine, not an update's 3).
+TEST_P(MospBackend, StrictBudgetsHoldWithNewVerticesAndBothEngines) {
+  const dyng::detail::framework::strict_budgets_scope strict;
+  std::vector<dyng::engine> engines{dyng::engine::automatic};
+  if (GetParam() == dyng::backend::cuda) {
+    engines.push_back(dyng::engine::operators);
+  }
+  for (const dyng::engine e : engines) {
+    SCOPED_TRACE(e == dyng::engine::operators ? "operators" : "automatic");
+    graph_t g = thesis_graph(res_);
+    dyng::mosp::options opt;
+    opt.cuda_engine = e;
+    opt.preferences = {4, 1, 4};
+    result_t r = dyng::mosp::compute(res_, g, 0, opt);
+    batch_t grow(3);
+    grow.insert_edge(6, 7, {1, 2, 3});
+    grow.insert_edge(7, 8, {2, 1, 1});
+    ASSERT_NO_THROW((void)dyng::mosp::update(res_, g, grow.view(), r));
+    batch_t more(3);
+    for (vertex_t v = 9; v < 40; ++v) {
+      more.insert_edge(v - 1, v, {1 + v % 3, 1 + v % 5, 1 + v % 2});
+    }
+    ASSERT_NO_THROW((void)dyng::mosp::update(res_, g, more.view(), r));
+    ASSERT_EQ(g.num_vertices(), 40);
+    // An insertion and a deletion of the same edge, alternately: the first pair has new shapes
+    // (it may reserve), the later ones are the steady state.
+    for (int i = 0; i < 6; ++i) {
+      SCOPED_TRACE("update " + std::to_string(i) + " of the same shapes");
+      batch_t b(3);
+      if (i % 2 == 0) {
+        b.insert_edge(0, 20, {1, 9, 9});
+      } else {
+        b.delete_edge(0, 20);
+      }
+      ASSERT_NO_THROW((void)dyng::mosp::update(res_, g, b.view(), r));
+      const auto report = dyng::detail::framework::last_budget_report();
+      if (report.measured && i >= 2) {
+        if (GetParam() != dyng::backend::openmp) {
+          // (The OpenMP engines' per-thread lists may still grow: conformance check C8.)
+          EXPECT_EQ(report.used.reservations, 0);
+          EXPECT_EQ(report.used.own_allocations(), 0);
+        }
+        EXPECT_EQ(report.used.own_host_syncs(), report.limit.host_syncs);
+      }
+    }
+    EXPECT_TRUE(take(r) == reference(res_, g, 0, 3, {4, 1, 4}));
+  }
 }
 
 TEST_P(MospBackend, CloneCopiesEverything) {

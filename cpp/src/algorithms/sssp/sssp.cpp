@@ -932,12 +932,8 @@ framework::budget sssp_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
   if (!ctx.on_cuda()) {
     return framework::budget::steady_state(0);
   }
-  if (ctx.chosen_engine() == engine::operators) {
-    // identify_affected, the first split and finalize, plus one per push iteration and threshold
-    // raise (operators.cu).
-    return framework::budget::steady_state(3 + run_.counters.iterations + run_.counters.epochs);
-  }
-  return framework::budget::steady_state(1);
+  return framework::budget::steady_state(
+      sssp_cuda_host_syncs(ctx.chosen_engine(), run_.counters, /*update=*/true));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -1282,6 +1278,8 @@ sssp_solve_outcome sssp_solve_view(const resources& res, const graph<vertex_t, e
   out.counters.packed_parents = stats.packed_parents;
   out.counters.affected = count_changes ? stats.affected : 0;
   out.engine_used = stats.engine_used;
+  out.host_syncs =
+      is_cuda(res) ? sssp_cuda_host_syncs(out.engine_used, out.counters, /*update=*/false) : 0;
   return out;
 }
 

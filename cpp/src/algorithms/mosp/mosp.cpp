@@ -294,7 +294,14 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
   const vertex_t* tree = nullptr;  // the new MOSP tree in host memory (path costs)
   if (is_cuda(res)) {
     auto ws = pool.acquire<mosp_cuda_workspace<vertex_t, edge_t, weight_t>>(res);
-    ws->reserve(res, static_cast<std::int64_t>(n), num_k);
+    {
+      // A reserving run (the graph gained vertices) releases the old pinned copy of the tree
+      // before it allocates the larger one, and that release synchronizes the stream
+      // (pinned_host_memory_resource::deallocate): part of the reservation, counted (I9).
+      const framework::budget_scope reserving;
+      ws->reserve(res, static_cast<std::int64_t>(n), num_k);
+      out.host_syncs += reserving.used().own_host_syncs();
+    }
     mosp_combined<vertex_t, edge_t, weight_t> combined;
     {
       scoped_stage stage(res, "mosp.combine");
@@ -311,9 +318,7 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
       out.solve = sssp_solve_view(res, g, combined.view, st.source, delta, base, st.opt.cuda_engine,
                                   st.device_combined_distances.data(),
                                   st.device_combined_parents.data(), count_affected);
-      out.host_syncs += out.solve.engine_used == engine::fused
-                            ? 1
-                            : 3 + out.solve.counters.iterations + out.solve.counters.epochs;
+      out.host_syncs += out.solve.host_syncs;  // a static solve's (2 + rounds on operators)
     }
     {
       scoped_stage stage(res, "mosp.finalize");  // `affected` was counted by the solve
@@ -410,8 +415,9 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
  * Budget (invariant I9): the whole algorithm work of the update (the K sssp halves before and
  * after the commit and the finalize step) is measured and checked against the sum of the K sssp
  * budgets and the finalize step's synchronizations (none on the host backends; on cuda one for
- * the combined graph's size, the combined solve's (which counts `affected`) and, with the path
- * costs, one for the download of the MOSP tree).
+ * the combined graph's size, the combined solve's (a static solve's: sssp_cuda_host_syncs(), which
+ * counts `affected` too), with the path costs one for the download of the MOSP tree, and in a
+ * reserving run that grew the vertex set the release of the old pinned copy of the tree).
  * @tparam vertex_t   Vertex id type.
  * @tparam edge_t     Edge offset type.
  * @tparam weight_t   Weight type.
