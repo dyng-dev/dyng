@@ -808,6 +808,40 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
   cuda-fused[:d],cuda-operators[:d]`, and `parity/perf_ab.py engines` (the operators engine
   against the fused one, A/B/A/B at locked clocks; reported, not gated).
 
+### M7: `mosp` (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Added: **`dyng::mosp`** (`<dyng/mosp.hpp>`, ADR 0027), dynamic multi-objective shortest paths
+  (DynaMOSP; MOSP-CUDA@e220ee2 `mospUpdate.cu` / `combinedGraphGpu.cu`, MOSP-OpenMP@c352151
+  `mospUpdate.cpp` / `combinedGraphCpu.cpp`) on the sequential, OpenMP and CUDA backends:
+  `compute(res, g, source, options)`, `update(res, g, batch, result)`, `options{preferences (lcm
+  <= 2^20), delta, cuda_engine, compute_path_costs, validate_inputs, num_objectives}`, `result`
+  with the K sssp trees, the combined distances (units of 1/L), the MOSP tree, the path costs
+  (host memory) and `from_arrays()` over K trees, `stats` with the K sssp stats,
+  `combined_edges`, `preference_scale` and `affected` (vertices whose combined distance or MOSP
+  parent changed). mosp is a composition: the batch is applied once, the K objectives are sssp
+  problems updated one after the other on one workspace, then the combined graph (weights
+  `L (K + 1) - sum L / Pref_i`; count, scan, fill) is solved with sssp's engine through the static
+  enactor, and the path costs are recomputed; `dyng::update()` composes it with other results. The
+  conformance kit passes C1-C12 on every backend (K = 3, preferences {2, 1, 3}).
+- Added: `io::write_path_costs()` (MOSP's `mospCosts.txt`), `<dyng/testing/mosp_oracle.hpp>`
+  (`testing::combined_graph_reference()`, `testing::mosp_path_costs_reference()`), and
+  `<dyng/mosp.hpp>` in the umbrella header.
+- Changed (behaviour, no signature change): `sssp::update()` accepts a batch without insertions
+  whatever its `num_weights` (as `graph::apply()`); before, an empty or deletion-only batch built
+  with the default one weight column was rejected on a graph with several weight columns.
+- Changed (tests): the conformance kit's graphs can have several weight columns
+  (`test_traits::num_weights`), C7 checks a batch with one column more than the graph, and C10
+  builds its graph with the larger column count of the pair.
+- Parity tools: `dyng-compat-mosp --mosp [--pref p1,..,pK] [--no-path-costs]`, the whole `mosp`
+  driver (`combinedGraph/{distancesCsr,SSSPTreeCsr,mospCosts}.txt`, the `comb` report line,
+  `RESULT compute_ms=`); the default mode (SOSP only, which the sssp gates measure) is unchanged.
+  `parity/compare.py` replays the corpus with `--mosp` and compares `combined/` too;
+  `parity/fixtures/mosp/make_mosp_fixtures.sh` writes the preference cases of
+  `cpp/tests/data/mosp_combined` (the thesis example with Pref {4, 1, 4} and {4, 4, 1}, K = 2..4,
+  `-k` below the graph's columns) after MOSP-OpenMP and MOSP-CUDA agreed on them.
+
 ## [0.0.1] - 2026-09-27
 
 ### Added
