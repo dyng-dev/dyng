@@ -53,7 +53,7 @@ backends) and, in CUDA builds, `dyng_<name>_conformance_cuda_tests` (labels `gpu
 | C5 | a batch followed by its inverse (built from the host model, with the recorded weights) returns the original result |
 | C6 | two runs give identical results and deterministic counters |
 | C7 | invalid input is rejected with `invalid_argument_error` and changes nothing (negative ids, a batch with the wrong number of weight columns, a missing deletion under `missing_delete::error`, the traits' invalid options and graphs), or is counted as skipped (missing deletions, and under set semantics existing insertions and self-loops); duplicates still give `compute()` |
-| C8 | budgets, in `DYNG_DEBUG_BUDGETS` builds (the `dev`, `dev-cuda` and `sanitize-cuda` presets and every Debug build), under strict budgets (an excess throws; a plain Debug build only logs it): after a warm-up with the same shapes the algorithm phase reserves nothing, allocates nothing (the library's memory resources and, through the counting `operator new` of the conformance executables, the host heap) and synchronizes at most the traits' budget, which must equal the problem's `algorithm_budget` (invariant I9); the commit is reported separately |
+| C8 | budgets, in `DYNG_DEBUG_BUDGETS` builds (the `dev`, `dev-cuda` and `sanitize-cuda` presets and every Debug build), under strict budgets (an excess throws; a plain Debug build only logs it): after a warm-up with the same shapes the algorithm phase reserves nothing, allocates nothing (the library's memory resources and, through the counting `operator new` of the conformance executables, the host heap) and synchronizes at most the traits' budget, which must equal the problem's `algorithm_budget` (invariant I9); the commit is reported separately. It runs with `engine::automatic` and, where a backend has a second engine, `engine::operators` (M7: a device without cooperative launch runs the operators engine under `engine::automatic`), with the budget of the engine that ran |
 | C9 | stats sanity: `0 <= affected <= n`; inserted + updated + ignored insertions + deleted + ignored deletions + dropped self-loops equals the requested operations; the vertex count; `engine_used` is set; `converged` |
 | C10 | `dyng::update(res, g, batch, r1, r2)` (both result orders) equals each algorithm's update alone on a graph of its own, for every other registered algorithm of the build on the same graph type and backend; a result left out is stale afterwards |
 | C11 | stale results are detected: after a separate `g.apply()`, on another graph with the same edges and version, and on its own graph after the result moved on with a clone (ADR 0006, "Graph identity") |
@@ -73,7 +73,11 @@ result, stats and a host `snapshot` of a result, its graph requirements (`requir
 the generated graphs (`shape`), `compute`, `update`, `take` (the snapshot), the deterministic
 counters, the invalid options (C7) and the host synchronizations of its algorithm phase per
 backend (C8). Optional: `compare` (required for `determinism::tolerance`), an independent
-`oracle_of`, `extra_properties` and, for `oracle_kind::reference`, `near_reference`.
+`oracle_of`, `extra_properties`, for `oracle_kind::reference`, `near_reference`, `num_weights`
+(the weight columns of the kit's graphs, default 1; C7 checks `num_weights + 1` columns, C10 uses
+the larger count of a pair; mosp's traits set K = 3), and `host_sync_budget(backend, stats)`, the
+C8 budget of the engine that ran (`stats::engine_used` and its counters; `run_dependent_budget`
+when it depends on counters the stats do not carry, and C8 then checks the problem's own bound).
 
 ## Adding an algorithm
 

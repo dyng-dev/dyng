@@ -207,6 +207,16 @@ struct test_traits<tags::mosp> {
   static std::int64_t host_sync_budget(backend b) {
     return b == backend::cuda ? num_weights + 3 : 0;
   }
+  /// C8 for the engine that ran (the objectives and the combined solve use the same engine): the
+  /// fused budget above; with the operators engine the combined solve's 2 + iterations + epochs
+  /// depend on its epochs, which mosp::stats does not carry, so C8 checks mosp's own bound (the
+  /// hand test StrictBudgetsHoldWithNewVerticesAndBothEngines pins it exactly).
+  static std::int64_t host_sync_budget(backend b, const stats& s) {
+    if (b != backend::cuda || s.engine_used == engine::fused) {
+      return host_sync_budget(b);
+    }
+    return run_dependent_budget;
+  }
 };
 
 }  // namespace dyng::conformance

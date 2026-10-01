@@ -150,6 +150,14 @@ struct test_traits<tags::sssp> {
   static std::int64_t host_sync_budget(backend b) {
     return b == backend::cuda ? 1 : 0;
   }
+  /// C8 for the engine that ran: the fused kernel's one synchronization, or the operators
+  /// engine's 3 + iterations + epochs on cuda (ADR 0026; none on the host backends).
+  static std::int64_t host_sync_budget(backend b, const stats& s) {
+    if (b != backend::cuda || s.engine_used == engine::fused) {
+      return host_sync_budget(b);
+    }
+    return 3 + s.iterations + s.epochs;
+  }
 };
 
 }  // namespace dyng::conformance
