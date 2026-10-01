@@ -2,14 +2,15 @@
 
 How the Python distributions of dynG are built, checked and published (PLAN Sections 7.7, 7.9,
 8.8 and 10.3; ADR 0011, ADR 0025). Nothing in this page publishes anything by itself: uploads
-happen only in `release.yml`, for a tag the author pushes, and PyPI needs the author's approval
-of the `pypi` deployment.
+happen only in `release.yml`, for a release tag (pushed by the author, or by the AI assistant on
+the author's behalf, GOVERNANCE.md, 2026-09-30), and PyPI needs the author's approval of the
+`pypi` deployment.
 
 ## What is built
 
 | Distribution | Contents | Built by |
 |---|---|---|
-| `dyng-<version>.tar.gz` | the source of the root `pyproject.toml`: `VERSION`, `CMakeLists.txt`, `cmake/`, `cpp/`, `python/` and the licence files (no `parity/`, `docs/`, `tools/`, `ci/`, `.github/`, and none of the repository-only files: the CC-BY-SA-4.0 Code of Conduct, governance pages, tool configuration, so every file is Apache-2.0 as `License-Expression` says) | `python -m build --sdist` |
+| `dyng-<version>.tar.gz` | the source of the root `pyproject.toml`: `VERSION`, `CMakeLists.txt`, `cmake/`, `cpp/`, `python/` and the licence files (no `parity/`, `docs/`, `tools/`, `ci/`, `.github/`, and none of the repository-only files: the CC-BY-SA-4.0 Code of Conduct, governance pages, tool configuration: every file of the sdist is Apache-2.0) | `python -m build --sdist` |
 | `dyng-<version>-cp312-abi3-manylinux_2_28_x86_64.whl` | `dyng/_core.abi3.so` (nanobind stable ABI, sequential + OpenMP backends, libdyng and libstdc++ linked in), the typed layer `dyng/*.py` with `py.typed` and `_core.pyi`, the `dyng` console script, `dyng.libs/libgomp-*.so*` bundled by auditwheel, and in `.dist-info/licenses` `LICENSE`, `NOTICE`, `LICENSES/Apache-2.0.txt` and `THIRD_PARTY_LICENSES.txt` (the licences of nanobind, robin-map and the GCC runtime, which the wheel contains) | cibuildwheel from the sdist (CI), `ci/wheels.sh` from the sdist (locally) |
 
 One abi3 wheel serves every CPython from 3.12. The CUDA plugin wheels (`dyng-cu12`,
@@ -21,6 +22,29 @@ PLAN 7.7 (a wheel above 90 MB fails; the CPU wheel is about 1.8 MB), the file na
 a source build needs and none of the excluded trees or repository-only files. `ci/wheel_check.py
 --version-info` checks that `VERSION` is a canonical PEP 440 version (`release.yml` refuses a tag
 otherwise).
+
+**Licence metadata.** Both distributions carry core metadata 2.4 (PEP 639) with
+
+```text
+License-Expression: Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1
+License-File: LICENSE
+License-File: NOTICE
+License-File: LICENSES/Apache-2.0.txt
+License-File: THIRD_PARTY_LICENSES.txt
+```
+
+dynG itself is Apache-2.0; the other terms are the licences of what the wheel contains besides
+dynG's code (`THIRD_PARTY_LICENSES.txt`): nanobind (BSD-3-Clause) and robin-map (MIT), linked
+into `_core.abi3.so`, and the GCC runtime (libstdc++ and libgcc linked statically, libgomp bundled
+by auditwheel; GPL-3.0-or-later WITH GCC-exception-3.1). The expression is the author's decision of
+2026-09-30 (GOVERNANCE.md, approvals log; until then it was `Apache-2.0`). It comes from the one
+`[project]` table of `pyproject.toml` (`license`), so the sdist, whose own files are all
+Apache-2.0, carries the same expression as the wheel. `ci/wheel_check.py` fails when
+`pyproject.toml`'s `license` differs from its `LICENSE_EXPRESSION`, when a wheel's `METADATA` or
+an sdist's `PKG-INFO` has another `License-Expression`, a legacy `License:` field, or no
+`License-File:` line for `LICENSE`, `NOTICE` or `THIRD_PARTY_LICENSES.txt`. Changing the
+expression (for example when a bundled component changes) is a licensing decision of the author:
+change `pyproject.toml`, `LICENSE_EXPRESSION` and this page together.
 
 ## In CI
 
@@ -80,12 +104,15 @@ references bind to a `libstdc++.so.6` another extension (NumPy) loaded first and
 number into a `std::ostringstream` crashes; and the process-wide default resources are dropped at
 interpreter exit, or nanobind reports them as leaked when the module is finalized.
 
-## Releasing (the author's steps)
+## Releasing
 
-The release checklist is {doc}`release` (PLAN Section 10.3). For the Python distributions:
+The release checklist is {doc}`release` (PLAN Section 10.3), which says who does each step. For
+the Python distributions:
 
-1. Bump `VERSION` (for example `0.1.0rc1`, then `0.1.0`), `CITATION.cff` and the CHANGELOG.
-2. Push the tag `v<VERSION>`. `release.yml` selects the package: a `v0.0.x` tag equal to
+1. Bump `VERSION` (for example `0.1.0rc1`, then `0.1.0`), `CITATION.cff` and the CHANGELOG, in a
+   pull request.
+2. Push the tag `v<VERSION>` (the author, or the AI assistant on the author's behalf).
+   `release.yml` selects the package: a `v0.0.x` tag equal to
    `tools/name_reservation`'s version builds the name-reservation package (ADR 0014); every other
    tag must equal `VERSION` and builds the real distributions by calling `wheels.yml`. The
    `collect` job checks them again and uploads one artifact `dist`.

@@ -11,7 +11,10 @@ platform tag, e.g. ``manylinux_2_28_x86_64``), the contents (the extension modul
 runtime bundled by auditwheel under ``dyng.libs/``. For every sdist: the files a source build
 needs (``VERSION``, ``pyproject.toml``, ``CMakeLists.txt``, ``cpp/``, ``python/``) and none of the
 excluded trees (``parity/``, ``.github/``, ...) or repository-only files (the CC-BY-SA-4.0 Code
-of Conduct, governance and tool configuration), and its size. ``VERSION`` must be a canonical
+of Conduct, governance and tool configuration), and its size. Both kinds carry the licence
+metadata the author decided on 2026-09-30 (GOVERNANCE.md): ``License-Expression:``
+:data:`LICENSE_EXPRESSION` in ``METADATA`` / ``PKG-INFO`` (which ``pyproject.toml``'s ``license``
+must equal) and a ``License-File:`` line for every licence file. ``VERSION`` must be a canonical
 PEP 440 version (the distributions carry the normalised form, so any other spelling would give
 file names that no check expects).
 
@@ -33,6 +36,7 @@ import re
 import sys
 import tarfile
 import tempfile
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -67,6 +71,13 @@ SDIST_FORBIDDEN_FILES = (
 )
 #: The licence files every distribution carries (pyproject.toml's license-files).
 LICENSE_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_LICENSES.txt")
+#: The SPDX licence expression of the distributions (core metadata 2.4, PEP 639): dynG's
+#: Apache-2.0 and the licences of what the wheel bundles or links statically
+#: (THIRD_PARTY_LICENSES.txt: nanobind, robin-map, the GCC runtime). The author's decision of
+#: 2026-09-30 (GOVERNANCE.md, approvals log); pyproject.toml's `license` must be this string.
+LICENSE_EXPRESSION = (
+    "Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1"
+)
 
 #: A canonical PEP 440 public version (what packaging.version.Version(v) prints back unchanged),
 #: without epoch and local part: 0.1.0, 0.1.0rc1, 0.1.0.post1, 0.1.0.dev0.
@@ -92,6 +103,33 @@ def version() -> str:
     return canonical_version((ROOT / "VERSION").read_text().strip())[0]
 
 
+def check_pyproject(path: Path = ROOT / "pyproject.toml") -> list[str]:
+    """The failed checks of pyproject.toml's licence metadata (empty if it passes)."""
+    project = tomllib.loads(path.read_text())["project"]
+    errors: list[str] = []
+    if project.get("license") != LICENSE_EXPRESSION:
+        errors.append(
+            f"pyproject.toml: license = {project.get('license')!r}, expected {LICENSE_EXPRESSION!r}"
+        )
+    return errors
+
+
+def check_metadata(text: str, where: str) -> list[str]:
+    """The failed checks of a core-metadata file (a wheel's METADATA, an sdist's PKG-INFO)."""
+    errors: list[str] = []
+    headers = text.split("\n\n", 1)[0]
+    expressions = re.findall(r"^License-Expression: (.*)$", headers, re.M)
+    if expressions != [LICENSE_EXPRESSION]:
+        errors.append(f"{where}: License-Expression {expressions} != [{LICENSE_EXPRESSION!r}]")
+    if re.search(r"^License: ", headers, re.M):
+        errors.append(f"{where}: a legacy License: field next to License-Expression")
+    files = set(re.findall(r"^License-File: (.*)$", headers, re.M))
+    for lic in LICENSE_FILES:
+        if lic not in files:
+            errors.append(f"{where}: no License-File: {lic}")
+    return errors
+
+
 def check_wheel(
     path: Path, *, platform: str | None, require_libgomp: bool, expect_version: str
 ) -> list[str]:
@@ -114,6 +152,8 @@ def check_wheel(
         entry_text = z.read(entry).decode() if entry else ""
         wheel_meta = next((n for n in names if n.endswith(".dist-info/WHEEL")), None)
         wheel_text = z.read(wheel_meta).decode() if wheel_meta else ""
+        meta = next((n for n in names if n.endswith(".dist-info/METADATA")), None)
+        meta_text = z.read(meta).decode() if meta else ""
     for required in (
         "dyng/_core.abi3.so",
         "dyng/__init__.py",
@@ -131,6 +171,10 @@ def check_wheel(
         errors.append("entry_points.txt has no console script dyng = dyng.cli:main")
     if "Root-Is-Purelib: false" not in wheel_text:
         errors.append("WHEEL: expected Root-Is-Purelib: false (a platform wheel)")
+    if meta is None:
+        errors.append("missing .dist-info/METADATA")
+    else:
+        errors += check_metadata(meta_text, "METADATA")
     libgomp = [n for n in names if re.match(r"dyng\.libs/libgomp[-.]", n)]
     if require_libgomp and not libgomp:
         errors.append("the OpenMP runtime is not bundled (dyng.libs/libgomp-*.so*)")
@@ -151,7 +195,13 @@ def check_sdist(path: Path, *, expect_version: str) -> list[str]:
         errors.append(f"the file name is not dyng-{expect_version}.tar.gz")
     with tarfile.open(path) as t:
         names = [n[len(top) :] for n in t.getnames() if n.startswith(top)]
+        pkg_info = t.extractfile(f"{top}PKG-INFO") if f"{top}PKG-INFO" in t.getnames() else None
+        pkg_info_text = pkg_info.read().decode() if pkg_info else ""
     present = set(names)
+    if pkg_info is None:
+        errors.append("missing PKG-INFO")
+    else:
+        errors += check_metadata(pkg_info_text, "PKG-INFO")
     for required in SDIST_REQUIRED:
         if required not in present:
             errors.append(f"missing {required}")
@@ -179,6 +229,9 @@ def run(paths: list[Path], *, platform: str | None, require_libgomp: bool) -> in
     if not paths:
         print("wheel_check: no files given", file=sys.stderr)
         return 1
+    for e in check_pyproject():
+        print(f"wheel_check: {e}", file=sys.stderr)
+        failed += 1
     for p in paths:
         if p.name.endswith(".whl"):
             errors = check_wheel(
@@ -211,6 +264,12 @@ def _self_test() -> int:
             return p
 
         info = f"dyng-{v}.dist-info"
+        good_meta = (
+            f"Metadata-Version: 2.4\nName: dyng\nVersion: {v}\n"
+            f"License-Expression: {LICENSE_EXPRESSION}\n"
+            + "".join(f"License-File: {lic}\n" for lic in LICENSE_FILES)
+            + "\n# dyng\n\nLicense: words in the description do not count\n"
+        )
         good_files = {
             "dyng/_core.abi3.so": "x",
             "dyng/__init__.py": "",
@@ -224,6 +283,7 @@ def _self_test() -> int:
             f"{info}/licenses/THIRD_PARTY_LICENSES.txt": "",
             f"{info}/entry_points.txt": "[console_scripts]\ndyng = dyng.cli:main\n",
             f"{info}/WHEEL": "Wheel-Version: 1.0\nRoot-Is-Purelib: false\n",
+            f"{info}/METADATA": good_meta,
         }
         plat = "manylinux_2_28_x86_64"
         good = wheel(f"dyng-{v}-cp312-abi3-{plat}.whl", good_files)
@@ -236,6 +296,21 @@ def _self_test() -> int:
             "no third-party licences": {
                 k: x for k, x in good_files.items() if "THIRD_PARTY" not in k
             },
+            "no METADATA": {k: x for k, x in good_files.items() if not k.endswith("METADATA")},
+            "Apache-2.0 only": {
+                **good_files,
+                f"{info}/METADATA": good_meta.replace(LICENSE_EXPRESSION, "Apache-2.0"),
+            },
+            "legacy License field": {
+                **good_files,
+                f"{info}/METADATA": good_meta.replace("Name:", "License: Apache\nName:"),
+            },
+            "no License-File of the third-party licences": {
+                **good_files,
+                f"{info}/METADATA": good_meta.replace(
+                    "License-File: THIRD_PARTY_LICENSES.txt\n", ""
+                ),
+            },
         }
         for label, files in cases.items():
             bad = wheel(f"dyng-{v}-cp312-abi3-{plat}.whl", files)
@@ -245,11 +320,14 @@ def _self_test() -> int:
         wrong_abi = wheel(f"dyng-{v}-cp313-cp313-{plat}.whl", good_files)
         assert check_wheel(wrong_abi, platform=plat, require_libgomp=True, expect_version=v)
 
-        def sdist(files: list[str]) -> Path:
+        def sdist(files: list[str], pkg_info: str | None = good_meta) -> Path:
             p = d / f"dyng-{v}.tar.gz"
+            contents = {n: "x" for n in files}
+            if pkg_info is not None:
+                contents["PKG-INFO"] = pkg_info
             with tarfile.open(p, "w:gz") as t:
-                for n in files:
-                    data = b"x"
+                for n, text in contents.items():
+                    data = text.encode()
                     ti = tarfile.TarInfo(f"dyng-{v}/{n}")
                     ti.size = len(data)
                     t.addfile(ti, io.BytesIO(data))
@@ -266,6 +344,13 @@ def _self_test() -> int:
         assert check_sdist(sdist([*good_sdist, "parity/compare.py"]), expect_version=v)
         assert check_sdist(sdist(good_sdist[1:]), expect_version=v)
         assert check_sdist(sdist([*good_sdist, "CODE_OF_CONDUCT.md"]), expect_version=v)
+        assert check_sdist(sdist(good_sdist, pkg_info=None), expect_version=v)
+        apache_only = good_meta.replace(LICENSE_EXPRESSION, "Apache-2.0")
+        assert check_sdist(sdist(good_sdist, pkg_info=apache_only), expect_version=v)
+        assert not check_pyproject(), "pyproject.toml's license differs from LICENSE_EXPRESSION"
+        bad_pyproject = d / "pyproject.toml"
+        bad_pyproject.write_text('[project]\nname = "dyng"\nlicense = "Apache-2.0"\n')
+        assert check_pyproject(bad_pyproject)
         for good_v, pre in (("0.1.0", False), ("0.1.0rc1", True), ("0.1.0.dev0", True)):
             assert canonical_version(good_v) == (good_v, pre), good_v
         for bad_v in ("0.1.0-rc.1", "0.1.0RC1", "v0.1.0", "0.1.0-dev", "0.01.0", "0.1.0rc"):
