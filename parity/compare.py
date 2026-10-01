@@ -23,7 +23,9 @@ e.g. cuda/int64, runs the graph with 64-bit edge offsets, dyng-compat-mosp --edg
 ADR 0009):
   * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute;
     init_canonical/ for the noncanonical group, whose init/ holds perturbed tie parents)
-  * `dyng-compat-mosp` update == updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt, from the
+  * `dyng-compat-mosp --mosp` update (the whole MOSP update, M7) ==
+    updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt and combined/{distancesCsr,SSSPTreeCsr,
+    mospCosts}.txt (the combined graph's tree and the MOSP path costs), from the
     golden initial trees (without --canonicalize, like `mosp`), and its `--write-graph` output
     == applied/graphCsr{RowPtr,ColInd,Values}.txt (graph::apply under mosp_compatible() vs
     applyChangeBatch + writeCsrGraph)
@@ -59,6 +61,7 @@ from pathlib import Path, PurePosixPath
 REPO = Path(__file__).resolve().parent.parent
 INVALIDATED = re.compile(r"^obj(\d+)\s+SOSP update .*\(invalidated (\d+),", re.M)
 CSR = ["graphCsrRowPtr.txt", "graphCsrColInd.txt", "graphCsrValues.txt"]
+COMBINED = ["distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"]
 SKIP = 77
 
 
@@ -184,6 +187,7 @@ def replay_compat(
             tmp / "updated",
             "--write-graph",
             tmp / "applied" / "graphCsr",
+            "--mosp",
             *extra,
         ],
         env,
@@ -194,6 +198,12 @@ def replay_compat(
         tree_pairs(
             tmp / "updated", golden, "updated", ["distancesUpdated.txt", "SSSPTreeUpdated.txt"], k
         )
+    )
+    bad += compare_files(
+        [
+            (tmp / "updated" / "combinedGraph" / f, golden / "combined" / f, f"combined/{f}")
+            for f in COMBINED
+        ]
     )
     bad += compare_files(
         [(tmp / "applied" / f, golden / "applied" / f, f"applied/{f}") for f in CSR]
@@ -247,7 +257,7 @@ def replay_original(ref: Path, golden: Path, meta: dict, tmp: Path, env: dict) -
     bad += compare_files(
         [
             (tmp / "updated" / "combinedGraph" / f, golden / "combined" / f, f"combined/{f}")
-            for f in ["distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"]
+            for f in COMBINED
         ]
     )
     bad += check_counters(log, meta["invalidated"])

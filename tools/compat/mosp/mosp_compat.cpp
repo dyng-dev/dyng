@@ -18,8 +18,12 @@
  * and SSSPTreeOriginal.txt), applies the batch once to a graph with
  * graph_properties::mosp_compatible() and updates the K trees with dyng::update_each(), then
  * writes <out>/obj<k>/distancesUpdated.txt and SSSPTreeUpdated.txt, byte-compatible with `mosp`.
- * The combined graph of the MOSP update (Steps 2-3) belongs to the mosp algorithm (0.2) and is not
- * written. Init mode writes <outDir>/obj<k>/distancesOriginal.txt and SSSPTreeOriginal.txt with
+ * With --mosp it runs the whole MOSP update instead (dyng::mosp: the K trees adopted with
+ * mosp::result::from_arrays(), mosp::update(): the K sssp updates, the combined graph, its SOSP
+ * tree and the path costs) and also writes <out>/combinedGraph/distancesCsr.txt,
+ * SSSPTreeCsr.txt and mospCosts.txt, byte-compatible with `mosp` (the clone of the full `mosp`
+ * driver; without --mosp the tool keeps the SOSP part only, as the sssp gates measure it since
+ * M1a). Init mode writes <outDir>/obj<k>/distancesOriginal.txt and SSSPTreeOriginal.txt with
  * sssp::compute(), byte-compatible with `mospPrep init` (Dijkstra with lowest-id ties). Changes
  * mode is `mospPrep changes` (--changes N --ins PCT --mode M --local HOPS --safe --seed S
  * --source s --wmin a --wmax b) on generators::legacy::mosp_changes(): the same insert.txt,
@@ -45,11 +49,19 @@
  *   --cuda-engine <e>    automatic | fused | operators: sssp::options::cuda_engine (default
  *                        automatic; the operators engine is the multi-kernel engine of M7, compared
  *                        with the fused one by parity/compare.py --configs cuda-operators)
+ *   --mosp               the whole MOSP update (dyng::mosp) and the combinedGraph/ outputs
+ *   --pref p1,..,pK      with --mosp: mosp::options::preferences (`mosp --pref`; default all 1)
+ *   --no-path-costs      with --mosp: mosp::options::compute_path_costs = false (no mospCosts.txt)
  *
  * Report lines (without --quiet): the inputs, `obj<k>   SOSP update <ms> (invalidated ...)`,
  * `graph  read graph <ms>, read changes and trees <ms>, build <ms>` and `obj<k>   result import <ms>, workspace <ms>, validate <ms>` (the
  * from_arrays stages; parity/timed_regions/sssp.toml maps import and workspace to parts of the
  * original's "prepare").
+ *
+ * With --mosp the report adds `comb   combined graph + SOSP <ms> ms (...)` (mosp.combine +
+ * mosp.combined_sssp + mosp.finalize, the original's combinedGraphSosp* region) and the summary
+ * line begins with `RESULT compute_ms=<x>`, the K objectives' SOSP regions (a) plus that combined
+ * region: the region MOSP times as gpu_compute_ms / compute_ms.
  *
  * Summary line (stable format):
  *   RESULT sosp_ms=<a> apply_ms=<b> end_to_end_ms=<c> threads=<t>
@@ -81,7 +93,9 @@
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/csr_triplet.hpp>
 #include <dyng/io/result_io.hpp>
+#include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
+#include <dyng/testing/mosp_oracle.hpp>
 #include <dyng/update.hpp>
 
 #include <algorithm>
@@ -95,6 +109,7 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -129,6 +144,9 @@ struct options {
   bool validate = true;
   bool write_output = true;
   bool quiet = false;
+  bool mosp = false;               // --mosp: the whole MOSP update
+  bool path_costs = true;          // --no-path-costs
+  std::vector<std::int32_t> pref;  // --pref
 };
 
 class usage_error : public std::runtime_error {
@@ -144,6 +162,7 @@ void usage() {
                "                        [--backend sequential|openmp|cuda] [--threads t]\n"
                "                        [--device d] [--edge-type int32|int64]\n"
                "                        [--cuda-engine automatic|fused|operators]\n"
+               "                        [--mosp [--pref p1,..,pK] [--no-path-costs]]\n"
                "       dyng-compat-mosp init <csrPrefix> <outDir> [--source s] [-k K]\n"
                "                        [--backend sequential|openmp|cuda] [--threads t]\n"
                "                        [--device d] [--edge-type int32|int64]\n"
@@ -429,14 +448,248 @@ options parse_update_options(int argc, char** argv) {
       opt.write_output = false;
     } else if (a == "--quiet") {
       opt.quiet = true;
+    } else if (a == "--mosp") {
+      opt.mosp = true;
+    } else if (a == "--no-path-costs") {
+      opt.path_costs = false;
+    } else if (a == "--pref") {
+      // `mosp --pref p1,..,pK`: integers >= 1 (the CUDA driver's strict parsing).
+      std::istringstream list{std::string(next())};
+      std::string item;
+      opt.pref.clear();
+      while (std::getline(list, item, ',')) {
+        opt.pref.push_back(parse_int<std::int32_t>(item, a, 1, INT32_MAX));
+      }
     } else {
       throw usage_error("unknown option: " + std::string(a));
     }
+  }
+  if ((!opt.pref.empty() || !opt.path_costs) && !opt.mosp) {
+    throw usage_error("--pref and --no-path-costs need --mosp");
   }
   if (opt.graph.empty() || opt.changes.empty() || opt.init.empty()) {
     throw usage_error("--graph, --changes and --init are required");
   }
   return opt;
+}
+
+/// What update mode has read and built before the update (shared by the SOSP-only and the MOSP
+/// paths).
+template <typename edge_t>
+struct loaded_inputs {
+  graph_type<edge_t>& g;                                    ///< the graph (G_t)
+  const dyng::edge_batch<vertex_t, weight_t>& batch;        ///< the batch
+  std::vector<std::vector<std::int64_t>>& dists;            ///< the K initial distance arrays
+  std::vector<std::vector<vertex_t>>& trees;                ///< the K initial trees
+  vertex_t n;                                               ///< vertices
+  int K;                                                    ///< objectives used
+  int KG;                                                   ///< weight columns of the graph
+  clock_type::time_point start;                             ///< the run's start
+  double context_ms, read_graph_ms, read_rest_ms, load_ms;  ///< the input stages
+};
+
+/// The sum of the samples of `stages` per call index (the k-th sample of a stage is objective k).
+std::vector<double> per_objective(const dyng::profiler& prof,
+                                  const std::vector<std::string>& stages, int K, bool device) {
+  std::vector<double> out(static_cast<std::size_t>(K), 0.0);
+  std::map<std::string, std::size_t> seen;
+  for (const dyng::stage_sample& s : prof.samples()) {
+    if (std::find(stages.begin(), stages.end(), s.name) != stages.end()) {
+      const std::size_t k = seen[s.name]++;
+      if (k < out.size()) {
+        out[k] += device ? s.device_ms : s.host_ms;
+      }
+    }
+  }
+  return out;
+}
+
+/// `mosp` (the whole MOSP update): the K trees adopted as one mosp result, mosp::update(), the
+/// outputs of the original driver including combinedGraph/.
+template <typename edge_t>
+int run_mosp(const options& opt, dyng::resources& res, bool cuda, dyng::profiler& prof,
+             dyng::profiler& setup_prof, loaded_inputs<edge_t>& in) {
+  using mosp_result = dyng::mosp::result<vertex_t>;
+  const int K = in.K;
+  // The initial trees become one mosp result (sssp's import and checks per objective, then the
+  // combined graph of the initial trees; not timed by `mosp`).
+  auto t = clock_type::now();
+  dyng::mosp::options mopt;
+  mopt.preferences = opt.pref;
+  mopt.delta = opt.delta;
+  mopt.cuda_engine = opt.cuda_engine;
+  mopt.validate_inputs = opt.validate;
+  mopt.compute_path_costs = opt.path_costs && K == in.KG;
+  mopt.num_objectives = K;
+  std::vector<dyng::array_view<const std::int64_t>> dv;
+  std::vector<dyng::array_view<const vertex_t>> pv;
+  for (int k = 0; k < K; ++k) {
+    dv.push_back(dyng::host_view(std::as_const(in.dists[static_cast<std::size_t>(k)])));
+    pv.push_back(dyng::host_view(std::as_const(in.trees[static_cast<std::size_t>(k)])));
+  }
+  mosp_result r =
+      mosp_result::from_arrays(res, in.g, opt.source, dyng::host_view(std::as_const(dv)),
+                               dyng::host_view(std::as_const(pv)), opt.canonicalize, mopt);
+  for (int k = 0; k < K; ++k) {
+    in.dists[static_cast<std::size_t>(k)] = {};
+    in.trees[static_cast<std::size_t>(k)] = {};
+  }
+  res.attach_profiler(nullptr);
+  const double canonicalize_ms = ms_since(t);
+
+  // --- Update (the batch is applied once) -----------------------------------------------------
+  res.attach_profiler(&prof);
+  const dyng::mosp::stats stats = dyng::mosp::update(res, in.g, in.batch.view(), r);
+  res.attach_profiler(nullptr);
+  const std::vector<std::string> sosp_stages{"sssp.enact_fused", "sssp.identify_affected",
+                                             "sssp.seed", "sssp.loop", "sssp.finalize"};
+  const std::vector<double> sosp_ms = per_objective(prof, sosp_stages, K, false);
+  const std::vector<double> sosp_device_ms = per_objective(prof, sosp_stages, K, true);
+  double sosp_total = 0;
+  for (int k = 0; k < K; ++k) {
+    sosp_total += sosp_ms[static_cast<std::size_t>(k)];
+    const std::string obj = "obj" + std::to_string(k);
+    const dyng::sssp::stats& st = stats.objectives[static_cast<std::size_t>(k)];
+    prof.add_counter("sssp.invalidated." + obj, st.invalidated);
+    prof.add_counter("sssp.iterations." + obj, st.iterations);
+    prof.add_counter("sssp.epochs." + obj, st.epochs);
+    prof.add_counter("sssp.pushes." + obj, st.pushes);
+  }
+  // The original's combinedGraphSosp* region: the combined graph, its solve and (dynG's addition)
+  // the `affected` count.
+  const double combined_ms = prof.total_host_ms("mosp.combine") +
+                             prof.total_host_ms("mosp.combined_sssp") +
+                             prof.total_host_ms("mosp.finalize");
+  prof.add_counter("mosp.combined_edges", stats.combined_edges);
+  prof.add_counter("mosp.affected", stats.affected);
+  const double apply_ms = prof.total_host_ms("mosp.commit");
+
+  // --- Outputs --------------------------------------------------------------------------------
+  // The results in host memory (on cuda: MOSP-CUDA's "download" of the K trees and the combined
+  // arrays, which it does with or without --no-output).
+  double download_ms = 0;
+  t = clock_type::now();
+  std::vector<std::vector<std::int64_t>> d(static_cast<std::size_t>(K));
+  std::vector<std::vector<vertex_t>> p(static_cast<std::size_t>(K));
+  std::vector<std::int64_t> combined_d;
+  std::vector<vertex_t> combined_p;
+  if (cuda) {
+    for (int k = 0; k < K; ++k) {
+      d[static_cast<std::size_t>(k)] = dyng::to_vector(res, r.distances(k));
+      p[static_cast<std::size_t>(k)] = dyng::to_vector(res, r.parents(k));
+    }
+    combined_d = dyng::to_vector(res, r.combined_distances());
+    combined_p = dyng::to_vector(res, r.combined_parents());
+    download_ms = ms_since(t);
+  }
+  const auto distances_of = [&](int k) {
+    return cuda ? dyng::host_view(std::as_const(d[static_cast<std::size_t>(k)])) : r.distances(k);
+  };
+  const auto parents_of = [&](int k) {
+    return cuda ? dyng::host_view(std::as_const(p[static_cast<std::size_t>(k)])) : r.parents(k);
+  };
+  const dyng::array_view<const std::int64_t> combined_distances =
+      cuda ? dyng::host_view(std::as_const(combined_d)) : r.combined_distances();
+  const dyng::array_view<const vertex_t> combined_parents =
+      cuda ? dyng::host_view(std::as_const(combined_p)) : r.combined_parents();
+  double write_ms = 0;
+  if (opt.write_output) {
+    t = clock_type::now();
+    std::vector<std::function<void()>> writes;  // concurrently, like `mosp`
+    for (int k = 0; k < K; ++k) {
+      const std::string dir = opt.out + "/obj" + std::to_string(k);
+      const dyng::array_view<const std::int64_t> dk = distances_of(k);
+      const dyng::array_view<const vertex_t> pk = parents_of(k);
+      writes.emplace_back(
+          [dir, dk] { dyng::io::write_distances(dir + "/distancesUpdated.txt", dk); });
+      writes.emplace_back([dir, pk] { dyng::io::write_parents(dir + "/SSSPTreeUpdated.txt", pk); });
+    }
+    const std::string combined_dir = opt.out + "/combinedGraph";
+    writes.emplace_back(
+        [&] { dyng::io::write_distances(combined_dir + "/distancesCsr.txt", combined_distances); });
+    writes.emplace_back(
+        [&] { dyng::io::write_parents(combined_dir + "/SSSPTreeCsr.txt", combined_parents); });
+    if (opt.path_costs) {
+      writes.emplace_back([&] {
+        // MOSP's mospPathCosts covers every weight column of the graph: with -k K < KG the other
+        // columns' costs come from the host reference along the same tree.
+        if (K == in.KG) {
+          dyng::io::write_path_costs(combined_dir + "/mospCosts.txt", r.path_costs(), K);
+        } else {
+          const std::vector<vertex_t> tree(combined_parents.begin(), combined_parents.end());
+          const std::vector<std::int64_t> costs =
+              dyng::testing::mosp_path_costs_reference(in.g.view().out, tree, opt.source, in.KG);
+          dyng::io::write_path_costs(combined_dir + "/mospCosts.txt", dyng::host_view(costs),
+                                     in.KG);
+        }
+      });
+    }
+    run_concurrently(writes);
+    write_ms = ms_since(t);
+  }
+  const double end_to_end = ms_since(in.start);
+  if (!opt.write_graph.empty()) {
+    dyng::io::write_csr_triplet(opt.write_graph, in.g.view().out);
+  }
+
+  // --- Report ---------------------------------------------------------------------------------
+  if (!opt.quiet) {
+    std::printf("graph  n=%d m=%lld K=%d; batch %zu inserts, %zu deletes\n", in.n,
+                static_cast<long long>(in.g.num_edges()), K, in.batch.num_insertions(),
+                in.batch.num_deletions());
+    std::printf(
+        "host   %s, threads %d, context %.1f ms, read inputs %.1f ms, canonicalize %.1f ms, "
+        "apply batch %.1f ms, download %.1f ms, write %.1f ms\n",
+        std::string(dyng::to_string(res.get_backend())).c_str(), res.num_threads(), in.context_ms,
+        in.load_ms, canonicalize_ms, apply_ms, download_ms, write_ms);
+    for (int k = 0; k < K; ++k) {
+      const dyng::sssp::stats& s = stats.objectives[static_cast<std::size_t>(k)];
+      char device[64] = "";
+      if (cuda) {
+        std::snprintf(device, sizeof(device), ", device %.3f ms",
+                      sosp_device_ms[static_cast<std::size_t>(k)]);
+      }
+      std::printf(
+          "obj%d   SOSP update %.3f ms (invalidated %lld, iterations %lld, epochs %lld, pushes "
+          "%lld, affected %lld, packed %d, engine %s%s)\n",
+          k, sosp_ms[static_cast<std::size_t>(k)], static_cast<long long>(s.invalidated),
+          static_cast<long long>(s.iterations), static_cast<long long>(s.epochs),
+          static_cast<long long>(s.pushes), static_cast<long long>(s.affected),
+          s.packed_parents ? 1 : 0, std::string(dyng::to_string(s.engine_used)).c_str(), device);
+    }
+    std::printf(
+        "comb   combined graph + SOSP %.3f ms (%lld edges, L=%lld, affected %lld; path costs "
+        "%.3f ms)\n",
+        combined_ms, static_cast<long long>(stats.combined_edges),
+        static_cast<long long>(stats.preference_scale), static_cast<long long>(stats.affected),
+        prof.total_host_ms("mosp.path_costs"));
+    std::printf("graph  read graph %.1f ms, read changes and trees %.1f ms, build %.3f ms\n",
+                in.read_graph_ms, in.read_rest_ms, setup_prof.total_host_ms("graph.build"));
+  }
+  bool timing_written = true;
+  if (!opt.timing.empty()) {
+    std::ofstream csv(opt.timing);
+    prof.write_csv(csv);
+    for (const dyng::stage_sample& s : setup_prof.samples()) {
+      csv << "stage," << s.name << ',' << s.host_ms << '\n';
+    }
+    csv << "stage,total.end_to_end," << end_to_end << '\n';
+    csv << "stage,total.context," << in.context_ms << '\n';
+    csv << "stage,total.download," << download_ms << '\n';
+    for (const dyng::stage_sample& s : prof.samples()) {
+      if (s.device_ms > 0.0) {
+        csv << "device," << s.name << ',' << s.device_ms << '\n';
+      }
+    }
+    timing_written = static_cast<bool>(csv);
+    if (!timing_written) {
+      std::cerr << "cannot write " << opt.timing << "\n";
+    }
+  }
+  std::printf("RESULT compute_ms=%.3f sosp_ms=%.3f apply_ms=%.3f end_to_end_ms=%.3f threads=%d\n",
+              sosp_total + combined_ms, sosp_total, apply_ms, end_to_end, res.num_threads());
+  std::fflush(stdout);
+  return timing_written ? 0 : 1;
 }
 
 template <typename edge_t>
@@ -496,6 +749,11 @@ int run_update_typed(const options& opt) {
   // reverse graph once in "prepare".
   graph_t g = graph_t::from_csr(res, std::move(csr), dyng::graph_properties::mosp_compatible());
   const double load_ms = ms_since(t);
+  if (opt.mosp) {
+    loaded_inputs<edge_t> in{g,     batch,      dists,         trees,        n,      K, KG,
+                             start, context_ms, read_graph_ms, read_rest_ms, load_ms};
+    return run_mosp<edge_t>(opt, res, cuda, prof, setup_prof, in);
+  }
 
   // The initial trees become results (checked with validate_inputs; not timed by `mosp`). The
   // builds run one after another, each parallel inside, and share the scratch memory of `res`

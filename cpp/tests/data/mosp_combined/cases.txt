@@ -1,0 +1,8 @@
+thesis_414 mosp_combined/thesis/input mosp_combined/thesis/init 3 4,1,4
+thesis_441 mosp_combined/thesis/input mosp_combined/thesis/init 3 4,4,1
+testCase9_123 mosp_graph_io/testCase9 mosp_sssp/testCase9/init 3 1,2,3
+c2i_0_31 mosp_sssp/c2i_0/input mosp_sssp/c2i_0/init 2 3,1
+h0_25 mosp_graph_io/h0 mosp_sssp/h0/init 2 2,5
+r04_1234 mosp_graph_io/r04 mosp_sssp/r04/init 4 1,2,3,4
+r04_k2 mosp_graph_io/r04 mosp_sssp/r04/init 2 6,4
+ties_k2_77 mosp_sssp/ties_k2/input mosp_sssp/ties_k2/init 2 7,7
