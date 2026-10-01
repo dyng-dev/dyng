@@ -863,8 +863,19 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
   20 benchmark cases, cross-checked with MOSP-CUDA, in `[sets.mosp_scale]` of
   `parity/goldens.toml`). `dyng-compat-mosp --mosp --timing` writes the setup's stages as `setup`
   rows.
-- Records: `parity/results/M7.md` sections 4-7 (the paper-scale parity, the K sweep, the mosp
-  gates on both backends, the sssp gate re-check).
+- Changed (device memory, same values): on cuda the combined solve of `mosp` overwrites the
+  previous MOSP tree in place and counts `affected` in its unpack pass (the fused and the
+  operators engine count the changed vertices of a static solve on request, as an update's
+  `affected`), so a cuda result no longer keeps a second pair of combined arrays (12 bytes per
+  vertex): mosp's peak device memory went from 1.068-1.075x to 1.015-1.019x of MOSP-CUDA's on
+  the road graphs (PLAN 8.6: <= 1.05x); one synchronization less per update (K + 3 with the path
+  costs and the fused engine; ADR 0027, amendment).
+- Parity tools: `parity/perf_ab.py memory --mosp` (the device memory of the whole MOSP update);
+  `perf_ab.py` waits for the perf lock in the kernel instead of polling it once a second;
+  `perf_ab.py mosp` leaves the path-cost region out when the port computes none (`-k` below the
+  graph's columns, `--no-output`).
+- Records: `parity/results/M7.md` sections 4-10 (the paper-scale parity, the K sweep, the mosp
+  gates on both backends, the combined step, the device memory, the sssp gate re-check).
 
 ## [0.0.1] - 2026-09-27
 

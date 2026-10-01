@@ -127,7 +127,10 @@ The gates (PLAN 8.6, 6.4.4) compare the "(a) compute" region (the K updates and 
 `mosp.objective` and `mosp.combine` + `mosp.combined_sssp` + `mosp.finalize`) with the
 originals' `gpu_compute_ms` / `compute_ms`, and "(b) end to end" with their `end_to_end_ms`;
 `dyng-compat-mosp --mosp` reports both (its `RESULT compute_ms=` line). The records are in
-`parity/results/M7.md`.
+`parity/results/M7.md`: on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa with the original
+bench's batches, "(a) compute" is 0.99-1.01x of MOSP-CUDA's on cuda and 0.67-0.92x of
+MOSP-OpenMP's on OpenMP (gate 1.05), "(b) end to end" 0.70-0.91x and 0.75-0.92x (gate 1.10), and
+the peak device memory 0.93-1.02x of MOSP-CUDA's (gate 1.05).
 
 Memory: the result holds the K trees (12 bytes per vertex each), the MOSP tree (12 bytes per
 vertex; on the host backends twice, the previous one being kept for `affected`; on cuda the
