@@ -1,0 +1,2155 @@
+{
+ "schema": 1,
+ "suite": "ieee_tc_dyntrucy",
+ "algorithm": "cycle_count",
+ "title": "TruCy / DynTruCy: bounded simple-cycle histograms, static and dynamic (dynG cycle_count)",
+ "suite_file": "benchmarks/paper/ieee_tc_dyntrucy.yaml",
+ "suite_sha256": "9b1b2715fb80a755a27ac1f376c31f180962f37f383e4676f872d20335cfb578",
+ "version": "0.1.0rc1",
+ "date": "2026-10-01T07:59:12Z",
+ "port_commits": [
+  "d13d393f8ea52cdfefb4a2983723b8fe78550628"
+ ],
+ "baselines": {
+  "CycleEnumeration-GPU": {
+   "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+   "variant": "unpatched",
+   "backend": [
+    "openmp",
+    "cuda"
+   ]
+  }
+ },
+ "tolerance": {
+  "compute": 1.05,
+  "compute_short": 1.1,
+  "short_region_ms": 10.0,
+  "end_to_end": 1.1,
+  "memory": 1.05
+ },
+ "inputs": "not verified by this summary (bench_suite.py run verifies them)",
+ "readings": [
+  {
+   "reading": "openmp",
+   "dataset": null,
+   "kind": "run",
+   "backend": "openmp",
+   "clocks": null,
+   "gated": true,
+   "record": "ieee_tc_dyntrucy-openmp.json",
+   "date": "2026-10-01T07:35:47Z",
+   "port_commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "reference": {
+    "name": "CycleEnumeration-GPU",
+    "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 11,
+    "order": "A/B/A/B (original first), one untimed round per case first",
+    "threads": 56,
+    "env": "no OMP_* variables (the libgomp defaults) on both",
+    "lock": "perf.lock (exclusive)",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "complete": true,
+   "contaminated_runs": {
+    "count/DD_k3": 1
+   },
+   "regions": [
+    {
+     "case": "count/DD_k3",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 251.2656869366765,
+     "port_ms": 246.37283384799957,
+     "ratio": 0.9805271736530026,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "count/DD_k3",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 30.4184,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k3",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 206.84753999999998,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 255.569601431489,
+     "port_ms": 232.71031398326159,
+     "ratio": 0.910555530390983,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 35.3653,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 188.10286,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k5",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 301.1264307424426,
+     "port_ms": 261.4213963970542,
+     "ratio": 0.8681449707104966,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "count/DD_k5",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 63.7103,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k5",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 190.03732,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k6",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 511.62313111126423,
+     "port_ms": 371.58577237278223,
+     "ratio": 0.7262880620070564,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k6",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 177.118,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k6",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 188.79029,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k7",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 1477.2692192345858,
+     "port_ms": 883.9697996154428,
+     "ratio": 0.5983809776212978,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k7",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 670.659,
+     "ratio": null
+    },
+    {
+     "case": "count/DD_k7",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 207.04703,
+     "ratio": null
+    },
+    {
+     "case": "count/github_k3",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 705.2220422774553,
+     "port_ms": 550.8121307939291,
+     "ratio": 0.7810478087371285,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k3",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 124.05,
+     "ratio": null
+    },
+    {
+     "case": "count/github_k3",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 417.6264,
+     "ratio": null
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 2781.9022918120027,
+     "port_ms": 1496.970689855516,
+     "ratio": 0.5381104484731771,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 1066.27,
+     "ratio": null
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 422.5614,
+     "ratio": null
+    },
+    {
+     "case": "count/twitch_k3",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 1815.8584209159017,
+     "port_ms": 1519.4685123860836,
+     "ratio": 0.8367769727442067,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k3",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 184.035,
+     "ratio": null
+    },
+    {
+     "case": "count/twitch_k3",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 1315.442,
+     "ratio": null
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 3638.488521799445,
+     "port_ms": 2433.9941889047623,
+     "ratio": 0.6689575009847798,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 1099.27,
+     "ratio": null
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 1314.64,
+     "ratio": null
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 25.6649,
+     "port_ms": 13.9573,
+     "ratio": 0.5438283414312933,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 362.7509046345949,
+     "port_ms": 312.6293355599046,
+     "ratio": 0.8618292375447592,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 295.195,
+     "port_ms": 129.252,
+     "ratio": 0.4378529446636969,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 3275.171348825097,
+     "port_ms": 1803.7688797339797,
+     "ratio": 0.5507403087111904,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update",
+     "gate_kind": "compute",
+     "original_ms": 159.366,
+     "port_ms": 75.3742,
+     "ratio": 0.47296286535396503,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update_end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 4580.333858728409,
+     "port_ms": 3317.0115295797586,
+     "ratio": 0.7241855357898794,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "openmp-collab",
+   "dataset": null,
+   "kind": "run",
+   "backend": "openmp",
+   "clocks": null,
+   "gated": true,
+   "record": "ieee_tc_dyntrucy-openmp-collab.json",
+   "date": "2026-10-01T06:01:57Z",
+   "port_commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "reference": {
+    "name": "CycleEnumeration-GPU",
+    "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 5,
+    "order": "A/B/A/B (original first), one untimed round per case first",
+    "threads": 56,
+    "env": "no OMP_* variables (the libgomp defaults) on both",
+    "lock": "perf.lock (exclusive)",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "count/collab_k3",
+     "region": "static_end_to_end",
+     "gate_kind": "compute",
+     "original_ms": 44697.4544422701,
+     "port_ms": 14673.3239274472,
+     "ratio": 0.32828097506981807,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_count",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 12274.3,
+     "ratio": null
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_read",
+     "gate_kind": "none",
+     "original_ms": null,
+     "port_ms": 2390.067,
+     "ratio": null
+    }
+   ]
+  },
+  {
+   "reading": "cuda",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "boost",
+   "gated": true,
+   "record": "ieee_tc_dyntrucy-cuda.json",
+   "date": "2026-10-01T06:26:20Z",
+   "port_commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "reference": {
+    "name": "CycleEnumeration-GPU",
+    "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 21,
+    "order": "A, B[scope] for every --scopes entry, repeated; one untimed round per case first",
+    "scopes": "original,resident",
+    "lock": "perf.lock (exclusive)",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "count/DD_k4",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 1.39766,
+     "port_ms": 0.960576,
+     "ratio": 0.6872744444285449,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 1.14384,
+     "port_ms": 0.950208,
+     "ratio": 0.8307175828787243
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 2.5647,
+     "port_ms": 2.86934,
+     "ratio": 1.1187819238117518
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 440.2207713574171,
+     "port_ms": 430.0611447542906,
+     "ratio": 0.9769215192372696,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 1.39766,
+     "port_ms": 0.948768,
+     "ratio": 0.6788260378060472,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 1.14384,
+     "port_ms": 0.006976,
+     "ratio": 0.0060987550706392505
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 2.5647,
+     "port_ms": 0.995872,
+     "ratio": 0.3882996061917573
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 58.2259,
+     "port_ms": 58.4407,
+     "ratio": 1.0036890799455225,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 3.31533,
+     "port_ms": 3.27782,
+     "ratio": 0.9886858925054218
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 61.6193,
+     "port_ms": 62.631,
+     "ratio": 1.0164185571728337
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 766.45727455616,
+     "port_ms": 724.0063631907105,
+     "ratio": 0.9446141190452764,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 58.2259,
+     "port_ms": 57.7654,
+     "ratio": 0.992091148440814,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 3.31533,
+     "port_ms": 0.00944,
+     "ratio": 0.0028473786923172055
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 61.6193,
+     "port_ms": 57.8175,
+     "ratio": 0.9383017983002079
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 39.1195,
+     "port_ms": 38.5918,
+     "ratio": 0.9865105637853244,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 11.2969,
+     "port_ms": 11.275,
+     "ratio": 0.9980614150784728
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 50.6249,
+     "port_ms": 50.6383,
+     "ratio": 1.0002646918808729
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 1791.84905346483,
+     "port_ms": 1643.7001582235098,
+     "ratio": 0.9173206610485128,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 39.1195,
+     "port_ms": 38.9077,
+     "ratio": 0.9945858203709147,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 11.2969,
+     "port_ms": 0.009216,
+     "ratio": 0.000815799024511149
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 50.6249,
+     "port_ms": 38.9633,
+     "ratio": 0.7696469523890418
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 52.0186,
+     "port_ms": 51.5733,
+     "ratio": 0.9914396004506081,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 10.7684,
+     "port_ms": 10.9486,
+     "ratio": 1.0167341480628507
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 62.7705,
+     "port_ms": 63.4836,
+     "ratio": 1.0113604320500873
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 2888.1059009581804,
+     "port_ms": 2765.577532351017,
+     "ratio": 0.9575748352695403,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 52.0186,
+     "port_ms": 52.2555,
+     "ratio": 1.0045541402498337,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 10.7684,
+     "port_ms": 0.009216,
+     "ratio": 0.000855837450317596
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 62.7705,
+     "port_ms": 52.3113,
+     "ratio": 0.8333739575118886
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 5.509810000000001,
+     "port_ms": 3.76427,
+     "ratio": 0.683194157330289,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 496.03498447686434,
+     "port_ms": 482.6014507561922,
+     "ratio": 0.9729181728283952,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_device[original]",
+     "gate_kind": "none",
+     "original_ms": 5.509810000000001,
+     "port_ms": 3.9496,
+     "ratio": 0.7168305259165016
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.509810000000001,
+     "port_ms": 3.32842,
+     "ratio": 0.6040897961998689,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_device[resident]",
+     "gate_kind": "none",
+     "original_ms": 5.509810000000001,
+     "port_ms": 3.53478,
+     "ratio": 0.6415429933155589
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.509810000000001,
+     "port_ms": 1.78605,
+     "ratio": 0.32415818331303614,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.509810000000001,
+     "port_ms": 3.37118,
+     "ratio": 0.6118504993820112,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 6.98657,
+     "port_ms": 5.83749,
+     "ratio": 0.8355301671635723,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 510.7393264770508,
+     "port_ms": 493.3774610981345,
+     "ratio": 0.9660064058535026,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_device[original]",
+     "gate_kind": "none",
+     "original_ms": 6.98657,
+     "port_ms": 6.04797,
+     "ratio": 0.8656565381868356
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 6.98657,
+     "port_ms": 5.35363,
+     "ratio": 0.7662744379573954,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_device[resident]",
+     "gate_kind": "none",
+     "original_ms": 6.98657,
+     "port_ms": 5.52858,
+     "ratio": 0.7913153378553424
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 6.98657,
+     "port_ms": 3.21442,
+     "ratio": 0.4600855641609545,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 6.98657,
+     "port_ms": 5.39589,
+     "ratio": 0.7723231857692686,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 10.7468,
+     "port_ms": 9.93372,
+     "ratio": 0.9243421297502511,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 536.1747238785028,
+     "port_ms": 513.1282024085522,
+     "ratio": 0.9570167700125062,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.7468,
+     "port_ms": 9.27303,
+     "ratio": 0.8628642944876614,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.7468,
+     "port_ms": 6.09003,
+     "ratio": 0.5666831056686641,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.7468,
+     "port_ms": 9.30587,
+     "ratio": 0.8659200878401012,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 14.591899999999999,
+     "port_ms": 11.8182,
+     "ratio": 0.8099150898786313,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 970.555474050343,
+     "port_ms": 900.095758959651,
+     "ratio": 0.927402691577589,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.591899999999999,
+     "port_ms": 9.22705,
+     "ratio": 0.6323405450969374,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.591899999999999,
+     "port_ms": 5.6716,
+     "ratio": 0.3886813917310289,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.591899999999999,
+     "port_ms": 8.88198,
+     "ratio": 0.6086924937807963,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 24.3735,
+     "port_ms": 20.2112,
+     "ratio": 0.829228465341457,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 2621.2399611249566,
+     "port_ms": 2465.9866439178586,
+     "ratio": 0.9407710398476956,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 24.3735,
+     "port_ms": 8.99003,
+     "ratio": 0.3688444417092334,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 24.3735,
+     "port_ms": 5.58611,
+     "ratio": 0.2291878474572794,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 24.3735,
+     "port_ms": 9.00887,
+     "ratio": 0.36961741235358075,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-collab-update",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "base",
+   "gated": true,
+   "record": "ieee_tc_dyntrucy-cuda-collab-update.json",
+   "date": "2026-10-01T06:38:36Z",
+   "port_commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "reference": {
+    "name": "CycleEnumeration-GPU",
+    "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 11,
+    "order": "A, B[scope] for every --scopes entry, repeated; one untimed round per case first",
+    "scopes": "original,resident",
+    "lock": "perf.lock (exclusive)",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "port_ms": 215.165,
+     "ratio": 0.9890688277719808,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 12404.99281231314,
+     "port_ms": 12322.210628539324,
+     "ratio": 0.9933267044143995,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "port_ms": 205.989,
+     "ratio": 0.9468886610922899,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "port_ms": 211.986,
+     "ratio": 0.9744556248649693,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "port_ms": 217.936,
+     "ratio": 1.001806539396809,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-default-clocks",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "none",
+   "gated": false,
+   "record": "ieee_tc_dyntrucy-cuda-default-clocks.json",
+   "date": "2026-10-01T07:55:30Z",
+   "port_commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "reference": {
+    "name": "CycleEnumeration-GPU",
+    "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "runs": 11,
+    "order": "A, B[scope] for every --scopes entry, repeated; one untimed round per case first",
+    "scopes": "original,resident",
+    "lock": "perf.lock (exclusive)",
+    "statistic": "median"
+   },
+   "host": {
+    "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+    "logical_cpus": 56,
+    "kernel": "6.1.0-52-amd64"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "count/DD_k4",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 1.38854,
+     "port_ms": 0.962816,
+     "ratio": 0.6934017025076699,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 1.15622,
+     "port_ms": 1.02205,
+     "ratio": 0.8839580702634445
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 2.55885,
+     "port_ms": 2.99334,
+     "ratio": 1.169798933114485
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 502.828030847013,
+     "port_ms": 482.83675871789455,
+     "ratio": 0.9602423275897265,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 1.38854,
+     "port_ms": 0.949248,
+     "ratio": 0.6836302879283275,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 1.15622,
+     "port_ms": 0.007616,
+     "ratio": 0.006586981716282369
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 2.55885,
+     "port_ms": 0.998208,
+     "ratio": 0.39010024034234125
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 58.0258,
+     "port_ms": 57.4054,
+     "ratio": 0.9893082042815438,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 3.52214,
+     "port_ms": 3.39814,
+     "ratio": 0.9647941308409093
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 61.4677,
+     "port_ms": 61.7594,
+     "ratio": 1.0047455818259021
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 825.8998328819871,
+     "port_ms": 770.458915270865,
+     "ratio": 0.9328721045775485,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 58.0258,
+     "port_ms": 57.8756,
+     "ratio": 0.9974114962654543,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 3.52214,
+     "port_ms": 0.009888,
+     "ratio": 0.0028073841471378197
+    },
+    {
+     "case": "count/github_k4",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 61.4677,
+     "port_ms": 57.9312,
+     "ratio": 0.9424657177672175
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 38.1276,
+     "port_ms": 37.3831,
+     "ratio": 0.980473462793357,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 11.8839,
+     "port_ms": 11.636,
+     "ratio": 0.9791398446637887
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 49.9121,
+     "port_ms": 50.144,
+     "ratio": 1.0046461679632794
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 1864.0808779746294,
+     "port_ms": 1682.7005567029119,
+     "ratio": 0.9026971826089478,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 38.1276,
+     "port_ms": 37.5817,
+     "ratio": 0.9856822878964319,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 11.8839,
+     "port_ms": 0.0096,
+     "ratio": 0.0008078156160856284
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 49.9121,
+     "port_ms": 37.6354,
+     "ratio": 0.7540335910530712
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 51.543,
+     "port_ms": 51.4336,
+     "ratio": 0.9978775003395223,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 11.3357,
+     "port_ms": 11.6427,
+     "ratio": 1.0270825798142154
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 63.0102,
+     "port_ms": 63.9396,
+     "ratio": 1.0147499928582993
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 2987.0383962988853,
+     "port_ms": 2797.7937888354063,
+     "ratio": 0.9366447355688617,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 51.543,
+     "port_ms": 51.7008,
+     "ratio": 1.0030615214481113,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 11.3357,
+     "port_ms": 0.009536,
+     "ratio": 0.0008412360948154944
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 63.0102,
+     "port_ms": 51.7549,
+     "ratio": 0.8213733649472625
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 5.494330000000001,
+     "port_ms": 3.71704,
+     "ratio": 0.6765228881410471,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 556.8767488002777,
+     "port_ms": 538.9203680679202,
+     "ratio": 0.9677551975889777,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_device[original]",
+     "gate_kind": "none",
+     "original_ms": 5.494330000000001,
+     "port_ms": 3.89408,
+     "ratio": 0.7087451973216025
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.494330000000001,
+     "port_ms": 3.36883,
+     "ratio": 0.6131466439038062,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_device[resident]",
+     "gate_kind": "none",
+     "original_ms": 5.494330000000001,
+     "port_ms": 3.52669,
+     "ratio": 0.6418780815859257
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.494330000000001,
+     "port_ms": 1.77054,
+     "ratio": 0.3222485726194094,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.494330000000001,
+     "port_ms": 3.36637,
+     "ratio": 0.6126989096031726,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 7.01713,
+     "port_ms": 5.71545,
+     "ratio": 0.8144996601174554,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 571.2603405117989,
+     "port_ms": 553.0699081718922,
+     "ratio": 0.9681573688038457,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_device[original]",
+     "gate_kind": "none",
+     "original_ms": 7.01713,
+     "port_ms": 5.93584,
+     "ratio": 0.8459070873704777
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 7.01713,
+     "port_ms": 5.33161,
+     "ratio": 0.7597992341598346,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_device[resident]",
+     "gate_kind": "none",
+     "original_ms": 7.01713,
+     "port_ms": 5.54653,
+     "ratio": 0.7904271404406075
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 7.01713,
+     "port_ms": 3.1426,
+     "ratio": 0.4478469117716217,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 7.01713,
+     "port_ms": 5.34797,
+     "ratio": 0.762130671656361,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 10.7279,
+     "port_ms": 9.72728,
+     "ratio": 0.9067273184873088,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 601.3434631749988,
+     "port_ms": 569.8537956923246,
+     "ratio": 0.9476344727912837,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.7279,
+     "port_ms": 9.20764,
+     "ratio": 0.8582891339404729,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": true
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.7279,
+     "port_ms": 6.02057,
+     "ratio": 0.5612067599436982,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.7279,
+     "port_ms": 9.2674,
+     "ratio": 0.8638596556642028,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 14.6556,
+     "port_ms": 11.8191,
+     "ratio": 0.8064562351592566,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 1016.4869613945484,
+     "port_ms": 950.2760162577033,
+     "ratio": 0.9348629666178813,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.6556,
+     "port_ms": 9.02695,
+     "ratio": 0.6159386173203417,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.6556,
+     "port_ms": 5.64477,
+     "ratio": 0.3851613035290265,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.6556,
+     "port_ms": 8.89078,
+     "ratio": 0.6066472884085264,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 25.171,
+     "port_ms": 20.6248,
+     "ratio": 0.8193873902506853,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 2688.029982149601,
+     "port_ms": 2515.383830294013,
+     "ratio": 0.9357722372882449,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 25.171,
+     "port_ms": 9.08271,
+     "ratio": 0.3608402526717254,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 25.171,
+     "port_ms": 5.57877,
+     "ratio": 0.2216348178459338,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 25.171,
+     "port_ms": 9.02005,
+     "ratio": 0.3583508799809304,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 198.633,
+     "port_ms": 197.95,
+     "ratio": 0.9965614978377207,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 10666.613875888288,
+     "port_ms": 10582.551259547472,
+     "ratio": 0.9921190907143608,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 198.633,
+     "port_ms": 187.176,
+     "ratio": 0.9423207624110796,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 198.633,
+     "port_ms": 188.923,
+     "ratio": 0.9511158770194278,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 198.633,
+     "port_ms": 193.888,
+     "ratio": 0.976111723631018,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-memory",
+   "dataset": null,
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "record": "ieee_tc_dyntrucy-cuda-memory.json",
+   "date": "2026-10-01T07:58:24Z",
+   "port_commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "reference": {
+    "name": "CycleEnumeration-GPU",
+    "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+    "variant": "unpatched"
+   },
+   "protocol": {},
+   "host": null,
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "count/DD_k4",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 18.0,
+     "port_mib": 18.0,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/DD_k4",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 18.0,
+     "port_mib": 18.0,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 67.7,
+     "port_mib": 67.7,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/github_k4",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 67.7,
+     "port_mib": 67.7,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 225.5,
+     "port_mib": 225.5,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/twitch_k4",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 225.5,
+     "port_mib": 225.5,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 193.2,
+     "port_mib": 193.2,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "count/collab_k3",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 193.2,
+     "port_mib": 193.2,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 32.9,
+     "port_mib": 32.9,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_25000_25000_s1",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 32.9,
+     "port_mib": 32.9,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 33.6,
+     "port_mib": 33.6,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_50000_50000_s1",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 33.6,
+     "port_mib": 33.6,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 35.2,
+     "port_mib": 35.2,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/DD_k4_100000_100000_s1",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 35.2,
+     "port_mib": 35.2,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 119.5,
+     "port_mib": 119.5,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/github_k4_25000_25000_s1",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 119.5,
+     "port_mib": 119.5,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 408.6,
+     "port_mib": 408.6,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/twitch_k4_25000_25000_s1",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 408.6,
+     "port_mib": 408.6,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "device_memory[original]",
+     "gate_kind": "memory",
+     "original_mib": 382.8,
+     "port_mib": 383.0,
+     "ratio": 1.0005224660397074,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "update/collab_k4_25000_25000_s1",
+     "region": "device_memory[resident]",
+     "gate_kind": "memory",
+     "original_mib": 382.8,
+     "port_mib": 383.0,
+     "ratio": 1.0005224660397074,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  }
+ ],
+ "verdict": {
+  "gated_regions": 78,
+  "within_gate": 78,
+  "ratio_range": [
+   0.2291878474572794,
+   1.0045541402498337
+  ],
+  "exceeded": [],
+  "provisional": [],
+  "contaminated": [
+   "openmp: count/DD_k3 (1 runs above the foreign-load threshold)"
+  ],
+  "missing_or_incomplete": [],
+  "problems": [],
+  "passed": true
+ }
+}

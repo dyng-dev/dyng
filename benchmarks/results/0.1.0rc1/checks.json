@@ -1,0 +1,81 @@
+{
+ "schema": 1,
+ "checks": [
+  {
+   "name": "mutation-sssp",
+   "command": "parity/mutate.py run",
+   "commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+   "scope": "library",
+   "date": "2026-10-01T02:18:31Z",
+   "record": "mutation-sssp.json",
+   "details": "PLAN 8.4 sssp (a skipped subtree invalidation) on the sequential, OpenMP and CUDA backends: the control passes on all three, each mutation fails the sssp goldens",
+   "result": "passed"
+  },
+  {
+   "name": "tsan",
+   "command": "ctest --preset tsan -j 16 (tsan preset: Debug, DYNG_SANITIZE=thread, OpenMP off), from a clean clone",
+   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "scope": "tests",
+   "date": "2026-10-01T03:04:49Z",
+   "ctest": {
+    "tests": 520,
+    "failed": 0,
+    "skipped": 42,
+    "percent_passed": 100
+   },
+   "details": "42 tests skip themselves in this preset (the OpenMP comparisons and the OpenMP-only tests, the conformance cases C3/C4/C10/C12 that need a second backend, engine or CUDA streams, allocation-failure tests, CUDA placement); the dataset parity tests ran on the sequential backend (dd09893), CycleEnumDatasets 1345 s; the cycle_count mutation CTests passed",
+   "result": "passed"
+  },
+  {
+   "name": "asan",
+   "command": "ctest --preset asan -j 16 (asan preset: Debug, DYNG_SANITIZE=address;undefined, OpenMP on), from a clean clone",
+   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "scope": "tests",
+   "date": "2026-10-01T03:27:56Z",
+   "ctest": {
+    "tests": 595,
+    "failed": 0,
+    "skipped": 26,
+    "percent_passed": 100
+   },
+   "details": "26 tests skip themselves in this preset: 7 allocation-failure and allocation-count tests under ASan's allocator, 17 conformance cases C4/C10/C12 that need a second engine or CUDA streams, CycleCountBackend.PlacementIsChecked (CUDA), Resources.OpenmpNotBuiltThrows (OpenMP is built); the dataset parity tests and the cycle_count mutation CTests (control, double_count_5, weak_ownership, skip_workspace_resize) passed",
+   "result": "passed"
+  },
+  {
+   "name": "gpu_local",
+   "command": "ci/gpu_local.sh (dev-cuda, GPU 1), from a clean clone",
+   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "scope": "tests",
+   "date": "2026-10-01T04:11:34Z",
+   "steps": {
+    "build": "passed",
+    "ctest -L gpu": "passed",
+    "ctest -L cpu": "passed",
+    "parity (cuda goldens)": "passed",
+    "parity (cycle_count cuda goldens)": "passed",
+    "memcheck": "passed",
+    "synccheck": "passed",
+    "synccheck (cycle_count)": "passed",
+    "racecheck": "passed",
+    "clang-tidy": "passed"
+   },
+   "details": "ctest -L gpu 252 / 252, ctest -L cpu 605 / 605 (the CUDA build), the sssp CUDA goldens (495 cases) and the cycle_count CUDA goldens (cuda, cuda:resident); compute-sanitizer memcheck (leak check), synccheck and racecheck with 0 errors",
+   "result": "passed"
+  },
+  {
+   "name": "mutation-ctests",
+   "command": "ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone",
+   "commit": "1049068a55263ca048b02bc8c85d38cf74c84c75",
+   "scope": "tests",
+   "date": "2026-10-01T04:14:06Z",
+   "ctest": {
+    "tests": 7,
+    "failed": 0,
+    "skipped": 0,
+    "percent_passed": 100
+   },
+   "details": "cycle_count (PLAN 8.4): the controls pass; double_count_5, weak_ownership, skip_workspace_resize (host) and cuda_double_count_5, cuda_weak_ownership (device) make the suite fail",
+   "result": "passed"
+  }
+ ]
+}
