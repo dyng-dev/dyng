@@ -170,6 +170,8 @@ struct mosp_workspace final : pooled_workspace {
   std::vector<vertex_t> child_start;  ///< n + 1 (path costs: children lists of the MOSP tree)
   std::vector<vertex_t> children;     ///< n
   std::vector<vertex_t> queue;        ///< n (path costs: the traversal order)
+  /// Per-thread sums of the parallel path costs (mosp_path_costs_openmp; threads + 1 entries).
+  std::vector<std::int64_t> thread_sums;
 
   /**
    * @brief Size the arrays for `n` vertices and `k` trees (no-op if large enough): capacities
@@ -318,5 +320,36 @@ template <typename vertex_t, typename edge_t, typename weight_t>
 vertex_t mosp_path_costs(const csr_view<vertex_t, edge_t, weight_t>& out, const vertex_t* parent,
                          vertex_t source, int k, std::int64_t* costs,
                          mosp_workspace<vertex_t, edge_t, weight_t>& ws);
+
+/**
+ * @brief mosp_path_costs() with the threads of `res` (the openmp and cuda backends; a dynG
+ *        addition, M7): the same values, computed by a level-synchronous traversal of the tree.
+ *
+ * The children lists are built with relaxed atomic counts, a parallel prefix sum and atomic fills;
+ * the traversal is breadth-first, one level at a time inside one parallel region: a level of at
+ * least 8 nodes per thread is split into one contiguous range per thread (each thread counts the
+ * children of its range, a prefix sum over the threads gives each range its place in the next
+ * level, then each thread appends its children and computes their costs from their parents'), a
+ * narrower one is walked by one thread. Every vertex's costs are the sums along its tree path, so
+ * the order inside a level does not change them. If a tree edge is missing, mosp_path_costs()
+ * runs again to report the same first vertex (in its traversal order) as the sequential version.
+ * Falls back to mosp_path_costs() with one thread, below 2^14 vertices, or without OpenMP.
+ * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
+ * @tparam weight_t Weight type.
+ * @param[in]     res    Resources (the thread count).
+ * @param[in]     out    The graph's out-edges (host memory; weight columns 0..K-1 are used).
+ * @param[in]     parent The MOSP tree (host memory, n entries).
+ * @param[in]     source The source.
+ * @param[in]     k      Number of objectives K.
+ * @param[out]    costs  n * K values, vertex-major.
+ * @param[in,out] ws     The leased host workspace (sized).
+ * @return The first vertex whose tree edge (parent, v) is not an edge of the graph, or -1.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+vertex_t mosp_path_costs_openmp(const resources& res,
+                                const csr_view<vertex_t, edge_t, weight_t>& out,
+                                const vertex_t* parent, vertex_t source, int k, std::int64_t* costs,
+                                mosp_workspace<vertex_t, edge_t, weight_t>& ws);
 
 }  // namespace dyng::detail

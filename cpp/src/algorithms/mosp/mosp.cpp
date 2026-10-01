@@ -318,8 +318,8 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
       out.affected =
           mosp_finish_cuda(res, static_cast<std::int64_t>(n), st.device_combined_distances.data(),
                            st.device_combined_parents.data(), st.device_spare_distances.data(),
-                           st.device_spare_parents.data(), count_affected, costs, ws.get());
-      out.host_syncs += (count_affected || costs) ? 1 : 0;
+                           st.device_spare_parents.data(), count_affected, false, ws.get());
+      out.host_syncs += count_affected ? 1 : 0;
       std::swap(st.device_combined_distances, st.device_spare_distances);
       std::swap(st.device_combined_parents, st.device_spare_parents);
     }
@@ -328,15 +328,21 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
       host_ws.emplace(pool.acquire<mosp_workspace<vertex_t, edge_t, weight_t>>(res));
       (*host_ws)->reserve(n, K);
       // The pinned copy of the tree stays valid while the device workspace is leased (to the end
-      // of this function).
+      // of this function). Its download belongs to the path costs (the originals' Steps 2-3 end
+      // with the tree on the device), so it is timed in their stage: one more synchronization.
       {
         scoped_stage stage(res, "mosp.path_costs");
+        (void)mosp_finish_cuda<vertex_t, edge_t, weight_t>(
+            res, static_cast<std::int64_t>(n), nullptr, nullptr, nullptr,
+            st.device_combined_parents.data(), false, true, ws.get());
+        out.host_syncs += 1;
         if (st.path_costs.size() != n * static_cast<std::size_t>(K)) {
           note_reservation();
           st.path_costs.resize(n * static_cast<std::size_t>(K));
         }
-        const vertex_t missing = mosp_path_costs(graph_access::out_view(g), tree, st.source, K,
-                                                 st.path_costs.data(), host_ws->get());
+        const vertex_t missing =
+            mosp_path_costs_openmp(res, graph_access::out_view(g), tree, st.source, K,
+                                   st.path_costs.data(), host_ws->get());
         DYNG_EXPECTS(missing < 0, "mosp: the MOSP tree edge (", tree[missing], ", ", missing,
                      ") is not an edge of the graph (do the trees belong to this graph?)");
         st.has_path_costs = true;
@@ -382,8 +388,11 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
       st.path_costs.resize(n * static_cast<std::size_t>(K));
     }
     tree = st.combined_parents.data();
-    const vertex_t missing =
-        mosp_path_costs(graph_access::out_view(g), tree, st.source, K, st.path_costs.data(), ws);
+    const vertex_t missing = res.get_backend() == backend::openmp
+                                 ? mosp_path_costs_openmp(res, graph_access::out_view(g), tree,
+                                                          st.source, K, st.path_costs.data(), ws)
+                                 : mosp_path_costs(graph_access::out_view(g), tree, st.source, K,
+                                                   st.path_costs.data(), ws);
     DYNG_EXPECTS(missing < 0, "mosp: the MOSP tree edge (", tree[missing], ", ", missing,
                  ") is not an edge of the graph (do the trees belong to this graph?)");
     st.has_path_costs = true;
@@ -405,7 +414,8 @@ finalize_counts finalize(const resources& res, const graph<vertex_t, edge_t, wei
  * Budget (invariant I9): the whole algorithm work of the update (the K sssp halves before and
  * after the commit and the finalize step) is measured and checked against the sum of the K sssp
  * budgets and the finalize step's synchronizations (none on the host backends; on cuda one for
- * the combined graph's size, the combined solve's, and one at the end).
+ * the combined graph's size, the combined solve's, one for `affected` and, with the path costs,
+ * one for the download of the MOSP tree).
  * @tparam vertex_t   Vertex id type.
  * @tparam edge_t     Edge offset type.
  * @tparam weight_t   Weight type.

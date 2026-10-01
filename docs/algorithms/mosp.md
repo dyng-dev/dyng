@@ -115,8 +115,11 @@ device memory; the path costs are host memory on every backend in 0.2 (computed 
 original computes them, after one download of the MOSP tree).
 
 Host synchronizations of an update on cuda: one per objective with the fused engine (the
-operators engine: sssp's budget), one for the combined graph's size, the combined solve's, and one
-at the end (`affected` and the download of the MOSP tree).
+operators engine: sssp's budget), one for the combined graph's size, the combined solve's, one for
+`affected` and, with `compute_path_costs`, one for the download of the MOSP tree (timed in
+`mosp.path_costs`, outside the "(a) compute" region, as in the originals). The path costs run on
+the host threads of the resources handle (openmp and cuda; a level-synchronous traversal of the
+MOSP tree, M7) and sequentially on the sequential backend.
 
 ## 5. Performance notes
 

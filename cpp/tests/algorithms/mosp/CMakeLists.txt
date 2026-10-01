@@ -14,6 +14,14 @@ dyng_add_test(
 )
 target_include_directories(dyng_mosp_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
+# The parallel path costs against the sequential ones (internal functions, host only).
+dyng_add_test(
+  NAME dyng_mosp_path_costs_tests
+  SOURCES mosp_path_costs_test.cpp
+  LABELS cpu mosp
+)
+target_include_directories(dyng_mosp_path_costs_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+
 if(DYNG_ENABLE_CUDA)
   dyng_add_test(
     NAME dyng_mosp_cuda_tests

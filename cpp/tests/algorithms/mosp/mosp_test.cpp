@@ -6,8 +6,9 @@
  *        Pref {4, 1, 4}, (15, 24, 7) for Pref {4, 4, 1}; MOSP-CUDA@e220ee2 mospTest group
  *        thesis-example), K from 1 to 4, the default preferences, options and their checks,
  *        num_objectives, from_arrays, clone, compute_path_costs, the stats, the profiler stages,
- *        stale results, vertex growth, dyng::update() with an sssp result, and the distance-only
- *        mode of the combined solve.
+ *        stale results, vertex growth, dyng::update() with an sssp result, the distance-only
+ *        mode of the combined solve, and the path costs of a graph large enough for the parallel
+ *        traversal (openmp, cuda).
  */
 #include "support/gtest_helpers.hpp"
 
@@ -487,6 +488,50 @@ TEST_P(MospBackend, OneUpdateOfMospAndSsspEqualsSeparateUpdates) {
 // The combined solve in the distance-only mode of the host engines: L = 2^20 makes the combined
 // weights 2^21 - 1, and (n - 1) of them do not fit next to the 22 parent bits of n = 2^21 vertices
 // (the sequential engine recovers the parents over the combined graph's in-edges).
+TEST_P(MospBackend, PathCostsOfALargeGraphEqualTheReference) {
+  // A 170 x 170 grid (28,900 vertices: above the 2^14 vertices from which the openmp and cuda
+  // backends compute the path costs with threads) with both edge directions and seeded weights;
+  // its breadth-first levels are narrower and wider than 8 nodes per thread (4 threads).
+  constexpr vertex_t side = 170;
+  constexpr int K = 3;
+  std::uint64_t state = 0x9e3779b97f4a7c15ULL;
+  const auto next_weight = [&state]() {
+    state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+    return static_cast<std::int32_t>(1 + (state >> 33) % 100);
+  };
+  std::vector<edge> edges;
+  for (vertex_t r = 0; r < side; ++r) {
+    for (vertex_t c = 0; c < side; ++c) {
+      const vertex_t v = r * side + c;
+      if (c + 1 < side) {
+        edges.push_back({v, v + 1, {next_weight(), next_weight(), next_weight()}});
+        edges.push_back({v + 1, v, {next_weight(), next_weight(), next_weight()}});
+      }
+      if (r + 1 < side) {
+        edges.push_back({v, v + side, {next_weight(), next_weight(), next_weight()}});
+        edges.push_back({v + side, v, {next_weight(), next_weight(), next_weight()}});
+      }
+    }
+  }
+  std::stable_sort(edges.begin(), edges.end(),
+                   [](const edge& a, const edge& b) { return a.u < b.u; });
+  graph_t g = make_graph(res_, side * side, K, edges);
+  dyng::mosp::options opt;
+  opt.preferences = {2, 1, 3};
+  result_t r = dyng::mosp::compute(res_, g, 0, opt);
+  EXPECT_TRUE(take(r) == reference(res_, g, 0, K, opt.preferences));
+  batch_t b(K);
+  for (vertex_t i = 0; i < 400; ++i) {
+    const vertex_t v = (i * 7919) % (side * side - 1);
+    if (v % side + 1 < side) {
+      b.delete_edge(v, v + 1);
+    }
+    b.insert_edge(v, (v * 31 + 17) % (side * side), {next_weight(), next_weight(), next_weight()});
+  }
+  (void)dyng::mosp::update(res_, g, b.view(), r);
+  EXPECT_TRUE(take(r) == reference(res_, g, 0, K, opt.preferences));
+}
+
 TEST_P(MospBackend, TheCombinedSolveInTheDistanceOnlyMode) {
   const vertex_t n = vertex_t{1} << 21;
   dyng::edge_list<vertex_t, std::int32_t> list;

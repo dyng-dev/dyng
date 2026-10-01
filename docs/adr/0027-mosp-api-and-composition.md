@@ -88,6 +88,24 @@ composition": K `sssp` problems over objective views plus a static `sssp` over t
   work inside the region); `mosp.path_costs` belongs to "(b) end to end", as the original computes
   the costs while writing.
 
+## Amendment (M7, step mosp-parity-perf, 2026-10-01)
+
+Technical, no public signature and no gate rule changed (recorded in
+`docs/developer/retrospectives/M7.md`, step 3):
+
+- **Parallel path costs.** On the openmp and cuda backends the path costs run on the handle's
+  host threads (`mosp_path_costs_openmp`, `cpp/src/algorithms/mosp/openmp.cpp`): the children
+  lists by atomic counts, a prefix sum and atomic fills, then a level-synchronous breadth-first
+  traversal of the MOSP tree inside one parallel region. The values are those of `mospPathCosts`
+  (sums along each tree path); when a tree edge is missing, the sequential traversal runs again so
+  that the reported vertex is the same. The sequential backend keeps the sequential port. Reason:
+  the sequential pass took 1.5-2.9 s on road_usa, inside `update()`, where the originals compute
+  the costs while writing `mospCosts.txt`, concurrently with the other output files.
+- **The tree's download is timed with the path costs.** On cuda, `mosp.finalize` is the `affected`
+  count only; the download of the MOSP tree for the host's path costs moved into
+  `mosp.path_costs` (one more synchronization when `compute_path_costs` is true), so the
+  "(a) compute" region (above) holds what the originals' Steps 2-3 hold.
+
 ## Alternatives considered
 
 - **A framework "composite problem" type** (problem_base with child problems): no second user

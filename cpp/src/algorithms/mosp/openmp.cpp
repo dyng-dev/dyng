@@ -14,6 +14,7 @@
  * not see (lowest-id ties).
  */
 #include "algorithms/mosp/problem.hpp"
+#include "core/budget_counters.hpp"
 #include "core/resources_access.hpp"
 #include "graph/instantiate.hpp"
 
@@ -24,6 +25,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
+
+#if DYNG_HAS_OPENMP
+#include <omp.h>
+#endif
 
 namespace dyng::detail {
 
@@ -120,7 +125,213 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_openmp(
   return out;
 }
 
+namespace {
+
+/// The level state of the parallel traversal, written by one thread between two barriers.
+struct path_level {
+  std::int64_t begin = 0;  ///< first queue position of the level
+  std::int64_t end = 0;    ///< one past its last
+  bool stop = false;       ///< a tree edge is missing: stop (every thread reads the same value)
+};
+
+/// Below this many vertices the sequential path costs are used (the fork costs more).
+constexpr std::int64_t parallel_path_cost_vertices = std::int64_t{1} << 14;
+
+/// A level narrower than this many nodes per thread is walked by one thread.
+constexpr std::int64_t nodes_per_thread = 8;
+
+}  // namespace
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+vertex_t mosp_path_costs_openmp(const resources& res,
+                                const csr_view<vertex_t, edge_t, weight_t>& out,
+                                const vertex_t* parent, vertex_t source, int k, std::int64_t* costs,
+                                mosp_workspace<vertex_t, edge_t, weight_t>& ws) {
+  const int threads = resources_access::host_threads(res);
+  const auto n = static_cast<std::int64_t>(out.num_vertices());
+  if (threads <= 1 || n < parallel_path_cost_vertices) {
+    return mosp_path_costs(out, parent, source, k, costs, ws);
+  }
+  const auto K = static_cast<std::size_t>(k);
+  const auto rows = static_cast<std::size_t>(n) + 1;
+  // Within the reserved capacities (mosp_workspace::reserve); the per-thread sums grow once.
+  ws.child_start.resize(rows);
+  ws.children.resize(static_cast<std::size_t>(n));
+  ws.queue.resize(static_cast<std::size_t>(n));
+  if (ws.thread_sums.size() < static_cast<std::size_t>(threads) + 1) {
+    note_reservation();  // invariant I9: a reserving run (core/budget_counters.hpp)
+    ws.thread_sums.resize(static_cast<std::size_t>(threads) + 1);
+  }
+  vertex_t* child_start = ws.child_start.data();
+  vertex_t* children = ws.children.data();
+  vertex_t* queue = ws.queue.data();
+  std::int64_t* sums = ws.thread_sums.data();
+  const edge_t* row_ptr = out.row_ptr.data();
+  const vertex_t* col_ind = out.col_ind.data();
+  const weight_t* weights = out.weights.data();
+  const auto m = static_cast<std::size_t>(out.col_ind.size());
+  const auto total = static_cast<std::int64_t>(static_cast<std::size_t>(n) * K);
+  const auto s = static_cast<std::int64_t>(source);
+  path_level levels[2];  // level i is levels[i % 2]; the next one is written into the other
+  bool missing = false;  // set (relaxed) by any thread that finds a tree edge missing
+
+  // The costs of v from those of its parent p over the first edge p -> v of p's row
+  // (mospPathCosts); false if there is no such edge.
+  const auto relax = [&](vertex_t p, vertex_t v) {
+    edge_t edge = -1;
+    for (edge_t e = row_ptr[p]; e < row_ptr[p + 1]; ++e) {
+      if (col_ind[e] == v) {
+        edge = e;
+        break;
+      }
+    }
+    if (edge < 0) {
+      __atomic_store_n(&missing, true, __ATOMIC_RELAXED);
+      return false;
+    }
+    for (std::size_t j = 0; j < K; ++j) {
+      costs[static_cast<std::size_t>(v) * K + j] =
+          costs[static_cast<std::size_t>(p) * K + j] +
+          static_cast<std::int64_t>(weights[j * m + static_cast<std::size_t>(edge)]);
+    }
+    return true;
+  };
+
+#pragma omp parallel num_threads(threads)
+  {
+    const auto t = static_cast<std::int64_t>(omp_get_thread_num());
+    const auto T = static_cast<std::int64_t>(omp_get_num_threads());
+#pragma omp for schedule(static) nowait
+    for (std::int64_t i = 0; i < total; ++i) {
+      costs[i] = sssp_infinity;
+    }
+#pragma omp for schedule(static)
+    for (std::int64_t v = 0; v <= n; ++v) {
+      child_start[v] = 0;
+    }
+    // Children lists of the tree: counts, prefix sum (one range per thread), atomic fills.
+#pragma omp for schedule(static)
+    for (std::int64_t v = 0; v < n; ++v) {
+      if (v != s && parent[v] >= 0) {
+        __atomic_fetch_add(&child_start[parent[v] + 1], vertex_t{1}, __ATOMIC_RELAXED);
+      }
+    }
+    const std::int64_t lo = 1 + n * t / T;
+    const std::int64_t hi = 1 + n * (t + 1) / T;
+    std::int64_t local = 0;
+    for (std::int64_t v = lo; v < hi; ++v) {
+      local += child_start[v];
+    }
+    sums[t + 1] = local;
+#pragma omp barrier
+#pragma omp single
+    {
+      sums[0] = 0;
+      for (std::int64_t i = 0; i < T; ++i) {
+        sums[i + 1] += sums[i];
+      }
+    }
+    std::int64_t running = sums[t];
+    for (std::int64_t v = lo; v < hi; ++v) {
+      running += child_start[v];
+      child_start[v] = static_cast<vertex_t>(running);
+    }
+#pragma omp barrier
+    // The fill cursor uses `queue` (the traversal overwrites it).
+#pragma omp for schedule(static)
+    for (std::int64_t v = 0; v < n; ++v) {
+      queue[v] = child_start[v];
+    }
+#pragma omp for schedule(static)
+    for (std::int64_t v = 0; v < n; ++v) {
+      if (v != s && parent[v] >= 0) {
+        const vertex_t position =
+            __atomic_fetch_add(&queue[parent[v]], vertex_t{1}, __ATOMIC_RELAXED);
+        children[position] = static_cast<vertex_t>(v);
+      }
+    }
+    // The traversal from the source, one level per iteration.
+#pragma omp single
+    {
+      for (std::size_t j = 0; j < K; ++j) {
+        costs[static_cast<std::size_t>(source) * K + j] = 0;
+      }
+      queue[0] = source;
+      levels[0] = path_level{0, 1, false};
+    }
+    for (int level = 0;; level ^= 1) {
+      const path_level here = levels[level];  // written before the last barrier
+      if (here.stop || here.begin >= here.end) {
+        break;
+      }
+      path_level& next = levels[level ^ 1];
+      const std::int64_t width = here.end - here.begin;
+      if (width < nodes_per_thread * T) {
+#pragma omp single
+        {
+          std::int64_t end = here.end;
+          for (std::int64_t i = here.begin; i < here.end; ++i) {
+            const vertex_t p = queue[i];
+            for (vertex_t c = child_start[p]; c < child_start[p + 1]; ++c) {
+              const vertex_t v = children[c];
+              (void)relax(p, v);
+              queue[end++] = v;
+            }
+          }
+          next = path_level{here.end, end, __atomic_load_n(&missing, __ATOMIC_RELAXED)};
+        }
+      } else {
+        const std::int64_t first = here.begin + width * t / T;
+        const std::int64_t last = here.begin + width * (t + 1) / T;
+        std::int64_t count = 0;
+        for (std::int64_t i = first; i < last; ++i) {
+          const vertex_t p = queue[i];
+          count += child_start[p + 1] - child_start[p];
+        }
+        sums[t] = count;
+#pragma omp barrier
+#pragma omp single
+        {
+          std::int64_t offset = 0;
+          for (std::int64_t i = 0; i < T; ++i) {
+            const std::int64_t c = sums[i];
+            sums[i] = offset;
+            offset += c;
+          }
+          sums[T] = offset;
+        }
+        std::int64_t position = here.end + sums[t];
+        for (std::int64_t i = first; i < last; ++i) {
+          const vertex_t p = queue[i];
+          for (vertex_t c = child_start[p]; c < child_start[p + 1]; ++c) {
+            const vertex_t v = children[c];
+            (void)relax(p, v);
+            queue[position++] = v;
+          }
+        }
+#pragma omp barrier
+#pragma omp single
+        next =
+            path_level{here.end, here.end + sums[T], __atomic_load_n(&missing, __ATOMIC_RELAXED)};
+      }
+    }
+  }
+  if (missing) {
+    // Report the vertex the sequential traversal finds first (an error path: run it again).
+    return mosp_path_costs(out, parent, source, k, costs, ws);
+  }
+  return -1;
+}
+
 #else  // !DYNG_HAS_OPENMP
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+vertex_t mosp_path_costs_openmp(const resources& /*res*/,
+                                const csr_view<vertex_t, edge_t, weight_t>& out,
+                                const vertex_t* parent, vertex_t source, int k, std::int64_t* costs,
+                                mosp_workspace<vertex_t, edge_t, weight_t>& ws) {
+  return mosp_path_costs(out, parent, source, k, costs, ws);
+}
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_openmp(
@@ -131,9 +342,11 @@ mosp_combined<vertex_t, edge_t, weight_t> mosp_combine_openmp(
 
 #endif  // DYNG_HAS_OPENMP
 
-#define DYNG_INSTANTIATE_MOSP_OPENMP(V, E, W)                   \
-  template mosp_combined<V, E, W> mosp_combine_openmp<V, E, W>( \
-      const resources&, const mosp_combine_input<V>&, mosp_workspace<V, E, W>&);
+#define DYNG_INSTANTIATE_MOSP_OPENMP(V, E, W)                                                      \
+  template mosp_combined<V, E, W> mosp_combine_openmp<V, E, W>(                                    \
+      const resources&, const mosp_combine_input<V>&, mosp_workspace<V, E, W>&);                   \
+  template V mosp_path_costs_openmp<V, E, W>(const resources&, const csr_view<V, E, W>&, const V*, \
+                                             V, int, std::int64_t*, mosp_workspace<V, E, W>&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_MOSP_OPENMP)
 #undef DYNG_INSTANTIATE_MOSP_OPENMP
 

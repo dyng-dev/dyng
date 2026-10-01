@@ -84,7 +84,8 @@ std::size_t mosp_workspace<vertex_t, edge_t, weight_t>::bytes() const noexcept {
          (col_ind.capacity() + in_col_ind.capacity() + child_start.capacity() +
           children.capacity() + queue.capacity()) *
              sizeof(vertex_t) +
-         (weights.capacity() + in_weights.capacity()) * sizeof(weight_t);
+         (weights.capacity() + in_weights.capacity()) * sizeof(weight_t) +
+         thread_sums.capacity() * sizeof(std::int64_t);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
