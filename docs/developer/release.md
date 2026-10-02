@@ -19,7 +19,7 @@ author delegates one in the approvals log of GOVERNANCE.md. For 0.1.0 the author
 | pushing the tag (steps 7, 10), which uploads to TestPyPI | the **AI assistant**, on the author's behalf | the **author** |
 | the approval of the `pypi` deployment (step 10), which uploads to PyPI | the **author** (never delegated) | the **author** |
 | the GitHub Release (step 11) | the **AI assistant**, on the author's behalf | the **author** |
-| Zenodo, Read the Docs, conda-forge (steps 12, 13; checkpoint A4) | the **author** | the **author** |
+| Zenodo, Read the Docs, conda-forge (steps 12, 13; checkpoint A4) | the **author** (Zenodo is not connected for 0.1.0, so 0.1.0 has no DOI: GOVERNANCE.md, 2026-10-01) | the **author** |
 
 So the AI assistant can take a release candidate to TestPyPI on its own, but nothing reaches PyPI
 before the author approves the deployment in the `release.yml` run.
@@ -39,9 +39,9 @@ For each release, copy this list into the release pull request and tick it.
 | 7 | Release candidate: tag `vX.Y.ZrcN` (equal to `VERSION`) on `main` after the merge; `release.yml` builds the sdist and the wheels through `wheels.yml` and uploads them to TestPyPI (environment `testpypi`); pre-releases stop there. Before pushing: build the distributions locally as `release.yml` would ({ref}`release-local-build`), and check that the CHANGELOG heading's date and `CITATION.cff`'s `date-released` are **the day of the tag** (UTC); if the merge fell on a later day, fix both in a small pull request first (the tagged files cannot be changed afterwards) | `python ci/wheel_check.py --release-metadata --release-date today`; `git tag -s -m "dynG X.Y.ZrcN" vX.Y.ZrcN && git push origin vX.Y.ZrcN` | **author** (0.1.0rc1: the AI assistant on the author's behalf) |
 | 8 | Smoke-install the RC from TestPyPI in a clean venv on a CPU machine and on the GPU machine (CPU backends): import, `dyng.show_config()`, `sssp` and `cycle_count` on both backends, `dyng --version` | `pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==X.Y.ZrcN` | author or maintainer |
 | 9 | The final-release pull request ({ref}`release-final-pr`): `VERSION` `X.Y.Z`; the CHANGELOG section renamed `## [X.Y.Z] - <date>` with its link references; `version: X.Y.Z` and `date-released` in `CITATION.cff`; the texts the release candidate wrote for its own state (the status lines, the install lines, `SECURITY.md`); and the certificate under `benchmarks/results/X.Y.Z/` (the release candidate's carried over, or measured again). Without a release candidate, steps 5-6 do this directly and 7-8 are skipped | a pull request; `python ci/wheel_check.py --release-metadata`; `parity/certify.py write --version X.Y.Z` | maintainer |
-| 10 | Final release: tag `vX.Y.Z` (equal to `VERSION`) on `main` after that merge; `release.yml` uploads to TestPyPI, then waits for the **approval of the `pypi` environment** and uploads the same files to PyPI. Before pushing, as in step 7: the release date is the day of the tag, and the author's open decisions due before the release are taken (GOVERNANCE.md, "Open decisions": O3, the `NOTICE` wording; the licence expression's objection window) | `python ci/wheel_check.py --release-metadata --release-date today`; `git tag -s -m "dynG X.Y.Z" vX.Y.Z && git push origin vX.Y.Z`; approve the deployment in the Actions run (**Review deployments** → **Approve and deploy**) | the tag: **author** (0.1.0: the AI assistant on the author's behalf); the approval: **author** |
+| 10 | Final release: tag `vX.Y.Z` (equal to `VERSION`) on `main` after that merge; `release.yml` uploads to TestPyPI, then waits for the **approval of the `pypi` environment** and uploads the same files to PyPI. Before pushing, as in step 7: the release date is the day of the tag ({ref}`release-late-tag-day` when that day is later than the final-release pull request's), and the author's open decisions due before the release are taken (GOVERNANCE.md, "Open decisions"; for 0.1.0 these were O3, the `NOTICE` wording, confirmed as drafted on 2026-10-01, and the licence expression, to which the author raised no objection by the tag day, the approval of the `pypi` deployment being the final confirmation: both in the approvals log) | `python ci/wheel_check.py --release-metadata --release-date today`; `git tag -s -m "dynG X.Y.Z" vX.Y.Z && git push origin vX.Y.Z`; approve the deployment in the Actions run (**Review deployments** → **Approve and deploy**) | the tag: **author** (0.1.0: the AI assistant on the author's behalf); the approval: **author** |
 | 11 | The GitHub Release from the CHANGELOG section, with the distributions of the `release.yml` run attached (a release candidate may get a GitHub pre-release, `--prerelease`) | `gh release create vX.Y.Z --title "dynG X.Y.Z" --notes-file <the CHANGELOG section> dist/*` | **author** (0.1.0: the AI assistant on the author's behalf) |
-| 12 | The Zenodo DOI of the release (once Zenodo is connected, checkpoint A4), then the DOI in `CITATION.cff` and the README. Zenodo archives only the GitHub Releases published after it is switched on: for a DOI of this release, the author switches it on **before step 11**; otherwise the release can only be uploaded to Zenodo by hand ({doc}`repository_settings`, section 14) | Zenodo's GitHub integration | **author** |
+| 12 | The Zenodo DOI of the release (once Zenodo is connected, checkpoint A4), then the DOI in `CITATION.cff` and the README. Zenodo archives only the GitHub Releases published after it is switched on: for a DOI of this release, the author switches it on **before step 11**; otherwise the release can only be uploaded to Zenodo by hand ({doc}`repository_settings`, section 14). **0.1.0:** Zenodo is not connected, so 0.1.0 has no DOI (the author, 2026-10-01); it may be connected later (A4), and the releases published after that get DOIs | Zenodo's GitHub integration | **author** |
 | 13 | conda-forge: merge the bot's feedstock pull request (from 0.3) | the `dyng-feedstock` repository | author |
 | 14 | Announce (Discussions); curate the next "good first issue" backlog; write the milestone retrospective; bump `VERSION` to the next `.dev0` | a pull request | maintainer |
 
@@ -124,6 +124,32 @@ release's state:
 by `ci/tests`) checks `VERSION`, the CHANGELOG section and its links and `CITATION.cff` against
 each other; the status texts are read by the reviewer of the pull request.
 
+(release-late-tag-day)=
+## A tag day later than the final-release pull request
+
+The CHANGELOG heading's date and `CITATION.cff`'s `date-released` must be the day the tag is
+pushed (UTC): `python ci/wheel_check.py --release-metadata --release-date today` fails on any
+other day, and the tagged files cannot be changed afterwards. When the tag falls on a later day
+than the one the final-release pull request wrote (0.1.0: written 2026-10-01, tagged
+2026-10-02, {doc}`retrospectives/R012`), fix both in a small pull request before the tag, and
+bring the certificate to its tree:
+
+1. Set the date in both files; `python ci/wheel_check.py --release-metadata --release-date
+   <tag day>` passes (and `--release-date today` on the tag day). Record any decision the
+   author took meanwhile (GOVERNANCE.md) in the same pull request.
+2. `CHANGELOG.md` and `CITATION.cff` are in the `packaging` scope and in the `repo` scope (the
+   whole tree but `benchmarks/results/`), so after the last change outside
+   `benchmarks/results/`, from fresh clones of that commit, run again: the distributions
+   ({ref}`release-local-build`: `select` for the tag, `ci/wheels.sh`, `twine check --strict`,
+   `ci/wheel_check.py --platform manylinux_2_28_x86_64 --require-libgomp`, fresh 3.12 and 3.13
+   venvs with the wheel's test subset and the README quickstart), `ci/check.sh --parity` and
+   `ci/gpu_local.sh`. Record each with `parity/certify.py check --version X.Y.Z` (the names
+   `distributions`, `check-parity` and `gpu_local`, replacing the records of the same names).
+   The `tests` records stand while `README.md` and the test paths are unchanged; otherwise the
+   sanitizer presets and `ctest -L mutation` are run again too.
+3. `parity/certify.py write --version X.Y.Z` on the committed tree, which checks every measured
+   commit against it in the paths of its scope; commit `benchmarks/results/X.Y.Z/`.
+
 (release-local-build)=
 ## Building a release locally, as `release.yml` would
 
@@ -153,4 +179,5 @@ and run the wheel's test subset and the README quickstart from an empty director
 
 The readiness list of 0.1.0, with what is done and what waits for the author, is in the M5
 retrospective ({doc}`retrospectives/M5`), the R010 retrospective ({doc}`retrospectives/R010`)
-and the R011 retrospective, the final-release record ({doc}`retrospectives/R011`).
+and the R011 retrospective, the final-release record ({doc}`retrospectives/R011`), and the R012
+retrospective, the tag day ({doc}`retrospectives/R012`).
