@@ -1,0 +1,126 @@
+# Excerpt of $DYNG_SCRATCH/runs/r012/repo/check-parity.log (sha256 e59a257e84818d758a557a884aa35d91ca849b278280a3c3b51ae9a1495c535f, 516146 bytes): its step headers and result lines, written by parity/certify.py check.
+==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
+clang-format: OK
+==> preset cpu-only: configure, build, test (label cpu)
+100% tests passed out of 592
+The following tests did not run:
+	 56 - Resources.OpenmpNotBuiltThrows (Skipped)
+	241 - Views.OldViewAfterTheCommitThrowsInDebugBuilds (Skipped)
+	247 - Budgets.InstrumentationIsNotHeldAgainstTheBudget (Skipped)
+	249 - Budgets.TheCommitIsMeasuredSeparately (Skipped)
+	250 - Budgets.ContainerWorkIsNotHeldAgainstTheBudget (Skipped)
+	252 - Budgets.CountersCountTheLibrarysAllocations (Skipped)
+	352 - CycleCountBackend.PlacementIsChecked (Skipped)
+	463 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	467 - sssp/conformance.C8_TheAlgorithmPhaseStaysWithinItsBudget<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	471 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	476 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	480 - sssp/conformance.C8_TheAlgorithmPhaseStaysWithinItsBudget<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	484 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	489 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	493 - sssp/conformance.C8_TheAlgorithmPhaseStaysWithinItsBudget<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	495 - sssp/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	497 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	502 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	506 - cycle_count/conformance.C8_TheAlgorithmPhaseStaysWithinItsBudget<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	510 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	515 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	519 - cycle_count/conformance.C8_TheAlgorithmPhaseStaysWithinItsBudget<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	523 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	528 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	532 - cycle_count/conformance.C8_TheAlgorithmPhaseStaysWithinItsBudget<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	534 - cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	536 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	541 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	545 - cycle_count/conformance.C8_TheAlgorithmPhaseStaysWithinItsBudget<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	547 - cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	549 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+preset cpu-only: OK
+==> preset dev: configure, build, test (label cpu)
+100% tests passed out of 605
+The following tests did not run:
+	 56 - Resources.OpenmpNotBuiltThrows (Skipped)
+	352 - CycleCountBackend.PlacementIsChecked (Skipped)
+	463 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	471 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	476 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	484 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	489 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	495 - sssp/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	497 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	502 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	510 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	515 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	523 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	528 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	534 - cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	536 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	541 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	547 - cycle_count/conformance.C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	549 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+preset dev: OK
+==> clang-tidy (naming rules, library sources)
+clang-tidy: OK
+==> reuse lint
+reuse: OK
+==> provenance headers
+provenance: OK (141 files checked)
+==> scripts/regen.py --check (the files generated from the manifests)
+==> parity harness (Python): compile and smoke tests
+119 passed in 18.83s
+harness: OK
+==> Python package: development install, stubs, pytest (ci/python.sh)
+==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
+==> pip install -e . into /home/sskg8/Projects/dyng-work/r012/clone-repo/build/py-venv (build directory build/)
+==> installed: 0.1.0 /home/sskg8/Projects/dyng-work/r012/clone-repo/python/dyng/__init__.py
+==> scripts/regen.py --stubs --check
+==> mypy (strict) over python/dyng
+==> pytest python/tests
+396 passed, 4 skipped in 15.19s
+python: OK
+==> Python API check: griffe against the base branch (ci/api_check.sh)
+==> griffe check dyng against origin/main (griffe 2.3.0)
+==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
+==> copy of the working tree in /tmp/dyng-scaffold.0Q1DKp/src
+==> scripts/new_algorithm.py: one algorithm of each family
+github_meta_check: OK (labels, issue forms, chooser, CODEOWNERS, PR template, workflows)
+==> configure and build (Debug, warnings as errors, budgets on; the probes, sssp added)
+==> the probes' tests, the registry test
+100% tests passed out of 80
+The following tests did not run:
+	395 - scaffold_probe_fp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_fp,dyng::graph<int,int,int> >> (Skipped)
+	403 - scaffold_probe_fp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_fp,dyng::graph<int,int,int> >> (Skipped)
+	408 - scaffold_probe_fp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_fp,dyng::graph<int,long,int> >> (Skipped)
+	416 - scaffold_probe_fp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_fp,dyng::graph<int,long,int> >> (Skipped)
+	421 - scaffold_probe_fp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_fp,dyng::graph<long,long,int> >> (Skipped)
+	429 - scaffold_probe_fp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_fp,dyng::graph<long,long,int> >> (Skipped)
+	433 - scaffold_probe_ad/conformance.C3_BackendsAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<int,int,int> >> (Skipped)
+	434 - scaffold_probe_ad/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<int,int,int> >> (Skipped)
+	442 - scaffold_probe_ad/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<int,int,int> >> (Skipped)
+	446 - scaffold_probe_ad/conformance.C3_BackendsAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<int,long,int> >> (Skipped)
+	447 - scaffold_probe_ad/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<int,long,int> >> (Skipped)
+	455 - scaffold_probe_ad/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<int,long,int> >> (Skipped)
+	459 - scaffold_probe_ad/conformance.C3_BackendsAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<long,long,int> >> (Skipped)
+	460 - scaffold_probe_ad/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<long,long,int> >> (Skipped)
+	468 - scaffold_probe_ad/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::scaffold_probe_ad,dyng::graph<long,long,int> >> (Skipped)
+100% tests passed out of 3
+==> docs: Doxygen, the API baseline, Sphinx
+doxygen-coverage: OK (131 compounds checked)
+doc-snippets: OK (6 snippets)
+doxygen-coverage: OK (131 compounds checked)
+doc-snippets: OK (6 snippets)
+api-snapshot: OK (669 declarations match public_api.txt)
+==> scripts/new_algorithm.py --remove
+scaffold_check: OK (80 tests of the probes passed)
+==> docs (Doxygen and the Sphinx site, warnings as errors; repository links and anchors)
+doxygen-coverage: OK (119 compounds checked)
+doc-snippets: OK (6 snippets)
+api-snapshot: OK (627 declarations match public_api.txt)
+docs_links: OK (repository URLs in 1549 files, relative links and anchors of build/docs/html)
+docs: OK
+==> pre-commit run --all-files
+pre-commit: OK
+==> parity preset: golden replay (ctest -L parity)
+100% tests passed out of 4
+parity: OK
+ci/check.sh: all checks passed

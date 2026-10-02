@@ -12,8 +12,9 @@ algorithm you use**.
 | `hyper_sssp` | H-SOSP (IA3 workshop at SC 2026) |
 
 From C++, `dyng::citation("sssp")` returns the BibTeX entries of an algorithm and
-`dyng::citation()` all of them. GitHub's "Cite this repository" button uses `CITATION.cff`. Once
-releases are archived on Zenodo, each release gets a DOI.
+`dyng::citation()` all of them. GitHub's "Cite this repository" button uses `CITATION.cff`.
+dynG 0.1.0 has no DOI (it is not archived on Zenodo); cite it by version, `CITATION.cff` and the
+repository URL. Once Zenodo is connected, each release published after that gets a DOI.
 
 ## References
 

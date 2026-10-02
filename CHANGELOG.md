@@ -163,16 +163,20 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
 - Merged `main` at 0.1.0rc1 (pull request #5); the release certificate (`parity/certify.py`)
   knows mosp's paper-scale goldens and fixtures.
 
-## [0.1.0rc1] - 2026-10-01
+### Changed
+
+- `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.
+
+## [0.1.0] - 2026-10-02
 
 ### Summary
 
-The release candidate of dynG 0.1.0, the first release of the library: two dynamic algorithms,
-each ported from a pinned research code and proved equal to it, with one C++ API, a Python
-package and a command line. Release candidates are published on TestPyPI only (`pip install -i
-https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.1.0rc1`); 0.1.0
-follows on PyPI. The entries below the summary are the detailed record of milestones M1a to M5
-and of the release preparation.
+The first release of dynG: two dynamic algorithms, each ported from a pinned research code and
+proved equal to it, with one C++ API, a Python package and a command line. Install it with `pip
+install dyng` (Python >= 3.12, Linux x86-64). 0.1.0 is the release candidate 0.1.0rc1 (tag
+`v0.1.0rc1`, published on TestPyPI only and smoke-tested from there) with the final-release
+changes below and no change to the library. The entries below the summary are the detailed
+record of milestones M1a to M5 and of the release preparation.
 
 - **Algorithms.** `sssp` (dynamic single-source shortest paths: DynaMOSP's SOSP update,
   byte-identical to MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 on their 495-case golden corpus)
@@ -191,7 +195,7 @@ and of the release preparation.
 - **Documentation:** getting started in Python and C++, the update model, the algorithm pages
   with "Differences from the paper" and "Paper vs fixed code", the C++, Python and CLI
   references, the history of the ported codes, and the developer guides.
-- **The release certificate** `benchmarks/results/0.1.0rc1/` (PLAN 8.3 and 8.6): golden parity
+- **The release certificate** `benchmarks/results/0.1.0/` (PLAN 8.3 and 8.6): golden parity
   on every backend (sssp 4950 of 4950 replays byte-equal, cycle_count 144 of 144), the release
   performance gate of both algorithms against the unpatched originals (sssp 132 of 132 gated
   regions, ratios 0.63-1.05; cycle_count 78 of 78, ratios 0.23-1.01; CUDA at locked clocks,
@@ -202,6 +206,35 @@ Known limitations of 0.1.0: no CUDA backend in the Python wheel (the plugin whee
 `dyng-cu13` follow in 0.1.x); on CUDA, `sssp` needs cooperative launch (the operators engine
 follows in 0.2); `cycle_count` counts simple cycles only (no time-window or temporal modes, no
 approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the name reservation.
+
+### Final release (R011)
+
+- Changed: `VERSION` 0.1.0, `CITATION.cff` `version: 0.1.0`; this section, the release
+  candidate's `[0.1.0rc1]`, renamed `[0.1.0]` with its link references.
+- Docs: the status texts of the release candidate brought to the release (README, the
+  documentation's start page and install page, `SECURITY.md` with its supported versions,
+  `CONTRIBUTING.md`, `SUPPORT.md`, the roadmap and the developer plan): `pip install dyng`
+  from PyPI.
+- Added: `benchmarks/results/0.1.0/`, the certificate of the release, carried over from
+  0.1.0rc1 (`docs/developer/release.md`, step 9): the library did not change since the measured
+  commits, so the gates, the golden replays and the golden mutations stand; the distributions,
+  `ci/check.sh --parity`, `ci/gpu_local.sh` and the C++ test suites (the sanitizer presets, the
+  mutation CTests; `README.md` changed) were run again on the final tree. The smoke test of
+  0.1.0rc1 from TestPyPI is recorded there.
+
+### Tag day (R012)
+
+- Changed: the release date 2026-10-02, the day of the tag `v0.1.0` (UTC), in this heading and
+  in `CITATION.cff`'s `date-released` (`docs/developer/release.md`, step 10).
+- Docs: the author's decisions recorded in `GOVERNANCE.md`: the `NOTICE` wording confirmed as
+  drafted (O3, 2026-10-01; `NOTICE` unchanged); Zenodo not connected for 0.1.0, so 0.1.0 has no
+  DOI (2026-10-01); the licence expression of the distributions: no objection by the tag day,
+  the approval of the `pypi` deployment is the final confirmation. The release guide, the
+  repository settings (Zenodo), the citing page, the roadmap, the developer plan and the R011
+  retrospective say so.
+- Changed: the certificate's checks of the `packaging` and `repo` scopes (the distributions,
+  `ci/check.sh --parity`, `ci/gpu_local.sh`) run again on the tag-day tree and recorded; the
+  certificate written again (`benchmarks/results/0.1.0/`).
 
 ### Release preparation (R010)
 
@@ -219,7 +252,7 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`certify.py check`) and compares the builds of a measured commit and of the release when they
   differ only in the registry's metadata (`certify.py equivalence`); `parity/mutate.py` checks
   that mutations of sssp fail its goldens on every backend.
-- Added: `benchmarks/results/0.1.0rc1/`, the certificate of this release.
+- Added: `benchmarks/results/0.1.0rc1/`, the certificate of the release candidate.
 - Changed: `sssp` and `cycle_count` are `stable` (their manifests, the registry and the tables
   generated by `scripts/regen.py`).
 - Changed: the distributions' `License-Expression` names the licences of what the wheel bundles:
@@ -989,6 +1022,6 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
   Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.1.0rc1...main
-[0.1.0rc1]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0rc1
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.1.0...main
+[0.1.0]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/dyng-dev/dyng/tree/v0.0.1

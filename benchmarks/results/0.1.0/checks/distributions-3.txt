@@ -1,0 +1,8 @@
+# Copy of $DYNG_SCRATCH/runs/r012/subset-3.13.log (sha256 b34d2b2a17cf6a29adaabd2119e9fdfe17bdac38420add09e506e98c6e8e0a4f, 510 bytes), written by parity/certify.py check.
+........................................................................ [ 28%]
+...................................................s.................... [ 56%]
+........................................................................ [ 85%]
+......................................                                   [100%]
+=========================== short test summary info ============================
+SKIPPED [1] python/tests/test_cli.py:684: docs/api/cli.md is not in this tree
+253 passed, 1 skipped in 5.33s

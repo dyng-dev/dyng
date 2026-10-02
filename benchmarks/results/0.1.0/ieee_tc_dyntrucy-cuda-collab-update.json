@@ -1,0 +1,432 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "backend": "cuda",
+ "date": "2026-10-01T06:38:36Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/cycle-enum",
+  "build": "name=CycleEnumeration-GPU\ncommit=0a976adfa801a712135bf1adb51a228f353a0751\nvariant=unpatched\narchive_sha256=53eef2ed4394c0d8ab079f9ef50b2394946f4a0d611a0425a0a32b7892fe39c3\nexported=2026-09-28T00:00:24Z\nbuild=env NVCC=/usr/local/cuda-13.1/bin/nvcc cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCYCLE_ENUM_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.1/bin/nvcc -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++ -DCMAKE_CUDA_ARCHITECTURES=86 && cmake --build build -j16\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "baseline": {
+  "experiment": false,
+  "label": "original",
+  "kind": "original"
+ },
+ "port": {
+  "commit": "d13d393f8ea52cdfefb4a2983723b8fe78550628",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-cycle-enum",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/cycle_count.toml",
+  "key": "cycle_enum_cuda",
+  "regions": [
+   "static_kernel",
+   "static_memcpy",
+   "static_total",
+   "static_end_to_end",
+   "update",
+   "update_device",
+   "update_chain_steady",
+   "update_chain_worst",
+   "update_end_to_end"
+  ]
+ },
+ "protocol": {
+  "runs": 11,
+  "order": "A, B[scope] for every --scopes entry, repeated; one untimed round per case first",
+  "backend": "cuda (--backend cuda --cuda-device 0 on both; CUDA_VISIBLE_DEVICES = 0, CUDA_MODULE_LOADING=EAGER)",
+  "scopes": "original,resident",
+  "gpu": 0,
+  "clocks": {
+   "control": "base",
+   "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+   "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+   "before": {
+    "pstate": "P8",
+    "sm_mhz": 210,
+    "memory_mhz": 405
+   },
+   "locked": {
+    "pstate": "P2",
+    "sm_mhz": 1170,
+    "memory_mhz": 7601
+   },
+   "check": "every busy GPU sample of every accepted round at the locked clocks",
+   "after_reset": {
+    "pstate": "P5",
+    "sm_mhz": 780,
+    "memory_mhz": 810
+   }
+  },
+  "lock": "perf.lock (exclusive)",
+  "statistic": "median",
+  "outputs": "standard output captured (the histogram CSV), compared every round",
+  "short_regions": "< 10.0 ms need >= 20 runs",
+  "monitor": "parity/perf_ab.py MachineMonitor: rounds with foreign GPU processes, off-lock busy samples or more than --max-foreign-cpu foreign cores are repeated",
+  "max_foreign_cpu_cores": 2.0,
+  "update_events": "short",
+  "chain": 4
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "datasets_sha256": {
+  "collab": "043c465d207992054d2567a277bfba9fad24d994040241987e61f9e9daa12ae4"
+ },
+ "results": {
+  "update/collab_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "original_samples": [
+      217.086,
+      217.346,
+      218.679,
+      217.728,
+      216.745,
+      217.42700000000002,
+      217.75,
+      217.745,
+      217.54299999999998,
+      218.024,
+      217.14
+     ],
+     "original_spread": 0.00889019642093746,
+     "port_ms": 215.165,
+     "port_samples": [
+      214.765,
+      215.238,
+      215.188,
+      214.828,
+      215.722,
+      214.97,
+      215.899,
+      215.082,
+      215.249,
+      215.165,
+      214.929
+     ],
+     "port_spread": 0.005270373899100758,
+     "port_stage_ms": 215.160193,
+     "ratio": 0.9890688277719808,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 12404.99281231314,
+     "original_samples": [
+      12436.653484590352,
+      12417.427159845829,
+      12402.766943909228,
+      12382.756737992167,
+      12422.735020518303,
+      12363.113172352314,
+      12381.483627483249,
+      12417.127677239478,
+      12404.99281231314,
+      12423.132630996406,
+      12357.504022307694
+     ],
+     "original_spread": 0.006380452087331661,
+     "port_ms": 12322.210628539324,
+     "port_samples": [
+      12324.669151566923,
+      12339.635282754898,
+      12312.6978604123,
+      12253.509397618473,
+      12239.99850358814,
+      12322.57598824799,
+      12336.76172234118,
+      12322.210628539324,
+      12314.18208964169,
+      12339.140704832971,
+      12301.395617425442
+     ],
+     "port_spread": 0.008085950010949377,
+     "ratio": 0.9933267044143995,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "original_samples": [
+      217.086,
+      217.346,
+      218.679,
+      217.728,
+      216.745,
+      217.42700000000002,
+      217.75,
+      217.745,
+      217.54299999999998,
+      218.024,
+      217.14
+     ],
+     "original_spread": 0.00889019642093746,
+     "port_ms": 205.989,
+     "port_samples": [
+      205.908,
+      205.989,
+      205.719,
+      206.175,
+      206.034,
+      206.166,
+      205.503,
+      205.987,
+      205.993,
+      205.955,
+      206.148
+     ],
+     "port_spread": 0.003262310123356225,
+     "port_stage_ms": 205.982883,
+     "ratio": 0.9468886610922899,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "original_samples": [
+      217.086,
+      217.346,
+      218.679,
+      217.728,
+      216.745,
+      217.42700000000002,
+      217.75,
+      217.745,
+      217.54299999999998,
+      218.024,
+      217.14
+     ],
+     "original_spread": 0.00889019642093746,
+     "port_ms": 211.986,
+     "port_samples": [
+      211.788,
+      211.883,
+      211.986,
+      212.027,
+      212.314,
+      212.309,
+      211.763,
+      211.967,
+      212.252,
+      212.008,
+      211.876
+     ],
+     "port_spread": 0.002599228250922173,
+     "ratio": 0.9744556248649693,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 217.54299999999998,
+     "original_samples": [
+      217.086,
+      217.346,
+      218.679,
+      217.728,
+      216.745,
+      217.42700000000002,
+      217.75,
+      217.745,
+      217.54299999999998,
+      218.024,
+      217.14
+     ],
+     "original_spread": 0.00889019642093746,
+     "port_ms": 217.936,
+     "port_samples": [
+      216.365,
+      217.755,
+      217.816,
+      218.096,
+      217.936,
+      216.405,
+      217.791,
+      218.065,
+      218.103,
+      218.116,
+      217.988
+     ],
+     "port_spread": 0.008034468834887329,
+     "ratio": 1.001806539396809,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.commit": 76.311951,
+     "cycle_count.compute": 8496.432972,
+     "cycle_count.count": 8484.454333,
+     "cycle_count.count_minus": 11.113047,
+     "cycle_count.count_plus": 122.698123,
+     "cycle_count.enact_fused": 8608.059744,
+     "cycle_count.finalize": 0.025353,
+     "cycle_count.identify_affected": 0.0004,
+     "cycle_count.normalize": 4.837333,
+     "cycle_count.reset": 0.811192,
+     "cycle_count.update": 215.160193,
+     "graph.apply": 76.306816,
+     "graph.build": 147.047429,
+     "graph.upload": 21.725922
+    },
+    "resident": {
+     "cycle_count.commit": 76.297165,
+     "cycle_count.compute": 8496.523268,
+     "cycle_count.count": 8484.514552,
+     "cycle_count.count_minus": 0.378977,
+     "cycle_count.count_plus": 124.336034,
+     "cycle_count.enact_fused": 8609.751771000001,
+     "cycle_count.finalize": 0.025863,
+     "cycle_count.identify_affected": 0.00037,
+     "cycle_count.normalize": 4.874446000000001,
+     "cycle_count.reset": 0.825764,
+     "cycle_count.update": 205.982883,
+     "graph.apply": 76.291806,
+     "graph.build": 146.412929,
+     "graph.upload": 11.055393
+    }
+   },
+   "extra_processes": [
+    "chain[resident]"
+   ],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1170,
+      "busy_samples": 1983,
+      "rounds_with_busy_samples": 11
+     },
+     "port[original]": {
+      "sm_mhz_min": 1170,
+      "busy_samples": 2005,
+      "rounds_with_busy_samples": 11
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1170,
+      "busy_samples": 2005,
+      "rounds_with_busy_samples": 11
+     }
+    }
+   },
+   "chain_ms_by_round": [
+    [
+     206.146,
+     209.391,
+     211.788,
+     216.365
+    ],
+    [
+     205.857,
+     208.977,
+     211.883,
+     217.755
+    ],
+    [
+     206.21,
+     209.364,
+     211.986,
+     217.816
+    ],
+    [
+     206.363,
+     209.475,
+     212.027,
+     218.096
+    ],
+    [
+     206.003,
+     209.247,
+     212.314,
+     217.936
+    ],
+    [
+     205.172,
+     209.065,
+     212.309,
+     216.405
+    ],
+    [
+     206.024,
+     209.025,
+     211.763,
+     217.791
+    ],
+    [
+     206.011,
+     209.345,
+     211.967,
+     218.065
+    ],
+    [
+     205.864,
+     209.132,
+     212.252,
+     218.103
+    ],
+    [
+     205.857,
+     209.076,
+     212.008,
+     218.116
+    ],
+    [
+     206.321,
+     209.328,
+     211.876,
+     217.988
+    ]
+   ]
+  }
+ },
+ "compacted": "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the rejected rounds) were dropped to keep the repository small; the verdicts, samples, rejected rounds with their reasons, clock check and GPU summary are unchanged; the full record: $DYNG_SCRATCH/runs/bench/0.1.0rc1/ieee_tc_dyntrucy-cuda-collab-update.json"
+}

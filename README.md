@@ -1,9 +1,9 @@
 # dynG: dynamic graph and hypergraph updates on GPUs
 
-> **Alpha: 0.1 release candidate.** dynG 0.1.0rc1 is the release candidate of the first
-> release: the C++ library, the Python package and the `dyng` command line described here.
-> `sssp` and `cycle_count` are stable (SemVer applies from 0.1.0); the release candidate is on
-> TestPyPI only, and the PyPI package `dyng` 0.0.1 is only a name reservation until 0.1.0.
+> **Alpha: 0.1.0.** dynG 0.1.0 is the first release: the C++ library, the Python package
+> (`pip install dyng`) and the `dyng` command line described here. `sssp` and `cycle_count` are
+> stable (SemVer applies from 0.1.0); the other algorithms of the table are planned for later
+> releases.
 
 dynG is a C++17/CUDA library with Python bindings that keeps the results of graph and
 hypergraph algorithms up to date while the structure changes in **batches** of insertions,
@@ -33,8 +33,7 @@ is generated from the algorithms' manifests by `scripts/regen.py`.
 
 ## Quickstart
 
-Python (`pip install dyng` once 0.1.0 is published; until then `pip install .` in a clone, see
-[Install](#install)):
+Python (`pip install dyng`, or `pip install .` in a clone, see [Install](#install)):
 
 <!-- snippet: quickstart-python -->
 ```python
@@ -104,7 +103,7 @@ files in the original tools' formats: `dyng sssp update --graph G --changes DIR 
 | `sssp`'s CUDA operators engine and `mosp`: multi-objective shortest paths (DynaMOSP MOSP update) on every backend, with `dyng.mosp` and `dyng mosp` | working on the branch `m7-mosp` (0.2): the operators engine byte-identical to the fused one; mosp byte-identical to MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 (combined graph and path costs included) and within their gates ([M7 record](parity/results/M7.md)) |
 | `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
-| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working (M5): a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64), byte-identical to the originals on the Python-level parity subset; to be published with 0.1.0. CUDA plugin wheels follow in 0.1.x |
+| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; CUDA plugin wheels follow in 0.1.x |
 
 ## The name
 
@@ -118,8 +117,8 @@ and RAFT, but it is **not affiliated** with either project.
 ### Python package
 
 ```bash
-pip install dyng                         # from PyPI, once 0.1.0 is published (Python >= 3.12, Linux x86-64)
-pip install .                            # today: from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
+pip install dyng                         # from PyPI (Python >= 3.12, Linux x86-64)
+pip install .                            # or from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
 ```
 
 The wheel contains the sequential and OpenMP backends and the `dyng` command line; CUDA plugin

@@ -2,16 +2,17 @@
 
 ## Supported versions
 
-dynG is alpha: 0.1.0rc1, the release candidate of the first release, is on TestPyPI only. The
-PyPI package `dyng` 0.0.1 is only a name reservation and contains no library code. From 0.1.0 on, security fixes go into the **latest
-minor release** (as a new patch release) and into `main`; older minor releases are not
-patched.
+dynG is alpha: 0.1.0, the first release, is on PyPI. The PyPI package `dyng` 0.0.1 was only a
+name reservation and contains no library code; the release candidate 0.1.0rc1 was published on
+TestPyPI only. Security fixes go into the **latest minor release** (as a new patch release) and
+into `main`; older minor releases are not patched.
 
 | Version | Supported |
 |---|---|
-| `main` and the 0.1.0 release candidates | yes |
+| `main` | yes |
+| latest minor release (today 0.1.x) | yes |
+| 0.1.0rc1 (release candidate, TestPyPI only) | no; please upgrade to 0.1.0 |
 | 0.0.1 (name reservation, no library code) | no code to fix |
-| latest minor release (from 0.1.0 on) | yes |
 | older minor releases | no; please upgrade |
 
 ## Reporting a vulnerability
