@@ -17,7 +17,7 @@ license: Apache-2.0
 repository-code: "https://github.com/dyng-dev/dyng"
 url: "https://github.com/dyng-dev/dyng"
 version: 0.1.0
-date-released: "2026-10-01"
+date-released: "2026-10-02"
 keywords:
   - dynamic graph
   - batch update

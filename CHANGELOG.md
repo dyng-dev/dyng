@@ -8,7 +8,7 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-01
+## [0.1.0] - 2026-10-02
 
 ### Summary
 
@@ -62,6 +62,20 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   `ci/check.sh --parity`, `ci/gpu_local.sh` and the C++ test suites (the sanitizer presets, the
   mutation CTests; `README.md` changed) were run again on the final tree. The smoke test of
   0.1.0rc1 from TestPyPI is recorded there.
+
+### Tag day (R012)
+
+- Changed: the release date 2026-10-02, the day of the tag `v0.1.0` (UTC), in this heading and
+  in `CITATION.cff`'s `date-released` (`docs/developer/release.md`, step 10).
+- Docs: the author's decisions recorded in `GOVERNANCE.md`: the `NOTICE` wording confirmed as
+  drafted (O3, 2026-10-01; `NOTICE` unchanged); Zenodo not connected for 0.1.0, so 0.1.0 has no
+  DOI (2026-10-01); the licence expression of the distributions: no objection by the tag day,
+  the approval of the `pypi` deployment is the final confirmation. The release guide, the
+  repository settings (Zenodo), the citing page, the roadmap, the developer plan and the R011
+  retrospective say so.
+- Changed: the certificate's checks of the `packaging` and `repo` scopes (the distributions,
+  `ci/check.sh --parity`, `ci/gpu_local.sh`) run again on the tag-day tree and recorded; the
+  certificate written again (`benchmarks/results/0.1.0/`).
 
 ### Release preparation (R010)
 
