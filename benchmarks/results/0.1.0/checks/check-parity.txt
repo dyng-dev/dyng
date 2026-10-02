@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r011/review/repo/check-parity.log (sha256 1f2e191f9b3e58fc26901fd0165abdcb0acb3dc874ff9224e4aacf369071f947, 516147 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r012/repo/check-parity.log (sha256 e59a257e84818d758a557a884aa35d91ca849b278280a3c3b51ae9a1495c535f, 516146 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -67,21 +67,21 @@ reuse: OK
 provenance: OK (141 files checked)
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-119 passed in 43.84s
+119 passed in 18.83s
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
-==> pip install -e . into /home/sskg8/Projects/dyng-work/r011/clone-repo/build/py-venv (build directory build/)
-==> installed: 0.1.0 /home/sskg8/Projects/dyng-work/r011/clone-repo/python/dyng/__init__.py
+==> pip install -e . into /home/sskg8/Projects/dyng-work/r012/clone-repo/build/py-venv (build directory build/)
+==> installed: 0.1.0 /home/sskg8/Projects/dyng-work/r012/clone-repo/python/dyng/__init__.py
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng
 ==> pytest python/tests
-396 passed, 4 skipped in 11.44s
+396 passed, 4 skipped in 15.19s
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> griffe check dyng against origin/main (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.AudKMj/src
+==> copy of the working tree in /tmp/dyng-scaffold.0Q1DKp/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 github_meta_check: OK (labels, issue forms, chooser, CODEOWNERS, PR template, workflows)
 ==> configure and build (Debug, warnings as errors, budgets on; the probes, sssp added)

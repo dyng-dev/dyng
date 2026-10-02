@@ -1,11 +1,11 @@
-# Copy of $DYNG_SCRATCH/runs/r011/review/repo/python.log (sha256 78166ef743fd4f4db0e4d8ab9f9c2492d1bcf92a9dce247b55277537a552964b, 1670 bytes), written by parity/certify.py check.
+# Copy of $DYNG_SCRATCH/runs/r012/repo/python.log (sha256 2dd7d332aa90f67bd2504252aff3eaec896a70f0b8a6c6288a13314a171d06ba, 1670 bytes), written by parity/certify.py check.
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
     (DYNG_PYTHON_INSTALL=force would): using the throwaway venv build/py-venv
-==> pip install -e . into /home/sskg8/Projects/dyng-work/r011/clone-repo/build/py-venv (build directory build/)
+==> pip install -e . into /home/sskg8/Projects/dyng-work/r012/clone-repo/build/py-venv (build directory build/)
 
 [notice] A new release of pip is available: 25.0.1 -> 26.2.1
 [notice] To update, run: python -m pip install --upgrade pip
-==> installed: 0.1.0 /home/sskg8/Projects/dyng-work/r011/clone-repo/python/dyng/__init__.py
+==> installed: 0.1.0 /home/sskg8/Projects/dyng-work/r012/clone-repo/python/dyng/__init__.py
 ==> scripts/regen.py --stubs --check
 regen.py: 8 generated files up to date (2 algorithms)
 ==> mypy (strict) over python/dyng
@@ -22,4 +22,4 @@ SKIPPED [1] python/tests/test_arrays.py:215: could not import 'torch': No module
 SKIPPED [1] python/tests/test_arrays.py:222: could not import 'cupy': No module named 'cupy'
 SKIPPED [1] python/tests/test_batch.py:74: could not import 'torch': No module named 'torch'
 SKIPPED [1] python/tests/test_profiler.py:48: could not import 'pandas': No module named 'pandas'
-396 passed, 4 skipped in 11.51s
+396 passed, 4 skipped in 11.75s
