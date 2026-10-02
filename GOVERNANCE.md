@@ -98,6 +98,7 @@ One line per decision: date, checkpoint or decision, what was approved, by whom.
 | 2026-10-01 | O3 (`NOTICE`) | The institution line and the years of `NOTICE` are confirmed as drafted ("software developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors"); `NOTICE` is unchanged. This closes O3 before the tag `v0.1.0` is pushed (`docs/developer/release.md` step 10). | S M Shovan |
 | 2026-10-01 | Zenodo not connected for 0.1.0 (no DOI) | Zenodo is not connected for 0.1.0, so 0.1.0 has no DOI. It may be connected later (checkpoint A4, `docs/developer/repository_settings.md` section 14); the releases published after that get DOIs. | S M Shovan |
 | 2026-10-02 | Licence metadata of the distributions (0.1.0) | The `License-Expression` of 2026-09-30 stands for 0.1.0: the author was told that it is in the 0.1.0rc1 distributions on TestPyPI and raised no objection by the tag day; the author's approval of the `pypi` deployment of 0.1.0 is the final confirmation. | no objection by the tag day (S M Shovan); final confirmation: the `pypi` approval |
+| 2026-10-02 | PyPI deployment of 0.1.0 | The author approved the `pypi` deployment of release run 36956746032 (tag `v0.1.0`); dyng 0.1.0 is on PyPI. The approval is the final confirmation of the wheel's licence expression (`Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1`). The GitHub Release v0.1.0 was created by the AI assistant per the decision of 2026-09-30. | S M Shovan |
 
 ## Open decisions
 
