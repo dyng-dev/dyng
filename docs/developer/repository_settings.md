@@ -35,7 +35,7 @@ recorded in the approvals log of `GOVERNANCE.md`.
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
 | 13 | Read the Docs | later: checkpoint A4, milestone M6 | later |
-| 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); only before the GitHub Release of 0.1.0 if 0.1.0 is to get a DOI (section 14) | later |
+| 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); **not connected for 0.1.0**, so 0.1.0 has no DOI (the author, 2026-10-01; section 14) | later |
 
 ## 1. Organization security
 
@@ -356,10 +356,12 @@ and takes the metadata from `CITATION.cff`.
    `CITATION.cff` in the next pull request, and record A4 in `GOVERNANCE.md`.
 
 Zenodo's GitHub integration archives only the releases **published after** the repository is
-switched on; it does not go back to earlier ones. With A4 in M6 (PLAN 11.2), the GitHub Release
-of 0.1.0 gets no DOI automatically: if 0.1.0 should have one, switch Zenodo on (steps 1-3)
-before the GitHub Release of 0.1.0 is created. Otherwise the first automatic DOI comes with the
-first release after A4 (0.1.1 or later), and 0.1.0 can only be uploaded to Zenodo by hand
-(**New upload**, the release's source archive and the metadata of `CITATION.cff`).
+switched on; it does not go back to earlier ones. **0.1.0 has no DOI:** the author decided on
+2026-10-01 not to connect Zenodo for 0.1.0 (GOVERNANCE.md, approvals log), so its GitHub
+Release is not archived. Zenodo may be connected later (checkpoint A4, steps 1-3, planned with
+M6, PLAN 11.2); the first DOI then comes with the first GitHub Release published after that
+(0.1.1 or later), and each later release gets its own. Archiving 0.1.0 afterwards would need an
+upload by hand (**New upload**, the release's source archive and the metadata of
+`CITATION.cff`), which would be a new decision of the author.
 
 Docs: <https://help.zenodo.org/docs/github/enable-repository/>.

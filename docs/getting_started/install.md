@@ -92,12 +92,12 @@ manylinux_2_28; OpenMP's runtime is bundled). It contains the sequential and Ope
 the `dyng` command line ({doc}`../api/cli`); NumPy is its only dependency.
 
 ```bash
-pip install dyng                   # from PyPI once 0.1.0 is published
+pip install dyng                   # from PyPI
 python -c "import dyng; dyng.show_config()"
 ```
 
-Until 0.1.0 is on PyPI, build the same package from a clone (it compiles the C++ core, so it
-needs CMake >= 3.30, Ninja and a C++17 compiler, for example from the `dyng-dev` environment):
+The same package can be built from a clone (it compiles the C++ core, so it needs CMake >=
+3.30, Ninja and a C++17 compiler, for example from the `dyng-dev` environment):
 
 ```bash
 pip install .                      # the wheel of this checkout
@@ -115,7 +115,7 @@ ci/python.sh                       # the editable install, the stubs check, mypy
 
 `dyng.show_config()` prints the backends of the active native module; `dyng.Resources("cuda")`
 raises `NotSupportedError` in the CPU wheel. The CUDA backends come as plugin wheels in 0.1.x
-(`pip install "dyng[cu13]"`, PLAN Section 7.7); until then, use CUDA from C++. The PyPI version
-0.0.1 is only the name reservation and contains no library. {doc}`first_update_python` runs a
+(`pip install "dyng[cu13]"`, PLAN Section 7.7); until then, use CUDA from C++. The PyPI release
+0.0.1 was only the name reservation and contains no library. {doc}`first_update_python` runs a
 first update; the local build of the release wheels is described in
 {doc}`../developer/wheels`.

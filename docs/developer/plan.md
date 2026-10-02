@@ -11,13 +11,15 @@ change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in 
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
 
-Status: 2026-10-01. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
+Status: 2026-10-02. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
 conformance kit and the 0.1 API freeze), M4 (this infrastructure) and M5 (the Python package, a
 CPU wheel, the `dyng` command line and the documentation of 0.1; pull request #4, merged at
-`8842acf`) are done and merged into `main`. In progress: the release preparation R010 for
-0.1.0rc1 on the branch `release-0.1.0` (the certificate, the version and the release changes:
-{doc}`retrospectives/R010`); then 0.1.0 (the checklist: {doc}`release`). M7 (`mosp`) is developed
-at the same time on its own branch.
+`8842acf`) are done and merged into `main`. **0.1.0 is released**: the release preparation R010
+made the release candidate 0.1.0rc1 (pull request #5, on TestPyPI; {doc}`retrospectives/R010`),
+and the final-release pull request R011 made 0.1.0 with the certificate carried over
+({doc}`retrospectives/R011`; the checklist: {doc}`release`); R012 set the release date to the tag
+day, 2026-10-02, and recorded the author's last decisions ({doc}`retrospectives/R012`). M7
+(`mosp`, for 0.2) is developed at the same time on its own branch.
 
 ## 1. What dynG is
 
@@ -92,7 +94,7 @@ The decisions at a glance (D1-D17 of the plan), with the author's decisions at a
 |---|---|
 | Name | **dynG**; identifiers `dyng` (`namespace dyng`, `dyng::dyng`, `DYNG_*`, `import dyng`); ADR 0001 |
 | Home | GitHub organization **`dyng-dev`**, repository `dyng-dev/dyng`, **public from the start** |
-| License | **Apache-2.0** + `NOTICE` + `CITATION.cff` + `dyng::citation()`; a Zenodo DOI per release; ADR 0002 |
+| License | **Apache-2.0** + `NOTICE` + `CITATION.cff` + `dyng::citation()`; a Zenodo DOI per release once Zenodo is connected (checkpoint A4; not for 0.1.0, which has no DOI: the author, 2026-10-01); ADR 0002 |
 | IP and consent | the university IP office asked for the code to be public (cleared); no consent gating of ports: a port is published as soon as it passes its gates |
 | History | fresh git history; provenance through file headers and `parity/references.toml` |
 | PyPI | `dyng` reserved with a real 0.0.1 through Trusted Publishing (`release.yml`, environments `pypi` / `testpypi`) |
@@ -128,14 +130,14 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 
 | Milestone | Deliverables | Exit criteria | Status |
 |---|---|---|---|
-| **M0** Decisions and drafts | LICENSE, NOTICE, CITATION.cff, AUTHORS, README; the 0.0.1 package and its workflow; the provenance record | drafts reviewed; A1 and A3 answered | done (the provenance record, {doc}`provenance`, was written in M4; the NOTICE wording awaits the author's confirmation, O3 below) |
+| **M0** Decisions and drafts | LICENSE, NOTICE, CITATION.cff, AUTHORS, README; the 0.0.1 package and its workflow; the provenance record | drafts reviewed; A1 and A3 answered | done (the provenance record, {doc}`provenance`, was written in M4; the NOTICE wording confirmed as drafted by the author on 2026-10-01, O3) |
 | **M1a** Walking skeleton: CPU `sssp` | repository, presets, minimal core, `graph` (compact rows, MOSP semantics), MOSP I/O, `sssp` sequential + OpenMP, parity harness (first slice), `ci/check.sh`, `cpu.yml`, ADRs 0001/0002/0004/0006/0010/0013 | byte-identical to MOSP-OpenMP@c352151 on the small corpus; updated CSR byte-equal to `applyChangeBatch`; OpenMP A/B recorded; a retrospective with a re-estimate | **done** (495/495 golden cases byte-identical on every CPU backend) |
 | **M1b** CUDA `sssp` (fused) + performance harness | CUDA build, streams, CCCL-shaped memory resources, device buffers; resident device graph; the persistent cooperative kernel behind `enact_fused`; `generators::legacy`; `parity/perf_ab.py`; the `edge_t` benchmark (ADR 0009) | byte parity with MOSP-CUDA@e220ee2 and CUDA = OpenMP = sequential; the performance gate on roadNet-PA/CA, rgg_n_2_20_s0, road_usa | **done** (495/495 golden cases byte-identical on the CUDA backend; gates recorded in the M1b parity certificate; ADR 0009 fixes `edge_t` = int32) |
 | **M2** `cycle_count` (parallel with M1b) | sorted-rows / set-semantics preset, the CycleEnum parser, static Johnson and the update on 3 backends, work queue, ported tests, randomized parity suites | bit-identical histograms on the golden corpus; generator identity; performance gate (DD, GitHub, Twitch, COLLAB); two recorded mutations fail | **done** (M2a, the CPU backends, and M2b, CUDA: bit-identical to CycleEnumeration-GPU@0a976ad's OpenMP and CUDA backends on their golden corpora, cross-backend equal; every OpenMP gate met, every CUDA gate met in both scopes (the COLLAB update read at the base clock lock, ADR 0021, accepted 2026-09-29); device memory equal to the original's; on the branch `m2b-cycle-cuda`, merged by pull request) |
 | **M3** Framework extraction + 0.1 API freeze | `problem_base`, enactors, views, workspace, policies, `run_update`; both algorithms moved onto it one commit at a time; conformance kit C1-C12; `new_algorithm.py` + template; `regen.py`; API review | both algorithms pass the kit on every backend with parity and performance unchanged; the scaffold is green on first build; the API review recorded | **done** (merged into `main` by pull request #3; ADRs 0022-0024) |
 | **M4** GitHub repository and infrastructure (parallel) | community files, issue forms, PR template, CODEOWNERS, labels, DCO; workflows `lint`, `cpu`, `docs`; this documentation site; the repository-settings guide | hosted workflows green; a contributor goes from clone to green build with the documented commands | **done** (merged into `main` with M1b in INT1; the hosted runs start with the first push) |
 | **M5** Python CPU wheel, CLI, docs for 0.1 | root `pyproject.toml`, nanobind bindings, stubs, pytest; the CPU wheel + sdist; CLI; getting started, the update-model page, the `sssp` and `cycle_count` pages, the API reference, history pages | pytest green against the goldens; `pip install` of the release candidate works on a clean CPU machine; docs build with `-W` | **done** on `m5-python` (ADRs 0011 and 0025; the wheel installs and passes the suite in fresh venvs on Python 3.12 and 3.13; merged into `main` by pull request #4); `dyng prep` of M7 was delivered here |
-| **0.1.0** | the release preparation R010: the benchmark-suite records, the parity certificate, `VERSION` 0.1.0rc1, the release changes | the release checklist, including the parity certificate | **in progress** (R010, {doc}`retrospectives/R010`: the 0.1.0rc1 certificate passed; the tags and the GitHub Release are pushed by the AI assistant on the author's behalf, the PyPI deployment waits for the author's approval) |
+| **0.1.0** | the release preparation R010: the benchmark-suite records, the parity certificate, `VERSION` 0.1.0rc1, the release changes; the final-release pull request R011 | the release checklist, including the parity certificate | **done** (R010, {doc}`retrospectives/R010`: 0.1.0rc1 with its certificate, on TestPyPI; R011, {doc}`retrospectives/R011`: `VERSION` 0.1.0, the certificate `benchmarks/results/0.1.0/` carried over; R012, {doc}`retrospectives/R012`: the release date 2026-10-02 (the tag day); the tags and the GitHub Release are pushed by the AI assistant on the author's behalf, the PyPI deployment is approved by the author) |
 | **M6** 0.1.x hardening | CUDA plugin wheels; the tutorial algorithms `dynamic_bfs` and `triangle_delta`; Read the Docs and Zenodo (A4); fuzzers; mutation checks; sanitizer jobs | `pip install "dyng[cu13]"` works; tutorials pass the kit; mutations fail as expected | |
 | **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | |
 | **M8** ESCHER store + hypergraph | the staged CBST merge (ESCHER-GPU first, then the MOSP_ESCHER behaviours one by one); `hypergraph` with `escher` storage; `hyperedge_batch`; `.hg` I/O | CBST trace replay identical for both originals' policies after every merge step; integrity after every batch | |
@@ -208,7 +210,6 @@ Each has a recommended default, so work proceeds; it is recorded as an ADR when 
 | O18 | governance | lead maintainer until three active maintainers | M4 |
 | O15 | changelog mechanics | hand-edited `Unreleased` until merge conflicts hurt | M4 |
 | — | milestone merges | through pull requests (the review rules of `CONTRIBUTING.md`), or pushed directly to `main` with a ruleset bypass (recorded in `GOVERNANCE.md`, which notes the interim practice) | M4 |
-| O3 | the NOTICE institution line and years | "developed at the Missouri University of Science and Technology", "Copyright 2023-2026 their authors" (the draft in `NOTICE`) | before 0.1.0 |
 | O23, O28, O7 | Python floor, wheel scheme, CPU wheel | Python 3.12; CPU `dyng` + CUDA plugins; a CPU wheel from 0.1 | M5 |
 | O14 | docs hosting | Read the Docs after A4 (GitHub Pages as the fallback) | M6 |
 | O8, O17 | CUDA wheels, oldest GPU | 0.1.x as plugins; sm_75 | M6 |
@@ -221,6 +222,8 @@ Closed at approval: the name (O1), the license (O2), the GitHub home (O1′), th
 (O19), history import (O22), privacy until IP clearance (O26: public now), the contact address
 (O13), the algorithm names (O4: `sssp`, `cycle_count`, `hyper_sssp`), type-name style (O5), row
 order and multigraph semantics (O25; ADR 0010), publishing before consent (O20: not needed).
+Closed later: the NOTICE institution line and years (O3: confirmed as drafted, 2026-10-01,
+`GOVERNANCE.md`).
 
 ## 7. How this plan changes
 
