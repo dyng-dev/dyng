@@ -8,6 +8,10 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+### Changed
+
+- `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.
+
 ## [0.1.0] - 2026-10-02
 
 ### Summary
