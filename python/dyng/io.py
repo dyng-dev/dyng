@@ -4,7 +4,7 @@
 
 Graphs: edge lists (``src dst [w1..wK] [ts]``, TUDataset ``*_A.txt``, SNAP), Matrix Market
 coordinate files, and MOSP's text CSR (``<prefix>{RowPtr,ColInd,Values}.txt``). Batches: MOSP's
-``insert.txt`` / ``delete.txt``. Results: MOSP's distance and tree files and
+``insert.txt`` / ``delete.txt``. Results: MOSP's distance, tree and path-cost files and
 CycleEnumeration-GPU's histogram CSV. The writers produce the originals' bytes. Every reader
 validates its input and raises :class:`~dyng.FileFormatError` with ``.path`` and ``.line``.
 The formats are specified in the documentation, "File formats".
@@ -50,6 +50,7 @@ __all__ = [
     "read_parents",
     "write_distances",
     "write_parents",
+    "write_path_costs",
     "histogram_csv",
     "write_histogram_csv",
 ]
@@ -609,6 +610,29 @@ def write_parents(path: PathLike, parents: Any) -> None:
     p = _host_array(parents, "parents")
     vertex = _dtypes.infer_id_dtype([p], None, "write_parents")
     native.write_parents(_path(path), _dtypes.checked_cast(p, vertex, "write_parents"))
+
+
+def write_path_costs(path: PathLike, costs: Any) -> None:
+    """Write path costs, one line ``v c1 .. cK`` per vertex (``INF`` for unreachable),
+    byte-identical to MOSP's mospCosts.txt (the ``writeCosts()`` of its ``mosp`` driver).
+
+    Args:
+        path: The file (parent directories are created).
+        costs: An (n, K) integer array (``dyng.mosp.Result.path_costs``, or
+            :func:`dyng.testing.mosp_path_costs`).
+    """
+    c = costs.to_numpy(copy=False) if isinstance(costs, Array) else np.asarray(costs)
+    if c.dtype.kind not in "iu":
+        raise InvalidArgumentError(f"write_path_costs: costs must be integers, got {c.dtype}")
+    if c.ndim != 2 or c.shape[1] < 1:
+        raise InvalidArgumentError(
+            f"write_path_costs: costs must be an (n, K) array with K >= 1, got shape {c.shape}"
+        )
+    k = int(c.shape[1])
+    flat = _dtypes.checked_cast(
+        np.ascontiguousarray(c).reshape(-1), _dtypes.INT64, "write_path_costs"
+    )
+    native.write_path_costs(_path(path), flat, k)
 
 
 def histogram_csv(counts: Any, *, include_total: bool = True) -> str:

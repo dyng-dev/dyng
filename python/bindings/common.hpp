@@ -417,6 +417,28 @@ nb::ndarray<nb::array_api, const value_t, nb::ndim<1>> owned_view(
 }
 
 /**
+ * @brief A read-only 2-D C-order array (shape (rows, cols)) viewing memory that `keep` keeps
+ *        alive (no copy); as owned_view().
+ * @tparam value_t The element type.
+ * @param[in] v    The elements (rows * cols, row-major).
+ * @param[in] cols The number of columns (> 0).
+ * @param[in] keep The owner of the memory.
+ * @return The array.
+ */
+template <typename value_t>
+nb::ndarray<nb::array_api, const value_t, nb::ndim<2>> owned_view_2d(
+    array_view<const value_t> v, std::size_t cols, std::shared_ptr<const void> keep) {
+  auto* heap = new std::shared_ptr<const void>(std::move(keep));
+  nb::capsule owner(heap,
+                    [](void* p) noexcept { delete static_cast<std::shared_ptr<const void>*>(p); });
+  const std::size_t shape[2] = {cols == 0 ? 0 : v.size() / cols, cols};
+  const bool device = !is_host_accessible(v.space()) || v.space() == memory_space::managed;
+  return nb::ndarray<nb::array_api, const value_t, nb::ndim<2>>(
+      v.data(), 2, shape, owner, nullptr, nb::dtype<value_t>(),
+      device ? nb::device::cuda::value : nb::device::cpu::value, device ? v.device() : 0);
+}
+
+/**
  * @brief Export one array of a result's current state (the shared lock is taken without the GIL).
  * @tparam value_t    The result type.
  * @tparam function_t `array_view<const T>(const value_t&)`: which array.
@@ -461,6 +483,7 @@ void bind_graph(nb::module_& m);        ///< graph.cpp
 void bind_batch(nb::module_& m);        ///< batch.cpp
 void bind_sssp(nb::module_& m);         ///< sssp.cpp
 void bind_cycle_count(nb::module_& m);  ///< cycle_count.cpp
+void bind_mosp(nb::module_& m);         ///< mosp.cpp
 void bind_update(nb::module_& m);       ///< update.cpp
 void bind_io(nb::module_& m);           ///< io.cpp
 void bind_generators(nb::module_& m);   ///< generators.cpp

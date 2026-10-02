@@ -40,7 +40,9 @@ struct update_stats {
   bool converged = true;
   /// Deterministic per backend: the engine that ran (engine::fused for a ported paper engine,
   /// engine::operators for a hook-by-hook composition). It differs between backends when they run
-  /// different engines (for sssp: operators on sequential, fused on openmp and cuda).
+  /// different engines (for sssp: operators on sequential, fused on openmp, and on cuda fused or
+  /// operators: options::cuda_engine, with engine::automatic falling back to operators on a device
+  /// without cooperative launch).
   engine engine_used = engine::automatic;
 };
 

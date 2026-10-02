@@ -1,7 +1,8 @@
 # Python API
 
-`import dyng` gives the whole public Python API of 0.1: the names of the `dyng` package and the
-modules `dyng.sssp`, `dyng.cycle_count`, `dyng.io`, `dyng.generators` and `dyng.testing`. The
+`import dyng` gives the whole public Python API: the names of the `dyng` package and the
+modules `dyng.sssp`, `dyng.cycle_count`, `dyng.mosp` (0.2), `dyng.io`, `dyng.generators` and
+`dyng.testing`. The
 names mirror the C++ API ({doc}`../cpp/index`): `dyng::sssp::compute` is `dyng.sssp.compute`,
 `dyng::sssp::options` is `dyng.sssp.Options`, and option keywords are the C++ field names
 (`max_length=`, `delta=`). Names with a leading underscore (`dyng._core`, the native module) are
@@ -54,8 +55,8 @@ inputs:
 
 ## Result arrays
 
-Result arrays (`tree.distances`, `tree.parents`, `hist.counts`) are {py:class}`dyng.Array`
-objects: read-only, zero-copy views with `__dlpack__`, `__dlpack_device__` and
+Result arrays (`tree.distances`, `tree.parents`, `hist.counts`, `paths.path_costs`) are
+{py:class}`dyng.Array` objects (1-D, except the (n, K) path costs of `dyng.mosp`): read-only, zero-copy views with `__dlpack__`, `__dlpack_device__` and
 `__array_interface__`, so `np.asarray(a)`, `np.from_dlpack(a)` and `torch.from_dlpack(a)` see the
 library's memory without a copy, and every view keeps that memory alive. An Array belongs to one
 state of its result: once the result is updated, using it raises
@@ -78,7 +79,8 @@ version it matches ({doc}`../../concepts/results_and_versions`). `dyng.sssp.upda
 tree)` applies the batch to `g` and brings `tree` up to date; another result on the same graph is
 then stale, and using it raises {py:class}`dyng.StaleResultError`. To keep several results
 current, update them together: `dyng.update(g, batch, tree, hist)` applies the batch once and
-returns one `Stats` per result.
+returns one `Stats` per result (any mix of `dyng.sssp`, `dyng.cycle_count` and `dyng.mosp`
+results).
 
 ## Exceptions
 

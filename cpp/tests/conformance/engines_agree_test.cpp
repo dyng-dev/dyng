@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file engines_agree_test.cpp
- * @brief The kit's check C4 (fused engine == operators engine) exercised on a host backend: no
- *        0.1 algorithm has both engines on one backend, so C4 is skipped in their suites (ADR
- *        0022). The framework's fake levels_problem has both (Tier A hooks and enact_fused), so
- *        test_traits over it make C4 compare, pass for a correct fused engine, and fail for a
- *        broken one.
+ * @brief The kit's check C4 (fused engine == operators engine) exercised on a host backend. The
+ *        only real algorithm with both engines on one backend is sssp on CUDA (since M7), which
+ *        the CUDA conformance suite checks on a GPU; this test runs everywhere. The framework's
+ *        fake levels_problem has both engines (Tier A hooks and enact_fused), so test_traits over
+ *        it make C4 compare, pass for a correct fused engine, and fail for a broken one.
  */
 #include "conformance/conformance.hpp"
 #include "framework/fake_problems.hpp"

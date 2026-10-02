@@ -17,6 +17,8 @@ namespace dyng::conformance::tags {
 struct sssp;
 /// The tag of cycle_count.
 struct cycle_count;
+/// The tag of mosp.
+struct mosp;
 }  // namespace dyng::conformance::tags
 
 #if defined(DYNG_ALGORITHM_SSSP)
@@ -24,6 +26,9 @@ struct cycle_count;
 #endif
 #if defined(DYNG_ALGORITHM_CYCLE_COUNT)
 #include "algorithms/cycle_count/cycle_count_traits.hpp"
+#endif
+#if defined(DYNG_ALGORITHM_MOSP)
+#include "algorithms/mosp/mosp_traits.hpp"
 #endif
 
 namespace dyng::conformance {
@@ -33,10 +38,11 @@ namespace registry_detail {
 using list_0 = type_list<>;
 using list_1 = append_t<list_0, tags::sssp>;
 using list_2 = append_t<list_1, tags::cycle_count>;
+using list_3 = append_t<list_2, tags::mosp>;
 }  // namespace registry_detail
 
 /// Every algorithm with a manifest, in the order of cpp/src/algorithms/CMakeLists.txt; the kit
 /// keeps those whose test_traits this build defines (registered_algorithms, conformance.hpp).
-using manifest_algorithms = registry_detail::list_2;
+using manifest_algorithms = registry_detail::list_3;
 
 }  // namespace dyng::conformance

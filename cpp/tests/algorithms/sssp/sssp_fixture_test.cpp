@@ -11,13 +11,15 @@
  * The cases: the 10 generateTestCases cases and the 17 other graph/io cases (parallel edges,
  * self-loops, unsorted rows, delete-all, empty batch, K = 1..5 and 32), the three count-to-infinity
  * regressions of mospTest, the three MOSP_ESCHER test_mosp_update cases and a K = 2 ties case.
- * For every case, objective, backend and index type, the files written by dynG must be
- * byte-identical to the original's, and `invalidated` must equal the original's counter.
+ * For every case, objective, backend (on cuda: both engines) and index type, the files written by
+ * dynG must be byte-identical to the original's, and `invalidated` must equal the original's
+ * counter.
  */
 #include "support/data_paths.hpp"
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/resources.hpp>
+#include <dyng/core/types.hpp>
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/io/batch_io.hpp>
@@ -88,6 +90,15 @@ std::vector<dyng::resources> configurations() {
   return out;
 }
 
+/// The engines a configuration runs: on cuda both engines (the fused kernel and the operators
+/// engine, conformance check C4 on the fixtures); the host backends have one.
+std::vector<dyng::engine> engines_of(const dyng::resources& res) {
+  if (res.get_backend() == dyng::backend::cuda) {
+    return {dyng::engine::fused, dyng::engine::operators};
+  }
+  return {dyng::engine::automatic};
+}
+
 template <typename graph_t>
 class SsspMospFixture : public ::testing::Test {};
 
@@ -119,45 +130,53 @@ TYPED_TEST(SsspMospFixture, ComputeAndUpdateAreByteEqualToTheOriginal) {
     const auto batch = dyng::io::read_legacy_batch<vertex_t, weight_t>(
         input + "insert.txt", input + "delete.txt", batch_options);
     for (const dyng::resources& res : configurations()) {
-      SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())) + " x" +
-                   std::to_string(res.num_threads()));
-      for (int k = 0; k < c.num_weights; ++k) {
-        SCOPED_TRACE("objective " + std::to_string(k));
-        const std::string obj = "obj" + std::to_string(k) + "/";
-        const std::string init_dist = expected + "init/" + obj + "distancesOriginal.txt";
-        const std::string init_tree = expected + "init/" + obj + "SSSPTreeOriginal.txt";
-        dyng::sssp::options opt;
-        opt.objective = k;
+      for (const dyng::engine engine : engines_of(res)) {
+        SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())) + " x" +
+                     std::to_string(res.num_threads()) + ", engine " +
+                     std::string(dyng::to_string(engine)));
+        for (int k = 0; k < c.num_weights; ++k) {
+          SCOPED_TRACE("objective " + std::to_string(k));
+          const std::string obj = "obj" + std::to_string(k) + "/";
+          const std::string init_dist = expected + "init/" + obj + "distancesOriginal.txt";
+          const std::string init_tree = expected + "init/" + obj + "SSSPTreeOriginal.txt";
+          dyng::sssp::options opt;
+          opt.objective = k;
+          opt.cuda_engine = engine;
 
-        // compute() == mospPrep init (Dijkstra).
-        auto g = graph_t::from_csr(res, original.view(), dyng::graph_properties::mosp_compatible());
-        const auto computed = dyng::sssp::compute(res, g, vertex_t{0}, opt);
-        const std::string out = tmp.path(c.name + "/" + obj);
-        dyng::io::write_distances(out + "computed_d.txt",
-                                  dyng::host_view(dyng::test::host_copy(computed.distances())));
-        dyng::io::write_parents(out + "computed_t.txt",
-                                dyng::host_view(dyng::test::host_copy(computed.parents())));
-        EXPECT_TRUE(read_text(out + "computed_d.txt") == read_text(init_dist));
-        EXPECT_TRUE(read_text(out + "computed_t.txt") == read_text(init_tree));
+          // compute() == mospPrep init (Dijkstra).
+          auto g =
+              graph_t::from_csr(res, original.view(), dyng::graph_properties::mosp_compatible());
+          const auto computed = dyng::sssp::compute(res, g, vertex_t{0}, opt);
+          const std::string out = tmp.path(c.name + "/" + obj);
+          dyng::io::write_distances(out + "computed_d.txt",
+                                    dyng::host_view(dyng::test::host_copy(computed.distances())));
+          dyng::io::write_parents(out + "computed_t.txt",
+                                  dyng::host_view(dyng::test::host_copy(computed.parents())));
+          EXPECT_TRUE(read_text(out + "computed_d.txt") == read_text(init_dist));
+          EXPECT_TRUE(read_text(out + "computed_t.txt") == read_text(init_tree));
 
-        // update() from the original's initial files == mosp.
-        const auto dist = dyng::io::read_distances<std::int64_t>(init_dist, g.num_vertices());
-        const auto tree = dyng::io::read_parents<vertex_t>(init_tree, g.num_vertices());
-        auto r = dyng::sssp::result<vertex_t>::from_arrays(
-            res, g, vertex_t{0}, dyng::host_view(dist), dyng::host_view(tree),
-            /*canonicalize=*/false, opt);
-        const dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), r);
-        dyng::io::write_distances(out + "updated_d.txt",
-                                  dyng::host_view(dyng::test::host_copy(r.distances())));
-        dyng::io::write_parents(out + "updated_t.txt",
-                                dyng::host_view(dyng::test::host_copy(r.parents())));
-        EXPECT_TRUE(read_text(out + "updated_d.txt") ==
-                    read_text(expected + "updated/" + obj + "distancesUpdated.txt"));
-        EXPECT_TRUE(read_text(out + "updated_t.txt") ==
-                    read_text(expected + "updated/" + obj + "SSSPTreeUpdated.txt"));
-        EXPECT_EQ(st.invalidated, expected_invalidated(c.name, k));
-        EXPECT_EQ(r.graph_version(), g.version());
-        comparisons += 4;
+          // update() from the original's initial files == mosp.
+          const auto dist = dyng::io::read_distances<std::int64_t>(init_dist, g.num_vertices());
+          const auto tree = dyng::io::read_parents<vertex_t>(init_tree, g.num_vertices());
+          auto r = dyng::sssp::result<vertex_t>::from_arrays(
+              res, g, vertex_t{0}, dyng::host_view(dist), dyng::host_view(tree),
+              /*canonicalize=*/false, opt);
+          const dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), r);
+          dyng::io::write_distances(out + "updated_d.txt",
+                                    dyng::host_view(dyng::test::host_copy(r.distances())));
+          dyng::io::write_parents(out + "updated_t.txt",
+                                  dyng::host_view(dyng::test::host_copy(r.parents())));
+          EXPECT_TRUE(read_text(out + "updated_d.txt") ==
+                      read_text(expected + "updated/" + obj + "distancesUpdated.txt"));
+          EXPECT_TRUE(read_text(out + "updated_t.txt") ==
+                      read_text(expected + "updated/" + obj + "SSSPTreeUpdated.txt"));
+          EXPECT_EQ(st.invalidated, expected_invalidated(c.name, k));
+          EXPECT_EQ(r.graph_version(), g.version());
+          if (engine != dyng::engine::automatic) {
+            EXPECT_EQ(st.engine_used, engine);
+          }
+          comparisons += 4;
+        }
       }
     }
   }

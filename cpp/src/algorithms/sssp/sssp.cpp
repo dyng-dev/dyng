@@ -191,31 +191,33 @@ void expect_supported_backend(const resources& res, const char* what) {
   }
 }
 
-/// The engine of the CUDA backend (PLAN Section 4.5.4): engine::automatic and engine::fused run
-/// the fused persistent cooperative kernel; without cooperative launch there is no engine in this
-/// release (the operators engine arrives in 0.2, decision O24), so both throw, and so does
-/// engine::operators. Checked before anything is changed.
+/// Whether the CUDA device of `res` can run the fused engine (cooperative launch).
+bool cuda_fused_available(const resources& res) {
+  return resources_access::device_properties(res).cooperative_launch;
+}
+
+/// The engine of the CUDA backend (PLAN Section 4.5.4; decision O24): engine::fused runs the
+/// fused persistent cooperative kernel and needs cooperative launch, engine::operators runs the
+/// multi-kernel operators engine anywhere, and engine::automatic runs the fused engine where it
+/// can and the operators engine otherwise. Checked before anything is changed: only engine::fused
+/// on a device without cooperative launch is rejected.
 void select_cuda_engine(const resources& res, engine requested, const char* what) {
-  if (!is_cuda(res)) {
+  if (!is_cuda(res) || requested != engine::fused || cuda_fused_available(res)) {
     return;
   }
-  if (requested == engine::operators) {
-    throw not_supported_error(concat_message(
-        "dyng: ", what,
-        ": engine::operators of sssp on the cuda backend arrives in 0.2 (the multi-kernel "
-        "engine); use engine::fused or engine::automatic"));
-  }
   const cuda_device_properties& props = resources_access::device_properties(res);
-  if (!props.cooperative_launch) {
-    throw not_supported_error(concat_message(
-        "dyng: ", what, ": the fused sssp engine needs cooperative launch, which CUDA device ",
-        props.ordinal, " (", props.name, ") does not support",
-        requested == engine::automatic
-            ? "; engine::automatic has no other CUDA engine in this release (the operators engine "
-              "arrives in 0.2)"
-            : "",
-        "; run sssp with resources::openmp() or resources::sequential() instead"));
-  }
+  throw not_supported_error(concat_message(
+      "dyng: ", what, ": the fused sssp engine needs cooperative launch, which CUDA device ",
+      props.ordinal, " (", props.name,
+      ") does not support; use engine::automatic or engine::operators (the multi-kernel engine "
+      "runs without it), or run sssp with resources::openmp() or resources::sequential()"));
+}
+
+/// Whether a call on `res` with the requested CUDA engine runs the operators engine (the choice
+/// the enactors make through sssp_problem::select_engine and fused_available).
+bool cuda_runs_operators(const resources& res, engine requested) {
+  return is_cuda(res) && (requested == engine::operators ||
+                          (requested == engine::automatic && !cuda_fused_available(res)));
 }
 
 /// Host threads of the host-side work of a call (column summaries, tree import and checks).
@@ -644,9 +646,10 @@ void sssp_problem<vertex_t, edge_t, weight_t>::prepare(framework::context& ctx, 
   const edge_batch_view<vertex_t, weight_t>& batch = requested_batch.edges;
   const int k = state_->opt.objective;
   const int num_weights = graph.num_weights();
-  DYNG_EXPECTS(batch.num_weights == num_weights, "sssp::update: the batch has ", batch.num_weights,
-               " weight(s) per insertion but the graph has ", num_weights);
   const std::size_t num_inserts = batch.num_insertions();
+  // A batch without insertions carries no weights (graph::apply accepts any count for it, M7).
+  DYNG_EXPECTS(num_inserts == 0 || batch.num_weights == num_weights, "sssp::update: the batch has ",
+               batch.num_weights, " weight(s) per insertion but the graph has ", num_weights);
   DYNG_EXPECTS(batch.insert_weights.size() == num_inserts * static_cast<std::size_t>(num_weights),
                "sssp::update: the batch has ", batch.insert_weights.size(),
                " insertion weights for ", num_inserts, " insertions of ", num_weights,
@@ -732,6 +735,9 @@ void sssp_problem<vertex_t, edge_t, weight_t>::resume(framework::context& ctx, n
     run_.distances = st.device_distances.data();
     run_.parents = st.device_parents.data();
     run_.cuda_ws = &ws;
+    if (ctx.chosen_engine() == engine::operators) {
+      cuda_operators_.emplace(res, run_);  // the Tier A hooks run it (operators.cu)
+    }
     return;
   }
   // The scratch memory of the engines, shared with the other results run through `res` (the K
@@ -761,6 +767,7 @@ void sssp_problem<vertex_t, edge_t, weight_t>::end_update(framework::context& /*
   framework::stamp_result(state_->version, state_->graph_state, g.get());
   sequential_.reset();
   openmp_.reset();
+  cuda_operators_.reset();
   host_ws_.reset();
   cuda_ws_.reset();
 }
@@ -795,6 +802,9 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& c
     run_.distances = st.device_distances.data();
     run_.parents = st.device_parents.data();
     run_.cuda_ws = &cuda_ws_->get();
+    if (cuda_runs_operators(res, st.opt.cuda_engine)) {
+      cuda_operators_.emplace(res, run_);  // the static enactor's Tier A hooks run it
+    }
     return;
   }
   st.distances.assign(static_cast<std::size_t>(n), sssp_infinity);
@@ -811,6 +821,35 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_static(framework::context& c
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_problem<vertex_t, edge_t, weight_t>::bind_view(
+    framework::context& ctx, const sssp_graph<vertex_t, edge_t, weight_t>& view, std::int64_t delta,
+    std::int64_t max_weight, std::int64_t* distances, vertex_t* parents, bool count_changes) {
+  const resources& res = ctx.res();
+  const std::int64_t n = view.num_vertices;
+  DYNG_EXPECTS(!count_changes || ctx.on_cuda(),
+               "sssp: counting the changes of a static solve needs the cuda backend");
+  run_ = sssp_run<vertex_t, edge_t, weight_t>{};
+  run_.count_changes = count_changes;
+  run_.graph = view;
+  run_.source = state_->source;
+  run_.delta = delta;
+  run_.max_weight = max_weight;
+  run_.distances = distances;
+  run_.parents = parents;
+  if (ctx.on_cuda()) {
+    cuda_ws_.emplace(lease_cuda_workspace<vertex_t>(res, n));  // pooled scratch (ADR 0015)
+    run_.cuda_ws = &cuda_ws_->get();
+    if (cuda_runs_operators(res, state_->opt.cuda_engine)) {
+      cuda_operators_.emplace(res, run_);  // the static enactor's Tier A hooks run it
+    }
+    return;
+  }
+  host_ws_.emplace(lease_workspace<vertex_t>(res, n));
+  run_.ws = &host_ws_->get();
+  bind_engine(res);
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 void sssp_problem<vertex_t, edge_t, weight_t>::bind_engine(const resources& res) {
   if (res.get_backend() == backend::openmp) {
     openmp_.emplace(res, run_);
@@ -822,7 +861,9 @@ void sssp_problem<vertex_t, edge_t, weight_t>::bind_engine(const resources& res)
 template <typename vertex_t, typename edge_t, typename weight_t>
 template <typename fn_t>
 void sssp_problem<vertex_t, edge_t, weight_t>::on_engine(fn_t&& fn) {
-  if (openmp_) {
+  if (cuda_operators_) {
+    fn(*cuda_operators_);
+  } else if (openmp_) {
     fn(*openmp_);
   } else {
     fn(*sequential_);
@@ -830,11 +871,12 @@ void sssp_problem<vertex_t, edge_t, weight_t>::on_engine(fn_t&& fn) {
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void sssp_problem<vertex_t, edge_t, weight_t>::identify_affected(framework::context& /*ctx*/,
+void sssp_problem<vertex_t, edge_t, weight_t>::identify_affected(framework::context& ctx,
                                                                  new_graph /*g*/,
                                                                  const applied& /*applied*/,
                                                                  frontier& /*f*/) {
   on_engine([](auto& engine) { engine.identify_affected(); });
+  raise_device_errors(ctx);  // the CUDA operators engine's input checks (thrown by the enactor)
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -876,13 +918,22 @@ void sssp_problem<vertex_t, edge_t, weight_t>::fill_stats(stats_type& stats) con
 template <typename vertex_t, typename edge_t, typename weight_t>
 engine sssp_problem<vertex_t, edge_t, weight_t>::select_engine(
     framework::context& ctx) const noexcept {
-  return ctx.on_cuda() ? engine::fused : engine::operators;
+  return ctx.on_cuda() ? state_->opt.cuda_engine : engine::operators;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+bool sssp_problem<vertex_t, edge_t, weight_t>::fused_available(framework::context& ctx) const {
+  return ctx.on_cuda() && cuda_fused_available(ctx.res());
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 framework::budget sssp_problem<vertex_t, edge_t, weight_t>::algorithm_budget(
     framework::context& ctx) const noexcept {
-  return framework::budget::steady_state(ctx.on_cuda() ? 1 : 0);
+  if (!ctx.on_cuda()) {
+    return framework::budget::steady_state(0);
+  }
+  return framework::budget::steady_state(
+      sssp_cuda_host_syncs(ctx.chosen_engine(), run_.counters, /*update=*/true));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -1196,6 +1247,43 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("sssp::compute (", g.num_vertices(), " vertice
                                   " edges)")
 
 template <typename vertex_t, typename edge_t, typename weight_t>
+sssp_solve_outcome sssp_solve_view(const resources& res, const graph<vertex_t, edge_t, weight_t>& g,
+                                   const sssp_graph<vertex_t, edge_t, weight_t>& view,
+                                   vertex_t source, std::int64_t delta, std::int64_t max_weight,
+                                   engine cuda_engine, std::int64_t* distances, vertex_t* parents,
+                                   bool count_changes) {
+  expect_supported_backend(res, "sssp (a static solve)");
+  select_cuda_engine(res, cuda_engine, "sssp (a static solve)");
+  const std::int64_t n = view.num_vertices;
+  DYNG_EXPECTS(source >= 0 && source < n, "sssp: source ", source, " is out of range [0, ", n, ")");
+  DYNG_EXPECTS(delta > 0, "sssp: the near-far width delta must be > 0, got ", delta);
+  DYNG_EXPECTS(sssp_distances_fit(n, max_weight), "sssp: distances up to ", max_weight, " * ",
+               n - 1, " do not fit in 62 bits");
+  DYNG_EXPECTS(res.get_backend() != backend::sequential || sssp_packs_parents(n, max_weight) ||
+                   view.in_row_ptr != nullptr,
+               "sssp: the sequential engine needs the in-edges in the distance-only mode");
+  using problem_type = sssp_problem<vertex_t, edge_t, weight_t>;
+  sssp_state<vertex_t, std::int64_t> st;  // the problem's options and source; no arrays
+  st.source = source;
+  st.opt.cuda_engine = cuda_engine;
+  problem_type problem(st);
+  framework::context ctx(res, problem_type::name);
+  const framework::new_view<graph<vertex_t, edge_t, weight_t>> container(g);
+  problem.bind_view(ctx, view, delta, max_weight, distances, parents, count_changes);
+  const sssp::stats stats = framework::static_enactor<problem_type>(problem).run(ctx, container);
+  sssp_solve_outcome out;
+  out.counters.iterations = stats.iterations;
+  out.counters.epochs = stats.epochs;
+  out.counters.pushes = stats.pushes;
+  out.counters.packed_parents = stats.packed_parents;
+  out.counters.affected = count_changes ? stats.affected : 0;
+  out.engine_used = stats.engine_used;
+  out.host_syncs =
+      is_cuda(res) ? sssp_cuda_host_syncs(out.engine_used, out.counters, /*update=*/false) : 0;
+  return out;
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
 sssp::stats sssp_update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
                         const edge_batch_view<vertex_t, weight_t>& batch,
                         sssp::result<vertex_t>& r) try {
@@ -1229,13 +1317,16 @@ DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP)
 
 namespace dyng::detail {
 
-#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)                                                \
-  template sssp::result<V> sssp_compute<V, E, W>(const resources&, const graph<V, E, W>&, V, \
-                                                 const sssp::options&);                      \
-  template sssp::stats sssp_update<V, E, W>(const resources&, graph<V, E, W>&,               \
-                                            const edge_batch_view<V, W>&, sssp::result<V>&); \
-  template std::unique_ptr<update_participant<V, E, W>>                                      \
-  make_sssp_participant<V, E, W, std::int64_t>(sssp::result<V, std::int64_t>&, sssp::stats&);
+#define DYNG_INSTANTIATE_SSSP_DETAIL(V, E, W)                                                 \
+  template sssp::result<V> sssp_compute<V, E, W>(const resources&, const graph<V, E, W>&, V,  \
+                                                 const sssp::options&);                       \
+  template sssp::stats sssp_update<V, E, W>(const resources&, graph<V, E, W>&,                \
+                                            const edge_batch_view<V, W>&, sssp::result<V>&);  \
+  template std::unique_ptr<update_participant<V, E, W>>                                       \
+  make_sssp_participant<V, E, W, std::int64_t>(sssp::result<V, std::int64_t>&, sssp::stats&); \
+  template sssp_solve_outcome sssp_solve_view<V, E, W>(                                       \
+      const resources&, const graph<V, E, W>&, const sssp_graph<V, E, W>&, V, std::int64_t,   \
+      std::int64_t, engine, std::int64_t*, V*, bool);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP_DETAIL)
 #undef DYNG_INSTANTIATE_SSSP_DETAIL
 
@@ -1270,9 +1361,30 @@ void sssp_cuda_compute(const resources& /*res*/, sssp_run<vertex_t, edge_t, weig
   throw not_supported_error("dyng: sssp: the cuda backend is not built");
 }
 
-#define DYNG_INSTANTIATE_SSSP_CUDA_STUB(V, E, W)                                 \
-  template void sssp_cuda_update<V, E, W>(const resources&, sssp_run<V, E, W>&); \
-  template void sssp_cuda_compute<V, E, W>(const resources&, sssp_run<V, E, W>&);
+template <typename vertex_t, typename edge_t, typename weight_t>
+sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::sssp_cuda_operators_engine(
+    const resources& res, sssp_run<vertex_t, edge_t, weight_t>& run)
+    : res_(res), run_(run) {
+  throw not_supported_error("dyng: sssp: the cuda backend is not built");
+}
+
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::reset() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::seed_static() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::identify_affected() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::seed() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::loop() {}
+template <typename vertex_t, typename edge_t, typename weight_t>
+void sssp_cuda_operators_engine<vertex_t, edge_t, weight_t>::finalize() {}
+
+#define DYNG_INSTANTIATE_SSSP_CUDA_STUB(V, E, W)                                  \
+  template void sssp_cuda_update<V, E, W>(const resources&, sssp_run<V, E, W>&);  \
+  template void sssp_cuda_compute<V, E, W>(const resources&, sssp_run<V, E, W>&); \
+  template class sssp_cuda_operators_engine<V, E, W>;
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_SSSP_CUDA_STUB)
 #undef DYNG_INSTANTIATE_SSSP_CUDA_STUB
 #endif  // !DYNG_HAS_CUDA

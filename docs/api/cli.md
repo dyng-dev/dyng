@@ -9,6 +9,7 @@ byte with the originals' (ADR 0025; PLAN Section 5.6).
 dyng [--version] [--log-level LEVEL] COMMAND ...
 
   sssp compute | update         dynamic single-source shortest paths
+  mosp compute | update         dynamic multi-objective shortest paths (0.2)
   cycle_count compute | update  directed simple-cycle histograms
   prep SUBCOMMAND               MOSP's input preparation (the mospPrep subcommands)
   convert INPUT OUTPUT          convert a graph between formats
@@ -42,10 +43,10 @@ it fails with a message that names the CUDA plugins of 0.1.x.
 | `edges` | `dyng.io.read_edge_list` | `src dst [w1 .. wK] [ts]` lines, TUDataset `*_A.txt`, SNAP; a `%%MatrixMarket` file is read as an edge list (CycleEnumeration-GPU's parser); `--num-weights`, `--ids compact\|as_is`, `--index-base`, `--symmetrize`, `--keep-self-loops`, `--duplicates merge\|keep` |
 | `auto` (default) | | `csr` if `PATHRowPtr.txt` exists, else `mtx` for `*.mtx` (sssp, convert, mosp_changes), else `edges` |
 
-`--vertex-type int32|int64` and `--edge-type int32|int64` choose the id types (sssp, convert,
-mosp_changes; cycle_count supports int32 ids). `--properties default|mosp_compatible|cycle_enum_compatible`
+`--vertex-type int32|int64` and `--edge-type int32|int64` choose the id types (sssp, mosp,
+convert, mosp_changes; cycle_count supports int32 ids). `--properties default|mosp_compatible|cycle_enum_compatible`
 chooses the graph properties; the default is the preset of the original tool (`mosp_compatible`
-for sssp and MOSP's generator, `cycle_enum_compatible` for cycle_count and its generator).
+for sssp, mosp and MOSP's generator, `cycle_enum_compatible` for cycle_count and its generator).
 
 **Batches.** MOSP's files: `--changes DIR` (`DIR/insert.txt` with `u v w1 .. wK` per line and
 `DIR/delete.txt` with `u v`), or `--insert FILE --delete FILE`; they are read with MOSP's
@@ -84,6 +85,51 @@ $ dyng prep mtx2csr roadNet-CA.mtx roadNet-CA_ 1 1 100 12345
 $ dyng prep changes roadNet-CA_ batch --changes 50000 --ins 50 --seed 1
 $ dyng sssp compute --graph roadNet-CA_ --out init
 $ dyng sssp update --graph roadNet-CA_ --changes batch --init init --out updated
+```
+
+## `dyng mosp`
+
+```text
+dyng mosp compute --graph G [--source S] [options] --out DIR
+dyng mosp update  --graph G (--changes DIR | --insert F --delete F) [--init DIR [--canonicalize]]
+                  [--source S] [options] --out DIR [--write-graph PREFIX]
+```
+
+Options (the fields of `dyng.mosp.Options`): `--preferences P1,..,PK` (the preference vector,
+one integer >= 1 per objective, comma-separated as MOSP's `--pref`; default all 1, lcm at most
+2^20), `--num-objectives K` (the first K weight columns; default 0, every column; MOSP's `-k`),
+`--delta`, `--cuda-engine automatic|fused|operators`, `--compute-path-costs` /
+`--no-compute-path-costs`, and on `update` `--validate-inputs` / `--no-validate-inputs` (it checks
+the trees read with `--init`). The graph and batch flags are those of `dyng sssp`.
+
+`compute` writes `DIR/obj<k>/distancesOriginal.txt` and `SSSPTreeOriginal.txt` (the files of
+`mospPrep init`) and the combined graph's outputs `DIR/combinedGraph/distancesCsr.txt` (the
+combined distances, in units of 1/L with L = lcm of the preferences), `SSSPTreeCsr.txt` (the MOSP
+tree) and `mospCosts.txt` (`v c1 .. cK` per vertex, `INF` when unreachable: the path costs).
+`update` reads the initial trees from `--init` or computes them, applies the batch once, updates
+the K trees and rebuilds the combined graph, the MOSP tree and the costs (`dyng.mosp.update`),
+then writes `DIR/obj<k>/distancesUpdated.txt`, `SSSPTreeUpdated.txt` and the three
+`combinedGraph/` files: every byte as MOSP's `mosp` driver writes them (with
+`--num-objectives` below the graph's column count, `mospCosts.txt` covers every column, as the
+original's does; with `--no-compute-path-costs` it is not written). The tests compare the output
+with the committed fixtures of both originals, with `dyng-compat-mosp --mosp` and, where it is
+built, with MOSP-OpenMP's `mosp`.
+
+| `mosp` (MOSP-OpenMP, MOSP-CUDA) | `dyng mosp update` |
+|---|---|
+| `--graph`, `--changes`, `--init`, `--out`, `--source`, `--delta`, `--canonicalize` | the same flags |
+| `--pref p1,..,pK` | `--preferences p1,..,pK` |
+| `-k K` | `--num-objectives K` |
+| `--no-output`, `--validate`, `--timing`, `--cache` | not in `dyng`; `dyng-compat-mosp --mosp` (tools/compat) keeps them for the parity harness |
+
+```console
+$ dyng prep mtx2csr roadNet-CA.mtx roadNet-CA_ 3 1 100 12345
+$ dyng prep changes roadNet-CA_ batch --changes 50000 --ins 50 --seed 777
+$ dyng prep init roadNet-CA_ init
+$ dyng mosp update --graph roadNet-CA_ --changes batch --init init --preferences 4,1,4 --out out
+obj0: invalidated ..., affected ..., iterations ..., engine fused
+...
+combined: L=4, reachable ... of 1971281, ... edges, affected ...
 ```
 
 ## `dyng cycle_count`

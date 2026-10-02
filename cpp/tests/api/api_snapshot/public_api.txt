@@ -365,6 +365,7 @@
   #include <dyng/io/edge_list_io.hpp>
   #include <dyng/io/matrix_market.hpp>
   #include <dyng/io/result_io.hpp>
+  #include <dyng/mosp.hpp>
   #include <dyng/sssp.hpp>
   #include <dyng/update.hpp>
   #include <dyng/version.hpp>
@@ -618,9 +619,51 @@
 [dyng/io/result_io.hpp] tracked
   template <typename distance_t> void dyng::io::write_distances(const std::string &path, array_view< const distance_t > distances)
   template <typename vertex_t> void dyng::io::write_parents(const std::string &path, array_view< const vertex_t > parents)
+  template <typename distance_t> void dyng::io::write_path_costs(const std::string &path, array_view< const distance_t > costs, int num_objectives)
   template <typename distance_t> [[nodiscard]] std::vector< distance_t > dyng::io::read_distances(const std::string &path, std::int64_t num_vertices)
   template <typename vertex_t> [[nodiscard]] std::vector< vertex_t > dyng::io::read_parents(const std::string &path, std::int64_t num_vertices)
   void dyng::io::write_histogram_csv(std::ostream &out, array_view< const std::uint64_t > counts, bool include_total=true)
+
+[dyng/mosp.hpp] frozen
+  constexpr int dyng::mosp::max_objectives = 64
+  constexpr std::int64_t dyng::mosp::max_preference_scale = std::int64_t{1} << 20
+  struct dyng::mosp::options
+      std::vector< std::int32_t > preferences
+      std::int64_t delta = 0
+      engine cuda_engine = engine::automatic
+      bool compute_path_costs = true
+      bool validate_inputs = true
+      int num_objectives = 0
+  struct dyng::mosp::stats : public dyng::update_stats
+      apply_summary batch
+      std::vector< sssp::stats > objectives
+      std::int64_t combined_edges = 0
+      std::int64_t preference_scale = 0
+  template <typename vertex_t, typename distance_t = std::int64_t> class dyng::mosp::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] vertex_t source() const noexcept
+      [[nodiscard]] int num_objectives() const noexcept
+      [[nodiscard]] array_view< const distance_t > distances(int objective) const
+      [[nodiscard]] array_view< const vertex_t > parents(int objective) const
+      [[nodiscard]] array_view< const distance_t > combined_distances() const
+      [[nodiscard]] array_view< const vertex_t > combined_parents() const
+      [[nodiscard]] array_view< const distance_t > path_costs() const
+      [[nodiscard]] std::int64_t preference_scale() const noexcept
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+      template <typename edge_t, typename weight_t> [[nodiscard]] static result from_arrays(const resources &res, const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, array_view< const array_view< const distance_t > > distances, array_view< const array_view< const vertex_t > > parents, bool canonicalize=true, const options &opt={})
+  #define DYNG_MOSP_TYPES_MESSAGE
+  template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] result< vertex_t > dyng::mosp::compute(const resources &res, const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, const options &opt={})
+  template <typename vertex_t, typename edge_t, typename weight_t> stats dyng::mosp::update(const resources &res, graph< vertex_t, edge_t, weight_t > &g, const edge_batch_view< vertex_t, weight_t > &batch, result< vertex_t > &r)
+  detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool mosp_supported_v = sssp_supported_v<vertex_t, edge_t, weight_t>;
+  detail: template <typename vertex_t, typename distance_t> struct update_traits<mosp::result<vertex_t, distance_t>> { using stats_type = mosp::stats; }
 
 [dyng/sssp.hpp] frozen
   struct dyng::sssp::options
@@ -683,6 +726,10 @@
       std::vector< vertex_t > parents
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const csr_view< vertex_t, edge_t, weight_t > &out, vertex_t source, int objective=0)
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, int objective=0)
+
+[dyng/testing/mosp_oracle.hpp] tracked
+  template <typename vertex_t> [[nodiscard]] csr< vertex_t, std::int64_t, std::int32_t > dyng::testing::combined_graph_reference(const std::vector< std::vector< vertex_t > > &parents, vertex_t source, const std::vector< std::int32_t > &preferences={})
+  template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] std::vector< std::int64_t > dyng::testing::mosp_path_costs_reference(const csr_view< vertex_t, edge_t, weight_t > &out, const std::vector< vertex_t > &parent, vertex_t source, int num_objectives=0)
 
 [dyng/update.hpp] frozen
   template <typename container_t, typename batch_view_t, typename... results_t> std::tuple< typename detail::stats_of< results_t >::type... > dyng::update(const resources &res, container_t &g, const batch_view_t &batch, results_t &... results)

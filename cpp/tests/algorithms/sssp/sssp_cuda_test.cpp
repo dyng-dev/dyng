@@ -103,54 +103,76 @@ TEST_F(SsspCuda, ResultArraysLiveOnTheDevice) {
   EXPECT_EQ(dyng::to_vector(res, r.parents()), (std::vector<std::int32_t>{-1, 0, 0, 2, 3}));
 }
 
-TEST_F(SsspCuda, WithoutCooperativeLaunchAutomaticAndFusedThrowNotSupported) {
+TEST_F(SsspCuda, WithoutCooperativeLaunchAutomaticFallsBackToTheOperatorsEngine) {
   const auto res = dyng::resources::cuda();
   auto g = ties_graph(res);
   result_t r = dyng::sssp::compute(res, g, 0);
   // A device without cooperative launch (forced; the recorded flag is shared by every copy).
   dyng::detail::resources_access::force_cooperative_launch(res, false);
-  for (const dyng::engine e : {dyng::engine::automatic, dyng::engine::fused}) {
-    dyng::sssp::options opt;
-    opt.cuda_engine = e;
-    try {
-      (void)dyng::sssp::compute(res, g, 0, opt);
-      FAIL() << "compute ran without cooperative launch";
-    } catch (const dyng::not_supported_error& error) {
-      EXPECT_TRUE(contains(error.what(), "cooperative launch")) << error.what();
-      EXPECT_TRUE(contains(error.what(), "resources::openmp()")) << error.what();
-    }
-    r.set_options(opt);
-    batch_t b;
-    b.delete_edge(0, 2);
-    EXPECT_THROW((void)dyng::sssp::update(res, g, b.view(), r), dyng::not_supported_error);
-    EXPECT_EQ(g.version(), 0u);  // rejected before the batch was applied
+  // engine::fused cannot run there: rejected before anything changes.
+  dyng::sssp::options fused;
+  fused.cuda_engine = dyng::engine::fused;
+  try {
+    (void)dyng::sssp::compute(res, g, 0, fused);
+    FAIL() << "the fused engine ran without cooperative launch";
+  } catch (const dyng::not_supported_error& error) {
+    EXPECT_TRUE(contains(error.what(), "cooperative launch")) << error.what();
+    EXPECT_TRUE(contains(error.what(), "engine::operators")) << error.what();
+    EXPECT_TRUE(contains(error.what(), "resources::openmp()")) << error.what();
   }
-  // Nothing was changed: the result is still usable once the capability is back.
-  EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, 5, 1, 2, 4}));
-  dyng::detail::resources_access::force_cooperative_launch(res, true);
+  r.set_options(fused);
   batch_t b;
   b.delete_edge(0, 2);
+  EXPECT_THROW((void)dyng::sssp::update(res, g, b.view(), r), dyng::not_supported_error);
+  EXPECT_EQ(g.version(), 0u);  // rejected before the batch was applied
+  EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, 5, 1, 2, 4}));
+  // engine::automatic runs the operators engine instead (decision O24), and so does
+  // engine::operators.
+  for (const dyng::engine e : {dyng::engine::automatic, dyng::engine::operators}) {
+    SCOPED_TRACE(std::string(dyng::to_string(e)));
+    dyng::sssp::options opt;
+    opt.cuda_engine = e;
+    auto h = ties_graph(res);
+    result_t computed = dyng::sssp::compute(res, h, 0, opt);
+    EXPECT_EQ(host_copy(computed.distances()), (std::vector<std::int64_t>{0, 5, 1, 2, 4}));
+    EXPECT_EQ(host_copy(computed.parents()), (std::vector<std::int32_t>{-1, 0, 0, 2, 3}));
+    const auto st = dyng::sssp::update(res, h, b.view(), computed);
+    EXPECT_EQ(st.engine_used, dyng::engine::operators);
+    EXPECT_EQ(st.invalidated, 3);
+    EXPECT_EQ(host_copy(computed.distances()), (std::vector<std::int64_t>{0, 5, inf, inf, 7}));
+    EXPECT_EQ(host_copy(computed.parents()), (std::vector<std::int32_t>{-1, 0, -1, -1, 1}));
+  }
+  // The capability is back: automatic runs the fused engine again.
+  dyng::detail::resources_access::force_cooperative_launch(res, true);
+  r.set_options(dyng::sssp::options{});
   const auto st = dyng::sssp::update(res, g, b.view(), r);
   EXPECT_EQ(st.engine_used, dyng::engine::fused);
   EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, 5, inf, inf, 7}));
 }
 
-TEST_F(SsspCuda, OperatorsEngineArrivesIn02) {
+TEST_F(SsspCuda, EngineOperatorsRunsTheMultiKernelEngine) {
   const auto res = dyng::resources::cuda();
-  auto g = ties_graph(res);
   dyng::sssp::options opt;
   opt.cuda_engine = dyng::engine::operators;
-  try {
-    (void)dyng::sssp::compute(res, g, 0, opt);
-    FAIL() << "engine::operators ran";
-  } catch (const dyng::not_supported_error& error) {
-    EXPECT_TRUE(contains(error.what(), "engine::operators")) << error.what();
-  }
+  auto g = ties_graph(res);
+  result_t r = dyng::sssp::compute(res, g, 0, opt);
+  EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, 5, 1, 2, 4}));
+  batch_t b;
+  b.insert_edge(2, 1, {1});
+  b.delete_edge(2, 3);
+  const auto st = dyng::sssp::update(res, g, b.view(), r);
+  EXPECT_EQ(st.engine_used, dyng::engine::operators);
+  EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, 2, 1, inf, 4}));
+  EXPECT_EQ(host_copy(r.parents()), (std::vector<std::int32_t>{-1, 2, 0, -1, 1}));
+  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
   // The host backends ignore the CUDA engine option.
   const auto host = dyng::resources::sequential();
   auto hg = ties_graph(host);
   EXPECT_NO_THROW((void)dyng::sssp::compute(host, hg, 0, opt));
 }
+
+/// Both CUDA engines, for the tests that run each case once per engine.
+constexpr dyng::engine cuda_engines[] = {dyng::engine::fused, dyng::engine::operators};
 
 TEST_F(SsspCuda, GraphsAndResultsStayWithTheirBackendUntilCloned) {
   const auto cuda = dyng::resources::cuda();
@@ -438,32 +460,37 @@ TEST_F(SsspCuda, AnOverflowingImportedTreePoisonsTheResult) {
   // A tree imported without validation whose distance does not fit (n - 1) * max weight: the
   // kernel reports it (MOSP-CUDA's "the initial tree does not belong to this graph").
   const auto res = dyng::resources::cuda();
-  auto g = make_graph(res, 3, {{0, 1, 1}, {1, 2, 1}});
-  const std::vector<std::int64_t> d{0, 1, 1000};
-  const std::vector<std::int32_t> p{-1, 0, 1};
-  dyng::sssp::options opt;
-  opt.validate_inputs = false;
-  result_t r = result_t::from_arrays(res, g, 0, dyng::host_view(d), dyng::host_view(p), false, opt);
-  batch_t b;
-  b.insert_edge(0, 2, {5});
-  try {
-    (void)dyng::sssp::update(res, g, b.view(), r);
-    FAIL() << "the overflowing distance was not reported";
-  } catch (const dyng::stale_result_error&) {
-    FAIL() << "expected invalid_argument_error";
-  } catch (const dyng::invalid_argument_error& error) {
-    EXPECT_TRUE(contains(error.what(), "does not belong to this graph")) << error.what();
+  for (const dyng::engine e : cuda_engines) {
+    SCOPED_TRACE(std::string(dyng::to_string(e)));
+    auto g = make_graph(res, 3, {{0, 1, 1}, {1, 2, 1}});
+    const std::vector<std::int64_t> d{0, 1, 1000};
+    const std::vector<std::int32_t> p{-1, 0, 1};
+    dyng::sssp::options opt;
+    opt.validate_inputs = false;
+    opt.cuda_engine = e;
+    result_t r =
+        result_t::from_arrays(res, g, 0, dyng::host_view(d), dyng::host_view(p), false, opt);
+    batch_t b;
+    b.insert_edge(0, 2, {5});
+    try {
+      (void)dyng::sssp::update(res, g, b.view(), r);
+      FAIL() << "the overflowing distance was not reported";
+    } catch (const dyng::stale_result_error&) {
+      FAIL() << "expected invalid_argument_error";
+    } catch (const dyng::invalid_argument_error& error) {
+      EXPECT_TRUE(contains(error.what(), "does not belong to this graph")) << error.what();
+    }
+    EXPECT_EQ(g.version(), 1u);  // the batch was applied before the engine ran
+    EXPECT_THROW((void)r.distances(), dyng::stale_result_error);
+    EXPECT_THROW((void)r.clone(res), dyng::stale_result_error);
+    const batch_t empty;
+    EXPECT_THROW((void)dyng::sssp::update(res, g, empty.view(), r), dyng::stale_result_error);
+    r = dyng::sssp::compute(res, g, 0, opt);
+    EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, 1, 2}));
+    // The handle's workspace of the failed run was discarded; the next runs are correct.
+    (void)dyng::sssp::update(res, g, empty.view(), r);
+    EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
   }
-  EXPECT_EQ(g.version(), 1u);  // the batch was applied before the engine ran
-  EXPECT_THROW((void)r.distances(), dyng::stale_result_error);
-  EXPECT_THROW((void)r.clone(res), dyng::stale_result_error);
-  const batch_t empty;
-  EXPECT_THROW((void)dyng::sssp::update(res, g, empty.view(), r), dyng::stale_result_error);
-  r = dyng::sssp::compute(res, g, 0);
-  EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, 1, 2}));
-  // The handle's workspace of the failed run was discarded; the next runs are correct.
-  (void)dyng::sssp::update(res, g, empty.view(), r);
-  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
 }
 
 /// mospTest runPackingBoundary: n = 2^17 - 1 needs 17 parent bits and leaves 47 for distances.
@@ -495,28 +522,33 @@ TEST_F(SsspCuda, PackingBoundaryOf47DistanceBits) {
     std::int32_t to;
     std::int32_t weight;
   };
-  for (const scenario& c :
-       {scenario{"pull", false, n - 1, 1, w}, scenario{"push", true, n - 2, n - 1, w - 1},
-        scenario{"from-scratch", true, -1, -1, 0}}) {
-    SCOPED_TRACE(c.name);
-    auto g = path(res, c.back_edge);
-    auto hg = path(host, c.back_edge);
-    result_t r = dyng::sssp::compute(res, g, 0);
-    result_t hr = dyng::sssp::compute(host, hg, 0);
-    if (c.from >= 0) {
-      batch_t b;
-      b.insert_edge(c.from, c.to, {c.weight});
-      const auto st = dyng::sssp::update(res, g, b.view(), r);
-      (void)dyng::sssp::update(host, hg, b.view(), hr);
-      // MOSP-CUDA's rule: the bound (n - 1) * W fits in 47 bits, so the words are packed. (The
-      // OpenMP engine also counts one more edge, so it keeps distances only here; the trees are
-      // equal either way.)
-      EXPECT_TRUE(st.packed_parents);
+  for (const dyng::engine e : cuda_engines) {
+    for (const scenario& c :
+         {scenario{"pull", false, n - 1, 1, w}, scenario{"push", true, n - 2, n - 1, w - 1},
+          scenario{"from-scratch", true, -1, -1, 0}}) {
+      SCOPED_TRACE(std::string(c.name) + ", engine " + std::string(dyng::to_string(e)));
+      dyng::sssp::options opt;
+      opt.cuda_engine = e;
+      auto g = path(res, c.back_edge);
+      auto hg = path(host, c.back_edge);
+      result_t r = dyng::sssp::compute(res, g, 0, opt);
+      result_t hr = dyng::sssp::compute(host, hg, 0);
+      if (c.from >= 0) {
+        batch_t b;
+        b.insert_edge(c.from, c.to, {c.weight});
+        const auto st = dyng::sssp::update(res, g, b.view(), r);
+        (void)dyng::sssp::update(host, hg, b.view(), hr);
+        // MOSP-CUDA's rule: the bound (n - 1) * W fits in 47 bits, so the words are packed. (The
+        // OpenMP engine also counts one more edge, so it keeps distances only here; the trees are
+        // equal either way.) Both CUDA engines choose the same packing.
+        EXPECT_TRUE(st.packed_parents);
+        EXPECT_EQ(st.engine_used, e);
+      }
+      const auto check = dyng::testing::check_sssp_tree(g, r);
+      EXPECT_TRUE(check.ok()) << check.summary();
+      EXPECT_EQ(host_copy(r.distances()), host_copy(hr.distances()));
+      EXPECT_EQ(host_copy(r.parents()), host_copy(hr.parents()));
     }
-    const auto check = dyng::testing::check_sssp_tree(g, r);
-    EXPECT_TRUE(check.ok()) << check.summary();
-    EXPECT_EQ(host_copy(r.distances()), host_copy(hr.distances()));
-    EXPECT_EQ(host_copy(r.parents()), host_copy(hr.parents()));
   }
 }
 
@@ -551,12 +583,15 @@ TEST_F(SsspCuda, LargeWeightsUseTheDistanceOnlyFallback) {
     }
   }
   const auto props = dyng::graph_properties::mosp_compatible();
-  auto g = graph_t::from_edges(res, list.view(), props);
-  auto hg = graph_t::from_edges(omp, list.view(), props);
-  for (int k = 0; k < 2; ++k) {
-    SCOPED_TRACE("objective " + std::to_string(k));
+  for (int run = 0; run < 4; ++run) {
+    const int k = run % 2;
+    const dyng::engine e = cuda_engines[run / 2];
+    SCOPED_TRACE("objective " + std::to_string(k) + ", engine " + std::string(dyng::to_string(e)));
     dyng::sssp::options opt;
     opt.objective = k;
+    opt.cuda_engine = e;
+    auto g = graph_t::from_edges(res, list.view(), props);
+    auto hg = graph_t::from_edges(omp, list.view(), props);
     result_t r = dyng::sssp::compute(res, g, 0, opt);
     result_t hr = dyng::sssp::compute(omp, hg, 0, opt);
     EXPECT_EQ(host_copy(r.parents()), host_copy(hr.parents()));
@@ -581,6 +616,7 @@ TEST_F(SsspCuda, LargeWeightsUseTheDistanceOnlyFallback) {
       const auto hst = dyng::sssp::update(omp, hg, b.view(), hr);
       EXPECT_FALSE(st.packed_parents);
       EXPECT_FALSE(hst.packed_parents);
+      EXPECT_EQ(st.engine_used, e);
       EXPECT_EQ(st.invalidated, hst.invalidated);
       EXPECT_EQ(st.affected, hst.affected);
       EXPECT_EQ(host_copy(r.distances()), host_copy(hr.distances()));
@@ -623,70 +659,74 @@ class counting_resource {
 /// apply re-uploads the graph per batch; that is the graph's budget, not the algorithm's), and the
 /// algorithm phase (workspace, change lists, the fused engine) allocates nothing.
 TEST_F(SsspCuda, SteadyStateUpdatesAllocateOnlyTheGraphUpload) {
-  auto res = dyng::resources::cuda();
-  counting_resource counter(res.memory());
-  res.set_memory_resource(counter);
-  std::mt19937 rng(7);
-  const std::int32_t n = 2000;
-  dyng::edge_list<std::int32_t, std::int32_t> list;
-  list.num_vertices = n;
-  list.num_weights = 3;
-  for (std::int32_t i = 0; i < 8 * n; ++i) {
-    const auto u = std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng);
-    const auto v = std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng);
-    list.add_edge(u, v,
-                  {std::uniform_int_distribution<std::int32_t>(1, 100)(rng),
-                   std::uniform_int_distribution<std::int32_t>(1, 100)(rng),
-                   std::uniform_int_distribution<std::int32_t>(1, 100)(rng)});
-  }
-  auto g = graph_t::from_edges(res, list.view(), dyng::graph_properties::mosp_compatible());
-  std::vector<result_t> results;
-  for (int k = 0; k < 3; ++k) {
-    dyng::sssp::options opt;
-    opt.objective = k;
-    results.push_back(dyng::sssp::compute(res, g, 0, opt));
-  }
-  std::vector<result_t*> pointers{&results[0], &results[1], &results[2]};
-  auto& pool = dyng::detail::resources_access::workspaces(res);
-  for (int round = 0; round < 5; ++round) {
-    SCOPED_TRACE("batch " + std::to_string(round));
-    // Deletions of existing edges and insertions of new (u, v) pairs only: the change lists have
-    // the same length in every batch.
-    const auto csr = g.to_csr(res);
-    batch_t b(3);
-    for (int i = 0; i < 100; ++i) {
+  for (const dyng::engine engine : cuda_engines) {
+    SCOPED_TRACE(std::string(dyng::to_string(engine)));
+    auto res = dyng::resources::cuda();
+    counting_resource counter(res.memory());
+    res.set_memory_resource(counter);
+    std::mt19937 rng(7);
+    const std::int32_t n = 2000;
+    dyng::edge_list<std::int32_t, std::int32_t> list;
+    list.num_vertices = n;
+    list.num_weights = 3;
+    for (std::int32_t i = 0; i < 8 * n; ++i) {
       const auto u = std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng);
-      const auto e = csr.row_ptr[static_cast<std::size_t>(u)];
-      if (e < csr.row_ptr[static_cast<std::size_t>(u) + 1]) {
-        b.delete_edge(u, csr.col_ind[static_cast<std::size_t>(e)]);
-      } else {
-        b.delete_edge(u, (u + 1) % n);  // a missing edge still counts as a deletion
+      const auto v = std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng);
+      list.add_edge(u, v,
+                    {std::uniform_int_distribution<std::int32_t>(1, 100)(rng),
+                     std::uniform_int_distribution<std::int32_t>(1, 100)(rng),
+                     std::uniform_int_distribution<std::int32_t>(1, 100)(rng)});
+    }
+    auto g = graph_t::from_edges(res, list.view(), dyng::graph_properties::mosp_compatible());
+    std::vector<result_t> results;
+    for (int k = 0; k < 3; ++k) {
+      dyng::sssp::options opt;
+      opt.objective = k;
+      opt.cuda_engine = engine;
+      results.push_back(dyng::sssp::compute(res, g, 0, opt));
+    }
+    std::vector<result_t*> pointers{&results[0], &results[1], &results[2]};
+    auto& pool = dyng::detail::resources_access::workspaces(res);
+    for (int round = 0; round < 5; ++round) {
+      SCOPED_TRACE("batch " + std::to_string(round));
+      // Deletions of existing edges and insertions of new (u, v) pairs only: the change lists have
+      // the same length in every batch.
+      const auto csr = g.to_csr(res);
+      batch_t b(3);
+      for (int i = 0; i < 100; ++i) {
+        const auto u = std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng);
+        const auto e = csr.row_ptr[static_cast<std::size_t>(u)];
+        if (e < csr.row_ptr[static_cast<std::size_t>(u) + 1]) {
+          b.delete_edge(u, csr.col_ind[static_cast<std::size_t>(e)]);
+        } else {
+          b.delete_edge(u, (u + 1) % n);  // a missing edge still counts as a deletion
+        }
+        // Weight 1 never raises an existing edge's weight, so no insertion joins the change list.
+        b.insert_edge(static_cast<std::int32_t>(n - 1 - (round * 100 + i) % n),
+                      static_cast<std::int32_t>((round * 100 + i) % n), {1, 1, 1});
       }
-      // Weight 1 never raises an existing edge's weight, so no insertion joins the change list.
-      b.insert_edge(static_cast<std::int32_t>(n - 1 - (round * 100 + i) % n),
-                    static_cast<std::int32_t>((round * 100 + i) % n), {1, 1, 1});
+      const std::uint64_t created = pool.statistics().created;
+      const int before = counter.allocations.load();
+      (void)dyng::update_each(res, g, b.view(), dyng::host_view(pointers));
+      const int during = counter.allocations.load() - before;
+      // What uploading this graph state alone allocates.
+      const auto copy = g.clone(res);
+      const int before_upload = counter.allocations.load();
+      (void)dyng::detail::graph_access::device(res, copy);
+      const int upload = counter.allocations.load() - before_upload;
+      if (round >= 1) {
+        EXPECT_EQ(during, upload);
+        EXPECT_EQ(pool.statistics().created, created);
+      }
+      for (const result_t& r : results) {
+        EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
+      }
     }
-    const std::uint64_t created = pool.statistics().created;
-    const int before = counter.allocations.load();
-    (void)dyng::update_each(res, g, b.view(), dyng::host_view(pointers));
-    const int during = counter.allocations.load() - before;
-    // What uploading this graph state alone allocates.
-    const auto copy = g.clone(res);
-    const int before_upload = counter.allocations.load();
-    (void)dyng::detail::graph_access::device(res, copy);
-    const int upload = counter.allocations.load() - before_upload;
-    if (round >= 1) {
-      EXPECT_EQ(during, upload);
-      EXPECT_EQ(pool.statistics().created, created);
-    }
-    for (const result_t& r : results) {
-      EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
-    }
+    res.synchronize();
+    results.clear();
+    g = graph_t();
+    res.release_workspaces();
   }
-  res.synchronize();
-  results.clear();
-  g = graph_t();
-  res.release_workspaces();
 }
 
 TEST_F(SsspCuda, ProfilerRecordsTheDeviceTimeOfTheFusedEngine) {
@@ -804,7 +844,206 @@ TEST_F(SsspCuda, WarmUpLoadsTheSsspKernels) {
   }
   EXPECT_EQ(persistent, 3);  // one per instantiated graph type
   EXPECT_EQ(transpose, 3);
+  int push = 0;
+  int jump = 0;
+  for (const auto& kernel : dyng::detail::registered_kernels()) {
+    const std::string name = kernel.name;
+    push += contains(name, "sssp_operators::push_kernel<") ? 1 : 0;
+    jump += contains(name, "sssp_operators::pointer_jump_kernel<") ? 1 : 0;
+  }
+  EXPECT_EQ(push, 3);  // the operators engine: one per graph type, or per vertex type
+  EXPECT_EQ(jump, 2);
   EXPECT_NO_THROW(res.warm_up());
+}
+
+/// A batch of `g` (objective 0) that deletes tree edges of `parents` and random edges and inserts
+/// random edges, some of them parallel to existing ones (weight changes under mosp_compatible).
+batch_t mixed_batch(const graph_t& g, const std::vector<std::int32_t>& parents, int size,
+                    std::int32_t max_weight, std::mt19937& rng) {
+  const auto n = static_cast<std::int32_t>(g.num_vertices());
+  const auto csr = g.to_csr(dyng::resources::sequential());
+  batch_t b(1);
+  for (int i = 0; i < size; ++i) {
+    const auto v = std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng);
+    const auto kind = std::uniform_int_distribution<int>(0, 3)(rng);
+    if (kind == 0 && parents[static_cast<std::size_t>(v)] >= 0) {
+      b.delete_edge(parents[static_cast<std::size_t>(v)], v);  // a tree edge
+    } else if (kind == 1) {
+      const auto e = csr.row_ptr[static_cast<std::size_t>(v)];
+      if (e < csr.row_ptr[static_cast<std::size_t>(v) + 1]) {
+        b.delete_edge(v, csr.col_ind[static_cast<std::size_t>(e)]);
+      }
+    } else {
+      b.insert_edge(v, std::uniform_int_distribution<std::int32_t>(0, n - 1)(rng),
+                    {std::uniform_int_distribution<std::int32_t>(1, max_weight)(rng)});
+    }
+  }
+  return b;
+}
+
+/// Conformance check C4 beyond the kit's small graphs: on larger graphs (many blocks, many near-far
+/// rounds and threshold raises, chains of deep subtrees) the two CUDA engines give the same bytes
+/// and the same deterministic counters, batch after batch, from the same canonical trees, and both
+/// equal the OpenMP backend; compute() agrees as well. Shapes: a sparse random graph, a road-like
+/// grid with unit weights (many ties) and a long chain with shortcuts (deep pointer jumping).
+TEST_F(SsspCuda, TheOperatorsEngineEqualsTheFusedEngineBatchAfterBatch) {
+  const auto res = dyng::resources::cuda();
+  const auto omp = dyng::test::make_resources(dyng::test::host_backends().back(), 8);
+  struct shape {
+    const char* name;
+    std::int32_t n;
+    std::int32_t max_weight;
+  };
+  for (const shape s :
+       {shape{"random", 30000, 50}, shape{"grid", 160 * 160, 1}, shape{"chain", 40000, 1000}}) {
+    SCOPED_TRACE(s.name);
+    std::mt19937 rng(424242);
+    std::vector<edge> edges;
+    if (std::string(s.name) == "random") {
+      for (std::int32_t i = 0; i < 3 * s.n; ++i) {
+        edges.push_back(edge{std::uniform_int_distribution<std::int32_t>(0, s.n - 1)(rng),
+                             std::uniform_int_distribution<std::int32_t>(0, s.n - 1)(rng),
+                             std::uniform_int_distribution<std::int32_t>(1, s.max_weight)(rng)});
+      }
+    } else if (std::string(s.name) == "grid") {
+      constexpr std::int32_t side = 160;
+      for (std::int32_t y = 0; y < side; ++y) {
+        for (std::int32_t x = 0; x < side; ++x) {
+          const std::int32_t v = y * side + x;
+          if (x + 1 < side) {
+            edges.push_back({v, v + 1, 1});
+            edges.push_back({v + 1, v, 1});
+          }
+          if (y + 1 < side) {
+            edges.push_back({v, v + side, 1});
+            edges.push_back({v + side, v, 1});
+          }
+        }
+      }
+    } else {
+      for (std::int32_t v = 0; v + 1 < s.n; ++v) {
+        edges.push_back({v, v + 1, std::uniform_int_distribution<std::int32_t>(1, 10)(rng)});
+      }
+      for (int i = 0; i < 200; ++i) {
+        const auto u = std::uniform_int_distribution<std::int32_t>(0, s.n - 1)(rng);
+        const auto v = std::uniform_int_distribution<std::int32_t>(0, s.n - 1)(rng);
+        edges.push_back({u, v, std::uniform_int_distribution<std::int32_t>(1, s.max_weight)(rng)});
+      }
+    }
+    auto gf = make_graph(res, s.n, edges);
+    auto go = make_graph(res, s.n, edges);
+    auto gh = make_graph(omp, s.n, edges);
+    dyng::sssp::options fused_opt;
+    fused_opt.cuda_engine = dyng::engine::fused;
+    dyng::sssp::options ops_opt;
+    ops_opt.cuda_engine = dyng::engine::operators;
+    ops_opt.delta = s.max_weight;  // a narrow width: many threshold raises
+    fused_opt.delta = s.max_weight;
+    result_t rf = dyng::sssp::compute(res, gf, 0, fused_opt);
+    result_t ro = dyng::sssp::compute(res, go, 0, ops_opt);
+    result_t rh = dyng::sssp::compute(omp, gh, 0, ops_opt);
+    ASSERT_EQ(host_copy(ro.distances()), host_copy(rf.distances()));
+    ASSERT_EQ(host_copy(ro.parents()), host_copy(rf.parents()));
+    std::int64_t iterations = 0;
+    for (int round = 0; round < 6; ++round) {
+      SCOPED_TRACE("batch " + std::to_string(round));
+      const batch_t b =
+          mixed_batch(gh, host_copy(rh.parents()), round == 5 ? 4000 : 400, s.max_weight, rng);
+      const auto sf = dyng::sssp::update(res, gf, b.view(), rf);
+      const auto so = dyng::sssp::update(res, go, b.view(), ro);
+      const auto sh = dyng::sssp::update(omp, gh, b.view(), rh);
+      EXPECT_EQ(sf.engine_used, dyng::engine::fused);
+      EXPECT_EQ(so.engine_used, dyng::engine::operators);
+      ASSERT_EQ(host_copy(ro.distances()), host_copy(rf.distances()));
+      ASSERT_EQ(host_copy(ro.parents()), host_copy(rf.parents()));
+      ASSERT_EQ(host_copy(ro.distances()), host_copy(rh.distances()));
+      ASSERT_EQ(host_copy(ro.parents()), host_copy(rh.parents()));
+      EXPECT_EQ(so.invalidated, sf.invalidated);
+      EXPECT_EQ(so.affected, sf.affected);
+      EXPECT_EQ(so.invalidated, sh.invalidated);
+      EXPECT_EQ(so.affected, sh.affected);
+      EXPECT_EQ(so.packed_parents, sf.packed_parents);
+      iterations += so.iterations;
+    }
+    EXPECT_GT(iterations, 0);  // the batches did exercise Step 2
+    const result_t fresh = dyng::sssp::compute(res, go, 0, ops_opt);
+    EXPECT_EQ(host_copy(fresh.distances()), host_copy(ro.distances()));
+    EXPECT_EQ(host_copy(fresh.parents()), host_copy(ro.parents()));
+    const auto check = dyng::testing::check_sssp_tree(go, ro);
+    EXPECT_TRUE(check.ok()) << check.summary();
+  }
+}
+
+/// The input checks of the operators engine report what the fused engine reports: a parent cycle
+/// of a tree imported without validation (pointer jumping still active in its last round) poisons
+/// the result with invalid_argument_error.
+TEST_F(SsspCuda, TheOperatorsEngineReportsAParentCycle) {
+  const auto res = dyng::resources::cuda();
+  for (const dyng::engine e : cuda_engines) {
+    SCOPED_TRACE(std::string(dyng::to_string(e)));
+    auto g = make_graph(res, 4, {{0, 1, 1}, {1, 2, 1}, {2, 1, 1}, {2, 3, 1}});
+    const std::vector<std::int64_t> d{0, 1, 2, 3};
+    const std::vector<std::int32_t> p{-1, 2, 1, 2};
+    dyng::sssp::options opt;
+    opt.validate_inputs = false;
+    opt.cuda_engine = e;
+    result_t r =
+        result_t::from_arrays(res, g, 0, dyng::host_view(d), dyng::host_view(p), false, opt);
+    batch_t b;
+    b.delete_edge(0, 1);
+    try {
+      (void)dyng::sssp::update(res, g, b.view(), r);
+      FAIL() << "a parent cycle in the imported tree was not reported";
+    } catch (const dyng::stale_result_error&) {
+      FAIL() << "expected invalid_argument_error";
+    } catch (const dyng::invalid_argument_error& error) {
+      EXPECT_TRUE(contains(error.what(), "parent cycle")) << error.what();
+    }
+    EXPECT_THROW((void)r.distances(), dyng::stale_result_error);
+    r = dyng::sssp::compute(res, g, 0, opt);
+    EXPECT_EQ(host_copy(r.distances()), (std::vector<std::int64_t>{0, inf, inf, inf}));
+  }
+}
+
+/// Invariant I9 for the operators engine: with strict budgets an update never exceeds its budget
+/// (no allocation once reserved; 3 + iterations + epochs host synchronizations), and the stages of
+/// the Tier A hooks carry device times.
+TEST_F(SsspCuda, TheOperatorsEngineStaysWithinItsBudget) {
+  const dyng::detail::framework::strict_budgets_scope strict;
+  auto res = dyng::resources::cuda();
+  dyng::profiler_options options;
+  options.cuda_events = true;
+  dyng::profiler prof(options);
+  std::mt19937 rng(17);
+  graph_t g = random_graph(res, 2000, rng);
+  dyng::sssp::options opt;
+  opt.cuda_engine = dyng::engine::operators;
+  result_t r = dyng::sssp::compute(res, g, 0, opt);
+  res.attach_profiler(&prof);
+  for (int i = 0; i < 6; ++i) {
+    SCOPED_TRACE("update " + std::to_string(i));
+    const batch_t b = random_batch(2000, rng);
+    dyng::sssp::stats st;
+    ASSERT_NO_THROW(st = dyng::sssp::update(res, g, b.view(), r));
+    EXPECT_EQ(st.engine_used, dyng::engine::operators);
+    const auto report = dyng::detail::framework::last_budget_report();
+    if (report.measured) {
+      EXPECT_EQ(report.limit.host_syncs, 3 + st.iterations + st.epochs);
+      EXPECT_LE(report.used.own_host_syncs(), report.limit.host_syncs);
+    }
+  }
+  res.attach_profiler(nullptr);
+  EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r).ok());
+  for (const char* stage : {"sssp.identify_affected", "sssp.seed", "sssp.loop", "sssp.finalize"}) {
+    bool seen = false;
+    for (const auto& s : prof.samples()) {
+      if (s.name == stage) {
+        seen = true;
+        EXPECT_GE(s.device_ms, 0.0);
+      }
+    }
+    EXPECT_TRUE(seen) << stage;
+  }
 }
 
 }  // namespace

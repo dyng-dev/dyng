@@ -42,19 +42,31 @@
  *   - from a valid tree whose tie parents are not the lowest ids (from_arrays() with
  *     canonicalize = false, like MOSP's dataset trees), the distances equal compute()'s and the
  *     tree is a valid shortest-path tree, but kept tie parents can differ from compute()'s;
- *   - in the distance-only mode (stats::packed_parents == false: (n - 1) * max weight does not
- *     fit next to the parent ids in 64 bits) every parent is recovered with the lowest-id rule
- *     after the search, so update() equals compute() on every input.
+ *   - in the distance-only mode (stats::packed_parents == false: the distances do not fit next
+ *     to the parent ids in 64 bits) every parent is recovered with the lowest-id rule after the
+ *     search, so update() equals compute() on every input.
  *
- * Backends: sequential (the reference), openmp (MOSP-OpenMP's sospUpdateCpu) and cuda (MOSP-CUDA's
- * persistent cooperative kernel, the fused engine; options::cuda_engine). On cuda the graph must
- * be built with (or cloned for) the CUDA resources, the result arrays live in device memory
- * (copy them with to_vector()), and compute() synchronizes the stream once, update() once per
- * result and once per batch inside the commit (the new graph state's upload). Near the
- * packing limit the two parallel engines choose the word format slightly differently (MOSP-CUDA
- * packs when (n - 1) * max weight fits, MOSP-OpenMP when one more edge fits too), so
- * stats::packed_parents may differ between cuda and the host backends there; the trees are
- * identical for canonical input trees.
+ * Backends: sequential (the reference), openmp (MOSP-OpenMP's sospUpdateCpu) and cuda, which has
+ * two engines (options::cuda_engine): the fused engine (MOSP-CUDA's persistent cooperative kernel)
+ * and the operators engine (the same algorithm as a sequence of kernels driven by the host; it
+ * needs no cooperative launch and returns the same bytes). On cuda the graph must be built with
+ * (or cloned for) the CUDA resources, the result arrays live in device memory (copy them with
+ * to_vector()), and with the fused engine compute() synchronizes the stream once and update()
+ * once per result, plus once per batch inside the commit (the new graph state's upload); the
+ * operators engine synchronizes once per near-far round as well (compute() 2 + iterations +
+ * epochs times, update() 3 + iterations + epochs times per result). engine::automatic runs the
+ * fused engine where cooperative launch is available and the operators engine otherwise.
+ *
+ * The packing window (ADR 0029, proposed). The originals choose the word format differently near
+ * the packing limit: MOSP-CUDA packs when (n - 1) * max weight fits next to the parent bits,
+ * MOSP-OpenMP only when one more edge fits too. The host backends follow MOSP-OpenMP and both
+ * CUDA engines MOSP-CUDA, so in the window (n - 1) * max weight <= max_distance < n * max weight
+ * (with int32 weights only on graphs of at least 65537 vertices) the host backends run
+ * distance-only and cuda runs packed. From canonical input trees every backend returns the same
+ * tree (only stats::packed_parents differs); from non-canonical input trees inside the window the
+ * host backends return the canonical tree and cuda keeps the tie parents of the vertices it does
+ * not re-evaluate, so the parents differ between the host backends and cuda (each equal to its
+ * original; the distances are equal everywhere).
  */
 
 namespace dyng::sssp {
@@ -70,10 +82,11 @@ struct options {
   std::int64_t delta = 0;
   /// Which weight column of a multi-weight graph is the edge length. Fixed at compute().
   int objective = 0;
-  /// Engine of the CUDA backend; ignored by the host backends. engine::automatic and
-  /// engine::fused run the fused persistent cooperative kernel (MOSP-CUDA's sospUpdateGpu) and throw
-  /// not_supported_error on a device without cooperative launch (the operators engine that would be
-  /// the fallback arrives in 0.2); engine::operators throws not_supported_error in this release.
+  /// Engine of the CUDA backend; ignored by the host backends. engine::fused runs the fused
+  /// persistent cooperative kernel (MOSP-CUDA's sospUpdateGpu) and throws not_supported_error on a
+  /// device without cooperative launch; engine::operators runs the multi-kernel operators engine
+  /// (the same bytes, on any device); engine::automatic runs the fused engine where it can and the
+  /// operators engine otherwise. A tunable: it changes the schedule, never the result.
   engine cuda_engine = engine::automatic;
   /// O(n) checks on imported trees in result::from_arrays() (rooted at the source, no parent
   /// cycle, distances in range).
@@ -97,8 +110,9 @@ struct stats : update_stats {
   /// Deterministic per backend (update_stats): false if distances do not fit next to the parent
   /// ids in 64-bit words, so the engine kept distances only and recovered every parent with the
   /// lowest-id rule after the search. The sequential engine reports the OpenMP engine's value and
-  /// applies the same recovery, so both return the same tree; the CUDA engine uses MOSP-CUDA's
-  /// slightly larger packing limit (see @ref sssp), so its value can differ right at the limit.
+  /// applies the same recovery, so both return the same tree; the CUDA engines use MOSP-CUDA's
+  /// slightly larger packing limit, so its value can differ inside the packing window (see
+  /// @ref sssp, ADR 0029).
   bool packed_parents = true;
 };
 
@@ -243,7 +257,9 @@ class result {
    * dist[u] + w(u,v) == dist[v] (MOSP's canonicalizeTree()), so that later updates produce the
    * canonical tree (equal to compute()). Without it the parents are kept as given, as MOSP's
    * `mosp` driver keeps them; later updates then keep the tie parents of the vertices they do not
-   * re-evaluate (the tie rule of @ref sssp), identically on every backend. With
+   * re-evaluate (the tie rule of @ref sssp), identically on every backend except inside the
+   * packing window, where the host backends recover every parent with the lowest-id rule and
+   * cuda keeps them (each backend as its original; @ref sssp, ADR 0029). With
    * `opt.validate_inputs` the tree is checked in O(n): array sizes, source at distance 0
    * without a parent, distances in [0, (n - 1) * max weight] or unreachable (>=
    * infinite_distance() / 2, stored as infinite_distance()), unreachable vertices without a
@@ -359,8 +375,8 @@ namespace dyng::sssp {
  *
  * The sequential backend runs the Step 2 loop of the sequential engine from the source; the
  * OpenMP backend runs the near-far search of MOSP-OpenMP's sospFromScratchCpu(), the cuda backend
- * MOSP-CUDA's sospFromScratchGpu() (the persistent kernel from the source). All return the
- * Dijkstra tree with lowest-id ties.
+ * MOSP-CUDA's sospFromScratchGpu() (the persistent kernel from the source; with the operators
+ * engine, its kernels one by one). All return the Dijkstra tree with lowest-id ties.
  *
  * @tparam vertex_t Vertex id type (int32_t or int64_t).
  * @tparam edge_t   Edge offset type (int32_t or int64_t).
@@ -375,12 +391,15 @@ namespace dyng::sssp {
  *         objective is below 1, the graph stores no in-edges, distances could exceed 62 bits, or
  *         `g` belongs to another backend than `res`.
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
- *         of options::cuda_engine cannot run (engine::operators; no cooperative launch).
+ *         of options::cuda_engine cannot run (engine::fused without cooperative launch).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error (cuda backend).
- * @sync On cuda the stream is synchronized once (the control block of the kernel is read), and once
- *       more before that if the graph's current state is not resident on the device yet (its
- *       upload, profiler stage graph.upload, completes before the kernel runs).
+ * @sync On cuda with the fused engine the stream is synchronized once (the control block of the
+ *       kernel is read); with the operators engine (engine::operators, or engine::automatic on a
+ *       device without cooperative launch) 2 + iterations + epochs times (once after the first
+ *       split, once per push iteration and threshold raise, once in the finalize step). Once more
+ *       before that if the graph's current state is not resident on the device yet (its upload,
+ *       profiler stage graph.upload, completes before the kernel runs).
  * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs: the Dijkstra tree with lowest-id ties.
  * @guarantee Strong: `g` is not modified (on cuda its device copy may be uploaded, which changes
@@ -434,12 +453,18 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error (cuda backend; after the
  *         batch was applied, `r` is left unusable).
- * @sync On cuda the stream is synchronized once per result (the kernel's control block is read)
- *       and once per batch inside the commit, where the new graph state is uploaded (profiler
- *       stage graph.upload; ADR 0017 item 7).
+ * @sync On cuda the stream is synchronized once per result with the fused engine (the kernel's
+ *       control block is read), or 3 + iterations + epochs times per result with the operators
+ *       engine (engine::operators, or engine::automatic on a device without cooperative launch:
+ *       once after identify_affected, once after the first split, once per push iteration and
+ *       threshold raise, once in the finalize step; ADR 0026), and once per batch inside the
+ *       commit, where the new graph state is uploaded (profiler stage graph.upload; ADR 0017
+ *       item 7).
  * @backends sequential, openmp, cuda
  * @determinism Bit-exact across backends and runs (distances, parents, `invalidated`,
- *              `affected`), for canonical and non-canonical input trees alike.
+ *              `affected`), for canonical and non-canonical input trees alike, except the parents
+ *              and `affected` of non-canonical input trees inside the packing window, which differ
+ *              between the host backends and cuda (each as its original; @ref sssp, ADR 0029).
  * @guarantee Strong for every error found before the batch is applied (a stale result, an
  *            invalid batch, the wrong backend, an unsupported engine, a copy refused by the copy
  *            policy, memory for the normalization): `g` and `r` are unchanged. Basic for an error

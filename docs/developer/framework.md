@@ -24,8 +24,8 @@ identify_affected → seed → { FP: loop until is_converged | AG: count + } →
 
 FP is `family::fixed_point` and AG is `family::aggregate_delta`. Everything left of `commit`
 reads G_t, the graph before the batch. Everything right of it reads G_{t+1}, the graph after the
-batch. `translate` is on the card but has no hook yet: no algorithm in 0.1 uses it (see
-[Differences from PLAN 4.5](#differences-from-plan-45)).
+batch. `translate` is on the card but has no hook yet: no algorithm uses it (mosp did not need one in
+0.2; see [Differences from PLAN 4.5](#differences-from-plan-45)).
 
 ## The files
 
@@ -204,8 +204,10 @@ frontier.
   aggregate-delta problem must name its rule as `ownership_type`, and the enactor passes it to
   every count, so there is no default rule to forget (I2).
 
-The plan's `schedule`, `sync_rule` and `tie_break` policies arrive with their first two users
-(the sssp operators engine and label_propagation). The engine choice is public: `dyng::engine`.
+The plan's `schedule`, `sync_rule` and `tie_break` policies arrive with their first two users.
+The sssp operators engine (M7) needed none of them: it has one schedule (the near-far push) and
+its lowest-id rule is the packed minimum itself; label_propagation is the first candidate. The
+engine choice is public: `dyng::engine`.
 
 ## Composition
 
@@ -301,7 +303,10 @@ of the library.
   against a problem's budget.
 
 The budgets of the two algorithms: no allocation once reserved; host synchronizations 0 on the
-host backends, 1 for sssp on CUDA (the control block) and 4 for cycle_count on CUDA (the staging
+host backends, 1 for sssp's fused engine on CUDA (the control block), 3 + iterations + epochs for
+sssp's operators engine on CUDA (the control block after Step 1, after the first split, after each
+near-far round and after the unpack; stated after the phase, when the counts are known) and 4 for
+cycle_count on CUDA (the staging
 of the change lists when the graph has no set semantics, the item counts of the delete phase on
 G_t and of the insert phase on G_{t+1}, and the histogram copy). Before the half before the commit
 was measured (M3 review), cycle_count's budget was 2 and covered the insert phase only.
@@ -312,7 +317,9 @@ allocation_counter.cpp` replaces the global `operator new` and reports every all
 measured update to `detail::note_allocation()`), and synchronizations an engine makes with the
 CUDA runtime directly.
 Such an engine calls `detail::note_host_sync()` next to the call. sssp's fused engine does this
-at its one `cudaStreamSynchronize` (`run_persistent` in `algorithms/sssp/cuda.cu`); cycle_count's
+at its one `cudaStreamSynchronize` (`run_persistent` in `algorithms/sssp/cuda.cu`), the operators
+engine at each read-back of its control block (`read_control` in `algorithms/sssp/operators.cu`);
+cycle_count's
 CUDA engines at theirs (`cuda.cu`: the item count of a phase, the staging of the change lists, the
 histogram copy; `static_cuda.cu`: the scalar read-backs, the end of the count, the histogram
 copy), and the graph module's device paths (`graph/apply_set_device.cu`,
@@ -336,8 +343,11 @@ enactors since their migration (M3; parity/results/M3.md has the log):
 - **sssp** is `sssp_problem` in `algorithms/sssp/problem.hpp`, one problem type for the three
   backends. Its `select_engine` picks the Tier A hooks on the host backends (the engine of the
   call's backend, `sssp_sequential_engine` or `sssp_openmp_engine`, is bound in `resume`) and
-  `enact_fused` on CUDA; the fused engine's control-block errors go through
-  `ctx.raise_device_error`.
+  `options::cuda_engine` on CUDA, where `fused_available` (cooperative launch) resolves
+  `engine::automatic`: `enact_fused` runs the fused engine, and the Tier A hooks run
+  `sssp_cuda_operators_engine` (M7, ADR 0026; bound in `resume`, or in `bind_static` for
+  compute()). Both CUDA engines report their control-block errors through
+  `ctx.raise_device_error` (the operators engine in `identify_affected`).
 - **cycle_count** is `cycle_count_problem` in `algorithms/cycle_count/problem.hpp`
   (`family::aggregate_delta`, `ownership_type = ownership::min_member`). The host backends run the
   Tier A hooks: `count` on the old view is the delete phase on G_t, `count` on the new view the
@@ -354,19 +364,19 @@ enactors since their migration (M3; parity/results/M3.md has the log):
 |---|---|---|---|---|
 | framework Step 0 | `sssp.normalize` (as_sets only) | same | `cycle_count.normalize` (as_sets only) | same |
 | `begin_update` | backend, stale and poisoned checks, graph requirements, placement, engine | same | backend, stale and poisoned checks, graph requirements, placement; the host workspace lease | same, and the CUDA engine |
-| `select_engine` | `operators` (the OpenMP engine reports `fused` in `finalize`, as since M1a) | `fused` | `operators` | `fused` |
+| `select_engine` | `operators` (the OpenMP engine reports `fused` in `finalize`, as since M1a) | `options::cuda_engine`: `fused` with cooperative launch, else `operators` (`automatic`) | `operators` | `fused` |
 | `normalize` | – | – | `cycle_count.normalize`: own Step 0 (other semantics; `compute_structural_change`) or the copy of the framework's lists (as_sets) | same, plus the check that the bound after the batch fits the device counters |
 | `prepare` | `sssp.prepare`: weights, largest weight, delta, 62-bit check | same | – | – |
 | `count(-)` | – | – | `cycle_count.count_minus`: the host phase on G_t (ownership index over the deletions) | `cycle_count.count_minus`: the change lists uploaded, the device phase on the resident G_t |
 | commit | `sssp.commit` | same | `cycle_count.commit` (no transposition: `reads_prepared_graph` is false) | same (the device merge under set semantics) |
 | `resume` | grow, `sssp.workspace` lease, change list, bind the backend's engine | grow, `sssp.workspace` lease, `sssp.changes` upload | the Debug check of the normalized batch, the bound after the batch | same |
-| `identify_affected` | `sssp.identify_affected` (roots, subtree invalidation) | Tier B | `cycle_count.identify_affected` (the ownership index over the insertions) | Tier B |
-| `seed` | `sssp.seed` (pull pass) | Tier B | – | – |
-| `loop` / `count(+)` | `sssp.loop` (internal_frontier: one call runs to the fixed point) | Tier B | `cycle_count.count_plus` (the host phase on G_{t+1}) | Tier B |
-| `finalize` | `sssp.finalize` (parent recovery, `affected`) | Tier B | `cycle_count.finalize` (histogram delta, `internal_error` for a negative bucket) | Tier B |
+| `identify_affected` | `sssp.identify_affected` (roots, subtree invalidation) | Tier B, or the operators engine's kernels (pack, roots, pointer jumping, invalidation, insertion heads; one sync) | `cycle_count.identify_affected` (the ownership index over the insertions) | Tier B |
+| `seed` | `sssp.seed` (pull pass) | Tier B, or the pull kernel | – | – |
+| `loop` / `count(+)` | `sssp.loop` (internal_frontier: one call runs to the fixed point) | Tier B, or the near-far rounds (one sync each) | `cycle_count.count_plus` (the host phase on G_{t+1}) | Tier B |
+| `finalize` | `sssp.finalize` (parent recovery, `affected`) | Tier B, or the unpack kernels (one sync) | `cycle_count.finalize` (histogram delta, `internal_error` for a negative bucket) | Tier B |
 | `enact_fused` | – | `sssp.enact_fused` (persistent cooperative kernel; its control-block errors via `raise_device_error`) | – | `cycle_count.enact_fused` > { `cycle_count.identify_affected` (the device graph), `cycle_count.count_plus` (the device phase, the histogram copy), `cycle_count.finalize` } |
 | `end_update` | stamp the result, return the workspace | same | stamp the result, return the workspaces | same |
-| compute() | `sssp.reset` → `sssp.seed` → `sssp.loop` → `sssp.finalize` | `compute_fused` in `sssp.enact_fused` | `cycle_count.reset` → `cycle_count.count` → `cycle_count.finalize` | `compute_fused` in `cycle_count.enact_fused` > { `cycle_count.reset`, `cycle_count.count`, `cycle_count.finalize` } |
+| compute() | `sssp.reset` → `sssp.seed` → `sssp.loop` → `sssp.finalize` | `compute_fused` in `sssp.enact_fused`, or the four Tier A stages (operators engine) | `cycle_count.reset` → `cycle_count.count` → `cycle_count.finalize` | `compute_fused` in `cycle_count.enact_fused` > { `cycle_count.reset`, `cycle_count.count`, `cycle_count.finalize` } |
 
 Under set semantics `cycle_count.normalize` is called twice in `cycle_count::update`: the
 framework's Step 0 in `run_update` (once for every result and the commit, ADR 0020) and the
@@ -406,7 +416,8 @@ Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
 | PLAN 4.5.2 sketch | The framework | Why |
 |---|---|---|
 | `reserve(ctx, capacity)` hook | none | Workspaces are sized by their lease (ADR 0015); no enactor calls a reserve step. |
-| `translate` hook | none yet | No 0.1 algorithm uses it; it arrives with hyper_sssp or mosp (rule of two). |
+| `translate` hook | none yet | No algorithm uses it. mosp (0.2) needed none: its objective projection is `sssp::options::objective` (each objective is an sssp problem on one weight column) plus the commit's per-objective classification of insertions (`apply_delta::weight_increased`), so it has no hook of its own; hyper_sssp's `incidence_delta` (0.3) is the first planned user (rule of two). |
+| a composite problem type (PLAN 4.5.2, "Composition") | none: `mosp_problem` is a hand-written `update_participant` that owns K `problem_participant<sssp_problem>` | mosp is the first composition (rule of two; ADR 0027). Each objective runs through its own `update_enactor`; mosp's participant does its finalize step's stages (`mosp.combine`, `mosp.combined_sssp`, `mosp.finalize`, `mosp.path_costs`), its I9 budget (the K sssp budgets plus the finalize step's synchronizations), its stats and its poisoning by hand. |
 | `prepare(ctx, batch)` | `prepare(ctx, old_view, batch)` | sssp's prepare reads G_t (MOSP computes the weight summary before the batch). |
 | – | `normalize(ctx, old_view, batch)` hook | cycle_count reduces batches of other semantics itself; the task's hook order starts with `normalize`. |
 | `finalize(ctx)` | `finalize(ctx, stats&)` | The stats are filled at the end of the phase in both algorithms. |

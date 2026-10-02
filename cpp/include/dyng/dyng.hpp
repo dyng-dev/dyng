@@ -46,6 +46,7 @@
 #include <dyng/io/edge_list_io.hpp>
 #include <dyng/io/matrix_market.hpp>
 #include <dyng/io/result_io.hpp>
+#include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
 #include <dyng/update.hpp>
 #include <dyng/version.hpp>

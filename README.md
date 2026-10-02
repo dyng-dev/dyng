@@ -22,7 +22,7 @@ counting, triad counting, label propagation.
 |---|---|---|---|---|---|---|
 | [`sssp`](docs/algorithms/sssp.md) | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | [`cycle_count`](docs/algorithms/cycle_count.md) | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | TruCy / DynTruCy |
-| `mosp` | multi-objective shortest paths | graph | fixed point (K x `sssp`) | sequential, OpenMP, CUDA | planned (0.2) | DynaMOSP |
+| [`mosp`](docs/algorithms/mosp.md) | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.2) | ESCHER / ESCHER+ |
 | `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned (0.3) | DynLP (ICS 2026) |
 | `hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | planned (0.3) | H-SOSP (IA3 2026) |
@@ -100,7 +100,8 @@ files in the original tools' formats: `dyng sssp update --graph G --changes DIR 
 | `sssp` on CUDA (the fused persistent cooperative kernel) | working (M1b); byte-identical to MOSP-CUDA@e220ee2 on the same corpus, cross-backend equal, performance gates recorded ([M1b certificate](parity/results/M1b.md)) |
 | `cycle_count`: exact k-bounded directed cycle histograms (TruCy/DynTruCy update), sequential and OpenMP | working (M2a); bit-identical to CycleEnumeration-GPU@0a976ad on its 24-case golden corpus ([parity certificate](parity/results/M2a.md)) |
 | `cycle_count` on CUDA (the work-queue static counters, the update on a resident device graph) | working (M2b); bit-identical to CycleEnumeration-GPU@0a976ad's CUDA backend on its golden corpus and cross-backend equal, within the CUDA performance gates in both scopes (at the boost lock: static kernels 0.67-1.00x, updates 0.39-0.93x, chained updates on the resident graph 0.23-0.89x; the COLLAB update is read at the base lock, ADR 0021) and the original's device memory ([M2b certificate](parity/results/M2b.md)) |
-| `mosp`, `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
+| `sssp`'s CUDA operators engine and `mosp`: multi-objective shortest paths (DynaMOSP MOSP update) on every backend, with `dyng.mosp` and `dyng mosp` | working on the branch `m7-mosp` (0.2): the operators engine byte-identical to the fused one; mosp byte-identical to MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 (combined graph and path costs included) and within their gates ([M7 record](parity/results/M7.md)) |
+| `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.2) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.3) |
 | Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; CUDA plugin wheels follow in 0.1.x |
 

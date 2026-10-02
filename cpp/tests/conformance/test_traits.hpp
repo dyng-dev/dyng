@@ -40,6 +40,16 @@
  *     static std::vector<graph_properties> extra_properties();  // more presets for C2 (e.g. MOSP's)
  *     template <typename graph_t>                    // oracle_kind::reference only: the converged
  *     static ::testing::AssertionResult near_reference(const graph_t&, const snapshot&);
+ *     static constexpr int num_weights;              // weight columns of the kit's graphs (default
+ *                                                    // 1; C7 uses num_weights + 1, C10 the larger
+ *                                                    // of a pair; mosp: K)
+ *     static std::int64_t host_sync_budget(backend, const stats&);  // C8, preferred over the
+ *                                                    // one-argument form: a budget that depends on
+ *                                                    // the engine that ran (stats::engine_used) and
+ *                                                    // its counters, or run_dependent_budget
+ *
+ * C8 runs with engine::automatic and, where a backend has a second engine, with
+ * engine::operators (on a device without cooperative launch engine::automatic runs that engine).
  *
  * The kit reads everything else (the backends, the maturity) from the registry
  * (dyng::algorithms(), generated from the manifest), and C0 checks that the traits agree with it.
@@ -62,6 +72,10 @@ namespace dyng::conformance {
  */
 template <typename tag_t>
 struct test_traits;
+
+/// host_sync_budget(backend, stats) of a run whose budget depends on counters its stats do not
+/// carry: C8 then checks the phase against the problem's own (bounded) budget.
+inline constexpr std::int64_t run_dependent_budget = -2;
 
 /// The sizes of the generated graphs.
 enum class size_class : std::uint8_t {

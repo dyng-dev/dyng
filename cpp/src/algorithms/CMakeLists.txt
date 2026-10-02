@@ -5,3 +5,4 @@
 
 add_subdirectory(sssp)
 add_subdirectory(cycle_count)
+add_subdirectory(mosp)

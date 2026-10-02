@@ -1,0 +1,69 @@
+{
+ "schema": 1,
+ "algorithm": "mosp",
+ "backend": "cuda",
+ "what": "device memory (PLAN 8.6): the peak of live device allocations per process (nsys --cuda-memory-usage, memory kind Device: cudaMalloc and cudaMallocAsync), and the largest stream-ordered pool size nsys reported for the port",
+ "date": "2026-10-01T15:20:58Z",
+ "graph": "rgg",
+ "objectives": 3,
+ "reference": {
+  "name": "MOSP-CUDA",
+  "binary": "$DYNG_SCRATCH/ref/MOSP-CUDA@e220ee2/unpatched/bin/mosp"
+ },
+ "port": {
+  "commit": "7ddf2844a9e683411d0721269f6b874f07bc3655",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-mosp",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "gpu": 0,
+ "results": {
+  "safe50k": {
+   "original": {
+    "peak_live_mib": 602.4,
+    "pool_mib": 0.0
+   },
+   "port": {
+    "peak_live_mib": 572.6,
+    "pool_mib": 576.0
+   },
+   "ratio": 0.950531208499336
+  },
+  "unsafe50k": {
+   "original": {
+    "peak_live_mib": 602.4,
+    "pool_mib": 0.0
+   },
+   "port": {
+    "peak_live_mib": 572.6,
+    "pool_mib": 576.0
+   },
+   "ratio": 0.950531208499336
+  },
+  "local10k": {
+   "original": {
+    "peak_live_mib": 602.4,
+    "pool_mib": 0.0
+   },
+   "port": {
+    "peak_live_mib": 572.6,
+    "pool_mib": 576.0
+   },
+   "ratio": 0.950531208499336
+  }
+ }
+}

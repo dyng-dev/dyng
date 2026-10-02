@@ -40,4 +40,8 @@
 /cpp/include/dyng/cycle_count.hpp   @SMShovan
 /cpp/tests/algorithms/cycle_count/  @SMShovan
 /docs/algorithms/cycle_count.md     @SMShovan
+/cpp/src/algorithms/mosp/           @SMShovan
+/cpp/include/dyng/mosp.hpp          @SMShovan
+/cpp/tests/algorithms/mosp/         @SMShovan
+/docs/algorithms/mosp.md            @SMShovan
 # regen:algorithms end

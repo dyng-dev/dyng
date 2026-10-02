@@ -177,15 +177,16 @@ if(DYNG_BUILD_EXAMPLES AND _dyng_both_algorithms)
   add_subdirectory(examples/cpp)
 endif()
 
-if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms)
+# dyng-compat-mosp --mosp also needs mosp (M7).
+if(DYNG_BUILD_COMPAT_TOOLS AND _dyng_both_algorithms AND TARGET dyng_mosp)
   add_subdirectory(tools/compat)
 endif()
 
 # The Python extension module dyng._core (PLAN Section 5.4; built by the root pyproject.toml
 # through scikit-build-core, or in any CMake build with -DDYNG_BUILD_PYTHON=ON).
 if(DYNG_BUILD_PYTHON)
-  if(NOT _dyng_both_algorithms)
-    message(FATAL_ERROR "DYNG_BUILD_PYTHON=ON needs every 0.1 algorithm (DYNG_ALGORITHMS=all)")
+  if(NOT _dyng_both_algorithms OR NOT TARGET dyng_mosp)
+    message(FATAL_ERROR "DYNG_BUILD_PYTHON=ON needs every algorithm (DYNG_ALGORITHMS=all)")
   endif()
   add_subdirectory(python)
 endif()

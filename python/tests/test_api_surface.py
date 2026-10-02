@@ -27,6 +27,7 @@ PUBLIC = [
     "update",
     "sssp",
     "cycle_count",
+    "mosp",
     "io",
     "generators",
     "testing",
@@ -98,6 +99,7 @@ def test_citation() -> None:
     text = dyng.citation("sssp")
     assert "dynamosp2025" in text
     assert "trucy2026" in dyng.citation("cycle_count")
+    assert "dynamosp2025" in dyng.citation("mosp")
     assert "dynamosp2025" in dyng.citation_keys("sssp")
     with pytest.raises(dyng.InvalidArgumentError):
         dyng.citation("no_such_algorithm")
@@ -206,6 +208,7 @@ def test_stubs_are_committed() -> None:
     [
         (dyng.sssp.Options, "SsspOptions"),
         (dyng.cycle_count.Options, "CycleCountOptions"),
+        (dyng.mosp.Options, "MospOptions"),
         (dyng.GraphProperties, "GraphProperties"),
         (dyng.BatchSemantics, "BatchSemantics"),
     ],

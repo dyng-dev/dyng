@@ -4,7 +4,8 @@
 """Replay the sssp golden corpus and compare byte for byte (PLAN Sections 6.3 step 6 and 8.3).
 
 `parity/compare.py cycle_count ...` replays the cycle_count corpus instead
-(parity/cycle_count_goldens.py).
+(parity/cycle_count_goldens.py); `parity/compare.py mosp_scale ...` the paper-scale mosp goldens
+(parity/mosp_scale_goldens.py, M7).
 
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
@@ -15,12 +16,17 @@ digest must equal the one in parity/goldens.toml. Then every case is replayed wi
 configuration:
 
 driver "compat" (dynG, through tools/compat/dyng-compat-mosp), per configuration
-(sequential, openmp:<threads>, cuda[:<device>]; the cuda configurations run on
-CUDA_VISIBLE_DEVICES, default GPU 1, the development GPU; a suffix /int64, e.g. cuda/int64, runs
-the graph with 64-bit edge offsets, dyng-compat-mosp --edge-type int64, ADR 0009):
+(sequential, openmp:<threads>, cuda[:<device>], cuda-fused[:<device>], cuda-operators[:<device>];
+cuda runs the default engine (engine::automatic), cuda-fused and cuda-operators force one of the
+two CUDA engines (dyng-compat-mosp --cuda-engine; conformance check C4 on the corpus); the cuda
+configurations run on CUDA_VISIBLE_DEVICES, default GPU 1, the development GPU; a suffix /int64,
+e.g. cuda/int64, runs the graph with 64-bit edge offsets, dyng-compat-mosp --edge-type int64,
+ADR 0009):
   * `dyng-compat-mosp init`   == init/obj<k>/{distancesOriginal,SSSPTreeOriginal}.txt (compute;
     init_canonical/ for the noncanonical group, whose init/ holds perturbed tie parents)
-  * `dyng-compat-mosp` update == updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt, from the
+  * `dyng-compat-mosp --mosp` update (the whole MOSP update, M7) ==
+    updated/obj<k>/{distancesUpdated,SSSPTreeUpdated}.txt and combined/{distancesCsr,SSSPTreeCsr,
+    mospCosts}.txt (the combined graph's tree and the MOSP path costs), from the
     golden initial trees (without --canonicalize, like `mosp`), and its `--write-graph` output
     == applied/graphCsr{RowPtr,ColInd,Values}.txt (graph::apply under mosp_compatible() vs
     applyChangeBatch + writeCsrGraph)
@@ -56,6 +62,7 @@ from pathlib import Path, PurePosixPath
 REPO = Path(__file__).resolve().parent.parent
 INVALIDATED = re.compile(r"^obj(\d+)\s+SOSP update .*\(invalidated (\d+),", re.M)
 CSR = ["graphCsrRowPtr.txt", "graphCsrColInd.txt", "graphCsrValues.txt"]
+COMBINED = ["distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"]
 SKIP = 77
 
 
@@ -145,8 +152,10 @@ def replay_compat(
     k = meta["num_objectives"]
     base, _, edge_type = config.partition("/")
     backend, _, number = base.partition(":")
-    if backend == "cuda":
+    if backend.startswith("cuda"):
         extra = ["--backend", "cuda"] + (["--device", number] if number else [])
+        if backend != "cuda":  # cuda-fused, cuda-operators
+            extra += ["--cuda-engine", backend.removeprefix("cuda-")]
     else:
         extra = ["--backend", backend] + (["--threads", number] if number else [])
     if edge_type:
@@ -179,6 +188,7 @@ def replay_compat(
             tmp / "updated",
             "--write-graph",
             tmp / "applied" / "graphCsr",
+            "--mosp",
             *extra,
         ],
         env,
@@ -189,6 +199,12 @@ def replay_compat(
         tree_pairs(
             tmp / "updated", golden, "updated", ["distancesUpdated.txt", "SSSPTreeUpdated.txt"], k
         )
+    )
+    bad += compare_files(
+        [
+            (tmp / "updated" / "combinedGraph" / f, golden / "combined" / f, f"combined/{f}")
+            for f in COMBINED
+        ]
     )
     bad += compare_files(
         [(tmp / "applied" / f, golden / "applied" / f, f"applied/{f}") for f in CSR]
@@ -242,7 +258,7 @@ def replay_original(ref: Path, golden: Path, meta: dict, tmp: Path, env: dict) -
     bad += compare_files(
         [
             (tmp / "updated" / "combinedGraph" / f, golden / "combined" / f, f"combined/{f}")
-            for f in ["distancesCsr.txt", "SSSPTreeCsr.txt", "mospCosts.txt"]
+            for f in COMBINED
         ]
     )
     bad += check_counters(log, meta["invalidated"])
@@ -348,6 +364,11 @@ def main() -> int:
         import cycle_count_goldens
 
         return cycle_count_goldens.compare_main(sys.argv[2:])
+    if sys.argv[1:2] == ["mosp_scale"]:  # the paper-scale mosp goldens (M7, SHA-256 only)
+        sys.path.insert(0, str(REPO / "parity"))
+        import mosp_scale_goldens
+
+        return mosp_scale_goldens.compare_main(sys.argv[2:])
     scratch = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--goldens", type=Path, default=scratch / "goldens" / "sssp")
@@ -357,8 +378,9 @@ def main() -> int:
     parser.add_argument(
         "--configs",
         default="sequential,openmp:1,openmp:4,openmp:16",
-        help="driver compat: list of sequential, openmp[:threads], cuda[:device], each with an "
-        "optional /int32 or /int64 (edge-offset type)",
+        help="driver compat: list of sequential, openmp[:threads], cuda[:device], "
+        "cuda-fused[:device], cuda-operators[:device], each with an optional /int32 or /int64 "
+        "(edge-offset type)",
     )
     parser.add_argument("--groups", default="", help="restrict to these groups (comma list)")
     parser.add_argument("--jobs", type=int, default=8)
@@ -398,13 +420,14 @@ def main() -> int:
             base, slash, edge_type = c.partition("/")
             backend, _, number = base.partition(":")
             if (
-                backend not in ("sequential", "openmp", "cuda")
+                backend not in ("sequential", "openmp", "cuda", "cuda-fused", "cuda-operators")
                 or (number and not number.isdigit())
                 or (slash and edge_type not in ("int32", "int64"))
             ):
                 parser.error(
-                    f"--configs: '{c}' is not sequential, openmp[:<threads>] or cuda[:<device>], "
-                    "optionally followed by /int32 or /int64"
+                    f"--configs: '{c}' is not sequential, openmp[:<threads>], cuda[:<device>], "
+                    "cuda-fused[:<device>] or cuda-operators[:<device>], optionally followed by "
+                    "/int32 or /int64"
                 )
         if any(c.startswith("cuda") for c in configs):
             env.setdefault("CUDA_VISIBLE_DEVICES", "1")

@@ -1,0 +1,175 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of mosp (PLAN Sections 6.3 step 3, 6.4.4 and 8.6): each timer of the original
+# -> the dynG profiler stages whose host times are summed to match it. parity/perf_ab.py LOADS
+# this file for `perf_ab.py mosp` (the `original_report` keys it parses from the report of the
+# original's bin/mosp, the `port` stage lists it sums from `dyng-compat-mosp --mosp --timing`) and
+# refuses to run if a region it needs is missing or a key is unknown to it. The keys mean what
+# they mean in sssp.toml; `gate` is "compute" (<= 1.05x; <= 1.10x below 10 ms), "end_to_end"
+# (<= 1.10x) or "none" (reported only).
+#
+# Protocol of the gates (PLAN 8.6, ADRs 0018 and 0021): parity / parity-cuda preset, the UNPATCHED
+# originals, A/B/A/B, medians of >= 5 runs (>= 20 when a gated region's original median is below
+# 10 ms), 28 threads pinned with OMP_PROC_BIND=close OMP_PLACES=cores, GPU clocks locked to boost
+# on cuda, the exclusive perf lock, the contamination monitor; the inputs of the original's
+# bench/prepare.sh (K = 3 weights in [1, 100] of seed 12345, Dijkstra trees from source 0, the
+# 50K safe and unsafe batches and the local 10K batch of seed 777).
+#
+# Both sides run as the original's bench/run.sh runs them: they WRITE every output file (K x 2
+# tree files and combinedGraph/{distancesCsr,SSSPTreeCsr,mospCosts}.txt) into a fresh directory
+# that is deleted after the run. "(b) end to end" is therefore the published figure's scope
+# (results/README.md of MOSP-CUDA@e220ee2: "from reading the text inputs ... to writing all
+# outputs"), and both compute the MOSP path costs (the originals while writing mospCosts.txt,
+# concurrently with the other files; dynG inside mosp::update(), options::compute_path_costs).
+#
+# dynG stage names (dyng-compat-mosp --mosp): mosp.update > { mosp.commit > { graph.apply, ... },
+# K x mosp.objective > { sssp.* of one objective }, mosp.combine, mosp.combined_sssp > { sssp.*
+# of the static solve }, mosp.finalize, mosp.path_costs }. The pseudo stage sssp.engine (perf_ab.py)
+# is, per objective, the sum of the engine stages that ran: sssp.enact_fused (cuda, fused engine)
+# or sssp.identify_affected + seed + loop + finalize (openmp; cuda, operators engine); it has
+# exactly K samples (the combined solve's engine stages are not in it). The setup (reading the
+# graph, mosp::result::from_arrays over the K initial trees, which also builds the MOSP tree of the
+# initial trees and its path costs) is written as `setup,<stage>,<ms>` rows and is not read here.
+
+[reference.mosp_openmp]
+repo = "MOSP-OpenMP"
+commit = "c352151"
+driver = "bin/mosp of the UNPATCHED copy (report lines and RESULT compute_ms= end_to_end_ms=)"
+port_driver = "dyng-compat-mosp --mosp (parity preset), --timing <csv>"
+
+# "(a) compute": MospTimings::compute() = the K objectives' sospUpdateCpu() + Steps 2-3
+# (combinedGraphSospCpu: the combined graph and its SOSP from scratch). THE gated compute region of
+# PLAN 6.4.4 (OpenMP: 63.2 / 110 / 166 / 1,320 ms published on the 50K safe batch).
+[[reference.mosp_openmp.region]]
+name = "compute"
+per_objective = false
+original = ["compute_ms (obj<k>/sosp_update_compute + combined_graph_compute)"]
+original_report = ["compute_ms"]
+port = ["sssp.engine", "mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
+gate = "compute"
+note = """
+The port's side: the K objectives' SOSP updates (the stages sssp.toml compares with the original's
+per-objective timer) and the combined step. On the host backends mosp.finalize is dynG's
+`affected` count against the previous MOSP tree (count_changed() and the swap of the spare pair;
+not in the original). Not in the region on either side: applying the batch and
+"prepare" (the commit), the per-objective classification (sssp.prepare), the path costs.
+"""
+
+# One objective's SOSP update (as sssp.toml's gated region; the sssp gates re-check it with
+# `perf_ab.py run`). Reported here, per objective.
+[[reference.mosp_openmp.region]]
+name = "sosp_update"
+per_objective = true
+original = ["obj<k>/sosp_update_compute"]
+original_report = ["obj<k> SOSP update"]
+port = ["sssp.engine"]
+gate = "none"
+
+# Steps 2-3 alone (PLAN 6.4.4 "watch: the combined step"): combinedGraphSospCpu() against the
+# combined graph, its static solve and the `affected` count.
+[[reference.mosp_openmp.region]]
+name = "combined"
+per_objective = false
+original = ["combined_graph_compute"]
+original_report = ["comb combined graph + SOSP"]
+port = ["mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
+gate = "none"
+
+# "(b) end to end": the original's whole run (reading the text inputs to writing every output
+# file; OpenMP: 645 ms / 1.17 s / 1.30 s / 12.9 s published on the 50K safe batch) against
+# dyng-compat-mosp's (the same reads, the graph and the K results built, mosp::update(), the
+# same writes).
+[[reference.mosp_openmp.region]]
+name = "end_to_end"
+per_objective = false
+original = ["TOTAL_end_to_end"]
+original_report = ["end_to_end_ms"]
+port = ["total.end_to_end"]
+gate = "end_to_end"
+note = """
+dynG's figure includes mosp::result::from_arrays (sssp's import and input checks per objective,
+the combined graph of the initial trees, its solve and its path costs), which `mosp` does not do:
+it adopts the trees as they are and computes no MOSP tree before the update.
+"""
+
+# The MOSP path costs (mospPathCosts): dynG's mosp.path_costs; the original computes them while
+# writing mospCosts.txt (no timer of its own). Reported, port side only.
+[[reference.mosp_openmp.region]]
+name = "path_costs"
+per_objective = false
+original = []
+original_report = []
+port = ["mosp.path_costs"]
+gate = "none"
+
+# --- MOSP-CUDA ------------------------------------------------------------------------------------
+[reference.mosp_cuda]
+repo = "MOSP-CUDA"
+commit = "e220ee2"
+driver = "bin/mosp of the UNPATCHED copy (report lines; RESULT gpu_compute_ms= end_to_end_ms=), CUDA_MODULE_LOADING=EAGER"
+port_driver = "dyng-compat-mosp --mosp --backend cuda (parity-cuda preset), --timing <csv>"
+
+# "(a) compute": MospTimings::gpuCompute() = the K objectives' sospUpdateGpu() (host times, each
+# ending with its synchronization) + combinedGraphSospGpu() (the combined graph's kernels, the
+# read-back of its size, its sospFromScratchGpu). PLAN 6.4.4: CUDA 18.5 / 33.7 / 83.0 / 377 ms
+# published on the 50K safe batch.
+[[reference.mosp_cuda.region]]
+name = "compute"
+per_objective = false
+original = ["gpu_compute_ms (obj<k>/sosp_update_gpu + combined_graph_gpu)"]
+original_report = ["compute_ms"]
+port = ["sssp.engine", "mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
+port_device = ["sssp.engine", "mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
+gate = "compute"
+note = """
+Host times on both sides (the port's CUDA-event times are recorded next to them). On cuda the
+port's mosp.finalize only reads `affected`, which the combined solve counted in its unpack pass
+inside mosp.combined_sssp (since 5e20e0f: no kernel or synchronization of its own);
+the download of the MOSP tree for the host's path costs is timed in mosp.path_costs (the
+original downloads its results after the region, in "download").
+"""
+
+[[reference.mosp_cuda.region]]
+name = "sosp_update"
+per_objective = true
+original = ["obj<k>/sosp_update_gpu"]
+original_report = ["obj<k> SOSP update"]
+port = ["sssp.engine"]
+port_device = ["sssp.engine"]
+gate = "none"
+
+[[reference.mosp_cuda.region]]
+name = "combined"
+per_objective = false
+original = ["combined_graph_gpu"]
+original_report = ["comb combined graph + SOSP"]
+port = ["mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
+port_device = ["mosp.combine", "mosp.combined_sssp", "mosp.finalize"]
+gate = "none"
+
+# "(b) end to end": CUDA 794 ms / 1.25 s / 1.63 s / 12.2 s published on the 50K safe batch; both
+# include the CUDA context creation (MOSP-CUDA's cudaFree(nullptr); dynG's resources::cuda() and
+# warm_up()) and the downloads of the results.
+[[reference.mosp_cuda.region]]
+name = "end_to_end"
+per_objective = false
+original = ["TOTAL_end_to_end"]
+original_report = ["end_to_end_ms"]
+port = ["total.end_to_end"]
+gate = "end_to_end"
+note = "As for MOSP-OpenMP: dynG's figure includes mosp::result::from_arrays."
+
+[[reference.mosp_cuda.region]]
+name = "path_costs"
+per_objective = false
+original = []
+original_report = []
+port = ["mosp.path_costs"]
+gate = "none"
+
+# The deterministic counters: the invalidated count of every objective must be equal in every
+# sample (iterations, epochs, pushes are logged only, PLAN 8.3).
+[counters]
+equal = ["invalidated"]
+logged = ["iterations", "epochs", "pushes"]

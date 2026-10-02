@@ -7,7 +7,8 @@
  * The C++ dyng::update() is variadic (its result types are known at compile time); Python passes
  * a list. As ADR 0023 (note 1) prescribes, the binding builds the type-erased participants of the
  * results itself, with the factories each algorithm header declares for dyng::update()
- * (detail::make_sssp_participant, detail::make_cycle_count_participant), and runs them through
+ * (detail::make_sssp_participant, detail::make_cycle_count_participant,
+ * detail::make_mosp_participant), and runs them through
  * detail::participant_of<graph>::run(), the path dyng::update() takes: every before-apply step on
  * G_t, one commit, then every after-apply step on G_{t+1}.
  */
@@ -33,6 +34,7 @@ void bind_update_type(nb::module_& m) {
   using participant_t = typename detail::participant_of<container_t>::type;
   constexpr bool sssp_ok = detail::sssp_supported_v<vertex_t, edge_t, weight_t>;
   constexpr bool cycle_ok = detail::cycle_count_supported_v<vertex_t, edge_t, weight_t>;
+  constexpr bool mosp_ok = detail::mosp_supported_v<vertex_t, edge_t, weight_t>;
 
   m.def(
       "update",
@@ -45,10 +47,11 @@ void bind_update_type(nb::module_& m) {
         // the GIL; the participants are made under the locks, from the states the update may
         // change (result_holder::for_update(): a copy when an exported array still views the
         // current state).
-        using slot = std::variant<sssp::stats, cycle_count::stats>;
+        using slot = std::variant<sssp::stats, cycle_count::stats, mosp::stats>;
         std::vector<slot> stats(nb::len(results));
         std::vector<sssp_holder<vertex_t>*> sssp_results(stats.size(), nullptr);
         std::vector<cycle_count_holder*> cycle_results(stats.size(), nullptr);
+        std::vector<mosp_holder<vertex_t>*> mosp_results(stats.size(), nullptr);
         for (std::size_t i = 0; i < stats.size(); ++i) {
           nb::handle item = results[i];
           if (nb::isinstance<sssp_holder<vertex_t>>(item)) {
@@ -65,6 +68,13 @@ void bind_update_type(nb::module_& m) {
               continue;
             }
           }
+          if (nb::isinstance<mosp_holder<vertex_t>>(item)) {
+            if constexpr (mosp_ok) {
+              mosp_results[i] = &nb::cast<mosp_holder<vertex_t>&>(item);
+              stats[i] = mosp::stats{};
+              continue;
+            }
+          }
           throw invalid_argument_error(
               "dyng.update: result " + std::to_string(i) +
               " is not a result of an algorithm that supports this graph type");
@@ -73,7 +83,9 @@ void bind_update_type(nb::module_& m) {
           lock_set locks;
           locks.add(g.mutex, true);
           for (std::size_t i = 0; i < stats.size(); ++i) {
-            locks.add(sssp_results[i] != nullptr ? sssp_results[i]->mutex : cycle_results[i]->mutex,
+            locks.add(sssp_results[i] != nullptr    ? sssp_results[i]->mutex
+                      : cycle_results[i] != nullptr ? cycle_results[i]->mutex
+                                                    : mosp_results[i]->mutex,
                       true);
           }
           locks.lock();
@@ -89,10 +101,16 @@ void bind_update_type(nb::module_& m) {
                       detail::make_sssp_participant<vertex_t, edge_t, weight_t, std::int64_t>(
                           sssp_results[i]->for_update(res), std::get<sssp::stats>(stats[i])));
                 }
-              } else {
+              } else if (cycle_results[i] != nullptr) {
                 if constexpr (cycle_ok) {
                   owned.push_back(detail::make_cycle_count_participant<vertex_t, edge_t, weight_t>(
                       cycle_results[i]->for_update(res), std::get<cycle_count::stats>(stats[i])));
+                }
+              } else {
+                if constexpr (mosp_ok) {
+                  owned.push_back(
+                      detail::make_mosp_participant<vertex_t, edge_t, weight_t, std::int64_t>(
+                          mosp_results[i]->for_update(res), std::get<mosp::stats>(stats[i])));
                 }
               }
               raw.push_back(owned.back().get());
@@ -107,8 +125,10 @@ void bind_update_type(nb::module_& m) {
         for (const slot& s : stats) {
           if (std::holds_alternative<sssp::stats>(s)) {
             out.append(nb::cast(std::get<sssp::stats>(s)));
-          } else {
+          } else if (std::holds_alternative<cycle_count::stats>(s)) {
             out.append(nb::cast(std::get<cycle_count::stats>(s)));
+          } else {
+            out.append(nb::cast(std::get<mosp::stats>(s)));
           }
         }
         return out;

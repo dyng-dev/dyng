@@ -8,6 +8,161 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+### M7: the sssp operators engine (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Added: the CUDA **operators engine** of `sssp` (decision O24, ADR 0026;
+  `cpp/src/algorithms/sssp/operators.{cuh,cu}`): MOSP_ESCHER@4b86159's multi-kernel host loop with
+  MOSP-CUDA@e220ee2's semantics, one framework hook per phase (Tier A), byte-identical to the fused
+  engine on every input (the same trees, `invalidated` and `affected`; conformance check C4). It
+  needs no cooperative launch and synchronizes 3 + iterations + epochs times per update.
+- Changed (behaviour, no signature change): on CUDA, `sssp::options::cuda_engine =
+  engine::automatic` runs the operators engine on a device without cooperative launch (it threw
+  `not_supported_error`), and `engine::operators` runs the operators engine (it threw everywhere);
+  `engine::fused` still throws `not_supported_error` without cooperative launch, and its message
+  now names `engine::operators`. `stats::engine_used` reports `operators` for it. ADR 0017 item 2
+  is superseded by ADR 0026.
+- Changed: the device building blocks the two CUDA engines share (packed words, stamp claims, the
+  warp-aggregated append, the warp reductions) moved unchanged from `fused.cuh` to `kernels.cuh`;
+  the fused kernel's SASS is identical for all three instantiations.
+- Changed: the conformance kit's C4 compares the two engines after `compute()` and after three
+  consecutive batches for every preset, the small and medium sizes and every batch mix (it
+  compared one batch); it runs for `sssp` on CUDA.
+- Tests: the CUDA `sssp` suites run both engines: the MOSP fixtures, the packing boundary
+  (n = 2^17 - 1), the distance-only fallback (320 x 320 grid, weights 2 * 10^9), the input checks
+  (an out-of-range distance, a parent cycle), the steady-state allocations, the budget with strict
+  budgets, and the randomized chains, where the CUDA executable compares the operators engine with
+  the fused engine and the host backends on every chain; a larger engine-equality test (30K-40K
+  vertices, many near-far rounds).
+- Parity tools: `dyng-compat-mosp --cuda-engine automatic|fused|operators` (also in `init`; the
+  per-objective report line names the engine), `parity/compare.py --configs
+  cuda-fused[:d],cuda-operators[:d]`, and `parity/perf_ab.py engines` (the operators engine
+  against the fused one, A/B/A/B at locked clocks; reported, not gated).
+
+### M7: `mosp` (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Added: **`dyng::mosp`** (`<dyng/mosp.hpp>`, ADR 0027), dynamic multi-objective shortest paths
+  (DynaMOSP; MOSP-CUDA@e220ee2 `mospUpdate.cu` / `combinedGraphGpu.cu`, MOSP-OpenMP@c352151
+  `mospUpdate.cpp` / `combinedGraphCpu.cpp`) on the sequential, OpenMP and CUDA backends:
+  `compute(res, g, source, options)`, `update(res, g, batch, result)`, `options{preferences (lcm
+  <= 2^20), delta, cuda_engine, compute_path_costs, validate_inputs, num_objectives}`, `result`
+  with the K sssp trees, the combined distances (units of 1/L), the MOSP tree, the path costs
+  (host memory) and `from_arrays()` over K trees, `stats` with the K sssp stats,
+  `combined_edges`, `preference_scale` and `affected` (vertices whose combined distance or MOSP
+  parent changed). mosp is a composition: the batch is applied once, the K objectives are sssp
+  problems updated one after the other on one workspace, then the combined graph (weights
+  `L (K + 1) - sum L / Pref_i`; count, scan, fill) is solved with sssp's engine through the static
+  enactor, and the path costs are recomputed; `dyng::update()` composes it with other results. The
+  conformance kit passes C1-C12 on every backend (K = 3, preferences {2, 1, 3}).
+- Added: `io::write_path_costs()` (MOSP's `mospCosts.txt`), `<dyng/testing/mosp_oracle.hpp>`
+  (`testing::combined_graph_reference()`, `testing::mosp_path_costs_reference()`), and
+  `<dyng/mosp.hpp>` in the umbrella header.
+- Changed (behaviour, no signature change): `sssp::update()` accepts a batch without insertions
+  whatever its `num_weights` (as `graph::apply()`); before, an empty or deletion-only batch built
+  with the default one weight column was rejected on a graph with several weight columns.
+- Changed (tests): the conformance kit's graphs can have several weight columns
+  (`test_traits::num_weights`), C7 checks a batch with one column more than the graph, and C10
+  builds its graph with the larger column count of the pair.
+- Parity tools: `dyng-compat-mosp --mosp [--pref p1,..,pK] [--no-path-costs]`, the whole `mosp`
+  driver (`combinedGraph/{distancesCsr,SSSPTreeCsr,mospCosts}.txt`, the `comb` report line,
+  `RESULT compute_ms=`); the default mode (SOSP only, which the sssp gates measure) is unchanged.
+  `parity/compare.py` replays the corpus with `--mosp` and compares `combined/` too;
+  `parity/fixtures/mosp/make_mosp_fixtures.sh` writes the preference cases of
+  `cpp/tests/data/mosp_combined` (the thesis example with Pref {4, 1, 4} and {4, 4, 1}, K = 2..4,
+  `-k` below the graph's columns) after MOSP-OpenMP and MOSP-CUDA agreed on them.
+
+### M7: parity and gates of `mosp` (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Changed (performance, same values): on the openmp and cuda backends `mosp`'s path costs run on
+  the host threads of the resources handle (a level-synchronous traversal of the MOSP tree; the
+  sequential port of `mospPathCosts` stays on the sequential backend and reports a missing tree
+  edge for the other two). On cuda the download of the MOSP tree for the path costs is timed in
+  `mosp.path_costs`, not `mosp.finalize`, and is one more synchronization of an update with
+  `compute_path_costs` (ADR 0027, amendment).
+- Parity tools: `parity/perf_ab.py mosp` (the MOSP update against MOSP-OpenMP@c352151's and
+  MOSP-CUDA@e220ee2's `mosp`, both writing every output file as the originals' `bench/run.sh`;
+  regions in the new `parity/timed_regions/mosp.toml`: "(a) compute" and "(b) end to end" gated,
+  the per-objective updates, the combined step and the path costs reported; `-k`, `--pref`,
+  `--cuda-engine`, `--no-output`), `parity/perf_ab.py prepare --widen BASE:K` (the K sweep's
+  input: `mospPrep widen`, its trees and its 50K safe batch), and the paper-scale goldens
+  `parity/export_goldens.py mosp_scale` / `parity/compare.py mosp_scale`
+  (`parity/mosp_scale_goldens.py`: the SHA-256 of every output file of MOSP-OpenMP's `mosp` on
+  20 benchmark cases, cross-checked with MOSP-CUDA, in `[sets.mosp_scale]` of
+  `parity/goldens.toml`). `dyng-compat-mosp --mosp --timing` writes the setup's stages as `setup`
+  rows.
+- Changed (device memory, same values): on cuda the combined solve of `mosp` overwrites the
+  previous MOSP tree in place and counts `affected` in its unpack pass (the fused and the
+  operators engine count the changed vertices of a static solve on request, as an update's
+  `affected`), so a cuda result no longer keeps a second pair of combined arrays (12 bytes per
+  vertex): mosp's peak device memory went from 1.068-1.075x to 1.015-1.019x of MOSP-CUDA's on
+  the road graphs (PLAN 8.6: <= 1.05x); one synchronization less per update (K + 3 with the path
+  costs and the fused engine; ADR 0027, amendment).
+- Parity tools: `parity/perf_ab.py memory --mosp` (the device memory of the whole MOSP update);
+  `perf_ab.py` waits for the perf lock in the kernel instead of polling it once a second;
+  `perf_ab.py mosp` leaves the path-cost region out when the port computes none (`-k` below the
+  graph's columns, `--no-output`).
+- Records: `parity/results/M7.md` sections 4-10 (the paper-scale parity, the K sweep, the mosp
+  gates on both backends, the combined step, the device memory, the sssp gate re-check).
+
+### M7: `mosp` in Python and on the command line (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Added: **`dyng.mosp`** (ADR 0028): `compute(graph, source, *, options=None, resources=None,
+  **kwargs)`, `update(graph, batch, result, *, resources=None)`, `Options` (`preferences`,
+  `delta`, `cuda_engine`, `compute_path_costs`, `validate_inputs`, `num_objectives`), `Stats`
+  (with the K `dyng.sssp.Stats` in `objectives`, `combined_edges`, `preference_scale`) and
+  `Result` (`distances(k)`, `parents(k)`, `combined_distances`, `combined_parents`,
+  `path_costs` as a zero-copy (n, K) int64 array, `preference_scale`, `from_arrays()` over lists
+  of K arrays, `clone()`), and `MAX_OBJECTIVES` / `MAX_PREFERENCE_SCALE`. `dyng.update()`
+  accepts mosp results next to sssp and cycle_count results.
+- Added: `dyng.io.write_path_costs()` (MOSP's `mospCosts.txt`), `dyng.testing.combined_graph()`
+  and `dyng.testing.mosp_path_costs()` (the C++ references).
+- Added: the command line **`dyng mosp compute|update`**, MOSP's files in and out byte for byte
+  as the `mosp` driver writes them (`obj<k>/`, `combinedGraph/{distancesCsr,SSSPTreeCsr,
+  mospCosts}.txt`); `--preferences 4,1,4` is the driver's `--pref`, `--num-objectives` its `-k`.
+  List-valued option fields become comma-separated flags.
+- Added: `examples/cpp/mosp_update.cpp` and `examples/python/mosp_update.py` (the thesis
+  example's combined files, compared with the originals' in CTest and pytest).
+- Changed: `dyng.Array.ndim` and `.shape` report the array's dimensions (2 for the path costs;
+  every other result array is 1-D as before), and `len()` is the length of the first dimension.
+- Changed (build): `DYNG_BUILD_PYTHON=ON` needs mosp in the build (`DYNG_ALGORITHMS=all`).
+- Docs: the mosp page's Python and command-line sections and its performance table, the sssp
+  page's engine table (operators against fused) and engine choice from Python and the command
+  line, the command-line and Python API references, ADR 0028.
+- CI: `ci/gpu_local.sh` replays the golden corpus with both CUDA engines (`--configs
+  cuda,cuda-operators`, the whole MOSP update per case) and runs synccheck on the CUDA mosp
+  suite.
+
+### M7: review fixes (0.2, branch `m7-mosp`)
+
+These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
+
+- Fixed: on CUDA, a `mosp::update()` that added vertices went one host synchronization over its
+  I9 budget (the release of the old pinned copy of the MOSP tree), which a Debug build logged and
+  strict budgets turned into `internal_error` and a poisoned result; the reserving run now counts
+  it. The budget of mosp's combined solve on the operators engine is a static solve's,
+  2 + iterations + epochs (it was the update's 3 + ..., one too many).
+- Fixed (tests): conformance check C8 runs with `engine::automatic` and, where a backend has a
+  second engine, `engine::operators`, against the budget of the engine that ran
+  (`test_traits::host_sync_budget(backend, stats)`, optional); it failed on a device without
+  cooperative launch, where `engine::automatic` runs the operators engine. The mosp test
+  executables run every test with strict budgets.
+- Docs: the packing window (ADR 0029, proposed, for the author): for non-canonical imported trees
+  inside (n - 1) * W <= max_distance < n * W the host backends (MOSP-OpenMP's packing rule) and
+  cuda (MOSP-CUDA's) return different tie parents, each byte-identical to its original; pinned by
+  `SsspPackingWindow.NonCanonicalTreesFollowEachOriginalsPackingRule`. The `@sync` contracts of
+  `sssp::compute()` / `update()` give the operators engine's counts; `mosp.hpp`'s determinism
+  and error texts corrected; the gate record lists PLAN 8.6's noisy flags; the `.dgb` batches
+  move to M8.
+- Merged `main` at 0.1.0rc1 (pull request #5); the release certificate (`parity/certify.py`)
+  knows mosp's paper-scale goldens and fixtures.
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

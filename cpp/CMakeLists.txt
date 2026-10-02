@@ -201,6 +201,7 @@ endforeach()
 # code with the algorithms it checks.
 add_library(
   dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp src/testing/cycle_oracle.cpp
+               src/testing/mosp_oracle.cpp
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(

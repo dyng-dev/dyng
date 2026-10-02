@@ -22,7 +22,7 @@ planned for later releases. The Python package is on PyPI (`pip install dyng`).
 |---|---|---|---|---|---|---|
 | {doc}`sssp <algorithms/sssp>` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | {doc}`cycle_count <algorithms/cycle_count>` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | TruCy / DynTruCy |
-| `mosp` | multi-objective shortest paths | graph | fixed point (K x `sssp`) | sequential, OpenMP, CUDA | planned (0.2) | DynaMOSP |
+| {doc}`mosp <algorithms/mosp>` | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.2) | ESCHER / ESCHER+ |
 | `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned (0.3) | DynLP (ICS 2026) |
 | `hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | planned (0.3) | H-SOSP (IA3 2026) |

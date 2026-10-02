@@ -16,8 +16,10 @@
 #   gpu        ctest -L gpu: the CUDA tests
 #   cpu        ctest -L cpu in the same CUDA-enabled build (the default backend becomes cuda there,
 #              so the CPU suites are checked against a CUDA build too)
-#   parity     the sssp golden corpus on the cuda backend (parity/compare.py --configs cuda through
-#              the preset's dyng-compat-mosp): byte parity with MOSP-CUDA e220ee2 on every case;
+#   parity     the sssp golden corpus on the cuda backend with both engines (parity/compare.py
+#              --configs cuda,cuda-operators through the preset's dyng-compat-mosp, which runs the
+#              whole MOSP update, combined graph included): byte parity with MOSP-CUDA e220ee2 on
+#              every case, and conformance check C4 (fused == operators) on the corpus;
 #              and the cycle_count corpus of the original's CUDA backend (compare.py cycle_count
 #              --set cycle_count_cuda --configs cuda,cuda:resident through dyng-compat-cycle-enum):
 #              byte parity with CycleEnumeration-GPU 0a976ad; each skipped when its goldens
@@ -26,7 +28,8 @@
 #              tests (randomized suites with DYNG_TEST_SEEDS=2). Tests that make CUDA API calls
 #              fail on purpose (suite CudaApiErrors) run in a second pass without API-error
 #              reporting; every other test must be free of API errors as well as of memory errors.
-#   synccheck  compute-sanitizer --tool synccheck on the CUDA sssp suite (dyng_sssp_cuda_tests):
+#   synccheck  compute-sanitizer --tool synccheck on the CUDA sssp suite (dyng_sssp_cuda_tests) and
+#              the CUDA mosp suite (dyng_mosp_cuda_tests, DYNG_TEST_SEEDS=2):
 #              no barrier errors, and every test must pass under the sanitizer's scheduling, which
 #              exposes data races in the counters the tests compare exactly (M1b review: MOSP's
 #              `invalidated` read raced with the insertion-head appends; about 2 minutes); and on
@@ -56,7 +59,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,42p' "${BASH_SOURCE[0]}"
+      sed -n '5,46p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -140,7 +143,7 @@ if ! skipped parity; then
   if [ ! -f "${DYNG_SCRATCH}/goldens/sssp/MANIFEST.sha256" ] || [ ! -x "${compat}" ]; then
     echo "goldens or ${compat} missing; skipped"
     record "parity (cuda goldens)" skipped
-  elif heavy python3 parity/compare.py --exe "${compat}" --configs cuda --jobs 8; then
+  elif heavy python3 parity/compare.py --exe "${compat}" --configs cuda,cuda-operators --jobs 8; then
     record "parity (cuda goldens)" passed
   else
     record "parity (cuda goldens)" FAILED
@@ -206,6 +209,16 @@ if ! skipped synccheck; then
     record synccheck passed
   else
     record synccheck FAILED
+  fi
+  mosp_tests="${build_dir}/cpp/tests/algorithms/mosp/dyng_mosp_cuda_tests"
+  if [ -z "${sanitizer}" ] || [ ! -x "${mosp_tests}" ]; then
+    echo "compute-sanitizer or ${mosp_tests} missing"
+    record "synccheck (mosp)" FAILED
+  elif DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool synccheck --error-exitcode 1 "${mosp_tests}" \
+    --gtest_brief=1; then
+    record "synccheck (mosp)" passed
+  else
+    record "synccheck (mosp)" FAILED
   fi
   cc_tests="${build_dir}/cpp/tests/dyng_cycle_count_cuda_tests"
   if [ -z "${sanitizer}" ] || [ ! -x "${cc_tests}" ]; then

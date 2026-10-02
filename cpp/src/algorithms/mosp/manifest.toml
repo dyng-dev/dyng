@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The mosp manifest (PLAN Section 4.8). scripts/regen.py reads it (the algorithm tables, the
+# CODEOWNERS block and the registries; `python3 scripts/regen.py` after an edit); CMake does not.
+name        = "mosp"
+title       = "Dynamic multi-objective shortest paths"
+computes    = "multi-objective shortest paths"   # the "Computes" column of the algorithm tables
+paper       = "DynaMOSP (IPDPS 2025, TPDS 2025)"
+since       = "0.2"                     # the first release that contains it
+family      = "fixed_point"             # K x sssp (composition), then the combined graph
+container   = "graph"
+tier        = "framework"               # composed of K sssp problems and a static sssp solve
+maturity    = "experimental"
+backends    = ["sequential", "openmp", "cuda"]
+determinism = "bitwise"
+oracle      = "compute"
+graph_requirements = { multi_edges = "any", row_order = "any", store_transposed = true }
+cite        = ["dynamosp2025", "dynamosptpds2025"]
+maintainers = ["SMShovan"]
+origin      = [ { repo = "MOSP-CUDA", commit = "e220ee2", paths = ["src/mospUpdate.cu", "src/combinedGraphGpu.cu", "headers/combinedGraphGpu.cuh", "src/validation.cu"] },
+                { repo = "MOSP-OpenMP", commit = "c352151", paths = ["src/mospUpdate.cpp", "src/combinedGraphCpu.cpp", "headers/parallelCombinedGraph.h"] } ]
+
+[performance]
+compute_tolerance    = 1.05
+end_to_end_tolerance = 1.10

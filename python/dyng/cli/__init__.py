@@ -6,7 +6,9 @@
 the utility commands ``prep`` (MOSP's ``mospPrep`` subcommands), ``convert`` and ``generate``::
 
     dyng sssp compute --graph roadNet-CA_ --out init              # = mospPrep init
-    dyng sssp update --graph roadNet-CA_ --changes b1 --init init --out updated   # = mosp
+    dyng sssp update --graph roadNet-CA_ --changes b1 --init init --out updated   # = mosp (SOSP)
+    dyng mosp update --graph roadNet-CA_ --changes b1 --init init --preferences 4,1,4 \\
+        --out updated                                             # = mosp --pref 4,1,4
     dyng cycle_count compute --graph DD_A.txt --max-length 6      # = cycle-enum --task count
     dyng cycle_count update --graph DD_A.txt --max-length 4 --num-deletions 40 \\
         --num-insertions 40 --seed 1                              # = cycle-enum --task update
@@ -15,9 +17,9 @@ the utility commands ``prep`` (MOSP's ``mospPrep`` subcommands), ``convert`` and
     dyng generate cycle_enum_batch --graph DD_A.txt --num-deletions 5 --num-insertions 5
 
 Every option flag is the kebab-case name of a field of the algorithm's ``Options``
-(``max_length`` -> ``--max-length``); the outputs are the originals' formats (MOSP's distance and
-tree files, CycleEnumeration-GPU's histogram CSV, MOSP's batch files), so they can be compared
-byte for byte with the originals and the goldens. The console script ``dyng`` and
+(``max_length`` -> ``--max-length``); the outputs are the originals' formats (MOSP's distance,
+tree and path-cost files, CycleEnumeration-GPU's histogram CSV, MOSP's batch files), so they
+can be compared byte for byte with the originals and the goldens. The console script ``dyng`` and
 ``python -m dyng`` call :func:`main`.
 
 Exit status: 0 on success, 1 when the work fails (the message is printed as
@@ -32,7 +34,7 @@ from collections.abc import Sequence
 
 import dyng
 
-from ._algorithms import add_cycle_count, add_sssp
+from ._algorithms import add_cycle_count, add_mosp, add_sssp
 from ._common import CliError, UsageError
 from ._prep import add_prep, run_prep
 from ._tools import add_convert, add_generate
@@ -50,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="dyng",
         description="dynG: dynamic graph algorithms that update their results under batches of "
-        "changes. Commands: the algorithms (sssp, cycle_count) with the verbs compute and "
+        "changes. Commands: the algorithms (sssp, mosp, cycle_count) with the verbs compute and "
         "update, and the utilities prep, convert and generate.",
         epilog="Run 'dyng <command> --help' for the flags of a command.",
     )
@@ -63,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub = p.add_subparsers(dest="command", metavar="COMMAND", required=True)
     add_sssp(sub)
+    add_mosp(sub)
     add_cycle_count(sub)
     add_prep(sub)
     add_convert(sub)

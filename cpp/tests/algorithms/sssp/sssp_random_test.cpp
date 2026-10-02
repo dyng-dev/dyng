@@ -6,7 +6,9 @@
  *        ties (testing::check_sssp_tree, canonical mode) and sssp::compute() on the new graph, and
  *        the sequential and OpenMP backends agree bit for bit (distances, parents and the
  *        deterministic counters), also from valid input trees with non-lowest tie parents
- *        (from_arrays with canonicalize = false).
+ *        (from_arrays with canonicalize = false). In the CUDA test executable the cuda backend
+ *        joins the comparison twice: with its fused engine and with its operators engine
+ *        (conformance check C4: the two engines agree bit for bit on every chain).
  *
  * Graph shapes: sparse and dense random graphs, road-like grids, hub-heavy graphs and long chains,
  * with parallel edges and self-loops under graph_properties::mosp_compatible(), simple sorted
@@ -366,7 +368,14 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
   props.directed = sc.directed;
   props.semantics.allow_vertex_growth = sc.growth;
 
-  const std::vector<dyng::backend> backends = dyng::test::comparison_backends();
+  // The configurations: every backend with its default engine, and on cuda the operators engine
+  // as well (conformance check C4 on randomized chains: fused == operators, bit for bit).
+  std::vector<dyng::backend> backends = dyng::test::comparison_backends();
+  std::vector<dyng::engine> engines(backends.size(), dyng::engine::automatic);
+  if (!backends.empty() && backends.back() == dyng::backend::cuda) {
+    backends.push_back(dyng::backend::cuda);
+    engines.push_back(dyng::engine::operators);
+  }
   const int threads = static_cast<int>(gen.uniform(1, 8));
   std::vector<dyng::resources> res;
   std::vector<graph_t> graphs;
@@ -381,12 +390,19 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
   if (gen.coin(0.3)) {
     opt.delta = gen.uniform(1, 300);  // the width changes the schedule, never the result
   }
+  std::vector<dyng::sssp::options> config_opt(backends.size(), opt);
+  for (std::size_t i = 0; i < backends.size(); ++i) {
+    config_opt[i].cuda_engine = engines[i];
+  }
+  const auto config_name = [&](std::size_t i) {
+    return std::string(dyng::to_string(backends[i])) +
+           (engines[i] == dyng::engine::operators ? " (operators engine)" : "");
+  };
   std::vector<dyng::sssp::result<vertex_t>> results;
   for (std::size_t i = 0; i < backends.size(); ++i) {
-    results.push_back(dyng::sssp::compute(res[i], graphs[i], source, opt));
+    results.push_back(dyng::sssp::compute(res[i], graphs[i], source, config_opt[i]));
     const auto check = dyng::testing::check_sssp_tree(graphs[i], results[i]);
-    ASSERT_TRUE(check.ok()) << "compute on " << dyng::to_string(backends[i]) << ": "
-                            << check.summary();
+    ASSERT_TRUE(check.ok()) << "compute on " << config_name(i) << ": " << check.summary();
   }
   if (sc.perturb_ties) {
     const auto csr = graphs[0].to_csr(res[0]);
@@ -396,7 +412,7 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
     for (std::size_t i = 0; i < backends.size(); ++i) {
       results[i] = dyng::sssp::result<vertex_t>::from_arrays(
           res[i], graphs[i], source, dyng::host_view(distances), dyng::host_view(parents),
-          /*canonicalize=*/false, opt);
+          /*canonicalize=*/false, config_opt[i]);
     }
   }
   const int rounds = static_cast<int>(gen.uniform(3, 5));
@@ -411,11 +427,10 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
       // A canonical input tree stays canonical; a perturbed one stays a valid shortest-path tree.
       const auto check = dyng::testing::check_sssp_tree(graphs[i], results[i],
                                                         /*require_canonical=*/!sc.perturb_ties);
-      ASSERT_TRUE(check.ok()) << "update on " << dyng::to_string(backends[i]) << ": "
-                              << check.summary();
+      ASSERT_TRUE(check.ok()) << "update on " << config_name(i) << ": " << check.summary();
       // update == compute on the new graph: bit for bit from a canonical tree; the distances
       // (and the parents in the distance-only mode) from a perturbed one.
-      const auto fresh = dyng::sssp::compute(res[i], graphs[i], source, opt);
+      const auto fresh = dyng::sssp::compute(res[i], graphs[i], source, config_opt[i]);
       const auto d = dyng::test::host_copy(results[i].distances());
       const auto fd = dyng::test::host_copy(fresh.distances());
       ASSERT_TRUE(std::equal(d.begin(), d.end(), fd.begin(), fd.end()));
@@ -428,8 +443,13 @@ void run_scenario(std::uint64_t seed, shape s, const scenario& sc) {
       EXPECT_LE(st[i].invalidated, static_cast<std::int64_t>(graphs[i].num_vertices()));
       EXPECT_EQ(results[i].graph_version(), graphs[i].version());
     }
-    // Cross-backend: identical trees and deterministic counters.
+    // Cross-backend (and cross-engine): identical trees and deterministic counters.
     for (std::size_t i = 1; i < backends.size(); ++i) {
+      SCOPED_TRACE("configuration " + config_name(i));
+      if (engines[i] == dyng::engine::operators) {
+        EXPECT_EQ(st[i].engine_used, dyng::engine::operators);
+        EXPECT_EQ(st[i].packed_parents, st[i - 1].packed_parents);  // the fused engine's packing
+      }
       const auto d0 = dyng::test::host_copy(results[0].distances());
       const auto di = dyng::test::host_copy(results[i].distances());
       ASSERT_TRUE(std::equal(d0.begin(), d0.end(), di.begin(), di.end()));
@@ -541,6 +561,127 @@ TEST(SsspComposition, SeveralResultsOnOneGraphEqualSeparateUpdates) {
         EXPECT_EQ(s1.invalidated, alone_stats[1].invalidated);
         EXPECT_EQ(s2.invalidated, alone_stats[2].invalidated);
         EXPECT_EQ(s2.affected, alone_stats[2].affected);
+      }
+    }
+  }
+}
+
+// The packing window (M7 review; ADR 0029, proposed). The two originals choose the word format
+// differently near the packing limit: MOSP-CUDA@e220ee2 packs (distance, parent) when the bound
+// (n - 1) * W fits next to the parent bits, MOSP-OpenMP@c352151 only when (n - 1) * W + W fits too.
+// The host backends follow MOSP-OpenMP and both CUDA engines follow MOSP-CUDA, so for
+// (n - 1) * W <= max_distance < n * W the host backends run distance-only (every parent is
+// recovered with the lowest-id rule, as MOSP-OpenMP does) while cuda runs packed and keeps the
+// tie parents of the vertices the batch does not re-evaluate (as MOSP-CUDA does). From a
+// canonical tree both give compute()'s tree; from a non-canonical tree they differ. This test
+// pins that behaviour (each backend as its own original) until the author decides the rule.
+// With n = 65537 vertices (17 parent bits, max_distance = 2^47 - 2) the window is
+// W in [2147450881, 2147483647]; the heavy edge goes into the source, so it is never a tree edge.
+TEST(SsspPackingWindow, NonCanonicalTreesFollowEachOriginalsPackingRule) {
+  using vertex_t = std::int32_t;
+  using graph_t = dyng::graph<vertex_t, std::int32_t, std::int32_t>;
+  constexpr vertex_t n = 65537;
+  for (const std::int32_t heavy : {std::int32_t{2147450881}, std::int32_t{2147483647}}) {
+    SCOPED_TRACE("max weight " + std::to_string(heavy));
+    std::mt19937_64 rng(4242);
+    dyng::edge_list<vertex_t, std::int32_t> edges;
+    edges.num_vertices = n;
+    edges.num_weights = 1;
+    auto add = [&](vertex_t u, vertex_t v, std::int32_t w) {
+      edges.src.push_back(u);
+      edges.dst.push_back(v);
+      edges.weights.push_back(w);
+    };
+    // Each vertex has in-edges from its three predecessors with weights 1 or 2: many ties.
+    for (vertex_t v = 1; v < n; ++v) {
+      for (vertex_t u = std::max(0, v - 3); u < v; ++u) {
+        add(u, v, static_cast<std::int32_t>(1 + rng() % 2));
+      }
+    }
+    add(n - 1, 0, heavy);
+    const dyng::resources seq = dyng::resources::sequential();
+    const auto props = dyng::graph_properties::mosp_compatible();
+    const graph_t g0 = graph_t::from_edges(seq, edges.view(), props);
+    const auto init = dyng::testing::dijkstra(g0, vertex_t{0});
+    // The non-canonical tree: every vertex with several tight in-neighbours takes the highest id.
+    std::vector<vertex_t> perturbed = init.parents;
+    std::int64_t ties = 0;
+    for (std::size_t i = 0; i + 1 < edges.src.size(); ++i) {  // the heavy edge is never tight
+      const auto u = static_cast<std::size_t>(edges.src[i]);
+      const auto v = static_cast<std::size_t>(edges.dst[i]);
+      if (init.distances[u] + edges.weights[i] == init.distances[v] &&
+          edges.src[i] > perturbed[v]) {
+        ties += perturbed[v] == init.parents[v] ? 1 : 0;
+        perturbed[v] = edges.src[i];
+      }
+    }
+    ASSERT_GT(ties, 1000);
+    // A local batch: deletions and insertions among vertices 30000..30500; most vertices are not
+    // re-evaluated.
+    dyng::edge_batch<vertex_t, std::int32_t> batch(1);
+    for (vertex_t v = 30000; v < 30500; v += 5) {
+      batch.delete_edge(perturbed[static_cast<std::size_t>(v)], v);
+      batch.insert_edge(v - 7, v + 3, {static_cast<std::int32_t>(1 + rng() % 2)});
+    }
+    std::vector<vertex_t> canonical;
+    std::vector<std::int64_t> expected_distances;
+    struct run_t {
+      std::string name;
+      dyng::backend b;
+      dyng::engine e;
+    };
+    std::vector<run_t> runs;
+    for (const dyng::backend b : dyng::test::comparison_backends()) {
+      if (b == dyng::backend::cuda) {
+        runs.push_back({"cuda fused", b, dyng::engine::fused});
+        runs.push_back({"cuda operators", b, dyng::engine::operators});
+      } else {
+        runs.push_back({std::string(dyng::to_string(b)), b, dyng::engine::automatic});
+      }
+    }
+    std::vector<vertex_t> cuda_parents;
+    for (const run_t& run : runs) {
+      SCOPED_TRACE(run.name);
+      const auto res = dyng::test::make_resources(run.b, 4);
+      graph_t g = graph_t::from_edges(res, edges.view(), props);
+      dyng::sssp::options opt;
+      opt.cuda_engine = run.e;
+      auto r = dyng::sssp::result<vertex_t>::from_arrays(
+          res, g, 0,
+          dyng::array_view<const std::int64_t>(init.distances.data(), init.distances.size()),
+          dyng::array_view<const vertex_t>(perturbed.data(), perturbed.size()), false, opt);
+      const dyng::sssp::stats st = dyng::sssp::update(res, g, batch.view(), r);
+      if (canonical.empty()) {
+        const auto ref = dyng::testing::dijkstra(g, vertex_t{0});
+        canonical = ref.parents;
+        expected_distances = ref.distances;
+      }
+      const auto d = dyng::test::host_copy(r.distances());
+      const auto p = dyng::test::host_copy(r.parents());
+      EXPECT_TRUE(
+          std::equal(d.begin(), d.end(), expected_distances.begin(), expected_distances.end()));
+      EXPECT_TRUE(dyng::testing::check_sssp_tree(g, r, /*require_canonical=*/false).ok());
+      if (run.b != dyng::backend::cuda) {
+        // MOSP-OpenMP's rule: distance-only words, every parent recovered with the lowest id.
+        EXPECT_FALSE(st.packed_parents);
+        EXPECT_TRUE(std::equal(p.begin(), p.end(), canonical.begin(), canonical.end()));
+        continue;
+      }
+      // MOSP-CUDA's rule: packed words; the vertices the batch does not re-evaluate keep their
+      // imported tie parents, so the tree differs from the host backends' (and compute()'s).
+      EXPECT_TRUE(st.packed_parents);
+      std::int64_t kept = 0;
+      for (std::size_t v = 0; v < p.size(); ++v) {
+        if (p[v] != canonical[v]) {
+          ++kept;
+          EXPECT_EQ(p[v], perturbed[v]) << "vertex " << v;
+        }
+      }
+      EXPECT_GT(kept, 1000);
+      if (cuda_parents.empty()) {
+        cuda_parents = p;
+      } else {
+        EXPECT_TRUE(p == cuda_parents) << "the fused and the operators engine differ (C4)";
       }
     }
   }

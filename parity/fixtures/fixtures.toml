@@ -57,3 +57,10 @@ tests = [
   "CycleEnumDatasets.DigestsEqualTheOriginal",
   "CycleCountDatasets.HistogramsEqualTheOriginal",
 ]
+
+[sets.mosp_combined]
+directory = "cpp/tests/data/mosp_combined"
+reference = "MOSP-OpenMP"
+generated_by = "parity/fixtures/mosp/make_mosp_fixtures.sh"
+what = "mosp (0.2, M7): the whole MOSP update with preference vectors (the thesis example with Pref {4, 1, 4} and {4, 4, 1}, K = 2..4, `-k` below the graph's columns): obj<k>/ and combinedGraph/{distancesCsr,SSSPTreeCsr,mospCosts}.txt of the original `mosp --pref`, on which MOSP-CUDA@e220ee2 agreed before they were written"
+tests = ["compat_mosp.combined.*", "example.mosp_update.*"]

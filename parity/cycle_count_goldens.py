@@ -468,9 +468,10 @@ def write_toml(
     section: str, set_name: str = SET, path: Path = REPO / "parity" / "goldens.toml"
 ) -> None:
     """Replace the [sets.<set_name>] section (and its subtables) of parity/goldens.toml; the
-    cycle_count sets are kept last in the file, in the order of SETS."""
+    cycle_count sets are kept after the sssp set, in the order of SETS, and the later sets (e.g.
+    mosp_scale, parity/mosp_scale_goldens.py) after them in their order."""
     text = path.read_text()
-    first = re.search(r"^\[sets\.cycle_count[\].]|^\[sets\.cycle_count_cuda[\].]", text, re.M)
+    first = re.search(r"^\[sets\.(?!sssp[\].])[a-z_]+[\].]", text, re.M)
     head, tail = (text[: first.start()], text[first.start() :]) if first else (text, "")
     blocks: dict[str, list[str]] = {}
     current = None
@@ -481,7 +482,8 @@ def write_toml(
         if current is not None:
             blocks.setdefault(current, []).append(line)
     blocks[set_name] = [section]
-    body = "\n".join("".join(blocks[n]).strip("\n") + "\n" for n in SETS if n in blocks)
+    order = [n for n in SETS if n in blocks] + [n for n in blocks if n not in SETS]
+    body = "\n".join("".join(blocks[n]).strip("\n") + "\n" for n in order)
     path.write_text(head.rstrip("\n") + "\n\n" + body)
 
 

@@ -44,6 +44,7 @@
 #include "support/test_seeds.hpp"
 
 #include <dyng/config.hpp>
+#include <dyng/core/array_view.hpp>
 #include <dyng/core/backend.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/registry.hpp>
@@ -175,6 +176,42 @@ struct has_extra_properties : std::false_type {};
 template <typename traits_t>
 struct has_extra_properties<traits_t, std::void_t<decltype(traits_t::extra_properties())>>
     : std::true_type {};
+
+template <typename traits_t, typename = void>
+struct has_num_weights : std::false_type {};
+template <typename traits_t>
+struct has_num_weights<traits_t, std::void_t<decltype(traits_t::num_weights)>> : std::true_type {};
+
+/// The weight columns of the kit's weighted graphs: test_traits::num_weights, default 1.
+template <typename traits_t>
+constexpr int weight_columns() {
+  if constexpr (has_num_weights<traits_t>::value) {
+    return traits_t::num_weights;
+  } else {
+    return 1;
+  }
+}
+
+template <typename traits_t, typename = void>
+struct has_run_budget : std::false_type {};
+template <typename traits_t>
+struct has_run_budget<traits_t,
+                      std::void_t<decltype(traits_t::host_sync_budget(
+                          backend::cuda, std::declval<const typename traits_t::stats&>()))>>
+    : std::true_type {};
+
+/// C8's expected host synchronizations of one update: test_traits::host_sync_budget(backend,
+/// stats) when the traits have it (a budget that depends on the engine that ran and its counters),
+/// else host_sync_budget(backend). run_dependent_budget: C8 checks the problem's own budget.
+template <typename traits_t>
+std::int64_t expected_host_syncs(backend b, const typename traits_t::stats& s) {
+  if constexpr (has_run_budget<traits_t>::value) {
+    return traits_t::host_sync_budget(b, s);
+  } else {
+    (void)s;
+    return traits_t::host_sync_budget(b);
+  }
+}
 
 template <typename traits_t, typename = void>
 struct has_oracle_kind : std::false_type {};
@@ -426,15 +463,20 @@ std::vector<std::int64_t> counters(const typename traits_t::stats& s) {
 /// A random model of a size class.
 template <typename case_t>
 graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_64& rng) {
-  return random_model<typename case_t::graph_type>(case_t::traits::shape(size), rng);
+  graph_model<typename case_t::graph_type> m =
+      random_model<typename case_t::graph_type>(case_t::traits::shape(size), rng);
+  m.num_weights = weight_columns<typename case_t::traits>();
+  return m;
 }
 
 /**
  * C4 on `backends`: where a backend runs both a fused and an operators engine (compute() with
  * engine::fused and engine::operators, and the updates report different stats::engine_used), the
- * two results agree at the traits' level and so do the deterministic counters. Returns whether
- * some backend compared (C4 is skipped otherwise). Also used by the kit's own test with a fake
- * two-engine algorithm (engines_agree_test.cpp).
+ * two results agree at the traits' level and so do the deterministic counters, after compute()
+ * and after each of three consecutive batches, for every preset, the small and medium sizes and
+ * every applicable batch mix. Returns whether some backend compared (C4 is skipped otherwise);
+ * stops at the first disagreement. Also used by the kit's own test with a fake two-engine
+ * algorithm (engines_agree_test.cpp).
  */
 template <typename case_t>
 bool engines_agree(const std::vector<backend>& backends) {
@@ -443,32 +485,55 @@ bool engines_agree(const std::vector<backend>& backends) {
   bool compared = false;
   for (const backend b : backends) {
     SCOPED_TRACE(std::string(to_string(b)));
-    const preset p = presets<traits>().front();
-    std::mt19937_64 rng(4000);
-    graph_model<graph_t> model = model_of<case_t>(size_class::small, rng);
-    std::optional<chain<case_t>> fused;
-    std::optional<chain<case_t>> operators;
-    try {
-      fused.emplace(resources_for(b), model, p.props, engine::fused);
-      operators.emplace(resources_for(b), model, p.props, engine::operators);
-    } catch (const not_supported_error&) {
-      continue;  // this backend has one engine
+    for (const preset& p : presets<traits>()) {
+      SCOPED_TRACE(p.label);
+      for (const size_class size : {size_class::small, size_class::medium}) {
+        for (const batch_mix mix : all_mixes()) {
+          if (!mix_applies<graph_t>(mix, p.props)) {
+            continue;
+          }
+          SCOPED_TRACE("size " + std::to_string(static_cast<int>(size)) + ", mix " +
+                       std::string(to_string(mix)));
+          std::mt19937_64 rng(4000 + static_cast<std::uint64_t>(size) * 17 +
+                              static_cast<std::uint64_t>(mix));
+          graph_model<graph_t> model = model_of<case_t>(size, rng);
+          std::optional<chain<case_t>> fused;
+          std::optional<chain<case_t>> operators;
+          try {
+            fused.emplace(resources_for(b), model, p.props, engine::fused);
+            operators.emplace(resources_for(b), model, p.props, engine::operators);
+          } catch (const not_supported_error&) {
+            break;  // this backend has one engine
+          }
+          if (!same<traits>(fused->take(), operators->take())) {
+            ADD_FAILURE() << "compute(): the fused and the operators engine disagree";
+            return true;
+          }
+          for (int step = 0; step < 3; ++step) {
+            SCOPED_TRACE("batch " + std::to_string(step));
+            const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+            typename traits::stats sf;
+            typename traits::stats so;
+            try {
+              sf = fused->step(gen.batch);
+              so = operators->step(gen.batch);
+            } catch (const not_supported_error&) {
+              break;
+            }
+            if (sf.engine_used == so.engine_used) {
+              break;  // the backend ignores the choice (one engine)
+            }
+            compared = true;
+            const bool agree = same<traits>(fused->take(), operators->take());
+            EXPECT_TRUE(same<traits>(fused->take(), operators->take()));
+            EXPECT_EQ(traits::deterministic(sf), traits::deterministic(so));
+            if (!agree || traits::deterministic(sf) != traits::deterministic(so)) {
+              return true;  // the first disagreement is enough (its trace names the case)
+            }
+          }
+        }
+      }
     }
-    const generated_batch<graph_t> gen = random_batch(model, batch_mix::mixed, rng);
-    typename traits::stats sf;
-    typename traits::stats so;
-    try {
-      sf = fused->step(gen.batch);
-      so = operators->step(gen.batch);
-    } catch (const not_supported_error&) {
-      continue;
-    }
-    if (sf.engine_used == so.engine_used) {
-      continue;  // the backend ignores the choice (one engine)
-    }
-    compared = true;
-    EXPECT_TRUE(same<traits>(fused->take(), operators->take()));
-    EXPECT_EQ(traits::deterministic(sf), traits::deterministic(so));
   }
   return compared;
 }
@@ -714,9 +779,13 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
   using weight_t = typename graph_t::weight_type;
   using batch_t = edge_batch<vertex_t, weight_t>;
   constexpr bool weighted = !is_unweighted_v<weight_t>;
+  // Batches with the kit graph's weight columns (test_traits::num_weights), all weights 1.
+  constexpr int columns = kit_detail::weight_columns<traits>();
+  const auto make_batch = []() { return weighted ? batch_t(columns) : batch_t(); };
   const auto insert = [](batch_t& b, vertex_t u, vertex_t v) {
     if constexpr (weighted) {
-      b.insert_edge(u, v, {weight_t{1}});
+      const std::vector<weight_t> w(static_cast<std::size_t>(columns), weight_t{1});
+      b.insert_edge(u, v, host_view(w));
     } else {
       b.insert_edge(u, v);
     }
@@ -739,19 +808,21 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
       };
       {
-        batch_t b;
+        batch_t b = make_batch();
         insert(b, vertex_t{-1}, vertex_t{0});
         expect_rejected(b, "an insertion with a negative id");
       }
       {
-        batch_t b;
+        batch_t b = make_batch();
         b.delete_edge(vertex_t{0}, vertex_t{-2});
         expect_rejected(b, "a deletion with a negative id");
       }
       if constexpr (weighted) {
-        batch_t b(2);
-        b.insert_edge(vertex_t{0}, vertex_t{1}, {weight_t{1}, weight_t{2}});
-        expect_rejected(b, "a batch with two weight columns on a one-column graph");
+        // One weight column more than the graph has (K + 1 for a K-column graph).
+        batch_t b(columns + 1);
+        const std::vector<weight_t> w(static_cast<std::size_t>(columns) + 1, weight_t{1});
+        b.insert_edge(vertex_t{0}, vertex_t{1}, host_view(w));
+        expect_rejected(b, "a batch with one weight column more than the graph has");
       }
       // Bad options: each must throw invalid_argument_error.
       for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
@@ -774,7 +845,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       }
       ASSERT_NE(u, v) << "the generated graph is complete";
       {
-        batch_t b;
+        batch_t b = make_batch();
         b.delete_edge(u, v);
         const auto s = c.step(b);
         EXPECT_EQ(s.batch.ignored_deletions, 1) << "a deletion of a missing edge is counted";
@@ -783,7 +854,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       }
       if (p.props.semantics.as_sets && !model.weights.empty()) {
         const auto existing = model.weights.begin()->first;
-        batch_t b;
+        batch_t b = make_batch();
         insert(b, existing.first, existing.second);
         insert(b, vertex_t{0}, vertex_t{0});
         const auto s = c.step(b);
@@ -794,7 +865,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       }
       // Duplicates in one batch: the result still equals compute().
       {
-        batch_t b;
+        batch_t b = make_batch();
         insert(b, u, v);
         insert(b, u, v);
         (void)c.step(b);
@@ -806,7 +877,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         strict.semantics.on_missing_delete = batch_semantics::missing_delete::error;
         kit_detail::chain<TypeParam> s(kit_detail::resources_for(be), model, strict);
         const auto strict_before = s.take();
-        batch_t b;
+        batch_t b = make_batch();
         b.delete_edge(u, v);
         const std::uint64_t version = s.g->version();
         EXPECT_THROW((void)s.step(b), invalid_argument_error);
@@ -817,7 +888,9 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
   }
 }
 
-// C8: budgets of the algorithm phase once reserved (DYNG_DEBUG_BUDGETS builds; invariant I9).
+// C8: budgets of the algorithm phase once reserved (DYNG_DEBUG_BUDGETS builds; invariant I9),
+// with engine::automatic and, where a backend has a second engine, engine::operators (a device
+// without cooperative launch runs that engine under engine::automatic: M7).
 TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
   using traits = typename TypeParam::traits;
   using graph_t = typename TypeParam::graph_type;
@@ -838,56 +911,85 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
             continue;
           }
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
-          std::mt19937_64 rng(8000 + static_cast<std::uint64_t>(mix));
-          graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size, rng);
-          const graph_model<graph_t> base = model;
-          const generated_batch<graph_t> gen = random_batch(model, mix, rng);
-          const resources res = kit_detail::resources_for(b);
-          // The steady state ("once reserved"): a twin result on the same graph takes the same
-          // batch first, so the handle's pooled workspaces have the batch's shapes; the measured
-          // update then reserves nothing. The OpenMP engines' per-thread lists grow with the
-          // largest share a thread has taken so far (the dynamic schedule), so a measured run
-          // that still reserved is repeated after another warm-up (at most five times).
-          std::optional<kit_detail::chain<TypeParam>> measured;
-          fw::budget_report report;
-          bool counted = false;
-          for (int attempt = 0; attempt < 5; ++attempt) {
-            kit_detail::chain<TypeParam> warm(res, base, p.props);
-            (void)warm.step(gen.batch);
-            measured.emplace(res, base, p.props);
-            host_allocation_counter armed;
-            counted = armed.counting();
-            try {
-              (void)measured->step(gen.batch);
-            } catch (const internal_error& e) {
-              ADD_FAILURE() << "the budget check failed: " << e.what();
-              break;
+          std::optional<engine> automatic_ran;  // the engine engine::automatic chose
+          for (const engine e : {engine::automatic, engine::operators}) {
+            SCOPED_TRACE(e == engine::automatic ? "engine automatic" : "engine operators");
+            if (e == engine::operators && automatic_ran == engine::operators) {
+              break;  // engine::automatic already measured the operators engine
             }
-            armed.stop();
-            report = fw::last_budget_report();
-            if (!report.reserving()) {
-              break;
+            std::mt19937_64 rng(8000 + static_cast<std::uint64_t>(mix));
+            graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size, rng);
+            const graph_model<graph_t> base = model;
+            const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+            const resources res = kit_detail::resources_for(b);
+            // The steady state ("once reserved"): a twin result on the same graph takes the same
+            // batch first, so the handle's pooled workspaces have the batch's shapes; the measured
+            // update then reserves nothing. The OpenMP engines' per-thread lists grow with the
+            // largest share a thread has taken so far (the dynamic schedule), so a measured run
+            // that still reserved is repeated after another warm-up (at most five times).
+            std::optional<kit_detail::chain<TypeParam>> measured;
+            fw::budget_report report;
+            typename traits::stats stats{};
+            bool counted = false;
+            bool single_engine = false;
+            for (int attempt = 0; attempt < 5; ++attempt) {
+              std::optional<kit_detail::chain<TypeParam>> warm;
+              try {
+                warm.emplace(res, base, p.props, e);
+              } catch (const not_supported_error&) {
+                single_engine = true;  // the backend does not run this engine
+                break;
+              }
+              (void)warm->step(gen.batch);
+              measured.emplace(res, base, p.props, e);
+              host_allocation_counter armed;
+              counted = armed.counting();
+              try {
+                stats = measured->step(gen.batch);
+              } catch (const internal_error& err) {
+                ADD_FAILURE() << "the budget check failed: " << err.what();
+                break;
+              }
+              armed.stop();
+              report = fw::last_budget_report();
+              if (!report.reserving()) {
+                break;
+              }
             }
+            if (::testing::Test::HasFailure()) {
+              return;
+            }
+            if (single_engine || (e == engine::operators && automatic_ran == stats.engine_used)) {
+              break;  // the backend has one engine (or ignores the choice)
+            }
+            if (e == engine::automatic) {
+              automatic_ran = stats.engine_used;
+            }
+            EXPECT_TRUE(report.measured);
+            EXPECT_FALSE(report.reserving())
+                << "the steady-state update still reserved (" << report.used.reservations
+                << " times) after five warm-ups";
+            EXPECT_EQ(report.used.own_allocations(), 0)
+                << report.used.allocated_bytes << " bytes"
+                << (counted ? " (library memory and host heap)" : " (library memory)");
+            EXPECT_EQ(report.limit.allocations, 0) << "the problem declares no steady-state budget";
+            const std::int64_t expected = kit_detail::expected_host_syncs<traits>(b, stats);
+            if (expected == run_dependent_budget) {
+              // The budget depends on counters the stats do not carry: the problem's own bound.
+              EXPECT_NE(report.limit.host_syncs, fw::budget::unlimited)
+                  << "the problem declares no steady-state budget";
+              EXPECT_LE(report.used.own_host_syncs(), report.limit.host_syncs);
+            } else {
+              EXPECT_LE(report.used.own_host_syncs(), expected);
+              EXPECT_EQ(report.limit.host_syncs, expected)
+                  << "the problem's budget differs from the traits'";
+            }
+            const detail::budget_counters commit = fw::last_commit_counts();
+            ::testing::Test::RecordProperty(
+                "commit_allocations_" + std::string(to_string(b)),
+                static_cast<int>(commit.allocations));  // container growth: reported only
+            EXPECT_TRUE(kit_detail::same<traits>(measured->recompute(), measured->take()));
           }
-          if (::testing::Test::HasFailure()) {
-            return;
-          }
-          EXPECT_TRUE(report.measured);
-          EXPECT_FALSE(report.reserving())
-              << "the steady-state update still reserved (" << report.used.reservations
-              << " times) after five warm-ups";
-          EXPECT_EQ(report.used.own_allocations(), 0)
-              << report.used.allocated_bytes << " bytes"
-              << (counted ? " (library memory and host heap)" : " (library memory)");
-          EXPECT_LE(report.used.own_host_syncs(), traits::host_sync_budget(b));
-          EXPECT_EQ(report.limit.allocations, 0) << "the problem declares no steady-state budget";
-          EXPECT_EQ(report.limit.host_syncs, traits::host_sync_budget(b))
-              << "the problem's budget differs from the traits'";
-          const detail::budget_counters commit = fw::last_commit_counts();
-          ::testing::Test::RecordProperty(
-              "commit_allocations_" + std::string(to_string(b)),
-              static_cast<int>(commit.allocations));  // container growth: reported only
-          EXPECT_TRUE(kit_detail::same<traits>(measured->recompute(), measured->take()));
         }
       }
     }
@@ -966,6 +1068,8 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
           shape.edges = std::min(shape.edges, theirs_shape.edges);
           std::mt19937_64 rng(10000 + (as_sets ? 1U : 0U));
           graph_model<graph_t> model = random_model<graph_t>(shape, rng);
+          model.num_weights =
+              std::max(kit_detail::weight_columns<traits>(), kit_detail::weight_columns<partner>());
           const resources res = kit_detail::resources_for(b);
           // Both results on one graph (plus one left out of the updates), and each alone on a
           // graph of its own.

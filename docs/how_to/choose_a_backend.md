@@ -17,8 +17,9 @@ auto dflt = dyng::resources();              // dyng::default_backend()
   `stream_ref`). Graphs and results created with it live in device memory: read them with
   `dyng::to_vector(res, tree.distances())`. Calls are stream-ordered; each function's
   reference entry says when it synchronizes. `sssp` runs its fused engine, the persistent
-  cooperative kernel of the original MOSP-CUDA code, and throws `not_supported_error` on a
-  device without cooperative launch. In a build without CUDA, or with no visible device,
+  cooperative kernel of the original MOSP-CUDA code, and on a device without cooperative launch
+  its operators engine (a sequence of kernels with the same results; `options::cuda_engine`
+  forces either). In a build without CUDA, or with no visible device,
   `resources::cuda()` throws `not_supported_error`.
 
 Ask what this build and machine support before choosing:

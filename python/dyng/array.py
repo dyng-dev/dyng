@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """dyng.Array: a zero-copy, read-only view of an array owned by a result (PLAN Section 5.4).
 
-The result arrays of the library (``Result.distances``, ``Result.parents``, ``Result.counts``) are
-returned as :class:`Array`. An Array does not copy: ``np.asarray(a)`` (through
-``__array_interface__``), ``np.from_dlpack(a)`` and ``torch.from_dlpack(a)`` (through
-``__dlpack__``) view the library's memory, and the view keeps the result alive.
+The result arrays of the library (``Result.distances``, ``Result.parents``, ``Result.counts``,
+``dyng.mosp.Result.path_costs``) are returned as :class:`Array`. An Array does not copy:
+``np.asarray(a)`` (through ``__array_interface__``), ``np.from_dlpack(a)`` and
+``torch.from_dlpack(a)`` (through ``__dlpack__``) view the library's memory, and the view keeps
+the result alive.
 
 **Lifetime.** An Array belongs to one state of its result. Once the result is updated
 (``update``, ``dyng.update``), using the Array raises :class:`~dyng.StaleResultError`; read the
@@ -37,9 +38,10 @@ __all__ = ["Array"]
 class Array:
     """A read-only view of a result's array, with DLPack and the NumPy array interface.
 
-    Attributes are those of a 1-D array: :attr:`shape`, :attr:`dtype`, :attr:`size`,
+    Attributes are those of a NumPy array: :attr:`shape`, :attr:`dtype`, :attr:`size`,
     :attr:`ndim`, ``len(a)``, iteration and indexing (which read through a copy-free NumPy
-    view). ``np.asarray(a)`` (through ``__array_interface__``), ``np.from_dlpack(a)`` and
+    view). Every array is 1-D except ``dyng.mosp.Result.path_costs``, which is 2-D (n, K).
+    ``np.asarray(a)`` (through ``__array_interface__``), ``np.from_dlpack(a)`` and
     ``torch.from_dlpack(a)`` (through ``__dlpack__``) view the library's memory without a copy,
     and the view keeps the result alive.
 
@@ -86,13 +88,13 @@ class Array:
 
     @property
     def shape(self) -> tuple[int, ...]:
-        """The shape (1-D)."""
+        """The shape ((n,) for 1-D arrays, (n, K) for path costs)."""
         return self._numpy_view().shape
 
     @property
     def ndim(self) -> int:
-        """1."""
-        return 1
+        """The number of dimensions (1, or 2 for path costs)."""
+        return int(self._numpy_view().ndim)
 
     @property
     def size(self) -> int:
@@ -106,7 +108,7 @@ class Array:
         return "cpu" if kind in (1, 3) else f"cuda:{dev}"
 
     def __len__(self) -> int:
-        return self.size
+        return int(self.shape[0])
 
     def __iter__(self) -> Iterator[Any]:
         return iter(self.to_numpy(copy=True).tolist())

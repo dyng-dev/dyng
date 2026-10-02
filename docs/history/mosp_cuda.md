@@ -11,7 +11,7 @@ fixes below one persistent cooperative CUDA kernel per objective, is the CUDA ba
 | Pinned commit | `e220ee20d1b0948ece3df135a02d1b898264c22f` (branch `fix/correctness-perf`) |
 | Paper snapshot | tag `baseline-2026-09` = `ac29545` ("Ported from SYCL to CUDA") |
 | History | 35 commits, 2025-08 to 2026-09; 34 by S M Shovan, 1 under the placeholder identity `CUDA <user@example.com>` (credited to S M Shovan); 33 AI-assisted |
-| Ported in | M1b (the fused kernel, the device graph, the CUDA resources) |
+| Ported in | M1b (the fused kernel, the device graph, the CUDA resources), M7 (the combined graph on the GPU and the MOSP tree: {doc}`../algorithms/mosp`) |
 | Parity | byte-identical on the 495-case golden corpus, which MOSP-CUDA's own export reproduces file for file; cross-backend equal; within the performance gates at locked clocks ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md), ADR 0018) |
 
 Before the port, the two originals were cross-checked once on the corpus: MOSP-CUDA@e220ee2 and
@@ -55,15 +55,23 @@ section 8.
   counts (ADR 0017 item 1). The trees were never affected.
 - **The packing boundary:** at the limit where (distance, parent) still fits one 64-bit word,
   MOSP-CUDA packs one edge weight earlier than MOSP-OpenMP, so `stats::packed_parents` can differ
-  between the cuda and the host backends there (n = 2^17 - 1); the trees are equal.
+  between the cuda and the host backends there (n = 2^17 - 1). The trees are equal for canonical
+  input trees; for non-canonical imported trees inside the packing window the host backends (as
+  MOSP-OpenMP) and cuda (as MOSP-CUDA) return different tie parents (ADR 0029, proposed).
 - **Placement:** a graph belongs to the resources that built it; results live in device memory and
   are read with `to_vector()` or `dyng.Array` (host copies in Python); the device graph is uploaded
   once per batch inside the commit, as the original's is.
-- **Engines:** without cooperative launch, `engine::automatic` raises `not_supported_error`; the
-  multi-kernel operators engine that would run there arrives in 0.2 (decision O24).
+- **Engines:** without cooperative launch, `engine::automatic` runs the multi-kernel operators
+  engine (M7, decision O24; ADR 0026), which follows MOSP_ESCHER@4b86159's host loop of kernels
+  with this kernel's semantics and returns the same bytes; `engine::fused` raises
+  `not_supported_error` there.
 - **Registers:** the port keeps the original's 59 registers per thread of the int32 instantiation
   and the same co-resident grid (M1b certificate section 11).
-- **Not ported (yet):** the combined-graph kernels and the MOSP tree (`mosp`, 0.2), the
-  file-path API of the library, `main` writing into relative paths, `using namespace std`.
+- **Combined graph (M7):** `combinedGraphGpu.cu`'s `combinedEdge`, `countEdgesKernel`, the CUB
+  scan and `fillEdgesKernel` are `mosp`'s CUDA combine step (`cpp/src/algorithms/mosp/cuda.cu`);
+  `sospFromScratchGpu` on the combined graph is sssp's static solve on a view; `mospUpdate` is
+  `mosp::update()`.
+- **Not ported (yet):** the file-path API of the library (`parallelCombinedGraph`), `main` writing
+  into relative paths, `using namespace std`.
 
 The mapping of every name is section 9 of {doc}`../algorithms/sssp`.

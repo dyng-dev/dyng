@@ -5,7 +5,8 @@
 # 5.6). Built with DYNG_BUILD_COMPAT_TOOLS=ON (the dev and parity presets); not installed.
 
 add_executable(dyng-compat-mosp mosp/mosp_compat.cpp)
-target_link_libraries(dyng-compat-mosp PRIVATE dyng::dyng)
+# dyng::testing: the path costs of the weight columns beyond -k (mospPathCosts covers them all).
+target_link_libraries(dyng-compat-mosp PRIVATE dyng::dyng dyng::testing)
 if(DYNG_ENABLE_OPENMP)
   # The driver reads its input files concurrently in an OpenMP region, like MOSP's `mosp`.
   target_link_libraries(dyng-compat-mosp PRIVATE OpenMP::OpenMP_CXX)
@@ -92,6 +93,40 @@ if(DYNG_BUILD_TESTS)
                               SKIP_RETURN_CODE 77
         )
       endforeach()
+    endforeach()
+  endforeach()
+endif()
+
+if(DYNG_BUILD_TESTS)
+  # The whole MOSP update (--mosp, M7): the combined graph's tree and the path costs with
+  # preference vectors, byte for byte against both originals (cpp/tests/data/mosp_combined).
+  file(STRINGS "${_data}/mosp_combined/cases.txt" _mosp_cases)
+  foreach(_line IN LISTS _mosp_cases)
+    string(REPLACE " " ";" _fields "${_line}")
+    list(GET _fields 0 _name)
+    list(GET _fields 1 _input)
+    list(GET _fields 2 _init)
+    list(GET _fields 3 _k)
+    list(GET _fields 4 _pref)
+    foreach(_backend IN LISTS _backends)
+      set(_test compat_mosp.combined.${_name}.${_backend})
+      add_test(
+        NAME ${_test}
+        COMMAND
+          ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-mosp> -DINPUT=${_data}/${_input}
+          -DINIT=${_data}/${_init} -DEXPECTED=${_data}/mosp_combined/${_name} -DK=${_k}
+          -DPREF=${_pref} -DBACKEND=${_backend} -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_test} -P
+          ${CMAKE_CURRENT_SOURCE_DIR}/mosp/run_mosp_and_compare.cmake
+      )
+      if(_backend STREQUAL "cuda")
+        set(_labels "gpu;mosp;compat")
+      else()
+        set(_labels "cpu;mosp;compat")
+      endif()
+      set_tests_properties(
+        ${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+                            SKIP_RETURN_CODE 77
+      )
     endforeach()
   endforeach()
 endif()

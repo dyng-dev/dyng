@@ -15,9 +15,10 @@ Quick start::
     stats = dyng.sssp.update(g, batch, tree)
     print(tree.distances.to_numpy(), stats.invalidated)
 
-The algorithms of 0.1 are :mod:`dyng.sssp` (dynamic single-source shortest paths) and
-:mod:`dyng.cycle_count` (exact directed simple-cycle histograms); :func:`update` updates several
-results with one batch. Backends: ``Resources("sequential")`` and ``Resources("openmp")`` in this
+The algorithms are :mod:`dyng.sssp` (dynamic single-source shortest paths) and
+:mod:`dyng.cycle_count` (exact directed simple-cycle histograms) since 0.1, and :mod:`dyng.mosp`
+(dynamic multi-objective shortest paths) since 0.2; :func:`update` updates several results with
+one batch. Backends: ``Resources("sequential")`` and ``Resources("openmp")`` in this
 wheel (the CUDA plugins follow in 0.1.x). Cite with :func:`citation`.
 """
 
@@ -25,7 +26,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import cycle_count, generators, io, sssp, testing  # noqa: E402  (after the core names)
+from . import cycle_count, generators, io, mosp, sssp, testing  # noqa: E402  (after the core names)
 from . import errors as _errors  # registers the exception classes for the native module
 from ._registry import AlgorithmInfo, algorithms, citation, citation_keys
 from ._update import update
@@ -80,6 +81,7 @@ __all__ = [
     # algorithms
     "sssp",
     "cycle_count",
+    "mosp",
     # modules
     "io",
     "generators",

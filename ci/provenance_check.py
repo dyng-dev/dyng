@@ -58,6 +58,15 @@ SYMBOLS = [
     "checkSospTree",
     "combinedGraphSospCpu",
     "buildHostGraph",
+    # MOSP-CUDA@e220ee2 / MOSP-OpenMP@c352151, the mosp port (M7)
+    "combinedGraphSospGpu",
+    "combinedGraphReference",
+    "mospPathCosts",
+    "preferenceScale",
+    "combinedEdgeWeight",
+    "countEdgesKernel",
+    "fillEdgesKernel",
+    "CombineWorkspace",
     # CycleEnumeration-GPU@0a976ad (M2)
     "prepare_batch",
     "build_directed_graph",
@@ -106,6 +115,8 @@ NOT_DERIVED = {
     "cpp/include/dyng/cycle_count.hpp": "public API; names the CycleEnum functions it ports",
     "cpp/include/dyng/io/result_io.hpp": "public API of result_io.cpp (header there)",
     "cpp/src/framework/workspace.hpp": "new pool; names MOSP's shared SospWorkspace it mirrors",
+    "cpp/include/dyng/mosp.hpp": "public API; documents the semantics the port reproduces",
+    "cpp/include/dyng/testing/mosp_oracle.hpp": "public API of mosp_oracle.cpp (header there)",
 }
 
 
