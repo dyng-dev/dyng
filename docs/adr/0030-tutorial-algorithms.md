@@ -70,7 +70,9 @@ both cannot hold together. Three further questions came up:
    models of `cycle_count`). `dyng.update()` (several results in one call) does not accept their
    results in Python (in C++ `dyng::update` does, through their `update_traits`), and there is no
    `dyng <algo>` command: neither adds anything to the lesson. Both are recorded in
-   `docs/developer/python_gaps.md`.
+   `docs/developer/python_gaps.md`. Nor is there an `examples/cpp/<algo>_update.cpp` program (PLAN
+   9.6): the tutorial, the algorithm pages and the hand cases are the examples of teaching
+   algorithms.
 5. **The tutorial is checked by CI.** `docs/tutorials/your_first_dynamic_algorithm.md` takes the
    reader from a fresh clone to a green kit: it scaffolds `my_bfs` and changes three files. The
    finished files are in `examples/tutorial_algorithms/my_bfs/` with `// [tutorial: ...]`
