@@ -103,6 +103,35 @@ before the consumer's with an event".
    `ci/plugin_wheels.sh` runs them in its fresh venvs (and, with `DYNG_PLUGIN_INTEROP_PYTHON`, in
    a venv with PyTorch / CuPy); `ci/gpu_local.sh` gains the step `plugin`.
 
+## Amendments (M6a review, 2026-10-06; accepted under delegation)
+
+1. **The probe initializes no CUDA in the calling process.** `status()` of ADR 0030 item 3 called
+   `cuInit` through ctypes, so any first use of dynG with a plugin installed (even
+   `dyng.__version__` or CPU work) left the process unable to fork workers that use CUDA (a child
+   forked after `cuInit` gets `CUDA_ERROR_NOT_INITIALIZED`). The probe now reads the driver's
+   version with `cuDriverGetVersion` (no `cuInit` needed) and the devices through NVML
+   (`libnvidia-ml.so.1`: count, compute capability, UUID, MIG mode), applying
+   `CUDA_VISIBLE_DEVICES` as CUDA does (ordinals and `GPU-` UUID prefixes up to the first entry
+   that names no device; a repeated entry hides every device). When NVML cannot tell which
+   devices CUDA will see (no NVML, e.g. a container without the driver's utility libraries; MIG;
+   ordinals on GPUs of different kinds without `CUDA_DEVICE_ORDER=PCI_BUS_ID`, since CUDA numbers
+   them fastest first), a short child process (`python -I -S dyng_cu<N>/_devices.py`) asks the
+   driver; only if no child can be started is `cuInit` called in the process itself.
+   `Status.probe` says which way was taken. In C++, a `cudaErrorInitializationError` (and a
+   device count of 0 caused by it) now names fork and the remedy (the `spawn` / `forkserver`
+   start methods), since a parent that really used CUDA still forks children that cannot.
+2. **Compute capability floor.** A plugin is usable only when at least one visible device has
+   compute capability 7.5 or newer (`ARCHITECTURE_FLOOR`, the first entry of every release list
+   of `cmake/cuda_architectures.cmake`; a test ties the two). Before, a Volta or Pascal GPU (a V100
+   on a 525-580 driver) made the plugin the default backend, and every default call failed with
+   `cudaErrorNoKernelImageForDevice`; now rule 5 falls back with the reason "the visible GPU
+   (sm_70) is older than the oldest architecture of dyng-cu12, sm_75". On a machine with mixed
+   GPUs the plugin is used when one of them is supported; the error of a kernel without code
+   for the current device names its compute capability.
+3. **`DYNG_CPU_ONLY`** is read as a boolean: `1`, `true`, `yes`, `on` (any case) are on; `0`,
+   `false`, `no`, `off` and empty are off; any other value is ignored with a
+   `dyng.BackendWarning` (before, every value but `0` and empty forced the CPU module).
+
 ## Consequences
 
 - Upgrading `dyng` without its plugin, or a plugin without a driver, gives a working CPU

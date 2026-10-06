@@ -516,3 +516,73 @@ def test_use_cpu_only_with_a_plugin_installed() -> None:
     )
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == "dyng._core False" and "Warning" not in out.stderr
+
+
+# -------------------------------------------------------------------------------------------------
+# fork: choosing the plugin initializes no CUDA in the parent (ADR 0031)
+# -------------------------------------------------------------------------------------------------
+
+_FORK = """
+import multiprocessing as mp
+import dyng
+
+
+def work(_):
+    try:
+        res = dyng.Resources.cuda(0)
+        g = dyng.Graph.from_edges([0, 0, 1], [1, 2, 2], [4, 1, 1], resources=res)
+        return ("ok", dyng.sssp.compute(g, 0).distances.to_numpy().tolist())
+    except Exception as e:
+        return ("err", f"{type(e).__name__}: {e}")
+
+
+PARENT
+with mp.get_context("fork").Pool(1) as pool:
+    print(pool.map(work, [0])[0])
+"""
+
+
+@pytest.mark.parametrize(
+    "parent",
+    [
+        "pass",
+        "dyng.__version__",
+        "dyng.show_config()",
+        "dyng.sssp.compute(dyng.Graph.from_edges([0], [1], [1], "
+        "resources=dyng.Resources.sequential()), 0)",
+    ],
+    ids=["nothing", "version", "show_config", "cpu_work"],
+)
+def test_a_forked_worker_can_use_cuda_after_the_parent_chose_the_plugin(parent: str) -> None:
+    out = _fresh(_FORK.replace("PARENT", parent))
+    assert out.returncode == 0, out.stderr
+    assert out.stdout.strip().splitlines()[-1] == "('ok', [0, 4, 1])", out.stdout + out.stderr
+
+
+def test_a_forked_worker_of_a_cuda_parent_is_told_about_fork() -> None:
+    # The parent used CUDA itself: the child cannot, and the error names fork and the remedy.
+    out = _fresh(_FORK.replace("PARENT", "dyng.Resources.cuda(0).synchronize()"))
+    assert out.returncode == 0, out.stderr
+    last = out.stdout.strip().splitlines()[-1]
+    assert last.startswith("('err'") and "fork" in last and "spawn" in last, last
+
+
+def test_a_device_without_code_names_its_compute_capability() -> None:
+    # CUDA_FORCE_PTX_JIT=1 ignores the SASS: a device older than the PTX's architecture (the
+    # release list embeds PTX for the newest one only) then has no code, as a GPU below the
+    # plugin's floor would.
+    out = _fresh(
+        "import dyng\n"
+        "try:\n"
+        "    g = dyng.Graph.from_edges([0, 0, 1], [1, 2, 2], [4, 1, 1],\n"
+        "                              resources=dyng.Resources.cuda(0))\n"
+        "    print('ok', dyng.sssp.compute(g, 0).distances.to_numpy().tolist())\n"
+        "except dyng.CudaError as e:\n"
+        "    print('err', e)\n",
+        CUDA_FORCE_PTX_JIT="1",
+    )
+    assert out.returncode == 0, out.stderr
+    if out.stdout.startswith("ok"):
+        pytest.skip("the module's PTX runs on this device (not a release-list build)")
+    assert "cudaErrorNoKernelImageForDevice" in out.stdout
+    assert "compute capability" in out.stdout and "7.5 or newer" in out.stdout, out.stdout

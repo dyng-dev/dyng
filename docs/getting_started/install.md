@@ -173,9 +173,18 @@ with the reason:
 | `no CUDA driver: libcuda.so.1 cannot be loaded` | install the NVIDIA driver (in a container: run it with the GPU, e.g. `--gpus all`) |
 | `the CUDA driver supports CUDA 12.x, but dyng-cu13 needs CUDA 13.0 or newer` | update the driver, or `pip install "dyng[cu12]"` |
 | `no CUDA device is visible` | check `CUDA_VISIBLE_DEVICES` and `nvidia-smi` |
+| `the visible GPU (sm_70) is older than the oldest architecture of dyng-cu12, sm_75` | the plugins need compute capability 7.5 or newer (Turing and later): use the CPU backends (`pip install dyng`), or make a newer GPU visible |
 | `version 0.2.0 does not match dyng 0.2.1` | `pip install "dyng[cu13]==<the dyng version>"` (a plugin of another version is never loaded) |
 | `its module cannot be loaded (...)` | reinstall the plugin; report the message if it persists |
 | `Resources.cuda: the active native module is dyng._core` (an error) | no plugin is installed, or the warning above says why it is not used |
+
+Errors of the CUDA backend itself (a `dyng.CudaError` or `NotSupportedError` after the plugin was
+chosen):
+
+| Message | Cause and remedy |
+|---|---|
+| `... cannot be initialized in this process (cudaErrorInitializationError); CUDA cannot be initialized in a process forked after its parent initialized CUDA ...` | a worker process started with `fork` (the default of `multiprocessing` on Linux before Python 3.14) whose parent had already used CUDA; start the workers with `multiprocessing.get_context("spawn")` (or `"forkserver"`), or use CUDA in the parent only after the workers are started. Choosing the plugin does not initialize CUDA, so a parent that only imported dynG, read `dyng.__version__` or ran CPU work can fork workers that use CUDA |
+| `cudaErrorNoKernelImageForDevice ... this build of dynG has no code for device 0 (compute capability X.Y)` | the device is not covered by the plugin's architectures (sm_75 to sm_120, PTX for newer ones); with several GPUs, choose a supported one with `Resources.cuda(device=...)` or `CUDA_VISIBLE_DEVICES` |
 
 On a machine without a GPU (a CI runner, a login node) an installed plugin is harmless: dynG
 falls back to the CPU backends with the warning; set `DYNG_CPU_ONLY=1` there to silence it.

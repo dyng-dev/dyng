@@ -82,6 +82,7 @@ SDIST_REQUIRED = (
     "THIRD_PARTY_LICENSES_CUDA.txt",
     "python/plugin/README.md",
     "python/plugin/dyng_plugin/__init__.py",
+    "python/plugin/dyng_plugin/_devices.py",
 )
 SDIST_REQUIRED_DIRS = ("cpp/include/dyng/", "cpp/src/", "python/dyng/", "python/bindings/")
 SDIST_FORBIDDEN_DIRS = (".github/", "parity/", "build/", "docs/adr/", "tools/", "ci/")
@@ -459,7 +460,7 @@ def check_plugin_wheel(
         wheel_text = read(".dist-info/WHEEL")
         meta_text = read(".dist-info/METADATA")
         module_data = z.read(module) if module in names else b""
-    for required in (module, f"{package}/__init__.py"):
+    for required in (module, f"{package}/__init__.py", f"{package}/_devices.py"):
         if required not in names:
             errors.append(f"missing {required}")
     foreign = sorted(
@@ -697,6 +698,7 @@ def _self_test() -> int:
         plugin_files: dict[str, str | bytes] = {
             "dyng_cu13/_core.abi3.so": good_elf,
             "dyng_cu13/__init__.py": "",
+            "dyng_cu13/_devices.py": "",
             "dyng_cu13.libs/libgomp-1234abcd.so.1.0.0": "x",
             **{f"{pinfo}/licenses/{lic}": "" for lic in plugin_licenses},
             f"{pinfo}/entry_points.txt": "[dyng.backends]\ncu13 = dyng_cu13\n",
@@ -711,6 +713,7 @@ def _self_test() -> int:
         plugin_cases: dict[str, dict[str, str | bytes]] = {
             "no module": {k: x for k, x in plugin_files.items() if not k.endswith(".so")},
             "the dyng package": {**plugin_files, "dyng/__init__.py": ""},
+            "no device query": {k: x for k, x in plugin_files.items() if "_devices" not in k},
             "no entry point": {**plugin_files, f"{pinfo}/entry_points.txt": ""},
             "a console script": {
                 **plugin_files,

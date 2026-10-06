@@ -68,7 +68,9 @@ plugins exist.
    `Status(usable, driver_version, device_count, reason)`; `available()` is `status().usable`:
    a driver of CUDA `<N>`.0 or newer (CUDA's minor-version compatibility lets a plugin built with
    the latest `<N>`.x run on any `<N>`.x driver, its SASS covering the GPUs; a cu12 plugin also
-   runs on a CUDA 13 driver) and at least one visible device. `native` imports `dyng_cu<N>._core`
+   runs on a CUDA 13 driver) and at least one visible device (amended by ADR 0031, "Amendments":
+   no `cuInit` in the calling process, the devices through NVML or a child process, and a
+   compute capability of 7.5 or newer). `native` imports `dyng_cu<N>._core`
    on first access (a module `__getattr__`), so asking a plugin loads neither the extension
    module nor the CUDA runtime. Which plugin wins when both are installed, the warnings of a
    fallback and the version check against `dyng` are the selection's (`dyng/_backend.py`, the

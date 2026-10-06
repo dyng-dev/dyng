@@ -269,6 +269,18 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   CPU module; `0`, `false`, `no`, `off` and empty leave the choice to dynG (before, every value
   but `0` and empty forced the CPU module, `false` included); any other value is ignored with a
   `dyng.BackendWarning`.
+- Fixed: choosing the CUDA plugin no longer initializes CUDA in the process (ADR 0031,
+  amendments): the plugin reads the driver's version with `cuDriverGetVersion` and the devices
+  through NVML (or a short child process when NVML cannot tell which devices CUDA will see), so
+  a process that used dynG (even `dyng.__version__` or CPU work) can still fork workers that use
+  CUDA. Before, every first use called `cuInit`, and a forked child's CUDA calls failed with a
+  misleading "no CUDA device is visible". A child forked after its parent really used CUDA now
+  gets an error that names fork and the remedy (`spawn` / `forkserver`).
+- Fixed: a plugin is used only when a visible GPU has compute capability 7.5 or newer (the
+  plugins' oldest architecture); on Volta, Pascal and older GPUs dynG falls back to the CPU
+  module with a `dyng.BackendWarning` that names the GPU's architecture, instead of choosing the
+  plugin and failing every default call with `cudaErrorNoKernelImageForDevice`. That CUDA error
+  now names the device's compute capability.
 
 ### Changed
 
