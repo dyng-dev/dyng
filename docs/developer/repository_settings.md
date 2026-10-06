@@ -17,8 +17,9 @@ required; Appendix E and `GOVERNANCE.md` record the decisions.
 against the read-only API on 2026-09-28 (`gh api repos/dyng-dev/dyng`, its `actions/permissions`,
 `rulesets`, `environments` and security endpoints, and `gh api orgs/dyng-dev`). The state of
 2026-09-30 (the `DCO` check required, the signing key) and of 2026-10-01 (M5 merged, the 24
-required checks, `pypa/cibuildwheel` on the Actions allow-list) was reported by the author and is
-recorded in the approvals log of `GOVERNANCE.md`.
+required checks, `pypa/cibuildwheel` on the Actions allow-list), of 2026-10-02 (the environments
+and pending publishers of the CUDA plugins) and of 2026-10-06 (GitHub Pages) was reported by the
+author and is recorded in the approvals log of `GOVERNANCE.md`.
 
 | # | Setting | When | Status |
 |---|---|---|---|
@@ -32,9 +33,9 @@ recorded in the approvals log of `GOVERNANCE.md`.
 | 8 | Labels | after the M4 merge | pending: the `labels` workflow applies `.github/labels.yml` on the first push of `main` with the M4 merge |
 | 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378), strict; 17 required checks, **18** with `DCO` from 2026-09-30, and **24** after pull request #4 (M5, merge commit `8842acf`): `scaffold`, the four checks of `python.yml` and `Python API (griffe)` added (2026-10-01) |
 | 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass; the tags `v0.1.0rc1` and `v0.1.0` may be pushed by the AI assistant on the author's behalf, GOVERNANCE.md 2026-09-30) |
-| 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
+| 11 | Environments `pypi` and `testpypi`: protection rules; for the CUDA plugins `pypi-cu12`, `pypi-cu13`, `testpypi-cu12`, `testpypi-cu13` | now; the plugin environments for 0.2.0 | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only). The four plugin environments were created by the maintainer through the API on 2026-10-02 with the same rules (`pypi-cu12` / `pypi-cu13` as `pypi`, `testpypi-cu12` / `testpypi-cu13` as `testpypi`), and the author registered the pending publishers `dyng-cu12` and `dyng-cu13` on PyPI and TestPyPI the same day (section 11) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
-| 13 | GitHub Pages: the documentation site (the plan's fallback to Read the Docs, chosen by the author on 2026-10-02) | before the M6b pull request (`docs.yml` with the `deploy` job) is merged, so that its first push to `main` deploys | open (source **GitHub Actions**) |
+| 13 | GitHub Pages: the documentation site (the plan's fallback to Read the Docs, chosen by the author on 2026-10-02) | before the M6b pull request (`docs.yml` with the `deploy` job) is merged, so that its first push to `main` deploys | **done** by the author on 2026-10-06 (source **GitHub Actions**, <https://dyng-dev.github.io/dyng/>, HTTPS enforced; GitHub created the environment `github-pages`, deployable from `main` only); the first deployment follows the merge of M6b; the website field (step 2) is set then |
 | 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); **not connected for 0.1.0**, so 0.1.0 has no DOI (the author, 2026-10-01; section 14) | later |
 
 ## 1. Organization security
@@ -255,12 +256,18 @@ Required checks (the job names as they appear in a pull request's checks list):
 | `api-check.yml` (M5; required since 2026-10-01) | `Python API (griffe)` |
 | DCO app (integration id 1861) | `DCO` (required since 2026-09-30; step 7) |
 
-Do **not** require checks of workflows that run only for some files (`labels.yml`, and
-`wheels.yml`, which runs on pull requests only when they touch the packaging), only on
-tags (`release.yml`), only on some events (`welcome.yml`, the first-interaction greeting) or
-only on a schedule (the `external-links` job of `docs.yml`): a required check that never runs
-blocks every pull request. When a
-workflow is added (`python`, `api-check`; PLAN Section 8.8), a job of the `cpu` matrix is
+Do **not** require checks of workflows that run only for some files (`labels.yml`;
+`wheels.yml`, which runs on pull requests only when they touch the packaging; `fuzz.yml`, only
+when they touch a reader), only on tags (`release.yml`), only on some events (`welcome.yml`, the
+first-interaction greeting) or only on a schedule (the `external-links` job of `docs.yml`,
+`property.yml`): a required check that never runs blocks every pull request.
+
+`sanitizers.yml` (M6b) runs on every pull request, so it may be required; it is **not required
+yet**: the lead maintainer decides after its first green runs on GitHub. Its check names are
+`asan / gcc-13`, `tsan / gcc-13` and `tsan-openmp / clang-18` (three more required checks if they
+are added to the table above).
+
+When a workflow is added (`python`, `api-check`; PLAN Section 8.8), a job of the `cpu` matrix is
 renamed, or a toolkit of the `cuda-build` matrix is bumped (its version is part of the check
 name), update this list and the ruleset in the same pull request.
 
@@ -305,6 +312,18 @@ their names are bound to the PyPI trusted publishers: **never rename them**.
 5. Back to **Environments** → **testpypi**: repeat step 3 (tag rule `v*`); required reviewers
    are optional here (release candidates go to TestPyPI only).
 
+**The CUDA plugins (0.2.0).** PyPI does not accept two identical pending publishers, so each
+plugin distribution publishes through its own environments (the author's decision of
+2026-10-02, `GOVERNANCE.md`): `pypi-cu12` and `pypi-cu13` (required reviewer SMShovan, no
+administrator bypass, tags `v*` only: steps 2-4) and `testpypi-cu12` and `testpypi-cu13` (tags
+`v*` only: step 5). The maintainer created them through the API on 2026-10-02. The author
+registered the pending publishers on PyPI and TestPyPI the same day: project `dyng-cu12` with
+the environments `pypi-cu12` / `testpypi-cu12`, project `dyng-cu13` with `pypi-cu13` /
+`testpypi-cu13`, repository `dyng-dev/dyng`, workflow `release.yml`. `release.yml` publishes each
+plugin through its own environments (M6a); the `dyng` publisher (`pypi` / `testpypi`) is
+unchanged. Like `pypi` and `testpypi`, these names are bound to the publishers: never rename
+them.
+
 Docs: <https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments>.
 
 ## 12. Discussions: categories and the pinned roadmap
@@ -318,6 +337,10 @@ Docs: <https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-de
    discussion**.
 
 ## 13. GitHub Pages: the documentation site
+
+**Status: steps 1 and 2 done by the author on 2026-10-06** (source **GitHub Actions**, HTTPS
+enforced; GitHub created the environment `github-pages`, deployable from `main` only). Steps 3
+and 4 follow the first push to `main` after the M6b merge.
 
 The documentation is hosted on **GitHub Pages** at <https://dyng-dev.github.io/dyng/> (the
 author's decision of 2026-10-02, PLAN Appendix F: the plan's fallback to Read the Docs; recorded
