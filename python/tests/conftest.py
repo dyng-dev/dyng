@@ -24,7 +24,10 @@ DATA = REPO / "cpp" / "tests" / "data"
 try:
     from hypothesis import HealthCheck, settings
 
-    # "dyng": the small profile of PLAN 11.2 (M5); "ci": more examples; "dev": a quick run.
+    # "dyng": the small profile of PLAN 11.2 (M5); "ci": more examples; "dev": a quick run;
+    # "full": the long run of PLAN 8.1 (.github/workflows/property.yml, weekly and on demand):
+    # many more examples, NOT derandomized (every run explores new inputs; a failure prints the
+    # @reproduce_failure blob to replay it), without the example database.
     settings.register_profile(
         "dyng",
         max_examples=60,
@@ -34,6 +37,14 @@ try:
     )
     settings.register_profile("ci", parent=settings.get_profile("dyng"), max_examples=200)
     settings.register_profile("dev", parent=settings.get_profile("dyng"), max_examples=15)
+    settings.register_profile(
+        "full",
+        parent=settings.get_profile("dyng"),
+        max_examples=int(os.environ.get("DYNG_HYPOTHESIS_EXAMPLES", "10000")),
+        derandomize=False,
+        database=None,
+        print_blob=True,
+    )
     settings.load_profile(os.environ.get("DYNG_HYPOTHESIS_PROFILE", "dyng"))
 except ImportError:  # pragma: no cover - hypothesis is a test dependency
     pass
