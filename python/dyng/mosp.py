@@ -197,7 +197,7 @@ class Result:
         return self
 
     def _array(self, getter: Any, what: str) -> Array:
-        return _sssp._result_array(self._native, getter, f"mosp.Result.{what}")
+        return _sssp._result_array(self._native, getter, f"mosp.Result.{what}", self._resources)
 
     def _objective(self, objective: int, what: str) -> int:
         k = as_int(objective, f"mosp.Result.{what}: objective")

@@ -138,7 +138,7 @@ class Result:
         return self
 
     def _array(self, getter: Any, what: str) -> Array:
-        return _result_array(self._native, getter, f"sssp.Result.{what}")
+        return _result_array(self._native, getter, f"sssp.Result.{what}", self._resources)
 
     @property
     def source(self) -> int:
@@ -264,14 +264,23 @@ class Result:
         )
 
 
-def _result_array(handle: Any, getter: Any, what: str) -> Array:
+def _result_array(handle: Any, getter: Any, what: str, keep: Any = None) -> Array:
     """An Array of a native result's current state, stale once the result is updated.
 
     The generation is read before the array, so an update in between makes the Array stale
-    (never current with an older state's memory).
+    (never current with an older state's memory). The Array asks the handle for the resources
+    of the call that last wrote the result (``handle.writer``) when it needs their stream (device
+    memory only). ``keep`` (the result's Python resources) lives as long as the Array, so a stream
+    object passed to ``Resources.cuda(stream=...)`` outlives the Array's use of it.
     """
     generation = handle.generation
-    return Array(getter(), lambda: bool(handle.generation == generation), what)
+    return Array(
+        getter(),
+        lambda: bool(handle.generation == generation),
+        what,
+        lambda: handle.writer,
+        keep,
+    )
 
 
 def _check_graph(graph: Graph) -> None:

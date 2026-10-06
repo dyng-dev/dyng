@@ -20,6 +20,11 @@ The rules (ADR 0011, item 3):
 - Weights are integers in the graph's weight type (int32); floating-point or boolean weights are
   rejected.
 - An unsupported combination raises :class:`~dyng.NotSupportedError` listing the supported ones.
+
+Inputs in CUDA device memory (CuPy, PyTorch, JAX, any DLPack producer; a :class:`dyng.Array` of
+the CUDA backend) are copied to the host once, ordered after the producer's stream through
+``__dlpack__(stream=...)`` (ADR 0031): graphs and batches are built from host arrays in this
+release. A device input needs a CUDA plugin's module and must be C-contiguous.
 """
 
 from __future__ import annotations
@@ -116,6 +121,48 @@ def id_dtype(name: Any, what: str) -> np.dtype:
     return out
 
 
+def _device_of(x: Any) -> tuple[int, int] | None:
+    """The DLPack device of ``x`` when it is in CUDA device memory, else None."""
+    if isinstance(x, np.ndarray | list | tuple | range):
+        return None
+    probe = getattr(x, "__dlpack_device__", None)
+    if probe is None:
+        return None
+    try:
+        kind, dev = probe()
+    except Exception:
+        return None
+    from .array import is_device
+
+    return (int(kind), int(dev)) if is_device(int(kind)) else None
+
+
+def device_to_host(x: Any, what: str) -> np.ndarray | None:
+    """A host copy of ``x`` if it is in CUDA device memory (a dyng.Array: its host copy), else
+    None. The copy is ordered after the producer's stream (``__dlpack__(stream=...)``)."""
+    from .array import Array, cuda_resources
+
+    if isinstance(x, Array):
+        return x.to_numpy(copy=None)
+    device = _device_of(x)
+    if device is None:
+        return None
+    if not native.build_config["cuda"]:
+        raise NotSupportedError(
+            f"{what}: the input is in CUDA device memory (device {device[1]}), but the active "
+            "native module is the CPU module dyng._core; install a CUDA plugin "
+            '(pip install "dyng[cu13]") or pass a host array'
+        )
+    res = cuda_resources(device[1])
+    stream = int(res.stream)  # 1: the legacy default stream (DLPack's value for it)
+    try:
+        capsule = x.__dlpack__(stream=stream, max_version=(1, 0))
+    except TypeError:  # a producer older than the 2023 array API
+        capsule = x.__dlpack__(stream=stream)
+    out: np.ndarray = native.array_to_host(res, capsule)
+    return out
+
+
 def _declared_dtype(x: Any) -> np.dtype | None:
     """The dtype an input declares: its ``dtype`` (NumPy, and anything with a NumPy-compatible
     dtype), or the element format of an object with the buffer protocol (``array.array``,
@@ -133,14 +180,25 @@ def _declared_dtype(x: Any) -> np.dtype | None:
         declared: np.dtype = np.dtype(dt)
         return declared
     except TypeError:
-        # e.g. torch.int32: go through NumPy
-        return np.dtype(np.asarray(x).dtype)
+        pass
+    try:
+        # e.g. torch.int32 (str: "torch.int32"); without reading the elements
+        named: np.dtype = np.dtype(str(dt).rsplit(".", 1)[-1])
+        return named
+    except TypeError:
+        pass
+    host = device_to_host(x, "dtype")
+    return np.dtype((host if host is not None else np.asarray(x)).dtype)
 
 
 def to_numpy(x: Any, what: str) -> np.ndarray:
-    """``x`` as a 1-D NumPy array (zero-copy for NumPy arrays, DLPack and the buffer protocol)."""
+    """``x`` as a 1-D NumPy array (zero-copy for NumPy arrays, DLPack and the buffer protocol in
+    host memory; one copy of device memory)."""
+    host = None if isinstance(x, np.ndarray) else device_to_host(x, what)
     if isinstance(x, np.ndarray):
         a = x
+    elif host is not None:
+        a = host
     elif hasattr(x, "__dlpack__") and not isinstance(x, (list, tuple, range)):
         try:
             a = np.from_dlpack(x)
@@ -215,7 +273,11 @@ def weights_view(w: Any, count: int, what: str) -> np.ndarray:
     Checks the shape and that the values are integers; the conversion to int32 (with a range
     check) is :func:`weights_matrix`. For NumPy input the result views the caller's array.
     """
-    a = np.asarray(w) if not isinstance(w, np.ndarray) else w
+    if isinstance(w, np.ndarray):
+        a = w
+    else:
+        host = device_to_host(w, what)
+        a = host if host is not None else np.asarray(w)
     if a.ndim == 1:
         a = a.reshape(-1, 1)
     if a.ndim != 2 or a.shape[0] != count:

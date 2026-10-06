@@ -52,8 +52,6 @@ class FakeDriver:
 
 @pytest.fixture
 def load(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., ModuleType]]:
-    names: list[str] = []
-
     def _load(name: str = "dyng_cu13", driver: FakeDriver | None = None) -> ModuleType:
         opened: list[str] = []
 
@@ -69,15 +67,15 @@ def load(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[..., ModuleType]]
         )
         assert spec is not None and spec.loader is not None
         module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        names.append(name)
+        # monkeypatch restores sys.modules: an installed plugin (dyng_cu13 and its module,
+        # imported when the plugin is active) is back in place after the test.
+        monkeypatch.setitem(sys.modules, name, module)
+        monkeypatch.delitem(sys.modules, f"{name}._core", raising=False)
         spec.loader.exec_module(module)
         module._test_opened = opened  # type: ignore[attr-defined]
         return module
 
     yield _load
-    for name in names:
-        sys.modules.pop(name, None)
 
 
 def test_identity_comes_from_the_package_name(load: Callable[..., ModuleType]) -> None:

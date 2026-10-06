@@ -150,7 +150,9 @@ class Result:
         """The histogram (uint64), a zero-copy view of the current state."""
         from .sssp import _result_array
 
-        return _result_array(self._native, self._native.counts, "cycle_count.Result.counts")
+        return _result_array(
+            self._native, self._native.counts, "cycle_count.Result.counts", self._resources
+        )
 
     def count(self, length: int) -> int:
         """The number of cycles of one length (0 outside [2, bound])."""
