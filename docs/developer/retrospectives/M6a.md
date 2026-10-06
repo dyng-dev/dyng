@@ -165,3 +165,131 @@ reported as available. The whole suite with the cu13 plugin active: 519 passed, 
 `$DYNG_SCRATCH/runs/m6a-discovery-check.log`). Portability pre-checks (C++ unchanged since):
 the Clang 18 syntax pass over the dev build with the bindings, 188 files, no failure; the
 `cpu-only` build with `-D_FORTIFY_SOURCE=3` and the bindings is clean.
+
+## Step ci-release (2026-10-06)
+
+**Done.** ADR 0032 (accepted under delegation). `wheels.yml` builds `dyng-cu12` and `dyng-cu13`
+from the run's sdist with cibuildwheel in the manylinux_2_28 image (`ci/cibuildwheel-plugin.toml`,
+`before-all` = `ci/cibw_plugin.sh`), with the CUDA toolkits pinned file by file in
+`ci/cuda_toolkits.toml` (CUDA 12.9 and 13.4, every RPM of NVIDIA's RHEL 8 repository with its
+SHA-256; `ci/cuda_toolkit.py` locks, downloads, verifies and unpacks them; the downloads cached
+except for tags), checks them (`twine check --strict`, `ci/wheel_check.py` with the 90 MB
+budget) and install-tests each with the CPU wheel in fresh 3.12 / 3.13 venvs on the GPU-less
+runners (`ci/plugin_smoke.py --expect fallback --reason "no CUDA driver"`, the pytest suite).
+`release.yml` builds core and plugins for tags from v0.2.0 (release candidates included),
+checks the release set and publishes each distribution through its own environments
+(`testpypi` / `pypi`, `testpypi-cu12` / `pypi-cu12`, `testpypi-cu13` / `pypi-cu13`), TestPyPI
+first and PyPI only for final versions, one approval per environment; v0.0.x / v0.1.x tags
+publish `dyng` alone as before (`ci/wheel_check.py --release-distributions`, `--release-set`,
+`--split`, with tests). `ci/plugin_wheels.sh` now uses the same smoke script (`--expect cuda`,
+`--expect fallback` with no device and with the driver hidden by `ci/without_cuda_driver.sh`).
+The informational wheel-vs-parity row is `parity/wheel_vs_parity.py`. Docs: `wheels.md`,
+`release.md`, `repository_settings.md` (the four new environments), the install guide,
+CHANGELOG, ADR index, GOVERNANCE approvals log.
+
+**What could not be run here.** There is no container runtime on the machine, so the container
+part of the CI build (`dnf` in the image, its gcc-toolset 14, cibuildwheel's isolated build) has
+not run; the first pull request run of `wheels.yml` is its first real test. Checked instead:
+actionlint, zizmor, `ci/github_meta_check.py --verify-pins` (no new action: `actions/cache` is
+already used and pinned); cibuildwheel 4.2.1's own option parsing of the plugin configuration
+(one identifier, `cp312-manylinux_x86_64`; the image pinned at 2026.09.05-1, whose `PATH` puts
+gcc-toolset 14 first); the `select` job's script for `v0.0.1` and `v0.2.0.dev0` tags; the pinned
+toolkits unpacked (`ci/cuda_toolkit.py extract`) and used for local builds of both plugins with
+the usual GCC 12.4 toolchain **and** with conda-forge's GCC 14 against the glibc 2.28 sysroot
+(the image's compiler major; logs `$DYNG_SCRATCH/runs/m6a-ci-toolkits-plugin-wheels.log`,
+`m6a-ci-gcc14-plugin-wheels.log`): every build passed `wheel_check` and the GPU tests on GPU 1;
+the CI smoke test and the whole suite with a plugin installed and the driver hidden (473 passed,
+50 skipped: the same suite the `plugin-install-test` job runs).
+
+**Deviations and refinements** (each recorded in ADR 0032):
+
+1. PLAN 7.7: "CUDA toolkit installed in `before-all` from NVIDIA's RHEL8 repository". The packages
+   are NVIDIA's RHEL 8 RPMs, but pinned by SHA-256 in a committed lock file, downloaded on the
+   runner (where `actions/cache` can keep them) and installed from those files, not from the
+   live repository; dependabot does not see the lock, so re-pinning to a new 12.x / 13.x is a
+   maintainer's step (`ci/cuda_toolkit.py lock`, `docs/developer/wheels.md`).
+2. The cu13 wheel of CI is built with CUDA 13.4 (the latest 13.x on 2026-10-06), not with the
+   development machine's 13.1; it runs on the 13.1 driver here (minor-version compatibility).
+3. No test runs inside cibuildwheel for the plugins (`test-skip = "*"`): the plugin needs the
+   core wheel of the same version, which is not on PyPI before the release; a separate job
+   installs both wheels (`--no-index`) and tests them, as the CPU wheel's install-test does.
+4. The three PyPI uploads of a release are not ordered among themselves; the approvals of
+   `pypi`, `pypi-cu12` and `pypi-cu13` can be given in one dialog.
+5. PLAN Appendix F names the environments `pypi` / `testpypi` for the plugins' pending
+   publishers; the author's setup (relayed by the orchestrator) has one pair per plugin
+   (`*-cu12`, `*-cu13`), because PyPI refuses two identical pending publishers. The workflow
+   follows the setup; the plan's line is out of date (an account-level fact, not decided here).
+6. The wheel-vs-parity row's cycle_count update batch is drawn by the script (numpy, seed 1),
+   not by the original's generator, which is not bound to Python; both sides use the same batch.
+7. The ADR is numbered 0032; M6b, running at the same time, may take the same number: renumber
+   at merge if needed.
+
+**The wheel-vs-parity row** (PLAN 7.7, informational; `parity/results/M6a-wheel-vs-parity.json`,
+log `$DYNG_SCRATCH/runs/m6a-wheel-vs-parity.log`): commit `476ab72`, GPU 0 (RTX A5000, driver
+590.48.01), clocks locked at boost (SM 1695 MHz, memory 7601 MHz), the exclusive perf lock, 21
+alternating rounds after one warm-up round, medians. Sides: **parity-cuda** (the `parity-cuda`
+preset's library: shared `libdyng.so`, `-O3 -lineinfo`, sm_86, shared CUDA runtime, CUDA 13.1,
+system GCC 12.2; with the bindings), **wheel-cu13** (the cu13 wheel built locally with CUDA 13.1:
+release architectures, static runtime, conda GCC 12.4) and **wheel-cu13-ci** (the same with the
+pinned CI toolkit, CUDA 13.4). Each side computed the same results (checked).
+
+| Region (ms, median) | parity-cuda | wheel-cu13 | ratio | wheel-cu13-ci | ratio |
+|---|---|---|---|---|---|
+| sssp roadNet-CA unsafe 50K: `sssp.enact_fused` obj 0 | 8.676 | 8.579 | 0.989 | 8.785 | 1.013 |
+| obj 1 | 8.919 | 8.799 | 0.986 | 9.062 | 1.016 |
+| obj 2 | 8.799 | 8.667 | 0.985 | 8.882 | 1.010 |
+| sum of the three | 26.400 | 26.054 | 0.987 | 26.734 | 1.013 |
+| the whole `dyng.update` (commit included) | 174.5 | 180.5 | 1.034 | 181.1 | 1.037 |
+| cycle_count DD k = 4: `cycle_count.count` | 0.979 | 0.975 | 0.996 | 0.974 | 0.995 |
+| `cycle_count.update` (25K + 25K) | 3.809 | 3.765 | 0.988 | 4.146 | 1.088 |
+
+The wheel built with the parity build's toolkit is within 1.5 % of the parity build on the
+CUDA regions (slightly faster), and 3.4 % slower on the whole update, whose host-side commit is
+compiled by another GCC with libdyng linked into the module. The CI-toolkit wheel (CUDA 13.4) is
+1-2 % slower on sssp and 8.8 % slower on the cycle_count update: a compiler-version difference
+(the same build otherwise), worth a look before 0.2.0 if it persists in the CI-built wheel. No
+gate applies (PLAN 7.7).
+
+**Verification** (HEAD `476ab72`, before this section was committed):
+
+| Check | Result |
+|---|---|
+| `ci/plugin_wheels.sh`, cu12 + cu13 with the pinned CI toolkits (12.9, 13.4), Python 3.12 and 3.13, the interop venv | rc 0 (log `$DYNG_SCRATCH/runs/m6a-ci-release-plugin-wheels.log`, wheels in `$DYNG_SCRATCH/wheels/m6a-final-ci`): `dyng_cu12` 5.65 MB, `dyng_cu13` 5.92 MB, twine and `wheel_check` clean; per plugin and Python: the GPU smoke test (arrays equal to the sequential backend's), the fallback without a visible device and with the driver hidden, `pytest -m gpu` 43 passed / 3 skipped (no torch / cupy), the suite with `DYNG_CPU_ONLY=1` 473 passed / 50 skipped; interop venv (PyTorch, CuPy): 46 passed per plugin |
+| the same for cu13 with `/usr/local/cuda-13.1`, Python 3.12 | rc 0 (`$DYNG_SCRATCH/wheels/m6a-final-cu131`; 5.51 MB) |
+| `ci/check.sh` in a fresh clone (`$DYNG_SCRATCH/m6a-verify/clone`, `git checkout m6a-cuda-wheels`) | all checks passed (log `$DYNG_SCRATCH/runs/m6a-ci-release-check.log`): `cpu-only` 678/678 and `dev` 707/707 (`ctest -L cpu`), clang-tidy, reuse, provenance, regen, the harness and CI-script tests (155 passed), `ci/python.sh` (stubs, mypy, pytest 473 passed / 50 skipped), griffe, the scaffold check, `ci/docs.sh` (Doxygen, Sphinx -W, links), pre-commit (actionlint and zizmor included) |
+| `ci/github_meta_check.py --verify-pins` | OK (every action SHA equals its tag) |
+| Portability pre-checks (no C++ change in this step) | the Clang 18 syntax pass over a `dev` + `DYNG_BUILD_PYTHON=ON` database: 188 files, 0 failures; the `cpu-only` build with `-D_FORTIFY_SOURCE=3` and the bindings: clean |
+
+## Milestone acceptance
+
+| # | Criterion | Evidence | Status |
+|---|---|---|---|
+| 1 | Plugin build: documented and reproducible, `dyng_cu12` / `dyng_cu13` with every backend, own `NB_DOMAIN`, static cudart, no libcuda, SASS + PTX per the toolkit's release list, `dyng==` same version, entry point `dyng.backends`, core extras `cu12` / `cu13` pinned; wheels < 90 MB; `twine check --strict`; licence files | step plugin-build (ADR 0030); `docs/developer/wheels.md`; the wheels of this step 5.5-5.9 MB, every check clean | met, except the licence **expression** of the plugins, which is the author's open decision (the licence files are complete) |
+| 2 | Discovery and selection: `Resources.cuda()` from Python, the driver's major wins, version mismatch / missing driver fall back with a warning, `use_cpu_only()`, `show_config()`, the CPU-only install unchanged; tests with fake plugins and real GPU tests on GPU 1 against a local cu13 wheel (sssp / cycle_count / mosp equal to CPU and to the goldens subset; device arrays, CuPy / PyTorch round trips) | step discovery-tests (ADR 0031); re-run in this step's verification (both plugins, both Pythons, interop venv) | met; the version-mismatch and too-old-driver fallbacks are tested with fake plugins only (no such driver here) |
+| 3 | CI: `wheels.yml` builds both plugins with cibuildwheel in manylinux_2_28 with the CUDA toolkits in `CIBW_BEFORE_ALL`, a GPU-free selection smoke test, artifacts, the size check; `release.yml` for tags >= v0.2.0 with per-distribution environments, TestPyPI first, PyPI only for finals, v0.0.x / v0.1.x unchanged; actionlint / zizmor clean, actions pinned and allowed | this step (ADR 0032) | met as far as it can be checked without a push: the workflows have not run on GitHub yet (see "What could not be run here") |
+| 4 | Local verification: both plugin wheels in fresh 3.12 / 3.13 venvs with the core wheel, GPU tests on GPU 1; the wheel-vs-parity row under the exclusive lock with locked clocks | this step's verification and the row above | met |
+| 5 | Docs (install guide, `wheels.md`, `release.md`), CHANGELOG, ADRs, this retrospective; a fresh clone passes `ci/check.sh`, `ci/python.sh`, `ci/docs.sh` and the portability pre-checks | this step | met |
+
+## Open items for the lead maintainer
+
+1. **The licence expression of the plugin wheels** (GOVERNANCE.md, open decisions; ADR 0030
+   item 9): keep the CPU wheel's expression, or add `Apache-2.0 WITH LLVM-exception AND
+   LicenseRef-NVIDIA-End-User-License-Agreement`. Due before the first `v0.2.0*` tag.
+2. **The four new environments** `testpypi-cu12`, `pypi-cu12`, `testpypi-cu13`, `pypi-cu13`
+   need the protection rules of `pypi` / `testpypi` (required reviewer on `pypi-*`, tags `v*`,
+   no administrator bypass): `docs/developer/repository_settings.md` section 11, item 11b.
+3. **The first CI run of the plugins** happens on the pull request: watch the `plugin` jobs
+   (the container part: `dnf` installing the pinned RPMs, nvcc 12.9 / 13.4 with gcc-toolset 14,
+   the build time on four cores) and `plugin-install-test`. A manual `wheels.yml` run before the
+   release candidate is the rehearsal (`docs/developer/release.md` step 4).
+4. **The cycle_count update in the CUDA 13.4 wheel** was 8.8 % slower than the parity build
+   (13.1) in the informational row, while the 13.1 wheel was 1.2 % faster: worth a look (an
+   Nsight comparison of the update kernels under 13.1 and 13.4) before 0.2.0; no gate applies.
+5. **Re-pinning the CUDA toolkits** is manual (`ci/cuda_toolkit.py lock`): check for a newer
+   12.x / 13.x before each release.
+6. **Disk in the work area** (not in the repository): the pinned toolkits unpacked under
+   `$DYNG_SCRATCH/tools/ci-cuda` (1.1 GB, used by `wheels.md`'s "CI toolkit locally"), the GCC 14
+   toolchain `$DYNG_SCRATCH/tools/gcc14-tc` (0.7 GB, only for the check of this step), the
+   parity-cuda build and overlay of the timing row (`$DYNG_SCRATCH/build/wvp-parity-cuda`,
+   `$DYNG_SCRATCH/wvp`), and the wheel trees `$DYNG_SCRATCH/wheels/m6a-*`; delete them when no
+   longer needed.
