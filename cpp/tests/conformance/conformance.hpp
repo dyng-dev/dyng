@@ -460,11 +460,20 @@ std::vector<std::int64_t> counters(const typename traits_t::stats& s) {
   return out;
 }
 
+/// Whether the algorithm's graphs are directed (its requirements may ask for an undirected
+/// graph, graph_properties::directed = false; the kit's models follow).
+template <typename traits_t>
+bool directed_graphs() {
+  graph_properties props;
+  traits_t::require(props);
+  return props.directed;
+}
+
 /// A random model of a size class.
 template <typename case_t>
 graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_64& rng) {
-  graph_model<typename case_t::graph_type> m =
-      random_model<typename case_t::graph_type>(case_t::traits::shape(size), rng);
+  graph_model<typename case_t::graph_type> m = random_model<typename case_t::graph_type>(
+      case_t::traits::shape(size), rng, directed_graphs<typename case_t::traits>());
   m.num_weights = weight_columns<typename case_t::traits>();
   return m;
 }
@@ -640,7 +649,7 @@ TYPED_TEST_P(conformance, C2_UpdateChainsEqualTheOracle) {
               ASSERT_EQ(static_cast<std::int64_t>(c.g->num_vertices()),
                         static_cast<std::int64_t>(model.num_vertices));
               ASSERT_EQ(static_cast<std::int64_t>(c.g->num_edges()),
-                        static_cast<std::int64_t>(model.weights.size()));
+                        static_cast<std::int64_t>(model.weights.size()) * model.directions());
               kit_detail::expect_oracle(c);
               if (::testing::Test::HasFailure()) {
                 return;  // the first failing chain is enough (its seed is in the trace)
@@ -836,7 +845,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       vertex_t v = 0;
       for (vertex_t x = 0; x < model.num_vertices && u == v; ++x) {
         for (vertex_t y = 0; y < model.num_vertices; ++y) {
-          if (x != y && model.weights.count({x, y}) == 0) {
+          if (x != y && !model.has(x, y)) {
             u = x;
             v = y;
             break;
@@ -848,7 +857,8 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         batch_t b = make_batch();
         b.delete_edge(u, v);
         const auto s = c.step(b);
-        EXPECT_EQ(s.batch.ignored_deletions, 1) << "a deletion of a missing edge is counted";
+        EXPECT_EQ(s.batch.ignored_deletions, model.directions())
+            << "a deletion of a missing edge is counted (once per stored direction)";
         EXPECT_EQ(s.affected, 0);
         EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
       }
@@ -858,7 +868,8 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         insert(b, existing.first, existing.second);
         insert(b, vertex_t{0}, vertex_t{0});
         const auto s = c.step(b);
-        EXPECT_EQ(s.batch.ignored_insertions, 1) << "an insertion of an existing edge is counted";
+        EXPECT_EQ(s.batch.ignored_insertions, model.directions())
+            << "an insertion of an existing edge is counted (once per stored direction)";
         EXPECT_EQ(s.batch.dropped_self_loops, 1) << "a self-loop is dropped and counted";
         EXPECT_EQ(s.affected, 0);
         EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
@@ -1020,7 +1031,8 @@ TYPED_TEST_P(conformance, C9_StatsAreSane) {
           EXPECT_LE(s.affected, std::max<std::int64_t>(a.num_vertices_after, 1));
           EXPECT_EQ(a.num_vertices_after, static_cast<std::int64_t>(c.g->num_vertices()));
           const auto requested =
-              static_cast<std::int64_t>(gen.batch.num_insertions() + gen.batch.num_deletions());
+              static_cast<std::int64_t>(gen.batch.num_insertions() + gen.batch.num_deletions()) *
+              model.directions();  // an undirected graph counts each direction
           EXPECT_EQ(a.inserted_edges + a.updated_edges + a.ignored_insertions + a.deleted_edges +
                         a.ignored_deletions + a.dropped_self_loops,
                     requested)
@@ -1067,7 +1079,7 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
           shape.vertices = std::min(shape.vertices, theirs_shape.vertices);
           shape.edges = std::min(shape.edges, theirs_shape.edges);
           std::mt19937_64 rng(10000 + (as_sets ? 1U : 0U));
-          graph_model<graph_t> model = random_model<graph_t>(shape, rng);
+          graph_model<graph_t> model = random_model<graph_t>(shape, rng, props.directed);
           model.num_weights =
               std::max(kit_detail::weight_columns<traits>(), kit_detail::weight_columns<partner>());
           const resources res = kit_detail::resources_for(b);

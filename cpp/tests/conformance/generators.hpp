@@ -3,8 +3,9 @@
 /**
  * @file generators.hpp
  * @brief The graphs and batches of the conformance kit (PLAN Section 8.2, C2): seeded random
- *        directed graphs kept in a host model, and batch mixes generated from the model so that
- *        every batch is valid under both batch-semantics presets and has a known inverse (C5).
+ *        directed (or undirected) graphs kept in a host model, and batch mixes generated from the
+ *        model so that every batch is valid under both batch-semantics presets and has a known
+ *        inverse (C5).
  */
 #pragma once
 
@@ -72,6 +73,11 @@ inline std::vector<batch_mix> all_mixes() {
  * @brief A host model of a simple directed graph (no self-loops, no parallel edges): the edges
  *        and their weights (ignored for unweighted graphs).
  *
+ * An undirected model (`directed` false, for an algorithm whose requirements set
+ * graph_properties::directed = false) keeps every edge once, as the pair (u, v) with u < v; the
+ * graph stores it in both directions and counts every batch edge once per direction
+ * (apply_summary).
+ *
  * A weighted model has `num_weights` columns (test_traits::num_weights, default 1): the model
  * stores the first column, and every further column is a fixed function of the edge and the
  * first column's weight (column_weight()), so a batch that changes an edge's weight changes the
@@ -93,6 +99,23 @@ struct graph_model {
   std::map<edge, std::int32_t> weights;  ///< the edges and their weights (column 0)
   int max_weight = 9;                    ///< new weights are drawn from [1, max_weight]
   int num_weights = 1;                   ///< weight columns of a weighted graph
+  bool directed = true;                  ///< false: an undirected model (pairs u < v)
+
+  /// The key of the edge (u, v) in `weights`: (u, v), or (min, max) for an undirected model.
+  [[nodiscard]] edge key(vertex_type u, vertex_type v) const noexcept {
+    return directed || u < v ? edge{u, v} : edge{v, u};
+  }
+
+  /// Whether the model has the edge (u, v) (in either direction for an undirected model).
+  [[nodiscard]] bool has(vertex_type u, vertex_type v) const {
+    return weights.count(key(u, v)) != 0;
+  }
+
+  /// The stored directions of one edge (1, or 2 for an undirected model): the factor of the
+  /// edge count and of the apply_summary counters of a batch without self-loops.
+  [[nodiscard]] std::int64_t directions() const noexcept {
+    return directed ? 1 : 2;
+  }
 
   /// The weight of column `k` of the edge (u, v) whose column 0 holds `w` (in [1, max_weight]).
   [[nodiscard]] std::int32_t column_weight(vertex_type u, vertex_type v, std::int32_t w,
@@ -127,15 +150,18 @@ struct graph_model {
   }
 };
 
-/// A random model of `shape` (distinct edges without self-loops).
+/// A random model of `shape` (distinct edges without self-loops); undirected if `directed` is
+/// false.
 template <typename graph_t>
-graph_model<graph_t> random_model(const graph_shape& shape, std::mt19937_64& rng) {
+graph_model<graph_t> random_model(const graph_shape& shape, std::mt19937_64& rng,
+                                  bool directed = true) {
   using vertex_type = typename graph_t::vertex_type;
   graph_model<graph_t> m;
   m.num_vertices = static_cast<vertex_type>(shape.vertices);
   m.max_weight = shape.max_weight;
+  m.directed = directed;
   const std::int64_t n = shape.vertices;
-  const std::int64_t possible = n * (n - 1);
+  const std::int64_t possible = directed ? n * (n - 1) : n * (n - 1) / 2;
   const std::int64_t wanted = std::min(shape.edges, possible);
   std::uniform_int_distribution<std::int64_t> vertex(0, std::max<std::int64_t>(n - 1, 0));
   std::uniform_int_distribution<int> weight(1, shape.max_weight);
@@ -143,7 +169,7 @@ graph_model<graph_t> random_model(const graph_shape& shape, std::mt19937_64& rng
     const auto u = static_cast<vertex_type>(vertex(rng));
     const auto v = static_cast<vertex_type>(vertex(rng));
     if (u != v) {
-      m.weights.emplace(std::make_pair(u, v), weight(rng));
+      m.weights.emplace(m.key(u, v), weight(rng));
     }
   }
   return m;
@@ -277,7 +303,7 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
     for (std::int64_t i = 0; i < insertions; ++i) {
       const auto fresh = static_cast<vertex_type>(n + (i % added));
       const auto old = static_cast<vertex_type>(old_vertex(rng));
-      const edge e = (i % 2 == 0) ? edge{old, fresh} : edge{fresh, old};
+      const edge e = (i % 2 == 0) ? edge{old, fresh} : m.key(fresh, old);
       if (e.first != e.second && m.weights.emplace(e, weight(rng)).second) {
         generators_detail::insert<graph_t>(m, out.batch, e.first, e.second, m.weights.at(e));
         grown = std::max<std::int64_t>(grown, static_cast<std::int64_t>(fresh) + 1);
@@ -289,13 +315,15 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
     std::uniform_int_distribution<std::int64_t> vertex(mix == batch_mix::local ? w0 : 0,
                                                        mix == batch_mix::local ? w1 - 1 : n - 1);
     std::uniform_int_distribution<std::int64_t> any(0, n - 1);
-    const std::int64_t possible = n * (n - 1);
+    const std::int64_t possible = m.directed ? n * (n - 1) : n * (n - 1) / 2;
     for (std::int64_t i = 0, tries = 0;
          i < insertions && static_cast<std::int64_t>(m.weights.size()) < possible && tries < 64 * k;
          ++tries) {
-      const auto u = static_cast<vertex_type>(vertex(rng));
-      const auto v = static_cast<vertex_type>(tries % 2 == 0 ? any(rng) : vertex(rng));
-      const edge e{u, v};
+      const auto x = static_cast<vertex_type>(vertex(rng));
+      const auto y = static_cast<vertex_type>(tries % 2 == 0 ? any(rng) : vertex(rng));
+      const edge e = m.key(x, y);
+      const vertex_type u = e.first;
+      const vertex_type v = e.second;
       if (u != v && m.weights.count(e) == 0) {
         // An edge deleted by this batch is not re-inserted (that would be a cancelled pair).
         bool deleted = false;
