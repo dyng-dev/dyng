@@ -1,0 +1,98 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The reader fuzzers (PLAN Sections 5.7, 8.1 and 8.8; cpp/fuzz/README.md) on GitHub-hosted
+# runners: ci/fuzz.sh builds the libFuzzer targets with Clang 18 (the preset `fuzz`:
+# -fsanitize=fuzzer,address,undefined, libdyng instrumented), replays the committed seed corpus
+# and crash reproducers (ctest --preset fuzz), then runs every target for 60 s on a copy of the
+# seed corpus. Pull requests run it when they touch a reader, the parser utilities, the fuzzers or
+# this workflow; a weekly run fuzzes the main branch for longer. Not a required check (fuzzing is
+# randomized: a finding is a new bug to fix, not a property of the pull request that met it).
+#
+# On a finding, the job fails and uploads the reproducer (artifact `fuzz-findings`). Fix the
+# reader, add a regression test (cpp/tests/io/fuzz_regression_test.cpp) and commit the
+# reproducer to cpp/fuzz/regressions/<target>/, which every test build replays.
+name: fuzz
+
+on:
+  pull_request:
+    paths:
+      - "cpp/src/io/**"
+      - "cpp/include/dyng/io/**"
+      - "cpp/src/util/parser.*"
+      - "cpp/src/util/text_writer.*"
+      - "cpp/src/util/parallel_parts.hpp"
+      - "cpp/fuzz/**"
+      - "ci/fuzz.sh"
+      - "cmake/sanitizers.cmake"
+      - "CMakePresets.json"
+      - ".github/workflows/fuzz.yml"
+  schedule:
+    - cron: "41 4 * * 0"  # Sundays 04:41 UTC: every target for 10 minutes
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "Seconds per target"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/cpm
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Clang 18 with its libFuzzer and sanitizer runtimes, build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-18 libclang-rt-18-dev
+          echo "CXX=clang++-18" >> "${GITHUB_ENV}"
+          python -m pip install "cmake>=3.30,<4.5" ninja
+      - name: Cache CPM downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-${{ runner.os }}-${{ hashFiles('cmake/CPM.cmake', 'cmake/package-lock.cmake') }}
+      - name: Fuzz time per target
+        id: time
+        env:
+          EVENT: ${{ github.event_name }}
+          REQUESTED: ${{ inputs.seconds }}
+        run: |
+          case "${EVENT}" in
+            schedule) seconds=600 ;;
+            workflow_dispatch) seconds="${REQUESTED:-60}" ;;
+            *) seconds=60 ;;
+          esac
+          case "${seconds}" in
+            '' | *[!0-9]*) echo "seconds must be a whole number, got '${seconds}'" >&2; exit 1 ;;
+          esac
+          echo "seconds=${seconds}" >> "${GITHUB_OUTPUT}"
+      - name: Build, replay the corpus, fuzz every target
+        env:
+          SECONDS_PER_TARGET: ${{ steps.time.outputs.seconds }}
+        run: ci/fuzz.sh --time "${SECONDS_PER_TARGET}"
+      - name: Upload the reproducers of a finding
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: fuzz-findings
+          path: build/fuzz-runs/artifacts
+          if-no-files-found: ignore
+          retention-days: 30
