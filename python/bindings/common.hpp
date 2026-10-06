@@ -477,18 +477,20 @@ decltype(auto) read_result(const result_holder<value_t>& h, function_t&& f) {
 // The bind functions (one per file)
 // ---------------------------------------------------------------------------------------------
 
-void bind_errors(nb::module_& m);       ///< errors.cpp
-void bind_resources(nb::module_& m);    ///< resources.cpp
-void bind_graph(nb::module_& m);        ///< graph.cpp
-void bind_batch(nb::module_& m);        ///< batch.cpp
-void bind_sssp(nb::module_& m);         ///< sssp.cpp
-void bind_cycle_count(nb::module_& m);  ///< cycle_count.cpp
-void bind_mosp(nb::module_& m);         ///< mosp.cpp
-void bind_update(nb::module_& m);       ///< update.cpp
-void bind_io(nb::module_& m);           ///< io.cpp
-void bind_generators(nb::module_& m);   ///< generators.cpp
-void bind_profiler(nb::module_& m);     ///< profiler.cpp
-void bind_registry(nb::module_& m);     ///< registry.cpp
-void bind_testing(nb::module_& m);      ///< testing.cpp
+void bind_errors(nb::module_& m);          ///< errors.cpp
+void bind_resources(nb::module_& m);       ///< resources.cpp
+void bind_graph(nb::module_& m);           ///< graph.cpp
+void bind_batch(nb::module_& m);           ///< batch.cpp
+void bind_sssp(nb::module_& m);            ///< sssp.cpp
+void bind_cycle_count(nb::module_& m);     ///< cycle_count.cpp
+void bind_mosp(nb::module_& m);            ///< mosp.cpp
+void bind_dynamic_bfs(nb::module_& m);     ///< dynamic_bfs.cpp
+void bind_triangle_delta(nb::module_& m);  ///< triangle_delta.cpp
+void bind_update(nb::module_& m);          ///< update.cpp
+void bind_io(nb::module_& m);              ///< io.cpp
+void bind_generators(nb::module_& m);      ///< generators.cpp
+void bind_profiler(nb::module_& m);        ///< profiler.cpp
+void bind_registry(nb::module_& m);        ///< registry.cpp
+void bind_testing(nb::module_& m);         ///< testing.cpp
 
 }  // namespace dyng::python

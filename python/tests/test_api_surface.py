@@ -74,7 +74,7 @@ def test_registry_matches_modules() -> None:
     assert names == list(ALGORITHMS)
     for a in dyng.algorithms():
         assert a.backends[0] == "sequential"
-        assert a.cite
+        assert a.cite or a.maturity == "tutorial"  # teaching material cites no paper
         assert a.title == ALGORITHMS[a.name]["title"]
 
 
@@ -209,6 +209,8 @@ def test_stubs_are_committed() -> None:
         (dyng.sssp.Options, "SsspOptions"),
         (dyng.cycle_count.Options, "CycleCountOptions"),
         (dyng.mosp.Options, "MospOptions"),
+        (dyng.dynamic_bfs.Options, "DynamicBfsOptions"),
+        (dyng.triangle_delta.Options, "TriangleDeltaOptions"),
         (dyng.GraphProperties, "GraphProperties"),
         (dyng.BatchSemantics, "BatchSemantics"),
     ],

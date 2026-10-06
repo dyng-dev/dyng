@@ -1158,6 +1158,191 @@ def mosp_from_arrays(resources: Resources, graph: GraphI32I64I32, source: int, d
 @overload
 def mosp_from_arrays(resources: Resources, graph: GraphI64I64I32, source: int, distances: Sequence[Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)]], parents: Sequence[Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)]], canonicalize: bool, options: MospOptions) -> MospResultI64: ...
 
+class DynamicBfsOptions:
+    """dynamic_bfs::options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def source(self) -> int: ...
+
+    @source.setter
+    def source(self, arg: int, /) -> None: ...
+
+class DynamicBfsStats:
+    """dynamic_bfs::stats."""
+
+    @property
+    def affected(self) -> int: ...
+
+    @property
+    def iterations(self) -> int: ...
+
+    @property
+    def frontier_visits(self) -> int: ...
+
+    @property
+    def fallback_used(self) -> bool: ...
+
+    @property
+    def converged(self) -> bool: ...
+
+    @property
+    def engine_used(self) -> Engine: ...
+
+    @property
+    def batch(self) -> ApplySummary: ...
+
+    @property
+    def invalidated(self) -> int: ...
+
+    @property
+    def invalidation_rounds(self) -> int: ...
+
+class DynamicBfsResult:
+    """A dynamic_bfs::result (private)."""
+
+    def levels(self) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]: ...
+
+    @property
+    def generation(self) -> int:
+        """The number of updates of this result (dyng.Array's staleness check)."""
+
+    @property
+    def options(self) -> DynamicBfsOptions: ...
+
+    def set_options(self, options: DynamicBfsOptions) -> None: ...
+
+    @property
+    def graph_version(self) -> int: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    def clone(self, resources: Resources) -> DynamicBfsResult: ...
+
+@overload
+def dynamic_bfs_compute(resources: Resources, graph: GraphI32I32I32, options: DynamicBfsOptions) -> DynamicBfsResult: ...
+
+@overload
+def dynamic_bfs_compute(resources: Resources, graph: GraphI32I64I32, options: DynamicBfsOptions) -> DynamicBfsResult: ...
+
+@overload
+def dynamic_bfs_compute(resources: Resources, graph: GraphI64I64I32, options: DynamicBfsOptions) -> DynamicBfsResult: ...
+
+@overload
+def dynamic_bfs_compute(resources: Resources, graph: GraphI32I32U, options: DynamicBfsOptions) -> DynamicBfsResult: ...
+
+@overload
+def dynamic_bfs_compute(resources: Resources, graph: GraphI32I64U, options: DynamicBfsOptions) -> DynamicBfsResult: ...
+
+@overload
+def dynamic_bfs_update(resources: Resources, graph: GraphI32I32I32, batch: EdgeBatchI32I32, result: DynamicBfsResult) -> DynamicBfsStats: ...
+
+@overload
+def dynamic_bfs_update(resources: Resources, graph: GraphI32I64I32, batch: EdgeBatchI32I32, result: DynamicBfsResult) -> DynamicBfsStats: ...
+
+@overload
+def dynamic_bfs_update(resources: Resources, graph: GraphI64I64I32, batch: EdgeBatchI64I32, result: DynamicBfsResult) -> DynamicBfsStats: ...
+
+@overload
+def dynamic_bfs_update(resources: Resources, graph: GraphI32I32U, batch: EdgeBatchI32U, result: DynamicBfsResult) -> DynamicBfsStats: ...
+
+@overload
+def dynamic_bfs_update(resources: Resources, graph: GraphI32I64U, batch: EdgeBatchI32U, result: DynamicBfsResult) -> DynamicBfsStats: ...
+
+class TriangleDeltaOptions:
+    """triangle_delta::options."""
+
+    def __init__(self) -> None: ...
+
+class TriangleDeltaStats:
+    """triangle_delta::stats."""
+
+    @property
+    def affected(self) -> int: ...
+
+    @property
+    def iterations(self) -> int: ...
+
+    @property
+    def frontier_visits(self) -> int: ...
+
+    @property
+    def fallback_used(self) -> bool: ...
+
+    @property
+    def converged(self) -> bool: ...
+
+    @property
+    def engine_used(self) -> Engine: ...
+
+    @property
+    def batch(self) -> ApplySummary: ...
+
+    @property
+    def deletions(self) -> int: ...
+
+    @property
+    def insertions(self) -> int: ...
+
+    @property
+    def triangles_removed(self) -> int: ...
+
+    @property
+    def triangles_added(self) -> int: ...
+
+class TriangleDeltaResult:
+    """A triangle_delta::result (private)."""
+
+    @property
+    def count(self) -> int: ...
+
+    @property
+    def generation(self) -> int:
+        """The number of updates of this result."""
+
+    @property
+    def options(self) -> TriangleDeltaOptions: ...
+
+    @property
+    def graph_version(self) -> int: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    def clone(self, resources: Resources) -> TriangleDeltaResult: ...
+
+@overload
+def triangle_delta_compute(resources: Resources, graph: GraphI32I32I32, options: TriangleDeltaOptions) -> TriangleDeltaResult: ...
+
+@overload
+def triangle_delta_compute(resources: Resources, graph: GraphI32I64I32, options: TriangleDeltaOptions) -> TriangleDeltaResult: ...
+
+@overload
+def triangle_delta_compute(resources: Resources, graph: GraphI64I64I32, options: TriangleDeltaOptions) -> TriangleDeltaResult: ...
+
+@overload
+def triangle_delta_compute(resources: Resources, graph: GraphI32I32U, options: TriangleDeltaOptions) -> TriangleDeltaResult: ...
+
+@overload
+def triangle_delta_compute(resources: Resources, graph: GraphI32I64U, options: TriangleDeltaOptions) -> TriangleDeltaResult: ...
+
+@overload
+def triangle_delta_update(resources: Resources, graph: GraphI32I32I32, batch: EdgeBatchI32I32, result: TriangleDeltaResult) -> TriangleDeltaStats: ...
+
+@overload
+def triangle_delta_update(resources: Resources, graph: GraphI32I64I32, batch: EdgeBatchI32I32, result: TriangleDeltaResult) -> TriangleDeltaStats: ...
+
+@overload
+def triangle_delta_update(resources: Resources, graph: GraphI64I64I32, batch: EdgeBatchI64I32, result: TriangleDeltaResult) -> TriangleDeltaStats: ...
+
+@overload
+def triangle_delta_update(resources: Resources, graph: GraphI32I32U, batch: EdgeBatchI32U, result: TriangleDeltaResult) -> TriangleDeltaStats: ...
+
+@overload
+def triangle_delta_update(resources: Resources, graph: GraphI32I64U, batch: EdgeBatchI32U, result: TriangleDeltaResult) -> TriangleDeltaStats: ...
+
 @overload
 def update(resources: Resources, graph: GraphI32I32I32, batch: EdgeBatchI32I32, results: list) -> list: ...
 
