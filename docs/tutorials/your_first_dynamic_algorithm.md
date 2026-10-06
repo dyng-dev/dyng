@@ -180,7 +180,9 @@ and copies the old levels into `ws.before`; add one line at its start:
   applied_ = &applied;  // the commit's effective insertions and deletions
 ```
 
-(and give the parameter its name: `const applied& applied`). Now the first hook. Deleting
+(and give the parameter its name: `const applied& applied`). Now the first hook; put its
+definition in `my_bfs.cpp` next to the other hooks (before `loop`, say), like every definition
+below. Deleting
 `u -> v` can make `v` farther only if the edge was on a shortest path
 (`before[v] == before[u] + 1`), and then every vertex reached from `v` along shortest-path edges
 may be farther too. Those are *invalidated*: their level becomes -1 and they join the queue.
