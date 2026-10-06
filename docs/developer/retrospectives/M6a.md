@@ -77,3 +77,71 @@ the plugin wheels. They keep the CPU wheel's expression until the author decides
 the CUDA runtime's EULA (`LicenseRef-NVIDIA-End-User-License-Agreement`, conda-forge's
 identifier) and CCCL's `Apache-2.0 WITH LLVM-exception` in it; the licence files are complete
 either way.
+
+## Step discovery-tests (2026-10-06)
+
+**Done.** ADR 0031 (accepted under delegation). `dyng/_backend.py` now chooses among the
+installed plugins by the rules of PLAN 5.4 and ADR 0011 item 14: the driver's CUDA major wins
+(else the newest older major), a plugin of another version than `dyng` is never imported (the
+metadata versions, then the module's own `__version__`), a module that fails to import passes to
+the next candidate, and installed-but-unusable plugins give the CPU module with one
+`dyng.BackendWarning` (new public name) that names each plugin's reason; without plugins the
+CPU-only install is unchanged and silent. `dyng.show_config()` / `dyng.config()` report the
+choice and every plugin's state, and `Resources.cuda()` in the CPU module says why no plugin is
+used. `dyng.Array` handles device memory: `shape` / `dtype` from the new native `array_info()`,
+`__cuda_array_interface__` (v3, with the writer's stream), DLPack >= 1.0 exports ordered on the
+consumer's stream by a CUDA event (`order_stream()`, `detail::cuda_stream_fence`), host copies on
+the writer's stream (`array_to_host()`), `to_numpy(copy=None)`. The native result holder keeps
+the resources of its last writer. Inputs in device memory are copied to the host once (rule 1).
+
+Tests: `python/tests/test_backend_selection.py` (every selection rule with fake plugins, and fresh
+processes for the first use, the warning, `DYNG_CPU_ONLY`, `use_cpu_only()`, `show_config()`);
+`python/tests/test_cuda.py` (marker `gpu`, 46 tests: CUDA == sequential for sssp on both engines,
+cycle_count and mosp through compute / update / `dyng.update`; the goldens subset on CUDA; device
+arrays and stream ordering; device inputs; PyTorch / CuPy round trips; the fallback);
+host-memory tests of the new Array rules in `test_arrays.py`. Wired into `ci/plugin_wheels.sh`
+(the install test now compares the device arrays element by element, checks the warning of the
+no-device fallback, and runs `pytest -m gpu` with `DYNG_REQUIRE_CUDA=1`; `DYNG_PLUGIN_INTEROP_PYTHON`
+adds a venv with PyTorch / CuPy) and into `ci/gpu_local.sh` as the step `plugin` (cu13, one
+Python, about five minutes including the build; `DYNG_GPU_PLUGIN_WHEELS` reuses built wheels).
+
+Results: see "Verification of the step discovery-tests" below.
+
+**Deviations and refinements** (each recorded in ADR 0031):
+
+1. PLAN 5.4 names the per-thread default stream for `Resources.cuda()`'s default; for inputs in
+   device memory dynG asks the producer for the **legacy** default stream (DLPack stream 1) and
+   copies on it, because PyTorch refuses the per-thread default stream as a DLPack consumer stream
+   ("per-thread default stream is not supported"); the legacy stream is ordered with every
+   blocking stream, the per-thread default stream included.
+2. `to_numpy(copy=False)` raises for device memory (NumPy's "never copy"), and a new
+   `copy=None` gives the read-only view of host memory or a read-only host copy of device memory;
+   dynG's own writers (`dyng.io.write_*`) use it. Indexing, iteration, comparison, `repr` and
+   `np.asarray()` of a device Array read through one host copy that the Array keeps.
+3. A plugin whose module was built without CUDA, or whose module version differs, is refused like
+   a version mismatch; ADR 0011 item 14's minimal contract (`available()`, `native`) still works.
+4. Device inputs are copied to the host without consulting `Resources.copy_policy` (the input
+   conversion does not know the call's resources yet), and inputs with only
+   `__cuda_array_interface__` (Numba) are not read; both are in `python_gaps.md`.
+5. `Resources.cuda(stream=<object>)` keeps the stream object alive (and so do the graphs, results
+   and Arrays made with those resources): without it a CuPy stream destroyed before the result
+   crashed the process when the result freed its stream-ordered memory (found by
+   `test_a_user_stream_orders_the_results`). The stream is held in a slot of a private base class
+   of `Resources`, so that the native handle (the subclass's slot, cleared first) is freed before
+   the stream; a weak-key dictionary released the stream first and crashed the same way.
+   `griffe` (ci/api_check.sh) reports any change of a public class's `__slots__` tuple as a
+   breaking change, so `Resources.__slots__` and `Array.__slots__` are unchanged (the Array keeps
+   its writer and its result's resources in a private `_Owner` behind `_is_current`).
+6. The test modules about host memory (`test_arrays.py`, `test_threads.py`) now use the
+   sequential backend as their default resources (fixture `host_default_resources`), and
+   `test_plugin_package.py` restores an installed plugin's modules in `sys.modules`: the whole
+   suite passes with a plugin active (519 passed, 4 skipped in the interop venv), not only with
+   `DYNG_CPU_ONLY=1`.
+7. The ADR is numbered 0031; M6b, running at the same time, may take the same number: renumber at
+   merge if needed.
+
+**Found for the next steps.** The CI build (`wheels.yml`, `release.yml`) has to run the GPU-free
+part: an import / selection smoke test on the hosted runners falls back to `dyng._core` with a
+`dyng.BackendWarning` ("no CUDA driver"), which the smoke test should expect, and
+`test_backend_selection.py` runs there unchanged. The wheel-vs-parity timing row (PLAN 7.7) is
+still open.

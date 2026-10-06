@@ -33,6 +33,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0028](0028-mosp-python-and-cli.md) | mosp in Python and on the command line (0.2) | Accepted under delegation (2026-10-01) |
 | [0029](0029-packing-window-across-backends.md) | The packing window, where the host and CUDA backends follow different originals (non-canonical input trees) | Proposed (2026-10-01, M7 review; a parity rule, for the author) |
 | [0030](0030-cuda-plugin-wheels.md) | The CUDA plugin wheels `dyng-cu12` / `dyng-cu13` built from the same sources (a rendered `pyproject.toml`, `DYNG_PYTHON_PLUGIN`, the static CUDA runtime, the plugin package, the pinned extras, the licence files) | Accepted under delegation (2026-10-06) |
+| [0031](0031-plugin-selection-and-device-arrays.md) | Choosing a CUDA plugin (the driver's major, the version pin), the CPU fallback with `dyng.BackendWarning`, and arrays in device memory from Python (`__cuda_array_interface__`, DLPack stream ordering, device inputs) | Accepted under delegation (2026-10-06) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

@@ -134,8 +134,15 @@ The plugins `dyng-cu12` and `dyng-cu13` are built from the same sources as `dyng
 `ci/plugin_wheels.sh` does all of it locally, with the toolchain of `ci/wheel-toolchain.yml` as
 host compiler, and then installs each plugin with the core wheel (and nothing else from dynG)
 into fresh venvs for Python 3.12 and 3.13: the plugin must be selected and run sssp,
-cycle_count and mosp on the CUDA backend (GPU 1), a process without a visible device must fall
-back to `dyng._core`, and the pytest suite must pass with `DYNG_CPU_ONLY=1`:
+cycle_count and mosp on the CUDA backend (GPU 1) with arrays equal to the sequential backend's,
+a process without a visible device must fall back to `dyng._core` with a `dyng.BackendWarning`,
+the GPU tests of `python/tests` must pass (`pytest -m gpu`, `test_cuda.py`, with
+`DYNG_REQUIRE_CUDA=1` so that they cannot pass by skipping; ADR 0031), and the whole suite must
+pass with `DYNG_CPU_ONLY=1`. The fresh venvs hold no PyTorch or CuPy, so the round trips with
+them skip there; `DYNG_PLUGIN_INTEROP_PYTHON=<python of a venv with torch / cupy>` reinstalls the
+core and plugin wheels into that venv, runs the GPU tests there too, and uninstalls the plugin
+again (on the development machine: `$DYNG_SCRATCH/venvs/m6a-interop-3.12`, PyTorch 2.14 cu130
+and CuPy 14 for CUDA 13; 5.6 GB, so it is made once and not per run):
 
 ```bash
 source scripts/dev_env.sh
@@ -146,7 +153,18 @@ conda create -p "$DYNG_SCRATCH/tools/cuda-12.9" -c conda-forge --override-channe
 # every time: cu13 with /usr/local/cuda-13.1 (the default), cu12 with that toolkit
 DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT="$DYNG_SCRATCH/tools/cuda-12.9" \
   flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
+# once: the interop venv for the PyTorch / CuPy round trips (CUDA 13 builds of both)
+python3.12 -m venv "$DYNG_SCRATCH/venvs/m6a-interop-3.12"
+"$DYNG_SCRATCH/venvs/m6a-interop-3.12/bin/pip" install numpy "pytest>=8" "hypothesis==6.167.1" \
+  cupy-cuda13x
+"$DYNG_SCRATCH/venvs/m6a-interop-3.12/bin/pip" install torch \
+  --index-url https://download.pytorch.org/whl/cu130
+DYNG_PLUGIN_INTEROP_PYTHON="$DYNG_SCRATCH/venvs/m6a-interop-3.12/bin/python" \
+  flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
 ```
+
+The local GPU gate `ci/gpu_local.sh` has the same as its step `plugin` (cu13 and one Python by
+default, about four minutes; `DYNG_GPU_PLUGIN_WHEELS=<dir>` tests wheels built before).
 
 The wheels land in `$DYNG_SCRATCH/wheels/<version>-plugins/dist` (the core sdist and wheel they
 were built with in `.../core/dist`). `DYNG_WHEEL_SKIP_TESTS=1` builds and checks only;

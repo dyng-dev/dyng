@@ -196,6 +196,33 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   the CUDA toolkit's EULA (`NVIDIA_CUDA_EULA.txt`, copied from the toolkit at build time) are
   licence files of the plugin wheels. Their licence expression stays the CPU wheel's until the
   author decides (GOVERNANCE.md, open decisions).
+- Added: the choice of the CUDA plugin in `dyng` (ADR 0031; PLAN 5.4): of the installed plugins
+  of the same version that can run here, the one of the driver's CUDA major wins (else the
+  newest older major); a plugin of another version than `dyng` is never loaded; a plugin whose
+  module fails to load passes to the next. With plugins installed but none usable, dynG runs on
+  `dyng._core` and issues one **`dyng.BackendWarning`** (new; a `UserWarning`) naming each
+  plugin's reason and the remedy; without plugins nothing changes. `DYNG_CPU_ONLY=1` and
+  `dyng.use_cpu_only()` choose the CPU module without the warning. `dyng.show_config()` prints
+  why the module was chosen and every plugin's state; `dyng.config()` has `selection` and
+  `plugins`; `Resources.cuda()` in the CPU module says why no plugin is used.
+- Added: `dyng.Array` in device memory (ADR 0031; PLAN 5.4 rule 4): `__cuda_array_interface__`
+  (version 3, read-only, with the stream of the call that last wrote the result), DLPack >= 1.0
+  exports ordered on the consumer's stream with a CUDA event (`__dlpack__(stream=...)`;
+  `to_torch()` / `to_cupy()` use it), `shape` / `dtype` without reading elements, `to_numpy()` as
+  a host copy, and `to_numpy(copy=None)` (new: the read-only view of host memory or a kept
+  read-only host copy of device memory). Inputs in CUDA device memory (CuPy, PyTorch, JAX, a
+  device `dyng.Array`) are accepted and copied to the host once. A `Resources.cuda(stream=...)`
+  keeps its stream object alive, and so do the graphs, results and arrays made with it.
+- Added: the GPU tests of the Python package, `python/tests/test_cuda.py` (marker `gpu`): sssp,
+  cycle_count and mosp on CUDA equal the sequential backend element by element, a subset of the
+  goldens on CUDA (MOSP's files byte for byte, CycleEnumeration-GPU's CUDA histograms), device
+  arrays, device inputs, PyTorch / CuPy round trips, the fallback; they run in
+  `ci/plugin_wheels.sh` (and in a venv with PyTorch / CuPy via `DYNG_PLUGIN_INTEROP_PYTHON`) and
+  in the new step `plugin` of `ci/gpu_local.sh`. `test_backend_selection.py` checks the choice
+  with fake plugins on any machine.
+- Docs: the install guide's section on the CUDA plugin wheels (which plugin for which driver,
+  troubleshooting the fallback warning); the Python API page's rules for the native module and
+  device arrays.
 
 ### Changed
 
