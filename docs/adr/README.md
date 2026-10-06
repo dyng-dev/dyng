@@ -33,6 +33,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0028](0028-mosp-python-and-cli.md) | mosp in Python and on the command line (0.2) | Accepted under delegation (2026-10-01) |
 | [0029](0029-packing-window-across-backends.md) | The packing window, where the host and CUDA backends follow different originals (non-canonical input trees) | Proposed (2026-10-01, M7 review; a parity rule, for the author) |
 | [0030](0030-tutorial-algorithms.md) | The tutorial algorithms: registered with maturity `tutorial`, one source for every backend (executors), undirected graphs in the kit | Accepted under delegation (2026-10-06) |
+| [0032](0032-fuzzers-mutation-suites-property-runs.md) | Reader fuzzers (`cpp/fuzz`), the golden mutation suites of `parity/mutate.py` (sssp, mosp, cycle_count) and the long property runs | Accepted under delegation (2026-10-06) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

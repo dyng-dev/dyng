@@ -1,0 +1,337 @@
+{
+ "schema": 2,
+ "what": "mutation checks of the golden parity (PLAN 8.4): cycle_count, mosp, sssp",
+ "date": "2026-10-06T21:30:46Z",
+ "commit": "a99e968c7676dd8c679f074d198dbe92b7d53d59",
+ "goldens": {
+  "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
+  "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml"
+ },
+ "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "suite": "cycle_count,mosp,sssp",
+   "config": "cuda,openmp:4,sequential",
+   "build": "ok",
+   "replays": [
+    {
+     "suite": "sssp",
+     "config": "sequential",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "sequential": 0
+     },
+     "goldens": {
+      "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+      "cases": 495,
+      "files": 11799
+     }
+    },
+    {
+     "suite": "sssp",
+     "config": "openmp:4",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "openmp:4": 0
+     },
+     "goldens": {
+      "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+      "cases": 495,
+      "files": 11799
+     }
+    },
+    {
+     "suite": "sssp",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "goldens": {
+      "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+      "cases": 495,
+      "files": 11799
+     }
+    },
+    {
+     "suite": "cycle_count",
+     "config": "sequential",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "sequential": 0
+     },
+     "goldens": {
+      "manifest_sha256": "e40fa03ba3300376866362b9e7e737799a0ae99ac9f08f89c660d47b5fde91eb",
+      "cases": 24,
+      "files": 90
+     }
+    },
+    {
+     "suite": "cycle_count",
+     "config": "openmp:4",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "openmp:4": 0
+     },
+     "goldens": {
+      "manifest_sha256": "e40fa03ba3300376866362b9e7e737799a0ae99ac9f08f89c660d47b5fde91eb",
+      "cases": 24,
+      "files": 90
+     }
+    },
+    {
+     "suite": "cycle_count",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "goldens": {
+      "manifest_sha256": "9af66ca507b62641cd1871d189cb835303e7da800a364c6bbf950ad25184e3e0",
+      "cases": 24,
+      "files": 90
+     }
+    }
+   ],
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "sssp_roots_only_sequential",
+   "suite": "sssp",
+   "plan": "PLAN 8.4 sssp: a skipped subtree invalidation (sequential backend)",
+   "file": "cpp/src/algorithms/sssp/sequential.cpp",
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 365
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "sssp_roots_only_openmp",
+   "suite": "sssp",
+   "plan": "PLAN 8.4 sssp: a skipped subtree invalidation (OpenMP backend, chain walk)",
+   "file": "cpp/src/algorithms/sssp/openmp.cpp",
+   "config": "openmp:4",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "openmp:4": 365
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "sssp_roots_only_cuda",
+   "suite": "sssp",
+   "plan": "PLAN 8.4 sssp: a skipped subtree invalidation (CUDA fused kernel)",
+   "file": "cpp/src/algorithms/sssp/fused.cuh",
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 365
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cycle_count_double_count_5",
+   "suite": "cycle_count",
+   "plan": "PLAN 8.4 CycleEnum: double counting 5-cycles (host searches)",
+   "defines": [
+    "DYNG_MUTATION_DOUBLE_COUNT_5"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 4
+   },
+   "goldens": {
+    "manifest_sha256": "e40fa03ba3300376866362b9e7e737799a0ae99ac9f08f89c660d47b5fde91eb",
+    "cases": 24,
+    "files": 90
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cycle_count_weak_ownership",
+   "suite": "cycle_count",
+   "plan": "PLAN 8.4 CycleEnum: weakened ownership rule (host update searches)",
+   "defines": [
+    "DYNG_MUTATION_WEAK_OWNERSHIP"
+   ],
+   "config": "openmp:4",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "openmp:4": 14
+   },
+   "goldens": {
+    "manifest_sha256": "e40fa03ba3300376866362b9e7e737799a0ae99ac9f08f89c660d47b5fde91eb",
+    "cases": 24,
+    "files": 90
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cycle_count_double_count_5_cuda",
+   "suite": "cycle_count",
+   "plan": "PLAN 8.4 CycleEnum: double counting 5-cycles (CUDA work-queue kernel)",
+   "defines": [
+    "DYNG_MUTATION_CUDA_DOUBLE_COUNT_5"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 4
+   },
+   "goldens": {
+    "manifest_sha256": "9af66ca507b62641cd1871d189cb835303e7da800a364c6bbf950ad25184e3e0",
+    "cases": 24,
+    "files": 90
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cycle_count_weak_ownership_cuda",
+   "suite": "cycle_count",
+   "plan": "PLAN 8.4 CycleEnum: weakened ownership rule (CUDA update kernel)",
+   "defines": [
+    "DYNG_MUTATION_CUDA_WEAK_OWNERSHIP"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 14
+   },
+   "goldens": {
+    "manifest_sha256": "9af66ca507b62641cd1871d189cb835303e7da800a364c6bbf950ad25184e3e0",
+    "cases": 24,
+    "files": 90
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "mosp_combined_first_tree_sequential",
+   "suite": "mosp",
+   "plan": "mosp: combined-edge weight from the first tree only (sequential backend)",
+   "file": "cpp/src/algorithms/mosp/sequential.cpp",
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 398
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "mosp_combined_first_tree_openmp",
+   "suite": "mosp",
+   "plan": "mosp: combined-edge weight from the first tree only (OpenMP backend)",
+   "file": "cpp/src/algorithms/mosp/openmp.cpp",
+   "config": "openmp:4",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "openmp:4": 398
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "mosp_combined_first_tree_cuda",
+   "suite": "mosp",
+   "plan": "mosp: combined-edge weight from the first tree only (CUDA backend)",
+   "file": "cpp/src/algorithms/mosp/cuda.cu",
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 398
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "mosp_path_costs_first_objective",
+   "suite": "mosp",
+   "plan": "mosp: the path costs of every objective from the first objective's weights",
+   "file": "cpp/src/algorithms/mosp/sequential.cpp",
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 397
+   },
+   "goldens": {
+    "manifest_sha256": "668145c6fddb4b2a408a108d3433ccb3ecf6cdc020d1e67b06a9ec8bd28daddd",
+    "cases": 495,
+    "files": 11799
+   },
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}

@@ -30,6 +30,37 @@ Before 0.1.0 anything may change.
   use them; PLAN 4.5.3's rule of two).
 - M6b: the conformance kit generates **undirected** graphs for an algorithm that requires them
   (`graph_properties::directed = false`); its edge and batch counters count each stored direction.
+- M6b: **reader fuzzers** (`cpp/fuzz`, ADR 0032): libFuzzer targets for every file reader (Matrix
+  Market, edge lists, the MOSP CSR triplet, MOSP batches, `.dgt` batches, distance and parent
+  files) with ASan and UBSan, checking the documented exceptions, the consistency of accepted
+  input and write/read round trips; the CMake option `DYNG_BUILD_FUZZERS` and the preset `fuzz`
+  (Clang), `ci/fuzz.sh`, a seed corpus, and `.github/workflows/fuzz.yml` (pull requests that touch
+  a reader: 60 s per target; weekly: 10 minutes). Every test build replays the seed corpus and the
+  reproducers of fixed findings (`ctest -L fuzz`).
+- M6b: `parity/mutate.py` covers the **cycle_count and mosp golden suites** (CycleEnumeration-GPU's
+  double-counted 5-cycles and weakened ownership rule, host and device; a combined-graph edge
+  weight from one tree only and path costs from one objective's weights, on each backend), next
+  to sssp's; `--suites` selects them.
+- M6b: the Hypothesis profile **`full`** (10,000 examples per property, not derandomized;
+  `DYNG_HYPOTHESIS_EXAMPLES`) and `.github/workflows/property.yml` (weekly, on demand); property
+  tests of `dynamic_bfs` and `triangle_delta` over chains of batches.
+- M6b: the documentation is published on **GitHub Pages**, <https://dyng-dev.github.io/dyng/>:
+  `docs.yml` deploys the site of every push to `main` (`actions/configure-pages`,
+  `upload-pages-artifact`, `deploy-pages`; environment `github-pages`); README, `CITATION.cff`
+  (`url`) and the Sphinx canonical URL name it. `docs/developer/robustness.md` describes the
+  fuzzers, the mutation checks and the long property runs.
+
+### Fixed
+
+- M6b, found by the reader fuzzers (and the review their memory use prompted):
+  `io::read_matrix_market()` reserved memory for the number of entries the size line announced
+  (up to 3 GB for a 74-byte file), and `io::read_csr_triplet()` for the edge count of
+  `RowPtr.txt` (4 GB for a 13-byte `RowPtr.txt`) and for edges x weights of `Values.txt` before
+  counting its lines. The reservations are now bounded by what the file can
+  hold; the errors are unchanged (`cpp/tests/io/fuzz_regression_test.cpp`).
+- M6b, found by `python/tests/test_reader_robustness.py`: the command line's text batches
+  (`--batch`) raised `OverflowError` for an integer beyond 64 bits and `UnicodeDecodeError` for a
+  file that is not UTF-8; both are now `dyng.FileFormatError` with the path and line.
 
 ### M7: the sssp operators engine (0.2, branch `m7-mosp`)
 
