@@ -163,6 +163,40 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
 - Merged `main` at 0.1.0rc1 (pull request #5); the release certificate (`parity/certify.py`)
   knows mosp's paper-scale goldens and fixtures.
 
+### M6a: the CUDA plugin wheels (0.2, branch `m6a-cuda-wheels`)
+
+These entries belong to the 0.2 work (PLAN Appendix F).
+
+- Added: the CUDA plugin distributions **`dyng-cu12`** and **`dyng-cu13`** (ADR 0030; PLAN 5.4,
+  7.7, 7.8), built from the core sdist: `ci/plugin_pyproject.py` renders a plugin's
+  `pyproject.toml` from the root one (name, `dyng==<same version>`, the `dyng.backends` entry
+  point, `DYNG_ENABLE_CUDA=ON`, the static CUDA runtime, the release architectures of
+  `cmake/cuda_architectures.cmake`: SASS for sm_75-sm_120 and PTX for sm_120), and
+  `ci/plugin_wheels.sh` builds, repairs (manylinux_2_28, libgomp bundled, `libcuda` never),
+  checks and install-tests them locally. The import packages `dyng_cu12` / `dyng_cu13` come from
+  one source, `python/plugin/dyng_plugin` (a ctypes probe of the driver: `status()`,
+  `available()`; the extension module `native` imported on first access). About 5.5 MB per
+  wheel.
+- Added: the extras `cu12` / `cu13` of `dyng` (`pip install "dyng[cu13]"`), pinned to the same
+  version through scikit-build-core's dynamic metadata, and `cupy-cu12` / `cupy-cu13`.
+- Added: the CMake option `DYNG_PYTHON_PLUGIN` (empty, `cu12`, `cu13`): the Python module of a
+  plugin (`dyng_cu<N>._core`, nanobind domain `dyng_cu<N>`); the module's `build_config` reports
+  `plugin`, `cuda_toolkit`, `cuda_architectures` and `cuda_runtime`, and `dyng.show_config()`
+  prints them for a CUDA module.
+- Changed: `CMAKE_CUDA_RUNTIME_LIBRARY=Static` now links the static CUDA runtime everywhere
+  (libdyng, its modules and the tests linked the shared `CUDA::cudart` explicitly) and needs
+  `BUILD_SHARED_LIBS=OFF` (a shared libdyng would put two CUDA runtimes into one process);
+  `Shared` stays the default.
+- Changed: `ci/wheel_check.py` checks plugin wheels (contents, entry point, dependency, licence
+  files, no `libcuda` / `libcudart` needed or bundled, read from the module's ELF dynamic
+  section) and the CPU wheel's pinned extras; the sdist must contain the plugin sources.
+- Changed: the messages of `Resources.cuda()` and `show_config()` in the CPU module name
+  `pip install "dyng[cu13]"` instead of "the 0.1.x releases".
+- Licences: `THIRD_PARTY_LICENSES_CUDA.txt` (the CUDA runtime, CUB, Thrust, libcu++, NVTX) and
+  the CUDA toolkit's EULA (`NVIDIA_CUDA_EULA.txt`, copied from the toolkit at build time) are
+  licence files of the plugin wheels. Their licence expression stays the CPU wheel's until the
+  author decides (GOVERNANCE.md, open decisions).
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

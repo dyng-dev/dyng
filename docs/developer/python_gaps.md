@@ -30,7 +30,7 @@ the 0.1 Python package does not bind, and why; each entry names the release that
 
 | Feature | State | When |
 |---|---|---|
-| CUDA: `Resources.cuda()`, `__cuda_array_interface__`, DLPack stream ordering (rule 4) | `Resources.cuda()` raises `NotSupportedError` in the CPU wheel | the CUDA plugin wheels `dyng-cu12` / `dyng-cu13`, 0.1.x |
+| CUDA: `Resources.cuda()`, `__cuda_array_interface__`, DLPack stream ordering (rule 4) | `Resources.cuda()` works with a CUDA plugin wheel (`pip install "dyng[cu13]"`, ADR 0030) and raises `NotSupportedError` with the CPU module; result arrays in device memory report `device == "cuda:<n>"`, but `__cuda_array_interface__` and host copies of them (`to_numpy()`) are not there yet | 0.2 (M6a) |
 | `copy=False` on inputs (rule 1: raise instead of copying) | inputs of another dtype or layout are converted with one copy; `Resources.copy_policy` governs host/device copies | 0.1.x |
 | `dyng.interop.from_networkx()`, `from_scipy()`, `from_cudf()` (rule 6) | `Graph.from_csr(csr.indptr, csr.indices, csr.data)` covers SciPy | 0.2 |
 | `.dgb` binary batch files and the streaming `batch_reader` (PLAN 5.7) | `.dgt` text batches are read and written (`dyng.io.read_batches()` / `write_batches()`), MOSP's `insert.txt` / `delete.txt` by `read_legacy_batch()` | 0.2 (M8; moved from M7, which PLAN 11.3 listed) |

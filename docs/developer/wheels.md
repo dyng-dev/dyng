@@ -13,8 +13,11 @@ the author's behalf, GOVERNANCE.md, 2026-09-30), and PyPI needs the author's app
 | `dyng-<version>.tar.gz` | the source of the root `pyproject.toml`: `VERSION`, `CMakeLists.txt`, `cmake/`, `cpp/`, `python/` and the licence files, and `docs/references.bib` (compiled into the library for `dyng::citation()`; no other part of `docs/`, no `parity/`, `tools/`, `ci/`, `.github/`, and none of the repository-only files: the CC-BY-SA-4.0 Code of Conduct, governance pages, tool configuration: every file of the sdist is Apache-2.0) | `python -m build --sdist` |
 | `dyng-<version>-cp312-abi3-manylinux_2_28_x86_64.whl` | `dyng/_core.abi3.so` (nanobind stable ABI, sequential + OpenMP backends, libdyng and libstdc++ linked in), the typed layer `dyng/*.py` with `py.typed` and `_core.pyi`, the `dyng` console script, `dyng.libs/libgomp-*.so*` bundled by auditwheel, and in `.dist-info/licenses` `LICENSE`, `NOTICE`, `LICENSES/Apache-2.0.txt` and `THIRD_PARTY_LICENSES.txt` (the licences of nanobind, robin-map and the GCC runtime, which the wheel contains) | cibuildwheel from the sdist (CI), `ci/wheels.sh` from the sdist (locally) |
 
-One abi3 wheel serves every CPython from 3.12. The CUDA plugin wheels (`dyng-cu12`,
-`dyng-cu13`) follow in 0.1.x.
+| `dyng_cu12-<version>-cp312-abi3-manylinux_2_28_x86_64.whl`, `dyng_cu13-...` | the CUDA plugins (PLAN 5.4; ADR 0030): `dyng_cu<N>/_core.abi3.so` (every backend: sequential, OpenMP, CUDA; nanobind domain `dyng_cu<N>`; the CUDA runtime, libdyng and libstdc++ linked in; SASS for sm_75, 80, 86, 89, 90, 100, 120 and PTX for sm_120), the package `dyng_cu<N>/__init__.py` (from `python/plugin/dyng_plugin`), `dyng_cu<N>.libs/libgomp-*.so*`, the entry point `[dyng.backends] cu<N> = dyng_cu<N>`, `Requires-Dist: dyng==<version>`, and the licence files of the CPU wheel plus `THIRD_PARTY_LICENSES_CUDA.txt` and `NVIDIA_CUDA_EULA.txt`. Never `libcuda` (the user's driver) or `libcudart` (linked statically) | the core sdist turned into the plugin's tree by `ci/plugin_pyproject.py`; `ci/plugin_wheels.sh` (locally), see below |
+
+One abi3 wheel serves every CPython from 3.12. The CPU wheel's extras `cu12` and `cu13` require
+the plugin of exactly its version (`pip install "dyng[cu13]"`; dynamic metadata, ADR 0030 item
+8).
 
 Every distribution passes `twine check --strict` and `ci/wheel_check.py`: the size budget of
 PLAN 7.7 (a wheel above 90 MB fails; the CPU wheel is about 1.8 MB), the file name and tags
@@ -106,6 +109,62 @@ up (ADR 0025): a statically linked libstdc++ must have its symbols hidden, or th
 references bind to a `libstdc++.so.6` another extension (NumPy) loaded first and formatting a
 number into a `std::ostringstream` crashes; and the process-wide default resources are dropped at
 interpreter exit, or nanobind reports them as leaked when the module is finalized.
+
+## The CUDA plugin wheels
+
+The plugins `dyng-cu12` and `dyng-cu13` are built from the same sources as `dyng` (ADR 0030):
+
+1. **The source tree.** Unpack the core sdist (or use a disposable checkout) and run
+   `python3 ci/plugin_pyproject.py --plugin cu13 --project-dir <tree> --cuda-root <toolkit>`.
+   It replaces the tree's `pyproject.toml` with the plugin's, rendered from the root one
+   (`--print` shows it): `name = "dyng-cu13"`, `dependencies = ["dyng==<VERSION>"]`, the entry
+   point, `wheel.packages = ["python/plugin/dyng_cu13"]` (a copy of `python/plugin/dyng_plugin`
+   it makes in the tree), and the defines `DYNG_ENABLE_CUDA=ON`, `DYNG_ENABLE_OPENMP=ON`,
+   `DYNG_PYTHON_PLUGIN=cu13`, `CMAKE_CUDA_RUNTIME_LIBRARY=Static`,
+   `DYNG_CUDA_ARCHITECTURES=release`. It also copies the toolkit's EULA into the tree as
+   `NVIDIA_CUDA_EULA.txt` (found as `<toolkit>/EULA.txt`, a conda prefix's `LICENSE`, or through
+   a conda-forge environment's `conda-meta`; `--cuda-eula <file>` otherwise).
+2. **The wheel.** Build that tree with the toolkit of the plugin's major: `CUDACXX=<toolkit>/bin/nvcc
+   pip wheel --no-deps <tree>` (CMake refuses a toolkit of another major, a shared CUDA runtime
+   or a build without OpenMP). The cu12 wheel is built with the latest CUDA 12.x, the cu13 wheel
+   with the latest 13.x (PLAN 7.8).
+3. **Repair and checks.** `auditwheel repair --plat manylinux_2_28_x86_64 --exclude libcuda.so.1`,
+   `twine check --strict`, `ci/wheel_check.py` (it recognises a plugin wheel by its name).
+
+`ci/plugin_wheels.sh` does all of it locally, with the toolchain of `ci/wheel-toolchain.yml` as
+host compiler, and then installs each plugin with the core wheel (and nothing else from dynG)
+into fresh venvs for Python 3.12 and 3.13: the plugin must be selected and run sssp,
+cycle_count and mosp on the CUDA backend (GPU 1), a process without a visible device must fall
+back to `dyng._core`, and the pytest suite must pass with `DYNG_CPU_ONLY=1`:
+
+```bash
+source scripts/dev_env.sh
+# once, besides the tools of the CPU wheel: a CUDA 12.x toolkit for cu12 (none is installed
+# system-wide on the development machine; conda-forge's packages work)
+conda create -p "$DYNG_SCRATCH/tools/cuda-12.9" -c conda-forge --override-channels \
+  cuda-version=12.9 cuda-nvcc cuda-cudart-dev cuda-cudart-static cuda-cccl cuda-nvtx-dev
+# every time: cu13 with /usr/local/cuda-13.1 (the default), cu12 with that toolkit
+DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT="$DYNG_SCRATCH/tools/cuda-12.9" \
+  flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
+```
+
+The wheels land in `$DYNG_SCRATCH/wheels/<version>-plugins/dist` (the core sdist and wheel they
+were built with in `.../core/dist`). `DYNG_WHEEL_SKIP_TESTS=1` builds and checks only;
+`DYNG_PLUGIN_TEST_ONLY=1` tests the wheels built before. The script's header lists every
+setting.
+
+The local builds of 2026-10-06 (M6a): cu13 with CUDA 13.1 (`/usr/local/cuda-13.1`), cu12 with
+CUDA 12.9 (conda-forge's packages in `$DYNG_SCRATCH/tools/cuda-12.9`); 5.5 MB and 5.6 MB; both
+`manylinux_2_28_x86_64` (auditwheel reports the module itself consistent with
+`manylinux_2_17`), `twine check --strict` and `ci/wheel_check.py` clean; the install tests pass
+on Python 3.12 and 3.13 with the RTX A5000 (driver 590.48.01, CUDA 13.1). How these builds
+differ from CI's is the table of the CPU wheel above, plus: the toolkits (CI: NVIDIA's RHEL 8
+packages of the latest 12.x and 13.x installed in the manylinux_2_28 image; locally: the system
+CUDA 13.1 and conda-forge's CUDA 12.9).
+
+Building a plugin from source (for another toolkit or architecture list) is the same three
+steps on a checkout; `-Ccmake.define.DYNG_CUDA_ARCHITECTURES=86` (for example) replaces the
+release list. A plugin always has the version of the `dyng` it is installed with.
 
 ## Releasing
 
