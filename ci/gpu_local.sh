@@ -36,6 +36,17 @@
 #              the CUDA cycle_count suite (dyng_cycle_count_cuda_tests, DYNG_TEST_SEEDS=2)
 #   racecheck  compute-sanitizer --tool racecheck on the CUDA cycle_count suite (shared-memory
 #              hazards of its kernels and of the CUB scans; DYNG_TEST_SEEDS=2)
+#   plugin     the CUDA plugin wheel from Python (ADR 0030/0031): ci/plugin_wheels.sh builds the
+#              core wheel and the dyng-cu13 plugin wheel of this tree (DYNG_GPU_PLUGINS, default
+#              cu13; the toolchain of ci/wheel-toolchain.yml; about 4 minutes) into
+#              build/<preset>/plugin-wheels, installs them into a fresh venv (one Python,
+#              DYNG_GPU_PLUGIN_PYTHONS, default python3.12) and runs the install smoke test, the
+#              GPU tests of python/tests (pytest -m gpu: CUDA == sequential, goldens, device
+#              arrays, fallback) and the CPU suite with DYNG_CPU_ONLY=1; with
+#              DYNG_PLUGIN_INTEROP_PYTHON (a venv with PyTorch / CuPy) the GPU tests also run
+#              there. Set DYNG_GPU_PLUGIN_WHEELS=<dir> to test wheels built before (that
+#              directory's dist/ and core/dist/; no build). Skipped when the wheel toolchain is
+#              missing.
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -59,7 +70,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,46p' "${BASH_SOURCE[0]}"
+      sed -n '5,57p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -246,6 +257,32 @@ if ! skipped racecheck; then
   fi
 fi
 
+if ! skipped plugin; then
+  step "the CUDA plugin wheel from Python (GPU ${gpu})"
+  scratch="${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}"
+  toolchain="${DYNG_WHEEL_TOOLCHAIN:-${scratch}/tools/manylinux228-tc}"
+  tools="${DYNG_WHEEL_TOOLS:-${scratch}/tools/wheeltools}"
+  wheels="${DYNG_GPU_PLUGIN_WHEELS:-}"
+  if [ -z "${wheels}" ] && { [ ! -d "${toolchain}" ] || [ ! -x "${tools}/bin/auditwheel" ]; }; then
+    echo "the wheel toolchain (${toolchain}, ${tools}) is missing (docs/developer/wheels.md); skipped"
+    record "plugin wheel (pytest -m gpu)" skipped
+  else
+    pythons="${DYNG_GPU_PLUGIN_PYTHONS:-$(command -v python3.12 || command -v python3)}"
+    # The step's own GPU selection: plugin_wheels.sh sets CUDA_VISIBLE_DEVICES itself.
+    if [ -n "${wheels}" ]; then
+      plugin_env=(DYNG_PLUGIN_TEST_ONLY=1 "DYNG_PLUGIN_OUT=${wheels}")
+    else
+      plugin_env=("DYNG_PLUGIN_OUT=${repo_root}/${build_dir}/plugin-wheels")
+    fi
+    if heavy env -u CUDA_VISIBLE_DEVICES "${plugin_env[@]}" "DYNG_PLUGINS=${DYNG_GPU_PLUGINS:-cu13}" \
+      "DYNG_WHEEL_PYTHONS=${pythons}" "DYNG_TEST_GPU=${gpu}" ci/plugin_wheels.sh; then
+      record "plugin wheel (pytest -m gpu)" passed
+    else
+      record "plugin wheel (pytest -m gpu)" FAILED
+    fi
+  fi
+fi
+
 if ! skipped tidy; then
   step "clang-tidy (naming rules, library sources, CUDA branches)"
   if ! command -v clang-tidy >/dev/null 2>&1; then
@@ -266,6 +303,7 @@ if ! skipped tidy; then
   fi
 fi
 
+mkdir -p "${build_dir}"
 {
   echo "### ci/gpu_local.sh: ${preset}"
   echo

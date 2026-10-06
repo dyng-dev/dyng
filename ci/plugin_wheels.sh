@@ -19,12 +19,18 @@
 #   4. unless DYNG_WHEEL_SKIP_TESTS=1, an install test per Python version: a fresh venv with the
 #      core wheel and the plugin wheel only (no index), then
 #        - selection: `dyng.show_config()`; the plugin's module is active and runs sssp,
-#          cycle_count and mosp on the CUDA backend (GPU ${DYNG_TEST_GPU:-1}; results in device
-#          memory; cycle_count's total and mosp's host path costs equal the sequential
-#          backend's); with no visible device (CUDA_VISIBLE_DEVICES=) dynG falls back to
-#          dyng._core;
+#          cycle_count and mosp on the CUDA backend (GPU ${DYNG_TEST_GPU:-1}); the device arrays
+#          equal the sequential backend's element by element; with no visible device
+#          (CUDA_VISIBLE_DEVICES=) dynG falls back to dyng._core with a dyng.BackendWarning;
+#        - the GPU tests of python/tests (pytest -m gpu, test_cuda.py: CUDA == sequential, a
+#          subset of the goldens, device arrays, the fallback; DYNG_REQUIRE_CUDA=1, so they fail
+#          instead of skipping without the plugin's CUDA backend);
 #        - the pytest suite of python/tests with DYNG_CPU_ONLY=1 (the CPU path is unchanged by an
-#          installed plugin).
+#          installed plugin);
+#      and, with DYNG_PLUGIN_INTEROP_PYTHON (the python of a venv that has PyTorch and/or CuPy,
+#      e.g. $DYNG_SCRATCH/venvs/m6a-interop-3.12), the core and plugin wheels are reinstalled
+#      into that venv and the GPU tests run there too (the DLPack / CUDA array interface round
+#      trips with PyTorch and CuPy).
 #
 #   ci/plugin_wheels.sh                                   # cu13 with /usr/local/cuda-13.1
 #   DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT=$HOME/anaconda3/envs/cuda_12.8 ci/plugin_wheels.sh
@@ -43,6 +49,7 @@
 #   DYNG_BUILD_JOBS       parallel compile jobs                    (16; the machine is shared)
 #   DYNG_WHEEL_TOOLCHAIN, DYNG_WHEEL_TOOLS, DYNG_WHEEL_PLAT, DYNG_WHEEL_PYTHONS   as in ci/wheels.sh
 #   DYNG_TEST_GPU         the GPU of the install test              (1; GPU 0 is for timing runs)
+#   DYNG_PLUGIN_INTEROP_PYTHON  a venv's python with torch / cupy for the round trips (none)
 # Run it under the shared perf lock:
 #   flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
 set -euo pipefail
@@ -190,21 +197,40 @@ for name, res in (("sequential", seq), ("cuda", cuda)):
     mo = dyng.mosp.compute(gm, 0)
     results[name] = (t, h, mo)
 t, h, mo = results["cuda"]
+ts, hs, ms = results["sequential"]
 assert t.distances.device == "cuda:0" and mo.distances(0).device == "cuda:0", t.distances.device
-# mosp's path costs are computed on the host (ADR 0027): equal to the sequential backend's.
-assert np.array_equal(mo.path_costs.to_numpy(), results["sequential"][2].path_costs.to_numpy())
-assert h.total == results["sequential"][1].total > 0, (h.total, results["sequential"][1].total)
-# The element-wise comparison of device arrays from Python (DLPack / __cuda_array_interface__)
-# belongs to the GPU tests of python/tests (M6a, step discovery); here the plugin must run.
+assert t.distances.__cuda_array_interface__["shape"] == (n,)
+same = np.array_equal
+assert same(t.distances.to_numpy(), ts.distances.to_numpy())
+assert same(t.parents.to_numpy(), ts.parents.to_numpy())
+assert same(h.counts.to_numpy(), hs.counts.to_numpy()) and h.total > 0
+for k in range(2):
+    assert same(mo.distances(k).to_numpy(), ms.distances(k).to_numpy())
+    assert same(mo.parents(k).to_numpy(), ms.parents(k).to_numpy())
+assert same(mo.combined_parents.to_numpy(), ms.combined_parents.to_numpy())
+assert same(mo.path_costs.to_numpy(), ms.path_costs.to_numpy())
 print(f"    sssp, cycle_count and mosp ran on cuda ({backend.active_module_name}); "
-      f"cycle_count's total {h.total} and mosp's path costs equal sequential")
+      "their arrays equal the sequential backend's")
 PY
-      out_cpu="$(CUDA_VISIBLE_DEVICES= "${venv}/bin/python" -c \
-        'import dyng, dyng._backend as b; dyng.__version__; print(b.active_module_name)')"
+      out_cpu="$(CUDA_VISIBLE_DEVICES= "${venv}/bin/python" -c '
+import warnings, dyng, dyng._backend as b
+with warnings.catch_warnings(record=True) as w:
+    warnings.simplefilter("always")
+    dyng.__version__
+assert [x.category for x in w] == [dyng.BackendWarning], w
+print(b.active_module_name)')"
       [ "${out_cpu}" = "dyng._core" ] || { echo "no fallback without a device: ${out_cpu}" >&2; exit 1; }
-      echo "    no visible device: falls back to ${out_cpu}"
+      echo "    no visible device: falls back to ${out_cpu} with a dyng.BackendWarning"
     )
+    log="${out}/pytest-gpu-${plugin}-${pyver}.log"
     "${venv}/bin/python" -m pip install -q "pytest>=8" "hypothesis==6.167.1"
+    echo "    pytest -m gpu python/tests (GPU ${gpu})"
+    if ! CUDA_VISIBLE_DEVICES="${gpu}" DYNG_REQUIRE_CUDA=1 "${venv}/bin/python" -m pytest -q \
+      -p no:cacheprovider -m gpu python/tests >"${log}" 2>&1; then
+      tail -40 "${log}"
+      exit 1
+    fi
+    tail -1 "${log}"
     log="${out}/pytest-${plugin}-${pyver}.log"
     echo "    pytest python/tests with DYNG_CPU_ONLY=1 (plugin installed)"
     if ! DYNG_CPU_ONLY=1 OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}" "${venv}/bin/python" -m pytest -q \
@@ -215,5 +241,23 @@ PY
     tail -1 "${log}"
   done
 done
+interop="${DYNG_PLUGIN_INTEROP_PYTHON:-}"
+if [ -n "${interop}" ]; then
+  for plugin in ${plugins}; do
+    echo "==> ${plugin}: the GPU tests with PyTorch / CuPy in ${interop}"
+    "${interop}" -m pip install -q --force-reinstall --no-deps "${core_wheel}" \
+      "${out}/dist"/dyng_"${plugin}"-*.whl
+    log="${out}/pytest-gpu-interop-${plugin}.log"
+    if ! CUDA_VISIBLE_DEVICES="${gpu}" DYNG_REQUIRE_CUDA=1 "${interop}" -m pytest -q \
+      -p no:cacheprovider -m gpu -rs python/tests >"${log}" 2>&1; then
+      tail -40 "${log}"
+      exit 1
+    fi
+    grep -E "SKIPPED|passed|failed" "${log}" | sed 's/^/    /'
+    # The plugin stays installed only for this run's plugin list: uninstall, so the venv's
+    # selection is not decided by a leftover plugin of another version.
+    "${interop}" -m pip uninstall -q -y "dyng-${plugin}"
+  done
+fi
 echo "==> plugin wheels in ${out}/dist"
 ls -l "${out}/dist"
