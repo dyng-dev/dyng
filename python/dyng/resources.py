@@ -25,10 +25,11 @@ BackendName = Literal["sequential", "openmp", "cuda"]
 CopyPolicyName = Literal["allow", "warn", "error"]
 
 _CUDA_PLUGIN_MESSAGE = (
-    "this dyng installation is the CPU wheel (sequential and OpenMP backends); the CUDA backends "
-    "come as the plugin wheels dyng-cu12 and dyng-cu13 of the 0.1.x releases "
-    '(pip install "dyng[cu13]" once they are published); until then, use the CUDA backend '
-    "from C++ (docs: getting started, 'Install', section 'Python')"
+    "the active native module is dyng._core, the CPU module (sequential and OpenMP backends); "
+    "the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: "
+    'pip install "dyng[cu13]" (an NVIDIA driver for CUDA 13) or "dyng[cu12]" (CUDA 12). '
+    "With a plugin installed, dyng.show_config() says why it is not used (docs: getting "
+    "started, 'Install', section 'Python')"
 )
 
 
@@ -135,7 +136,8 @@ class Resources:
             host_threads: OpenMP threads of the host-side work (0 = the OpenMP default).
 
         Raises:
-            NotSupportedError: in the CPU wheel (see the message: the CUDA plugins of 0.1.x), or
+            NotSupportedError: with the CPU module (no CUDA plugin installed or usable; see the
+                message), or
                 when no device is visible.
         """
         handle = _stream_handle(stream)

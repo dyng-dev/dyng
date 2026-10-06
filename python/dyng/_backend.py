@@ -3,7 +3,7 @@
 """Select the native module of this process (PLAN Section 5.4, "CPU core + CUDA plugins").
 
 The ``dyng`` wheel always contains ``dyng._core`` (sequential and OpenMP backends). The CUDA
-backends come as plugin wheels (``dyng-cu12``, ``dyng-cu13``; 0.1.x), each registering an entry
+backends come as plugin wheels (``dyng-cu12``, ``dyng-cu13``; ADR 0030), each registering an entry
 point in the group ``dyng.backends`` that names a module with ``available() -> bool`` and
 ``native`` (its extension module, a superset of ``_core``). Exactly one module is active per
 process.
