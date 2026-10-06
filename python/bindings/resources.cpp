@@ -31,6 +31,9 @@
 #ifndef DYNG_PYTHON_COMPILER
 #define DYNG_PYTHON_COMPILER "unknown"
 #endif
+#ifndef DYNG_PYTHON_PLUGIN
+#define DYNG_PYTHON_PLUGIN ""
+#endif
 
 namespace dyng::python {
 
@@ -125,6 +128,18 @@ void bind_resources(nb::module_& m) {
   config["cuda"] = static_cast<bool>(DYNG_HAS_CUDA);
   config["build_type"] = DYNG_PYTHON_BUILD_TYPE;
   config["compiler"] = DYNG_PYTHON_COMPILER;
+  // The CUDA plugin this module belongs to ("cu12", "cu13"; empty in dyng._core) and the CUDA
+  // part of its build (ADR 0030); empty strings in a build without CUDA.
+  config["plugin"] = DYNG_PYTHON_PLUGIN;
+#if defined(DYNG_PYTHON_CUDA_TOOLKIT)
+  config["cuda_toolkit"] = DYNG_PYTHON_CUDA_TOOLKIT;
+  config["cuda_architectures"] = DYNG_PYTHON_CUDA_ARCHITECTURES;
+  config["cuda_runtime"] = DYNG_PYTHON_CUDA_RUNTIME;
+#else
+  config["cuda_toolkit"] = "";
+  config["cuda_architectures"] = "";
+  config["cuda_runtime"] = "";
+#endif
 #if defined(DYNG_PYTHON_HAS_OPENMP) && DYNG_PYTHON_HAS_OPENMP
   config["openmp_version"] = static_cast<int>(_OPENMP);
 #else

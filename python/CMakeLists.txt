@@ -11,6 +11,49 @@
 #   pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build   # development
 # or in any CMake build with -DDYNG_BUILD_PYTHON=ON (nanobind is found through the Python
 # interpreter CMake finds; `python -m nanobind --cmake_dir`).
+#
+# DYNG_PYTHON_PLUGIN=cu12|cu13 builds the same module for a CUDA plugin wheel instead (dyng-cu12,
+# dyng-cu13; PLAN 5.4 and 7.7, ADR 0030): installed as dyng_cu<N>/_core.abi3.so under the nanobind
+# domain dyng_cu<N>, with every backend (DYNG_ENABLE_CUDA=ON, OpenMP), the static CUDA runtime and
+# a toolkit of that CUDA major. ci/plugin_pyproject.py renders the pyproject.toml of such a build.
+set(DYNG_PYTHON_PLUGIN
+    ""
+    CACHE STRING "Build the module of a CUDA plugin wheel: empty (dyng._core), cu12 or cu13"
+)
+set_property(CACHE DYNG_PYTHON_PLUGIN PROPERTY STRINGS "" cu12 cu13)
+if(DYNG_PYTHON_PLUGIN STREQUAL "")
+  set(_dyng_python_package dyng)
+  set(_dyng_nb_domain dyng_cpu)
+elseif(DYNG_PYTHON_PLUGIN MATCHES "^cu([0-9]+)$")
+  set(_dyng_plugin_major "${CMAKE_MATCH_1}")
+  if(NOT DYNG_PYTHON_PLUGIN MATCHES "^cu1[23]$")
+    message(FATAL_ERROR "DYNG_PYTHON_PLUGIN=${DYNG_PYTHON_PLUGIN}: the plugins are cu12 and cu13")
+  endif()
+  if(NOT DYNG_ENABLE_CUDA)
+    message(FATAL_ERROR "DYNG_PYTHON_PLUGIN=${DYNG_PYTHON_PLUGIN} needs DYNG_ENABLE_CUDA=ON")
+  endif()
+  if(NOT DYNG_ENABLE_OPENMP)
+    message(FATAL_ERROR "DYNG_PYTHON_PLUGIN=${DYNG_PYTHON_PLUGIN} needs DYNG_ENABLE_OPENMP=ON (a "
+                        "plugin module has every backend: it replaces dyng._core)"
+    )
+  endif()
+  string(REGEX MATCH "^[0-9]+" _dyng_toolkit_major "${DYNG_CUDA_COMPILER_RELEASE}")
+  if(NOT _dyng_toolkit_major STREQUAL _dyng_plugin_major)
+    message(FATAL_ERROR "DYNG_PYTHON_PLUGIN=${DYNG_PYTHON_PLUGIN} needs a CUDA ${_dyng_plugin_major}.x "
+                        "toolkit; ${CMAKE_CUDA_COMPILER} is CUDA ${DYNG_CUDA_COMPILER_RELEASE}"
+    )
+  endif()
+  string(TOLOWER "${CMAKE_CUDA_RUNTIME_LIBRARY}" _dyng_cudart_kind)
+  if(NOT _dyng_cudart_kind STREQUAL "static")
+    message(FATAL_ERROR "DYNG_PYTHON_PLUGIN=${DYNG_PYTHON_PLUGIN} needs "
+                        "CMAKE_CUDA_RUNTIME_LIBRARY=Static (a wheel never depends on libcudart.so)"
+    )
+  endif()
+  set(_dyng_python_package dyng_${DYNG_PYTHON_PLUGIN})
+  set(_dyng_nb_domain dyng_${DYNG_PYTHON_PLUGIN})
+else()
+  message(FATAL_ERROR "DYNG_PYTHON_PLUGIN='${DYNG_PYTHON_PLUGIN}': empty, cu12 or cu13")
+endif()
 
 # scikit-build-core passes SKBUILD_SABI_COMPONENT (Development.SABIModule) for an abi3 wheel; a
 # plain CMake build asks for it optionally (nanobind builds a version-specific module without it).
@@ -40,13 +83,13 @@ if(NOT nanobind_DIR)
 endif()
 find_package(nanobind CONFIG REQUIRED)
 
-# NB_DOMAIN keeps the type registrations of the CPU module and the CUDA plugins (dyng_cu12,
-# dyng_cu13; 0.1.x) apart when both are imported into one process (PLAN Section 5.4).
+# NB_DOMAIN keeps the type registrations of the CPU module (dyng_cpu) and the CUDA plugins
+# (dyng_cu12, dyng_cu13) apart when more than one is imported into a process (PLAN Section 5.4).
 nanobind_add_module(
   _core
   STABLE_ABI
   NB_STATIC
-  NB_DOMAIN dyng_cpu
+  NB_DOMAIN ${_dyng_nb_domain}
   bindings/module.cpp
   bindings/errors.cpp
   bindings/resources.cpp
@@ -83,7 +126,19 @@ if(DYNG_ENABLE_OPENMP)
 endif()
 target_compile_definitions(_core PRIVATE "DYNG_PYTHON_BUILD_TYPE=\"$<CONFIG>\""
                                          "DYNG_PYTHON_COMPILER=\"${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}\""
+                                         "DYNG_PYTHON_PLUGIN=\"${DYNG_PYTHON_PLUGIN}\""
 )
+# What show_config() reports about the CUDA part of the build (empty in a CPU build).
+if(DYNG_ENABLE_CUDA)
+  string(TOLOWER "${CMAKE_CUDA_RUNTIME_LIBRARY}" _dyng_cudart_kind)
+  string(REPLACE ";" "," _dyng_cuda_archs "${DYNG_CUDA_ARCHITECTURES_RESOLVED}")
+  target_compile_definitions(
+    _core PRIVATE "DYNG_PYTHON_CUDA_TOOLKIT=\"${DYNG_CUDA_COMPILER_RELEASE}\""
+                  "DYNG_PYTHON_CUDA_ARCHITECTURES=\"${_dyng_cuda_archs}\""
+                  "DYNG_PYTHON_CUDA_RUNTIME=\"${_dyng_cudart_kind}\""
+  )
+endif()
 
-# In a wheel the module sits next to the typed layer: dyng/_core.abi3.so.
-install(TARGETS _core LIBRARY DESTINATION dyng COMPONENT python)
+# In a wheel the module sits next to the typed layer (dyng/_core.abi3.so) or in the plugin's
+# package (dyng_cu13/_core.abi3.so).
+install(TARGETS _core LIBRARY DESTINATION ${_dyng_python_package} COMPONENT python)

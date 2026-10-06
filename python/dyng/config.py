@@ -60,8 +60,16 @@ def show_config(file: IO[str] | None = None) -> None:
     ]
     if not c["build"]["cuda"]:
         lines.append(
-            "  CUDA              : not in this build (the CPU wheel); the CUDA plugins "
-            "dyng-cu12 / dyng-cu13 follow in 0.1.x"
+            "  CUDA              : not in this module (the CPU wheel); the CUDA plugins: "
+            'pip install "dyng[cu13]" or "dyng[cu12]"'
+        )
+    else:
+        b = c["build"]
+        plugin = f"plugin {b['plugin']}, " if b.get("plugin") else ""
+        lines.append(
+            f"  CUDA              : {plugin}toolkit {b.get('cuda_toolkit', '?')}, "
+            f"{b.get('cuda_runtime', '?')} runtime, architectures "
+            f"{b.get('cuda_architectures', '?')}"
         )
     for name, error in c["plugin_errors"].items():
         lines.append(f"  plugin {name} failed to load: {error}")
