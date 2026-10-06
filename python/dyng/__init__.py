@@ -35,6 +35,7 @@ from .array import Array
 from .batch import EdgeBatch
 from .config import config, get_log_level, set_log_level, show_config, use_cpu_only
 from .errors import (
+    BackendWarning,
     CapacityError,
     ConvergenceError,
     CudaError,
@@ -112,4 +113,5 @@ __all__ = [
     "CudaError",
     "OutOfMemoryError",
     "InternalError",
+    "BackendWarning",
 ]

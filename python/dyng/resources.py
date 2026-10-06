@@ -33,6 +33,20 @@ _CUDA_PLUGIN_MESSAGE = (
 )
 
 
+def _cpu_module_message() -> str:
+    """Why there is no CUDA backend: the CPU module, and what the selection found (ADR 0031)."""
+    from ._backend import selection
+
+    chosen = selection()
+    if not chosen.plugins:
+        return _CUDA_PLUGIN_MESSAGE
+    found = "; ".join(
+        f"{p.module}{' ' + p.version if p.version else ''} ({p.state}: {p.reason})"
+        for p in chosen.plugins
+    )
+    return f"{_CUDA_PLUGIN_MESSAGE}. Installed CUDA plugins: {found}"
+
+
 def _stream_handle(stream: Any) -> int:
     """A CUDA stream as an integer handle: None/0, an int, ``__cuda_stream__``, CuPy or PyTorch."""
     if stream is None:
@@ -53,7 +67,18 @@ def _stream_handle(stream: Any) -> int:
     )
 
 
-class Resources:
+class _StreamOwner:
+    """Holds the stream object given to ``Resources.cuda(stream=...)`` (internal).
+
+    The native handle refers to the stream without owning it (C++: "the stream must outlive
+    every copy of the handle"). The slot lives in this base class so that, when a Resources is
+    freed, its native handle (a slot of the subclass, cleared first) goes before the stream.
+    """
+
+    __slots__ = ("_stream",)
+
+
+class Resources(_StreamOwner):
     """Execution resources: backend, device, stream, thread count and profiler.
 
     Cheap to copy: copies (``copy.copy``, ``copy.deepcopy``) share one handle, so
@@ -87,6 +112,7 @@ class Resources:
         self, backend: BackendName | None = None, *, num_threads: int = 0, device: int = 0
     ) -> None:
         self._profiler: Any = None
+        self._stream: Any = None
         if backend is None:
             self._native = native.Resources()
         elif backend == "sequential":
@@ -104,6 +130,7 @@ class Resources:
         self = cls.__new__(cls)
         self._native = handle
         self._profiler = None
+        self._stream = None
         return self
 
     @classmethod
@@ -132,7 +159,12 @@ class Resources:
             device: The CUDA device ordinal.
             stream: The stream all work is ordered on: None (the per-thread default stream), an
                 integer ``cudaStream_t``, a CuPy or PyTorch stream, or any object with
-                ``__cuda_stream__``.
+                ``__cuda_stream__``. A stream object is kept alive by these resources, their
+                copies, and the graphs and results made with them (the stream must outlive
+                every use of the handle, as in C++); a stream given as an integer handle must be
+                kept alive by the caller. Arrays exported from results (DLPack,
+                ``__cuda_array_interface__``) keep the result's memory, not the stream: drop them
+                before destroying the stream.
             host_threads: OpenMP threads of the host-side work (0 = the OpenMP default).
 
         Raises:
@@ -142,8 +174,10 @@ class Resources:
         """
         handle = _stream_handle(stream)
         if not native.build_config["cuda"]:
-            raise NotSupportedError(f"dyng.Resources.cuda: {_CUDA_PLUGIN_MESSAGE}")
-        return cls._wrap(native.Resources.cuda(device, handle, host_threads))
+            raise NotSupportedError(f"dyng.Resources.cuda: {_cpu_module_message()}")
+        out = cls._wrap(native.Resources.cuda(device, handle, host_threads))
+        out._stream = None if stream is None or isinstance(stream, int) else stream
+        return out
 
     @property
     def backend(self) -> BackendName:
@@ -193,10 +227,12 @@ class Resources:
         self._native.synchronize()
 
     def __copy__(self) -> Resources:
-        return Resources._wrap(self._native)  # copies share the handle, as in C++
+        out = Resources._wrap(self._native)  # copies share the handle, as in C++
+        out._stream = self._stream
+        return out
 
     def __deepcopy__(self, memo: dict[int, Any]) -> Resources:
-        return Resources._wrap(self._native)  # a handle, not data: shared as well
+        return self.__copy__()  # a handle, not data: shared as well
 
     def __reduce__(self) -> Any:
         # Pickling (another process) rebuilds equal resources: same backend, threads, device and

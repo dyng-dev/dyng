@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import platform
 import sys
 from typing import IO, Any, Literal
@@ -18,16 +19,24 @@ LogLevelName = Literal["off", "error", "warn", "info", "debug", "trace"]
 
 
 def config() -> dict[str, Any]:
-    """The configuration of this installation as a dict (what :func:`show_config` prints)."""
+    """The configuration of this installation as a dict (what :func:`show_config` prints).
+
+    ``native_module`` is the active native module, ``selection`` why it was chosen, and
+    ``plugins`` one dict per installed CUDA plugin (``name``, ``module``, ``version``,
+    ``cuda_major``, ``driver_version``, ``state``, ``reason``; see ADR 0031).
+    """
     import numpy as np
 
     backends = {}
     for b in native.Backend:
         backends[b.name] = bool(native.backend_available(b))
     build = dict(native.build_config)
+    chosen = _backend.selection()
     return {
         "version": native.__version__,
         "native_module": _backend.active_module_name,
+        "selection": chosen.reason,
+        "plugins": [dataclasses.asdict(p) for p in chosen.plugins],
         "backends": backends,
         "default_backend": enum_name(native.default_backend()),
         "openmp_max_threads": int(native.openmp_max_threads()),
@@ -50,6 +59,7 @@ def show_config(file: IO[str] | None = None) -> None:
     lines = [
         f"dynG {c['version']}",
         f"  native module     : {c['native_module']}",
+        f"  chosen because    : {c['selection']}",
         "  backends          : "
         + ", ".join(f"{k} ({'yes' if v else 'no'})" for k, v in c["backends"].items()),
         f"  default backend   : {c['default_backend']}",
@@ -71,8 +81,14 @@ def show_config(file: IO[str] | None = None) -> None:
             f"{b.get('cuda_runtime', '?')} runtime, architectures "
             f"{b.get('cuda_architectures', '?')}"
         )
-    for name, error in c["plugin_errors"].items():
-        lines.append(f"  plugin {name} failed to load: {error}")
+    for plugin in c["plugins"]:
+        driver = plugin["driver_version"]
+        seen = "" if driver is None else f", driver CUDA {driver // 1000}.{(driver % 1000) // 10}"
+        lines.append(
+            f"  CUDA plugin       : {plugin['module']} {plugin['version'] or '?'} "
+            f"(CUDA {plugin['cuda_major'] or '?'}{seen}): {plugin['state']}"
+            + (f" ({plugin['reason']})" if plugin["state"] != "chosen" else "")
+        )
     print("\n".join(lines), file=out)
 
 
