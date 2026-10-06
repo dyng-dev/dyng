@@ -107,7 +107,7 @@ void validate_batch_shape(const edge_batch_view<vertex_t, weight_t>& batch, int 
   if (!batch.insert_vertices.empty() || !batch.delete_vertices.empty() ||
       !batch.insert_vertex_labels.empty()) {
     throw not_supported_error(
-        "dyng: vertex insertions and deletions are not supported yet (planned for 0.3)");
+        "dyng: vertex insertions and deletions are not supported yet (planned for 0.4)");
   }
   DYNG_EXPECTS(batch.insert_dst.size() == num_inserts, "the batch has ", num_inserts,
                " insertion sources but ", batch.insert_dst.size(), " destinations");

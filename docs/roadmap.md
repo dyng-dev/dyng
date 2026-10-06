@@ -13,8 +13,11 @@ CycleEnumeration-GPU codes on their golden corpora, and are within the performan
 the originals (ADR 0018 and ADR 0021 record how the CUDA gates are read; the parity certificate
 of the release is `benchmarks/results/0.1.0/`, carried over from the release candidate
 0.1.0rc1, which was published on TestPyPI only); the Python package, the `dyng` command line and
-the documentation are complete. Next come the 0.1.x hardening releases and 0.2.0, whose `mosp`
-is in development.
+the documentation are complete.
+
+After 0.1.0 the releases come in smaller steps (the author's decision of 2026-10-02): the
+hardening that was planned as 0.1.x and `mosp` make **0.2.0**, which is in preparation; the
+hypergraph and `triad_count` follow as 0.3.0, `label_propagation` and `hyper_sssp` as 0.4.0.
 
 ## 0.1.0: the first release
 
@@ -28,25 +31,26 @@ is in development.
 - Documentation: getting started (Python and C++), the update model, the algorithm pages, the
   C++, Python and CLI references, and the history of the ported research codes.
 
-## 0.1.x: hardening
-
-- CUDA wheels as plugins: `pip install "dyng[cu12]"` or `"dyng[cu13]"`.
-- Tutorials on writing your own dynamic algorithm (`dynamic_bfs`, `triangle_delta`), and the
-  Python tutorials (dynamic SSSP in ten minutes, cycle counting on a changing graph).
-- Hosted documentation (GitHub Pages: <https://dyng-dev.github.io/dyng/>) and a citable DOI per
-  release (Zenodo; 0.1.0 has none, the first DOI comes with the first release after Zenodo is
-  connected).
-- Fuzzers for the file readers, mutation checks, sanitizer jobs.
-
-## 0.2.0
+## 0.2.0: `mosp`, CUDA wheels and hardening
 
 - `mosp`: multi-objective shortest paths (DynaMOSP), and a second `sssp` engine for GPUs
   without cooperative launch.
-- The dynamic **hypergraph** with the ESCHER storage, and `triad_count` (hypergraph h-motif
-  triads, ESCHER / ESCHER+).
+- CUDA wheels as plugins: `pip install "dyng[cu12]"` or `"dyng[cu13]"`.
+- Tutorials on writing your own dynamic algorithm (the tutorial algorithms `dynamic_bfs` and
+  `triangle_delta`, and "Your first dynamic algorithm"), and the Python tutorials (dynamic SSSP
+  in ten minutes, cycle counting on a changing graph).
+- Hosted documentation on GitHub Pages: <https://dyng-dev.github.io/dyng/>. A citable DOI per
+  release once Zenodo is connected (0.1.0 has none).
+- Fuzzers for the file readers, mutation checks of the golden suites, sanitizer jobs (ASan,
+  UBSan, TSan) on every pull request.
+
+## 0.3.0: the dynamic hypergraph
+
+- The dynamic **hypergraph** with the ESCHER storage, and binary batch files (`.dgb`).
+- `triad_count` (hypergraph h-motif triads, ESCHER / ESCHER+).
 - Experimental: counting your own local hypergraph patterns (`count_local_patterns`).
 
-## 0.3.0
+## 0.4.0
 
 - `label_propagation` (DynLP): binary harmonic label propagation under vertex batches.
 - `hyper_sssp` (H-SOSP): shortest hyperpaths, on the shared shortest-path engine.
@@ -54,9 +58,9 @@ is in development.
 
 ## Towards 1.0
 
-- **0.4:** an OpenMP backend for incremental `triad_count`; more cycle modes (Read-Tarjan,
+- **0.5:** an OpenMP backend for incremental `triad_count`; more cycle modes (Read-Tarjan,
   time windows, temporal); 64-bit hypergraph offsets.
-- **0.5:** the framework for writing update algorithms becomes public (experimental).
+- **0.6:** the framework for writing update algorithms becomes public (experimental).
 - **1.0:** the API of the core and the stable algorithms is frozen. The release criterion: an
   outside contributor has added an algorithm using only the documentation.
 

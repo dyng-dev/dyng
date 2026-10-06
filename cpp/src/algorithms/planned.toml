@@ -12,7 +12,7 @@ container = "hypergraph (ESCHER store)"
 family    = "aggregate delta"
 backends  = "sequential, OpenMP, CUDA"
 paper     = "ESCHER / ESCHER+"
-since     = "0.2"
+since     = "0.3"
 
 [[planned]]
 name      = "label_propagation"
@@ -21,7 +21,7 @@ container = "graph"
 family    = "fixed point"
 backends  = "sequential, CUDA"
 paper     = "DynLP (ICS 2026)"
-since     = "0.3"
+since     = "0.4"
 
 [[planned]]
 name      = "hyper_sssp"
@@ -30,4 +30,4 @@ container = "hypergraph"
 family    = "fixed point"
 backends  = "sequential, CUDA"
 paper     = "H-SOSP (IA3 2026)"
-since     = "0.3"
+since     = "0.4"

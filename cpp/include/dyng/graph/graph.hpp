@@ -335,7 +335,7 @@ class graph {
    *         the weights do not match num_weights(), a semantics rule says error, or an array must
    *         be copied and the copy policy is copy_policy::error.
    * @throws capacity_error         if the edge count after the batch does not fit edge_t.
-   * @throws not_supported_error    for vertex insertions or deletions (planned for 0.3).
+   * @throws not_supported_error    for vertex insertions or deletions (planned for 0.4).
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error (device merge).
    * @sync

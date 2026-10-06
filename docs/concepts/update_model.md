@@ -155,4 +155,4 @@ invalidate_subtree, group_by_owner, count_delta, ...). The option `engine` (`aut
 both to give identical results.
 
 The framework itself (`problem_base`, the enactors, frontiers and operators) is extracted from
-the first two ported algorithms in milestone M3; it is internal until 0.5.
+the first two ported algorithms in milestone M3; it is internal until 0.6.

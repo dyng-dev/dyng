@@ -32,7 +32,7 @@ approach before you invest time in it.
   to be doable without knowing the whole code base. A second label says what kind of work it is:
   `good-first-issue:docs` (documentation), `good-first-issue:reader` (a file format reader),
   `good-first-issue:backend` (an OpenMP backend for a sequential-only algorithm) and, from
-  0.2, `good-first-issue:op` (a new hypergraph pattern). Issues labelled
+  0.3, `good-first-issue:op` (a new hypergraph pattern). Issues labelled
   [`help wanted`](https://github.com/dyng-dev/dyng/labels/help%20wanted) are larger tasks
   where help is welcome. The full label list is in
   [docs/developer/labels.md](docs/developer/labels.md).

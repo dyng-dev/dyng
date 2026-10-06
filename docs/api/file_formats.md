@@ -39,8 +39,8 @@ batches in one ASCII text file, one operation per line.
 - Within a batch the insertions and the deletions each keep file order. Which of the two applies
   first is the graph's batch semantics (`BatchSemantics.deletions_first`), not the file's.
 - Reserved and rejected by 0.1 with an `io_error` / `FileFormatError`: the vertex operations
-  `+v u [label]`, `-v u` (label_propagation, 0.3) and the hypergraph operations `+h v1 v2 ...
-  [; w]`, `-h id`, `+i h v`, `-i h v` (0.2).
+  `+v u [label]`, `-v u` (label_propagation, 0.4) and the hypergraph operations `+h v1 v2 ...
+  [; w]`, `-h id`, `+i h v`, `-i h v` (0.3).
 - Every token is a whole decimal integer; errors report the path, line and column.
 
 The writer writes `%dgt 1`, then per batch `%batch <i>`, its deletions and its insertions in batch

@@ -1,4 +1,4 @@
-# Sketch: `triad_count` (0.2)
+# Sketch: `triad_count` (0.3)
 
 **Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M9.
 **Computes:** the 30-bin closed h-motif counts of a hypergraph (the triads of three hyperedges and
@@ -95,5 +95,5 @@ stats update(const resources& res, hypergraph<vertex_t, weight_t>& hg,
 
 1. Whether the per-bin signed delta is worth a `stats` field after all (the paper's plots show
    per-batch deltas; a fixed-size `std::array<std::int64_t, 30>` would not allocate).
-2. The `experimental::count_local_patterns<op_t>` extension point (0.4) and how its Op concept
+2. The `experimental::count_local_patterns<op_t>` extension point (0.5) and how its Op concept
    relates to `pattern` (a new pattern as a new Op, not a new enumerator).

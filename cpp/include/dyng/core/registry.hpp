@@ -33,7 +33,7 @@ enum class algorithm_family : std::uint8_t {
  */
 enum class container_kind : std::uint8_t {
   graph,       ///< dyng::graph
-  hypergraph,  ///< the hypergraph container (0.2)
+  hypergraph,  ///< the hypergraph container (0.3)
 };
 
 /**

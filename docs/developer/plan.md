@@ -11,15 +11,20 @@ change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in 
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
 
-Status: 2026-10-02. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
+Status: 2026-10-06. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
 conformance kit and the 0.1 API freeze), M4 (this infrastructure) and M5 (the Python package, a
 CPU wheel, the `dyng` command line and the documentation of 0.1; pull request #4, merged at
 `8842acf`) are done and merged into `main`. **0.1.0 is released**: the release preparation R010
 made the release candidate 0.1.0rc1 (pull request #5, on TestPyPI; {doc}`retrospectives/R010`),
 and the final-release pull request R011 made 0.1.0 with the certificate carried over
 ({doc}`retrospectives/R011`; the checklist: {doc}`release`); R012 set the release date to the tag
-day, 2026-10-02, and recorded the author's last decisions ({doc}`retrospectives/R012`). M7
-(`mosp`, for 0.2) is developed at the same time on its own branch.
+day, 2026-10-02, and recorded the author's last decisions ({doc}`retrospectives/R012`). After
+the release the author re-grouped the next releases into smaller steps (2026-10-02, recorded in
+`GOVERNANCE.md`): **0.2.0** is M7 (`mosp` and the `sssp` operators engine; merged into `main` by
+pull request #8) plus M6 (the hardening planned as 0.1.x), which runs as two parallel milestones,
+M6a (the CUDA plugin wheels) and M6b (the tutorial algorithms, the documentation on GitHub Pages,
+fuzzers, mutation checks, sanitizer jobs; {doc}`retrospectives/M6b`); **0.3.0** is M8 and M9 (the
+hypergraph and `triad_count`); **0.4.0** is M10 and M11 (`label_propagation`, `hyper_sssp`).
 
 ## 1. What dynG is
 
@@ -105,7 +110,7 @@ The decisions at a glance (D1-D17 of the plan), with the author's decisions at a
 | Contract | `compute(res, container, inputs, options) -> result`; `update(res, container&, batch, result&) -> stats` applies the batch; stale results throw; per-algorithm oracle kind; ADR 0006 |
 | Several results | `dyng::update(res, g, batch, r1, r2, ...)` applies the batch once (0.1) |
 | Backends | `sequential` (mandatory reference), `openmp`, `cuda`, chosen at run time through `resources` |
-| Framework | the thesis template as a CRTP `problem` + enactors, extracted from `sssp` and `cycle_count` in M3; internal-stable; public (experimental) in 0.5 |
+| Framework | the thesis template as a CRTP `problem` + enactors, extracted from `sssp` and `cycle_count` in M3; internal-stable; public (experimental) in 0.6 |
 | Performance | straight port first, refactor commit by commit; fused engines allowed; gates 1.05x / 1.10x |
 | Python | nanobind + scikit-build-core; CPU wheel `dyng` + CUDA plugin wheels `dyng-cu12` / `dyng-cu13` |
 | Docs | Doxygen XML -> Breathe -> Sphinx (MyST, pydata theme), Diataxis; hosted on GitHub Pages, <https://dyng-dev.github.io/dyng/> (the author's decision of 2026-10-02: the plan's fallback to Read the Docs) |
@@ -114,8 +119,10 @@ The decisions at a glance (D1-D17 of the plan), with the author's decisions at a
 | Execution | "execute entirely": milestone by milestone; the author is asked only for account-level actions (GitHub, PyPI, Read the Docs, Zenodo) and real blockers |
 
 The approval checkpoints (ADR 0014): A1 (create the GitHub home) and A2 (public) are approved;
-A3 (PyPI name reservation) is approved and done; **A4** (Read the Docs, Zenodo, conda-forge, a
-domain) is still to be asked, at M6; A5 (per-port consent) is not needed. Every approval is
+A3 (PyPI name reservation) is approved and done; of **A4**, the documentation hosting is decided
+(GitHub Pages, 2026-10-02; Read the Docs is not connected) and Zenodo is not connected for 0.1.0
+(2026-10-01); Zenodo for later releases, conda-forge (0.4) and a domain are still to be asked;
+A5 (per-port consent) is not needed. Every approval is
 logged in `GOVERNANCE.md`.
 
 ## 3. Milestones
@@ -124,8 +131,9 @@ logged in `GOVERNANCE.md`.
 M0 decisions ─► M1a CPU sssp ─┬─► M1b CUDA sssp ─┐
                               └─► M2 cycle_count ─┴─► M3 framework + 0.1 API freeze ─┐
 A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ─────────────────────────────────┴─► M5 Python, CLI, docs ─► 0.1.0
-0.1.0 ─► M6 0.1.x hardening │ M7 sssp operators + mosp │ M8 ESCHER store ─► M9 triad_count ─► 0.2.0
-0.2.0 ─► M10 label_propagation │ M11 hyper_sssp ─► 0.3.0 ─► 0.4 ─► 0.5 (framework public) ─► 1.0
+0.1.0 ─► M7 sssp operators + mosp │ M6a CUDA plugin wheels │ M6b hardening ─► 0.2.0
+0.2.0 ─► M8 ESCHER store ─► M9 triad_count ─► 0.3.0
+0.3.0 ─► M10 label_propagation │ M11 hyper_sssp ─► 0.4.0 ─► 0.5 ─► 0.6 (framework public) ─► 1.0
 ```
 
 | Milestone | Deliverables | Exit criteria | Status |
@@ -138,16 +146,19 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 | **M4** GitHub repository and infrastructure (parallel) | community files, issue forms, PR template, CODEOWNERS, labels, DCO; workflows `lint`, `cpu`, `docs`; this documentation site; the repository-settings guide | hosted workflows green; a contributor goes from clone to green build with the documented commands | **done** (merged into `main` with M1b in INT1; the hosted runs start with the first push) |
 | **M5** Python CPU wheel, CLI, docs for 0.1 | root `pyproject.toml`, nanobind bindings, stubs, pytest; the CPU wheel + sdist; CLI; getting started, the update-model page, the `sssp` and `cycle_count` pages, the API reference, history pages | pytest green against the goldens; `pip install` of the release candidate works on a clean CPU machine; docs build with `-W` | **done** on `m5-python` (ADRs 0011 and 0025; the wheel installs and passes the suite in fresh venvs on Python 3.12 and 3.13; merged into `main` by pull request #4); `dyng prep` of M7 was delivered here |
 | **0.1.0** | the release preparation R010: the benchmark-suite records, the parity certificate, `VERSION` 0.1.0rc1, the release changes; the final-release pull request R011 | the release checklist, including the parity certificate | **done** (R010, {doc}`retrospectives/R010`: 0.1.0rc1 with its certificate, on TestPyPI; R011, {doc}`retrospectives/R011`: `VERSION` 0.1.0, the certificate `benchmarks/results/0.1.0/` carried over; R012, {doc}`retrospectives/R012`: the release date 2026-10-02 (the tag day); the tags and the GitHub Release are pushed by the AI assistant on the author's behalf, the PyPI deployment is approved by the author) |
-| **M6** 0.1.x hardening | CUDA plugin wheels; the tutorial algorithms `dynamic_bfs` and `triangle_delta`; Read the Docs and Zenodo (A4); fuzzers; mutation checks; sanitizer jobs | `pip install "dyng[cu13]"` works; tutorials pass the kit; mutations fail as expected | |
-| **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | **done** on `m7-mosp` (0.2; ADRs 0026-0028): the operators engine byte-identical to the fused one (C4, the corpus), mosp byte-identical to both originals and within every gate, `dyng.mosp` and `dyng mosp`; merges after 0.1.0. PLAN 11.3 also lists the `.dgb` binary batches for M7; they moved to M8, with which PLAN 6.2 (order 7) ships them, because no M7 deliverable reads them ({doc}`retrospectives/M7`, "Review and fix") |
+| **M6** hardening (planned as 0.1.x; now part of 0.2.0), run as M6a and M6b | CUDA plugin wheels; the tutorial algorithms `dynamic_bfs` and `triangle_delta`; hosted documentation (GitHub Pages; Zenodo later, A4); fuzzers; mutation checks; sanitizer jobs | `pip install "dyng[cu13]"` works; tutorials pass the kit; mutations fail as expected | see M6a and M6b |
+| **M6a** CUDA plugin wheels | `dyng-cu12` / `dyng-cu13` built from the core sdist, the choice of the plugin, device arrays in Python; the plugin publishing environments (`GOVERNANCE.md`, 2026-10-02) | `pip install "dyng[cu13]"` works on the GPU machine | on the branch `m6a-cuda-wheels` (ADRs on plugin wheels and plugin selection; {doc}`retrospectives/index`) |
+| **M6b** hardening | the tutorial algorithms and "Your first dynamic algorithm"; the documentation on GitHub Pages; reader fuzzers; the cycle_count and mosp mutation suites; the Hypothesis profile `full`; sanitizer jobs (ASan + UBSan, TSan, TSan with OpenMP and Archer) | tutorials pass the kit on every backend; mutations fail as expected; sanitizer and fuzz jobs green | **done** on `m6b-hardening` (ADRs 0030 and 0032; {doc}`retrospectives/M6b`) |
+| **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | **done** on `m7-mosp` (0.2; ADRs 0026-0028): the operators engine byte-identical to the fused one (C4, the corpus), mosp byte-identical to both originals and within every gate, `dyng.mosp` and `dyng mosp`; merged into `main` by pull request #8 (`7d64c90`) after 0.1.0. PLAN 11.3 also lists the `.dgb` binary batches for M7; they moved to M8, with which PLAN 6.2 (order 7) ships them, because no M7 deliverable reads them ({doc}`retrospectives/M7`, "Review and fix") |
+| **0.2.0** | M7 + M6 (M6a, M6b) | release checklist | in preparation |
 | **M8** ESCHER store + hypergraph | the staged CBST merge (ESCHER-GPU first, then the MOSP_ESCHER behaviours one by one); `hypergraph` with `escher` storage; `hyperedge_batch`; `.hg` I/O; the `.dgb` binary batches and the streaming `batch_reader` (PLAN 5.7; moved from M7) | CBST trace replay identical for both originals' policies after every merge step; integrity after every batch | |
 | **M9** `triad_count` | wedge engine, h-motif patterns, reference backends, experimental `count_local_patterns` | exact counts and deltas on the golden batches; "baseline + deltas == recount"; performance gate; memory <= 1.05x | |
-| **0.2.0** | | release checklist | |
+| **0.3.0** | M8 + M9 | release checklist | |
 | **M10** `label_propagation` | slotted / slack row layouts, vertex batches, the DynLP pipeline, IrLP, the harmonic reference oracle | generator byte identity; damped byte parity; calibrated in-place tolerances; performance gate 50K-5M | |
 | **M11** `hyper_sssp` | `slack_csr` storage, incidence edits, the as-is port, then the shared `sssp` engine | distances and parents by id; line-graph delta equality; the seven mutations fail; performance gate | |
-| **0.3.0** | conda-forge (`libdyng` + `dyng`), aarch64 wheels | release checklist | |
-| **0.4.0** | OpenMP incremental `triad_count`; Read-Tarjan, time-window and temporal cycle modes; `int64` hypergraph offsets | parity and performance for every new piece | |
-| **0.5.0** | the framework promoted to `dyng::experimental::framework` | three algorithms share each promoted piece without loss | |
+| **0.4.0** | M10 + M11; conda-forge (`libdyng` + `dyng`), aarch64 wheels | release checklist | |
+| **0.5.0** | OpenMP incremental `triad_count`; Read-Tarjan, time-window and temporal cycle modes; `int64` hypergraph offsets | parity and performance for every new piece | |
+| **0.6.0** | the framework promoted to `dyng::experimental::framework` | three algorithms share each promoted piece without loss | |
 | **1.0.0** | API freeze of core and stable algorithms; ABI checks; optionally a JOSS paper | an outside contributor has added an algorithm using only the docs | |
 
 Later, open to contributors through the `new_algorithm` issue form: the kappa-truncated cycle
@@ -156,7 +167,7 @@ insert-only MOSP of thesis Chapter 5; incident-vertex and temporal triads; open 
 implicit line-graph policy; new dynamic algorithms (k-core, connected components, PageRank,
 BFS); a HIP backend; multi-GPU only if a research need appears.
 
-## 4. Estimate (re-estimated after M3)
+## 4. Estimate (re-estimated after M3; the releases after 0.1.0 after M6b)
 
 The plan estimated 0.1 at 12-17 working weeks. With the AI assistant doing the coding, each port
 of a good original (M1a, M1b, M2a, M2b) took about a day of wall-clock time including its gates,
@@ -172,13 +183,13 @@ actions, and merges of parallel branches (details: the M3 retrospective):
 | M1a, M1b, M2, M3, M4 | 9-13 | done (M3's review and fix step: 0.5-1 day) | | |
 | M5 Python, CLI, docs | 2-3 | done in 1 day (3 steps) | | the first hosted runs of `wheels.yml`, `python.yml` and `api-check.yml` |
 | **0.1.0** | **12-17** | **the release steps only** (R010; the RC tag, smoke installs, the final tag, pushed by the AI assistant on the author's behalf) | **days, until the author approves the PyPI deployment** | the release approval |
-| 0.1.x (M6: CUDA plugin wheels, tutorials, RTD/Zenodo, fuzzers, mutations) | 4-6 | 4-7 days | 2-3 weeks | the GPU runner decision (O11); wheel sizes; A4 |
-| 0.2.0 (M7 `mosp` + operators engine, M8 ESCHER store, M9 `triad_count`) | 8-12 | 1.5-2 weeks | 4-6 weeks | the operators engine within 1.05x of the fused one (M7: 1.03-1.18x on the 50K batches, 1.4-1.6x on the local 10K batches; informational, no gate); the staged CBST merge; memory within 1.05x; layout control in the parity preset |
-| 0.3.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
-| **Up to 0.3.0** | **about 32-47** | **about 4.5-7.5 weeks** | **about 12-19 weeks** | |
+| 0.2.0 (M7 `mosp` + operators engine: done; M6a CUDA plugin wheels; M6b tutorials, Pages, fuzzers, mutations, sanitizers: done) | 6-9 | M7 about 2 days, M6b about 1.5 days (three steps), M6a in parallel; then the merges, the hosted runs of the new workflows and the release steps | 1-2 weeks from 2026-10-06 | the first hosted runs of the plugin wheels, `sanitizers.yml`, `fuzz.yml` and the Pages deployment; the plugins' licence expression (author); the 0.2 performance record |
+| 0.3.0 (M8 ESCHER store, M9 `triad_count`) | 5-8 | 1-1.5 weeks | 3-4 weeks | the staged CBST merge; memory within 1.05x; layout control in the parity preset |
+| 0.4.0 (M10 `label_propagation`, M11 `hyper_sssp`) | 8-12 | 1.5-2.5 weeks | 4-6 weeks | DynLP's calibrated float tolerances and slotted/slack layouts; conda-forge review time |
+| **Up to 0.4.0** | **about 31-46** (0.1.0 included) | **about 3-4.5 weeks after 0.1.0** | **about 8-12 weeks after 0.1.0** | |
 
 The calendar column assumes the author reviews at each gate within a few days. The estimate is
-revisited in the M5 retrospective.
+revisited in each milestone retrospective (the latest: {doc}`retrospectives/M6b`).
 
 ## 5. Risks
 
@@ -187,7 +198,7 @@ The risks that shape the plan (the planning record lists 23), with their mitigat
 | Risk | Mitigation |
 |---|---|
 | **Performance loss from layering** (dispatch, templated hooks, resident apply, version checks, extra syncs) | dispatch once per call; straight port first; fused engines (Tier B); per-commit gates; SASS and register diffs |
-| **The framework is bent by later algorithms** (DynLP, H-SOSP in 0.3) | internal-stable until 0.5; extracted from two real, opposite algorithms; the rule of two; changes by ADR |
+| **The framework is bent by later algorithms** (DynLP, H-SOSP in 0.4) | internal-stable until 0.6; extracted from two real, opposite algorithms; the rule of two; changes by ADR |
 | **Public API designed before the ports turns out wrong** | only the 0.1 headers are frozen; the rest are reviewed sketches; 0.x allows breaks with migration notes |
 | **The CBST merge** (two diverged copies, two policies) | trace replay against both originals before `triad_count`; its own milestone (M8) |
 | **`update` applies the batch** surprises users sharing a graph | `stale_result_error` makes misuse loud; the multi-result `dyng::update` is the documented pattern |
@@ -212,8 +223,8 @@ Each has a recommended default, so work proceeds; it is recorded as an ADR when 
 | — | milestone merges | through pull requests (the review rules of `CONTRIBUTING.md`), or pushed directly to `main` with a ruleset bypass (recorded in `GOVERNANCE.md`, which notes the interim practice) | M4 |
 | O23, O28, O7 | Python floor, wheel scheme, CPU wheel | Python 3.12; CPU `dyng` + CUDA plugins; a CPU wheel from 0.1 | M5 |
 | O14 | docs hosting | **decided 2026-10-02:** GitHub Pages (the plan's fallback; Read the Docs not connected), deployed by `docs.yml` from `main` | M6 |
-| O8, O17 | CUDA wheels, oldest GPU | 0.1.x as plugins; sm_75 | M6 |
-| O21 | 0.2 if the CBST merge runs late | ship `mosp` as 0.2, triads in 0.2.x or 0.3 | M8 |
+| O8, O17 | CUDA wheels, oldest GPU | plugins `dyng-cu12` / `dyng-cu13` in 0.2 (M6a); sm_75 | M6a |
+| O21 | 0.2 if the CBST merge runs late | **settled by the re-grouping of 2026-10-02:** `mosp` ships in 0.2.0, the hypergraph and `triad_count` in 0.3.0 | M8 |
 | O16 | hypergraph `id_reuse` default | `erase_first`; parity runs set `insert_first` | M8 |
 | O9, O10 | DynLP default mode, kNN construction | the published setup; a Python recipe | M10 |
 | O12 | H-SOSP engine | the shared `sssp` engine after an as-is port proves parity | M11 |

@@ -118,4 +118,4 @@ maturity in the manifest: `experimental` is fine for a first merge.
 
 A port follows the same steps from the other side: first the original is pinned and
 cross-checked, then ported verbatim behind the hooks, then proved equal to it by the parity harness
-(PLAN Section 6.3; {doc}`run_parity`). The "port research code" guide is planned for 0.1.x.
+(PLAN Section 6.3; {doc}`run_parity`). The guide is {doc}`port_research_code`.

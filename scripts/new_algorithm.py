@@ -320,7 +320,7 @@ def create(args: argparse.Namespace, root: Path) -> int:
     name = args.name
     if args.container != "graph":
         print(
-            "new_algorithm.py: the hypergraph container arrives in 0.2 (PLAN Section 11.3); "
+            "new_algorithm.py: the hypergraph container arrives in 0.3 (M8, PLAN Appendix F); "
             "scaffold on --container graph",
             file=sys.stderr,
         )

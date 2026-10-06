@@ -173,7 +173,7 @@ void expect_options(const cycle_count::options& opt) {
                static_cast<int>(opt.method), " is not a search_method");
   DYNG_EXPECTS(opt.mode == cycle_count::cycle_mode::simple, "cycle_count: options.mode ",
                static_cast<int>(opt.mode),
-               " is not a cycle_mode (time-window and temporal cycles follow in 0.4)");
+               " is not a cycle_mode (time-window and temporal cycles follow in 0.5)");
   DYNG_EXPECTS(opt.cuda_engine == engine::automatic || opt.cuda_engine == engine::fused ||
                    opt.cuda_engine == engine::operators,
                "cycle_count: options.cuda_engine ", static_cast<int>(opt.cuda_engine),

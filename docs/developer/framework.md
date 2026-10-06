@@ -268,7 +268,7 @@ the combined graph; `hyper_sssp` holds one `sssp` problem over a line-graph view
 | I1 | Subtract on G_t, add on G_{t+1} | `old_view` and `new_view` are distinct types, and the enactor orders the calls. In Debug builds a view checks the graph's version on every access, so an `old_view` kept past the commit throws `internal_error` (`Views.OldViewAfterTheCommitThrowsInDebugBuilds`). The AG subtraction requires a `count` on the old view (compile-time check). |
 | I2 | Exactly-once counting | `ownership_type` is required for `family::aggregate_delta` and has no default. The enactor passes it to every `count`. |
 | I3 | Fixed-point termination | `convergence.max_iterations` + `on_limit`, applied by the enactor. sssp needs no cap: its invalidation step routes invalidating changes and its distances only decrease. |
-| I4 | No oscillating schedules | arrives with `sync_rule` (label_propagation, 0.3) |
+| I4 | No oscillating schedules | arrives with `sync_rule` (label_propagation, 0.4) |
 | I5 | Canonical outputs | inside the algorithms (sssp's packed (distance, id) words); `tie_break` arrives with its second user |
 | I6 | Race freedom | inside the algorithms (owner-group writes, documented atomics); racecheck in the GPU jobs |
 | I7 | 64-bit aggregates | inside the algorithms (`count_t = uint64_t`, checked additions) |

@@ -16,12 +16,12 @@ Planned, each written when its code exists:
 
 | Tutorial | Release |
 |---|---|
-| Dynamic SSSP in Python in 10 minutes | 0.1.x |
-| Cycle counting on a changing graph | 0.1.x |
+| Dynamic SSSP in Python in 10 minutes | 0.2.x |
+| Cycle counting on a changing graph | 0.2.x |
 | **Aggregate deltas** (`triangle_delta`: signed recounts with an ownership rule; the code and its page exist since 0.2) | later |
-| MOSP with preferences | 0.2 |
-| Hypergraph triads, and counting a new hypergraph pattern | 0.2 |
-| Streaming label propagation | 0.3 |
+| MOSP with preferences | 0.2.x |
+| Hypergraph triads, and counting a new hypergraph pattern | 0.3 |
+| Streaming label propagation | 0.4 |
 
 {doc}`your_first_dynamic_algorithm` (0.2) builds `my_bfs`, a dynamic BFS, from a fresh clone to a
 green conformance kit with `scripts/new_algorithm.py` and the fixed-point template. Its reference
