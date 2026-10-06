@@ -37,15 +37,64 @@ int device_attribute(cudaDeviceAttr attribute, int device) {
   return value;
 }
 
+/// The remedy for cudaErrorInitializationError, which a forked child of a CUDA process gets.
+constexpr const char* fork_hint =
+    "; CUDA cannot be initialized in a process forked after its parent initialized CUDA: start "
+    "worker processes with the 'spawn' or 'forkserver' method (Python: "
+    "multiprocessing.get_context('spawn')), or use CUDA in the parent only after the fork";
+
+/// What a kernel without code for the current device means, with the device's compute capability.
+std::string no_kernel_image_hint() {
+  int device = -1;
+  int major = 0;
+  int minor = 0;
+  if (cudaGetDevice(&device) != cudaSuccess ||
+      cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device) != cudaSuccess ||
+      cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, device) != cudaSuccess) {
+    (void)cudaGetLastError();
+    return "; this build of dynG has no code for the current device";
+  }
+  return concat_message("; this build of dynG has no code for device ", device,
+                        " (compute capability ", major, ".", minor,
+                        "): dynG's release builds need compute capability 7.5 or newer");
+}
+
+/// The CUDA error message, with a remedy for the errors that have a known common cause.
+std::string cuda_error_message(cudaError_t status, const char* call, const char* file, int line) {
+  std::string message = concat_message("dyng: CUDA error ", cudaGetErrorName(status), " (",
+                                       static_cast<int>(status), "): ", cudaGetErrorString(status),
+                                       " in ", call, " (", source_basename(file), ":", line, ")");
+  if (status == cudaErrorInitializationError) {
+    message += fork_hint;
+  } else if (status == cudaErrorNoKernelImageForDevice) {
+    message += no_kernel_image_hint();
+  }
+  return message;
+}
+
 }  // namespace
+
+void throw_no_cuda_device() {
+  int count = 0;
+  const cudaError_t status = cudaGetDeviceCount(&count);
+  (void)cudaGetLastError();
+  if (status == cudaErrorInitializationError) {
+    throw not_supported_error(concat_message(
+        "dyng: the cuda backend is built but the CUDA runtime cannot be initialized in this "
+        "process (cudaErrorInitializationError)",
+        fork_hint));
+  }
+  throw not_supported_error(concat_message(
+      "dyng: the cuda backend is built but no CUDA device is visible (check the driver and "
+      "CUDA_VISIBLE_DEVICES; ",
+      cudaGetErrorName(status), ")"));
+}
 
 void throw_cuda_error(cudaError_t status, const char* call, const char* file, int line) {
   // Reset the runtime's last error, so the next DYNG_CHECK_KERNEL does not report this one again
   // (a sticky error, which corrupts the context, stays: every later call reports it).
   (void)cudaGetLastError();
-  std::string message = concat_message("dyng: CUDA error ", cudaGetErrorName(status), " (",
-                                       static_cast<int>(status), "): ", cudaGetErrorString(status),
-                                       " in ", call, " (", source_basename(file), ":", line, ")");
+  std::string message = cuda_error_message(status, call, file, line);
   if (status == cudaErrorMemoryAllocation) {
     throw out_of_memory_error(message);
   }
@@ -79,9 +128,7 @@ int cuda_device_count() noexcept {
 cuda_device_properties query_cuda_device(int device) {
   const int count = cuda_device_count();
   if (count == 0) {
-    throw not_supported_error(
-        "dyng: the cuda backend is built but no CUDA device is visible (check the driver and "
-        "CUDA_VISIBLE_DEVICES)");
+    throw_no_cuda_device();
   }
   DYNG_EXPECTS(device >= 0 && device < count, "CUDA device ", device, " does not exist; ", count,
                " device(s) visible");
@@ -250,6 +297,10 @@ namespace {
 
 int cuda_device_count() noexcept {
   return 0;
+}
+
+void throw_no_cuda_device() {
+  cuda_not_built();
 }
 
 cuda_device_properties query_cuda_device(int /*device*/) {
