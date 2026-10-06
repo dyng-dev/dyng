@@ -77,8 +77,9 @@ duration). A finding fails the job and uploads its reproducer (artifact `fuzz-fi
 | 2026-10-06 | `fuzz_csr_triplet` (its memory use: 280 MB resident at 500 inputs/s led to the review) | a RowPtr announcing 10^9 edges made the strict ColInd reader reserve 4 GB; with m edges in RowPtr and ColInd, a Values file of one line of K weights made the strict Values reader allocate m * K weights (1.6 GB for m = K = 20,000) | both reservations are bounded by what the file can hold (an index takes 2 bytes, a weight line one line break) |
 | 2026-10-06 | `python/tests/test_reader_robustness.py` (Hypothesis) | the command line's text batches (`dyng cycle_count update --batch`, parsed in Python) raised `OverflowError` for an id beyond 64 bits and `UnicodeDecodeError` for a file that is not UTF-8 | both are `dyng.FileFormatError` with the path and line |
 
-Each fix has its reproducer and test (above). After the fixes every target ran for 5 minutes on
-the development machine without a finding (between 0.15 and 2 million inputs per target).
+Each fix has its reproducer and test (above). After the fixes every target ran for 5 and then 15
+minutes on the development machine without a finding (in the 15-minute run between 0.47 million
+inputs, `fuzz_csr_triplet`, and 5.6 million, `fuzz_result_io`).
 
 ## Golden mutation checks
 

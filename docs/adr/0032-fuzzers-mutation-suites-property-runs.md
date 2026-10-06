@@ -91,9 +91,11 @@ duplicates, threads) and several id and weight types.
 
 ## Consequences
 
-- The first runs found three allocation findings (CHANGELOG, "Fixed"; docs/developer/robustness.md,
-  "Findings so far"), now fixed with reproducers and tests; after the fixes every target ran for
-  five minutes without a finding.
+- The first runs found three allocation findings in the C++ readers, and the Hypothesis test of
+  the Python-side readers (`python/tests/test_reader_robustness.py`) two exceptions of the command
+  line's text batches (CHANGELOG, "Fixed"; docs/developer/robustness.md, "Findings so far"), now
+  fixed with reproducers and tests; after the fixes every target ran for 5 and then 15 minutes
+  without a finding.
 - Nothing enforces a target for a new reader except review: cpp/fuzz/README.md,
   docs/developer/robustness.md and docs/api/file_formats.md say that every reader has one.
 - `parity/mutate.py run` takes about 30 minutes for all eleven mutations (one `parity-cuda` build
