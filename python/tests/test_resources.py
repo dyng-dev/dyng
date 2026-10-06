@@ -89,9 +89,20 @@ def test_stream_argument_forms() -> None:
     class Cupy:
         ptr = 99
 
-    assert _stream_handle(None) == 0
+    class TorchDefault:  # torch.cuda.default_stream(): the legacy default stream, handle 0
+        cuda_stream = 0
+
+    # None is the per-thread default stream; an integer is a cudaStream_t as C++ reads it, so 0
+    # (and a framework's default stream, whose handle is 0) is the legacy default stream.
+    assert _stream_handle(None) is None
+    assert _stream_handle(0) == 0
     assert _stream_handle(7) == 7
     assert _stream_handle(Protocol()) == 1234
     assert _stream_handle(Cupy()) == 99
+    assert _stream_handle(TorchDefault()) == 0
     with pytest.raises(TypeError):
         _stream_handle("stream")
+    with pytest.raises(TypeError):
+        _stream_handle(True)
+    with pytest.raises(ValueError, match="not negative"):
+        _stream_handle(-1)

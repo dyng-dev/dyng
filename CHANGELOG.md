@@ -281,6 +281,10 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   module with a `dyng.BackendWarning` that names the GPU's architecture, instead of choosing the
   plugin and failing every default call with `cudaErrorNoKernelImageForDevice`. That CUDA error
   now names the device's compute capability.
+- Fixed: `Resources.cuda(stream=0)` is the legacy default stream, as `cudaStream_t` 0 is in CUDA
+  and in C++ (`stream_ref(0)`), and so are `torch.cuda.default_stream()` and
+  `cupy.cuda.Stream.null`; `stream=None` (the default) is the per-thread default stream. Before,
+  0 and the frameworks' default streams were silently mapped to the per-thread default stream.
 
 ### Changed
 

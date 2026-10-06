@@ -103,9 +103,9 @@ class Resources:
         """The OpenMP backend (0 threads: the OpenMP default)."""
 
     @staticmethod
-    def cuda(device: int = 0, stream: int = 0, host_threads: int = 0) -> Resources:
+    def cuda(device: int = 0, stream: int | None = None, host_threads: int = 0) -> Resources:
         """
-        The CUDA backend (stream: a cudaStream_t as an integer, 0 = per-thread default).
+        The CUDA backend (stream: None = the per-thread default stream, or a cudaStream_t as an integer: 0 = the legacy default stream).
         """
 
     @property

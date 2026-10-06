@@ -131,6 +131,13 @@ before the consumer's with an event".
 3. **`DYNG_CPU_ONLY`** is read as a boolean: `1`, `true`, `yes`, `on` (any case) are on; `0`,
    `false`, `no`, `off` and empty are off; any other value is ignored with a
    `dyng.BackendWarning` (before, every value but `0` and empty forced the CPU module).
+4. **Stream handles read as in C++.** `Resources.cuda(stream=None)` is the per-thread default
+   stream (a default `stream_ref`); an integer is a `cudaStream_t` as C++ reads it, so `0` is
+   the legacy default stream (`stream_ref(0)`), and so are `torch.cuda.default_stream()` and
+   `cupy.cuda.Stream.null`, whose handle is 0. Before, Python mapped 0 to the per-thread stream,
+   so the frameworks' default streams silently ran on `cudaStreamPerThread` (a different stream
+   on every thread), and the stream reported back was not the one passed in. The native
+   `Resources.cuda` takes `stream=None` for the per-thread stream.
 
 ## Consequences
 

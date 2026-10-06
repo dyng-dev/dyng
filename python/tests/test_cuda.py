@@ -471,6 +471,47 @@ def test_cupy_round_trip(cuda: dyng.Resources, tree: Any) -> None:
     assert np.array_equal(dyng.sssp.compute(cg, 0).distances.to_numpy(), ref)
 
 
+@pytest.mark.parametrize(
+    ("stream", "native", "interface"),
+    [(None, 2, 2), (0, 0, 1), (1, 1, 1), (2, 2, 2)],
+    ids=["None-per-thread", "0-legacy", "1-legacy", "2-per-thread"],
+)
+def test_stream_handles_are_read_as_in_cpp(
+    stream: int | None, native: int, interface: int, tree: Any
+) -> None:
+    # None: the per-thread default stream; an integer is a cudaStream_t, 0 the legacy stream
+    # (C++ stream_ref(0)); the CUDA array interface names the legacy stream 1 (0 is ambiguous).
+    res = dyng.Resources.cuda(0, stream=stream)
+    assert int(res._native.stream) == native
+    src, dst, w = random_edges(21)
+    g = dyng.Graph.from_edges(src, dst, w, num_vertices=300, resources=res)
+    t = dyng.sssp.compute(g, 0)
+    assert t.distances.__cuda_array_interface__["stream"] == interface
+    assert np.array_equal(t.distances.to_numpy(), tree[2])
+
+
+def test_framework_default_streams_are_the_legacy_stream() -> None:
+    streams = []
+    torch = _import_or_none("torch")
+    if torch is not None and torch.cuda.is_available():
+        streams.append(torch.cuda.default_stream(0))
+    cupy = _import_or_none("cupy")
+    if cupy is not None:
+        streams.append(cupy.cuda.Stream.null)
+    if not streams:
+        pytest.skip("needs PyTorch or CuPy")
+    for s in streams:
+        res = dyng.Resources.cuda(0, stream=s)
+        assert int(res._native.stream) == 0, s  # the legacy stream, not the per-thread one
+
+
+def _import_or_none(name: str) -> Any:
+    try:
+        return __import__(name)
+    except ImportError:
+        return None
+
+
 def test_a_user_stream_orders_the_results(tree: Any) -> None:
     cupy = pytest.importorskip("cupy")
     _, _, ref = tree

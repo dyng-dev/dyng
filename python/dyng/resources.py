@@ -48,11 +48,20 @@ def _cpu_module_message() -> str:
     return f"{_CUDA_PLUGIN_MESSAGE}. Installed CUDA plugins: {found}"
 
 
-def _stream_handle(stream: Any) -> int:
-    """A CUDA stream as an integer handle: None/0, an int, ``__cuda_stream__``, CuPy or PyTorch."""
+def _stream_handle(stream: Any) -> int | None:
+    """A CUDA stream as an integer handle (None: the per-thread default stream).
+
+    Accepts None, an int (a ``cudaStream_t``: 0 is the legacy default stream, as in C++
+    ``stream_ref(0)``), an object with ``__cuda_stream__``, or a CuPy or PyTorch stream (whose
+    default streams have the handle 0: the legacy default stream).
+    """
     if stream is None:
-        return 0
+        return None
+    if isinstance(stream, bool):
+        raise TypeError("stream must not be a bool")
     if isinstance(stream, int):
+        if stream < 0:
+            raise ValueError(f"stream: a cudaStream_t handle is not negative (got {stream})")
         return stream
     protocol = getattr(stream, "__cuda_stream__", None)
     if protocol is not None:
@@ -152,9 +161,13 @@ class Resources:
 
         Args:
             device: The CUDA device ordinal.
-            stream: The stream all work is ordered on: None (the per-thread default stream), an
-                integer ``cudaStream_t``, a CuPy or PyTorch stream, or any object with
-                ``__cuda_stream__``. A stream object is kept alive by these resources, their
+            stream: The stream all work is ordered on: None (the per-thread default stream,
+                ``cudaStreamPerThread``: a different stream on every host thread), an integer
+                ``cudaStream_t`` (0 is the legacy default stream, as in CUDA and C++
+                ``stream_ref(0)``; 2 is ``cudaStreamPerThread``), a CuPy or PyTorch stream (their
+                default streams, ``cupy.cuda.Stream.null`` and ``torch.cuda.default_stream()``,
+                are the legacy default stream), or any object with ``__cuda_stream__``. A stream
+                object is kept alive by these resources, their
                 copies, and the graphs and results made with them (the stream must outlive
                 every use of the handle, as in C++); a stream given as an integer handle must be
                 kept alive by the caller. Arrays exported from results (DLPack,

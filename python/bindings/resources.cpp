@@ -17,9 +17,11 @@
 #include <dyng/core/types.hpp>
 #include <dyng/version.hpp>
 
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
 
 #include <cstdint>
+#include <optional>
 
 #if defined(DYNG_PYTHON_HAS_OPENMP) && DYNG_PYTHON_HAS_OPENMP
 #include <omp.h>
@@ -80,14 +82,18 @@ void bind_resources(nb::module_& m) {
                   "The OpenMP backend (0 threads: the OpenMP default).")
       .def_static(
           "cuda",
-          [](int device, std::uintptr_t stream, int host_threads) {
-            const stream_ref s = stream == 0
-                                     ? stream_ref()
-                                     : stream_ref(reinterpret_cast<cuda_stream_handle>(stream));
+          [](int device, std::optional<std::uintptr_t> stream, int host_threads) {
+            // None: the per-thread default stream (a default stream_ref). An integer is a
+            // cudaStream_t as C++ reads it: 0 is the legacy default stream, as in
+            // stream_ref(0), PyTorch's and CuPy's default streams.
+            const stream_ref s = stream.has_value()
+                                     ? stream_ref(reinterpret_cast<cuda_stream_handle>(*stream))
+                                     : stream_ref();
             return resources::cuda(device, s, host_threads);
           },
-          nb::arg("device") = 0, nb::arg("stream") = 0, nb::arg("host_threads") = 0,
-          "The CUDA backend (stream: a cudaStream_t as an integer, 0 = per-thread default).")
+          nb::arg("device") = 0, nb::arg("stream").none() = nb::none(), nb::arg("host_threads") = 0,
+          "The CUDA backend (stream: None = the per-thread default stream, or a cudaStream_t as "
+          "an integer: 0 = the legacy default stream).")
       .def_prop_ro("backend", &resources::get_backend)
       .def_prop_ro("device", &resources::device)
       .def_prop_ro(
