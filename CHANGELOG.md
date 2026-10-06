@@ -223,6 +223,45 @@ These entries belong to the 0.2 work (PLAN Appendix F).
 - Docs: the install guide's section on the CUDA plugin wheels (which plugin for which driver,
   troubleshooting the fallback warning); the Python API page's rules for the native module and
   device arrays.
+- Added: the CUDA plugin wheels in CI (ADR 0032; PLAN 7.7, 7.8, 8.8): `wheels.yml` builds
+  `dyng-cu12` and `dyng-cu13` from the run's sdist with cibuildwheel in the manylinux_2_28 image
+  (`ci/cibuildwheel-plugin.toml`; `before-all` = `ci/cibw_plugin.sh` installs the CUDA toolkit,
+  checks it and renders the plugin's tree), checks them (`twine check --strict`,
+  `ci/wheel_check.py` with the 90 MB budget), and install-tests each with the CPU wheel in fresh
+  venvs on Python 3.12 and 3.13 without a GPU: `ci/plugin_smoke.py --expect fallback` (one
+  `dyng.BackendWarning`, "no CUDA driver", the plugin's module importing without a driver) and
+  the whole pytest suite. Artifacts `wheel-cu12-...` and `wheel-cu13-...`; the input `plugins`
+  turns the plugin jobs off.
+- Added: `ci/cuda_toolkits.toml`, the CUDA toolkits of the CI builds pinned file by file (every
+  RPM of NVIDIA's RHEL 8 repository the build installs, with its SHA-256): CUDA 12.9 for `cu12`
+  and CUDA 13.4 for `cu13`, the latest of each major. `ci/cuda_toolkit.py` re-pins them from the
+  repository's metadata (`lock`), downloads and verifies them (`download`, `verify`; the runner
+  caches the files), and unpacks them without root (`extract`), so the CI toolkits can be used
+  locally (`DYNG_CUDA13_ROOT=... ci/plugin_wheels.sh`).
+- Changed: `release.yml` publishes the CUDA plugins from v0.2.0 (release candidates included):
+  `select` names the distributions of the tag (`ci/wheel_check.py --release-distributions`),
+  `wheels.yml` builds the plugins too, `collect` checks that the files are exactly those
+  distributions (`--release-set`) and sorts them into one directory each (`--split`), and the
+  publish jobs run once per distribution, each in its own environment: `dyng` through
+  `testpypi` / `pypi`, `dyng-cu12` through `testpypi-cu12` / `pypi-cu12`, `dyng-cu13` through
+  `testpypi-cu13` / `pypi-cu13`. TestPyPI first; PyPI only for final versions, after every
+  TestPyPI upload, with the author's approval of each `pypi*` environment (three for 0.2.0).
+  v0.0.x and v0.1.x tags publish `dyng` alone, as before.
+- Added: `ci/plugin_smoke.py` (the smoke test of an installed plugin wheel: `--expect cuda` on a
+  GPU machine, `--expect fallback` without a driver or device), used by `wheels.yml` and
+  `ci/plugin_wheels.sh`, and `ci/without_cuda_driver.sh` (runs a command with the NVIDIA driver
+  hidden in a user and mount namespace, no root), with which `ci/plugin_wheels.sh` also runs the
+  hosted runners' smoke test.
+- Added: `parity/wheel_vs_parity.py`, the informational "wheel vs parity build" row of PLAN 7.7:
+  the same CUDA work (sssp's update on roadNet-CA, cycle_count on DD) timed from Python through
+  the plugin wheel and through the `parity-cuda` build, under the exclusive perf lock with locked
+  clocks; recorded in `parity/results/M6a-wheel-vs-parity.json`, never gated.
+- Docs: `docs/developer/wheels.md` (the plugins in CI, the pinned toolkits and how to re-pin
+  them, the CI toolkits locally, CI vs local builds, the per-distribution environments),
+  `docs/developer/release.md` (three approvals for a final release with the plugins, the local
+  rehearsal with the plugins), `docs/developer/repository_settings.md` (the protection rules of
+  the four plugin environments, for the author), and the install guide (which plugin for which
+  driver, the requirements, a GPU-less machine).
 
 ### Changed
 

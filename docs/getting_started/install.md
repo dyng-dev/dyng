@@ -136,6 +136,20 @@ prints the driver's "CUDA Version"; take the plugin of that major (a cu12 plugin
 CUDA 13 driver; a cu13 plugin needs a CUDA 13 driver). With both installed, the one of the
 driver's CUDA major is used.
 
+| `nvidia-smi` "CUDA Version" (Linux driver) | Install | Built with |
+|---|---|---|
+| 13.x (driver 580.65.06 or newer) | `pip install "dyng[cu13]"` | CUDA 13.4 |
+| 12.x (driver 525.60.13 or newer) | `pip install "dyng[cu12]"` | CUDA 12.9 |
+| older, or no NVIDIA GPU | `pip install dyng` (CPU backends) | |
+
+Requirements: Linux x86-64 with glibc 2.28 or newer (manylinux_2_28), CPython 3.12 or newer, an
+NVIDIA GPU of compute capability 7.5 or newer (Turing, 2018, and later; the CUDA 13 toolkits no
+longer support older GPUs), and the NVIDIA driver. CUDA's minor-version compatibility lets a
+plugin built with the latest toolkit of its major run on any driver of that major. In a
+container the GPU and the driver's libraries must be passed in (`docker run --gpus all`, the
+NVIDIA Container Toolkit). The optional extras `cupy-cu13` / `cupy-cu12` and `torch` install
+CuPy and PyTorch for the device-array round trips.
+
 ```python
 import dyng
 
@@ -161,6 +175,10 @@ with the reason:
 | `no CUDA device is visible` | check `CUDA_VISIBLE_DEVICES` and `nvidia-smi` |
 | `version 0.2.0 does not match dyng 0.2.1` | `pip install "dyng[cu13]==<the dyng version>"` (a plugin of another version is never loaded) |
 | `its module cannot be loaded (...)` | reinstall the plugin; report the message if it persists |
+| `Resources.cuda: the active native module is dyng._core` (an error) | no plugin is installed, or the warning above says why it is not used |
+
+On a machine without a GPU (a CI runner, a login node) an installed plugin is harmless: dynG
+falls back to the CPU backends with the warning; set `DYNG_CPU_ONLY=1` there to silence it.
 
 `DYNG_CPU_ONLY=1` in the environment, or `dyng.use_cpu_only()` before the first use of dynG,
 chooses the CPU backends without the warning; `warnings.filterwarnings("ignore",

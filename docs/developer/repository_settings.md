@@ -33,6 +33,7 @@ recorded in the approvals log of `GOVERNANCE.md`.
 | 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378), strict; 17 required checks, **18** with `DCO` from 2026-09-30, and **24** after pull request #4 (M5, merge commit `8842acf`): `scaffold`, the four checks of `python.yml` and `Python API (griffe)` added (2026-10-01) |
 | 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass; the tags `v0.1.0rc1` and `v0.1.0` may be pushed by the AI assistant on the author's behalf, GOVERNANCE.md 2026-09-30) |
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
+| 11b | Environments of the CUDA plugins `testpypi-cu12`, `pypi-cu12`, `testpypi-cu13`, `pypi-cu13`: protection rules (release 0.2.0; ADR 0032) | before the first `v0.2.0*` tag | the pending trusted publishers of `dyng-cu12` / `dyng-cu13` exist (set up by the author for 0.2.0, PLAN Appendix F; workflow `release.yml`, one environment pair per project); the protection rules of the four environments, as in section 11, are for the author to set and confirm |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
 | 13 | Read the Docs | later: checkpoint A4, milestone M6 | later |
 | 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); **not connected for 0.1.0**, so 0.1.0 has no DOI (the author, 2026-10-01; section 14) | later |
@@ -304,6 +305,22 @@ their names are bound to the PyPI trusted publishers: **never rename them**.
 4. Untick **Allow administrators to bypass configured protection rules**.
 5. Back to **Environments** → **testpypi**: repeat step 3 (tag rule `v*`); required reviewers
    are optional here (release candidates go to TestPyPI only).
+
+**The CUDA plugins (from 0.2.0; ADR 0032).** `release.yml` publishes `dyng-cu12` through the
+environments `testpypi-cu12` and `pypi-cu12`, and `dyng-cu13` through `testpypi-cu13` and
+`pypi-cu13`: each project's pending trusted publisher (on TestPyPI and on PyPI: repository
+`dyng-dev/dyng`, workflow `release.yml`, that environment) is bound to its own pair, because PyPI
+refuses two identical pending publishers. Give them the rules of `pypi` / `testpypi`:
+
+6. **Environments** → **New environment** (if GitHub has not created it at the first run) →
+   `pypi-cu12` → steps 2 to 4 (required reviewer **SMShovan**, tag rule `v*`, no administrator
+   bypass); the same for `pypi-cu13`.
+7. `testpypi-cu12` and `testpypi-cu13`: step 3 (tag rule `v*`).
+
+A final release with the plugins then waits for three approvals (`pypi`, `pypi-cu12`,
+`pypi-cu13`); the **Review deployments** dialog of the run lists the waiting environments with a
+checkbox each, so one **Approve and deploy** can approve all three. Never rename the six
+environments.
 
 Docs: <https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments>.
 
