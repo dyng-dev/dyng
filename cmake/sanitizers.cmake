@@ -25,3 +25,20 @@ function(dyng_enable_sanitizers target)
   target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${_flags}>")
   target_link_options(${target} PRIVATE -fsanitize=${_list})
 endfunction()
+
+# ThreadSanitizer and the OpenMP backends: GCC's libgomp is not instrumented, so TSan reports
+# every OpenMP barrier and reduction as a race (the preset tsan turns OpenMP off). Clang's libomp
+# is not instrumented either, but its OMPT tool Archer tells TSan about the OpenMP
+# synchronization: the preset tsan-openmp builds with Clang, and its tests run with
+# OMP_TOOL_LIBRARIES=<libarcher.so> (ci/sanitizers.sh finds it).
+if("thread" IN_LIST DYNG_SANITIZE AND DYNG_ENABLE_OPENMP)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "DYNG_SANITIZE=thread with DYNG_ENABLE_OPENMP=ON needs Clang and its "
+                        "OpenMP runtime (libomp) with Archer; GCC's libgomp is not instrumented. "
+                        "Use the preset tsan (OpenMP off) with GCC, or CXX=clang++ with the preset "
+                        "tsan-openmp (docs/developer/robustness.md)"
+    )
+  endif()
+  message(STATUS "dynG: ThreadSanitizer with OpenMP: run the tests with "
+                 "OMP_TOOL_LIBRARIES=<libarcher.so> (ci/sanitizers.sh tsan-openmp)")
+endif()
