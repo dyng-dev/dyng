@@ -287,9 +287,10 @@ gate applies (PLAN 7.7).
    Nsight comparison of the update kernels under 13.1 and 13.4) before 0.2.0; no gate applies.
 5. **Re-pinning the CUDA toolkits** is manual (`ci/cuda_toolkit.py lock`): check for a newer
    12.x / 13.x before each release.
-6. **Disk in the work area** (not in the repository): the pinned toolkits unpacked under
-   `$DYNG_SCRATCH/tools/ci-cuda` (1.1 GB, used by `wheels.md`'s "CI toolkit locally"), the GCC 14
-   toolchain `$DYNG_SCRATCH/tools/gcc14-tc` (0.7 GB, only for the check of this step), the
-   parity-cuda build and overlay of the timing row (`$DYNG_SCRATCH/build/wvp-parity-cuda`,
-   `$DYNG_SCRATCH/wvp`), and the wheel trees `$DYNG_SCRATCH/wheels/m6a-*`; delete them when no
-   longer needed.
+6. **Disk in the work area** (not in the repository): kept are the pinned toolkits unpacked
+   under `$DYNG_SCRATCH/tools/ci-cuda` (1.1 GB, used by `wheels.md`'s "CI toolkit locally") and
+   the verification wheels and venvs `$DYNG_SCRATCH/wheels/m6a-final-ci` (570 MB) and
+   `m6a-final-cu131` (146 MB), besides the earlier steps' `m6a-discovery` and the interop venv.
+   Deleted after use: the GCC 14 toolchain of the compiler check, the parity-cuda build and
+   overlay of the timing row (`parity/wheel_vs_parity.py build-parity` rebuilds them in a few
+   minutes), the fresh clone, and the intermediate wheel trees.
