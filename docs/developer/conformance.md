@@ -79,6 +79,14 @@ the larger count of a pair; mosp's traits set K = 3), and `host_sync_budget(back
 C8 budget of the engine that ran (`stats::engine_used` and its counters; `run_dependent_budget`
 when it depends on counters the stats do not carry, and C8 then checks the problem's own bound).
 
+**Undirected graphs** (0.2, ADR 0030). When `require()` sets `graph_properties::directed = false`
+(`triangle_delta`), the kit generates undirected models: each edge once, as (u, v) with u < v, its
+batches name such pairs, and the graph stores both directions. The checks that count edges or
+`apply_summary` counters (C2's edge count, C7's skipped operations, C9's "applied + skipped ==
+requested") count each stored direction, as `apply_summary` does. C10 builds the pair's graph
+with both algorithms' requirements, so an algorithm paired with `triangle_delta` is checked on
+undirected graphs too.
+
 ## Adding an algorithm
 
 ```bash
@@ -107,8 +115,11 @@ the generated headers `version` and `config`. The public `compute()` and `update
 wrappers that `static_assert` the instantiated graph types with a plain-English message (the rule
 of sssp and cycle_count since the M3 review), so an unsupported graph type fails to compile at the
 call instead of failing to link; keep the trait `detail::<name>_supported_v` in step with the
-explicit instantiations. In 0.1 the scaffold writes graphs and the host
-backends; a CUDA backend is added by hand, and the hypergraph container arrives in 0.2.
+explicit instantiations. The scaffold writes graphs and the host
+backends; a CUDA backend is added by hand (the pattern of the tutorial algorithms `dynamic_bfs` and
+`triangle_delta`: the passes as functors in `engine.hpp`, run by the executors of
+`cpp/src/operators/`, one instantiation per backend file; ADR 0030), and the hypergraph container
+arrives later.
 
 Then, in the order of PLAN Section 9.4: write `compute()` (the sequential static solve) and the
 traits; make the update incremental in `problem.hpp` (the template card at its top names the hooks
@@ -119,11 +130,14 @@ request with the checklist.
 
 `ci/scaffold_check.sh` (CTest `scaffold.new_algorithm`, label `scaffold`; step `scaffold` of
 `ci/check.sh`; job `scaffold` of `cpu.yml`) keeps the template honest: in a throwaway copy of the
-tree it scaffolds one algorithm of each family, checks `regen.py --check`, the formatting and
+tree it scaffolds one algorithm of each family and the tutorial's `my_bfs` (with the files of
+`examples/tutorial_algorithms/my_bfs/` put in, as {doc}`../tutorials/your_first_dynamic_algorithm`
+has the reader write them), checks `regen.py --check`, the formatting and
 `ci/github_meta_check.py` (the generated CODEOWNERS lines), builds every target of the subset
-`-DDYNG_ALGORITHMS=<the probes>` (to which the build adds sssp; Debug, warnings as errors, budgets
-on), runs their conformance kits, hand
+`-DDYNG_ALGORITHMS=<the probes and my_bfs>` (to which the build adds sssp; Debug, warnings as
+errors, budgets on), runs their conformance kits, hand
 cases and the registry test, runs the docs steps on the result (Doxygen with the coverage check,
-`ci/docs.sh --update-api`, which must add only the probes' headers to the baseline, and the Sphinx
+`ci/docs.sh --update-api`, which must add only the probes' and my_bfs's headers to the baseline,
+and the Sphinx
 build with warnings as errors; skipped with a message when Doxygen or Sphinx is not installed),
 removes them again and checks that nothing is left behind.

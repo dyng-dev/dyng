@@ -210,7 +210,7 @@
 [dyng/core/registry.hpp] frozen
   enum class dyng::algorithm_family : std::uint8_t { fixed_point, aggregate_delta }
   enum class dyng::container_kind : std::uint8_t { graph, hypergraph }
-  enum class dyng::maturity_level : std::uint8_t { experimental, stable, deprecated }
+  enum class dyng::maturity_level : std::uint8_t { experimental, stable, deprecated, tutorial }
   enum class dyng::oracle_kind : std::uint8_t { compute, reference }
   [[nodiscard]] std::string_view dyng::to_string(algorithm_family family) noexcept
   [[nodiscard]] std::string_view dyng::to_string(container_kind container) noexcept
@@ -335,6 +335,31 @@
   detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool cycle_count_supported_v = std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>) && (is_unweighted_v<weight_t> || std::is_same_v<weight_t, std::int32_t>);
   detail: template <> struct update_traits<cycle_count::result> { using stats_type = cycle_count::stats; }
 
+[dyng/dynamic_bfs.hpp] tracked
+  struct dyng::dynamic_bfs::options
+      std::int64_t source = 0
+  struct dyng::dynamic_bfs::stats : public dyng::update_stats
+      apply_summary batch
+      std::int64_t invalidated = 0
+      std::int64_t invalidation_rounds = 0
+  class dyng::dynamic_bfs::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] array_view< const std::int64_t > levels() const
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+  #define DYNG_DYNAMIC_BFS_TYPES_MESSAGE
+  template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] result dyng::dynamic_bfs::compute(const resources &res, const graph< vertex_t, edge_t, weight_t > &g, const options &opt={})
+  template <typename vertex_t, typename edge_t, typename weight_t> stats dyng::dynamic_bfs::update(const resources &res, graph< vertex_t, edge_t, weight_t > &g, const edge_batch_view< vertex_t, weight_t > &batch, result &r)
+  detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool dynamic_bfs_supported_v = (std::is_same_v<weight_t, std::int32_t> && ((std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) || (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>))) || (is_unweighted_v<weight_t> && std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>));
+  detail: template <> struct update_traits<dynamic_bfs::result> { using stats_type = dynamic_bfs::stats; }
+
 [dyng/dyng.hpp] frozen
   #include <dyng/citation.hpp>
   #include <dyng/config.hpp>
@@ -352,6 +377,7 @@
   #include <dyng/core/stream.hpp>
   #include <dyng/core/types.hpp>
   #include <dyng/cycle_count.hpp>
+  #include <dyng/dynamic_bfs.hpp>
   #include <dyng/generators/legacy.hpp>
   #include <dyng/graph/apply_summary.hpp>
   #include <dyng/graph/csr.hpp>
@@ -367,6 +393,7 @@
   #include <dyng/io/result_io.hpp>
   #include <dyng/mosp.hpp>
   #include <dyng/sssp.hpp>
+  #include <dyng/triangle_delta.hpp>
   #include <dyng/update.hpp>
   #include <dyng/version.hpp>
 
@@ -730,6 +757,32 @@
 [dyng/testing/mosp_oracle.hpp] tracked
   template <typename vertex_t> [[nodiscard]] csr< vertex_t, std::int64_t, std::int32_t > dyng::testing::combined_graph_reference(const std::vector< std::vector< vertex_t > > &parents, vertex_t source, const std::vector< std::int32_t > &preferences={})
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] std::vector< std::int64_t > dyng::testing::mosp_path_costs_reference(const csr_view< vertex_t, edge_t, weight_t > &out, const std::vector< vertex_t > &parent, vertex_t source, int num_objectives=0)
+
+[dyng/triangle_delta.hpp] tracked
+  struct dyng::triangle_delta::options
+  struct dyng::triangle_delta::stats : public dyng::update_stats
+      apply_summary batch
+      std::int64_t deletions = 0
+      std::int64_t insertions = 0
+      std::uint64_t triangles_removed = 0
+      std::uint64_t triangles_added = 0
+  class dyng::triangle_delta::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] std::uint64_t count() const
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+  #define DYNG_TRIANGLE_DELTA_TYPES_MESSAGE
+  template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] result dyng::triangle_delta::compute(const resources &res, const graph< vertex_t, edge_t, weight_t > &g, const options &opt={})
+  template <typename vertex_t, typename edge_t, typename weight_t> stats dyng::triangle_delta::update(const resources &res, graph< vertex_t, edge_t, weight_t > &g, const edge_batch_view< vertex_t, weight_t > &batch, result &r)
+  detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool triangle_delta_supported_v = (std::is_same_v<weight_t, std::int32_t> && ((std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) || (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>))) || (is_unweighted_v<weight_t> && std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>));
+  detail: template <> struct update_traits<triangle_delta::result> { using stats_type = triangle_delta::stats; }
 
 [dyng/update.hpp] frozen
   template <typename container_t, typename batch_view_t, typename... results_t> std::tuple< typename detail::stats_of< results_t >::type... > dyng::update(const resources &res, container_t &g, const batch_view_t &batch, results_t &... results)

@@ -24,7 +24,10 @@ Columns:
 - **Family**: *fixed point* (a value per element, iterated until nothing changes) or *aggregate
   delta* (a global count, updated by one signed recount); see {doc}`../concepts/update_model`.
 - **Maturity**: `experimental` (may change in any release), `stable` (SemVer applies from
-  0.1.0), `planned` (not written yet). A planned algorithm gets its page when its port starts.
+  0.1.0), `tutorial` (teaching material for contributors, covered like `experimental`; not a
+  research algorithm: {doc}`dynamic_bfs` and {doc}`triangle_delta`, the subjects of
+  {doc}`../tutorials/your_first_dynamic_algorithm`), `planned` (not written yet). A planned
+  algorithm gets its page when its port starts.
 - **Release**: the first release that contains it ({doc}`../roadmap`).
 
 The table is generated from each algorithm's `manifest.toml` (and `cpp/src/algorithms/planned.toml`

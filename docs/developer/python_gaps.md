@@ -25,6 +25,7 @@ the 0.1 Python package does not bind, and why; each entry names the release that
 | `to_string(...)` of the enumerations | enumerations are strings in Python | by design |
 | `testing::edge_set_after_batch()` | `dyng.testing.oracles.GraphModel.apply()` (pure Python) | by design |
 | `testing::check_sssp_tree()` on arrays (without a result) | `dyng.testing.check_sssp_tree(graph, result)` | 0.2 |
+| `dyng::update(res, g, batch, r...)` with `dynamic_bfs::result` or `triangle_delta::result` | `dyng.update()` accepts sssp, cycle_count and mosp results only; call `dyng.dynamic_bfs.update()` / `dyng.triangle_delta.update()` | by design: teaching algorithms (ADR 0030) |
 
 ## PLAN 5.4 features that are not in the 0.1 Python package
 

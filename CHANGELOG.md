@@ -10,8 +10,26 @@ Before 0.1.0 anything may change.
 
 ### Added
 
-- `triangle_delta` (experimental, aggregate delta): scaffolded with `scripts/new_algorithm.py`; its update recomputes from scratch until it is made incremental.
-- `dynamic_bfs` (experimental, fixed point): scaffolded with `scripts/new_algorithm.py`; its update recomputes from scratch until it is made incremental.
+- M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0030), created with
+  `scripts/new_algorithm.py` and completed on the sequential, OpenMP and CUDA backends (Tier A),
+  each with hand cases, an independent oracle and the conformance kit C0-C12 on every backend:
+  `dynamic_bfs` (fixed point: BFS levels from a source; the subtrees under deleted BFS-tree edges
+  are invalidated and re-seeded, a frontier propagates the improvements) and `triangle_delta`
+  (aggregate delta: the triangle count of an undirected graph; count(-) on the old graph,
+  count(+) on the new one, `ownership::min_member`). Python: `dyng.dynamic_bfs`,
+  `dyng.triangle_delta` (not in `dyng.update()`, no CLI command).
+- M6b: the tutorial **"Your first dynamic algorithm"** (`docs/tutorials`): from a fresh clone to
+  a green conformance kit with `scripts/new_algorithm.py` and the fixed-point template. Its
+  reference solution is `examples/tutorial_algorithms/my_bfs/`, which `ci/scaffold_check.sh`
+  builds and tests.
+- M6b: `maturity_level::tutorial` (appended; `"tutorial"` in the manifests, the registry and the
+  generated tables).
+- M6b: the framework operators' executors (`cpp/src/operators/`): `sequential_exec`,
+  `openmp_exec` and `cuda_exec` run a `DYNG_HD` functor per element on their backend, with the
+  atomics of such functors, so one source serves the three backends (the two tutorial algorithms
+  use them; PLAN 4.5.3's rule of two).
+- M6b: the conformance kit generates **undirected** graphs for an algorithm that requires them
+  (`graph_properties::directed = false`); its edge and batch counters count each stored direction.
 
 ### M7: the sssp operators engine (0.2, branch `m7-mosp`)
 

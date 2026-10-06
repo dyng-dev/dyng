@@ -33,6 +33,7 @@
 #include <dyng/core/stream.hpp>
 #include <dyng/core/types.hpp>
 #include <dyng/cycle_count.hpp>
+#include <dyng/dynamic_bfs.hpp>
 #include <dyng/generators/legacy.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>
@@ -48,5 +49,6 @@
 #include <dyng/io/result_io.hpp>
 #include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
+#include <dyng/triangle_delta.hpp>
 #include <dyng/update.hpp>
 #include <dyng/version.hpp>

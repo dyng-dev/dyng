@@ -21,9 +21,10 @@ CODEOWNERS and the registries). Next:
 scaffold line (the template's "scaffolded by scripts/new_algorithm.py"; `--force` overrides), and
 it puts back the [[planned]] entry of cpp/src/algorithms/planned.toml that the scaffold replaced.
 
-In 0.1 the scaffold covers graphs (--container graph) and the host backends; a CUDA backend is
-added by hand (the operators arrive with their second user; see sssp and cycle_count), and the
-hypergraph container arrives in 0.2.
+The scaffold covers graphs (--container graph) and the host backends; a CUDA backend is added by
+hand: the tutorial algorithms dynamic_bfs and triangle_delta show the pattern (each pass a DYNG_HD
+functor in engine.hpp, run by the executors of cpp/src/operators; ADR 0030), and the hypergraph
+container arrives later.
 """
 
 from __future__ import annotations
@@ -329,9 +330,9 @@ def create(args: argparse.Namespace, root: Path) -> int:
         b = b.strip()
         if b == "cuda":
             print(
-                "new_algorithm.py: the scaffold writes the host backends only in 0.1; add "
-                "cuda.cu by hand after the host backends pass the kit (docs/developer/"
-                "conformance.md)",
+                "new_algorithm.py: the scaffold writes the host backends only; add cuda.cu by "
+                "hand after the host backends pass the kit (the pattern of dynamic_bfs and "
+                "triangle_delta; docs/developer/conformance.md)",
                 file=sys.stderr,
             )
             return 2
