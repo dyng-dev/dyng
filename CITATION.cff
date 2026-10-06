@@ -15,7 +15,7 @@ authors:
     affiliation: Missouri University of Science and Technology
 license: Apache-2.0
 repository-code: "https://github.com/dyng-dev/dyng"
-url: "https://github.com/dyng-dev/dyng"
+url: "https://dyng-dev.github.io/dyng/"
 version: 0.1.0
 date-released: "2026-10-02"
 keywords:
@@ -37,7 +37,7 @@ preferred-citation:
       affiliation: Missouri University of Science and Technology
   license: Apache-2.0
   repository-code: "https://github.com/dyng-dev/dyng"
-  url: "https://github.com/dyng-dev/dyng"
+  url: "https://dyng-dev.github.io/dyng/"
 references:
   - type: conference-paper
     title: "DynaMOSP: A Parallel Multi-Objective Shortest Path Update Algorithm for Fully Dynamic Networks"

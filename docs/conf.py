@@ -164,6 +164,8 @@ bibtex_reference_style = "author_year"
 
 html_theme = "pydata_sphinx_theme"
 html_title = f"dynG {release}"
+# The published site (GitHub Pages, .github/workflows/docs.yml): canonical links point here.
+html_baseurl = "https://dyng-dev.github.io/dyng/"
 html_theme_options = {
     "github_url": "https://github.com/dyng-dev/dyng",
     "use_edit_page_button": True,

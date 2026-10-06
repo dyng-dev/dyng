@@ -33,8 +33,9 @@ is in development.
 - CUDA wheels as plugins: `pip install "dyng[cu12]"` or `"dyng[cu13]"`.
 - Tutorials on writing your own dynamic algorithm (`dynamic_bfs`, `triangle_delta`), and the
   Python tutorials (dynamic SSSP in ten minutes, cycle counting on a changing graph).
-- Hosted documentation (Read the Docs) and a citable DOI per release (Zenodo; 0.1.0 has none,
-  the first DOI comes with the first release after Zenodo is connected).
+- Hosted documentation (GitHub Pages: <https://dyng-dev.github.io/dyng/>) and a citable DOI per
+  release (Zenodo; 0.1.0 has none, the first DOI comes with the first release after Zenodo is
+  connected).
 - Fuzzers for the file readers, mutation checks, sanitizer jobs.
 
 ## 0.2.0

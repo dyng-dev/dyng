@@ -108,7 +108,7 @@ The decisions at a glance (D1-D17 of the plan), with the author's decisions at a
 | Framework | the thesis template as a CRTP `problem` + enactors, extracted from `sssp` and `cycle_count` in M3; internal-stable; public (experimental) in 0.5 |
 | Performance | straight port first, refactor commit by commit; fused engines allowed; gates 1.05x / 1.10x |
 | Python | nanobind + scikit-build-core; CPU wheel `dyng` + CUDA plugin wheels `dyng-cu12` / `dyng-cu13` |
-| Docs | Doxygen XML -> Breathe -> Sphinx (MyST, pydata theme), Diataxis; Read the Docs after checkpoint A4 |
+| Docs | Doxygen XML -> Breathe -> Sphinx (MyST, pydata theme), Diataxis; hosted on GitHub Pages, <https://dyng-dev.github.io/dyng/> (the author's decision of 2026-10-02: the plan's fallback to Read the Docs) |
 | Versioning | SemVer from 0.1.0, one `VERSION` file, Keep a Changelog, `vX.Y.Z` tags |
 | Contributions | DCO sign-off for external contributors (no CLA; maintainers exempt, M4 retrospective), Contributor Covenant 3.0, private vulnerability reporting, per-algorithm CODEOWNERS |
 | Execution | "execute entirely": milestone by milestone; the author is asked only for account-level actions (GitHub, PyPI, Read the Docs, Zenodo) and real blockers |
@@ -211,7 +211,7 @@ Each has a recommended default, so work proceeds; it is recorded as an ADR when 
 | O15 | changelog mechanics | hand-edited `Unreleased` until merge conflicts hurt | M4 |
 | — | milestone merges | through pull requests (the review rules of `CONTRIBUTING.md`), or pushed directly to `main` with a ruleset bypass (recorded in `GOVERNANCE.md`, which notes the interim practice) | M4 |
 | O23, O28, O7 | Python floor, wheel scheme, CPU wheel | Python 3.12; CPU `dyng` + CUDA plugins; a CPU wheel from 0.1 | M5 |
-| O14 | docs hosting | Read the Docs after A4 (GitHub Pages as the fallback) | M6 |
+| O14 | docs hosting | **decided 2026-10-02:** GitHub Pages (the plan's fallback; Read the Docs not connected), deployed by `docs.yml` from `main` | M6 |
 | O8, O17 | CUDA wheels, oldest GPU | 0.1.x as plugins; sm_75 | M6 |
 | O21 | 0.2 if the CBST merge runs late | ship `mosp` as 0.2, triads in 0.2.x or 0.3 | M8 |
 | O16 | hypergraph `id_reuse` default | `erase_first`; parity runs set `insert_first` | M8 |

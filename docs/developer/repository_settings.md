@@ -23,7 +23,7 @@ recorded in the approvals log of `GOVERNANCE.md`.
 | # | Setting | When | Status |
 |---|---|---|---|
 | 1 | Organization: two-factor authentication, base permissions | now | **done** (2FA required, base permission Read; the optional restriction of repository creation, 1.3, is not set) |
-| 2 | About: description, website, topics | now | **done** (description and the 14 topics; no website until step 13) |
+| 2 | About: description, website, topics | now | **done** (description and the 14 topics); the website `https://dyng-dev.github.io/dyng/` is set with step 13 |
 | 3 | Features: Issues, Discussions, no wiki | now | **done** (Issues and Discussions on; wiki and projects off) |
 | 4 | Pull requests: merge commits and squash merges, no rebase (ADR 0019) | now | **done** |
 | 5 | Actions: permissions, SHA pinning, fork approval | now | **done** (allow-list, `pypa/cibuildwheel@*` included since 2026-09-30; SHA pinning required, approval for all external contributors, read-only workflow token) |
@@ -34,7 +34,7 @@ recorded in the approvals log of `GOVERNANCE.md`.
 | 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass; the tags `v0.1.0rc1` and `v0.1.0` may be pushed by the AI assistant on the author's behalf, GOVERNANCE.md 2026-09-30) |
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
-| 13 | Read the Docs | later: checkpoint A4, milestone M6 | later |
+| 13 | GitHub Pages: the documentation site (the plan's fallback to Read the Docs, chosen by the author on 2026-10-02) | before the M6b pull request (`docs.yml` with the `deploy` job) is merged, so that its first push to `main` deploys | open (source **GitHub Actions**) |
 | 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); **not connected for 0.1.0**, so 0.1.0 has no DOI (the author, 2026-10-01; section 14) | later |
 
 ## 1. Organization security
@@ -58,8 +58,8 @@ Docs: <https://docs.github.com/en/organizations/keeping-your-organization-secure
    **About**.
 2. **Description:**
    `Dynamic graph and hypergraph algorithms on GPUs: keep shortest paths, cycle counts, triads and labels up to date under batch updates (C++17/CUDA, OpenMP; Python planned).`
-3. **Website:** leave empty until Read the Docs is connected (step 13), then
-   `https://dyng.readthedocs.io`.
+3. **Website:** `https://dyng-dev.github.io/dyng/` (the documentation site, step 13; tick **Use
+   your GitHub Pages website** once Pages is enabled, which fills in the same address).
 4. **Topics** (type each and press Enter): `dynamic-graphs`, `graph-algorithms`,
    `hypergraphs`, `gpu`, `cuda`, `openmp`, `cpp17`, `hpc`, `shortest-paths`,
    `cycle-counting`, `label-propagation`, `graph-analytics`, `batch-updates`, `python`.
@@ -317,28 +317,38 @@ Docs: <https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-de
    discussion**; then, in the discussion's right column, **Pin discussion** → **Pin
    discussion**.
 
-## 13. Read the Docs (later: checkpoint A4)
+## 13. GitHub Pages: the documentation site
 
-The documentation is built locally and in CI until then; `.readthedocs.yaml` is ready. Do this
-only after approving checkpoint A4 (PLAN Section 0.5; milestone M6).
+The documentation is hosted on **GitHub Pages** at <https://dyng-dev.github.io/dyng/> (the
+author's decision of 2026-10-02, PLAN Appendix F: the plan's fallback to Read the Docs; recorded
+in `GOVERNANCE.md`). `.github/workflows/docs.yml` builds the site on every pull request and push;
+on a push to `main` its `deploy` job publishes it with `actions/configure-pages`,
+`actions/upload-pages-artifact` and `actions/deploy-pages` (no `gh-pages` branch, no Jekyll). The
+deploy job alone has `pages: write` and `id-token: write`; it runs in the environment
+`github-pages`. The actions are made by GitHub, so the Actions allow-list (step 5, **Allow actions
+created by GitHub**) already admits them.
 
-1. Open <https://app.readthedocs.org> → **Log in** → **Using GitHub** (or **Sign up** →
-   **Using GitHub**) and authorize Read the Docs.
-2. **Add project** → **Configure your GitHub App** if `dyng-dev/dyng` is not listed: install
-   the Read the Docs GitHub App on **dyng-dev** with **Only select repositories** →
-   **dyng-dev/dyng**.
-3. Back in **Add project**, search `dyng-dev/dyng` → **Continue** → **Name:** `dyng`,
-   **Default branch:** `main` → **Next** → Read the Docs finds `.readthedocs.yaml` → **Next**
-   → the first build starts.
-4. Project → **Settings** → **Pull request builds** → tick **Build pull requests for this
-   project** → **Update** (previews of the documentation on every pull request).
-5. Project → **Settings** → **Automation rules** → **Add rule** → **Match:** **SemVer
-   versions**, **Version type:** **Tag**, **Action:** **Activate version** → **Save**
-   (every release tag gets its documentation version).
-6. Set the repository website to `https://dyng.readthedocs.io` (step 2), and record A4 in
-   `GOVERNANCE.md`.
+1. Settings → sidebar **Pages** → **Build and deployment** → **Source:** select **GitHub
+   Actions** (not "Deploy from a branch"). Nothing else on the page needs a value: no custom
+   domain; **Enforce HTTPS** is on for `github.io` addresses.
+2. Settings → **Environments** → **github-pages** (GitHub creates it with step 1, or with the
+   first deployment) → **Deployment branches and tags:** **Selected branches and tags** with the
+   single rule `main` (GitHub's default for Pages; check it, and remove any other rule). No
+   required reviewers: the site of `main` is published as soon as it is built.
+3. After the next push to `main`: **Actions** → workflow **docs** → the run's `deploy` job shows
+   the address; open it and check the home page and one algorithm page. The repository home page
+   shows the deployment under **Deployments** only if that box is ticked (step 2, item 5: it is not).
+4. Set the repository website (step 2) to `https://dyng-dev.github.io/dyng/`.
 
-Docs: <https://docs.readthedocs.com/platform/stable/intro/add-project.html>.
+If a deployment fails with "Get Pages site failed" (`configure-pages`), step 1 was not made.
+
+**Read the Docs** (the plan's first choice, approval checkpoint A4) is not connected.
+`.readthedocs.yaml` is kept and checked, so it can be added later for pull-request previews and
+version switching without new work: <https://app.readthedocs.org> → **Add project** →
+`dyng-dev/dyng` (the Read the Docs GitHub App on **dyng-dev**, **Only select repositories**) →
+**Settings** → **Pull request builds**; record the decision in `GOVERNANCE.md` first.
+
+Docs: <https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages>.
 
 ## 14. Zenodo (later: checkpoint A4)
 
