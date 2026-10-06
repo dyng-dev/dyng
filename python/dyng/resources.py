@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import atexit
 import threading
+import weakref
 from typing import Any, Literal
 
 from ._backend import native
@@ -67,18 +68,14 @@ def _stream_handle(stream: Any) -> int:
     )
 
 
-class _StreamOwner:
-    """Holds the stream object given to ``Resources.cuda(stream=...)`` (internal).
-
-    The native handle refers to the stream without owning it (C++: "the stream must outlive
-    every copy of the handle"). The slot lives in this base class so that, when a Resources is
-    freed, its native handle (a slot of the subclass, cleared first) goes before the stream.
-    """
-
-    __slots__ = ("_stream",)
+#: The stream objects given to ``Resources.cuda(stream=...)``, per Resources (and copy): the
+#: native handle refers to the stream without owning it (C++: "the stream must outlive every copy
+#: of the handle"). ``Resources.__del__`` drops the handle before the entry, so the stream goes
+#: last.
+_streams: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
 
 
-class Resources(_StreamOwner):
+class Resources:
     """Execution resources: backend, device, stream, thread count and profiler.
 
     Cheap to copy: copies (``copy.copy``, ``copy.deepcopy``) share one handle, so
@@ -112,7 +109,6 @@ class Resources(_StreamOwner):
         self, backend: BackendName | None = None, *, num_threads: int = 0, device: int = 0
     ) -> None:
         self._profiler: Any = None
-        self._stream: Any = None
         if backend is None:
             self._native = native.Resources()
         elif backend == "sequential":
@@ -130,7 +126,6 @@ class Resources(_StreamOwner):
         self = cls.__new__(cls)
         self._native = handle
         self._profiler = None
-        self._stream = None
         return self
 
     @classmethod
@@ -176,7 +171,8 @@ class Resources(_StreamOwner):
         if not native.build_config["cuda"]:
             raise NotSupportedError(f"dyng.Resources.cuda: {_cpu_module_message()}")
         out = cls._wrap(native.Resources.cuda(device, handle, host_threads))
-        out._stream = None if stream is None or isinstance(stream, int) else stream
+        if stream is not None and not isinstance(stream, int):
+            _streams[out] = stream
         return out
 
     @property
@@ -228,8 +224,19 @@ class Resources(_StreamOwner):
 
     def __copy__(self) -> Resources:
         out = Resources._wrap(self._native)  # copies share the handle, as in C++
-        out._stream = self._stream
+        if self in _streams:
+            _streams[out] = _streams[self]
         return out
+
+    def __del__(self) -> None:
+        # The native handle first, then the stream object it refers to (a weak-key entry would
+        # otherwise be dropped before the slots are cleared).
+        try:
+            if self in _streams:
+                self._native = None
+                del _streams[self]
+        except Exception:  # pragma: no cover - interpreter shutdown (module globals gone)
+            pass
 
     def __deepcopy__(self, memo: dict[int, Any]) -> Resources:
         return self.__copy__()  # a handle, not data: shared as well

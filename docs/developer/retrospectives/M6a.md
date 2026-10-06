@@ -126,9 +126,11 @@ Results: see "Verification of the step discovery-tests" below.
 5. `Resources.cuda(stream=<object>)` keeps the stream object alive (and so do the graphs, results
    and Arrays made with those resources): without it a CuPy stream destroyed before the result
    crashed the process when the result freed its stream-ordered memory (found by
-   `test_a_user_stream_orders_the_results`). The stream is held in a slot of a private base class
-   of `Resources`, so that the native handle (the subclass's slot, cleared first) is freed before
-   the stream; a weak-key dictionary released the stream first and crashed the same way.
+   `test_a_user_stream_orders_the_results`). The stream is held in a weak-key dictionary per
+   `Resources`, and `Resources.__del__` drops the native handle before the entry, so the stream
+   goes last (without `__del__` the weak reference's callback released the stream before the
+   slots were cleared and crashed the same way; a private base class with a slot worked but the
+   Sphinx reference cannot resolve a private base, warnings being errors).
    `griffe` (ci/api_check.sh) reports any change of a public class's `__slots__` tuple as a
    breaking change, so `Resources.__slots__` and `Array.__slots__` are unchanged (the Array keeps
    its writer and its result's resources in a private `_Owner` behind `_is_current`).
