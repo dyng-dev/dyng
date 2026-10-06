@@ -24,7 +24,13 @@ Local result: `dyng_cu13` (CUDA 13.1, 5.5 MB) and `dyng_cu12` (CUDA 12.9, 5.6 MB
 with the core wheel into fresh venvs (3.12, 3.13): the plugin is selected (`dyng.show_config()`:
 `native module : dyng_cu13 (plugin cu13)`), sssp, cycle_count and mosp run on the CUDA backend
 of GPU 1, a process without a visible device falls back to `dyng._core`, and the pytest suite
-passes with `DYNG_CPU_ONLY=1` (436 passed, 5 skipped) next to the installed plugin.
+passes with `DYNG_CPU_ONLY=1` (447 passed, 4 skipped) next to the installed plugin (both
+plugins built from this step's last commit; log `$DYNG_SCRATCH/runs/m6a-plugin-wheels.log`,
+wheels in `$DYNG_SCRATCH/wheels/0.2.0.dev0-plugins/dist`). `ci/check.sh` passes, and so do the
+portability pre-checks (Clang 18 syntax over the dev build with the bindings: 187 files, no
+failure; the `cpu-only` build with `-D_FORTIFY_SOURCE=3` and the bindings). The `dev-cuda`
+preset with `-DCMAKE_CUDA_RUNTIME_LIBRARY=Static -DBUILD_SHARED_LIBS=OFF` passes `ctest -L gpu`
+on GPU 1.
 
 **Deviations from the plan's sketch** (each recorded in ADR 0030):
 
