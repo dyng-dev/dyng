@@ -8,6 +8,11 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+### Added
+
+- `triangle_delta` (experimental, aggregate delta): scaffolded with `scripts/new_algorithm.py`; its update recomputes from scratch until it is made incremental.
+- `dynamic_bfs` (experimental, fixed point): scaffolded with `scripts/new_algorithm.py`; its update recomputes from scratch until it is made incremental.
+
 ### M7: the sssp operators engine (0.2, branch `m7-mosp`)
 
 These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.

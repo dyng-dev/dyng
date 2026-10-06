@@ -42,3 +42,29 @@ table.push_back(algorithm_info{
     {"dynamosp2025", "dynamosptpds2025"},
 });
 #endif
+#if defined(DYNG_ALGORITHM_DYNAMIC_BFS)
+table.push_back(algorithm_info{
+    "dynamic_bfs",
+    "Dynamic breadth-first search levels (tutorial)",
+    algorithm_family::fixed_point,
+    container_kind::graph,
+    maturity_level::experimental,
+    determinism::exact_value,
+    oracle_kind::compute,
+    {backend::sequential, backend::openmp},
+    {},
+});
+#endif
+#if defined(DYNG_ALGORITHM_TRIANGLE_DELTA)
+table.push_back(algorithm_info{
+    "triangle_delta",
+    "Dynamic triangle count (tutorial)",
+    algorithm_family::aggregate_delta,
+    container_kind::graph,
+    maturity_level::experimental,
+    determinism::exact_value,
+    oracle_kind::compute,
+    {backend::sequential, backend::openmp},
+    {},
+});
+#endif

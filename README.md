@@ -23,6 +23,8 @@ counting, triad counting, label propagation.
 | [`sssp`](docs/algorithms/sssp.md) | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | [`cycle_count`](docs/algorithms/cycle_count.md) | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | TruCy / DynTruCy |
 | [`mosp`](docs/algorithms/mosp.md) | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
+| [`dynamic_bfs`](docs/algorithms/dynamic_bfs.md) | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP | experimental | - |
+| [`triangle_delta`](docs/algorithms/triangle_delta.md) | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP | experimental | - |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.2) | ESCHER / ESCHER+ |
 | `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned (0.3) | DynLP (ICS 2026) |
 | `hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | planned (0.3) | H-SOSP (IA3 2026) |
