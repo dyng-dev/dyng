@@ -236,6 +236,51 @@ def test_cpu_only_loads_no_plugin_and_does_not_warn() -> None:
     assert "DYNG_CPU_ONLY=1 or dyng.use_cpu_only()" in chosen.reason
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("1", True),
+        ("true", True),
+        (" TRUE ", True),
+        ("Yes", True),
+        ("on", True),
+        ("", False),
+        ("0", False),
+        ("false", False),
+        ("False", False),
+        ("no", False),
+        ("OFF", False),
+        (" off ", False),
+    ],
+)
+def test_the_values_of_dyng_cpu_only(
+    value: str, expected: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "_cpu_only", False)
+    monkeypatch.setenv("DYNG_CPU_ONLY", value)
+    assert backend._cpu_only_requested() == (expected, None)
+
+
+@pytest.mark.parametrize("value", ["2", "maybe", "y", "enable"])
+def test_an_unknown_dyng_cpu_only_is_ignored_with_a_warning(
+    value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(backend, "_cpu_only", False)
+    monkeypatch.setenv("DYNG_CPU_ONLY", value)
+    cpu_only, warning = backend._cpu_only_requested()
+    assert not cpu_only
+    assert warning is not None and f"DYNG_CPU_ONLY={value!r} is ignored" in warning
+
+
+def test_unset_dyng_cpu_only_and_use_cpu_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DYNG_CPU_ONLY", raising=False)
+    monkeypatch.setattr(backend, "_cpu_only", False)
+    assert backend._cpu_only_requested() == (False, None)
+    monkeypatch.setattr(backend, "_cpu_only", True)
+    monkeypatch.setenv("DYNG_CPU_ONLY", "maybe")  # use_cpu_only() wins, nothing to warn about
+    assert backend._cpu_only_requested() == (True, None)
+
+
 def test_this_process_reports_its_choice() -> None:
     chosen = backend.selection()
     assert chosen.module_name == backend.active_module_name
@@ -361,6 +406,31 @@ def test_asking_for_the_cpu_module_does_not_warn(how: str, env: dict[str, str] |
     )
     assert "warnings: 0 dyng._core []" in out
     assert "not considered" in out
+
+
+@pytest.mark.parametrize("value", ["false", "No", "off", "0"])
+def test_a_false_dyng_cpu_only_keeps_the_plugin(value: str) -> None:
+    out = _run(
+        "with warnings.catch_warnings(record=True) as w:\n"
+        "    dyng.__version__\n"
+        "print('warnings:', len(w), backend.active_module_name, loads)\n",
+        usable=True,
+        env={"DYNG_CPU_ONLY": value},
+    )
+    assert "warnings: 0 dyng_cu13 (plugin cu13) ['cu13']" in out
+
+
+def test_an_unknown_dyng_cpu_only_warns_and_keeps_the_plugin() -> None:
+    out = _run(
+        "with warnings.catch_warnings(record=True) as w:\n"
+        "    dyng.__version__\n"
+        "print('warnings:', len(w), w[0].category.__name__, backend.active_module_name)\n"
+        "print(w[0].message)\n",
+        usable=True,
+        env={"DYNG_CPU_ONLY": "maybe"},
+    )
+    assert "warnings: 1 BackendWarning dyng_cu13 (plugin cu13)" in out
+    assert "DYNG_CPU_ONLY='maybe' is ignored" in out
 
 
 def test_the_warning_can_be_filtered_by_its_class() -> None:

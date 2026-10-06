@@ -44,7 +44,9 @@ CUDA included; its default backend is then `cuda`). Of the installed plugins of 
 as `dyng` that can run here (an NVIDIA driver of the plugin's CUDA major or newer and a visible
 device), the one of the driver's CUDA major wins. When plugins are installed but none can be
 used, dynG runs on `dyng._core` and issues one {py:class}`dyng.BackendWarning` (a `UserWarning`)
-that names each plugin and the reason. `DYNG_CPU_ONLY=1` in the environment, or
+that names each plugin and the reason. `DYNG_CPU_ONLY=1` in the environment (also `true`,
+`yes`, `on`; `0`, `false`, `no`, `off` or empty mean unset; other values are ignored with a
+warning), or
 {py:func}`dyng.use_cpu_only` before the first use, chooses the CPU module without looking at the
 plugins (and without the warning). {py:func}`dyng.show_config` prints the active module, why it
 was chosen and every installed plugin's state; {py:func}`dyng.config` returns the same as a dict

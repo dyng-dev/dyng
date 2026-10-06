@@ -14,7 +14,9 @@ of :data:`native` (the first graph, resources, reader, ``dyng.__version__``, ...
 only the chosen module is imported, so a plugin process never loads ``_core`` (a second static
 libdyng and a second bundled OpenMP runtime). The rules (ADR 0031):
 
-1. ``DYNG_CPU_ONLY=1`` in the environment, or :func:`use_cpu_only` before the first use, chooses
+1. ``DYNG_CPU_ONLY=1`` in the environment (also ``true``, ``yes``, ``on``, in any case; ``0``,
+   ``false``, ``no``, ``off`` or empty mean "not set", any other value is ignored with a
+   :class:`~dyng.BackendWarning`), or :func:`use_cpu_only` before the first use, chooses
    ``_core`` without looking at the plugins.
 2. A plugin of another version than ``dyng`` is never loaded (its bindings would not match the
    typed layer): ``pip install "dyng[cu13]"`` installs the plugin of the same version.
@@ -286,8 +288,29 @@ def _replace(report: PluginReport, state: str, reason: str) -> PluginReport:
     )
 
 
-def _cpu_only_requested() -> bool:
-    return _cpu_only or os.environ.get("DYNG_CPU_ONLY", "").strip() not in ("", "0")
+#: The values of ``DYNG_CPU_ONLY`` (case-insensitive, surrounding blanks ignored).
+_ENV_TRUE = ("1", "true", "yes", "on")
+_ENV_FALSE = ("", "0", "false", "no", "off")
+
+
+def _cpu_only_requested() -> tuple[bool, str | None]:
+    """Whether the CPU module is asked for, and a warning for a ``DYNG_CPU_ONLY`` not understood.
+
+    ``DYNG_CPU_ONLY`` is on for ``1``, ``true``, ``yes``, ``on`` and off for ``0``, ``false``,
+    ``no``, ``off`` or empty (any case); any other value is ignored (off) with a warning.
+    """
+    if _cpu_only:
+        return True, None
+    raw = os.environ.get("DYNG_CPU_ONLY", "")
+    value = raw.strip().lower()
+    if value in _ENV_TRUE:
+        return True, None
+    if value in _ENV_FALSE:
+        return False, None
+    return False, (
+        f"dyng: DYNG_CPU_ONLY={raw!r} is ignored: use 1, true, yes or on to choose the CPU "
+        "module, or 0, false, no, off (or unset) to let dynG choose"
+    )
 
 
 def active_module() -> ModuleType:
@@ -296,23 +319,25 @@ def active_module() -> ModuleType:
     module = _active
     if module is not None:
         return module
-    warning: str | None = None
+    texts: list[str] = []
     with _lock:
         if _active is None:
+            cpu_only, env_warning = _cpu_only_requested()
             module, chosen = _select(
-                _entry_points(), cpu_only=_cpu_only_requested(), dyng_version=_dyng_version()
+                _entry_points(), cpu_only=cpu_only, dyng_version=_dyng_version()
             )
             for hook in _hooks:
                 hook(module)
             active_module_name = chosen.module_name
             _selection = chosen
             _active = module
-            warning = chosen.warning
+            texts = [t for t in (env_warning, chosen.warning) if t is not None]
         module = _active
-    if warning is not None:
+    if texts:
         from .errors import BackendWarning
 
-        warnings.warn(warning, BackendWarning, skip_file_prefixes=(_PACKAGE_DIR,))
+        for text in texts:
+            warnings.warn(text, BackendWarning, skip_file_prefixes=(_PACKAGE_DIR,))
     return module
 
 

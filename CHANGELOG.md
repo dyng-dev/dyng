@@ -263,6 +263,13 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   the four plugin environments, for the author), and the install guide (which plugin for which
   driver, the requirements, a GPU-less machine).
 
+### M6a: review fixes (0.2, branch `m6a-cuda-wheels`)
+
+- Fixed: `DYNG_CPU_ONLY` is read as a boolean: `1`, `true`, `yes`, `on` (any case) choose the
+  CPU module; `0`, `false`, `no`, `off` and empty leave the choice to dynG (before, every value
+  but `0` and empty forced the CPU module, `false` included); any other value is ignored with a
+  `dyng.BackendWarning`.
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

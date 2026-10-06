@@ -180,7 +180,9 @@ with the reason:
 On a machine without a GPU (a CI runner, a login node) an installed plugin is harmless: dynG
 falls back to the CPU backends with the warning; set `DYNG_CPU_ONLY=1` there to silence it.
 
-`DYNG_CPU_ONLY=1` in the environment, or `dyng.use_cpu_only()` before the first use of dynG,
+`DYNG_CPU_ONLY=1` in the environment (also `true`, `yes` or `on`, in any case; `0`, `false`,
+`no`, `off` or empty leave the choice to dynG, and any other value is ignored with a
+`dyng.BackendWarning`), or `dyng.use_cpu_only()` before the first use of dynG,
 chooses the CPU backends without the warning; `warnings.filterwarnings("ignore",
 category=dyng.BackendWarning)` silences it. Building a plugin from source is described in
 {doc}`../developer/wheels`.

@@ -28,7 +28,7 @@ tree = dyng.sssp.compute(g, source=0)    # runs on the GPU
 You never import this package yourself: `import dyng` finds it through the entry point group
 `dyng.backends` and uses it when a CUDA driver and a device are present; otherwise dynG uses its
 CPU module and says why in `dyng.show_config()`. `dyng.use_cpu_only()` (before the first use) or
-`DYNG_CPU_ONLY=1` forces the CPU module.
+`DYNG_CPU_ONLY=1` (or `true`, `yes`, `on`) forces the CPU module.
 
 Documentation: <https://github.com/dyng-dev/dyng> (installation, troubleshooting, the API).
 License: Apache-2.0 for dynG's own code; the wheel also contains third-party code (nanobind,
