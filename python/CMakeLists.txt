@@ -104,6 +104,7 @@ nanobind_add_module(
   bindings/profiler.cpp
   bindings/registry.cpp
   bindings/testing.cpp
+  bindings/arrays.cpp
 )
 target_compile_features(_core PRIVATE cxx_std_17)
 # cpp/src: the private header util/rng.hpp (MOSP's weight stream of `dyng prep widen`).

@@ -746,6 +746,12 @@ class SsspResultI32:
     def parents(self) -> Annotated[Any, dict(dtype='int32', shape=(None,), writable=False)]: ...
 
     @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
+
+    @property
     def generation(self) -> int:
         """The number of updates of this result (dyng.Array's staleness check)."""
 
@@ -771,6 +777,12 @@ class SsspResultI64:
     def distances(self) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]: ...
 
     def parents(self) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]: ...
+
+    @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
 
     @property
     def generation(self) -> int:
@@ -935,6 +947,12 @@ class CycleCountResult:
     def bound(self) -> int: ...
 
     @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
+
+    @property
     def generation(self) -> int:
         """The number of updates of this result (dyng.Array's staleness check)."""
 
@@ -1076,6 +1094,12 @@ class MospResultI32:
     def preference_scale(self) -> int: ...
 
     @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
+
+    @property
     def generation(self) -> int:
         """The number of updates of this result (dyng.Array's staleness check)."""
 
@@ -1113,6 +1137,12 @@ class MospResultI64:
 
     @property
     def preference_scale(self) -> int: ...
+
+    @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
 
     @property
     def generation(self) -> int:
@@ -1585,3 +1615,18 @@ def testing_simple_cycles(graph: GraphI32I64U, max_length: int, brute_force: boo
 def testing_combined_graph_i32(parents: Sequence[Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)]], source: int, preferences: Sequence[int]) -> tuple: ...
 
 def testing_combined_graph_i64(parents: Sequence[Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)]], source: int, preferences: Sequence[int]) -> tuple: ...
+
+def array_info(array: Annotated[NDArray, dict(writable=False)]) -> tuple:
+    """
+    (data pointer, shape, type string, DLPack device type, device id, C-contiguous) of an array, without reading its elements.
+    """
+
+def array_to_host(resources: Resources, array: Annotated[NDArray, dict(writable=False)]) -> NDArray:
+    """
+    A host (NumPy) copy of a C-contiguous array; device memory is copied on the stream of `resources` (CUDA), which is then synchronized.
+    """
+
+def order_stream(resources: Resources, consumer: int) -> None:
+    """
+    Order the later work of the stream `consumer` (a cudaStream_t as an integer; 1 = the legacy default stream, 2 = the per-thread default stream) after the work enqueued so far on the stream of `resources` (an event; the host does not wait).
+    """
