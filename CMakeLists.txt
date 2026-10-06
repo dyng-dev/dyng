@@ -50,9 +50,11 @@ option(DYNG_BUILD_PARITY_TESTS "Build the golden parity tests (needs goldens)" O
 option(DYNG_BUILD_COMPAT_TOOLS "Build drop-in clones of the originals' CLIs" OFF)
 option(DYNG_BUILD_PYTHON "Build the Python extension module" OFF)
 option(DYNG_BUILD_DOCS "Build the Doxygen + Sphinx documentation" OFF)
+option(DYNG_BUILD_FUZZERS "Build the libFuzzer targets of the readers (Clang only; preset fuzz)" OFF)
 option(DYNG_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(DYNG_INSTALL "Generate the install and export rules" ${PROJECT_IS_TOP_LEVEL})
-set(DYNG_SANITIZE "" CACHE STRING "Host sanitizers: empty, 'address;undefined' or 'thread'")
+set(DYNG_SANITIZE "" CACHE STRING
+    "Host sanitizers: empty, 'address;undefined' or 'thread' (+ 'fuzzer-no-link' with Clang)")
 set(DYNG_INDEX_TYPES "default" CACHE STRING "Instantiated index types: default or minimal")
 set_property(CACHE DYNG_INDEX_TYPES PROPERTY STRINGS default minimal)
 set(DYNG_ALGORITHMS "all" CACHE STRING "Semicolon list of algorithms to build, or 'all'")
@@ -161,9 +163,16 @@ message(STATUS "dynG ${DYNG_VERSION_STRING}: OpenMP=${DYNG_ENABLE_OPENMP} CUDA=$
 set(DYNG_GENERATED_INCLUDE_DIR "${PROJECT_BINARY_DIR}/cpp/include")
 add_subdirectory(cpp)
 
-if(DYNG_BUILD_TESTS)
+if(DYNG_BUILD_TESTS OR DYNG_BUILD_FUZZERS)
   enable_testing()
+endif()
+if(DYNG_BUILD_TESTS)
   add_subdirectory(cpp/tests)
+endif()
+# The reader fuzzers (PLAN Sections 5.7 and 8.1): the libFuzzer targets with DYNG_BUILD_FUZZERS,
+# and in every test build their replay over the committed seed corpus (cpp/fuzz/README.md).
+if(DYNG_BUILD_TESTS OR DYNG_BUILD_FUZZERS)
+  add_subdirectory(cpp/fuzz)
 endif()
 
 # The examples and the compat CLIs use sssp and cycle_count: a build of a subset of the algorithms

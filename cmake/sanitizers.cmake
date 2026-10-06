@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Host sanitizers (PLAN Section 7.3): DYNG_SANITIZE is empty, "address;undefined" or "thread".
+# Host sanitizers (PLAN Section 7.3): DYNG_SANITIZE is empty, "address;undefined" or "thread"
+# (the preset fuzz adds Clang's "fuzzer-no-link": coverage instrumentation for libFuzzer).
 # With DYNG_STDLIB_ASSERTIONS (ON in Debug builds) the host C++ code is also compiled with
 # _GLIBCXX_ASSERTIONS: libstdc++ checks every std::vector::operator[] and the like, so an
 # out-of-bounds access aborts in the dev preset instead of passing unseen (it does not change

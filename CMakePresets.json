@@ -91,6 +91,29 @@
       }
     },
     {
+      "name": "fuzz",
+      "displayName": "fuzz",
+      "description": "libFuzzer targets of the readers (Clang only: CXX=clang++; ci/fuzz.sh): libdyng instrumented with fuzzer-no-link + ASan + UBSan, -O1, libstdc++ assertions; only the io-relevant library is built",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -fno-sanitize-recover=undefined",
+        "BUILD_SHARED_LIBS": "OFF",
+        "DYNG_ENABLE_CUDA": "OFF",
+        "DYNG_ENABLE_OPENMP": "OFF",
+        "DYNG_ALGORITHMS": "sssp",
+        "DYNG_BUILD_TESTS": "OFF",
+        "DYNG_BUILD_EXAMPLES": "OFF",
+        "DYNG_BUILD_TOOLS": "OFF",
+        "DYNG_BUILD_TUTORIALS": "OFF",
+        "DYNG_INSTALL": "OFF",
+        "DYNG_DEBUG_BUDGETS": "OFF",
+        "DYNG_BUILD_FUZZERS": "ON",
+        "DYNG_SANITIZE": "address;undefined;fuzzer-no-link",
+        "DYNG_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
       "name": "parity",
       "displayName": "parity",
       "description": "The originals' flags (-O3, g++ -std=c++17 -fopenmp); the OpenMP performance gates use this preset",
@@ -194,6 +217,10 @@
     {
       "name": "tsan",
       "configurePreset": "tsan"
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz"
     },
     {
       "name": "parity",
@@ -301,6 +328,17 @@
       },
       "environment": {
         "TSAN_OPTIONS": "halt_on_error=1"
+      }
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
       }
     },
     {
