@@ -91,7 +91,7 @@ failed=()
 for target in "${targets[@]}"; do
   exe="${build}/cpp/fuzz/fuzz_${target}"
   if [ ! -x "${exe}" ]; then
-    echo "ci/fuzz.sh: no fuzz target ${target} (built: $(ls "${build}/cpp/fuzz" | grep '^fuzz_' | tr '\n' ' '))" >&2
+    echo "ci/fuzz.sh: no fuzz target ${target} (cpp/fuzz/README.md lists them)" >&2
     exit 2
   fi
   corpus="${out}/corpus/${target}"
