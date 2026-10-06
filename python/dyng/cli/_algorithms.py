@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import io
 from pathlib import Path
 
 import numpy as np
@@ -94,6 +95,9 @@ def read_mosp_batch(args: argparse.Namespace, g: dyng.Graph) -> dyng.EdgeBatch |
     return batch
 
 
+_INT64_MIN, _INT64_MAX = -(2**63), 2**63 - 1
+
+
 def batch_text(batch: dyng.EdgeBatch) -> str:
     """A batch as the text of CycleEnumeration-GPU's generator (``- u v`` per deletion, then
     ``+ u v`` per insertion)."""
@@ -121,28 +125,39 @@ def read_text_batch(path: str, g: dyng.Graph) -> dyng.EdgeBatch:
     ins: list[list[int]] = []
     dele: list[tuple[int, int]] = []
     k = g.num_weights if g.weighted else 0
-    with open(path, encoding="utf-8") as f:
-        for number, line in enumerate(f, 1):
-            fields = line.split()
-            if not fields or fields[0].startswith("#"):
-                continue
-            op, rest = fields[0], fields[1:]
-            try:
-                values = [int(x) for x in rest]
-            except ValueError:
-                raise dyng.FileFormatError(
-                    f"{path}:{number}: not an integer: {line.strip()!r}"
-                ) from None
-            if op == "-" and len(values) == 2:
-                dele.append((values[0], values[1]))
-            elif op == "+" and len(values) == 2:
-                ins.append(values + [1] * k)
-            elif op == "+" and k and len(values) == 2 + k:
-                ins.append(values)
-            else:
-                raise dyng.FileFormatError(
-                    f"{path}:{number}: expected '+ u v' or '- u v', got {line.strip()!r}"
-                )
+    with open(path, "rb") as f:
+        data = f.read()
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:  # found by test_reader_robustness.py
+        line_number = data.count(b"\n", 0, e.start) + 1
+        raise dyng.FileFormatError(f"{path}:{line_number}: not UTF-8 text") from None
+    # newline=None: the line ends of a text-mode open() (\n, \r\n, \r)
+    for number, line in enumerate(io.StringIO(text, newline=None), 1):
+        fields = line.split()
+        if not fields or fields[0].startswith("#"):
+            continue
+        op, rest = fields[0], fields[1:]
+        try:
+            values = [int(x) for x in rest]
+        except ValueError:
+            raise dyng.FileFormatError(
+                f"{path}:{number}: not an integer: {line.strip()!r}"
+            ) from None
+        if any(not _INT64_MIN <= x <= _INT64_MAX for x in values):  # test_reader_robustness.py
+            raise dyng.FileFormatError(
+                f"{path}:{number}: an integer outside the 64-bit range: {line.strip()!r}"
+            )
+        if op == "-" and len(values) == 2:
+            dele.append((values[0], values[1]))
+        elif op == "+" and len(values) == 2:
+            ins.append(values + [1] * k)
+        elif op == "+" and k and len(values) == 2 + k:
+            ins.append(values)
+        else:
+            raise dyng.FileFormatError(
+                f"{path}:{number}: expected '+ u v' or '- u v', got {line.strip()!r}"
+            )
     # int64 arrays: the batch converts them to the graph's id type with a range check.
     ia = np.array(ins, dtype=np.int64).reshape(-1, 2 + k)
     da = np.array(dele, dtype=np.int64).reshape(-1, 2)
