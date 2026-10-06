@@ -147,3 +147,21 @@ part: an import / selection smoke test on the hosted runners falls back to `dyng
 `dyng.BackendWarning` ("no CUDA driver"), which the smoke test should expect, and
 `test_backend_selection.py` runs there unchanged. The wheel-vs-parity timing row (PLAN 7.7) is
 still open.
+
+**Verification of the step discovery-tests** (from `cd6f8b7`, GPU 1, RTX A5000, driver 590.48.01):
+`ci/plugin_wheels.sh` with `DYNG_PLUGINS="cu12 cu13"` (CUDA 12.9 and 13.1) and the interop venv
+(log `$DYNG_SCRATCH/runs/m6a-discovery-plugin-wheels.log`, wheels in
+`$DYNG_SCRATCH/wheels/m6a-discovery`): both wheels clean (5.65 MB, 5.51 MB); in fresh venvs on
+Python 3.12 and 3.13 for each plugin, the smoke test's device arrays equal the sequential
+backend's, the no-device fallback gives `dyng._core` with one `dyng.BackendWarning`,
+`pytest -m gpu` gives 43 passed and 3 skipped (PyTorch / CuPy absent), and the suite with
+`DYNG_CPU_ONLY=1` 473 passed, 50 skipped; in the interop venv (PyTorch 2.14.1+cu130, CuPy
+14.2.0) `pytest -m gpu` gives 46 passed for each plugin. Both plugins installed together:
+`dyng_cu13` is chosen ("it matches the driver's CUDA major (CUDA 13.1)") and `dyng_cu12` is
+reported as available. The whole suite with the cu13 plugin active: 519 passed, 4 skipped.
+`ci/gpu_local.sh` with only its step `plugin` passes (log
+`$DYNG_SCRATCH/runs/m6a-discovery-gpu-local-plugin.log`). `ci/check.sh`: all checks passed
+(`ci/python.sh`, `ci/docs.sh`, the griffe API check and pre-commit included; log
+`$DYNG_SCRATCH/runs/m6a-discovery-check.log`). Portability pre-checks (C++ unchanged since):
+the Clang 18 syntax pass over the dev build with the bindings, 188 files, no failure; the
+`cpu-only` build with `-D_FORTIFY_SOURCE=3` and the bindings is clean.
