@@ -32,6 +32,7 @@ import numpy as np
 from . import _dtypes
 from ._backend import native
 from ._convert import as_int, copy_fields, enum_member, enum_name, with_options
+from ._writer import new_lock, writing
 from .array import Array
 from .batch import EdgeBatch
 from .errors import NotSupportedError
@@ -131,9 +132,11 @@ class Result:
     are 0); the array has :attr:`bound` + 1 entries.
     """
 
-    __slots__ = ("_native", "_resources", "__weakref__")
+    __slots__ = ("_native", "_resources", "_writer", "_write_lock", "__weakref__")
     _native: Any
     _resources: Resources
+    _writer: Resources  # the last writer's resources (dyng._writer)
+    _write_lock: Any
 
     def __init__(self) -> None:
         raise TypeError("use dyng.cycle_count.compute()")
@@ -143,6 +146,8 @@ class Result:
         self = object.__new__(cls)
         self._native = handle
         self._resources = resources
+        self._writer = resources
+        self._write_lock = new_lock()
         return self
 
     @property
@@ -151,7 +156,10 @@ class Result:
         from .sssp import _result_array
 
         return _result_array(
-            self._native, self._native.counts, "cycle_count.Result.counts", self._resources
+            self._native,
+            self._native.counts,
+            "cycle_count.Result.counts",
+            (self._resources, self._writer),
         )
 
     def count(self, length: int) -> int:
@@ -277,6 +285,6 @@ def update(
         raise TypeError("dyng.cycle_count.update: batch must be a dyng.EdgeBatch")
     res = resolve(resources, graph._resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(
-        native.cycle_count_update(res._native, graph._native, nb, result._native)
-    )
+    with writing([result], res):
+        out = native.cycle_count_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)

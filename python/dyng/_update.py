@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, overload
 
 from ._backend import native
+from ._writer import writing
 from .batch import EdgeBatch
 from .errors import InvalidArgumentError
 from .graph import Graph
@@ -143,5 +144,6 @@ def update(
             raise StaleResultError(f"dyng.update: {name} result was computed on another graph")
     res = resolve(resources, graph._resources)
     nb = batch._native_for(graph)
-    out = native.update(res._native, graph._native, nb, [r._native for r in results])
+    with writing(results, res):
+        out = native.update(res._native, graph._native, nb, [r._native for r in results])
     return tuple(kind._from_native(s) for kind, s in zip(kinds, out, strict=True))

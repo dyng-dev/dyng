@@ -527,6 +527,46 @@ def test_a_user_stream_orders_the_results(tree: Any) -> None:
     assert np.array_equal(cupy.asnumpy(x), ref)
 
 
+def test_an_update_on_another_stream_keeps_that_stream_alive(cuda: dyng.Resources) -> None:
+    # The result's last writer (an update with a CuPy stream) names that stream; the result keeps
+    # the writer's Resources, so the stream lives as long as the result (ADR 0031).
+    cupy = pytest.importorskip("cupy")
+    import gc
+    import weakref
+
+    src, dst, w = random_edges(23)
+    seq = dyng.Resources.sequential()
+    b = random_batch(23, 300)
+    expected = []
+    for algorithm in ("sssp", "cycle_count", "update"):
+        g = dyng.Graph.from_edges(src, dst, w, num_vertices=300, resources=cuda)
+        t = dyng.sssp.compute(g, 0) if algorithm != "cycle_count" else None
+        h = dyng.cycle_count.compute(g, max_length=3) if algorithm != "sssp" else None
+        side = cupy.cuda.Stream(non_blocking=True)
+        alive, handle = weakref.ref(side), side.ptr
+        res = dyng.Resources.cuda(0, stream=side)
+        if algorithm == "sssp":
+            dyng.sssp.update(g, b, t, resources=res)
+        elif algorithm == "cycle_count":
+            dyng.cycle_count.update(g, b, h, resources=res)
+        else:
+            dyng.update(g, b, t, h, resources=res)
+        del side, res
+        gc.collect()
+        assert alive() is not None, algorithm  # kept by the result's last writer
+        if t is not None:
+            assert t.distances.__cuda_array_interface__["stream"] == handle
+            expected.append(t.distances.to_numpy())
+        del t, h, g
+        gc.collect()
+        assert alive() is None, algorithm  # and released with it
+    seq_g = dyng.Graph.from_edges(src, dst, w, num_vertices=300, resources=seq)
+    seq_t = dyng.sssp.compute(seq_g, 0)
+    dyng.sssp.update(seq_g, b, seq_t)
+    for got in expected:
+        assert np.array_equal(got, seq_t.distances.to_numpy())
+
+
 # -------------------------------------------------------------------------------------------------
 # The fallback of an installed plugin (a fresh process)
 # -------------------------------------------------------------------------------------------------

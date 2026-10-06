@@ -30,6 +30,7 @@ import numpy as np
 from . import _dtypes
 from ._backend import native
 from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name, with_options
+from ._writer import new_lock, writing
 from .array import Array
 from .batch import EdgeBatch
 from .errors import NotSupportedError, StaleResultError
@@ -121,10 +122,12 @@ class Result:
     of the result (see :class:`dyng.Array` for their lifetime).
     """
 
-    __slots__ = ("_native", "_resources", "_vertex", "__weakref__")
+    __slots__ = ("_native", "_resources", "_vertex", "_writer", "_write_lock", "__weakref__")
     _native: Any
     _resources: Resources
     _vertex: np.dtype
+    _writer: Resources  # the last writer's resources (dyng._writer)
+    _write_lock: Any
 
     def __init__(self) -> None:
         raise TypeError("use dyng.sssp.compute() or dyng.sssp.Result.from_arrays()")
@@ -135,10 +138,14 @@ class Result:
         self._native = handle
         self._resources = resources
         self._vertex = vertex
+        self._writer = resources
+        self._write_lock = new_lock()
         return self
 
     def _array(self, getter: Any, what: str) -> Array:
-        return _result_array(self._native, getter, f"sssp.Result.{what}", self._resources)
+        return _result_array(
+            self._native, getter, f"sssp.Result.{what}", (self._resources, self._writer)
+        )
 
     @property
     def source(self) -> int:
@@ -270,8 +277,9 @@ def _result_array(handle: Any, getter: Any, what: str, keep: Any = None) -> Arra
     The generation is read before the array, so an update in between makes the Array stale
     (never current with an older state's memory). The Array asks the handle for the resources
     of the call that last wrote the result (``handle.writer``) when it needs their stream (device
-    memory only). ``keep`` (the result's Python resources) lives as long as the Array, so a stream
-    object passed to ``Resources.cuda(stream=...)`` outlives the Array's use of it.
+    memory only). ``keep`` (the result's Python resources and those of its last writer,
+    dyng._writer) lives as long as the Array, so a stream object passed to
+    ``Resources.cuda(stream=...)`` outlives the Array's use of it.
     """
     generation = handle.generation
     return Array(
@@ -361,4 +369,6 @@ def update(
         )
     res = resolve(resources, graph._resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(native.sssp_update(res._native, graph._native, nb, result._native))
+    with writing([result], res):
+        out = native.sssp_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)

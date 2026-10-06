@@ -46,6 +46,7 @@ from . import _dtypes
 from . import sssp as _sssp
 from ._backend import native
 from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name, with_options
+from ._writer import new_lock, writing
 from .array import Array
 from .batch import EdgeBatch
 from .errors import InvalidArgumentError, NotSupportedError, StaleResultError
@@ -180,10 +181,12 @@ class Result:
     every backend.
     """
 
-    __slots__ = ("_native", "_resources", "_vertex", "__weakref__")
+    __slots__ = ("_native", "_resources", "_vertex", "_writer", "_write_lock", "__weakref__")
     _native: Any
     _resources: Resources
     _vertex: np.dtype
+    _writer: Resources  # the last writer's resources (dyng._writer)
+    _write_lock: Any
 
     def __init__(self) -> None:
         raise TypeError("use dyng.mosp.compute() or dyng.mosp.Result.from_arrays()")
@@ -194,10 +197,14 @@ class Result:
         self._native = handle
         self._resources = resources
         self._vertex = vertex
+        self._writer = resources
+        self._write_lock = new_lock()
         return self
 
     def _array(self, getter: Any, what: str) -> Array:
-        return _sssp._result_array(self._native, getter, f"mosp.Result.{what}", self._resources)
+        return _sssp._result_array(
+            self._native, getter, f"mosp.Result.{what}", (self._resources, self._writer)
+        )
 
     def _objective(self, objective: int, what: str) -> int:
         k = as_int(objective, f"mosp.Result.{what}: objective")
@@ -463,4 +470,6 @@ def update(
         )
     res = resolve(resources, graph._resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(native.mosp_update(res._native, graph._native, nb, result._native))
+    with writing([result], res):
+        out = native.mosp_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)

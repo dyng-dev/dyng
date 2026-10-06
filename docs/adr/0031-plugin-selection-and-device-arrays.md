@@ -138,6 +138,15 @@ before the consumer's with an event".
    so the frameworks' default streams silently ran on `cudaStreamPerThread` (a different stream
    on every thread), and the stream reported back was not the one passed in. The native
    `Resources.cuda` takes `stream=None` for the per-thread stream.
+5. **A result keeps its last writer's Python resources.** The native holder records the writer
+   of every update, but its native resources name the stream by its raw handle; the stream object
+   was kept alive only by the Python `Resources` of the result's `compute`. An update with other
+   resources (`dyng.sssp.update(..., resources=Resources.cuda(stream=s))`) followed by dropping
+   them left the result naming a destroyed stream: `__cuda_array_interface__` reported a dead (or
+   reused) handle and `to_numpy()` failed with a CUDA error or crashed. Each result now keeps the
+   Python resources of its last writer (`dyng/_writer.py`: set when the update's native call
+   moved the result's generation, which the holder advances together with the writer, under a
+   per-result lock), and the Arrays read from it keep both resources.
 
 ## Consequences
 

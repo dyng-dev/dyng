@@ -285,6 +285,11 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   and in C++ (`stream_ref(0)`), and so are `torch.cuda.default_stream()` and
   `cupy.cuda.Stream.null`; `stream=None` (the default) is the per-thread default stream. Before,
   0 and the frameworks' default streams were silently mapped to the per-thread default stream.
+- Fixed: a result updated with other resources (`resources=Resources.cuda(stream=s)` in
+  `dyng.sssp.update`, `dyng.mosp.update`, `dyng.cycle_count.update` or `dyng.update`) keeps those
+  resources, and so the stream object, alive as long as the result and its Arrays; before,
+  dropping them left `__cuda_array_interface__` naming a destroyed stream and `to_numpy()` failing
+  with a CUDA error or a crash.
 
 ### Changed
 
