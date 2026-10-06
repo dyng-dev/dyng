@@ -67,7 +67,9 @@ std::vector<vertex_t> read_col_ind(const std::string& path, std::int64_t n, std:
   const std::string text = detail::read_file(path);
   detail::text_scanner scanner(text, path);
   detail::token tok;
-  col_ind.reserve(m);
+  // At most one index per two bytes: a RowPtr that announces more edges than ColInd can hold must
+  // not make the reader reserve memory for them (found by fuzz_csr_triplet).
+  col_ind.reserve(std::min(m, text.size() / 2 + 1));
   while (scanner.next_token(tok)) {
     if (col_ind.size() == m) {
       scanner.fail(tok, "more column indices than the " + std::to_string(m) +
@@ -132,10 +134,14 @@ value_lines<weight_t> read_values(const std::string& path, std::size_t m, int nu
       scanner.fail_line("more weight lines than the " + std::to_string(m) + " edges");
     }
     if (stride == 0) {
-      // Every non-blank line ends with a line break, except possibly the last one.
-      stride = m != unknown ? m
-                            : static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n')) +
-                                  (text.back() != '\n' ? 1 : 0);
+      // Every non-blank line ends with a line break, except possibly the last one. With m known,
+      // the stride is m unless the file cannot hold m lines: then it is the line bound (the line
+      // count check below fails anyway), so a RowPtr that announces more edges than Values can
+      // hold does not make the reader allocate their weights (found by fuzz_csr_triplet).
+      const std::size_t line_bound =
+          static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n')) +
+          (text.back() != '\n' ? 1 : 0);
+      stride = std::min(m, line_bound);
       out.weights.resize(stride * static_cast<std::size_t>(k_count));
     }
     const std::size_t row = out.lines - 1;

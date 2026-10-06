@@ -189,7 +189,11 @@ edge_list<vertex_t, weight_t> read_matrix_market(const std::string& path,
   const int value_tokens = field == mm_field::pattern ? 0 : (field == mm_field::complex ? 2 : 1);
   const bool mirrored = symmetry != mm_symmetry::general;
   std::vector<raw_edge> edges;
-  edges.reserve(static_cast<std::size_t>(std::min<std::int64_t>(entries, 1 << 26)) *
+  // The reservation trusts the size line only as far as the file can hold its entries: an entry
+  // line takes at least 4 bytes ("i j" and a line break), so a short file that announces billions
+  // of entries cannot make the reader allocate gigabytes (found by fuzz_matrix_market).
+  const auto max_entries = static_cast<std::int64_t>(text.size() / 4 + 1);
+  edges.reserve(static_cast<std::size_t>(std::min({entries, max_entries, std::int64_t{1} << 26})) *
                 (mirrored ? 2 : 1));
   std::int64_t seen = 0;
   while (scanner.next_line()) {
