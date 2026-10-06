@@ -56,6 +56,7 @@ TEST(Types, EveryCoreEnumerationHasItsNameAsString) {
   EXPECT_EQ(dyng::to_string(dyng::maturity_level::experimental), "experimental");
   EXPECT_EQ(dyng::to_string(dyng::maturity_level::stable), "stable");
   EXPECT_EQ(dyng::to_string(dyng::maturity_level::deprecated), "deprecated");
+  EXPECT_EQ(dyng::to_string(dyng::maturity_level::tutorial), "tutorial");
   EXPECT_EQ(dyng::to_string(dyng::oracle_kind::compute), "compute");
   EXPECT_EQ(dyng::to_string(dyng::oracle_kind::reference), "reference");
 }

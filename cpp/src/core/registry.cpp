@@ -70,6 +70,8 @@ std::string_view to_string(maturity_level maturity) noexcept {
       return "stable";
     case maturity_level::deprecated:
       return "deprecated";
+    case maturity_level::tutorial:
+      return "tutorial";
   }
   return "unknown";
 }

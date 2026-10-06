@@ -37,14 +37,15 @@ enum class container_kind : std::uint8_t {
 };
 
 /**
- * @brief How settled an algorithm's API and behaviour are (experimental, beta, stable;
- *        docs/glossary.md).
+ * @brief How settled an algorithm's API and behaviour are (experimental, stable, deprecated;
+ *        docs/glossary.md), or that it is teaching material (tutorial).
  * @ingroup core
  */
 enum class maturity_level : std::uint8_t {
   experimental,  ///< may change in any release; excluded from SemVer guarantees
   stable,        ///< SemVer applies
   deprecated,    ///< kept for at least one minor release, then removed
+  tutorial,      ///< teaching material (docs/tutorials), not a research algorithm; like experimental
 };
 
 /**
@@ -75,7 +76,7 @@ enum class oracle_kind : std::uint8_t {
 
 /**
  * @brief The name of a maturity level, as in the manifests ("experimental", "stable",
- *        "deprecated").
+ *        "deprecated", "tutorial").
  * @param[in] maturity The maturity level.
  * @return A static string naming `maturity`.
  * @ingroup core

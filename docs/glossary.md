@@ -44,6 +44,8 @@ internal-stable
 
 maturity
   `experimental`, `stable` or `deprecated`; decides the SemVer coverage of an algorithm.
+  `tutorial` marks teaching material (`dynamic_bfs`, `triangle_delta`): complete and tested like
+  any algorithm, covered like `experimental`, and not a research algorithm.
 
 operators engine (Tier A)
   An algorithm composed from the framework's shared operators.
