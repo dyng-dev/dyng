@@ -45,7 +45,7 @@ enum class maturity_level : std::uint8_t {
   experimental,  ///< may change in any release; excluded from SemVer guarantees
   stable,        ///< SemVer applies
   deprecated,    ///< kept for at least one minor release, then removed
-  tutorial,      ///< teaching material (docs/tutorials), not a research algorithm; like experimental
+  tutorial,  ///< teaching material (docs/tutorials), not a research algorithm; like experimental
 };
 
 /**

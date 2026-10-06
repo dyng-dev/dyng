@@ -165,24 +165,27 @@ namespace dyng::detail {
 /**
  * @brief Whether dynamic_bfs is instantiated for graph<vertex_t, edge_t, weight_t> (the
  *        explicit instantiations of dynamic_bfs.cpp: int32_t weights with int32_t ids and
- *        int32_t or int64_t offsets, or int64_t ids and offsets).
+ *        int32_t or int64_t offsets, or int64_t ids and offsets; and unweighted graphs with
+ *        int32_t ids and int32_t or int64_t offsets).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 inline constexpr bool dynamic_bfs_supported_v =
-    std::is_same_v<weight_t, std::int32_t> &&
-    ((std::is_same_v<vertex_t, std::int32_t> &&
-      (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) ||
-     (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>));
+    (std::is_same_v<weight_t, std::int32_t> &&
+     ((std::is_same_v<vertex_t, std::int32_t> &&
+       (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) ||
+      (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>))) ||
+    (is_unweighted_v<weight_t> && std::is_same_v<vertex_t, std::int32_t> &&
+     (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>));
 
 /**
  * @brief The message of dynamic_bfs's static_assert for an unsupported graph type.
  * @ingroup dynamic_bfs
  */
-#define DYNG_DYNAMIC_BFS_TYPES_MESSAGE                                          \
-  "dyng::dynamic_bfs supports graph<int32_t, int32_t or int64_t, int32_t> and " \
+#define DYNG_DYNAMIC_BFS_TYPES_MESSAGE                                                        \
+  "dyng::dynamic_bfs supports graph<int32_t, int32_t or int64_t, int32_t or unweighted> and " \
   "graph<int64_t, int64_t, int32_t> only; see docs/algorithms/dynamic_bfs.md"
 
 /**

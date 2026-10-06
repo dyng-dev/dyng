@@ -131,9 +131,8 @@ struct count_owned_by_change {
       }
       // The edges (u, w) and (v, w), as (smaller, larger); owned by i unless one of them is a
       // changed edge with a smaller id.
-      const bool smaller_owner =
-          among_first(tails, heads, i, u < w ? u : w, u < w ? w : u) ||
-          among_first(tails, heads, i, v < w ? v : w, v < w ? w : v);
+      const bool smaller_owner = among_first(tails, heads, i, u < w ? u : w, u < w ? w : u) ||
+                                 among_first(tails, heads, i, v < w ? v : w, v < w ? w : v);
       found += smaller_owner ? 0U : 1U;
     });
     if (found != 0) {
@@ -162,7 +161,8 @@ class triangle_delta_engine_impl final : public triangle_delta_engine<vertex_t, 
     const exec_t exec(res);
     std::uint64_t* total = ws.counter.reserve(res, 1);
     exec.write(total, std::uint64_t{0});
-    exec.for_each(g.num_vertices, triangle_delta_ops::count_from_vertex<vertex_t, edge_t>{g, total});
+    exec.for_each(g.num_vertices,
+                  triangle_delta_ops::count_from_vertex<vertex_t, edge_t>{g, total});
     return exec.read(total);
   }
 

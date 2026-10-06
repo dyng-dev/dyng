@@ -58,10 +58,10 @@ DYNG_HD inline void store(std::int64_t* p, std::int64_t value) {
  */
 template <typename vertex_t>
 struct push_once {
-  vertex_t* items;       ///< the list
-  std::uint64_t* size;   ///< its length (a counter on the backend)
-  std::uint32_t* mark;   ///< the stamp of every vertex
-  std::uint32_t stamp;   ///< this round's (or run's) stamp
+  vertex_t* items;      ///< the list
+  std::uint64_t* size;  ///< its length (a counter on the backend)
+  std::uint32_t* mark;  ///< the stamp of every vertex
+  std::uint32_t stamp;  ///< this round's (or run's) stamp
 
   /// Append v unless it was appended with this stamp already.
   DYNG_HD void operator()(vertex_t v) const {
@@ -79,14 +79,14 @@ struct push_once {
  */
 template <typename vertex_t>
 struct invalidator {
-  std::int64_t* levels;        ///< the levels
-  std::int64_t* parents;       ///< the parents
-  std::uint32_t* invalid;      ///< the flags
-  vertex_t* next;              ///< the next frontier of the walk
-  std::uint64_t* next_size;    ///< its length
-  vertex_t* invalidated;       ///< every invalidated vertex
+  std::int64_t* levels;              ///< the levels
+  std::int64_t* parents;             ///< the parents
+  std::uint32_t* invalid;            ///< the flags
+  vertex_t* next;                    ///< the next frontier of the walk
+  std::uint64_t* next_size;          ///< its length
+  vertex_t* invalidated;             ///< every invalidated vertex
   std::uint64_t* invalidated_count;  ///< its length
-  push_once<vertex_t> touch;   ///< the touched list
+  push_once<vertex_t> touch;         ///< the touched list
 
   /// Invalidate v unless it is invalid already.
   DYNG_HD void operator()(vertex_t v) const {
@@ -217,8 +217,8 @@ struct offer {
  */
 template <typename vertex_t>
 struct offer_insertion {
-  const vertex_t* tails;   ///< the inserted edges' tails
-  const vertex_t* heads;   ///< the inserted edges' heads
+  const vertex_t* tails;     ///< the inserted edges' tails
+  const vertex_t* heads;     ///< the inserted edges' heads
   offer<vertex_t> offer_to;  ///< the offer
 
   /// Insertion i.
@@ -392,9 +392,9 @@ class dynamic_bfs_engine_impl final : public dynamic_bfs_engine<vertex_t, edge_t
     const dynamic_bfs_ops::push_once<vertex_t> frontier = frontier_push(ws, 0);
     exec.write(ws.counters.data() + 0, std::uint64_t{0});
     // The pull reads the levels of valid vertices only, which no element of the pass writes.
-    exec.for_each(run.invalidated, dynamic_bfs_ops::pull_level<vertex_t, edge_t>{
-                                       g, ws.invalidated.data(), run.levels, ws.invalid.data(),
-                                       frontier});
+    exec.for_each(run.invalidated,
+                  dynamic_bfs_ops::pull_level<vertex_t, edge_t>{
+                      g, ws.invalidated.data(), run.levels, ws.invalid.data(), frontier});
     // Then the insertions, in a pass of their own (they may lower any level).
     vertex_t* changes = upload_changes(exec, res, ws, tails, heads, count);
     exec.for_each(count, dynamic_bfs_ops::offer_insertion<vertex_t>{
@@ -465,8 +465,8 @@ class dynamic_bfs_engine_impl final : public dynamic_bfs_engine<vertex_t, edge_t
   }
 
   /// The invalidation into frontier list `list`.
-  static dynamic_bfs_ops::invalidator<vertex_t> make_invalidator(workspace_type& ws,
-                                                                 run_type& run, int list) {
+  static dynamic_bfs_ops::invalidator<vertex_t> make_invalidator(workspace_type& ws, run_type& run,
+                                                                 int list) {
     return {run.levels,
             run.parents,
             ws.invalid.data(),

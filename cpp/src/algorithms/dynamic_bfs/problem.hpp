@@ -67,14 +67,14 @@ namespace dyng::detail {
 /// The state behind a dynamic_bfs::result: levels and parents in the memory of the backend that
 /// computed it (host memory for sequential and openmp, device memory for cuda).
 struct dynamic_bfs_state {
-  dynamic_bfs::options opt;               ///< the options
-  buffer<std::int64_t> levels;            ///< the level of every vertex, -1 if unreachable
-  buffer<std::int64_t> parents;           ///< the BFS tree: parent of every vertex, -1 for none
+  dynamic_bfs::options opt;                 ///< the options
+  buffer<std::int64_t> levels;              ///< the level of every vertex, -1 if unreachable
+  buffer<std::int64_t> parents;             ///< the BFS tree: parent of every vertex, -1 for none
   memory_space space = memory_space::host;  ///< where levels and parents live
-  int device = -1;                        ///< the CUDA device of device arrays, -1 otherwise
-  std::uint64_t version = 0;              ///< graph version matched
-  std::uint64_t graph_state = 0;          ///< graph state matched (ADR 0006, "Graph identity")
-  bool poisoned = false;                  ///< a failed update left the result unusable
+  int device = -1;                          ///< the CUDA device of device arrays, -1 otherwise
+  std::uint64_t version = 0;                ///< graph version matched
+  std::uint64_t graph_state = 0;            ///< graph state matched (ADR 0006, "Graph identity")
+  bool poisoned = false;                    ///< a failed update left the result unusable
 };
 
 /// Access to the state of a result.
@@ -154,13 +154,13 @@ struct dynamic_bfs_graph {
  */
 template <typename vertex_t>
 struct dynamic_bfs_run {
-  std::int64_t* levels = nullptr;                ///< the result's levels (backend memory)
-  std::int64_t* parents = nullptr;               ///< the result's parents (backend memory)
+  std::int64_t* levels = nullptr;                 ///< the result's levels (backend memory)
+  std::int64_t* parents = nullptr;                ///< the result's parents (backend memory)
   dynamic_bfs_workspace<vertex_t>* ws = nullptr;  ///< the leased workspace
-  std::int64_t invalidated = 0;                  ///< vertices invalidated
-  std::int64_t invalidation_rounds = 0;          ///< passes of the invalidation
-  std::int64_t iterations = 0;                   ///< loop rounds
-  std::int64_t frontier_visits = 0;              ///< frontier vertices expanded
+  std::int64_t invalidated = 0;                   ///< vertices invalidated
+  std::int64_t invalidation_rounds = 0;           ///< passes of the invalidation
+  std::int64_t iterations = 0;                    ///< loop rounds
+  std::int64_t frontier_visits = 0;               ///< frontier vertices expanded
 };
 
 /**
@@ -214,9 +214,8 @@ class dynamic_bfs_engine {
    * @param[in]     count Number of insertions.
    * @param[out]    f     The first frontier.
    */
-  virtual void seed(const resources& res, const graph_type& g, run_type& run,
-                    const vertex_t* tails, const vertex_t* heads, std::int64_t count,
-                    dynamic_bfs_frontier& f) const = 0;
+  virtual void seed(const resources& res, const graph_type& g, run_type& run, const vertex_t* tails,
+                    const vertex_t* heads, std::int64_t count, dynamic_bfs_frontier& f) const = 0;
 
   /**
    * @brief seed_static (compute): every level -1, the source at level 0 and on the frontier.
@@ -274,12 +273,12 @@ class dynamic_bfs_problem final
     : public framework::problem_base<dynamic_bfs_problem<vertex_t, edge_t, weight_t>,
                                      framework::family::fixed_point> {
  public:
-  static constexpr std::string_view name = "dynamic_bfs";            ///< stages "dynamic_bfs.<hook>"
-  using container_type = graph<vertex_t, edge_t, weight_t>;          ///< the container
-  using stats_type = dynamic_bfs::stats;                             ///< the stats of update()
-  using frontier_type = dynamic_bfs_frontier;                        ///< the loop's frontier
-  using old_graph = framework::old_view<container_type>;             ///< G_t
-  using new_graph = framework::new_view<container_type>;             ///< G_{t+1}
+  static constexpr std::string_view name = "dynamic_bfs";    ///< stages "dynamic_bfs.<hook>"
+  using container_type = graph<vertex_t, edge_t, weight_t>;  ///< the container
+  using stats_type = dynamic_bfs::stats;                     ///< the stats of update()
+  using frontier_type = dynamic_bfs_frontier;                ///< the loop's frontier
+  using old_graph = framework::old_view<container_type>;     ///< G_t
+  using new_graph = framework::new_view<container_type>;     ///< G_{t+1}
   using requested = framework::requested_batch<vertex_t, weight_t>;  ///< the batch before commit
   using applied = framework::applied_batch<vertex_t>;                ///< what the commit did
 

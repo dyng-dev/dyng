@@ -66,8 +66,8 @@ namespace dyng::detail::operators {
  */
 DYNG_HD inline std::uint64_t atomic_min(std::uint64_t* p, std::uint64_t value) {
 #if defined(__CUDA_ARCH__)
-  return static_cast<std::uint64_t>(atomicMin(reinterpret_cast<unsigned long long*>(p),
-                                              static_cast<unsigned long long>(value)));
+  return static_cast<std::uint64_t>(
+      atomicMin(reinterpret_cast<unsigned long long*>(p), static_cast<unsigned long long>(value)));
 #else
   std::uint64_t old = __atomic_load_n(p, __ATOMIC_RELAXED);
   while (value < old &&
@@ -85,8 +85,8 @@ DYNG_HD inline std::uint64_t atomic_min(std::uint64_t* p, std::uint64_t value) {
  */
 DYNG_HD inline std::uint64_t atomic_add(std::uint64_t* p, std::uint64_t value) {
 #if defined(__CUDA_ARCH__)
-  return static_cast<std::uint64_t>(atomicAdd(reinterpret_cast<unsigned long long*>(p),
-                                              static_cast<unsigned long long>(value)));
+  return static_cast<std::uint64_t>(
+      atomicAdd(reinterpret_cast<unsigned long long*>(p), static_cast<unsigned long long>(value)));
 #else
   return __atomic_fetch_add(p, value, __ATOMIC_RELAXED);
 #endif

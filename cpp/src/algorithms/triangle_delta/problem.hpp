@@ -93,11 +93,11 @@ template <typename vertex_t>
 struct triangle_delta_workspace final : pooled_workspace {
   using edge = std::pair<vertex_t, vertex_t>;  ///< an undirected edge (u, v), u < v
 
-  structural_change<vertex_t> change;  ///< Step 0 of the other batch semantics
-  std::vector<edge> deletions;         ///< the deleted edges, sorted (their ids)
-  std::vector<edge> insertions;        ///< the inserted edges, sorted (their ids)
-  std::vector<vertex_t> staging;       ///< tails, then heads, of one list (host)
-  scratch_buffer<vertex_t> changes;    ///< the same in the backend's memory
+  structural_change<vertex_t> change;     ///< Step 0 of the other batch semantics
+  std::vector<edge> deletions;            ///< the deleted edges, sorted (their ids)
+  std::vector<edge> insertions;           ///< the inserted edges, sorted (their ids)
+  std::vector<vertex_t> staging;          ///< tails, then heads, of one list (host)
+  scratch_buffer<vertex_t> changes;       ///< the same in the backend's memory
   scratch_buffer<std::uint64_t> counter;  ///< the count of one pass (backend memory)
 
   /// Bytes of the arrays' capacities.
@@ -119,9 +119,9 @@ struct triangle_delta_workspace final : pooled_workspace {
  */
 template <typename vertex_t, typename edge_t>
 struct triangle_delta_graph {
-  std::int64_t num_vertices = 0;          ///< n
-  const edge_t* offsets = nullptr;        ///< n + 1 row offsets
-  const vertex_t* neighbors = nullptr;    ///< the sorted neighbours of each vertex
+  std::int64_t num_vertices = 0;        ///< n
+  const edge_t* offsets = nullptr;      ///< n + 1 row offsets
+  const vertex_t* neighbors = nullptr;  ///< the sorted neighbours of each vertex
 };
 
 /**

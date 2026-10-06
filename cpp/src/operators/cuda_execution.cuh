@@ -53,9 +53,8 @@ __global__ void __launch_bounds__(for_each_block_size)
 
 /// Registers for_each_kernel<function_t> when the library is loaded (one per instantiation).
 template <typename function_t>
-inline const kernel_registrar for_each_registrar(reinterpret_cast<const void*>(
-                                                     &for_each_kernel<function_t>),
-                                                 "operators::for_each_kernel");
+inline const kernel_registrar for_each_registrar(
+    reinterpret_cast<const void*>(&for_each_kernel<function_t>), "operators::for_each_kernel");
 
 /**
  * @brief The functor of cuda_exec::fill() (at namespace scope: a kernel's template argument

@@ -158,8 +158,9 @@ void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::bind(framework::context& c
   view_.out_targets = v.out.col_ind.data();
   view_.in_offsets = in.row_ptr.data();
   view_.in_sources = in.col_ind.data();
-  engine_ = res.get_backend() == backend::openmp ? &dynamic_bfs_openmp_engine<vertex_t, edge_t>()
-                                                 : &dynamic_bfs_sequential_engine<vertex_t, edge_t>();
+  engine_ = res.get_backend() == backend::openmp
+                ? &dynamic_bfs_openmp_engine<vertex_t, edge_t>()
+                : &dynamic_bfs_sequential_engine<vertex_t, edge_t>();
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
@@ -223,8 +224,10 @@ framework::budget dynamic_bfs_problem<vertex_t, edge_t, weight_t>::algorithm_bud
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::identify_affected(
-    framework::context& ctx, new_graph /*g*/, const applied& applied, frontier_type& /*f*/) {
+void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::identify_affected(framework::context& ctx,
+                                                                        new_graph /*g*/,
+                                                                        const applied& applied,
+                                                                        frontier_type& /*f*/) {
   // applied.delta lists every deletion the batch requested (an absent edge is harmless: its head
   // is not a root unless the edge was its tree edge).
   const apply_delta<vertex_t>& delta = applied.delta;
@@ -233,17 +236,16 @@ void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::identify_affected(
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::seed(framework::context& ctx,
-                                                           new_graph /*g*/, frontier_type& f) {
+void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::seed(framework::context& ctx, new_graph /*g*/,
+                                                           frontier_type& f) {
   const apply_delta<vertex_t>& delta = applied_->delta;
   engine_->seed(ctx.res(), view_, run_, delta.insert_src.data(), delta.insert_dst.data(),
                 static_cast<std::int64_t>(delta.insert_src.size()), f);
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::loop(framework::context& ctx,
-                                                           new_graph /*g*/, frontier_type& in,
-                                                           frontier_type& out) {
+void dynamic_bfs_problem<vertex_t, edge_t, weight_t>::loop(framework::context& ctx, new_graph /*g*/,
+                                                           frontier_type& in, frontier_type& out) {
   engine_->advance(ctx.res(), view_, run_, in, out);
 }
 
@@ -398,15 +400,16 @@ std::unique_ptr<update_participant<vertex_t, edge_t, weight_t>> make_dynamic_bfs
 }
 
 // Explicit instantiations (PLAN Section 4.4.3).
-#define DYNG_INSTANTIATE_DYNAMIC_BFS(V, E, W)                                                 \
-  template class dynamic_bfs_problem<V, E, W>;                                                \
+#define DYNG_INSTANTIATE_DYNAMIC_BFS(V, E, W)                                                  \
+  template class dynamic_bfs_problem<V, E, W>;                                                 \
   template std::unique_ptr<update_participant<V, E, W>> make_dynamic_bfs_participant<V, E, W>( \
-      dynamic_bfs::result&, dynamic_bfs::stats&);                                             \
-  template dynamic_bfs::result dynamic_bfs_compute<V, E, W>(                                  \
-      const resources&, const graph<V, E, W>&, const dynamic_bfs::options&);                  \
-  template dynamic_bfs::stats dynamic_bfs_update<V, E, W>(                                    \
+      dynamic_bfs::result&, dynamic_bfs::stats&);                                              \
+  template dynamic_bfs::result dynamic_bfs_compute<V, E, W>(                                   \
+      const resources&, const graph<V, E, W>&, const dynamic_bfs::options&);                   \
+  template dynamic_bfs::stats dynamic_bfs_update<V, E, W>(                                     \
       const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, dynamic_bfs::result&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_DYNAMIC_BFS)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_DYNAMIC_BFS)
 #undef DYNG_INSTANTIATE_DYNAMIC_BFS
 
 }  // namespace dyng::detail

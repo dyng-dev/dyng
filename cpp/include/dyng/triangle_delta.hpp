@@ -163,24 +163,27 @@ namespace dyng::detail {
 /**
  * @brief Whether triangle_delta is instantiated for graph<vertex_t, edge_t, weight_t> (the
  *        explicit instantiations of triangle_delta.cpp: int32_t weights with int32_t ids and
- *        int32_t or int64_t offsets, or int64_t ids and offsets).
+ *        int32_t or int64_t offsets, or int64_t ids and offsets; and unweighted graphs with
+ *        int32_t ids and int32_t or int64_t offsets).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
  */
 template <typename vertex_t, typename edge_t, typename weight_t>
 inline constexpr bool triangle_delta_supported_v =
-    std::is_same_v<weight_t, std::int32_t> &&
-    ((std::is_same_v<vertex_t, std::int32_t> &&
-      (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) ||
-     (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>));
+    (std::is_same_v<weight_t, std::int32_t> &&
+     ((std::is_same_v<vertex_t, std::int32_t> &&
+       (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) ||
+      (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>))) ||
+    (is_unweighted_v<weight_t> && std::is_same_v<vertex_t, std::int32_t> &&
+     (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>));
 
 /**
  * @brief The message of triangle_delta's static_assert for an unsupported graph type.
  * @ingroup triangle_delta
  */
-#define DYNG_TRIANGLE_DELTA_TYPES_MESSAGE                                          \
-  "dyng::triangle_delta supports graph<int32_t, int32_t or int64_t, int32_t> and " \
+#define DYNG_TRIANGLE_DELTA_TYPES_MESSAGE                                                        \
+  "dyng::triangle_delta supports graph<int32_t, int32_t or int64_t, int32_t or unweighted> and " \
   "graph<int64_t, int64_t, int32_t> only; see docs/algorithms/triangle_delta.md"
 
 /**

@@ -67,12 +67,12 @@ state_t& checked(state_t* st, const char* function) {
 template <typename graph_t>
 void expect_requirements(const graph_t& g, const char* function) {
   const graph_properties& p = g.properties();
-  DYNG_EXPECTS(!p.directed && p.order == row_order::sorted &&
-                   p.parallel_edges == multi_edges::forbid,
-               function,
-               ": the graph must be undirected with sorted rows and without parallel edges "
-               "(graph_properties::directed = false, order = row_order::sorted, parallel_edges = "
-               "multi_edges::forbid)");
+  DYNG_EXPECTS(
+      !p.directed && p.order == row_order::sorted && p.parallel_edges == multi_edges::forbid,
+      function,
+      ": the graph must be undirected with sorted rows and without parallel edges "
+      "(graph_properties::directed = false, order = row_order::sorted, parallel_edges = "
+      "multi_edges::forbid)");
 }
 
 /// One change list: the undirected edges (u, v), u < v, of `changes`, sorted, without repeats
@@ -169,8 +169,8 @@ void triangle_delta_problem<vertex_t, edge_t, weight_t>::normalize(framework::co
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void triangle_delta_problem<vertex_t, edge_t, weight_t>::count(framework::context& ctx,
-                                                               old_graph g, frontier_type& /*f*/,
+void triangle_delta_problem<vertex_t, edge_t, weight_t>::count(framework::context& ctx, old_graph g,
+                                                               frontier_type& /*f*/,
                                                                framework::sign /*s*/,
                                                                ownership_type /*rule*/) {
   // count(-) on G_t: the triangles the deleted edges destroy (before the commit, invariant I1).
@@ -179,8 +179,8 @@ void triangle_delta_problem<vertex_t, edge_t, weight_t>::count(framework::contex
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
-void triangle_delta_problem<vertex_t, edge_t, weight_t>::count(framework::context& ctx,
-                                                               new_graph g, frontier_type& /*f*/,
+void triangle_delta_problem<vertex_t, edge_t, weight_t>::count(framework::context& ctx, new_graph g,
+                                                               frontier_type& /*f*/,
                                                                framework::sign /*s*/,
                                                                ownership_type /*rule*/) {
   const auto [engine, view] = bind(ctx, g.get());
@@ -315,17 +315,16 @@ std::unique_ptr<update_participant<vertex_t, edge_t, weight_t>> make_triangle_de
 }
 
 // Explicit instantiations (PLAN Section 4.4.3).
-#define DYNG_INSTANTIATE_TRIANGLE_DELTA(V, E, W)                                    \
-  template class triangle_delta_problem<V, E, W>;                                   \
-  template std::unique_ptr<update_participant<V, E, W>>                             \
-  make_triangle_delta_participant<V, E, W>(triangle_delta::result&,                 \
-                                           triangle_delta::stats&);                 \
-  template triangle_delta::result triangle_delta_compute<V, E, W>(                  \
-      const resources&, const graph<V, E, W>&, const triangle_delta::options&);     \
-  template triangle_delta::stats triangle_delta_update<V, E, W>(                    \
-      const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&,              \
-      triangle_delta::result&);
+#define DYNG_INSTANTIATE_TRIANGLE_DELTA(V, E, W)                                                  \
+  template class triangle_delta_problem<V, E, W>;                                                 \
+  template std::unique_ptr<update_participant<V, E, W>> make_triangle_delta_participant<V, E, W>( \
+      triangle_delta::result&, triangle_delta::stats&);                                           \
+  template triangle_delta::result triangle_delta_compute<V, E, W>(                                \
+      const resources&, const graph<V, E, W>&, const triangle_delta::options&);                   \
+  template triangle_delta::stats triangle_delta_update<V, E, W>(                                  \
+      const resources&, graph<V, E, W>&, const edge_batch_view<V, W>&, triangle_delta::result&);
 DYNG_FOR_EACH_GRAPH_TYPE(DYNG_INSTANTIATE_TRIANGLE_DELTA)
+DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE(DYNG_INSTANTIATE_TRIANGLE_DELTA)
 #undef DYNG_INSTANTIATE_TRIANGLE_DELTA
 
 }  // namespace dyng::detail

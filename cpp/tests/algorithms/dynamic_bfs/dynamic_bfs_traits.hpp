@@ -36,10 +36,13 @@ struct test_traits<tags::dynamic_bfs> {
   static constexpr oracle_kind oracle = oracle_kind::compute;     ///< update chain == compute
   static constexpr determinism level = determinism::exact_value;  ///< identical values
   static constexpr bool history_independent = true;               ///< the result of a graph
-  /// The instantiated graph types (DYNG_FOR_EACH_GRAPH_TYPE).
+  /// The instantiated graph types (DYNG_FOR_EACH_GRAPH_TYPE and
+  /// DYNG_FOR_EACH_UNWEIGHTED_GRAPH_TYPE).
   using graph_types = type_list<graph<std::int32_t, std::int32_t, std::int32_t>,
                                 graph<std::int32_t, std::int64_t, std::int32_t>,
-                                graph<std::int64_t, std::int64_t, std::int32_t>>;
+                                graph<std::int64_t, std::int64_t, std::int32_t>,
+                                graph<std::int32_t, std::int32_t, unweighted>,
+                                graph<std::int32_t, std::int64_t, unweighted>>;
   template <typename graph_t>
   using result = dynamic_bfs::result;          ///< the result
   using stats = dynamic_bfs::stats;            ///< update()'s stats
