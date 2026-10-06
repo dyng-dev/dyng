@@ -168,7 +168,7 @@ def _check_graph(graph: Graph) -> None:
 
 def compute(
     graph: Graph,
-    source: int = 0,
+    source: int | None = None,
     *,
     options: Options | None = None,
     resources: Resources | None = None,
@@ -178,7 +178,7 @@ def compute(
 
     Args:
         graph: The graph (its in-edges stored); it is not modified.
-        source: The source vertex (overrides ``options.source``).
+        source: The source vertex (default: ``options.source``, 0 without options).
         options: Options; the keyword ``source`` overrides its field.
         resources: Default: the resources the graph was built with.
         **kwargs: Option fields.
@@ -192,7 +192,9 @@ def compute(
         NotSupportedError: an unsupported graph type or an unavailable backend.
     """
     _check_graph(graph)
-    opt = with_options(Options, options, {**kwargs, "source": source}, "dynamic_bfs.compute")
+    if source is not None:
+        kwargs["source"] = source
+    opt = with_options(Options, options, kwargs, "dynamic_bfs.compute")
     res = resolve(resources, graph._resources)
     return Result._wrap(
         native.dynamic_bfs_compute(res._native, graph._native, opt._to_native()), res

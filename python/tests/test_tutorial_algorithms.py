@@ -58,6 +58,9 @@ def test_dynamic_bfs(res: dyng.Resources) -> None:
         bfs.set_options(source=1)
     with pytest.raises(dyng.InvalidArgumentError):
         dyng.dynamic_bfs.compute(g, 9)
+    from_options = dyng.dynamic_bfs.compute(g, options=dyng.dynamic_bfs.Options(source=1))
+    assert from_options.options.source == 1
+    assert from_options.levels.to_numpy().tolist()[:2] == [-1, 0]
 
 
 def test_triangle_delta(res: dyng.Resources) -> None:
