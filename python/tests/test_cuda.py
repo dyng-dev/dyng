@@ -522,9 +522,55 @@ def test_a_user_stream_orders_the_results(tree: Any) -> None:
     t = dyng.sssp.compute(g, 0)
     assert t.distances.__cuda_array_interface__["stream"] == stream.ptr
     with cupy.cuda.Stream(non_blocking=True):
-        x = cupy.from_dlpack(t.distances) + 0  # ordered after `stream` by an event
+        # dynG's calls are complete when they return, so this alone does not show the event's
+        # ordering (test_dlpack_orders_the_consumer_after_the_writers_later_work does).
+        x = cupy.from_dlpack(t.distances) + 0
     cupy.cuda.Device(0).synchronize()
     assert np.array_equal(cupy.asnumpy(x), ref)
+
+
+_SPIN = r"""
+extern "C" __global__ void spin(long long cycles) {
+  const long long start = clock64();
+  while (clock64() - start < cycles) {
+  }
+}
+"""
+
+
+@pytest.mark.parametrize("ordered", [True, False], ids=["ordered", "control-without-event"])
+def test_dlpack_orders_the_consumer_after_the_writers_later_work(
+    tree: Any, ordered: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # PLAN 5.4 rule 4 as a behaviour: work enqueued on the writer's stream after the dynG call
+    # (here a kernel that spins for about half a second) must finish before the consumer's work
+    # that reads the export. The control replaces the event by nothing and must see the consumer
+    # finish while the writer still spins, which shows the test can detect missing ordering.
+    cupy = pytest.importorskip("cupy")
+    import dyng._backend as backend
+
+    _, _, ref = tree
+    writer = cupy.cuda.Stream(non_blocking=True)
+    res = dyng.Resources.cuda(0, stream=writer)
+    src, dst, w = random_edges(21)
+    t = dyng.sssp.compute(dyng.Graph.from_edges(src, dst, w, num_vertices=300, resources=res), 0)
+    if not ordered:
+        monkeypatch.setattr(backend.active_module(), "order_stream", lambda res, s: None)
+    spin = cupy.RawKernel(_SPIN, "spin")
+    rate = cupy.cuda.runtime.deviceGetAttribute(cupy.cuda.runtime.cudaDevAttrClockRate, 0)
+    rate = rate or 2_000_000  # kHz; 0 where the attribute is no longer reported
+    spin((1,), (1,), (np.int64(rate * 1000 // 2),), stream=writer)  # kHz * 500 = 0.5 s of cycles
+    consumer = cupy.cuda.Stream(non_blocking=True)
+    with consumer:
+        x = cupy.from_dlpack(t.distances) + 0
+    consumer.synchronize()
+    writer_done_when_consumer_done = writer.done
+    writer.synchronize()
+    assert np.array_equal(cupy.asnumpy(x), ref)
+    if ordered:
+        assert writer_done_when_consumer_done, "the consumer did not wait for the writer's stream"
+    else:
+        assert not writer_done_when_consumer_done, "the spin was too short to show the ordering"
 
 
 def test_an_update_on_another_stream_keeps_that_stream_alive(cuda: dyng.Resources) -> None:

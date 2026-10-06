@@ -147,6 +147,12 @@ before the consumer's with an event".
    Python resources of its last writer (`dyng/_writer.py`: set when the update's native call
    moved the result's generation, which the holder advances together with the writer, under a
    per-result lock), and the Arrays read from it keep both resources.
+6. **What the stream event orders.** Every CUDA call of dynG synchronizes its stream before it
+   returns, so a result is complete when the call returns; the event of `__dlpack__(stream=...)`
+   matters for work enqueued on the writer's stream after the call (by the user, or by a later
+   dynG call on another result of the same stream). The tests now check this as a behaviour: a
+   kernel spinning on the writer's stream after the call must finish before the consumer's work
+   on the export, and a control without the event must see the consumer finish first.
 
 ## Consequences
 
