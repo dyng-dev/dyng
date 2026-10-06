@@ -49,6 +49,23 @@ Before 0.1.0 anything may change.
   `upload-pages-artifact`, `deploy-pages`; environment `github-pages`); README, `CITATION.cff`
   (`url`) and the Sphinx canonical URL name it. `docs/developer/robustness.md` describes the
   fuzzers, the mutation checks and the long property runs.
+- M6b: **sanitizer jobs** on every pull request (`.github/workflows/sanitizers.yml`, not a required
+  check yet): the CPU tests under ASan + UBSan (`asan`, GCC 13), under TSan with OpenMP off
+  (`tsan`, GCC 13) and under TSan with the OpenMP backends (the new preset **`tsan-openmp`**:
+  Clang and libomp, whose OMPT tool Archer tells TSan about OpenMP's synchronization). The script
+  `ci/sanitizers.sh` runs the same presets locally.
+- M6b: the author's re-grouping of the releases after 0.1.0 (2026-10-02) is recorded in
+  `GOVERNANCE.md`, `docs/roadmap.md` and `docs/developer/plan.md`: 0.2.0 = `mosp` + the hardening
+  planned as 0.1.x (CUDA plugin wheels, tutorials, GitHub Pages, fuzzers, mutation checks,
+  sanitizers); 0.3.0 = the hypergraph and `triad_count`; 0.4.0 = `label_propagation` and
+  `hyper_sssp`. The planned versions in the documentation, the docstrings and the messages of
+  features that are not there yet follow it.
+
+### Changed
+
+- M6b: configuring `DYNG_SANITIZE=thread` with `DYNG_ENABLE_OPENMP=ON` and a compiler other than
+  Clang is an error (GCC's libgomp is not instrumented, so every parallel region would be reported
+  as a race); use the preset `tsan` (OpenMP off) or `tsan-openmp` (Clang with Archer).
 
 ### Fixed
 
@@ -61,6 +78,8 @@ Before 0.1.0 anything may change.
 - M6b, found by `python/tests/test_reader_robustness.py`: the command line's text batches
   (`--batch`) raised `OverflowError` for an integer beyond 64 bits and `UnicodeDecodeError` for a
   file that is not UTF-8; both are now `dyng.FileFormatError` with the path and line.
+- M6b: the cycle_count kernel tests did not build with Clang's ASan or TSan (their counting
+  `operator new` collided with the sanitizer runtime's); they now detect Clang's sanitizers too.
 
 ### M7: the sssp operators engine (0.2, branch `m7-mosp`)
 
