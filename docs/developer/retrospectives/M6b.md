@@ -173,9 +173,9 @@ m6b-hardening`), every heavy step under the shared perf lock, while other agents
 | Check | Result |
 |---|---|
 | `ci/check.sh --parity` at `f0c084a` | 24 min: clang-format; `cpu-only` 826/826 and `dev` 855/855 (`ctest -L cpu`); clang-tidy (naming rules); reuse; provenance; regen (`scripts/regen.py --check`); the harness tests (132 passed); `ci/python.sh` (stubs, mypy strict, pytest 455 passed, 4 skipped for torch / cupy / pandas); the griffe API check; pre-commit (actionlint and zizmor included); the parity preset (`ctest -L parity` 4/4). Two steps failed for one reason, this record not yet committed: `docs` (Sphinx -W: plan.md's links to `retrospectives/M6b`) and `scaffold` (whose last part builds the docs of the copy; its probes 80/80, 3/3, and the tutorial's `my_bfs` 40/40 had passed). Both are re-run below |
-| `ci/check.sh` steps `scaffold` and `docs` after this record | RERUN |
-| `ci/gpu_local.sh` (dev-cuda, GPU 1) | GPULOCAL |
-| `ci/sanitizers.sh` | SANITIZERS |
+| `ci/check.sh` steps `scaffold` and `docs` after this record | `DYNG_CHECK_ONLY="scaffold docs" ci/check.sh` at `3f6354c`: all checks passed (the scaffold probes 80/80 and 3/3, the tutorial's `my_bfs` 40/40, the copy's docs; `ci/docs.sh`: Doxygen coverage of 138 compounds, 7 snippets, the API baseline of 719 declarations unchanged by this step, Sphinx -W, the link check) |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | all steps passed in 62 min (RTX A5000, driver 590.48.01, CUDA 13.1; started at `f0c084a`, the summary names `3f6354c`, which only added this record): the build; `ctest -L gpu` 455/455 (the tutorials' CUDA kits included); `ctest -L cpu` in the CUDA build 855/855; the sssp golden corpus with `--configs cuda,cuda-operators` ALL EQUAL (495 cases x 2); the cycle_count CUDA corpus ALL EQUAL (24 cases x 2); compute-sanitizer memcheck on every gpu executable, synccheck (sssp, mosp, cycle_count), racecheck (cycle_count): passed; clang-tidy on the CUDA branches |
+| `ci/sanitizers.sh` | at `3f6354c`, `ctest -L cpu -j 8`, no sanitizer report: `asan` (GCC 12) 826/826 (115 s), `tsan` (GCC 12) 733/733 (191 s), `tsan-openmp` (the conda Clang 18 through a local wrapper, Archer) 826/826 (209 s); 10.5 min in all with the builds |
 | Portability pre-checks (on the working tree at `f0c084a`) | the Clang 18 syntax pass over a `dev` + `DYNG_BUILD_PYTHON=ON` database: 216 files, 0 failures; the fortified (`-D_FORTIFY_SOURCE=3`) `cpu-only` build with the Python module: clean, no warnings, and the Clang pass over its database: 214 files, 0 failures |
 
 ## Lessons
