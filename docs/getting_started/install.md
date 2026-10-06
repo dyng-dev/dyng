@@ -38,7 +38,7 @@ Presets (`cmake --list-presets`):
 | `dev` | Debug development build: tests on, warnings as errors, allocation budgets on |
 | `cpu-only` | Release build of the CPU backends (hosted CI, the CPU wheel) |
 | `release`, `relwithdebinfo` | optimized builds |
-| `asan`, `tsan` | host sanitizers (AddressSanitizer + UBSan; ThreadSanitizer with OpenMP off) |
+| `asan`, `tsan`, `tsan-openmp` | host sanitizers (AddressSanitizer + UBSan; ThreadSanitizer with OpenMP off; ThreadSanitizer with OpenMP, Clang and Archer) |
 | `parity` | the flags of the original research codes, for parity and performance runs |
 
 `ci/check.sh` runs the whole local gate (formatting, the `cpu-only` and `dev` presets, the

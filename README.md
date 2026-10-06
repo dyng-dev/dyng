@@ -150,8 +150,9 @@ ctest --preset dev                       # unit, randomized and fixture-parity t
 ci/check.sh                              # the full local gate: format, cpu-only + dev presets, REUSE, docs
 ```
 
-Other presets: `cpu-only` (Release, CPU backends), `release`, `relwithdebinfo`, `asan`, `tsan`
-and `parity` (the flags of the original research codes, used for parity and performance runs).
+Other presets: `cpu-only` (Release, CPU backends), `release`, `relwithdebinfo`, `asan`, `tsan`,
+`tsan-openmp` (the sanitizers; `ci/sanitizers.sh`) and `parity` (the flags of the original research
+codes, used for parity and performance runs).
 `ci/docs.sh` builds the documentation site (Doxygen with warnings as errors, Sphinx, link
 check) into `build/docs/html`; `ci/docs.sh --doxygen-only` (or the target `docs-doxygen`) runs
 only the Doxygen check of the public headers.

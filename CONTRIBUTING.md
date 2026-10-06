@@ -96,7 +96,7 @@ ctest --preset dev              # run the tests
 | `dev` | day-to-day development: Debug, tests, `-Wall -Wextra -Wpedantic -Werror` |
 | `cpu-only` | Release build of the CPU backends (what most CI jobs build) |
 | `release`, `relwithdebinfo` | optimised builds (with debug information) |
-| `asan`, `tsan` | AddressSanitizer + UndefinedBehaviorSanitizer, ThreadSanitizer |
+| `asan`, `tsan`, `tsan-openmp` | AddressSanitizer + UndefinedBehaviorSanitizer, ThreadSanitizer (OpenMP off), ThreadSanitizer with the OpenMP backends (Clang; `ci/sanitizers.sh` runs all three) |
 | `parity` | the compiler flags of the original research codes, for parity and performance runs |
 
 Build options (`DYNG_ENABLE_OPENMP`, `DYNG_ENABLE_CUDA`, `DYNG_BUILD_TESTS`, ...) are listed at
@@ -163,7 +163,8 @@ ci/gpu_local.sh        # dev-cuda build, `ctest -L gpu` and `-L cpu`, the sssp g
 Algorithms are tested against an **oracle** (a from-scratch recomputation, or a reference
 implementation), on hand-written cases (paper examples, regression seeds, edge cases) and on
 randomized batches. A bug fix adds a test that fails without the fix. For memory or threading
-changes, also run the `asan` and `tsan` presets.
+changes, also run `ci/sanitizers.sh` (the `asan`, `tsan` and `tsan-openmp` presets, as the
+`sanitizers` workflow does on every pull request).
 
 ## Parity with the original research codes
 

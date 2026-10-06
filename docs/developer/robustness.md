@@ -1,16 +1,66 @@
-# Robustness checks: fuzzers, mutation checks, long property runs
+# Robustness checks: sanitizers, fuzzers, mutation checks, long property runs
 
-Three checks look for bugs that the unit tests, the conformance kit and the golden parity do not
-reach by construction (PLAN Sections 8.1 and 8.4; ADR 0032). None of them is a required check of
-a pull request: each explores inputs at random or takes hours, so a failure is a new bug to fix,
-not a property of the pull request that met it.
+These checks look for bugs that the unit tests, the conformance kit and the golden parity do not
+reach by construction (PLAN Sections 7.3, 8.1 and 8.4; ADR 0032). The sanitizer jobs run the CPU
+test suite on every pull request; they are not required checks yet (the lead maintainer decides,
+{doc}`repository_settings`, step 9). The other three are never required: each explores inputs at
+random or takes hours, so a failure is a new bug to fix, not a property of the pull request that
+met it.
 
 | Check | What | Where | When |
 |---|---|---|---|
+| Host sanitizers | the CPU tests (`ctest -L cpu`) under ASan + UBSan, under TSan with OpenMP off, and under TSan with the OpenMP backends (Clang, Archer) | presets `asan`, `tsan`, `tsan-openmp`; `ci/sanitizers.sh`; `.github/workflows/sanitizers.yml` | every pull request and push to `main` |
 | Reader fuzzers | libFuzzer on every file reader, with ASan and UBSan | `cpp/fuzz`, `ci/fuzz.sh`, `.github/workflows/fuzz.yml` | pull requests that touch a reader (60 s per target), weekly (10 minutes per target), on demand |
 | Corpus replay | the seed corpus and every fixed finding, once | CTest `fuzz.replay.<target>` (label `fuzz`), `cpp/tests/io/fuzz_regression_test.cpp` | every test build, so every pull request |
 | Golden mutation checks | each recorded bug, put back, must make its golden suite fail | `parity/mutate.py` | before each minor release, and when a mutation point changes (local: needs the golden corpus and a GPU) |
 | Long property runs | the Hypothesis properties with many more, non-derandomized examples | profile `full` of `python/tests/conftest.py`, `.github/workflows/property.yml` | weekly, on demand |
+
+The device code has its own sanitizer, `compute-sanitizer` (memcheck with leak checks, synccheck,
+racecheck), which needs a GPU and runs in `ci/gpu_local.sh`.
+
+## Host sanitizers
+
+`ci/sanitizers.sh` configures, builds and runs `ctest -L cpu` for each preset it is given (all
+three without arguments); `sanitizers.yml` runs one preset per job on GitHub-hosted runners.
+
+| Preset (job) | Instrumentation | What it covers |
+|---|---|---|
+| `asan` (`asan / gcc-13`) | AddressSanitizer + UndefinedBehaviorSanitizer, leak checks on (`ASAN_OPTIONS`, `UBSAN_OPTIONS` of the test preset; `halt_on_error=1`) | every CPU test, the OpenMP backends included |
+| `tsan` (`tsan / gcc-13`) | ThreadSanitizer, OpenMP **off** | the `std::thread` code: the parallel text parsers (`util/parallel_parts.hpp`), the concurrent jobs of `util/concurrent.hpp` (on `std::async` without OpenMP), the profiler's recording, the workspace pools |
+| `tsan-openmp` (`tsan-openmp / clang-18`) | ThreadSanitizer with the OpenMP backends; Clang only | the OpenMP backends of every algorithm (the conformance kit's C2-C12 on `openmp`), with 4 OpenMP threads |
+
+Why two TSan presets: an OpenMP runtime is not built with TSan, so TSan does not see its barriers,
+reductions and schedules and reports every parallel region as a race. GCC's libgomp offers no way
+around that (the preset `tsan` therefore turns OpenMP off, and configuring `tsan` with GCC and
+`DYNG_ENABLE_OPENMP=ON` is an error). Clang's libomp comes with **Archer**, an OMPT tool that
+tells TSan about OpenMP's synchronization: the preset `tsan-openmp` builds with Clang, and its
+tests run with `OMP_TOOL_LIBRARIES=<libarcher.so>` and
+`TSAN_OPTIONS=halt_on_error=1:ignore_noninstrumented_modules=1` (accesses inside the
+uninstrumented libomp are not reported). Without Archer, the same tests report races in libomp's
+own locks; with it, a real race in an OpenMP loop (a shared variable written without the
+reduction) is still reported, which was checked when the job was set up.
+
+```bash
+ci/sanitizers.sh                     # asan, tsan and tsan-openmp
+ci/sanitizers.sh asan                # one preset (CXX picks the compiler; default the system's)
+CXX=clang++-18 ci/sanitizers.sh tsan-openmp
+DYNG_ARCHER_LIBRARY=/path/to/libarcher.so ci/sanitizers.sh tsan-openmp
+```
+
+`tsan-openmp` takes `CXX` (default `clang++-18`, else `clang++`) and finds Archer next to the
+compiler's libraries (`$CXX -print-file-name=libarcher.so`; Debian and Ubuntu ship it with
+`libomp-<N>-dev`), or takes `DYNG_ARCHER_LIBRARY`. The hosted jobs set `vm.mmap_rnd_bits=28`
+first: the runners randomize mmap with 32 bits, which the TSan and ASan runtimes of GCC 13 and
+LLVM 18 do not support.
+
+On the development machine (2026-10-06, `ctest -L cpu -j 8`): `asan` 826 tests passed in 101 s,
+`tsan` 733 in 141 s, `tsan-openmp` 826 in 134 s; no sanitizer reports. Each preset's build is a
+full Debug build (about 6 CPU-minutes there; on the 4-core hosted runners a job is expected to
+take 10-20 minutes).
+
+A report fails its test (`halt_on_error=1`). Fix the code, not the check: a race or an
+out-of-bounds access found here gets a regression test like any other bug. A suppression file
+needs an ADR.
 
 ## Reader fuzzers
 
