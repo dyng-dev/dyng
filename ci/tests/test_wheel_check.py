@@ -86,3 +86,24 @@ def test_release_metadata_finds_what_disagrees(tmp_path: Path) -> None:
     (root / "VERSION").write_text("0.2.1.dev0\n")
     assert wheel_check.check_release_metadata(root) == []
     assert wheel_check.main(["--release-metadata"]) == 0
+
+
+def test_plugin_constants() -> None:
+    # ADR 0030: the plugins, their extra licence files, and their licence expression, which stays
+    # the CPU wheel's until the author decides (GOVERNANCE.md, open decisions).
+    assert wheel_check.PLUGINS == ("cu12", "cu13")
+    assert wheel_check.PLUGIN_EXTRA_LICENSE_FILES == (
+        "THIRD_PARTY_LICENSES_CUDA.txt",
+        "NVIDIA_CUDA_EULA.txt",
+    )
+    assert wheel_check.PLUGIN_LICENSE_EXPRESSION == wheel_check.LICENSE_EXPRESSION
+    assert (wheel_check.ROOT / "THIRD_PARTY_LICENSES_CUDA.txt").is_file()
+
+
+def test_forbidden_libraries() -> None:
+    match = wheel_check.PLUGIN_FORBIDDEN_LIBRARY.match
+    for bad in ("libcuda.so.1", "libcuda.so", "libcudart.so.13", "libcudart-1a2b3c4d.so.13.1"):
+        assert match(bad), bad
+    assert match("libnvidia-ml.so.1")
+    for good in ("libgomp-a25fd822.so.1.0.0", "libc.so.6", "libm.so.6", "libpthread.so.0"):
+        assert not match(good), good

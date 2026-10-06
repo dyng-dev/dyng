@@ -19,10 +19,22 @@ PEP 440 version (the distributions carry the normalised form, so any other spell
 file names that no check expects). ``--release-metadata`` checks ``VERSION``, ``CHANGELOG.md``
 and ``CITATION.cff`` against each other (:func:`check_release_metadata`).
 
+The CUDA plugin wheels (``dyng_cu12-*.whl``, ``dyng_cu13-*.whl``; PLAN 5.4 and 7.7, ADR 0030) are
+recognised by their names and checked for what makes a plugin (:func:`check_plugin_wheel`): only
+the import package ``dyng_cu<N>/`` with its module ``_core.abi3.so`` (no ``dyng/``), the entry
+point ``cu<N> = dyng_cu<N>`` in the group ``dyng.backends``, ``Requires-Dist: dyng==<VERSION>``,
+the licence files of the CPU wheel plus ``THIRD_PARTY_LICENSES_CUDA.txt`` and
+``NVIDIA_CUDA_EULA.txt``, :data:`PLUGIN_LICENSE_EXPRESSION`, the same size budget, and a module
+that needs neither ``libcuda`` (the user's driver) nor ``libcudart`` (linked statically): no
+``DT_NEEDED`` entry and no bundled copy of either. The CPU wheel must offer the extras ``cu12``
+and ``cu13`` pinned to its own version.
+
 Usage::
 
     python3 ci/wheel_check.py dist/*.whl dist/*.tar.gz --platform manylinux_2_28_x86_64 \\
         --require-libgomp
+    python3 ci/wheel_check.py dist/dyng_cu13-*.whl --platform manylinux_2_28_x86_64 \\
+        --require-libgomp                  # a CUDA plugin wheel (recognised by its name)
     python3 ci/wheel_check.py --version-info   # "<VERSION> <pre-release: true|false>"
     python3 ci/wheel_check.py --release-metadata [--release-date today]
     python3 ci/wheel_check.py --self-test
@@ -36,6 +48,7 @@ import argparse
 import datetime
 import io
 import re
+import struct
 import sys
 import tarfile
 import tempfile
@@ -57,6 +70,10 @@ SDIST_REQUIRED = (
     "LICENSE",
     "NOTICE",
     "THIRD_PARTY_LICENSES.txt",
+    # the CUDA plugins are built from the sdist (ci/plugin_pyproject.py; ADR 0030)
+    "THIRD_PARTY_LICENSES_CUDA.txt",
+    "python/plugin/README.md",
+    "python/plugin/dyng_plugin/__init__.py",
 )
 SDIST_REQUIRED_DIRS = ("cpp/include/dyng/", "cpp/src/", "python/dyng/", "python/bindings/")
 SDIST_FORBIDDEN_DIRS = (".github/", "parity/", "build/", "docs/adr/", "tools/", "ci/")
@@ -81,6 +98,23 @@ LICENSE_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_LICENSES.txt")
 LICENSE_EXPRESSION = (
     "Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1"
 )
+
+#: The CUDA plugins (PLAN 5.4 and 7.7; ADR 0030): distributions dyng-cu<N>, packages dyng_cu<N>.
+PLUGINS = ("cu12", "cu13")
+#: The licence files a plugin wheel carries besides :data:`LICENSE_FILES`: the licences of the
+#: CUDA Toolkit parts in its module (THIRD_PARTY_LICENSES_CUDA.txt) and the toolkit's EULA, copied
+#: from the toolkit the wheel is built with (ci/plugin_pyproject.py).
+PLUGIN_EXTRA_LICENSE_FILES = ("THIRD_PARTY_LICENSES_CUDA.txt", "NVIDIA_CUDA_EULA.txt")
+#: The SPDX licence expression of the plugin wheels. Until the author decides otherwise it is the
+#: CPU wheel's expression: whether the plugins' expression should also name what they add (the
+#: CUDA runtime under NVIDIA's EULA, e.g. LicenseRef-NVIDIA-CUDA-EULA, and CCCL's
+#: Apache-2.0 WITH LLVM-exception) is a licensing decision of the author (GOVERNANCE.md, open
+#: decisions; ADR 0030). The licence files are complete either way.
+PLUGIN_LICENSE_EXPRESSION = LICENSE_EXPRESSION
+#: Shared libraries a plugin's module must neither need nor bundle (a file name matching this,
+#: also as renamed by auditwheel, libcudart-1a2b3c4d.so.13): the driver (libcuda, libnvidia-*)
+#: is the user's, the CUDA runtime (libcudart) is linked statically.
+PLUGIN_FORBIDDEN_LIBRARY = re.compile(r"^(?:libcuda[.-]|libcudart|libnvidia-)")
 
 #: A canonical PEP 440 public version (what packaging.version.Version(v) prints back unchanged),
 #: without epoch and local part: 0.1.0, 0.1.0rc1, 0.1.0.post1, 0.1.0.dev0.
@@ -184,20 +218,78 @@ def check_pyproject(path: Path = ROOT / "pyproject.toml") -> list[str]:
     return errors
 
 
-def check_metadata(text: str, where: str) -> list[str]:
+def check_metadata(
+    text: str,
+    where: str,
+    *,
+    expression: str = LICENSE_EXPRESSION,
+    license_files: tuple[str, ...] = LICENSE_FILES,
+) -> list[str]:
     """The failed checks of a core-metadata file (a wheel's METADATA, an sdist's PKG-INFO)."""
     errors: list[str] = []
     headers = text.split("\n\n", 1)[0]
     expressions = re.findall(r"^License-Expression: (.*)$", headers, re.M)
-    if expressions != [LICENSE_EXPRESSION]:
-        errors.append(f"{where}: License-Expression {expressions} != [{LICENSE_EXPRESSION!r}]")
+    if expressions != [expression]:
+        errors.append(f"{where}: License-Expression {expressions} != [{expression!r}]")
     if re.search(r"^License: ", headers, re.M):
         errors.append(f"{where}: a legacy License: field next to License-Expression")
     files = set(re.findall(r"^License-File: (.*)$", headers, re.M))
-    for lic in LICENSE_FILES:
+    for lic in license_files:
         if lic not in files:
             errors.append(f"{where}: no License-File: {lic}")
     return errors
+
+
+def check_extras(text: str, version: str) -> list[str]:
+    """The CPU wheel's extras cu12 / cu13 pin the plugin of exactly its version (ADR 0030)."""
+    headers = text.split("\n\n", 1)[0]
+    errors: list[str] = []
+    extras = set(re.findall(r"^Provides-Extra: (.*)$", headers, re.M))
+    requires = set(re.findall(r"^Requires-Dist: (.*)$", headers, re.M))
+    for plugin in PLUGINS:
+        want = f'dyng-{plugin}=={version}; extra == "{plugin}"'
+        if plugin not in extras or want not in requires:
+            errors.append(f"METADATA: the extra {plugin} does not require dyng-{plugin}=={version}")
+    return errors
+
+
+def elf_needed(data: bytes) -> list[str]:
+    """The DT_NEEDED entries of a 64-bit little-endian ELF shared object."""
+    if data[:4] != b"\x7fELF" or data[4] != 2 or data[5] != 1:
+        raise ValueError("not a 64-bit little-endian ELF file")
+    e_phoff, e_phentsize, e_phnum = (
+        struct.unpack_from("<Q", data, 0x20)[0],
+        struct.unpack_from("<H", data, 0x36)[0],
+        struct.unpack_from("<H", data, 0x38)[0],
+    )
+    loads: list[tuple[int, int, int]] = []  # (vaddr, offset, filesz)
+    dynamic: tuple[int, int] | None = None
+    for i in range(e_phnum):
+        p_type, _flags, p_offset, p_vaddr, _paddr, p_filesz = struct.unpack_from(
+            "<IIQQQQ", data, e_phoff + i * e_phentsize
+        )
+        if p_type == 1:  # PT_LOAD
+            loads.append((p_vaddr, p_offset, p_filesz))
+        elif p_type == 2:  # PT_DYNAMIC
+            dynamic = (p_offset, p_filesz)
+    if dynamic is None:
+        return []
+    needed: list[int] = []
+    strtab = None
+    for off in range(dynamic[0], dynamic[0] + dynamic[1], 16):
+        tag, val = struct.unpack_from("<qQ", data, off)
+        if tag == 0:  # DT_NULL
+            break
+        if tag == 1:  # DT_NEEDED
+            needed.append(val)
+        elif tag == 5:  # DT_STRTAB (a virtual address)
+            strtab = val
+    if strtab is None:
+        raise ValueError("no DT_STRTAB")
+    base = next((o + strtab - v for v, o, n in loads if v <= strtab < v + n), None)
+    if base is None:
+        raise ValueError("DT_STRTAB outside every PT_LOAD segment")
+    return [data[base + i : data.index(b"\0", base + i)].decode() for i in needed]
 
 
 def check_wheel(
@@ -245,10 +337,101 @@ def check_wheel(
         errors.append("missing .dist-info/METADATA")
     else:
         errors += check_metadata(meta_text, "METADATA")
+        errors += check_extras(meta_text, expect_version)
     libgomp = [n for n in names if re.match(r"dyng\.libs/libgomp[-.]", n)]
     if require_libgomp and not libgomp:
         errors.append("the OpenMP runtime is not bundled (dyng.libs/libgomp-*.so*)")
     stray = [n for n in names if n.endswith((".a", ".o", ".cpp", ".hpp", ".cmake"))]
+    if stray:
+        errors.append(f"build files in the wheel: {', '.join(sorted(stray)[:5])}")
+    return errors
+
+
+def check_plugin_wheel(
+    path: Path, *, platform: str | None, require_libgomp: bool, expect_version: str
+) -> list[str]:
+    """The failed checks of one CUDA plugin wheel, ``dyng_cu<N>-...whl`` (empty if it passes)."""
+    errors: list[str] = []
+    size = path.stat().st_size
+    if size > MAX_WHEEL_BYTES:
+        errors.append(f"{size} bytes: above the 90 MB budget of PLAN 7.7")
+    m = re.fullmatch(
+        r"dyng_(?P<plugin>cu\d+)-(?P<v>[^-]+)-cp312-abi3-(?P<plat>[\w.]+)\.whl", path.name
+    )
+    if not m or m.group("plugin") not in PLUGINS:
+        return [
+            *errors,
+            f"the file name is not dyng_<{'|'.join(PLUGINS)}>-<version>-cp312-abi3-<platform>.whl",
+        ]
+    plugin = m.group("plugin")
+    package = f"dyng_{plugin}"
+    if m.group("v") != expect_version:
+        errors.append(f"version {m.group('v')} != VERSION {expect_version}")
+    if platform is not None and platform not in m.group("plat").split("."):
+        errors.append(f"platform tag {m.group('plat')} does not include {platform}")
+    module = f"{package}/_core.abi3.so"
+    with zipfile.ZipFile(path) as z:
+        names = set(z.namelist())
+
+        def read(suffix: str) -> str:
+            n = next((n for n in names if n.endswith(suffix)), None)
+            return z.read(n).decode() if n else ""
+
+        entry_text = read(".dist-info/entry_points.txt")
+        wheel_text = read(".dist-info/WHEEL")
+        meta_text = read(".dist-info/METADATA")
+        module_data = z.read(module) if module in names else b""
+    for required in (module, f"{package}/__init__.py"):
+        if required not in names:
+            errors.append(f"missing {required}")
+    foreign = sorted(
+        n for n in names if not n.startswith((f"{package}/", f"{package}.libs/", f"{package}-"))
+    )
+    if foreign:
+        errors.append(f"files outside the plugin's package: {', '.join(foreign[:5])}")
+    for lic in (*LICENSE_FILES, *PLUGIN_EXTRA_LICENSE_FILES):
+        if not any(n.endswith(f".dist-info/licenses/{lic}") for n in names):
+            errors.append(f"missing the licence file {lic} in .dist-info/licenses")
+    if not re.search(rf"^\[dyng\.backends\]\s*^{plugin}\s*=\s*{package}\s*$", entry_text, re.M):
+        errors.append(f"entry_points.txt has no [dyng.backends] {plugin} = {package}")
+    if "console_scripts" in entry_text:
+        errors.append("a plugin has no console scripts (the dyng command belongs to dyng)")
+    if "Root-Is-Purelib: false" not in wheel_text:
+        errors.append("WHEEL: expected Root-Is-Purelib: false (a platform wheel)")
+    if not meta_text:
+        errors.append("missing .dist-info/METADATA")
+    else:
+        errors += check_metadata(
+            meta_text,
+            "METADATA",
+            expression=PLUGIN_LICENSE_EXPRESSION,
+            license_files=(*LICENSE_FILES, *PLUGIN_EXTRA_LICENSE_FILES),
+        )
+        headers = meta_text.split("\n\n", 1)[0]
+        if not re.search(rf"^Name: dyng-{plugin}$", headers, re.M):
+            errors.append(f"METADATA: Name is not dyng-{plugin}")
+        requires = re.findall(r"^Requires-Dist: (.*)$", headers, re.M)
+        if requires != [f"dyng=={expect_version}"]:
+            errors.append(f"METADATA: Requires-Dist {requires} != ['dyng=={expect_version}']")
+    libs = [n for n in names if n.startswith(f"{package}.libs/")]
+    bundled = [n for n in libs if PLUGIN_FORBIDDEN_LIBRARY.match(n.rsplit("/", 1)[-1])]
+    if bundled:
+        errors.append(f"bundles the CUDA driver or runtime: {', '.join(bundled)}")
+    if require_libgomp and not any(re.match(rf"{package}\.libs/libgomp[-.]", n) for n in libs):
+        errors.append(f"the OpenMP runtime is not bundled ({package}.libs/libgomp-*.so*)")
+    if module_data:
+        try:
+            needed = elf_needed(module_data)
+        except ValueError as e:
+            errors.append(f"{module}: {e}")
+        else:
+            bad = [n for n in needed if PLUGIN_FORBIDDEN_LIBRARY.match(n)]
+            if bad:
+                errors.append(
+                    f"{module} needs {', '.join(bad)} (the driver is loaded at run time, "
+                    "the CUDA runtime must be linked statically)"
+                )
+    stray = [n for n in names if n.endswith((".a", ".o", ".cpp", ".hpp", ".cu", ".cmake"))]
     if stray:
         errors.append(f"build files in the wheel: {', '.join(sorted(stray)[:5])}")
     return errors
@@ -303,7 +486,11 @@ def run(paths: list[Path], *, platform: str | None, require_libgomp: bool) -> in
         print(f"wheel_check: {e}", file=sys.stderr)
         failed += 1
     for p in paths:
-        if p.name.endswith(".whl"):
+        if p.name.startswith("dyng_cu") and p.name.endswith(".whl"):
+            errors = check_plugin_wheel(
+                p, platform=platform, require_libgomp=require_libgomp, expect_version=v
+            )
+        elif p.name.endswith(".whl"):
             errors = check_wheel(
                 p, platform=platform, require_libgomp=require_libgomp, expect_version=v
             )
@@ -320,13 +507,33 @@ def run(paths: list[Path], *, platform: str | None, require_libgomp: bool) -> in
     return 1 if failed else 0
 
 
+def _fake_elf(needed: list[str]) -> bytes:
+    """A minimal ELF64 shared object whose dynamic section lists ``needed`` (for the self-test)."""
+    strtab = b"\0" + b"".join(n.encode() + b"\0" for n in needed)
+    str_off = 64 + 2 * 56
+    dyn_off = (str_off + len(strtab) + 7) // 8 * 8
+    offsets, pos = [], 1
+    for n in needed:
+        offsets.append(pos)
+        pos += len(n) + 1
+    dyn = b"".join(struct.pack("<qQ", 1, o) for o in offsets)
+    dyn += struct.pack("<qQ", 5, str_off) + struct.pack("<qQ", 0, 0)
+    total = dyn_off + len(dyn)
+    header = b"\x7fELF" + bytes([2, 1, 1]) + bytes(9)
+    header += struct.pack("<HHIQQQIHHHHHH", 3, 62, 1, 0, 64, 0, 0, 64, 56, 2, 64, 0, 0)
+    ph = struct.pack("<IIQQQQQQ", 1, 5, 0, 0, 0, total, total, 0x1000)
+    ph += struct.pack("<IIQQQQQQ", 2, 6, dyn_off, dyn_off, dyn_off, len(dyn), len(dyn), 8)
+    body = header + ph + strtab
+    return body + bytes(dyn_off - len(body)) + dyn
+
+
 def _self_test() -> int:
     """Broken distributions are rejected, a good one passes."""
     v = version()
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
 
-        def wheel(name: str, files: dict[str, str]) -> Path:
+        def wheel(name: str, files: dict[str, str] | dict[str, str | bytes]) -> Path:
             p = d / name
             with zipfile.ZipFile(p, "w") as z:
                 for n, text in files.items():
@@ -338,6 +545,10 @@ def _self_test() -> int:
             f"Metadata-Version: 2.4\nName: dyng\nVersion: {v}\n"
             f"License-Expression: {LICENSE_EXPRESSION}\n"
             + "".join(f"License-File: {lic}\n" for lic in LICENSE_FILES)
+            + "".join(
+                f'Provides-Extra: {x}\nRequires-Dist: dyng-{x}=={v}; extra == "{x}"\n'
+                for x in PLUGINS
+            )
             + "\n# dyng\n\nLicense: words in the description do not count\n"
         )
         good_files = {
@@ -381,6 +592,10 @@ def _self_test() -> int:
                     "License-File: THIRD_PARTY_LICENSES.txt\n", ""
                 ),
             },
+            "an extra not pinned": {
+                **good_files,
+                f"{info}/METADATA": good_meta.replace(f"dyng-cu13=={v}", "dyng-cu13"),
+            },
         }
         for label, files in cases.items():
             bad = wheel(f"dyng-{v}-cp312-abi3-{plat}.whl", files)
@@ -389,6 +604,64 @@ def _self_test() -> int:
         assert check_wheel(wrong_tag, platform=plat, require_libgomp=True, expect_version=v)
         wrong_abi = wheel(f"dyng-{v}-cp313-cp313-{plat}.whl", good_files)
         assert check_wheel(wrong_abi, platform=plat, require_libgomp=True, expect_version=v)
+
+        # A CUDA plugin wheel (ADR 0030).
+        pinfo = f"dyng_cu13-{v}.dist-info"
+        plugin_licenses = (*LICENSE_FILES, *PLUGIN_EXTRA_LICENSE_FILES)
+        plugin_meta = (
+            f"Metadata-Version: 2.4\nName: dyng-cu13\nVersion: {v}\n"
+            f"License-Expression: {PLUGIN_LICENSE_EXPRESSION}\n"
+            + "".join(f"License-File: {lic}\n" for lic in plugin_licenses)
+            + f"Requires-Dist: dyng=={v}\n\n# plugin\n"
+        )
+        good_elf = _fake_elf(["libgomp-1234abcd.so.1.0.0", "libstdc++.so.6", "libc.so.6"])
+        assert elf_needed(good_elf) == ["libgomp-1234abcd.so.1.0.0", "libstdc++.so.6", "libc.so.6"]
+        plugin_files: dict[str, str | bytes] = {
+            "dyng_cu13/_core.abi3.so": good_elf,
+            "dyng_cu13/__init__.py": "",
+            "dyng_cu13.libs/libgomp-1234abcd.so.1.0.0": "x",
+            **{f"{pinfo}/licenses/{lic}": "" for lic in plugin_licenses},
+            f"{pinfo}/entry_points.txt": "[dyng.backends]\ncu13 = dyng_cu13\n",
+            f"{pinfo}/WHEEL": "Wheel-Version: 1.0\nRoot-Is-Purelib: false\n",
+            f"{pinfo}/METADATA": plugin_meta,
+        }
+        pname = f"dyng_cu13-{v}-cp312-abi3-{plat}.whl"
+        good_plugin = wheel(pname, plugin_files)
+        assert not check_plugin_wheel(
+            good_plugin, platform=plat, require_libgomp=True, expect_version=v
+        )
+        plugin_cases: dict[str, dict[str, str | bytes]] = {
+            "no module": {k: x for k, x in plugin_files.items() if not k.endswith(".so")},
+            "the dyng package": {**plugin_files, "dyng/__init__.py": ""},
+            "no entry point": {**plugin_files, f"{pinfo}/entry_points.txt": ""},
+            "a console script": {
+                **plugin_files,
+                f"{pinfo}/entry_points.txt": "[console_scripts]\ndyng = dyng.cli:main\n"
+                "[dyng.backends]\ncu13 = dyng_cu13\n",
+            },
+            "no EULA": {k: x for k, x in plugin_files.items() if "EULA" not in k},
+            "unpinned dyng": {
+                **plugin_files,
+                f"{pinfo}/METADATA": plugin_meta.replace(f"dyng=={v}", "dyng"),
+            },
+            "bundled cudart": {**plugin_files, "dyng_cu13.libs/libcudart-ab12.so.13": "x"},
+            "needs libcuda": {
+                **plugin_files,
+                "dyng_cu13/_core.abi3.so": _fake_elf(["libcuda.so.1", "libc.so.6"]),
+            },
+            "needs libcudart": {
+                **plugin_files,
+                "dyng_cu13/_core.abi3.so": _fake_elf(["libcudart.so.13"]),
+            },
+            "no libgomp": {k: x for k, x in plugin_files.items() if "libgomp" not in k},
+        }
+        for label, pfiles in plugin_cases.items():
+            bad = wheel(pname, pfiles)
+            assert check_plugin_wheel(bad, platform=plat, require_libgomp=True, expect_version=v), (
+                label
+            )
+        bad_name = wheel(f"dyng_cu99-{v}-cp312-abi3-{plat}.whl", plugin_files)
+        assert check_plugin_wheel(bad_name, platform=plat, require_libgomp=True, expect_version=v)
 
         def sdist(files: list[str], pkg_info: str | None = good_meta) -> Path:
             p = d / f"dyng-{v}.tar.gz"
