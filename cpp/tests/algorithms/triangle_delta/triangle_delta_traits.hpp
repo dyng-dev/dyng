@@ -20,6 +20,7 @@
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/triangle_delta.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string_view>
@@ -27,7 +28,8 @@
 
 namespace dyng::conformance {
 
-/// triangle_delta (TODO(triangle_delta): what the kit compares).
+/// triangle_delta: the kit compares the triangle count and the change counters, on undirected
+/// graphs (the kit's undirected models).
 template <>
 struct test_traits<tags::triangle_delta> {
   static constexpr std::string_view name = "triangle_delta";      ///< as in the manifest
@@ -43,8 +45,9 @@ struct test_traits<tags::triangle_delta> {
   using stats = triangle_delta::stats;    ///< update()'s stats
   using snapshot = std::uint64_t;         ///< the count
 
-  /// The graph requirements.
+  /// The graph requirements: an undirected simple graph with sorted rows.
   static void require(graph_properties& props) {
+    props.directed = false;
     props.order = row_order::sorted;
     props.parallel_edges = multi_edges::forbid;
   }
@@ -79,9 +82,37 @@ struct test_traits<tags::triangle_delta> {
     (void)res;
     return r.count();
   }
+  /// The independent oracle (C2): every triple a < b < c of a host adjacency matrix (brute
+  /// force, written here without the library's engine).
+  template <typename graph_t>
+  static snapshot oracle_of(const resources& res, const graph_t& g) {
+    const auto csr = g.to_csr(res);
+    const auto n = static_cast<std::size_t>(csr.num_vertices());
+    std::vector<std::vector<bool>> adjacent(n, std::vector<bool>(n, false));
+    for (std::size_t u = 0; u < n; ++u) {
+      for (auto e = csr.row_ptr[u]; e < csr.row_ptr[u + 1]; ++e) {
+        const auto v = static_cast<std::size_t>(csr.col_ind[static_cast<std::size_t>(e)]);
+        adjacent[u][v] = true;
+        adjacent[v][u] = true;
+      }
+    }
+    std::uint64_t triangles = 0;
+    for (std::size_t a = 0; a < n; ++a) {
+      for (std::size_t b = a + 1; b < n; ++b) {
+        if (!adjacent[a][b]) {
+          continue;
+        }
+        for (std::size_t c = b + 1; c < n; ++c) {
+          triangles += adjacent[a][c] && adjacent[b][c] ? 1U : 0U;
+        }
+      }
+    }
+    return triangles;
+  }
   /// The counters that are equal across runs and backends (besides the common ones).
-  static std::vector<std::int64_t> deterministic(const stats& /*s*/) {
-    return {};
+  static std::vector<std::int64_t> deterministic(const stats& s) {
+    return {s.deletions, s.insertions, static_cast<std::int64_t>(s.triangles_removed),
+            static_cast<std::int64_t>(s.triangles_added)};
   }
   /// Options and graphs compute() and set_options() reject.
   template <typename graph_t>
@@ -98,11 +129,20 @@ struct test_traits<tags::triangle_delta> {
           const graph_t append = graph_t::from_edges(res, list.view(), props);
           (void)triangle_delta::compute(res, append);
         },
+        [&] {
+          edge_list<typename graph_t::vertex_type, typename graph_t::weight_type> list;
+          list.num_vertices = 2;
+          graph_properties props = g.properties();
+          props.directed = true;  // triangles of an undirected graph only
+          const graph_t directed = graph_t::from_edges(res, list.view(), props);
+          (void)triangle_delta::compute(res, directed);
+        },
     };
   }
-  /// C8: host synchronizations of the algorithm phase (none: host backends only).
-  static std::int64_t host_sync_budget(backend /*b*/) {
-    return 0;
+  /// C8: host synchronizations of the algorithm phase: none on the host backends; on cuda at
+  /// most one per count (the counter read back).
+  static std::int64_t host_sync_budget(backend b) {
+    return b == backend::cuda ? 2 : 0;
   }
 };
 

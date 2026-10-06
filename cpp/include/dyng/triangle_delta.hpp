@@ -25,12 +25,18 @@
  * @defgroup triangle_delta triangle_delta
  * @brief Dynamic triangle count (tutorial).
  *
- * TODO(triangle_delta): the problem, the update model and the template mapping (the page
- * docs/algorithms/triangle_delta.md has the required sections).
+ * TEACHING MATERIAL (maturity `tutorial`): a small, complete aggregate-delta algorithm on the
+ * framework, the companion of the tutorial "Your first dynamic algorithm"
+ * (docs/tutorials/your_first_dynamic_algorithm.md). It is not a research algorithm and not tuned
+ * for speed; use it to learn how a dynG aggregate-delta algorithm is built.
  *
- * Placeholder written by scripts/new_algorithm.py: the number of reciprocal pairs
- * {u -> v, v -> u} of the graph, an aggregate-delta problem. update() applies the batch and
- * recounts from scratch (stats::fallback_used is true); make it incremental in problem.hpp.
+ * compute() counts the triangles {a, b, c} of an undirected graph (graph_properties::directed =
+ * false, sorted rows, no parallel edges; self-loops and weights are ignored). update() applies a
+ * batch and changes the count by what the batch destroys and creates: before the commit it
+ * subtracts, on the old graph, the triangles through the deleted edges; after the commit it adds,
+ * on the new graph, the triangles through the inserted edges. A triangle through several changed
+ * edges is counted once, by the smallest of them (ownership::min_member). Afterwards the count
+ * equals compute() on the new graph exactly (docs/algorithms/triangle_delta.md).
  */
 
 namespace dyng::triangle_delta {
@@ -40,8 +46,7 @@ namespace dyng::triangle_delta {
  * @ingroup triangle_delta
  */
 struct options {
-  /// Reserved for the algorithm's options (options are only ever appended).
-  bool validate_inputs = true;
+  // No options yet (fields are only ever appended).
 };
 
 /**
@@ -51,6 +56,14 @@ struct options {
 struct stats : update_stats {
   /// Deterministic: what applying the batch did to the graph.
   apply_summary batch;
+  /// Deterministic: undirected edges the batch removed (the change list of count(-)).
+  std::int64_t deletions = 0;
+  /// Deterministic: undirected edges the batch added (the change list of count(+)).
+  std::int64_t insertions = 0;
+  /// Deterministic: triangles the batch destroyed.
+  std::uint64_t triangles_removed = 0;
+  /// Deterministic: triangles the batch created.
+  std::uint64_t triangles_added = 0;
 };
 
 }  // namespace dyng::triangle_delta
@@ -88,8 +101,8 @@ class result {
   ~result();                                  ///< releases the values
 
   /**
-   * @brief The aggregate.
-   * @return The number of reciprocal pairs.
+   * @brief The triangle count.
+   * @return The number of triangles of the graph (host memory on every backend).
    * @throws invalid_argument_error for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
@@ -211,18 +224,21 @@ namespace dyng::triangle_delta {
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type (ignored).
- * @param[in] res Execution resources (sequential, openmp).
- * @param[in] g   The graph (host storage); it is not modified.
+ * @param[in] res Execution resources (sequential, openmp, cuda).
+ * @param[in] g   The graph: undirected (graph_properties::directed = false), sorted rows, no
+ *                parallel edges; placed as `res` (host storage for the host backends, a graph
+ *                built with CUDA resources for cuda); it is not modified.
  * @param[in] opt Options.
  * @return The result, matching `g.version()`.
- * @throws invalid_argument_error if an option is out of range or `g` is not host storage.
+ * @throws invalid_argument_error if `g` is directed, has unsorted rows or allows parallel edges,
+ *         or its placement does not match `res`.
  * @throws not_supported_error    if the backend of `res` is not available for
  *         triangle_delta.
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if memory cannot be allocated.
  * @sync
- * @backends sequential, openmp
- * @determinism Exact: identical results on every backend and run.
- * @paper None yet (TODO(triangle_delta): the paper, and its key in docs/references.bib).
+ * @backends sequential, openmp, cuda
+ * @determinism Exact: identical counts on every backend and run.
+ * @paper None: teaching material (the tutorial "Your first dynamic algorithm").
  * @guarantee Strong: `g` is not modified, and nothing is kept if the call throws.
  * @ingroup triangle_delta
  */
@@ -241,9 +257,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type (ignored).
- * @param[in]     res   Execution resources (sequential, openmp).
+ * @param[in]     res   Execution resources (sequential, openmp, cuda).
  * @param[in,out] g     The graph; the batch is applied to it and its version increases by one.
- * @param[in]     batch Insertions, deletions and weight changes.
+ * @param[in]     batch Insertions and deletions (an undirected graph changes both directions of
+ *                      every batch edge; weights are ignored).
  * @param[in,out] r     Result of compute() or of a previous update() on `g`.
  * @return Counters of this update.
  * @throws stale_result_error     if r.graph_version() != g.version() or `r` belongs to another
@@ -251,11 +268,11 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws invalid_argument_error if a batch id or weight is invalid (nothing is changed).
  * @throws not_supported_error    if the backend of `res` is not available for
  *         triangle_delta.
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if memory cannot be allocated.
  * @sync
- * @backends sequential, openmp
- * @determinism Exact: identical results on every backend and run.
- * @paper None yet (TODO(triangle_delta)).
+ * @backends sequential, openmp, cuda
+ * @determinism Exact: identical counts and counters on every backend and run.
+ * @paper None: teaching material (the tutorial "Your first dynamic algorithm").
  * @guarantee Strong for every error found before the batch is applied (`g` and `r` unchanged);
  *            basic after the commit (`g` updated, `r` poisoned until it is recomputed).
  * @ingroup triangle_delta
@@ -273,7 +290,7 @@ stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
 namespace dyng::detail {
 
 /**
- * @brief The update participant of an triangle_delta result (used by dyng::update()).
+ * @brief The update participant of triangle_delta::result (used by dyng::update()).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.

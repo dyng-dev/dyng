@@ -35,6 +35,6 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "title": "Dynamic triangle count (tutorial)",
         "since": "0.2",
         "container": "graph",
-        "maturity": "experimental",
+        "maturity": "tutorial",
     },
 }

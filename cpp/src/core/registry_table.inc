@@ -61,10 +61,10 @@ table.push_back(algorithm_info{
     "Dynamic triangle count (tutorial)",
     algorithm_family::aggregate_delta,
     container_kind::graph,
-    maturity_level::experimental,
+    maturity_level::tutorial,
     determinism::exact_value,
     oracle_kind::compute,
-    {backend::sequential, backend::openmp},
+    {backend::sequential, backend::openmp, backend::cuda},
     {},
 });
 #endif

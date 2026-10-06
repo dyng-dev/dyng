@@ -8,15 +8,15 @@
 name        = "triangle_delta"
 title       = "Dynamic triangle count (tutorial)"
 computes    = "the triangle count of an undirected graph (teaching material)"
-paper       = "-"
+paper       = "- (tutorial)"
 since       = "0.2"
 family      = "aggregate_delta"
 container   = "graph"
 tier        = "framework"
-maturity    = "experimental"
-backends    = ["sequential", "openmp"]
+maturity    = "tutorial"                # teaching material (docs/tutorials), not a research algorithm
+backends    = ["sequential", "openmp", "cuda"]
 determinism = "exact_value"
 oracle      = "compute"
-graph_requirements = { multi_edges = "forbid", row_order = "sorted" }   # checked in compute()
+graph_requirements = { directed = false, multi_edges = "forbid", row_order = "sorted" }   # checked in compute()
 cite        = []
 maintainers = ["SMShovan"]
