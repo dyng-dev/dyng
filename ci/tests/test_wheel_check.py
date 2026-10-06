@@ -7,6 +7,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import wheel_check  # noqa: E402
@@ -107,3 +109,64 @@ def test_forbidden_libraries() -> None:
     assert match("libnvidia-ml.so.1")
     for good in ("libgomp-a25fd822.so.1.0.0", "libc.so.6", "libm.so.6", "libpthread.so.0"):
         assert not match(good), good
+
+
+@pytest.mark.parametrize(
+    ("v", "names"),
+    [
+        ("0.1.0", ["dyng"]),
+        ("0.1.2", ["dyng"]),
+        ("0.1.1rc1", ["dyng"]),
+        ("0.2.0rc1", ["dyng", "dyng-cu12", "dyng-cu13"]),
+        ("0.2.0", ["dyng", "dyng-cu12", "dyng-cu13"]),
+        ("0.2.0.dev0", ["dyng", "dyng-cu12", "dyng-cu13"]),
+        ("1.0.0", ["dyng", "dyng-cu12", "dyng-cu13"]),
+    ],
+)
+def test_release_distributions(v: str, names: list[str]) -> None:
+    # PLAN Appendix F: the plugins are released from 0.2.0 (its candidates included); each
+    # distribution publishes through its own environments (testpypi<suffix>, pypi<suffix>).
+    dists = wheel_check.release_distributions(v)
+    assert [d["name"] for d in dists] == names
+    env = {d["name"]: d["suffix"] for d in dists}
+    assert env["dyng"] == ""  # the trusted publishers of dyng: testpypi / pypi (never renamed)
+    for p in names[1:]:
+        assert env[p] == "-" + p.removeprefix("dyng-")
+    assert all(d["prefix"].endswith(f"-{v}") for d in dists)
+
+
+def test_release_set_and_split(tmp_path: Path) -> None:
+    v = "0.2.0rc1"
+    tag = "cp312-abi3-manylinux_2_28_x86_64"
+    files = [
+        tmp_path / f"dyng-{v}.tar.gz",
+        tmp_path / f"dyng-{v}-{tag}.whl",
+        tmp_path / f"dyng_cu12-{v}-{tag}.whl",
+        tmp_path / f"dyng_cu13-{v}-{tag}.whl",
+    ]
+    for f in files:
+        f.write_bytes(b"x")
+    assert wheel_check.check_release_set(files, v) == []
+    assert any("dyng-cu13: no wheel" in e for e in wheel_check.check_release_set(files[:3], v))
+    assert any("no sdist" in e for e in wheel_check.check_release_set(files[1:], v))
+    stray = tmp_path / "dyng_cu11-0.2.0rc1-x.whl"
+    stray.write_bytes(b"x")
+    assert wheel_check.check_release_set([*files, stray], v)
+    plugin_sdist = tmp_path / f"dyng_cu12-{v}.tar.gz"
+    plugin_sdist.write_bytes(b"x")
+    assert any("an sdist" in e for e in wheel_check.check_release_set([*files, plugin_sdist], v))
+    # a 0.1.x release has no plugins
+    old = [tmp_path / "dyng-0.1.1.tar.gz", tmp_path / f"dyng-0.1.1-{tag}.whl"]
+    for f in old:
+        f.write_bytes(b"x")
+    assert wheel_check.check_release_set(old, "0.1.1") == []
+    assert wheel_check.check_release_set([*old, files[2]], "0.1.1")
+    split = wheel_check.split_release(files, tmp_path / "out", v)
+    assert {k: sorted(p.name for p in ps) for k, ps in split.items()} == {
+        "dyng": sorted([files[0].name, files[1].name]),
+        "dyng-cu12": [files[2].name],
+        "dyng-cu13": [files[3].name],
+    }
+    assert (tmp_path / "out" / "dyng-cu13" / files[3].name).is_file()
+    with pytest.raises(ValueError):
+        wheel_check.split_release(files[:2], tmp_path / "out2", v)

@@ -29,6 +29,11 @@ that needs neither ``libcuda`` (the user's driver) nor ``libcudart`` (linked sta
 ``DT_NEEDED`` entry and no bundled copy of either. The CPU wheel must offer the extras ``cu12``
 and ``cu13`` pinned to its own version.
 
+A release (``release.yml``) publishes :func:`release_distributions`: the core ``dyng`` alone up
+to v0.1.x, and from 0.2.0 (:data:`PLUGINS_SINCE`) also ``dyng-cu12`` and ``dyng-cu13``, each
+through its own pair of publishing environments; ``--release-set`` checks that the files are
+exactly those, and ``--split`` sorts them into one directory per distribution.
+
 Usage::
 
     python3 ci/wheel_check.py dist/*.whl dist/*.tar.gz --platform manylinux_2_28_x86_64 \\
@@ -37,6 +42,8 @@ Usage::
         --require-libgomp                  # a CUDA plugin wheel (recognised by its name)
     python3 ci/wheel_check.py --version-info   # "<VERSION> <pre-release: true|false>"
     python3 ci/wheel_check.py --release-metadata [--release-date today]
+    python3 ci/wheel_check.py --release-distributions   # release.yml's publishing matrix (JSON)
+    python3 ci/wheel_check.py dist/* --release-set [--split dists] ...   # the whole release
     python3 ci/wheel_check.py --self-test
 
 Exit status 0 when every file passes; the report lists each check.
@@ -47,6 +54,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import io
+import json
 import re
 import struct
 import sys
@@ -111,6 +119,76 @@ PLUGIN_EXTRA_LICENSE_FILES = ("THIRD_PARTY_LICENSES_CUDA.txt", "NVIDIA_CUDA_EULA
 #: Apache-2.0 WITH LLVM-exception) is a licensing decision of the author (GOVERNANCE.md, open
 #: decisions; ADR 0030). The licence files are complete either way.
 PLUGIN_LICENSE_EXPRESSION = LICENSE_EXPRESSION
+#: The first release (major, minor) whose distributions include the CUDA plugin wheels (PLAN
+#: Appendix F: 0.2.0, its release candidates included); v0.1.x releases keep the core alone.
+PLUGINS_SINCE = (0, 2)
+
+
+def release_distributions(v: str) -> list[dict[str, str]]:
+    """The distributions a release of version ``v`` publishes (release.yml's matrix): for each,
+    the distribution's ``name``, the ``prefix`` of its file names and the ``suffix`` of its
+    publishing environments (``testpypi<suffix>`` and ``pypi<suffix>``: the trusted publishers of
+    ``dyng`` are bound to ``testpypi`` / ``pypi``, those of ``dyng-cu<N>`` to ``testpypi-cu<N>`` /
+    ``pypi-cu<N>``; GOVERNANCE.md, approvals log)."""
+    canonical_version(v)
+    m = re.match(r"(\d+)\.(\d+)", v)
+    release = (int(m.group(1)), int(m.group(2))) if m else (int(v), 0)
+    out = [{"name": "dyng", "prefix": f"dyng-{v}", "suffix": ""}]
+    if release >= PLUGINS_SINCE:
+        out += [
+            {"name": f"dyng-{p}", "prefix": f"dyng_{p}-{v}", "suffix": f"-{p}"} for p in PLUGINS
+        ]
+    return out
+
+
+def distribution_of(filename: str) -> str | None:
+    """The distribution a file name belongs to (``dyng``, ``dyng-cu12``, ...), or None."""
+    m = re.match(r"(dyng(?:_cu\d+)?)-", filename)
+    return m.group(1).replace("_", "-") if m else None
+
+
+def check_release_set(paths: list[Path], v: str) -> list[str]:
+    """The files of a release are exactly those :func:`release_distributions` names: the core's
+    sdist and wheel(s), and one or more wheels of each plugin, all of version ``v``."""
+    errors = []
+    wanted = {d["name"]: d["prefix"] for d in release_distributions(v)}
+    found: dict[str, list[str]] = {}
+    for p in paths:
+        dist = distribution_of(p.name)
+        if dist not in wanted:
+            errors.append(f"{p.name}: not a distribution of this release ({', '.join(wanted)})")
+            continue
+        if not p.name.startswith(wanted[dist] + (".tar.gz" if p.name.endswith(".gz") else "-")):
+            errors.append(f"{p.name}: not version {v}")
+        found.setdefault(dist, []).append(p.name)
+    for dist in wanted:
+        names = found.get(dist, [])
+        if not any(n.endswith(".whl") for n in names):
+            errors.append(f"{dist}: no wheel")
+        if dist == "dyng" and not any(n.endswith(".tar.gz") for n in names):
+            errors.append("dyng: no sdist")
+        if dist != "dyng" and any(n.endswith(".tar.gz") for n in names):
+            errors.append(f"{dist}: an sdist (the plugins are built from the core sdist)")
+    return errors
+
+
+def split_release(paths: list[Path], out: Path, v: str) -> dict[str, list[Path]]:
+    """Copy each file of a checked release set to ``out/<distribution>/`` (one directory per
+    publishing job of release.yml); returns the files per distribution."""
+    errors = check_release_set(paths, v)
+    if errors:
+        raise ValueError("; ".join(errors))
+    result: dict[str, list[Path]] = {}
+    for p in paths:
+        dist = distribution_of(p.name)
+        assert dist is not None
+        target = out / dist / p.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(p.read_bytes())
+        result.setdefault(dist, []).append(target)
+    return result
+
+
 #: Shared libraries a plugin's module must neither need nor bundle (a file name matching this,
 #: also as renamed by auditwheel, libcudart-1a2b3c4d.so.13): the driver (libcuda, libnvidia-*)
 #: is the user's, the CUDA runtime (libcudart) is linked statically.
@@ -702,6 +780,29 @@ def _self_test() -> int:
             except ValueError:
                 continue
             raise AssertionError(f"{bad_v} accepted as canonical")
+        # The release set: v0.1.x is the core alone, 0.2.0 (and its candidates) adds the plugins.
+        assert [x["name"] for x in release_distributions("0.1.1")] == ["dyng"]
+        assert [x["name"] for x in release_distributions("0.2.0rc1")] == [
+            "dyng",
+            "dyng-cu12",
+            "dyng-cu13",
+        ]
+        assert [x["suffix"] for x in release_distributions("1.0.0")] == ["", "-cu12", "-cu13"]
+        files = [
+            d / "dyng-0.2.0.tar.gz",
+            d / "dyng-0.2.0-cp312-abi3-manylinux_2_28_x86_64.whl",
+            d / "dyng_cu12-0.2.0-cp312-abi3-manylinux_2_28_x86_64.whl",
+            d / "dyng_cu13-0.2.0-cp312-abi3-manylinux_2_28_x86_64.whl",
+        ]
+        for f in files:
+            f.write_bytes(b"x")
+        assert not check_release_set(files, "0.2.0")
+        assert check_release_set(files[:3], "0.2.0")  # a plugin missing
+        assert check_release_set(files[1:], "0.2.0")  # the sdist missing
+        assert check_release_set(files, "0.2.1")  # another version
+        assert check_release_set(files, "0.1.1")  # plugins in a 0.1.x release
+        split = split_release(files, d / "split", "0.2.0")
+        assert sorted(split) == ["dyng", "dyng-cu12", "dyng-cu13"] and len(split["dyng"]) == 2
     print("wheel_check self-test: ok")
     return 0
 
@@ -727,6 +828,23 @@ def main(argv: list[str] | None = None) -> int:
         "select job, ci/tests; docs/developer/release.md before a tag)",
     )
     p.add_argument(
+        "--release-distributions",
+        action="store_true",
+        help="print the distributions of a release of VERSION as one line of JSON (release.yml's "
+        "publishing matrix: name, file prefix, environment suffix)",
+    )
+    p.add_argument(
+        "--release-set",
+        action="store_true",
+        help="with files: they must be exactly the distributions of a release of VERSION",
+    )
+    p.add_argument(
+        "--split",
+        type=Path,
+        metavar="DIR",
+        help="with --release-set: copy the files to DIR/<distribution>/ (release.yml's collect)",
+    )
+    p.add_argument(
         "--release-date",
         metavar="YYYY-MM-DD|today",
         help="with --release-metadata: the release date must be this day (today: UTC)",
@@ -744,6 +862,9 @@ def main(argv: list[str] | None = None) -> int:
         if not errors:
             print(f"release metadata: VERSION, CHANGELOG.md and CITATION.cff agree ({version()})")
         return 1 if errors else 0
+    if args.release_distributions:
+        print(json.dumps(release_distributions(version()), separators=(",", ":")))
+        return 0
     if args.version_info:
         try:
             v, pre = canonical_version((ROOT / "VERSION").read_text().strip())
@@ -752,7 +873,19 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(v, "true" if pre else "false")
         return 0
-    return run(args.files, platform=args.platform, require_libgomp=args.require_libgomp)
+    status = run(args.files, platform=args.platform, require_libgomp=args.require_libgomp)
+    if args.release_set and status == 0:
+        errors = check_release_set(args.files, version())
+        for e in errors:
+            print(f"wheel_check: release set: {e}", file=sys.stderr)
+        if errors:
+            return 1
+        names = ", ".join(d["name"] for d in release_distributions(version()))
+        print(f"release set: the distributions of {version()} ({names})")
+        if args.split is not None:
+            for dist, files in sorted(split_release(args.files, args.split, version()).items()):
+                print(f"  {args.split / dist}: {', '.join(f.name for f in files)}")
+    return status
 
 
 if __name__ == "__main__":
