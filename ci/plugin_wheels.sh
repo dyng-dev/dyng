@@ -18,10 +18,13 @@
 #      libcudart needed or bundled);
 #   4. unless DYNG_WHEEL_SKIP_TESTS=1, an install test per Python version: a fresh venv with the
 #      core wheel and the plugin wheel only (no index), then
-#        - selection: `dyng.show_config()`; the plugin's module is active and runs sssp,
-#          cycle_count and mosp on the CUDA backend (GPU ${DYNG_TEST_GPU:-1}); the device arrays
-#          equal the sequential backend's element by element; with no visible device
-#          (CUDA_VISIBLE_DEVICES=) dynG falls back to dyng._core with a dyng.BackendWarning;
+#        - selection (ci/plugin_smoke.py): `dyng.show_config()`; the plugin's module is active
+#          and runs sssp, cycle_count and mosp on the CUDA backend (GPU ${DYNG_TEST_GPU:-1}); the
+#          device arrays equal the sequential backend's element by element; with no visible
+#          device (CUDA_VISIBLE_DEVICES=) dynG falls back to dyng._core with a
+#          dyng.BackendWarning; and with the driver hidden (ci/without_cuda_driver.sh, where
+#          user namespaces allow it) the smoke test of the hosted runners (--expect fallback
+#          --reason "no CUDA driver") passes;
 #        - the GPU tests of python/tests (pytest -m gpu, test_cuda.py: CUDA == sequential, a
 #          subset of the goldens, device arrays, the fallback; DYNG_REQUIRE_CUDA=1, so they fail
 #          instead of skipping without the plugin's CUDA backend);
@@ -34,6 +37,8 @@
 #
 #   ci/plugin_wheels.sh                                   # cu13 with /usr/local/cuda-13.1
 #   DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT=$HOME/anaconda3/envs/cuda_12.8 ci/plugin_wheels.sh
+#   DYNG_CUDA13_ROOT=<dir>/usr/local/cuda-13.4 ci/plugin_wheels.sh   # the CI toolkit, unpacked by
+#                                       # ci/cuda_toolkit.py extract (docs/developer/wheels.md)
 #   DYNG_WHEEL_SKIP_TESTS=1 ci/plugin_wheels.sh            # build and check only
 #   DYNG_PLUGIN_TEST_ONLY=1 ci/plugin_wheels.sh            # check and test the wheels built before
 #
@@ -122,7 +127,7 @@ for plugin in ${plugins}; do
   "${python}" ci/plugin_pyproject.py --plugin "${plugin}" --project-dir "${src}" \
     --cuda-root "${root}" ${eula:+--cuda-eula "${eula}"}
 
-  echo "==> ${plugin}: wheel (GCC 12 / glibc 2.28 host compiler, static cudart, release architectures)"
+  echo "==> ${plugin}: wheel (GCC $("${cxx}" -dumpversion) / glibc 2.28 host compiler, static cudart, release architectures)"
   log="${out}/wheel-${plugin}.log"
   CC="${cc}" CXX="${cxx}" CUDACXX="${root}/bin/nvcc" CUDAHOSTCXX="${cxx}" \
     CMAKE_BUILD_PARALLEL_LEVEL="${jobs}" \
@@ -165,62 +170,24 @@ for plugin in ${plugins}; do
       --find-links "${out}/dist" "dyng-${plugin}==${version}"
     (
       cd "$(mktemp -d)"
-      CUDA_VISIBLE_DEVICES="${gpu}" DYNG_PLUGIN="${plugin}" "${venv}/bin/python" - <<'PY'
-import os
-
-import numpy as np
-
-import dyng
-import dyng._backend as backend
-
-plugin = os.environ["DYNG_PLUGIN"]
-dyng.show_config()
-assert backend.active_module_name.startswith(f"dyng_{plugin}"), backend.active_module_name
-c = dyng.config()
-assert c["build"]["plugin"] == plugin and c["build"]["cuda_runtime"] == "static", c["build"]
-assert c["backends"]["cuda"], c["backends"]
-rng = np.random.default_rng(7)
-n, m = 200, 1500
-src, dst = rng.integers(0, n, m, dtype=np.int32), rng.integers(0, n, m, dtype=np.int32)
-w = rng.integers(1, 20, m, dtype=np.int32)
-keep = src != dst
-src, dst, w = src[keep], dst[keep], w[keep]
-seq, cuda = dyng.Resources.sequential(), dyng.Resources.cuda(0)
-results = {}
-for name, res in (("sequential", seq), ("cuda", cuda)):
-    g = dyng.Graph.from_edges(src, dst, w, num_vertices=n, resources=res)
-    t = dyng.sssp.compute(g, 0)
-    h = dyng.cycle_count.compute(dyng.Graph.from_edges(src, dst, num_vertices=n, resources=res),
-                                 max_length=4)
-    gm = dyng.Graph.from_edges(src, dst, np.stack([w, (w * 7) % 13 + 1], axis=1),
-                               num_vertices=n, properties="mosp_compatible", resources=res)
-    mo = dyng.mosp.compute(gm, 0)
-    results[name] = (t, h, mo)
-t, h, mo = results["cuda"]
-ts, hs, ms = results["sequential"]
-assert t.distances.device == "cuda:0" and mo.distances(0).device == "cuda:0", t.distances.device
-assert t.distances.__cuda_array_interface__["shape"] == (n,)
-same = np.array_equal
-assert same(t.distances.to_numpy(), ts.distances.to_numpy())
-assert same(t.parents.to_numpy(), ts.parents.to_numpy())
-assert same(h.counts.to_numpy(), hs.counts.to_numpy()) and h.total > 0
-for k in range(2):
-    assert same(mo.distances(k).to_numpy(), ms.distances(k).to_numpy())
-    assert same(mo.parents(k).to_numpy(), ms.parents(k).to_numpy())
-assert same(mo.combined_parents.to_numpy(), ms.combined_parents.to_numpy())
-assert same(mo.path_costs.to_numpy(), ms.path_costs.to_numpy())
-print(f"    sssp, cycle_count and mosp ran on cuda ({backend.active_module_name}); "
-      "their arrays equal the sequential backend's")
-PY
-      out_cpu="$(CUDA_VISIBLE_DEVICES= "${venv}/bin/python" -c '
-import warnings, dyng, dyng._backend as b
-with warnings.catch_warnings(record=True) as w:
-    warnings.simplefilter("always")
-    dyng.__version__
-assert [x.category for x in w] == [dyng.BackendWarning], w
-print(b.active_module_name)')"
-      [ "${out_cpu}" = "dyng._core" ] || { echo "no fallback without a device: ${out_cpu}" >&2; exit 1; }
-      echo "    no visible device: falls back to ${out_cpu} with a dyng.BackendWarning"
+      smoke=("${venv}/bin/python" "${repo_root}/ci/plugin_smoke.py" --plugin "${plugin}"
+        --version "${version}")
+      CUDA_VISIBLE_DEVICES="${gpu}" "${smoke[@]}" --expect cuda | sed 's/^/    /'
+      # no visible device: dyng._core with a dyng.BackendWarning
+      CUDA_VISIBLE_DEVICES= "${smoke[@]}" --expect fallback --reason "no CUDA device is visible" \
+        >"${out}/smoke-nodevice-${plugin}-${pyver}.log" 2>&1 \
+        || { cat "${out}/smoke-nodevice-${plugin}-${pyver}.log"; exit 1; }
+      echo "    no visible device: falls back to dyng._core with a dyng.BackendWarning"
+      # no driver at all, as on the hosted runners of wheels.yml (the CI smoke test), where this
+      # machine can hide its driver (ci/without_cuda_driver.sh: a user and mount namespace)
+      if "${repo_root}/ci/without_cuda_driver.sh" --check 2>/dev/null; then
+        "${repo_root}/ci/without_cuda_driver.sh" "${smoke[@]}" --expect fallback \
+          --reason "no CUDA driver" >"${out}/smoke-nodriver-${plugin}-${pyver}.log" 2>&1 \
+          || { cat "${out}/smoke-nodriver-${plugin}-${pyver}.log"; exit 1; }
+        echo "    no CUDA driver: falls back to dyng._core; the plugin's module imports without it"
+      else
+        echo "    no CUDA driver: not checked (unprivileged user namespaces are not available)"
+      fi
     )
     log="${out}/pytest-gpu-${plugin}-${pyver}.log"
     "${venv}/bin/python" -m pip install -q "pytest>=8" "hypothesis==6.167.1"
