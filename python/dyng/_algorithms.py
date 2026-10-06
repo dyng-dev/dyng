@@ -29,7 +29,7 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "title": "Dynamic breadth-first search levels (tutorial)",
         "since": "0.2",
         "container": "graph",
-        "maturity": "experimental",
+        "maturity": "tutorial",
     },
     "triangle_delta": {
         "title": "Dynamic triangle count (tutorial)",

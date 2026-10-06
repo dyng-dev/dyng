@@ -12,7 +12,7 @@ code, how to cite).
 | {doc}`sssp` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | 0.1 |
 | {doc}`cycle_count` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | 0.1 |
 | {doc}`mosp` | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | 0.2 |
-| {doc}`dynamic_bfs` | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP | experimental | 0.2 |
+| {doc}`dynamic_bfs` | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | 0.2 |
 | {doc}`triangle_delta` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP | experimental | 0.2 |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned | 0.2 |
 | `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned | 0.3 |

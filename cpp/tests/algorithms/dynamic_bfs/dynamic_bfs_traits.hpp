@@ -20,14 +20,16 @@
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 
+#include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <string_view>
 #include <vector>
 
 namespace dyng::conformance {
 
-/// dynamic_bfs (TODO(dynamic_bfs): what the kit compares).
+/// dynamic_bfs: the kit compares the levels (exactly) and the invalidation counters.
 template <>
 struct test_traits<tags::dynamic_bfs> {
   static constexpr std::string_view name = "dynamic_bfs";         ///< as in the manifest
@@ -43,9 +45,9 @@ struct test_traits<tags::dynamic_bfs> {
   using stats = dynamic_bfs::stats;            ///< update()'s stats
   using snapshot = std::vector<std::int64_t>;  ///< the levels
 
-  /// The graph requirements.
+  /// The graph requirements: the in-edges are stored (the seed pulls along them).
   static void require(graph_properties& props) {
-    (void)props;
+    props.store_transposed = true;
   }
   /// The generated graphs.
   static graph_shape shape(size_class size) {
@@ -77,9 +79,35 @@ struct test_traits<tags::dynamic_bfs> {
   static snapshot take(const resources& res, const result<graph_t>& r) {
     return to_vector(res, r.levels());
   }
-  /// The counters that are equal across runs and backends (besides the common ones).
-  static std::vector<std::int64_t> deterministic(const stats& /*s*/) {
-    return {};
+  /// The independent oracle (C2): a textbook queue BFS from vertex 0 over a host copy of the
+  /// out-edges, written here without the library's engine.
+  template <typename graph_t>
+  static snapshot oracle_of(const resources& res, const graph_t& g) {
+    const auto csr = g.to_csr(res);
+    const auto n = static_cast<std::size_t>(csr.num_vertices());
+    std::vector<std::int64_t> levels(n, -1);
+    std::deque<std::size_t> queue;
+    if (n > 0) {
+      levels[0] = 0;
+      queue.push_back(0);
+    }
+    while (!queue.empty()) {
+      const std::size_t u = queue.front();
+      queue.pop_front();
+      for (auto e = csr.row_ptr[u]; e < csr.row_ptr[u + 1]; ++e) {
+        const auto v = static_cast<std::size_t>(csr.col_ind[static_cast<std::size_t>(e)]);
+        if (levels[v] < 0) {
+          levels[v] = levels[u] + 1;
+          queue.push_back(v);
+        }
+      }
+    }
+    return levels;
+  }
+  /// The counters that are equal across runs and backends (besides the common ones): the
+  /// invalidation follows the BFS tree, whose parents every backend chooses by the same rule.
+  static std::vector<std::int64_t> deterministic(const stats& s) {
+    return {s.invalidated, s.invalidation_rounds};
   }
   /// Options and graphs compute() and set_options() reject.
   template <typename graph_t>
@@ -104,9 +132,11 @@ struct test_traits<tags::dynamic_bfs> {
         },
     };
   }
-  /// C8: host synchronizations of the algorithm phase (none: host backends only).
-  static std::int64_t host_sync_budget(backend /*b*/) {
-    return 0;
+  /// C8: host synchronizations of the algorithm phase: none on the host backends; on cuda one
+  /// per count the host reads (each invalidation pass, the seed, each loop round, two in
+  /// finalize).
+  static std::int64_t host_sync_budget(backend b, const stats& s) {
+    return b == backend::cuda ? s.invalidation_rounds + s.iterations + 3 : 0;
   }
 };
 

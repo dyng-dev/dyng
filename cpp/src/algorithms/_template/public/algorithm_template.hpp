@@ -298,7 +298,7 @@ stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
 namespace dyng::detail {
 
 /**
- * @brief The update participant of an algorithm_template result (used by dyng::update()).
+ * @brief The update participant of algorithm_template::result (used by dyng::update()).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.

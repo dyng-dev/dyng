@@ -25,12 +25,18 @@
  * @defgroup dynamic_bfs dynamic_bfs
  * @brief Dynamic breadth-first search levels (tutorial).
  *
- * TODO(dynamic_bfs): the problem, the update model and the template mapping (the page
- * docs/algorithms/dynamic_bfs.md has the required sections).
+ * TEACHING MATERIAL (maturity `tutorial`): a small, complete fixed-point algorithm on the
+ * framework, the subject of the tutorial "Your first dynamic algorithm"
+ * (docs/tutorials/your_first_dynamic_algorithm.md). It is not a research algorithm and not tuned
+ * for speed; use it to learn how a dynG algorithm is built.
  *
- * Placeholder written by scripts/new_algorithm.py: the hop level of every vertex from
- * options::source (-1 if unreachable), a fixed-point problem. update() applies the batch and
- * recomputes from scratch (stats::fallback_used is true); make it incremental in problem.hpp.
+ * compute() gives the BFS level (hop distance) of every vertex from options::source in a
+ * directed graph, -1 for the vertices the source does not reach (weights are ignored). update()
+ * applies a batch of edge insertions and deletions and repairs the levels: the subtrees below
+ * the deleted BFS-tree edges are invalidated and re-seeded from their valid in-neighbours, the
+ * inserted edges offer shorter levels, and a frontier propagates the improvements until nothing
+ * changes. Afterwards the levels equal compute() on the new graph exactly
+ * (docs/algorithms/dynamic_bfs.md).
  */
 
 namespace dyng::dynamic_bfs {
@@ -51,6 +57,11 @@ struct options {
 struct stats : update_stats {
   /// Deterministic: what applying the batch did to the graph.
   apply_summary batch;
+  /// Deterministic: vertices invalidated (the subtrees below the deleted tree edges).
+  std::int64_t invalidated = 0;
+  /// Deterministic: passes of the invalidation (the roots, then one per tree level below them;
+  /// 0 without deletions).
+  std::int64_t invalidation_rounds = 0;
 };
 
 }  // namespace dyng::dynamic_bfs
@@ -65,7 +76,8 @@ namespace dyng::dynamic_bfs {
 /**
  * @brief The result kept up to date by update() (opaque, move-only).
  *
- * The result owns its values (host memory), its options and the graph version it matches.
+ * The result owns its levels and its BFS tree (host memory for the sequential and OpenMP
+ * backends, device memory for cuda), its options and the graph version it matches.
  * @ingroup dynamic_bfs
  */
 class result {
@@ -89,8 +101,9 @@ class result {
 
   /**
    * @brief The hop levels.
-   * @return One level per vertex (host memory), -1 for the vertices the source does not reach.
-   *         Valid until the next update() of this result.
+   * @return One level per vertex (in the memory space(): device memory for a result of the
+   *         cuda backend), -1 for the vertices the source does not reach. Valid until the next
+   *         update() of this result.
    * @throws invalid_argument_error for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
    */
@@ -119,8 +132,9 @@ class result {
   [[nodiscard]] std::uint64_t graph_version() const noexcept;
 
   /**
-   * @brief The memory space of the values.
-   * @return memory_space::host.
+   * @brief The memory space of the levels.
+   * @return memory_space::host for the sequential and OpenMP backends, memory_space::device for
+   *         cuda.
    */
   [[nodiscard]] memory_space space() const noexcept;
 
@@ -211,18 +225,21 @@ namespace dyng::dynamic_bfs {
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type (ignored).
- * @param[in] res Execution resources (sequential, openmp).
- * @param[in] g   The graph (host storage); it is not modified.
+ * @param[in] res Execution resources (sequential, openmp, cuda).
+ * @param[in] g   The graph, with its in-edges stored (graph_properties::store_transposed, the
+ *                default); placed as `res` (host storage for the host backends, a graph built
+ *                with CUDA resources for cuda); it is not modified.
  * @param[in] opt Options.
  * @return The result, matching `g.version()`.
- * @throws invalid_argument_error if an option is out of range or `g` is not host storage.
+ * @throws invalid_argument_error if the source is not a vertex of `g`, `g` does not store its
+ *         in-edges, or the placement of `g` does not match `res`.
  * @throws not_supported_error    if the backend of `res` is not available for
  *         dynamic_bfs.
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if memory cannot be allocated.
  * @sync
- * @backends sequential, openmp
- * @determinism Exact: identical results on every backend and run.
- * @paper None yet (TODO(dynamic_bfs): the paper, and its key in docs/references.bib).
+ * @backends sequential, openmp, cuda
+ * @determinism Exact: identical levels on every backend and run.
+ * @paper None: teaching material (the tutorial "Your first dynamic algorithm").
  * @guarantee Strong: `g` is not modified, and nothing is kept if the call throws.
  * @ingroup dynamic_bfs
  */
@@ -241,9 +258,9 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type (ignored).
- * @param[in]     res   Execution resources (sequential, openmp).
+ * @param[in]     res   Execution resources (sequential, openmp, cuda).
  * @param[in,out] g     The graph; the batch is applied to it and its version increases by one.
- * @param[in]     batch Insertions, deletions and weight changes.
+ * @param[in]     batch Insertions and deletions (weights are ignored).
  * @param[in,out] r     Result of compute() or of a previous update() on `g`.
  * @return Counters of this update.
  * @throws stale_result_error     if r.graph_version() != g.version() or `r` belongs to another
@@ -251,11 +268,11 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  * @throws invalid_argument_error if a batch id or weight is invalid (nothing is changed).
  * @throws not_supported_error    if the backend of `res` is not available for
  *         dynamic_bfs.
- * @throws out_of_memory_error    if host memory cannot be allocated.
+ * @throws out_of_memory_error    if memory cannot be allocated.
  * @sync
- * @backends sequential, openmp
- * @determinism Exact: identical results on every backend and run.
- * @paper None yet (TODO(dynamic_bfs)).
+ * @backends sequential, openmp, cuda
+ * @determinism Exact: identical levels and deterministic counters on every backend and run.
+ * @paper None: teaching material (the tutorial "Your first dynamic algorithm").
  * @guarantee Strong for every error found before the batch is applied (`g` and `r` unchanged);
  *            basic after the commit (`g` updated, `r` poisoned until it is recomputed).
  * @ingroup dynamic_bfs
@@ -273,7 +290,7 @@ stats update(const resources& res, graph<vertex_t, edge_t, weight_t>& g,
 namespace dyng::detail {
 
 /**
- * @brief The update participant of an dynamic_bfs result (used by dyng::update()).
+ * @brief The update participant of dynamic_bfs::result (used by dyng::update()).
  * @tparam vertex_t Vertex id type.
  * @tparam edge_t   Edge offset type.
  * @tparam weight_t Weight type.
