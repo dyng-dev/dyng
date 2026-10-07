@@ -48,7 +48,12 @@ which the author may connect later (checkpoint A4); it is not part of 0.2.0, and
 
 ## 0.3.0: the dynamic hypergraph
 
-- The dynamic **hypergraph** with the ESCHER storage, and binary batch files (`.dgb`).
+Built in three milestones: M8a (the ESCHER store, internal: one store that reproduces both
+ESCHER-GPU's and MOSP_ESCHER's CBST, proven by trace replay against both), M8b (the hypergraph
+container on it, its I/O and Python, the header freeze) and M9 (`triad_count`).
+
+- The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
+  views, hypergraph generators, and binary batch files (`.dgb`).
 - `triad_count` (hypergraph h-motif triads, ESCHER / ESCHER+).
 - Experimental: counting your own local hypergraph patterns (`count_local_patterns`).
 

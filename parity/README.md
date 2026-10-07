@@ -25,9 +25,13 @@ $DYNG_SCRATCH/
 | `build_reference.sh` | `git archive` the pinned commit into `ref/<name>@<commit7>/{unpatched,patched}`, verify the copy against the archive, build it, apply the additive export patch (patched only), write the archive-build check; `--test` runs the original's own tests |
 | `export_patches/<repo>/build.sh` | the additive export patch: builds the exporters of `exporters/` against the copy's unchanged sources |
 | `exporters/mosp/` | `export_graph_io` (generators, `applyChangeBatch`) and `export_sssp` (file-based SOSP updates) |
+| `exporters/escher/` | the CBST trace recorders of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (M8a, ADR 0036): `relink_twins.sh` relinks each executable's unchanged objects with the recorder (`cbst_recorder.{hpp,cpp}` and an adapter per original) through `-Xlinker --wrap` and installs the twins in place of the executables; `cbst_census.py` (the nm census: every CBST entry point another object references is wrapped), `check_twins.py` (the twins print what the originals print), `cbst_crossreplay.cpp` (one original's trace through the other's store), `cbst_targeted.cpp` (targeted scenarios through each original's API), `cbst_trace_tool.cpp` (the fast trace verifier) |
 | `exporters/cycle_enum/` | `export_cycle_enum` (CycleEnumeration-GPU: parser, `build_directed_graph`, `prepare_batch`, `apply_batch`, `generate_batch`, the tests' subset-DP oracle and brute force) |
 | `mosp_scale_goldens.py` | the paper-scale `mosp` goldens (M7): `export` records the SHA-256 of every output file of MOSP-OpenMP@c352151's `mosp` on the benchmark inputs (the four gate graphs x three batches, Pref {4, 1, 4} on roadNet-CA, the K sweep on roadNet-CA widened to 4 objectives) after MOSP-CUDA@e220ee2 wrote the same bytes, into the `[sets.mosp_scale]` section of `goldens.toml`; `compare` replays them through `dyng-compat-mosp --mosp`; reached as `export_goldens.py mosp_scale` and `compare.py mosp_scale` |
 | `cycle_count_goldens.py` | the `cycle_count` corpus of CycleEnumeration-GPU@0a976ad: `export` (histograms of the original `cycle-enum`, OpenMP 56 threads, DD k = 3..7, GitHub and Twitch k = 3, 4, COLLAB k = 3; the seed-1 updates 1K/25K/50K on DD, GitHub, Twitch with prior, delta and the generated batch; a DD locality and bound sweep; cross-checked against the original's sequential backend, the exporter's counts and the plan's totals) and `compare` (replay through `dyng-compat-cycle-enum`); reached as `export_goldens.py cycle_count` and `compare.py cycle_count` |
+| `cbst_trace_goldens.py` | the CBST trace goldens of M8a (ADR 0036): `export` (`export_goldens.py cbst_trace <set>|all [--twice]`) records the originals' suites (`make test` of ESCHER-GPU and MOSP_ESCHER), coauth-DBLP 3 x 50K seed 1 (ESCHER-GPU, digest mode), the synthetic-1M batch dumps (seeds 1-3), the DBLP 50K hyperedge and vertex runs of H-SOSP and the targeted scenarios with the recording twins into `$DYNG_SCRATCH/goldens/cbst_trace/<set>` and `[sets.cbst_trace_<set>]` of `goldens.toml`; `compare.py cbst_trace` verifies them; `datasets` re-derives the coauth-DBLP variants (`datasets/registry.toml`); `subset` writes the committed subset `cpp/tests/data/goldens/cbst_trace` |
+| `escher_trace.py` | reader of the CBST traces (format 1): `summary` (what a trace covers), `dump`, `verify` (rebuild every state, check every hash); the C++ reader is `cpp/tests/parity/escher/cbst_trace.hpp` |
+| `escher_crosscheck.py` | the cross-check of the two ESCHER cores (PLAN 6.3 step 2): `run --set <set> --store <original>` replays every trace of a set through the other original's unchanged store and reports the first divergence of every tree with its cause |
 | `cycle_count_perf.py` | the OpenMP A/B of `cycle_count` against the unpatched CycleEnumeration-GPU (`perf_ab.py cycle_count run`; regions from `timed_regions/cycle_count.toml`) |
 | `export_goldens.py` | writes the `sssp` golden set from MOSP-OpenMP@c352151 (495 cases, including 107 with non-canonical initial trees) after cross-checking the original implementations; `--twice` re-exports from a fresh copy and compares |
 | `goldens.toml` | GENERATED manifest: the SHA-256 of each golden set's `MANIFEST.sha256` and one digest per case |
@@ -77,6 +81,14 @@ parity/export_goldens.py mosp_scale
 parity/compare.py mosp_scale --exe build/parity/tools/compat/dyng-compat-mosp --configs openmp:28,sequential
 flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py mosp --backend cuda --gpu 0 --graph roadNet-CA \
     --exe build/parity-cuda/tools/compat/dyng-compat-mosp --runs 21 --json out.json
+# the ESCHER CBST store (M8a): reference builds and recording twins, traces, cross-check
+parity/build_reference.sh --fresh --test ESCHER-GPU MOSP_ESCHER
+parity/exporters/escher/cbst_census.py ESCHER-GPU && parity/exporters/escher/cbst_census.py MOSP_ESCHER
+parity/exporters/escher/check_twins.py ESCHER-GPU     # twins print what the originals print
+parity/cbst_trace_goldens.py datasets                 # coauth-DBLP variants (datasets/registry.toml)
+parity/export_goldens.py cbst_trace all --twice
+parity/escher_trace.py summary <trace.cbt>
+parity/escher_crosscheck.py run --set cbst_trace_escher_gpu_test --store MOSP_ESCHER --capacity-floor 67108864
 ```
 
 `perf_ab.py run` takes `$DYNG_SCRATCH/perf.lock` itself; under the machine's convention

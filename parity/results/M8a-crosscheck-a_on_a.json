@@ -1,0 +1,25 @@
+{
+ "capacity_floor": 0,
+ "cases": 75,
+ "counts": "scan",
+ "divergences": [],
+ "set": "cbst_trace_escher_gpu_test",
+ "source": "ESCHER-GPU",
+ "store": "ESCHER-GPU",
+ "trees": "",
+ "trees_by_name": {
+  "H2H": {
+   "identical": 75
+  },
+  "H2V": {
+   "identical": 75
+  },
+  "V2H": {
+   "identical": 75
+  },
+  "V2V": {
+   "identical": 15
+  }
+ },
+ "unexplained": 0
+}

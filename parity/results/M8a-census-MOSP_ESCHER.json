@@ -1,0 +1,822 @@
+{
+ "reference": "MOSP_ESCHER",
+ "copy": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched",
+ "twins": [
+  {
+   "twin": "hsospBench",
+   "objects": 18,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "hsospBench.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::bulkLoad(std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >&&, std::vector<long long, std::allocator<long long> >&&, int, int)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::beginBatch(escher_mosp::HgBatch const&)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::finishBatch(escher_mosp::DynamicHypergraph::BatchResult&, unsigned long const*, unsigned long)",
+     "kind": "hook"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "hsospStress",
+   "objects": 18,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::beginBatch(escher_mosp::HgBatch const&)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::finishBatch(escher_mosp::DynamicHypergraph::BatchResult&, unsigned long const*, unsigned long)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospStress.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::bulkLoad(std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >&&, std::vector<long long, std::allocator<long long> >&&, int, int)",
+     "kind": "hook"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "main",
+   "objects": 26,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "parallelStressTest",
+   "objects": 25,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "stressTest",
+   "objects": 23,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_cbst_ops",
+   "objects": 12,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_ops.cu.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_cbst_smoke",
+   "objects": 12,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "test_cbst_smoke.cu.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_smoke.cu.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_smoke.cu.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_smoke.cu.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "test_cbst_smoke.cu.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_dynamicgraph_roundtrip",
+   "objects": 14,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_h2h_construction",
+   "objects": 18,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::beginBatch(escher_mosp::HgBatch const&)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::finishBatch(escher_mosp::DynamicHypergraph::BatchResult&, unsigned long const*, unsigned long)",
+     "kind": "hook"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "test_h2h_construction.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::bulkLoad(std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >&&, std::vector<long long, std::allocator<long long> >&&, int, int)",
+     "kind": "hook"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_h2h_delta",
+   "objects": 18,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::beginBatch(escher_mosp::HgBatch const&)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::finishBatch(escher_mosp::DynamicHypergraph::BatchResult&, unsigned long const*, unsigned long)",
+     "kind": "hook"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "test_h2h_delta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::bulkLoad(std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >&&, std::vector<long long, std::allocator<long long> >&&, int, int)",
+     "kind": "hook"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_hsosp_matches_dijkstra",
+   "objects": 18,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::beginBatch(escher_mosp::HgBatch const&)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::finishBatch(escher_mosp::DynamicHypergraph::BatchResult&, unsigned long const*, unsigned long)",
+     "kind": "hook"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "test_hsosp_matches_dijkstra.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::beginBatch(escher_mosp::HgBatch const&)",
+     "kind": "hook"
+    },
+    {
+     "object": "test_hsosp_matches_dijkstra.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::bulkLoad(std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >&&, std::vector<long long, std::allocator<long long> >&&, int, int)",
+     "kind": "hook"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_hsosp_scale",
+   "objects": 18,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::beginBatch(escher_mosp::HgBatch const&)",
+     "kind": "hook"
+    },
+    {
+     "object": "hsospDelta.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::finishBatch(escher_mosp::DynamicHypergraph::BatchResult&, unsigned long const*, unsigned long)",
+     "kind": "hook"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicHypergraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "test_hsosp_scale.cu.o",
+     "symbol": "escher_mosp::DynamicHypergraph::bulkLoad(std::vector<std::vector<int, std::allocator<int> >, std::allocator<std::vector<int, std::allocator<int> > > >&&, std::vector<long long, std::allocator<long long> >&&, int, int)",
+     "kind": "hook"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_mosp_update",
+   "objects": 26,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "test_snapshot_matches_updateCSR",
+   "objects": 26,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched/build/lib/libescher_core.a[operations.cu.o]"
+   ],
+   "api_symbols": 20,
+   "references": [
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "unfillCBST(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, CBSTContext&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int, int const*)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "DynamicGraph.cpp.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  }
+ ],
+ "problems": [],
+ "not_twins": [
+  {
+   "executable": "tests/local/local_tests",
+   "present": false
+  }
+ ],
+ "passed": true
+}

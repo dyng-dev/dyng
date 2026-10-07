@@ -132,7 +132,7 @@ M0 decisions ─► M1a CPU sssp ─┬─► M1b CUDA sssp ─┐
                               └─► M2 cycle_count ─┴─► M3 framework + 0.1 API freeze ─┐
 A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ─────────────────────────────────┴─► M5 Python, CLI, docs ─► 0.1.0
 0.1.0 ─► M7 sssp operators + mosp │ M6a CUDA plugin wheels │ M6b hardening ─► 0.2.0
-0.2.0 ─► M8 ESCHER store ─► M9 triad_count ─► 0.3.0
+0.2.0 ─► M8a ESCHER store ─► M8b hypergraph container ─► M9 triad_count ─► 0.3.0
 0.3.0 ─► M10 label_propagation │ M11 hyper_sssp ─► 0.4.0 ─► 0.5 ─► 0.6 (framework public) ─► 1.0
 ```
 
@@ -151,9 +151,11 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 | **M6b** hardening | the tutorial algorithms and "Your first dynamic algorithm"; the documentation on GitHub Pages; reader fuzzers; the cycle_count and mosp mutation suites; the Hypothesis profile `full`; sanitizer jobs (ASan + UBSan, TSan, TSan with OpenMP and Archer) | tutorials pass the kit on every backend; mutations fail as expected; sanitizer and fuzz jobs green | **done** on `m6b-hardening` (ADRs 0033 and 0034; {doc}`retrospectives/M6b`) |
 | **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | **done** on `m7-mosp` (0.2; ADRs 0026-0028): the operators engine byte-identical to the fused one (C4, the corpus), mosp byte-identical to both originals and within every gate, `dyng.mosp` and `dyng mosp`; merged into `main` by pull request #8 (`7d64c90`) after 0.1.0. PLAN 11.3 also lists the `.dgb` binary batches for M7; they moved to M8, with which PLAN 6.2 (order 7) ships them, because no M7 deliverable reads them ({doc}`retrospectives/M7`, "Review and fix") |
 | **0.2.0** | M7 + M6 (M6a, M6b) | release checklist | in preparation |
-| **M8** ESCHER store + hypergraph | the staged CBST merge (ESCHER-GPU first, then the MOSP_ESCHER behaviours one by one); `hypergraph` with `escher` storage; `hyperedge_batch`; `.hg` I/O; the `.dgb` binary batches and the streaming `batch_reader` (PLAN 5.7; moved from M7) | CBST trace replay identical for both originals' policies after every merge step; integrity after every batch | |
+| **M8** ESCHER store + hypergraph, run as M8a and M8b (a planning change of 2026-10-07, reported to the author: both stay in 0.3.0) | see M8a and M8b; together they carry every item of PLAN 11.3's M8 row | see M8a and M8b | see M8a and M8b |
+| **M8a** the ESCHER CBST store (internal) | reference builds and additive link-time CBST trace recorders of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (ADR 0036), the trace goldens and batch dumps of both originals' suites, coauth-DBLP and DBLP; the CBST host model `testing::cbst_host_model` validated against both originals before any port; the staged CBST merge (ESCHER-GPU verbatim first, then the MOSP_ESCHER behaviours one by one); the capacity presets; the 9 CBST scenarios; kernel-path coverage; the early store-memory reading | CBST trace replay identical for both originals' policies after every merge step; the 9 CBST scenarios; kernel-path coverage; the host model agrees 100% with both originals; store memory <= 1.05x on coauth-DBLP | in progress on `m8a-escher-store` (step 1: references, recorders, trace goldens, dataset pins, the cross-check of the originals, the timed-region map) |
+| **M8b** the hypergraph container | `hypergraph` with `escher` storage on the accepted store; the `sorted_merge` line graph; row views; `hyperedge_batch` (hyperedge insert / delete; incidence edits in 0.4); `.hg` I/O; the `.dgb` binary batches and the streaming `batch_reader` (PLAN 5.7; moved from M7); hypergraph generators (+ legacy); Python; the hypergraph headers frozen | container-level id parity with both originals; integrity after every batch; device memory <= 1.05x; the header freeze | |
 | **M9** `triad_count` | wedge engine, h-motif patterns, reference backends, experimental `count_local_patterns` | exact counts and deltas on the golden batches; "baseline + deltas == recount"; performance gate; memory <= 1.05x | |
-| **0.3.0** | M8 + M9 | release checklist | |
+| **0.3.0** | M8a + M8b + M9 | release checklist | |
 | **M10** `label_propagation` | slotted / slack row layouts, vertex batches, the DynLP pipeline, IrLP, the harmonic reference oracle | generator byte identity; damped byte parity; calibrated in-place tolerances; performance gate 50K-5M | |
 | **M11** `hyper_sssp` | `slack_csr` storage, incidence edits, the as-is port, then the shared `sssp` engine | distances and parents by id; line-graph delta equality; the seven mutations fail; performance gate | |
 | **0.4.0** | M10 + M11; conda-forge (`libdyng` + `dyng`), aarch64 wheels | release checklist | |
@@ -225,7 +227,7 @@ Each has a recommended default, so work proceeds; it is recorded as an ADR when 
 | O14 | docs hosting | **decided 2026-10-02:** GitHub Pages (the plan's fallback; Read the Docs not connected), deployed by `docs.yml` from `main` | M6 |
 | O8, O17 | CUDA wheels, oldest GPU | plugins `dyng-cu12` / `dyng-cu13` in 0.2 (M6a); sm_75 | M6a |
 | O21 | 0.2 if the CBST merge runs late | **settled by the re-grouping of 2026-10-02:** `mosp` ships in 0.2.0, the hypergraph and `triad_count` in 0.3.0 | M8 |
-| O16 | hypergraph `id_reuse` default | `erase_first`; parity runs set `insert_first` | M8 |
+| O16 | hypergraph `id_reuse` default | **decided 2026-10-07 by the author:** `erase_first` (the ESCHER paper's order); the H-SOSP parity runs set `insert_first` | M8 |
 | O9, O10 | DynLP default mode, kNN construction | the published setup; a Python recipe | M10 |
 | O12 | H-SOSP engine | the shared `sssp` engine after an as-is port proves parity | M11 |
 

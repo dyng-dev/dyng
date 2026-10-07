@@ -10,6 +10,14 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- M8a (parity harness, not part of the library): the **CBST trace recorders** of ESCHER-GPU@abcf9b2
+  and MOSP_ESCHER@4b86159 (ADR 0036): the originals' unchanged objects relinked into recording
+  twins with `-Xlinker --wrap` (`parity/exporters/escher`), the trace format 1 and its readers
+  (`parity/escher_trace.py`, the host-only `cpp/tests/parity/escher/cbst_trace.hpp`), the trace
+  goldens of both originals' suites, coauth-DBLP, DBLP and targeted scenarios
+  (`parity/export_goldens.py cbst_trace`), `datasets/registry.toml` with the coauth-DBLP pins,
+  the cross-check of the two ESCHER cores (`parity/escher_crosscheck.py`) and the timed-region
+  map `parity/timed_regions/hypergraph.toml`.
 - M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0033), created with
   `scripts/new_algorithm.py` and completed on the sequential, OpenMP and CUDA backends (Tier A),
   each with hand cases, an independent oracle and the conformance kit C0-C12 on every backend:

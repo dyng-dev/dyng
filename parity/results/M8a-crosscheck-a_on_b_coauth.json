@@ -1,0 +1,19 @@
+{
+ "capacity_floor": 134217728,
+ "cases": 1,
+ "counts": "scan",
+ "divergences": [],
+ "set": "cbst_trace_escher_gpu_coauth50k",
+ "source": "ESCHER-GPU",
+ "store": "MOSP_ESCHER",
+ "trees": "H2V,V2H",
+ "trees_by_name": {
+  "H2V": {
+   "identical": 1
+  },
+  "V2H": {
+   "identical": 1
+  }
+ },
+ "unexplained": 0
+}

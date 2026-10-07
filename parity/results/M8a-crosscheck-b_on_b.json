@@ -1,0 +1,70 @@
+{
+ "capacity_floor": 0,
+ "cases": 24,
+ "counts": "scan",
+ "divergences": [],
+ "set": "cbst_trace_mosp_escher_test",
+ "source": "MOSP_ESCHER",
+ "store": "MOSP_ESCHER",
+ "trees": "",
+ "trees_by_name": {
+  "bestfit": {
+   "identical": 1
+  },
+  "churn-growth": {
+   "identical": 1
+  },
+  "churn-insert": {
+   "identical": 1
+  },
+  "churn-random": {
+   "identical": 1
+  },
+  "churn-small": {
+   "identical": 1
+  },
+  "edges": {
+   "identical": 603
+  },
+  "erase": {
+   "identical": 1
+  },
+  "h2h": {
+   "identical": 150
+  },
+  "h2v": {
+   "identical": 150
+  },
+  "inAdj": {
+   "identical": 603
+  },
+  "outAdj": {
+   "identical": 603
+  },
+  "random": {
+   "identical": 3
+  },
+  "reuse": {
+   "identical": 1
+  },
+  "scale": {
+   "identical": 1107
+  },
+  "smoke": {
+   "identical": 11
+  },
+  "surplus": {
+   "identical": 1
+  },
+  "terminator": {
+   "identical": 1
+  },
+  "unfill-chain": {
+   "identical": 1
+  },
+  "v2h": {
+   "identical": 150
+  }
+ },
+ "unexplained": 0
+}

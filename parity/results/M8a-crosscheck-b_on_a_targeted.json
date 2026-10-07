@@ -1,0 +1,113 @@
+{
+ "capacity_floor": 0,
+ "cases": 2,
+ "counts": "scan",
+ "divergences": [
+  {
+   "case": "targeted_small",
+   "class": "grows_vs_compacts",
+   "compared": 5,
+   "detail": "key 1: source 3, replay 0",
+   "field": "occupancy",
+   "op": "fill",
+   "op_index": 4,
+   "ops": 5,
+   "seq": 51,
+   "tree": "targeted-fill_compact"
+  },
+  {
+   "case": "targeted_small",
+   "class": "grows_vs_compacts",
+   "compared": 4,
+   "detail": "key 1: source 3, replay 0",
+   "field": "occupancy",
+   "op": "insert",
+   "op_index": 3,
+   "ops": 4,
+   "seq": 58,
+   "tree": "targeted-insert_compact"
+  },
+  {
+   "case": "targeted_small",
+   "class": "grows_vs_compacts",
+   "compared": 2,
+   "detail": "source escher::EscherError, replay none",
+   "field": "exception",
+   "op": "fill",
+   "op_index": 1,
+   "ops": 2,
+   "seq": 63,
+   "tree": "targeted-capacity_throw"
+  },
+  {
+   "case": "targeted_small",
+   "class": "compact_only_in_b",
+   "compared": 3,
+   "detail": "skipped: ESCHER-GPU has no compact()",
+   "field": "not replayed",
+   "op": "compact",
+   "op_index": 3,
+   "ops": 4,
+   "seq": 70,
+   "tree": "targeted-compact"
+  },
+  {
+   "case": "targeted_small",
+   "class": "b_validates",
+   "compared": 1,
+   "detail": "source escher::EscherError, replay none",
+   "field": "exception",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 1,
+   "seq": 74,
+   "tree": "targeted-small_capacity"
+  }
+ ],
+ "set": "cbst_trace_mosp_escher_targeted",
+ "source": "MOSP_ESCHER",
+ "store": "ESCHER-GPU",
+ "trees": "",
+ "trees_by_name": {
+  "targeted-capacity_throw": {
+   "grows_vs_compacts": 1
+  },
+  "targeted-chain_fallback": {
+   "identical": 1
+  },
+  "targeted-compact": {
+   "compact_only_in_b": 1
+  },
+  "targeted-d0": {
+   "identical": 1
+  },
+  "targeted-fill_compact": {
+   "grows_vs_compacts": 1
+  },
+  "targeted-growth": {
+   "identical": 1
+  },
+  "targeted-insert_compact": {
+   "grows_vs_compacts": 1
+  },
+  "targeted-k0": {
+   "identical": 1
+  },
+  "targeted-levels": {
+   "identical": 1
+  },
+  "targeted-reissue_max": {
+   "identical": 1
+  },
+  "targeted-reuse_only": {
+   "identical": 1
+  },
+  "targeted-reuse_surplus": {
+   "identical": 1
+  },
+  "targeted-small_capacity": {
+   "b_validates": 1
+  }
+ },
+ "unexplained": 0
+}

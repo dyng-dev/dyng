@@ -1,0 +1,290 @@
+{
+ "capacity_floor": 0,
+ "cases": 24,
+ "counts": "scan",
+ "divergences": [
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 3,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 9,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 15,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 21,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 27,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 33,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 39,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 45,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 51,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 57,
+   "tree": "smoke"
+  },
+  {
+   "case": "001-test_cbst_smoke",
+   "class": "caller_counts",
+   "compared": 1,
+   "detail": "key 1: source 0, replay 2",
+   "field": "occupancy",
+   "op": "construct",
+   "op_index": 0,
+   "ops": 3,
+   "seq": 63,
+   "tree": "smoke"
+  },
+  {
+   "case": "010-test_cbst_ops",
+   "class": "grows_vs_compacts",
+   "compared": 198,
+   "detail": "key 1: source 1, replay 3",
+   "field": "occupancy",
+   "op": "fill",
+   "op_index": 197,
+   "ops": 1001,
+   "seq": 200,
+   "tree": "churn-small"
+  },
+  {
+   "case": "010-test_cbst_ops",
+   "class": "grows_vs_compacts",
+   "compared": 114,
+   "detail": "key 1: source 4, replay 12",
+   "field": "length",
+   "op": "fill",
+   "op_index": 113,
+   "ops": 1201,
+   "seq": 1120,
+   "tree": "churn-random"
+  },
+  {
+   "case": "010-test_cbst_ops",
+   "class": "grows_vs_compacts",
+   "compared": 32,
+   "detail": "key 1: source 8, replay 3",
+   "field": "occupancy",
+   "op": "insert",
+   "op_index": 31,
+   "ops": 32,
+   "seq": 2242,
+   "tree": "churn-insert"
+  },
+  {
+   "case": "010-test_cbst_ops",
+   "class": "grows_vs_compacts",
+   "compared": 62,
+   "detail": "key 1: source 100, replay 12",
+   "field": "length",
+   "op": "fill",
+   "op_index": 61,
+   "ops": 80,
+   "seq": 2307,
+   "tree": "churn-growth"
+  },
+  {
+   "case": "015-test_hsosp_matches_dijkstra",
+   "class": "grows_vs_compacts",
+   "compared": 101,
+   "detail": "key 3: source 16, replay 12",
+   "field": "length",
+   "op": "fill",
+   "op_index": 100,
+   "ops": 601,
+   "seq": 1716,
+   "tree": "h2v"
+  },
+  {
+   "case": "015-test_hsosp_matches_dijkstra",
+   "class": "grows_vs_compacts",
+   "compared": 105,
+   "detail": "key 4: source 12, replay 8",
+   "field": "length",
+   "op": "fill",
+   "op_index": 104,
+   "ops": 601,
+   "seq": 1737,
+   "tree": "v2h"
+  },
+  {
+   "case": "015-test_hsosp_matches_dijkstra",
+   "class": "grows_vs_compacts",
+   "compared": 43,
+   "detail": "key 2: source 35, replay 3",
+   "field": "occupancy",
+   "op": "fill",
+   "op_index": 42,
+   "ops": 601,
+   "seq": 1428,
+   "tree": "h2h"
+  }
+ ],
+ "set": "cbst_trace_mosp_escher_test",
+ "source": "MOSP_ESCHER",
+ "store": "ESCHER-GPU",
+ "trees": "",
+ "trees_by_name": {
+  "bestfit": {
+   "identical": 1
+  },
+  "churn-growth": {
+   "grows_vs_compacts": 1
+  },
+  "churn-insert": {
+   "grows_vs_compacts": 1
+  },
+  "churn-random": {
+   "grows_vs_compacts": 1
+  },
+  "churn-small": {
+   "grows_vs_compacts": 1
+  },
+  "edges": {
+   "identical": 603
+  },
+  "erase": {
+   "identical": 1
+  },
+  "h2h": {
+   "grows_vs_compacts": 1,
+   "identical": 149
+  },
+  "h2v": {
+   "grows_vs_compacts": 1,
+   "identical": 149
+  },
+  "inAdj": {
+   "identical": 603
+  },
+  "outAdj": {
+   "identical": 603
+  },
+  "random": {
+   "identical": 3
+  },
+  "reuse": {
+   "identical": 1
+  },
+  "scale": {
+   "identical": 1107
+  },
+  "smoke": {
+   "caller_counts": 11
+  },
+  "surplus": {
+   "identical": 1
+  },
+  "terminator": {
+   "identical": 1
+  },
+  "unfill-chain": {
+   "identical": 1
+  },
+  "v2h": {
+   "grows_vs_compacts": 1,
+   "identical": 149
+  }
+ },
+ "unexplained": 0
+}
