@@ -97,7 +97,8 @@ python -c "import dyng; dyng.show_config()"
 ```
 
 The same package can be built from a clone (it compiles the C++ core, so it needs CMake >=
-3.30, Ninja and a C++17 compiler, for example from the `dyng-dev` environment):
+3.30 and Ninja, for example from the `dyng-dev` environment, and a C++17 compiler from the
+system):
 
 ```bash
 pip install .                      # the wheel of this checkout
