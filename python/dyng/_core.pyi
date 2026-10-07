@@ -1235,6 +1235,12 @@ class DynamicBfsResult:
     def levels(self) -> Annotated[Any, dict(dtype='int64', shape=(None,), writable=False)]: ...
 
     @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device arrays).
+        """
+
+    @property
     def generation(self) -> int:
         """The number of updates of this result (dyng.Array's staleness check)."""
 
@@ -1327,6 +1333,12 @@ class TriangleDeltaResult:
 
     @property
     def count(self) -> int: ...
+
+    @property
+    def writer(self) -> Resources | None:
+        """
+        The resources of the call that last wrote this result (orders its device memory).
+        """
 
     @property
     def generation(self) -> int:
