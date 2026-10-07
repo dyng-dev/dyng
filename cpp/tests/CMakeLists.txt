@@ -179,6 +179,15 @@ if(DYNG_ENABLE_CUDA)
     LIBRARIES dyng_cbst_device
   )
   list(APPEND _dyng_private_tests dyng_cbst_coverage_tests)
+  # The early store-memory reading on escher_gpu_coauth50k (M8a criterion 15; in $DYNG_SCRATCH).
+  dyng_add_test(
+    NAME dyng_cbst_memory_tests
+    SOURCES parity/escher/cbst_device_memory_test.cpp
+    LABELS gpu parity cbst slow
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_memory_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_memory_tests)
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   add_test(
