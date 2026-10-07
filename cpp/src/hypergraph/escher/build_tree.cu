@@ -12,6 +12,7 @@
  */
 #include "hypergraph/escher/device_utils.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "util/cuda_check.hpp"
 #include "util/kernel_registry.hpp"
 
 #include <climits>
@@ -121,6 +122,15 @@ __global__ void record_keys_and_starts_kernel(const cbst_node* records, int n, i
   if (tid >= n) return;
   keys[tid] = records[tid].index;
   starts[tid] = records[tid].value;
+}
+
+void launch_build_layout(cudaStream_t stream, cbst_node* nodes, int* keys, int* starts, int n,
+                         int total_size) {
+  const int block = 256;
+  const int grid = (n + block - 1) / block;
+  build_empty_tree_kernel<<<grid, block, 0, stream>>>(nodes, n);
+  store_items_kernel<<<grid, block, 0, stream>>>(nodes, keys, starts, n, total_size);
+  DYNG_CHECK_KERNEL(stream);
 }
 
 // Every kernel of this file is loaded by resources::warm_up().

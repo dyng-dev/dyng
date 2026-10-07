@@ -12,6 +12,7 @@
  */
 #include "hypergraph/escher/device_utils.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "util/cuda_check.hpp"
 #include "util/kernel_registry.hpp"
 
 #include <climits>
@@ -237,6 +238,14 @@ __global__ void apply_reuse_block_kernel(cbst_node* nodes, int* flat_values, int
 
   // Thread 0 handles the metadata
   if (threadIdx.x == 0) finish_reuse(node, avail, pos, base, len, capacity, deleted_keys[slot_idx]);
+}
+
+void launch_extract_keys_from_positions(cudaStream_t stream, int* keys, int* positions,
+                                        int* out_keys, int n, int d) {
+  const int block = 256;
+  extract_keys_from_positions_kernel<<<(d + block - 1) / block, block, 0, stream>>>(keys, positions,
+                                                                                    out_keys, n, d);
+  DYNG_CHECK_KERNEL(stream);
 }
 
 // Every kernel of this file is loaded by resources::warm_up().

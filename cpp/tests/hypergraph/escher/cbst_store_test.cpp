@@ -363,3 +363,197 @@ TEST(CbstStoreDeviceBytes, IsWhatTheStoreHolds) {
 
 }  // namespace
 }  // namespace dyng::detail::escher
+
+namespace dyng::detail::escher {
+namespace {
+
+// --- The error policy -----------------------------------------------------------------------------
+
+TEST(CbstStoreErrors, ACapacityBelowThePayloadIsRejectedBeforeAnythingChanges) {
+  DYNG_SKIP_IF_NO_CUDA();
+  resources res = resources::cuda();
+  counting_resource counter(res.device());
+  res.set_memory_resource(counter);
+  cbst_store s(res, "small", 8);
+  std::vector<int> keys = {1, 2}, starts = {0, 4};
+  std::vector<int> flat = {1, 2, 3, INT_MIN, 4, 0, 0, INT_MIN};
+  cbst_store small(res, "smaller", 7);
+  EXPECT_THROW(small.construct(keys.data(), starts.data(), 2, flat.data(), 8),
+               invalid_argument_error);
+  EXPECT_EQ(counter.allocations(), 0);  // nothing was allocated
+  EXPECT_FALSE(small.poisoned());
+  EXPECT_EQ(small.context().num_records, 0);
+  s.construct(keys.data(), starts.data(), 2, flat.data(), 8);
+  EXPECT_EQ(violations(s, {{1, 2, 3}, {4}}), 0);
+}
+
+TEST(CbstStoreErrors, AFailureAfterInPlaceWritesPoisonsTheStore) {
+  DYNG_SKIP_IF_NO_CUDA();
+  resources res = resources::cuda();
+  counting_resource counter(res.device());
+  res.set_memory_resource(counter);
+  std::vector<int> big(100);
+  for (int i = 0; i < 100; ++i) big[static_cast<std::size_t>(i)] = i + 1;
+  // An append that overflows key 1 and grows the payload: its kernels write in place before the
+  // growth allocates. Fail the k-th allocation of the operation, for every k until it succeeds.
+  bool failed_late = false;
+  for (int k = 0; k < 32; ++k) {
+    SCOPED_TRACE(k);
+    cbst_store s(res, "poison", 8);
+    std::vector<int> keys = {1, 2}, starts = {0, 4};
+    std::vector<int> flat = {1, 2, 3, INT_MIN, 4, 0, 0, INT_MIN};
+    s.construct(keys.data(), starts.data(), 2, flat.data(), 8);
+    const batch b = make_batch({1}, {big});
+    counter.fail_after(k);
+    bool threw = false;
+    try {
+      s.append(b.keys, b.payload, b.prefix);
+    } catch (const out_of_memory_error&) {
+      threw = true;
+    }
+    counter.fail_after(-1);
+    if (!threw) {
+      EXPECT_FALSE(s.poisoned());
+      ASSERT_GT(k, 0);
+      break;
+    }
+    failed_late = true;
+    // Every later operation throws, until the store is constructed again.
+    EXPECT_TRUE(s.poisoned());
+    EXPECT_THROW(s.erase({1}), invalid_argument_error);
+    EXPECT_THROW(s.append(b.keys, b.payload, b.prefix), invalid_argument_error);
+    EXPECT_THROW((void)s.insert(b.keys, b.payload, b.prefix), invalid_argument_error);
+    EXPECT_THROW(s.remove_values(b.keys, b.payload, b.prefix), invalid_argument_error);
+    EXPECT_THROW((void)s.clone(), invalid_argument_error);
+    s.construct(keys.data(), starts.data(), 2, flat.data(), 8);
+    EXPECT_FALSE(s.poisoned());
+    EXPECT_EQ(violations(s, {{1, 2, 3}, {4}}), 0);
+  }
+  EXPECT_TRUE(failed_late);
+}
+
+// --- Two stores on two streams ------------------------------------------------------------------
+
+/// The comparable part of a downloaded state (everything but the device addresses).
+std::vector<long long> fingerprint(const cbst_host_state& h) {
+  std::vector<long long> f = {h.num_records,           h.fixed_size,
+                              h.initial_payload_size,  h.alignment,
+                              h.scratch_item_capacity, h.scratch_payload_capacity};
+  for (const auto& n : h.nodes)
+    f.insert(f.end(), {n.index, n.value, n.length, n.size, n.occupancy, n.tail_base,
+                       n.tail_capacity, n.left, n.right, n.parent});
+  for (const auto* v : {&h.keys, &h.start_offsets, &h.avail, &h.subtree_avail, &h.payload})
+    f.insert(f.end(), v->begin(), v->end());
+  return f;
+}
+
+/// A sequence of operations with every path (applied to a store step by step).
+void run_step(cbst_store& s, int step) {
+  std::vector<int> rowa(70), rowb(1500);
+  for (int i = 0; i < 70; ++i) rowa[static_cast<std::size_t>(i)] = 1000 + i;
+  for (int i = 0; i < 1500; ++i) rowb[static_cast<std::size_t>(i)] = 5000 + i;
+  switch (step) {
+    case 0: {
+      std::vector<int> keys, starts, flat;
+      for (int k = 1; k <= 300; ++k) {
+        keys.push_back(k);
+        starts.push_back(static_cast<int>(flat.size()));
+        flat.insert(flat.end(), {k, k + 1, k + 2, INT_MIN});
+      }
+      s.construct(keys.data(), starts.data(), 300, flat.data(), static_cast<int>(flat.size()));
+      break;
+    }
+    case 1: {
+      const batch b = make_batch({3, 7, 9}, {rowa, rowb, {1, 2}});
+      s.append(b.keys, b.payload, b.prefix);
+      break;
+    }
+    case 2:
+      s.erase({5, 6, 7, 100, 200});
+      break;
+    case 3: {
+      const batch b = make_batch({0, 0, 0, 0}, {{1}, {2, 3}, rowa, rowb});
+      (void)s.insert(b.keys, b.payload, b.prefix);
+      break;
+    }
+    case 4: {
+      std::vector<int> drop(rowb.begin(), rowb.begin() + 40);
+      const batch b = make_batch({3, 9}, {drop, {1}});
+      s.remove_values(b.keys, b.payload, b.prefix);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+TEST(CbstStoreStreams, TwoStoresOnTwoStreamsEqualSequentialRuns) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  // Sequential reference on the default resources.
+  cbst_store reference(res, "reference", 4096);
+  for (int step = 0; step < 5; ++step) run_step(reference, step);
+  const std::vector<long long> want = fingerprint(reference.download());
+  cudaStream_t a = nullptr, b = nullptr;
+  ASSERT_EQ(cudaStreamCreateWithFlags(&a, cudaStreamNonBlocking), cudaSuccess);
+  ASSERT_EQ(cudaStreamCreateWithFlags(&b, cudaStreamNonBlocking), cudaSuccess);
+  {
+    const resources ra = resources::cuda(res.device(), stream_ref(a));
+    const resources rb = resources::cuda(res.device(), stream_ref(b));
+    cbst_store sa(ra, "a", 4096), sb(rb, "b", 4096);
+    for (int step = 0; step < 5; ++step) {  // interleaved, no host synchronization in between
+      run_step(sa, step);
+      run_step(sb, step);
+    }
+    std::vector<long long> got_a = fingerprint(sa.download());
+    std::vector<long long> got_b = fingerprint(sb.download());
+    EXPECT_EQ(got_a, want);
+    EXPECT_EQ(got_b, want);
+  }
+  ASSERT_EQ(cudaStreamDestroy(a), cudaSuccess);
+  ASSERT_EQ(cudaStreamDestroy(b), cudaSuccess);
+}
+
+// --- Host synchronizations per operation (ADR 0038, the read points) ------------------------------
+
+/// The host synchronizations of one operation.
+template <typename op_t>
+long long syncs_of(cbst_store& s, op_t&& op) {
+  const long long before = s.host_syncs();
+  op();
+  return s.host_syncs() - before;
+}
+
+TEST(CbstStoreSyncs, OnlyAtEscherGpusReadPointsAndNeverMoreThanEscherGpu) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "syncs", 4096);
+  // ESCHER-GPU's blocking calls on the same paths (operations.cu@abcf9b2, ADR 0038): construct 3
+  // (the cudaMemcpy uploads); rebuild 7 (6 cudaFree, thrust::sequence); fill 2 (inclusive_scan,
+  // the total appended) + 1 with growth (cudaFree); erase and unfill 0; insert 1 (D) + 6 with
+  // reuse (2 sequence, 2 sort_by_key, inclusive_scan, count_if) + 3 with matches (the three
+  // copies) + 7 with surplus (copy_if, the last key, 5 cudaFree).
+  EXPECT_EQ(syncs_of(s, [&] { run_step(s, 0); }), 0);                  // A: 3
+  EXPECT_EQ(syncs_of(s, [&] { run_step(s, 1); }), 1);                  // A: 3 (growth)
+  EXPECT_EQ(syncs_of(s, [&] { run_step(s, 2); }), 0);                  // A: 0
+  EXPECT_EQ(syncs_of(s, [&] { run_step(s, 3); }), 1 + 1 + 1 + 1 + 1);  // A: 1 + 6 + 3 + 7
+  EXPECT_EQ(syncs_of(s, [&] { run_step(s, 4); }), 0);                  // A: 0
+  // An insert without deleted slots: D and the surplus rebuild only.
+  const batch only_surplus = make_batch({0}, {{1, 2}});
+  EXPECT_EQ(
+      syncs_of(
+          s, [&] { (void)s.insert(only_surplus.keys, only_surplus.payload, only_surplus.prefix); }),
+      1 + 1 + 1);  // A: 1 + 7
+  // An insert whose items all fit deleted slots: no rebuild.
+  s.erase({1, 2});
+  const batch only_reuse = make_batch({0, 0}, {{1}, {2}});
+  EXPECT_EQ(
+      syncs_of(s, [&] { (void)s.insert(only_reuse.keys, only_reuse.payload, only_reuse.prefix); }),
+      1 + 1 + 1);  // A: 1 + 6 + 3
+  // A fill within the capacity.
+  const batch small = make_batch({4}, {{9}});
+  EXPECT_EQ(syncs_of(s, [&] { s.append(small.keys, small.payload, small.prefix); }), 1);  // A: 2
+}
+
+}  // namespace
+}  // namespace dyng::detail::escher

@@ -127,6 +127,14 @@ dyng_add_test(
   LIBRARIES dyng_cbst_compare
 )
 list(APPEND _dyng_private_tests dyng_cbst_model_large_tests)
+# The source rules of the CBST store (M8a criterion 9): no process exit, print, verbose(),
+# cudaDeviceSynchronize, raw cudaMalloc, Thrust without the resources' policy or default-stream
+# launch in cpp/src/hypergraph, and no public header that exposes the store.
+add_test(NAME cbst_source_rules
+         COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/cpp -P
+                 "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
+)
+set_tests_properties(cbst_source_rules PROPERTIES LABELS "cpu;cbst")
 # The dynG CBST store (cpp/src/hypergraph/escher, M8a step 3, ADR 0038) as a store of the replay:
 # the device adapter, the replays of the committed traces on the device (labels gpu, parity, cbst)
 # and dyng_cbst_replay --store device.
@@ -150,11 +158,20 @@ if(DYNG_ENABLE_CUDA)
   # dynG additions, the error policy, the streams.
   dyng_add_test(
     NAME dyng_cbst_store_tests
-    SOURCES hypergraph/escher/cbst_store_test.cpp
+    SOURCES hypergraph/escher/cbst_store_test.cpp hypergraph/escher/cbst_layout_test.cu
     LABELS gpu cbst
   )
   dyng_set_cuda_options(dyng_cbst_store_tests)
   list(APPEND _dyng_private_tests dyng_cbst_store_tests)
+  # Kernel-path coverage on ESCHER-GPU's skewed and medium traces (in $DYNG_SCRATCH; skipped
+  # without them).
+  dyng_add_test(
+    NAME dyng_cbst_coverage_tests
+    SOURCES parity/escher/cbst_device_coverage_test.cpp
+    LABELS gpu parity cbst slow
+    LIBRARIES dyng_cbst_device
+  )
+  list(APPEND _dyng_private_tests dyng_cbst_coverage_tests)
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   add_test(

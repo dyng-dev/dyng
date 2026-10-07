@@ -108,4 +108,12 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
                                     int* values_to_remove, int* remove_prefix_sizes,
                                     int* bin_indices, int bin_count);
 
+// Host launchers of the construction kernels and of the inverse layout formula, for the layout
+// test of ESCHER-GPU's tests/cbst_test.cu (which launched the kernels directly; the host stubs of
+// the library's kernels are not visible outside it). Ordered on `stream`.
+void launch_build_layout(cudaStream_t stream, cbst_node* nodes, int* keys, int* starts, int n,
+                         int total_size);
+void launch_extract_keys_from_positions(cudaStream_t stream, int* keys, int* positions,
+                                        int* out_keys, int n, int d);
+
 }  // namespace dyng::detail::escher
