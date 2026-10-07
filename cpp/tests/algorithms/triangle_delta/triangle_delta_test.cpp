@@ -42,20 +42,28 @@ graph_t make_graph(const dyng::resources& res, std::int32_t n,
   return graph_t::from_edges(res, list.view(), props);
 }
 
-/// The host backends of this build.
-std::vector<dyng::resources> host_backends() {
+/// The backends of this executable: the host backends, or cuda in the CUDA test executable
+/// (compiled with DYNG_TEST_CUDA=1; empty when no device is visible).
+std::vector<dyng::resources> test_backends() {
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+  if (dyng::backend_available(dyng::backend::cuda)) {
+    return {dyng::resources::cuda()};
+  }
+  return {};
+#else
   std::vector<dyng::resources> out{dyng::resources::sequential()};
   if (dyng::backend_available(dyng::backend::openmp)) {
     out.push_back(dyng::resources::openmp(4));
   }
   return out;
+#endif
 }
 
 // The worked example of docs/algorithms/triangle_delta.md: K4 without the edge {2, 3}.
 TEST(TriangleDelta, ThePageExample) {
   for (const dyng::batch_semantics semantics :
        {dyng::batch_semantics::upsert_last_wins(), dyng::batch_semantics::set()}) {
-    for (const dyng::resources& res : host_backends()) {
+    for (const dyng::resources& res : test_backends()) {
       SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())));
       graph_t g = make_graph(res, 4, {{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}}, semantics);
       auto r = dyng::triangle_delta::compute(res, g);
@@ -87,7 +95,7 @@ TEST(TriangleDelta, ThePageExample) {
 }
 
 TEST(TriangleDelta, ADeletedAndReinsertedEdgeChangesNothing) {
-  for (const dyng::resources& res : host_backends()) {
+  for (const dyng::resources& res : test_backends()) {
     graph_t g = make_graph(res, 3, {{0, 1}, {1, 2}, {0, 2}});
     auto r = dyng::triangle_delta::compute(res, g);
     batch_t again;
@@ -101,8 +109,26 @@ TEST(TriangleDelta, ADeletedAndReinsertedEdgeChangesNothing) {
   }
 }
 
+// With deletions_first = false a batch that inserts {0, 2} and then deletes it leaves the path
+// 0 - 1 - 2 as it was: no triangle appears (triangle_delta counts from the net structural change).
+TEST(TriangleDelta, AnEdgeInsertedThenDeletedClosesNoTriangle) {
+  dyng::batch_semantics semantics = dyng::batch_semantics::upsert_last_wins();
+  semantics.deletions_first = false;
+  for (const dyng::resources& res : test_backends()) {
+    SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())));
+    graph_t g = make_graph(res, 3, {{0, 1}, {1, 2}}, semantics);
+    auto r = dyng::triangle_delta::compute(res, g);
+    batch_t batch;
+    batch.insert_edge(0, 2, {1});
+    batch.delete_edge(0, 2);
+    (void)dyng::triangle_delta::update(res, g, batch.view(), r);
+    EXPECT_EQ(r.count(), 0U);
+    EXPECT_EQ(r.count(), dyng::triangle_delta::compute(res, g).count());
+  }
+}
+
 TEST(TriangleDelta, SelfLoopsAndNewVerticesCloseNoTriangle) {
-  for (const dyng::resources& res : host_backends()) {
+  for (const dyng::resources& res : test_backends()) {
     graph_t g = make_graph(res, 3, {{0, 1}, {1, 2}, {0, 2}});
     auto r = dyng::triangle_delta::compute(res, g);
     batch_t grow;
@@ -115,6 +141,7 @@ TEST(TriangleDelta, SelfLoopsAndNewVerticesCloseNoTriangle) {
   }
 }
 
+#if !(defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA)  // sequential only: no need to repeat on cuda
 TEST(TriangleDelta, RejectsGraphsItCannotCount) {
   const dyng::resources res = dyng::resources::sequential();
   dyng::edge_list<std::int32_t, std::int32_t> list;
@@ -124,5 +151,6 @@ TEST(TriangleDelta, RejectsGraphsItCannotCount) {
   const graph_t directed = graph_t::from_edges(res, list.view());
   EXPECT_THROW((void)dyng::triangle_delta::compute(res, directed), dyng::invalid_argument_error);
 }
+#endif
 
 }  // namespace

@@ -40,13 +40,21 @@ graph_t make_graph(const dyng::resources& res, std::int32_t n,
   return graph_t::from_edges(res, list.view(), props);
 }
 
-/// The host backends of this build.
-std::vector<dyng::resources> host_backends() {
+/// The backends of this executable: the host backends, or cuda in the CUDA test executable
+/// (compiled with DYNG_TEST_CUDA=1; empty when no device is visible).
+std::vector<dyng::resources> test_backends() {
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+  if (dyng::backend_available(dyng::backend::cuda)) {
+    return {dyng::resources::cuda()};
+  }
+  return {};
+#else
   std::vector<dyng::resources> out{dyng::resources::sequential()};
   if (dyng::backend_available(dyng::backend::openmp)) {
     out.push_back(dyng::resources::openmp(4));
   }
   return out;
+#endif
 }
 
 // The worked example of the tutorial (docs/tutorials/your_first_dynamic_algorithm.md):
@@ -54,7 +62,7 @@ std::vector<dyng::resources> host_backends() {
 //     0 -> 1 -> 3 -> 4        levels 0 1 1 2 3; the parent of 3 is 1 (the lower id of 1 and 2)
 //     0 -> 2 -> 3
 TEST(DynamicBfs, TheTutorialExample) {
-  for (const dyng::resources& res : host_backends()) {
+  for (const dyng::resources& res : test_backends()) {
     SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())));
     graph_t g = make_graph(res, 5, {{0, 1}, {0, 2}, {1, 3}, {2, 3}, {3, 4}});
     auto r = dyng::dynamic_bfs::compute(res, g);
@@ -94,7 +102,7 @@ TEST(DynamicBfs, TheTutorialExample) {
 }
 
 TEST(DynamicBfs, NewVerticesStartUnreached) {
-  for (const dyng::resources& res : host_backends()) {
+  for (const dyng::resources& res : test_backends()) {
     graph_t g = make_graph(res, 3, {{0, 1}, {1, 2}});
     auto r = dyng::dynamic_bfs::compute(res, g);
     batch_t grow;
@@ -109,7 +117,7 @@ TEST(DynamicBfs, AParallelEdgeKeepsTheLevel) {
   dyng::graph_properties props;
   props.order = dyng::row_order::append;
   props.parallel_edges = dyng::multi_edges::allow;
-  for (const dyng::resources& res : host_backends()) {
+  for (const dyng::resources& res : test_backends()) {
     graph_t g = make_graph(res, 3, {{0, 1}, {0, 1}, {1, 2}}, props);
     auto r = dyng::dynamic_bfs::compute(res, g);
     batch_t remove;
@@ -121,6 +129,49 @@ TEST(DynamicBfs, AParallelEdgeKeepsTheLevel) {
   }
 }
 
+// applied.delta lists the requested operations, not the net change. With deletions_first = false
+// a batch that inserts 0 -> 2 and then deletes it leaves the graph as it was, and the seed must
+// not offer level 1 to 2 along the edge that is gone (it did before the fix: {0, 1, 1}).
+TEST(DynamicBfs, AnEdgeInsertedThenDeletedOffersNoLevel) {
+  for (const bool directed : {true, false}) {
+    dyng::graph_properties props;
+    props.directed = directed;
+    props.semantics.deletions_first = false;
+    for (const dyng::resources& res : test_backends()) {
+      SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())) +
+                   (directed ? " directed" : " undirected"));
+      graph_t g = make_graph(res, 3, {{0, 1}, {1, 2}}, props);
+      auto r = dyng::dynamic_bfs::compute(res, g);
+      batch_t batch;
+      batch.insert_edge(0, 2, {1});
+      batch.delete_edge(0, 2);  // after the insertion: the edge is gone again
+      (void)dyng::dynamic_bfs::update(res, g, batch.view(), r);
+      EXPECT_EQ(g.num_edges(), directed ? 2 : 4);
+      EXPECT_EQ(dyng::to_vector(res, r.levels()), (levels_t{0, 1, 2}));
+      EXPECT_EQ(dyng::to_vector(res, r.levels()),
+                dyng::to_vector(res, dyng::dynamic_bfs::compute(res, g).levels()));
+    }
+  }
+}
+
+// The other order (deletions_first = true, the default): deleting an absent 0 -> 2 and inserting
+// it leaves the edge, which does lower the level of 2.
+TEST(DynamicBfs, AnEdgeDeletedThenInsertedOffersItsLevel) {
+  for (const dyng::resources& res : test_backends()) {
+    SCOPED_TRACE(std::string(dyng::to_string(res.get_backend())));
+    graph_t g = make_graph(res, 3, {{0, 1}, {1, 2}});
+    auto r = dyng::dynamic_bfs::compute(res, g);
+    batch_t batch;
+    batch.insert_edge(0, 2, {1});
+    batch.delete_edge(0, 2);  // applied first: nothing to delete
+    (void)dyng::dynamic_bfs::update(res, g, batch.view(), r);
+    EXPECT_EQ(dyng::to_vector(res, r.levels()), (levels_t{0, 1, 1}));
+    EXPECT_EQ(dyng::to_vector(res, r.levels()),
+              dyng::to_vector(res, dyng::dynamic_bfs::compute(res, g).levels()));
+  }
+}
+
+#if !(defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA)  // sequential only: no need to repeat on cuda
 TEST(DynamicBfs, RejectsBadInput) {
   const dyng::resources res = dyng::resources::sequential();
   const graph_t g = make_graph(res, 3, {{0, 1}});
@@ -146,5 +197,6 @@ TEST(DynamicBfs, CloneCopiesTheLevels) {
   (void)dyng::dynamic_bfs::update(res, g, remove.view(), c);
   EXPECT_EQ(dyng::to_vector(res, c.levels()), (levels_t{0, 1, -1}));
 }
+#endif
 
 }  // namespace

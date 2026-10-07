@@ -212,20 +212,38 @@ struct offer {
 };
 
 /**
- * @brief seed, part 2: an inserted edge u -> v offers level[u] + 1 to v.
+ * @brief seed, part 2: an inserted edge u -> v offers level[u] + 1 to v, if u -> v is in G_{t+1}.
+ *
+ * applied.delta lists the insertions the batch REQUESTED, not its net change: with
+ * batch_semantics::deletions_first = false a batch may insert u -> v and then delete it again, and
+ * the edge is gone. So the head is offered a level only along an edge that exists (the same check
+ * find_roots makes for the deletions).
  * @tparam vertex_t Vertex id type.
+ * @tparam edge_t   Edge offset type.
  */
-template <typename vertex_t>
+template <typename vertex_t, typename edge_t>
 struct offer_insertion {
-  const vertex_t* tails;     ///< the inserted edges' tails
-  const vertex_t* heads;     ///< the inserted edges' heads
-  offer<vertex_t> offer_to;  ///< the offer
+  dynamic_bfs_graph<vertex_t, edge_t> g;  ///< G_{t+1}
+  const vertex_t* tails;                  ///< the requested insertions' tails
+  const vertex_t* heads;                  ///< the requested insertions' heads
+  offer<vertex_t> offer_to;               ///< the offer
 
   /// Insertion i.
   DYNG_HD void operator()(std::int64_t i) const {
-    const std::int64_t lu = load(&offer_to.levels[tails[i]]);
-    if (lu >= 0) {
-      offer_to(heads[i], lu + 1);
+    const vertex_t u = tails[i];
+    const vertex_t v = heads[i];
+    if (u < 0 || v < 0 || u >= g.num_vertices || v >= g.num_vertices) {
+      return;
+    }
+    const std::int64_t lu = load(&offer_to.levels[u]);
+    if (lu < 0) {
+      return;
+    }
+    for (edge_t e = g.out_offsets[u]; e < g.out_offsets[u + 1]; ++e) {
+      if (g.out_targets[e] == v) {
+        offer_to(v, lu + 1);  // u -> v is in G_{t+1}
+        return;
+      }
     }
   }
 };
@@ -397,8 +415,8 @@ class dynamic_bfs_engine_impl final : public dynamic_bfs_engine<vertex_t, edge_t
                       g, ws.invalidated.data(), run.levels, ws.invalid.data(), frontier});
     // Then the insertions, in a pass of their own (they may lower any level).
     vertex_t* changes = upload_changes(exec, res, ws, tails, heads, count);
-    exec.for_each(count, dynamic_bfs_ops::offer_insertion<vertex_t>{
-                             changes, changes + count,
+    exec.for_each(count, dynamic_bfs_ops::offer_insertion<vertex_t, edge_t>{
+                             g, changes, changes + count,
                              dynamic_bfs_ops::offer<vertex_t>{run.levels, frontier, touch(ws)}});
     f.size = static_cast<std::int64_t>(exec.read(ws.counters.data() + 0));
   }
