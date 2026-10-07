@@ -721,6 +721,37 @@ def replay_case(
     return report
 
 
+def certificate_record(set_name: str, record: dict, args) -> dict:
+    """The replay record of a set in the release certificate's format (parity/certify.py
+    golden_suites: set, goldens manifest, port commit, configs, matrix, passed): one config,
+    device:<preset>/<fields>, and per case "equal" (ESCHER-GPU's sets: no mismatch; MOSP_ESCHER's
+    under escher_gpu(): every tree diverges where the host model under the preset does) or
+    "DIFFERENT"."""
+    head = record["head"]
+    dirty = subprocess.run(
+        ["git", "-C", str(REPO), "status", "--porcelain", "--", "cpp"],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    config = f"device:{args.policy or 'escher_gpu'}/{args.fields}"
+    matrix = {
+        c["case"]: {config: "equal" if c.get("ok") and "error" not in c else "DIFFERENT"}
+        for c in record["cases"]
+    }
+    return {
+        "set": set_name,
+        "date": record["date"],
+        "goldens": {"manifest_sha256": record["manifest_sha256"]},
+        "port": {"commit": head + ("+dirty" if dirty else "")},
+        "executable": record["exe"],
+        "reference": SETS[set_name]["reference"],
+        "configs": [config],
+        "judged_against_host_model": record.get("against_model", False),
+        "matrix": matrix,
+        "passed": record["passed"],
+    }
+
+
 def against_model(set_name: str, args) -> bool:
     """Whether a device replay of a set is judged against the host model under the same preset:
     the traces of an original whose preset the store does not have yet (MOSP_ESCHER's in step 3,
@@ -732,16 +763,28 @@ def against_model(set_name: str, args) -> bool:
 
 def first_divergences(report: dict) -> dict[int, tuple[int, str] | None]:
     """The first divergence of every tree of a replay report: (op of the tree, field), None for a
-    tree without one. A construct below its payload is one class whether a store reports it as a
-    mismatch of the status (the host model under escher_gpu(): ESCHER-GPU's behaviour) or as the
-    documented divergence construct_below_payload (the dynG store throws)."""
-    out: dict[int, tuple[int, str] | None] = {t["tree"]: None for t in report["trees"]}
+    tree without one. The field is the first one the comparator reported at that op other than
+    the integrity verdict check.rows, which only a store with its own checker reports (the device
+    store; earlier comparators compared it before the state). A construct below its payload is
+    one class whether a store reports it as a mismatch of the status (the host model under
+    escher_gpu(): ESCHER-GPU's behaviour) or as the documented divergence construct_below_payload
+    (the dynG store throws)."""
+    first_op: dict[int, int] = {}
+    fields: dict[int, list[str]] = {}
     for m in report["mismatches"]:
+        t = m["tree"]
+        if t not in first_op:
+            first_op[t] = m["tree_op"]
+        if m["tree_op"] != first_op[t]:
+            continue
         field = m["field"]
         if m["op"] == "construct" and field in ("status", "exception.type"):
             field = "construct validation"
-        if out.get(m["tree"]) is None:
-            out[m["tree"]] = (m["tree_op"], field)
+        fields.setdefault(t, []).append(field)
+    out: dict[int, tuple[int, str] | None] = {t["tree"]: None for t in report["trees"]}
+    for t, fs in fields.items():
+        named = [f for f in fs if f != "check.rows"]
+        out[t] = (first_op[t], (named or fs)[0])
     for d in report.get("documented", []):
         cur = out.get(d["tree"])
         if cur is None or d["tree_op"] < cur[0]:
@@ -858,7 +901,9 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
                 "ok": r["ok"] and not disallowed,
                 "store": r["store"],
                 "exit": r["exit"],
-                **{k: r[k] for k in totals},
+                **{
+                    k: (len(r.get("documented", [])) if k == "documented" else r[k]) for k in totals
+                },
                 "unreplayable_trees": [
                     {k: tr[k] for k in ("tree", "dataset", "unreplayable", "unreplayable_reason")}
                     for tr in r["trees"]
@@ -927,6 +972,12 @@ def compare_main(argv: list[str]) -> int:
         "development GPU)",
     )
     p.add_argument("--record", type=Path, help="write M8a-<store>-<set>-<fields>.json here")
+    p.add_argument(
+        "--certificate",
+        type=Path,
+        help="with --store device: also write the release certificate's replay record "
+        "parity-<set>-device.json here (parity/certify.py)",
+    )
     p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
     args = p.parse_args(argv)
     names = args.set or list(SETS)
@@ -1024,6 +1075,12 @@ def compare_main(argv: list[str]) -> int:
                 if args.policy:
                     name += f"-{args.policy}"
                 (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
+            if args.certificate and args.store == "device":
+                args.certificate.mkdir(parents=True, exist_ok=True)
+                doc = certificate_record(n, record, args)
+                path = args.certificate / f"parity-{n}-device.json"
+                path.write_text(json.dumps(doc, indent=1) + "\n")
+                print(f"{n}: wrote {path}")
         print(f"{n}: " + ("OK" if not problems else "FAILED"))
         for pr in problems:
             print("  " + pr)

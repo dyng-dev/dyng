@@ -133,9 +133,15 @@ def wrap_namespace(text: str, namespace: str) -> str:
         body.pop(0)
     while body and not body[-1].strip():
         body.pop()
-    return "\n".join(
-        head + ["", f"namespace {namespace} {{", ""] + body + ["", f"}}  // namespace {namespace}"]
-    ) + "\n"
+    return (
+        "\n".join(
+            head
+            + ["", f"namespace {namespace} {{", ""]
+            + body
+            + ["", f"}}  // namespace {namespace}"]
+        )
+        + "\n"
+    )
 
 
 def header(cfg: dict, entry: dict) -> str:
@@ -146,8 +152,8 @@ def header(cfg: dict, entry: dict) -> str:
             sources.append(part["path"])
     lines = [
         # Split so that REUSE does not read these lines as this file's own header.
-        "// SPDX-" "FileCopyrightText: 2026 The dynG Authors",
-        "// SPDX-" "License-Identifier: Apache-2.0",
+        "// SPDX-FileCopyrightText: 2026 The dynG Authors",
+        "// SPDX-License-Identifier: Apache-2.0",
     ]
     lines += [f"// Derived from {cfg['origin']}@{short}:{p}" for p in sources]
     lines += [

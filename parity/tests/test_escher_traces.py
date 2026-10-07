@@ -344,6 +344,12 @@ def test_device_replay_judged_against_the_model() -> None:
     }
     store["mismatches"][0]["tree_op"] = 8
     assert g.first_divergences(model) != g.first_divergences(store)
+    # The store's own integrity verdict is not the field that names a divergence.
+    store["mismatches"] = [
+        {"tree": 2, "tree_op": 7, "op": "fill", "field": "check.rows"},
+        {"tree": 2, "tree_op": 7, "op": "fill", "field": "event.compaction"},
+    ]
+    assert g.first_divergences(store)[2] == (7, "event.compaction")
 
 
 def test_model_replay_tool_on_the_committed_subset(tmp_path: Path) -> None:
@@ -356,3 +362,31 @@ def test_model_replay_tool_on_the_committed_subset(tmp_path: Path) -> None:
         r = g.replay_case(exe, trace, "", "exact", tmp_path)
         assert "error" not in r, r
         assert r["ok"] and r["mismatch_count"] == 0 and r["compared"] == r["ops"], trace
+
+
+def test_device_replay_certificate_record() -> None:
+    """compare.py cbst_trace --store device --certificate writes the release certificate's replay
+    record (parity/certify.py reads its matrix: one config, a verdict per case)."""
+    g = load("parity/cbst_trace_goldens.py")
+    certify = load("parity/certify.py")
+
+    class args:  # noqa: N801 - a namespace
+        policy = ""
+        fields = "exact"
+
+    record = {
+        "head": "0" * 40,
+        "date": "2026-10-07T00:00:00+00:00",
+        "manifest_sha256": "ab" * 32,
+        "exe": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+        "against_model": False,
+        "passed": False,
+        "cases": [{"case": "001-main", "ok": True}, {"case": "002-type1", "ok": False}],
+    }
+    doc = g.certificate_record("cbst_trace_escher_gpu_test", record, args)
+    assert doc["set"] == "cbst_trace_escher_gpu_test"
+    assert doc["configs"] == ["device:escher_gpu/exact"]
+    assert doc["goldens"]["manifest_sha256"] == "ab" * 32
+    matrix, compared, failed = certify.replay_matrix(doc)
+    assert (compared, failed) == (2, 1)
+    assert matrix["001-main"] == {"device:escher_gpu/exact": "equal"}
