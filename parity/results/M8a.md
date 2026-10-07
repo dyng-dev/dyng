@@ -412,3 +412,84 @@ GPU 1, shared perf lock, niced):
 | `escher_crosscheck.py run`, 9 replays | 0 unexplained (section 6) |
 | `git -C <original> rev-parse HEAD` and `status --porcelain=v1 --untracked-files=all` before and after every run, both originals | byte-identical (B keeps its pre-existing `M Makefile`, `M README.md`, `M tests/run_tests.sh` and untracked files) |
 | `pytest parity/tests`, `ctest -L cbst`, `ci/check.sh` (`harness reuse provenance precommit docs regen`), the Clang 18 syntax pass and the `_FORTIFY_SOURCE=3` cpu-only build | passed |
+
+## 10. Step host-model: the CBST host model, the go/no-go (PLAN 5.8; criterion 8; ADR 0037)
+
+`dyng::testing::cbst_host_model` (`cpp/include/dyng/testing/cbst_host_model.hpp`,
+`cpp/src/testing/cbst_host_model.cpp`) models one CBST of either original sequentially on the
+host, with its own policy presets (`cbst_host_policy::escher_gpu()`, `mosp_escher()`, the
+provisional `dyng_default()`); it keeps the flat payload, so every recorded field can be
+predicted, and it predicts growth and compaction from the policy, never from the trace. The
+comparator (`cpp/tests/parity/escher/cbst_compare.{hpp,cpp}`, tool `dyng_cbst_replay`) drives a
+store through an adapter and compares after every op; `parity/compare.py cbst_trace --store
+host_model` replays the sets. The field sets (ADR 0037, section 2): `semantic` (criterion 8: the
+exception, every `InsertMapping`, the keys, `subtree_avail`, per key `avail`, length and the row,
+in order for H2V / H2H / V2V and as a multiset otherwise, the bump pointer and capacity, the ops
+of every growth and compaction), `offsets` (+ offset and tail base), `exact` (+ every other
+recorded field: `size`, occupancy, tail capacity, segments, row length and termination, every
+row in order, record count, scratch capacities, D, A's `deviceBytes()` and degree-bin launches,
+B's `compact()` return, the state before every op).
+
+**Result: GO.** Every replayable op of every set agrees in the `exact` field set (which contains
+`semantic` and `offsets`), each trace under its original's preset
+(`compare.py cbst_trace --store host_model --fields exact --record parity/results`, Release
+build of `dyng_cbst_replay`, 8 jobs, 4 min 45 s with the manifest checks; records
+`parity/results/M8a-host-model-<set>-exact.json`):
+
+| set | traces | ops | compared | unreplayable | mappings | key states compared | hash-only rows | growths | compactions | exceptions | mismatches |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `escher_gpu_test` | 75 | 1,176 | 1,176 | 0 | 180 | 10,440,560 | 0 | 30 | 0 | 0 | **0** |
+| `escher_gpu_coauth50k` | 1 | 18 | 15 | 3 (H2H rebuilds: hash-only inputs) | 3 | 33,251,758 | 2,467,389 | 0 | 0 | 0 | **0** |
+| `escher_gpu_syn1m` | 3 | 54 | 0 | 54 (batches mode: no digests) | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+| `escher_gpu_targeted` | 2 | 52 | 52 | 0 | 7 | 443 | 0 | 3 | 0 | 0 | **0** |
+| `mosp_escher_test` | 24 | 14,104 | 14,104 | 0 | 1,297 | 31,462,824 | 0 | 0 | 48 | 1 | **0** |
+| `mosp_escher_targeted` | 2 | 53 | 53 | 0 | 7 | 445 | 0 | 0 | 3 | 2 | **0** |
+| `mosp_escher_dblp50k_hyperedge` | 1 | 27 | 27 | 0 | 6 | 62,960,817 | 0 | 0 | 0 | 0 | **0** |
+| `mosp_escher_dblp50k_vertex` | 1 | 21 | 21 | 0 | 0 | 48,010,053 | 0 | 0 | 0 | 0 | **0** |
+
+- **The events** the model predicted are those the traces show: A's 33 growths (`test` 30,
+  `targeted` 3); B's 51 compactions (the 18 of `test_cbst_ops churn`, 17 fills and 1 insert, and
+  the 30 fills of `test_hsosp_matches_dijkstra`, as section 2 inferred them; the 3 of the
+  targeted scenarios: in fill, in insert, `compact()`); B's 3 exceptions (`churn growth`'s capacity
+  throw, the targeted capacity throw and construct validation).
+- **Unreplayable, by the sets' design only** (ADR 0037): the 3 H2H rebuilds of
+  `escher_gpu_coauth50k`, whose inputs (A's line-graph merge) are recorded as hashes only
+  (`goldens.toml`: `hash_only = ["H2H:rebuild", "H2H:rows"]`; the H2H construct is replayed and its
+  2,467,389 rows compared by their hashes), and `escher_gpu_syn1m`, the batch dumps of M9 (mode
+  `batches`: no state digests). M8b can check the H2H rebuilds through the recorded hashes of their
+  inputs once dynG computes the merge. No other op of any set is unreplayable;
+  `parity/compare.py` and `dyng_cbst_model_large_tests` fail on any other.
+- **Cross-policy replays reproduce the cross-check's classes** (section 6): B's traces under
+  `escher_gpu` diverge first at the ops section 6 lists (`grows_vs_compacts`: churn small op 197,
+  random op 113, ...; `compact_only_in_b`; `b_validates`), A's targeted trace under `mosp_escher`
+  at its growth and capacity scenarios (`grows_vs_compacts`, `caller_counts`): the model's policies
+  are the documented behaviour differences, nothing else.
+- **The cbst_test layout** (A's `tests/cbst_test.cu`) on `check_cbst_layout`: n = 1..1024 and the
+  17 sizes up to 2^24 (2,467,389 included) pass (permutation, in-order, every key found up to
+  2,467,389 and a 65,536-key sample above, offsets, inverse formula).
+- **Perturbations** are mismatches at the perturbed op: an insert item one value shorter
+  (semantic and exact), two items in deleted slots of equal capacity with their recorded keys
+  swapped (`out.mapping`), an op the policy cannot run (`compact()` under `escher_gpu`), a trace
+  ending inside an op; a hash-only input makes its tree unreplayable with the reason.
+- **Findings** (the facts given to the step against the code; ADR 0037, "Findings"): A's growth
+  is `max(needed + needed/4, 3 * fixedSize / 2)` in integers; a surplus row of 0 values has length
+  1; erase keeps the payload (a dead row reads its old values until reused or compacted; B's
+  compaction empties dead rows); unfill depends on the degree bin of the removal count (the warp
+  and block kernels compact the first `occupancy` slots of a one-segment row and drop non-positive
+  values there; the thread kernel walks the whole chain); A's construct below the payload builds
+  no tree but records the record count and the bump pointer; B's insert failing after its reuse
+  leaves `subtree_avail` stale; on a 0-record tree, fill and unfill are no-ops while insert and
+  erase hit a CUDA error (A exits, B throws). None of these was a divergence: the model followed
+  the code from the start, and every set agreed at the first full run.
+- **Isolation:** CTest `cbst_model_isolation` (cpu, parity, cbst): the model's source includes no
+  project file but its header and its object references no `dyng::` symbol.
+
+**The checks of step 2** (2026-10-07; shared perf lock, niced; no GPU):
+
+| check | result |
+|---|---|
+| `cmake --preset cpu-only` build; `ctest -L 'parity\|cbst\|cpu' -LE slow` | built; 875 of 875 passed (`dyng_cbst_model_tests`, `dyng_cbst_trace_tests`, `cbst_model_isolation` included) |
+| `ctest -R CbstLargeSets` (`dyng_cbst_model_large_tests`, every set in `$DYNG_SCRATCH`) | passed |
+| `parity/compare.py cbst_trace --store host_model --fields exact` (all 8 sets) | 8 of 8 OK (table above) |
+| `pytest parity/tests` | passed |
+| `ci/docs.sh` (`--update-api`: 98 lines of `public_api.txt` for `dyng/testing/cbst_host_model.hpp`), `ci/check.sh`, the Clang 18 syntax pass, the `_FORTIFY_SOURCE=3` cpu-only build | passed |

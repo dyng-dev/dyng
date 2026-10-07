@@ -38,6 +38,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0033](0033-tutorial-algorithms.md) | The tutorial algorithms: registered with maturity `tutorial`, one source for every backend (executors), undirected graphs in the kit | Accepted under delegation (2026-10-06) |
 | [0034](0034-fuzzers-mutation-suites-property-runs.md) | Reader fuzzers (`cpp/fuzz`), the golden mutation suites of `parity/mutate.py` (sssp, mosp, cycle_count) and the long property runs | Accepted under delegation (2026-10-06) |
 | [0036](0036-cbst-trace-format-and-recorder.md) | The CBST trace format 1 and the link-time recorders of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (the originals' unchanged objects relinked with `-Xlinker --wrap`, the nm census, the twin output check, the readers, the trace goldens) | Accepted under delegation (2026-10-07) |
+| [0037](0037-cbst-host-model-and-replay-comparison.md) | The CBST host model (`dyng::testing::cbst_host_model`: the flat payload, policy presets, predicted growth and compaction, isolation from the store) and the rules of the trace replay (the field sets, why per-key length is compared, hash-only rows and inputs, events, first divergence) | Accepted under delegation (2026-10-07) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

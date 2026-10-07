@@ -104,3 +104,57 @@ and their sizes, the dataset pins, the cross-check, the coverage table).
   construct and rebuild inputs.
 - Hash-only arrays (`DYNG_CBST_TRACE_HASH_ONLY`; listed per set in `goldens.toml`) cannot be
   replayed: a tree whose rebuild or construct input is hash-only is checked by its hashes only.
+
+## Step 2: the CBST host model and the replay comparator (host-model)
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `200b36c` | `dyng::testing::cbst_host_model` (`dyng/testing/cbst_host_model.hpp`, `cpp/src/testing/cbst_host_model.cpp`, its own object library `dyng_testing_cbst_model` inside `dyng_testing`), `cbst_host_policy` with the presets `escher_gpu()`, `mosp_escher()`, `dyng_default()`, the layout helpers `cbst_rank_of_position` / `check_cbst_layout`; its tests (the cbst_test sizes, the documented rules); the isolation check `cbst_model_isolation`; `public_api.txt`, the CBST identifiers in `ci/provenance_check.py`, CHANGELOG |
+| `52912ad` | `cpp/tests/parity/escher/cbst_compare.{hpp,cpp}` (the adapter, the host model's adapter, the replay with three field sets, JSON reports, `trace_source` for `.cbt.zst`), the tool `dyng_cbst_replay`, the replay of the committed subset and the perturbed traces (cpu, parity, cbst), the large-set replay (parity, cbst, slow; skipped without the sets), `parity/compare.py cbst_trace --store host_model` and its tests |
+| (this commit) | ADR 0037, `parity/results/M8a.md` section 10 and the records `M8a-host-model-<set>-exact.json`, this section, GOVERNANCE.md |
+
+### Deviations from the step's text (each with the same intent)
+
+9. **The model keeps the flat payload**, not only the per-key segments and rows the step lists: the
+   originals' observable rows depend on payload bytes a row-level model loses (dead rows keep their
+   values, a reuse clears only the first segment, the unfill kernels differ by degree bin). The
+   per-key segments and rows are derived from it (`records()`); ADR 0037, section 1.
+10. **Three field sets instead of "criterion 8 plus offsets when asked".** `semantic` is exactly
+    criterion 8, `offsets` adds the offsets (for step 3), and `exact` compares every recorded
+    field; the model is held to `exact`, the strictest. Nothing is compared less.
+11. **Unreplayable operations are reported, not compared.** 3 ops of `escher_gpu_coauth50k` (the H2H
+    rebuilds, hash-only inputs) and the 54 ops of the batches-mode set `escher_gpu_syn1m` cannot be
+    replayed by any store; the replay reports them with their reason and fails on any other. The
+    acceptance criterion's "100% agreement on every set" holds for every replayable op.
+12. **The public-header rule.** `dyng/testing/cbst_host_model.hpp` exposes CBST keys, offsets and the
+    layout, the documented exception to criterion 9's rule (which is about the hypergraph API).
+13. **Model records are not release-certificate records.** The replay records of this step are
+    `parity/results/M8a-host-model-<set>-<fields>.json`; `certify.py` keeps waiting for the store's
+    `parity-cbst_trace_<set>-*.json` records (step 3 on), so the host model cannot stand in for
+    the store in the 0.3.0 certificate.
+14. **`dyng_default()` is provisional.** It composes B's compaction triggers with A's growth where B
+    throws; no trace exists for it. Step 4 aligns it with the store's dyng preset.
+
+### Measurements
+
+The Release-built replay of all 8 sets through the model takes 4 min 45 s with 8 jobs, the
+manifest checks included (the largest, B's DBLP hyperedge run: 2 min, about 63 million key states
+compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
+
+### Notes for step 3 (the verbatim port)
+
+- Drive the store through `store_adapter` (`cpp/tests/parity/escher/cbst_compare.hpp`): implement
+  `create_tree`, `destroy_tree`, `run` (the seven ops; `InsertMapping` in `op_outcome::mapping`,
+  degree-bin launches in `bins` with `has_bins`), `scalars` and `digest` (read back the device
+  state: keys in BST order, `subtree_avail` by heap position, per key the record and the row
+  walked as the recorder walks it), then `replay(reader, adapter, {field_set::offsets or exact})`.
+  The model's adapter (`host_model_adapter`) is the reference implementation of the interface.
+- `parity/compare.py cbst_trace --store device` is reserved (it exits 2 now): point it at a device
+  replay tool, and write the certificate records `parity-cbst_trace_<set>-*.json` there.
+- Under `escher_gpu`, A's sets must pass `exact` (offsets, occupancy, `deviceBytes()`, bin launches
+  are all in it); the scenarios of step 4 can mirror every op on `cbst_host_model` and compare
+  `records()` with the store's digest.
+- The 3 coauth H2H rebuilds stay unreplayable until M8b computes the line-graph merge: their inputs'
+  recorded hashes can then check dynG's merge.
