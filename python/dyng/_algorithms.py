@@ -23,7 +23,7 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "title": "Dynamic multi-objective shortest paths",
         "since": "0.2",
         "container": "graph",
-        "maturity": "experimental",
+        "maturity": "stable",
     },
     "dynamic_bfs": {
         "title": "Dynamic breadth-first search levels (tutorial)",

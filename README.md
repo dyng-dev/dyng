@@ -3,7 +3,7 @@
 > **Alpha.** The latest release is **0.1.0**, the first: the C++ library, the Python package
 > (`pip install dyng`) and the `dyng` command line, with `sssp` and `cycle_count`, stable (SemVer
 > applies from 0.1.0). This README describes the main branch, which is heading for 0.2.0: `mosp`
-> (experimental), the teaching algorithms `dynamic_bfs` and `triangle_delta` and the CUDA plugin
+> (stable from 0.2.0), the teaching algorithms `dynamic_bfs` and `triangle_delta` and the CUDA plugin
 > wheels are not released yet.
 
 dynG is a C++17/CUDA library with Python bindings that keeps the results of graph and
@@ -26,7 +26,7 @@ pages, the C++ and Python API reference; built from `docs/` on every push to `ma
 |---|---|---|---|---|---|---|
 | [`sssp`](docs/algorithms/sssp.md) | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | [`cycle_count`](docs/algorithms/cycle_count.md) | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | TruCy / DynTruCy |
-| [`mosp`](docs/algorithms/mosp.md) | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
+| [`mosp`](docs/algorithms/mosp.md) | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | [`dynamic_bfs`](docs/algorithms/dynamic_bfs.md) | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | [`triangle_delta`](docs/algorithms/triangle_delta.md) | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.3) | ESCHER / ESCHER+ |

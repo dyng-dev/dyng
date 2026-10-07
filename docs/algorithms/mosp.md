@@ -1,7 +1,10 @@
 # mosp: dynamic multi-objective shortest paths
 
-Maturity: **experimental** (sequential, OpenMP and CUDA backends, the Python binding `dyng.mosp`
-and the command line `dyng mosp`, new in 0.2.0, not released yet).
+Maturity: **stable** from 0.2.0 (SemVer applies, as for `sssp` and `cycle_count` from 0.1.0; the
+author's decision of 2026-10-07, after the API review and freeze of
+{doc}`ADR 0035 <../adr/0035-mosp-api-review-and-freeze-0-2>`; the sequential,
+OpenMP and CUDA backends, the Python binding `dyng.mosp` and the command line `dyng mosp`, new in
+0.2.0, not released yet).
 Header: `<dyng/mosp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 on the MOSP golden corpus, combined graph included
 ([M7 record](https://github.com/dyng-dev/dyng/blob/main/parity/results/M7.md)).
