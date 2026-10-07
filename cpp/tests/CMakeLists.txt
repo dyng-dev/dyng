@@ -99,15 +99,34 @@ dyng_add_test(
   LIBRARIES dyng_cbst_trace
 )
 list(APPEND _dyng_private_tests dyng_cbst_trace_tests)
-# The CBST host model (dyng::testing::cbst_host_model, M8a step 2, ADR 0037): its tests (the
-# cbst_test layout sizes, the store's documented rules) and the include-graph / link check.
+# The CBST host model (dyng::testing::cbst_host_model) and the trace replay comparator (M8a step
+# 2, ADR 0037): the comparator library, the replay tool that parity/compare.py cbst_trace drives
+# over the golden sets, the model's tests (the cbst_test layout sizes, the perturbed traces, the
+# replay of the committed subset), the replay of the large sets in $DYNG_SCRATCH (skipped when
+# they are absent) and the include-graph / link check of the model.
+add_library(dyng_cbst_compare STATIC parity/escher/cbst_compare.cpp)
+target_link_libraries(dyng_cbst_compare PUBLIC dyng_cbst_trace dyng::testing)
+target_compile_features(dyng_cbst_compare PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_cbst_compare)
+dyng_enable_sanitizers(dyng_cbst_compare)
+add_executable(dyng_cbst_replay parity/escher/cbst_replay_main.cpp)
+target_link_libraries(dyng_cbst_replay PRIVATE dyng_cbst_compare)
+dyng_set_warnings(dyng_cbst_replay)
+dyng_enable_sanitizers(dyng_cbst_replay)
 dyng_add_test(
   NAME dyng_cbst_model_tests
-  SOURCES parity/escher/cbst_host_model_test.cpp
+  SOURCES parity/escher/cbst_host_model_test.cpp parity/escher/cbst_replay_test.cpp
   LABELS cpu parity cbst
-  LIBRARIES dyng::testing
+  LIBRARIES dyng_cbst_compare
 )
 list(APPEND _dyng_private_tests dyng_cbst_model_tests)
+dyng_add_test(
+  NAME dyng_cbst_model_large_tests
+  SOURCES parity/escher/cbst_replay_large_test.cpp
+  LABELS parity cbst slow
+  LIBRARIES dyng_cbst_compare
+)
+list(APPEND _dyng_private_tests dyng_cbst_model_large_tests)
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   add_test(
     NAME cbst_model_isolation

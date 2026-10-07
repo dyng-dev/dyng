@@ -291,3 +291,29 @@ def test_crosscheck_classifies_a_compacting_op() -> None:
     assert cc.classify("occupancy", "fill", a, b, "ESCHER-GPU", "") == "grows_vs_compacts"
     thrown = {"compacted": False, "what": "payload overflow: Increase payloadCapacity"}
     assert cc.classify("exception", "fill", a, thrown, "ESCHER-GPU", "") == "grows_vs_compacts"
+
+
+def test_model_replay_rules_of_the_sets() -> None:
+    """compare.py cbst_trace --store: only the documented ops may stay unreplayable (ADR 0037)."""
+    g = load("parity/cbst_trace_goldens.py")
+    h2h = {"dataset": "H2H", "unreplayable_reason": "op 1 (rebuild) has hash-only inputs: in.x"}
+    h2v = {"dataset": "H2V", "unreplayable_reason": "op 1 (rebuild) has hash-only inputs: in.x"}
+    assert g.allowed_unreplayable("cbst_trace_escher_gpu_coauth50k", h2h)
+    assert not g.allowed_unreplayable("cbst_trace_escher_gpu_coauth50k", h2v)
+    assert g.allowed_unreplayable("cbst_trace_escher_gpu_syn1m", h2v)
+    assert not g.allowed_unreplayable("cbst_trace_escher_gpu_test", h2h)
+    assert not g.allowed_unreplayable("cbst_trace_mosp_escher_test", h2h)
+    # The device store's replay is reserved for M8a step 3.
+    assert g.compare_main(["--store", "device", "--set", "cbst_trace_escher_gpu_targeted"]) == 2
+
+
+def test_model_replay_tool_on_the_committed_subset(tmp_path: Path) -> None:
+    """dyng_cbst_replay, when built, replays the committed traces with 100% agreement."""
+    g = load("parity/cbst_trace_goldens.py")
+    exe = g.find_replay_exe()
+    if exe is None or not exe.is_file():
+        pytest.skip("dyng_cbst_replay is not built")
+    for trace in committed():
+        r = g.replay_case(exe, trace, "", "exact", tmp_path)
+        assert "error" not in r, r
+        assert r["ok"] and r["mismatch_count"] == 0 and r["compared"] == r["ops"], trace

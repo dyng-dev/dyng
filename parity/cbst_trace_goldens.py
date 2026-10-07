@@ -4,7 +4,8 @@
 """The CBST trace golden sets of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (M8a; ADRs 0013, 0036).
 
     parity/export_goldens.py cbst_trace <set>|all [--twice] [--no-toml]
-    parity/compare.py cbst_trace [--set <set>] [--list]
+    parity/compare.py cbst_trace [--set <set>] [--list] [--store host_model|device]
+                       [--policy <preset>] [--fields semantic|offsets|exact] [--record DIR]
     parity/cbst_trace_goldens.py datasets          check the coauth-DBLP variants (registry.toml)
     parity/cbst_trace_goldens.py subset            write the committed subset (cpp/tests/data)
 
@@ -645,7 +646,7 @@ def export_main(argv: list[str]) -> int:
     return 0
 
 
-# --- compare (the replays come in M8a step 2; here: the goldens verify) --------------------------
+# --- compare: the goldens verify, and the replays through a store (M8a step 2 on) ---------------
 
 
 def verify_set(set_name: str, scratch: Path) -> list[str]:
@@ -674,8 +675,136 @@ def verify_set(set_name: str, scratch: Path) -> list[str]:
     return problems
 
 
+def find_replay_exe() -> Path | None:
+    """The replay tool (cpp/tests/parity/escher/cbst_replay_main.cpp): $DYNG_CBST_REPLAY, else the
+    first build tree that has it (a Release build replays the large sets fastest)."""
+    env = os.environ.get("DYNG_CBST_REPLAY")
+    if env:
+        return Path(env)
+    for preset in ("cpu-only", "release", "dev", "parity", "dev-cuda"):
+        exe = REPO / "build" / preset / "cpp" / "tests" / "dyng_cbst_replay"
+        if exe.is_file():
+            return exe
+    return None
+
+
+def allowed_unreplayable(set_name: str, tree: dict) -> bool:
+    """Operations a set is documented not to replay: a batches-mode set has no state digests; a
+    hash-only rebuild input (goldens.toml hash_only, e.g. H2H:rebuild) has no values."""
+    spec = SETS[set_name]
+    if spec.get("mode") == "batches":
+        return True
+    datasets = {h.split(":")[0] for h in spec.get("hash_only", []) if h.endswith(":rebuild")}
+    return tree["dataset"] in datasets and "hash-only inputs" in tree["unreplayable_reason"]
+
+
+def replay_case(exe: Path, trace: Path, policy: str, fields: str, tmp: Path) -> dict:
+    out = tmp / (trace.parent.name + ".json")
+    cmd = [str(exe), "--fields", fields, "--tmp", str(tmp), "--json", str(out), str(trace)]
+    if policy:
+        cmd[1:1] = ["--policy", policy]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode not in (0, 1) or not out.is_file():
+        return {"case": trace.parent.name, "error": (proc.stderr or proc.stdout).strip()[-2000:]}
+    report = json.loads(out.read_text())[0]
+    out.unlink()
+    report["case"] = trace.parent.name
+    return report
+
+
+def replay_set(set_name: str, args, exe: Path) -> dict:
+    """Replays every case of a set through the store; the record of parity/results."""
+    import concurrent.futures
+    import datetime
+
+    toml = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
+    traces = sorted(set_dir(args.scratch, set_name).glob("*/trace.cbt.zst"))
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="cbst-replay-", dir=args.scratch / "runs") as t:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            reports = list(
+                pool.map(lambda tr: replay_case(exe, tr, args.policy, args.fields, Path(t)), traces)
+            )
+    cases, bad = [], []
+    totals = {
+        k: 0
+        for k in (
+            "ops",
+            "compared",
+            "unreplayable",
+            "mappings",
+            "keys_compared",
+            "hash_only_rows",
+            "growths",
+            "compactions",
+            "exceptions",
+            "mismatch_count",
+        )
+    }
+    for r in reports:
+        if "error" in r:
+            bad.append(f"{r['case']}: {r['error']}")
+            cases.append({"case": r["case"], "error": r["error"]})
+            continue
+        for k in totals:
+            totals[k] += r[k]
+        disallowed = [
+            t for t in r["trees"] if t["unreplayable"] and not allowed_unreplayable(set_name, t)
+        ]
+        if not r["ok"]:
+            m = r["mismatches"][0] if r["mismatches"] else {}
+            bad.append(
+                f"{r['case']}: {r['mismatch_count']} mismatches, first at op {m.get('op_index')} "
+                f"(tree {m.get('tree')} {m.get('dataset')}, {m.get('op')}) {m.get('field')} key "
+                f"{m.get('key')}: trace {m.get('expected')}, store {m.get('actual')}"
+            )
+        for tr in disallowed:
+            bad.append(
+                f"{r['case']}: tree {tr['tree']} ({tr['dataset']}) unreplayable: "
+                f"{tr['unreplayable_reason']}"
+            )
+        cases.append(
+            {
+                "case": r["case"],
+                "ok": r["ok"] and not disallowed,
+                "store": r["store"],
+                "exit": r["exit"],
+                **{k: r[k] for k in totals},
+                "unreplayable_trees": [
+                    {k: tr[k] for k in ("tree", "dataset", "unreplayable", "unreplayable_reason")}
+                    for tr in r["trees"]
+                    if tr["unreplayable"]
+                ],
+                "first_mismatches": r["mismatches"][:5],
+            }
+        )
+    spec = toml.get("sets", {}).get(set_name, {})
+    return {
+        "set": set_name,
+        "reference": SETS[set_name]["reference"],
+        "manifest_sha256": spec.get("manifest_sha256"),
+        "store": args.store,
+        "policy": args.policy or "the original's preset",
+        "fields": args.fields,
+        "exe": str(exe),
+        "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+        "head": subprocess.run(
+            ["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True
+        ).stdout.strip(),
+        "cases": cases,
+        "totals": totals,
+        "problems": bad,
+        "passed": not bad and bool(traces),
+    }
+
+
 def compare_main(argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="compare.py cbst_trace")
+    p = argparse.ArgumentParser(
+        prog="compare.py cbst_trace",
+        description="Verify the CBST trace goldens and, with --store, replay them through a store "
+        "(M8a; ADR 0037): every case of every set, under the original's preset (or --policy), "
+        "comparing --fields; a JSON record per set with --record.",
+    )
     p.add_argument("--set", choices=list(SETS), action="append")
     p.add_argument("--scratch", type=Path, default=scratch_default())
     p.add_argument("--list", action="store_true", help="list the sets and their cases")
@@ -684,6 +813,23 @@ def compare_main(argv: list[str]) -> int:
         action="store_true",
         help="also rebuild every trace (escher_trace.py verify)",
     )
+    p.add_argument(
+        "--store",
+        choices=["host_model", "device"],
+        help="replay through this store (host_model: dyng::testing::cbst_host_model; device: the "
+        "dynG store, from M8a step 3)",
+    )
+    p.add_argument(
+        "--policy",
+        choices=["escher_gpu", "mosp_escher", "dyng_default"],
+        default="",
+        help="the store's policy (default: the preset of each trace's original)",
+    )
+    p.add_argument("--fields", choices=["semantic", "offsets", "exact"], default="exact")
+    p.add_argument("--replay-exe", type=Path, help="dyng_cbst_replay (default: find it in build/)")
+    p.add_argument("--jobs", type=int, default=max(1, min(8, (os.cpu_count() or 4) // 4)))
+    p.add_argument("--record", type=Path, help="write M8a-<store>-<set>-<fields>.json here")
+    p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
     args = p.parse_args(argv)
     names = args.set or list(SETS)
     if args.list:
@@ -699,9 +845,33 @@ def compare_main(argv: list[str]) -> int:
                 )
             )
         return 0
+    exe = None
+    if args.store == "device":
+        print(
+            "compare.py cbst_trace --store device: the dynG store's replay arrives in M8a step 3",
+            file=sys.stderr,
+        )
+        return 2
+    if args.store == "host_model":
+        exe = args.replay_exe or find_replay_exe()
+        if exe is None or not exe.is_file():
+            print(
+                "dyng_cbst_replay not found: build it (cmake --build <build> --target "
+                "dyng_cbst_replay) or pass --replay-exe",
+                file=sys.stderr,
+            )
+            return 2
+    missing = [n for n in names if not (set_dir(args.scratch, n) / "MANIFEST.sha256").is_file()]
+    if missing and len(missing) == len(names):
+        print(
+            f"no CBST trace goldens under {args.scratch / 'goldens' / 'cbst_trace'} "
+            "(parity/export_goldens.py cbst_trace all); skipping",
+            file=sys.stderr,
+        )
+        return 77
     bad = 0
     for n in names:
-        problems = verify_set(n, args.scratch)
+        problems = [] if args.skip_verify else verify_set(n, args.scratch)
         if args.verify_traces and not problems:
             with tempfile.TemporaryDirectory(dir=args.scratch / "runs") as t:
                 for zst in sorted(set_dir(args.scratch, n).glob("*/trace.cbt.zst")):
@@ -728,6 +898,25 @@ def compare_main(argv: list[str]) -> int:
                     problems += [f"{zst.parent.name}: {x}" for x in verify(plain)]
                     for f in Path(t).iterdir():
                         f.unlink()
+        record = None
+        if exe is not None and not problems:
+            record = replay_set(n, args, exe)
+            problems += record["problems"]
+            t = record["totals"]
+            print(
+                f"{n}: replay through {args.store} ({record['policy']}, {args.fields}): "
+                f"{len(record['cases'])} traces, {t['ops']} ops, {t['compared']} compared, "
+                f"{t['unreplayable']} unreplayable, {t['mappings']} mappings, "
+                f"{t['keys_compared']} key states, {t['hash_only_rows']} hash-only rows, "
+                f"{t['growths']} growths, {t['compactions']} compactions, {t['exceptions']} "
+                f"exceptions, {t['mismatch_count']} mismatches"
+            )
+            if args.record:
+                args.record.mkdir(parents=True, exist_ok=True)
+                name = f"M8a-{args.store.replace('_', '-')}-{n[len('cbst_trace_') :]}-{args.fields}"
+                if args.policy:
+                    name += f"-{args.policy}"
+                (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
         print(f"{n}: " + ("OK" if not problems else "FAILED"))
         for pr in problems:
             print("  " + pr)
