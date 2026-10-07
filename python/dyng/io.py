@@ -593,7 +593,7 @@ def read_parents(path: PathLike, num_vertices: int, *, vertex_dtype: Any = "int3
 
 def _host_array(a: Any, what: str) -> np.ndarray:
     if isinstance(a, Array):
-        return a.to_numpy(copy=False)
+        return a.to_numpy(copy=None)
     return _dtypes.to_numpy(a, what)
 
 
@@ -621,7 +621,7 @@ def write_path_costs(path: PathLike, costs: Any) -> None:
         costs: An (n, K) integer array (``dyng.mosp.Result.path_costs``, or
             :func:`dyng.testing.mosp_path_costs`).
     """
-    c = costs.to_numpy(copy=False) if isinstance(costs, Array) else np.asarray(costs)
+    c = costs.to_numpy(copy=None) if isinstance(costs, Array) else np.asarray(costs)
     if c.dtype.kind not in "iu":
         raise InvalidArgumentError(f"write_path_costs: costs must be integers, got {c.dtype}")
     if c.ndim != 2 or c.shape[1] < 1:

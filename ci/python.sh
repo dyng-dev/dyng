@@ -75,7 +75,7 @@ echo "==> installed: $("${python}" -c 'import dyng; print(dyng.__version__, dyng
 echo "==> scripts/regen.py --stubs --check"
 "${python}" scripts/regen.py --stubs --check
 
-echo "==> mypy (strict) over python/dyng"
+echo "==> mypy (strict) over python/dyng and python/plugin/dyng_plugin"
 if "${python}" -m mypy --version >/dev/null 2>&1; then
   "${python}" -m mypy
 elif [ -n "${CI:-}" ]; then

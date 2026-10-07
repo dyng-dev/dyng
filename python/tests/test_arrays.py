@@ -12,6 +12,10 @@ import dyng
 import numpy as np
 import pytest
 
+# These tests are about host memory: the sequential backend even when a CUDA plugin is active
+# (device arrays: test_cuda.py).
+pytestmark = pytest.mark.usefixtures("host_default_resources")
+
 
 @pytest.fixture
 def tree() -> dyng.sssp.Result:
@@ -225,3 +229,56 @@ def test_cupy_round_trip(tree: dyng.sssp.Result) -> None:
     except Exception as e:  # pragma: no cover - no device
         pytest.skip(f"cupy without a device: {e}")
     assert cupy.asnumpy(c).tolist() == [0, 4, 1, 6]
+
+
+# -------------------------------------------------------------------------------------------------
+# The host side of the device-memory rules (ADR 0031; the device side is test_cuda.py)
+# -------------------------------------------------------------------------------------------------
+
+
+def test_host_arrays_have_no_cuda_array_interface(tree: dyng.sssp.Result) -> None:
+    d = tree.distances
+    assert not hasattr(d, "__cuda_array_interface__")
+    assert d.__array_interface__["shape"] == (4,)
+    view = d.to_numpy(copy=None)  # host memory: the read-only view
+    assert not view.flags.writeable and np.shares_memory(view, d.to_numpy(copy=False))
+
+
+def test_dlpack_copies_on_request(tree: dyng.sssp.Result) -> None:
+    d = tree.distances
+    copied = np.from_dlpack(d, copy=True)
+    assert copied.flags.writeable and copied.tolist() == [0, 4, 1, 6]
+    assert not np.shares_memory(copied, d.to_numpy(copy=False))
+    assert np.from_dlpack(d, device="cpu").tolist() == [0, 4, 1, 6]
+    with pytest.raises(BufferError, match="cannot export"):
+        d.__dlpack__(max_version=(1, 0), dl_device=(2, 0))
+
+
+def test_consumer_streams_follow_dlpack() -> None:
+    from dyng.array import consumer_stream
+
+    assert consumer_stream(None) == 1  # the legacy default stream
+    assert [consumer_stream(s) for s in (1, 2, 12345)] == [1, 2, 12345]
+    with pytest.raises(ValueError, match="ambiguous"):
+        consumer_stream(0)
+    with pytest.raises(TypeError):
+        consumer_stream("2")
+
+
+class _DeviceArray:
+    """Claims to live in CUDA memory (DLPack device (2, 0)) without a GPU."""
+
+    dtype = np.dtype(np.int32)
+
+    def __dlpack_device__(self) -> tuple[int, int]:
+        return (2, 0)
+
+    def __dlpack__(self, **kwargs: object) -> object:
+        raise AssertionError("not reached with the CPU module")
+
+
+def test_device_inputs_need_a_cuda_module() -> None:
+    if dyng.config()["build"]["cuda"]:
+        pytest.skip("a CUDA plugin module is active (device inputs: test_cuda.py)")
+    with pytest.raises(dyng.NotSupportedError, match="CUDA device memory"):
+        dyng.Graph.from_edges(_DeviceArray(), [1], [1])

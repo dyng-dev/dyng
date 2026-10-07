@@ -33,7 +33,8 @@ author and is recorded in the approvals log of `GOVERNANCE.md`.
 | 8 | Labels | after the M4 merge | pending: the `labels` workflow applies `.github/labels.yml` on the first push of `main` with the M4 merge |
 | 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378), strict; 17 required checks, **18** with `DCO` from 2026-09-30, and **24** after pull request #4 (M5, merge commit `8842acf`): `scaffold`, the four checks of `python.yml` and `Python API (griffe)` added (2026-10-01) |
 | 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass; the tags `v0.1.0rc1` and `v0.1.0` may be pushed by the AI assistant on the author's behalf, GOVERNANCE.md 2026-09-30) |
-| 11 | Environments `pypi` and `testpypi`: protection rules; for the CUDA plugins `pypi-cu12`, `pypi-cu13`, `testpypi-cu12`, `testpypi-cu13` | now; the plugin environments for 0.2.0 | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only). The four plugin environments were created by the maintainer through the API on 2026-10-02 with the same rules (`pypi-cu12` / `pypi-cu13` as `pypi`, `testpypi-cu12` / `testpypi-cu13` as `testpypi`), and the author registered the pending publishers `dyng-cu12` and `dyng-cu13` on PyPI and TestPyPI the same day (section 11) |
+| 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
+| 11b | Environments of the CUDA plugins `testpypi-cu12`, `pypi-cu12`, `testpypi-cu13`, `pypi-cu13`: protection rules (release 0.2.0; ADR 0032) | before the first `v0.2.0*` tag | **done**: the pending trusted publishers of `dyng-cu12` / `dyng-cu13` exist (set up by the author for 0.2.0, PLAN Appendix F; workflow `release.yml`, one environment pair per project); the four environments were created on 2026-10-02 with the rules of section 11 (deployments only from tags `v*`; `pypi-cu12` / `pypi-cu13`: the author as required reviewer, no administrator bypass) and checked through the API on 2026-10-06 (GOVERNANCE.md, approvals log) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
 | 13 | GitHub Pages: the documentation site (the plan's fallback to Read the Docs, chosen by the author on 2026-10-02) | before the M6b pull request (`docs.yml` with the `deploy` job) is merged, so that its first push to `main` deploys | **done** by the author on 2026-10-06 (source **GitHub Actions**, <https://dyng-dev.github.io/dyng/>, HTTPS enforced; GitHub created the environment `github-pages`, deployable from `main` only); the first deployment follows the merge of M6b; the website field (step 2) is set then |
 | 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); **not connected for 0.1.0**, so 0.1.0 has no DOI (the author, 2026-10-01; section 14) | later |
@@ -257,7 +258,7 @@ Required checks (the job names as they appear in a pull request's checks list):
 | DCO app (integration id 1861) | `DCO` (required since 2026-09-30; step 7) |
 
 Do **not** require checks of workflows that run only for some files (`labels.yml`;
-`wheels.yml`, which runs on pull requests only when they touch the packaging; `fuzz.yml`, only
+`wheels.yml`, which runs on pull requests only when they touch the packaging or the library; `fuzz.yml`, only
 when they touch a reader), only on tags (`release.yml`), only on some events (`welcome.yml`, the
 first-interaction greeting) or only on a schedule (the `external-links` job of `docs.yml`,
 `property.yml`): a required check that never runs blocks every pull request.
@@ -312,17 +313,26 @@ their names are bound to the PyPI trusted publishers: **never rename them**.
 5. Back to **Environments** → **testpypi**: repeat step 3 (tag rule `v*`); required reviewers
    are optional here (release candidates go to TestPyPI only).
 
-**The CUDA plugins (0.2.0).** PyPI does not accept two identical pending publishers, so each
-plugin distribution publishes through its own environments (the author's decision of
-2026-10-02, `GOVERNANCE.md`): `pypi-cu12` and `pypi-cu13` (required reviewer SMShovan, no
-administrator bypass, tags `v*` only: steps 2-4) and `testpypi-cu12` and `testpypi-cu13` (tags
-`v*` only: step 5). The maintainer created them through the API on 2026-10-02. The author
-registered the pending publishers on PyPI and TestPyPI the same day: project `dyng-cu12` with
-the environments `pypi-cu12` / `testpypi-cu12`, project `dyng-cu13` with `pypi-cu13` /
-`testpypi-cu13`, repository `dyng-dev/dyng`, workflow `release.yml`. `release.yml` publishes each
-plugin through its own environments (M6a); the `dyng` publisher (`pypi` / `testpypi`) is
-unchanged. Like `pypi` and `testpypi`, these names are bound to the publishers: never rename
-them.
+**The CUDA plugins (from 0.2.0; ADR 0032).** PyPI does not accept two identical pending
+publishers, so each plugin distribution publishes through its own environments (the author's
+decision of 2026-10-02, `GOVERNANCE.md`): `release.yml` publishes `dyng-cu12` through
+`testpypi-cu12` and `pypi-cu12`, and `dyng-cu13` through `testpypi-cu13` and `pypi-cu13`. The
+author registered the pending publishers on PyPI and TestPyPI on 2026-10-02 (project
+`dyng-cu12` with `pypi-cu12` / `testpypi-cu12`, project `dyng-cu13` with `pypi-cu13` /
+`testpypi-cu13`, repository `dyng-dev/dyng`, workflow `release.yml`); the maintainer created
+the four environments through the API the same day with the rules of `pypi` / `testpypi`,
+checked on 2026-10-06 (item 11b). To recreate them:
+
+6. **Environments** → **New environment** (if GitHub has not created it at the first run) →
+   `pypi-cu12` → steps 2 to 4 (required reviewer **SMShovan**, tag rule `v*`, no administrator
+   bypass); the same for `pypi-cu13`.
+7. `testpypi-cu12` and `testpypi-cu13`: step 3 (tag rule `v*`).
+
+A final release with the plugins then waits for three approvals in two **Review deployments**
+dialogs of the run, because `publish-pypi` (environment `pypi`) needs `publish-pypi-plugins` to
+succeed first (ADR 0032 item 6): first `pypi-cu12` and `pypi-cu13`, waiting together (the dialog
+lists them with a checkbox each: tick both → **Approve and deploy**); then, once both plugins are
+on PyPI, `pypi` alone, in a second dialog. Never rename the six environments.
 
 Docs: <https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments>.
 

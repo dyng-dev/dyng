@@ -82,4 +82,5 @@ NB_MODULE(_core, m) {
   bind_generators(m);
   bind_registry(m);
   bind_testing(m);
+  bind_arrays(m);
 }

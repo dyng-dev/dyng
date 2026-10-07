@@ -149,7 +149,7 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 # `dyng._backend.native` is the native module chosen on first use (dyng._core, or a CUDA plugin
-# from 0.1.x), so it cannot be resolved statically; the stubs document dyng._core.
+# from 0.2.0), so it cannot be resolved statically; the stubs document dyng._core.
 suppress_warnings = ["autoapi.python_import_resolution"]
 # Names without a page: NumPy and the standard library (no inventory is loaded, so the build never
 # needs the network), and the string-literal aliases of the typed layer (their values are listed

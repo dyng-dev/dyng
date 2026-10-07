@@ -20,6 +20,9 @@ CudaError                Error, RuntimeError (``.code``)          cuda_error
 OutOfMemoryError         Error, MemoryError                       out_of_memory_error
 InternalError            Error, RuntimeError                      internal_error
 ======================== ======================================== ==============================
+
+One warning class: :class:`BackendWarning` (``UserWarning``), issued once per process when a CUDA
+plugin is installed but cannot be used and dynG falls back to the CPU module.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ __all__ = [
     "CudaError",
     "OutOfMemoryError",
     "InternalError",
+    "BackendWarning",
 ]
 
 
@@ -129,6 +133,18 @@ class OutOfMemoryError(Error, MemoryError):
 
 class InternalError(Error, RuntimeError):
     """A broken internal invariant: a library bug. Please report it."""
+
+
+class BackendWarning(UserWarning):
+    """A CUDA plugin is installed but cannot be used, so dynG runs on the CPU module.
+
+    Issued once per process, when the native module is chosen (the first use of dynG): the
+    message names each installed plugin and why it cannot run (no NVIDIA driver, a driver too
+    old for the plugin's CUDA major, no visible device, a plugin of another version than
+    ``dyng``). ``dyng.show_config()`` shows the same. ``DYNG_CPU_ONLY=1`` or
+    :func:`dyng.use_cpu_only` chooses the CPU module without the warning; so does the usual
+    ``warnings.filterwarnings("ignore", category=dyng.BackendWarning)``.
+    """
 
 
 def _register(module: ModuleType) -> None:

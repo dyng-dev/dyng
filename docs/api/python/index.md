@@ -24,13 +24,34 @@ rules that hold across the whole package (ADR 0011).
 
 A {py:class}`dyng.Resources` chooses the backend: `dyng.Resources.sequential()`,
 `dyng.Resources.openmp(num_threads=0)` (0 is the OpenMP default, which honours
-`OMP_NUM_THREADS`) or `dyng.Resources("openmp")`. The CPU wheel has no CUDA backend:
-`dyng.Resources.cuda()` raises {py:class}`dyng.NotSupportedError` with a message that names the
-CUDA plugin wheels of 0.1.x. Every function takes `resources=None` as a keyword; `None` means
+`OMP_NUM_THREADS`) or `dyng.Resources("openmp")`. The CUDA backend comes with a CUDA plugin wheel
+(`pip install "dyng[cu13]"`; {doc}`../../getting_started/install`):
+`dyng.Resources.cuda(device=0, stream=None)` (`stream`: an integer handle, a CuPy or PyTorch
+stream, or any object with `__cuda_stream__`; a stream object is kept alive by the resources and
+by what is built with them). Without a usable plugin `dyng.Resources.cuda()` raises
+{py:class}`dyng.NotSupportedError` with a message that names the plugin wheels and, when plugins
+are installed, why none is used. Every function takes `resources=None` as a keyword; `None` means
 the resources the graph was built with for every call that takes a graph (`compute`, `update`,
 `Graph.apply`), and the process-wide default ({py:func}`dyng.get_default_resources`, set with
 {py:func}`dyng.set_default_resources`) for the rest (building graphs, the readers). All backends
 return the same results bit for bit.
+
+## The native module: the CPU module or a CUDA plugin
+
+`import dyng` loads no native module. The first use of dynG (the first graph, resources, reader
+or `dyng.__version__`) chooses one for the process (ADR 0031): `dyng._core` (sequential and
+OpenMP), or the module of an installed CUDA plugin (`dyng_cu12` / `dyng_cu13`: every backend,
+CUDA included; its default backend is then `cuda`). Of the installed plugins of the same version
+as `dyng` that can run here (an NVIDIA driver of the plugin's CUDA major or newer and a visible
+device), the one of the driver's CUDA major wins. When plugins are installed but none can be
+used, dynG runs on `dyng._core` and issues one {py:class}`dyng.BackendWarning` (a `UserWarning`)
+that names each plugin and the reason. `DYNG_CPU_ONLY=1` in the environment (also `true`,
+`yes`, `on`; `0`, `false`, `no`, `off` or empty mean unset; other values are ignored with a
+warning), or
+{py:func}`dyng.use_cpu_only` before the first use, chooses the CPU module without looking at the
+plugins (and without the warning). {py:func}`dyng.show_config` prints the active module, why it
+was chosen and every installed plugin's state; {py:func}`dyng.config` returns the same as a dict
+(`native_module`, `selection`, `plugins`).
 
 ## Dtype dispatch
 
@@ -53,6 +74,9 @@ inputs:
 - Weights are int32 integers (range-checked); floating-point and boolean weights are rejected.
 - An unsupported combination raises {py:class}`dyng.NotSupportedError` listing the supported
   ones.
+- Inputs in CUDA device memory (CuPy, PyTorch, JAX, a `dyng.Array` of the CUDA backend) need a
+  CUDA plugin's module and are copied to the host once (graphs and batches are built from host
+  arrays in this release), after the producer's stream (`__dlpack__(stream=...)`).
 
 ## Result arrays
 
@@ -72,6 +96,18 @@ which cannot be marked read-only, is a copy. PyTorch and CuPy have no read-only 
 from `a.to_torch()` or `torch.from_dlpack(a)` aliases the result and must not be written.
 `copy.copy` / `copy.deepcopy` of a result or a graph are `clone()`; batches, resources and arrays
 pickle, graphs and results explain how to send them (`to_csr()`, `Result.from_arrays()`).
+
+Results of the CUDA backend live in device memory (`a.device == "cuda:0"`,
+`a.__dlpack_device__() == (2, 0)`; mosp's `path_costs` and cycle_count's `counts` are host
+arrays on every backend). Such an Array has `__cuda_array_interface__` (version 3, read-only,
+with the stream of the call that last wrote the result) instead of `__array_interface__`, so
+`cupy.asarray(a)`, `cupy.from_dlpack(a)` and `torch.from_dlpack(a)` view it on the device
+without a copy. A DLPack consumer passes its stream (`__dlpack__(stream=...)`) and the Array
+orders that stream after the result's with a CUDA event (PLAN Section 5.4, rule 4); the host
+does not wait. `shape`, `dtype`, `size` and `ndim` read no element; `a.to_numpy()` copies to the
+host; `a.to_numpy(copy=None)` returns a read-only host copy that the Array keeps (for host
+memory: the read-only view), and `a.to_numpy(copy=False)` raises for device memory. Indexing,
+iteration, comparisons, `repr` and `np.asarray(a)` read through that kept copy.
 
 ## Results, versions and stale results
 
@@ -100,6 +136,9 @@ exception a Python user expects:
 | `cuda_error` | `dyng.CudaError` (`.code`) | `RuntimeError` |
 | `out_of_memory_error` | `dyng.OutOfMemoryError` | `MemoryError` |
 | `internal_error` | `dyng.InternalError` | `RuntimeError` |
+
+One warning class: {py:class}`dyng.BackendWarning` (a `UserWarning`), issued once per process
+when a CUDA plugin is installed but cannot be used and dynG falls back to the CPU module.
 
 A call that raises leaves the graph and its results as they were, except where the C++
 documentation says otherwise (a result poisoned by a failed update raises `StaleResultError`

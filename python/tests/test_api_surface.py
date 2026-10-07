@@ -8,7 +8,6 @@ import importlib
 import importlib.metadata
 import importlib.resources
 import inspect
-import os
 
 import dyng
 import pytest
@@ -47,6 +46,7 @@ PUBLIC = [
     "CudaError",
     "OutOfMemoryError",
     "InternalError",
+    "BackendWarning",
 ]
 
 
@@ -111,75 +111,22 @@ def test_show_config(capsys: pytest.CaptureFixture[str]) -> None:
     assert out.startswith(f"dynG {dyng.__version__}")
     assert "sequential (yes)" in out
     c = dyng.config()
-    assert c["native_module"] == "dyng._core"
+    if not c["build"]["cuda"]:
+        assert c["native_module"] == "dyng._core"
+    assert c["native_module"] in out and c["selection"] in out
     assert c["backends"]["sequential"] is True
 
 
 def test_use_cpu_only_is_a_no_op_with_the_cpu_module() -> None:
+    if dyng.config()["build"]["cuda"]:  # a CUDA plugin's module is active: too late to switch
+        with pytest.raises(RuntimeError, match="already"):
+            dyng.use_cpu_only()
+        return
     dyng.use_cpu_only()
 
 
-_FAKE_PLUGIN = """
-import sys, types
-from importlib import metadata
-
-loads = []
-fake_native = types.SimpleNamespace(__version__="fake", _set_error_types=lambda classes: None)
-
-
-class EntryPoint:
-    name = "cu99"
-    value = "fake_plugin"
-
-    def load(self):
-        loads.append(self.name)
-        return types.SimpleNamespace(available=lambda: True, native=fake_native)
-
-
-real = metadata.entry_points
-
-
-def fake_entry_points(**kw):
-    return [EntryPoint()] if kw.get("group") == "dyng.backends" else real(**kw)
-
-
-metadata.entry_points = fake_entry_points
-import dyng, dyng._backend as backend
-assert backend.active_module_name is None and "dyng._core" not in sys.modules, "chosen at import"
-"""
-
-
-def _run(code: str) -> str:
-    import subprocess
-    import sys
-
-    env = {k: v for k, v in os.environ.items() if k != "DYNG_CPU_ONLY"}
-    out = subprocess.run(
-        [sys.executable, "-c", _FAKE_PLUGIN + code], capture_output=True, text=True, env=env
-    )
-    assert out.returncode == 0, out.stderr
-    return out.stdout
-
-
-def test_the_native_module_is_chosen_on_first_use() -> None:
-    # A plugin process imports only the plugin's module, never dyng._core.
-    out = _run(
-        "print(dyng.__version__, backend.active_module_name, loads, 'dyng._core' in sys.modules)\n"
-        "try:\n"
-        "    dyng.use_cpu_only()\n"
-        "except RuntimeError as e:\n"
-        "    print('refused:', 'already' in str(e))\n"
-    )
-    assert out.split("\n")[:2] == ["fake fake_plugin (plugin cu99) ['cu99'] False", "refused: True"]
-
-
-def test_use_cpu_only_before_first_use_forces_the_cpu_module() -> None:
-    out = _run(
-        "dyng.use_cpu_only()\n"
-        "print(backend.active_module_name, loads, dyng.__version__ != 'fake')\n"
-        "dyng.use_cpu_only()  # again: a no-op\n"
-    )
-    assert out.strip() == "dyng._core [] True"
+# The choice of the native module (plugins, fallback, use_cpu_only()) is tested in
+# test_backend_selection.py.
 
 
 def test_log_level_round_trip() -> None:

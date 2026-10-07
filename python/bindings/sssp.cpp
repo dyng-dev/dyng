@@ -34,6 +34,9 @@ void bind_result(nb::module_& m) {
            [](const holder_t& h) {
              return export_array(h, [](const auto& r) { return r.parents(); });
            })
+      .def_prop_ro(
+          "writer", [](const holder_t& h) { return writer_of(h); },
+          "The resources of the call that last wrote this result (orders its device arrays).")
       .def_prop_ro("generation", &holder_t::generation,
                    "The number of updates of this result (dyng.Array's staleness check).")
       .def_prop_ro("options",
@@ -65,7 +68,7 @@ void bind_result(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, false);
               locks.lock();
-              return new holder_t(h.get().clone(res));
+              return new holder_t(h.get().clone(res), res);
             });
           },
           nb::arg("resources"), nb::rv_policy::take_ownership);
@@ -86,7 +89,8 @@ void bind_functions(nb::module_& m) {
             lock_set locks;
             locks.add(g.mutex, false);
             locks.lock();
-            return new result_t(sssp::compute(res, g.value, static_cast<vertex_t>(source), opt));
+            return new result_t(sssp::compute(res, g.value, static_cast<vertex_t>(source), opt),
+                                res);
           });
         },
         nb::arg("resources"), nb::arg("graph"), nb::arg("source"), nb::arg("options"),
@@ -117,8 +121,9 @@ void bind_functions(nb::module_& m) {
             locks.add(g.mutex, false);
             locks.lock();
             return new result_t(sssp::result<vertex_t>::from_arrays(
-                res, g.value, static_cast<vertex_t>(source), view_of(distances), view_of(parents),
-                canonicalize, opt));
+                                    res, g.value, static_cast<vertex_t>(source), view_of(distances),
+                                    view_of(parents), canonicalize, opt),
+                                res);
           });
         },
         nb::arg("resources"), nb::arg("graph"), nb::arg("source"), nb::arg("distances").noconvert(),

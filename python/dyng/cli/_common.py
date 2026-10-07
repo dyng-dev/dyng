@@ -82,7 +82,7 @@ def add_backend_flags(p: argparse.ArgumentParser) -> None:
         choices=("sequential", "openmp", "cuda"),
         default=None,
         help="the backend (default: openmp if this build has it, else sequential; cuda needs "
-        "the CUDA plugins of 0.1.x)",
+        'a CUDA plugin wheel, from 0.2.0: pip install "dyng[cu13]" or "dyng[cu12]")',
     )
     g.add_argument(
         "--threads",

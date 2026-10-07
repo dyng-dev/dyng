@@ -115,8 +115,84 @@ ci/python.sh                       # the editable install, the stubs check, mypy
 ```
 
 `dyng.show_config()` prints the backends of the active native module; `dyng.Resources("cuda")`
-raises `NotSupportedError` in the CPU wheel. The CUDA backends come as plugin wheels in 0.1.x
-(`pip install "dyng[cu13]"`, PLAN Section 7.7); until then, use CUDA from C++. The PyPI release
-0.0.1 was only the name reservation and contains no library. {doc}`first_update_python` runs a
-first update; the local build of the release wheels is described in
+raises `NotSupportedError` in the CPU wheel. The PyPI release 0.0.1 was only the name
+reservation and contains no library. {doc}`first_update_python` runs a first update; the local
+build of the release wheels is described in {doc}`../developer/wheels`.
+
+### CUDA from Python: the plugin wheels
+
+From 0.2 the CUDA backend comes as a plugin wheel next to `dyng`: `dyng-cu13` for an NVIDIA
+driver of CUDA 13, `dyng-cu12` for CUDA 12 (ADR 0030). The extras install the plugin of the same
+version:
+
+```bash
+pip install "dyng[cu13]"           # NVIDIA driver 580 or newer (CUDA 13.x)
+pip install "dyng[cu12]"           # NVIDIA driver 525 or newer (CUDA 12.x)
+python -c "import dyng; dyng.show_config()"
+```
+
+A plugin contains the CUDA runtime (no CUDA toolkit is needed), code for the GPU architectures
+sm_75 to sm_120 (Turing to Blackwell) and PTX for newer ones. Which one to install: `nvidia-smi`
+prints the driver's "CUDA Version"; take the plugin of that major (a cu12 plugin also runs on a
+CUDA 13 driver; a cu13 plugin needs a CUDA 13 driver). With both installed, the one of the
+driver's CUDA major is used.
+
+| `nvidia-smi` "CUDA Version" (Linux driver) | Install | Built with |
+|---|---|---|
+| 13.x (driver 580.65.06 or newer) | `pip install "dyng[cu13]"` | CUDA 13.4 |
+| 12.x (driver 525.60.13 or newer) | `pip install "dyng[cu12]"` | CUDA 12.9 |
+| older, or no NVIDIA GPU | `pip install dyng` (CPU backends) | |
+
+Requirements: Linux x86-64 with glibc 2.28 or newer (manylinux_2_28), CPython 3.12 or newer, an
+NVIDIA GPU of compute capability 7.5 or newer (Turing, 2018, and later; the CUDA 13 toolkits no
+longer support older GPUs), and the NVIDIA driver. CUDA's minor-version compatibility lets a
+plugin built with the latest toolkit of its major run on any driver of that major. In a
+container the GPU and the driver's libraries must be passed in (`docker run --gpus all`, the
+NVIDIA Container Toolkit). The optional extras `cupy-cu13` / `cupy-cu12` and `torch` install
+CuPy and PyTorch for the device-array round trips.
+
+```python
+import dyng
+
+res = dyng.Resources.cuda(device=0)                 # or Resources.cuda(stream=torch_or_cupy_stream)
+g = dyng.Graph.from_edges([0, 0, 1], [1, 2, 2], [4, 1, 1], resources=res)
+tree = dyng.sssp.compute(g, 0)
+print(tree.distances.device, tree.distances.to_numpy())   # cuda:0 [0 4 1]
+```
+
+Results of the CUDA backend stay in device memory: `torch.from_dlpack(tree.distances)` and
+`cupy.asarray(tree.distances)` view them without a copy, and `to_numpy()` copies them to the host
+({doc}`../api/python/index`).
+
+**Troubleshooting.** `dyng.show_config()` names the active module (`dyng_cu13 (plugin cu13)` or
+`dyng._core`), why it was chosen, and the state of every installed plugin. If a plugin is
+installed but cannot be used, dynG runs on the CPU backends and issues one `dyng.BackendWarning`
+with the reason:
+
+| Reason in the warning | Remedy |
+|---|---|
+| `no CUDA driver: libcuda.so.1 cannot be loaded` | install the NVIDIA driver (in a container: run it with the GPU, e.g. `--gpus all`) |
+| `the CUDA driver supports CUDA 12.x, but dyng-cu13 needs CUDA 13.0 or newer` | update the driver, or `pip install "dyng[cu12]"` |
+| `no CUDA device is visible` | check `CUDA_VISIBLE_DEVICES` and `nvidia-smi` |
+| `the visible GPU (sm_70) is older than the oldest architecture of dyng-cu12, sm_75` | the plugins need compute capability 7.5 or newer (Turing and later): use the CPU backends (`pip install dyng`), or make a newer GPU visible |
+| `version 0.2.0 does not match dyng 0.2.1` | `pip install "dyng[cu13]==<the dyng version>"` (a plugin of another version is never loaded) |
+| `its module cannot be loaded (...)` | reinstall the plugin; report the message if it persists |
+| `Resources.cuda: the active native module is dyng._core` (an error) | no plugin is installed, or the warning above says why it is not used |
+
+Errors of the CUDA backend itself (a `dyng.CudaError` or `NotSupportedError` after the plugin was
+chosen):
+
+| Message | Cause and remedy |
+|---|---|
+| `... cannot be initialized in this process (cudaErrorInitializationError); CUDA cannot be initialized in a process forked after its parent initialized CUDA ...` | a worker process started with `fork` (the default of `multiprocessing` on Linux before Python 3.14) whose parent had already used CUDA; start the workers with `multiprocessing.get_context("spawn")` (or `"forkserver"`), or use CUDA in the parent only after the workers are started. Choosing the plugin does not initialize CUDA, so a parent that only imported dynG, read `dyng.__version__` or ran CPU work can fork workers that use CUDA |
+| `cudaErrorNoKernelImageForDevice ... this build of dynG has no code for device 0 (compute capability X.Y)` | the device is not covered by the plugin's architectures (sm_75 to sm_120, PTX for newer ones); with several GPUs, choose a supported one with `Resources.cuda(device=...)` or `CUDA_VISIBLE_DEVICES` |
+
+On a machine without a GPU (a CI runner, a login node) an installed plugin is harmless: dynG
+falls back to the CPU backends with the warning; set `DYNG_CPU_ONLY=1` there to silence it.
+
+`DYNG_CPU_ONLY=1` in the environment (also `true`, `yes` or `on`, in any case; `0`, `false`,
+`no`, `off` or empty leave the choice to dynG, and any other value is ignored with a
+`dyng.BackendWarning`), or `dyng.use_cpu_only()` before the first use of dynG,
+chooses the CPU backends without the warning; `warnings.filterwarnings("ignore",
+category=dyng.BackendWarning)` silences it. Building a plugin from source is described in
 {doc}`../developer/wheels`.

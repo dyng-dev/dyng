@@ -30,8 +30,10 @@ from typing import Any, Literal
 import numpy as np
 
 from . import _dtypes
+from . import _writer as _writer_state
 from ._backend import native
 from ._convert import as_int, copy_fields, enum_member, enum_name, with_options
+from ._writer import resolve_on, writing
 from .array import Array
 from .batch import EdgeBatch
 from .errors import NotSupportedError
@@ -134,6 +136,11 @@ class Result:
     __slots__ = ("_native", "_resources", "__weakref__")
     _native: Any
     _resources: Resources
+    # the bookkeeping of dyng._writer (a side table: the slots stay as in 0.1)
+    _writer = _writer_state.WRITER
+    _streams = _writer_state.STREAMS
+    _write_lock = _writer_state.WRITE_LOCK
+    __del__ = _writer_state.release
 
     def __init__(self) -> None:
         raise TypeError("use dyng.cycle_count.compute()")
@@ -143,6 +150,7 @@ class Result:
         self = object.__new__(cls)
         self._native = handle
         self._resources = resources
+        _writer_state.track(self, resources)
         return self
 
     @property
@@ -150,7 +158,12 @@ class Result:
         """The histogram (uint64), a zero-copy view of the current state."""
         from .sssp import _result_array
 
-        return _result_array(self._native, self._native.counts, "cycle_count.Result.counts")
+        return _result_array(
+            self._native,
+            self._native.counts,
+            "cycle_count.Result.counts",
+            (self._resources, self._writer, self._streams),
+        )
 
     def count(self, length: int) -> int:
         """The number of cycles of one length (0 outside [2, bound])."""
@@ -251,7 +264,7 @@ def compute(
     """
     _check_graph(graph)
     opt = with_options(Options, options, kwargs, "cycle_count.compute")
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     return Result._wrap(
         native.cycle_count_compute(res._native, graph._native, opt._to_native()), res
     )
@@ -273,8 +286,8 @@ def update(
         raise TypeError("dyng.cycle_count.update: result must be a dyng.cycle_count.Result")
     if not isinstance(batch, EdgeBatch):
         raise TypeError("dyng.cycle_count.update: batch must be a dyng.EdgeBatch")
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(
-        native.cycle_count_update(res._native, graph._native, nb, result._native)
-    )
+    with writing([result], res):
+        out = native.cycle_count_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)

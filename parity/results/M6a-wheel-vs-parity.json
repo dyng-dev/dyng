@@ -1,0 +1,2034 @@
+{
+ "what": "informational wheel vs parity build row (PLAN 7.7); not a gate",
+ "date": "2026-10-06T22:56:47+00:00",
+ "commit": "476ab723afe0565d6d3a26bd716d7a1111ef9f80",
+ "gpu": 0,
+ "rounds": 21,
+ "clocks": "boost",
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "tasks": {
+  "sssp": {
+   "sides": {
+    "parity-cuda": {
+     "module": "dyng._core",
+     "dyng": "0.2.0.dev0",
+     "dyng_file": "/home/sskg8/Projects/dyng-work/wvp/parity-overlay/dyng/__init__.py",
+     "build": {
+      "build_type": "Release",
+      "compiler": "GNU 12.2.0",
+      "cuda": true,
+      "cuda_architectures": "86",
+      "cuda_runtime": "shared",
+      "cuda_toolkit": "13.1",
+      "openmp": true,
+      "openmp_version": 201511,
+      "plugin": ""
+     },
+     "python": "3.12.14",
+     "numpy": "2.5.3",
+     "inputs": {
+      "graph": "roadNet-CA",
+      "vertices": 1971281,
+      "edges": 5533214,
+      "objectives": 3,
+      "batch": "unsafe50k"
+     }
+    },
+    "wheel-cu13": {
+     "module": "dyng_cu13 (plugin cu13)",
+     "dyng": "0.2.0.dev0",
+     "dyng_file": "/home/sskg8/Projects/dyng-work/wheels/m6a-final-cu131/venv-cu13-3.12/lib/python3.12/site-packages/dyng/__init__.py",
+     "build": {
+      "build_type": "Release",
+      "compiler": "GNU 12.4.0",
+      "cuda": true,
+      "cuda_architectures": "75-real,80-real,86-real,89-real,90-real,100-real,120",
+      "cuda_runtime": "static",
+      "cuda_toolkit": "13.1",
+      "openmp": true,
+      "openmp_version": 201511,
+      "plugin": "cu13"
+     },
+     "python": "3.12.14",
+     "numpy": "2.5.3",
+     "inputs": {
+      "graph": "roadNet-CA",
+      "vertices": 1971281,
+      "edges": 5533214,
+      "objectives": 3,
+      "batch": "unsafe50k"
+     }
+    },
+    "wheel-cu13-ci": {
+     "module": "dyng_cu13 (plugin cu13)",
+     "dyng": "0.2.0.dev0",
+     "dyng_file": "/home/sskg8/Projects/dyng-work/wheels/m6a-final-ci/venv-cu13-3.12/lib/python3.12/site-packages/dyng/__init__.py",
+     "build": {
+      "build_type": "Release",
+      "compiler": "GNU 12.4.0",
+      "cuda": true,
+      "cuda_architectures": "75-real,80-real,86-real,89-real,90-real,100-real,120",
+      "cuda_runtime": "static",
+      "cuda_toolkit": "13.4",
+      "openmp": true,
+      "openmp_version": 201511,
+      "plugin": "cu13"
+     },
+     "python": "3.12.14",
+     "numpy": "2.5.3",
+     "inputs": {
+      "graph": "roadNet-CA",
+      "vertices": 1971281,
+      "edges": 5533214,
+      "objectives": 3,
+      "batch": "unsafe50k"
+     }
+    }
+   },
+   "metrics": {
+    "sosp_update_host_ms[0]": {
+     "median_ms": {
+      "parity-cuda": 8.675562,
+      "wheel-cu13": 8.578692,
+      "wheel-cu13-ci": 8.784537
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9888341527615158,
+      "wheel-cu13-ci": 1.0125611458946406
+     }
+    },
+    "sosp_update_host_ms[1]": {
+     "median_ms": {
+      "parity-cuda": 8.919423,
+      "wheel-cu13": 8.798501,
+      "wheel-cu13-ci": 9.061598
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9864428450136292,
+      "wheel-cu13-ci": 1.0159399324373337
+     }
+    },
+    "sosp_update_host_ms[2]": {
+     "median_ms": {
+      "parity-cuda": 8.798601,
+      "wheel-cu13": 8.666844,
+      "wheel-cu13-ci": 8.882224
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9850252329887444,
+      "wheel-cu13-ci": 1.0095041245761684
+     }
+    },
+    "sosp_total_host_ms": {
+     "median_ms": {
+      "parity-cuda": 26.400329,
+      "wheel-cu13": 26.054142,
+      "wheel-cu13-ci": 26.734015999999997
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9868870194761588,
+      "wheel-cu13-ci": 1.0126395015759082
+     }
+    },
+    "update_host_ms": {
+     "median_ms": {
+      "parity-cuda": 174.54494,
+      "wheel-cu13": 180.495088,
+      "wheel-cu13-ci": 181.051285
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 1.0340894900763093,
+      "wheel-cu13-ci": 1.0372760447825071
+     }
+    },
+    "sosp_update_device_ms[0]": {
+     "median_ms": {
+      "parity-cuda": 8.66966438293457,
+      "wheel-cu13": 8.572735786437988,
+      "wheel-cu13-ci": 8.778816223144531
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.988819798297224,
+      "wheel-cu13-ci": 1.0125900883112402
+     }
+    }
+   },
+   "samples": {
+    "parity-cuda": [
+     {
+      "sosp_update_host_ms": [
+       15.003307,
+       8.919423,
+       8.797989
+      ],
+      "sosp_update_device_ms": [
+       14.9967679977417,
+       8.912991523742676,
+       8.791104316711426
+      ],
+      "sosp_total_host_ms": 32.720719,
+      "update_host_ms": 219.285254,
+      "commit_host_ms": 146.994661,
+      "call_wall_ms": 219.61653232574463,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.646448,
+       8.880106,
+       8.819232
+      ],
+      "sosp_update_device_ms": [
+       8.640288352966309,
+       8.873824119567871,
+       8.81283187866211
+      ],
+      "sosp_total_host_ms": 26.345785999999997,
+      "update_host_ms": 194.344997,
+      "commit_host_ms": 121.831762,
+      "call_wall_ms": 194.67771239578724,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.659559,
+       8.905753,
+       8.78688
+      ],
+      "sosp_update_device_ms": [
+       8.653311729431152,
+       8.899392127990723,
+       8.780192375183105
+      ],
+      "sosp_total_host_ms": 26.352192000000002,
+      "update_host_ms": 187.655809,
+      "commit_host_ms": 117.887277,
+      "call_wall_ms": 187.96256836503744,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.650529,
+       8.885728,
+       8.778864
+      ],
+      "sosp_update_device_ms": [
+       8.644512176513672,
+       8.879263877868652,
+       8.772576332092285
+      ],
+      "sosp_total_host_ms": 26.315121,
+      "update_host_ms": 203.639055,
+      "commit_host_ms": 139.421018,
+      "call_wall_ms": 203.9380380883813,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.986509,
+       14.88981,
+       8.788608
+      ],
+      "sosp_update_device_ms": [
+       8.979840278625488,
+       14.883071899414062,
+       8.782400131225586
+      ],
+      "sosp_total_host_ms": 32.664927,
+      "update_host_ms": 178.018187,
+      "commit_host_ms": 105.91818,
+      "call_wall_ms": 178.31222712993622,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.656958,
+       8.895734,
+       8.845145
+      ],
+      "sosp_update_device_ms": [
+       8.650848388671875,
+       8.889439582824707,
+       8.839072227478027
+      ],
+      "sosp_total_host_ms": 26.397837,
+      "update_host_ms": 185.118014,
+      "commit_host_ms": 115.974092,
+      "call_wall_ms": 185.42535789310932,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.6971,
+       8.934895,
+       8.78755
+      ],
+      "sosp_update_device_ms": [
+       8.690688133239746,
+       8.928607940673828,
+       8.781087875366211
+      ],
+      "sosp_total_host_ms": 26.419545,
+      "update_host_ms": 192.658473,
+      "commit_host_ms": 129.261181,
+      "call_wall_ms": 192.96929705888033,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.96365,
+       14.896786,
+       8.787728
+      ],
+      "sosp_update_device_ms": [
+       8.957344055175781,
+       14.888319969177246,
+       8.781567573547363
+      ],
+      "sosp_total_host_ms": 32.648164,
+      "update_host_ms": 172.905674,
+      "commit_host_ms": 105.093285,
+      "call_wall_ms": 177.78797820210457,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       14.970101,
+       8.914827,
+       8.814954
+      ],
+      "sosp_update_device_ms": [
+       14.963968276977539,
+       8.908255577087402,
+       8.808159828186035
+      ],
+      "sosp_total_host_ms": 32.699882,
+      "update_host_ms": 171.946286,
+      "commit_host_ms": 105.230426,
+      "call_wall_ms": 172.26127348840237,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.679864,
+       8.905072,
+       8.806374
+      ],
+      "sosp_update_device_ms": [
+       8.673824310302734,
+       8.898752212524414,
+       8.799967765808105
+      ],
+      "sosp_total_host_ms": 26.39131,
+      "update_host_ms": 174.54494,
+      "commit_host_ms": 111.534852,
+      "call_wall_ms": 174.84765965491533,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.650438,
+       8.915785,
+       8.808169
+      ],
+      "sosp_update_device_ms": [
+       8.644672393798828,
+       8.909952163696289,
+       8.8023681640625
+      ],
+      "sosp_total_host_ms": 26.374392,
+      "update_host_ms": 170.087741,
+      "commit_host_ms": 108.375592,
+      "call_wall_ms": 170.37649918347597,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.663795,
+       8.936396,
+       8.815249
+      ],
+      "sosp_update_device_ms": [
+       8.656448364257812,
+       8.929247856140137,
+       8.808639526367188
+      ],
+      "sosp_total_host_ms": 26.41544,
+      "update_host_ms": 174.915077,
+      "commit_host_ms": 109.558921,
+      "call_wall_ms": 175.2404421567917,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.675562,
+       8.900162,
+       8.797523
+      ],
+      "sosp_update_device_ms": [
+       8.66966438293457,
+       8.894047737121582,
+       8.79155158996582
+      ],
+      "sosp_total_host_ms": 26.373247,
+      "update_host_ms": 179.328573,
+      "commit_host_ms": 120.604865,
+      "call_wall_ms": 179.63223718106747,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.933259,
+       14.903961,
+       8.823539
+      ],
+      "sosp_update_device_ms": [
+       8.92739200592041,
+       14.897664070129395,
+       8.817791938781738
+      ],
+      "sosp_total_host_ms": 32.660759,
+      "update_host_ms": 177.110199,
+      "commit_host_ms": 106.984347,
+      "call_wall_ms": 177.42474284023046,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.991728,
+       14.912616,
+       8.798601
+      ],
+      "sosp_update_device_ms": [
+       8.98528003692627,
+       14.905952453613281,
+       8.792415618896484
+      ],
+      "sosp_total_host_ms": 32.702945,
+      "update_host_ms": 173.478641,
+      "commit_host_ms": 104.042995,
+      "call_wall_ms": 175.09476467967033,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.66944,
+       8.936029,
+       8.786222
+      ],
+      "sosp_update_device_ms": [
+       8.6627197265625,
+       8.92956829071045,
+       8.780096054077148
+      ],
+      "sosp_total_host_ms": 26.391691,
+      "update_host_ms": 151.133195,
+      "commit_host_ms": 98.144622,
+      "call_wall_ms": 151.44804399460554,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.670038,
+       8.922221,
+       8.80807
+      ],
+      "sosp_update_device_ms": [
+       8.663935661315918,
+       8.913887977600098,
+       8.801952362060547
+      ],
+      "sosp_total_host_ms": 26.400329,
+      "update_host_ms": 171.843513,
+      "commit_host_ms": 108.477221,
+      "call_wall_ms": 172.15089313685894,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.673409,
+       8.911356,
+       8.816497
+      ],
+      "sosp_update_device_ms": [
+       8.667231559753418,
+       8.90454387664795,
+       8.810208320617676
+      ],
+      "sosp_total_host_ms": 26.401262,
+      "update_host_ms": 170.127252,
+      "commit_host_ms": 114.821104,
+      "call_wall_ms": 170.44868879020214,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.677352,
+       8.888742,
+       8.770263
+      ],
+      "sosp_update_device_ms": [
+       8.671456336975098,
+       8.882464408874512,
+       8.764063835144043
+      ],
+      "sosp_total_host_ms": 26.336357,
+      "update_host_ms": 172.550775,
+      "commit_host_ms": 110.699867,
+      "call_wall_ms": 172.85648733377457,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.654406,
+       8.926477,
+       8.807532
+      ],
+      "sosp_update_device_ms": [
+       8.648287773132324,
+       8.919903755187988,
+       8.801440238952637
+      ],
+      "sosp_total_host_ms": 26.388415000000002,
+      "update_host_ms": 165.759407,
+      "commit_host_ms": 109.981336,
+      "call_wall_ms": 166.07630718499422,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.694031,
+       8.945454,
+       8.798169
+      ],
+      "sosp_update_device_ms": [
+       8.68496036529541,
+       8.937151908874512,
+       8.79088020324707
+      ],
+      "sosp_total_host_ms": 26.437654000000002,
+      "update_host_ms": 171.026747,
+      "commit_host_ms": 110.123458,
+      "call_wall_ms": 171.37664835900068,
+      "checksum": 12758537619
+     }
+    ],
+    "wheel-cu13": [
+     {
+      "sosp_update_host_ms": [
+       11.288232,
+       12.355296,
+       8.670436
+      ],
+      "sosp_update_device_ms": [
+       11.281567573547363,
+       12.347616195678711,
+       8.664128303527832
+      ],
+      "sosp_total_host_ms": 32.313964,
+      "update_host_ms": 192.65002900000002,
+      "commit_host_ms": 126.86503,
+      "call_wall_ms": 192.99578480422497,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.576825,
+       8.730519,
+       8.669144
+      ],
+      "sosp_update_device_ms": [
+       8.570591926574707,
+       8.724512100219727,
+       8.662912368774414
+      ],
+      "sosp_total_host_ms": 25.976487999999996,
+      "update_host_ms": 195.122611,
+      "commit_host_ms": 122.542597,
+      "call_wall_ms": 195.45641355216503,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       11.302774,
+       12.339513,
+       8.632703
+      ],
+      "sosp_update_device_ms": [
+       11.296064376831055,
+       12.331775665283203,
+       8.626815795898438
+      ],
+      "sosp_total_host_ms": 32.27499,
+      "update_host_ms": 184.847342,
+      "commit_host_ms": 121.462075,
+      "call_wall_ms": 185.12246385216713,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       14.702671,
+       8.884801,
+       8.671701
+      ],
+      "sosp_update_device_ms": [
+       14.696224212646484,
+       8.87887954711914,
+       8.665760040283203
+      ],
+      "sosp_total_host_ms": 32.259173000000004,
+      "update_host_ms": 183.433553,
+      "commit_host_ms": 112.746838,
+      "call_wall_ms": 183.73262882232666,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.56377,
+       8.814415,
+       8.654344
+      ],
+      "sosp_update_device_ms": [
+       8.558015823364258,
+       8.808832168579102,
+       8.648768424987793
+      ],
+      "sosp_total_host_ms": 26.032529,
+      "update_host_ms": 172.163592,
+      "commit_host_ms": 108.171349,
+      "call_wall_ms": 172.43707086890936,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.881762,
+       14.754963,
+       8.657548
+      ],
+      "sosp_update_device_ms": [
+       8.875743865966797,
+       14.74937629699707,
+       8.652031898498535
+      ],
+      "sosp_total_host_ms": 32.294273000000004,
+      "update_host_ms": 191.516712,
+      "commit_host_ms": 117.559375,
+      "call_wall_ms": 191.79058074951172,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.584444,
+       8.778325,
+       8.682254
+      ],
+      "sosp_update_device_ms": [
+       8.578240394592285,
+       8.77184009552002,
+       8.675775527954102
+      ],
+      "sosp_total_host_ms": 26.045023,
+      "update_host_ms": 180.495088,
+      "commit_host_ms": 108.937149,
+      "call_wall_ms": 180.79371750354767,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.563997,
+       9.081283,
+       14.647962
+      ],
+      "sosp_update_device_ms": [
+       8.558239936828613,
+       9.074912071228027,
+       14.642463684082031
+      ],
+      "sosp_total_host_ms": 32.293242,
+      "update_host_ms": 169.05315000000002,
+      "commit_host_ms": 110.708036,
+      "call_wall_ms": 169.3253256380558,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.552935,
+       8.804858,
+       8.656567
+      ],
+      "sosp_update_device_ms": [
+       8.546431541442871,
+       8.798784255981445,
+       8.650527954101562
+      ],
+      "sosp_total_host_ms": 26.01436,
+      "update_host_ms": 168.906759,
+      "commit_host_ms": 107.817059,
+      "call_wall_ms": 169.1990103572607,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.556817,
+       8.733842,
+       8.652687
+      ],
+      "sosp_update_device_ms": [
+       8.551136016845703,
+       8.728063583374023,
+       8.647071838378906
+      ],
+      "sosp_total_host_ms": 25.943346,
+      "update_host_ms": 173.801621,
+      "commit_host_ms": 113.052025,
+      "call_wall_ms": 174.08761102706194,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.60053,
+       8.752406,
+       8.701206
+      ],
+      "sosp_update_device_ms": [
+       8.594976425170898,
+       8.74681568145752,
+       8.695263862609863
+      ],
+      "sosp_total_host_ms": 26.054142,
+      "update_host_ms": 178.021577,
+      "commit_host_ms": 112.884375,
+      "call_wall_ms": 178.30470763146877,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.573897,
+       15.146835,
+       8.675277
+      ],
+      "sosp_update_device_ms": [
+       8.563167572021484,
+       15.141152381896973,
+       8.669471740722656
+      ],
+      "sosp_total_host_ms": 32.396009,
+      "update_host_ms": 172.196649,
+      "commit_host_ms": 101.068547,
+      "call_wall_ms": 172.47232608497143,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.609732,
+       8.798501,
+       8.666844
+      ],
+      "sosp_update_device_ms": [
+       8.603072166442871,
+       8.792448043823242,
+       8.661184310913086
+      ],
+      "sosp_total_host_ms": 26.075077,
+      "update_host_ms": 173.253775,
+      "commit_host_ms": 114.685686,
+      "call_wall_ms": 173.53149224072695,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.571814,
+       8.752547,
+       8.613584
+      ],
+      "sosp_update_device_ms": [
+       8.565983772277832,
+       8.746720314025879,
+       8.6080961227417
+      ],
+      "sosp_total_host_ms": 25.937945,
+      "update_host_ms": 174.927457,
+      "commit_host_ms": 118.011234,
+      "call_wall_ms": 175.20133033394814,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.603372,
+       15.027519,
+       8.728314
+      ],
+      "sosp_update_device_ms": [
+       8.597855567932129,
+       15.021344184875488,
+       8.722623825073242
+      ],
+      "sosp_total_host_ms": 32.359205,
+      "update_host_ms": 191.859929,
+      "commit_host_ms": 117.609721,
+      "call_wall_ms": 192.13146902620792,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.571222,
+       8.722502,
+       8.662505
+      ],
+      "sosp_update_device_ms": [
+       8.565664291381836,
+       8.71664047241211,
+       8.656767845153809
+      ],
+      "sosp_total_host_ms": 25.956229,
+      "update_host_ms": 169.399022,
+      "commit_host_ms": 111.735661,
+      "call_wall_ms": 169.66534685343504,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.566752,
+       8.753712,
+       8.627747
+      ],
+      "sosp_update_device_ms": [
+       8.560576438903809,
+       8.74726390838623,
+       8.622015953063965
+      ],
+      "sosp_total_host_ms": 25.948211,
+      "update_host_ms": 187.846137,
+      "commit_host_ms": 114.467532,
+      "call_wall_ms": 188.12335189431906,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.587339,
+       8.8306,
+       8.653953
+      ],
+      "sosp_update_device_ms": [
+       8.580639839172363,
+       8.823360443115234,
+       8.646719932556152
+      ],
+      "sosp_total_host_ms": 26.071892,
+      "update_host_ms": 189.084218,
+      "commit_host_ms": 117.131984,
+      "call_wall_ms": 189.4184909760952,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.578692,
+       8.792458,
+       8.689923
+      ],
+      "sosp_update_device_ms": [
+       8.572735786437988,
+       8.786111831665039,
+       8.683520317077637
+      ],
+      "sosp_total_host_ms": 26.061073,
+      "update_host_ms": 166.79887399999998,
+      "commit_host_ms": 113.439438,
+      "call_wall_ms": 167.10571106523275,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.575223,
+       8.748487,
+       8.689582
+      ],
+      "sosp_update_device_ms": [
+       8.569055557250977,
+       8.742239952087402,
+       8.683008193969727
+      ],
+      "sosp_total_host_ms": 26.013292,
+      "update_host_ms": 185.610847,
+      "commit_host_ms": 117.223018,
+      "call_wall_ms": 185.91309897601604,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.58647,
+       8.760019,
+       8.660449
+      ],
+      "sosp_update_device_ms": [
+       8.580063819885254,
+       8.753727912902832,
+       8.654463768005371
+      ],
+      "sosp_total_host_ms": 26.006937999999998,
+      "update_host_ms": 187.79127300000002,
+      "commit_host_ms": 116.966828,
+      "call_wall_ms": 188.0777468904853,
+      "checksum": 12758537619
+     }
+    ],
+    "wheel-cu13-ci": [
+     {
+      "sosp_update_host_ms": [
+       8.77691,
+       9.046619,
+       8.872317
+      ],
+      "sosp_update_device_ms": [
+       8.770848274230957,
+       9.040960311889648,
+       8.866815567016602
+      ],
+      "sosp_total_host_ms": 26.695846000000003,
+      "update_host_ms": 223.39645000000002,
+      "commit_host_ms": 143.350696,
+      "call_wall_ms": 223.7095320597291,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       15.02817,
+       9.095158,
+       8.847556
+      ],
+      "sosp_update_device_ms": [
+       15.0217924118042,
+       9.089376449584961,
+       8.84175968170166
+      ],
+      "sosp_total_host_ms": 32.970884,
+      "update_host_ms": 174.193554,
+      "commit_host_ms": 111.382147,
+      "call_wall_ms": 179.1870230808854,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       15.010639,
+       9.170628,
+       8.901281
+      ],
+      "sosp_update_device_ms": [
+       15.004287719726562,
+       9.165120124816895,
+       8.895551681518555
+      ],
+      "sosp_total_host_ms": 33.082548,
+      "update_host_ms": 193.736269,
+      "commit_host_ms": 121.398223,
+      "call_wall_ms": 194.0115699544549,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.791864,
+       9.041231,
+       8.876078
+      ],
+      "sosp_update_device_ms": [
+       8.785887718200684,
+       9.035103797912598,
+       8.869983673095703
+      ],
+      "sosp_total_host_ms": 26.709173,
+      "update_host_ms": 175.442645,
+      "commit_host_ms": 115.953904,
+      "call_wall_ms": 175.73807202279568,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       14.967058,
+       9.131176,
+       8.839631
+      ],
+      "sosp_update_device_ms": [
+       14.960831642150879,
+       9.125503540039062,
+       8.833696365356445
+      ],
+      "sosp_total_host_ms": 32.937865,
+      "update_host_ms": 174.134921,
+      "commit_host_ms": 106.250068,
+      "call_wall_ms": 174.4248466566205,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.784537,
+       9.077048,
+       8.864722
+      ],
+      "sosp_update_device_ms": [
+       8.778816223144531,
+       9.071455955505371,
+       8.859007835388184
+      ],
+      "sosp_total_host_ms": 26.726307,
+      "update_host_ms": 163.422933,
+      "commit_host_ms": 106.147025,
+      "call_wall_ms": 163.68072479963303,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.783322,
+       9.082592,
+       8.873519
+      ],
+      "sosp_update_device_ms": [
+       8.777536392211914,
+       9.0763521194458,
+       8.867199897766113
+      ],
+      "sosp_total_host_ms": 26.739433,
+      "update_host_ms": 160.587322,
+      "commit_host_ms": 106.210719,
+      "call_wall_ms": 160.8537621796131,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.782226,
+       9.07725,
+       8.87454
+      ],
+      "sosp_update_device_ms": [
+       8.776320457458496,
+       9.071200370788574,
+       8.868608474731445
+      ],
+      "sosp_total_host_ms": 26.734015999999997,
+      "update_host_ms": 175.141929,
+      "commit_host_ms": 106.239391,
+      "call_wall_ms": 175.43031740933657,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.799392,
+       9.061598,
+       8.882224
+      ],
+      "sosp_update_device_ms": [
+       8.792896270751953,
+       9.055520057678223,
+       8.876192092895508
+      ],
+      "sosp_total_host_ms": 26.743214000000002,
+      "update_host_ms": 183.536893,
+      "commit_host_ms": 115.11743,
+      "call_wall_ms": 183.82709193974733,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.765319,
+       9.084794,
+       8.897575
+      ],
+      "sosp_update_device_ms": [
+       8.759391784667969,
+       9.079263687133789,
+       8.891584396362305
+      ],
+      "sosp_total_host_ms": 26.747688,
+      "update_host_ms": 181.051285,
+      "commit_host_ms": 107.905457,
+      "call_wall_ms": 181.34091794490814,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.789497,
+       9.005729,
+       8.860386
+      ],
+      "sosp_update_device_ms": [
+       8.78332805633545,
+       8.999808311462402,
+       8.854080200195312
+      ],
+      "sosp_total_host_ms": 26.655612,
+      "update_host_ms": 215.380914,
+      "commit_host_ms": 135.572197,
+      "call_wall_ms": 215.67596681416035,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.800085,
+       9.080503,
+       15.2457
+      ],
+      "sosp_update_device_ms": [
+       8.793184280395508,
+       9.072159767150879,
+       15.152607917785645
+      ],
+      "sosp_total_host_ms": 33.126288,
+      "update_host_ms": 189.799851,
+      "commit_host_ms": 114.23936,
+      "call_wall_ms": 190.07628224790096,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.75987,
+       9.043191,
+       8.883315
+      ],
+      "sosp_update_device_ms": [
+       8.753536224365234,
+       9.036928176879883,
+       8.877408027648926
+      ],
+      "sosp_total_host_ms": 26.686376,
+      "update_host_ms": 183.455127,
+      "commit_host_ms": 110.074969,
+      "call_wall_ms": 183.74649621546268,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.782774,
+       9.021431,
+       8.924856
+      ],
+      "sosp_update_device_ms": [
+       8.77676773071289,
+       9.015007972717285,
+       8.918944358825684
+      ],
+      "sosp_total_host_ms": 26.729061,
+      "update_host_ms": 193.598804,
+      "commit_host_ms": 123.747455,
+      "call_wall_ms": 193.89140978455544,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.803557,
+       9.055693,
+       8.888527
+      ],
+      "sosp_update_device_ms": [
+       8.797599792480469,
+       9.049344062805176,
+       8.882495880126953
+      ],
+      "sosp_total_host_ms": 26.747777,
+      "update_host_ms": 156.069805,
+      "commit_host_ms": 98.118276,
+      "call_wall_ms": 156.364057213068,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.764891,
+       9.042244,
+       8.913602
+      ],
+      "sosp_update_device_ms": [
+       8.758912086486816,
+       9.03609561920166,
+       8.907584190368652
+      ],
+      "sosp_total_host_ms": 26.720737,
+      "update_host_ms": 165.811953,
+      "commit_host_ms": 101.104224,
+      "call_wall_ms": 166.10432136803865,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.77076,
+       9.092788,
+       8.874821
+      ],
+      "sosp_update_device_ms": [
+       8.763808250427246,
+       9.086079597473145,
+       8.867775917053223
+      ],
+      "sosp_total_host_ms": 26.738369,
+      "update_host_ms": 203.193555,
+      "commit_host_ms": 127.630075,
+      "call_wall_ms": 203.52753438055515,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.776583,
+       9.046036,
+       8.906359
+      ],
+      "sosp_update_device_ms": [
+       8.770624160766602,
+       9.03990364074707,
+       8.90015983581543
+      ],
+      "sosp_total_host_ms": 26.728978,
+      "update_host_ms": 179.054957,
+      "commit_host_ms": 121.226377,
+      "call_wall_ms": 179.34904620051384,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       13.923237,
+       10.172159,
+       8.899464
+      ],
+      "sosp_update_device_ms": [
+       13.916831970214844,
+       10.166239738464355,
+       8.893407821655273
+      ],
+      "sosp_total_host_ms": 32.99486,
+      "update_host_ms": 188.288047,
+      "commit_host_ms": 117.938222,
+      "call_wall_ms": 188.58351465314627,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.78618,
+       9.011165,
+       8.835595
+      ],
+      "sosp_update_device_ms": [
+       8.780096054077148,
+       9.004768371582031,
+       8.829631805419922
+      ],
+      "sosp_total_host_ms": 26.632939999999998,
+      "update_host_ms": 173.137645,
+      "commit_host_ms": 110.809991,
+      "call_wall_ms": 173.42826258391142,
+      "checksum": 12758537619
+     },
+     {
+      "sosp_update_host_ms": [
+       8.772276,
+       9.055024,
+       8.89303
+      ],
+      "sosp_update_device_ms": [
+       8.766240119934082,
+       9.048895835876465,
+       8.886848449707031
+      ],
+      "sosp_total_host_ms": 26.720329999999997,
+      "update_host_ms": 186.007049,
+      "commit_host_ms": 117.347107,
+      "call_wall_ms": 186.29508838057518,
+      "checksum": 12758537619
+     }
+    ]
+   }
+  },
+  "cycle_count": {
+   "sides": {
+    "parity-cuda": {
+     "module": "dyng._core",
+     "dyng": "0.2.0.dev0",
+     "dyng_file": "/home/sskg8/Projects/dyng-work/wvp/parity-overlay/dyng/__init__.py",
+     "build": {
+      "build_type": "Release",
+      "compiler": "GNU 12.2.0",
+      "cuda": true,
+      "cuda_architectures": "86",
+      "cuda_runtime": "shared",
+      "cuda_toolkit": "13.1",
+      "openmp": true,
+      "openmp_version": 201511,
+      "plugin": ""
+     },
+     "python": "3.12.14",
+     "numpy": "2.5.3",
+     "inputs": {
+      "graph": "DD",
+      "vertices": 334925,
+      "edges": 1686092,
+      "k": 4,
+      "batch": "25000 deletions + 25000 insertions (numpy, seed 1)"
+     }
+    },
+    "wheel-cu13": {
+     "module": "dyng_cu13 (plugin cu13)",
+     "dyng": "0.2.0.dev0",
+     "dyng_file": "/home/sskg8/Projects/dyng-work/wheels/m6a-final-cu131/venv-cu13-3.12/lib/python3.12/site-packages/dyng/__init__.py",
+     "build": {
+      "build_type": "Release",
+      "compiler": "GNU 12.4.0",
+      "cuda": true,
+      "cuda_architectures": "75-real,80-real,86-real,89-real,90-real,100-real,120",
+      "cuda_runtime": "static",
+      "cuda_toolkit": "13.1",
+      "openmp": true,
+      "openmp_version": 201511,
+      "plugin": "cu13"
+     },
+     "python": "3.12.14",
+     "numpy": "2.5.3",
+     "inputs": {
+      "graph": "DD",
+      "vertices": 334925,
+      "edges": 1686092,
+      "k": 4,
+      "batch": "25000 deletions + 25000 insertions (numpy, seed 1)"
+     }
+    },
+    "wheel-cu13-ci": {
+     "module": "dyng_cu13 (plugin cu13)",
+     "dyng": "0.2.0.dev0",
+     "dyng_file": "/home/sskg8/Projects/dyng-work/wheels/m6a-final-ci/venv-cu13-3.12/lib/python3.12/site-packages/dyng/__init__.py",
+     "build": {
+      "build_type": "Release",
+      "compiler": "GNU 12.4.0",
+      "cuda": true,
+      "cuda_architectures": "75-real,80-real,86-real,89-real,90-real,100-real,120",
+      "cuda_runtime": "static",
+      "cuda_toolkit": "13.4",
+      "openmp": true,
+      "openmp_version": 201511,
+      "plugin": "cu13"
+     },
+     "python": "3.12.14",
+     "numpy": "2.5.3",
+     "inputs": {
+      "graph": "DD",
+      "vertices": 334925,
+      "edges": 1686092,
+      "k": 4,
+      "batch": "25000 deletions + 25000 insertions (numpy, seed 1)"
+     }
+    }
+   },
+   "metrics": {
+    "count_host_ms": {
+     "median_ms": {
+      "parity-cuda": 0.97906,
+      "wheel-cu13": 0.974658,
+      "wheel-cu13-ci": 0.973851
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9955038506322391,
+      "wheel-cu13-ci": 0.9946795906277449
+     }
+    },
+    "count_device_ms": {
+     "median_ms": {
+      "parity-cuda": 0.9718719720840454,
+      "wheel-cu13": 0.9684799909591675,
+      "wheel-cu13-ci": 0.9674559831619263
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9965098477759325,
+      "wheel-cu13-ci": 0.9954562030298604
+     }
+    },
+    "update_host_ms": {
+     "median_ms": {
+      "parity-cuda": 3.808982,
+      "wheel-cu13": 3.764657,
+      "wheel-cu13-ci": 4.145885
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9883630324322877,
+      "wheel-cu13-ci": 1.088449617246813
+     }
+    },
+    "update_device_ms": {
+     "median_ms": {
+      "parity-cuda": 3.8001599311828613,
+      "wheel-cu13": 3.7555840015411377,
+      "wheel-cu13-ci": 4.135488033294678
+     },
+     "ratio_to_parity-cuda": {
+      "parity-cuda": 1.0,
+      "wheel-cu13": 0.9882699858824497,
+      "wheel-cu13-ci": 1.0882405236053947
+     }
+    }
+   },
+   "samples": {
+    "parity-cuda": [
+     {
+      "count_host_ms": 0.97906,
+      "count_device_ms": 0.9718719720840454,
+      "update_host_ms": 4.539745,
+      "update_device_ms": 4.528384208679199,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.974498,
+      "count_device_ms": 0.9680960178375244,
+      "update_host_ms": 3.808982,
+      "update_device_ms": 3.8001599311828613,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.990131,
+      "count_device_ms": 0.982591986656189,
+      "update_host_ms": 3.799065,
+      "update_device_ms": 3.789184093475342,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.974015,
+      "count_device_ms": 0.9677760004997253,
+      "update_host_ms": 8.199145,
+      "update_device_ms": 8.189599990844727,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.972314,
+      "count_device_ms": 0.9659839868545532,
+      "update_host_ms": 3.793713,
+      "update_device_ms": 3.7840640544891357,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.979389,
+      "count_device_ms": 0.9720320105552673,
+      "update_host_ms": 4.068409,
+      "update_device_ms": 4.058559894561768,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.977338,
+      "count_device_ms": 0.9707520008087158,
+      "update_host_ms": 3.777875,
+      "update_device_ms": 3.768928050994873,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.980172,
+      "count_device_ms": 0.9728959798812866,
+      "update_host_ms": 3.835738,
+      "update_device_ms": 3.825536012649536,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.979325,
+      "count_device_ms": 0.9728000164031982,
+      "update_host_ms": 3.780638,
+      "update_device_ms": 3.7711360454559326,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.980554,
+      "count_device_ms": 0.9737600088119507,
+      "update_host_ms": 3.789501,
+      "update_device_ms": 3.7801599502563477,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.973163,
+      "count_device_ms": 0.9668160080909729,
+      "update_host_ms": 3.807512,
+      "update_device_ms": 3.798111915588379,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.983177,
+      "count_device_ms": 0.9766719937324524,
+      "update_host_ms": 8.853975,
+      "update_device_ms": 8.844832420349121,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.972912,
+      "count_device_ms": 0.966592013835907,
+      "update_host_ms": 3.81253,
+      "update_device_ms": 3.803136110305786,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.969625,
+      "count_device_ms": 0.9635519981384277,
+      "update_host_ms": 3.31825,
+      "update_device_ms": 3.3081600666046143,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.96946,
+      "count_device_ms": 0.9631360173225403,
+      "update_host_ms": 3.810296,
+      "update_device_ms": 3.800607919692993,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.971429,
+      "count_device_ms": 0.9654080271720886,
+      "update_host_ms": 3.76176,
+      "update_device_ms": 3.752351999282837,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.980117,
+      "count_device_ms": 0.9733440279960632,
+      "update_host_ms": 3.793916,
+      "update_device_ms": 3.784832000732422,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.985009,
+      "count_device_ms": 0.9775360226631165,
+      "update_host_ms": 3.81875,
+      "update_device_ms": 3.8090879917144775,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.982386,
+      "count_device_ms": 0.9761919975280762,
+      "update_host_ms": 9.346971,
+      "update_device_ms": 9.337984085083008,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.972776,
+      "count_device_ms": 0.9664959907531738,
+      "update_host_ms": 3.830776,
+      "update_device_ms": 3.8193280696868896,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 2.201026,
+      "count_device_ms": 1.3998080492019653,
+      "update_host_ms": 3.731051,
+      "update_device_ms": 3.7224318981170654,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     }
+    ],
+    "wheel-cu13": [
+     {
+      "count_host_ms": 0.986212,
+      "count_device_ms": 0.9790080189704895,
+      "update_host_ms": 4.158921,
+      "update_device_ms": 4.148575782775879,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.969823,
+      "count_device_ms": 0.9636160135269165,
+      "update_host_ms": 3.777452,
+      "update_device_ms": 3.7687039375305176,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.973563,
+      "count_device_ms": 0.9669439792633057,
+      "update_host_ms": 3.755379,
+      "update_device_ms": 3.746016025543213,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.972921,
+      "count_device_ms": 0.9661120176315308,
+      "update_host_ms": 4.679613,
+      "update_device_ms": 4.669504165649414,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.970584,
+      "count_device_ms": 0.9646080136299133,
+      "update_host_ms": 3.744863,
+      "update_device_ms": 3.736128091812134,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.967138,
+      "count_device_ms": 0.9604480266571045,
+      "update_host_ms": 3.772627,
+      "update_device_ms": 3.7628159523010254,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.983918,
+      "count_device_ms": 0.9774079918861389,
+      "update_host_ms": 3.285446,
+      "update_device_ms": 3.2763519287109375,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.971228,
+      "count_device_ms": 0.9651200175285339,
+      "update_host_ms": 3.759858,
+      "update_device_ms": 3.7508161067962646,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.987013,
+      "count_device_ms": 0.9796479940414429,
+      "update_host_ms": 3.954824,
+      "update_device_ms": 3.9448320865631104,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.97001,
+      "count_device_ms": 0.963487982749939,
+      "update_host_ms": 7.939412,
+      "update_device_ms": 7.930528163909912,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.97621,
+      "count_device_ms": 0.9700800180435181,
+      "update_host_ms": 3.771509,
+      "update_device_ms": 3.7618560791015625,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.967575,
+      "count_device_ms": 0.9619519710540771,
+      "update_host_ms": 3.746355,
+      "update_device_ms": 3.7373759746551514,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.974658,
+      "count_device_ms": 0.9684799909591675,
+      "update_host_ms": 3.74926,
+      "update_device_ms": 3.740384101867676,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.976864,
+      "count_device_ms": 0.9701439738273621,
+      "update_host_ms": 4.70101,
+      "update_device_ms": 4.690752029418945,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.973948,
+      "count_device_ms": 0.967519998550415,
+      "update_host_ms": 3.757404,
+      "update_device_ms": 3.7483201026916504,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.977052,
+      "count_device_ms": 0.9706559777259827,
+      "update_host_ms": 4.002982,
+      "update_device_ms": 3.9929280281066895,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.976806,
+      "count_device_ms": 0.9705280065536499,
+      "update_host_ms": 7.240225,
+      "update_device_ms": 7.231391906738281,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.971412,
+      "count_device_ms": 0.9651520252227783,
+      "update_host_ms": 3.764657,
+      "update_device_ms": 3.7555840015411377,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.983208,
+      "count_device_ms": 0.9769600033760071,
+      "update_host_ms": 3.743915,
+      "update_device_ms": 3.7316160202026367,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.977579,
+      "count_device_ms": 0.9713919758796692,
+      "update_host_ms": 3.739302,
+      "update_device_ms": 3.7304000854492188,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.97777,
+      "count_device_ms": 0.9711679816246033,
+      "update_host_ms": 3.758551,
+      "update_device_ms": 3.749727964401245,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     }
+    ],
+    "wheel-cu13-ci": [
+     {
+      "count_host_ms": 0.989194,
+      "count_device_ms": 0.9818559885025024,
+      "update_host_ms": 5.265837,
+      "update_device_ms": 5.25494384765625,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 3.423911,
+      "count_device_ms": 3.257375955581665,
+      "update_host_ms": 7.019665,
+      "update_device_ms": 7.003424167633057,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 1.042644,
+      "count_device_ms": 1.0319679975509644,
+      "update_host_ms": 8.339423,
+      "update_device_ms": 8.323840141296387,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 1.037275,
+      "count_device_ms": 1.026911973953247,
+      "update_host_ms": 7.13704,
+      "update_device_ms": 7.121535778045654,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 1.03822,
+      "count_device_ms": 1.0274239778518677,
+      "update_host_ms": 8.702817,
+      "update_device_ms": 8.685759544372559,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 1.043409,
+      "count_device_ms": 1.0331840515136719,
+      "update_host_ms": 8.959723,
+      "update_device_ms": 8.943519592285156,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 1.037816,
+      "count_device_ms": 1.027519941329956,
+      "update_host_ms": 8.610108,
+      "update_device_ms": 8.594304084777832,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 1.029293,
+      "count_device_ms": 1.0185600519180298,
+      "update_host_ms": 12.136299,
+      "update_device_ms": 12.121439933776855,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.999055,
+      "count_device_ms": 0.9910399913787842,
+      "update_host_ms": 4.145885,
+      "update_device_ms": 4.135488033294678,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.964971,
+      "count_device_ms": 0.9588159918785095,
+      "update_host_ms": 3.673159,
+      "update_device_ms": 3.6639039516448975,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.972627,
+      "count_device_ms": 0.9664639830589294,
+      "update_host_ms": 3.690172,
+      "update_device_ms": 3.6813440322875977,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.983217,
+      "count_device_ms": 0.9763519763946533,
+      "update_host_ms": 3.803297,
+      "update_device_ms": 3.793152093887329,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.973851,
+      "count_device_ms": 0.9674559831619263,
+      "update_host_ms": 3.684714,
+      "update_device_ms": 3.6760640144348145,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.96817,
+      "count_device_ms": 0.9618560075759888,
+      "update_host_ms": 3.701637,
+      "update_device_ms": 3.692095994949341,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.967322,
+      "count_device_ms": 0.9607359766960144,
+      "update_host_ms": 7.765297,
+      "update_device_ms": 7.756447792053223,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.96787,
+      "count_device_ms": 0.9616640210151672,
+      "update_host_ms": 3.69092,
+      "update_device_ms": 3.6813759803771973,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.96738,
+      "count_device_ms": 0.9614080190658569,
+      "update_host_ms": 4.437869,
+      "update_device_ms": 4.427999973297119,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.970089,
+      "count_device_ms": 0.9638400077819824,
+      "update_host_ms": 3.672318,
+      "update_device_ms": 3.663520097732544,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.963714,
+      "count_device_ms": 0.9575679898262024,
+      "update_host_ms": 3.796589,
+      "update_device_ms": 3.7873919010162354,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.971805,
+      "count_device_ms": 0.9655359983444214,
+      "update_host_ms": 4.017175,
+      "update_device_ms": 4.008416175842285,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     },
+     {
+      "count_host_ms": 0.968443,
+      "count_device_ms": 0.9622399806976318,
+      "update_host_ms": 3.68372,
+      "update_device_ms": 3.6741440296173096,
+      "checksum": [
+       4396674,
+       4182456
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "clock_lock": {
+  "control": "boost",
+  "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+  "how": "ncu --clock-control boost on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+  "before": {
+   "pstate": "P2",
+   "sm_mhz": 1695,
+   "memory_mhz": 7601
+  },
+  "locked": {
+   "pstate": "P2",
+   "sm_mhz": 1695,
+   "memory_mhz": 7601
+  },
+  "check": "every busy GPU sample of every accepted round at the locked clocks",
+  "after_reset": {
+   "pstate": "P2",
+   "sm_mhz": 1695,
+   "memory_mhz": 7601
+  }
+ }
+}

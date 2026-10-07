@@ -34,6 +34,7 @@
 
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
+#include <nanobind/stl/optional.h>
 
 #include <atomic>
 #include <condition_variable>
@@ -42,6 +43,7 @@
 #include <limits>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <shared_mutex>
 #include <string>
 #include <type_traits>
@@ -126,7 +128,10 @@ struct holder {
  * lives as long as they do. for_update() gives an update a state no export references: the
  * current one when nothing else holds it, otherwise a clone (copy-on-write), so an export keeps
  * showing the state it was taken from, unchanged. The generation counts the updates; dyng.Array
- * compares it with the generation it was read at to raise StaleResultError.
+ * compares it with the generation it was read at to raise StaleResultError. The holder also
+ * remembers the resources of the call that last wrote the state (writer()): the stream on which
+ * a reader of device memory must order itself (dyng.Array's host copies, `__cuda_array_interface__`
+ * and DLPack stream ordering, PLAN Section 5.4 rule 4).
  * @tparam value_t sssp::result<V> or cycle_count::result.
  */
 template <typename value_t>
@@ -137,6 +142,14 @@ class result_holder {
    * @param[in] v The result.
    */
   explicit result_holder(value_t&& v) : state_(std::make_shared<value_t>(std::move(v))) {}
+
+  /**
+   * @brief Take ownership of `v`, written by a call with the resources `writer`.
+   * @param[in] v      The result.
+   * @param[in] writer The resources of the call that produced it.
+   */
+  result_holder(value_t&& v, const resources& writer)
+      : state_(std::make_shared<value_t>(std::move(v))), writer_(writer) {}
   result_holder(const result_holder&) = delete;             ///< not copyable
   result_holder& operator=(const result_holder&) = delete;  ///< not copyable
   result_holder(result_holder&&) = delete;                  ///< not movable (the lock)
@@ -184,7 +197,17 @@ class result_holder {
       std::atomic_thread_fence(std::memory_order_acquire);
     }
     generation_.fetch_add(1, std::memory_order_acq_rel);
+    writer_ = res;
     return *state_;
+  }
+
+  /**
+   * @brief The resources of the call that last wrote the state (call with `mutex` held, shared
+   *        or exclusive): their stream orders the state's device memory.
+   * @return The resources, or none for a holder built without them.
+   */
+  [[nodiscard]] const std::optional<resources>& writer() const noexcept {
+    return writer_;
   }
 
   /**
@@ -200,6 +223,7 @@ class result_holder {
  private:
   std::shared_ptr<value_t> state_;
   std::atomic<std::uint64_t> generation_{0};
+  std::optional<resources> writer_;
 };
 
 /**
@@ -458,6 +482,21 @@ auto export_array(const result_holder<value_t>& h, function_t&& which) {
 }
 
 /**
+ * @brief The resources of the call that last wrote a result's state (result_holder::writer()),
+ *        read under its shared lock (without the GIL).
+ * @tparam value_t The result type.
+ * @param[in] h The holder.
+ * @return The resources, or none.
+ */
+template <typename value_t>
+std::optional<resources> writer_of(const result_holder<value_t>& h) {
+  return without_gil([&] {
+    std::shared_lock<std::shared_mutex> lock(h.mutex);
+    return h.writer();
+  });
+}
+
+/**
  * @brief Read something of a result's current state under its shared lock (without the GIL).
  * @tparam value_t    The result type.
  * @tparam function_t `T(const value_t&)`.
@@ -492,5 +531,6 @@ void bind_generators(nb::module_& m);      ///< generators.cpp
 void bind_profiler(nb::module_& m);        ///< profiler.cpp
 void bind_registry(nb::module_& m);        ///< registry.cpp
 void bind_testing(nb::module_& m);         ///< testing.cpp
+void bind_arrays(nb::module_& m);          ///< arrays.cpp
 
 }  // namespace dyng::python

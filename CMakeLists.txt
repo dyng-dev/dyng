@@ -107,6 +107,27 @@ if(DYNG_ENABLE_CUDA)
   # native without a visible GPU would silently compile for nvcc's default architecture only.
   dyng_check_native_cuda_architectures()
   find_package(CUDAToolkit REQUIRED)
+  # The CUDA runtime that libdyng and the tests link: the shared libcudart by default, the static
+  # one with CMAKE_CUDA_RUNTIME_LIBRARY=Static (the CUDA plugin wheels, PLAN 7.7: a wheel must not
+  # depend on a libcudart.so the user may not have; ADR 0030). CMAKE_CUDA_RUNTIME_LIBRARY alone
+  # only governs the links that nvcc drives, not an explicit CUDA::cudart.
+  string(TOLOWER "${CMAKE_CUDA_RUNTIME_LIBRARY}" _dyng_cudart_kind)
+  if(_dyng_cudart_kind STREQUAL "static")
+    # A shared libdyng would carry its own copy of the runtime, and every program using it (the
+    # tests too) another: two CUDA runtimes in one process, each with its own error state,
+    # contexts and handles.
+    if(BUILD_SHARED_LIBS)
+      message(FATAL_ERROR "CMAKE_CUDA_RUNTIME_LIBRARY=Static needs BUILD_SHARED_LIBS=OFF (a "
+                          "shared libdyng with a static CUDA runtime gives a process two runtimes)")
+    endif()
+    set(DYNG_CUDART_TARGET CUDA::cudart_static)
+  elseif(_dyng_cudart_kind STREQUAL "shared")
+    set(DYNG_CUDART_TARGET CUDA::cudart)
+  else()
+    message(FATAL_ERROR "dynG: CMAKE_CUDA_RUNTIME_LIBRARY must be Shared or Static, not "
+                        "'${CMAKE_CUDA_RUNTIME_LIBRARY}'")
+  endif()
+  unset(_dyng_cudart_kind)
   if(NOT CMAKE_CUDA_STANDARD)
     set(CMAKE_CUDA_STANDARD 17)
   endif()

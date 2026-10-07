@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import atexit
 import threading
+import weakref
 from typing import Any, Literal
 
 from ._backend import native
@@ -25,18 +26,42 @@ BackendName = Literal["sequential", "openmp", "cuda"]
 CopyPolicyName = Literal["allow", "warn", "error"]
 
 _CUDA_PLUGIN_MESSAGE = (
-    "this dyng installation is the CPU wheel (sequential and OpenMP backends); the CUDA backends "
-    "come as the plugin wheels dyng-cu12 and dyng-cu13 of the 0.1.x releases "
-    '(pip install "dyng[cu13]" once they are published); until then, use the CUDA backend '
-    "from C++ (docs: getting started, 'Install', section 'Python')"
+    "the active native module is dyng._core, the CPU module (sequential and OpenMP backends); "
+    "the CUDA backends come as the plugin wheels dyng-cu12 and dyng-cu13: "
+    'pip install "dyng[cu13]" (an NVIDIA driver for CUDA 13) or "dyng[cu12]" (CUDA 12). '
+    "With a plugin installed, dyng.show_config() says why it is not used (docs: getting "
+    "started, 'Install', section 'Python')"
 )
 
 
-def _stream_handle(stream: Any) -> int:
-    """A CUDA stream as an integer handle: None/0, an int, ``__cuda_stream__``, CuPy or PyTorch."""
+def _cpu_module_message() -> str:
+    """Why there is no CUDA backend: the CPU module, and what the selection found (ADR 0031)."""
+    from ._backend import selection
+
+    chosen = selection()
+    if not chosen.plugins:
+        return _CUDA_PLUGIN_MESSAGE
+    found = "; ".join(
+        f"{p.module}{' ' + p.version if p.version else ''} ({p.state}: {p.reason})"
+        for p in chosen.plugins
+    )
+    return f"{_CUDA_PLUGIN_MESSAGE}. Installed CUDA plugins: {found}"
+
+
+def _stream_handle(stream: Any) -> int | None:
+    """A CUDA stream as an integer handle (None: the per-thread default stream).
+
+    Accepts None, an int (a ``cudaStream_t``: 0 is the legacy default stream, as in C++
+    ``stream_ref(0)``), an object with ``__cuda_stream__``, or a CuPy or PyTorch stream (whose
+    default streams have the handle 0: the legacy default stream).
+    """
     if stream is None:
-        return 0
+        return None
+    if isinstance(stream, bool):
+        raise TypeError("stream must not be a bool")
     if isinstance(stream, int):
+        if stream < 0:
+            raise ValueError(f"stream: a cudaStream_t handle is not negative (got {stream})")
         return stream
     protocol = getattr(stream, "__cuda_stream__", None)
     if protocol is not None:
@@ -50,6 +75,19 @@ def _stream_handle(stream: Any) -> int:
         "stream must be None, an int handle, an object with __cuda_stream__, or a CuPy or "
         "PyTorch stream"
     )
+
+
+#: The stream objects given to ``Resources.cuda(stream=...)``, per Resources (and copy): the
+#: native handle refers to the stream without owning it (C++: "the stream must outlive every copy
+#: of the handle"). ``Resources.__del__`` drops the handle before the entry, so the stream goes
+#: last.
+_streams: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
+
+
+def _stream_object(resources: Any) -> Any:
+    """The stream object ``resources`` were made with (None: an integer handle or a default
+    stream), for the graphs and results that must keep it alive (dyng._writer.StreamKeep)."""
+    return _streams.get(resources)
 
 
 class Resources:
@@ -129,19 +167,32 @@ class Resources:
 
         Args:
             device: The CUDA device ordinal.
-            stream: The stream all work is ordered on: None (the per-thread default stream), an
-                integer ``cudaStream_t``, a CuPy or PyTorch stream, or any object with
-                ``__cuda_stream__``.
+            stream: The stream all work is ordered on: None (the per-thread default stream,
+                ``cudaStreamPerThread``: a different stream on every host thread), an integer
+                ``cudaStream_t`` (0 is the legacy default stream, as in CUDA and C++
+                ``stream_ref(0)``; 2 is ``cudaStreamPerThread``), a CuPy or PyTorch stream (their
+                default streams, ``cupy.cuda.Stream.null`` and ``torch.cuda.default_stream()``,
+                are the legacy default stream), or any object with ``__cuda_stream__``. A stream
+                object is kept alive by these resources, their copies, and every graph and result
+                they were used on (made, updated or computed on: memory allocated on a stream is
+                released on it, so the stream must outlive that memory, as in C++); a stream
+                given as an integer handle must be kept alive by the caller. Arrays exported
+                from results (DLPack, ``__cuda_array_interface__``) keep the result's memory, not
+                the stream: drop them before destroying the stream.
             host_threads: OpenMP threads of the host-side work (0 = the OpenMP default).
 
         Raises:
-            NotSupportedError: in the CPU wheel (see the message: the CUDA plugins of 0.1.x), or
+            NotSupportedError: with the CPU module (no CUDA plugin installed or usable; see the
+                message), or
                 when no device is visible.
         """
         handle = _stream_handle(stream)
         if not native.build_config["cuda"]:
-            raise NotSupportedError(f"dyng.Resources.cuda: {_CUDA_PLUGIN_MESSAGE}")
-        return cls._wrap(native.Resources.cuda(device, handle, host_threads))
+            raise NotSupportedError(f"dyng.Resources.cuda: {_cpu_module_message()}")
+        out = cls._wrap(native.Resources.cuda(device, handle, host_threads))
+        if stream is not None and not isinstance(stream, int):
+            _streams[out] = stream
+        return out
 
     @property
     def backend(self) -> BackendName:
@@ -191,10 +242,23 @@ class Resources:
         self._native.synchronize()
 
     def __copy__(self) -> Resources:
-        return Resources._wrap(self._native)  # copies share the handle, as in C++
+        out = Resources._wrap(self._native)  # copies share the handle, as in C++
+        if self in _streams:
+            _streams[out] = _streams[self]
+        return out
+
+    def __del__(self) -> None:
+        # The native handle first, then the stream object it refers to (a weak-key entry would
+        # otherwise be dropped before the slots are cleared).
+        try:
+            if self in _streams:
+                self._native = None
+                del _streams[self]
+        except Exception:  # pragma: no cover - interpreter shutdown (module globals gone)
+            pass
 
     def __deepcopy__(self, memo: dict[int, Any]) -> Resources:
-        return Resources._wrap(self._native)  # a handle, not data: shared as well
+        return self.__copy__()  # a handle, not data: shared as well
 
     def __reduce__(self) -> Any:
         # Pickling (another process) rebuilds equal resources: same backend, threads, device and

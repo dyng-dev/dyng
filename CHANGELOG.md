@@ -265,6 +265,174 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
 - Merged `main` at 0.1.0rc1 (pull request #5); the release certificate (`parity/certify.py`)
   knows mosp's paper-scale goldens and fixtures.
 
+### M6a: the CUDA plugin wheels (0.2, branch `m6a-cuda-wheels`)
+
+These entries belong to the 0.2 work (PLAN Appendix F).
+
+- Added: the CUDA plugin distributions **`dyng-cu12`** and **`dyng-cu13`** (ADR 0030; PLAN 5.4,
+  7.7, 7.8), built from the core sdist: `ci/plugin_pyproject.py` renders a plugin's
+  `pyproject.toml` from the root one (name, `dyng==<same version>`, the `dyng.backends` entry
+  point, `DYNG_ENABLE_CUDA=ON`, the static CUDA runtime, the release architectures of
+  `cmake/cuda_architectures.cmake`: SASS for sm_75-sm_120 and PTX for sm_120), and
+  `ci/plugin_wheels.sh` builds, repairs (manylinux_2_28, libgomp bundled, `libcuda` never),
+  checks and install-tests them locally. The import packages `dyng_cu12` / `dyng_cu13` come from
+  one source, `python/plugin/dyng_plugin` (a ctypes probe of the driver: `status()`,
+  `available()`; the extension module `native` imported on first access). About 5.5 MB per
+  wheel.
+- Added: the extras `cu12` / `cu13` of `dyng` (`pip install "dyng[cu13]"`), pinned to the same
+  version through scikit-build-core's dynamic metadata, and `cupy-cu12` / `cupy-cu13`.
+- Added: the CMake option `DYNG_PYTHON_PLUGIN` (empty, `cu12`, `cu13`): the Python module of a
+  plugin (`dyng_cu<N>._core`, nanobind domain `dyng_cu<N>`); the module's `build_config` reports
+  `plugin`, `cuda_toolkit`, `cuda_architectures` and `cuda_runtime`, and `dyng.show_config()`
+  prints them for a CUDA module.
+- Changed: `CMAKE_CUDA_RUNTIME_LIBRARY=Static` now links the static CUDA runtime everywhere
+  (libdyng, its modules and the tests linked the shared `CUDA::cudart` explicitly) and needs
+  `BUILD_SHARED_LIBS=OFF` (a shared libdyng would put two CUDA runtimes into one process);
+  `Shared` stays the default.
+- Changed: `ci/wheel_check.py` checks plugin wheels (contents, entry point, dependency, licence
+  files, no `libcuda` / `libcudart` needed or bundled, read from the module's ELF dynamic
+  section) and the CPU wheel's pinned extras; the sdist must contain the plugin sources.
+- Changed: the messages of `Resources.cuda()` and `show_config()` in the CPU module name
+  `pip install "dyng[cu13]"` instead of "the 0.1.x releases".
+- Licences: `THIRD_PARTY_LICENSES_CUDA.txt` (the CUDA runtime, CUB, Thrust, libcu++, NVTX) and
+  the CUDA toolkit's EULA (`NVIDIA_CUDA_EULA.txt`, copied from the toolkit at build time) are
+  licence files of the plugin wheels. Their licence expression stays the CPU wheel's until the
+  author decides (GOVERNANCE.md, open decisions).
+- Added: the choice of the CUDA plugin in `dyng` (ADR 0031; PLAN 5.4): of the installed plugins
+  of the same version that can run here, the one of the driver's CUDA major wins (else the
+  newest older major); a plugin of another version than `dyng` is never loaded; a plugin whose
+  module fails to load passes to the next. With plugins installed but none usable, dynG runs on
+  `dyng._core` and issues one **`dyng.BackendWarning`** (new; a `UserWarning`) naming each
+  plugin's reason and the remedy; without plugins nothing changes. `DYNG_CPU_ONLY=1` and
+  `dyng.use_cpu_only()` choose the CPU module without the warning. `dyng.show_config()` prints
+  why the module was chosen and every plugin's state; `dyng.config()` has `selection` and
+  `plugins`; `Resources.cuda()` in the CPU module says why no plugin is used.
+- Added: `dyng.Array` in device memory (ADR 0031; PLAN 5.4 rule 4): `__cuda_array_interface__`
+  (version 3, read-only, with the stream of the call that last wrote the result), DLPack >= 1.0
+  exports ordered on the consumer's stream with a CUDA event (`__dlpack__(stream=...)`;
+  `to_torch()` / `to_cupy()` use it), `shape` / `dtype` without reading elements, `to_numpy()` as
+  a host copy, and `to_numpy(copy=None)` (new: the read-only view of host memory or a kept
+  read-only host copy of device memory). Inputs in CUDA device memory (CuPy, PyTorch, JAX, a
+  device `dyng.Array`) are accepted and copied to the host once. A `Resources.cuda(stream=...)`
+  keeps its stream object alive, and so do the graphs, results and arrays made with it.
+- Added: the GPU tests of the Python package, `python/tests/test_cuda.py` (marker `gpu`): sssp,
+  cycle_count and mosp on CUDA equal the sequential backend element by element, a subset of the
+  goldens on CUDA (MOSP's files byte for byte, CycleEnumeration-GPU's CUDA histograms), device
+  arrays, device inputs, PyTorch / CuPy round trips, the fallback; they run in
+  `ci/plugin_wheels.sh` (and in a venv with PyTorch / CuPy via `DYNG_PLUGIN_INTEROP_PYTHON`) and
+  in the new step `plugin` of `ci/gpu_local.sh`. `test_backend_selection.py` checks the choice
+  with fake plugins on any machine.
+- Docs: the install guide's section on the CUDA plugin wheels (which plugin for which driver,
+  troubleshooting the fallback warning); the Python API page's rules for the native module and
+  device arrays.
+- Added: the CUDA plugin wheels in CI (ADR 0032; PLAN 7.7, 7.8, 8.8): `wheels.yml` builds
+  `dyng-cu12` and `dyng-cu13` from the run's sdist with cibuildwheel in the manylinux_2_28 image
+  (`ci/cibuildwheel-plugin.toml`; `before-all` = `ci/cibw_plugin.sh` installs the CUDA toolkit,
+  checks it and renders the plugin's tree), checks them (`twine check --strict`,
+  `ci/wheel_check.py` with the 90 MB budget), and install-tests each with the CPU wheel in fresh
+  venvs on Python 3.12 and 3.13 without a GPU: `ci/plugin_smoke.py --expect fallback` (one
+  `dyng.BackendWarning`, "no CUDA driver", the plugin's module importing without a driver) and
+  the whole pytest suite. Artifacts `wheel-cu12-...` and `wheel-cu13-...`; the input `plugins`
+  turns the plugin jobs off.
+- Added: `ci/cuda_toolkits.toml`, the CUDA toolkits of the CI builds pinned file by file (every
+  RPM of NVIDIA's RHEL 8 repository the build installs, with its SHA-256): CUDA 12.9 for `cu12`
+  and CUDA 13.4 for `cu13`, the latest of each major. `ci/cuda_toolkit.py` re-pins them from the
+  repository's metadata (`lock`), downloads and verifies them (`download`, `verify`; the runner
+  caches the files), and unpacks them without root (`extract`), so the CI toolkits can be used
+  locally (`DYNG_CUDA13_ROOT=... ci/plugin_wheels.sh`).
+- Changed: `release.yml` publishes the CUDA plugins from v0.2.0 (release candidates included):
+  `select` names the distributions of the tag (`ci/wheel_check.py --release-distributions`),
+  `wheels.yml` builds the plugins too, `collect` checks that the files are exactly those
+  distributions (`--release-set`) and sorts them into one directory each (`--split`), and the
+  publish jobs run once per distribution, each in its own environment: `dyng` through
+  `testpypi` / `pypi`, `dyng-cu12` through `testpypi-cu12` / `pypi-cu12`, `dyng-cu13` through
+  `testpypi-cu13` / `pypi-cu13`. TestPyPI first; PyPI only for final versions, after every
+  TestPyPI upload, with the author's approval of each `pypi*` environment (three for 0.2.0).
+  v0.0.x and v0.1.x tags publish `dyng` alone, as before.
+- Added: `ci/plugin_smoke.py` (the smoke test of an installed plugin wheel: `--expect cuda` on a
+  GPU machine, `--expect fallback` without a driver or device), used by `wheels.yml` and
+  `ci/plugin_wheels.sh`, and `ci/without_cuda_driver.sh` (runs a command with the NVIDIA driver
+  hidden in a user and mount namespace, no root), with which `ci/plugin_wheels.sh` also runs the
+  hosted runners' smoke test.
+- Added: `parity/wheel_vs_parity.py`, the informational "wheel vs parity build" row of PLAN 7.7:
+  the same CUDA work (sssp's update on roadNet-CA, cycle_count on DD) timed from Python through
+  the plugin wheel and through the `parity-cuda` build, under the exclusive perf lock with locked
+  clocks; recorded in `parity/results/M6a-wheel-vs-parity.json`, never gated.
+- Docs: `docs/developer/wheels.md` (the plugins in CI, the pinned toolkits and how to re-pin
+  them, the CI toolkits locally, CI vs local builds, the per-distribution environments),
+  `docs/developer/release.md` (three approvals for a final release with the plugins, the local
+  rehearsal with the plugins), `docs/developer/repository_settings.md` (the protection rules of
+  the four plugin environments, for the author), and the install guide (which plugin for which
+  driver, the requirements, a GPU-less machine).
+
+### M6a: review fixes (0.2, branch `m6a-cuda-wheels`)
+
+- Fixed: `DYNG_CPU_ONLY` is read as a boolean: `1`, `true`, `yes`, `on` (any case) choose the
+  CPU module; `0`, `false`, `no`, `off` and empty leave the choice to dynG (before, every value
+  but `0` and empty forced the CPU module, `false` included); any other value is ignored with a
+  `dyng.BackendWarning`.
+- Fixed: choosing the CUDA plugin no longer initializes CUDA in the process (ADR 0031,
+  amendments): the plugin reads the driver's version with `cuDriverGetVersion` and the devices
+  through NVML (or a short child process when NVML cannot tell which devices CUDA will see), so
+  a process that used dynG (even `dyng.__version__` or CPU work) can still fork workers that use
+  CUDA. Before, every first use called `cuInit`, and a forked child's CUDA calls failed with a
+  misleading "no CUDA device is visible". A child forked after its parent really used CUDA now
+  gets an error that names fork and the remedy (`spawn` / `forkserver`).
+- Fixed: a plugin is used only when a visible GPU has compute capability 7.5 or newer (the
+  plugins' oldest architecture); on Volta, Pascal and older GPUs dynG falls back to the CPU
+  module with a `dyng.BackendWarning` that names the GPU's architecture, instead of choosing the
+  plugin and failing every default call with `cudaErrorNoKernelImageForDevice`. That CUDA error
+  now names the device's compute capability.
+- Fixed: `Resources.cuda(stream=0)` is the legacy default stream, as `cudaStream_t` 0 is in CUDA
+  and in C++ (`stream_ref(0)`), and so are `torch.cuda.default_stream()` and
+  `cupy.cuda.Stream.null`; `stream=None` (the default) is the per-thread default stream. Before,
+  0 and the frameworks' default streams were silently mapped to the per-thread default stream.
+- Fixed: a graph or result used with other resources (`resources=Resources.cuda(stream=s)` in
+  the algorithms' `compute` and `update`, `dyng.update` or `Graph.apply`) keeps the stream object
+  of every such resources alive as long as itself and its Arrays (memory a call adds is released
+  on the call's stream); before, dropping the stream left `__cuda_array_interface__` naming a
+  destroyed stream, and `to_numpy()`, freeing the graph or dropping an Array failed with a CUDA
+  error or crashed the process.
+- Fixed: `dyng.config()` / `dyng.show_config()` no longer initialize CUDA when a plugin is chosen
+  (the CUDA entry comes from the plugin's probe), so printing the configuration does not stop the
+  process from forking workers that use CUDA.
+- Changed (release): `release.yml` uploads the CUDA plugins before `dyng` on each index, and
+  `dyng` only when every plugin upload succeeded, so `pip install "dyng[cu13]"` never meets a
+  `dyng` whose plugin is missing (pip would fall back to an older `dyng` without the extra with
+  only a warning). `ci/tests/test_release_select.py` tests the `select` step for every kind of
+  tag. The release checklist runs the GPU tests on the CI-built wheels of both plugins before
+  their PyPI environments are approved.
+- Changed (CI): the plugin wheels are checked for exactly the SASS and PTX of their toolkit's
+  release list (`ci/wheel_check.py --code-objects` with cuobjdump, in the container; the smoke
+  test checks the architectures the module reports), their module is linked with
+  `-Wl,--exclude-libs,ALL` as in the local build and may export only its init function and std /
+  nanobind / type_info symbols; the pinned CUDA RPMs are checked against NVIDIA's OpenPGP
+  signature (key fingerprint pinned; gpg on the runner, `rpm -K` and `localpkg_gpgcheck` in the
+  container); `wheels.yml` builds the plugins for pull requests that change the library or the
+  licence files too.
+
+### M6a: acceptance fixes (0.2, branch `m6a-cuda-wheels`)
+
+- Fixed: `ci/plugin_wheels.sh` checks every plugin's CUDA toolkit for `bin/nvcc` and
+  `bin/cuobjdump` before anything is built (or the output directory cleared) and names what is
+  missing; before, a toolkit without cuobjdump failed the code-object check only after the build.
+- Docs: `docs/developer/wheels.md`: the conda-forge CUDA 12.9 recipe for the local cu12 build
+  installs `cuda-cuobjdump` (it could not pass the code-object check without it).
+  `docs/developer/repository_settings.md` and `release.md`: a final release with the plugins is
+  approved in two "Review deployments" dialogs (`pypi-cu12` and `pypi-cu13`, then `pypi`), as
+  `release.yml` orders them.
+
+### M6a: the plugins' licence expression (0.2, branch `m6a-cuda-wheels`)
+
+- Changed: the `License-Expression` of `dyng-cu12` / `dyng-cu13` names what the plugins add to
+  the CPU wheel's contents: `... AND Apache-2.0 WITH LLVM-exception AND
+  LicenseRef-NVIDIA-End-User-License-Agreement` (libcu++ and NVTX; the statically linked CUDA
+  runtime under NVIDIA's CUDA Toolkit EULA). The author's decision of 2026-10-06 (GOVERNANCE.md;
+  ADR 0030 item 9). The CPU wheel `dyng` and the sdist keep their expression.
+  `ci/wheel_check.py` refuses a plugin wheel with any other expression.
+- Docs: `docs/developer/repository_settings.md` item 11b is done: the four plugin environments
+  have the protection rules of `testpypi` / `pypi`.
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

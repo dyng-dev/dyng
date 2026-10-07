@@ -109,7 +109,7 @@ files in the original tools' formats: `dyng sssp update --graph G --changes DIR 
 | `sssp`'s CUDA operators engine and `mosp`: multi-objective shortest paths (DynaMOSP MOSP update) on every backend, with `dyng.mosp` and `dyng mosp` | working on the branch `m7-mosp` (0.2): the operators engine byte-identical to the fused one; mosp byte-identical to MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 (combined graph and path costs included) and within their gates ([M7 record](parity/results/M7.md)) |
 | `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.3) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.4) |
-| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; CUDA plugin wheels follow in 0.1.x |
+| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; the CUDA plugin wheels `dyng-cu12` / `dyng-cu13` (`pip install "dyng[cu13]"`) are on `main` for 0.2.0 (M6a), not released yet |
 
 ## The name
 
@@ -127,8 +127,9 @@ pip install dyng                         # from PyPI (Python >= 3.12, Linux x86-
 pip install .                            # or from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
 ```
 
-The wheel contains the sequential and OpenMP backends and the `dyng` command line; CUDA plugin
-wheels (`pip install "dyng[cu13]"`) follow in 0.1.x. For development:
+The wheel contains the sequential and OpenMP backends and the `dyng` command line; the CUDA
+backend comes with the plugin wheels of 0.2 (`pip install "dyng[cu13]"` or `"dyng[cu12]"`,
+matching the NVIDIA driver's CUDA major). For development:
 `pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build` in the
 `dyng-dev` environment (below), then `ci/python.sh` runs the stubs check and the pytest suite.
 

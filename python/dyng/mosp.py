@@ -43,9 +43,11 @@ from typing import Any
 import numpy as np
 
 from . import _dtypes
+from . import _writer as _writer_state
 from . import sssp as _sssp
 from ._backend import native
 from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name, with_options
+from ._writer import resolve_on, writing
 from .array import Array
 from .batch import EdgeBatch
 from .errors import InvalidArgumentError, NotSupportedError, StaleResultError
@@ -184,6 +186,11 @@ class Result:
     _native: Any
     _resources: Resources
     _vertex: np.dtype
+    # the bookkeeping of dyng._writer (a side table: the slots stay as in 0.1)
+    _writer = _writer_state.WRITER
+    _streams = _writer_state.STREAMS
+    _write_lock = _writer_state.WRITE_LOCK
+    __del__ = _writer_state.release
 
     def __init__(self) -> None:
         raise TypeError("use dyng.mosp.compute() or dyng.mosp.Result.from_arrays()")
@@ -194,10 +201,16 @@ class Result:
         self._native = handle
         self._resources = resources
         self._vertex = vertex
+        _writer_state.track(self, resources)
         return self
 
     def _array(self, getter: Any, what: str) -> Array:
-        return _sssp._result_array(self._native, getter, f"mosp.Result.{what}")
+        return _sssp._result_array(
+            self._native,
+            getter,
+            f"mosp.Result.{what}",
+            (self._resources, self._writer, self._streams),
+        )
 
     def _objective(self, objective: int, what: str) -> int:
         k = as_int(objective, f"mosp.Result.{what}: objective")
@@ -325,7 +338,7 @@ class Result:
         """
         _check_graph(graph)
         opt = with_options(Options, options, kwargs, "mosp.Result.from_arrays")
-        res = resolve(resources, graph._resources)
+        res = resolve_on(graph, resources)
         if isinstance(distances, (str, bytes)) or isinstance(parents, (str, bytes)):
             raise TypeError("mosp.Result.from_arrays: distances and parents are lists of arrays")
         ds = [
@@ -420,7 +433,7 @@ def compute(
     """
     _check_graph(graph)
     opt = with_options(Options, options, kwargs, "mosp.compute")
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     src = as_int(source, "mosp.compute: source")
     handle = native.mosp_compute(res._native, graph._native, src, opt._to_native())
     return Result._wrap(handle, graph.vertex_dtype, res)
@@ -461,6 +474,8 @@ def update(
             "dyng.mosp.update: the result was computed on another graph (its vertex ids are "
             f"{result.vertex_dtype.name}, the graph's {graph.vertex_dtype.name})"
         )
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(native.mosp_update(res._native, graph._native, nb, result._native))
+    with writing([result], res):
+        out = native.mosp_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)
