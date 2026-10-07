@@ -56,7 +56,16 @@ own environments (PyPI refuses two identical pending publishers, so they cannot 
    (`ci/cuda_toolkit.py download`: every digest checked, a `SHA256SUMS` written) into
    `.cuda-rpms/`, which cibuildwheel copies into the container with the project; `before-all`
    checks the digests again (`sha256sum --check` and `ci/cuda_toolkit.py verify`) and installs
-   exactly those files with `dnf`. This refines PLAN 7.7's "installed from NVIDIA's RHEL8
+   exactly those files with `dnf`. **The signatures are checked too** (added after the M6a
+   review): the SHA-256 pins come from the repository's metadata over HTTPS and prove only
+   that CI installs the bytes that were locked, while installing from NVIDIA's repository, as
+   the plan has it, would have checked NVIDIA's signatures (`gpgcheck=1`). So `download` also
+   fetches the repository key `D42D0685.pub`, accepts it only with the fingerprint pinned in
+   `ci/cuda_toolkit.py` (`610C7B14E068A878070DA4E99CD0A493D42D0685`), and checks with gpg that
+   every RPM's header carries a valid signature by it and that the payload matches the digest the
+   signed header records; `before-all` repeats that check (`verify --signatures`), imports the
+   key into the container's rpm database, requires `rpm -K` to report the signatures OK, and
+   installs with `dnf --setopt=localpkg_gpgcheck=1`. This refines PLAN 7.7's "installed from NVIDIA's RHEL8
    repository": the packages are NVIDIA's RHEL 8 packages, but the build no longer depends on
    what the repository serves on the day (a re-pin is a reviewed change of the lock file), and
    the download can be cached, which a container step cannot. Dependabot does not see the lock:

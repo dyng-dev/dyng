@@ -5,6 +5,9 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
+import struct
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -150,13 +153,13 @@ def test_verify_and_download_from_a_local_mirror(tmp_path: Path, monkeypatch) ->
     (dest).mkdir()
     (dest / "stale-1.0-1.x86_64.rpm").write_bytes(b"old")
     assert len(ct.verify(t, dest)) == len(fixed)
-    ct.download(t, dest)
+    ct.download(t, dest, signatures=False)  # the blobs are not RPMs (test_signatures below)
     assert ct.verify(t, dest) == []
     assert not (dest / "stale-1.0-1.x86_64.rpm").exists()
     sums = (dest / "SHA256SUMS").read_text().splitlines()
     assert len(sums) == len(fixed) and all("  " in line for line in sums)
     n = len(calls)
-    ct.download(t, dest)  # a cache hit downloads nothing
+    ct.download(t, dest, signatures=False)  # a cache hit downloads nothing
     assert len(calls) == n
     first = dest / str(fixed[0]["href"])
     first.write_bytes(b"tampered")
@@ -165,4 +168,97 @@ def test_verify_and_download_from_a_local_mirror(tmp_path: Path, monkeypatch) ->
     ]
     blobs[f"https://example.invalid/repo/{fixed[0]['href']}"] = b"evil"
     with pytest.raises(ValueError, match="pins"):
-        ct.download(t, dest)
+        ct.download(t, dest, signatures=False)
+
+
+# -------------------------------------------------------------------------------------------------
+# The packages' OpenPGP signatures (a key made for the test signs a synthetic RPM)
+# -------------------------------------------------------------------------------------------------
+
+
+def _header(entries: list[tuple[int, int, bytes]]) -> bytes:
+    """An RPM header: (tag, type, data) entries, each datum 8-byte aligned in the store."""
+    index, store = b"", b""
+    for tag, kind, data in entries:
+        store += bytes(-len(store) % 8)
+        index += struct.pack(">IIII", tag, kind, len(store), 1 if kind != 7 else len(data))
+        store += data
+    return b"\x8e\xad\xe8\x01" + bytes(4) + struct.pack(">II", len(entries), len(store)) + (
+        index + store
+    )
+
+
+def _rpm(sign: object, payload: bytes, digest: str | None = None) -> bytes:
+    main = _header(
+        [
+            (5092, 8, (digest or hashlib.sha256(payload).hexdigest()).encode() + b"\0"),
+            (5093, 4, struct.pack(">I", 8)),
+        ]
+    )
+    sig = _header([(268, 7, sign(main))])  # type: ignore[operator]
+    lead = b"\xed\xab\xee\xdb" + bytes(92)
+    return lead + sig + bytes(-len(sig) % 8) + main + payload
+
+
+@pytest.fixture(scope="module")
+def signer(tmp_path_factory: pytest.TempPathFactory) -> tuple[object, Path, str]:
+    gpg = shutil.which("gpg")
+    if gpg is None:
+        pytest.skip("needs gpg")
+    home = tmp_path_factory.mktemp("gnupg")
+    run = [gpg, "--homedir", str(home), "--batch", "--pinentry-mode", "loopback", "--passphrase", ""]
+    subprocess.run(
+        [*run, "--quick-gen-key", "dynG test <test@example.invalid>", "rsa2048", "sign", "never"],
+        check=True,
+        capture_output=True,
+    )
+    listing = subprocess.run(
+        [*run, "--with-colons", "--list-keys"], check=True, capture_output=True, text=True
+    ).stdout
+    fingerprint = next(line.split(":")[9] for line in listing.splitlines() if line[:4] == "fpr:")
+    key = home / "key.pub"
+    key.write_bytes(subprocess.run([*run, "--export"], check=True, capture_output=True).stdout)
+
+    def sign(data: bytes) -> bytes:
+        out = subprocess.run([*run, "--detach-sign"], input=data, check=True, capture_output=True)
+        return out.stdout
+
+    return sign, key, fingerprint
+
+
+def _one(dest: Path, data: bytes) -> ct.Toolkit:
+    href = "cuda-test-13-4-13.4.92-1.x86_64.rpm"
+    (dest / href).write_bytes(data)
+    package = {"name": "cuda-test-13-4", "version": "13.4.92-1", "href": href}
+    return ct.Toolkit("cu13", "13.4", "13.4.92", "/usr/local/cuda-13.4", "x", (package,), ())
+
+
+def test_signatures(tmp_path: Path, signer: tuple[object, Path, str]) -> None:
+    sign, key, fingerprint = signer
+    good = _rpm(sign, b"the payload")
+    signature, header, digest, payload = ct.rpm_signed_parts(good)
+    assert digest == payload == hashlib.sha256(b"the payload").hexdigest()
+    assert good.index(header) > 96 and signature
+    t = _one(tmp_path, good)
+    assert ct.verify_signatures(t, tmp_path, key, fingerprint) == []
+    # Another key's fingerprint, a changed header, a changed payload, an unsigned file.
+    assert "fingerprint" in ct.verify_signatures(t, tmp_path, key, "0" * 40)[0]
+    start = good.index(header)
+    bad = bytearray(good)
+    bad[start + 20] ^= 1
+    _one(tmp_path, bytes(bad))
+    assert "no valid signature" in ct.verify_signatures(t, tmp_path, key, fingerprint)[0]
+    _one(tmp_path, good[:-1] + b"X")
+    assert "payload" in ct.verify_signatures(t, tmp_path, key, fingerprint)[0]
+    _one(tmp_path, _rpm(lambda data: b"not a signature", b"p"))
+    assert "no valid signature" in ct.verify_signatures(t, tmp_path, key, fingerprint)[0]
+    with pytest.raises(ValueError, match="not an RPM"):
+        ct.rpm_signed_parts(b"plain bytes")
+    assert ct.verify_signatures(t, tmp_path / "missing", None, fingerprint)[0].endswith(
+        "the signing key is missing"
+    )
+
+
+def test_the_pinned_signing_key() -> None:
+    assert ct.SIGNING_KEY == ct.SIGNING_KEY_FINGERPRINT[-8:] + ".pub"
+    assert len(ct.SIGNING_KEY_FINGERPRINT) == 40

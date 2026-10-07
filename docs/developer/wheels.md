@@ -193,9 +193,11 @@ CUDA 13.1 and conda-forge's CUDA 12.9).
 - **job `plugin`** (matrix `cu12`, `cu13`): the sdist unpacked into `plugin-src/`; the CUDA
   toolkit's RPM files downloaded on the runner by `python ci/cuda_toolkit.py download --plugin
   cu<N> --dest .cuda-rpms` (cached between runs with `actions/cache`, except for tags; every
-  file checked against its SHA-256); then cibuildwheel with `package-dir: plugin-src` and
+  file checked against its SHA-256 and against NVIDIA's OpenPGP signature, see below); then
+  cibuildwheel with `package-dir: plugin-src` and
   `config-file: ci/cibuildwheel-plugin.toml`. In the manylinux_2_28 container, `before-all`
-  (`ci/cibw_plugin.sh`) checks the files again, installs them with `dnf`, links
+  (`ci/cibw_plugin.sh`) checks the files again (digests; signatures with gpg and `rpm -K`),
+  installs them with `dnf` (`localpkg_gpgcheck=1`), links
   `/usr/local/cuda`, checks that nvcc is the pinned release and compiles and links a kernel with
   the image's gcc-toolset and the static runtime, and renders the plugin's tree with
   `ci/plugin_pyproject.py --cuda-root /usr/local/cuda`; cibuildwheel builds the abi3 wheel once
@@ -215,7 +217,14 @@ CUDA 13.1 and conda-forge's CUDA 12.9).
 **The pinned toolkits** are `ci/cuda_toolkits.toml`: per plugin, the toolkit release and every
 RPM file of NVIDIA's RHEL 8 repository the build installs (nvcc, the CUDA runtime with its static
 library, CCCL, NVTX, the documentation package with `EULA.txt`, and their dependencies inside
-NVIDIA's repository), with SHA-256 and size. Now: CUDA 12.9 (nvcc 12.9.86) for `cu12`, CUDA
+NVIDIA's repository), with SHA-256 and size. The pins make the build reproducible; that the
+files are NVIDIA's is checked separately, every time they are used: each RPM's header must carry
+a valid OpenPGP signature by NVIDIA's repository key (`D42D0685.pub`, fetched from the
+repository next to the packages and accepted only with the fingerprint
+`610C7B14E068A878070DA4E99CD0A493D42D0685` pinned in `ci/cuda_toolkit.py`), and the payload
+must match the digest that the signed header records (`download` and `verify --signatures`, with
+gpg; in the container also `rpm -K` and dnf's `localpkg_gpgcheck`). So a lock taken from a
+tampered response would fail at its first use. Now: CUDA 12.9 (nvcc 12.9.86) for `cu12`, CUDA
 13.4 (nvcc 13.4.92) for `cu13`. When NVIDIA ships a newer 12.x or 13.x (PLAN 7.8: the wheels
 are built with the latest of each major), re-pin in a pull request; dependabot does not see the
 file:

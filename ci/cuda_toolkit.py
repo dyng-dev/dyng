@@ -10,13 +10,17 @@ plugin, the toolkit release (the latest 12.x and the latest 13.x, PLAN 7.8) and 
 of the minimal set the build needs (``nvcc``, the CUDA runtime with its static library, CCCL,
 NVTX 3, the documentation package that carries ``EULA.txt``, and what they require from NVIDIA's
 repository), each with its SHA-256 and size. The runner downloads them on the host (cached
-between runs) and checks every digest; the container installs exactly those files.
+between runs) and checks every digest and every package's OpenPGP signature (NVIDIA's repository
+key, accepted only with the fingerprint :data:`SIGNING_KEY_FINGERPRINT`, verified with ``gpg``:
+the header signature and the payload digest it covers); the container checks the signatures
+again with ``rpm`` and installs exactly those files.
 
 Commands::
 
     python3 ci/cuda_toolkit.py lock --plugin cu13 --release 13.4   # re-pin (needs network)
-    python3 ci/cuda_toolkit.py download --plugin cu13 --dest .cuda-rpms   # fetch + verify
+    python3 ci/cuda_toolkit.py download --plugin cu13 --dest .cuda-rpms   # fetch + verify (gpg)
     python3 ci/cuda_toolkit.py verify --plugin cu13 --dest .cuda-rpms     # digests only
+    python3 ci/cuda_toolkit.py verify --signatures --plugin cu13 --dest .cuda-rpms  # + signatures
     python3 ci/cuda_toolkit.py root --plugin cu13        # /usr/local/cuda-13.4 (for scripts)
     python3 ci/cuda_toolkit.py show                      # the pinned toolkits
     python3 ci/cuda_toolkit.py extract --plugin cu13 --dest <dir>   # unpack without root
@@ -37,8 +41,10 @@ import hashlib
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 import urllib.request
@@ -63,6 +69,11 @@ ROOT_PACKAGES = (
     "cuda-documentation-{s}",
 )
 SCHEMA = 1
+#: NVIDIA's signing key of the RHEL 8 repository (``cudatools <cudatools@nvidia.com>``, RSA 4096,
+#: 2022-04-14), fetched from the repository next to the packages and accepted only with this
+#: fingerprint. Every pinned RPM must carry a header signature by it.
+SIGNING_KEY = "D42D0685.pub"
+SIGNING_KEY_FINGERPRINT = "610C7B14E068A878070DA4E99CD0A493D42D0685"
 
 _NS = {"c": "http://linux.duke.edu/metadata/common", "rpm": "http://linux.duke.edu/metadata/rpm"}
 
@@ -421,9 +432,11 @@ def verify(t: Toolkit, dest: Path) -> list[str]:
     return problems
 
 
-def download(t: Toolkit, dest: Path) -> None:
+def download(t: Toolkit, dest: Path, *, signatures: bool = True) -> None:
     """Fetch the pinned files into ``dest`` (keeping the right ones already there), remove any
-    other ``.rpm``, check every digest and write ``SHA256SUMS`` (``sha256sum -c`` format)."""
+    other ``.rpm``, check every digest and write ``SHA256SUMS`` (``sha256sum -c`` format). With
+    ``signatures``, also fetch the repository's signing key (:data:`SIGNING_KEY`) and check every
+    file's signature against :data:`SIGNING_KEY_FINGERPRINT` (:func:`verify_signatures`)."""
     dest.mkdir(parents=True, exist_ok=True)
     wanted = {str(p["href"]) for p in t.packages}
     for stale in dest.glob("*.rpm"):
@@ -444,9 +457,119 @@ def download(t: Toolkit, dest: Path) -> None:
         tmp.write_bytes(data)
         os.replace(tmp, f)
     problems = verify(t, dest)
+    if signatures:
+        (dest / SIGNING_KEY).write_bytes(fetch(f"{t.repository}/{SIGNING_KEY}"))
+        problems += verify_signatures(t, dest)
     if problems:
         raise ValueError("; ".join(problems))
     (dest / "SHA256SUMS").write_text("".join(f"{p['sha256']}  {p['href']}\n" for p in t.packages))
+
+
+#: RPM tags: the OpenPGP signatures of the main header (signature header: RSAHEADER, DSAHEADER),
+#: and the payload's digest with its algorithm (main header: PAYLOADDIGEST, PAYLOADDIGESTALGO).
+_RSAHEADER, _DSAHEADER, _PAYLOADDIGEST, _PAYLOADDIGESTALGO = 268, 267, 5092, 5093
+#: PGPHASHALGO values of PAYLOADDIGESTALGO.
+_DIGESTS = {8: "sha256", 9: "sha384", 10: "sha512"}
+
+
+def _rpm_header(data: bytes, off: int) -> tuple[dict[int, tuple[int, int, int]], int, int]:
+    """The index (tag -> type, offset, count) of the RPM header at ``off``, the offset of its
+    data store, and the end of the header."""
+    if data[off : off + 3] != b"\x8e\xad\xe8":
+        raise ValueError(f"no RPM header at offset {off}")
+    n, size = struct.unpack_from(">II", data, off + 8)
+    index = {}
+    for i in range(n):
+        tag, kind, offset, count = struct.unpack_from(">IIII", data, off + 16 + 16 * i)
+        index[tag] = (kind, offset, count)
+    store = off + 16 + 16 * n
+    return index, store, store + size
+
+
+def rpm_signed_parts(data: bytes) -> tuple[bytes, bytes, str, str]:
+    """What the signature of an RPM file covers: ``(signature, header, digest algorithm,
+    payload digest)``. The OpenPGP signature (RSAHEADER or DSAHEADER) is over the main header
+    (``header``), which records the payload's digest; the payload follows the header."""
+    if data[:4] != b"\xed\xab\xee\xdb":
+        raise ValueError("not an RPM file (no lead)")
+    sig_index, sig_store, sig_end = _rpm_header(data, 96)
+    signature = None
+    for tag in (_RSAHEADER, _DSAHEADER):
+        if tag in sig_index and sig_index[tag][0] == 7:  # BIN
+            _, offset, count = sig_index[tag]
+            signature = data[sig_store + offset : sig_store + offset + count]
+            break
+    if signature is None:
+        raise ValueError("the RPM has no header signature (unsigned)")
+    start = (sig_end + 7) // 8 * 8
+    index, store, end = _rpm_header(data, start)
+    if _PAYLOADDIGEST not in index:
+        raise ValueError("the RPM header records no payload digest")
+    algo = 8
+    if _PAYLOADDIGESTALGO in index:
+        algo = struct.unpack_from(">I", data, store + index[_PAYLOADDIGESTALGO][1])[0]
+    if algo not in _DIGESTS:
+        raise ValueError(f"unknown payload digest algorithm {algo}")
+    off = store + index[_PAYLOADDIGEST][1]
+    digest = data[off : data.index(b"\0", off)].decode()
+    payload = getattr(hashlib, _DIGESTS[algo])(data[end:]).hexdigest()
+    return signature, data[start:end], digest, payload
+
+
+def verify_signatures(
+    t: Toolkit,
+    dest: Path,
+    key: Path | None = None,
+    fingerprint: str = SIGNING_KEY_FINGERPRINT,
+) -> list[str]:
+    """Problems of the files in ``dest`` against the signing key (empty: each RPM's header is
+    signed by the key with ``fingerprint`` and its payload matches the signed digest). The key
+    is ``dest/D42D0685.pub`` unless given; ``gpg`` runs with a keyring of that key alone."""
+    gpg = shutil.which("gpg")
+    if gpg is None:
+        return ["gpg is needed to check the packages' signatures (gnupg)"]
+    key = key or dest / SIGNING_KEY
+    if not key.is_file():
+        return [f"{key}: the signing key is missing"]
+    problems: list[str] = []
+    with tempfile.TemporaryDirectory() as home:
+        run = [gpg, "--homedir", home, "--batch", "--no-tty", "--quiet"]
+        shown = subprocess.run(
+            [*run, "--with-colons", "--import-options", "show-only", "--import", str(key)],
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+        fprs = re.findall(r"(?m)^fpr:+([0-9A-F]{40}):", shown)
+        if not fprs or fprs[0] != fingerprint:
+            return [f"{key}: the key's fingerprint is {fprs[:1]}, not {fingerprint}"]
+        subprocess.run([*run, "--import", str(key)], capture_output=True, check=True)
+        for p in t.packages:
+            f = dest / str(p["href"])
+            try:
+                signature, header, digest, payload = rpm_signed_parts(f.read_bytes())
+            except (OSError, ValueError) as e:
+                problems.append(f"{f.name}: {e}")
+                continue
+            if digest != payload:
+                problems.append(f"{f.name}: the payload does not match its signed digest")
+                continue
+            sig_file, header_file = Path(home) / "sig", Path(home) / "header"
+            sig_file.write_bytes(signature)
+            header_file.write_bytes(header)
+            out = subprocess.run(
+                [*run, "--status-fd", "1", "--verify", str(sig_file), str(header_file)],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout
+            valid = re.search(r"(?m)^\[GNUPG:\] VALIDSIG (\S+)(?: \S+)* (\S+)$", out)
+            if out.count("[GNUPG:] GOODSIG") != 1 or valid is None or fingerprint not in (
+                valid.group(1),
+                valid.group(2),
+            ):
+                problems.append(f"{f.name}: no valid signature by {fingerprint}")
+    return problems
 
 
 def extract(t: Toolkit, rpms: Path, dest: Path) -> Path:
@@ -484,6 +607,12 @@ def main(argv: list[str] | None = None) -> int:
             s.add_argument("--repository", default=REPOSITORY)
         if name in ("download", "verify", "extract"):
             s.add_argument("--dest", type=Path, required=True)
+        if name == "verify":
+            s.add_argument(
+                "--signatures",
+                action="store_true",
+                help="also check each RPM's signature against the pinned key (needs gpg)",
+            )
         if name == "extract":
             s.add_argument("--rpms", type=Path, required=True, help="the downloaded RPMs")
     s = sub.add_parser("show")
@@ -518,9 +647,14 @@ def main(argv: list[str] | None = None) -> int:
         print(t.root)
     elif args.command == "download":
         download(t, args.dest)
-        print(f"cuda_toolkit: {len(t.packages)} RPMs of CUDA {t.release} in {args.dest}, verified")
+        print(
+            f"cuda_toolkit: {len(t.packages)} RPMs of CUDA {t.release} in {args.dest}, verified "
+            f"(SHA-256 and NVIDIA's signature, key {SIGNING_KEY_FINGERPRINT})"
+        )
     elif args.command == "verify":
         problems = verify(t, args.dest)
+        if args.signatures:
+            problems += verify_signatures(t, args.dest)
         for pr in problems:
             print(f"cuda_toolkit: {pr}", file=sys.stderr)
         return 1 if problems else 0
