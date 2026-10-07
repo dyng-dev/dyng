@@ -12,6 +12,7 @@
  */
 #include "hypergraph/escher/device_utils.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "util/kernel_registry.hpp"
 
 #include <climits>
 
@@ -109,5 +110,13 @@ __global__ void record_keys_and_starts_kernel(const cbst_node* records, int n, i
   keys[tid] = records[tid].index;
   starts[tid] = records[tid].value;
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(build_empty_tree_kernel);
+DYNG_REGISTER_KERNEL(store_items_kernel);
+DYNG_REGISTER_KERNEL(init_tail_metadata_kernel);
+DYNG_REGISTER_KERNEL(place_node_records_kernel);
+DYNG_REGISTER_KERNEL(rank_order_nodes_kernel);
+DYNG_REGISTER_KERNEL(record_keys_and_starts_kernel);
 
 }  // namespace dyng::detail::escher

@@ -11,6 +11,7 @@
  * cpp/src/hypergraph/escher/README.md).
  */
 #include "hypergraph/escher/kernels.cuh"
+#include "util/kernel_registry.hpp"
 
 namespace dyng::detail::escher {
 
@@ -66,5 +67,10 @@ __global__ void reduce_avail_level_kernel(int level_start, int level_end, int nu
   int right_sum = (right < num_records) ? subtree_avail[right] : 0;
   subtree_avail[idx] = avail[idx] + left_sum + right_sum;
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(locate_delete_targets_kernel);
+DYNG_REGISTER_KERNEL(apply_deletes_kernel);
+DYNG_REGISTER_KERNEL(reduce_avail_level_kernel);
 
 }  // namespace dyng::detail::escher

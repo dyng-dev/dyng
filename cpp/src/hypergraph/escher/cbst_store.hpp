@@ -37,6 +37,16 @@ struct cbst_node {
   cbst_node* parent;
 };
 
+// Number of batches of fill, best-fit reuse (insert) and unfill work that
+// launched the thread- / warp- / block-level kernel ([0] / [1] / [2]) since
+// the store was created (ESCHER-GPU counted them per process). Reported by
+// --check so that the tests can verify that every degree-binned path ran.
+struct degree_bin_launches {
+  long long fill[3] = {0, 0, 0};
+  long long reuse[3] = {0, 0, 0};
+  long long unfill[3] = {0, 0, 0};
+};
+
 // Device-side context is opaque; host context holds device buffers
 struct cbst_context {
   cbst_node* d_nodes;
@@ -64,6 +74,8 @@ struct cbst_context {
   resources res;
   // Host synchronizations with the stream so far (the read points of ADR 0038).
   long long host_syncs = 0;
+  // The degree-bin launches of this store's operations.
+  degree_bin_launches bin_launches;
   buffer<cbst_node> nodes_storage;
   buffer<int> keys_storage, start_offsets_storage, flat_payload_storage, insert_keys_storage,
       insert_payload_storage, insert_prefix_sizes_storage, relocation_plan_storage, avail_storage,
@@ -96,17 +108,6 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>& values_to_remove,
                  const std::vector<int>& remove_prefix_sizes, cbst_context& ctx);
 
-// Number of batches of fill, best-fit reuse (insert) and unfill work that
-// launched the thread- / warp- / block-level kernel ([0] / [1] / [2]) since
-// program start. Reported by --check so that the tests can verify that every
-// degree-binned path ran.
-struct degree_bin_launches {
-  long long fill[3] = {0, 0, 0};
-  long long reuse[3] = {0, 0, 0};
-  long long unfill[3] = {0, 0, 0};
-};
-const degree_bin_launches& degree_bin_launch_counts();
-
 // OO wrapper to manage CBST lifecycle and operations
 struct cbst_store {
   cbst_store(const resources& res, std::string dataset_name, int payload_capacity,
@@ -131,6 +132,10 @@ struct cbst_store {
                      const std::vector<int>& remove_prefix_sizes);
   // The heap position of the node of every key (-1: absent).
   std::vector<int> find(const std::vector<int>& ids) const;
+  // The degree-bin launches of the store's operations so far.
+  const degree_bin_launches& bin_launches() const {
+    return ctx_.bin_launches;
+  }
   // Host synchronizations of the store's operations so far (ADR 0038, the read points).
   long long host_syncs() const {
     return ctx_.host_syncs;

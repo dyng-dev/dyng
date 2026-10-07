@@ -11,6 +11,7 @@
  * cpp/src/hypergraph/escher/README.md).
  */
 #include "hypergraph/escher/kernels.cuh"
+#include "util/kernel_registry.hpp"
 
 namespace dyng::detail::escher {
 
@@ -30,5 +31,8 @@ __global__ void find_node_kernel(const cbst_node* nodes, const int* search_indic
     positions[tid] = current != nullptr ? static_cast<int>(current - nodes) : -1;
   }
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(find_node_kernel);
 
 }  // namespace dyng::detail::escher

@@ -12,6 +12,7 @@
  */
 #include "hypergraph/escher/device_utils.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "util/kernel_registry.hpp"
 
 #include <climits>
 
@@ -237,5 +238,18 @@ __global__ void apply_reuse_block_kernel(cbst_node* nodes, int* flat_values, int
   // Thread 0 handles the metadata
   if (threadIdx.x == 0) finish_reuse(node, avail, pos, base, len, capacity, deleted_keys[slot_idx]);
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(locate_reusable_slots_kernel);
+DYNG_REGISTER_KERNEL(extract_slot_capacities_kernel);
+DYNG_REGISTER_KERNEL(compute_item_sizes_kernel);
+DYNG_REGISTER_KERNEL(lower_bound_kernel);
+DYNG_REGISTER_KERNEL(compute_b_in_place_kernel);
+DYNG_REGISTER_KERNEL(compute_assigned_kernel);
+DYNG_REGISTER_KERNEL(extract_keys_from_positions_kernel);
+DYNG_REGISTER_KERNEL(pair_matches_kernel);
+DYNG_REGISTER_KERNEL(apply_reuse_thread_kernel);
+DYNG_REGISTER_KERNEL(apply_reuse_warp_kernel);
+DYNG_REGISTER_KERNEL(apply_reuse_block_kernel);
 
 }  // namespace dyng::detail::escher

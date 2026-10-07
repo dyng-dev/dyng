@@ -15,6 +15,7 @@
 #include "core/cuda_runtime.hpp"
 #include "hypergraph/escher/row_view.cuh"
 #include "util/cuda_check.hpp"
+#include "util/kernel_registry.hpp"
 #include "util/thrust_allocator.cuh"
 
 #include <dyng/core/buffer.hpp>
@@ -223,5 +224,12 @@ void row_locator::build(const cbst_context& tree, int max_key, bool with_out) {
   view_.out = with_out ? out_ : nullptr;
   view_.max_key = max_key;
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(row_heads_kernel);
+DYNG_REGISTER_KERNEL(chained_row_lengths_kernel);
+DYNG_REGISTER_KERNEL(gather_chained_rows_kernel);
+DYNG_REGISTER_KERNEL(pair_values_kernel);
+DYNG_REGISTER_KERNEL(build_row_locator_kernel);
 
 }  // namespace dyng::detail::escher

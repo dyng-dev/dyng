@@ -11,6 +11,7 @@
  * cpp/src/hypergraph/escher/README.md).
  */
 #include "hypergraph/escher/kernels.cuh"
+#include "util/kernel_registry.hpp"
 
 #include <climits>
 
@@ -281,5 +282,10 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
     sh_node->occupancy = sh_write_offset;
   }
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(unfill_thread_kernel);
+DYNG_REGISTER_KERNEL(unfill_warp_kernel);
+DYNG_REGISTER_KERNEL(unfill_block_kernel);
 
 }  // namespace dyng::detail::escher

@@ -208,8 +208,8 @@ std::int64_t integrity_of(const esc::cbst_store& s, const tree_digest& d) {
   return esc::check_tree_rows(s.context(), expected, false, s.context().dataset_name.c_str(), log);
 }
 
-std::array<std::int64_t, 9> bins_now() {
-  const esc::degree_bin_launches& b = esc::degree_bin_launch_counts();
+std::array<std::int64_t, 9> bins_now(const esc::cbst_store& s) {
+  const esc::degree_bin_launches& b = s.bin_launches();
   std::array<std::int64_t, 9> out{};
   for (int l = 0; l < 3; ++l) {
     out[static_cast<std::size_t>(l)] = b.fill[l];
@@ -256,7 +256,7 @@ op_outcome device_store_adapter::run(std::uint32_t id, const op_request& op) {
     return out;
   }
   esc::cbst_store& s = *it->second->store;
-  const std::array<std::int64_t, 9> before = bins_now();
+  const std::array<std::int64_t, 9> before = bins_now(s);
   try {
     if (op.op == "construct") {
       std::vector<int> keys(op.keys.begin(), op.keys.end());
@@ -306,7 +306,7 @@ op_outcome device_store_adapter::run(std::uint32_t id, const op_request& op) {
     out.error_type = demangle(typeid(e).name());
     out.message = e.what();
   }
-  const std::array<std::int64_t, 9> after = bins_now();
+  const std::array<std::int64_t, 9> after = bins_now(s);
   out.has_bins = true;
   for (std::size_t i = 0; i < 9; ++i) {
     out.bins[i] = after[i] - before[i];

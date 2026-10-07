@@ -21,6 +21,7 @@
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/error.hpp>
 #include <dyng/core/logging.hpp>
+#include <dyng/core/profiler.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -143,11 +144,6 @@ struct degree_bins {
   temp_buffer<int> index;
   int count[3] = {0, 0, 0};
 };
-
-static degree_bin_launches g_bin_launches;
-const degree_bin_launches& degree_bin_launch_counts() {
-  return g_bin_launches;
-}
 
 // Sizes of the items of a prefix-sum layout.
 static std::vector<int> item_sizes(const std::vector<int>& prefix_sizes) {
@@ -346,7 +342,7 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
 
   // ── Degree-binned insert_node dispatch ────────────────────────────────
   degree_bins bins(ctx.res, item_sizes(insert_prefix_sizes));
-  bins.record(g_bin_launches.fill);
+  bins.record(ctx.bin_launches.fill);
   if (bins.count[0] > 0)
     insert_node_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
                                 stream_of(ctx)>>>(
@@ -585,7 +581,7 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 
       // ── Degree-binned apply_reuse_thread_kernel dispatch (thread / warp / block) ──────
       degree_bins bins(ctx.res, matched_sizes);
-      bins.record(g_bin_launches.reuse);
+      bins.record(ctx.bin_launches.reuse);
       if (bins.count[0] > 0)
         apply_reuse_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
                                     stream_of(ctx)>>>(
@@ -790,6 +786,7 @@ auto cbst_store::guarded(const char* op, op_t&& body) {
 void cbst_store::construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
                            int flat_payload_size) {
   const scoped_device guard(ctx_.res.device());
+  scoped_stage stage(ctx_.res, "hypergraph.cbst.construct");
   try {
     construct_cbst(keys, start_offsets, num_records, flat_payload, flat_payload_size,
                    ctx_.fixed_size, ctx_.dataset_name, ctx_);
@@ -807,6 +804,7 @@ void cbst_store::rebuild_from_device(buffer<int> start_offsets, int num_records,
                                      buffer<int> flat_payload, int flat_payload_size,
                                      int payload_capacity) {
   const scoped_device guard(ctx_.res.device());
+  scoped_stage stage(ctx_.res, "hypergraph.cbst.rebuild");
   try {
     rebuild_cbst_from_device(std::move(start_offsets), num_records, std::move(flat_payload),
                              flat_payload_size, payload_capacity, ctx_);
@@ -822,6 +820,7 @@ insert_mapping cbst_store::insert(const std::vector<int>& insert_keys,
                                   const std::vector<int>& insert_payload,
                                   const std::vector<int>& insert_prefix_sizes) {
   const scoped_device guard(ctx_.res.device());
+  scoped_stage stage(ctx_.res, "hypergraph.cbst.insert");
   return guarded("insert", [&] {
     return insert_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_);
   });
@@ -830,11 +829,13 @@ insert_mapping cbst_store::insert(const std::vector<int>& insert_keys,
 void cbst_store::append(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
                         const std::vector<int>& insert_prefix_sizes) {
   const scoped_device guard(ctx_.res.device());
+  scoped_stage stage(ctx_.res, "hypergraph.cbst.append");
   guarded("append", [&] { fill_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_); });
 }
 
 void cbst_store::erase(const std::vector<int>& delete_keys) {
   const scoped_device guard(ctx_.res.device());
+  scoped_stage stage(ctx_.res, "hypergraph.cbst.erase");
   guarded("erase", [&] { delete_cbst(delete_keys, ctx_); });
 }
 
@@ -842,6 +843,7 @@ void cbst_store::remove_values(const std::vector<int>& keys_to_unfill,
                                const std::vector<int>& values_to_remove,
                                const std::vector<int>& remove_prefix_sizes) {
   const scoped_device guard(ctx_.res.device());
+  scoped_stage stage(ctx_.res, "hypergraph.cbst.remove_values");
   guarded("remove_values",
           [&] { unfill_cbst(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_); });
 }
@@ -900,7 +902,7 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
   // Binned by the number of removals per key, a proxy for the work (the
   // row lengths are only known on the device).
   degree_bins bins(ctx.res, item_sizes(remove_prefix_sizes));
-  bins.record(g_bin_launches.unfill);
+  bins.record(ctx.bin_launches.unfill);
   if (bins.count[0] > 0)
     unfill_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
                            stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,

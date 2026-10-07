@@ -12,6 +12,7 @@
  */
 #include "hypergraph/escher/device_utils.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "util/kernel_registry.hpp"
 
 #include <climits>
 
@@ -305,5 +306,14 @@ __global__ void fixup_overflow_metadata_kernel(cbst_node* nodes, int* insert_ind
     current->occupancy = overflow_count;
   }
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(compute_next_multiple_of_4_kernel);
+DYNG_REGISTER_KERNEL(update_partial_solution_kernel);
+DYNG_REGISTER_KERNEL(allocate_space_kernel);
+DYNG_REGISTER_KERNEL(insert_node_thread_kernel);
+DYNG_REGISTER_KERNEL(insert_node_warp_kernel);
+DYNG_REGISTER_KERNEL(insert_node_block_kernel);
+DYNG_REGISTER_KERNEL(fixup_overflow_metadata_kernel);
 
 }  // namespace dyng::detail::escher
