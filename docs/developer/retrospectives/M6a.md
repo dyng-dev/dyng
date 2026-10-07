@@ -261,6 +261,66 @@ gate applies (PLAN 7.7).
 | `ci/github_meta_check.py --verify-pins` | OK (every action SHA equals its tag) |
 | Portability pre-checks (no C++ change in this step) | the Clang 18 syntax pass over a `dev` + `DYNG_BUILD_PYTHON=ON` database: 188 files, 0 failures; the `cpu-only` build with `-D_FORTIFY_SOURCE=3` and the bindings: clean |
 
+## Step review-fixes (2026-10-06)
+
+Independent reviewers confirmed seventeen findings (some reported twice, by different lenses). All
+are fixed in this step; none is deferred.
+
+| Finding | Fix |
+|---|---|
+| Choosing the plugin called `cuInit` (ctypes), so after any use of dynG (even `dyng.__version__` or CPU work) a fork-started worker could not use CUDA, with a misleading "no device" message (reported twice) | `6dc5f30`: the driver version from `cuDriverGetVersion`, the devices from NVML (with `CUDA_VISIBLE_DEVICES` applied) or a short child process, `cuInit` only as the last resort; `a53a8c3`: the C++ errors name fork and the remedy; `3d94e37`: `show_config()` no longer initializes CUDA either (the fork test's `show_config` case failed before it). Fresh-process fork tests: nothing, `__version__`, `show_config()`, CPU work, then CUDA in the child |
+| A GPU below sm_75 got the plugin and failed every default call with error 209 (reported twice) | `6dc5f30`: a plugin is usable only when a visible GPU has compute capability 7.5 or newer (the release lists' floor, tied by a test); the missing-kernel error names the device's compute capability; troubleshooting rows |
+| `DYNG_CPU_ONLY=false/no/off` forced the CPU module (reported twice) | `34cfbaa`: a boolean (1/true/yes/on, 0/false/no/off/empty, any case), other values ignored with a warning |
+| Stream handle 0 was the per-thread stream in Python, the legacy stream in C++ | `508dfc5`: `None` is the per-thread stream, 0 (and the frameworks' default streams) the legacy stream |
+| A result updated on another stream kept a dangling stream (CAI named a dead handle, `to_numpy()` crashed) | `d14aa03` kept the last writer's resources; **that was not enough**, see below: `17b4142` |
+| The stream-ordering tests passed with `order_stream` disabled | `466c563`: a kernel spinning on the writer's stream after the call; the consumer must finish after it, a control without the event first |
+| PyPI uploads unordered: `dyng[cu13]` could resolve to an older `dyng` without CUDA (reported twice) | `5c79770`: plugins first on each index, `dyng` only after both succeeded; recovery in `release.md` |
+| No test of `release.yml`'s `select` step | `5c79770`: `ci/tests/test_release_select.py` runs the step's script from the workflow for v0.0.1, v0.0.2, v0.1.1, v0.1.2rc1, v0.2.0rc1, v0.2.0, v1.0.0 and refused tags |
+| `release.md` step 7 named only `testpypi` | `5c79770` |
+| The pinned CUDA RPMs were never checked against NVIDIA's signature | `c0e2787`: gpg on the runner (key accepted only by its pinned fingerprint, header signature and signed payload digest), `rpm -K` and `localpkg_gpgcheck` in the container |
+| No CI check of the published wheels' SASS and PTX | `9d288f1`: `ci/cibw_plugin_repair.sh` runs `ci/wheel_check.py --code-objects` with the pinned toolkit's cuobjdump in the container; the smoke test checks the reported architectures in both modes; the lists are tied to the CMake file |
+| The CI wheels were linked differently (no `--exclude-libs`), had no export check, and were never GPU-tested before release | `9d288f1`: `-Wl,--exclude-libs,ALL` in `ci/cibuildwheel-plugin.toml`, an export-list rule in `wheel_check`; `d39b925`: release steps 8 and 10 run the GPU tests of both CI-built plugins (section "The GPU tests of the published plugin wheels") |
+| `wheels.yml` never built the plugins for a `cpp/` change | `67f99c8`: `cpp/**` and the licence files in the pull-request paths |
+
+What the step found beyond the reports:
+
+1. **The writer fix of `d14aa03` crashed with CuPy.** Its GPU test skips without CuPy, and the
+   earlier verification venv had none; in the interop venv it segfaulted. A call releases the
+   memory it adds to a graph or result on its own stream, possibly long after the call, so
+   keeping only the last writer's resources is not enough: the graph was not covered at all
+   (freeing it after the update's stream was dropped called `cudaFreeAsync` on a destroyed
+   stream), and an Array that outlived its result released the stream before the result's memory
+   (its owner's slots are cleared in sorted order, and the tuple it keeps releases its items last
+   to first). `17b4142`: every graph and result keeps one `Resources` per distinct stream object
+   used on it (so the resources' cached workspaces go before the stream too), registered by every
+   call that takes the object and resources; the native object is freed first (`__del__`), the
+   Array's memory before its owner, the owner's callables (which hold the native result) before
+   what it keeps. ADR 0031 amendment 5 is revised.
+2. **`d14aa03` had changed the results' `__slots__`**, which `ci/api_check.sh` (griffe) reports
+   as a breaking change (the fresh-clone `ci/check.sh` failed on it; this milestone's earlier
+   steps had avoided it on purpose). The bookkeeping is now a side table with weak keys, read
+   through private properties; the slots are those of 0.1.
+3. **The CI linking was checked locally**: a cu13 module built with only `-Wl,--exclude-libs,ALL`
+   (the CI flags, dynamic libstdc++) exports the same 125 symbols as the local wheel, all
+   accepted by the new rule, while a dev build's module (1882 exports, 1459 of them libdyng's) is
+   rejected; the pinned cuobjdump 12.9 / 13.4 read the CI-toolkit wheels (SASS sm_75-sm_120, PTX
+   sm_120).
+
+**What could not be run here:** the container half of the new CI steps (gpg and `rpm -K` in the
+manylinux_2_28 image, `dnf --setopt=localpkg_gpgcheck=1`, cuobjdump inside cibuildwheel's repair
+step): no container runtime on this machine. The same code runs on the host (gpg, cuobjdump), and
+the first pull-request run of `wheels.yml` is the real test (open item 3).
+
+**Verification** (HEAD `2c1d710`):
+
+| Check | Result |
+|---|---|
+| `ci/plugin_wheels.sh`, cu12 + cu13 with the pinned CI toolkits (12.9, 13.4), Python 3.12 and 3.13, the interop venv (PyTorch 2.14, CuPy 14.2) | rc 0 (log `$DYNG_SCRATCH/runs/m6a-fix-plugin-wheels.log`, wheels in `$DYNG_SCRATCH/wheels/m6a-fix-ci`): `dyng_cu12` 5.66 MB, `dyng_cu13` 5.93 MB; code objects, export list, twine and `wheel_check` clean; per plugin and Python: the GPU smoke test, both fallbacks, `pytest -m gpu` 53 passed / 7 skipped (no torch / cupy), the suite with `DYNG_CPU_ONLY=1` 526 passed / 64 skipped; interop venv: 60 passed per plugin |
+| The release-step GPU check as documented (`DYNG_PLUGIN_TEST_ONLY=1`, the wheels sorted by `wheel_check --release-set --split` as `collect` does) | rc 0, both plugins, both Pythons (log `$DYNG_SCRATCH/runs/m6a-fix-release-gpu-check.log`) |
+| `ci/check.sh` in a fresh clone (`git checkout m6a-cuda-wheels`) | all checks passed (log `$DYNG_SCRATCH/runs/m6a-fix-check.log`): `cpu-only` 678/678, `dev` 707/707, clang-tidy, reuse, provenance, regen, the harness and CI-script tests, `ci/python.sh` (mypy, pytest 526 passed / 64 skipped), griffe (no breaking change), the scaffold, `ci/docs.sh`, pre-commit (actionlint, zizmor) |
+| `ci/gpu_local.sh` (dev-cuda: build, `ctest -L gpu`, `ctest -L cpu`) in the same clone, GPU 1 | all passed (log `$DYNG_SCRATCH/runs/m6a-fix-gpu-local.log`); the sanitizers, parity and the timing row were not re-run: the C++ change of this step (`a53a8c3`) touches error messages only |
+| Portability pre-checks | the Clang 18 syntax pass over a `dev` + `DYNG_BUILD_PYTHON=ON` database: 188 files, 0 failures; the `cpu-only` build with `-D_FORTIFY_SOURCE=3` and the bindings: clean |
+
 ## Milestone acceptance
 
 | # | Criterion | Evidence | Status |
@@ -280,8 +340,9 @@ gate applies (PLAN 7.7).
    need the protection rules of `pypi` / `testpypi` (required reviewer on `pypi-*`, tags `v*`,
    no administrator bypass): `docs/developer/repository_settings.md` section 11, item 11b.
 3. **The first CI run of the plugins** happens on the pull request: watch the `plugin` jobs
-   (the container part: `dnf` installing the pinned RPMs, nvcc 12.9 / 13.4 with gcc-toolset 14,
-   the build time on four cores) and `plugin-install-test`. A manual `wheels.yml` run before the
+   (the container part: the signature checks with gpg and `rpm -K`, `dnf` installing the pinned
+   RPMs, nvcc 12.9 / 13.4 with gcc-toolset 14, the code-object check in the repair step, the
+   build time on four cores) and `plugin-install-test`. A manual `wheels.yml` run before the
    release candidate is the rehearsal (`docs/developer/release.md` step 4).
 4. **The cycle_count update in the CUDA 13.4 wheel** was 8.8 % slower than the parity build
    (13.1) in the informational row, while the 13.1 wheel was 1.2 % faster: worth a look (an
@@ -290,8 +351,9 @@ gate applies (PLAN 7.7).
    12.x / 13.x before each release.
 6. **Disk in the work area** (not in the repository): kept are the pinned toolkits unpacked
    under `$DYNG_SCRATCH/tools/ci-cuda` (1.1 GB, used by `wheels.md`'s "CI toolkit locally") and
-   the verification wheels and venvs `$DYNG_SCRATCH/wheels/m6a-final-ci` (570 MB) and
-   `m6a-final-cu131` (146 MB), besides the earlier steps' `m6a-discovery` and the interop venv.
+   the verification wheels and venvs `$DYNG_SCRATCH/wheels/m6a-final-ci` (570 MB),
+   `m6a-final-cu131` (146 MB) and the review fixes' `m6a-fix-ci` (571 MB), besides the earlier
+   steps' `m6a-discovery` and the interop venv.
    Deleted after use: the GCC 14 toolchain of the compiler check, the parity-cuda build and
    overlay of the timing row (`parity/wheel_vs_parity.py build-parity` rebuilds them in a few
    minutes), the fresh clone, and the intermediate wheel trees.
