@@ -964,8 +964,11 @@ void op_record::text(const char* name, const std::string& value) {
 }
 void op_record::ints(const char* name, const int* data, long long count, array_policy policy) {
   if (!impl_) return;
+  // In batches mode (the batch dumps of M9) the ops keep their scalars, mappings and the hashes
+  // of their inputs; the inputs themselves are in the batch records.
+  if (impl_->batches_only) policy = array_policy::hash_only;
   put_ints(impl_->r, impl_->f, (std::string("in.") + name).c_str(), data, count, policy,
-           impl_->digest_mode || impl_->batches_only);
+           impl_->digest_mode);
 }
 void op_record::device_ints(const char* name, const int* device, long long count,
                             array_policy policy) {
@@ -1119,8 +1122,9 @@ void op_record::finish() {
         if (r->adapter_.check_subtree)
           f.i64("check.subtree_avail",
                 r->adapter_.check_subtree(ctx, impl_->tree->name.c_str(), log));
+        // The original's report only when it found a violation (the counts say the rest).
         if (log.size() > 4096) log.resize(4096);
-        f.str("check.log", log);
+        if (log.find("FAILED") != std::string::npos) f.str("check.log", log);
       } else {
         f.i64("check.rows", -1);
       }

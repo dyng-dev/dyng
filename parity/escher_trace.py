@@ -417,8 +417,13 @@ def summarize(path: Path) -> dict:
                 # Reuse writes the item into the dead slot (same offset); a surplus item is
                 # appended behind the bump pointer, also when its key is a dead key that the
                 # surplus rebuild dropped and issued again.
-                reused = [k for k in mapping if k in dead_before and k in tree.records
-                          and tree.records[k][COL_VALUE] == before[k][COL_VALUE]]
+                reused = [
+                    k
+                    for k in mapping
+                    if k in dead_before
+                    and k in tree.records
+                    and tree.records[k][COL_VALUE] == before[k][COL_VALUE]
+                ]
                 fresh = [k for k in mapping if k not in before]
                 if rec.get("status", 0) == 0:
                     s["insert"]["reuse"] += bool(reused)
