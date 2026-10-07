@@ -652,6 +652,14 @@ def test_metadata_only_difference_needs_an_equivalence_record(
     assert cert.same_code(measured, release, "library", tmp_path) is False  # beyond metadata
 
 
+def test_metadata_paths_cover_every_algorithm_manifest(cert) -> None:
+    # A maturity change rewrites a manifest and the registry table; no build reads a manifest.
+    for name in ("sssp", "cycle_count", "mosp", "dynamic_bfs", "triangle_delta"):
+        assert f"cpp/src/algorithms/{name}/manifest.toml" in cert.METADATA_PATHS
+    assert not any("_template" in path for path in cert.METADATA_PATHS)
+    assert "cpp/src/core/registry_table.inc" in cert.METADATA_PATHS
+
+
 # --- mutate.py -----------------------------------------------------------------------------------
 
 

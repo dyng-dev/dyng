@@ -185,7 +185,7 @@ around it is written by hand). The certificate records:
 
   **The one exception: generated metadata.** A measured commit whose library differs from the
   release's **only** in `METADATA_PATHS` of `certify.py` (the manifests
-  `cpp/src/algorithms/{sssp,cycle_count}/manifest.toml`, which no build reads, and
+  `cpp/src/algorithms/<name>/manifest.toml` of every algorithm, which no build reads, and
   `cpp/src/core/registry_table.inc`, the registry table `scripts/regen.py` generates from them,
   read only by `dyng::algorithms()`) still certifies the gates, the golden replays and the golden
   mutations, in the library scope only and never a test-suite check (whose tests read the

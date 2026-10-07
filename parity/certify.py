@@ -129,6 +129,12 @@ FIXTURES = REPO / "parity" / "fixtures" / "fixtures.toml"
 # read them) when equivalence.json shows, for both commits built in the same place with the same
 # VERSION, that the compat tools are byte-identical and libdyng differs only inside `functions`,
 # with every section and every symbol at the same address (`certify.py equivalence`).
+# Every algorithm's manifest (mosp from 0.2, the tutorial algorithms too; not the `_template`).
+ALGORITHM_MANIFESTS = sorted(
+    p.parent.name
+    for p in (REPO / "cpp" / "src" / "algorithms").glob("*/manifest.toml")
+    if not p.parent.name.startswith("_")
+)
 METADATA_PATHS = {
     "cpp/src/core/registry_table.inc": {
         "what": "the algorithm registry table generated from the manifests by scripts/regen.py "
@@ -141,7 +147,7 @@ METADATA_PATHS = {
             "generates the registry table from it; no build reads it",
             "functions": [],
         }
-        for name in ("sssp", "cycle_count")
+        for name in ALGORITHM_MANIFESTS
     },
 }
 # What `equivalence` builds and compares: the measured programs and the library they load.
