@@ -22,13 +22,14 @@ last section of this tutorial shows how `dynamic_bfs` goes further than `my_bfs`
 ```bash
 git clone https://github.com/dyng-dev/dyng.git
 cd dyng
-conda env create -f environment.yml    # once: CMake, Ninja, the formatters, Python
+conda env create -f environment.yml    # once: CMake, Ninja, clang-format, Python (no compiler)
 source scripts/dev_env.sh              # activates the environment (dyng-dev)
 git switch -c my-first-algorithm
 ```
 
-Without conda, install CMake 3.30 or later, Ninja, a C++17 compiler (GCC 12 or later, or Clang 17
-or later), Python 3.11 or later and clang-format ({doc}`../getting_started/install`).
+The environment does not include a compiler: with or without conda, you need a C++17 compiler on
+the system. Without conda, also install CMake, Ninja, Python and clang-format yourself. The
+requirements table of {doc}`../getting_started/install` lists the minimum versions.
 
 ## 2. The idea
 
@@ -86,7 +87,10 @@ cmake --build --preset dev
 ctest --preset dev -L my_bfs
 ```
 
-Every test passes: `100% tests passed`. The generated algorithm is correct from the start because
+Every test passes: `100% tests passed`. A few are reported as `Skipped`, once per graph type: C4
+compares the two engines of an algorithm that has both (fused and operators; `my_bfs` has one),
+and C12 checks CUDA streams (`my_bfs` has no CUDA backend). The generated algorithm is correct
+from the start because
 its `update()` cheats: the `loop` hook runs the static solve again, and `finalize` reports
 `stats.fallback_used = true`. The rest of this tutorial replaces the cheat with a real update. The
 conformance kit (C0-C12, {doc}`../developer/conformance`) keeps checking the result after every
@@ -139,7 +143,9 @@ and in the problem class, use it:
   using frontier_type = my_bfs_frontier;  ///< the loop's frontier (the workspace's lists)
 ```
 
-The seed will read the in-edges of the graph, so ask the commit to build them, in the same class:
+The seed will read the in-edges of the graph, so ask the commit to build them. The scaffold's
+class already has a `reads_prepared_graph()` that returns `false` (its engines read only the
+out-edges); replace that definition with:
 
 ```cpp
   /// The seed reads the in-edges: the commit builds them once for every result.
@@ -177,7 +183,7 @@ A hook the problem does not declare is not called (the base class's default retu
 and copies the old levels into `ws.before`; add one line at its start:
 
 ```cpp
-  applied_ = &applied;  // the commit's effective insertions and deletions
+  applied_ = &applied;  // what the commit did: the insertions and deletions the batch requested
 ```
 
 (and give the parameter its name: `const applied& applied`). Now the first hook; put its
@@ -195,8 +201,14 @@ still right.
 :end-before: "// [tutorial: identify_affected end]"
 ```
 
-`applied.delta` lists the effective changes of the commit (for an undirected graph, both
-directions); `graph_access::out_view` is the host CSR of G_{t+1}, the graph after the batch.
+`applied.delta` lists the insertions and deletions the batch *requested* (without self-loops; for
+an undirected graph, both directions). It is not the net change of the batch: a deletion may name
+an edge that does not exist, and with `batch_semantics::deletions_first = false` a batch can
+insert an edge and then delete it again, so the edge is listed as inserted but is not in the
+graph. That is harmless for the deletions here (invalidating too much is safe), but the seed below
+has to check its insertions. Algorithms that need the net change compute it from the two graphs
+(`compute_structural_change`, as `triangle_delta` does). `graph_access::out_view` is the host CSR
+of G_{t+1}, the graph after the batch.
 Everything after the commit reads G_{t+1}: the framework gives this hook a `new_view`, and a hook
 that subtracts on G_t would get an `old_view` (invariant I1).
 
@@ -211,7 +223,10 @@ A vertex enters a frontier when its level drops. One helper does the offering:
 ```
 
 The `seed` hook builds the first frontier: every invalidated vertex takes the best level that
-its in-neighbours offer, and every inserted edge `u -> v` offers `level[u] + 1` to `v`:
+its in-neighbours offer, and every inserted edge `u -> v` offers `level[u] + 1` to `v`. Because
+`applied.delta` lists requested insertions, the seed first checks that `u -> v` is in G_{t+1}
+(that `v` is in `u`'s out-row); without that check, a batch that inserts and deletes the same edge
+would give `v` a level along an edge that does not exist:
 
 ```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs.cpp
 :language: cpp
@@ -247,6 +262,12 @@ into `seed_static`, so that the frontier stays empty and `loop` does not run:
 In `finalize`, delete the line `stats.fallback_used = true;`: the update no longer recomputes.
 (`finalize` keeps the scaffold's count of the vertices whose level changed, `stats.affected`.)
 
+Some of the scaffold's doc comments in `problem.hpp` now describe the placeholder: the comment at
+the top of the file ("The placeholder ... so update() recomputes"), the one of `finalize` ("the
+placeholder sets fallback_used") and the one of `seed_static` ("nothing to seed, the loop solves
+from the source"). Update them to describe what the code does now; the reference solution shows one
+way to word them.
+
 Finally, the seed needs the in-edges, so reject graphs that do not store them before anything
 changes. At the end of `begin_update` (which runs before the commit, so a rejected batch leaves the
 graph and the result unchanged):
@@ -266,6 +287,15 @@ placeholder recomputes. It no longer does:
   EXPECT_FALSE(s.fallback_used);  // incremental: no recomputation
 ```
 
+Replace the test's `TODO(my_bfs)` comment with one that says what it checks, and add a case for
+the trap of 4.5, an edge inserted and deleted in one batch:
+
+```{literalinclude} ../../examples/tutorial_algorithms/my_bfs/my_bfs_test.cpp
+:language: cpp
+:start-after: "// [tutorial: hand test]"
+:end-before: "// [tutorial: hand test end]"
+```
+
 ### 4.9 Build and run the kit
 
 ```bash
@@ -276,9 +306,13 @@ ctest --preset dev -L my_bfs
 `100% tests passed` again, and this time the update is incremental. Among the kit's checks:
 
 - **C2** compares a chain of three updates with `compute()` on the new graph, on random graphs of
-  three sizes under seven batch mixes (insertions only, deletions only, mixed, local, heavy,
-  reweight, vertex growth) and two batch semantics;
-- **C3** compares the OpenMP backend with the sequential one;
+  three sizes under eight batch mixes (insertions only, deletions only, mixed, local, heavy,
+  reweight, vertex growth, and `cancel`: edges inserted and deleted in the same batch) and three
+  batch semantics (the default, the default with the insertions applied first, and sets);
+- **C3** compares the OpenMP backend with the sequential one. For `my_bfs` it passes trivially:
+  the scaffold's `openmp.cpp` calls the sequential solve and the hooks are serial, so both backends
+  run the same code. It starts to matter once `openmp.cpp` has a parallel path of its own, as in
+  `dynamic_bfs`;
 - **C5** applies a batch and its inverse and expects the original levels;
 - **C8** checks that, once the workspace is sized, an update allocates nothing;
 - **C10** runs `my_bfs` and `sssp` on one graph in one `dyng::update(res, g, batch, r1, r2)` call
@@ -298,9 +332,18 @@ backend, the batch semantics, the seed (`seed 2000 (replay: DYNG_TEST_SEED=2000 
 
 ## 6. Clean up, or keep going
 
-To delete the experiment, `python3 scripts/new_algorithm.py my_bfs --remove` removes every file
-the scaffold wrote and its registrations (it refuses to delete an algorithm that is not a
-scaffold).
+To delete the experiment, remove the algorithm and configure the build again with every
+algorithm:
+
+```bash
+python3 scripts/new_algorithm.py my_bfs --remove
+cmake --preset dev -DDYNG_ALGORITHMS=all
+```
+
+The first command removes every file the scaffold wrote and its registrations (it refuses to
+delete an algorithm whose manifest no longer has the scaffold line, which every finished algorithm
+drops). The second resets the `DYNG_ALGORITHMS=my_bfs` of step 3, which the build directory keeps
+until you change it (a configure that still names `my_bfs` fails, since it no longer exists).
 
 To keep going, {doc}`../how_to/add_an_algorithm` lists the remaining steps of a real
 contribution (the docs page, the Python bindings, the CLI, the benchmark, the citation, the pull
@@ -308,7 +351,7 @@ request). Two improvements that `dynamic_bfs` makes are worth reading first:
 
 - **A BFS tree.** `my_bfs` invalidates every vertex below a deleted shortest-path edge, even when
   another shortest path survives. `dynamic_bfs` keeps a parent per vertex and invalidates only the
-  subtree under a deleted *tree* edge (the `invalidate_subtree` operator of PLAN 4.5.3), then
+  subtree under a deleted *tree* edge (the `invalidate_subtree` operator), then
   repairs the parents of the vertices it touched with a deterministic rule (the lowest-id
   in-neighbour one level up), so every backend keeps the same tree.
 - **Every backend from one source.** `dynamic_bfs` writes each pass once, as a small functor that

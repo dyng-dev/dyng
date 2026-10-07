@@ -45,7 +45,7 @@ its top) says what happens when; `dynamic_bfs_engine_impl<exec_t>`
 |---|---|---|---|
 | apply | commit (`dynamic_bfs.commit`) | the batch applied once; the in-edges (host) or the device copy with its in-edges (cuda) prepared for the engines | – |
 | 1b | `identify_affected` (`dynamic_bfs.identify_affected`) | a deleted edge `u -> v` with `parent[v] == u` and no parallel `u -> v` left makes `v` a root; the roots and their tree descendants are invalidated (level and parent -1), one pass per tree level | `classify`, `invalidate_subtree` (a level-by-level walk) |
-| 1b | `seed` (`dynamic_bfs.seed`) | every invalidated vertex pulls the best level of its valid in-neighbours; every inserted edge `u -> v` offers `level[u] + 1` to `v` (an atomic minimum); a vertex whose level dropped enters the frontier | `neighbor_reduce` (pull), `advance` |
+| 1b | `seed` (`dynamic_bfs.seed`) | every invalidated vertex pulls the best level of its valid in-neighbours; every inserted edge `u -> v` that is in G_{t+1} offers `level[u] + 1` to `v` (an atomic minimum; the batch's insertion list holds the requested insertions, and with `deletions_first = false` a batch may insert an edge and delete it again); a vertex whose level dropped enters the frontier | `neighbor_reduce` (pull), `advance` |
 | 2 | `loop` (`dynamic_bfs.loop`, one call per round) | every frontier vertex offers `level + 1` to its out-neighbours; the enactor swaps the frontiers and stops when the frontier is empty (the default `is_converged`) | `advance` (push) with a frontier push deduplicated by round stamps |
 | finish | `finalize` (`dynamic_bfs.finalize`) | the parent of every touched vertex becomes its lowest-id in-neighbour one level up; the invalidation flags are cleared; the stats | – |
 

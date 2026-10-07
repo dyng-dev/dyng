@@ -10,12 +10,13 @@
  *     normalize -> prepare -> before_apply -> commit ->
  *     identify_affected -> seed -> { loop until is_converged } -> finalize
  *
- * A fixed-point problem. The placeholder ("start green", PLAN Section 4.8) implements only
- * `loop` (on G_{t+1}: the whole static solve, one call with the internal frontier) and
- * `finalize` (the stats, stats::fallback_used = true), so update() recomputes. To make it
- * incremental: in identify_affected, find the elements the batch invalidates (applied.delta has
- * the effective changes); in seed, put the elements to re-evaluate on the frontier; in loop,
- * propagate from the frontier only; then set fallback_used only when you really recompute.
+ * A fixed-point problem, made incremental by the tutorial "Your first dynamic algorithm"
+ * (docs/tutorials/your_first_dynamic_algorithm.md; this is its reference solution).
+ * identify_affected invalidates every vertex below a deleted shortest-path edge (level -1); seed
+ * puts on the first frontier the invalidated vertices that an in-neighbour reaches and the heads
+ * of the inserted edges that are in G_{t+1}; loop offers level + 1 to the out-neighbours of the
+ * frontier, round after round, until the frontier is empty; finalize counts the changed levels.
+ * update() never recomputes (stats::fallback_used stays false).
  *
  * compute() is the static enactor with the same hooks (reset first). Lifecycle members without a
  * stage: begin_update (the checks before anything changes), resume (bind G_{t+1}, grow the
@@ -191,7 +192,7 @@ class my_bfs_problem final
   /// my_bfs.loop: one round of offers from the frontier `in` into the frontier `out`.
   void loop(framework::context& ctx, new_graph g, frontier_type& in, frontier_type& out);
   // [tutorial: hooks end]
-  /// my_bfs.finalize: the stats (the placeholder sets fallback_used in update()).
+  /// my_bfs.finalize: the stats (the number of vertices whose level changed).
   void finalize(framework::context& ctx, stats_type& stats);
 
   // ---- compute() ----

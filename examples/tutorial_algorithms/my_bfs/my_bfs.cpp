@@ -217,17 +217,28 @@ void my_bfs_problem<vertex_t, edge_t, weight_t>::seed(framework::context& ctx, n
   my_bfs_workspace& ws = ws_->get();
   f.items = &ws.lists[0];
   f.items->clear();
-  const auto in = graph_access::view(ctx.res(), g.get()).in;
+  const auto view = graph_access::view(ctx.res(), g.get());
   const std::vector<std::int64_t>& levels = state_->levels;
   for (const std::int64_t x : ws.queue) {
     const auto row = static_cast<std::size_t>(x);
-    for (auto e = in.row_ptr[row]; e < in.row_ptr[row + 1]; ++e) {
-      offer(levels[static_cast<std::size_t>(in.col_ind[static_cast<std::size_t>(e)])], x, f);
+    for (auto e = view.in.row_ptr[row]; e < view.in.row_ptr[row + 1]; ++e) {
+      const auto u = static_cast<std::size_t>(view.in.col_ind[static_cast<std::size_t>(e)]);
+      offer(levels[u], x, f);
     }
   }
+  // applied.delta lists the insertions the batch REQUESTED. A batch may insert u -> v and delete
+  // it again (batch_semantics::deletions_first = false), so offer only along an edge that is
+  // still in G_{t+1}: look for v in u's out-row.
   const apply_delta<vertex_t>& delta = applied_->delta;
   for (std::size_t i = 0; i < delta.insert_src.size(); ++i) {
-    offer(levels[static_cast<std::size_t>(delta.insert_src[i])], delta.insert_dst[i], f);
+    const auto u = static_cast<std::size_t>(delta.insert_src[i]);
+    const auto v = static_cast<std::int64_t>(delta.insert_dst[i]);
+    for (auto e = view.out.row_ptr[u]; e < view.out.row_ptr[u + 1]; ++e) {
+      if (static_cast<std::int64_t>(view.out.col_ind[static_cast<std::size_t>(e)]) == v) {
+        offer(levels[u], v, f);
+        break;
+      }
+    }
   }
 }
 // [tutorial: seed end]
