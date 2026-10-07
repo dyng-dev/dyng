@@ -31,7 +31,14 @@
 namespace dyng::detail {
 
 /**
- * @brief The effective changes of one applied batch, in the order they were applied.
+ * @brief The changes one applied batch requested, in the order they were applied.
+ *
+ * NOT the net change of the batch (except under as_sets, below): an edge that the batch inserts
+ * and then deletes again (batch_semantics::deletions_first = false) is in both lists although the
+ * graph does not change, and an insertion that only upserts the weights of an existing edge is
+ * listed too. An algorithm that needs the net structural change computes it with
+ * compute_structural_change (graph/structural_change.hpp) or, under as_sets, reads
+ * applied_batch::normalized; one that reads these lists checks each edge against G_{t+1}.
  *
  * This is the per-edge classification of MOSP's applyChangeBatch (its weightIncreaseMask),
  * widened to any number of objectives: one byte per (insertion, objective).
@@ -303,14 +310,14 @@ struct graph_access {
   }
 
   /**
-   * @brief Apply a batch and report the effective changes (graph::apply plus classification).
+   * @brief Apply a batch and report its changes (graph::apply plus classification).
    * @tparam vertex_t Vertex id type.
    * @tparam edge_t   Edge offset type.
    * @tparam weight_t Weight type.
    * @param[in]     res   Execution resources.
    * @param[in,out] g     The graph (version + 1).
    * @param[in]     batch The batch.
-   * @param[out]    delta The effective changes (may be nullptr).
+   * @param[out]    delta The requested changes, see apply_delta (may be nullptr).
    * @param[in]     normalized Under batch_semantics::as_sets: Step 0 already computed for this
    *                graph state and batch (normalize_set_batch), or nullptr to compute it here.
    * @return What the batch did.

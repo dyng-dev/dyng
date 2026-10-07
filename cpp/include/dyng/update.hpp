@@ -79,7 +79,7 @@ class update_participant {
    * @param[in] res     Execution resources.
    * @param[in] g       The graph after the batch.
    * @param[in] summary What the commit did.
-   * @param[in] delta   The effective changes of the commit.
+   * @param[in] delta   The changes the commit applied as requested (not the net change).
    */
   virtual void after_apply(const resources& res, const graph_type& g, const apply_summary& summary,
                            const apply_delta<vertex_t>& delta) = 0;

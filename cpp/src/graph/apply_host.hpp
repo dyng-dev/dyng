@@ -80,7 +80,8 @@ void expect_host_batch(const edge_batch_view<vertex_t, weight_t>& batch, const c
  * @param[in]  batch    The batch (host memory).
  * @param[in]  props    Properties of the graph (direction, row order, semantics).
  * @param[out] updated  The out-edge CSR after the batch (must not alias `original`).
- * @param[out] delta    The effective changes and the weight-increase flags (may be nullptr).
+ * @param[out] delta    The requested changes and the weight-increase flags (apply_delta; may
+ *                      be nullptr).
  * @param[in]  threads  OpenMP threads for assembling the updated CSR (1 = sequential; the result
  *                      is the same for every thread count).
  * @param[in]  normalized Under batch_semantics::as_sets: Step 0 already computed for `original`

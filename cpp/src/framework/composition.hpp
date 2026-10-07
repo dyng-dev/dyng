@@ -66,8 +66,10 @@ struct requested_batch {
  */
 template <typename vertex_t>
 struct applied_batch {
-  const apply_summary& summary;        ///< the counters of the commit
-  const apply_delta<vertex_t>& delta;  ///< its effective changes, classified per objective
+  const apply_summary& summary;  ///< the counters of the commit
+  /// The changes the batch requested (NOT its net change, see apply_delta), classified per
+  /// objective.
+  const apply_delta<vertex_t>& delta;
   /// The normalized batch of batch_semantics::as_sets, or nullptr (as in requested_batch).
   const normalized_batch<vertex_t>* normalized;
 };
@@ -176,7 +178,7 @@ class problem_participant final
    * @param[in] res     Execution resources (the same as in before_apply()).
    * @param[in] g       G_{t+1}.
    * @param[in] summary What the commit did.
-   * @param[in] delta   The effective changes of the commit.
+   * @param[in] delta   The changes the commit applied as requested (apply_delta).
    */
   void after_apply(const resources& res, const graph_type& g, const apply_summary& summary,
                    const apply_delta<typename graph_type::vertex_type>& delta) override {
