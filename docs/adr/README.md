@@ -37,6 +37,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0032](0032-plugin-ci-and-release.md) | The CUDA plugin wheels in CI and in the release workflow (cibuildwheel with the CUDA toolkits pinned file by file, the GPU-less fallback smoke test, one publishing environment pair per distribution, the wheel-vs-parity row) | Accepted under delegation (2026-10-06) |
 | [0033](0033-tutorial-algorithms.md) | The tutorial algorithms: registered with maturity `tutorial`, one source for every backend (executors), undirected graphs in the kit | Accepted under delegation (2026-10-06) |
 | [0034](0034-fuzzers-mutation-suites-property-runs.md) | Reader fuzzers (`cpp/fuzz`), the golden mutation suites of `parity/mutate.py` (sssp, mosp, cycle_count) and the long property runs | Accepted under delegation (2026-10-06) |
+| [0035](0035-mosp-api-review-and-freeze-0-2.md) | The mosp API review and freeze (0.2): the review's findings and amendments, the frozen headers following the manifests' maturity, both API checks failing on a mosp change | Accepted under delegation (2026-10-07; the maturity `stable`: the author, 2026-10-07) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

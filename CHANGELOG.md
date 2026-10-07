@@ -433,6 +433,27 @@ These entries belong to the 0.2 work (PLAN Appendix F).
 - Docs: `docs/developer/repository_settings.md` item 11b is done: the four plugin environments
   have the protection rules of `testpypi` / `pypi`.
 
+### R020: the mosp API review and freeze (0.2, branch `release-0.2.0`)
+
+- Changed: **`mosp` is stable** from 0.2.0 (the author's decision of 2026-10-07, GOVERNANCE.md):
+  `<dyng/mosp.hpp>`, the Python module `dyng.mosp` and the command line `dyng mosp` follow the
+  stable tier of the stability policy, as `sssp` and `cycle_count` since 0.1.0. The API review
+  before the freeze (ADR 0035) changed no signature, so existing code needs no change. The
+  manifest, the registry (`dyng::algorithms()`, `dyng.algorithms()`), the algorithm tables and
+  `docs/algorithms/mosp.md` say `stable`; `dynamic_bfs` and `triangle_delta` stay `tutorial`.
+- Docs: the review's amendments of `<dyng/mosp.hpp>`: what the inherited `update_stats` counters
+  mean for mosp and which are deterministic; the exceptions `result::from_arrays()` inherits from
+  sssp's import; `clone()` sizes the pooled workspace; `path_costs()` stays host memory by
+  default; `max_objectives` and `max_preference_scale` may be raised, never lowered;
+  `set_options()` allocates nothing after its checks (its strong guarantee, pinned by the new
+  `dyng_mosp_allocation_failure_tests`).
+- CI: `ci/api_snapshot.py` marks an algorithm's header *frozen* exactly when its manifest says
+  maturity `stable` (sssp, cycle_count, mosp) and *tracked* otherwise (the tutorial algorithms);
+  the baseline's header comment says so. New tests: the label follows the manifest, a changed
+  mosp signature fails the C++ check, and `ci/tests/test_api_check.py` shows that griffe (the
+  Python check of `ci/api_check.sh`) reports changes of `dyng.mosp` signatures, defaults and names
+  as breaking.
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

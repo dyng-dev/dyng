@@ -111,8 +111,12 @@ The public declarations are frozen in a committed listing,
 `docs` job of CI and the local gate (`ci/check.sh`, step `docs`) fail on any change of a public
 signature, default value, enumerator, field or entity that the baseline does not contain. The
 listing ignores comments and line numbers, so documentation edits never need it. Headers are
-marked `frozen` (the reviewed 0.1 API) or `tracked` (`io/*`, `generators/*`, `testing/*`: checked
-the same way, reviewed and frozen with the CLI and the Python layer in M5).
+marked `frozen` (the reviewed 0.1 core API, and the header of every algorithm whose manifest says
+maturity `stable`: `sssp` and `cycle_count` since 0.1, `mosp` since 0.2,
+{doc}`../adr/0035-mosp-api-review-and-freeze-0-2`) or `tracked` (`io/*`, `generators/*`,
+`testing/*` and the algorithms at another maturity, such as the tutorial algorithms: checked the
+same way, not frozen). The label of an algorithm's header follows its manifest
+(`ci/api_snapshot.py`), so making an algorithm stable freezes its header.
 
 To change the API on purpose:
 
