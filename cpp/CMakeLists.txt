@@ -170,7 +170,7 @@ dyng_add_module(
 # ADR 0038). The device store is CUDA-only; the host flatten is always built.
 dyng_add_module(
   NAME hypergraph
-  SOURCES src/hypergraph/escher/flatten.cpp
+  SOURCES src/hypergraph/escher/flatten.cpp src/hypergraph/escher/store_policy.cpp
   CUDA_SOURCES
     src/hypergraph/escher/build_tree.cu
     src/hypergraph/escher/cbst_store.cu

@@ -12,6 +12,8 @@
  */
 #pragma once
 
+#include "hypergraph/escher/store_policy.hpp"
+
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/resources.hpp>
 
@@ -72,6 +74,8 @@ struct cbst_context {
   // The resources of the store and the buffers the device pointers above view (allocated from
   // the resources' memory resource, ordered on their stream).
   resources res;
+  // The payload policy (growth, compaction).
+  store_policy policy;
   // Host synchronizations with the stream so far (the read points of ADR 0038).
   long long host_syncs = 0;
   // The degree-bin launches of this store's operations.
@@ -128,7 +132,7 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
 // OO wrapper to manage CBST lifecycle and operations
 struct cbst_store {
   cbst_store(const resources& res, std::string dataset_name, int payload_capacity,
-             int alignment = 4);
+             int alignment = 4, store_policy policy = store_policy::escher_gpu());
   ~cbst_store();
   cbst_store(const cbst_store&) = delete;
   cbst_store& operator=(const cbst_store&) = delete;
@@ -167,6 +171,10 @@ struct cbst_store {
   // Host synchronizations of the store's operations so far (ADR 0038, the read points).
   long long host_syncs() const {
     return ctx_.host_syncs;
+  }
+  // The store's payload policy.
+  const store_policy& policy() const {
+    return ctx_.policy;
   }
   // Whether a failed operation left the store poisoned (construct or rebuild it).
   bool poisoned() const {

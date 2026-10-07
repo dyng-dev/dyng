@@ -135,6 +135,13 @@ add_test(NAME cbst_source_rules
                  "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
 )
 set_tests_properties(cbst_source_rules PROPERTIES LABELS "cpu;cbst")
+# The host parts of the store (its payload policy, flatten_rows), on every build.
+dyng_add_test(
+  NAME dyng_cbst_host_tests
+  SOURCES hypergraph/escher/cbst_host_test.cpp
+  LABELS cpu cbst
+)
+list(APPEND _dyng_private_tests dyng_cbst_host_tests)
 # The dynG CBST store (cpp/src/hypergraph/escher, M8a step 3, ADR 0038) as a store of the replay:
 # the device adapter, the replays of the committed traces on the device (labels gpu, parity, cbst)
 # and dyng_cbst_replay --store device.

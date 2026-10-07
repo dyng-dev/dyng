@@ -199,13 +199,8 @@ static void recompute_subtree_avail(cbst_context& ctx) {
 // is copied to the new buffer and the rest is zeroed.
 static void ensure_payload_capacity(cbst_context& ctx, long long needed) {
   if (needed <= ctx.fixed_size) return;
-  long long capacity = std::max(needed + needed / 4, 3LL * ctx.fixed_size / 2);
-  capacity = std::min<long long>(capacity, INT_MAX);
-  if (needed > capacity) {
-    throw capacity_error("dyng: CBST " + ctx.dataset_name + ": " + std::to_string(needed) +
-                         " payload entries exceed the int32 offsets of the CBST (at most " +
-                         std::to_string(INT_MAX) + ")");
-  }
+  // The policy's growth (escher_gpu(): ESCHER-GPU's rule).
+  const long long capacity = ctx.policy.grown_capacity(needed, ctx.fixed_size, ctx.dataset_name);
   buffer<int> grown_storage(ctx.res, static_cast<size_t>(capacity));
   int* grown = grown_storage.data();
   DYNG_CUDA_TRY(cudaMemcpyAsync(grown, ctx.d_flat_payload,
@@ -733,10 +728,11 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 
 // cbst_store implementation
 cbst_store::cbst_store(const resources& res, std::string dataset_name, int payload_capacity,
-                       int alignment) {
+                       int alignment, store_policy policy) {
   DYNG_EXPECTS(res.get_backend() == backend::cuda, "CBST ", dataset_name,
                ": the store needs resources of the CUDA backend");
   ctx_.res = res;
+  ctx_.policy = std::move(policy);
   ctx_.dataset_name = std::move(dataset_name);
   ctx_.fixed_size = payload_capacity;
   ctx_.alignment = alignment;
@@ -880,7 +876,7 @@ static void copy_array(cbst_context& to, buffer<value_t>& to_storage, value_t*& 
 cbst_store cbst_store::clone(const resources& res) const {
   check_not_poisoned("clone");
   const scoped_device guard(ctx_.res.device());
-  cbst_store copy(res, ctx_.dataset_name, ctx_.fixed_size, ctx_.alignment);
+  cbst_store copy(res, ctx_.dataset_name, ctx_.fixed_size, ctx_.alignment, ctx_.policy);
   cbst_context& c = copy.ctx_;
   // The copy is ordered after the work queued on the source's stream.
   if (stream_of(c) != stream_of(ctx_)) {

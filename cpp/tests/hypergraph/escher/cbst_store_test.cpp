@@ -557,3 +557,42 @@ TEST(CbstStoreSyncs, OnlyAtEscherGpusReadPointsAndNeverMoreThanEscherGpu) {
 
 }  // namespace
 }  // namespace dyng::detail::escher
+
+namespace dyng::detail::escher {
+namespace {
+
+// --- The payload policy ------------------------------------------------------------------------
+
+TEST(CbstStorePolicyOnDevice, EscherGpuGrowsAFixedPolicyThrows) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  std::vector<int> keys = {1, 2}, starts = {0, 4};
+  std::vector<int> flat = {1, 2, 3, INT_MIN, 4, 0, 0, INT_MIN};
+  std::vector<int> big(100);
+  for (int i = 0; i < 100; ++i) big[static_cast<std::size_t>(i)] = i + 1;
+  const batch b = make_batch({1}, {big});
+  {
+    cbst_store s(res, "grows", 8);
+    EXPECT_EQ(s.policy().name, "escher_gpu");
+    s.construct(keys.data(), starts.data(), 2, flat.data(), 8);
+    s.append(b.keys, b.payload, b.prefix);
+    // 8 used + one overflow segment of 100 - 0 values: (100 + 4) / 4 * 4 = 104 slots: 112 needed,
+    // grown to max(112 + 28, 12) = 140.
+    EXPECT_EQ(s.context().fixed_size, 140);
+    rows want = {{1, 2, 3}, {4}};
+    want[0].insert(want[0].end(), big.begin(), big.end());
+    EXPECT_EQ(violations(s, want), 0);
+  }
+  {
+    store_policy fixed = store_policy::escher_gpu();
+    fixed.name = "fixed";
+    fixed.growth = store_policy::growth_rule::none;
+    cbst_store s(res, "fixed", 8, 4, fixed);
+    s.construct(keys.data(), starts.data(), 2, flat.data(), 8);
+    EXPECT_THROW(s.append(b.keys, b.payload, b.prefix), capacity_error);
+    EXPECT_TRUE(s.poisoned());  // the fill wrote in place before the payload was full
+  }
+}
+
+}  // namespace
+}  // namespace dyng::detail::escher
