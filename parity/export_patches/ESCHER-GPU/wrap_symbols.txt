@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The symbols of ESCHER-GPU@abcf9b2 that the recording twins wrap (-Xlinker --wrap=<symbol>);
+# parity/exporters/escher/recorder_escher_gpu.cpp defines __wrap_<symbol> for each, and
+# parity/exporters/escher/cbst_census.py checks that every CBST entry point another object
+# references is listed here (or is a read-only accessor of its ACCESSORS list).
+#
+# CBSTOperations: lifecycle (a tree id survives moves) and the operations
+_ZN14CBSTOperationsC1EPKcii
+_ZN14CBSTOperationsD1Ev
+_ZN14CBSTOperationsC1EOS_
+_ZN14CBSTOperationsaSEOS_
+_ZN14CBSTOperations9constructEPiS0_iS0_i
+_ZN14CBSTOperations17rebuildFromDeviceEPiiS0_ii
+_ZN14CBSTOperations6insertERKSt6vectorIiSaIiEES4_S4_
+_ZN14CBSTOperations4fillERKSt6vectorIiSaIiEES4_S4_
+_ZN14CBSTOperations5eraseERKSt6vectorIiSaIiEE
+_ZN14CBSTOperations6unfillERKSt6vectorIiSaIiEES4_S4_
+# the free functions (no other object of the commit calls them)
+_Z13constructCBSTPiS_iS_iiPKcR11CBSTContext
+_Z21rebuildCBSTFromDevicePiiS_iiR11CBSTContext
+_Z8fillCBSTRKSt6vectorIiSaIiEES3_S3_R11CBSTContext
+_Z10deleteCBSTRKSt6vectorIiSaIiEER11CBSTContext
+_Z10insertCBSTRKSt6vectorIiSaIiEES3_S3_R11CBSTContext
+_Z10unfillCBSTRKSt6vectorIiSaIiEES3_S3_R11CBSTContext

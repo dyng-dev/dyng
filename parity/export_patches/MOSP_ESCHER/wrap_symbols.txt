@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The symbols of MOSP_ESCHER@4b86159 that the recording twins wrap (-Xlinker --wrap=<symbol>);
+# parity/exporters/escher/recorder_mosp_escher.cpp defines __wrap_<symbol> for each, and
+# parity/exporters/escher/cbst_census.py checks that every CBST entry point another object
+# references is listed here (or is a read-only accessor of its ACCESSORS list).
+#
+# CBSTOperations: lifecycle (a tree id survives moves) and the operations
+_ZN14CBSTOperationsC1EPKcii
+_ZN14CBSTOperationsD1Ev
+_ZN14CBSTOperationsC1EOS_
+_ZN14CBSTOperationsaSEOS_
+_ZN14CBSTOperations9constructEPiS0_iS0_iPKi
+_ZN14CBSTOperations6insertERKSt6vectorIiSaIiEES4_S4_
+_ZN14CBSTOperations4fillERKSt6vectorIiSaIiEES4_S4_
+_ZN14CBSTOperations5eraseERKSt6vectorIiSaIiEE
+_ZN14CBSTOperations7compactEv
+# the free functions; unfillCBST is called from DynamicHypergraph.cpp (:53), DynamicGraph.cpp
+# (:431) and tests/unit/test_cbst_ops.cu; compactCBST also runs inside fillCBST / insertCBST
+# (same translation unit: seen in the state digest after the fill or insert)
+_Z13constructCBSTPiS_iS_iiPKcR11CBSTContextPKi
+_Z8fillCBSTRKSt6vectorIiSaIiEES3_S3_R11CBSTContext
+_Z10deleteCBSTRKSt6vectorIiSaIiEER11CBSTContext
+_Z10insertCBSTRKSt6vectorIiSaIiEES3_S3_R11CBSTContext
+_Z10unfillCBSTRKSt6vectorIiSaIiEES3_S3_R11CBSTContext
+_Z11compactCBSTR11CBSTContext
