@@ -57,12 +57,17 @@ namespace dyng::mosp {
 
 /**
  * @brief The largest number of objectives (weight columns used); MOSP's originals allow 32.
+ *
+ * A later release may raise the limit (a relaxation: every call accepted before is still
+ * accepted); it never lowers it.
  * @ingroup mosp
  */
 inline constexpr int max_objectives = 64;
 
 /**
  * @brief The largest preference scale L = lcm(Pref) (MOSP's preferenceScale limit, 2^20).
+ *
+ * As for max_objectives, a later release may raise the limit but never lowers it.
  * @ingroup mosp
  */
 inline constexpr std::int64_t max_preference_scale = std::int64_t{1} << 20;
@@ -94,12 +99,21 @@ struct options {
 
 /**
  * @brief Counters of one update() (fields are only ever appended).
+ *
+ * The common counters of update_stats mean, for mosp: `affected` (deterministic) the vertices
+ * whose combined distance or MOSP parent changed; `iterations` and `frontier_visits`
+ * (schedule-dependent) the sums over the K sssp updates and the combined solve; `converged`
+ * (deterministic) true unless an objective's update reported otherwise; `fallback_used`
+ * (deterministic) true if an objective's update used a fallback (the combined graph is always
+ * solved from scratch, which is the algorithm, not a fallback); `engine_used` (deterministic per
+ * backend) the engine of the K updates (the first objective's; all K run the same engine).
  * @ingroup mosp
  */
 struct stats : update_stats {
   /// Deterministic: what applying the batch did to the graph.
   apply_summary batch;
-  /// The K sssp updates, in objective order (their deterministic counters as in sssp).
+  /// The K sssp updates, in objective order (each counter deterministic or schedule-dependent as
+  /// sssp::stats documents it).
   std::vector<sssp::stats> objectives;
   /// Deterministic: edges of the combined graph.
   std::int64_t combined_edges = 0;
@@ -213,7 +227,9 @@ class result {
    *        mospPathCosts: the weights of the tree edge (p, v) are those of the first edge from p
    *        to v in the graph's row order).
    * @return n * K values, vertex-major (costs[v * K + k]); infinite_distance<distance_t>() for
-   *         unreachable vertices. Host memory on every backend. Valid until the next update().
+   *         unreachable vertices. Host memory on every backend (a later release that computes
+   *         the costs on the device makes that an appended option, so this accessor keeps
+   *         returning host memory by default). Valid until the next update().
    * @throws invalid_argument_error if options::compute_path_costs was false at the last
    *         compute() or update() (the costs were not computed), or for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
@@ -240,7 +256,8 @@ class result {
    * @throws invalid_argument_error if a fixed option differs or `opt.delta` is negative, or for a
    *         moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
-   * @guarantee Strong: every check runs before the options change.
+   * @guarantee Strong: every check runs before the options change, and nothing after the checks
+   *            allocates.
    */
   void set_options(const options& opt);
 
@@ -259,6 +276,9 @@ class result {
 
   /**
    * @brief A deep copy (every array, the options, the version) for the resources `res`.
+   *
+   * As sssp::result::clone(): the copy belongs to the backend of `res`, and the K trees' clones
+   * size the pooled sssp workspace of `res` for the graph.
    * @param[in] res Execution resources of the copy (any backend of mosp: the arrays are copied
    *                between host and device memory as needed).
    * @return The copy.
@@ -290,10 +310,12 @@ class result {
    * @param[in] opt          Options; K = the number of views, which must equal the objectives the
    *                         options select (opt.num_objectives, or every weight column).
    * @return The result, matching `g.version()`.
-   * @throws invalid_argument_error if a check fails (the sssp checks of a tree, K, the options), or
-   *         `g` belongs to another backend than `res`.
-   * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
-   *         of opt.cuda_engine cannot run.
+   * @throws invalid_argument_error if a check fails (the sssp checks of a tree, K, the options), the
+   *         lists are not in host memory, `g` belongs to another backend than `res`, or an array
+   *         in device memory must be copied and the copy policy is copy_policy::error (as
+   *         sssp::result::from_arrays()).
+   * @throws not_supported_error    if the backend of `res` is not built, an array is in device
+   *         memory and CUDA is not built, or on cuda if the engine of opt.cuda_engine cannot run.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync
