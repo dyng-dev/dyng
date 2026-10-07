@@ -17,9 +17,15 @@
  * ($TMPDIR, default /tmp) because the readers take paths.
  *
  * A reader may reject an input only with an exception its documentation names (io_error,
- * invalid_argument_error, out_of_memory_error; read_or_reject()); any other exception escapes the
- * target, which libFuzzer reports as a crash (std::terminate). Where a writer exists, an accepted input must
- * also survive write -> read unchanged (DYNG_FUZZ_CHECK aborts otherwise).
+ * invalid_argument_error, out_of_memory_error; read_or_reject(), which wraps the FIRST read
+ * only); any other exception escapes the target, which libFuzzer reports as a crash
+ * (std::terminate). Where a writer exists, an accepted input must also survive write -> read
+ * unchanged: round_trip() runs the writer and the second read, and ANY exception there, a rejected
+ * copy included, is a finding, as is a copy that reads back different (DYNG_FUZZ_CHECK).
+ *
+ * Built with DYNG_FUZZ_CORRUPT_WRITES=1 (the CTest fuzz.selftest.<target>), written() appends a
+ * line of garbage to every file a writer produced, so the replay of the corpus must report a
+ * round-trip failure: the check is proven able to fail.
  *
  * The same sources build two ways (cpp/fuzz/CMakeLists.txt): with Clang's libFuzzer
  * (DYNG_BUILD_FUZZERS, preset `fuzz`) and, in every test build, linked with replay_main.cpp into
@@ -36,21 +42,37 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
-/// Aborts with a message when a property of an accepted input does not hold.
+/// Stops the run with a message when a property of an accepted input does not hold.
 #define DYNG_FUZZ_CHECK(cond)                                                            \
   do {                                                                                   \
     if (!(cond)) {                                                                       \
       std::fprintf(stderr, "%s:%d: fuzz check failed: %s\n", __FILE__, __LINE__, #cond); \
-      std::abort();                                                                      \
+      ::dyng::fuzz::fail();                                                              \
     }                                                                                    \
   } while (false)
 
 namespace dyng::fuzz {
+
+/**
+ * @brief End the run after a failed check: abort (a crash for libFuzzer and the replay), or, in
+ *        the self-test build (DYNG_FUZZ_CORRUPT_WRITES), exit with status 3 (CTest matches the
+ *        message).
+ */
+[[noreturn]] inline void fail() {
+#if defined(DYNG_FUZZ_CORRUPT_WRITES) && DYNG_FUZZ_CORRUPT_WRITES
+  std::exit(3);  // runs the destructors: the temporary files are removed
+#else
+  std::abort();
+#endif
+}
 
 /// An input split into its option line and its files.
 class fuzz_input {
@@ -199,18 +221,54 @@ inline temp_files& files() {
 }
 
 /**
- * @brief Run a reader (and the checks of its result); the exceptions a reader documents end the
- *        input quietly, any other one propagates (a crash under libFuzzer).
- * @param[in] body The reader call and its checks.
+ * @brief Run the first read of an input: the exceptions a reader documents reject the input
+ *        quietly (std::nullopt), any other one propagates (a crash under libFuzzer). Only the
+ *        read belongs here: the checks of its result and the round trip run outside.
+ * @tparam read_t A callable without arguments that returns the reader's result.
+ * @param[in] read The reader call.
+ * @return The result, or std::nullopt if the reader rejected the input.
  */
-template <typename body_t>
-void read_or_reject(body_t&& body) {
+template <typename read_t>
+auto read_or_reject(read_t&& read) -> std::optional<std::decay_t<decltype(read())>> {
   try {
-    body();
+    return read();
   } catch (const ::dyng::io_error&) {
   } catch (const ::dyng::invalid_argument_error&) {
   } catch (const ::dyng::out_of_memory_error&) {
   }
+  return std::nullopt;
+}
+
+/**
+ * @brief Run the write -> read round trip of an accepted input: every exception is a finding
+ *        (a writer that throws, or a copy its own reader rejects), reported and ended with fail().
+ * @tparam body_t A callable without arguments.
+ * @param[in] body The writer call, the second read and its checks.
+ */
+template <typename body_t>
+void round_trip(body_t&& body) {
+  try {
+    body();
+  } catch (const std::exception& e) {
+    std::fprintf(stderr, "fuzz check failed: the write -> read round trip threw: %s\n", e.what());
+    fail();
+  } catch (...) {
+    std::fprintf(stderr, "fuzz check failed: the write -> read round trip threw\n");
+    fail();
+  }
+}
+
+/**
+ * @brief Note a file a writer produced (removed at exit). In the self-test build
+ *        (DYNG_FUZZ_CORRUPT_WRITES) also append a line of garbage to it, a planted writer bug.
+ * @param[in] path The file.
+ */
+inline void written(const std::string& path) {
+  files().remember(path);
+#if defined(DYNG_FUZZ_CORRUPT_WRITES) && DYNG_FUZZ_CORRUPT_WRITES
+  std::ofstream out(path, std::ios::binary | std::ios::app);
+  out << "\nx y z\n";
+#endif
 }
 
 }  // namespace dyng::fuzz

@@ -25,23 +25,25 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& path) {
   opt.drop_self_loops = in.option(1, 2) == 1;
   opt.sort_and_dedupe = in.option(2, 2) == 1;
   opt.random.num_weights = 1 + in.option(3, 3);
-  dyng::fuzz::read_or_reject([&] {
-    const auto edges = dyng::io::read_matrix_market<vertex_t, std::int32_t>(path, opt);
-    const std::size_t m = edges.num_edges();
-    DYNG_FUZZ_CHECK(edges.dst.size() == m);
-    DYNG_FUZZ_CHECK(edges.weights.size() == m * static_cast<std::size_t>(edges.num_weights));
-    for (std::size_t e = 0; e < m; ++e) {
-      DYNG_FUZZ_CHECK(edges.src[e] >= 0 && edges.src[e] < edges.num_vertices);
-      DYNG_FUZZ_CHECK(edges.dst[e] >= 0 && edges.dst[e] < edges.num_vertices);
-      DYNG_FUZZ_CHECK(!opt.drop_self_loops || edges.src[e] != edges.dst[e]);
-      if (opt.sort_and_dedupe && e > 0) {
-        const bool increasing =
-            edges.src[e - 1] < edges.src[e] ||
-            (edges.src[e - 1] == edges.src[e] && edges.dst[e - 1] < edges.dst[e]);
-        DYNG_FUZZ_CHECK(increasing);
-      }
+  const auto read = dyng::fuzz::read_or_reject(
+      [&] { return dyng::io::read_matrix_market<vertex_t, std::int32_t>(path, opt); });
+  if (!read) {
+    return;  // rejected with a documented exception
+  }
+  const auto& edges = *read;
+  const std::size_t m = edges.num_edges();
+  DYNG_FUZZ_CHECK(edges.dst.size() == m);
+  DYNG_FUZZ_CHECK(edges.weights.size() == m * static_cast<std::size_t>(edges.num_weights));
+  for (std::size_t e = 0; e < m; ++e) {
+    DYNG_FUZZ_CHECK(edges.src[e] >= 0 && edges.src[e] < edges.num_vertices);
+    DYNG_FUZZ_CHECK(edges.dst[e] >= 0 && edges.dst[e] < edges.num_vertices);
+    DYNG_FUZZ_CHECK(!opt.drop_self_loops || edges.src[e] != edges.dst[e]);
+    if (opt.sort_and_dedupe && e > 0) {
+      const bool increasing = edges.src[e - 1] < edges.src[e] ||
+                              (edges.src[e - 1] == edges.src[e] && edges.dst[e - 1] < edges.dst[e]);
+      DYNG_FUZZ_CHECK(increasing);
     }
-  });
+  }
 }
 
 }  // namespace

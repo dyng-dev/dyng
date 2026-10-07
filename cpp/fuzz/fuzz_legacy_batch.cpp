@@ -26,32 +26,37 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& ins, const std::st
   opt.num_weights = in.option(0, 4);
   opt.num_vertices = counts[in.option(1, 4)];
   opt.mosp_lenient = in.option(2, 2) == 1;
-  dyng::fuzz::read_or_reject([&] {
-    const auto b = dyng::io::read_legacy_batch<vertex_t, std::int32_t>(ins, del, opt);
-    DYNG_FUZZ_CHECK(b.num_weights() == opt.num_weights);
-    DYNG_FUZZ_CHECK(b.insert_dst().size() == b.num_insertions());
-    DYNG_FUZZ_CHECK(b.delete_dst().size() == b.num_deletions());
-    DYNG_FUZZ_CHECK(b.insert_weights().size() ==
-                    b.num_insertions() * static_cast<std::size_t>(opt.num_weights));
-    const auto in_range = [&](vertex_t v) {
-      return v >= 0 && (opt.num_vertices < 0 || static_cast<std::int64_t>(v) < opt.num_vertices);
-    };
-    for (std::size_t i = 0; i < b.num_insertions(); ++i) {
-      DYNG_FUZZ_CHECK(in_range(b.insert_src()[i]) && in_range(b.insert_dst()[i]));
-    }
-    for (std::size_t i = 0; i < b.num_deletions(); ++i) {
-      DYNG_FUZZ_CHECK(in_range(b.delete_src()[i]) && in_range(b.delete_dst()[i]));
-    }
-    for (const std::int32_t w : b.insert_weights()) {
-      DYNG_FUZZ_CHECK(w >= 1);
-    }
+  const auto read = dyng::fuzz::read_or_reject(
+      [&] { return dyng::io::read_legacy_batch<vertex_t, std::int32_t>(ins, del, opt); });
+  if (!read) {
+    return;  // rejected with a documented exception
+  }
+  const auto& b = *read;
+  DYNG_FUZZ_CHECK(b.num_weights() == opt.num_weights);
+  DYNG_FUZZ_CHECK(b.insert_dst().size() == b.num_insertions());
+  DYNG_FUZZ_CHECK(b.delete_dst().size() == b.num_deletions());
+  DYNG_FUZZ_CHECK(b.insert_weights().size() ==
+                  b.num_insertions() * static_cast<std::size_t>(opt.num_weights));
+  const auto in_range = [&](vertex_t v) {
+    return v >= 0 && (opt.num_vertices < 0 || static_cast<std::int64_t>(v) < opt.num_vertices);
+  };
+  for (std::size_t i = 0; i < b.num_insertions(); ++i) {
+    DYNG_FUZZ_CHECK(in_range(b.insert_src()[i]) && in_range(b.insert_dst()[i]));
+  }
+  for (std::size_t i = 0; i < b.num_deletions(); ++i) {
+    DYNG_FUZZ_CHECK(in_range(b.delete_src()[i]) && in_range(b.delete_dst()[i]));
+  }
+  for (const std::int32_t w : b.insert_weights()) {
+    DYNG_FUZZ_CHECK(w >= 1);
+  }
+  dyng::fuzz::round_trip([&] {
     // write -> strict read
     auto& files = dyng::fuzz::files();
     const std::string ins_copy = files.path("insert_copy.txt");
     const std::string del_copy = files.path("delete_copy.txt");
     dyng::io::write_legacy_batch(ins_copy, del_copy, b.view());
-    files.remember(ins_copy);
-    files.remember(del_copy);
+    dyng::fuzz::written(ins_copy);
+    dyng::fuzz::written(del_copy);
     dyng::io::legacy_batch_options strict = opt;
     strict.mosp_lenient = false;
     const auto back =

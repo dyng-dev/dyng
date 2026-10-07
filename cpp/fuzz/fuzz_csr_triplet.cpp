@@ -22,28 +22,33 @@ template <typename vertex_t, typename edge_t>
 void run(const dyng::fuzz::fuzz_input& in, const std::string& prefix) {
   dyng::io::csr_triplet_options opt;
   opt.num_weights = in.option(0, 4);
-  dyng::fuzz::read_or_reject([&] {
-    const auto g = dyng::io::read_csr_triplet<vertex_t, edge_t, std::int32_t>(prefix, opt);
-    const vertex_t n = g.num_vertices();
-    DYNG_FUZZ_CHECK(n >= 1);
-    DYNG_FUZZ_CHECK(g.row_ptr.front() == 0);
-    DYNG_FUZZ_CHECK(static_cast<std::size_t>(g.row_ptr.back()) == g.col_ind.size());
-    DYNG_FUZZ_CHECK(g.weights.size() == g.col_ind.size() * static_cast<std::size_t>(g.num_weights));
-    DYNG_FUZZ_CHECK(opt.num_weights == 0 || g.num_weights == opt.num_weights);
-    for (std::size_t v = 1; v < g.row_ptr.size(); ++v) {
-      DYNG_FUZZ_CHECK(g.row_ptr[v - 1] <= g.row_ptr[v]);
-    }
-    for (const vertex_t c : g.col_ind) {
-      DYNG_FUZZ_CHECK(c >= 0 && c < n);
-    }
-    for (const std::int32_t w : g.weights) {
-      DYNG_FUZZ_CHECK(w >= 1);
-    }
+  const auto read = dyng::fuzz::read_or_reject(
+      [&] { return dyng::io::read_csr_triplet<vertex_t, edge_t, std::int32_t>(prefix, opt); });
+  if (!read) {
+    return;  // rejected with a documented exception
+  }
+  const auto& g = *read;
+  const vertex_t n = g.num_vertices();
+  DYNG_FUZZ_CHECK(n >= 1);
+  DYNG_FUZZ_CHECK(g.row_ptr.front() == 0);
+  DYNG_FUZZ_CHECK(static_cast<std::size_t>(g.row_ptr.back()) == g.col_ind.size());
+  DYNG_FUZZ_CHECK(g.weights.size() == g.col_ind.size() * static_cast<std::size_t>(g.num_weights));
+  DYNG_FUZZ_CHECK(opt.num_weights == 0 || g.num_weights == opt.num_weights);
+  for (std::size_t v = 1; v < g.row_ptr.size(); ++v) {
+    DYNG_FUZZ_CHECK(g.row_ptr[v - 1] <= g.row_ptr[v]);
+  }
+  for (const vertex_t c : g.col_ind) {
+    DYNG_FUZZ_CHECK(c >= 0 && c < n);
+  }
+  for (const std::int32_t w : g.weights) {
+    DYNG_FUZZ_CHECK(w >= 1);
+  }
+  dyng::fuzz::round_trip([&] {
     // write -> read
     const std::string copy = dyng::fuzz::files().path("copy");
     dyng::io::write_csr_triplet(copy, g.view());
     for (const char* part : {"RowPtr.txt", "ColInd.txt", "Values.txt"}) {
-      dyng::fuzz::files().remember(copy + part);
+      dyng::fuzz::written(copy + part);
     }
     dyng::io::csr_triplet_options back_opt;
     back_opt.num_weights = g.num_weights;

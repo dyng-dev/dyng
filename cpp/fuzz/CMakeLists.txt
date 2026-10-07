@@ -11,9 +11,20 @@
 #   * DYNG_BUILD_TESTS=ON (any compiler): dyng_fuzz_replay_<name>, the same source linked with
 #     replay_main.cpp, and the CTest fuzz.replay.<name> (labels cpu;io;fuzz) over the same inputs,
 #     so every pull request replays the corpus and every fixed crash with the regular compilers.
+#     For a target with a writer, also dyng_fuzz_selftest_<name> (DYNG_FUZZ_CORRUPT_WRITES=1: every
+#     file the writer produces gets a line of garbage) and the CTest fuzz.selftest.<name>, which
+#     passes only if the replay reports the broken round trip: the check can fail.
 
 set(DYNG_FUZZ_TARGETS
     matrix_market
+    edge_list
+    csr_triplet
+    legacy_batch
+    batch_text
+    result_io
+)
+# The targets whose reader has a writer (the write -> read round trip).
+set(DYNG_FUZZ_ROUND_TRIP_TARGETS
     edge_list
     csr_triplet
     legacy_batch
@@ -66,5 +77,19 @@ foreach(_name IN LISTS DYNG_FUZZ_TARGETS)
     dyng_enable_sanitizers(dyng_fuzz_replay_${_name})
     add_test(NAME fuzz.replay.${_name} COMMAND dyng_fuzz_replay_${_name} ${_inputs})
     set_tests_properties(fuzz.replay.${_name} PROPERTIES LABELS "cpu;io;fuzz")
+    if(_name IN_LIST DYNG_FUZZ_ROUND_TRIP_TARGETS)
+      add_executable(dyng_fuzz_selftest_${_name} fuzz_${_name}.cpp replay_main.cpp)
+      target_link_libraries(dyng_fuzz_selftest_${_name} PRIVATE dyng::dyng)
+      target_compile_features(dyng_fuzz_selftest_${_name} PRIVATE cxx_std_17)
+      target_compile_definitions(dyng_fuzz_selftest_${_name} PRIVATE DYNG_FUZZ_CORRUPT_WRITES=1)
+      dyng_set_warnings(dyng_fuzz_selftest_${_name})
+      dyng_enable_sanitizers(dyng_fuzz_selftest_${_name})
+      add_test(NAME fuzz.selftest.${_name} COMMAND dyng_fuzz_selftest_${_name}
+                                                    "${CMAKE_CURRENT_SOURCE_DIR}/corpus/${_name}")
+      set_tests_properties(
+        fuzz.selftest.${_name} PROPERTIES LABELS "cpu;io;fuzz" PASS_REGULAR_EXPRESSION
+                                          "fuzz check failed"
+      )
+    endif()
   endif()
 endforeach()

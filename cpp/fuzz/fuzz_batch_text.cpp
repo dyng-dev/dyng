@@ -29,31 +29,36 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& path) {
   dyng::io::batch_file_options opt;
   opt.num_weights = in.option(0, 4) - 1;
   opt.num_vertices = counts[in.option(1, 3)];
-  dyng::fuzz::read_or_reject([&] {
-    const auto batches = dyng::io::read_batches<vertex_t, weight_t>(path, opt);
-    const auto in_range = [&](vertex_t v) {
-      return v >= 0 && (opt.num_vertices < 0 || static_cast<std::int64_t>(v) < opt.num_vertices);
-    };
-    std::vector<dyng::edge_batch_view<vertex_t, weight_t>> views;
-    for (const auto& b : batches) {
-      DYNG_FUZZ_CHECK(opt.num_weights < 0 || b.num_insertions() == 0 ||
-                      b.num_weights() == opt.num_weights);
-      DYNG_FUZZ_CHECK(b.insert_dst().size() == b.num_insertions());
-      DYNG_FUZZ_CHECK(b.delete_dst().size() == b.num_deletions());
-      DYNG_FUZZ_CHECK(b.insert_weights().size() ==
-                      b.num_insertions() * static_cast<std::size_t>(b.num_weights()));
-      for (std::size_t i = 0; i < b.num_insertions(); ++i) {
-        DYNG_FUZZ_CHECK(in_range(b.insert_src()[i]) && in_range(b.insert_dst()[i]));
-      }
-      for (std::size_t i = 0; i < b.num_deletions(); ++i) {
-        DYNG_FUZZ_CHECK(in_range(b.delete_src()[i]) && in_range(b.delete_dst()[i]));
-      }
-      views.push_back(b.view());
+  const auto read = dyng::fuzz::read_or_reject(
+      [&] { return dyng::io::read_batches<vertex_t, weight_t>(path, opt); });
+  if (!read) {
+    return;  // rejected with a documented exception
+  }
+  const auto& batches = *read;
+  const auto in_range = [&](vertex_t v) {
+    return v >= 0 && (opt.num_vertices < 0 || static_cast<std::int64_t>(v) < opt.num_vertices);
+  };
+  std::vector<dyng::edge_batch_view<vertex_t, weight_t>> views;
+  for (const auto& b : batches) {
+    DYNG_FUZZ_CHECK(opt.num_weights < 0 || b.num_insertions() == 0 ||
+                    b.num_weights() == opt.num_weights);
+    DYNG_FUZZ_CHECK(b.insert_dst().size() == b.num_insertions());
+    DYNG_FUZZ_CHECK(b.delete_dst().size() == b.num_deletions());
+    DYNG_FUZZ_CHECK(b.insert_weights().size() ==
+                    b.num_insertions() * static_cast<std::size_t>(b.num_weights()));
+    for (std::size_t i = 0; i < b.num_insertions(); ++i) {
+      DYNG_FUZZ_CHECK(in_range(b.insert_src()[i]) && in_range(b.insert_dst()[i]));
     }
+    for (std::size_t i = 0; i < b.num_deletions(); ++i) {
+      DYNG_FUZZ_CHECK(in_range(b.delete_src()[i]) && in_range(b.delete_dst()[i]));
+    }
+    views.push_back(b.view());
+  }
+  dyng::fuzz::round_trip([&] {
     // write -> read
     const std::string copy = dyng::fuzz::files().path("copy.dgt");
     dyng::io::write_batches(copy, views);
-    dyng::fuzz::files().remember(copy);
+    dyng::fuzz::written(copy);
     const auto back = dyng::io::read_batches<vertex_t, weight_t>(copy, opt);
     DYNG_FUZZ_CHECK(back.size() == batches.size());
     for (std::size_t i = 0; i < back.size(); ++i) {

@@ -17,7 +17,9 @@ An input is `<option line>\n<file 1>[\n@@\n<file 2>...]`: byte i of the first li
 option i (a digit counts as its value), and lines that are exactly `@@` separate the files of a
 reader that opens several (`fuzz_input.hpp`). Each target checks that a rejected input raises only
 the exceptions the reader documents, that an accepted one is consistent, and, where a writer
-exists, that writing and reading it again gives the same data.
+exists, that writing and reading it again gives the same data (any exception in that round trip
+is a finding; CTest `fuzz.selftest.<target>` plants a writer bug and checks that the replay
+reports it).
 
 ```bash
 ci/fuzz.sh                       # build (preset fuzz, Clang), replay the corpus, 60 s per target

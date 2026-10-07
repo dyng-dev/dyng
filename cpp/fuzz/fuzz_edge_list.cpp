@@ -33,35 +33,40 @@ void run(const dyng::fuzz::fuzz_input& in, const std::string& path) {
   opt.duplicates =
       in.option(5, 2) == 0 ? dyng::io::duplicate_edges::merge : dyng::io::duplicate_edges::keep;
   opt.threads = 1 + in.option(6, 3);
-  dyng::fuzz::read_or_reject([&] {
-    dyng::io::edge_list_info info;
-    const auto edges = dyng::io::read_edge_list<vertex_t, weight_t>(path, opt, &info);
-    const std::size_t m = edges.num_edges();
-    const bool keep = opt.duplicates == dyng::io::duplicate_edges::keep;
-    DYNG_FUZZ_CHECK(edges.dst.size() == m);
-    DYNG_FUZZ_CHECK(edges.weights.size() == m * static_cast<std::size_t>(edges.num_weights));
-    DYNG_FUZZ_CHECK(info.timestamps.size() == (keep ? m : 0));
-    if (opt.ids == dyng::io::vertex_ids::compact) {
-      DYNG_FUZZ_CHECK(info.external_ids.size() == static_cast<std::size_t>(edges.num_vertices));
-      for (std::size_t i = 1; i < info.external_ids.size(); ++i) {
-        DYNG_FUZZ_CHECK(info.external_ids[i - 1] < info.external_ids[i]);
-      }
+  dyng::io::edge_list_info info;
+  const auto read = dyng::fuzz::read_or_reject(
+      [&] { return dyng::io::read_edge_list<vertex_t, weight_t>(path, opt, &info); });
+  if (!read) {
+    return;  // rejected with a documented exception
+  }
+  const auto& edges = *read;
+  const std::size_t m = edges.num_edges();
+  const bool keep = opt.duplicates == dyng::io::duplicate_edges::keep;
+  DYNG_FUZZ_CHECK(edges.dst.size() == m);
+  DYNG_FUZZ_CHECK(edges.weights.size() == m * static_cast<std::size_t>(edges.num_weights));
+  DYNG_FUZZ_CHECK(info.timestamps.size() == (keep ? m : 0));
+  if (opt.ids == dyng::io::vertex_ids::compact) {
+    DYNG_FUZZ_CHECK(info.external_ids.size() == static_cast<std::size_t>(edges.num_vertices));
+    for (std::size_t i = 1; i < info.external_ids.size(); ++i) {
+      DYNG_FUZZ_CHECK(info.external_ids[i - 1] < info.external_ids[i]);
     }
-    for (std::size_t e = 0; e < m; ++e) {
-      DYNG_FUZZ_CHECK(edges.src[e] >= 0 && edges.src[e] < edges.num_vertices);
-      DYNG_FUZZ_CHECK(edges.dst[e] >= 0 && edges.dst[e] < edges.num_vertices);
-      DYNG_FUZZ_CHECK(!opt.drop_self_loops || edges.src[e] != edges.dst[e]);
-      if (e > 0) {
-        const bool before = edges.src[e - 1] < edges.src[e] ||
-                            (edges.src[e - 1] == edges.src[e] && edges.dst[e - 1] < edges.dst[e]);
-        const bool same = edges.src[e - 1] == edges.src[e] && edges.dst[e - 1] == edges.dst[e];
-        DYNG_FUZZ_CHECK(before || (keep && same));
-      }
+  }
+  for (std::size_t e = 0; e < m; ++e) {
+    DYNG_FUZZ_CHECK(edges.src[e] >= 0 && edges.src[e] < edges.num_vertices);
+    DYNG_FUZZ_CHECK(edges.dst[e] >= 0 && edges.dst[e] < edges.num_vertices);
+    DYNG_FUZZ_CHECK(!opt.drop_self_loops || edges.src[e] != edges.dst[e]);
+    if (e > 0) {
+      const bool before = edges.src[e - 1] < edges.src[e] ||
+                          (edges.src[e - 1] == edges.src[e] && edges.dst[e - 1] < edges.dst[e]);
+      const bool same = edges.src[e - 1] == edges.src[e] && edges.dst[e - 1] == edges.dst[e];
+      DYNG_FUZZ_CHECK(before || (keep && same));
     }
+  }
+  dyng::fuzz::round_trip([&] {
     // write -> read
     const std::string copy = dyng::fuzz::files().path("copy.txt");
     dyng::io::write_edge_list(copy, edges.view());
-    dyng::fuzz::files().remember(copy);
+    dyng::fuzz::written(copy);
     dyng::io::edge_list_options back_opt;
     back_opt.num_weights = edges.num_weights;
     back_opt.ids = dyng::io::vertex_ids::as_is;
