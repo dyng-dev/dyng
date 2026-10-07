@@ -146,6 +146,15 @@ if(DYNG_ENABLE_CUDA)
     LIBRARIES dyng_cbst_device
   )
   list(APPEND _dyng_private_tests dyng_cbst_device_tests)
+  # The store's own tests: ESCHER-GPU's cbst_test layout sizes on the construction kernels, the
+  # dynG additions, the error policy, the streams.
+  dyng_add_test(
+    NAME dyng_cbst_store_tests
+    SOURCES hypergraph/escher/cbst_store_test.cpp
+    LABELS gpu cbst
+  )
+  dyng_set_cuda_options(dyng_cbst_store_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_store_tests)
 endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   add_test(

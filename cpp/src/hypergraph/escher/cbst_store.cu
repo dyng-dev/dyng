@@ -176,6 +176,7 @@ static void reserve_scratch(cbst_context& ctx, int num_items, size_t payload_siz
 // Recomputes subtree_avail (number of deleted slots per subtree) bottom-up,
 // one launch per tree level (stream-ordered, no host synchronization).
 static void recompute_subtree_avail(cbst_context& ctx) {
+  if (ctx.num_records <= 0) return;  // an empty tree has no levels (dynG addition)
   const int block_size = 256;
   int last_level_start = 1;
   while (last_level_start * 2 <= ctx.num_records) last_level_start <<= 1;
@@ -232,6 +233,13 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
   // ctx.alignment should be set by the owner (cbst_store) before calling
 
   if (num_records == 0) {
+    // An empty tree (dynG addition): its payload is allocated as for any other tree, so that a
+    // later insert or append has a buffer to write to (ESCHER-GPU and MOSP_ESCHER kept none, and
+    // an insert into the empty tree failed).
+    allocate(ctx, ctx.flat_payload_storage, ctx.d_flat_payload, ctx.fixed_size);
+    if (ctx.fixed_size > 0)
+      DYNG_CUDA_TRY(
+          cudaMemsetAsync(ctx.d_flat_payload, 0, ctx.fixed_size * sizeof(int), stream_of(ctx)));
     return;
   }
 
@@ -464,10 +472,13 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
                                 cudaMemcpyHostToDevice, stream_of(ctx)));
 
   // Determine number of deleted slots (root's subtree_avail)
+  // (An empty tree has no deleted slots and nothing to read; dynG addition.)
   int D = 0;
-  DYNG_CUDA_TRY(cudaMemcpyAsync(&D, ctx.d_subtree_avail, sizeof(int), cudaMemcpyDeviceToHost,
-                                stream_of(ctx)));
-  synchronize(ctx);
+  if (ctx.num_records > 0) {
+    DYNG_CUDA_TRY(cudaMemcpyAsync(&D, ctx.d_subtree_avail, sizeof(int), cudaMemcpyDeviceToHost,
+                                  stream_of(ctx)));
+    synchronize(ctx);
+  }
 
   int reuse_k = std::min(K, D);
   std::vector<char> matched(K, 0);
@@ -652,17 +663,20 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     temp_buffer<cbst_node> d_ranked(ctx.res, old_n), d_records(ctx.res, old_n + surplus);
     temp_buffer<int> d_ranked_live(ctx.res, old_n);
     int blocks_old = (old_n + block_size - 1) / block_size;
-    rank_order_nodes_kernel<<<blocks_old, block_size, 0, stream_of(ctx)>>>(
-        ctx.d_nodes, ctx.d_avail, old_n, d_ranked.get(), d_ranked_live.get());
-    DYNG_CHECK_KERNEL(stream_of(ctx));
     thrust_allocator surplus_alloc(ctx.res);
     thrust::device_ptr<cbst_node> ranked_ptr(d_ranked.get()), records_ptr(d_records.get());
     thrust::device_ptr<int> live_ptr(d_ranked_live.get());
-    int valid_old_count =
-        static_cast<int>(thrust::copy_if(thrust_policy(ctx.res, surplus_alloc), ranked_ptr,
-                                         ranked_ptr + old_n, live_ptr, records_ptr, is_set()) -
-                         records_ptr);
-    count_implicit_synchronization(ctx);
+    int valid_old_count = 0;
+    if (old_n > 0) {  // an empty tree has no surviving records (dynG addition)
+      rank_order_nodes_kernel<<<blocks_old, block_size, 0, stream_of(ctx)>>>(
+          ctx.d_nodes, ctx.d_avail, old_n, d_ranked.get(), d_ranked_live.get());
+      DYNG_CHECK_KERNEL(stream_of(ctx));
+      valid_old_count =
+          static_cast<int>(thrust::copy_if(thrust_policy(ctx.res, surplus_alloc), ranked_ptr,
+                                           ranked_ptr + old_n, live_ptr, records_ptr, is_set()) -
+                           records_ptr);
+      count_implicit_synchronization(ctx);
+    }
 
     // ── Option A: Preserve original keys (no compaction) ────────────
     // Surviving nodes keep their original keys.  Surplus items get keys
@@ -775,6 +789,10 @@ void cbst_store::check_not_poisoned(const char* op) const {
 template <typename op_t>
 auto cbst_store::guarded(const char* op, op_t&& body) {
   check_not_poisoned(op);
+  if (!constructed_) {
+    throw invalid_argument_error("dyng: CBST " + ctx_.dataset_name + ": " + op +
+                                 " before construct or rebuild_from_device");
+  }
   try {
     return body();
   } catch (...) {
