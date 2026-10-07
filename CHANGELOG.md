@@ -134,6 +134,19 @@ temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` com
   certificate without the mosp gates fails), and a gated reading of every gated metric of each
   suite on every backend it is gated on.
 
+### R020: the release certificate (0.2, branch `release-0.2.0`)
+
+- Added: the release certificate of 0.2.0rc1, `benchmarks/results/0.2.0rc1/` (`parity.json` and
+  its `README.md`): the golden replays of sssp, cycle_count and mosp (the paper-scale
+  `mosp_scale` set included) on every backend, the three performance suites against the
+  unpatched originals, the sanitizer presets and compute-sanitizer, the mutation checks, the
+  distributions as `release.yml` builds them for `v0.2.0rc1`, and `ci/check.sh --parity` and
+  `ci/gpu_local.sh` on the release tree; the summary is in
+  `docs/developer/retrospectives/R020.md`.
+- Parity tools: the generated-metadata exception of `parity/certify.py` (`METADATA_PATHS`) covers
+  the manifest of every algorithm (mosp and the tutorial algorithms too, not only sssp and
+  cycle_count); no build reads a manifest.
+
 ### Added (M6b)
 
 - M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0033), created with
