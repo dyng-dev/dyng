@@ -12,8 +12,10 @@
  * cpp/src/hypergraph/escher/README.md).
  */
 #include "hypergraph/escher/cbst_store.hpp"
-#include "hypergraph/escher/flatten.hpp"
-#include "hypergraph/escher/transplant_shims.hpp"
+#include "util/cuda_check.hpp"
+
+#include <dyng/core/error.hpp>
+#include <dyng/core/logging.hpp>
 
 #include <thrust/copy.h>
 #include <thrust/count.h>
@@ -25,10 +27,9 @@
 #include <thrust/sort.h>
 
 #include <algorithm>
-#include <cassert>
 #include <climits>
-#include <cstdlib>
-#include <iostream>
+#include <sstream>
+#include <string>
 
 // Functor for thrust predicate: returns true when value < threshold
 struct less_than {
@@ -43,12 +44,14 @@ struct less_than {
 
 namespace dyng::detail::escher {
 
-// Local CUDA error checker for this TU
-static inline void check_cuda(cudaError_t result) {
-  if (result != cudaSuccess) {
-    std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
-    std::exit(-1);
-  }
+// The trace-level debug output of ESCHER-GPU's --verbose mode (the relocation plan, the payload,
+// the best-fit counts) goes to the log sink.
+static void log_ints(const cbst_context& ctx, const char* what, const std::vector<int>& values) {
+  std::ostringstream text;
+  text << "dyng: CBST " << ctx.dataset_name << ": " << what << ": [ ";
+  for (int v : values) text << v << " ";
+  text << "]";
+  log_message(log_level::trace, text.str());
 }
 
 // Stream-ordered temporary buffer (cudaMallocAsync/cudaFreeAsync on the
@@ -58,11 +61,11 @@ template <class T>
 class temp_buffer {
  public:
   explicit temp_buffer(size_t n) {
-    check_cuda(
+    DYNG_CUDA_TRY(
         cudaMallocAsync(reinterpret_cast<void**>(&ptr_), std::max<size_t>(n, 1) * sizeof(T), 0));
   }
   ~temp_buffer() {
-    cudaFreeAsync(ptr_, 0);
+    DYNG_CUDA_TRY_NO_THROW(cudaFreeAsync(ptr_, 0));
   }
   temp_buffer(const temp_buffer&) = delete;
   temp_buffer& operator=(const temp_buffer&) = delete;
@@ -90,8 +93,8 @@ struct degree_bins {
       all.insert(all.end(), lists[b].begin(), lists[b].end());
     }
     if (!all.empty())
-      check_cuda(cudaMemcpyAsync(index.get(), all.data(), all.size() * sizeof(int),
-                                 cudaMemcpyHostToDevice, 0));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(index.get(), all.data(), all.size() * sizeof(int),
+                                    cudaMemcpyHostToDevice, 0));
   }
   // Counts one launch for every non-empty bin.
   void record(long long (&launches)[3]) const {
@@ -122,17 +125,17 @@ static std::vector<int> item_sizes(const std::vector<int>& prefix_sizes) {
 // overflowed for batches with more values than 3 x num_records).
 static void reserve_scratch(cbst_context& ctx, int num_items, size_t payload_size) {
   if (num_items > ctx.scratch_item_capacity) {
-    check_cuda(cudaFree(ctx.d_insert_keys));
-    check_cuda(cudaFree(ctx.d_insert_prefix_sizes));
-    check_cuda(cudaFree(ctx.d_relocation_plan));
-    check_cuda(cudaMalloc(&ctx.d_insert_keys, num_items * sizeof(int)));
-    check_cuda(cudaMalloc(&ctx.d_insert_prefix_sizes, num_items * sizeof(int)));
-    check_cuda(cudaMalloc(&ctx.d_relocation_plan, 3 * num_items * sizeof(int)));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_insert_keys));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_insert_prefix_sizes));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_relocation_plan));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_insert_keys, num_items * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_insert_prefix_sizes, num_items * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_relocation_plan, 3 * num_items * sizeof(int)));
     ctx.scratch_item_capacity = num_items;
   }
   if (static_cast<long long>(payload_size) > ctx.scratch_payload_capacity) {
-    check_cuda(cudaFree(ctx.d_insert_payload));
-    check_cuda(cudaMalloc(&ctx.d_insert_payload, payload_size * sizeof(int)));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_insert_payload));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_insert_payload, payload_size * sizeof(int)));
     ctx.scratch_payload_capacity = static_cast<long long>(payload_size);
   }
 }
@@ -149,7 +152,7 @@ static void recompute_subtree_avail(cbst_context& ctx) {
     int blocks = (count + block_size - 1) / block_size;
     reduce_avail_level_kernel<<<blocks, block_size>>>(level_start, level_end, ctx.num_records,
                                                       ctx.d_avail, ctx.d_subtree_avail);
-    check_cuda(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
     if (level_start == 0) break;
     level_end = level_start - 1;
     level_start = (level_start - 1) / 2;
@@ -164,25 +167,30 @@ static void ensure_payload_capacity(cbst_context& ctx, long long needed) {
   long long capacity = std::max(needed + needed / 4, 3LL * ctx.fixed_size / 2);
   capacity = std::min<long long>(capacity, INT_MAX);
   if (needed > capacity) {
-    std::cerr << "[" << ctx.dataset_name << "] ERROR: " << needed
-              << " payload entries exceed the int32 offsets of the CBST" << std::endl;
-    std::exit(2);
+    throw capacity_error("dyng: CBST " + ctx.dataset_name + ": " + std::to_string(needed) +
+                         " payload entries exceed the int32 offsets of the CBST (at most " +
+                         std::to_string(INT_MAX) + ")");
   }
   int* grown;
-  check_cuda(cudaMalloc(&grown, capacity * sizeof(int)));
-  check_cuda(cudaMemcpy(grown, ctx.d_flat_payload,
-                        static_cast<size_t>(ctx.initial_payload_size) * sizeof(int),
-                        cudaMemcpyDeviceToDevice));
-  check_cuda(cudaMemset(grown + ctx.initial_payload_size, 0,
-                        (capacity - ctx.initial_payload_size) * sizeof(int)));
-  check_cuda(cudaFree(ctx.d_flat_payload));
+  DYNG_CUDA_TRY(cudaMalloc(&grown, capacity * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemcpy(grown, ctx.d_flat_payload,
+                           static_cast<size_t>(ctx.initial_payload_size) * sizeof(int),
+                           cudaMemcpyDeviceToDevice));
+  DYNG_CUDA_TRY(cudaMemset(grown + ctx.initial_payload_size, 0,
+                           (capacity - ctx.initial_payload_size) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaFree(ctx.d_flat_payload));
   ctx.d_flat_payload = grown;
   ctx.fixed_size = static_cast<int>(capacity);
 }
 
 void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_payload,
-                    int flat_payload_size, int payload_capacity, const char* dataset_name,
+                    int flat_payload_size, int payload_capacity, const std::string& dataset_name,
                     cbst_context& ctx) {
+  // A capacity below the payload is rejected before anything changes or is allocated (ESCHER-GPU
+  // printed "Overflow" and returned a tree without nodes).
+  DYNG_EXPECTS(num_records == 0 || payload_capacity >= flat_payload_size, "CBST ", dataset_name,
+               ": payload capacity ", payload_capacity, " is below the payload size ",
+               flat_payload_size);
   ctx.fixed_size = payload_capacity;
   ctx.num_records = num_records;
   ctx.initial_payload_size = flat_payload_size;
@@ -193,37 +201,32 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
     return;
   }
 
-  if (ctx.fixed_size < flat_payload_size) {
-    std::cerr << "Overflow: fixed_size is less than flat_payload_size" << std::endl;
-    return;
-  }
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_nodes, num_records * sizeof(cbst_node)));
+  DYNG_CUDA_TRY(cudaMemset(ctx.d_nodes, 0, num_records * sizeof(cbst_node)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_keys, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_start_offsets, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_flat_payload, ctx.fixed_size * sizeof(int)));
 
-  check_cuda(cudaMalloc(&ctx.d_nodes, num_records * sizeof(cbst_node)));
-  check_cuda(cudaMemset(ctx.d_nodes, 0, num_records * sizeof(cbst_node)));
-  check_cuda(cudaMalloc(&ctx.d_keys, num_records * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_start_offsets, num_records * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_flat_payload, ctx.fixed_size * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemcpy(ctx.d_keys, keys, num_records * sizeof(int), cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpy(ctx.d_start_offsets, start_offsets, num_records * sizeof(int),
+                           cudaMemcpyHostToDevice));
 
-  check_cuda(cudaMemcpy(ctx.d_keys, keys, num_records * sizeof(int), cudaMemcpyHostToDevice));
-  check_cuda(cudaMemcpy(ctx.d_start_offsets, start_offsets, num_records * sizeof(int),
-                        cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpy(ctx.d_flat_payload, flat_payload, flat_payload_size * sizeof(int),
+                           cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemset(ctx.d_flat_payload + flat_payload_size, 0,
+                           (ctx.fixed_size - flat_payload_size) * sizeof(int)));
 
-  check_cuda(cudaMemcpy(ctx.d_flat_payload, flat_payload, flat_payload_size * sizeof(int),
-                        cudaMemcpyHostToDevice));
-  check_cuda(cudaMemset(ctx.d_flat_payload + flat_payload_size, 0,
-                        (ctx.fixed_size - flat_payload_size) * sizeof(int)));
-
-  check_cuda(cudaMalloc(&ctx.d_insert_keys, num_records * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_insert_payload, num_records * 3 * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_insert_prefix_sizes, num_records * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_relocation_plan, 3 * num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_insert_keys, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_insert_payload, num_records * 3 * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_insert_prefix_sizes, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_relocation_plan, 3 * num_records * sizeof(int)));
   ctx.scratch_item_capacity = num_records;
   ctx.scratch_payload_capacity = 3LL * num_records;
   // Availability arrays (0/1 per node) and subtree sums (per node)
-  check_cuda(cudaMalloc(&ctx.d_avail, num_records * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_subtree_avail, num_records * sizeof(int)));
-  check_cuda(cudaMemset(ctx.d_avail, 0, num_records * sizeof(int)));
-  check_cuda(cudaMemset(ctx.d_subtree_avail, 0, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_avail, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_subtree_avail, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(ctx.d_avail, 0, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(ctx.d_subtree_avail, 0, num_records * sizeof(int)));
 
   int block_size = 256;
   int num_blocks = (num_records + block_size - 1) / block_size;
@@ -233,35 +236,35 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
                                                  num_records, flat_payload_size);
   init_tail_metadata_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, ctx.d_flat_payload,
                                                         num_records);
-  check_cuda(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaGetLastError());
 
-  if (verbose()) {
-    std::cout << "Printing the tree from the device (" << dataset_name << "):" << std::endl;
-    print_nodes_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, num_records);
-    check_cuda(cudaDeviceSynchronize());
+  if (log_enabled(log_level::debug)) {
+    log_message(log_level::debug, "dyng: CBST " + dataset_name + ": constructed " +
+                                      std::to_string(num_records) + " records over " +
+                                      std::to_string(flat_payload_size) + " payload entries");
   }
 }
 
 void rebuild_cbst_from_device(int* d_start_offsets, int num_records, int* d_flat_payload,
                               int flat_payload_size, int payload_capacity, cbst_context& ctx) {
-  check_cuda(cudaFree(ctx.d_nodes));
-  check_cuda(cudaFree(ctx.d_keys));
-  check_cuda(cudaFree(ctx.d_start_offsets));
-  check_cuda(cudaFree(ctx.d_flat_payload));
-  check_cuda(cudaFree(ctx.d_avail));
-  check_cuda(cudaFree(ctx.d_subtree_avail));
+  DYNG_CUDA_TRY(cudaFree(ctx.d_nodes));
+  DYNG_CUDA_TRY(cudaFree(ctx.d_keys));
+  DYNG_CUDA_TRY(cudaFree(ctx.d_start_offsets));
+  DYNG_CUDA_TRY(cudaFree(ctx.d_flat_payload));
+  DYNG_CUDA_TRY(cudaFree(ctx.d_avail));
+  DYNG_CUDA_TRY(cudaFree(ctx.d_subtree_avail));
   ctx.d_start_offsets = d_start_offsets;
   ctx.d_flat_payload = d_flat_payload;
   ctx.fixed_size = payload_capacity;
   ctx.initial_payload_size = flat_payload_size;
   ctx.num_records = num_records;
-  check_cuda(cudaMalloc(&ctx.d_nodes, num_records * sizeof(cbst_node)));
-  check_cuda(cudaMemset(ctx.d_nodes, 0, num_records * sizeof(cbst_node)));
-  check_cuda(cudaMalloc(&ctx.d_keys, num_records * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_avail, num_records * sizeof(int)));
-  check_cuda(cudaMalloc(&ctx.d_subtree_avail, num_records * sizeof(int)));
-  check_cuda(cudaMemset(ctx.d_avail, 0, num_records * sizeof(int)));
-  check_cuda(cudaMemset(ctx.d_subtree_avail, 0, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_nodes, num_records * sizeof(cbst_node)));
+  DYNG_CUDA_TRY(cudaMemset(ctx.d_nodes, 0, num_records * sizeof(cbst_node)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_keys, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_avail, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&ctx.d_subtree_avail, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(ctx.d_avail, 0, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(ctx.d_subtree_avail, 0, num_records * sizeof(int)));
   thrust::sequence(thrust::device_pointer_cast(ctx.d_keys),
                    thrust::device_pointer_cast(ctx.d_keys) + num_records, 1);
 
@@ -272,7 +275,7 @@ void rebuild_cbst_from_device(int* d_start_offsets, int num_records, int* d_flat
                                                  num_records, flat_payload_size);
   init_tail_metadata_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, ctx.d_flat_payload,
                                                         num_records);
-  check_cuda(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaGetLastError());
 }
 
 void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
@@ -281,13 +284,13 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
   int K = static_cast<int>(insert_keys.size());
   reserve_scratch(ctx, K, insert_payload.size());
 
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_keys, insert_keys.data(), K * sizeof(int),
-                             cudaMemcpyHostToDevice, 0));
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_payload, insert_payload.data(),
-                             insert_payload.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, insert_prefix_sizes.data(), K * sizeof(int),
-                             cudaMemcpyHostToDevice, 0));
-  check_cuda(cudaMemsetAsync(ctx.d_relocation_plan, 0, 3 * K * sizeof(int), 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_keys, insert_keys.data(), K * sizeof(int),
+                                cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_payload, insert_payload.data(),
+                                insert_payload.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, insert_prefix_sizes.data(),
+                                K * sizeof(int), cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_relocation_plan, 0, 3 * K * sizeof(int), 0));
 
   int block_size = 256;
 
@@ -306,7 +309,7 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
     insert_node_block_kernel<<<bins.count[2], block_size>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
         ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(2), bins.count[2]);
-  check_cuda(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaGetLastError());
 
   // ── Overflow handling ────────────────────────────────────────────────
   // Padded overflow sizes -> cumulative offsets of the appended segments.
@@ -320,18 +323,19 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
 
   // Only the total appended size is needed on the host.
   int total_appended = 0;
-  check_cuda(cudaMemcpy(&total_appended, ctx.d_relocation_plan + 3 * (K - 1) + 2, sizeof(int),
-                        cudaMemcpyDeviceToHost));
-  if (verbose()) {
+  DYNG_CUDA_TRY(cudaMemcpy(&total_appended, ctx.d_relocation_plan + 3 * (K - 1) + 2, sizeof(int),
+                           cudaMemcpyDeviceToHost));
+  if (log_enabled(log_level::trace)) {
     std::vector<int> relocation_plan_host_out(K * 3);
-    check_cuda(cudaMemcpy(relocation_plan_host_out.data(), ctx.d_relocation_plan,
-                          K * 3 * sizeof(int), cudaMemcpyDeviceToHost));
-    print_vector(relocation_plan_host_out, "Cumulative Relocation Plan");
+    DYNG_CUDA_TRY(cudaMemcpy(relocation_plan_host_out.data(), ctx.d_relocation_plan,
+                             K * 3 * sizeof(int), cudaMemcpyDeviceToHost));
+    log_ints(ctx, "cumulative relocation plan", relocation_plan_host_out);
   }
   if (total_appended > 0) {
     ensure_payload_capacity(ctx, static_cast<long long>(ctx.initial_payload_size) + total_appended);
-    if (verbose())
-      printf("[%s] Space available from: %d \n", ctx.dataset_name, ctx.initial_payload_size);
+    if (log_enabled(log_level::trace))
+      log_message(log_level::trace, "dyng: CBST " + ctx.dataset_name + ": space available from " +
+                                        std::to_string(ctx.initial_payload_size));
     allocate_space_kernel<<<num_blocks, block_size>>>(
         ctx.d_relocation_plan, ctx.d_flat_payload, ctx.initial_payload_size, ctx.d_insert_keys,
         ctx.d_insert_payload, ctx.d_insert_prefix_sizes, K);
@@ -340,15 +344,15 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
     fixup_overflow_metadata_kernel<<<num_blocks, block_size>>>(
         ctx.d_nodes, ctx.d_insert_keys, ctx.d_insert_prefix_sizes, ctx.d_relocation_plan,
         ctx.initial_payload_size, K);
-    check_cuda(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
     ctx.initial_payload_size += total_appended;
   }
 
-  if (verbose()) {
+  if (log_enabled(log_level::trace)) {
     std::vector<int> updated_flat(ctx.fixed_size);
-    check_cuda(cudaMemcpy(updated_flat.data(), ctx.d_flat_payload, ctx.fixed_size * sizeof(int),
-                          cudaMemcpyDeviceToHost));
-    print_vector(updated_flat, "Updated Flattened Values (vec1d)");
+    DYNG_CUDA_TRY(cudaMemcpy(updated_flat.data(), ctx.d_flat_payload, ctx.fixed_size * sizeof(int),
+                             cudaMemcpyDeviceToHost));
+    log_ints(ctx, "updated payload", updated_flat);
   }
 }
 
@@ -356,8 +360,8 @@ void delete_cbst(const std::vector<int>& delete_keys, cbst_context& ctx) {
   if (delete_keys.empty()) return;
   int delete_size = static_cast<int>(delete_keys.size());
   temp_buffer<int> d_delete_keys(delete_size);
-  check_cuda(cudaMemcpyAsync(d_delete_keys.get(), delete_keys.data(), delete_size * sizeof(int),
-                             cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(d_delete_keys.get(), delete_keys.data(), delete_size * sizeof(int),
+                                cudaMemcpyHostToDevice, 0));
 
   // Temporary buffer for located node positions
   temp_buffer<int> d_delete_positions(delete_size);
@@ -373,7 +377,7 @@ void delete_cbst(const std::vector<int>& delete_keys, cbst_context& ctx) {
   // traversal)
   apply_deletes_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, d_delete_positions.get(),
                                                    delete_size, ctx.d_avail);
-  check_cuda(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaGetLastError());
 
   // Bottom-up level-wise reduction to recompute subtree_avail
   recompute_subtree_avail(ctx);
@@ -397,16 +401,16 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
   reserve_scratch(ctx, K, new_payload.size());
 
   // Copy inputs to device
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_keys, new_keys.data(), K * sizeof(int),
-                             cudaMemcpyHostToDevice, 0));
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_payload, new_payload.data(),
-                             new_payload.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, new_prefix_sizes.data(), K * sizeof(int),
-                             cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_keys, new_keys.data(), K * sizeof(int),
+                                cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_payload, new_payload.data(),
+                                new_payload.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, new_prefix_sizes.data(), K * sizeof(int),
+                                cudaMemcpyHostToDevice, 0));
 
   // Determine number of deleted slots (root's subtree_avail)
   int D = 0;
-  check_cuda(cudaMemcpy(&D, ctx.d_subtree_avail, sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaMemcpy(&D, ctx.d_subtree_avail, sizeof(int), cudaMemcpyDeviceToHost));
 
   int reuse_k = std::min(K, D);
   std::vector<char> matched(K, 0);
@@ -433,7 +437,7 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     int num_blocks_r = (reuse_k + block_size - 1) / block_size;
     compute_item_sizes_kernel<<<num_blocks_r, block_size>>>(ctx.d_insert_prefix_sizes,
                                                             d_item_sizes.get(), reuse_k);
-    check_cuda(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
 
     // Step 3: Sort slot capacities, remembering which slot each one is
     // (the original sorted the capacities alone and lost the slot identity)
@@ -455,7 +459,7 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 
     // Step 6: b[i] = lo[i] - i  (in-place, d_lo becomes d_b)
     compute_b_in_place_kernel<<<num_blocks_r, block_size>>>(d_lo.get(), reuse_k);
-    check_cuda(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
 
     // Step 7: prefix_max = inclusive_scan(b, max)
     thrust::device_ptr<int> b_ptr = thrust::device_pointer_cast(d_lo.get());
@@ -472,11 +476,11 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     int match_count =
         static_cast<int>(thrust::count_if(assigned_ptr, assigned_ptr + reuse_k, less_than{D}));
 
-    if (verbose())
-      printf(
-          "[%s] GPU best-fit: %d/%d eligible items matched to deleted slots "
-          "(D=%d)\n",
-          ctx.dataset_name, match_count, reuse_k, D);
+    if (log_enabled(log_level::debug))
+      log_message(log_level::debug,
+                  "dyng: CBST " + ctx.dataset_name + ": GPU best-fit: " +
+                      std::to_string(match_count) + "/" + std::to_string(reuse_k) +
+                      " eligible items matched to deleted slots (D=" + std::to_string(D) + ")");
 
     if (match_count > 0) {
       // Step 10: matched (item, slot) pairs: sorted item i -> slot of rank
@@ -488,11 +492,11 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 
       // D2H: matched pairs and slot keys for the mapping and the binning
       std::vector<int> h_items(match_count), h_slots(match_count), h_keys(D);
-      check_cuda(cudaMemcpy(h_items.data(), d_matched_item_idx.get(), match_count * sizeof(int),
-                            cudaMemcpyDeviceToHost));
-      check_cuda(cudaMemcpy(h_slots.data(), d_matched_slot_idx.get(), match_count * sizeof(int),
-                            cudaMemcpyDeviceToHost));
-      check_cuda(
+      DYNG_CUDA_TRY(cudaMemcpy(h_items.data(), d_matched_item_idx.get(), match_count * sizeof(int),
+                               cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cudaMemcpy(h_slots.data(), d_matched_slot_idx.get(), match_count * sizeof(int),
+                               cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(
           cudaMemcpy(h_keys.data(), d_deleted_keys.get(), D * sizeof(int), cudaMemcpyDeviceToHost));
       std::vector<int> matched_sizes(match_count);
       for (int k = 0; k < match_count; ++k) {
@@ -521,7 +525,7 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
             ctx.d_nodes, ctx.d_flat_payload, ctx.d_avail, d_all_positions.get(),
             ctx.d_insert_payload, ctx.d_insert_prefix_sizes, d_matched_item_idx.get(),
             d_matched_slot_idx.get(), d_deleted_keys.get(), bins.bin(2), bins.count[2]);
-      check_cuda(cudaGetLastError());
+      DYNG_CUDA_TRY(cudaGetLastError());
     }
   }
 
@@ -561,8 +565,8 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       packed.push_back(INT_MIN);
     }
     ensure_payload_capacity(ctx, base + static_cast<long long>(packed.size()));
-    check_cuda(cudaMemcpyAsync(ctx.d_flat_payload + base, packed.data(),
-                               packed.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_flat_payload + base, packed.data(),
+                                  packed.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
     ctx.initial_payload_size = static_cast<int>(base + packed.size());
 
     // Reconstruct the CBST from the surviving (non-deleted) nodes plus the
@@ -575,7 +579,7 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     int blocks_old = (old_n + block_size - 1) / block_size;
     rank_order_nodes_kernel<<<blocks_old, block_size>>>(ctx.d_nodes, ctx.d_avail, old_n,
                                                         d_ranked.get(), d_ranked_live.get());
-    check_cuda(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
     thrust::device_ptr<cbst_node> ranked_ptr(d_ranked.get()), records_ptr(d_records.get());
     thrust::device_ptr<int> live_ptr(d_ranked_live.get());
     int valid_old_count = static_cast<int>(
@@ -588,8 +592,8 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     int next_key = 1;
     if (valid_old_count > 0) {
       int last_key = 0;
-      check_cuda(cudaMemcpy(&last_key, &d_records.get()[valid_old_count - 1].index, sizeof(int),
-                            cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cudaMemcpy(&last_key, &d_records.get()[valid_old_count - 1].index, sizeof(int),
+                               cudaMemcpyDeviceToHost));
       next_key = last_key + 1;
     }
     for (int i = 0; i < surplus; ++i) {
@@ -598,31 +602,31 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       mapping.item_to_key[surplus_indices[i]] = next_key;
       next_key++;
     }
-    check_cuda(cudaMemcpyAsync(d_records.get() + valid_old_count, surplus_records.data(),
-                               surplus * sizeof(cbst_node), cudaMemcpyHostToDevice, 0));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(d_records.get() + valid_old_count, surplus_records.data(),
+                                  surplus * sizeof(cbst_node), cudaMemcpyHostToDevice, 0));
 
     int new_n = valid_old_count + surplus;
-    check_cuda(cudaFree(ctx.d_keys));
-    check_cuda(cudaFree(ctx.d_start_offsets));
-    check_cuda(cudaFree(ctx.d_nodes));
-    check_cuda(cudaFree(ctx.d_avail));
-    check_cuda(cudaFree(ctx.d_subtree_avail));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_keys));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_start_offsets));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_nodes));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_avail));
+    DYNG_CUDA_TRY(cudaFree(ctx.d_subtree_avail));
     ctx.num_records = new_n;
-    check_cuda(cudaMalloc(&ctx.d_nodes, new_n * sizeof(cbst_node)));
-    check_cuda(cudaMemset(ctx.d_nodes, 0, new_n * sizeof(cbst_node)));
-    check_cuda(cudaMalloc(&ctx.d_keys, new_n * sizeof(int)));
-    check_cuda(cudaMalloc(&ctx.d_start_offsets, new_n * sizeof(int)));
-    check_cuda(cudaMalloc(&ctx.d_avail, new_n * sizeof(int)));
-    check_cuda(cudaMalloc(&ctx.d_subtree_avail, new_n * sizeof(int)));
-    check_cuda(cudaMemset(ctx.d_avail, 0, new_n * sizeof(int)));
-    check_cuda(cudaMemset(ctx.d_subtree_avail, 0, new_n * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_nodes, new_n * sizeof(cbst_node)));
+    DYNG_CUDA_TRY(cudaMemset(ctx.d_nodes, 0, new_n * sizeof(cbst_node)));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_keys, new_n * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_start_offsets, new_n * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_avail, new_n * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMalloc(&ctx.d_subtree_avail, new_n * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMemset(ctx.d_avail, 0, new_n * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMemset(ctx.d_subtree_avail, 0, new_n * sizeof(int)));
 
     int blocks_build = (new_n + block_size - 1) / block_size;
     record_keys_and_starts_kernel<<<blocks_build, block_size>>>(d_records.get(), new_n, ctx.d_keys,
                                                                 ctx.d_start_offsets);
     build_empty_tree_kernel<<<blocks_build, block_size>>>(ctx.d_nodes, new_n);
     place_node_records_kernel<<<blocks_build, block_size>>>(ctx.d_nodes, d_records.get(), new_n);
-    check_cuda(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
   }
 
   // Recompute subtree_avail bottom-up (reused slots are no longer available)
@@ -632,28 +636,29 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 }
 
 // cbst_store implementation
-cbst_store::cbst_store(const char* dataset_name, int payload_capacity, int alignment) {
-  ctx_.dataset_name = dataset_name;
+cbst_store::cbst_store(std::string dataset_name, int payload_capacity, int alignment) {
+  ctx_.dataset_name = std::move(dataset_name);
   ctx_.fixed_size = payload_capacity;
   ctx_.alignment = alignment;
 }
 
 cbst_store::~cbst_store() {
-  if (ctx_.d_insert_keys) check_cuda(cudaFree(ctx_.d_insert_keys));
-  if (ctx_.d_insert_payload) check_cuda(cudaFree(ctx_.d_insert_payload));
-  if (ctx_.d_insert_prefix_sizes) check_cuda(cudaFree(ctx_.d_insert_prefix_sizes));
-  if (ctx_.d_relocation_plan) check_cuda(cudaFree(ctx_.d_relocation_plan));
-  if (ctx_.d_keys) check_cuda(cudaFree(ctx_.d_keys));
-  if (ctx_.d_start_offsets) check_cuda(cudaFree(ctx_.d_start_offsets));
-  if (ctx_.d_nodes) check_cuda(cudaFree(ctx_.d_nodes));
-  if (ctx_.d_flat_payload) check_cuda(cudaFree(ctx_.d_flat_payload));
-  if (ctx_.d_avail) check_cuda(cudaFree(ctx_.d_avail));
-  if (ctx_.d_subtree_avail) check_cuda(cudaFree(ctx_.d_subtree_avail));
+  if (ctx_.d_insert_keys) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_insert_keys));
+  if (ctx_.d_insert_payload) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_insert_payload));
+  if (ctx_.d_insert_prefix_sizes) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_insert_prefix_sizes));
+  if (ctx_.d_relocation_plan) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_relocation_plan));
+  if (ctx_.d_keys) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_keys));
+  if (ctx_.d_start_offsets) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_start_offsets));
+  if (ctx_.d_nodes) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_nodes));
+  if (ctx_.d_flat_payload) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_flat_payload));
+  if (ctx_.d_avail) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_avail));
+  if (ctx_.d_subtree_avail) DYNG_CUDA_TRY_NO_THROW(cudaFree(ctx_.d_subtree_avail));
 }
 
 cbst_store::cbst_store(cbst_store&& other) noexcept {
   ctx_ = other.ctx_;
   constructed_ = other.constructed_;
+  poisoned_ = other.poisoned_;
   // Null out other's pointers to avoid double free
   other.ctx_.d_nodes = nullptr;
   other.ctx_.d_keys = nullptr;
@@ -675,6 +680,7 @@ cbst_store& cbst_store::operator=(cbst_store&& other) noexcept {
     // Steal other's resources
     ctx_ = other.ctx_;
     constructed_ = other.constructed_;
+    poisoned_ = other.poisoned_;
     // Null out other's pointers
     other.ctx_.d_nodes = nullptr;
     other.ctx_.d_keys = nullptr;
@@ -691,50 +697,98 @@ cbst_store& cbst_store::operator=(cbst_store&& other) noexcept {
   return *this;
 }
 
+// Every operation that changes the tree marks the store poisoned when it fails after it started
+// changing it (PLAN 4.7.3, basic guarantee): its state is then undefined, and every later
+// operation but construct and rebuild_from_device throws.
+void cbst_store::check_not_poisoned(const char* op) const {
+  if (poisoned_) {
+    throw invalid_argument_error("dyng: CBST " + ctx_.dataset_name + ": " + op +
+                                 " on a store that an earlier failed operation left poisoned; "
+                                 "construct or rebuild it first");
+  }
+}
+
+template <typename op_t>
+auto cbst_store::guarded(const char* op, op_t&& body) {
+  check_not_poisoned(op);
+  try {
+    return body();
+  } catch (...) {
+    poisoned_ = true;
+    throw;
+  }
+}
+
 void cbst_store::construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
                            int flat_payload_size) {
-  construct_cbst(keys, start_offsets, num_records, flat_payload, flat_payload_size, ctx_.fixed_size,
-                 ctx_.dataset_name, ctx_);
+  try {
+    construct_cbst(keys, start_offsets, num_records, flat_payload, flat_payload_size,
+                   ctx_.fixed_size, ctx_.dataset_name, ctx_);
+  } catch (const invalid_argument_error&) {
+    throw;  // the validation, before anything changed
+  } catch (...) {
+    poisoned_ = true;
+    throw;
+  }
+  poisoned_ = false;
   constructed_ = true;
 }
 
 void cbst_store::rebuild_from_device(int* d_start_offsets, int num_records, int* d_flat_payload,
                                      int flat_payload_size, int payload_capacity) {
-  rebuild_cbst_from_device(d_start_offsets, num_records, d_flat_payload, flat_payload_size,
-                           payload_capacity, ctx_);
+  try {
+    rebuild_cbst_from_device(d_start_offsets, num_records, d_flat_payload, flat_payload_size,
+                             payload_capacity, ctx_);
+  } catch (...) {
+    poisoned_ = true;
+    throw;
+  }
+  poisoned_ = false;
   constructed_ = true;
 }
 
 insert_mapping cbst_store::insert(const std::vector<int>& insert_keys,
                                   const std::vector<int>& insert_payload,
                                   const std::vector<int>& insert_prefix_sizes) {
-  return insert_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_);
+  return guarded("insert", [&] {
+    return insert_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_);
+  });
 }
 
 void cbst_store::append(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
                         const std::vector<int>& insert_prefix_sizes) {
-  fill_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_);
+  guarded("append", [&] { fill_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_); });
 }
 
 void cbst_store::erase(const std::vector<int>& delete_keys) {
-  delete_cbst(delete_keys, ctx_);
+  guarded("erase", [&] { delete_cbst(delete_keys, ctx_); });
 }
 
 void cbst_store::remove_values(const std::vector<int>& keys_to_unfill,
                                const std::vector<int>& values_to_remove,
                                const std::vector<int>& remove_prefix_sizes) {
-  unfill_cbst(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_);
+  guarded("remove_values",
+          [&] { unfill_cbst(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_); });
 }
 
-void cbst_store::find_and_print(const std::vector<int>& ids) const {
-  if (ids.empty()) return;
+// ESCHER-GPU's findAndPrint printed the rows from the device; the lookup now returns the heap
+// position of every key's node (-1: not in the tree) and prints nothing.
+std::vector<int> cbst_store::find(const std::vector<int>& ids) const {
+  std::vector<int> positions(ids.size(), -1);
+  if (ids.empty() || ctx_.d_nodes == nullptr) return positions;
   int* d_search;
-  check_cuda(cudaMalloc(&d_search, ids.size() * sizeof(int)));
-  check_cuda(cudaMemcpy(d_search, ids.data(), ids.size() * sizeof(int), cudaMemcpyHostToDevice));
-  find_contents_kernel<<<(ids.size() + 256 - 1) / 256, 256>>>(ctx_.d_nodes, d_search, ids.size(),
-                                                              ctx_.d_flat_payload);
-  check_cuda(cudaDeviceSynchronize());
-  check_cuda(cudaFree(d_search));
+  int* d_positions;
+  DYNG_CUDA_TRY(cudaMalloc(&d_search, ids.size() * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&d_positions, ids.size() * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemcpy(d_search, ids.data(), ids.size() * sizeof(int), cudaMemcpyHostToDevice));
+  find_node_kernel<<<(ids.size() + 256 - 1) / 256, 256>>>(
+      ctx_.d_nodes, d_search, static_cast<int>(ids.size()), d_positions);
+  DYNG_CUDA_TRY(cudaGetLastError());
+  DYNG_CUDA_TRY(
+      cudaMemcpy(positions.data(), d_positions, ids.size() * sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaFree(d_search));
+  DYNG_CUDA_TRY(cudaFree(d_positions));
+  return positions;
 }
 
 const cbst_context& cbst_store::context() const {
@@ -755,12 +809,13 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
   int K = static_cast<int>(keys_to_unfill.size());
   reserve_scratch(ctx, K, values_to_remove.size());
   // Reuse insert buffers for passing inputs
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_keys, keys_to_unfill.data(), K * sizeof(int),
-                             cudaMemcpyHostToDevice, 0));
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_payload, values_to_remove.data(),
-                             values_to_remove.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
-  check_cuda(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, remove_prefix_sizes.data(),
-                             remove_prefix_sizes.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_keys, keys_to_unfill.data(), K * sizeof(int),
+                                cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_payload, values_to_remove.data(),
+                                values_to_remove.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, remove_prefix_sizes.data(),
+                                remove_prefix_sizes.size() * sizeof(int), cudaMemcpyHostToDevice,
+                                0));
   int block_size = 256;
 
   // ── Degree-binned unfill dispatch ────────────────────────────────────
@@ -782,7 +837,7 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
         ctx.d_insert_prefix_sizes, bins.bin(2), bins.count[2]);
   }
-  check_cuda(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaGetLastError());
 }
 
 }  // namespace dyng::detail::escher

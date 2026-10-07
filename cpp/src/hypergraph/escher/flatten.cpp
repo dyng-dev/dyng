@@ -12,8 +12,11 @@
  */
 #include "hypergraph/escher/flatten.hpp"
 
+#include <dyng/core/error.hpp>
+
 #include <climits>
 #include <cstddef>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -36,6 +39,13 @@ std::pair<std::vector<int>, std::vector<int>> flatten_rows(
   for (long long i = 0; i < num_rows; ++i) {
     start_offsets[i] = static_cast<int>(total);
     total += padded_row_size(static_cast<long long>(vec2d[i].size()));
+  }
+  // The payload offsets are int32 (PLAN 4.4.2): a layout of more than 2^31 - 1 slots cannot be
+  // addressed (ESCHER-GPU truncated the offsets).
+  if (total > INT_MAX) {
+    throw capacity_error("dyng: flatten_rows: the CBST layout of " + std::to_string(num_rows) +
+                         " rows needs " + std::to_string(total) +
+                         " payload slots, more than the int32 offsets address (2^31 - 1)");
   }
   std::vector<int> flat_values(total, 0);
 #if defined(_OPENMP)

@@ -11,6 +11,7 @@
  * cpp/src/hypergraph/escher/README.md).
  */
 #include "hypergraph/escher/integrity.hpp"
+#include "util/cuda_check.hpp"
 
 #include <algorithm>
 #include <climits>
@@ -34,9 +35,12 @@ struct host_tree {
     avail.assign(n, 0);
     // Live rows lie in the used prefix of the payload
     flat.resize(static_cast<size_t>(c.initial_payload_size));
-    cudaMemcpy(nodes.data(), c.d_nodes, sizeof(cbst_node) * n, cudaMemcpyDeviceToHost);
-    if (c.d_avail) cudaMemcpy(avail.data(), c.d_avail, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    cudaMemcpy(flat.data(), c.d_flat_payload, sizeof(int) * flat.size(), cudaMemcpyDeviceToHost);
+    DYNG_CUDA_TRY(
+        cudaMemcpy(nodes.data(), c.d_nodes, sizeof(cbst_node) * n, cudaMemcpyDeviceToHost));
+    if (c.d_avail)
+      DYNG_CUDA_TRY(cudaMemcpy(avail.data(), c.d_avail, sizeof(int) * n, cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cudaMemcpy(flat.data(), c.d_flat_payload, sizeof(int) * flat.size(),
+                             cudaMemcpyDeviceToHost));
   }
 
   int size() const {

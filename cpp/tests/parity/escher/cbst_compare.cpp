@@ -533,6 +533,28 @@ class replayer {
     // The outcome.
     const bool threw = rec.integer("status") != 0;
     if (threw) ++s.exceptions;
+    // The documented divergences of the port (ADR 0038). construct_below_payload: a construct
+    // whose capacity is below its payload; ESCHER-GPU printed "Overflow" and kept a tree without
+    // nodes (and MOSP_ESCHER threw EscherError), dynG throws invalid_argument_error before it
+    // changes or allocates anything.
+    if (op == "construct" && req.num_records > 0 && req.capacity < req.flat_size &&
+        out.status == op_status::error && out.error_type == "dyng::invalid_argument_error") {
+      documented_divergence d;
+      d.seq = base.seq;
+      d.op_index = op_index;
+      d.tree_op = tree_op;
+      d.tree = id;
+      d.dataset = t.dataset;
+      d.op = op;
+      d.rule = "construct_below_payload";
+      d.detail = std::string("trace: ") +
+                 (threw ? "exception " + rec.text("exception.type") : "no exception") +
+                 "; store: " + out.error_type + ": " + out.message;
+      report_.documented.push_back(std::move(d));
+      apply_trace(rec, s, op_index, tree_op, op);
+      t.diverged = true;
+      return;
+    }
     if (out.status == op_status::undefined || out.status == op_status::unsupported) {
       differ("status", -1, threw ? "exception " + rec.text("exception.type") : "ok",
              std::string(out.status == op_status::undefined ? "undefined: " : "unsupported: ") +
@@ -869,6 +891,14 @@ std::string replay_report::to_json() const {
       << ", \"order_sensitive\": " << (t.order_sensitive ? "true" : "false")
       << ", \"unreplayable_reason\": \"" << json_escape(t.unreplayable_reason) << "\"}";
     first = false;
+  }
+  o << "], \"documented\": [";
+  for (std::size_t i = 0; i < documented.size(); ++i) {
+    const documented_divergence& d = documented[i];
+    o << (i ? ", " : "") << "{\"seq\": " << d.seq << ", \"op_index\": " << d.op_index
+      << ", \"tree_op\": " << d.tree_op << ", \"tree\": " << d.tree << ", \"dataset\": \""
+      << json_escape(d.dataset) << "\", \"op\": \"" << json_escape(d.op) << "\", \"rule\": \""
+      << json_escape(d.rule) << "\", \"detail\": \"" << json_escape(d.detail) << "\"}";
   }
   o << "], \"notes\": [";
   for (std::size_t i = 0; i < notes.size(); ++i)

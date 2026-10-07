@@ -14,7 +14,6 @@
 #include "hypergraph/escher/kernels.cuh"
 
 #include <climits>
-#include <cstdio>
 
 namespace dyng::detail::escher {
 
@@ -89,24 +88,6 @@ __global__ void place_node_records_kernel(cbst_node* nodes, const cbst_node* sor
   node.occupancy = r.occupancy;
   node.tail_base = r.tail_base;
   node.tail_capacity = r.tail_capacity;
-}
-
-__global__ void print_nodes_kernel(cbst_node* nodes, int n) {
-  int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tid <= n) {
-    cbst_node* current = nodes;
-    while (current != nullptr && current->index != tid) {
-      if (current->index > tid) {
-        current = current->left;
-      } else {
-        current = current->right;
-      }
-    }
-    if (current != nullptr) {
-      printf("Node %d: Index = %d, Value = %d, Length = %d, Size = %d\n", tid, current->index,
-             current->value, current->length, current->size);
-    }
-  }
 }
 
 // Brings the live nodes into key order: the node at heap position t has

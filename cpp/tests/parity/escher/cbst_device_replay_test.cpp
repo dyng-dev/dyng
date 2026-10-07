@@ -79,19 +79,34 @@ TEST(CbstDeviceReplay, EscherGpuTracesMatchExactly) {
     EXPECT_TRUE(r.ok()) << describe(r);
     EXPECT_EQ(r.unreplayable, 0);
     EXPECT_EQ(r.compared, r.ops);
+    // The only documented divergence of ESCHER-GPU's traces: the targeted construct below its
+    // payload (ADR 0038).
+    for (const auto& d : r.documented) {
+      EXPECT_EQ(d.rule, "construct_below_payload");
+      EXPECT_EQ(d.dataset, "targeted-small_capacity");
+    }
     ops += r.ops;
   }
   EXPECT_GT(ops, 40);
 }
 
-// The first divergence of every tree (op of the tree, field), or (-1, "") for none.
+// The first divergence of every tree (op of the tree, field), or (-1, "") for none. A construct
+// below its payload is one class on both sides: the host model under escher_gpu() keeps
+// ESCHER-GPU's behaviour (a status mismatch against MOSP_ESCHER's exception), the store throws
+// (the documented divergence construct_below_payload).
 std::map<std::uint32_t, std::pair<std::int64_t, std::string>> first_divergences(
     const replay_report& r) {
   std::map<std::uint32_t, std::pair<std::int64_t, std::string>> out;
   for (const auto& [id, t] : r.trees) out[id] = {-1, ""};
   for (const auto& m : r.mismatches) {
     auto& slot = out[m.tree];
-    if (slot.first < 0) slot = {m.tree_op, m.field};
+    const bool validation =
+        m.op == "construct" && (m.field == "status" || m.field == "exception.type");
+    if (slot.first < 0) slot = {m.tree_op, validation ? "construct validation" : m.field};
+  }
+  for (const auto& d : r.documented) {
+    auto& slot = out[d.tree];
+    if (slot.first < 0 || d.tree_op < slot.first) slot = {d.tree_op, "construct validation"};
   }
   return out;
 }

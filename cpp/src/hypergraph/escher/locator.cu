@@ -12,14 +12,16 @@
  * cpp/src/hypergraph/escher/README.md).
  */
 #include "hypergraph/escher/row_view.cuh"
+#include "util/cuda_check.hpp"
+
+#include <dyng/core/error.hpp>
 
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 
 #include <algorithm>
-#include <cstdlib>
-#include <iostream>
+#include <climits>
 
 namespace dyng::detail::escher {
 
@@ -111,66 +113,59 @@ __global__ void build_row_locator_kernel(const cbst_node* nodes, const int* avai
   }
 }
 
-static void check_cuda_locator(cudaError_t result) {
-  if (result != cudaSuccess) {
-    std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
-    std::exit(-1);
-  }
-}
-
 row_locator::~row_locator() {
-  cudaFree(loc_);
-  cudaFree(len_);
-  cudaFree(out_);
-  cudaFree(copy_);
+  DYNG_CUDA_TRY_NO_THROW(cudaFree(loc_));
+  DYNG_CUDA_TRY_NO_THROW(cudaFree(len_));
+  DYNG_CUDA_TRY_NO_THROW(cudaFree(out_));
+  DYNG_CUDA_TRY_NO_THROW(cudaFree(copy_));
 }
 
 static void reserve_keys(int max_key, int& capacity, int*& loc, int*& len, int*& out) {
   if (max_key + 1 <= capacity) return;
-  cudaFree(loc);
-  cudaFree(len);
-  cudaFree(out);
+  DYNG_CUDA_TRY(cudaFree(loc));
+  DYNG_CUDA_TRY(cudaFree(len));
+  DYNG_CUDA_TRY(cudaFree(out));
   capacity = max_key + 1;
-  check_cuda_locator(cudaMalloc(&loc, capacity * sizeof(int)));
-  check_cuda_locator(cudaMalloc(&len, capacity * sizeof(int)));
-  check_cuda_locator(cudaMalloc(&out, capacity * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&loc, capacity * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&len, capacity * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&out, capacity * sizeof(int)));
 }
 
 void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
   reserve_keys(max_key, capacity_, loc_, len_, out_);
   const int block = 256;
   int* d_head;
-  check_cuda_locator(cudaMalloc(&d_head, (max_key + 1) * sizeof(int)));
-  check_cuda_locator(cudaMemset(d_head, 0xff, (max_key + 1) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&d_head, (max_key + 1) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(d_head, 0xff, (max_key + 1) * sizeof(int)));
   if (tree.num_records > 0)
     row_heads_kernel<<<(tree.num_records + block - 1) / block, block>>>(
         tree.d_nodes, tree.d_avail, tree.num_records, max_key, d_head);
-  check_cuda_locator(cudaMemset(len_, 0, (max_key + 1) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(len_, 0, (max_key + 1) * sizeof(int)));
   chained_row_lengths_kernel<<<(max_key + block - 1) / block, block>>>(tree.d_flat_payload, d_head,
                                                                        max_key, len_);
   thrust::device_ptr<int> len(len_), loc(loc_);
   thrust::exclusive_scan(len, len + max_key + 1, loc);
   int last_loc = 0, last_len = 0;
-  check_cuda_locator(cudaMemcpy(&last_loc, loc_ + max_key, sizeof(int), cudaMemcpyDeviceToHost));
-  check_cuda_locator(cudaMemcpy(&last_len, len_ + max_key, sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaMemcpy(&last_loc, loc_ + max_key, sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaMemcpy(&last_len, len_ + max_key, sizeof(int), cudaMemcpyDeviceToHost));
   long long total = static_cast<long long>(last_loc) + last_len;
 
   // (key, value) pairs sorted globally = rows in key order, each sorted
   unsigned long long* d_pairs;
-  check_cuda_locator(cudaMalloc(&d_pairs, std::max(1LL, total) * sizeof(unsigned long long)));
+  DYNG_CUDA_TRY(cudaMalloc(&d_pairs, std::max(1LL, total) * sizeof(unsigned long long)));
   gather_chained_rows_kernel<<<(max_key + block - 1) / block, block>>>(tree.d_flat_payload, d_head,
                                                                        max_key, loc_, d_pairs);
   thrust::sort(thrust::device_ptr<unsigned long long>(d_pairs),
                thrust::device_ptr<unsigned long long>(d_pairs) + total);
-  cudaFree(copy_);
-  check_cuda_locator(cudaMalloc(&copy_, std::max(1LL, total) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaFree(copy_));
+  DYNG_CUDA_TRY(cudaMalloc(&copy_, std::max(1LL, total) * sizeof(int)));
   copy_bytes_ = std::max(1LL, total) * sizeof(int);
   if (total > 0)
     pair_values_kernel<<<static_cast<int>((total + block - 1) / block), block>>>(d_pairs, total,
                                                                                  copy_);
-  check_cuda_locator(cudaGetLastError());
-  check_cuda_locator(cudaFree(d_pairs));
-  check_cuda_locator(cudaFree(d_head));
+  DYNG_CUDA_TRY(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaFree(d_pairs));
+  DYNG_CUDA_TRY(cudaFree(d_head));
 
   view_.flat = copy_;
   view_.loc = loc_;
@@ -182,12 +177,12 @@ void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
 void row_locator::build(const cbst_context& tree, int max_key, bool with_out) {
   reserve_keys(max_key, capacity_, loc_, len_, out_);
   size_t bytes = (max_key + 1) * sizeof(int);
-  check_cuda_locator(cudaMemset(loc_, 0, bytes));
-  check_cuda_locator(cudaMemset(len_, 0, bytes));
-  check_cuda_locator(cudaMemset(out_, 0, bytes));
+  DYNG_CUDA_TRY(cudaMemset(loc_, 0, bytes));
+  DYNG_CUDA_TRY(cudaMemset(len_, 0, bytes));
+  DYNG_CUDA_TRY(cudaMemset(out_, 0, bytes));
   int* d_chained;
-  check_cuda_locator(cudaMalloc(&d_chained, sizeof(int)));
-  check_cuda_locator(cudaMemset(d_chained, 0, sizeof(int)));
+  DYNG_CUDA_TRY(cudaMalloc(&d_chained, sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemset(d_chained, 0, sizeof(int)));
   if (tree.num_records > 0) {
     int block = 256;
     int grid = (tree.num_records + block - 1) / block;
@@ -196,14 +191,11 @@ void row_locator::build(const cbst_context& tree, int max_key, bool with_out) {
                                               with_out ? out_ : nullptr, d_chained);
   }
   int chained = 0;
-  check_cuda_locator(cudaMemcpy(&chained, d_chained, sizeof(int), cudaMemcpyDeviceToHost));
-  check_cuda_locator(cudaFree(d_chained));
+  DYNG_CUDA_TRY(cudaMemcpy(&chained, d_chained, sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaFree(d_chained));
   if (chained) {
-    std::cerr << "[" << tree.dataset_name << "] ERROR: " << chained
-              << " rows span several payload segments; the counting view "
-                 "needs contiguous rows"
-              << std::endl;
-    std::exit(2);
+    DYNG_FAIL("CBST ", tree.dataset_name, ": ", chained,
+              " rows span several payload segments; the counting view needs contiguous rows");
   }
   view_.flat = tree.d_flat_payload;
   view_.loc = loc_;

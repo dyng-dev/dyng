@@ -127,6 +127,11 @@ int main(int argc, char** argv) {
           static_cast<long long>(rep.hash_only_rows), static_cast<long long>(rep.growths),
           static_cast<long long>(rep.compactions), static_cast<long long>(rep.exceptions),
           static_cast<long long>(rep.mismatch_count));
+      for (const auto& d : rep.documented)
+        std::printf("  documented divergence at op %lld (tree %u %s, its op %lld, %s): %s; %s\n",
+                    static_cast<long long>(d.op_index), d.tree, d.dataset.c_str(),
+                    static_cast<long long>(d.tree_op), d.op.c_str(), d.rule.c_str(),
+                    d.detail.c_str());
       for (const auto& m : rep.mismatches)
         std::printf(
             "  op %lld (seq %lld, tree %u %s, its op %lld, %s) %s key %lld: trace %s, "

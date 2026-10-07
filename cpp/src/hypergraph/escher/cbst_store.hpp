@@ -14,6 +14,8 @@
 
 #include <cuda_runtime.h>
 
+#include <cstddef>
+#include <string>
 #include <vector>
 
 namespace dyng::detail::escher {
@@ -47,7 +49,7 @@ struct cbst_context {
   int fixed_size;
   int num_records;
   int initial_payload_size;
-  const char* dataset_name;
+  std::string dataset_name;
   int alignment;
   // Capacities of the per-operation input buffers (d_insert_keys /
   // d_insert_prefix_sizes / d_relocation_plan and d_insert_payload); grown on
@@ -66,7 +68,7 @@ struct insert_mapping {
 // Host API for CBST operations (free functions). The payload buffer grows on
 // demand when fill overflow or surplus inserts need more room.
 void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_payload,
-                    int flat_payload_size, int payload_capacity, const char* dataset_name,
+                    int flat_payload_size, int payload_capacity, const std::string& dataset_name,
                     cbst_context& ctx);
 // Rebuilds the tree over a payload that is already on the device: rows of
 // keys 1..num_records start at d_start_offsets (flattened layout) in d_flat_payload
@@ -95,7 +97,7 @@ const degree_bin_launches& degree_bin_launch_counts();
 
 // OO wrapper to manage CBST lifecycle and operations
 struct cbst_store {
-  explicit cbst_store(const char* dataset_name, int payload_capacity, int alignment = 4);
+  explicit cbst_store(std::string dataset_name, int payload_capacity, int alignment = 4);
   ~cbst_store();
   cbst_store(const cbst_store&) = delete;
   cbst_store& operator=(const cbst_store&) = delete;
@@ -114,7 +116,12 @@ struct cbst_store {
   void remove_values(const std::vector<int>& keys_to_unfill,
                      const std::vector<int>& values_to_remove,
                      const std::vector<int>& remove_prefix_sizes);
-  void find_and_print(const std::vector<int>& ids) const;
+  // The heap position of the node of every key (-1: absent).
+  std::vector<int> find(const std::vector<int>& ids) const;
+  // Whether a failed operation left the store poisoned (construct or rebuild it).
+  bool poisoned() const {
+    return poisoned_;
+  }
 
   // Accessor to underlying device-resident context (read-only)
   const cbst_context& context() const;
@@ -123,8 +130,13 @@ struct cbst_store {
   size_t device_bytes() const;
 
  private:
+  void check_not_poisoned(const char* op) const;
+  template <typename op_t>
+  auto guarded(const char* op, op_t&& body);
+
   cbst_context ctx_{};
   bool constructed_ = false;
+  bool poisoned_ = false;
 };
 
 }  // namespace dyng::detail::escher

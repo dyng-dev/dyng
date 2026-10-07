@@ -19,7 +19,6 @@ namespace dyng::detail::escher {
 __global__ void build_empty_tree_kernel(cbst_node* nodes, int n);
 __global__ void store_items_kernel(cbst_node* nodes, int* indices, int* values, int n,
                                    int total_size);
-__global__ void print_nodes_kernel(cbst_node* nodes, int n);
 __global__ void init_tail_metadata_kernel(cbst_node* nodes, const int* flat_values, int n);
 __global__ void place_node_records_kernel(cbst_node* nodes, const cbst_node* sorted_records, int n);
 __global__ void rank_order_nodes_kernel(const cbst_node* nodes, const int* avail, int n,
@@ -42,9 +41,8 @@ __global__ void reduce_avail_level_kernel(int level_start, int level_end, int nu
                                           int* avail, int* subtree_avail);
 
 // Lookup / find
-__global__ void find_node_kernel(cbst_node* nodes, int* search_indices, int search_size);
-__global__ void find_contents_kernel(cbst_node* nodes, int* search_indices, int search_size,
-                                     int* flat_values);
+__global__ void find_node_kernel(const cbst_node* nodes, const int* search_indices, int search_size,
+                                 int* positions);
 
 // Insert reuse (two-phase: locate then apply)
 __global__ void locate_reusable_slots_kernel(int* subtree_avail, int* avail, int num_records,

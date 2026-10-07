@@ -202,7 +202,7 @@ std::int64_t integrity_of(const esc::cbst_store& s, const tree_digest& d) {
   for (const key_digest& k : d.records)
     if (k.avail == 0 && k.key >= 1) expected[static_cast<std::size_t>(k.key - 1)] = k.row;
   std::ostringstream log;
-  return esc::check_tree_rows(s.context(), expected, false, s.context().dataset_name, log);
+  return esc::check_tree_rows(s.context(), expected, false, s.context().dataset_name.c_str(), log);
 }
 
 std::array<std::int64_t, 9> bins_now() {
@@ -235,7 +235,7 @@ void device_store_adapter::create_tree(std::uint32_t id, const std::string& data
   t->name = dataset;
   trees_[id] = std::move(t);
   tree& r = *trees_[id];
-  r.store = std::make_unique<esc::cbst_store>(r.name.c_str(), static_cast<int>(capacity),
+  r.store = std::make_unique<esc::cbst_store>(r.name, static_cast<int>(capacity),
                                               static_cast<int>(alignment));
 }
 

@@ -174,6 +174,17 @@ struct tree_summary {
   bool order_sensitive = false;     ///< rows compared in order (H2V, H2H, V2V)
 };
 
+/// A documented divergence of the dynG store from an original (ADR 0038): an operation where the
+/// port deliberately behaves differently, recognized by a precise rule. The tree is not compared
+/// after it (its states differ by design); it is never a mismatch.
+struct documented_divergence {
+  std::int64_t seq = -1, op_index = -1, tree_op = -1;
+  std::uint32_t tree = 0;
+  std::string dataset, op;
+  std::string rule;    ///< the rule's name, e.g. "construct_below_payload"
+  std::string detail;  ///< the trace's and the store's outcome
+};
+
 /// The result of one trace replay.
 struct replay_report {
   std::string trace, repo, store, fields;
@@ -184,6 +195,7 @@ struct replay_report {
   std::vector<mismatch> mismatches;  ///< the first options::max_mismatches
   std::map<std::uint32_t, tree_summary> trees;
   std::vector<std::string> notes;
+  std::vector<documented_divergence> documented;  ///< documented divergences (not mismatches)
   /// No mismatch (unreplayable operations are reported separately).
   [[nodiscard]] bool ok() const {
     return mismatch_count == 0;
