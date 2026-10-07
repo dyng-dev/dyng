@@ -321,6 +321,30 @@ the first pull-request run of `wheels.yml` is the real test (open item 3).
 | `ci/gpu_local.sh` (dev-cuda: build, `ctest -L gpu`, `ctest -L cpu`) in the same clone, GPU 1 | all passed (log `$DYNG_SCRATCH/runs/m6a-fix-gpu-local.log`); the sanitizers, parity and the timing row were not re-run: the C++ change of this step (`a53a8c3`) touches error messages only |
 | Portability pre-checks | the Clang 18 syntax pass over a `dev` + `DYNG_BUILD_PYTHON=ON` database: 188 files, 0 failures; the `cpu-only` build with `-D_FORTIFY_SOURCE=3` and the bindings: clean |
 
+## Step acceptance-fixes (2026-10-06)
+
+The independent acceptance (HEAD `a4f0ae3`) passed criteria 1 to 4 and failed criterion 5 on two
+documentation problems; both are fixed.
+
+| Problem | Fix |
+|---|---|
+| **The documented local cu12 build did not work** (blocking): `wheels.md`'s conda-forge recipe for CUDA 12.9 made a toolkit without `cuobjdump`, which the code-object check added to `ci/plugin_wheels.sh` in the review fixes (`9d288f1`) runs after the repair; the documented command failed after the whole build. The step's own final verification had used only the pinned CI toolkits (which include cuobjdump), so this path was not re-run | `1be9f2c`: `ci/plugin_wheels.sh` checks every plugin's toolkit for `bin/nvcc` and `bin/cuobjdump` before anything is built or the output directory cleared, naming the missing tool and the conda package; the header's cu12 example is the documented toolkit (the old example, `cuda_12.8`, has cuobjdump but is not the latest 12.x); `ci/tests/test_plugin_wheels_preflight.py` (4 cases, fake tools). `6766b5e`: the recipe installs `cuda-cuobjdump`, plus a `conda install` line for an environment made without it |
+| `repository_settings.md` section 11 said one "Review deployments" dialog approves all three PyPI environments, but `publish-pypi` (`pypi`) needs `publish-pypi-plugins` to succeed first | `0f6ae3e`: two dialogs, `pypi-cu12` and `pypi-cu13` together, then `pypi`; `release.md` step 10's command column says the same (ADR 0032 item 6 and `wheels.md` already did) |
+
+**Lesson.** A check added late to a script must be re-run through every documented route that
+reaches it, not only the one the verification uses; the up-front tool check turns the next such
+gap into an immediate, named failure.
+
+**Verification** (HEAD `566a1b0`):
+
+| Check | Result |
+|---|---|
+| The documented route, exactly: the recipe's `conda create` (with `cuda-cuobjdump`) into a fresh prefix, then `DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT=<that prefix> flock -s ... ci/plugin_wheels.sh` (cu13 with `/usr/local/cuda-13.1`) | rc 0 (log `$DYNG_SCRATCH/runs/M6a-r2-plugin_wheels-documented-conda129.log`): `dyng_cu12` 5.66 MB (CUDA 12.9.86), `dyng_cu13` 5.51 MB; SASS sm_75-sm_120 and PTX sm_120 for both; twine and `wheel_check` clean; per plugin and Python 3.12 / 3.13: the GPU smoke test on GPU 1 (cu12 chosen on the 13.1 driver when alone), both fallbacks, `pytest -m gpu` 53 passed / 7 skipped, the suite with `DYNG_CPU_ONLY=1` 526 passed / 64 skipped. The prefix and the wheels were deleted afterwards |
+| The toolkit check before the fix's recipe change | the old recipe's toolkit is refused at once, nothing built: `cu12: .../cuda-12.9/bin/cuobjdump is missing; ... install cuda-cuobjdump ...`, rc 1 |
+| `$DYNG_SCRATCH/tools/cuda-12.9` (the machine's existing cu12 toolkit) | `cuda-cuobjdump` 12.9.82 added with the documented `conda install` line |
+| `ci/check.sh` in a fresh clone (`git checkout m6a-cuda-wheels`) | all checks passed (log `$DYNG_SCRATCH/runs/M6a-r2-check.log`): `cpu-only` 678/678, `dev` 707/707, clang-tidy, reuse, provenance, regen, the harness and CI-script tests (176 passed, the 4 new ones included), `ci/python.sh` (mypy, pytest 526 passed / 64 skipped), griffe (no breaking change), the scaffold, `ci/docs.sh` (docs: OK), pre-commit (actionlint, zizmor) |
+| Portability pre-checks | not re-run: no C++ code changed in this step (a shell script, a Python test, documentation) |
+
 ## Milestone acceptance
 
 | # | Criterion | Evidence | Status |
@@ -329,7 +353,7 @@ the first pull-request run of `wheels.yml` is the real test (open item 3).
 | 2 | Discovery and selection: `Resources.cuda()` from Python, the driver's major wins, version mismatch / missing driver fall back with a warning, `use_cpu_only()`, `show_config()`, the CPU-only install unchanged; tests with fake plugins and real GPU tests on GPU 1 against a local cu13 wheel (sssp / cycle_count / mosp equal to CPU and to the goldens subset; device arrays, CuPy / PyTorch round trips) | step discovery-tests (ADR 0031); re-run in this step's verification (both plugins, both Pythons, interop venv) | met; the version-mismatch and too-old-driver fallbacks are tested with fake plugins only (no such driver here) |
 | 3 | CI: `wheels.yml` builds both plugins with cibuildwheel in manylinux_2_28 with the CUDA toolkits in `CIBW_BEFORE_ALL`, a GPU-free selection smoke test, artifacts, the size check; `release.yml` for tags >= v0.2.0 with per-distribution environments, TestPyPI first, PyPI only for finals, v0.0.x / v0.1.x unchanged; actionlint / zizmor clean, actions pinned and allowed | this step (ADR 0032) | met as far as it can be checked without a push: the workflows have not run on GitHub yet (see "What could not be run here") |
 | 4 | Local verification: both plugin wheels in fresh 3.12 / 3.13 venvs with the core wheel, GPU tests on GPU 1; the wheel-vs-parity row under the exclusive lock with locked clocks | this step's verification and the row above | met |
-| 5 | Docs (install guide, `wheels.md`, `release.md`), CHANGELOG, ADRs, this retrospective; a fresh clone passes `ci/check.sh`, `ci/python.sh`, `ci/docs.sh` and the portability pre-checks | this step | met |
+| 5 | Docs (install guide, `wheels.md`, `release.md`), CHANGELOG, ADRs, this retrospective; a fresh clone passes `ci/check.sh`, `ci/python.sh`, `ci/docs.sh` and the portability pre-checks | this step; the acceptance found the local cu12 recipe broken and the approval flow misdescribed, fixed in step acceptance-fixes (the documented route re-run end to end) | met |
 
 ## Open items for the lead maintainer
 
