@@ -303,8 +303,47 @@ def test_model_replay_rules_of_the_sets() -> None:
     assert g.allowed_unreplayable("cbst_trace_escher_gpu_syn1m", h2v)
     assert not g.allowed_unreplayable("cbst_trace_escher_gpu_test", h2h)
     assert not g.allowed_unreplayable("cbst_trace_mosp_escher_test", h2h)
-    # The device store's replay is reserved for M8a step 3.
-    assert g.compare_main(["--store", "device", "--set", "cbst_trace_escher_gpu_targeted"]) == 2
+    # The device store has the preset escher_gpu only in M8a step 3.
+    assert (
+        g.compare_main(
+            ["--store", "device", "--policy", "mosp_escher", "--set", "cbst_trace_escher_gpu_test"]
+        )
+        == 2
+    )
+
+
+def test_device_replay_judged_against_the_model() -> None:
+    """compare.py cbst_trace --store device: MOSP_ESCHER's traces under escher_gpu() must diverge
+    where the host model under the same preset does (ADR 0038); a construct below its payload is
+    one class whether reported as a status mismatch or as the documented divergence."""
+    g = load("parity/cbst_trace_goldens.py")
+
+    class args:  # noqa: N801 - a namespace
+        policy = ""
+
+    assert g.against_model("cbst_trace_mosp_escher_test", args)
+    assert not g.against_model("cbst_trace_escher_gpu_test", args)
+    model = {
+        "trees": [{"tree": 1}, {"tree": 2}, {"tree": 3}],
+        "mismatches": [
+            {"tree": 1, "tree_op": 0, "op": "construct", "field": "status"},
+            {"tree": 2, "tree_op": 7, "op": "fill", "field": "event.compaction"},
+            {"tree": 2, "tree_op": 7, "op": "fill", "field": "key.value"},
+        ],
+    }
+    store = {
+        "trees": [{"tree": 1}, {"tree": 2}, {"tree": 3}],
+        "mismatches": [{"tree": 2, "tree_op": 7, "op": "fill", "field": "event.compaction"}],
+        "documented": [{"tree": 1, "tree_op": 0, "rule": "construct_below_payload"}],
+    }
+    assert g.first_divergences(model) == g.first_divergences(store)
+    assert g.first_divergences(store) == {
+        1: (0, "construct validation"),
+        2: (7, "event.compaction"),
+        3: None,
+    }
+    store["mismatches"][0]["tree_op"] = 8
+    assert g.first_divergences(model) != g.first_divergences(store)
 
 
 def test_model_replay_tool_on_the_committed_subset(tmp_path: Path) -> None:

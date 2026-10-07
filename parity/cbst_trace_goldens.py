@@ -675,13 +675,19 @@ def verify_set(set_name: str, scratch: Path) -> list[str]:
     return problems
 
 
-def find_replay_exe() -> Path | None:
+def find_replay_exe(cuda: bool = False) -> Path | None:
     """The replay tool (cpp/tests/parity/escher/cbst_replay_main.cpp): $DYNG_CBST_REPLAY, else the
-    first build tree that has it (a Release build replays the large sets fastest)."""
+    first build tree that has it (a Release build replays the large sets fastest); with `cuda`,
+    only the CUDA builds, whose tool has the device store (--store device)."""
     env = os.environ.get("DYNG_CBST_REPLAY")
     if env:
         return Path(env)
-    for preset in ("cpu-only", "release", "dev", "parity", "dev-cuda"):
+    presets = (
+        ("release-cuda", "parity-cuda", "dev-cuda")
+        if cuda
+        else ("cpu-only", "release", "dev", "parity", "dev-cuda")
+    )
+    for preset in presets:
         exe = REPO / "build" / preset / "cpp" / "tests" / "dyng_cbst_replay"
         if exe.is_file():
             return exe
@@ -698,9 +704,12 @@ def allowed_unreplayable(set_name: str, tree: dict) -> bool:
     return tree["dataset"] in datasets and "hash-only inputs" in tree["unreplayable_reason"]
 
 
-def replay_case(exe: Path, trace: Path, policy: str, fields: str, tmp: Path) -> dict:
-    out = tmp / (trace.parent.name + ".json")
-    cmd = [str(exe), "--fields", fields, "--tmp", str(tmp), "--json", str(out), str(trace)]
+def replay_case(
+    exe: Path, trace: Path, policy: str, fields: str, tmp: Path, store: str = "host_model"
+) -> dict:
+    out = tmp / (trace.parent.name + "." + store + ".json")
+    cmd = [str(exe), "--store", store, "--fields", fields, "--tmp", str(tmp), "--json", str(out)]
+    cmd += ["--max-mismatches", "100000", str(trace)]
     if policy:
         cmd[1:1] = ["--policy", policy]
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -710,6 +719,34 @@ def replay_case(exe: Path, trace: Path, policy: str, fields: str, tmp: Path) -> 
     out.unlink()
     report["case"] = trace.parent.name
     return report
+
+
+def against_model(set_name: str, args) -> bool:
+    """Whether a device replay of a set is judged against the host model under the same preset:
+    the traces of an original whose preset the store does not have yet (MOSP_ESCHER's in step 3,
+    where the store has escher_gpu() only)."""
+    preset = args.policy or "escher_gpu"
+    original = {"ESCHER-GPU": "escher_gpu", "MOSP_ESCHER": "mosp_escher"}
+    return original[SETS[set_name]["reference"]] != preset
+
+
+def first_divergences(report: dict) -> dict[int, tuple[int, str] | None]:
+    """The first divergence of every tree of a replay report: (op of the tree, field), None for a
+    tree without one. A construct below its payload is one class whether a store reports it as a
+    mismatch of the status (the host model under escher_gpu(): ESCHER-GPU's behaviour) or as the
+    documented divergence construct_below_payload (the dynG store throws)."""
+    out: dict[int, tuple[int, str] | None] = {t["tree"]: None for t in report["trees"]}
+    for m in report["mismatches"]:
+        field = m["field"]
+        if m["op"] == "construct" and field in ("status", "exception.type"):
+            field = "construct validation"
+        if out.get(m["tree"]) is None:
+            out[m["tree"]] = (m["tree_op"], field)
+    for d in report.get("documented", []):
+        cur = out.get(d["tree"])
+        if cur is None or d["tree_op"] < cur[0]:
+            out[d["tree"]] = (d["tree_op"], "construct validation")
+    return out
 
 
 def replay_set(set_name: str, args, exe: Path) -> dict:
@@ -723,8 +760,24 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
     with tempfile.TemporaryDirectory(prefix="cbst-replay-", dir=args.scratch / "runs") as t:
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
             reports = list(
-                pool.map(lambda tr: replay_case(exe, tr, args.policy, args.fields, Path(t)), traces)
+                pool.map(
+                    lambda tr: replay_case(exe, tr, args.policy, args.fields, Path(t), args.store),
+                    traces,
+                )
             )
+            # A trace of the other original replayed under another preset (MOSP_ESCHER's traces
+            # under escher_gpu() in M8a step 3) is expected to diverge where the behaviours
+            # differ: it must diverge exactly where the host model under the same preset does.
+            models = None
+            if args.store == "device" and against_model(set_name, args):
+                models = list(
+                    pool.map(
+                        lambda tr: replay_case(
+                            exe, tr, args.policy or "escher_gpu", args.fields, Path(t), "host_model"
+                        ),
+                        traces,
+                    )
+                )
     cases, bad = [], []
     totals = {
         k: 0
@@ -741,13 +794,49 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
             "mismatch_count",
         )
     }
-    for r in reports:
+    totals["documented"] = 0
+    for i, r in enumerate(reports):
         if "error" in r:
             bad.append(f"{r['case']}: {r['error']}")
             cases.append({"case": r["case"], "error": r["error"]})
             continue
         for k in totals:
-            totals[k] += r[k]
+            totals[k] += len(r.get("documented", [])) if k == "documented" else r[k]
+        if models is not None:
+            m = models[i]
+            if "error" in m:
+                bad.append(f"{r['case']}: host model: {m['error']}")
+                continue
+            dev_first, model_first = first_divergences(r), first_divergences(m)
+            if dev_first != model_first:
+                diff = sorted(
+                    t
+                    for t in set(dev_first) | set(model_first)
+                    if dev_first.get(t) != model_first.get(t)
+                )
+                bad.append(
+                    f"{r['case']}: the first divergences differ from the host model's under "
+                    f"{args.policy or 'escher_gpu'} in trees {diff[:8]}: store "
+                    f"{[dev_first.get(t) for t in diff[:4]]}, model "
+                    f"{[model_first.get(t) for t in diff[:4]]}"
+                )
+            cases.append(
+                {
+                    "case": r["case"],
+                    "ok": dev_first == model_first,
+                    "store": r["store"],
+                    "exit": r["exit"],
+                    **{
+                        k: (len(r.get("documented", [])) if k == "documented" else r[k])
+                        for k in totals
+                    },
+                    "first_divergences": {
+                        str(t): v for t, v in sorted(dev_first.items()) if v is not None
+                    },
+                    "documented": r.get("documented", []),
+                }
+            )
+            continue
         disallowed = [
             t for t in r["trees"] if t["unreplayable"] and not allowed_unreplayable(set_name, t)
         ]
@@ -776,6 +865,7 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
                     if tr["unreplayable"]
                 ],
                 "first_mismatches": r["mismatches"][:5],
+                "documented": r.get("documented", []),
             }
         )
     spec = toml.get("sets", {}).get(set_name, {})
@@ -794,6 +884,7 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
         "cases": cases,
         "totals": totals,
         "problems": bad,
+        "against_model": models is not None,
         "passed": not bad and bool(traces),
     }
 
@@ -828,6 +919,13 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--fields", choices=["semantic", "offsets", "exact"], default="exact")
     p.add_argument("--replay-exe", type=Path, help="dyng_cbst_replay (default: find it in build/)")
     p.add_argument("--jobs", type=int, default=max(1, min(8, (os.cpu_count() or 4) // 4)))
+    p.add_argument(
+        "--gpu",
+        type=int,
+        default=1,
+        help="the GPU of --store device (CUDA_VISIBLE_DEVICES, unless already set; default 1, the "
+        "development GPU)",
+    )
     p.add_argument("--record", type=Path, help="write M8a-<store>-<set>-<fields>.json here")
     p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
     args = p.parse_args(argv)
@@ -847,13 +945,16 @@ def compare_main(argv: list[str]) -> int:
         return 0
     exe = None
     if args.store == "device":
-        print(
-            "compare.py cbst_trace --store device: the dynG store's replay arrives in M8a step 3",
-            file=sys.stderr,
-        )
-        return 2
-    if args.store == "host_model":
-        exe = args.replay_exe or find_replay_exe()
+        if args.policy not in ("", "escher_gpu"):
+            print(
+                "compare.py cbst_trace --store device: the store has the preset escher_gpu only "
+                "(M8a step 3; mosp_escher and dyng_default follow in steps 4-5)",
+                file=sys.stderr,
+            )
+            return 2
+        os.environ.setdefault("CUDA_VISIBLE_DEVICES", str(args.gpu))
+    if args.store is not None:
+        exe = args.replay_exe or find_replay_exe(cuda=args.store == "device")
         if exe is None or not exe.is_file():
             print(
                 "dyng_cbst_replay not found: build it (cmake --build <build> --target "
@@ -909,7 +1010,13 @@ def compare_main(argv: list[str]) -> int:
                 f"{t['unreplayable']} unreplayable, {t['mappings']} mappings, "
                 f"{t['keys_compared']} key states, {t['hash_only_rows']} hash-only rows, "
                 f"{t['growths']} growths, {t['compactions']} compactions, {t['exceptions']} "
-                f"exceptions, {t['mismatch_count']} mismatches"
+                f"exceptions, {t['mismatch_count']} mismatches, {t['documented']} documented "
+                "divergences"
+                + (
+                    " (judged against the host model under the same preset)"
+                    if record.get("against_model")
+                    else ""
+                )
             )
             if args.record:
                 args.record.mkdir(parents=True, exist_ok=True)
