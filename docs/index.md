@@ -10,9 +10,12 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Alpha: 0.1.0.** dynG 0.1.0 is the first release (see the {doc}`roadmap`); `sssp` and
-`cycle_count` are stable (SemVer applies from 0.1.0), and the other algorithms of the table are
-planned for later releases. The Python package is on PyPI (`pip install dyng`).
+**Alpha.** The latest release is **0.1.0**, the first (`pip install dyng`): `sssp` and
+`cycle_count`, stable (SemVer applies from 0.1.0). These pages are built from the main branch,
+which is heading for 0.2.0 ({doc}`roadmap`): the table below also lists `mosp` (experimental) and
+the teaching algorithms `dynamic_bfs` and `triangle_delta` (maturity `tutorial`, written for
+{doc}`tutorials/your_first_dynamic_algorithm`), which are not released yet, and the CUDA plugin
+wheels come with 0.2.0 too.
 :::
 
 ## Algorithms

@@ -1,9 +1,10 @@
 # dynG: dynamic graph and hypergraph updates on GPUs
 
-> **Alpha: 0.1.0.** dynG 0.1.0 is the first release: the C++ library, the Python package
-> (`pip install dyng`) and the `dyng` command line described here. `sssp` and `cycle_count` are
-> stable (SemVer applies from 0.1.0); the other algorithms of the table are planned for later
-> releases.
+> **Alpha.** The latest release is **0.1.0**, the first: the C++ library, the Python package
+> (`pip install dyng`) and the `dyng` command line, with `sssp` and `cycle_count`, stable (SemVer
+> applies from 0.1.0). This README describes the main branch, which is heading for 0.2.0: `mosp`
+> (experimental), the teaching algorithms `dynamic_bfs` and `triangle_delta` and the CUDA plugin
+> wheels are not released yet.
 
 dynG is a C++17/CUDA library with Python bindings that keeps the results of graph and
 hypergraph algorithms up to date while the structure changes in **batches** of insertions,

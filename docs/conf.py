@@ -41,6 +41,20 @@ copyright = "2026, The dynG Authors"  # noqa: A001 (Sphinx's name)
 release = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
 version = ".".join(release.split(".")[:2])
 
+
+def _latest_release() -> str:
+    """The newest released version: the first `## [X.Y.Z] - <date>` heading of CHANGELOG.md."""
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    found = re.search(r"^## \[(\d+\.\d+\.\d+)\] - ", changelog, re.MULTILINE)
+    return found.group(1) if found else ""
+
+
+# The site is built from `main` (GitHub Pages, one version). While VERSION is a development or
+# pre-release version, every page carries a banner that says so and names the latest release,
+# whose features are the only ones on PyPI (docs/developer/release.md, step 9).
+latest_release = _latest_release()
+is_development_version = re.fullmatch(r"\d+\.\d+\.\d+", release) is None
+
 # -- General ---------------------------------------------------------------------------------------
 
 extensions = [
@@ -176,6 +190,14 @@ html_theme_options = {
     "footer_start": ["copyright"],
     "footer_end": ["sphinx-version", "theme-version"],
 }
+if is_development_version:
+    html_theme_options["announcement"] = (
+        f"These pages document the development version {release}, built from the main branch. "
+        f"The latest release is {latest_release} (<code>pip install dyng</code>): what the "
+        '<a href="https://dyng-dev.github.io/dyng/changelog.html">changelog</a> lists under '
+        "Unreleased, and every page or section marked as new in a later version, is not "
+        "released yet."
+    )
 html_context = {
     "github_user": "dyng-dev",
     "github_repo": "dyng",

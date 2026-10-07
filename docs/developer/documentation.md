@@ -13,6 +13,14 @@ The site follows the Diataxis structure. Put a page where its reader looks for i
 | `docs/developer/` | developer | the plan, design pages, guides for maintainers, retrospectives |
 | `docs/adr/` | decisions | one ADR per decision (`NNNN-title.md`) |
 
+The site is published at <https://dyng-dev.github.io/dyng/> (GitHub Pages) by the `deploy` job
+of `.github/workflows/docs.yml`, on every push to `main`; pull requests only build it. It is one
+version, the main branch: while `VERSION` is a development version every page carries a banner
+that names the latest release (`docs/conf.py`), and pages that describe something newer than the
+latest release say "new in X.Y" or "not released yet". User-facing pages (everything outside
+`docs/developer/`, `docs/adr/` and `docs/history/`) name releases, not milestones, and do not
+cite sections of the planning document, which is not published.
+
 ## Pages
 
 - Pages are **MyST Markdown** (`.md`); no reStructuredText is needed. Directives use fenced

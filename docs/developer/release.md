@@ -19,7 +19,7 @@ author delegates one in the approvals log of GOVERNANCE.md. For 0.1.0 the author
 | pushing the tag (steps 7, 10), which uploads to TestPyPI | the **AI assistant**, on the author's behalf | the **author** |
 | the approval of the `pypi` deployment (step 10), which uploads to PyPI | the **author** (never delegated) | the **author** |
 | the GitHub Release (step 11) | the **AI assistant**, on the author's behalf | the **author** |
-| Zenodo, Read the Docs, conda-forge (steps 12, 13; checkpoint A4) | the **author** (Zenodo is not connected for 0.1.0, so 0.1.0 has no DOI: GOVERNANCE.md, 2026-10-01) | the **author** |
+| Zenodo, conda-forge (steps 12, 13; checkpoint A4; the documentation is on GitHub Pages, not Read the Docs) | the **author** (Zenodo is not connected for 0.1.0, so 0.1.0 has no DOI: GOVERNANCE.md, 2026-10-01) | the **author** |
 
 So the AI assistant can take a release candidate to TestPyPI on its own, but nothing reaches PyPI
 before the author approves the deployment in the `release.yml` run.
@@ -27,6 +27,13 @@ before the author approves the deployment in the `release.yml` run.
 ## Checklist
 
 For each release, copy this list into the release pull request and tick it.
+
+The documentation site is not a step of its own: the `deploy` job of `docs.yml` publishes
+<https://dyng-dev.github.io/dyng/> from every push to `main`. The final-release pull request
+(step 9) also updates the status blocks of `README.md` and `docs/index.md`, which name the latest
+release; after its merge, check that the `deploy` job succeeded and that the site shows the
+release without the development-version banner (`docs/conf.py` shows the banner while `VERSION`
+is a development or pre-release version, with the latest release read from `CHANGELOG.md`).
 
 | # | Step | Command or place | Who |
 |---|---|---|---|
