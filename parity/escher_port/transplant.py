@@ -150,11 +150,13 @@ def header(cfg: dict, entry: dict) -> str:
     for part in entry["parts"]:
         if part["path"] not in sources:
             sources.append(part["path"])
+    # The header of the generated files (REUSE does not read it as this file's own).
+    # REUSE-IgnoreStart
     lines = [
-        # Split so that REUSE does not read these lines as this file's own header.
         "// SPDX-FileCopyrightText: 2026 The dynG Authors",
         "// SPDX-License-Identifier: Apache-2.0",
     ]
+    # REUSE-IgnoreEnd
     lines += [f"// Derived from {cfg['origin']}@{short}:{p}" for p in sources]
     lines += [
         "/**",
