@@ -320,6 +320,17 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   approved in two "Review deployments" dialogs (`pypi-cu12` and `pypi-cu13`, then `pypi`), as
   `release.yml` orders them.
 
+### M6a: the plugins' licence expression (0.2, branch `m6a-cuda-wheels`)
+
+- Changed: the `License-Expression` of `dyng-cu12` / `dyng-cu13` names what the plugins add to
+  the CPU wheel's contents: `... AND Apache-2.0 WITH LLVM-exception AND
+  LicenseRef-NVIDIA-End-User-License-Agreement` (libcu++ and NVTX; the statically linked CUDA
+  runtime under NVIDIA's CUDA Toolkit EULA). The author's decision of 2026-10-06 (GOVERNANCE.md;
+  ADR 0030 item 9). The CPU wheel `dyng` and the sdist keep their expression.
+  `ci/wheel_check.py` refuses a plugin wheel with any other expression.
+- Docs: `docs/developer/repository_settings.md` item 11b is done: the four plugin environments
+  have the protection rules of `testpypi` / `pypi`.
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

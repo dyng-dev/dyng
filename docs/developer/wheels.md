@@ -52,6 +52,22 @@ an sdist's `PKG-INFO` has another `License-Expression`, a legacy `License:` fiel
 expression (for example when a bundled component changes) is a licensing decision of the author:
 change `pyproject.toml`, `LICENSE_EXPRESSION` and this page together.
 
+The CUDA plugin wheels (from 0.2.0) contain more, so their expression is longer:
+
+```text
+License-Expression: Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1 AND Apache-2.0 WITH LLVM-exception AND LicenseRef-NVIDIA-End-User-License-Agreement
+```
+
+with the licence files of the CPU wheel plus `THIRD_PARTY_LICENSES_CUDA.txt` and
+`NVIDIA_CUDA_EULA.txt` (ADR 0030 item 9). The two added terms are the CUDA C++ Core Libraries'
+libcu++ and NVTX (Apache-2.0 WITH LLVM-exception; CUB's BSD-3-Clause and Thrust's Apache-2.0 are
+already named) and the CUDA runtime, linked statically, under NVIDIA's CUDA Toolkit EULA
+(`LicenseRef-NVIDIA-End-User-License-Agreement`, the identifier conda-forge's CUDA packages
+use). The author's decision of 2026-10-06 (GOVERNANCE.md, approvals log). It is
+`PLUGIN_LICENSE_EXPRESSION` in `ci/wheel_check.py`, which `ci/plugin_pyproject.py` writes into the
+plugin's rendered `pyproject.toml`; `ci/wheel_check.py` refuses a plugin wheel with another
+expression (the CPU wheel's included).
+
 ## In CI
 
 | Workflow | Trigger | What it does |

@@ -121,12 +121,15 @@ PLUGINS = ("cu12", "cu13")
 #: CUDA Toolkit parts in its module (THIRD_PARTY_LICENSES_CUDA.txt) and the toolkit's EULA, copied
 #: from the toolkit the wheel is built with (ci/plugin_pyproject.py).
 PLUGIN_EXTRA_LICENSE_FILES = ("THIRD_PARTY_LICENSES_CUDA.txt", "NVIDIA_CUDA_EULA.txt")
-#: The SPDX licence expression of the plugin wheels. Until the author decides otherwise it is the
-#: CPU wheel's expression: whether the plugins' expression should also name what they add (the
-#: CUDA runtime under NVIDIA's EULA, e.g. LicenseRef-NVIDIA-CUDA-EULA, and CCCL's
-#: Apache-2.0 WITH LLVM-exception) is a licensing decision of the author (GOVERNANCE.md, open
-#: decisions; ADR 0030). The licence files are complete either way.
-PLUGIN_LICENSE_EXPRESSION = LICENSE_EXPRESSION
+#: The SPDX licence expression of the plugin wheels: the CPU wheel's, plus the licences of what
+#: a plugin adds (THIRD_PARTY_LICENSES_CUDA.txt, NVIDIA_CUDA_EULA.txt): libcu++ and NVTX
+#: (Apache-2.0 WITH LLVM-exception; CUB's BSD-3-Clause and Thrust's Apache-2.0 are already named)
+#: and the CUDA runtime under NVIDIA's CUDA Toolkit EULA (conda-forge's identifier for it). The
+#: author's decision of 2026-10-06 (GOVERNANCE.md, approvals log; ADR 0030 item 9).
+PLUGIN_LICENSE_EXPRESSION = (
+    LICENSE_EXPRESSION
+    + " AND Apache-2.0 WITH LLVM-exception AND LicenseRef-NVIDIA-End-User-License-Agreement"
+)
 #: The first release (major, minor) whose distributions include the CUDA plugin wheels (PLAN
 #: Appendix F: 0.2.0, its release candidates included); v0.1.x releases keep the core alone.
 PLUGINS_SINCE = (0, 2)
@@ -896,6 +899,12 @@ def _self_test() -> int:
             "unpinned dyng": {
                 **plugin_files,
                 f"{pinfo}/METADATA": plugin_meta.replace(f"dyng=={v}", "dyng"),
+            },
+            "the CPU wheel's licence expression": {
+                **plugin_files,
+                f"{pinfo}/METADATA": plugin_meta.replace(
+                    PLUGIN_LICENSE_EXPRESSION, LICENSE_EXPRESSION
+                ),
             },
             "bundled cudart": {**plugin_files, "dyng_cu13.libs/libcudart-ab12.so.13": "x"},
             "needs libcuda": {

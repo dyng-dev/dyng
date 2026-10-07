@@ -6,7 +6,7 @@
   the plan's sketch. It changes no rule the author approved: the gates and their measurement
   protocol, the parity rules, the licence and the licence expression, the names and the
   publishing steps are untouched, and nothing is published by it. One licensing question it
-  meets (item 9) is left to the author.
+  meets (item 9) was left to the author, who extended the plugins' expression on 2026-10-06.
 - **Date:** 2026-10-06
 - **Deciders:** the AI assistant, on the author's behalf (M6a, step "plugin-build")
 
@@ -121,13 +121,15 @@ plugins exist.
    or the `cuda-cudart-static` package that a conda-forge environment's `conda-meta` names;
    `--cuda-eula` overrides; the build fails without it). The EULA is not committed: it is
    NVIDIA's text, it changes with the toolkit, and the repository's files are Apache-2.0 (and
-   one CC-BY-SA-4.0). **The licence expression is not changed**: `ci/wheel_check.py`'s
-   `PLUGIN_LICENSE_EXPRESSION` equals the CPU wheel's
-   (`Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1`). Whether
-   the plugins' expression should also name the CUDA runtime's EULA (conda-forge's packages use
-   `LicenseRef-NVIDIA-End-User-License-Agreement`) and CCCL's `Apache-2.0 WITH LLVM-exception` is
-   a licensing decision of the author, recorded in GOVERNANCE.md's open decisions; the
-   one-line change is `PLUGIN_LICENSE_EXPRESSION` (and `docs/developer/wheels.md`).
+   one CC-BY-SA-4.0). **The licence expression** of the plugins is the CPU wheel's plus what they
+   add: `Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1 AND
+   Apache-2.0 WITH LLVM-exception AND LicenseRef-NVIDIA-End-User-License-Agreement` (libcu++ and
+   NVTX; the CUDA runtime under NVIDIA's EULA, with conda-forge's identifier; CUB's BSD-3-Clause
+   and Thrust's Apache-2.0 are already named). This is the author's decision of 2026-10-06
+   (GOVERNANCE.md, approvals log); until then the plugins carried the CPU wheel's expression.
+   It is `ci/wheel_check.py`'s `PLUGIN_LICENSE_EXPRESSION`, which `ci/plugin_pyproject.py`
+   writes into the rendered `pyproject.toml` and `ci/wheel_check.py` checks in the wheel's
+   `METADATA`; the CPU wheel and the sdist keep their expression.
 10. **Local build.** `ci/plugin_wheels.sh` is the plugins' counterpart of `ci/wheels.sh`: the core
     sdist and wheel (ci/wheels.sh, build only), then per plugin the tree of item 1, `pip wheel`
     with the glibc 2.28 conda toolchain of `ci/wheel-toolchain.yml` as host compiler and the

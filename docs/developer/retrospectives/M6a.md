@@ -76,7 +76,7 @@ on GPU 1.
 the plugin wheels. They keep the CPU wheel's expression until the author decides whether to name
 the CUDA runtime's EULA (`LicenseRef-NVIDIA-End-User-License-Agreement`, conda-forge's
 identifier) and CCCL's `Apache-2.0 WITH LLVM-exception` in it; the licence files are complete
-either way.
+either way. *Decided on 2026-10-06: the author extended the expression (open items, item 1).*
 
 ## Step discovery-tests (2026-10-06)
 
@@ -357,12 +357,15 @@ gap into an immediate, named failure.
 
 ## Open items for the lead maintainer
 
-1. **The licence expression of the plugin wheels** (GOVERNANCE.md, open decisions; ADR 0030
-   item 9): keep the CPU wheel's expression, or add `Apache-2.0 WITH LLVM-exception AND
-   LicenseRef-NVIDIA-End-User-License-Agreement`. Due before the first `v0.2.0*` tag.
-2. **The four new environments** `testpypi-cu12`, `pypi-cu12`, `testpypi-cu13`, `pypi-cu13`
-   need the protection rules of `pypi` / `testpypi` (required reviewer on `pypi-*`, tags `v*`,
-   no administrator bypass): `docs/developer/repository_settings.md` section 11, item 11b.
+1. **The licence expression of the plugin wheels** (ADR 0030 item 9): **decided** by the author
+   on 2026-10-06. The plugins carry the CPU wheel's expression plus `Apache-2.0 WITH
+   LLVM-exception AND LicenseRef-NVIDIA-End-User-License-Agreement` (GOVERNANCE.md, approvals
+   log; `PLUGIN_LICENSE_EXPRESSION`, whose self-test now refuses a plugin wheel with the CPU
+   wheel's expression).
+2. **The four new environments** `testpypi-cu12`, `pypi-cu12`, `testpypi-cu13`, `pypi-cu13`:
+   **done**. They have the protection rules of `pypi` / `testpypi` (required reviewer on
+   `pypi-*`, tags `v*`, no administrator bypass on `pypi-*`), checked through the API on
+   2026-10-06: `docs/developer/repository_settings.md` item 11b.
 3. **The first CI run of the plugins** happens on the pull request: watch the `plugin` jobs
    (the container part: the signature checks with gpg and `rpm -K`, `dnf` installing the pinned
    RPMs, nvcc 12.9 / 13.4 with gcc-toolset 14, the code-object check in the repair step, the

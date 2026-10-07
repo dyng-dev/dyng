@@ -91,14 +91,17 @@ def test_release_metadata_finds_what_disagrees(tmp_path: Path) -> None:
 
 
 def test_plugin_constants() -> None:
-    # ADR 0030: the plugins, their extra licence files, and their licence expression, which stays
-    # the CPU wheel's until the author decides (GOVERNANCE.md, open decisions).
+    # ADR 0030: the plugins, their extra licence files, and their licence expression: the CPU
+    # wheel's plus CCCL's and the CUDA runtime's (the author's decision of 2026-10-06).
     assert wheel_check.PLUGINS == ("cu12", "cu13")
     assert wheel_check.PLUGIN_EXTRA_LICENSE_FILES == (
         "THIRD_PARTY_LICENSES_CUDA.txt",
         "NVIDIA_CUDA_EULA.txt",
     )
-    assert wheel_check.PLUGIN_LICENSE_EXPRESSION == wheel_check.LICENSE_EXPRESSION
+    assert wheel_check.PLUGIN_LICENSE_EXPRESSION == (
+        "Apache-2.0 AND BSD-3-Clause AND MIT AND GPL-3.0-or-later WITH GCC-exception-3.1"
+        " AND Apache-2.0 WITH LLVM-exception AND LicenseRef-NVIDIA-End-User-License-Agreement"
+    )
     assert (wheel_check.ROOT / "THIRD_PARTY_LICENSES_CUDA.txt").is_file()
 
 
