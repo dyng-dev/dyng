@@ -394,6 +394,17 @@ def create(args: argparse.Namespace, root: Path) -> int:
     return 0
 
 
+def default_since(root: Path) -> str:
+    """The release a new algorithm first ships in, from VERSION: major.minor of a development or
+    pre-release version (0.2.0.dev0 -> 0.2), the next minor after a final release (0.1.0 -> 0.2)."""
+    text = (root / "VERSION").read_text(encoding="utf-8").strip()
+    match = re.match(r"(\d+)\.(\d+)\.(\d+)(.*)$", text)
+    if match is None:
+        raise SystemExit(f"new_algorithm.py: VERSION `{text}` is not major.minor.patch[suffix]")
+    major, minor, suffix = int(match[1]), int(match[2]), match[4]
+    return f"{major}.{minor}" if suffix else f"{major}.{minor + 1}"
+
+
 def remove(args: argparse.Namespace, root: Path) -> int:
     name = args.name
     manifest = root / f"cpp/src/algorithms/{name}/manifest.toml"
@@ -424,6 +435,10 @@ def remove(args: argparse.Namespace, root: Path) -> int:
     print(f"new_algorithm.py: removed {name}")
     if restored:
         print("  restored its entry in cpp/src/algorithms/planned.toml")
+    print(
+        "next: a build tree configured with -DDYNG_ALGORITHMS=... that names "
+        f"{name} must be configured again: cmake --preset dev -DDYNG_ALGORITHMS=all"
+    )
     return status
 
 
@@ -436,7 +451,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--title", help="the manifest's title")
     parser.add_argument("--computes", help='the "Computes" column of the algorithm tables')
     parser.add_argument("--maintainer", default="SMShovan", help="GitHub handle (CODEOWNERS)")
-    parser.add_argument("--since", default="0.1", help="the first release that contains it")
+    parser.add_argument(
+        "--since",
+        help="the first release that contains it (default: the release VERSION is heading for)",
+    )
     parser.add_argument("--remove", action="store_true", help="remove a scaffolded algorithm")
     parser.add_argument(
         "--force", action="store_true", help="--remove also an algorithm that is not a scaffold"
@@ -446,6 +464,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=REPO, help="repository root (tests)")
     args = parser.parse_args(argv)
     root = args.root.resolve()
+    if args.since is None:
+        args.since = default_since(root)
     # An existing algorithm's name is reported by create() ("exists already") or removed.
     existing = (root / f"cpp/src/algorithms/{args.name}").exists()
     problem = name_problem(root, args.name, removing=args.remove or existing)
