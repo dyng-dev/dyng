@@ -10,6 +10,7 @@
  * parity/escher_port/rename_map.toml (M8a, ADR 0038; the encoding is described in
  * cpp/src/hypergraph/escher/README.md).
  */
+#include "core/cuda_runtime.hpp"
 #include "hypergraph/escher/integrity.hpp"
 #include "util/cuda_check.hpp"
 
@@ -35,12 +36,16 @@ struct host_tree {
     avail.assign(n, 0);
     // Live rows lie in the used prefix of the payload
     flat.resize(static_cast<size_t>(c.initial_payload_size));
-    DYNG_CUDA_TRY(
-        cudaMemcpy(nodes.data(), c.d_nodes, sizeof(cbst_node) * n, cudaMemcpyDeviceToHost));
+    const auto stream = static_cast<cudaStream_t>(c.res.stream().get());
+    const scoped_device guard(c.res.device());
+    DYNG_CUDA_TRY(cudaMemcpyAsync(nodes.data(), c.d_nodes, sizeof(cbst_node) * n,
+                                  cudaMemcpyDeviceToHost, stream));
     if (c.d_avail)
-      DYNG_CUDA_TRY(cudaMemcpy(avail.data(), c.d_avail, sizeof(int) * n, cudaMemcpyDeviceToHost));
-    DYNG_CUDA_TRY(cudaMemcpy(flat.data(), c.d_flat_payload, sizeof(int) * flat.size(),
-                             cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(avail.data(), c.d_avail, sizeof(int) * n,
+                                    cudaMemcpyDeviceToHost, stream));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(flat.data(), c.d_flat_payload, sizeof(int) * flat.size(),
+                                  cudaMemcpyDeviceToHost, stream));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
   }
 
   int size() const {

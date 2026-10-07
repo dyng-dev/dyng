@@ -62,6 +62,8 @@ struct cbst_context {
   // The resources of the store and the buffers the device pointers above view (allocated from
   // the resources' memory resource, ordered on their stream).
   resources res;
+  // Host synchronizations with the stream so far (the read points of ADR 0038).
+  long long host_syncs = 0;
   buffer<cbst_node> nodes_storage;
   buffer<int> keys_storage, start_offsets_storage, flat_payload_storage, insert_keys_storage,
       insert_payload_storage, insert_prefix_sizes_storage, relocation_plan_storage, avail_storage,
@@ -129,6 +131,10 @@ struct cbst_store {
                      const std::vector<int>& remove_prefix_sizes);
   // The heap position of the node of every key (-1: absent).
   std::vector<int> find(const std::vector<int>& ids) const;
+  // Host synchronizations of the store's operations so far (ADR 0038, the read points).
+  long long host_syncs() const {
+    return ctx_.host_syncs;
+  }
   // Whether a failed operation left the store poisoned (construct or rebuild it).
   bool poisoned() const {
     return poisoned_;

@@ -11,8 +11,11 @@
  * parity/escher_port/rename_map.toml (M8a, ADR 0038; the encoding is described in
  * cpp/src/hypergraph/escher/README.md).
  */
+#include "core/budget_counters.hpp"
+#include "core/cuda_runtime.hpp"
 #include "hypergraph/escher/cbst_store.hpp"
 #include "util/cuda_check.hpp"
+#include "util/thrust_allocator.cuh"
 
 #include <dyng/core/backend.hpp>
 #include <dyng/core/buffer.hpp>
@@ -22,7 +25,7 @@
 #include <thrust/copy.h>
 #include <thrust/count.h>
 #include <thrust/device_ptr.h>
-#include <thrust/device_vector.h>
+#include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/scan.h>
 #include <thrust/sequence.h>
@@ -46,6 +49,27 @@ struct less_than {
 #include "hypergraph/escher/kernels.cuh"
 
 namespace dyng::detail::escher {
+
+// The stream of the store's resources: every kernel, copy and Thrust or CUB call of the store is
+// ordered on it (PLAN 4.6 rule 7).
+static cudaStream_t stream_of(const cbst_context& ctx) {
+  return static_cast<cudaStream_t>(ctx.res.stream().get());
+}
+
+// One host synchronization with the store's stream, at a point where ESCHER-GPU reads a value
+// back (ADR 0038 lists them); counted per store and by the budget counters.
+static void synchronize(cbst_context& ctx) {
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx)));
+  note_host_sync();
+  ++ctx.host_syncs;
+}
+
+// A Thrust algorithm that returns a value to the host waited for the stream (count_if, the end of
+// copy_if): counted as a synchronization.
+static void count_implicit_synchronization(cbst_context& ctx) {
+  note_host_sync();
+  ++ctx.host_syncs;
+}
 
 // The trace-level debug output of ESCHER-GPU's --verbose mode (the relocation plan, the payload,
 // the best-fit counts) goes to the log sink.
@@ -95,6 +119,7 @@ static void release(buffer<value_t>& storage, value_t*& view) {
 // with a single copy.
 struct degree_bins {
   degree_bins(const resources& res, const std::vector<int>& sizes) : index(res, sizes.size()) {
+    const auto stream = static_cast<cudaStream_t>(res.stream().get());
     std::vector<int> lists[3];
     for (size_t i = 0; i < sizes.size(); ++i)
       lists[sizes[i] < 32 ? 0 : (sizes[i] < 1024 ? 1 : 2)].push_back(static_cast<int>(i));
@@ -106,7 +131,7 @@ struct degree_bins {
     }
     if (!all.empty())
       DYNG_CUDA_TRY(cudaMemcpyAsync(index.get(), all.data(), all.size() * sizeof(int),
-                                    cudaMemcpyHostToDevice, 0));
+                                    cudaMemcpyHostToDevice, stream));
   }
   // Counts one launch for every non-empty bin.
   void record(long long (&launches)[3]) const {
@@ -162,9 +187,9 @@ static void recompute_subtree_avail(cbst_context& ctx) {
   for (int level_end = ctx.num_records - 1; level_start >= 0;) {
     int count = level_end - level_start + 1;
     int blocks = (count + block_size - 1) / block_size;
-    reduce_avail_level_kernel<<<blocks, block_size>>>(level_start, level_end, ctx.num_records,
-                                                      ctx.d_avail, ctx.d_subtree_avail);
-    DYNG_CUDA_TRY(cudaGetLastError());
+    reduce_avail_level_kernel<<<blocks, block_size, 0, stream_of(ctx)>>>(
+        level_start, level_end, ctx.num_records, ctx.d_avail, ctx.d_subtree_avail);
+    DYNG_CHECK_KERNEL(stream_of(ctx));
     if (level_start == 0) break;
     level_end = level_start - 1;
     level_start = (level_start - 1) / 2;
@@ -185,11 +210,12 @@ static void ensure_payload_capacity(cbst_context& ctx, long long needed) {
   }
   buffer<int> grown_storage(ctx.res, static_cast<size_t>(capacity));
   int* grown = grown_storage.data();
-  DYNG_CUDA_TRY(cudaMemcpy(grown, ctx.d_flat_payload,
-                           static_cast<size_t>(ctx.initial_payload_size) * sizeof(int),
-                           cudaMemcpyDeviceToDevice));
-  DYNG_CUDA_TRY(cudaMemset(grown + ctx.initial_payload_size, 0,
-                           (capacity - ctx.initial_payload_size) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(grown, ctx.d_flat_payload,
+                                static_cast<size_t>(ctx.initial_payload_size) * sizeof(int),
+                                cudaMemcpyDeviceToDevice, stream_of(ctx)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(grown + ctx.initial_payload_size, 0,
+                                (capacity - ctx.initial_payload_size) * sizeof(int),
+                                stream_of(ctx)));
   ctx.flat_payload_storage = std::move(grown_storage);
   ctx.d_flat_payload = grown;
   ctx.fixed_size = static_cast<int>(capacity);
@@ -214,19 +240,21 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
   }
 
   allocate(ctx, ctx.nodes_storage, ctx.d_nodes, num_records);
-  DYNG_CUDA_TRY(cudaMemset(ctx.d_nodes, 0, num_records * sizeof(cbst_node)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_nodes, 0, num_records * sizeof(cbst_node), stream_of(ctx)));
   allocate(ctx, ctx.keys_storage, ctx.d_keys, num_records);
   allocate(ctx, ctx.start_offsets_storage, ctx.d_start_offsets, num_records);
   allocate(ctx, ctx.flat_payload_storage, ctx.d_flat_payload, ctx.fixed_size);
 
-  DYNG_CUDA_TRY(cudaMemcpy(ctx.d_keys, keys, num_records * sizeof(int), cudaMemcpyHostToDevice));
-  DYNG_CUDA_TRY(cudaMemcpy(ctx.d_start_offsets, start_offsets, num_records * sizeof(int),
-                           cudaMemcpyHostToDevice));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_keys, keys, num_records * sizeof(int), cudaMemcpyHostToDevice,
+                                stream_of(ctx)));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_start_offsets, start_offsets, num_records * sizeof(int),
+                                cudaMemcpyHostToDevice, stream_of(ctx)));
 
-  DYNG_CUDA_TRY(cudaMemcpy(ctx.d_flat_payload, flat_payload, flat_payload_size * sizeof(int),
-                           cudaMemcpyHostToDevice));
-  DYNG_CUDA_TRY(cudaMemset(ctx.d_flat_payload + flat_payload_size, 0,
-                           (ctx.fixed_size - flat_payload_size) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_flat_payload, flat_payload, flat_payload_size * sizeof(int),
+                                cudaMemcpyHostToDevice, stream_of(ctx)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_flat_payload + flat_payload_size, 0,
+                                (ctx.fixed_size - flat_payload_size) * sizeof(int),
+                                stream_of(ctx)));
 
   allocate(ctx, ctx.insert_keys_storage, ctx.d_insert_keys, num_records);
   allocate(ctx, ctx.insert_payload_storage, ctx.d_insert_payload, num_records * 3);
@@ -237,18 +265,18 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
   // Availability arrays (0/1 per node) and subtree sums (per node)
   allocate(ctx, ctx.avail_storage, ctx.d_avail, num_records);
   allocate(ctx, ctx.subtree_avail_storage, ctx.d_subtree_avail, num_records);
-  DYNG_CUDA_TRY(cudaMemset(ctx.d_avail, 0, num_records * sizeof(int)));
-  DYNG_CUDA_TRY(cudaMemset(ctx.d_subtree_avail, 0, num_records * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_avail, 0, num_records * sizeof(int), stream_of(ctx)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_subtree_avail, 0, num_records * sizeof(int), stream_of(ctx)));
 
   int block_size = 256;
   int num_blocks = (num_records + block_size - 1) / block_size;
 
-  build_empty_tree_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, num_records);
-  store_items_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, ctx.d_keys, ctx.d_start_offsets,
-                                                 num_records, flat_payload_size);
-  init_tail_metadata_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, ctx.d_flat_payload,
-                                                        num_records);
-  DYNG_CUDA_TRY(cudaGetLastError());
+  build_empty_tree_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(ctx.d_nodes, num_records);
+  store_items_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, ctx.d_keys, ctx.d_start_offsets, num_records, flat_payload_size);
+  init_tail_metadata_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, ctx.d_flat_payload, num_records);
+  DYNG_CHECK_KERNEL(stream_of(ctx));
 
   if (log_enabled(log_level::debug)) {
     log_message(log_level::debug, "dyng: CBST " + dataset_name + ": constructed " +
@@ -279,23 +307,24 @@ void rebuild_cbst_from_device(buffer<int> start_offsets, int num_records, buffer
   ctx.initial_payload_size = flat_payload_size;
   ctx.num_records = num_records;
   allocate(ctx, ctx.nodes_storage, ctx.d_nodes, num_records);
-  DYNG_CUDA_TRY(cudaMemset(ctx.d_nodes, 0, num_records * sizeof(cbst_node)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_nodes, 0, num_records * sizeof(cbst_node), stream_of(ctx)));
   allocate(ctx, ctx.keys_storage, ctx.d_keys, num_records);
   allocate(ctx, ctx.avail_storage, ctx.d_avail, num_records);
   allocate(ctx, ctx.subtree_avail_storage, ctx.d_subtree_avail, num_records);
-  DYNG_CUDA_TRY(cudaMemset(ctx.d_avail, 0, num_records * sizeof(int)));
-  DYNG_CUDA_TRY(cudaMemset(ctx.d_subtree_avail, 0, num_records * sizeof(int)));
-  thrust::sequence(thrust::device_pointer_cast(ctx.d_keys),
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_avail, 0, num_records * sizeof(int), stream_of(ctx)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_subtree_avail, 0, num_records * sizeof(int), stream_of(ctx)));
+  thrust_allocator alloc(ctx.res);
+  thrust::sequence(thrust_policy(ctx.res, alloc), thrust::device_pointer_cast(ctx.d_keys),
                    thrust::device_pointer_cast(ctx.d_keys) + num_records, 1);
 
   int block_size = 256;
   int num_blocks = (num_records + block_size - 1) / block_size;
-  build_empty_tree_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, num_records);
-  store_items_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, ctx.d_keys, ctx.d_start_offsets,
-                                                 num_records, flat_payload_size);
-  init_tail_metadata_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, ctx.d_flat_payload,
-                                                        num_records);
-  DYNG_CUDA_TRY(cudaGetLastError());
+  build_empty_tree_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(ctx.d_nodes, num_records);
+  store_items_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, ctx.d_keys, ctx.d_start_offsets, num_records, flat_payload_size);
+  init_tail_metadata_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, ctx.d_flat_payload, num_records);
+  DYNG_CHECK_KERNEL(stream_of(ctx));
 }
 
 void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
@@ -305,12 +334,13 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
   reserve_scratch(ctx, K, insert_payload.size());
 
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_keys, insert_keys.data(), K * sizeof(int),
-                                cudaMemcpyHostToDevice, 0));
+                                cudaMemcpyHostToDevice, stream_of(ctx)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_payload, insert_payload.data(),
-                                insert_payload.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+                                insert_payload.size() * sizeof(int), cudaMemcpyHostToDevice,
+                                stream_of(ctx)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, insert_prefix_sizes.data(),
-                                K * sizeof(int), cudaMemcpyHostToDevice, 0));
-  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_relocation_plan, 0, 3 * K * sizeof(int), 0));
+                                K * sizeof(int), cudaMemcpyHostToDevice, stream_of(ctx)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_relocation_plan, 0, 3 * K * sizeof(int), stream_of(ctx)));
 
   int block_size = 256;
 
@@ -318,37 +348,43 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
   degree_bins bins(ctx.res, item_sizes(insert_prefix_sizes));
   bins.record(g_bin_launches.fill);
   if (bins.count[0] > 0)
-    insert_node_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size>>>(
+    insert_node_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
+                                stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
         ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(0), bins.count[0]);
   if (bins.count[1] > 0)
-    insert_node_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size>>>(
-        ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
-        ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(1), bins.count[1]);
+    insert_node_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size, 0,
+                              stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
+                                                ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
+                                                ctx.d_relocation_plan, bins.bin(1), bins.count[1]);
   if (bins.count[2] > 0)
-    insert_node_block_kernel<<<bins.count[2], block_size>>>(
+    insert_node_block_kernel<<<bins.count[2], block_size, 0, stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
         ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(2), bins.count[2]);
-  DYNG_CUDA_TRY(cudaGetLastError());
+  DYNG_CHECK_KERNEL(stream_of(ctx));
 
   // ── Overflow handling ────────────────────────────────────────────────
   // Padded overflow sizes -> cumulative offsets of the appended segments.
   temp_buffer<int> tmp(ctx.res, K);
   int num_blocks = (K + block_size - 1) / block_size;
-  compute_next_multiple_of_4_kernel<<<num_blocks, block_size>>>(ctx.d_relocation_plan, tmp.get(),
-                                                                K);
+  compute_next_multiple_of_4_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_relocation_plan, tmp.get(), K);
   thrust::device_ptr<int> tmp_ptr = thrust::device_pointer_cast(tmp.get());
-  thrust::inclusive_scan(tmp_ptr, tmp_ptr + K, tmp_ptr);
-  update_partial_solution_kernel<<<num_blocks, block_size>>>(ctx.d_relocation_plan, tmp.get(), K);
+  thrust_allocator alloc(ctx.res);
+  thrust::inclusive_scan(thrust_policy(ctx.res, alloc), tmp_ptr, tmp_ptr + K, tmp_ptr);
+  update_partial_solution_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_relocation_plan, tmp.get(), K);
 
   // Only the total appended size is needed on the host.
   int total_appended = 0;
-  DYNG_CUDA_TRY(cudaMemcpy(&total_appended, ctx.d_relocation_plan + 3 * (K - 1) + 2, sizeof(int),
-                           cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(&total_appended, ctx.d_relocation_plan + 3 * (K - 1) + 2,
+                                sizeof(int), cudaMemcpyDeviceToHost, stream_of(ctx)));
+  synchronize(ctx);
   if (log_enabled(log_level::trace)) {
     std::vector<int> relocation_plan_host_out(K * 3);
-    DYNG_CUDA_TRY(cudaMemcpy(relocation_plan_host_out.data(), ctx.d_relocation_plan,
-                             K * 3 * sizeof(int), cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(relocation_plan_host_out.data(), ctx.d_relocation_plan,
+                                  K * 3 * sizeof(int), cudaMemcpyDeviceToHost, stream_of(ctx)));
+    synchronize(ctx);
     log_ints(ctx, "cumulative relocation plan", relocation_plan_host_out);
   }
   if (total_appended > 0) {
@@ -356,22 +392,24 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
     if (log_enabled(log_level::trace))
       log_message(log_level::trace, "dyng: CBST " + ctx.dataset_name + ": space available from " +
                                         std::to_string(ctx.initial_payload_size));
-    allocate_space_kernel<<<num_blocks, block_size>>>(
+    allocate_space_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
         ctx.d_relocation_plan, ctx.d_flat_payload, ctx.initial_payload_size, ctx.d_insert_keys,
         ctx.d_insert_payload, ctx.d_insert_prefix_sizes, K);
 
     // Fixup metadata for overflowed nodes
-    fixup_overflow_metadata_kernel<<<num_blocks, block_size>>>(
+    fixup_overflow_metadata_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_insert_keys, ctx.d_insert_prefix_sizes, ctx.d_relocation_plan,
         ctx.initial_payload_size, K);
-    DYNG_CUDA_TRY(cudaGetLastError());
+    DYNG_CHECK_KERNEL(stream_of(ctx));
     ctx.initial_payload_size += total_appended;
   }
 
   if (log_enabled(log_level::trace)) {
     std::vector<int> updated_flat(ctx.fixed_size);
-    DYNG_CUDA_TRY(cudaMemcpy(updated_flat.data(), ctx.d_flat_payload, ctx.fixed_size * sizeof(int),
-                             cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(updated_flat.data(), ctx.d_flat_payload,
+                                  ctx.fixed_size * sizeof(int), cudaMemcpyDeviceToHost,
+                                  stream_of(ctx)));
+    synchronize(ctx);
     log_ints(ctx, "updated payload", updated_flat);
   }
 }
@@ -381,7 +419,7 @@ void delete_cbst(const std::vector<int>& delete_keys, cbst_context& ctx) {
   int delete_size = static_cast<int>(delete_keys.size());
   temp_buffer<int> d_delete_keys(ctx.res, delete_size);
   DYNG_CUDA_TRY(cudaMemcpyAsync(d_delete_keys.get(), delete_keys.data(), delete_size * sizeof(int),
-                                cudaMemcpyHostToDevice, 0));
+                                cudaMemcpyHostToDevice, stream_of(ctx)));
 
   // Temporary buffer for located node positions
   temp_buffer<int> d_delete_positions(ctx.res, delete_size);
@@ -390,14 +428,14 @@ void delete_cbst(const std::vector<int>& delete_keys, cbst_context& ctx) {
   int num_blocks = (delete_size + block_size - 1) / block_size;
 
   // Phase 1: Read-only traversal to locate targets (no races)
-  locate_delete_targets_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, d_delete_keys.get(),
-                                                           delete_size, d_delete_positions.get());
+  locate_delete_targets_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, d_delete_keys.get(), delete_size, d_delete_positions.get());
 
   // Phase 2: Apply deletions + mark avail using precomputed positions (no
   // traversal)
-  apply_deletes_kernel<<<num_blocks, block_size>>>(ctx.d_nodes, d_delete_positions.get(),
-                                                   delete_size, ctx.d_avail);
-  DYNG_CUDA_TRY(cudaGetLastError());
+  apply_deletes_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, d_delete_positions.get(), delete_size, ctx.d_avail);
+  DYNG_CHECK_KERNEL(stream_of(ctx));
 
   // Bottom-up level-wise reduction to recompute subtree_avail
   recompute_subtree_avail(ctx);
@@ -422,15 +460,18 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 
   // Copy inputs to device
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_keys, new_keys.data(), K * sizeof(int),
-                                cudaMemcpyHostToDevice, 0));
+                                cudaMemcpyHostToDevice, stream_of(ctx)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_payload, new_payload.data(),
-                                new_payload.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+                                new_payload.size() * sizeof(int), cudaMemcpyHostToDevice,
+                                stream_of(ctx)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, new_prefix_sizes.data(), K * sizeof(int),
-                                cudaMemcpyHostToDevice, 0));
+                                cudaMemcpyHostToDevice, stream_of(ctx)));
 
   // Determine number of deleted slots (root's subtree_avail)
   int D = 0;
-  DYNG_CUDA_TRY(cudaMemcpy(&D, ctx.d_subtree_avail, sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(&D, ctx.d_subtree_avail, sizeof(int), cudaMemcpyDeviceToHost,
+                                stream_of(ctx)));
+  synchronize(ctx);
 
   int reuse_k = std::min(K, D);
   std::vector<char> matched(K, 0);
@@ -441,61 +482,70 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     temp_buffer<int> d_all_positions(ctx.res, D), d_deleted_keys(ctx.res, D),
         d_slot_caps(ctx.res, D), d_slot_order(ctx.res, D);
     int num_blocks_d = (D + block_size - 1) / block_size;
-    locate_reusable_slots_kernel<<<num_blocks_d, block_size>>>(
+    locate_reusable_slots_kernel<<<num_blocks_d, block_size, 0, stream_of(ctx)>>>(
         ctx.d_subtree_avail, ctx.d_avail, ctx.num_records, d_all_positions.get(), D);
 
     // Recover original keys of deleted slots via CBST layout formula
-    extract_keys_from_positions_kernel<<<num_blocks_d, block_size>>>(
+    extract_keys_from_positions_kernel<<<num_blocks_d, block_size, 0, stream_of(ctx)>>>(
         ctx.d_keys, d_all_positions.get(), d_deleted_keys.get(), ctx.num_records, D);
 
     // Step 1: Extract slot capacities (GPU parallel)
-    extract_slot_capacities_kernel<<<num_blocks_d, block_size>>>(ctx.d_nodes, d_all_positions.get(),
-                                                                 d_slot_caps.get(), D);
+    extract_slot_capacities_kernel<<<num_blocks_d, block_size, 0, stream_of(ctx)>>>(
+        ctx.d_nodes, d_all_positions.get(), d_slot_caps.get(), D);
 
     // Step 2: Compute item sizes for eligible items (GPU parallel)
     temp_buffer<int> d_item_sizes(ctx.res, reuse_k), d_item_order(ctx.res, reuse_k),
         d_lo(ctx.res, reuse_k), d_prefix_max(ctx.res, reuse_k), d_assigned(ctx.res, reuse_k);
     int num_blocks_r = (reuse_k + block_size - 1) / block_size;
-    compute_item_sizes_kernel<<<num_blocks_r, block_size>>>(ctx.d_insert_prefix_sizes,
-                                                            d_item_sizes.get(), reuse_k);
-    DYNG_CUDA_TRY(cudaGetLastError());
+    compute_item_sizes_kernel<<<num_blocks_r, block_size, 0, stream_of(ctx)>>>(
+        ctx.d_insert_prefix_sizes, d_item_sizes.get(), reuse_k);
+    DYNG_CHECK_KERNEL(stream_of(ctx));
 
     // Step 3: Sort slot capacities, remembering which slot each one is
     // (the original sorted the capacities alone and lost the slot identity)
     thrust::device_ptr<int> caps_ptr = thrust::device_pointer_cast(d_slot_caps.get());
     thrust::device_ptr<int> slot_order_ptr = thrust::device_pointer_cast(d_slot_order.get());
-    thrust::sequence(slot_order_ptr, slot_order_ptr + D);
-    thrust::sort_by_key(caps_ptr, caps_ptr + D, slot_order_ptr);
+    thrust_allocator alloc(ctx.res);
+    thrust::sequence(thrust_policy(ctx.res, alloc), slot_order_ptr, slot_order_ptr + D);
+    // A stable sort (ESCHER-GPU's sort_by_key on int keys is Thrust's radix sort, which is
+    // stable): slots of equal capacity stay in the order of the order-statistic walk, which is
+    // key order (ADR 0038, the tie rule).
+    thrust::stable_sort_by_key(thrust_policy(ctx.res, alloc), caps_ptr, caps_ptr + D,
+                               slot_order_ptr);
 
     // Step 4: Sort item sizes with original-index tracking
     thrust::device_ptr<int> item_order_ptr = thrust::device_pointer_cast(d_item_order.get());
-    thrust::sequence(item_order_ptr, item_order_ptr + reuse_k);
+    thrust::sequence(thrust_policy(ctx.res, alloc), item_order_ptr, item_order_ptr + reuse_k);
     thrust::device_ptr<int> sizes_ptr = thrust::device_pointer_cast(d_item_sizes.get());
-    thrust::sort_by_key(sizes_ptr, sizes_ptr + reuse_k, item_order_ptr);
+    // Stable: items of equal size stay in input order (the tie rule).
+    thrust::stable_sort_by_key(thrust_policy(ctx.res, alloc), sizes_ptr, sizes_ptr + reuse_k,
+                               item_order_ptr);
 
     // Step 5: Binary search — lo[i] = first slot with capacity >=
     // sorted_size[i]
-    lower_bound_kernel<<<num_blocks_r, block_size>>>(d_slot_caps.get(), D, d_item_sizes.get(),
-                                                     reuse_k, d_lo.get());
+    lower_bound_kernel<<<num_blocks_r, block_size, 0, stream_of(ctx)>>>(
+        d_slot_caps.get(), D, d_item_sizes.get(), reuse_k, d_lo.get());
 
     // Step 6: b[i] = lo[i] - i  (in-place, d_lo becomes d_b)
-    compute_b_in_place_kernel<<<num_blocks_r, block_size>>>(d_lo.get(), reuse_k);
-    DYNG_CUDA_TRY(cudaGetLastError());
+    compute_b_in_place_kernel<<<num_blocks_r, block_size, 0, stream_of(ctx)>>>(d_lo.get(), reuse_k);
+    DYNG_CHECK_KERNEL(stream_of(ctx));
 
     // Step 7: prefix_max = inclusive_scan(b, max)
     thrust::device_ptr<int> b_ptr = thrust::device_pointer_cast(d_lo.get());
     thrust::device_ptr<int> pmax_ptr = thrust::device_pointer_cast(d_prefix_max.get());
-    thrust::inclusive_scan(b_ptr, b_ptr + reuse_k, pmax_ptr, thrust::maximum<int>());
+    thrust::inclusive_scan(thrust_policy(ctx.res, alloc), b_ptr, b_ptr + reuse_k, pmax_ptr,
+                           thrust::maximum<int>());
 
     // Step 8: assigned[i] = i + prefix_max[i] (rank of the slot for sorted
     // item i; strictly increasing, and >= lo[i] so the slot fits the item)
-    compute_assigned_kernel<<<num_blocks_r, block_size>>>(d_prefix_max.get(), d_assigned.get(),
-                                                          reuse_k);
+    compute_assigned_kernel<<<num_blocks_r, block_size, 0, stream_of(ctx)>>>(
+        d_prefix_max.get(), d_assigned.get(), reuse_k);
 
     // Step 9: Count matched items (assigned[i] < D)
     thrust::device_ptr<int> assigned_ptr = thrust::device_pointer_cast(d_assigned.get());
-    int match_count =
-        static_cast<int>(thrust::count_if(assigned_ptr, assigned_ptr + reuse_k, less_than{D}));
+    int match_count = static_cast<int>(thrust::count_if(thrust_policy(ctx.res, alloc), assigned_ptr,
+                                                        assigned_ptr + reuse_k, less_than{D}));
+    count_implicit_synchronization(ctx);
 
     if (log_enabled(log_level::debug))
       log_message(log_level::debug,
@@ -508,18 +558,22 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       // assigned[i]
       temp_buffer<int> d_matched_item_idx(ctx.res, match_count),
           d_matched_slot_idx(ctx.res, match_count);
-      pair_matches_kernel<<<(match_count + block_size - 1) / block_size, block_size>>>(
-          d_item_order.get(), d_assigned.get(), d_slot_order.get(), match_count,
-          d_matched_item_idx.get(), d_matched_slot_idx.get());
+      pair_matches_kernel<<<(match_count + block_size - 1) / block_size, block_size, 0,
+                            stream_of(ctx)>>>(d_item_order.get(), d_assigned.get(),
+                                              d_slot_order.get(), match_count,
+                                              d_matched_item_idx.get(), d_matched_slot_idx.get());
 
       // D2H: matched pairs and slot keys for the mapping and the binning
       std::vector<int> h_items(match_count), h_slots(match_count), h_keys(D);
-      DYNG_CUDA_TRY(cudaMemcpy(h_items.data(), d_matched_item_idx.get(), match_count * sizeof(int),
-                               cudaMemcpyDeviceToHost));
-      DYNG_CUDA_TRY(cudaMemcpy(h_slots.data(), d_matched_slot_idx.get(), match_count * sizeof(int),
-                               cudaMemcpyDeviceToHost));
-      DYNG_CUDA_TRY(
-          cudaMemcpy(h_keys.data(), d_deleted_keys.get(), D * sizeof(int), cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(h_items.data(), d_matched_item_idx.get(),
+                                    match_count * sizeof(int), cudaMemcpyDeviceToHost,
+                                    stream_of(ctx)));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(h_slots.data(), d_matched_slot_idx.get(),
+                                    match_count * sizeof(int), cudaMemcpyDeviceToHost,
+                                    stream_of(ctx)));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(h_keys.data(), d_deleted_keys.get(), D * sizeof(int),
+                                    cudaMemcpyDeviceToHost, stream_of(ctx)));
+      synchronize(ctx);
       std::vector<int> matched_sizes(match_count);
       for (int k = 0; k < match_count; ++k) {
         int item_idx = h_items[k];
@@ -533,21 +587,23 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       degree_bins bins(ctx.res, matched_sizes);
       bins.record(g_bin_launches.reuse);
       if (bins.count[0] > 0)
-        apply_reuse_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size>>>(
+        apply_reuse_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
+                                    stream_of(ctx)>>>(
             ctx.d_nodes, ctx.d_flat_payload, ctx.d_avail, d_all_positions.get(),
             ctx.d_insert_payload, ctx.d_insert_prefix_sizes, d_matched_item_idx.get(),
             d_matched_slot_idx.get(), d_deleted_keys.get(), bins.bin(0), bins.count[0]);
       if (bins.count[1] > 0)
-        apply_reuse_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size>>>(
+        apply_reuse_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size, 0,
+                                  stream_of(ctx)>>>(
             ctx.d_nodes, ctx.d_flat_payload, ctx.d_avail, d_all_positions.get(),
             ctx.d_insert_payload, ctx.d_insert_prefix_sizes, d_matched_item_idx.get(),
             d_matched_slot_idx.get(), d_deleted_keys.get(), bins.bin(1), bins.count[1]);
       if (bins.count[2] > 0)
-        apply_reuse_block_kernel<<<bins.count[2], block_size>>>(
+        apply_reuse_block_kernel<<<bins.count[2], block_size, 0, stream_of(ctx)>>>(
             ctx.d_nodes, ctx.d_flat_payload, ctx.d_avail, d_all_positions.get(),
             ctx.d_insert_payload, ctx.d_insert_prefix_sizes, d_matched_item_idx.get(),
             d_matched_slot_idx.get(), d_deleted_keys.get(), bins.bin(2), bins.count[2]);
-      DYNG_CUDA_TRY(cudaGetLastError());
+      DYNG_CHECK_KERNEL(stream_of(ctx));
     }
   }
 
@@ -588,7 +644,8 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     }
     ensure_payload_capacity(ctx, base + static_cast<long long>(packed.size()));
     DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_flat_payload + base, packed.data(),
-                                  packed.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+                                  packed.size() * sizeof(int), cudaMemcpyHostToDevice,
+                                  stream_of(ctx)));
     ctx.initial_payload_size = static_cast<int>(base + packed.size());
 
     // Reconstruct the CBST from the surviving (non-deleted) nodes plus the
@@ -599,14 +656,17 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     temp_buffer<cbst_node> d_ranked(ctx.res, old_n), d_records(ctx.res, old_n + surplus);
     temp_buffer<int> d_ranked_live(ctx.res, old_n);
     int blocks_old = (old_n + block_size - 1) / block_size;
-    rank_order_nodes_kernel<<<blocks_old, block_size>>>(ctx.d_nodes, ctx.d_avail, old_n,
-                                                        d_ranked.get(), d_ranked_live.get());
-    DYNG_CUDA_TRY(cudaGetLastError());
+    rank_order_nodes_kernel<<<blocks_old, block_size, 0, stream_of(ctx)>>>(
+        ctx.d_nodes, ctx.d_avail, old_n, d_ranked.get(), d_ranked_live.get());
+    DYNG_CHECK_KERNEL(stream_of(ctx));
+    thrust_allocator surplus_alloc(ctx.res);
     thrust::device_ptr<cbst_node> ranked_ptr(d_ranked.get()), records_ptr(d_records.get());
     thrust::device_ptr<int> live_ptr(d_ranked_live.get());
-    int valid_old_count = static_cast<int>(
-        thrust::copy_if(ranked_ptr, ranked_ptr + old_n, live_ptr, records_ptr, is_set()) -
-        records_ptr);
+    int valid_old_count =
+        static_cast<int>(thrust::copy_if(thrust_policy(ctx.res, surplus_alloc), ranked_ptr,
+                                         ranked_ptr + old_n, live_ptr, records_ptr, is_set()) -
+                         records_ptr);
+    count_implicit_synchronization(ctx);
 
     // ── Option A: Preserve original keys (no compaction) ────────────
     // Surviving nodes keep their original keys.  Surplus items get keys
@@ -614,8 +674,9 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     int next_key = 1;
     if (valid_old_count > 0) {
       int last_key = 0;
-      DYNG_CUDA_TRY(cudaMemcpy(&last_key, &d_records.get()[valid_old_count - 1].index, sizeof(int),
-                               cudaMemcpyDeviceToHost));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(&last_key, &d_records.get()[valid_old_count - 1].index,
+                                    sizeof(int), cudaMemcpyDeviceToHost, stream_of(ctx)));
+      synchronize(ctx);
       next_key = last_key + 1;
     }
     for (int i = 0; i < surplus; ++i) {
@@ -625,7 +686,8 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       next_key++;
     }
     DYNG_CUDA_TRY(cudaMemcpyAsync(d_records.get() + valid_old_count, surplus_records.data(),
-                                  surplus * sizeof(cbst_node), cudaMemcpyHostToDevice, 0));
+                                  surplus * sizeof(cbst_node), cudaMemcpyHostToDevice,
+                                  stream_of(ctx)));
 
     int new_n = valid_old_count + surplus;
     release(ctx.keys_storage, ctx.d_keys);
@@ -635,20 +697,21 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     release(ctx.subtree_avail_storage, ctx.d_subtree_avail);
     ctx.num_records = new_n;
     allocate(ctx, ctx.nodes_storage, ctx.d_nodes, new_n);
-    DYNG_CUDA_TRY(cudaMemset(ctx.d_nodes, 0, new_n * sizeof(cbst_node)));
+    DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_nodes, 0, new_n * sizeof(cbst_node), stream_of(ctx)));
     allocate(ctx, ctx.keys_storage, ctx.d_keys, new_n);
     allocate(ctx, ctx.start_offsets_storage, ctx.d_start_offsets, new_n);
     allocate(ctx, ctx.avail_storage, ctx.d_avail, new_n);
     allocate(ctx, ctx.subtree_avail_storage, ctx.d_subtree_avail, new_n);
-    DYNG_CUDA_TRY(cudaMemset(ctx.d_avail, 0, new_n * sizeof(int)));
-    DYNG_CUDA_TRY(cudaMemset(ctx.d_subtree_avail, 0, new_n * sizeof(int)));
+    DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_avail, 0, new_n * sizeof(int), stream_of(ctx)));
+    DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_subtree_avail, 0, new_n * sizeof(int), stream_of(ctx)));
 
     int blocks_build = (new_n + block_size - 1) / block_size;
-    record_keys_and_starts_kernel<<<blocks_build, block_size>>>(d_records.get(), new_n, ctx.d_keys,
-                                                                ctx.d_start_offsets);
-    build_empty_tree_kernel<<<blocks_build, block_size>>>(ctx.d_nodes, new_n);
-    place_node_records_kernel<<<blocks_build, block_size>>>(ctx.d_nodes, d_records.get(), new_n);
-    DYNG_CUDA_TRY(cudaGetLastError());
+    record_keys_and_starts_kernel<<<blocks_build, block_size, 0, stream_of(ctx)>>>(
+        d_records.get(), new_n, ctx.d_keys, ctx.d_start_offsets);
+    build_empty_tree_kernel<<<blocks_build, block_size, 0, stream_of(ctx)>>>(ctx.d_nodes, new_n);
+    place_node_records_kernel<<<blocks_build, block_size, 0, stream_of(ctx)>>>(
+        ctx.d_nodes, d_records.get(), new_n);
+    DYNG_CHECK_KERNEL(stream_of(ctx));
   }
 
   // Recompute subtree_avail bottom-up (reused slots are no longer available)
@@ -726,6 +789,7 @@ auto cbst_store::guarded(const char* op, op_t&& body) {
 
 void cbst_store::construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
                            int flat_payload_size) {
+  const scoped_device guard(ctx_.res.device());
   try {
     construct_cbst(keys, start_offsets, num_records, flat_payload, flat_payload_size,
                    ctx_.fixed_size, ctx_.dataset_name, ctx_);
@@ -742,6 +806,7 @@ void cbst_store::construct(int* keys, int* start_offsets, int num_records, int* 
 void cbst_store::rebuild_from_device(buffer<int> start_offsets, int num_records,
                                      buffer<int> flat_payload, int flat_payload_size,
                                      int payload_capacity) {
+  const scoped_device guard(ctx_.res.device());
   try {
     rebuild_cbst_from_device(std::move(start_offsets), num_records, std::move(flat_payload),
                              flat_payload_size, payload_capacity, ctx_);
@@ -756,6 +821,7 @@ void cbst_store::rebuild_from_device(buffer<int> start_offsets, int num_records,
 insert_mapping cbst_store::insert(const std::vector<int>& insert_keys,
                                   const std::vector<int>& insert_payload,
                                   const std::vector<int>& insert_prefix_sizes) {
+  const scoped_device guard(ctx_.res.device());
   return guarded("insert", [&] {
     return insert_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_);
   });
@@ -763,16 +829,19 @@ insert_mapping cbst_store::insert(const std::vector<int>& insert_keys,
 
 void cbst_store::append(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
                         const std::vector<int>& insert_prefix_sizes) {
+  const scoped_device guard(ctx_.res.device());
   guarded("append", [&] { fill_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_); });
 }
 
 void cbst_store::erase(const std::vector<int>& delete_keys) {
+  const scoped_device guard(ctx_.res.device());
   guarded("erase", [&] { delete_cbst(delete_keys, ctx_); });
 }
 
 void cbst_store::remove_values(const std::vector<int>& keys_to_unfill,
                                const std::vector<int>& values_to_remove,
                                const std::vector<int>& remove_prefix_sizes) {
+  const scoped_device guard(ctx_.res.device());
   guarded("remove_values",
           [&] { unfill_cbst(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_); });
 }
@@ -780,18 +849,22 @@ void cbst_store::remove_values(const std::vector<int>& keys_to_unfill,
 // ESCHER-GPU's findAndPrint printed the rows from the device; the lookup now returns the heap
 // position of every key's node (-1: not in the tree) and prints nothing.
 std::vector<int> cbst_store::find(const std::vector<int>& ids) const {
+  const scoped_device guard(ctx_.res.device());
   std::vector<int> positions(ids.size(), -1);
   if (ids.empty() || ctx_.d_nodes == nullptr) return positions;
   buffer<int> search(ctx_.res, ids.size());
   buffer<int> found(ctx_.res, ids.size());
   int* d_search = search.data();
   int* d_positions = found.data();
-  DYNG_CUDA_TRY(cudaMemcpy(d_search, ids.data(), ids.size() * sizeof(int), cudaMemcpyHostToDevice));
-  find_node_kernel<<<(ids.size() + 256 - 1) / 256, 256>>>(
+  DYNG_CUDA_TRY(cudaMemcpyAsync(d_search, ids.data(), ids.size() * sizeof(int),
+                                cudaMemcpyHostToDevice, stream_of(ctx_)));
+  find_node_kernel<<<(ids.size() + 256 - 1) / 256, 256, 0, stream_of(ctx_)>>>(
       ctx_.d_nodes, d_search, static_cast<int>(ids.size()), d_positions);
-  DYNG_CUDA_TRY(cudaGetLastError());
-  DYNG_CUDA_TRY(
-      cudaMemcpy(positions.data(), d_positions, ids.size() * sizeof(int), cudaMemcpyDeviceToHost));
+  DYNG_CHECK_KERNEL(stream_of(ctx_));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(positions.data(), d_positions, ids.size() * sizeof(int),
+                                cudaMemcpyDeviceToHost, stream_of(ctx_)));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx_)));
+  note_host_sync();
   return positions;
 }
 
@@ -814,12 +887,13 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
   reserve_scratch(ctx, K, values_to_remove.size());
   // Reuse insert buffers for passing inputs
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_keys, keys_to_unfill.data(), K * sizeof(int),
-                                cudaMemcpyHostToDevice, 0));
+                                cudaMemcpyHostToDevice, stream_of(ctx)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_payload, values_to_remove.data(),
-                                values_to_remove.size() * sizeof(int), cudaMemcpyHostToDevice, 0));
+                                values_to_remove.size() * sizeof(int), cudaMemcpyHostToDevice,
+                                stream_of(ctx)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, remove_prefix_sizes.data(),
                                 remove_prefix_sizes.size() * sizeof(int), cudaMemcpyHostToDevice,
-                                0));
+                                stream_of(ctx)));
   int block_size = 256;
 
   // ── Degree-binned unfill dispatch ────────────────────────────────────
@@ -828,20 +902,22 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
   degree_bins bins(ctx.res, item_sizes(remove_prefix_sizes));
   bins.record(g_bin_launches.unfill);
   if (bins.count[0] > 0)
-    unfill_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size>>>(
-        ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
-        ctx.d_insert_prefix_sizes, bins.bin(0), bins.count[0]);
+    unfill_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
+                           stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
+                                             ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
+                                             bins.bin(0), bins.count[0]);
   if (bins.count[1] > 0)
-    unfill_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size>>>(
-        ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
-        ctx.d_insert_prefix_sizes, bins.bin(1), bins.count[1]);
+    unfill_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size, 0,
+                         stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
+                                           ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
+                                           bins.bin(1), bins.count[1]);
   if (bins.count[2] > 0) {
     size_t shmem = sizeof(int) * static_cast<size_t>(block_size + 1);
-    unfill_block_kernel<<<bins.count[2], block_size, shmem>>>(
+    unfill_block_kernel<<<bins.count[2], block_size, shmem, stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
         ctx.d_insert_prefix_sizes, bins.bin(2), bins.count[2]);
   }
-  DYNG_CUDA_TRY(cudaGetLastError());
+  DYNG_CHECK_KERNEL(stream_of(ctx));
 }
 
 }  // namespace dyng::detail::escher
