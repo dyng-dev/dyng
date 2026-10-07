@@ -36,13 +36,15 @@ hypergraph and `triad_count` follow as 0.3.0, `label_propagation` and `hyper_sss
 - `mosp`: multi-objective shortest paths (DynaMOSP), and a second `sssp` engine for GPUs
   without cooperative launch.
 - CUDA wheels as plugins: `pip install "dyng[cu12]"` or `"dyng[cu13]"`.
-- Tutorials on writing your own dynamic algorithm (the tutorial algorithms `dynamic_bfs` and
-  `triangle_delta`, and "Your first dynamic algorithm"), and the Python tutorials (dynamic SSSP
-  in ten minutes, cycle counting on a changing graph).
-- Hosted documentation on GitHub Pages: <https://dyng-dev.github.io/dyng/>. A citable DOI per
-  release once Zenodo is connected (0.1.0 has none).
+- A tutorial on writing your own dynamic algorithm ("Your first dynamic algorithm") and the two
+  tutorial algorithms `dynamic_bfs` and `triangle_delta` (teaching material).
+- Hosted documentation on GitHub Pages: <https://dyng-dev.github.io/dyng/>.
 - Fuzzers for the file readers, mutation checks of the golden suites, sanitizer jobs (ASan,
   UBSan, TSan) on every pull request.
+
+After 0.2.0, in 0.2.x releases: the Python tutorials (dynamic SSSP in ten minutes, cycle
+counting on a changing graph, MOSP with preferences). A citable DOI per release needs Zenodo,
+which the author may connect later (checkpoint A4); it is not part of 0.2.0, and 0.1.0 has none.
 
 ## 0.3.0: the dynamic hypergraph
 
