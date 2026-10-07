@@ -49,9 +49,10 @@ DYNG_ARCHER_LIBRARY=/path/to/libarcher.so ci/sanitizers.sh tsan-openmp
 
 `tsan-openmp` takes `CXX` (default `clang++-18`, else `clang++`) and finds Archer next to the
 compiler's libraries (`$CXX -print-file-name=libarcher.so`; Debian and Ubuntu ship it with
-`libomp-<N>-dev`), or takes `DYNG_ARCHER_LIBRARY`. The hosted jobs set `vm.mmap_rnd_bits=28`
-first: the runners randomize mmap with 32 bits, which the TSan and ASan runtimes of GCC 13 and
-LLVM 18 do not support.
+`libomp-<N>-dev`), or takes `DYNG_ARCHER_LIBRARY`. The hosted sanitizer jobs and the fuzz job
+(`fuzz.yml`, whose targets use the ASan runtime of LLVM 18) set `vm.mmap_rnd_bits=28` first: the
+runners randomize mmap with 32 bits, which the TSan and ASan runtimes of GCC 13 and LLVM 18 do not
+support.
 
 On the development machine (2026-10-06, `ctest -L cpu -j 8`): `asan` 826 tests passed in 101 s,
 `tsan` 733 in 141 s, `tsan-openmp` 826 in 134 s; no sanitizer reports. Each preset's build is a
@@ -79,9 +80,16 @@ calls the reader. It requires that
   crash or a hang is a finding;
 - an accepted input gives a consistent result (ids in range, sizes that agree, the documented
   order);
-- where a writer exists, writing the result and reading it back gives the same data;
+- where a writer exists, writing the result and reading it back gives the same data. Only the
+  first read may reject the input: in the round trip (`round_trip()` of `cpp/fuzz/fuzz_input.hpp`)
+  any exception, a copy that the reader rejects included, is a finding. CTest
+  `fuzz.selftest.<target>` proves that this check can fail: built with
+  `DYNG_FUZZ_CORRUPT_WRITES=1`, the target appends a line of garbage to every file its writer
+  produced, and the test passes only if the replay of the seed corpus reports the failure;
 - no single allocation exceeds 2 GB and no input takes 10 s (`-malloc_limit_mb`, `-timeout`): a
-  file of a few kilobytes that makes a reader reserve gigabytes is a finding too.
+  file of a few kilobytes that makes a reader reserve gigabytes is a finding too. The replay of the
+  committed inputs (`fuzz.corpus.<target>`) uses a 256 MB limit, which every reproducer of
+  `cpp/fuzz/regressions` exceeded before its fix.
 
 The command line's text batches are parsed in Python, where libFuzzer does not reach:
 `python/tests/test_reader_robustness.py` feeds them, and `dyng.io`'s readers, arbitrary text with
@@ -104,8 +112,10 @@ perf lock and niced: `flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/fuzz.sh`.
 
 `fuzz.yml` runs the same script on GitHub's runners with Clang 18 (`clang-18`,
 `libclang-rt-18-dev`): on pull requests that change a reader, the parser utilities, the fuzzers or
-the workflow (60 s per target), weekly on `main` (10 minutes per target) and on demand (any
-duration). A finding fails the job and uploads its reproducer (artifact `fuzz-findings`).
+the workflow (60 s per target), weekly on `main` (10 minutes per target) and on demand (at most
+1000 s per target, so that the six targets and the build fit the job's 120 minutes). A finding
+fails the job and uploads its reproducer (artifact `fuzz-findings`; also when the job is
+cancelled).
 
 ### A finding
 

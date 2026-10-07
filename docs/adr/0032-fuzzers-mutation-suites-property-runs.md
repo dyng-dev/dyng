@@ -46,7 +46,11 @@ duplicates, threads) and several id and weight types.
 3. **What a target checks.** A rejected input may raise only the exceptions the reader documents
    (`io_error`, `invalid_argument_error`, `out_of_memory_error`); an accepted input must be
    consistent (ids in range, sizes, the documented order), and where a writer exists, write then
-   read must give the same data. ci/fuzz.sh runs libFuzzer with `-malloc_limit_mb=2048` and
+   read must give the same data; only the first read may reject the input, so any exception in
+   the round trip (a copy the reader rejects) is a finding, and CTest `fuzz.selftest.<target>`
+   (a build that corrupts every written file) shows that the check can fail. The corpus replay
+   `fuzz.corpus.<target>` runs with `-malloc_limit_mb=256`. ci/fuzz.sh runs libFuzzer with
+   `-malloc_limit_mb=2048` and
    `-timeout=10`: **a small file that makes a reader allocate gigabytes is a finding**, even
    though the reader would report `out_of_memory_error` or succeed in reserving it.
 4. **Two builds of every target.** With `DYNG_BUILD_FUZZERS=ON` (preset `fuzz`: Clang, libdyng

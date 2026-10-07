@@ -32,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       seconds:
-        description: "Seconds per target"
+        description: "Seconds per target (at most 1000: six targets and the build fit the job's 120 minutes)"
         required: false
         default: "60"
 
@@ -64,6 +64,11 @@ jobs:
           sudo apt-get install -y --no-install-recommends clang-18 libclang-rt-18-dev
           echo "CXX=clang++-18" >> "${GITHUB_ENV}"
           python -m pip install "cmake>=3.30,<4.5" ninja
+      # The runner's 32-bit mmap randomization puts mappings where the ASan runtime of LLVM 18
+      # expects its shadow memory ("unexpected memory mapping"), as in sanitizers.yml; 28 bits is
+      # the default of most distributions.
+      - name: Address-space randomization the sanitizers support
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
       - name: Cache CPM downloads
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
@@ -83,13 +88,21 @@ jobs:
           case "${seconds}" in
             '' | *[!0-9]*) echo "seconds must be a whole number, got '${seconds}'" >&2; exit 1 ;;
           esac
+          # Six targets run one after another; with the build, 1000 s each stays inside
+          # timeout-minutes (a cancelled job would skip the upload of the reproducers).
+          if [ "${seconds}" -gt 1000 ]; then
+            echo "seconds must be at most 1000 (six targets in the job's 120 minutes), got ${seconds}" >&2
+            exit 1
+          fi
           echo "seconds=${seconds}" >> "${GITHUB_OUTPUT}"
       - name: Build, replay the corpus, fuzz every target
         env:
           SECONDS_PER_TARGET: ${{ steps.time.outputs.seconds }}
         run: ci/fuzz.sh --time "${SECONDS_PER_TARGET}"
+      # Also when the job is cancelled (timeout-minutes): the targets that ran before keep their
+      # reproducers.
       - name: Upload the reproducers of a finding
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: fuzz-findings
