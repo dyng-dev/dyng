@@ -49,6 +49,17 @@ Counts are of the commits reachable from the pinned commit (`git log <commit>` i
   repeated here (the repository never records host names or personal paths).
 
 Which dynG files derive from each original: `git grep -l "Derived from <repository>@"`.
+`ci/provenance_check.py` fails when a library or tool source names an original's function, class
+or kernel (its `SYMBOLS` list; for ESCHER-GPU the CBST API and every kernel and helper of the store
+port) without such a line.
+
+The ESCHER CBST store (`cpp/src/hypergraph/escher`, M8a) is a transplant of ESCHER-GPU@abcf9b2's
+store that can be regenerated from the original: `parity/escher_port/transplant.py` reads the
+pinned commit, applies the rename map `parity/escher_port/rename_map.toml` (every renamed
+identifier, original to dynG) and the listed manual hunks (`manual_hunks.patch`), and
+`transplant.py --check --rev <c1>` compares the result with the first port commit (ADR 0038).
+The later commits each apply one class of mechanical change (parity/results/M8a.md, the
+merge-step table).
 
 ## Third-party code
 

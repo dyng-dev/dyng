@@ -47,6 +47,13 @@
 #              there. Set DYNG_GPU_PLUGIN_WHEELS=<dir> to test wheels built before (that
 #              directory's dist/ and core/dist/; no build). Skipped when the wheel toolchain is
 #              missing.
+#   cbst       the ESCHER CBST store (M8a, ADR 0038): compute-sanitizer racecheck, synccheck and
+#              initcheck on the store's GPU test executables (dyng_cbst_store_tests,
+#              dyng_cbst_device_tests: the committed traces of both originals,
+#              dyng_cbst_coverage_tests: A's skewed and medium traces; memcheck covers them in the
+#              memcheck step), and the device replay of the small trace golden sets
+#              (parity/compare.py cbst_trace --store device: escher_gpu_test, escher_gpu_targeted,
+#              mosp_escher_test, mosp_escher_targeted; skipped without the goldens)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -70,7 +77,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,57p' "${BASH_SOURCE[0]}"
+      sed -n '5,64p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -254,6 +261,52 @@ if ! skipped racecheck; then
     record racecheck passed
   else
     record racecheck FAILED
+  fi
+fi
+
+if ! skipped cbst; then
+  step "the CBST store: sanitizers and the trace replays (GPU ${gpu})"
+  cbst_ok=1
+  cbst_exes=()
+  for t in dyng_cbst_store_tests dyng_cbst_device_tests dyng_cbst_coverage_tests; do
+    if [ -x "${build_dir}/cpp/tests/${t}" ]; then
+      cbst_exes+=("${build_dir}/cpp/tests/${t}")
+    else
+      echo "${build_dir}/cpp/tests/${t} missing"
+      cbst_ok=0
+    fi
+  done
+  if [ -z "${sanitizer}" ]; then
+    echo "compute-sanitizer missing"
+    cbst_ok=0
+  else
+    for tool in racecheck synccheck initcheck; do
+      extra=()
+      [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
+      for exe in "${cbst_exes[@]}"; do
+        if ! heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 "${exe}" \
+          --gtest_brief=1; then
+          echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
+          cbst_ok=0
+        fi
+      done
+    done
+  fi
+  if [ "${cbst_ok}" = 1 ]; then
+    record "cbst sanitizers (racecheck, synccheck, initcheck)" passed
+  else
+    record "cbst sanitizers (racecheck, synccheck, initcheck)" FAILED
+  fi
+  replay="${build_dir}/cpp/tests/dyng_cbst_replay"
+  if [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/escher_gpu_test/MANIFEST.sha256" ]; then
+    echo "the CBST trace goldens are missing (parity/export_goldens.py cbst_trace); skipped"
+    record "cbst replays (device, small sets)" skipped
+  elif heavy python3 parity/compare.py cbst_trace --store device --replay-exe "${replay}" \
+    --gpu "${gpu}" --set cbst_trace_escher_gpu_test --set cbst_trace_escher_gpu_targeted \
+    --set cbst_trace_mosp_escher_test --set cbst_trace_mosp_escher_targeted; then
+    record "cbst replays (device, small sets)" passed
+  else
+    record "cbst replays (device, small sets)" FAILED
   fi
 fi
 
