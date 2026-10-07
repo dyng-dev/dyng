@@ -26,7 +26,7 @@ void bind_functions(nb::module_& m) {
             lock_set locks;
             locks.add(g.mutex, false);
             locks.lock();
-            return new triangle_delta_holder(triangle_delta::compute(res, g.value, opt));
+            return new triangle_delta_holder(triangle_delta::compute(res, g.value, opt), res);
           });
         },
         nb::arg("resources"), nb::arg("graph"), nb::arg("options"), nb::rv_policy::take_ownership);
@@ -73,6 +73,9 @@ void bind_triangle_delta(nb::module_& m) {
                      return read_result(h,
                                         [](const triangle_delta::result& r) { return r.count(); });
                    })
+      .def_prop_ro(
+          "writer", [](const triangle_delta_holder& h) { return writer_of(h); },
+          "The resources of the call that last wrote this result (orders its device memory).")
       .def_prop_ro("generation", &triangle_delta_holder::generation,
                    "The number of updates of this result.")
       .def_prop_ro("options",
@@ -97,7 +100,7 @@ void bind_triangle_delta(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, false);
               locks.lock();
-              return new triangle_delta_holder(h.get().clone(res));
+              return new triangle_delta_holder(h.get().clone(res), res);
             });
           },
           nb::arg("resources"), nb::rv_policy::take_ownership);

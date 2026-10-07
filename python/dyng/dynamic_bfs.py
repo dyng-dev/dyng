@@ -31,8 +31,10 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Any
 
+from . import _writer as _writer_state
 from ._backend import native
 from ._convert import as_int, copy_fields, enum_name, with_options
+from ._writer import resolve_on, writing
 from .array import Array
 from .batch import EdgeBatch
 from .graph import ApplySummary, Graph
@@ -99,6 +101,11 @@ class Result:
     __slots__ = ("_native", "_resources", "__weakref__")
     _native: Any
     _resources: Resources
+    # the bookkeeping of dyng._writer (a side table, as for the other results)
+    _writer = _writer_state.WRITER
+    _streams = _writer_state.STREAMS
+    _write_lock = _writer_state.WRITE_LOCK
+    __del__ = _writer_state.release
 
     def __init__(self) -> None:
         raise TypeError("use dyng.dynamic_bfs.compute()")
@@ -108,6 +115,7 @@ class Result:
         self = object.__new__(cls)
         self._native = handle
         self._resources = resources
+        _writer_state.track(self, resources)
         return self
 
     @property
@@ -116,7 +124,12 @@ class Result:
         state (device memory for a result of the cuda backend)."""
         from .sssp import _result_array
 
-        return _result_array(self._native, self._native.levels, "dynamic_bfs.Result.levels")
+        return _result_array(
+            self._native,
+            self._native.levels,
+            "dynamic_bfs.Result.levels",
+            (self._resources, self._writer, self._streams),
+        )
 
     @property
     def options(self) -> Options:
@@ -195,7 +208,7 @@ def compute(
     if source is not None:
         kwargs["source"] = source
     opt = with_options(Options, options, kwargs, "dynamic_bfs.compute")
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     return Result._wrap(
         native.dynamic_bfs_compute(res._native, graph._native, opt._to_native()), res
     )
@@ -217,8 +230,8 @@ def update(
         raise TypeError("dyng.dynamic_bfs.update: result must be a dyng.dynamic_bfs.Result")
     if not isinstance(batch, EdgeBatch):
         raise TypeError("dyng.dynamic_bfs.update: batch must be a dyng.EdgeBatch")
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(
-        native.dynamic_bfs_update(res._native, graph._native, nb, result._native)
-    )
+    with writing([result], res):
+        out = native.dynamic_bfs_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)

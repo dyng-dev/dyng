@@ -26,7 +26,7 @@ void bind_functions(nb::module_& m) {
             lock_set locks;
             locks.add(g.mutex, false);
             locks.lock();
-            return new dynamic_bfs_holder(dynamic_bfs::compute(res, g.value, opt));
+            return new dynamic_bfs_holder(dynamic_bfs::compute(res, g.value, opt), res);
           });
         },
         nb::arg("resources"), nb::arg("graph"), nb::arg("options"), nb::rv_policy::take_ownership);
@@ -71,6 +71,9 @@ void bind_dynamic_bfs(nb::module_& m) {
            [](const dynamic_bfs_holder& h) {
              return export_array(h, [](const dynamic_bfs::result& r) { return r.levels(); });
            })
+      .def_prop_ro(
+          "writer", [](const dynamic_bfs_holder& h) { return writer_of(h); },
+          "The resources of the call that last wrote this result (orders its device arrays).")
       .def_prop_ro("generation", &dynamic_bfs_holder::generation,
                    "The number of updates of this result (dyng.Array's staleness check).")
       .def_prop_ro("options",
@@ -105,7 +108,7 @@ void bind_dynamic_bfs(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, false);
               locks.lock();
-              return new dynamic_bfs_holder(h.get().clone(res));
+              return new dynamic_bfs_holder(h.get().clone(res), res);
             });
           },
           nb::arg("resources"), nb::rv_policy::take_ownership);

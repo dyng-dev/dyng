@@ -27,8 +27,10 @@ from __future__ import annotations
 from dataclasses import dataclass, fields
 from typing import Any
 
+from . import _writer as _writer_state
 from ._backend import native
 from ._convert import copy_fields, enum_name
+from ._writer import resolve_on, writing
 from .batch import EdgeBatch
 from .graph import ApplySummary, Graph
 from .resources import Resources, resolve
@@ -92,6 +94,11 @@ class Result:
     __slots__ = ("_native", "_resources", "__weakref__")
     _native: Any
     _resources: Resources
+    # the bookkeeping of dyng._writer (a side table, as for the other results)
+    _writer = _writer_state.WRITER
+    _streams = _writer_state.STREAMS
+    _write_lock = _writer_state.WRITE_LOCK
+    __del__ = _writer_state.release
 
     def __init__(self) -> None:
         raise TypeError("use dyng.triangle_delta.compute()")
@@ -101,6 +108,7 @@ class Result:
         self = object.__new__(cls)
         self._native = handle
         self._resources = resources
+        _writer_state.track(self, resources)
         return self
 
     @property
@@ -176,7 +184,7 @@ def compute(
         raise TypeError(
             "dyng.triangle_delta.compute: options must be a dyng.triangle_delta.Options"
         )
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     return Result._wrap(
         native.triangle_delta_compute(res._native, graph._native, opt._to_native()), res
     )
@@ -198,8 +206,8 @@ def update(
         raise TypeError("dyng.triangle_delta.update: result must be a dyng.triangle_delta.Result")
     if not isinstance(batch, EdgeBatch):
         raise TypeError("dyng.triangle_delta.update: batch must be a dyng.EdgeBatch")
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(
-        native.triangle_delta_update(res._native, graph._native, nb, result._native)
-    )
+    with writing([result], res):
+        out = native.triangle_delta_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)

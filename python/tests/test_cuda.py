@@ -7,7 +7,8 @@ wheel installed (``pip install "dyng[cu13]"``; ci/plugin_wheels.sh and the plugi
 ci/gpu_local.sh run them on GPU 1). Elsewhere they skip.
 
 - sssp, cycle_count and mosp on CUDA equal the sequential backend element by element (compute,
-  update, ``dyng.update``), on random graphs and both CUDA engines;
+  update, ``dyng.update``), on random graphs and both CUDA engines; so do the tutorial algorithms
+  dynamic_bfs and triangle_delta;
 - a subset of the committed goldens of the pinned originals (cpp/tests/data, the same fixtures as
   the C++ parity tests): MOSP's files byte for byte, CycleEnumeration-GPU's CUDA histograms;
 - ``dyng.Array`` in device memory: metadata, host copies, ``__cuda_array_interface__``,
@@ -201,6 +202,49 @@ def test_one_batch_updates_several_results_on_cuda(
         st_tree, st_hist = dyng.update(g, random_batch(5, 300), tree, hist)
         out[r.backend] = (host(tree.distances), host(hist.counts), st_tree.invalidated)
     assert all(np.array_equal(a, b) for a, b in zip(out["cuda"], out["sequential"], strict=True))
+
+
+@pytest.mark.parametrize("seed", [1, 2])
+def test_tutorial_algorithms_on_cuda_equal_sequential(
+    cuda: dyng.Resources, seq: dyng.Resources, seed: int
+) -> None:
+    # dynamic_bfs and triangle_delta (maturity tutorial, ADR 0033) through the plugin module:
+    # their results carry the writer and stream bookkeeping of the other results (ADR 0031), so
+    # their device arrays read back and export like sssp's.
+    rng = np.random.default_rng(seed)
+    n = 200
+    pairs = {(int(u), int(v)) for u, v in rng.integers(0, n, (1600, 2)) if u != v}
+    directed = sorted(pairs)
+    undirected = sorted({(min(u, v), max(u, v)) for u, v in pairs})
+    removed = [directed[i] for i in rng.choice(len(directed), 60, replace=False)]
+    added = sorted({(int(u), int(v)) for u, v in rng.integers(0, n, (60, 2)) if u != v} - pairs)
+    batch = dyng.EdgeBatch(
+        insert=tuple(np.array(c, dtype=np.int32) for c in zip(*added, strict=True)),
+        delete=tuple(np.array(c, dtype=np.int32) for c in zip(*removed, strict=True)),
+    )
+    out = {}
+    for r in (seq, cuda):
+        gd = dyng.Graph.from_edges(*zip(*directed, strict=True), num_vertices=n, resources=r)
+        gu = dyng.Graph.from_edges(
+            *zip(*undirected, strict=True), num_vertices=n, directed=False, resources=r
+        )
+        bfs = dyng.dynamic_bfs.compute(gd, 0)
+        tri = dyng.triangle_delta.compute(gu)
+        before = (host(bfs.levels), tri.count)
+        dyng.dynamic_bfs.update(gd, batch, bfs)
+        dyng.triangle_delta.update(gu, batch, tri)
+        out[r.backend] = (before, host(bfs.levels), tri.count, bfs.space, tri.space)
+        if r is cuda:
+            assert bfs.levels.device == "cuda:0"
+            assert bfs.levels.__cuda_array_interface__["shape"] == (n,)
+            assert np.array_equal(host(bfs.clone().levels), host(bfs.levels))
+    (b_seq, l_seq, t_seq, _, _), (b_cuda, l_cuda, t_cuda, s_bfs, s_tri) = (
+        out["sequential"],
+        out["cuda"],
+    )
+    assert np.array_equal(b_cuda[0], b_seq[0]) and b_cuda[1] == b_seq[1] > 0
+    assert np.array_equal(l_cuda, l_seq) and t_cuda == t_seq
+    assert (s_bfs, s_tri) == ("device", "device")
 
 
 # -------------------------------------------------------------------------------------------------
