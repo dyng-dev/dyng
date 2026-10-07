@@ -888,3 +888,48 @@ def test_perf_ab_mosp_help() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     assert "--pref" in proc.stdout and "--objectives" in proc.stdout
+
+
+def test_hypergraph_region_map_loads() -> None:
+    """parity/timed_regions/hypergraph.toml (M8a, written before the port) passes the strict
+    loader: every original timer is one perf_ab.py knows, every region names port stages."""
+    perf = load("parity/perf_ab.py")
+    regions = {
+        r["name"]: r
+        for r in perf.load_regions(
+            "escher_gpu", perf.HYPERGRAPH_REGION_MAP, ("maintain", "build", "upload")
+        )
+    }
+    assert regions["maintain"]["original_report"] == ["timing:update.maintain"]
+    assert regions["maintain"]["port"] == ["hypergraph.apply"]
+    assert regions["maintain.delete"]["port"] == ["hypergraph.apply.delete"]
+    assert regions["maintain.insert"]["port"] == ["hypergraph.apply.insert"]
+    assert regions["maintain.line_graph"]["port"] == ["hypergraph.apply.line_graph"]
+    assert regions["maintain.views"]["port"] == ["hypergraph.apply.views"]
+    assert regions["build"]["port"] == ["hypergraph.build"]
+    assert regions["upload"]["port"] == ["hypergraph.upload"]
+    # every sub-stage of A's update.maintain is mapped
+    stages = {k for r in regions.values() for k in r["original_report"]}
+    for sub in (
+        "prepare",
+        "h2v_delete",
+        "v2h_unfill",
+        "h2v_insert",
+        "v2h_fill",
+        "h2h_merge",
+        "row_views",
+    ):
+        assert f"timing:maintain.{sub}" in stages
+    hsosp = perf.load_regions("mosp_escher", perf.HYPERGRAPH_REGION_MAP, ("escher",))
+    assert hsosp[0]["original_report"] == ["csv:t_escher_ms"]
+
+
+def test_hypergraph_region_map_rejects_unknown_timers(tmp_path: Path) -> None:
+    perf = load("parity/perf_ab.py")
+    bad = perf.HYPERGRAPH_REGION_MAP.read_text().replace(
+        'original_report = ["timing:maintain.row_views"]', 'original_report = ["timing:nope"]'
+    )
+    path = tmp_path / "hypergraph.toml"
+    path.write_text(bad)
+    with pytest.raises(SystemExit, match="cannot parse"):
+        perf.load_regions("escher_gpu", path, ("maintain",))

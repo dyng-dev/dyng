@@ -1,0 +1,147 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Timed-region map of the hypergraph container and its ESCHER store (PLAN Sections 6.3 step 3,
+# 6.4.5, 6.4.6 and 8.6): each timer of the original -> the dynG profiler stages whose host times
+# are summed to match it. Written in M8a step 1, BEFORE any port commit (PLAN 6.3: "without this
+# table '<= 1.05x of the paper-timed region' is not well defined"). parity/perf_ab.py LOADS it
+# (load_regions(<map>, HYPERGRAPH_REGION_MAP, ...)) and refuses a region whose original timer it
+# does not know or that names no port stage. The keys mean what they mean in sssp.toml; `gate` is
+# "compute" (<= 1.05x), "end_to_end" (<= 1.10x) or "none" (reported only).
+#
+# What ESCHER-GPU@abcf9b2 times (include/timer.hpp ScopedTimer; build/main --timing <file>.json
+# writes every record as {"stage", "batch", "ms"}; a ScopedTimer synchronizes the device at its
+# start and end unless it is constructed with deviceSync = false):
+#   driver.cu      init.load (no sync), init.full_count, batch.generate (no sync), update >
+#                  { update.subtract, update.maintain, update.add }, check, reference (no sync), total
+#   dynamic_hypergraph.cu (DynamicHypergraph::build, inside the driver's untimed construction):
+#                  init.v2h_build, init.h2h_build, init.v2v_build, init.flatten (host, no sync),
+#                  init.construct, init.row_views
+#   dynamic_hypergraph.cu (DynamicHypergraph::update = the region update.maintain):
+#                  maintain.prepare (host, no sync), maintain.h2v_delete, maintain.v2h_unfill,
+#                  maintain.h2v_insert, maintain.v2h_fill, maintain.h2h_merge, maintain.v2h_view
+#                  and maintain.v2v_merge (coarseTriangle only), maintain.row_views
+# The paper-timed region of triad_count (M9) is `update` (subtract + maintain + add; PLAN 6.4.6:
+# coauth-DBLP 50K <= 1.05 x 0.546 s); this map defines its `maintain` part, which the hypergraph
+# container (M8b) owns.
+#
+# Planned dynG stage names (docs/design/sketches/hypergraph.md): hypergraph.apply >
+# { hypergraph.apply.delete, hypergraph.apply.insert, hypergraph.apply.line_graph,
+# hypergraph.apply.views (optional: when the container keeps row views) }; hypergraph.build
+# (host side of the construction); hypergraph.upload (the device stores and their views).
+# hypergraph.apply also contains the host preparation of the batch (A's maintain.prepare: the
+# grouping of the removals by vertex and the packing of the inserted rows), which the port does
+# inside the region as well; no separate stage is planned for it.
+
+[reference.escher_gpu]
+repo = "ESCHER-GPU"
+commit = "abcf9b2"
+driver = "build/main of the UNPATCHED copy, --timing <file>.json (ScopedTimer stage records)"
+port_driver = "the hypergraph container's profiler stages (M8b; triad_count's driver in M9)"
+
+# The maintenance of one batch: CBST delete / unfill / insert / fill of H2V and V2H, the delta
+# merge of H2H (and V2V), the row views. M9 gates it as part of `update`; M8b reads it on its own.
+[[reference.escher_gpu.region]]
+name = "maintain"
+per_objective = false
+original = ["update.maintain (DynamicHypergraph::update; includes maintain.prepare)"]
+original_report = ["timing:update.maintain"]
+port = ["hypergraph.apply"]
+gate = "none"
+note = """
+Reported in M8b, gated in M9 as part of `update` (PLAN 6.4.6). A's region also covers the host
+preparation maintain.prepare (no device sync), which dynG does inside hypergraph.apply.
+"""
+
+[[reference.escher_gpu.region]]
+name = "maintain.delete"
+per_objective = false
+original = ["maintain.h2v_delete + maintain.v2h_unfill"]
+original_report = ["timing:maintain.h2v_delete", "timing:maintain.v2h_unfill"]
+port = ["hypergraph.apply.delete"]
+gate = "none"
+
+[[reference.escher_gpu.region]]
+name = "maintain.insert"
+per_objective = false
+original = ["maintain.h2v_insert + maintain.v2h_fill"]
+original_report = ["timing:maintain.h2v_insert", "timing:maintain.v2h_fill"]
+port = ["hypergraph.apply.insert"]
+gate = "none"
+
+# coarseTriangle also times maintain.v2h_view (the sorted V2H copy) and maintain.v2v_merge; they
+# are summed here when present (the vertex graph is the line graph of the dual).
+[[reference.escher_gpu.region]]
+name = "maintain.line_graph"
+per_objective = false
+original = ["maintain.h2h_merge (+ maintain.v2h_view + maintain.v2v_merge with the vertex graph)"]
+original_report = ["timing:maintain.h2h_merge", "timing:maintain.v2h_view", "timing:maintain.v2v_merge"]
+port = ["hypergraph.apply.line_graph"]
+gate = "none"
+
+[[reference.escher_gpu.region]]
+name = "maintain.views"
+per_objective = false
+original = ["maintain.row_views"]
+original_report = ["timing:maintain.row_views"]
+port = ["hypergraph.apply.views"]
+gate = "none"
+note = "Only when the container keeps row views (M8b); otherwise the views are built by their reader."
+
+[[reference.escher_gpu.region]]
+name = "maintain.prepare"
+per_objective = false
+original = ["maintain.prepare (host, inside update.maintain)"]
+original_report = ["timing:maintain.prepare"]
+port = ["hypergraph.apply"]
+gate = "none"
+note = "Host preparation inside the region; dynG has no separate stage (it is part of hypergraph.apply)."
+
+# The construction of the stores from the loaded hyperedges (DynamicHypergraph::build).
+[[reference.escher_gpu.region]]
+name = "build"
+per_objective = false
+original = ["init.v2h_build + init.h2h_build + init.v2v_build + init.flatten (host)"]
+original_report = ["timing:init.v2h_build", "timing:init.h2h_build", "timing:init.v2v_build", "timing:init.flatten"]
+port = ["hypergraph.build"]
+gate = "none"
+
+[[reference.escher_gpu.region]]
+name = "upload"
+per_objective = false
+original = ["init.construct + init.row_views (the CBSTs and their row views on the device)"]
+original_report = ["timing:init.construct", "timing:init.row_views"]
+port = ["hypergraph.upload"]
+gate = "none"
+
+# Reading the .hg file (or generating the synthetic hypergraph): dynG's reader, not a container
+# stage.
+[[reference.escher_gpu.region]]
+name = "load"
+per_objective = false
+original = ["init.load"]
+original_report = ["timing:init.load"]
+port = ["io.read_hypergraph"]
+gate = "none"
+note = "M8b's .hg reader (io.read_hypergraph); for a synthetic input the generator (generators.*)."
+
+# H-SOSP (MOSP_ESCHER@4b86159) reports per batch, in hsospBench's CSV, t_escher_ms: the CBST
+# maintenance of DynamicHypergraph::beginBatch (the h2v insert; BatchResult::escherMs) plus
+# finishBatch (h2v erase / unfill / fill, v2h unfill / fill, h2h unfill / erase / fill / insert;
+# hsospDelta.cu:937-940, which also copies the sorted line-graph keys to the host before it and
+# synchronizes the device after it). Noted here for M11 (hyper_sssp), which maps it with its own
+# stages (t_delta_ms, t_csr_apply_ms, t_sosp_update_ms, t_static_ms).
+[reference.mosp_escher]
+repo = "MOSP_ESCHER"
+commit = "4b86159"
+driver = "bin/hsospBench of the UNPATCHED copy (CSV columns)"
+port_driver = "hyper_sssp's driver (M11)"
+
+[[reference.mosp_escher.region]]
+name = "escher"
+per_objective = false
+original = ["t_escher_ms (beginBatch's h2v insert + finishBatch)"]
+original_report = ["csv:t_escher_ms"]
+port = ["hypergraph.apply"]
+gate = "none"
+note = "M11 maps the H-SOSP regions; dynG's line-graph delta (t_delta_ms) is not part of this region."
