@@ -725,6 +725,104 @@
   detail: template <typename vertex_t, typename edge_t, typename weight_t> inline constexpr bool sssp_supported_v = std::is_same_v<weight_t, std::int32_t> && ((std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<edge_t, std::int32_t> || std::is_same_v<edge_t, std::int64_t>)) || (std::is_same_v<vertex_t, std::int64_t> && std::is_same_v<edge_t, std::int64_t>));
   detail: template <typename vertex_t, typename distance_t> struct update_traits<sssp::result<vertex_t, distance_t>> { using stats_type = sssp::stats; }
 
+[dyng/testing/cbst_host_model.hpp] tracked
+  [[nodiscard]] std::int64_t dyng::testing::cbst_rank_of_position(std::int64_t position, std::int64_t num_nodes) noexcept
+  struct dyng::testing::cbst_layout_check
+      std::int64_t num_nodes = 0
+      std::int64_t not_a_permutation = 0
+      std::int64_t not_in_order = 0
+      std::int64_t not_found = 0
+      std::int64_t wrong_offset = 0
+      std::int64_t inverse_mismatches = 0
+      [[nodiscard]] bool ok() const noexcept
+  [[nodiscard]] cbst_layout_check dyng::testing::check_cbst_layout(std::int64_t num_nodes, bool search_every_key=true)
+  struct dyng::testing::cbst_host_policy
+      enum class growth_rule { none, escher_gpu }
+      enum class compaction_rule { none, mosp_escher }
+      enum class failure_rule { process_exit, exception }
+      enum class occupancy_rule { scan_payload, caller_counts_or_zero, caller_counts_or_scan }
+      enum class scratch_rule { exact, geometric }
+      std::string name
+      growth_rule growth = growth_rule::escher_gpu
+      compaction_rule compaction = compaction_rule::none
+      failure_rule failure = failure_rule::process_exit
+      occupancy_rule occupancy = occupancy_rule::scan_payload
+      scratch_rule scratch = scratch_rule::exact
+      bool validate_construct = false
+      bool clamp_fill_tail = false
+      bool has_rebuild = true
+      bool has_compact = false
+      bool counts_bin_launches = true
+      std::string error_type
+      [[nodiscard]] static cbst_host_policy escher_gpu()
+      [[nodiscard]] static cbst_host_policy mosp_escher()
+      [[nodiscard]] static cbst_host_policy dyng_default()
+      [[nodiscard]] static bool from_name(const std::string &name, cbst_host_policy &out)
+  enum class dyng::testing::cbst_op_status { ok, error, process_exit, undefined }
+  struct dyng::testing::cbst_op_result
+      cbst_op_status status = cbst_op_status::ok
+      std::string error_type
+      std::string message
+      std::vector< std::int32_t > mapping
+      std::int64_t compact_return = 0
+      std::int64_t reusable_slots = -1
+      bool grew = false
+      std::int64_t compactions = 0
+      bool compaction_changed = false
+      std::array< std::int64_t, 9 > bin_launches {}
+  struct dyng::testing::cbst_key_record
+      std::int32_t key = 0
+      std::int32_t avail = 0
+      std::int32_t length = 0
+      std::int32_t size = 0
+      std::int32_t occupancy = 0
+      std::int32_t tail_capacity = 0
+      std::int32_t value = 0
+      std::int32_t tail_base = 0
+      std::int32_t segments = 1
+      std::int32_t row_len = 0
+      bool terminated = true
+      std::vector< std::int32_t > row
+  struct dyng::testing::cbst_model_event
+      enum class kind { growth, compaction }
+      kind what = kind::growth
+      std::int64_t op_index = 0
+      std::int64_t before = 0
+      std::int64_t after = 0
+  class dyng::testing::cbst_host_model
+      cbst_host_model(cbst_host_policy policy, std::int64_t payload_capacity, std::int32_t alignment=4, std::string name={})
+      ~cbst_host_model()
+      cbst_host_model(const cbst_host_model &other)
+      cbst_host_model & operator=(const cbst_host_model &other)
+      cbst_host_model(cbst_host_model &&other) noexcept
+      cbst_host_model & operator=(cbst_host_model &&other) noexcept
+      cbst_op_result construct(const std::vector< std::int32_t > &keys, const std::vector< std::int32_t > &starts, const std::vector< std::int32_t > &flat, const std::vector< std::int32_t > *row_counts=nullptr)
+      cbst_op_result rebuild(const std::vector< std::int32_t > &starts, const std::vector< std::int32_t > &flat, std::int64_t flat_size, std::int64_t payload_capacity)
+      cbst_op_result insert(const std::vector< std::int32_t > &keys, const std::vector< std::int32_t > &payload, const std::vector< std::int32_t > &prefix)
+      cbst_op_result erase(const std::vector< std::int32_t > &keys)
+      cbst_op_result append(const std::vector< std::int32_t > &keys, const std::vector< std::int32_t > &payload, const std::vector< std::int32_t > &prefix)
+      cbst_op_result remove_values(const std::vector< std::int32_t > &keys, const std::vector< std::int32_t > &values, const std::vector< std::int32_t > &prefix)
+      cbst_op_result compact()
+      [[nodiscard]] const cbst_host_policy & policy() const noexcept
+      [[nodiscard]] const std::string & name() const noexcept
+      [[nodiscard]] std::int64_t num_records() const noexcept
+      [[nodiscard]] std::int64_t num_nodes() const noexcept
+      [[nodiscard]] std::int64_t payload_capacity() const noexcept
+      [[nodiscard]] std::int64_t bump() const noexcept
+      [[nodiscard]] std::int32_t alignment() const noexcept
+      [[nodiscard]] std::int64_t scratch_items() const noexcept
+      [[nodiscard]] std::int64_t scratch_payload() const noexcept
+      [[nodiscard]] std::int64_t device_bytes() const noexcept
+      [[nodiscard]] std::int64_t reusable_slots() const noexcept
+      [[nodiscard]] std::vector< std::int32_t > keys() const
+      [[nodiscard]] std::vector< std::int32_t > subtree_avail() const
+      [[nodiscard]] std::vector< cbst_key_record > records() const
+      [[nodiscard]] bool record(std::int32_t key, cbst_key_record &out) const
+      [[nodiscard]] const std::vector< cbst_model_event > & events() const noexcept
+      [[nodiscard]] std::int64_t num_operations() const noexcept
+      [[nodiscard]] bool exited() const noexcept
+      [[nodiscard]] std::vector< std::string > check() const
+
 [dyng/testing/check_sssp.hpp] tracked
   struct dyng::testing::check_sssp_options
       int objective = 0

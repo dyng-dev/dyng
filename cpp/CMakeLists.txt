@@ -217,9 +217,17 @@ endforeach()
 
 # dyng::testing: host-only oracles for users and the test suites (PLAN Section 5.8). It shares no
 # code with the algorithms it checks.
+# The CBST host model (M8a, ADR 0037) is its own object library: it uses the C++ standard library
+# only, so its object file can be checked to reference nothing of dynG (cbst_model_isolation).
+add_library(dyng_testing_cbst_model OBJECT src/testing/cbst_host_model.cpp)
+target_include_directories(dyng_testing_cbst_model PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_compile_features(dyng_testing_cbst_model PRIVATE cxx_std_17)
+set_target_properties(dyng_testing_cbst_model PROPERTIES POSITION_INDEPENDENT_CODE ON)
+dyng_set_warnings(dyng_testing_cbst_model)
+dyng_enable_sanitizers(dyng_testing_cbst_model)
 add_library(
   dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp src/testing/cycle_oracle.cpp
-               src/testing/mosp_oracle.cpp
+               src/testing/mosp_oracle.cpp $<TARGET_OBJECTS:dyng_testing_cbst_model>
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(

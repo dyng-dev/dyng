@@ -10,6 +10,15 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- M8a: **`dyng::testing::cbst_host_model`** (`dyng/testing/cbst_host_model.hpp`, ADR 0037), a
+  sequential host model of the ESCHER CBST store of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159
+  (best-fit reuse, surplus keys and the rebuild, fill overflow segments, unfill, A's growth, B's
+  compaction and exceptions) with the policy presets `cbst_host_policy::escher_gpu()`,
+  `mosp_escher()` and the provisional `dyng_default()`, and the layout helpers
+  `cbst_rank_of_position` and `check_cbst_layout` (ESCHER-GPU's `cbst_test` sizes). It replays
+  every replayable operation of both originals' CBST traces with 100% agreement; the oracle of the
+  store port. Parity harness: the trace replay comparator (`cpp/tests/parity/escher/cbst_compare`),
+  the tool `dyng_cbst_replay` and `parity/compare.py cbst_trace --store host_model`.
 - M8a (parity harness, not part of the library): the **CBST trace recorders** of ESCHER-GPU@abcf9b2
   and MOSP_ESCHER@4b86159 (ADR 0036): the originals' unchanged objects relinked into recording
   twins with `-Xlinker --wrap` (`parity/exporters/escher`), the trace format 1 and its readers

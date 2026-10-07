@@ -99,6 +99,26 @@ dyng_add_test(
   LIBRARIES dyng_cbst_trace
 )
 list(APPEND _dyng_private_tests dyng_cbst_trace_tests)
+# The CBST host model (dyng::testing::cbst_host_model, M8a step 2, ADR 0037): its tests (the
+# cbst_test layout sizes, the store's documented rules) and the include-graph / link check.
+dyng_add_test(
+  NAME dyng_cbst_model_tests
+  SOURCES parity/escher/cbst_host_model_test.cpp
+  LABELS cpu parity cbst
+  LIBRARIES dyng::testing
+)
+list(APPEND _dyng_private_tests dyng_cbst_model_tests)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
+  add_test(
+    NAME cbst_model_isolation
+    COMMAND
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/cbst_host_model.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_cbst_model>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(cbst_model_isolation PROPERTIES LABELS "cpu;parity;cbst")
+endif()
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")

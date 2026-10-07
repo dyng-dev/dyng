@@ -92,6 +92,22 @@ SYMBOLS = [
     "circuit_bounded",
     "extend_prefix",
     "update_histogram",
+    # ESCHER-GPU@abcf9b2 / MOSP_ESCHER@4b86159, the CBST store (M8a)
+    "CBSTOperations",
+    "CBSTContext",
+    "CBSTNode",
+    "constructCBST",
+    "rebuildCBSTFromDevice",
+    "insertCBST",
+    "fillCBST",
+    "deleteCBST",
+    "unfillCBST",
+    "compactCBST",
+    "cbstRankOfPosition",
+    "initTailMetadata",
+    "ensurePayloadCapacity",
+    "InsertMapping",
+    "DegreeBinLaunches",
 ]
 PINNED = re.compile(
     r"\b(MOSP-OpenMP|MOSP-CUDA|MOSP_ESCHER|ESCHER-GPU|LabelPropagation-CUDA|"
@@ -117,6 +133,8 @@ NOT_DERIVED = {
     "cpp/src/framework/workspace.hpp": "new pool; names MOSP's shared SospWorkspace it mirrors",
     "cpp/include/dyng/mosp.hpp": "public API; documents the semantics the port reproduces",
     "cpp/include/dyng/testing/mosp_oracle.hpp": "public API of mosp_oracle.cpp (header there)",
+    "cpp/include/dyng/testing/cbst_host_model.hpp": "public API of cbst_host_model.cpp (header "
+    "there)",
 }
 
 
