@@ -290,6 +290,23 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   resources, and so the stream object, alive as long as the result and its Arrays; before,
   dropping them left `__cuda_array_interface__` naming a destroyed stream and `to_numpy()` failing
   with a CUDA error or a crash.
+- Fixed: `dyng.config()` / `dyng.show_config()` no longer initialize CUDA when a plugin is chosen
+  (the CUDA entry comes from the plugin's probe), so printing the configuration does not stop the
+  process from forking workers that use CUDA.
+- Changed (release): `release.yml` uploads the CUDA plugins before `dyng` on each index, and
+  `dyng` only when every plugin upload succeeded, so `pip install "dyng[cu13]"` never meets a
+  `dyng` whose plugin is missing (pip would fall back to an older `dyng` without the extra with
+  only a warning). `ci/tests/test_release_select.py` tests the `select` step for every kind of
+  tag. The release checklist runs the GPU tests on the CI-built wheels of both plugins before
+  their PyPI environments are approved.
+- Changed (CI): the plugin wheels are checked for exactly the SASS and PTX of their toolkit's
+  release list (`ci/wheel_check.py --code-objects` with cuobjdump, in the container; the smoke
+  test checks the architectures the module reports), their module is linked with
+  `-Wl,--exclude-libs,ALL` as in the local build and may export only its init function and std /
+  nanobind / type_info symbols; the pinned CUDA RPMs are checked against NVIDIA's OpenPGP
+  signature (key fingerprint pinned; gpg on the runner, `rpm -K` and `localpkg_gpgcheck` in the
+  container); `wheels.yml` builds the plugins for pull requests that change the library or the
+  licence files too.
 
 ### Changed
 
