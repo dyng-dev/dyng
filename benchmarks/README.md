@@ -84,8 +84,11 @@ then runs each planned command; `--skip-existing` resumes an interrupted executi
 commit). The full records go to `$DYNG_SCRATCH/runs/bench/<version>/`, with the log of every
 command (`<suite>.log`); `run` never replaces a record that exists (`--skip-existing` keeps it,
 `--force` replaces it; to take a reading again, move its record to `superseded/` first).
-`--readings`, `--datasets` and (sssp, mosp) `--batches` select a part and `--runs` overrides the
-rounds (at least 5): such a **narrowed** execution is summarized as `<suite>.partial.json` and only into an `--out` outside
+`--readings`, `--datasets` and (sssp, mosp) `--batches` select a part, `--runs` overrides the
+rounds (at least 5), and `--keep-contaminated` (sssp, mosp) makes a **diagnostic** execution for a
+machine too busy for a gate run (the harness keeps and flags the rounds its contamination monitor
+would repeat; the summary lists them under `contaminated`, and refuses such a record in any other
+execution): such a **narrowed** execution is summarized as `<suite>.partial.json` and only into an `--out` outside
 `benchmarks/results/` (a release's summary is the whole suite's; after taking readings again, run
 `summarize` for the whole suite). The harness records name the NVIDIA driver and the CUDA driver
 API version, and the inputs as measured: the sssp harness hashes every input file when a run

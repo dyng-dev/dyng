@@ -1267,3 +1267,46 @@ def test_a_narrowed_mosp_execution(bench, tmp_path: Path) -> None:
     with pytest.raises(SystemExit) as exc:
         bench.main(["summarize", str(MOSP_SUITE), "--batches", "safe50k", "--version", "t"])
     assert exc.value.code == 2
+
+
+def test_a_diagnostic_execution_keeps_contaminated_rounds_flagged(bench, tmp_path: Path) -> None:
+    """--keep-contaminated (a busy machine): the harness keeps the rounds it would repeat; the
+    summary flags them in a diagnostic execution and refuses such a record otherwise."""
+    suite = bench.load_suite(MOSP_SUITE)
+    narrowed = {"datasets": ["roadNet-PA"], "keep_contaminated": True}
+    jobs = bench.plan(
+        suite,
+        records=tmp_path / "rec",
+        build_root=Path("/b"),
+        datasets=["roadNet-PA"],
+        keep_contaminated=True,
+    )
+    for job in jobs:
+        assert job["diagnostic"]
+        assert ("--keep-contaminated" in job["argv"]) == (job["kind"] == "run")
+    with pytest.raises(bench.SuiteError, match="--keep-contaminated"):
+        cc = bench.load_suite(REPO / "benchmarks/paper/ieee_tc_dyntrucy.yaml")
+        bench.plan(cc, records=tmp_path, build_root=Path("/b"), keep_contaminated=True)
+    _write_sssp_records(bench, suite, tmp_path / "rec", head())
+    omp = next(j for j in jobs if j["reading"] == "openmp")
+    rec = json.loads(Path(omp["record"]).read_text())
+    rec["protocol"]["contamination_monitor"] = "...; contaminated rounds kept and flagged"
+    rec["results"]["safe50k"]["monitor"] = {
+        "rounds": [{"original": {"reasons": ["foreign CPU load 24 cores > 2.0"]}, "port": {}}],
+        "rejected": [],
+    }
+    Path(omp["record"]).write_text(json.dumps(rec))
+    out = tmp_path / "out"
+    summary = bench.summarize(
+        suite, jobs, out=out, version="t", records=tmp_path / "rec", inputs=None, partial=narrowed
+    )
+    assert summary["verdict"]["passed"], summary["verdict"]
+    assert summary["verdict"]["contaminated"] == [
+        "openmp: safe50k (1 runs above the foreign-load threshold)"
+    ]
+    plain = bench.plan(suite, records=tmp_path / "rec", build_root=Path("/b"))
+    summary = bench.summarize(
+        suite, plain, out=tmp_path / "o2", version="t", records=tmp_path / "rec", inputs=None
+    )
+    assert not summary["verdict"]["passed"]
+    assert "not a gate reading" in " ".join(summary["verdict"]["problems"])

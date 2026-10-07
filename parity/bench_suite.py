@@ -51,8 +51,10 @@ summarize  reads the records of every planned command and writes, under
            Exit 1 if a gated region exceeds its gate, a gated reading is missing or incomplete,
            or a check fails.
 
---readings, --datasets, --batches (sssp, mosp) and --runs narrow the suite: such an execution is
-written as
+--readings, --datasets, --batches (sssp, mosp) and --runs narrow the suite, and
+--keep-contaminated (sssp, mosp: a diagnostic execution on a busy machine, whose rounds with
+foreign load are kept and flagged instead of repeated) makes it a diagnostic one: such an
+execution is written as
 <suite>.partial.json and only to an --out outside benchmarks/results/ (a release's summary covers
 the whole suite, and parity/certify.py checks that it does).
 """
@@ -442,8 +444,11 @@ def plan(
     batches: list[str] | None = None,
     runs: int | None = None,
     lock_timeout: float = 4 * 3600.0,
+    keep_contaminated: bool = False,
 ) -> list[dict]:
-    """The harness commands of one execution of the suite."""
+    """The harness commands of one execution of the suite. keep_contaminated (sssp, mosp: a
+    diagnostic execution on a busy machine) keeps the rounds the contamination monitor would
+    repeat, flagged, instead of repeating them."""
     algorithm = suite["algorithm"]
     selected = [r for r in suite["readings"] if not readings or r["name"] in readings]
     if readings:
@@ -463,6 +468,8 @@ def plan(
         if unknown:
             raise SuiteError(f"unknown batches {sorted(unknown)}")
         batch_names = [b for b in batch_names if b in batches]
+    if keep_contaminated and algorithm not in PER_DATASET:
+        raise SuiteError(f"--keep-contaminated is for the suites of {PER_DATASET}")
     py = sys.executable
     harness = str(REPO / "parity" / "perf_ab.py")
     jobs = []
@@ -498,6 +505,8 @@ def plan(
                             engine = suite["backends"]["cuda"].get("engine", "automatic")
                             argv += ["--cuda-engine", engine]
                     argv += ["--threads", str(suite["backends"]["openmp"].get("threads", 28))]
+                    if keep_contaminated:
+                        argv.append("--keep-contaminated")
                 else:
                     argv = [
                         py,
@@ -521,6 +530,7 @@ def plan(
                         "reading": r["name"],
                         "dataset": dataset,
                         "batches": batch_names,
+                        "diagnostic": keep_contaminated,
                         "kind": r["kind"],
                         "gated": r["gated"],
                         "record": out,
@@ -911,6 +921,25 @@ def read_record(
                 for side in (result.get("contamination") or {}).values()
                 if isinstance(side, dict)
             )
+            # Kept by perf_ab.py --keep-contaminated (sssp, mosp): only in a diagnostic
+            # execution (bench_suite.py --keep-contaminated, always partial), where they are
+            # flagged; a record that kept them is never a gate reading of the suite.
+            monitor = result.get("monitor") if isinstance(result.get("monitor"), dict) else {}
+            if "kept and flagged" in str(
+                (record.get("protocol") or {}).get("contamination_monitor")
+            ):
+                kept = sum(
+                    1
+                    for rnd in monitor.get("rounds", []) or []
+                    for side in ("original", "port")
+                    if isinstance(rnd, dict) and (rnd.get(side) or {}).get("reasons")
+                )
+                if not job.get("diagnostic"):
+                    problems.append(
+                        f"{where}: {case}: contaminated rounds were kept (--keep-contaminated), "
+                        "not repeated: not a gate reading"
+                    )
+                flagged += kept
             if flagged:
                 contaminated[case] = flagged
             if result.get("complete") is False:
@@ -1165,6 +1194,13 @@ def main(argv: list[str] | None = None) -> int:
             "--out", type=Path, default=None, help="default benchmarks/results/<version>"
         )
         p.add_argument("--lock-timeout", type=float, default=4 * 3600.0, metavar="SECONDS")
+        p.add_argument(
+            "--keep-contaminated",
+            action="store_true",
+            help="sssp, mosp: a diagnostic execution on a busy machine (always partial): keep "
+            "and flag the rounds the contamination monitor would repeat (perf_ab.py "
+            "--keep-contaminated); never a gate reading",
+        )
         if name == "run":
             p.add_argument(
                 "--skip-existing", action="store_true", help="keep records that exist already"
@@ -1206,13 +1242,15 @@ def main(argv: list[str] | None = None) -> int:
             ("datasets", args.datasets),
             ("batches", args.batches),
             ("runs", args.runs),
+            ("keep_contaminated", args.keep_contaminated),
         )
         if v
     } or None
     results_root = (REPO / "benchmarks" / "results").resolve()
     if partial and args.command != "plan" and out.resolve().is_relative_to(results_root):
         parser.error(
-            "--readings, --datasets, --batches or --runs narrow the suite: give --out outside "
+            "--readings, --datasets, --batches, --runs or --keep-contaminated narrow the suite: "
+            "give --out outside "
             "benchmarks/results/ (the release's summary covers the whole suite)"
         )
     jobs = plan(
@@ -1222,6 +1260,7 @@ def main(argv: list[str] | None = None) -> int:
         readings=args.readings,
         datasets=args.datasets,
         batches=args.batches,
+        keep_contaminated=args.keep_contaminated,
         runs=args.runs,
         lock_timeout=args.lock_timeout,
     )

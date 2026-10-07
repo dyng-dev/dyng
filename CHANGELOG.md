@@ -465,7 +465,9 @@ These entries belong to the 0.2 work (PLAN Appendix F).
 - Parity tools: `parity/bench_suite.py` runs a mosp suite through `parity/perf_ab.py mosp` and
   `perf_ab.py memory --mosp`, and refuses a record that is not of mosp or not of the suite's K,
   batches, preferences, CUDA engine and output scope, or whose `invalidated` counts differ
-  between the two sides; `--batches` narrows an sssp or mosp execution (a partial one).
+  between the two sides; `--batches` narrows an sssp or mosp execution (a partial one), and
+  `--keep-contaminated` makes a diagnostic one for a busy machine (rounds with foreign load kept
+  and flagged, never a gate reading: a record that kept them is refused otherwise).
 - Parity tools: `parity/certify.py write` requires the suites of each release series
   (`REQUIRED_SUITES`: the sssp and cycle_count suites from 0.1, the mosp suite from 0.2: a 0.2
   certificate without the mosp gates fails), and a gated reading of every gated metric of each
