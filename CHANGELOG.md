@@ -10,7 +10,7 @@ Before 0.1.0 anything may change.
 
 ### Added
 
-- M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0030), created with
+- M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0033), created with
   `scripts/new_algorithm.py` and completed on the sequential, OpenMP and CUDA backends (Tier A),
   each with hand cases, an independent oracle and the conformance kit C0-C12 on every backend:
   `dynamic_bfs` (fixed point: BFS levels from a source; the subtrees under deleted BFS-tree edges
@@ -30,7 +30,7 @@ Before 0.1.0 anything may change.
   use them; PLAN 4.5.3's rule of two).
 - M6b: the conformance kit generates **undirected** graphs for an algorithm that requires them
   (`graph_properties::directed = false`); its edge and batch counters count each stored direction.
-- M6b: **reader fuzzers** (`cpp/fuzz`, ADR 0032): libFuzzer targets for every file reader (Matrix
+- M6b: **reader fuzzers** (`cpp/fuzz`, ADR 0034): libFuzzer targets for every file reader (Matrix
   Market, edge lists, the MOSP CSR triplet, MOSP batches, `.dgt` batches, distance and parent
   files) with ASan and UBSan, checking the documented exceptions, the consistency of accepted
   input and write/read round trips; the CMake option `DYNG_BUILD_FUZZERS` and the preset `fuzz`

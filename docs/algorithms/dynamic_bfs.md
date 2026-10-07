@@ -97,7 +97,7 @@ print(bfs.levels.to_numpy(), stats.invalidated)   # [0 1 1 2 3] 2
 
 Graph types: `graph<int32_t, int32_t or int64_t, int32_t or unweighted>` and
 `graph<int64_t, int64_t, int32_t>`. `dyng::update(res, g, batch, r1, r2, ...)` accepts
-`dynamic_bfs` results in C++; the Python `dyng.update()` and the CLI do not (ADR 0030).
+`dynamic_bfs` results in C++; the Python `dyng.update()` and the CLI do not (ADR 0033).
 
 ## 4. Backends, engines and determinism
 

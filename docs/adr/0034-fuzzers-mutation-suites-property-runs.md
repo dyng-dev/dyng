@@ -1,4 +1,4 @@
-# ADR 0032: Reader fuzzers, the golden mutation suites and the long property runs
+# ADR 0034: Reader fuzzers, the golden mutation suites and the long property runs
 
 - **Status:** Accepted under delegation (2026-10-06; GOVERNANCE.md, "Delegation of technical
   ADRs"). It carries out the M6b acceptance criteria for fuzzers, mutation checks and the full
@@ -8,8 +8,8 @@
   fail when they should), no licence, no name; the public API is unchanged.
 - **Date:** 2026-10-06
 - **Deciders:** the AI assistant, on the author's behalf (M6b, step docs-pages-fuzz)
-- **Number:** 0032, not 0031: the branches `m6a-cuda-wheels` and `m6b-hardening` both wrote an
-  ADR 0030, so 0031 is left free for the renumbering at their merge.
+- **Number:** written as 0032 and renumbered 0034 in the M6b review: the parallel milestone M6a
+  (branch `m6a-cuda-wheels`) uses 0030, 0031 and 0032, and M6b's tutorial-algorithms ADR is 0033.
 
 ## Context
 

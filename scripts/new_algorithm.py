@@ -23,7 +23,7 @@ it puts back the [[planned]] entry of cpp/src/algorithms/planned.toml that the s
 
 The scaffold covers graphs (--container graph) and the host backends; a CUDA backend is added by
 hand: the tutorial algorithms dynamic_bfs and triangle_delta show the pattern (each pass a DYNG_HD
-functor in engine.hpp, run by the executors of cpp/src/operators; ADR 0030), and the hypergraph
+functor in engine.hpp, run by the executors of cpp/src/operators; ADR 0033), and the hypergraph
 container arrives later.
 """
 

@@ -30,4 +30,4 @@ change that removes a marker breaks the documentation build), and `ci/scaffold_c
 `my_bfs`, puts the reference files in and runs its kit, so a framework change that breaks the
 tutorial breaks CI. The two teaching algorithms of the library, {doc}`../algorithms/dynamic_bfs`
 and {doc}`../algorithms/triangle_delta` (maturity `tutorial`), are the finished versions on every
-backend (ADR 0030).
+backend (ADR 0033).

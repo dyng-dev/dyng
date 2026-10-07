@@ -106,7 +106,7 @@ No options yet. Stats, all deterministic:
 
 Graph types: `graph<int32_t, int32_t or int64_t, int32_t or unweighted>` and
 `graph<int64_t, int64_t, int32_t>`. `dyng::update(res, g, batch, r1, r2, ...)` accepts
-`triangle_delta` results in C++; the Python `dyng.update()` and the CLI do not (ADR 0030).
+`triangle_delta` results in C++; the Python `dyng.update()` and the CLI do not (ADR 0033).
 
 ## 4. Backends, engines and determinism
 

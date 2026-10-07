@@ -79,7 +79,7 @@ the larger count of a pair; mosp's traits set K = 3), and `host_sync_budget(back
 C8 budget of the engine that ran (`stats::engine_used` and its counters; `run_dependent_budget`
 when it depends on counters the stats do not carry, and C8 then checks the problem's own bound).
 
-**Undirected graphs** (0.2, ADR 0030). When `require()` sets `graph_properties::directed = false`
+**Undirected graphs** (0.2, ADR 0033). When `require()` sets `graph_properties::directed = false`
 (`triangle_delta`), the kit generates undirected models: each edge once, as (u, v) with u < v, its
 batches name such pairs, and the graph stores both directions. The checks that count edges or
 `apply_summary` counters (C2's edge count, C7's skipped operations, C9's "applied + skipped ==
@@ -118,7 +118,7 @@ call instead of failing to link; keep the trait `detail::<name>_supported_v` in 
 explicit instantiations. The scaffold writes graphs and the host
 backends; a CUDA backend is added by hand (the pattern of the tutorial algorithms `dynamic_bfs` and
 `triangle_delta`: the passes as functors in `engine.hpp`, run by the executors of
-`cpp/src/operators/`, one instantiation per backend file; ADR 0030), and the hypergraph container
+`cpp/src/operators/`, one instantiation per backend file; ADR 0033), and the hypergraph container
 arrives later.
 
 Then, in the order of PLAN Section 9.4: write `compute()` (the sequential static solve) and the

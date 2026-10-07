@@ -1,7 +1,7 @@
 # Robustness checks: sanitizers, fuzzers, mutation checks, long property runs
 
 These checks look for bugs that the unit tests, the conformance kit and the golden parity do not
-reach by construction (PLAN Sections 7.3, 8.1 and 8.4; ADR 0032). The sanitizer jobs run the CPU
+reach by construction (PLAN Sections 7.3, 8.1 and 8.4; ADR 0034). The sanitizer jobs run the CPU
 test suite on every pull request; they are not required checks yet (the lead maintainer decides,
 {doc}`repository_settings`, step 9). The other three are never required: each explores inputs at
 random or takes hours, so a failure is a new bug to fix, not a property of the pull request that

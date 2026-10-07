@@ -1,4 +1,4 @@
-# ADR 0030: The tutorial algorithms: registered with maturity `tutorial`, one source for every backend, undirected graphs in the kit
+# ADR 0033: The tutorial algorithms: registered with maturity `tutorial`, one source for every backend, undirected graphs in the kit
 
 - **Status:** Accepted under delegation (2026-10-06; GOVERNANCE.md, "Delegation of technical
   ADRs"). It carries out the M6b acceptance criteria for the tutorial algorithms (created with
@@ -8,6 +8,8 @@
   only grows (one enumerator, two new headers).
 - **Date:** 2026-10-06
 - **Deciders:** the AI assistant, on the author's behalf (M6b, step tutorials)
+- **Number:** written as 0030 and renumbered 0033 in the M6b review: the parallel milestone M6a
+  (branch `m6a-cuda-wheels`) uses 0030, 0031 and 0032.
 
 ## Context
 

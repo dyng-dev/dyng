@@ -180,7 +180,7 @@ the fused engine's own subtraction.
 ## Writing hooks with operators
 
 PLAN 4.5.4 wants Tier A hooks "written with operators", so that one source serves every backend.
-The two tutorial algorithms (`dynamic_bfs`, `triangle_delta`; ADR 0030) do it with *executors*
+The two tutorial algorithms (`dynamic_bfs`, `triangle_delta`; ADR 0033) do it with *executors*
 (`cpp/src/operators/`, 0.2):
 
 - a pass is a small functor, a struct of raw pointers whose `DYNG_HD void operator()(std::int64_t
@@ -469,7 +469,7 @@ Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
 | Validation and bookkeeping | lifecycle members `begin_update`, `resume`, `end_update`, `poison`, `target` | They are the `<algo>.cpp` duties of PLAN 4.8, so the participant adapter can run any problem. |
 | `run_update(ctx, g, batch, problems...)` returning a tuple | `run_update(res, g, batch, participants, n, stage)` + `problem_participant` / `update_one` / `make_participant` | The type-erased participants of M1a let `dyng::update` combine results of algorithms compiled in different translation units. |
 | frontier table | `internal_frontier` only | Both algorithms keep their frontiers in their workspaces (rule of two); `dynamic_bfs` (0.2) defines its own list frontier (one user). |
-| operators (PLAN 4.5.3 table) | the executors and atomics in `cpp/src/operators/` (0.2); the other operators in the algorithm folders | The tutorial algorithms are the two users of the executors; `advance`, `invalidate_subtree`, `intersect` and `count_delta` have one tutorial user each, and sssp's and cycle_count's ported engines keep their own (ADR 0030). |
+| operators (PLAN 4.5.3 table) | the executors and atomics in `cpp/src/operators/` (0.2); the other operators in the algorithm folders | The tutorial algorithms are the two users of the executors; `advance`, `invalidate_subtree`, `intersect` and `count_delta` have one tutorial user each, and sssp's and cycle_count's ported engines keep their own (ADR 0033). |
 | Tier B replaces `identify_affected` … `finalize` | cycle_count's `enact_fused` / `compute_fused` open the ported code's own stages inside `<algo>.enact_fused` | The regions of `parity/timed_regions/cycle_count.toml` (the paper's `kernel_ms` is `cycle_count.count`) keep their stages; the only new row is `cycle_count.enact_fused` on CUDA. |
 | the problem's `normalize` after the framework's | under set semantics cycle_count's `normalize` hook takes the framework's lists (a second call of the `cycle_count.normalize` stage) | The hook is Step 0 for every semantics; the stage rows are unchanged. |
 | `schedule`, `sync_rule`, `tie_break` | not yet | No two users. |
