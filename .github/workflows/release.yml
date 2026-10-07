@@ -26,8 +26,13 @@
 #     plugin wheels dyng-cu12 and dyng-cu13, built from the same sdist by wheels.yml.
 # `select` names the distributions of the tag (ci/wheel_check.py --release-distributions);
 # `collect` checks that the files are exactly those and sorts them into one directory per
-# distribution in one artifact `dist`; the publish jobs run once per distribution (a matrix),
-# each in that distribution's environment, and upload its directory unchanged.
+# distribution in one artifact `dist`; the publish jobs run once per distribution, each in that
+# distribution's environment, and upload its directory unchanged. On each index the CUDA plugins
+# go first (a matrix over dyng-cu12 / dyng-cu13) and `dyng` only after every plugin upload
+# succeeded: `dyng`'s extras pin `dyng-cuN==<version>`, and a `dyng` without its plugin on the
+# index would make `pip install "dyng[cu13]"` fall back silently to an older dyng without the
+# extra. Order: TestPyPI plugins, TestPyPI dyng, then (final versions) PyPI plugins, PyPI dyng.
+# ci/tests/test_release_select.py runs the `select` step's script for the tag kinds.
 name: release
 
 on:
@@ -52,6 +57,7 @@ jobs:
       prerelease: ${{ steps.select.outputs.prerelease }}
       plugins: ${{ steps.select.outputs.plugins }}
       distributions: ${{ steps.select.outputs.distributions }}
+      plugin_distributions: ${{ steps.select.outputs.plugin_distributions }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -102,8 +108,18 @@ jobs:
             # PLUGINS_SINCE), each with its own environments (testpypi-cuN / pypi-cuN).
             distributions="$(python ci/wheel_check.py --release-distributions)"
           fi
+          # The core `dyng` is published by its own jobs, after the plugins (the list must hold
+          # it exactly once, with the environments testpypi / pypi); the plugins' matrix gets the
+          # rest.
+          plugin_distributions="$(python -c 'import json, sys
+          d = json.loads(sys.argv[1])
+          core = [x for x in d if x["name"] == "dyng"]
+          assert len(core) == 1 and core[0]["suffix"] == "", d
+          rest = [x for x in d if x["name"] != "dyng"]
+          assert all(x["name"].startswith("dyng-cu") and x["suffix"] for x in rest), d
+          print(json.dumps(rest, separators=(",", ":")))' "${distributions}")"
           plugins=false
-          if printf '%s' "${distributions}" | grep -q '"dyng-cu'; then
+          if [ "${plugin_distributions}" != "[]" ]; then
             plugins=true
           fi
           {
@@ -112,6 +128,7 @@ jobs:
             echo "prerelease=${prerelease}"
             echo "plugins=${plugins}"
             echo "distributions=${distributions}"
+            echo "plugin_distributions=${plugin_distributions}"
           } >> "${GITHUB_OUTPUT}"
           echo "tag v${tag}: ${kind} ${version} (pre-release: ${prerelease}; CUDA plugins: ${plugins})"
           echo "distributions: ${distributions}"
@@ -215,18 +232,18 @@ jobs:
           path: publish/
           if-no-files-found: error
 
-  publish-testpypi:
+  publish-testpypi-plugins:
     name: Publish ${{ matrix.name }} to TestPyPI
     needs: [select, collect]
-    if: ${{ !cancelled() && needs.collect.result == 'success' }}
+    if: ${{ !cancelled() && needs.collect.result == 'success' && needs.select.outputs.plugins == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        # dyng (environment testpypi); from v0.2.0 also dyng-cu12 (testpypi-cu12) and dyng-cu13
-        # (testpypi-cu13): each project's trusted publisher is bound to its own environment.
-        include: ${{ fromJSON(needs.select.outputs.distributions) }}
+        # From v0.2.0: dyng-cu12 (environment testpypi-cu12) and dyng-cu13 (testpypi-cu13); each
+        # project's trusted publisher is bound to its own environment.
+        include: ${{ fromJSON(needs.select.outputs.plugin_distributions) }}
     environment:
       name: testpypi${{ matrix.suffix }}
       url: https://test.pypi.org/p/${{ matrix.name }}
@@ -243,19 +260,42 @@ jobs:
           packages-dir: dist/${{ matrix.name }}/
           skip-existing: true
 
-  publish-pypi:
+  publish-testpypi:
+    name: Publish dyng to TestPyPI
+    # After every plugin reached TestPyPI (or there is none: before v0.2.0, the reservation).
+    needs: [select, collect, publish-testpypi-plugins]
+    if: ${{ !cancelled() && needs.collect.result == 'success' && (needs.publish-testpypi-plugins.result == 'success' || (needs.publish-testpypi-plugins.result == 'skipped' && needs.select.outputs.plugins == 'false')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/dyng
+    permissions:
+      id-token: write  # Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/dyng/
+          skip-existing: true
+
+  publish-pypi-plugins:
     name: Publish ${{ matrix.name }} to PyPI
-    # Every distribution reached TestPyPI first (all legs of publish-testpypi succeeded).
-    needs: [select, collect, publish-testpypi]
-    if: ${{ !cancelled() && needs.publish-testpypi.result == 'success' && needs.select.outputs.prerelease == 'false' }}
+    # Every distribution reached TestPyPI first; final versions only.
+    needs: [select, publish-testpypi]
+    if: ${{ !cancelled() && needs.publish-testpypi.result == 'success' && needs.select.outputs.prerelease == 'false' && needs.select.outputs.plugins == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        # dyng (environment pypi); from v0.2.0 also dyng-cu12 (pypi-cu12) and dyng-cu13
-        # (pypi-cu13). Each environment requires the author's approval: three for 0.2.0.
-        include: ${{ fromJSON(needs.select.outputs.distributions) }}
+        # dyng-cu12 (environment pypi-cu12) and dyng-cu13 (pypi-cu13); each environment
+        # requires the author's approval.
+        include: ${{ fromJSON(needs.select.outputs.plugin_distributions) }}
     environment:
       name: pypi${{ matrix.suffix }}
       url: https://pypi.org/p/${{ matrix.name }}
@@ -269,3 +309,25 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
         with:
           packages-dir: dist/${{ matrix.name }}/
+
+  publish-pypi:
+    name: Publish dyng to PyPI
+    # Last: after every plugin reached PyPI, so `dyng[cuN]` never names a missing distribution.
+    # Environment pypi, with the author's approval (the third of three for v0.2.0).
+    needs: [select, publish-testpypi, publish-pypi-plugins]
+    if: ${{ !cancelled() && needs.publish-testpypi.result == 'success' && needs.select.outputs.prerelease == 'false' && (needs.publish-pypi-plugins.result == 'success' || (needs.publish-pypi-plugins.result == 'skipped' && needs.select.outputs.plugins == 'false')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: pypi
+      url: https://pypi.org/p/dyng
+    permissions:
+      id-token: write  # Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
+        with:
+          packages-dir: dist/dyng/

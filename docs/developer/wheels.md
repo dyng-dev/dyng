@@ -270,15 +270,17 @@ the Python distributions (ADR 0032 for the plugins):
    --release-distributions` names them). The `collect` job checks them again, checks that they
    are exactly the distributions of the release (`--release-set`), and uploads one artifact
    `dist` with a directory per distribution (`--split`).
-3. `publish-testpypi` uploads each distribution to TestPyPI through its own environment
-   (Trusted Publishing): `dyng` through `testpypi`, `dyng-cu12` through `testpypi-cu12`,
-   `dyng-cu13` through `testpypi-cu13`. Pre-releases (`a`, `b`, `rc`, `dev`) stop here:
-   smoke-install the RC from TestPyPI on a clean machine (CPU machine; on the GPU machine
-   `pip install "dyng[cu13]==<rc>"` with the CUDA backend).
-4. For a final version, once every TestPyPI upload succeeded, `publish-pypi` uploads each
-   distribution to PyPI through `pypi`, `pypi-cu12` and `pypi-cu13`; each waits for the author's
-   approval (three approvals for a release with the plugins; the "Review deployments" dialog can
-   approve all three at once).
+3. Each distribution is uploaded to TestPyPI through its own environment (Trusted
+   Publishing), the CUDA plugins first: `publish-testpypi-plugins` uploads `dyng-cu12` through
+   `testpypi-cu12` and `dyng-cu13` through `testpypi-cu13`, then `publish-testpypi` uploads
+   `dyng` through `testpypi` only if both succeeded (`dyng`'s extras pin the plugins: a `dyng`
+   on an index without its plugin would make `pip install "dyng[cu13]"` fall back silently to
+   an older `dyng`; ADR 0032 item 6). Pre-releases (`a`, `b`, `rc`, `dev`) stop here:
+   smoke-test the RC from TestPyPI ({doc}`release`, step 8).
+4. For a final version, once `dyng` reached TestPyPI, `publish-pypi-plugins` uploads the plugins
+   to PyPI through `pypi-cu12` and `pypi-cu13`, then `publish-pypi` uploads `dyng` through
+   `pypi`; each waits for the author's approval (three approvals for a release with the
+   plugins: the two plugins in one "Review deployments" dialog, then `dyng`).
 
 | Distribution | TestPyPI environment | PyPI environment | From |
 |---|---|---|---|

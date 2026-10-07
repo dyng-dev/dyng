@@ -93,16 +93,25 @@ own environments (PyPI refuses two identical pending publishers, so they cannot 
    `dyng-cu12` and `dyng-cu13`; it calls `wheels.yml` with `plugins` set accordingly. `collect`
    checks the files again and that they are exactly the named distributions of the version
    (`--release-set`: the core's sdist and wheel, one wheel per plugin, no plugin sdist), and
-   sorts them into one directory per distribution of the artifact `dist` (`--split`). The
-   publish jobs are matrices over the distributions: `publish-testpypi` uploads each directory
-   in environment `testpypi<suffix>` (`testpypi`, `testpypi-cu12`, `testpypi-cu13`), and
-   `publish-pypi`, only for final versions and only when every TestPyPI upload succeeded, in
-   `pypi<suffix>` (`pypi`, `pypi-cu12`, `pypi-cu13`), each of which needs the author's approval:
-   **three approvals for a final release with the plugins** (one "Review deployments" dialog
-   can approve all three). The uploads to PyPI are not ordered among themselves: `pip install
-   "dyng[cu13]"` resolves once `dyng` and `dyng-cu13` are both there, and approving the three
-   together makes the gap a minute. For v0.0.x and v0.1.x nothing changes but the artifact's
-   layout (`dist/dyng/`): the same files go to the same environments.
+   sorts them into one directory per distribution of the artifact `dist` (`--split`). Each
+   distribution is uploaded from its directory in its own environment, **the plugins before
+   `dyng` on each index**: `publish-testpypi-plugins` (a matrix over the plugins, environments
+   `testpypi-cu12`, `testpypi-cu13`), then `publish-testpypi` (`dyng`, `testpypi`) only if every
+   plugin upload succeeded; for final versions only and only after `dyng` reached TestPyPI,
+   `publish-pypi-plugins` (`pypi-cu12`, `pypi-cu13`), then `publish-pypi` (`dyng`, `pypi`) only
+   if both plugins reached PyPI. Each `pypi*` environment needs the author's approval: **three
+   approvals for a final release with the plugins** (the two plugins in one "Review
+   deployments" dialog, then `dyng`). The order matters because `dyng`'s extras pin the plugins
+   exactly: a `dyng` on the index without its plugin would make `pip install "dyng[cu13]"`
+   backtrack to an older `dyng` without the extra and install the CPU package with only a
+   warning, and a failed or rejected plugin upload (likely enough on the first upload through a
+   new pending publisher) would leave it so. With the plugins first, such a failure leaves
+   `dyng` unpublished instead, and a plugin alone is harmless (it requires `dyng==<version>`).
+   `docs/developer/release.md` says how to recover from a failed leg. The `select` step's
+   script is tested for every kind of tag by `ci/tests/test_release_select.py`. For v0.0.x and
+   v0.1.x nothing changes but the artifact's layout (`dist/dyng/`): the same files go to the
+   same environments (the plugin jobs are skipped). *(Revised after the M6a review: the first
+   version published the three distributions as one unordered matrix.)*
 7. **The informational "wheel vs parity build" row** (PLAN 7.7) is measured by
    `parity/wheel_vs_parity.py`: the same Python driver, in two interpreters, one with the core
    and plugin wheels, one importing `dyng` from an overlay whose module is the `parity-cuda`

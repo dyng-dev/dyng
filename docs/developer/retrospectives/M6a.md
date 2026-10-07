@@ -213,8 +213,9 @@ the CI smoke test and the whole suite with a plugin installed and the driver hid
 3. No test runs inside cibuildwheel for the plugins (`test-skip = "*"`): the plugin needs the
    core wheel of the same version, which is not on PyPI before the release; a separate job
    installs both wheels (`--no-index`) and tests them, as the CPU wheel's install-test does.
-4. The three PyPI uploads of a release are not ordered among themselves; the approvals of
-   `pypi`, `pypi-cu12` and `pypi-cu13` can be given in one dialog.
+4. The uploads are ordered on each index: the plugins first, `dyng` only after both
+   succeeded (revised after the review; the first version was one unordered matrix, which a
+   failed plugin leg would have left with `dyng[cuN]` pointing at a missing distribution).
 5. PLAN Appendix F names the environments `pypi` / `testpypi` for the plugins' pending
    publishers; the author's setup (relayed by the orchestrator) has one pair per plugin
    (`*-cu12`, `*-cu13`), because PyPI refuses two identical pending publishers. The workflow
