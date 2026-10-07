@@ -149,11 +149,92 @@ def test_the_committed_baseline_is_well_formed() -> None:
     for header in (
         "dyng/sssp.hpp",
         "dyng/cycle_count.hpp",
+        "dyng/mosp.hpp",  # stable from 0.2.0 (ADR 0035)
         "dyng/update.hpp",
         "dyng/graph/graph.hpp",
         "dyng/core/resources.hpp",
     ):
         assert f"[{header}] frozen\n" in text
+    # The tutorial algorithms are listed and checked, but not frozen (ADRs 0033, 0035).
+    for header in ("dyng/dynamic_bfs.hpp", "dyng/triangle_delta.hpp"):
+        assert f"[{header}] tracked\n" in text
+
+
+def test_an_algorithm_header_is_frozen_exactly_when_its_manifest_says_stable() -> None:
+    manifests = [
+        p
+        for p in sorted(api_snapshot.ALGORITHMS_DIR.glob("*/manifest.toml"))
+        if not p.parent.name.startswith("_")
+    ]
+    assert manifests
+    seen = {}
+    for manifest in manifests:
+        data = api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))
+        header = f"dyng/{data['name']}.hpp"
+        assert (api_snapshot.INCLUDE_DIR / header).is_file(), header
+        expected = "frozen" if data["maturity"] == "stable" else "tracked"
+        assert api_snapshot.status(header) == expected, (header, data["maturity"])
+        seen[data["name"]] = api_snapshot.status(header)
+    assert seen["sssp"] == seen["cycle_count"] == seen["mosp"] == "frozen"
+    assert seen["dynamic_bfs"] == seen["triangle_delta"] == "tracked"
+
+
+def test_the_maturity_decides_the_freeze(tmp_path: Path) -> None:
+    for name, maturity in (("alpha", "stable"), ("beta", "experimental"), ("gamma", "tutorial")):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "manifest.toml").write_text(
+            f'name = "{name}"\nmaturity = "{maturity}"\n'
+        )
+    (tmp_path / "_template").mkdir()
+    (tmp_path / "_template" / "manifest.toml").write_text('name = "t"\nmaturity = "stable"\n')
+    assert api_snapshot.stable_algorithm_headers(tmp_path) == ["dyng/alpha.hpp"]
+
+
+MOSP_INDEX = """<?xml version='1.0' encoding='UTF-8'?>
+<doxygenindex>
+  <compound refid="group__mosp" kind="group"><name>mosp</name></compound>
+  <compound refid="mosp_8hpp" kind="file"><name>mosp.hpp</name></compound>
+</doxygenindex>
+"""
+
+MOSP_GROUP = """<?xml version='1.0' encoding='UTF-8'?>
+<doxygen><compounddef id="group__mosp" kind="group">
+  <compoundname>mosp</compoundname>
+  <sectiondef kind="func">
+    <memberdef kind="function" id="m1" prot="public" static="no" nodiscard="yes" const="no"
+               explicit="no" inline="yes" virt="non-virtual">
+      <templateparamlist><param><type>typename vertex_t</type></param></templateparamlist>
+      <type>result&lt; vertex_t &gt;</type><definition>result&lt; vertex_t &gt; dyng::mosp::compute
+      </definition>
+      <argsstring>{args}</argsstring><name>compute</name>
+      <qualifiedname>dyng::mosp::compute</qualifiedname>
+      <location file="dyng/mosp.hpp" line="40" column="1"/>
+    </memberdef>
+  </sectiondef>
+</compounddef></doxygen>
+"""
+
+
+def test_a_mosp_signature_change_fails_in_the_frozen_mosp_section(tmp_path: Path, capsys) -> None:
+    """The freeze of mosp (ADR 0035): a deliberate change of a mosp signature fails the check."""
+    xml = tmp_path / "xml"
+    xml.mkdir()
+    (xml / "index.xml").write_text(MOSP_INDEX)
+    (xml / "mosp_8hpp.xml").write_text(_file("mosp_8hpp", "dyng/mosp.hpp"))
+    before = "(const resources &amp;res, vertex_t source, const options &amp;opt={})"
+    after = "(const resources &amp;res, vertex_t source, int k, const options &amp;opt={})"
+    (xml / "group__mosp.xml").write_text(MOSP_GROUP.format(args=before))
+    baseline = tmp_path / "public_api.txt"
+    assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline), "--update"]) == 0
+    assert "[dyng/mosp.hpp] frozen\n" in baseline.read_text()
+    (xml / "group__mosp.xml").write_text(MOSP_GROUP.format(args=after))
+    assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 1
+    out = capsys.readouterr().out
+    assert (
+        "-  template <typename vertex_t> [[nodiscard]] result< vertex_t > dyng::mosp::compute("
+        in out
+    )
+    assert "vertex_t source, int k, const options &opt={})" in out
 
 
 def test_the_detail_contract_is_read_from_the_source() -> None:
