@@ -5,7 +5,7 @@
 #
 # Adds the algorithm's private OBJECT library dyng_<algo> to libdyng (PLAN Section 4.8, file 3).
 # Honours DYNG_ALGORITHMS ("all" or a semicolon list) and records the algorithm in the global
-# property DYNG_BUILT_ALGORITHMS. CUDA_SOURCES (.cu files) are compiled only
+# property DYNG_BUILT_ALGORITHMS (and, built or not, in DYNG_KNOWN_ALGORITHMS). CUDA_SOURCES (.cu files) are compiled only
 # with DYNG_ENABLE_CUDA=ON. FAST_MATH compiles the algorithm's CUDA sources with --use_fast_math
 # (label_propagation only, as its original; there is no project-wide fast math, PLAN Section 7.3).
 
@@ -14,6 +14,8 @@ function(dyng_add_algorithm)
   if(NOT arg_NAME OR NOT arg_SOURCES)
     message(FATAL_ERROR "dyng_add_algorithm: NAME and SOURCES are required")
   endif()
+  # Every algorithm of the tree, built or not (cpp/CMakeLists.txt rejects unknown names).
+  set_property(GLOBAL APPEND PROPERTY DYNG_KNOWN_ALGORITHMS ${arg_NAME})
   if(NOT DYNG_ALGORITHMS STREQUAL "all" AND NOT arg_NAME IN_LIST DYNG_ALGORITHMS)
     message(STATUS "dynG: algorithm ${arg_NAME} skipped (DYNG_ALGORITHMS=${DYNG_ALGORITHMS})")
     return()
