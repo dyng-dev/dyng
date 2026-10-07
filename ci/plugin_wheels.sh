@@ -37,7 +37,9 @@
 #      trips with PyTorch and CuPy).
 #
 #   ci/plugin_wheels.sh                                   # cu13 with /usr/local/cuda-13.1
-#   DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT=$HOME/anaconda3/envs/cuda_12.8 ci/plugin_wheels.sh
+#   DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT=$DYNG_SCRATCH/tools/cuda-12.9 ci/plugin_wheels.sh
+#                                       # a conda-forge CUDA 12.9 (docs/developer/wheels.md; it
+#                                       # needs nvcc, the static cudart and cuobjdump)
 #   DYNG_CUDA13_ROOT=<dir>/usr/local/cuda-13.4 ci/plugin_wheels.sh   # the CI toolkit, unpacked by
 #                                       # ci/cuda_toolkit.py extract (docs/developer/wheels.md)
 #   DYNG_WHEEL_SKIP_TESTS=1 ci/plugin_wheels.sh            # build and check only
@@ -47,6 +49,7 @@
 #   DYNG_PLUGINS          the plugins to build                     (cu13)
 #   DYNG_CUDA12_ROOT      CUDA 12.x toolkit for cu12               (none: cu12 needs it)
 #   DYNG_CUDA13_ROOT      CUDA 13.x toolkit for cu13               (/usr/local/cuda-13.1)
+#                         (each must have bin/nvcc and bin/cuobjdump; checked before the build)
 #   DYNG_CUDA12_EULA, DYNG_CUDA13_EULA   the toolkit's EULA, when it is not <root>/EULA.txt or a
 #                         conda prefix's LICENSE (ci/plugin_pyproject.py --cuda-eula)
 #   DYNG_CORE_DIST        a directory with the core sdist and wheel of this version (default:
@@ -90,8 +93,35 @@ for f in "${cxx}" "${cc}" "${tools}/bin/auditwheel" "${tools}/bin/twine"; do
   fi
 done
 
+# plugin_toolkit <plugin>: sets root and eula of the plugin's CUDA toolkit, or exits with the
+# reason it cannot be used: nvcc builds the module, and the check of the module's SASS and PTX
+# after the repair needs the toolkit's cuobjdump (a conda environment without cuda-cuobjdump
+# has none).
+plugin_toolkit() {
+  case "$1" in
+    cu12) root="${DYNG_CUDA12_ROOT:-}"; eula="${DYNG_CUDA12_EULA:-}" ;;
+    cu13) root="${DYNG_CUDA13_ROOT:-/usr/local/cuda-13.1}"; eula="${DYNG_CUDA13_EULA:-}" ;;
+    *) echo "ci/plugin_wheels.sh: unknown plugin $1 (cu12, cu13)" >&2; exit 2 ;;
+  esac
+  if [ -z "${root}" ] || [ ! -x "${root}/bin/nvcc" ]; then
+    echo "ci/plugin_wheels.sh: $1 needs its CUDA toolkit: set DYNG_CUDA${1#cu}_ROOT" \
+      "(found '${root}')" >&2
+    exit 1
+  fi
+  if [ ! -x "${root}/bin/cuobjdump" ]; then
+    echo "ci/plugin_wheels.sh: $1: ${root}/bin/cuobjdump is missing; the check of the" \
+      "module's SASS and PTX needs the toolkit's cuobjdump (conda-forge: install cuda-cuobjdump" \
+      "into that environment; see docs/developer/wheels.md)" >&2
+    exit 1
+  fi
+}
+
 test_only="${DYNG_PLUGIN_TEST_ONLY:-0}"
 if [ "${test_only}" != "1" ]; then
+  # Every plugin's toolkit is checked before anything is built (or the output directory cleared).
+  for plugin in ${plugins}; do
+    plugin_toolkit "${plugin}"
+  done
   rm -rf "${out}"
   mkdir -p "${out}/raw" "${out}/dist"
 fi
@@ -110,16 +140,7 @@ trap 'rm -rf "${work}"' EXIT
 
 for plugin in ${plugins}; do
   [ "${test_only}" = "1" ] && break
-  case "${plugin}" in
-    cu12) root="${DYNG_CUDA12_ROOT:-}"; eula="${DYNG_CUDA12_EULA:-}" ;;
-    cu13) root="${DYNG_CUDA13_ROOT:-/usr/local/cuda-13.1}"; eula="${DYNG_CUDA13_EULA:-}" ;;
-    *) echo "ci/plugin_wheels.sh: unknown plugin ${plugin} (cu12, cu13)" >&2; exit 2 ;;
-  esac
-  if [ -z "${root}" ] || [ ! -x "${root}/bin/nvcc" ]; then
-    echo "ci/plugin_wheels.sh: ${plugin} needs its CUDA toolkit: set DYNG_CUDA${plugin#cu}_ROOT" \
-      "(found '${root}')" >&2
-    exit 1
-  fi
+  plugin_toolkit "${plugin}"
   echo "==> ${plugin}: the source tree from dyng-${version}.tar.gz (CUDA $("${root}/bin/nvcc" \
     --version | sed -n 's/.*release \([0-9.]*\).*/\1/p'), ${root})"
   src="${work}/${plugin}"
