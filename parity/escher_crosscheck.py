@@ -56,8 +56,35 @@ def scratch_default() -> Path:
     return Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
 
 
-def snapshot(state: et.TreeState, op: dict) -> dict:
+COMPACTION_COLUMNS = tuple(COL[c] for c in ("value", "tail_base", "tail_capacity", "segments"))
+
+
+def apply_op(state: et.TreeState, op: dict) -> bool:
+    """Applies an op's digest; True if the op compacted the payload (as escher_trace.py summary
+    infers it: rows the op does not name changed their offsets, tails or chains, or the bump
+    pointer fell)."""
+    touched = list(op["key.key"].values()) if "key.key" in op else []
+    old = {k: state.records[k] for k in touched if k in state.records}
+    et.apply_digest(state, op, keep_rows=True)
+    named: set = set()
+    if op.get("op") in ("fill", "unfill", "erase") and et.known(op, "in.keys") is not None:
+        named = set(et.known(op, "in.keys"))
+    elif "out.mapping" in op:
+        named = set(op["out.mapping"].values())
+    moved = any(
+        k not in named
+        and k in state.records
+        and any(old[k][c] != state.records[k][c] for c in COMPACTION_COLUMNS)
+        for k in old
+    )
+    fell = op.get("after.initial_payload_size", 0) < op.get("before.initial_payload_size", 0)
+    return moved or fell
+
+
+def snapshot(state: et.TreeState, op: dict, compacted: bool = False) -> dict:
     return {
+        "compacted": compacted,
+        "what": op.get("exception.what", ""),
         "status": op.get("status", 0),
         "exception": op.get("exception.type"),
         "mapping": list(op["out.mapping"].values()) if "out.mapping" in op else None,
@@ -138,13 +165,13 @@ def classify(field_: str, op: str, a: dict, b: dict, source_repo: str, note: str
             return "b_validates"
         if field_ == "occupancy":
             return "caller_counts"
-    if field_ == "exception" and (
-        "payload overflow" in str(b)
-        or "compacted rows" in str(b)
-        or "payload overflow" in str(a)
-        or "compacted" in str(a)
+    capacity = ("payload overflow", "compacted rows need", "Increase payloadCapacity")
+    if field_ == "exception" and any(
+        m in a.get("what", "") or m in b.get("what", "") for m in capacity
     ):
-        return "grows_vs_compacts"
+        return "grows_vs_compacts"  # B throws at its fixed capacity where A grows
+    if a.get("compacted") or b.get("compacted"):
+        return "grows_vs_compacts"  # B compacted (offsets, tails, chains rewritten); A did not
     if (grew_a or grew_b) and (fell_a or fell_b):
         return "grows_vs_compacts"
     if field_ in ("value", "tail_base", "bump", "fixed_size") and (
@@ -167,16 +194,16 @@ def replay_steps(replay: Path):
             if m:
                 note = m.group(4).strip()
                 if note.startswith(("skipped", "stop")):
-                    yield int(m.group(1)), note, None, None
+                    yield int(m.group(1)), note, None, None, False
                 else:
                     pending = (int(m.group(1)), note)
             continue
         if kind != "op":
             continue
         st = rtrees.setdefault(rec["tree"], et.TreeState())
-        et.apply_digest(st, rec, keep_rows=True)
+        compacted = apply_op(st, rec)
         if pending is not None:
-            yield pending[0], pending[1], st, rec
+            yield pending[0], pending[1], st, rec, compacted
             pending = None
 
 
@@ -197,7 +224,7 @@ def compare(source: Path, replay: Path, source_repo: str, trees_filter: set | No
         if trees_filter and names.get(tid) not in trees_filter:
             continue
         st = trees.setdefault(tid, et.TreeState())
-        et.apply_digest(st, rec, keep_rows=True)
+        compacted = apply_op(st, rec)
         entry = result.setdefault(
             tid, {"tree": names.get(tid, "?"), "ops": 0, "compared": 0, "first_divergence": None}
         )
@@ -219,7 +246,7 @@ def compare(source: Path, replay: Path, source_repo: str, trees_filter: set | No
                     "class": classify("not replayed", rec["op"], {}, {}, source_repo, note),
                 }
             else:
-                a, b = snapshot(st, rec), snapshot(here[2], here[3])
+                a, b = snapshot(st, rec, compacted), snapshot(here[2], here[3], here[4])
                 diff = first_difference(a, b)
                 entry["compared"] += 1
                 if diff:

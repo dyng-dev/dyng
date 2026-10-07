@@ -305,6 +305,13 @@ def level(size: int) -> int:
     return 0 if size < 32 else (1 if size < 1024 else 2)
 
 
+def known(rec: dict, name: str):
+    """The values of an array field, or None when it is absent or recorded as a hash only (the
+    ops of a batches-mode trace)."""
+    a = rec.get(name)
+    return a.values() if isinstance(a, Array) and a.kind in ("inline", "null") else None
+
+
 def sizes_of(prefix) -> list[int]:
     out, prev = [], 0
     for p in prefix:
@@ -392,7 +399,7 @@ def summarize(path: Path) -> dict:
                 s["integrity_failures"] += 1
             named = set()
             if "in.keys" in rec and op in ("fill", "unfill", "erase"):
-                named = set(rec["in.keys"].values())
+                named = set(known(rec, "in.keys") or [])
             # A compaction (B) rewrites the rows the op does not name (offsets, tail, chain) and
             # resets the bump pointer to the compacted size.
             if op == "insert" and "out.mapping" in rec:
@@ -440,16 +447,17 @@ def summarize(path: Path) -> dict:
                     surplus_keys = [k for k in mapping if k not in reused]
                     reissued = [k for k in surplus_keys if k in dead_before]
                     s["insert"]["reissued_dead_key"] += bool(reissued)
-                    sizes = sizes_of(rec["in.prefix"].values())
+                    prefix = known(rec, "in.prefix")
+                    sizes = sizes_of(prefix) if prefix is not None else []
                     for i, k in enumerate(mapping):
-                        if k in reused:
+                        if k in reused and i < len(sizes):
                             s["levels"]["reuse"][level(sizes[i])] += 1
                 if moved or fell:
                     s["insert_compaction"] += 1
                     s["compaction_ops"].append({"seq": rec["seq"], "op": key, "inside": "insert"})
             elif op == "fill":
                 s["fill"]["total"] += 1
-                for sz in sizes_of(rec["in.prefix"].values()):
+                for sz in sizes_of(known(rec, "in.prefix") or []):
                     s["levels"]["fill"][level(sz)] += 1
                 grew = rec.get("after.fixed_size", 0) > rec.get("before.fixed_size", 0)
                 s["fill"]["growth"] += grew
@@ -466,10 +474,10 @@ def summarize(path: Path) -> dict:
                     s["compaction_ops"].append({"seq": rec["seq"], "op": key, "inside": "fill"})
             elif op == "unfill":
                 s["unfill"]["total"] += 1
-                for sz in sizes_of(rec["in.prefix"].values()):
+                for sz in sizes_of(known(rec, "in.prefix") or []):
                     s["levels"]["unfill"][level(sz)] += 1
-                keys = rec["in.keys"].values()
-                sizes = sizes_of(rec["in.prefix"].values())
+                keys = known(rec, "in.keys") or []
+                sizes = sizes_of(known(rec, "in.prefix") or [])
                 if any(before.get(k, (0,) * 11)[8] > 1 for k in keys):
                     s["unfill"]["chained"] += 1
                 # warp / block items on chained rows run the serial fallback (unfillRowSerial)
