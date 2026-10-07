@@ -84,6 +84,12 @@ def _stream_handle(stream: Any) -> int | None:
 _streams: weakref.WeakKeyDictionary[Any, Any] = weakref.WeakKeyDictionary()
 
 
+def _stream_object(resources: Any) -> Any:
+    """The stream object ``resources`` were made with (None: an integer handle or a default
+    stream), for the graphs and results that must keep it alive (dyng._writer.StreamKeep)."""
+    return _streams.get(resources)
+
+
 class Resources:
     """Execution resources: backend, device, stream, thread count and profiler.
 
@@ -167,12 +173,12 @@ class Resources:
                 ``stream_ref(0)``; 2 is ``cudaStreamPerThread``), a CuPy or PyTorch stream (their
                 default streams, ``cupy.cuda.Stream.null`` and ``torch.cuda.default_stream()``,
                 are the legacy default stream), or any object with ``__cuda_stream__``. A stream
-                object is kept alive by these resources, their
-                copies, and the graphs and results made with them (the stream must outlive
-                every use of the handle, as in C++); a stream given as an integer handle must be
-                kept alive by the caller. Arrays exported from results (DLPack,
-                ``__cuda_array_interface__``) keep the result's memory, not the stream: drop them
-                before destroying the stream.
+                object is kept alive by these resources, their copies, and every graph and result
+                they were used on (made, updated or computed on: memory allocated on a stream is
+                released on it, so the stream must outlive that memory, as in C++); a stream
+                given as an integer handle must be kept alive by the caller. Arrays exported
+                from results (DLPack, ``__cuda_array_interface__``) keep the result's memory, not
+                the stream: drop them before destroying the stream.
             host_threads: OpenMP threads of the host-side work (0 = the OpenMP default).
 
         Raises:

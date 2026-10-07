@@ -574,8 +574,10 @@ def test_dlpack_orders_the_consumer_after_the_writers_later_work(
 
 
 def test_an_update_on_another_stream_keeps_that_stream_alive(cuda: dyng.Resources) -> None:
-    # The result's last writer (an update with a CuPy stream) names that stream; the result keeps
-    # the writer's Resources, so the stream lives as long as the result (ADR 0031).
+    # Memory an update adds to the graph and the results is released on the update's stream,
+    # possibly after the caller dropped it: the graph and the results keep the stream objects of
+    # every resources used on them, the result's Arrays keep them too, and the result's
+    # last writer names its stream (ADR 0031).
     cupy = pytest.importorskip("cupy")
     import gc
     import weakref
@@ -583,32 +585,54 @@ def test_an_update_on_another_stream_keeps_that_stream_alive(cuda: dyng.Resource
     src, dst, w = random_edges(23)
     seq = dyng.Resources.sequential()
     b = random_batch(23, 300)
+    b2 = random_batch(24, 300)
     expected = []
-    for algorithm in ("sssp", "cycle_count", "update"):
+    for algorithm in ("sssp", "cycle_count", "update", "apply"):
         g = dyng.Graph.from_edges(src, dst, w, num_vertices=300, resources=cuda)
-        t = dyng.sssp.compute(g, 0) if algorithm != "cycle_count" else None
-        h = dyng.cycle_count.compute(g, max_length=3) if algorithm != "sssp" else None
-        side = cupy.cuda.Stream(non_blocking=True)
-        alive, handle = weakref.ref(side), side.ptr
-        res = dyng.Resources.cuda(0, stream=side)
-        if algorithm == "sssp":
-            dyng.sssp.update(g, b, t, resources=res)
-        elif algorithm == "cycle_count":
-            dyng.cycle_count.update(g, b, h, resources=res)
-        else:
-            dyng.update(g, b, t, h, resources=res)
-        del side, res
+        t = dyng.sssp.compute(g, 0) if algorithm in ("sssp", "update") else None
+        h = (
+            dyng.cycle_count.compute(g, max_length=3)
+            if algorithm in ("cycle_count", "update")
+            else None
+        )
+        sides = [cupy.cuda.Stream(non_blocking=True) for _ in range(2)]
+        alive = [weakref.ref(s) for s in sides]
+        handle = sides[1].ptr
+        for side, batch in zip(sides, (b, b2), strict=True):
+            res = dyng.Resources.cuda(0, stream=side)
+            if algorithm == "sssp":
+                dyng.sssp.update(g, batch, t, resources=res)
+            elif algorithm == "cycle_count":
+                dyng.cycle_count.update(g, batch, h, resources=res)
+            elif algorithm == "update":
+                dyng.update(g, batch, t, h, resources=res)
+            else:
+                g.apply(batch, resources=res)
+        del side, sides, res
         gc.collect()
-        assert alive() is not None, algorithm  # kept by the result's last writer
+        assert all(a() is not None for a in alive), algorithm  # kept by the graph and results
+        arrays = []
         if t is not None:
-            assert t.distances.__cuda_array_interface__["stream"] == handle
+            assert t.distances.__cuda_array_interface__["stream"] == handle  # the last writer
+            arrays.append(t.distances)
             expected.append(t.distances.to_numpy())
-        del t, h, g
+        if h is not None:
+            arrays.append(h.counts)
+        del t, h
         gc.collect()
-        assert alive() is None, algorithm  # and released with it
+        assert all(a() is not None for a in alive), algorithm  # the graph keeps them
+        del g
+        gc.collect()
+        if arrays:
+            assert all(a() is not None for a in alive), algorithm  # the Arrays keep them
+            assert all(x.size > 0 for x in arrays)
+        del arrays
+        gc.collect()
+        assert all(a() is None for a in alive), algorithm  # and released with the last of them
     seq_g = dyng.Graph.from_edges(src, dst, w, num_vertices=300, resources=seq)
     seq_t = dyng.sssp.compute(seq_g, 0)
     dyng.sssp.update(seq_g, b, seq_t)
+    dyng.sssp.update(seq_g, b2, seq_t)
     for got in expected:
         assert np.array_equal(got, seq_t.distances.to_numpy())
 

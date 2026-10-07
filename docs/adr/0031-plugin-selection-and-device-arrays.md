@@ -147,6 +147,20 @@ before the consumer's with an event".
    Python resources of its last writer (`dyng/_writer.py`: set when the update's native call
    moved the result's generation, which the holder advances together with the writer, under a
    per-result lock), and the Arrays read from it keep both resources.
+   **Revised in the same review**: that was not enough. A call releases the memory it adds to a
+   graph or a result on the call's stream (`dyng::buffer`), possibly long after the call (a later
+   update that replaces it, or the graph or result being freed), and a graph updated or computed
+   on with other resources was not covered at all: with the CuPy stream of two updates dropped,
+   freeing the graph crashed the process (`cudaFreeAsync` on a destroyed stream), and so did
+   dropping an Array that outlived its result (its owner released the stream before the
+   result's memory). Now every graph and result keeps the resources of **every** stream object
+   used on it (`StreamKeep`: one `Resources` per distinct stream object, so the stream outlives
+   both the memory and the resources' cached workspaces, which `Resources.__del__` releases
+   first), registered by every call that takes the object and resources; graphs and results
+   free their native object before that bookkeeping (`__del__`), and Arrays free the result's
+   memory before their owner. The bookkeeping is a side table (weak keys), not new
+   `__slots__`, which the Python API check would report as a breaking change. A stream given as
+   an integer handle remains the caller's to keep alive (documented).
 6. **What the stream event orders.** Every CUDA call of dynG synchronizes its stream before it
    returns, so a result is complete when the call returns; the event of `__dlpack__(stream=...)`
    matters for work enqueued on the writer's stream after the call (by the user, or by a later

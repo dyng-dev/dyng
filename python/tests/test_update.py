@@ -123,3 +123,52 @@ def test_a_failed_update_follows_the_native_writer() -> None:
     with pytest.raises(TypeError):  # refused in Python: the native result is not touched
         dyng.sssp.update(g, "not a batch", tree, resources=other)  # type: ignore[arg-type]
     assert tree._writer is writer and tree._native.generation == generation
+
+
+def test_graphs_and_results_keep_the_streams_of_every_resources_used_on_them() -> None:
+    # Memory a call adds to a graph or a result is released on that call's stream, maybe much
+    # later, so every stream object used on them is kept (dyng._writer.StreamKeep), not only the
+    # last writer's. Fake stream objects stand in for CuPy streams (the CPU module has no CUDA).
+    import gc
+    import weakref
+
+    from dyng import resources as resources_module
+
+    class Stream:
+        pass
+
+    made, a, b = (dyng.Resources.sequential() for _ in range(3))
+    streams = {r: Stream() for r in (made, a, b)}
+    resources_module._streams.update(streams)
+    alive = {name: weakref.ref(streams[r]) for name, r in (("made", made), ("a", a), ("b", b))}
+    g = graph(made)
+    tree = dyng.sssp.compute(g, 0)
+    dyng.sssp.update(g, dyng.EdgeBatch(insert=([3], [0], [1])), tree, resources=a)
+    dyng.update(g, dyng.EdgeBatch(delete=([2], [3])), tree, resources=b)
+    assert len(g._streams) == 3 and len(tree._streams) == 3
+    arr = tree.distances
+    del streams, made, a, b
+    gc.collect()
+    assert all(ref() is not None for ref in alive.values())
+    del g, tree
+    gc.collect()
+    assert all(ref() is not None for ref in alive.values())  # the Array keeps the result's
+    del arr
+    gc.collect()
+    assert all(ref() is None for ref in alive.values())
+
+
+def test_a_graph_keeps_the_stream_of_apply_and_compute() -> None:
+    from dyng import resources as resources_module
+
+    made, other, third = (dyng.Resources.sequential() for _ in range(3))
+    s_other, s_third = object(), object()
+    resources_module._streams[other] = s_other
+    resources_module._streams[third] = s_third
+    g = graph(made)
+    assert len(g._streams) == 0  # made with no stream object
+    g.apply(dyng.EdgeBatch(insert=([3], [0], [1])), resources=other)
+    dyng.cycle_count.compute(g, max_length=3, resources=third)
+    assert set(map(id, g._streams.streams())) == {id(s_other), id(s_third)}
+    g.apply(dyng.EdgeBatch(delete=([3], [0])), resources=other)
+    assert len(g._streams) == 2

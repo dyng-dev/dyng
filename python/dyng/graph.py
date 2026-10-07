@@ -11,8 +11,10 @@ from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 import numpy as np
 
 from . import _dtypes
+from . import _writer as _writer_state
 from ._backend import native
 from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name
+from ._writer import resolve_on
 from .errors import InvalidArgumentError
 from .resources import Resources, resolve
 
@@ -270,6 +272,9 @@ class Graph:
     _native: Any
     _type: _dtypes.GraphType
     _resources: Resources
+    # the bookkeeping of dyng._writer (a side table: the slots stay as in 0.1)
+    _streams = _writer_state.STREAMS
+    __del__ = _writer_state.release
 
     def __init__(self) -> None:
         raise TypeError("use dyng.Graph.from_edges(), dyng.Graph.from_csr() or a reader of dyng.io")
@@ -280,6 +285,7 @@ class Graph:
         self._native = handle
         self._type = gtype
         self._resources = resources
+        _writer_state.track(self, resources)
         return self
 
     # -- construction --------------------------------------------------------------------------
@@ -560,13 +566,13 @@ class Graph:
             CapacityError: the edge count after the batch does not fit the edge offset type.
             NotSupportedError: vertex insertions or deletions (planned for 0.3).
         """
-        res = resolve(resources, self._resources)
+        res = resolve_on(self, resources)
         nb = batch._native_for(self)
         return ApplySummary._from_native(self._native.apply(res._native, nb))
 
     def to_csr(self, *, resources: Resources | None = None) -> CSR:
         """A host copy of the out-edges (weights as a (m, K) view of the objective-major copy)."""
-        res = resolve(resources, self._resources)
+        res = resolve_on(self, resources)
         row_ptr, col_ind, w = self._native.to_csr(res._native)
         return CSR(row_ptr, col_ind, None if w is None else w.T)
 
@@ -580,7 +586,7 @@ class Graph:
 
     def clone(self, resources: Resources | None = None) -> Graph:
         """A deep copy (same properties, storage, version and state) for ``resources``."""
-        res = resolve(resources, self._resources)
+        res = resolve_on(self, resources)
         return Graph._wrap(self._native.clone(res._native), self._type, res)
 
     def to_backend(self, resources: Resources) -> Graph:
@@ -590,12 +596,12 @@ class Graph:
 
     def reserve(self, edge_capacity: int, *, resources: Resources | None = None) -> None:
         """Pre-size the current storage for ``edge_capacity`` edges."""
-        res = resolve(resources, self._resources)
+        res = resolve_on(self, resources)
         self._native.reserve(res._native, as_int(edge_capacity, "Graph.reserve: edge_capacity"))
 
     def check_integrity(self, *, resources: Resources | None = None) -> None:
         """Check the storage invariants; raises :class:`~dyng.InternalError` if one is broken."""
-        res = resolve(resources, self._resources)
+        res = resolve_on(self, resources)
         self._native.check_integrity(res._native)
 
     def __copy__(self) -> Graph:

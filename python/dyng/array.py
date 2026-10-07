@@ -115,6 +115,12 @@ class _Owner:
     def __call__(self) -> bool:
         return bool(self.is_current())
 
+    def __del__(self) -> None:
+        # The callables hold the native result (and so its memory) and go before ``keep``, which
+        # keeps the stream objects that memory is released on (CPython would clear the slots in
+        # sorted order: is_current, keep, writer).
+        self.is_current = self.writer = None  # type: ignore[assignment]
+
 
 class Array:
     """A read-only view of a result's array, with DLPack and the NumPy or CUDA array interface.
@@ -149,6 +155,12 @@ class Array:
         self._view: np.ndarray | None = None  # host: a NumPy view; device: a read-only host copy
         self._is_current = _Owner(is_current, writer, keep)
         self._what = what
+
+    def __del__(self) -> None:
+        # The result's memory (held by _nd) goes first, then the owner, which may hold the last
+        # reference to the stream objects that memory is released on (dyng._writer.StreamKeep);
+        # CPython would clear the slots in sorted order, _is_current before _nd.
+        self._nd = None
 
     # -- state ---------------------------------------------------------------------------------
     def _check(self) -> None:
