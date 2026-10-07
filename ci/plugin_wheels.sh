@@ -13,9 +13,10 @@
 #      the static CUDA runtime, SASS for the release list of cmake/cuda_architectures.cmake and PTX
 #      for its highest entry, libstdc++ / libgcc static and hidden as in the CPU wheel;
 #   3. auditwheel repair --plat manylinux_2_28_x86_64 (libgomp bundled as dyng_cu<N>.libs/;
-#      libcuda.so.1, the user's driver, excluded), `twine check --strict`, ci/wheel_check.py
-#      (size budget 90 MB, contents, entry point, dependency, licence files, no libcuda /
-#      libcudart needed or bundled);
+#      libcuda.so.1, the user's driver, excluded), the module's SASS and PTX against the
+#      toolkit's release list (ci/wheel_check.py --code-objects, the toolkit's cuobjdump),
+#      `twine check --strict`, ci/wheel_check.py (size budget 90 MB, contents, entry point,
+#      dependency, licence files, no libcuda / libcudart needed or bundled, the export list);
 #   4. unless DYNG_WHEEL_SKIP_TESTS=1, an install test per Python version: a fresh venv with the
 #      core wheel and the plugin wheel only (no index), then
 #        - selection (ci/plugin_smoke.py): `dyng.show_config()`; the plugin's module is active
@@ -145,6 +146,10 @@ for plugin in ${plugins}; do
     -w "${out}/dist" "${out}/raw"/dyng_"${plugin}"-*.whl \
     >"${out}/repair-${plugin}.log" 2>&1 || { cat "${out}/repair-${plugin}.log"; exit 1; }
   "${tools}/bin/auditwheel" show "${out}/dist"/dyng_"${plugin}"-*.whl | tail -n +2
+  # SASS + PTX of the toolkit's release list, as the CI build checks (ci/cibw_plugin_repair.sh).
+  "${python}" ci/wheel_check.py --code-objects --cuobjdump "${root}/bin/cuobjdump" \
+    --cuda-release "$("${root}/bin/nvcc" --version | sed -n 's/.*release \([0-9]*\.[0-9]*\).*/\1/p')" \
+    "${out}/dist"/dyng_"${plugin}"-*.whl | sed 's/^/    /'
 done
 
 echo "==> twine check, ci/wheel_check.py"

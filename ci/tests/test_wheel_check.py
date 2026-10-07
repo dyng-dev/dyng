@@ -170,3 +170,66 @@ def test_release_set_and_split(tmp_path: Path) -> None:
     assert (tmp_path / "out" / "dyng-cu13" / files[3].name).is_file()
     with pytest.raises(ValueError):
         wheel_check.split_release(files[:2], tmp_path / "out2", v)
+
+
+# -------------------------------------------------------------------------------------------------
+# The plugins' code objects (--code-objects) and the architectures plugin_smoke.py checks
+# -------------------------------------------------------------------------------------------------
+
+_LISTING = {
+    "release": "".join(
+        f"ELF file {i + 1}: _core.abi3.{i + 1}.sm_{a}.cubin\n"
+        for i, a in enumerate((75, 80, 86, 89, 90, 100, 120))
+    )
+    + "PTX file 1: _core.abi3.1.sm_120.ptx\n",
+    "no sm_100": "ELF file 1: _core.abi3.1.sm_75.cubin\nPTX file 1: _core.abi3.1.sm_120.ptx\n",
+    "no PTX": "".join(
+        f"ELF file {i + 1}: _core.abi3.{i + 1}.sm_{a}.cubin\n"
+        for i, a in enumerate((75, 80, 86, 89, 90, 100, 120))
+    ),
+}
+
+
+def _plugin_wheel(tmp_path: Path) -> Path:
+    import zipfile
+
+    w = tmp_path / "dyng_cu13-0.2.0-cp312-abi3-manylinux_2_28_x86_64.whl"
+    with zipfile.ZipFile(w, "w") as z:
+        z.writestr("dyng_cu13/_core.abi3.so", b"\x7fELF")
+    return w
+
+
+@pytest.mark.parametrize(
+    ("listing", "ok"), [("release", True), ("no sm_100", False), ("no PTX", False)]
+)
+def test_code_objects(tmp_path: Path, listing: str, ok: bool) -> None:
+    fake = tmp_path / "cuobjdump"
+    (tmp_path / "listing.txt").write_text(_LISTING[listing])
+    fake.write_text(f"#!/bin/sh\ncat '{tmp_path / 'listing.txt'}'\n")
+    fake.chmod(0o755)
+    w = _plugin_wheel(tmp_path)
+    errors = wheel_check.check_code_objects(w, cuobjdump=str(fake), cuda_release="13.4")
+    assert (errors == []) is ok, errors
+    rc = wheel_check.main(
+        [str(w), "--code-objects", "--cuda-release", "13.4", "--cuobjdump", str(fake)]
+    )
+    assert (rc == 0) is ok
+    # A 12.6 toolkit has another list: the same module is wrong for it.
+    assert wheel_check.check_code_objects(w, cuobjdump=str(fake), cuda_release="12.6")
+    assert wheel_check.check_code_objects(w, cuobjdump=str(tmp_path / "none"), cuda_release="13.4")
+
+
+def test_plugin_smoke_checks_the_architectures() -> None:
+    import plugin_smoke
+
+    release = "75-real,80-real,86-real,89-real,90-real,100-real,120"
+    plugin_smoke._check_architectures({"cuda_architectures": release, "cuda_toolkit": "12.9"})
+    for archs, toolkit in (
+        (release, "12.6"),
+        ("86", "13.4"),
+        (release.replace(",120", ""), "13.4"),
+    ):
+        with pytest.raises(AssertionError, match="release list"):
+            plugin_smoke._check_architectures(
+                {"cuda_architectures": archs, "cuda_toolkit": toolkit}
+            )

@@ -57,6 +57,7 @@ PRIMARY = (
     + _pkg("cuda-toolkit-config-common", "13.10.1")
     + _pkg("cuda-nvtx-13-4", "13.4.92")
     + _pkg("cuda-documentation-13-4", "13.4.92")
+    + _pkg("cuda-cuobjdump-13-4", "13.4.92")
     + "</metadata>"
 ).encode()
 
@@ -80,6 +81,7 @@ def test_resolve_takes_the_newest_closure() -> None:
     assert versions == {
         "cccl-13-4": "13.3.4.3.1",
         "cuda-crt-13-4": "13.4.92",
+        "cuda-cuobjdump-13-4": "13.4.92",
         "cuda-cudart-13-4": "13.4.92",  # EQ beats newer
         "cuda-cudart-devel-13-4": "13.4.92",
         "cuda-documentation-13-4": "13.4.92",
@@ -183,8 +185,11 @@ def _header(entries: list[tuple[int, int, bytes]]) -> bytes:
         store += bytes(-len(store) % 8)
         index += struct.pack(">IIII", tag, kind, len(store), 1 if kind != 7 else len(data))
         store += data
-    return b"\x8e\xad\xe8\x01" + bytes(4) + struct.pack(">II", len(entries), len(store)) + (
-        index + store
+    return (
+        b"\x8e\xad\xe8\x01"
+        + bytes(4)
+        + struct.pack(">II", len(entries), len(store))
+        + (index + store)
     )
 
 
@@ -206,7 +211,16 @@ def signer(tmp_path_factory: pytest.TempPathFactory) -> tuple[object, Path, str]
     if gpg is None:
         pytest.skip("needs gpg")
     home = tmp_path_factory.mktemp("gnupg")
-    run = [gpg, "--homedir", str(home), "--batch", "--pinentry-mode", "loopback", "--passphrase", ""]
+    run = [
+        gpg,
+        "--homedir",
+        str(home),
+        "--batch",
+        "--pinentry-mode",
+        "loopback",
+        "--passphrase",
+        "",
+    ]
     subprocess.run(
         [*run, "--quick-gen-key", "dynG test <test@example.invalid>", "rsa2048", "sign", "never"],
         check=True,
@@ -215,7 +229,8 @@ def signer(tmp_path_factory: pytest.TempPathFactory) -> tuple[object, Path, str]
     listing = subprocess.run(
         [*run, "--with-colons", "--list-keys"], check=True, capture_output=True, text=True
     ).stdout
-    fingerprint = next(line.split(":")[9] for line in listing.splitlines() if line[:4] == "fpr:")
+    records = [line.split(":") for line in listing.splitlines()]
+    fingerprint = next(r[9] for r in records if r[0] == "fpr")  # codespell:ignore fpr
     key = home / "key.pub"
     key.write_bytes(subprocess.run([*run, "--export"], check=True, capture_output=True).stdout)
 

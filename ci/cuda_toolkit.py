@@ -60,13 +60,16 @@ REPOSITORY = "https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86
 #: The plugins and their CUDA majors (ci/wheel_check.py's PLUGINS).
 PLUGINS = {"cu12": 12, "cu13": 13}
 #: The root packages of a toolkit release ``{s}`` = ``13-4``: the compiler, the runtime (with
-#: libcudart_static.a, which pulls CCCL), NVTX 3 (the profiler's ranges) and the documentation
-#: package, which carries the toolkit's EULA.txt (the plugin wheels ship it; ADR 0030 item 9).
+#: libcudart_static.a, which pulls CCCL), NVTX 3 (the profiler's ranges), the documentation
+#: package, which carries the toolkit's EULA.txt (the plugin wheels ship it; ADR 0030 item 9),
+#: and cuobjdump, with which the build checks the wheel's SASS and PTX
+#: (ci/cibw_plugin_repair.sh, ci/wheel_check.py --code-objects).
 ROOT_PACKAGES = (
     "cuda-nvcc-{s}",
     "cuda-cudart-devel-{s}",
     "cuda-nvtx-{s}",
     "cuda-documentation-{s}",
+    "cuda-cuobjdump-{s}",
 )
 SCHEMA = 1
 #: NVIDIA's signing key of the RHEL 8 repository (``cudatools <cudatools@nvidia.com>``, RSA 4096,
@@ -540,9 +543,10 @@ def verify_signatures(
             text=True,
             check=False,
         ).stdout
-        fprs = re.findall(r"(?m)^fpr:+([0-9A-F]{40}):", shown)
-        if not fprs or fprs[0] != fingerprint:
-            return [f"{key}: the key's fingerprint is {fprs[:1]}, not {fingerprint}"]
+        # The fingerprint records of gpg's colon listing.
+        found = re.findall(r"(?m)^fpr:+([0-9A-F]{40}):", shown)  # codespell:ignore fpr
+        if not found or found[0] != fingerprint:
+            return [f"{key}: the key's fingerprint is {found[:1]}, not {fingerprint}"]
         subprocess.run([*run, "--import", str(key)], capture_output=True, check=True)
         for p in t.packages:
             f = dest / str(p["href"])
@@ -564,9 +568,14 @@ def verify_signatures(
                 check=False,
             ).stdout
             valid = re.search(r"(?m)^\[GNUPG:\] VALIDSIG (\S+)(?: \S+)* (\S+)$", out)
-            if out.count("[GNUPG:] GOODSIG") != 1 or valid is None or fingerprint not in (
-                valid.group(1),
-                valid.group(2),
+            if (
+                out.count("[GNUPG:] GOODSIG") != 1
+                or valid is None
+                or fingerprint
+                not in (
+                    valid.group(1),
+                    valid.group(2),
+                )
             ):
                 problems.append(f"{f.name}: no valid signature by {fingerprint}")
     return problems

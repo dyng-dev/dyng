@@ -35,10 +35,16 @@ own environments (PyPI refuses two identical pending publishers, so they cannot 
    `pyproject.toml`): `build = cp312-manylinux_x86_64` (one abi3 wheel), the manylinux_2_28
    image that cibuildwheel pins, `before-all = ci/cibw_plugin.sh`, the plugin passed in as
    `DYNG_PLUGIN` (`environment-pass`), `CUDACXX=/usr/local/cuda/bin/nvcc`, four parallel compile
-   jobs (the runners have four cores), and the repair of ADR 0030 item 6 (`auditwheel repair
-   --plat manylinux_2_28_x86_64 --exclude libcuda.so.1 --exclude libcuda.so`). `twine check
-   --strict` and `ci/wheel_check.py` (the 90 MB budget, tags, contents, entry point,
-   `Requires-Dist: dyng==<version>`, licence files, no libcuda / libcudart needed or bundled) run
+   jobs (the runners have four cores), the module linked with `-Wl,--exclude-libs,ALL` (as in
+   the local build: neither libdyng's nor the static CUDA runtime's symbols are exported), and
+   the repair of ADR 0030 item 6 (`auditwheel repair --plat manylinux_2_28_x86_64 --exclude
+   libcuda.so.1 --exclude libcuda.so`) in `ci/cibw_plugin_repair.sh`, which then checks the
+   module's code objects with the toolkit's cuobjdump (`ci/wheel_check.py --code-objects`:
+   exactly the SASS of the toolkit's release list and the PTX of its last entry, PLAN 7.7; the
+   lists in `ci/wheel_check.py` are tied to `cmake/cuda_architectures.cmake` by its self-test).
+   `twine check --strict` and `ci/wheel_check.py` (the 90 MB budget, tags, contents, entry
+   point, `Requires-Dist: dyng==<version>`, licence files, no libcuda / libcudart needed or
+   bundled, an export list of `PyInit__core` and std / nanobind / type_info symbols only) run
    on each wheel; the artifact is `wheel-cu<N>-manylinux_2_28_x86_64`. Pull requests that touch
    the packaging build the plugins too (they are not required checks); `workflow_call` and
    `workflow_dispatch` take an input `plugins` (default true).
@@ -48,10 +54,10 @@ own environments (PyPI refuses two identical pending publishers, so they cannot 
    of the minimal set the build needs, with its SHA-256 and size: `cuda-nvcc`,
    `cuda-cudart-devel` (with `libcudart_static.a`; it pulls CCCL), `cuda-nvtx` (NVTX 3, the
    profiler's ranges), `cuda-documentation` (it carries `EULA.txt`, which the wheel ships, ADR
-   0030 item 9) and what they require from NVIDIA's repository; what they require from outside
+   0030 item 9), `cuda-cuobjdump` (the check of the code objects) and what they require from NVIDIA's repository; what they require from outside
    it (`gcc-c++`, `/sbin/ldconfig`, `/bin/sh`) is listed as `external` and comes from the
-   image's repositories. Pinned now: **CUDA 12.9** (nvcc 12.9.86, 11 files, 183 MB) for `cu12`
-   and **CUDA 13.4** (nvcc 13.4.92, 13 files, 139 MB) for `cu13`, the latest of each major in the
+   image's repositories. Pinned now: **CUDA 12.9** (nvcc 12.9.86, 12 files, 183 MB) for `cu12`
+   and **CUDA 13.4** (nvcc 13.4.92, 14 files, 140 MB) for `cu13`, the latest of each major in the
    repository on 2026-10-06 (PLAN 7.8). The runner downloads the files on the host
    (`ci/cuda_toolkit.py download`: every digest checked, a `SHA256SUMS` written) into
    `.cuda-rpms/`, which cibuildwheel copies into the container with the project; `before-all`
@@ -88,7 +94,7 @@ own environments (PyPI refuses two identical pending publishers, so they cannot 
    `ci/plugin_smoke.py --expect fallback --reason "no CUDA driver"`: exactly one
    `dyng.BackendWarning`, `dyng._core` active, the plugin reported `unusable` with that reason,
    the plugin's own module importing without a driver and reporting its build (plugin, toolkit,
-   static runtime, architectures), `Resources.cuda()` refused, and sssp / cycle_count / mosp
+   static runtime, architectures: the release list of its toolkit, in both modes), `Resources.cuda()` refused, and sssp / cycle_count / mosp
    equal on the OpenMP and sequential backends; then the whole pytest suite (its GPU tests
    skip). The same script with `--expect cuda` is the GPU smoke test of `ci/plugin_wheels.sh`
    (which now also runs the CI smoke test, with the driver hidden by

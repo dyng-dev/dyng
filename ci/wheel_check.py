@@ -24,10 +24,14 @@ recognised by their names and checked for what makes a plugin (:func:`check_plug
 the import package ``dyng_cu<N>/`` with its module ``_core.abi3.so`` (no ``dyng/``), the entry
 point ``cu<N> = dyng_cu<N>`` in the group ``dyng.backends``, ``Requires-Dist: dyng==<VERSION>``,
 the licence files of the CPU wheel plus ``THIRD_PARTY_LICENSES_CUDA.txt`` and
-``NVIDIA_CUDA_EULA.txt``, :data:`PLUGIN_LICENSE_EXPRESSION`, the same size budget, and a module
+``NVIDIA_CUDA_EULA.txt``, :data:`PLUGIN_LICENSE_EXPRESSION`, the same size budget, a module
 that needs neither ``libcuda`` (the user's driver) nor ``libcudart`` (linked statically): no
-``DT_NEEDED`` entry and no bundled copy of either. The CPU wheel must offer the extras ``cu12``
-and ``cu13`` pinned to its own version.
+``DT_NEEDED`` entry and no bundled copy of either, and a module that exports nothing but its init
+function and std / nanobind / type_info symbols (:data:`PLUGIN_EXPORTS_ALLOWED`: libdyng and the
+CUDA runtime linked with ``-Wl,--exclude-libs,ALL``). ``--code-objects`` (with ``--cuda-release``
+of the toolkit that built it, and cuobjdump) checks that the module carries exactly the SASS and
+PTX of that toolkit's release list (:data:`RELEASE_ARCHITECTURES`, PLAN 7.7). The CPU wheel must
+offer the extras ``cu12`` and ``cu13`` pinned to its own version.
 
 A release (``release.yml``) publishes :func:`release_distributions`: the core ``dyng`` alone up
 to v0.1.x, and from 0.2.0 (:data:`PLUGINS_SINCE`) also ``dyng-cu12`` and ``dyng-cu13``, each
@@ -40,6 +44,8 @@ Usage::
         --require-libgomp
     python3 ci/wheel_check.py dist/dyng_cu13-*.whl --platform manylinux_2_28_x86_64 \\
         --require-libgomp                  # a CUDA plugin wheel (recognised by its name)
+    python3 ci/wheel_check.py dist/dyng_cu13-*.whl --code-objects --cuda-release 13.4 \
+        [--cuobjdump /usr/local/cuda/bin/cuobjdump]   # SASS + PTX of the release list
     python3 ci/wheel_check.py --version-info   # "<VERSION> <pre-release: true|false>"
     python3 ci/wheel_check.py --release-metadata [--release-date today]
     python3 ci/wheel_check.py --release-distributions   # release.yml's publishing matrix (JSON)
@@ -57,6 +63,7 @@ import io
 import json
 import re
 import struct
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -123,6 +130,108 @@ PLUGIN_LICENSE_EXPRESSION = LICENSE_EXPRESSION
 #: The first release (major, minor) whose distributions include the CUDA plugin wheels (PLAN
 #: Appendix F: 0.2.0, its release candidates included); v0.1.x releases keep the core alone.
 PLUGINS_SINCE = (0, 2)
+#: The release lists of cmake/cuda_architectures.cmake (dyng_release_cuda_architectures), each
+#: with the oldest toolkit release it applies to, newest first; the self-test compares them with
+#: the CMake file. A plugin wheel built with a toolkit carries exactly the SASS and PTX of its
+#: list (PLAN 7.7): ``--code-objects`` checks the module with cuobjdump, and ci/plugin_smoke.py
+#: the list the module reports.
+RELEASE_ARCHITECTURES = (
+    ((12, 8), "75-real;80-real;86-real;89-real;90-real;100-real;120"),
+    ((12, 4), "75-real;80-real;86-real;89-real;90"),
+)
+#: What a plugin's module may export (the global definitions of its dynamic symbol table): its
+#: init function, the linker's markers, and the C++ entities of std and nanobind (weak template
+#: instantiations of the module's own objects) and type_info of any type (compared across
+#: modules). libdyng, the CUDA runtime and every other static library are linked with
+#: ``-Wl,--exclude-libs,ALL``, so none of their symbols may appear.
+PLUGIN_EXPORTS_ALLOWED = re.compile(
+    r"PyInit__core$|_edata$|_end$|__bss_start$|_init$|_fini$"
+    r"|_ZT[IS]"
+    r"|_Z(?:Z|GVZ|GV|TV|TT|TH|TW)?(?:NK?)?(?:St|8nanobind)"
+)
+
+
+def release_architectures(cuda_release: str) -> str:
+    """The release list of CUDA architectures of a toolkit release (``"13.4"``)."""
+    m = re.match(r"(\d+)\.(\d+)", cuda_release)
+    if m is None:
+        raise ValueError(f"not a CUDA release: {cuda_release!r}")
+    release = (int(m.group(1)), int(m.group(2)))
+    for since, archs in RELEASE_ARCHITECTURES:
+        if release >= since:
+            return archs
+    raise ValueError(f"CUDA {cuda_release} is older than every release list")
+
+
+def expected_code_objects(architectures: str) -> tuple[set[str], set[str]]:
+    """The SASS and PTX (``sm_XY``) of a CMAKE_CUDA_ARCHITECTURES list: ``75-real`` is SASS, ``75``
+    SASS and PTX, ``75-virtual`` PTX."""
+    sass: set[str] = set()
+    ptx: set[str] = set()
+    for entry in architectures.split(";"):
+        number, _, kind = entry.partition("-")
+        if not number.isdigit() or kind not in ("", "real", "virtual"):
+            raise ValueError(f"not a CUDA architecture: {entry!r}")
+        if kind != "virtual":
+            sass.add(f"sm_{number}")
+        if kind != "real":
+            ptx.add(f"sm_{number}")
+    return sass, ptx
+
+
+def _sm(name: str) -> int:
+    """The number of ``sm_XY`` (to sort architectures numerically)."""
+    return int(re.sub(r"\D", "", name) or 0)
+
+
+def code_objects(listing: str) -> tuple[set[str], set[str]]:
+    """The SASS and PTX architectures of ``cuobjdump --list-elf --list-ptx`` output."""
+    sass = set(re.findall(r"(?m)^ELF file\s+\d+:\s+\S*?\.(sm_[0-9a-z]+)\.cubin\s*$", listing))
+    ptx = set(re.findall(r"(?m)^PTX file\s+\d+:\s+\S*?\.(sm_[0-9a-z]+)\.ptx\s*$", listing))
+    return sass, ptx
+
+
+def check_code_objects(path: Path, *, cuobjdump: str, cuda_release: str) -> list[str]:
+    """The plugin wheel's module carries exactly the SASS and PTX of the release list of
+    ``cuda_release`` (the toolkit it was built with), read with ``cuobjdump``."""
+    m = re.match(r"dyng_(cu\d+)-", path.name)
+    if m is None:
+        return [f"{path.name}: not a CUDA plugin wheel"]
+    module = f"dyng_{m.group(1)}/_core.abi3.so"
+    try:
+        sass_want, ptx_want = expected_code_objects(release_architectures(cuda_release))
+    except ValueError as e:
+        return [str(e)]
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "_core.abi3.so"
+        with zipfile.ZipFile(path) as z:
+            if module not in z.namelist():
+                return [f"missing {module}"]
+            target.write_bytes(z.read(module))
+        try:
+            out = subprocess.run(
+                [cuobjdump, "--list-elf", "--list-ptx", str(target)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as e:
+            return [f"cannot run {cuobjdump}: {e}"]
+    sass, ptx = code_objects(out.stdout)
+    errors = []
+    if out.returncode != 0 and not (sass or ptx):
+        errors.append(f"cuobjdump failed ({out.returncode}): {out.stderr.strip()[:200]}")
+    if sass != sass_want:
+        errors.append(
+            f"{module}: SASS {sorted(sass)}, the release list of CUDA {cuda_release} wants "
+            f"{sorted(sass_want)}"
+        )
+    if ptx != ptx_want:
+        errors.append(
+            f"{module}: PTX {sorted(ptx)}, the release list of CUDA {cuda_release} wants "
+            f"{sorted(ptx_want)}"
+        )
+    return errors
 
 
 def release_distributions(v: str) -> list[dict[str, str]]:
@@ -371,6 +480,30 @@ def elf_needed(data: bytes) -> list[str]:
     return [data[base + i : data.index(b"\0", base + i)].decode() for i in needed]
 
 
+def elf_exports(data: bytes) -> list[str]:
+    """The names a 64-bit little-endian ELF shared object exports: the defined global and weak
+    symbols of default or protected visibility in its dynamic symbol table (``.dynsym``)."""
+    if data[:4] != b"\x7fELF" or data[4] != 2 or data[5] != 1:
+        raise ValueError("not a 64-bit little-endian ELF file")
+    e_shoff = struct.unpack_from("<Q", data, 0x28)[0]
+    e_shentsize, e_shnum = struct.unpack_from("<HH", data, 0x3A)
+    sections = [
+        struct.unpack_from("<IIQQQQIIQQ", data, e_shoff + i * e_shentsize) for i in range(e_shnum)
+    ]
+    dynsym = next((sec for sec in sections if sec[1] == 11), None)  # SHT_DYNSYM
+    if dynsym is None:
+        raise ValueError("no dynamic symbol table (.dynsym)")
+    _, _, _, _, offset, size, link, _, _, entsize = dynsym
+    strtab = sections[link][4]
+    names = []
+    for off in range(offset + entsize, offset + size, entsize or 24):  # entry 0 is null
+        st_name, st_info, st_other, st_shndx = struct.unpack_from("<IBBH", data, off)
+        binding, visibility = st_info >> 4, st_other & 3
+        if st_shndx != 0 and binding in (1, 2, 10) and visibility in (0, 3):
+            names.append(data[strtab + st_name : data.index(b"\0", strtab + st_name)].decode())
+    return names
+
+
 def check_wheel(
     path: Path, *, platform: str | None, require_libgomp: bool, expect_version: str
 ) -> list[str]:
@@ -510,6 +643,17 @@ def check_plugin_wheel(
                     f"{module} needs {', '.join(bad)} (the driver is loaded at run time, "
                     "the CUDA runtime must be linked statically)"
                 )
+        try:
+            exports = elf_exports(module_data)
+        except (ValueError, struct.error, IndexError) as e:
+            errors.append(f"{module}: {e}")
+        else:
+            foreign = [n for n in exports if not PLUGIN_EXPORTS_ALLOWED.match(n)]
+            if foreign:
+                errors.append(
+                    f"{module} exports {len(foreign)} symbols besides PyInit__core, std, nanobind "
+                    f"and type_info (link with -Wl,--exclude-libs,ALL): {', '.join(foreign[:5])}"
+                )
     stray = [n for n in names if n.endswith((".a", ".o", ".cpp", ".hpp", ".cu", ".cmake"))]
     if stray:
         errors.append(f"build files in the wheel: {', '.join(sorted(stray)[:5])}")
@@ -586,8 +730,9 @@ def run(paths: list[Path], *, platform: str | None, require_libgomp: bool) -> in
     return 1 if failed else 0
 
 
-def _fake_elf(needed: list[str]) -> bytes:
-    """A minimal ELF64 shared object whose dynamic section lists ``needed`` (for the self-test)."""
+def _fake_elf(needed: list[str], exports: tuple[str, ...] = ("PyInit__core",)) -> bytes:
+    """A minimal ELF64 shared object whose dynamic section lists ``needed`` and whose dynamic
+    symbol table defines ``exports`` (for the self-test)."""
     strtab = b"\0" + b"".join(n.encode() + b"\0" for n in needed)
     str_off = 64 + 2 * 56
     dyn_off = (str_off + len(strtab) + 7) // 8 * 8
@@ -598,12 +743,26 @@ def _fake_elf(needed: list[str]) -> bytes:
     dyn = b"".join(struct.pack("<qQ", 1, o) for o in offsets)
     dyn += struct.pack("<qQ", 5, str_off) + struct.pack("<qQ", 0, 0)
     total = dyn_off + len(dyn)
+    dynstr = b"\0" + b"".join(n.encode() + b"\0" for n in exports)
+    syms, pos = bytes(24), 1
+    for n in exports:
+        syms += struct.pack("<IBBHQQ", pos, (1 << 4) | 2, 0, 12, 0x1000, 8)  # GLOBAL FUNC
+        pos += len(n) + 1
+    dynstr_off = (total + 7) // 8 * 8
+    dynsym_off = (dynstr_off + len(dynstr) + 7) // 8 * 8
+    shoff = (dynsym_off + len(syms) + 7) // 8 * 8
+    shdrs = bytes(64)
+    shdrs += struct.pack("<IIQQQQIIQQ", 0, 3, 0, 0, dynstr_off, len(dynstr), 0, 0, 1, 0)
+    shdrs += struct.pack("<IIQQQQIIQQ", 0, 11, 0, 0, dynsym_off, len(syms), 1, 1, 8, 24)
     header = b"\x7fELF" + bytes([2, 1, 1]) + bytes(9)
-    header += struct.pack("<HHIQQQIHHHHHH", 3, 62, 1, 0, 64, 0, 0, 64, 56, 2, 64, 0, 0)
+    header += struct.pack("<HHIQQQIHHHHHH", 3, 62, 1, 0, 64, shoff, 0, 64, 56, 2, 64, 3, 0)
     ph = struct.pack("<IIQQQQQQ", 1, 5, 0, 0, 0, total, total, 0x1000)
     ph += struct.pack("<IIQQQQQQ", 2, 6, dyn_off, dyn_off, dyn_off, len(dyn), len(dyn), 8)
     body = header + ph + strtab
-    return body + bytes(dyn_off - len(body)) + dyn
+    out = body + bytes(dyn_off - len(body)) + dyn
+    out += bytes(dynstr_off - len(out)) + dynstr
+    out += bytes(dynsym_off - len(out)) + syms
+    return out + bytes(shoff - len(out)) + shdrs
 
 
 def _self_test() -> int:
@@ -693,8 +852,21 @@ def _self_test() -> int:
             + "".join(f"License-File: {lic}\n" for lic in plugin_licenses)
             + f"Requires-Dist: dyng=={v}\n\n# plugin\n"
         )
-        good_elf = _fake_elf(["libgomp-1234abcd.so.1.0.0", "libstdc++.so.6", "libc.so.6"])
+        allowed = (
+            "PyInit__core",
+            "_ZNSt6vectorIiSaIiEE17_M_realloc_insertIJRKiEEEvN9__gnu_cxx17__normal_iteratorIPiS1_EEDpOT_",
+            "_ZNKSt5ctypeIcE8do_widenEc",
+            "_ZSt19__throw_logic_errorPKc",
+            "_ZZNSt8__detail18__to_chars_10_implIjEEvPcjT_E8__digits",
+            "_ZN8nanobind6detail9nb_func_newEPKv",
+            "_ZNK8nanobind4abi112python_error4whatEv",
+            "_ZTVN8nanobind4abi112python_errorE",
+            "_ZTIN4dyng7backendE",
+            "_ZTSN4dyng7backendE",
+        )
+        good_elf = _fake_elf(["libgomp-1234abcd.so.1.0.0", "libstdc++.so.6", "libc.so.6"], allowed)
         assert elf_needed(good_elf) == ["libgomp-1234abcd.so.1.0.0", "libstdc++.so.6", "libc.so.6"]
+        assert elf_exports(good_elf) == list(allowed)
         plugin_files: dict[str, str | bytes] = {
             "dyng_cu13/_core.abi3.so": good_elf,
             "dyng_cu13/__init__.py": "",
@@ -735,6 +907,22 @@ def _self_test() -> int:
                 "dyng_cu13/_core.abi3.so": _fake_elf(["libcudart.so.13"]),
             },
             "no libgomp": {k: x for k, x in plugin_files.items() if "libgomp" not in k},
+            "exports libdyng": {
+                **plugin_files,
+                "dyng_cu13/_core.abi3.so": _fake_elf(
+                    ["libc.so.6"], ("PyInit__core", "_ZN4dyng4sssp7computeEv")
+                ),
+            },
+            "exports libdyng's methods": {
+                **plugin_files,
+                "dyng_cu13/_core.abi3.so": _fake_elf(
+                    ["libc.so.6"], ("_ZNK4dyng9resources6deviceEv",)
+                ),
+            },
+            "exports the CUDA runtime": {
+                **plugin_files,
+                "dyng_cu13/_core.abi3.so": _fake_elf(["libc.so.6"], ("PyInit__core", "cudaMalloc")),
+            },
         }
         for label, pfiles in plugin_cases.items():
             bad = wheel(pname, pfiles)
@@ -806,6 +994,43 @@ def _self_test() -> int:
         assert check_release_set(files, "0.1.1")  # plugins in a 0.1.x release
         split = split_release(files, d / "split", "0.2.0")
         assert sorted(split) == ["dyng", "dyng-cu12", "dyng-cu13"] and len(split["dyng"]) == 2
+    # The release lists equal cmake/cuda_architectures.cmake's (dyng_release_cuda_architectures).
+    cmake = (ROOT / "cmake" / "cuda_architectures.cmake").read_text()
+    m = re.search(
+        r"VERSION_LESS DYNG_CUDA_MINIMUM_VERSION\).*?elseif\(version VERSION_LESS ([\d.]+)\)\s*"
+        r'set\(_archs "([^"]+)"\)\s*else\(\)\s*set\(_archs "([^"]+)"\)',
+        cmake,
+        re.S,
+    )
+    floor = re.search(r"set\(DYNG_CUDA_MINIMUM_VERSION ([\d.]+)\)", cmake)
+    assert m and floor, "no dyng_release_cuda_architectures in cmake/cuda_architectures.cmake"
+    split, older, newer = m.group(1), m.group(2), m.group(3)
+    as_tuple = lambda x: tuple(int(n) for n in x.split("."))  # noqa: E731
+    assert RELEASE_ARCHITECTURES == (
+        (as_tuple(split), newer),
+        (as_tuple(floor.group(1)), older),
+    ), (RELEASE_ARCHITECTURES, split, older, newer, floor.group(1))
+    assert release_architectures("13.4") == release_architectures("12.9") == newer
+    assert release_architectures("12.6") == older
+    for bad_release in ("12.3", "x"):
+        try:
+            release_architectures(bad_release)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(bad_release)
+    assert expected_code_objects("75-real;90;100-virtual") == (
+        {"sm_75", "sm_90"},
+        {"sm_90", "sm_100"},
+    )
+    listing = (
+        "\nFatbin elf code:\n"
+        "ELF file    1: _core.abi3.1.sm_75.cubin\n"
+        "ELF file    2: _core.abi3.2.sm_120.cubin\n"
+        "PTX file    1: _core.abi3.1.sm_120.ptx\n"
+        "PTX file    2: _core.abi3.2.sm_120.ptx\n"
+    )
+    assert code_objects(listing) == ({"sm_75", "sm_120"}, {"sm_120"})
     print("wheel_check self-test: ok")
     return 0
 
@@ -818,6 +1043,20 @@ def main(argv: list[str] | None = None) -> int:
         "--require-libgomp", action="store_true", help="the OpenMP runtime must be bundled"
     )
     p.add_argument("--self-test", action="store_true", help="check the checks, then exit")
+    p.add_argument(
+        "--code-objects",
+        action="store_true",
+        help="with plugin wheels and --cuda-release: only check that each module carries exactly "
+        "the SASS and PTX of that toolkit's release list (cuobjdump)",
+    )
+    p.add_argument(
+        "--cuda-release", metavar="X.Y", help="with --code-objects: the toolkit of the build"
+    )
+    p.add_argument(
+        "--cuobjdump",
+        default="cuobjdump",
+        help="with --code-objects: the cuobjdump to run (default: from PATH)",
+    )
     p.add_argument(
         "--version-info",
         action="store_true",
@@ -855,6 +1094,25 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
     if args.self_test:
         return _self_test()
+    if args.code_objects:
+        if not args.cuda_release or not args.files:
+            p.error("--code-objects needs plugin wheels and --cuda-release")
+        failed = 0
+        for f in args.files:
+            errors = check_code_objects(f, cuobjdump=args.cuobjdump, cuda_release=args.cuda_release)
+            if errors:
+                failed += 1
+                print(f"FAILED {f.name}: code objects", file=sys.stderr)
+                for e in errors:
+                    print(f"       - {e}", file=sys.stderr)
+            else:
+                sass, ptx = expected_code_objects(release_architectures(args.cuda_release))
+                print(
+                    f"ok     {f.name}: SASS {', '.join(sorted(sass, key=_sm))} and PTX "
+                    f"{', '.join(sorted(ptx, key=_sm))} (the release list of CUDA "
+                    f"{args.cuda_release})"
+                )
+        return 1 if failed else 0
     if args.release_metadata:
         day = args.release_date
         if day == "today":

@@ -12,7 +12,8 @@
 # cached between runs) is installed in `before-all`, which also renders the plugin's source tree
 # (ci/plugin_pyproject.py). Every distribution passes `twine check` and ci/wheel_check.py (the
 # size budget: a wheel above 90 MB fails, tags, contents; for a plugin also its entry point, its
-# dependency on dyng of the same version, its licence files and no libcuda / libcudart). The CPU
+# dependency on dyng of the same version, its licence files, no libcuda / libcudart, the module's
+# export list, and, in the container, its SASS and PTX against the toolkit's release list). The CPU
 # wheel alone, and each plugin wheel with the CPU wheel, are installed into fresh environments
 # for Python 3.12 and 3.13 and tested with the whole pytest suite; the runners have no GPU, so a
 # plugin's test is the selection's fallback (ci/plugin_smoke.py --expect fallback: dyng._core
@@ -52,6 +53,7 @@ on:
       - ci/cuda_toolkit.py
       - ci/cuda_toolkits.toml
       - ci/cibw_plugin.sh
+      - ci/cibw_plugin_repair.sh
       - ci/cibuildwheel-plugin.toml
       - .github/workflows/wheels.yml
 

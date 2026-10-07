@@ -201,9 +201,13 @@ CUDA 13.1 and conda-forge's CUDA 12.9).
   `/usr/local/cuda`, checks that nvcc is the pinned release and compiles and links a kernel with
   the image's gcc-toolset and the static runtime, and renders the plugin's tree with
   `ci/plugin_pyproject.py --cuda-root /usr/local/cuda`; cibuildwheel builds the abi3 wheel once
-  (cp312, four compile jobs) and repairs it (`auditwheel repair --plat manylinux_2_28_x86_64
-  --only-plat --exclude libcuda.so.1 --exclude libcuda.so`). `twine check --strict` and
-  `ci/wheel_check.py` (90 MB budget included) check the wheel; artifact
+  (cp312, four compile jobs; the module linked with `-Wl,--exclude-libs,ALL`) and repairs it
+  with `ci/cibw_plugin_repair.sh` (`auditwheel repair --plat manylinux_2_28_x86_64 --only-plat
+  --exclude libcuda.so.1 --exclude libcuda.so`, then `ci/wheel_check.py --code-objects` with
+  the toolkit's cuobjdump: the module must carry exactly the SASS of the toolkit's release list
+  and the PTX of its last entry, so a lost architecture fails the build). `twine check
+  --strict` and `ci/wheel_check.py` (90 MB budget and the module's export list included) check
+  the wheel; artifact
   `wheel-cu<N>-manylinux_2_28_x86_64`. About 10 to 20 minutes per plugin.
 - **job `plugin-install-test`** (plugin x Python 3.12, 3.13): the run's CPU wheel and plugin
   wheel in a fresh venv (`--no-index`: `dyng==<version>` is the run's core wheel; NumPy and the
@@ -211,12 +215,14 @@ CUDA 13.1 and conda-forge's CUDA 12.9).
   fallback: `ci/plugin_smoke.py --expect fallback --reason "no CUDA driver"` (one
   `dyng.BackendWarning`, `dyng._core` active, the plugin `unusable` for that reason, the plugin's
   module importing without a driver and reporting plugin, toolkit, static runtime and
-  architectures, sssp / cycle_count / mosp on the CPU backends), `dyng config`, and the whole
+  architectures, which must be the release list of its toolkit, sssp / cycle_count / mosp on
+  the CPU backends), `dyng config`, and the whole
   pytest suite (its GPU tests skip).
 
 **The pinned toolkits** are `ci/cuda_toolkits.toml`: per plugin, the toolkit release and every
 RPM file of NVIDIA's RHEL 8 repository the build installs (nvcc, the CUDA runtime with its static
-library, CCCL, NVTX, the documentation package with `EULA.txt`, and their dependencies inside
+library, CCCL, NVTX, the documentation package with `EULA.txt`, cuobjdump for the check of the
+code objects, and their dependencies inside
 NVIDIA's repository), with SHA-256 and size. The pins make the build reproducible; that the
 files are NVIDIA's is checked separately, every time they are used: each RPM's header must carry
 a valid OpenPGP signature by NVIDIA's repository key (`D42D0685.pub`, fetched from the
@@ -256,9 +262,10 @@ How the plugins' CI build differs from `ci/plugin_wheels.sh`:
 | | CI (`wheels.yml`) | locally (`ci/plugin_wheels.sh`) |
 |---|---|---|
 | CUDA toolkit | the pinned RPMs of `ci/cuda_toolkits.toml` (12.9, 13.4) installed in the image | `DYNG_CUDA12_ROOT` / `DYNG_CUDA13_ROOT`: by default the system's 13.1 and conda-forge's 12.9; the pinned RPMs unpacked as above give CI's toolkits |
-| host compiler | the image's gcc-toolset 14 (cibuildwheel 4.2.1's manylinux_2_28 image, 2026.09.05-1) | conda-forge's GCC 12.4 against a glibc 2.28 sysroot, libstdc++ / libgcc static and hidden |
+| host compiler | the image's gcc-toolset 14 (cibuildwheel 4.2.1's manylinux_2_28 image, 2026.09.05-1); the system's libstdc++ / libgcc, other static libraries hidden (`-Wl,--exclude-libs,ALL`) | conda-forge's GCC 12.4 against a glibc 2.28 sysroot, libstdc++ / libgcc static and hidden (`-static-libstdc++ -static-libgcc -Wl,--exclude-libs,ALL`) |
+| checks of the module | `ci/wheel_check.py`: no libcuda / libcudart, the export list (only `PyInit__core`, std, nanobind, type_info); in the container, `ci/cibw_plugin_repair.sh`: SASS + PTX equal to the toolkit's release list (cuobjdump) | the same checks (`--code-objects` with the toolkit's cuobjdump) |
 | build front end | `build` (isolated, from PyPI) | `pip wheel --no-build-isolation` with `environment.yml`'s scikit-build-core and nanobind |
-| tests | the fallback smoke test and the whole suite, no GPU | the GPU smoke test, the fallback with no visible device and with the driver hidden, `pytest -m gpu` (GPU 1), the suite with `DYNG_CPU_ONLY=1`; optionally the PyTorch / CuPy round trips |
+| tests | the fallback smoke test and the whole suite, no GPU (the release then runs the GPU tests on the CI-built wheels: {doc}`release`, steps 8 and 10) | the GPU smoke test, the fallback with no visible device and with the driver hidden, `pytest -m gpu` (GPU 1), the suite with `DYNG_CPU_ONLY=1`; optionally the PyTorch / CuPy round trips |
 
 Building a plugin from source (for another toolkit or architecture list) is the same three
 steps on a checkout; `-Ccmake.define.DYNG_CUDA_ARCHITECTURES=86` (for example) replaces the

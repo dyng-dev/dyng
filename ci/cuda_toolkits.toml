@@ -45,6 +45,13 @@ sha256 = "aba8d9ba9127ab3845bfbeb8456ad03afda1970d0e4a4a99b59c6284e92d196d"
 size = 3194616
 
 [[toolkits.cu12.packages]]
+name = "cuda-cuobjdump-12-9"
+version = "12.9.82-1"
+href = "cuda-cuobjdump-12-9-12.9.82-1.x86_64.rpm"
+sha256 = "f631d815b35cef07dfe6be60594acd585fc61761e6b4e237baf0294b2ae4180c"
+size = 284564
+
+[[toolkits.cu12.packages]]
 name = "cuda-documentation-12-9"
 version = "12.9.88-1"
 href = "cuda-documentation-12-9-12.9.88-1.x86_64.rpm"
@@ -134,6 +141,13 @@ version = "13.4.92-1"
 href = "cuda-culibos-devel-13-4-13.4.92-1.x86_64.rpm"
 sha256 = "16615d5611c33eb083e5381d876c85b18c1473adfcab1cffe3b65d27d1f90234"
 size = 32765
+
+[[toolkits.cu13.packages]]
+name = "cuda-cuobjdump-13-4"
+version = "13.4.92-1"
+href = "cuda-cuobjdump-13-4-13.4.92-1.x86_64.rpm"
+sha256 = "ce00719446b51adbb39d29d16df35b9328ebe595608feaf81df9b16f8f8838be"
+size = 364064
 
 [[toolkits.cu13.packages]]
 name = "cuda-documentation-13-4"

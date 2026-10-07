@@ -20,8 +20,11 @@ their wheels), from a directory outside the source tree. Two expectations:
     ``libcudart``) and reports its build (plugin, toolkit, static runtime, architectures); and
     ``sssp`` / ``cycle_count`` / ``mosp`` run on the CPU backends.
 
-Both check the installed versions (``dyng`` and the plugin equal ``--version`` when given) and
-print ``dyng.show_config()``. Exit status 0 on success; an AssertionError otherwise.
+Both check the installed versions (``dyng`` and the plugin equal ``--version`` when given), that
+the module was built for exactly the release list of CUDA architectures of its toolkit (PLAN
+7.7; ``ci/wheel_check.py``'s :data:`RELEASE_ARCHITECTURES`, tied to
+``cmake/cuda_architectures.cmake`` by its self-test), and print ``dyng.show_config()``. Exit
+status 0 on success; an AssertionError otherwise.
 """
 
 from __future__ import annotations
@@ -75,6 +78,18 @@ def _same(np, a, b) -> None:  # type: ignore[no-untyped-def]
     assert eq(mo.path_costs.to_numpy(), ms.path_costs.to_numpy()), "mosp path costs"
 
 
+def _check_architectures(build: dict) -> None:  # type: ignore[type-arg]
+    """The module's architectures are the release list of the toolkit that built it."""
+    from wheel_check import release_architectures  # ci/, next to this script
+
+    got = str(build["cuda_architectures"]).replace(",", ";")
+    want = release_architectures(str(build["cuda_toolkit"]))
+    assert got == want, (
+        f"the module was built for the CUDA architectures {got}, the release list of CUDA "
+        f"{build['cuda_toolkit']} is {want}"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--plugin", required=True, choices=["cu12", "cu13"])
@@ -114,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
         assert report.state == "chosen", report
         build = dyng.config()["build"]
         assert build["plugin"] == plugin and build["cuda_runtime"] == "static", build
+        _check_architectures(build)
         assert dyng.config()["backends"]["cuda"], dyng.config()["backends"]
         cuda = dyng.Resources.cuda(0)
         on_gpu = _graphs(dyng, np, cuda)
@@ -144,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     assert build["plugin"] == plugin, build
     assert build["cuda"] and build["cuda_runtime"] == "static", build
     assert build["cuda_toolkit"].startswith(plugin[2:] + "."), build
+    _check_architectures(build)
     assert native.__version__ == dists["dyng"], (native.__version__, dists)
     print(
         f"plugin_smoke: {package}._core imports without a driver: CUDA {build['cuda_toolkit']}, "
