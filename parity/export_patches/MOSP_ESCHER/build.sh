@@ -15,7 +15,8 @@
 # tests/local/local_tests (host core only, built by run_tests.sh) links no CBST.
 #
 # Recording is on only when DYNG_CBST_TRACE_DIR is set (ADR 0036); otherwise a twin behaves as
-# the original (parity/exporters/escher/check_twins.py compares their outputs).
+# the original (parity/exporters/escher/check_twins.py compares their outputs). It also builds
+# parity_export/bin/cbst_crossreplay, the cross-check driver of PLAN 6.3 step 2 (build_crossreplay.sh).
 set -euo pipefail
 copy="${1:?usage: build.sh <patched copy>}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,3 +26,6 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   bin/test_cbst_smoke bin/test_cbst_ops bin/test_dynamicgraph_roundtrip \
   bin/test_snapshot_matches_updateCSR bin/test_h2h_construction bin/test_h2h_delta \
   bin/test_hsosp_matches_dijkstra bin/test_hsosp_scale bin/test_mosp_update
+# The cross-check driver (the other original's traces through this store; ADR 0036).
+"${here}/../../exporters/escher/build_crossreplay.sh" "${copy}" MOSP_ESCHER test_cbst_ops \
+  build/tests/unit/test_cbst_ops.cu.o "escher/include escher/kernel hypergraph/include"
