@@ -706,7 +706,7 @@ manifest_sha256 = "{manifest_sha}"
     # Keep the other sets (cycle_count, written by parity/cycle_count_goldens.py after sssp, and
     # mosp_scale, parity/mosp_scale_goldens.py).
     old = path.read_text() if path.is_file() else ""
-    other = re.search(r"^\[sets\.(?!sssp[\].])[a-z_]+[\].]", old, re.M)
+    other = re.search(r"^\[sets\.(?!sssp[\].])[a-z0-9_]+[\].]", old, re.M)
     kept = "\n" + old[other.start() :] if other else ""
     path.write_text(head + "".join(rows) + kept)
 
@@ -804,6 +804,11 @@ def main() -> int:
         import mosp_scale_goldens
 
         return mosp_scale_goldens.export_main(sys.argv[2:])
+    if sys.argv[1:2] == ["cbst_trace"]:  # the CBST traces of ESCHER-GPU and MOSP_ESCHER (M8a)
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import cbst_trace_goldens
+
+        return cbst_trace_goldens.export_main(sys.argv[2:])
     if sys.argv[1:2] == ["cycle_count"]:  # the cycle_count corpus (CycleEnumeration-GPU)
         sys.path.insert(0, str(REPO / "parity"))
         import cycle_count_goldens

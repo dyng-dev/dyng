@@ -501,6 +501,9 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
         cases = spec.get("cases", {})
         entry = {
             "set": name,
+            # "cbst_trace" (the CBST trace goldens of M8a, parity/cbst_trace_goldens.py; replayed
+            # by `compare.py cbst_trace`) or the golden corpora of the algorithms
+            "kind": spec.get("kind", "golden"),
             "reference": spec["reference"],
             "commit": spec["commit"],
             "generated_by": spec.get("generated_by"),
@@ -604,7 +607,10 @@ def committed_fixtures(checklist: list[dict], problems: list[str]) -> list[dict]
         if len(Path(f).parts) > 4
     }
     for name in sorted(tracked):
-        if f"cpp/tests/data/{name}" not in listed:
+        # A set may live one level deeper (cpp/tests/data/goldens/cbst_trace, M8a).
+        if not any(
+            d == f"cpp/tests/data/{name}" or d.startswith(f"cpp/tests/data/{name}/") for d in listed
+        ):
             problems.append(f"cpp/tests/data/{name}: a fixture set fixtures.toml does not list")
     out = []
     for name, spec in doc["sets"].items():

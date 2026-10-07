@@ -84,7 +84,7 @@ if(TARGET dyng_cycle_count)
   )
   list(APPEND _dyng_private_tests dyng_cycle_enum_parity_tests)
 endif()
-# The CBST traces of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (M8a, ADR 0035): the host-only
+# The CBST traces of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (M8a, ADR 0036): the host-only
 # trace reader and state tracker that the store replays build on, and its test on the committed
 # traces (cpp/tests/data/goldens/cbst_trace).
 add_library(dyng_cbst_trace STATIC parity/escher/cbst_trace.cpp)
@@ -92,6 +92,13 @@ target_include_directories(dyng_cbst_trace PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(dyng_cbst_trace PUBLIC cxx_std_17)
 dyng_set_warnings(dyng_cbst_trace)
 dyng_enable_sanitizers(dyng_cbst_trace)
+dyng_add_test(
+  NAME dyng_cbst_trace_tests
+  SOURCES parity/escher/cbst_trace_test.cpp
+  LABELS cpu parity cbst
+  LIBRARIES dyng_cbst_trace
+)
+list(APPEND _dyng_private_tests dyng_cbst_trace_tests)
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")

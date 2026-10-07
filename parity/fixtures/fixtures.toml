@@ -64,3 +64,10 @@ reference = "MOSP-OpenMP"
 generated_by = "parity/fixtures/mosp/make_mosp_fixtures.sh"
 what = "mosp (0.2, M7): the whole MOSP update with preference vectors (the thesis example with Pref {4, 1, 4} and {4, 4, 1}, K = 2..4, `-k` below the graph's columns): obj<k>/ and combinedGraph/{distancesCsr,SSSPTreeCsr,mospCosts}.txt of the original `mosp --pref`, on which MOSP-CUDA@e220ee2 agreed before they were written"
 tests = ["compat_mosp.combined.*", "example.mosp_update.*"]
+
+[sets.cbst_trace]
+directory = "cpp/tests/data/goldens/cbst_trace"
+reference = "ESCHER-GPU"
+generated_by = "parity/cbst_trace_goldens.py"
+what = "the committed subset of the CBST trace goldens of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (SUBSET.txt lists each trace with its command; `parity/cbst_trace_goldens.py subset` writes them from the exported sets): reuse, surplus with rebuild, fill overflow, unfill on chained rows, MOSP_ESCHER's compaction inside fill and inside insert; read by the trace reader's test (and replayed by the host model from M8a step 2)"
+tests = ["CbstTrace.*"]
