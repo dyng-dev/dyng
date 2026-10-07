@@ -183,7 +183,7 @@ combined graph). The K trees are canonical after `compute()` and after `from_arr
 canonicalize = true)`; trees imported with `canonicalize = false` keep their tie parents where the
 batch does not reach, by sssp's tie rule (sssp page, section 1), which every backend applies the
 same way, with one exception: inside sssp's packing window (sssp page, section 4; ADR 0029,
-proposed) the host backends recover the lowest-id parents and cuda keeps the imported ones, so for
+accepted) the host backends recover the lowest-id parents and cuda keeps the imported ones, so for
 such trees the K trees, and with them the combined files and the path costs, differ between the
 host backends and cuda, each byte-identical to its own original (`parity/results/M7.md` section
 11). The combined graph itself (weights at most L * (K + 1)) is far below the window. On cuda the trees and the combined arrays are

@@ -228,8 +228,8 @@ fits next to the parent bits, MOSP-OpenMP only when one more edge fits too, so
 `stats::packed_parents` can differ between cuda and the host backends there (the packing-boundary
 cases n = 2^17 - 1).
 
-**The packing window** (ADR 0029, proposed; the author decides the rule). The host backends copy
-MOSP-OpenMP's rule and both CUDA engines MOSP-CUDA's, so in the window
+**The packing window** (ADR 0029, accepted: each backend follows its own original). The host
+backends copy MOSP-OpenMP's rule and both CUDA engines MOSP-CUDA's, so in the window
 (n - 1) * W <= max_distance < n * W (W the largest weight, max_distance = 2^(64 - b) - 2 with b
 parent bits; with 32-bit weights only graphs of at least 65537 vertices reach it, for n = 65537 the
 window is W in [2147450881, 2147483647], for roadNet-CA a largest weight of 4462121 or 4462122)

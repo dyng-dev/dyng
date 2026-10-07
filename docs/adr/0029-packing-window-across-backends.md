@@ -1,9 +1,9 @@
 # ADR 0029: The packing window, where the host and CUDA backends follow different originals
 
-- **Status:** Proposed (2026-10-01, M7 review). A parity rule, so it is **not** delegated
-  (GOVERNANCE.md, "Delegation of technical ADRs"): the lead maintainer decides between options A
-  and B below. Until then the code keeps its behaviour since M1b (option A), and the documentation
-  and a test state and pin it.
+- **Status:** Accepted (2026-10-06, by the author: option A; GOVERNANCE.md approvals log).
+  Proposed on 2026-10-01 in the M7 review. A parity rule, so it was **not** delegated
+  (GOVERNANCE.md, "Delegation of technical ADRs"); the code keeps its behaviour since M1b, and
+  the documentation and a test state and pin it.
 - **Date:** 2026-10-01
 - **Deciders:** S M Shovan (lead maintainer); drafted by the AI assistant
 
@@ -61,9 +61,9 @@ for the candidate bound + W that a relaxation forms before the comparison; the C
 candidates above the bound first, so they need no room), so B would most likely mean "the host
 rule everywhere".
 
-## Decision (proposed)
+## Decision
 
-Option A, pending the author's decision:
+Option A (chosen by the author on 2026-10-06):
 
 1. The code is unchanged: the host backends use MOSP-OpenMP's rule, both CUDA engines
    MOSP-CUDA's.
@@ -79,9 +79,10 @@ Option A, pending the author's decision:
 4. The per-backend parity of the window was checked once against both originals on a generated
    case (`parity/results/M7.md`, section 11).
 
-If the author chooses B instead, item 1 changes one line in `cuda.cu` and one in `operators.cu`
-(or `openmp.cpp` and `sssp_packs_parents`), the test's expectation for the changed backends flips,
-and `parity/results/` records the parity exception against the original whose rule is dropped.
+Had the author chosen B, item 1 would have changed one line in `cuda.cu` and one in
+`operators.cu` (or `openmp.cpp` and `sssp_packs_parents`), the test's expectation for the changed
+backends would have flipped, and `parity/results/` would have recorded the parity exception
+against the original whose rule was dropped.
 
 ## Consequences
 

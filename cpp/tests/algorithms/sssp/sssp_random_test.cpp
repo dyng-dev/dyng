@@ -566,7 +566,7 @@ TEST(SsspComposition, SeveralResultsOnOneGraphEqualSeparateUpdates) {
   }
 }
 
-// The packing window (M7 review; ADR 0029, proposed). The two originals choose the word format
+// The packing window (M7 review; ADR 0029, accepted). The two originals choose the word format
 // differently near the packing limit: MOSP-CUDA@e220ee2 packs (distance, parent) when the bound
 // (n - 1) * W fits next to the parent bits, MOSP-OpenMP@c352151 only when (n - 1) * W + W fits too.
 // The host backends follow MOSP-OpenMP and both CUDA engines follow MOSP-CUDA, so for

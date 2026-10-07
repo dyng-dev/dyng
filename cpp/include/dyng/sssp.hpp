@@ -57,7 +57,7 @@
  * epochs times, update() 3 + iterations + epochs times per result). engine::automatic runs the
  * fused engine where cooperative launch is available and the operators engine otherwise.
  *
- * The packing window (ADR 0029, proposed). The originals choose the word format differently near
+ * The packing window (ADR 0029, accepted). The originals choose the word format differently near
  * the packing limit: MOSP-CUDA packs when (n - 1) * max weight fits next to the parent bits,
  * MOSP-OpenMP only when one more edge fits too. The host backends follow MOSP-OpenMP and both
  * CUDA engines MOSP-CUDA, so in the window (n - 1) * max weight <= max_distance < n * max weight
