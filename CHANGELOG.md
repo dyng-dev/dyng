@@ -85,6 +85,14 @@ temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` com
   repository on 2026-10-07: CUDA 12.9 (nvcc 12.9.86) and 13.4 (nvcc 13.4.92) are still the
   newest 12.x and 13.x, and a fresh `ci/cuda_toolkit.py lock` of both reproduces
   `ci/cuda_toolkits.toml` byte for byte (no re-pin; the cached RPMs pass `verify --signatures`).
+- Docs: two informational investigations in `docs/developer/retrospectives/R020.md` (record
+  `parity/results/R020-investigations.json`; no gate applies, nothing in the library changed):
+  (a) the CUDA 13.4 cu13 wheel's cycle_count update is not slower than the CUDA 13.1 builds
+  (0.965-0.986x over 8 processes per side; the update kernels within 1 % under Nsight Compute):
+  M6a's 8.8 % was the process mode of the host stage `cycle_count.normalize`, so the wheel keeps
+  CUDA 13.4; (b) a measured proposal for the open decision on layout control (function, loop and
+  branch alignment against the originals and dynG against dynG), attached to the decision in
+  `GOVERNANCE.md`, which stays open; the certificate uses the accepted one-layout protocol.
 
 ### R020: the mosp API review and freeze (0.2, branch `release-0.2.0`)
 
