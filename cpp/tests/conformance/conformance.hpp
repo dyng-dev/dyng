@@ -359,13 +359,22 @@ struct preset {
   graph_properties props;  ///< the graph's properties (the algorithm's requirements applied)
 };
 
-/// The presets: the defaults, set() semantics, and the traits' extras; each with require().
+/// The presets: the defaults, the defaults with the insertions applied before the deletions,
+/// set() semantics, and the traits' extras; each with require().
 template <typename traits_t>
 std::vector<preset> presets() {
   std::vector<preset> out;
   graph_properties plain;
   traits_t::require(plain);
   out.push_back({"upsert_last_wins()", plain});
+  // applied_batch::delta lists the requested changes: with the insertions first, an edge a batch
+  // inserts and deletes is listed but gone (batch_mix::cancel), which an algorithm must not trust.
+  graph_properties inserts_first;
+  inserts_first.semantics.deletions_first = false;
+  traits_t::require(inserts_first);
+  if (!inserts_first.semantics.as_sets && inserts_first.semantics.deletions_first == false) {
+    out.push_back({"upsert_last_wins(), insertions first", inserts_first});
+  }
   graph_properties sets = plain;
   sets.semantics = batch_semantics::set();
   out.push_back({"set()", sets});
@@ -460,11 +469,20 @@ std::vector<std::int64_t> counters(const typename traits_t::stats& s) {
   return out;
 }
 
+/// Whether the algorithm's graphs are directed (its requirements may ask for an undirected
+/// graph, graph_properties::directed = false; the kit's models follow).
+template <typename traits_t>
+bool directed_graphs() {
+  graph_properties props;
+  traits_t::require(props);
+  return props.directed;
+}
+
 /// A random model of a size class.
 template <typename case_t>
 graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_64& rng) {
-  graph_model<typename case_t::graph_type> m =
-      random_model<typename case_t::graph_type>(case_t::traits::shape(size), rng);
+  graph_model<typename case_t::graph_type> m = random_model<typename case_t::graph_type>(
+      case_t::traits::shape(size), rng, directed_graphs<typename case_t::traits>());
   m.num_weights = weight_columns<typename case_t::traits>();
   return m;
 }
@@ -511,7 +529,7 @@ bool engines_agree(const std::vector<backend>& backends) {
           }
           for (int step = 0; step < 3; ++step) {
             SCOPED_TRACE("batch " + std::to_string(step));
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+            const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
             typename traits::stats sf;
             typename traits::stats so;
             try {
@@ -635,12 +653,12 @@ TYPED_TEST_P(conformance, C2_UpdateChainsEqualTheOracle) {
             kit_detail::expect_oracle(c);
             for (int step = 0; step < 3; ++step) {
               SCOPED_TRACE("batch " + std::to_string(step));
-              const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+              const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
               (void)c.step(gen.batch);
               ASSERT_EQ(static_cast<std::int64_t>(c.g->num_vertices()),
                         static_cast<std::int64_t>(model.num_vertices));
               ASSERT_EQ(static_cast<std::int64_t>(c.g->num_edges()),
-                        static_cast<std::int64_t>(model.weights.size()));
+                        static_cast<std::int64_t>(model.weights.size()) * model.directions());
               kit_detail::expect_oracle(c);
               if (::testing::Test::HasFailure()) {
                 return;  // the first failing chain is enough (its seed is in the trace)
@@ -665,8 +683,8 @@ TYPED_TEST_P(conformance, C3_BackendsAgree) {
     SCOPED_TRACE(p.label);
     for (const std::uint64_t seed : test::test_seeds(3000, 2)) {
       SCOPED_TRACE(test::seed_trace(seed));
-      for (const batch_mix mix :
-           {batch_mix::mixed, batch_mix::heavy, batch_mix::reweight, batch_mix::grow}) {
+      for (const batch_mix mix : {batch_mix::mixed, batch_mix::heavy, batch_mix::reweight,
+                                  batch_mix::grow, batch_mix::cancel}) {
         if (!kit_detail::mix_applies<graph_t>(mix, p.props)) {
           continue;
         }
@@ -684,7 +702,7 @@ TYPED_TEST_P(conformance, C3_BackendsAgree) {
         }
         for (int step = 0; step < 3; ++step) {
           SCOPED_TRACE("batch " + std::to_string(step));
-          const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+          const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
           const auto reference = kit_detail::counters<traits>(chains[0].step(gen.batch));
           const auto expected = chains[0].take();
           for (std::size_t i = 1; i < chains.size(); ++i) {
@@ -731,7 +749,7 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
           graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
           kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
           const auto before = c.take();
-          const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+          const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
           ASSERT_TRUE(gen.invertible);
           (void)c.step(gen.batch);
           (void)c.step(gen.inverse);
@@ -759,7 +777,7 @@ TYPED_TEST_P(conformance, C6_RunsAreDeterministic) {
           kit_detail::chain<TypeParam> second(kit_detail::resources_for(b), model, p.props);
           EXPECT_TRUE(kit_detail::same<traits>(first.take(), second.take()));
           for (int step = 0; step < 3; ++step) {
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+            const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
             EXPECT_EQ(kit_detail::counters<traits>(first.step(gen.batch)),
                       kit_detail::counters<traits>(second.step(gen.batch)));
             EXPECT_TRUE(kit_detail::same<traits>(first.take(), second.take()));
@@ -836,7 +854,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
       vertex_t v = 0;
       for (vertex_t x = 0; x < model.num_vertices && u == v; ++x) {
         for (vertex_t y = 0; y < model.num_vertices; ++y) {
-          if (x != y && model.weights.count({x, y}) == 0) {
+          if (x != y && !model.has(x, y)) {
             u = x;
             v = y;
             break;
@@ -848,7 +866,8 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         batch_t b = make_batch();
         b.delete_edge(u, v);
         const auto s = c.step(b);
-        EXPECT_EQ(s.batch.ignored_deletions, 1) << "a deletion of a missing edge is counted";
+        EXPECT_EQ(s.batch.ignored_deletions, model.directions())
+            << "a deletion of a missing edge is counted (once per stored direction)";
         EXPECT_EQ(s.affected, 0);
         EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
       }
@@ -858,7 +877,8 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
         insert(b, existing.first, existing.second);
         insert(b, vertex_t{0}, vertex_t{0});
         const auto s = c.step(b);
-        EXPECT_EQ(s.batch.ignored_insertions, 1) << "an insertion of an existing edge is counted";
+        EXPECT_EQ(s.batch.ignored_insertions, model.directions())
+            << "an insertion of an existing edge is counted (once per stored direction)";
         EXPECT_EQ(s.batch.dropped_self_loops, 1) << "a self-loop is dropped and counted";
         EXPECT_EQ(s.affected, 0);
         EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
@@ -920,7 +940,7 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
             std::mt19937_64 rng(8000 + static_cast<std::uint64_t>(mix));
             graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size, rng);
             const graph_model<graph_t> base = model;
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+            const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
             const resources res = kit_detail::resources_for(b);
             // The steady state ("once reserved"): a twin result on the same graph takes the same
             // batch first, so the handle's pooled workspaces have the batch's shapes; the measured
@@ -1013,14 +1033,15 @@ TYPED_TEST_P(conformance, C9_StatsAreSane) {
         graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
         kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
         for (int step = 0; step < 3; ++step) {
-          const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+          const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
           const auto s = c.step(gen.batch);
           const apply_summary& a = s.batch;
           EXPECT_GE(s.affected, 0);
           EXPECT_LE(s.affected, std::max<std::int64_t>(a.num_vertices_after, 1));
           EXPECT_EQ(a.num_vertices_after, static_cast<std::int64_t>(c.g->num_vertices()));
           const auto requested =
-              static_cast<std::int64_t>(gen.batch.num_insertions() + gen.batch.num_deletions());
+              static_cast<std::int64_t>(gen.batch.num_insertions() + gen.batch.num_deletions()) *
+              model.directions();  // an undirected graph counts each direction
           EXPECT_EQ(a.inserted_edges + a.updated_edges + a.ignored_insertions + a.deleted_edges +
                         a.ignored_deletions + a.dropped_self_loops,
                     requested)
@@ -1053,10 +1074,15 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
         ++partners;
         SCOPED_TRACE(std::string(traits::name) + " with " + std::string(partner::name) + " on " +
                      std::string(to_string(b)));
-        for (const bool as_sets : {false, true}) {
-          SCOPED_TRACE(as_sets ? "set()" : "upsert_last_wins()");
+        // 0: upsert_last_wins(), 1: set(), 2: upsert_last_wins() with the insertions first.
+        for (const int variant : {0, 1, 2}) {
+          const bool as_sets = variant == 1;
+          SCOPED_TRACE(variant == 0   ? "upsert_last_wins()"
+                       : variant == 1 ? "set()"
+                                      : "upsert_last_wins(), insertions first");
           // A graph meeting both algorithms' requirements.
           graph_properties props;
+          props.semantics.deletions_first = variant != 2;
           traits::require(props);
           partner::require(props);
           if (as_sets) {
@@ -1066,8 +1092,8 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
           const graph_shape theirs_shape = partner::shape(size_class::small);
           shape.vertices = std::min(shape.vertices, theirs_shape.vertices);
           shape.edges = std::min(shape.edges, theirs_shape.edges);
-          std::mt19937_64 rng(10000 + (as_sets ? 1U : 0U));
-          graph_model<graph_t> model = random_model<graph_t>(shape, rng);
+          std::mt19937_64 rng(10000 + static_cast<std::uint64_t>(variant));
+          graph_model<graph_t> model = random_model<graph_t>(shape, rng, props.directed);
           model.num_weights =
               std::max(kit_detail::weight_columns<traits>(), kit_detail::weight_columns<partner>());
           const resources res = kit_detail::resources_for(b);
@@ -1083,8 +1109,10 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
           kit_detail::chain<partner_case> alone_partner(res, model, props);
           for (int step = 0; step < 3; ++step) {
             SCOPED_TRACE("batch " + std::to_string(step));
-            const batch_mix mix = step == 2 ? batch_mix::grow : batch_mix::mixed;
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng);
+            const batch_mix mix = step == 2   ? batch_mix::grow
+                                  : step == 1 ? batch_mix::cancel
+                                              : batch_mix::mixed;
+            const generated_batch<graph_t> gen = random_batch(model, mix, rng, props.semantics);
             typename traits::stats s_mine;
             typename partner::stats s_partner;
             if (step % 2 == 0) {

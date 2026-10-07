@@ -6,6 +6,7 @@ Lessons that take you through a complete task, step by step.
 :maxdepth: 1
 
 sssp_mosp_files
+your_first_dynamic_algorithm
 ```
 
 Until the Python tutorials exist, {doc}`../getting_started/first_update_python` and the Python
@@ -15,13 +16,19 @@ Planned, each written when its code exists:
 
 | Tutorial | Release |
 |---|---|
-| Dynamic SSSP in Python in 10 minutes | 0.1.x |
-| Cycle counting on a changing graph | 0.1.x |
-| **Your first dynamic algorithm** (`dynamic_bfs`: the fixed-point template, Tier A) | 0.1.x |
-| **Aggregate deltas** (`triangle_delta`: signed recounts with an ownership rule) | 0.1.x |
-| MOSP with preferences | 0.2 |
-| Hypergraph triads, and counting a new hypergraph pattern | 0.2 |
-| Streaming label propagation | 0.3 |
+| Dynamic SSSP in Python in 10 minutes | 0.2.x |
+| Cycle counting on a changing graph | 0.2.x |
+| **Aggregate deltas** (`triangle_delta`: signed recounts with an ownership rule; the code and its page exist since 0.2) | later |
+| MOSP with preferences | 0.2.x |
+| Hypergraph triads, and counting a new hypergraph pattern | 0.3 |
+| Streaming label propagation | 0.4 |
 
-The two teaching algorithms live in `examples/tutorial_algorithms/`; their tutorials quote the
-code by marked ranges, so a code change that breaks a tutorial breaks the documentation build.
+{doc}`your_first_dynamic_algorithm` (0.2) builds `my_bfs`, a dynamic BFS, from a fresh clone to a
+green conformance kit with `scripts/new_algorithm.py` and the fixed-point template. Its reference
+solution is in `examples/tutorial_algorithms/my_bfs/`; the tutorial quotes it by marked ranges (a
+change that removes a marker breaks the documentation build), and `ci/scaffold_check.sh` scaffolds
+`my_bfs`, makes the tutorial's edits in the scaffold's files where the prose puts them
+(`ci/tutorial_edits.py`) and runs its kit, so a framework or scaffold change that breaks the
+tutorial, or a step whose prose does not build, breaks CI. The two teaching algorithms of the library, {doc}`../algorithms/dynamic_bfs`
+and {doc}`../algorithms/triangle_delta` (maturity `tutorial`), are the finished versions on every
+backend (ADR 0033).

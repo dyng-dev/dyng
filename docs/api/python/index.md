@@ -1,12 +1,13 @@
 # Python API
 
 `import dyng` gives the whole public Python API: the names of the `dyng` package and the
-modules `dyng.sssp`, `dyng.cycle_count`, `dyng.mosp` (0.2), `dyng.io`, `dyng.generators` and
+modules `dyng.sssp`, `dyng.cycle_count`, `dyng.mosp` (0.2), the tutorial algorithms
+`dyng.dynamic_bfs` and `dyng.triangle_delta` (0.2), `dyng.io`, `dyng.generators` and
 `dyng.testing`. The
 names mirror the C++ API ({doc}`../cpp/index`): `dyng::sssp::compute` is `dyng.sssp.compute`,
 `dyng::sssp::options` is `dyng.sssp.Options`, and option keywords are the C++ field names
 (`max_length=`, `delta=`). Names with a leading underscore (`dyng._core`, the native module) are
-private and may change in any release (PLAN Section 5.9). What the C++ library has and the Python
+private and may change in any release. What the C++ library has and the Python
 package does not yet bind is listed in {doc}`../../developer/python_gaps`.
 
 ```{toctree}

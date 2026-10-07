@@ -543,7 +543,7 @@ def write_batches(path: PathLike, batches: Iterable[EdgeBatch]) -> None:
     insertions (``+e u v w1 .. wK``). Every batch with insertions must have the same K.
 
     Raises:
-        InvalidArgumentError: a batch has vertex operations (0.3) or a different K.
+        InvalidArgumentError: a batch has vertex operations (0.4) or a different K.
     """
     gtype = _dtypes.GraphType(_dtypes.INT64, _dtypes.INT64, True)
     native_batches = []

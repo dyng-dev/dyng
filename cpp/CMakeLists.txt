@@ -189,6 +189,24 @@ dyng_add_module(
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
 include("${PROJECT_SOURCE_DIR}/cmake/dyng_add_algorithm.cmake")
 add_subdirectory(src/algorithms)
+# A name in DYNG_ALGORITHMS that no algorithm has (a typo, or an algorithm removed with
+# scripts/new_algorithm.py --remove while the build cache still lists it) would otherwise leave a
+# build that quietly skips the other algorithms and their tests.
+get_property(_dyng_known_algorithms GLOBAL PROPERTY DYNG_KNOWN_ALGORITHMS)
+if(NOT DYNG_ALGORITHMS STREQUAL "all")
+  set(_dyng_unknown_algorithms)
+  foreach(_dyng_algorithm IN LISTS DYNG_ALGORITHMS)
+    if(NOT _dyng_algorithm IN_LIST _dyng_known_algorithms)
+      list(APPEND _dyng_unknown_algorithms "${_dyng_algorithm}")
+    endif()
+  endforeach()
+  if(_dyng_unknown_algorithms)
+    string(REPLACE ";" ", " _dyng_known_text "${_dyng_known_algorithms}")
+    message(FATAL_ERROR "DYNG_ALGORITHMS names algorithms that do not exist: "
+                        "${_dyng_unknown_algorithms} (the algorithms are ${_dyng_known_text}). "
+                        "Configure again with -DDYNG_ALGORITHMS=all or a list of existing names.")
+  endif()
+endif()
 # The registry (core/registry.cpp) lists the algorithms built here: DYNG_ALGORITHM_<NAME> selects
 # their entries of the generated table (scripts/regen.py writes src/core/registry_table.inc).
 get_property(DYNG_BUILT_ALGORITHMS GLOBAL PROPERTY DYNG_BUILT_ALGORITHMS)

@@ -43,10 +43,10 @@ class EdgeBatch:
     Args:
         insert: ``(src, dst)`` or ``(src, dst, weights)``; weights of shape (n,) or (n, K).
         delete: ``(src, dst)``.
-        insert_vertices: Vertices to insert (0.3; applying such a batch raises
+        insert_vertices: Vertices to insert (0.4; applying such a batch raises
             :class:`~dyng.NotSupportedError` in 0.1).
-        vertex_labels: Labels of the inserted vertices (int8; 0.3).
-        delete_vertices: Vertices to delete (0.3).
+        vertex_labels: Labels of the inserted vertices (int8; 0.4).
+        delete_vertices: Vertices to delete (0.4).
 
     Examples:
         >>> import numpy as np, dyng

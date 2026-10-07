@@ -50,6 +50,13 @@ dyng_add_test(
 dyng_add_test(
   NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp LABELS cpu io
 )
+# The reader fuzzers' findings (its own executable: it replaces operator new to bound the
+# allocations; cpp/fuzz/README.md).
+dyng_add_test(
+  NAME dyng_io_fuzz_regression_tests
+  SOURCES io/fuzz_regression_test.cpp
+  LABELS cpu io fuzz
+)
 dyng_add_test(
   NAME dyng_framework_tests
   SOURCES framework/workspace_test.cpp framework/thread_list_test.cpp
@@ -66,7 +73,9 @@ dyng_add_test(
 )
 # Parity with CycleEnumeration-GPU@0a976ad on the TUDataset graphs (outside the repository; the
 # test skips when they are missing). Label parity, not cpu: run with `ctest -L parity`.
-set(_dyng_private_tests dyng_graph_tests dyng_io_tests dyng_framework_tests dyng_generators_tests)
+set(_dyng_private_tests dyng_graph_tests dyng_io_tests dyng_io_fuzz_regression_tests dyng_framework_tests
+                         dyng_generators_tests
+)
 if(TARGET dyng_cycle_count)
   dyng_add_test(
     NAME dyng_cycle_enum_parity_tests

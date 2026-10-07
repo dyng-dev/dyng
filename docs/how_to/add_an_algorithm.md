@@ -1,10 +1,12 @@
 # Add an algorithm
 
-This is the outline of the guide for adding a dynamic algorithm to dynG (PLAN Section 9.4). Each
-step names the tool or page that does the work today; the parts marked *(from 0.2)* describe
-what the guide will cover once that part of the library exists. The full
-guide, with a worked example (`dynamic_bfs`, one of the tutorial algorithms of M6), replaces this
-outline in 0.1.x.
+This is the guide for adding a dynamic algorithm to dynG (PLAN Section 9.4). Each step names the
+tool or page that does the work. For a first algorithm, follow the tutorial
+{doc}`../tutorials/your_first_dynamic_algorithm` first: it walks through steps 3 to 5 with a
+worked example (`my_bfs`, a dynamic BFS) from a fresh clone to a green conformance kit. The two
+teaching algorithms of the library, {doc}`../algorithms/dynamic_bfs` (fixed point) and
+{doc}`../algorithms/triangle_delta` (aggregate delta), are complete examples of every step on all
+three backends.
 
 Before you start, read {doc}`../concepts/update_model` (the three steps of every update) and the
 framework guide's template card ({doc}`../developer/framework`).
@@ -50,13 +52,19 @@ comparator, the oracle kind and the determinism level.
 
 Fill the hooks of `problem.hpp` (Tier A: framework operators) until the kit is green without the
 placeholder's recompute. The kit tells you which invariant a wrong hook breaks (C1 to C12, C8 for
-the steady-state budgets).
+the steady-state budgets). The tutorial does this for a fixed-point problem; for an aggregate
+delta, `triangle_delta` shows the `normalize` and the two `count` hooks with an ownership rule.
 
 ## 6. Add backends
 
 OpenMP first, then CUDA: hooks with operators first, a fused engine only when a benchmark shows
 the need (Tier B, the verbatim kernels of a port). The scaffold writes the host backends; a CUDA
-backend is added by hand in 0.1.
+backend is added by hand. The tutorial algorithms show the pattern that serves every backend from
+one source: each pass is a `DYNG_HD` functor in the algorithm's `engine.hpp`, run by an executor
+of `cpp/src/operators/` (sequential, OpenMP, CUDA), and `sequential.cpp`, `openmp.cpp` and
+`cuda.cu` are one instantiation each ({doc}`../developer/framework`, "Writing hooks with
+operators"). Add `cuda` to the manifest's `backends` and `CUDA_SOURCES cuda.cu` to the
+algorithm's `CMakeLists.txt`; the kit then runs in the `gpu` conformance executable too.
 
 ## 7. Bindings, CLI and example
 
@@ -110,4 +118,4 @@ maturity in the manifest: `experimental` is fine for a first merge.
 
 A port follows the same steps from the other side: first the original is pinned and
 cross-checked, then ported verbatim behind the hooks, then proved equal to it by the parity harness
-(PLAN Section 6.3; {doc}`run_parity`). The "port research code" guide is planned for 0.1.x.
+(PLAN Section 6.3; {doc}`run_parity`). The guide is {doc}`port_research_code`.

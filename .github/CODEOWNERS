@@ -44,4 +44,12 @@
 /cpp/include/dyng/mosp.hpp          @SMShovan
 /cpp/tests/algorithms/mosp/         @SMShovan
 /docs/algorithms/mosp.md            @SMShovan
+/cpp/src/algorithms/dynamic_bfs/    @SMShovan
+/cpp/include/dyng/dynamic_bfs.hpp   @SMShovan
+/cpp/tests/algorithms/dynamic_bfs/  @SMShovan
+/docs/algorithms/dynamic_bfs.md     @SMShovan
+/cpp/src/algorithms/triangle_delta/ @SMShovan
+/cpp/include/dyng/triangle_delta.hpp @SMShovan
+/cpp/tests/algorithms/triangle_delta/ @SMShovan
+/docs/algorithms/triangle_delta.md  @SMShovan
 # regen:algorithms end

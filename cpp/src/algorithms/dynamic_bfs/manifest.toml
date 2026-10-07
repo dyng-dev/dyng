@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The dynamic_bfs manifest (PLAN Section 4.8). scripts/regen.py reads it (the algorithm
+# tables, the CODEOWNERS block and the registries; `python3 scripts/regen.py` after an edit); CMake
+# does not.
+name        = "dynamic_bfs"
+title       = "Dynamic breadth-first search levels (tutorial)"
+computes    = "BFS hop levels from a source (teaching material)"
+paper       = "- (tutorial)"
+since       = "0.2"
+family      = "fixed_point"
+container   = "graph"
+tier        = "framework"
+maturity    = "tutorial"                # teaching material (docs/tutorials), not a research algorithm
+backends    = ["sequential", "openmp", "cuda"]
+determinism = "exact_value"
+oracle      = "compute"
+graph_requirements = { multi_edges = "any", row_order = "any", store_transposed = true }
+cite        = []
+maintainers = ["SMShovan"]

@@ -18,6 +18,8 @@ io
 sssp
 cycle_count
 mosp
+dynamic_bfs
+triangle_delta
 generators
 testing
 ```

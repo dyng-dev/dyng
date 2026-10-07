@@ -21,8 +21,8 @@ namespace dyng {
  */
 enum class row_layout : std::uint8_t {
   compact,  ///< exact CSR; a batch rebuilds the touched rows (the only layout in 0.1)
-  slotted,  ///< fixed per-vertex slot ranges (DynLP); planned for 0.3
-  slack,    ///< per-row headroom with a tail region; planned for 0.3
+  slotted,  ///< fixed per-vertex slot ranges (DynLP); planned for 0.4
+  slack,    ///< per-row headroom with a tail region; planned for 0.4
 };
 
 /**

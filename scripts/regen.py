@@ -49,7 +49,7 @@ REPO = Path(__file__).resolve().parent.parent
 FAMILIES = {"fixed_point": "fixed point", "aggregate_delta": "aggregate delta"}
 CONTAINERS = ("graph", "hypergraph")
 TIERS = ("framework", "custom_engine")
-MATURITY = ("experimental", "stable", "deprecated")
+MATURITY = ("experimental", "stable", "deprecated", "tutorial")
 DETERMINISM = ("bitwise", "exact_value", "tolerance")
 ORACLES = ("compute", "reference")
 BACKENDS = {"sequential": "sequential", "openmp": "OpenMP", "cuda": "CUDA"}
@@ -126,6 +126,11 @@ def _cite_keys(root: Path) -> set[str]:
     return set(re.findall(r"^@\w+\{([^,\s]+),", text, re.MULTILINE))
 
 
+#: The line scripts/new_algorithm.py writes into a scaffold's manifest (its `--remove` deletes only
+#: an algorithm that still has it).
+SCAFFOLD_LINE = "# scaffolded by scripts/new_algorithm.py"
+
+
 def _check_manifest(root: Path, algo: Algorithm, keys: set[str]) -> list[str]:
     """The registration rules of one manifest (an empty list when it is valid)."""
     d = algo.data
@@ -163,6 +168,12 @@ def _check_manifest(root: Path, algo: Algorithm, keys: set[str]) -> list[str]:
         problems.append(
             "a `stable` algorithm has a CUDA backend or an accepted written reason "
             "(`no_cuda_reason`)"
+        )
+    if d["maturity"] != "experimental" and SCAFFOLD_LINE in algo.path.read_text(encoding="utf-8"):
+        problems.append(
+            f"maturity `{d['maturity']}` but the manifest still has the line `{SCAFFOLD_LINE}`, "
+            "with which `scripts/new_algorithm.py --remove` deletes the algorithm without --force "
+            "(remove the line once the algorithm is complete)"
         )
     missing = [k for k in d["cite"] if k not in keys]
     if missing:

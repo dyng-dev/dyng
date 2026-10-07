@@ -8,6 +8,108 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+### Added
+
+- M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0033), created with
+  `scripts/new_algorithm.py` and completed on the sequential, OpenMP and CUDA backends (Tier A),
+  each with hand cases, an independent oracle and the conformance kit C0-C12 on every backend:
+  `dynamic_bfs` (fixed point: BFS levels from a source; the subtrees under deleted BFS-tree edges
+  are invalidated and re-seeded, a frontier propagates the improvements) and `triangle_delta`
+  (aggregate delta: the triangle count of an undirected graph; count(-) on the old graph,
+  count(+) on the new one, `ownership::min_member`). Python: `dyng.dynamic_bfs`,
+  `dyng.triangle_delta` (not in `dyng.update()`, no CLI command).
+- M6b: the tutorial **"Your first dynamic algorithm"** (`docs/tutorials`): from a fresh clone to
+  a green conformance kit with `scripts/new_algorithm.py` and the fixed-point template. Its
+  reference solution is `examples/tutorial_algorithms/my_bfs/`, which `ci/scaffold_check.sh`
+  builds and tests.
+- M6b: `maturity_level::tutorial` (appended; `"tutorial"` in the manifests, the registry and the
+  generated tables).
+- M6b: the framework operators' executors (`cpp/src/operators/`): `sequential_exec`,
+  `openmp_exec` and `cuda_exec` run a `DYNG_HD` functor per element on their backend, with the
+  atomics of such functors, so one source serves the three backends (the two tutorial algorithms
+  use them; PLAN 4.5.3's rule of two).
+- M6b: the conformance kit generates **undirected** graphs for an algorithm that requires them
+  (`graph_properties::directed = false`); its edge and batch counters count each stored direction.
+- M6b: **reader fuzzers** (`cpp/fuzz`, ADR 0034): libFuzzer targets for every file reader (Matrix
+  Market, edge lists, the MOSP CSR triplet, MOSP batches, `.dgt` batches, distance and parent
+  files) with ASan and UBSan, checking the documented exceptions, the consistency of accepted
+  input and write/read round trips; the CMake option `DYNG_BUILD_FUZZERS` and the preset `fuzz`
+  (Clang), `ci/fuzz.sh`, a seed corpus, and `.github/workflows/fuzz.yml` (pull requests that touch
+  a reader: 60 s per target; weekly: 10 minutes). Every test build replays the seed corpus and the
+  reproducers of fixed findings (`ctest -L fuzz`).
+- M6b: `parity/mutate.py` covers the **cycle_count and mosp golden suites** (CycleEnumeration-GPU's
+  double-counted 5-cycles and weakened ownership rule, host and device; a combined-graph edge
+  weight from one tree only and path costs from one objective's weights, on each backend), next
+  to sssp's; `--suites` selects them.
+- M6b: the Hypothesis profile **`full`** (10,000 examples per property, not derandomized;
+  `DYNG_HYPOTHESIS_EXAMPLES`) and `.github/workflows/property.yml` (weekly, on demand); property
+  tests of `dynamic_bfs` and `triangle_delta` over chains of batches.
+- M6b: the documentation is published on **GitHub Pages**, <https://dyng-dev.github.io/dyng/>:
+  `docs.yml` deploys the site of every push to `main` (`actions/configure-pages`,
+  `upload-pages-artifact`, `deploy-pages`; environment `github-pages`); README, `CITATION.cff`
+  (`url`) and the Sphinx canonical URL name it. `docs/developer/robustness.md` describes the
+  fuzzers, the mutation checks and the long property runs.
+- M6b: **sanitizer jobs** on every pull request (`.github/workflows/sanitizers.yml`, not a required
+  check yet): the CPU tests under ASan + UBSan (`asan`, GCC 13), under TSan with OpenMP off
+  (`tsan`, GCC 13) and under TSan with the OpenMP backends (the new preset **`tsan-openmp`**:
+  Clang and libomp, whose OMPT tool Archer tells TSan about OpenMP's synchronization). The script
+  `ci/sanitizers.sh` runs the same presets locally.
+- M6b: the author's re-grouping of the releases after 0.1.0 (2026-10-02) is recorded in
+  `GOVERNANCE.md`, `docs/roadmap.md` and `docs/developer/plan.md`: 0.2.0 = `mosp` + the hardening
+  planned as 0.1.x (CUDA plugin wheels, tutorials, GitHub Pages, fuzzers, mutation checks,
+  sanitizers); 0.3.0 = the hypergraph and `triad_count`; 0.4.0 = `label_propagation` and
+  `hyper_sssp`. The planned versions in the documentation, the docstrings and the messages of
+  features that are not there yet follow it.
+
+### Changed
+
+- M6b: configuring `DYNG_SANITIZE=thread` with `DYNG_ENABLE_OPENMP=ON` and a compiler other than
+  Clang is an error (GCC's libgomp is not instrumented, so every parallel region would be reported
+  as a race); use the preset `tsan` (OpenMP off) or `tsan-openmp` (Clang with Archer).
+- M6b review: configuring with a `DYNG_ALGORITHMS` name that no algorithm has is an error (a stale
+  name such as the tutorial's `my_bfs` after `new_algorithm.py --remove` used to skip every other
+  algorithm quietly); `scripts/new_algorithm.py` takes the default of `--since` from `VERSION`;
+  `scripts/regen.py --check` rejects the scaffold line in a manifest whose maturity is not
+  `experimental`.
+- M6b review: the conformance kit also runs every check with `deletions_first = false` (a third
+  property preset) and the batch mix `cancel` (edges inserted and deleted, or deleted and
+  re-inserted, in one batch) in C2, C3, C4, C9 and C10.
+- M6b review: the reader fuzzers treat any exception in the write -> read round trip as a finding
+  (a rejected copy used to count as a rejected input); `fuzz.selftest.<target>` plants a writer
+  bug and checks that the replay reports it; the corpus replay of the libFuzzer build runs with a
+  256 MB allocation limit and the third finding's reproducer; `fuzz.yml` sets
+  `vm.mmap_rnd_bits=28`, accepts at most 1000 s per target on demand and uploads the reproducers
+  of a cancelled run.
+- M6b review: the documentation site (built from `main`) shows a banner naming the development
+  version and the latest release; the README and the landing page name 0.1.0 as the latest
+  release; the algorithm pages name releases instead of milestones; M6b's ADRs are 0033 and 0034
+  (M6a has 0030-0032); ADR 0029 is accepted (the author, option A).
+
+### Fixed
+
+- M6b, found by the reader fuzzers (and the review their memory use prompted):
+  `io::read_matrix_market()` reserved memory for the number of entries the size line announced
+  (up to 3 GB for a 74-byte file), and `io::read_csr_triplet()` for the edge count of
+  `RowPtr.txt` (4 GB for a 13-byte `RowPtr.txt`) and for edges x weights of `Values.txt` before
+  counting its lines. The reservations are now bounded by what the file can
+  hold; the errors are unchanged (`cpp/tests/io/fuzz_regression_test.cpp`).
+- M6b, found by `python/tests/test_reader_robustness.py`: the command line's text batches
+  (`--batch`) raised `OverflowError` for an integer beyond 64 bits and `UnicodeDecodeError` for a
+  file that is not UTF-8; both are now `dyng.FileFormatError` with the path and line.
+- M6b: the cycle_count kernel tests did not build with Clang's ASan or TSan (their counting
+  `operator new` collided with the sanitizer runtime's); they now detect Clang's sanitizers too.
+- M6b review: `dynamic_bfs` (every backend) and the tutorial's `my_bfs` returned levels that were
+  too low when `batch_semantics::deletions_first = false` and a batch inserted an edge and deleted
+  it again: the seed offered a level along the requested insertion, which is not in the graph. It
+  now offers only along an edge of G_{t+1}. `applied_batch::delta` is documented as what it is,
+  the requested changes, not the net change.
+- M6b review: `dynamic_bfs` and `triangle_delta` kept the scaffold line in their manifests, so
+  `new_algorithm.py <name> --remove` deleted them without `--force`.
+- M6b review: the tutorial "Your first dynamic algorithm": step 4.2 now replaces the scaffold's
+  `reads_prepared_graph()` (adding a second one did not compile), the clean-up resets
+  `DYNG_ALGORITHMS`, the prerequisites follow the install page (no compiler in the conda
+  environment), and the reference solution's comments describe the incremental algorithm.
+
 ### M7: the sssp operators engine (0.2, branch `m7-mosp`)
 
 These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.

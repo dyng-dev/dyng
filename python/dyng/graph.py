@@ -94,7 +94,7 @@ class GraphProperties:
         store_transposed: Keep the in-edges (sssp needs them).
         num_weights: Weight columns (taken from the input when a graph is built).
         layout: ``"compact"`` (the only layout of 0.1).
-        headroom: Spare capacity of the ``"slack"`` layout (0.3).
+        headroom: Spare capacity of the ``"slack"`` layout (0.4).
         order: ``"sorted"`` (rows sorted by neighbour) or ``"append"`` (MOSP).
         parallel_edges: ``"forbid"`` (a simple graph) or ``"allow"``.
         semantics: How batches are applied.
@@ -564,7 +564,7 @@ class Graph:
         Raises:
             InvalidArgumentError: an invalid id or weight, or a semantics rule says error.
             CapacityError: the edge count after the batch does not fit the edge offset type.
-            NotSupportedError: vertex insertions or deletions (planned for 0.3).
+            NotSupportedError: vertex insertions or deletions (planned for 0.4).
         """
         res = resolve_on(self, resources)
         nb = batch._native_for(self)

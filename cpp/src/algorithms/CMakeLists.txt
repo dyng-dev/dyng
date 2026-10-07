@@ -6,3 +6,5 @@
 add_subdirectory(sssp)
 add_subdirectory(cycle_count)
 add_subdirectory(mosp)
+add_subdirectory(dynamic_bfs)
+add_subdirectory(triangle_delta)

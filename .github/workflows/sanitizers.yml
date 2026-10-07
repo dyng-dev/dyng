@@ -1,0 +1,95 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The host sanitizers on GitHub-hosted runners (PLAN Sections 7.3 and 8.8;
+# docs/developer/robustness.md): ci/sanitizers.sh configures, builds and runs `ctest -L cpu` for
+# one preset per job:
+#   asan / gcc-13          AddressSanitizer + UndefinedBehaviorSanitizer (leak checks on), the
+#                          OpenMP backends included
+#   tsan / gcc-13          ThreadSanitizer with OpenMP off: the std::thread code (the parallel
+#                          text parsers, the concurrent jobs without OpenMP, the profiler)
+#   tsan-openmp / clang-18 ThreadSanitizer with the OpenMP backends: Clang's libomp with its OMPT
+#                          tool Archer (OMP_TOOL_LIBRARIES), which tells TSan about OpenMP's
+#                          synchronization; 4 OpenMP threads
+# No GPU is needed (compute-sanitizer, the device-side counterpart, runs in ci/gpu_local.sh). Not a
+# required check yet: the lead maintainer decides (docs/developer/repository_settings.md, step 9).
+name: sanitizers
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Superseded pull-request runs are cancelled; runs on main always finish.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/cpm
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  DYNG_SANITIZER_JOBS: 4
+
+jobs:
+  sanitizer:
+    name: ${{ matrix.preset }} / ${{ matrix.compiler }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - preset: asan
+            compiler: gcc-13
+          - preset: tsan
+            compiler: gcc-13
+          - preset: tsan-openmp
+            compiler: clang-18
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install compiler and build tools
+        env:
+          COMPILER: ${{ matrix.compiler }}
+        run: |
+          family="${COMPILER%-*}"
+          version="${COMPILER##*-}"
+          sudo apt-get update
+          if [ "${family}" = gcc ]; then
+            sudo apt-get install -y --no-install-recommends "g++-${version}"
+            echo "CXX=g++-${version}" >> "${GITHUB_ENV}"
+          else
+            # libomp (with Archer, libarcher.so) and the sanitizer runtimes of this Clang.
+            sudo apt-get install -y --no-install-recommends "clang-${version}" \
+              "libomp-${version}-dev" "libclang-rt-${version}-dev"
+            echo "CXX=clang++-${version}" >> "${GITHUB_ENV}"
+            archer="$(find "/usr/lib/llvm-${version}" -name 'libarcher.so*' -print -quit)"
+            if [ -z "${archer}" ]; then
+              echo "libarcher.so not found under /usr/lib/llvm-${version}" >&2
+              exit 1
+            fi
+            echo "DYNG_ARCHER_LIBRARY=${archer}" >> "${GITHUB_ENV}"
+          fi
+          python -m pip install "cmake>=3.30,<4.5" ninja
+      # The runner's 32-bit mmap randomization puts mappings where the TSan and ASan runtimes of
+      # GCC 13 and LLVM 18 expect their shadow memory ("unexpected memory mapping"); 28 bits is
+      # the default of most distributions.
+      - name: Address-space randomization the sanitizers support
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Cache CPM downloads
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ env.CPM_SOURCE_CACHE }}
+          key: cpm-${{ runner.os }}-${{ hashFiles('cmake/CPM.cmake', 'cmake/package-lock.cmake') }}
+      - name: Configure, build and run the CPU tests under the sanitizer
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: ci/sanitizers.sh "${PRESET}"

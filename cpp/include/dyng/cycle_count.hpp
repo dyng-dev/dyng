@@ -79,7 +79,7 @@ enum class search_method : std::uint8_t {
  * @ingroup cycle_count
  */
 enum class cycle_mode : std::uint8_t {
-  simple,  ///< static directed simple cycles (time-window and temporal cycles follow in 0.4)
+  simple,  ///< static directed simple cycles (time-window and temporal cycles follow in 0.5)
 };
 
 /**

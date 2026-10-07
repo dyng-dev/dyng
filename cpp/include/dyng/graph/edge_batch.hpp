@@ -42,9 +42,9 @@ struct edge_batch_view {
   array_view<const weight_t> insert_weights;   ///< num_weights per insertion, insertion-major
   array_view<const vertex_t> delete_src;       ///< source of each deletion
   array_view<const vertex_t> delete_dst;       ///< destination of each deletion
-  array_view<const vertex_t> insert_vertices;  ///< new vertices (0.3, DynLP)
+  array_view<const vertex_t> insert_vertices;  ///< new vertices (0.4, DynLP)
   array_view<const std::int8_t> insert_vertex_labels;   ///< optional labels of new vertices
-  array_view<const vertex_t> delete_vertices;           ///< removed vertices (0.3, DynLP)
+  array_view<const vertex_t> delete_vertices;           ///< removed vertices (0.4, DynLP)
   int num_weights = is_unweighted_v<weight_t> ? 0 : 1;  ///< weights per insertion (0: unweighted)
 
   /**

@@ -25,4 +25,16 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "container": "graph",
         "maturity": "experimental",
     },
+    "dynamic_bfs": {
+        "title": "Dynamic breadth-first search levels (tutorial)",
+        "since": "0.2",
+        "container": "graph",
+        "maturity": "tutorial",
+    },
+    "triangle_delta": {
+        "title": "Dynamic triangle count (tutorial)",
+        "since": "0.2",
+        "container": "graph",
+        "maturity": "tutorial",
+    },
 }

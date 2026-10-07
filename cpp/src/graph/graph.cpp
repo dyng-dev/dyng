@@ -46,7 +46,7 @@ void set_home(impl_t& impl, const resources& res) {
 void expect_supported_layout(const graph_properties& props) {
   if (props.layout != row_layout::compact) {
     throw not_supported_error(
-        "dyng: only row_layout::compact is implemented; slotted and slack arrive in 0.3");
+        "dyng: only row_layout::compact is implemented; slotted and slack arrive in 0.4");
   }
   detail::expect_supported_semantics(props);  // e.g. as_sets with upsert: fail here, not at apply
 }

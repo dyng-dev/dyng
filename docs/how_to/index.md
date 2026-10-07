@@ -16,8 +16,8 @@ port_research_code
 ```
 
 Planned, written with the code they describe: streams and memory (with an RMM pool), reproduce a
-paper, use from PyTorch or CuPy (the CUDA plugins, 0.1.x; on the CPU, `torch.from_dlpack` of a
+paper, use from PyTorch or CuPy (the CUDA plugins of 0.2; on the CPU, `torch.from_dlpack` of a
 result array works today, {doc}`../api/python/index`), add an operator, add a backend, add a file
 format, benchmark and read the performance gates, and debug CUDA (sanitizers, NVTX). The
-{doc}`add_an_algorithm` outline becomes the full guide in 0.1.x; the release process is
+{doc}`add_an_algorithm` outline becomes a full guide later; the release process is
 {doc}`../developer/release`.

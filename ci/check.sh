@@ -60,6 +60,9 @@
 # configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`;
 # python.yml runs `python` (and the suite against an installed sdist); api-check.yml runs `api`;
 # wheels.yml builds the distributions with cibuildwheel (the hosted counterpart of `wheels`).
+# Two hosted workflows have no step here: sanitizers.yml (ci/sanitizers.sh: the asan, tsan and
+# tsan-openmp presets) and fuzz.yml (ci/fuzz.sh: the reader fuzzers); run them locally for
+# changes to memory handling, threading or the readers.
 # Only `parity` (it needs the goldens, which are not in the repository) runs locally only.
 # The CUDA tests
 # are not part of this gate: ci/gpu_local.sh runs them on a GPU machine, and cuda-build.yml
@@ -79,7 +82,7 @@ for arg in "$@"; do
     --parity) run_parity=1 ;;
     --wheels) run_wheels=1 ;;
     -h | --help)
-      sed -n '5,68p' "${BASH_SOURCE[0]}"
+      sed -n '5,75p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)

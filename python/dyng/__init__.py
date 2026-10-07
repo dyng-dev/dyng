@@ -27,7 +27,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import cycle_count, generators, io, mosp, sssp, testing  # noqa: E402  (after the core names)
+from . import (  # noqa: E402  (after the core names)
+    cycle_count,
+    dynamic_bfs,
+    generators,
+    io,
+    mosp,
+    sssp,
+    testing,
+    triangle_delta,
+)
 from . import errors as _errors  # registers the exception classes for the native module
 from ._registry import AlgorithmInfo, algorithms, citation, citation_keys
 from ._update import update
@@ -84,6 +93,8 @@ __all__ = [
     "sssp",
     "cycle_count",
     "mosp",
+    "dynamic_bfs",
+    "triangle_delta",
     # modules
     "io",
     "generators",

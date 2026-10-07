@@ -1,9 +1,11 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Read the Docs configuration (PLAN Section 9.2). NOT CONNECTED YET: the project is added on Read
-# the Docs only after approval checkpoint A4 (milestone M6; docs/developer/repository_settings.md,
-# step 13). Until then the site is built locally and by .github/workflows/docs.yml.
+# Read the Docs configuration (PLAN Section 9.2). NOT USED: the documentation is hosted on GitHub
+# Pages (the author's decision of 2026-10-02, PLAN Appendix F; .github/workflows/docs.yml deploys
+# https://dyng-dev.github.io/dyng/ from main). The file is kept, and checked, so that Read the
+# Docs (pull-request previews, version switching) can be connected later without new work
+# (docs/developer/repository_settings.md, section 13).
 #
 # The build uses the same conda environment as development and CI (environment.yml: the pinned
 # Sphinx, Breathe and Doxygen), generates the Doxygen XML of the public headers exactly as

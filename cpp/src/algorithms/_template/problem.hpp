@@ -14,9 +14,10 @@
  * A fixed-point problem. The placeholder ("start green", PLAN Section 4.8) implements only
  * `loop` (on G_{t+1}: the whole static solve, one call with the internal frontier) and
  * `finalize` (the stats, stats::fallback_used = true), so update() recomputes. To make it
- * incremental: in identify_affected, find the elements the batch invalidates (applied.delta has
- * the effective changes); in seed, put the elements to re-evaluate on the frontier; in loop,
- * propagate from the frontier only; then set fallback_used only when you really recompute.
+ * incremental: in identify_affected, find the elements the batch invalidates (applied.delta lists
+ * the changes the batch requested, not its net change: check an edge against G_{t+1}); in seed,
+ * put the elements to re-evaluate on the frontier; in loop, propagate from the frontier only; then
+ * set fallback_used only when you really recompute.
 //@@ end
 //@@ aggregate_delta
  *     normalize -> prepare -> count(-) on G_t -> commit ->

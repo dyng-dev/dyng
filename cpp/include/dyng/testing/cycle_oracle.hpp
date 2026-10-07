@@ -10,7 +10,7 @@
  * dynamic program over vertex subsets instead of a depth-first search, so a defect in the DFS style
  * of the enumerators cannot hide in the reference as well. It is exponential in the vertex count
  * and meant for graphs of at most 16 vertices. The brute force is an exhaustive DFS for small and
- * medium graphs. The time-window and temporal oracles follow with those modes (0.4).
+ * medium graphs. The time-window and temporal oracles follow with those modes (0.5).
  */
 #pragma once
 

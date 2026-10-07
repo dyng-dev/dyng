@@ -1,10 +1,10 @@
-# Sketch: `hypergraph` and `hyperedge_batch` (0.2)
+# Sketch: `hypergraph` and `hyperedge_batch` (0.3)
 
 **Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M8 with the
 ESCHER store. **Origin:** ESCHER-GPU's CBST store (`structure/*`, `kernel/*`) and MOSP_ESCHER's
 copy of it, merged in stages (PLAN Section 6.4.5); MOSP_ESCHER's `HostHypergraph`, `HgBatch` and
 `IncidenceBatch` for the batch model; H-SOSP's `DeviceIncidence` / `DeviceH2H` for the slack
-storage of 0.3.
+storage of 0.4.
 
 The hypergraph is the second container. It mirrors `graph` wherever the concepts match (pimpl,
 move-only, a version counter and a state identity for stale-result detection, `clone(res)` and
@@ -16,7 +16,7 @@ contract, `dyng::update()` and the conformance kit carry over unchanged.
 ```cpp
 // cpp/include/dyng/hypergraph/hypergraph_properties.hpp
 namespace dyng {
-enum class hypergraph_storage : std::uint8_t { escher, slack_csr };           ///< slack_csr: 0.3
+enum class hypergraph_storage : std::uint8_t { escher, slack_csr };           ///< slack_csr: 0.4
 enum class line_graph_policy : std::uint8_t { none, automatic, sorted_merge, slack_csr };
 enum class id_reuse : std::uint8_t { erase_first, insert_first };            ///< O16: erase_first
 struct capacity_policy {                    ///< how the store grows (CBST payload, slack rows)
@@ -77,7 +77,7 @@ struct hyperedge_batch_view {              ///< non-owning; empty array = none o
   array_view<const std::int64_t> insert_offsets;        ///< CSR of the new hyperedges:
   array_view<const vertex_t> insert_members;            ///<   members of hyperedge i are
   array_view<const weight_t> insert_weights;            ///<   [offsets[i], offsets[i+1]); one weight each
-  array_view<const std::int64_t> delete_incidence_hyperedge;  ///< (h, v) incidence edits (0.3)
+  array_view<const std::int64_t> delete_incidence_hyperedge;  ///< (h, v) incidence edits (0.4)
   array_view<const vertex_t> delete_incidence_vertex;
   array_view<const std::int64_t> insert_incidence_hyperedge;
   array_view<const vertex_t> insert_incidence_vertex;
@@ -92,8 +92,8 @@ class hyperedge_batch {                    ///< owning host builder, operations 
   void delete_hyperedge(std::int64_t id);
   void insert_hyperedge(array_view<const vertex_t> members, weight_t w = {});
   void insert_hyperedge(std::initializer_list<vertex_t> members, weight_t w = {});
-  void delete_incidence(std::int64_t h, vertex_t v);     ///< 0.3
-  void insert_incidence(std::int64_t h, vertex_t v);     ///< 0.3
+  void delete_incidence(std::int64_t h, vertex_t v);     ///< 0.4
+  void insert_incidence(std::int64_t h, vertex_t v);     ///< 0.4
   void reserve(std::size_t insertions, std::size_t members, std::size_t deletions);
   void clear() noexcept;
   [[nodiscard]] hyperedge_batch_view<vertex_t, weight_t> view() const noexcept;
@@ -177,5 +177,5 @@ class hypergraph {                          ///< pimpl, move-only, resident
 2. Whether `hyper_apply_summary::inserted_ids` is a `std::vector` (host) or a `buffer` in the
    backend's space (the triad insert phase reads it on the device). A device copy may be kept
    internally either way.
-3. The weighted hypergraph for `hyper_sssp` (0.3): one weight per hyperedge (`weight_t`), stored
+3. The weighted hypergraph for `hyper_sssp` (0.4): one weight per hyperedge (`weight_t`), stored
    next to the members; whether `escher` storage supports weights or only `slack_csr` does.

@@ -19,7 +19,7 @@ class AlgorithmInfo:
     title: str  #: a one-line title
     family: str  #: ``"fixed_point"`` or ``"aggregate_delta"``
     container: str  #: ``"graph"`` or ``"hypergraph"``
-    maturity: str  #: ``"experimental"``, ``"stable"`` or ``"deprecated"``
+    maturity: str  #: ``"experimental"``, ``"stable"``, ``"deprecated"`` or ``"tutorial"``
     determinism: str  #: ``"bitwise"``, ``"exact_value"`` or ``"tolerance"``
     oracle: str  #: ``"compute"`` or ``"reference"``
     backends: tuple[str, ...]  #: the backends it implements (see ``dyng.show_config()``)

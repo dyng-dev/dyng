@@ -3,8 +3,9 @@
 /**
  * @file generators.hpp
  * @brief The graphs and batches of the conformance kit (PLAN Section 8.2, C2): seeded random
- *        directed graphs kept in a host model, and batch mixes generated from the model so that
- *        every batch is valid under both batch-semantics presets and has a known inverse (C5).
+ *        directed (or undirected) graphs kept in a host model, and batch mixes generated from the
+ *        model so that every batch is valid under both batch-semantics presets and has a known
+ *        inverse (C5).
  */
 #pragma once
 
@@ -24,6 +25,7 @@
 #include <iterator>
 #include <map>
 #include <random>
+#include <set>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -39,6 +41,7 @@ enum class batch_mix : std::uint8_t {
   heavy,        ///< 40 % of the edges deleted and as many inserted
   reweight,     ///< new weights of existing edges (upsert semantics, weighted graphs only)
   grow,         ///< insertions that name new vertices (vertex growth)
+  cancel,       ///< mixed, plus pairs the batch both inserts and deletes (absent and existing)
 };
 
 /// The mix's name (for traces).
@@ -58,6 +61,8 @@ inline std::string_view to_string(batch_mix mix) noexcept {
       return "reweight";
     case batch_mix::grow:
       return "grow";
+    case batch_mix::cancel:
+      return "cancel";
   }
   return "?";
 }
@@ -65,12 +70,17 @@ inline std::string_view to_string(batch_mix mix) noexcept {
 /// Every mix, in the order C2 runs them.
 inline std::vector<batch_mix> all_mixes() {
   return {batch_mix::insert_only, batch_mix::delete_only, batch_mix::mixed, batch_mix::local,
-          batch_mix::heavy,       batch_mix::reweight,    batch_mix::grow};
+          batch_mix::heavy,       batch_mix::reweight,    batch_mix::grow,  batch_mix::cancel};
 }
 
 /**
  * @brief A host model of a simple directed graph (no self-loops, no parallel edges): the edges
  *        and their weights (ignored for unweighted graphs).
+ *
+ * An undirected model (`directed` false, for an algorithm whose requirements set
+ * graph_properties::directed = false) keeps every edge once, as the pair (u, v) with u < v; the
+ * graph stores it in both directions and counts every batch edge once per direction
+ * (apply_summary).
  *
  * A weighted model has `num_weights` columns (test_traits::num_weights, default 1): the model
  * stores the first column, and every further column is a fixed function of the edge and the
@@ -93,6 +103,23 @@ struct graph_model {
   std::map<edge, std::int32_t> weights;  ///< the edges and their weights (column 0)
   int max_weight = 9;                    ///< new weights are drawn from [1, max_weight]
   int num_weights = 1;                   ///< weight columns of a weighted graph
+  bool directed = true;                  ///< false: an undirected model (pairs u < v)
+
+  /// The key of the edge (u, v) in `weights`: (u, v), or (min, max) for an undirected model.
+  [[nodiscard]] edge key(vertex_type u, vertex_type v) const noexcept {
+    return directed || u < v ? edge{u, v} : edge{v, u};
+  }
+
+  /// Whether the model has the edge (u, v) (in either direction for an undirected model).
+  [[nodiscard]] bool has(vertex_type u, vertex_type v) const {
+    return weights.count(key(u, v)) != 0;
+  }
+
+  /// The stored directions of one edge (1, or 2 for an undirected model): the factor of the
+  /// edge count and of the apply_summary counters of a batch without self-loops.
+  [[nodiscard]] std::int64_t directions() const noexcept {
+    return directed ? 1 : 2;
+  }
 
   /// The weight of column `k` of the edge (u, v) whose column 0 holds `w` (in [1, max_weight]).
   [[nodiscard]] std::int32_t column_weight(vertex_type u, vertex_type v, std::int32_t w,
@@ -127,15 +154,18 @@ struct graph_model {
   }
 };
 
-/// A random model of `shape` (distinct edges without self-loops).
+/// A random model of `shape` (distinct edges without self-loops); undirected if `directed` is
+/// false.
 template <typename graph_t>
-graph_model<graph_t> random_model(const graph_shape& shape, std::mt19937_64& rng) {
+graph_model<graph_t> random_model(const graph_shape& shape, std::mt19937_64& rng,
+                                  bool directed = true) {
   using vertex_type = typename graph_t::vertex_type;
   graph_model<graph_t> m;
   m.num_vertices = static_cast<vertex_type>(shape.vertices);
   m.max_weight = shape.max_weight;
+  m.directed = directed;
   const std::int64_t n = shape.vertices;
-  const std::int64_t possible = n * (n - 1);
+  const std::int64_t possible = directed ? n * (n - 1) : n * (n - 1) / 2;
   const std::int64_t wanted = std::min(shape.edges, possible);
   std::uniform_int_distribution<std::int64_t> vertex(0, std::max<std::int64_t>(n - 1, 0));
   std::uniform_int_distribution<int> weight(1, shape.max_weight);
@@ -143,7 +173,7 @@ graph_model<graph_t> random_model(const graph_shape& shape, std::mt19937_64& rng
     const auto u = static_cast<vertex_type>(vertex(rng));
     const auto v = static_cast<vertex_type>(vertex(rng));
     if (u != v) {
-      m.weights.emplace(std::make_pair(u, v), weight(rng));
+      m.weights.emplace(m.key(u, v), weight(rng));
     }
   }
   return m;
@@ -186,19 +216,30 @@ void insert(const graph_model<graph_t>& m,
 }  // namespace generators_detail
 
 /**
- * @brief A batch of `mix` from the model, applied to the model (the caller applies it to the
- *        graph). Every batch is valid under batch_semantics::upsert_last_wins() and set(): its
- *        deletions name existing edges, its insertions absent ones (reweight: existing ones, so
- *        callers use it under upsert semantics only), with no duplicates and no self-loops.
+ * @brief A batch of `mix` from the model, applied to the model under `semantics` (the caller
+ *        applies it to the graph).
+ *
+ * Every batch is valid under the semantics the kit uses (batch_semantics::upsert_last_wins(),
+ * with either order of the deletions and the insertions, and set()), without self-loops. Except
+ * for batch_mix::cancel, its deletions name existing edges and its insertions absent ones
+ * (reweight: existing ones, so callers use it under upsert semantics only), with no duplicates,
+ * and its effect is the same under every semantics. A cancel batch adds pairs that it both
+ * inserts and deletes: an absent edge (inserted and deleted: it exists afterwards when the
+ * deletions come first or under as_sets, and not when the insertions come first) and an existing
+ * edge (deleted and inserted with a new weight: it exists afterwards with that weight when the
+ * deletions come first or under as_sets, and not when the insertions come first); it has no
+ * inverse (invertible = false).
  * @tparam graph_t The graph type.
- * @param[in,out] m   The model.
- * @param[in]     mix The mix.
- * @param[in,out] rng The generator.
+ * @param[in,out] m         The model.
+ * @param[in]     mix       The mix.
+ * @param[in,out] rng       The generator.
+ * @param[in]     semantics The graph's batch semantics (only batch_mix::cancel depends on it).
  * @return The batch and its inverse.
  */
 template <typename graph_t>
-generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
-                                      std::mt19937_64& rng) {
+generated_batch<graph_t> random_batch(
+    graph_model<graph_t>& m, batch_mix mix, std::mt19937_64& rng,
+    const batch_semantics& semantics = batch_semantics::upsert_last_wins()) {
   using vertex_type = typename graph_t::vertex_type;
   using edge = typename graph_model<graph_t>::edge;
   generated_batch<graph_t> out;
@@ -229,6 +270,7 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
       break;
     case batch_mix::mixed:
     case batch_mix::local:
+    case batch_mix::cancel:
       deletions = (k + 1) / 2;
       insertions = (k + 1) / 2;
       break;
@@ -277,7 +319,7 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
     for (std::int64_t i = 0; i < insertions; ++i) {
       const auto fresh = static_cast<vertex_type>(n + (i % added));
       const auto old = static_cast<vertex_type>(old_vertex(rng));
-      const edge e = (i % 2 == 0) ? edge{old, fresh} : edge{fresh, old};
+      const edge e = (i % 2 == 0) ? edge{old, fresh} : m.key(fresh, old);
       if (e.first != e.second && m.weights.emplace(e, weight(rng)).second) {
         generators_detail::insert<graph_t>(m, out.batch, e.first, e.second, m.weights.at(e));
         grown = std::max<std::int64_t>(grown, static_cast<std::int64_t>(fresh) + 1);
@@ -289,13 +331,15 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
     std::uniform_int_distribution<std::int64_t> vertex(mix == batch_mix::local ? w0 : 0,
                                                        mix == batch_mix::local ? w1 - 1 : n - 1);
     std::uniform_int_distribution<std::int64_t> any(0, n - 1);
-    const std::int64_t possible = n * (n - 1);
+    const std::int64_t possible = m.directed ? n * (n - 1) : n * (n - 1) / 2;
     for (std::int64_t i = 0, tries = 0;
          i < insertions && static_cast<std::int64_t>(m.weights.size()) < possible && tries < 64 * k;
          ++tries) {
-      const auto u = static_cast<vertex_type>(vertex(rng));
-      const auto v = static_cast<vertex_type>(tries % 2 == 0 ? any(rng) : vertex(rng));
-      const edge e{u, v};
+      const auto x = static_cast<vertex_type>(vertex(rng));
+      const auto y = static_cast<vertex_type>(tries % 2 == 0 ? any(rng) : vertex(rng));
+      const edge e = m.key(x, y);
+      const vertex_type u = e.first;
+      const vertex_type v = e.second;
       if (u != v && m.weights.count(e) == 0) {
         // An edge deleted by this batch is not re-inserted (that would be a cancelled pair).
         bool deleted = false;
@@ -310,6 +354,55 @@ generated_batch<graph_t> random_batch(graph_model<graph_t>& m, batch_mix mix,
         }
       }
     }
+  }
+  if (mix == batch_mix::cancel && n > 1) {
+    // Pairs the batch both inserts and deletes, on edges the batch does not touch otherwise.
+    const bool kept = semantics.deletions_first || semantics.as_sets;
+    std::set<edge> touched(inserted.begin(), inserted.end());
+    for (std::size_t j = 0; j < out.batch.num_deletions(); ++j) {
+      touched.insert(m.key(out.batch.delete_src()[j], out.batch.delete_dst()[j]));
+    }
+    const std::int64_t pairs = std::max<std::int64_t>(1, (k + 1) / 2);
+    // Existing edges: deleted, then (or, with the insertions first, before that) inserted again.
+    std::vector<edge> present;
+    for (const auto& entry : m.weights) {
+      if (touched.count(entry.first) == 0) {
+        present.push_back(entry.first);
+      }
+    }
+    std::shuffle(present.begin(), present.end(), rng);
+    for (std::int64_t i = 0; i < pairs && i < static_cast<std::int64_t>(present.size()); ++i) {
+      const edge e = present[static_cast<std::size_t>(i)];
+      const std::int32_t w = weight(rng);
+      out.batch.delete_edge(e.first, e.second);
+      generators_detail::insert<graph_t>(m, out.batch, e.first, e.second, w);
+      touched.insert(e);
+      if (kept) {
+        m.weights[e] = w;
+      } else {
+        m.weights.erase(e);
+      }
+    }
+    // Absent edges: inserted and deleted.
+    std::uniform_int_distribution<std::int64_t> any(0, n - 1);
+    const std::int64_t possible = m.directed ? n * (n - 1) : n * (n - 1) / 2;
+    for (std::int64_t i = 0, tries = 0;
+         i < pairs && static_cast<std::int64_t>(m.weights.size()) < possible && tries < 64 * k;
+         ++tries) {
+      const edge e = m.key(static_cast<vertex_type>(any(rng)), static_cast<vertex_type>(any(rng)));
+      if (e.first == e.second || m.weights.count(e) != 0 || touched.count(e) != 0) {
+        continue;
+      }
+      const std::int32_t w = weight(rng);
+      generators_detail::insert<graph_t>(m, out.batch, e.first, e.second, w);
+      out.batch.delete_edge(e.first, e.second);
+      touched.insert(e);
+      if (kept) {
+        m.weights.emplace(e, w);
+      }
+      ++i;
+    }
+    out.invertible = false;
   }
   for (const edge& e : inserted) {
     out.inverse.delete_edge(e.first, e.second);

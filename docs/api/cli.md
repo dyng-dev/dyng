@@ -3,7 +3,7 @@
 The `dyng` command comes with the Python package (`pip install dyng` installs the console
 script; `python -m dyng` is the same program). It runs the algorithms on files in the formats
 of the original tools and writes their output formats, so its results can be compared byte for
-byte with the originals' (ADR 0025; PLAN Section 5.6).
+byte with the originals' (ADR 0025).
 
 ```text
 dyng [--version] [--log-level LEVEL] COMMAND ...
@@ -32,7 +32,8 @@ is `--num-deletions`). A flag that is not given keeps the field's default.
 **Backends.** `--backend sequential|openmp|cuda` (default: `openmp` when the build has it),
 `--threads T` (OpenMP threads; 0 is the OpenMP default, which honours `OMP_NUM_THREADS`) and
 `--device D`. Every backend gives the same bytes. The CPU wheel has no `cuda` backend; asking for
-it fails with a message that names the CUDA plugins of 0.1.x.
+it fails with a message that names the CUDA plugin wheels `dyng-cu12` and `dyng-cu13` (from
+0.2.0: `pip install "dyng[cu13]"` or `"dyng[cu12]"`).
 
 **Graph input** (`--graph PATH`, also spelled `--input`) with `--format`:
 

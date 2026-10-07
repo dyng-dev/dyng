@@ -79,7 +79,7 @@ class update_participant {
    * @param[in] res     Execution resources.
    * @param[in] g       The graph after the batch.
    * @param[in] summary What the commit did.
-   * @param[in] delta   The effective changes of the commit.
+   * @param[in] delta   The changes the commit applied as requested (not the net change).
    */
   virtual void after_apply(const resources& res, const graph_type& g, const apply_summary& summary,
                            const apply_delta<vertex_t>& delta) = 0;
@@ -149,7 +149,7 @@ struct update_traits;
 /**
  * @brief How dyng::update() drives a container type: its participant interface, its batch view
  *        type and its run_update(). The customization point of the unified update: a container
- *        header specializes it (graph<V,E,W> below; the hypergraph in 0.2), so update() and
+ *        header specializes it (graph<V,E,W> below; the hypergraph in 0.3), so update() and
  *        update_each() need no change for a new container. The primary template marks a type that
  *        is not a container of dyng::update().
  * @tparam container_t The container type.
@@ -246,7 +246,7 @@ struct stats_of {
  * @throws invalid_argument_error if a result is passed twice, the batch is invalid, or a batch
  *         array must be copied to the host and the copy policy is copy_policy::error.
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
- *         result (vertex operations before 0.3), or a batch array is in device memory and CUDA
+ *         result (vertex operations before 0.4), or a batch array is in device memory and CUDA
  *         is not built.
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws error                  any other exception of an algorithm's own update() (for example
@@ -312,7 +312,7 @@ auto update(const resources& res, container_t& g, const batch_view_t& batch, res
  *         a result is listed twice, the batch is invalid, or a batch array must be copied to the
  *         host and the copy policy is copy_policy::error.
  * @throws not_supported_error    if the backend of `res` cannot apply the batch or update a
- *         result (vertex operations before 0.3), or a batch array is in device memory and CUDA
+ *         result (vertex operations before 0.4), or a batch array is in device memory and CUDA
  *         is not built.
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws error                  any other exception of an algorithm's own update() (for example

@@ -48,6 +48,7 @@ PATHS = (
     "cpp/tests/algorithms",
     "cpp/tests/conformance",
     "python/dyng/_algorithms.py",
+    "VERSION",
 )
 
 
@@ -204,11 +205,33 @@ def test_a_planned_scaffold_round_trip_restores_the_planned_entry(tmp_path: Path
     assert _snapshot(root) == before
 
 
-def test_remove_refuses_an_algorithm_that_is_not_a_scaffold(tmp_path: Path) -> None:
+@pytest.mark.parametrize("name", ["sssp", "dynamic_bfs", "triangle_delta"])
+def test_remove_refuses_an_algorithm_that_is_not_a_scaffold(tmp_path: Path, name: str) -> None:
     root = _copy(tmp_path)
     before = _snapshot(root)
-    assert new_algorithm.main(["sssp", "--remove", "--root", str(root)]) == 2
+    assert new_algorithm.main([name, "--remove", "--root", str(root)]) == 2
     assert _snapshot(root) == before
+
+
+def test_only_an_experimental_algorithm_keeps_the_scaffold_line(tmp_path: Path) -> None:
+    root = _copy(tmp_path)
+    manifest = root / "cpp/src/algorithms/dynamic_bfs/manifest.toml"
+    manifest.write_text(manifest.read_text() + regen.SCAFFOLD_LINE + "\n")
+    with pytest.raises(regen.ManifestError, match="still has the line"):
+        regen.load(root)
+    manifest.write_text(manifest.read_text().replace('"tutorial"', '"experimental"'))
+    regen.load(root)
+
+
+@pytest.mark.parametrize(
+    ("version", "since"),
+    [("0.2.0.dev0", "0.2"), ("0.2.0rc1", "0.2"), ("0.1.0", "0.2"), ("1.4.2", "1.5")],
+)
+def test_since_defaults_to_the_release_version_is_heading_for(
+    tmp_path: Path, version: str, since: str
+) -> None:
+    (tmp_path / "VERSION").write_text(version + "\n")
+    assert new_algorithm.default_since(tmp_path) == since
 
 
 def test_names_that_cannot_compile_are_refused(tmp_path: Path) -> None:

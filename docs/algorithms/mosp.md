@@ -1,7 +1,7 @@
 # mosp: dynamic multi-objective shortest paths
 
 Maturity: **experimental** (sequential, OpenMP and CUDA backends, the Python binding `dyng.mosp`
-and the command line `dyng mosp` since M7, for 0.2).
+and the command line `dyng mosp`, new in 0.2.0, not released yet).
 Header: `<dyng/mosp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 on the MOSP golden corpus, combined graph included
 ([M7 record](https://github.com/dyng-dev/dyng/blob/main/parity/results/M7.md)).
@@ -36,7 +36,7 @@ those trees.
 
 ## 2. Template mapping
 
-mosp is a **composition** (PLAN 4.5.2): K `sssp` problems over the objective views of one graph,
+mosp is a **composition** of problems of the framework: K `sssp` problems over the objective views of one graph,
 then a finalize step.
 
 ```
@@ -183,7 +183,7 @@ combined graph). The K trees are canonical after `compute()` and after `from_arr
 canonicalize = true)`; trees imported with `canonicalize = false` keep their tie parents where the
 batch does not reach, by sssp's tie rule (sssp page, section 1), which every backend applies the
 same way, with one exception: inside sssp's packing window (sssp page, section 4; ADR 0029,
-proposed) the host backends recover the lowest-id parents and cuda keeps the imported ones, so for
+accepted) the host backends recover the lowest-id parents and cuda keeps the imported ones, so for
 such trees the K trees, and with them the combined files and the path costs, differ between the
 host backends and cuda, each byte-identical to its own original (`parity/results/M7.md` section
 11). The combined graph itself (weights at most L * (K + 1)) is far below the window. On cuda the trees and the combined arrays are
@@ -198,11 +198,11 @@ download of the MOSP tree (timed in `mosp.path_costs`, outside the "(a) compute"
 originals), and, in an update that adds vertices, one for the release of the old pinned copy of the
 tree (a reserving run). The path costs run on
 the host threads of the resources handle (openmp and cuda; a level-synchronous traversal of the
-MOSP tree, M7) and sequentially on the sequential backend.
+MOSP tree) and sequentially on the sequential backend.
 
 ## 5. Performance notes
 
-The gates (PLAN 8.6, 6.4.4) compare the "(a) compute" region (the K updates and Steps 2-3:
+The performance gates compare the "(a) compute" region (the K updates and Steps 2-3:
 `mosp.objective` and `mosp.combine` + `mosp.combined_sssp` + `mosp.finalize`) with the
 originals' `gpu_compute_ms` / `compute_ms`, and "(b) end to end" with their `end_to_end_ms`;
 `dyng-compat-mosp --mosp` reports both (its `RESULT compute_ms=` line). The records are in
@@ -222,7 +222,7 @@ original, `parity/results/M7.md` section 6 for the other two batches):
 | rgg_n_2_20_s0 | 81.5 / 81.4 | 0.999 | 1,492 / 1,275 | 0.855 | 154.0 / 141.5 | 0.919 | 1,417 / 1,249 | 0.881 |
 | road_usa | 364.0 / 366.0 | 1.005 | 11,579 / 8,153 | 0.704 | 1,281.9 / 1,094.9 | 0.854 | 12,341 / 9,307 | 0.754 |
 
-Flagged readings (PLAN 8.6: shared-host variance above 10 % is flagged, not failed): every
+Flagged readings (shared-host variance above 10 % is flagged, not failed): every
 "(b) end to end" reading in the table is flagged (the originals' spreads 16-33 % over the rounds,
 dynG's 1-8 %, in the drivers' text input and output on the shared host), and so are OpenMP
 "(a)" on roadNet-PA and roadNet-CA here (the original's spread 12-13 %); the cuda "(a)" readings
@@ -265,7 +265,7 @@ wrote it as temporary text files (an empty base graph plus every combined edge a
 and ran the file-based SOSP update on them. The fixed originals (MOSP-CUDA@e220ee2,
 MOSP-OpenMP@c352151) build it in memory (one pass per vertex over its K parents: count, scan,
 fill), support preference vectors and solve it with `sospFromScratch*`; dynG ports the fixed code
-(the temporary-file path is not ported, PLAN 6.4.4). dynG's own changes: K up to 64 (the originals
+(the temporary-file path is not ported). dynG's own changes: K up to 64 (the originals
 stop at 32); the K trees are separate sssp results instead of one objective-major array;
 `affected` (the originals report no such counter); the path costs are part of `update()` (the
 originals compute them while writing `mospCosts.txt`) and cover the K objectives (MOSP's cover

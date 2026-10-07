@@ -1,4 +1,4 @@
-# Sketch: `label_propagation` (0.3)
+# Sketch: `label_propagation` (0.4)
 
 **Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M10.
 **Computes:** binary harmonic label propagation (labels F in [0, 1] from a set of seed vertices
@@ -69,7 +69,7 @@ stats update(const resources& res, graph<vertex_t, edge_t, float>& g,
 }  // namespace dyng::label_propagation
 ```
 
-- **The graph is the frozen `graph`**, with what 0.3 adds to it: `row_layout::slotted` (DynLP's
+- **The graph is the frozen `graph`**, with what 0.4 adds to it: `row_layout::slotted` (DynLP's
   fixed per-vertex slots and `row_end`; `graph::with_capacity`) and `slack`, vertex insertions
   and deletions in `graph::apply()` (the `insert_vertices`, `insert_vertex_labels` and
   `delete_vertices` arrays of `edge_batch_view` exist since 0.1 and throw `not_supported_error`
@@ -92,7 +92,7 @@ stats update(const resources& res, graph<vertex_t, edge_t, float>& g,
 | Oracle | `reference`: neither `update()` nor `compute()` is compared with the other; both are compared with the converged harmonic solution (PCG) of the current graph within a tolerance tied to delta (mean \|F - F*\| <= 2000 delta, CI at delta = 1e-6), plus class agreement (PLAN 5.1) |
 | Determinism | `tolerance` (in-place); the `damped` schedule is bitwise per backend and build |
 | Graph requirements | `directed = false`, `weight_t = float`; `row_layout::slotted` or `slack` for vertex batches |
-| Backends | sequential (from the checker's host model, Gauss-Seidel), cuda; OpenMP if contributed (0.4) |
+| Backends | sequential (from the checker's host model, Gauss-Seidel), cuda; OpenMP if contributed (0.5) |
 | `@guarantee` | strong before the commit; basic after it (result poisoned) |
 
 ## Review against the 0.1 contract

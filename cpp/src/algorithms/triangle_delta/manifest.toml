@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The triangle_delta manifest (PLAN Section 4.8). scripts/regen.py reads it (the algorithm
+# tables, the CODEOWNERS block and the registries; `python3 scripts/regen.py` after an edit); CMake
+# does not.
+name        = "triangle_delta"
+title       = "Dynamic triangle count (tutorial)"
+computes    = "the triangle count of an undirected graph (teaching material)"
+paper       = "- (tutorial)"
+since       = "0.2"
+family      = "aggregate_delta"
+container   = "graph"
+tier        = "framework"
+maturity    = "tutorial"                # teaching material (docs/tutorials), not a research algorithm
+backends    = ["sequential", "openmp", "cuda"]
+determinism = "exact_value"
+oracle      = "compute"
+graph_requirements = { directed = false, multi_edges = "forbid", row_order = "sorted" }   # checked in compute()
+cite        = []
+maintainers = ["SMShovan"]

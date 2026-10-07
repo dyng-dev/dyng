@@ -66,7 +66,7 @@ The table of every item and what dynG takes from it is "Paper vs fixed code" on 
   (ADR 0020), an improvement reported separately in the M2b certificate.
 - **Step 0 once per update** for every result on the graph (ADR 0020), with a bucket sort of the
   changes; `cycle_count` runs next to `sssp` on one graph with `dyng::update()`.
-- **Not ported (yet):** Read-Tarjan, the time-window and temporal modes (0.4), cycle-union,
+- **Not ported (yet):** Read-Tarjan, the time-window and temporal modes (0.5), cycle-union,
   branch splitting, the OpenMP task experiment, and the environment tuning
   (`CYCLE_ENUM_CUDA_BLOCK_SIZE`, `CYCLE_ENUM_CUDA_BLOCKS_PER_SM`).
 

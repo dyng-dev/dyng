@@ -98,6 +98,8 @@ nanobind_add_module(
   bindings/sssp.cpp
   bindings/cycle_count.cpp
   bindings/mosp.cpp
+  bindings/dynamic_bfs.cpp
+  bindings/triangle_delta.cpp
   bindings/update.cpp
   bindings/io.cpp
   bindings/generators.cpp

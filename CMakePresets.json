@@ -79,7 +79,7 @@
     {
       "name": "tsan",
       "displayName": "tsan",
-      "description": "Host ThreadSanitizer (OpenMP off: GCC's libgomp is not instrumented, so every OpenMP barrier and reduction would be reported; OpenMP race checks need Archer)",
+      "description": "Host ThreadSanitizer (OpenMP off: GCC's libgomp is not instrumented, so every OpenMP barrier and reduction would be reported; the OpenMP backends are checked by tsan-openmp, Clang with Archer)",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -87,6 +87,38 @@
         "DYNG_ENABLE_OPENMP": "OFF",
         "DYNG_BUILD_TESTS": "ON",
         "DYNG_SANITIZE": "thread",
+        "DYNG_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "tsan-openmp",
+      "displayName": "tsan-openmp",
+      "description": "Host ThreadSanitizer with the OpenMP backends (Clang + libomp only: CXX=clang++; the tests need Archer, OMP_TOOL_LIBRARIES=<libarcher.so>, which ci/sanitizers.sh sets)",
+      "inherits": "tsan",
+      "cacheVariables": {
+        "DYNG_ENABLE_OPENMP": "ON"
+      }
+    },
+    {
+      "name": "fuzz",
+      "displayName": "fuzz",
+      "description": "libFuzzer targets of the readers (Clang only: CXX=clang++; ci/fuzz.sh): libdyng instrumented with fuzzer-no-link + ASan + UBSan, -O1, libstdc++ assertions; only the io-relevant library is built",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS_DEBUG": "-g -O1 -fno-sanitize-recover=undefined",
+        "BUILD_SHARED_LIBS": "OFF",
+        "DYNG_ENABLE_CUDA": "OFF",
+        "DYNG_ENABLE_OPENMP": "OFF",
+        "DYNG_ALGORITHMS": "sssp",
+        "DYNG_BUILD_TESTS": "OFF",
+        "DYNG_BUILD_EXAMPLES": "OFF",
+        "DYNG_BUILD_TOOLS": "OFF",
+        "DYNG_BUILD_TUTORIALS": "OFF",
+        "DYNG_INSTALL": "OFF",
+        "DYNG_DEBUG_BUDGETS": "OFF",
+        "DYNG_BUILD_FUZZERS": "ON",
+        "DYNG_SANITIZE": "address;undefined;fuzzer-no-link",
         "DYNG_WARNINGS_AS_ERRORS": "ON"
       }
     },
@@ -196,6 +228,14 @@
       "configurePreset": "tsan"
     },
     {
+      "name": "tsan-openmp",
+      "configurePreset": "tsan-openmp"
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz"
+    },
+    {
       "name": "parity",
       "configurePreset": "parity"
     },
@@ -301,6 +341,33 @@
       },
       "environment": {
         "TSAN_OPTIONS": "halt_on_error=1"
+      }
+    },
+    {
+      "name": "tsan-openmp",
+      "configurePreset": "tsan-openmp",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      },
+      "environment": {
+        "TSAN_OPTIONS": "halt_on_error=1:ignore_noninstrumented_modules=1",
+        "OMP_TOOL_LIBRARIES": "$penv{OMP_TOOL_LIBRARIES}",
+        "OMP_NUM_THREADS": "4"
+      }
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
       }
     },
     {

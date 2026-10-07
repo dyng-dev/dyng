@@ -1,9 +1,9 @@
 # sssp: dynamic single-source shortest paths
 
-Maturity: **stable** from 0.1.0 (SemVer applies; sequential and OpenMP backends since M1a, the
-CUDA backend with the fused engine since M1b, the Python binding and the `dyng sssp` command line
-since M5, the benchmark-suite record `benchmarks/paper/ipdps25_dynamosp_sosp.yaml` since 0.1.0rc1,
-the CUDA operators engine since M7, for 0.2).
+Maturity: **stable** from 0.1.0 (SemVer applies; the sequential, OpenMP and CUDA backends with
+the fused engine, the Python binding, the `dyng sssp` command line and the benchmark-suite record
+`benchmarks/paper/ipdps25_dynamosp_sosp.yaml` since 0.1.0; the CUDA operators engine in 0.2.0,
+not released yet).
 Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md)).
 
@@ -59,8 +59,8 @@ framework's enactors running `detail::sssp_problem` (`cpp/src/algorithms/sssp/pr
 [framework guide](../developer/framework.md) maps its hooks).
 
 On the CUDA backend the four hooks from `identify_affected` to `finalize` are one fused engine
-(Tier B, PLAN 4.5.4): MOSP-CUDA's persistent cooperative kernel, one launch per objective, profiler
-stage `sssp.enact_fused`. The CUDA operators engine (Tier A, M7) runs the four hooks as a sequence
+(Tier B: the ported kernel runs as a whole): MOSP-CUDA's persistent cooperative kernel, one launch per objective, profiler
+stage `sssp.enact_fused`. The CUDA operators engine (Tier A, 0.2.0) runs the four hooks as a sequence
 of kernels instead (stages `sssp.identify_affected`, `sssp.seed`, `sssp.loop`, `sssp.finalize`;
 section 4). The framework still owns everything around it: `sssp.prepare` on G_t,
 the commit (`graph.apply` on the host, then `graph.upload`: the updated graph is uploaded and its
@@ -165,9 +165,9 @@ backend, and `--delta`, `--cuda-engine` and `--no-validate-inputs` are the optio
 | sequential | hook-by-hook reference (`engine::operators`) | `sequentialSOSPUpdate` adapted (Step 2 with `sospUpdateCpu`'s push rule) |
 | openmp | the ported paper engine (`engine::fused`) | `sospUpdateCpu` / `sospFromScratchCpu` ported straight |
 | cuda | the ported paper engine (`engine::fused`): one persistent cooperative kernel | `sospUpdateGpu` / `sospFromScratchGpu` ported verbatim (`cuda.cu`, `fused.cuh`) |
-| cuda | the operators engine (`engine::operators`, M7): the same phases as a sequence of kernels driven by the host | MOSP_ESCHER@4b86159's multi-kernel `sospUpdateGpu` (the MP1 structure) with MOSP-CUDA@e220ee2's semantics (`operators.cu`, `operators.cuh`; ADR 0026) |
+| cuda | the operators engine (`engine::operators`, 0.2.0): the same phases as a sequence of kernels driven by the host | MOSP_ESCHER@4b86159's multi-kernel `sospUpdateGpu` (the MP1 structure) with MOSP-CUDA@e220ee2's semantics (`operators.cu`, `operators.cuh`; ADR 0026) |
 
-**Engines on CUDA** (`options::cuda_engine`, PLAN 4.5.4; ADRs 0017 and 0026). The choice is
+**Engines on CUDA** (`options::cuda_engine`; ADRs 0017 and 0026). The choice is
 checked before the graph or the result is changed, so a refused call leaves both as they were:
 
 | `cuda_engine` | Device with cooperative launch | Device without it |
@@ -228,8 +228,8 @@ fits next to the parent bits, MOSP-OpenMP only when one more edge fits too, so
 `stats::packed_parents` can differ between cuda and the host backends there (the packing-boundary
 cases n = 2^17 - 1).
 
-**The packing window** (ADR 0029, proposed; the author decides the rule). The host backends copy
-MOSP-OpenMP's rule and both CUDA engines MOSP-CUDA's, so in the window
+**The packing window** (ADR 0029, accepted: each backend follows its own original). The host
+backends copy MOSP-OpenMP's rule and both CUDA engines MOSP-CUDA's, so in the window
 (n - 1) * W <= max_distance < n * W (W the largest weight, max_distance = 2^(64 - b) - 2 with b
 parent bits; with 32-bit weights only graphs of at least 65537 vertices reach it, for n = 65537 the
 window is W in [2147450881, 2147483647], for roadNet-CA a largest weight of 4462121 or 4462122)
@@ -242,8 +242,7 @@ equal, the parents and `affected` differ, and each backend is byte-identical to 
 `SsspPackingWindow.NonCanonicalTreesFollowEachOriginalsPackingRule` pins it). No golden case and
 no randomized case lies in the window.
 
-**The CUDA backend.** A graph belongs to the backend of the resources that built it (PLAN 4.6
-rule 5): sssp on CUDA resources needs a graph built with them (or `g.clone(cuda_res)`), and a
+**The CUDA backend.** A graph belongs to the backend of the resources that built it: sssp on CUDA resources needs a graph built with them (or `g.clone(cuda_res)`), and a
 host graph with CUDA resources, or the reverse, is an `invalid_argument_error` instead of a
 silent copy. Such a graph keeps its CSR in host memory in this release (a batch is applied on the
 host, as MOSP-CUDA's `applyChangeBatch` does) and a device copy of the current state (out- and
@@ -418,7 +417,7 @@ overstated by up to about 30 %). On the batch that disconnects vertices the pape
 minutes per objective (roadNet-PA 39.1 s on CUDA, 106 s on OpenMP) where the fixed code and dynG
 take the connectivity-safe batch's time. The MOSP-level "(a) compute" totals of the fixed code
 (K = 3 updates plus the combined graph: CUDA 18.5 / 33.7 / 83.0 / 377 ms, OpenMP 63.2 / 110 /
-166 / 1,320 ms) are gated when `mosp` is ported (0.2, PLAN 6.4.4).
+166 / 1,320 ms) are the baseline of `mosp`'s gates, which `mosp` meets: {doc}`mosp`, section 5.
 
 ## 9. Mapping from the original code
 

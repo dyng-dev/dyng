@@ -68,6 +68,7 @@ dyng = "dyng.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/dyng-dev/dyng"
+Documentation = "https://dyng-dev.github.io/dyng/"
 Repository = "https://github.com/dyng-dev/dyng"
 Issues = "https://github.com/dyng-dev/dyng/issues"
 Changelog = "https://github.com/dyng-dev/dyng/blob/main/CHANGELOG.md"

@@ -43,6 +43,8 @@ batch. `translate` is on the card but has no hook yet: no algorithm uses it (mos
 | `framework/composition.cpp` | `run_update()`: Step 0 of set semantics once, every before-commit half, one commit, every after-commit half |
 | `framework/workspace.hpp`, `scratch_buffer.hpp` | the workspace pool of a `resources` handle (ADR 0015) |
 | `core/budget_counters.hpp` | the per-thread allocation and host-synchronization counters behind I9 |
+| `operators/execution.hpp` | `DYNG_HD`, the atomics of functors, the host executors `sequential_exec` and `openmp_exec` (0.2; see [Writing hooks with operators](#writing-hooks-with-operators)) |
+| `operators/cuda_execution.cuh` | `cuda_exec`, the CUDA executor (CUDA translation units only) |
 
 Everything new lives in `dyng::detail::framework`. The M1b/M2 pieces keep their namespace
 `dyng::detail`: the workspace pool, `scratch_buffer`, `update_participant` and `run_update`.
@@ -175,6 +177,31 @@ unchanged (the strong guarantee of `update()`). The choice is kept for `after_co
 hook can read it through `ctx.chosen_engine()`; cycle_count's `count(-)` on G_t uses it to run
 the fused engine's own subtraction.
 
+## Writing hooks with operators
+
+PLAN 4.5.4 wants Tier A hooks "written with operators", so that one source serves every backend.
+The two tutorial algorithms (`dynamic_bfs`, `triangle_delta`; ADR 0033) do it with *executors*
+(`cpp/src/operators/`, 0.2):
+
+- a pass is a small functor, a struct of raw pointers whose `DYNG_HD void operator()(std::int64_t
+  i) const` does the work of element i (a vertex, a changed edge, a frontier entry);
+- an executor runs it for every element: `operators::sequential_exec` (a loop, the reference
+  order), `openmp_exec` (an OpenMP loop with the handle's threads) or `cuda_exec` (a grid-stride
+  kernel on the handle's stream; every instantiation registers itself for
+  `resources::warm_up()`);
+- words that several elements may write in one pass change through `operators::atomic_min`,
+  `atomic_add`, `atomic_exchange`, `atomic_load` and `atomic_store` (CUDA atomics on the device,
+  `__atomic` builtins on the host), so the same functor is correct on all three;
+- `exec.read(p)` brings a scalar the pass wrote back to the host (on CUDA a copy, a stream
+  synchronization and `note_host_sync()`: the only host synchronization of an executor), and
+  `write`, `fill`, `copy` and `upload` move data within or into the backend's memory.
+
+The algorithm keeps its passes in `engine.hpp` as one template on the executor behind a small
+virtual interface that the problem calls (`dynamic_bfs_engine<V, E>`); `sequential.cpp`,
+`openmp.cpp` and `cuda.cu` are one instantiation each. The arrays the passes use are
+`scratch_buffer`s of the workspace (host memory for the host backends, device memory for cuda),
+so the hooks are the same for every backend and only the executor differs.
+
 ## Frontiers
 
 The enactor owns two frontiers of `frontier_type` for one run: the input and the output of a
@@ -188,7 +215,9 @@ In 0.1 both algorithms keep their frontiers inside their engines' workspaces:
 So `internal_frontier` is the only framework frontier. The sparse, dense, bucketed and binned
 frontiers of PLAN 4.5.3 and the work items enter `frontier.hpp` with their second user (rule of
 two). Until then a problem may define its own frontier type; the framework tests use a list
-frontier.
+frontier, and `dynamic_bfs` (0.2) defines `dynamic_bfs_frontier`: which of the workspace's two
+vertex lists holds the frontier and its length, known on the host, so the default `is_converged`
+(`empty()`) needs no device access and the enactor runs one `loop` call per round.
 
 ## Policies
 
@@ -239,7 +268,7 @@ the combined graph; `hyper_sssp` holds one `sssp` problem over a line-graph view
 | I1 | Subtract on G_t, add on G_{t+1} | `old_view` and `new_view` are distinct types, and the enactor orders the calls. In Debug builds a view checks the graph's version on every access, so an `old_view` kept past the commit throws `internal_error` (`Views.OldViewAfterTheCommitThrowsInDebugBuilds`). The AG subtraction requires a `count` on the old view (compile-time check). |
 | I2 | Exactly-once counting | `ownership_type` is required for `family::aggregate_delta` and has no default. The enactor passes it to every `count`. |
 | I3 | Fixed-point termination | `convergence.max_iterations` + `on_limit`, applied by the enactor. sssp needs no cap: its invalidation step routes invalidating changes and its distances only decrease. |
-| I4 | No oscillating schedules | arrives with `sync_rule` (label_propagation, 0.3) |
+| I4 | No oscillating schedules | arrives with `sync_rule` (label_propagation, 0.4) |
 | I5 | Canonical outputs | inside the algorithms (sssp's packed (distance, id) words); `tie_break` arrives with its second user |
 | I6 | Race freedom | inside the algorithms (owner-group writes, documented atomics); racecheck in the GPU jobs |
 | I7 | 64-bit aggregates | inside the algorithms (`count_t = uint64_t`, checked additions) |
@@ -309,7 +338,10 @@ near-far round and after the unpack; stated after the phase, when the counts are
 cycle_count on CUDA (the staging
 of the change lists when the graph has no set semantics, the item counts of the delete phase on
 G_t and of the insert phase on G_{t+1}, and the histogram copy). Before the half before the commit
-was measured (M3 review), cycle_count's budget was 2 and covered the insert phase only.
+was measured (M3 review), cycle_count's budget was 2 and covered the insert phase only. The
+tutorial algorithms (0.2) synchronize only in `exec.read()` on cuda: `dynamic_bfs`
+`invalidation_rounds + iterations + 3` (each invalidation pass, the seed, each loop round, two in
+finalize; stated after the phase), `triangle_delta` at most 2 (one per count).
 
 These are not counted: a user-installed memory resource, `std::vector` growth of the host engines
 (the conformance executables count host allocations too: `cpp/tests/conformance/
@@ -384,6 +416,17 @@ problem's `normalize` hook, which takes the framework's lists as its change list
 has the same rows as before the migration, with `calls = 2` on that row. Under
 `dyng::update(res, g, batch, ...)` the framework's Step 0 is `update.normalize`.
 
+## The tutorial algorithms
+
+`dynamic_bfs` (fixed point: `identify_affected` invalidates the BFS subtrees under the deleted tree
+edges, `seed` pulls and offers, `loop` advances one round per call, `finalize` repairs the
+parents) and `triangle_delta` (aggregate delta: `normalize` builds the two change lists on G_t,
+`count` on the old view subtracts, `count` on the new view adds, both under
+`ownership::min_member`) are the framework's teaching examples: Tier A on all three backends with
+the executors above. Their pages have the hook tables ({doc}`../algorithms/dynamic_bfs`,
+{doc}`../algorithms/triangle_delta`), and {doc}`../tutorials/your_first_dynamic_algorithm` builds
+a simpler `dynamic_bfs` from the scaffold.
+
 ## Testing the framework
 
 `cpp/tests/framework/fake_problems.hpp` has one small problem per family:
@@ -425,7 +468,8 @@ Recorded here, as PLAN 0.3 asks. Each keeps the plan's intent.
 | `enact_fused` for compute() | `compute_fused(ctx, new_view, stats&)` | One overload per hook name (name hiding); the stage is still `<algo>.enact_fused`. |
 | Validation and bookkeeping | lifecycle members `begin_update`, `resume`, `end_update`, `poison`, `target` | They are the `<algo>.cpp` duties of PLAN 4.8, so the participant adapter can run any problem. |
 | `run_update(ctx, g, batch, problems...)` returning a tuple | `run_update(res, g, batch, participants, n, stage)` + `problem_participant` / `update_one` / `make_participant` | The type-erased participants of M1a let `dyng::update` combine results of algorithms compiled in different translation units. |
-| frontier table | `internal_frontier` only | Both algorithms keep their frontiers in their workspaces (rule of two). |
+| frontier table | `internal_frontier` only | Both algorithms keep their frontiers in their workspaces (rule of two); `dynamic_bfs` (0.2) defines its own list frontier (one user). |
+| operators (PLAN 4.5.3 table) | the executors and atomics in `cpp/src/operators/` (0.2); the other operators in the algorithm folders | The tutorial algorithms are the two users of the executors; `advance`, `invalidate_subtree`, `intersect` and `count_delta` have one tutorial user each, and sssp's and cycle_count's ported engines keep their own (ADR 0033). |
 | Tier B replaces `identify_affected` … `finalize` | cycle_count's `enact_fused` / `compute_fused` open the ported code's own stages inside `<algo>.enact_fused` | The regions of `parity/timed_regions/cycle_count.toml` (the paper's `kernel_ms` is `cycle_count.count`) keep their stages; the only new row is `cycle_count.enact_fused` on CUDA. |
 | the problem's `normalize` after the framework's | under set semantics cycle_count's `normalize` hook takes the framework's lists (a second call of the `cycle_count.normalize` stage) | The hook is Step 0 for every semantics; the stage rows are unchanged. |
 | `schedule`, `sync_rule`, `tie_break` | not yet | No two users. |

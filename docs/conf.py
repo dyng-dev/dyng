@@ -41,6 +41,20 @@ copyright = "2026, The dynG Authors"  # noqa: A001 (Sphinx's name)
 release = (REPO_ROOT / "VERSION").read_text(encoding="utf-8").strip()
 version = ".".join(release.split(".")[:2])
 
+
+def _latest_release() -> str:
+    """The newest released version: the first `## [X.Y.Z] - <date>` heading of CHANGELOG.md."""
+    changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    found = re.search(r"^## \[(\d+\.\d+\.\d+)\] - ", changelog, re.MULTILINE)
+    return found.group(1) if found else ""
+
+
+# The site is built from `main` (GitHub Pages, one version). While VERSION is a development or
+# pre-release version, every page carries a banner that says so and names the latest release,
+# whose features are the only ones on PyPI (docs/developer/release.md, step 9).
+latest_release = _latest_release()
+is_development_version = re.fullmatch(r"\d+\.\d+\.\d+", release) is None
+
 # -- General ---------------------------------------------------------------------------------------
 
 extensions = [
@@ -135,7 +149,7 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 # `dyng._backend.native` is the native module chosen on first use (dyng._core, or a CUDA plugin
-# from 0.1.x), so it cannot be resolved statically; the stubs document dyng._core.
+# from 0.2.0), so it cannot be resolved statically; the stubs document dyng._core.
 suppress_warnings = ["autoapi.python_import_resolution"]
 # Names without a page: NumPy and the standard library (no inventory is loaded, so the build never
 # needs the network), and the string-literal aliases of the typed layer (their values are listed
@@ -164,6 +178,8 @@ bibtex_reference_style = "author_year"
 
 html_theme = "pydata_sphinx_theme"
 html_title = f"dynG {release}"
+# The published site (GitHub Pages, .github/workflows/docs.yml): canonical links point here.
+html_baseurl = "https://dyng-dev.github.io/dyng/"
 html_theme_options = {
     "github_url": "https://github.com/dyng-dev/dyng",
     "use_edit_page_button": True,
@@ -174,6 +190,14 @@ html_theme_options = {
     "footer_start": ["copyright"],
     "footer_end": ["sphinx-version", "theme-version"],
 }
+if is_development_version:
+    html_theme_options["announcement"] = (
+        f"These pages document the development version {release}, built from the main branch. "
+        f"The latest release is {latest_release} (<code>pip install dyng</code>): what the "
+        '<a href="https://dyng-dev.github.io/dyng/changelog.html">changelog</a> lists under '
+        "Unreleased, and every page or section marked as new in a later version, is not "
+        "released yet."
+    )
 html_context = {
     "github_user": "dyng-dev",
     "github_repo": "dyng",

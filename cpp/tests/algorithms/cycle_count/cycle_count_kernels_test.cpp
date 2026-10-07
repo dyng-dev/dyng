@@ -14,6 +14,7 @@
 #include "algorithms/cycle_count/work_queue.hpp"
 #include "graph/graph_impl.hpp"
 #include "support/cycle_count_support.hpp"
+#include "support/gtest_helpers.hpp"
 
 #include <dyng/config.hpp>
 #include <dyng/core/error.hpp>
@@ -30,8 +31,9 @@
 
 // Invariant I9 (PLAN Section 4.7): the algorithm phase of a steady-state update allocates nothing.
 // This executable counts the global operator new calls made while `counting_allocations` is set
-// (not under the sanitizers, which bring their own allocator).
-#if !defined(__SANITIZE_ADDRESS__) && !defined(__SANITIZE_THREAD__)
+// (not under the sanitizers, which bring their own allocator; DYNG_TEST_SANITIZED also detects
+// Clang's, whose statically linked runtime defines operator new too).
+#if !DYNG_TEST_SANITIZED
 #define DYNG_TEST_COUNTS_ALLOCATIONS 1
 namespace {
 std::atomic<bool> counting_allocations{false};

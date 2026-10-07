@@ -192,13 +192,13 @@ std::vector<edge_batch<vertex_t, weight_t>> read_batches(const std::string& path
     }
     if (is_reserved_vertex_op(op)) {
       scanner.fail(tok, "the vertex operation '" + std::string(op) +
-                            "' is reserved for the vertex batches of label_propagation (0.3); "
-                            "0.1 reads edge operations ('+e', '-e') only");
+                            "' is reserved for the vertex batches of label_propagation (0.4); "
+                            "this release reads edge operations ('+e', '-e') only");
     }
     if (is_reserved_hypergraph_op(op)) {
       scanner.fail(tok, "the hypergraph operation '" + std::string(op) +
-                            "' is reserved for the hypergraph batches of 0.2; 0.1 reads edge "
-                            "operations ('+e', '-e') only");
+                            "' is reserved for the hypergraph batches of 0.3; this release reads "
+                            "edge operations ('+e', '-e') only");
     }
     if (op.front() == '%') {
       scanner.fail(tok,

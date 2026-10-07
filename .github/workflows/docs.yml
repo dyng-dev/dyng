@@ -6,8 +6,15 @@
 # and ci/docs_links.py (links to repository files, the site's anchors), all through ci/docs.sh,
 # the same command as the local gate. The tools come from environment.yml (the exact versions
 # of the local environment and of .readthedocs.yaml), installed with micromamba. The built site
-# is uploaded as the artifact `docs-html` (open index.html after downloading it); hosting on
-# Read the Docs starts at approval checkpoint A4 (docs/developer/repository_settings.md).
+# is uploaded as the artifact `docs-html` (open index.html after downloading it).
+#
+# Hosting: GitHub Pages (the author's decision of 2026-10-02, the plan's fallback to Read the
+# Docs; PLAN Appendix F), https://dyng-dev.github.io/dyng/. On a push to main the `site` job also
+# packs the site as the Pages artifact, and the `deploy` job publishes it: the only job with
+# `pages: write` and `id-token: write` (deploy-pages proves the run's identity with an OIDC
+# token), in the environment `github-pages`, which only main may deploy to. Pull requests build
+# and check the site but never deploy. The repository's Pages source must be "GitHub Actions"
+# (docs/developer/repository_settings.md, step 13).
 #
 # The external links (GitHub, PyPI, papers) are checked weekly and on demand only, in a job that
 # is not a required check: their availability is not a property of a pull request.
@@ -68,6 +75,35 @@ jobs:
           path: build/docs/html
           if-no-files-found: error
           retention-days: 14
+      - name: Pack the site for GitHub Pages (pushes to main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: build/docs/html
+          retention-days: 7
+
+  # Publishes the site of a push to main on https://dyng-dev.github.io/dyng/.
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: site
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write     # create the Pages deployment
+      id-token: write  # the OIDC token deploy-pages authenticates with
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # One deployment at a time; a newer push waits rather than cancelling one in progress.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Check the Pages configuration (source "GitHub Actions")
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v6.0.0
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1
 
   external-links:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

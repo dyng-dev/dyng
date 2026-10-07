@@ -1,4 +1,4 @@
-# Sketch: `hyper_sssp` (0.3)
+# Sketch: `hyper_sssp` (0.4)
 
 **Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M11.
 **Computes:** single-source shortest hyperpaths on a hypergraph with hyperedge weights: the

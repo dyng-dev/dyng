@@ -621,10 +621,51 @@ def test_metadata_only_difference_needs_an_equivalence_record(
 def test_mutation_points_match_the_code_once() -> None:
     mutate = load("parity/mutate.py")
     assert {m["config"] for m in mutate.MUTATIONS} == {"sequential", "openmp:4", "cuda"}
+    # Every suite has a mutation on each backend (PLAN 8.4; mosp's path costs are shared).
+    for suite in ("sssp", "mosp", "cycle_count"):
+        assert {m["config"] for m in mutate.MUTATIONS if m["suite"] == suite} == {
+            "sequential",
+            "openmp:4",
+            "cuda",
+        }, suite
+    assert len({m["name"] for m in mutate.MUTATIONS}) == len(mutate.MUTATIONS)
+    hooks = "\n".join(
+        p.read_text() for p in sorted((REPO / "cpp/src/algorithms/cycle_count").iterdir())
+    )
     for m in mutate.MUTATIONS:
+        assert m["suite"] in mutate.SUITES, m["name"]
+        if "defines" in m:
+            # a recorded hook of the sources, compiled in by the define
+            assert "file" not in m and m["defines"], m["name"]
+            for define in m["defines"]:
+                assert f"defined({define})" in hooks, (m["name"], define)
+            continue
         text = (REPO / m["file"]).read_text()
         assert text.count(m["old"]) == 1, m["name"]
         assert m["new"] != m["old"]
+
+
+def test_mutation_defines_reach_both_compilers() -> None:
+    mutate = load("parity/mutate.py")
+    assert mutate.configure_args([]) == []
+    assert mutate.configure_args(["A", "B"]) == [
+        "-DCMAKE_CXX_FLAGS=-DA -DB",
+        "-DCMAKE_CUDA_FLAGS=-DA -DB",
+    ]
+
+
+def test_mutation_failures_read_both_matrix_layouts() -> None:
+    mutate = load("parity/mutate.py")
+    sssp = {"matrix": {"g1": {"cuda": {"fail": ["a", "b"]}}, "g2": {"cuda": {"fail": []}}}}
+    assert mutate.failures(sssp, ["cuda"]) == {"cuda": 2}
+    cycle = {
+        "matrix": {
+            "c1": {"sequential": "equal"},
+            "c2": {"sequential": ["differs"]},
+            "c3": {"sequential": "skipped"},
+        }
+    }
+    assert mutate.failures(cycle, ["sequential"]) == {"sequential": 1}
 
 
 def test_mutation_apply_refuses_an_ambiguous_point(tmp_path: Path) -> None:

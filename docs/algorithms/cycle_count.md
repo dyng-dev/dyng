@@ -1,8 +1,8 @@
 # cycle_count: exact k-bounded directed simple-cycle histograms
 
-Maturity: **stable** from 0.1.0 (SemVer applies; M2a: sequential and OpenMP backends; M2b: the
-CUDA backend; M5: the Python binding and the `dyng cycle_count` command line; 0.1.0rc1: the
-benchmark-suite record `benchmarks/paper/ieee_tc_dyntrucy.yaml`). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
+Maturity: **stable** from 0.1.0 (SemVer applies; the sequential, OpenMP and CUDA backends, the
+Python binding, the `dyng cycle_count` command line and the benchmark-suite record
+`benchmarks/paper/ieee_tc_dyntrucy.yaml` since 0.1.0). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
 Ported from CycleEnumeration-GPU@0a976ad, the code of TruCy / DynTruCy (Khanda, Shovan, Satpathy,
 Das; submitted to IEEE Transactions on Computers). dynG implements the exact k-bounded
 enumeration of that code, **not** the paper's approximate kappa-truncated TruCy search (Section 7).
@@ -160,7 +160,7 @@ file, `--batch FILE` reads it back); `--backend` and `--threads` choose the back
 |---|---|---|
 | `max_length` | -1 | longest counted length (>= 2), or -1: no bound. The histogram has min(k, max(n, 2)) + 1 entries (no simple cycle is longer than n), so a bound far above n costs nothing. Without a bound see Section 5 for the cost per backend. Fixed at `compute()` |
 | `method` | `search_method::johnson` | the search (the only one); fixed at `compute()` |
-| `mode` | `cycle_mode::simple` | static simple cycles (time-window and temporal modes: 0.4); fixed at `compute()` |
+| `mode` | `cycle_mode::simple` | static simple cycles (time-window and temporal modes: 0.5); fixed at `compute()` |
 | `cuda_engine` | `engine::automatic` | cuda only: `automatic` and `fused` run the fused kernels (Tier B); `operators` throws `not_supported_error` (no operators engine in 0.1) |
 | `scheduler` | `cuda_scheduler::work_queue` | cuda `compute()` only: the work queue, or `naive` (one thread per root; the original's debugging and parity path) |
 | `work_items` | `cuda_work_items::automatic` | cuda `compute()` with the work queue: `roots`, `edges` (r -> v1, v1 > r), `two_hop` (r -> v1 -> v2, numbered implicitly), or `automatic` (the original's rule: edges up to k = 3 and at k = 4 below 16 edges per vertex, two-hop otherwise). Every cycle has exactly one prefix of each kind: the counts never depend on it |
@@ -302,7 +302,7 @@ Gold 6258R, port `0679ed1` (after the review fixes):
 | Twitch 25K+25K, k = 4 | update end to end | 4,576.7 | 3,329.1 | 0.727 |
 
 Every gate is met, with no contaminated measurement (the harness records the foreign CPU load of
-every run). Where the gains come from is measured separately (PLAN 8.6; `parity/results/M2a.md`
+every run). Where the gains come from is measured separately (`parity/results/M2a.md`
 Section 3.4, with copies of the original that differ in one change each):
 
 - the straight-ported search is already faster than the original's with the same dense
@@ -322,8 +322,8 @@ identify_affected 0.3, count_plus 3.7.
 the update's `update_seconds` / `update_ms` (host clock around the update, as the original), and
 both end-to-end times. Each is read in two scopes (`dyng-compat-cycle-enum --scope`): *original*
 (the graph uploaded inside the timed call, as the original does per call) and *resident* (the
-graph on the device before the call, dynG's model). The gate is PLAN 8.6 at locked GPU clocks
-(ADR 0018, `parity/cycle_count_perf.py run --backend cuda`).
+graph on the device before the call, dynG's model). The gate (the table above) is read at locked
+GPU clocks (ADR 0018, `parity/cycle_count_perf.py run --backend cuda`).
 
 Measured after the M2b review (`parity/results/M2b.md` section 8: RTX A5000, GPU clocks locked at
 1695 MHz for both programs, the unpatched original, medians of 21 alternating rounds; the static
@@ -424,7 +424,7 @@ kernels do not carry over.
 - The vertex type is `int32_t` (the ownership table keys two 32-bit ids); offsets may be 32 or 64
   bits.
 - Graphs with parallel edges or unsorted rows are rejected (`invalid_argument_error`).
-- No time-window or temporal modes yet (0.4), no Read-Tarjan or brute-force method. The original's CUDA time-window and temporal kernels are not ported (0.4), nor
+- No time-window or temporal modes yet (0.5), no Read-Tarjan or brute-force method. The original's CUDA time-window and temporal kernels are not ported (0.5), nor
   its environment tuning (`CYCLE_ENUM_CUDA_BLOCK_SIZE`, `CYCLE_ENUM_CUDA_BLOCKS_PER_SM`: the
   defaults, 128 threads and the occupancy limit, are fixed).
 - No approximate (kappa-truncated) mode (Section 7).
@@ -448,12 +448,12 @@ in CycleEnumeration-GPU (before or after its fixes) and **not in dynG**. Consequ
 - dynG's timings are for exact enumeration and are not directly comparable with kappa-bounded
   TruCy runs;
 - the paper's kappa experiments (Figs. 7 and 8) cannot be reproduced with dynG. A future,
-  explicitly approximate mode is on the roadmap (PLAN 6.1, row E6), not planned for 0.1.
+  explicitly approximate mode is possible, but no release plans it yet.
 
 The update is the paper's DynTruCy scheme: the cycles through the deleted edges are subtracted on
 G_t, those through the inserted edges added on G_{t+1}, each attributed to its smallest-id change
 edge. dynG counts simple cycles only (the time-window and temporal modes of the original follow
-in 0.4).
+in 0.5).
 
 ### Paper vs fixed code
 
@@ -471,7 +471,7 @@ original's `CHANGES.md`, and what dynG takes from each:
 | C10 build | no build type (`-O0`), CUDA architecture default never applied | Release default, sm_86 | dynG's presets; the reference is built Release as its RESULTS.md |
 | K1, K2 static CUDA kernels | full-row scans, global-memory paths, one atomic per cycle; roots as work items | exact pruned DFS with a `lower_bound` closure; edge and two-hop prefix work items (3.7x to 714x faster kernels) | ported (M2b: `static_cuda.cu`, `dfs.cuh`; every scheduler and kind of work item, checked against the original's CUDA backend on the fixtures) |
 | K3, C5, C7 CUDA update | a V-byte visited array per change (36 GB on GitHub: out of memory), host rebuild of G_{t+1}, context creation inside `update_seconds` | path membership, resident G_t with G_{t+1} built on the device, an `owner[]` array | ported (M2b: `cuda.cu`, `graph/apply_set_device.cu`); dynG also keeps G_{t+1} on the device for the next batch (ADR 0020) |
-| C2, C3, time-window / temporal self-loops | bounded time-window Johnson undercounted; time-window Read-Tarjan wrong; self-loop start events | fixed | not ported (modes arrive in 0.4) |
+| C2, C3, time-window / temporal self-loops | bounded time-window Johnson undercounted; time-window Read-Tarjan wrong; self-loop start events | fixed | not ported (modes arrive in 0.5) |
 
 Every fix keeps the counts exact. On valid inputs (the TUDataset graphs, valid batches) the
 histograms of `0a976ad` are bit-identical to the paper's code on every dataset the original's

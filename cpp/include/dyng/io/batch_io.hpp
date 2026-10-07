@@ -39,8 +39,8 @@ struct batch_file_options {
  * operations of 0.1 are `+e u v [w1 .. wK]` (an edge insertion with exactly K weights) and
  * `-e u v` (an edge deletion), ids 0-based. Within a batch the insertions and the deletions each
  * keep file order (which of the two applies first is the graph's batch semantics, not the
- * file's). The vertex operations `+v u [label]` and `-v u` (label_propagation, 0.3) and the
- * hypergraph operations `+h`, `-h`, `+i`, `-i` (0.2) are reserved: 0.1 rejects them with an
+ * file's). The vertex operations `+v u [label]` and `-v u` (label_propagation, 0.4) and the
+ * hypergraph operations `+h`, `-h`, `+i`, `-i` (0.3) are reserved: 0.1 rejects them with an
  * io_error. Every token must be a whole decimal integer; weights must fit `weight_t`.
  *
  * @tparam vertex_t Vertex id type.

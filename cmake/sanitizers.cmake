@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Host sanitizers (PLAN Section 7.3): DYNG_SANITIZE is empty, "address;undefined" or "thread".
+# Host sanitizers (PLAN Section 7.3): DYNG_SANITIZE is empty, "address;undefined" or "thread"
+# (the preset fuzz adds Clang's "fuzzer-no-link": coverage instrumentation for libFuzzer).
 # With DYNG_STDLIB_ASSERTIONS (ON in Debug builds) the host C++ code is also compiled with
 # _GLIBCXX_ASSERTIONS: libstdc++ checks every std::vector::operator[] and the like, so an
 # out-of-bounds access aborts in the dev preset instead of passing unseen (it does not change
@@ -24,3 +25,20 @@ function(dyng_enable_sanitizers target)
   target_compile_options(${target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${_flags}>")
   target_link_options(${target} PRIVATE -fsanitize=${_list})
 endfunction()
+
+# ThreadSanitizer and the OpenMP backends: GCC's libgomp is not instrumented, so TSan reports
+# every OpenMP barrier and reduction as a race (the preset tsan turns OpenMP off). Clang's libomp
+# is not instrumented either, but its OMPT tool Archer tells TSan about the OpenMP
+# synchronization: the preset tsan-openmp builds with Clang, and its tests run with
+# OMP_TOOL_LIBRARIES=<libarcher.so> (ci/sanitizers.sh finds it).
+if("thread" IN_LIST DYNG_SANITIZE AND DYNG_ENABLE_OPENMP)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "DYNG_SANITIZE=thread with DYNG_ENABLE_OPENMP=ON needs Clang and its "
+                        "OpenMP runtime (libomp) with Archer; GCC's libgomp is not instrumented. "
+                        "Use the preset tsan (OpenMP off) with GCC, or CXX=clang++ with the preset "
+                        "tsan-openmp (docs/developer/robustness.md)"
+    )
+  endif()
+  message(STATUS "dynG: ThreadSanitizer with OpenMP: run the tests with "
+                 "OMP_TOOL_LIBRARIES=<libarcher.so> (ci/sanitizers.sh tsan-openmp)")
+endif()
