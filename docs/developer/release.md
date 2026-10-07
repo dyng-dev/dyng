@@ -193,7 +193,8 @@ runs them on local builds. From a checkout of the tag:
 
 ```bash
 source scripts/dev_env.sh
-v=$(cat VERSION); run=<the release.yml run's id>; d="$DYNG_SCRATCH/release-$v"
+v=$(cat VERSION); run=RUN_ID  # the id of the release.yml run
+d="$DYNG_SCRATCH/release-$v"
 gh run download "$run" --repo dyng-dev/dyng --name dist --dir "$d/artifact"  # what is uploaded
 mkdir -p "$d/plugins/dist" && cp "$d"/artifact/dyng-cu1*/*.whl "$d/plugins/dist/"
 DYNG_PLUGIN_TEST_ONLY=1 DYNG_PLUGINS="cu12 cu13" DYNG_CORE_DIST="$d/artifact/dyng" \
