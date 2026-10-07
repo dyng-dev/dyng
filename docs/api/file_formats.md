@@ -23,7 +23,7 @@ K is inferred from the first non-blank line of `Values.txt`; a graph without edg
 
 ## dynG batch text (`.dgt`: `read_batches` / `write_batches`)
 
-The library's batch format (PLAN Section 5.7), for tests, examples and hand edits: a sequence of
+The library's batch format, for tests, examples and hand edits: a sequence of
 batches in one ASCII text file, one operation per line.
 
 - Lines are separated by `\n` (a trailing `\r` is ignored). Blank lines and lines whose first
@@ -133,4 +133,4 @@ the magic `MOSPCSR2`; a uint32 length L and L bytes of source identity (for each
 modification time as libstdc++'s `file_time_type` counts it, nanoseconds since 2174-01-01, each
 followed by a newline); int32 n and K; int64 m; then n + 1 int32 row offsets, m int32 column
 indices and m * K int32 weights, edge-major. `dyng prep cache` writes the same bytes as
-`mospPrep cache`. The versioned cache of dynG is `.dgc` (PLAN Section 5.7, not in 0.1).
+`mospPrep cache`. A versioned cache format of dynG's own (`.dgc`) is planned, not in 0.1 or 0.2.

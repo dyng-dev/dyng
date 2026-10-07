@@ -1,12 +1,12 @@
 # dynamic_bfs: BFS levels under edge batches (tutorial)
 
-Maturity: **tutorial** (teaching material, not a research algorithm). Header:
-`<dyng/dynamic_bfs.hpp>`. Python: `dyng.dynamic_bfs`. Oracle: `compute`. Determinism:
-`exact_value`. Backends: sequential, openmp, cuda. Family: fixed point, Tier A (the framework's
+Maturity: **tutorial** (teaching material, not a research algorithm; new in 0.2.0, not
+released yet). Header: `<dyng/dynamic_bfs.hpp>`. Python: `dyng.dynamic_bfs`. Oracle: `compute`.
+Determinism: `exact_value`. Backends: sequential, openmp, cuda. Family: fixed point, Tier A (the framework's
 operators).
 
 :::{note}
-`dynamic_bfs` is one of the two **teaching algorithms** of dynG (PLAN Section 9.3). It is small
+`dynamic_bfs` is one of the two **teaching algorithms** of dynG. It is small
 enough to read in one sitting, exercises the whole fixed-point template (classify, invalidate a
 subtree, seed, advance, convergence) and runs on every backend from one source. It is complete
 and checked by the conformance kit like every algorithm, but it is not tuned for speed and comes
@@ -41,7 +41,7 @@ its top) says what happens when; `dynamic_bfs_engine_impl<exec_t>`
 `DYNG_HD` functor run by an executor of the framework operators (`cpp/src/operators/`), a loop
 (`sequential.cpp`), an OpenMP loop (`openmp.cpp`) or a CUDA kernel (`cuda.cu`).
 
-| Step | Hook (profiler stage) | What it does | Operator (PLAN 4.5.3) |
+| Step | Hook (profiler stage) | What it does | Operator |
 |---|---|---|---|
 | apply | commit (`dynamic_bfs.commit`) | the batch applied once; the in-edges (host) or the device copy with its in-edges (cuda) prepared for the engines | – |
 | 1b | `identify_affected` (`dynamic_bfs.identify_affected`) | a deleted edge `u -> v` with `parent[v] == u` and no parallel `u -> v` left makes `v` a root; the roots and their tree descendants are invalidated (level and parent -1), one pass per tree level | `classify`, `invalidate_subtree` (a level-by-level walk) |
@@ -124,7 +124,7 @@ is no benchmark suite and no performance gate: `dynamic_bfs` is teaching materia
 
 ## 7. Differences from the paper
 
-Not from a paper: a teaching algorithm written for dynG (PLAN Section 9.3).
+Not from a paper: a teaching algorithm written for dynG.
 
 ## 8. Mapping from the original code
 

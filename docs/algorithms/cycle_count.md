@@ -1,8 +1,8 @@
 # cycle_count: exact k-bounded directed simple-cycle histograms
 
-Maturity: **stable** from 0.1.0 (SemVer applies; M2a: sequential and OpenMP backends; M2b: the
-CUDA backend; M5: the Python binding and the `dyng cycle_count` command line; 0.1.0rc1: the
-benchmark-suite record `benchmarks/paper/ieee_tc_dyntrucy.yaml`). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
+Maturity: **stable** from 0.1.0 (SemVer applies; the sequential, OpenMP and CUDA backends, the
+Python binding, the `dyng cycle_count` command line and the benchmark-suite record
+`benchmarks/paper/ieee_tc_dyntrucy.yaml` since 0.1.0). Header: `<dyng/cycle_count.hpp>`. Oracle: `compute`. Determinism: `exact_value`.
 Ported from CycleEnumeration-GPU@0a976ad, the code of TruCy / DynTruCy (Khanda, Shovan, Satpathy,
 Das; submitted to IEEE Transactions on Computers). dynG implements the exact k-bounded
 enumeration of that code, **not** the paper's approximate kappa-truncated TruCy search (Section 7).
@@ -302,7 +302,7 @@ Gold 6258R, port `0679ed1` (after the review fixes):
 | Twitch 25K+25K, k = 4 | update end to end | 4,576.7 | 3,329.1 | 0.727 |
 
 Every gate is met, with no contaminated measurement (the harness records the foreign CPU load of
-every run). Where the gains come from is measured separately (PLAN 8.6; `parity/results/M2a.md`
+every run). Where the gains come from is measured separately (`parity/results/M2a.md`
 Section 3.4, with copies of the original that differ in one change each):
 
 - the straight-ported search is already faster than the original's with the same dense
@@ -322,8 +322,8 @@ identify_affected 0.3, count_plus 3.7.
 the update's `update_seconds` / `update_ms` (host clock around the update, as the original), and
 both end-to-end times. Each is read in two scopes (`dyng-compat-cycle-enum --scope`): *original*
 (the graph uploaded inside the timed call, as the original does per call) and *resident* (the
-graph on the device before the call, dynG's model). The gate is PLAN 8.6 at locked GPU clocks
-(ADR 0018, `parity/cycle_count_perf.py run --backend cuda`).
+graph on the device before the call, dynG's model). The gate (the table above) is read at locked
+GPU clocks (ADR 0018, `parity/cycle_count_perf.py run --backend cuda`).
 
 Measured after the M2b review (`parity/results/M2b.md` section 8: RTX A5000, GPU clocks locked at
 1695 MHz for both programs, the unpatched original, medians of 21 alternating rounds; the static
@@ -448,7 +448,7 @@ in CycleEnumeration-GPU (before or after its fixes) and **not in dynG**. Consequ
 - dynG's timings are for exact enumeration and are not directly comparable with kappa-bounded
   TruCy runs;
 - the paper's kappa experiments (Figs. 7 and 8) cannot be reproduced with dynG. A future,
-  explicitly approximate mode is on the roadmap (PLAN 6.1, row E6), not planned for 0.1.
+  explicitly approximate mode is possible, but no release plans it yet.
 
 The update is the paper's DynTruCy scheme: the cycles through the deleted edges are subtracted on
 G_t, those through the inserted edges added on G_{t+1}, each attributed to its smallest-id change

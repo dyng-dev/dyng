@@ -1,12 +1,12 @@
 # triangle_delta: the triangle count under edge batches (tutorial)
 
-Maturity: **tutorial** (teaching material, not a research algorithm). Header:
-`<dyng/triangle_delta.hpp>`. Python: `dyng.triangle_delta`. Oracle: `compute`. Determinism:
-`exact_value`. Backends: sequential, openmp, cuda. Family: aggregate delta, Tier A (the
+Maturity: **tutorial** (teaching material, not a research algorithm; new in 0.2.0, not
+released yet). Header: `<dyng/triangle_delta.hpp>`. Python: `dyng.triangle_delta`. Oracle: `compute`.
+Determinism: `exact_value`. Backends: sequential, openmp, cuda. Family: aggregate delta, Tier A (the
 framework's operators), ownership `min_member`.
 
 :::{note}
-`triangle_delta` is one of the two **teaching algorithms** of dynG (PLAN Section 9.3): the
+`triangle_delta` is one of the two **teaching algorithms** of dynG: the
 aggregate-delta companion of {doc}`dynamic_bfs`. It exercises the other half of the template: a
 count on the old graph before the commit, a count on the new graph after it, and an ownership
 rule that counts every pattern exactly once. Triangle counting is a special case of the pattern
@@ -51,7 +51,7 @@ card at its top) says what happens when; `triangle_delta_engine_impl<exec_t>` (`
 how, once for every backend (a `DYNG_HD` functor per element, run by the executors of
 `cpp/src/operators/`).
 
-| Step | Hook (profiler stage) | What it does | Operator (PLAN 4.5.3) |
+| Step | Hook (profiler stage) | What it does | Operator |
 |---|---|---|---|
 | 0 | `normalize` (`triangle_delta.normalize`) | the net change of the batch as two lists of undirected edges (u, v), u < v, sorted, without repeats: the framework's normalized batch under `batch_semantics::set()` (ADR 0020), `graph/structural_change.hpp` on G_t otherwise; the position of an edge is its ownership id | `group_by_owner` (a sort) |
 | 1a | `count` on the old view = count(-) (`triangle_delta.count_minus`) | for every deleted edge (u, v) with id i, the common neighbours w of u and v on G_t close triangles the batch destroys; the edge counts those whose other edges (u, w) and (v, w) are not deleted edges with an id below i | `count_delta<ownership::min_member>`, `intersect` (sorted merge) |
@@ -130,7 +130,7 @@ stages are the hooks of the table above. There is no benchmark suite and no perf
 
 ## 7. Differences from the paper
 
-Not from a paper: a teaching algorithm written for dynG (PLAN Section 9.3).
+Not from a paper: a teaching algorithm written for dynG.
 
 ## 8. Mapping from the original code
 
