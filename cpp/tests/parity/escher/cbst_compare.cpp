@@ -654,6 +654,10 @@ class replayer {
       if (rec.integer("after.device_bytes", -1) >= 0)
         scalar("after.device_bytes", rec.integer("after.device_bytes"), got.device_bytes);
     }
+    // The integrity verdict: the original's checkTreeRows on the rows as read, and the store's
+    // own check where it has one (the device store; the host model has none).
+    if (got.integrity >= 0 && rec.integer("check.rows", -1) >= 0)
+      scalar("check.rows", rec.integer("check.rows"), got.integrity);
     if (want.keys != got.keys) {
       const std::size_t i = first_difference(want.keys, got.keys);
       differ("state.keys", i < want.keys.size() ? want.keys[i] : -1,

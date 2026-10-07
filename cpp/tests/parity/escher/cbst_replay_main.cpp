@@ -5,17 +5,22 @@
  * @brief dyng_cbst_replay: replays CBST traces (ADR 0036) through a store and compares every
  *        operation (ADR 0037). parity/compare.py cbst_trace drives it over the golden sets.
  *
- *     dyng_cbst_replay [--store host_model] [--policy escher_gpu|mosp_escher|dyng_default]
+ *     dyng_cbst_replay [--store host_model|device] [--policy escher_gpu|mosp_escher|dyng_default]
  *                      [--fields semantic|offsets|exact] [--json OUT] [--tmp DIR]
  *                      [--max-mismatches N] <trace>...
  *
  * A trace is a `.cbt` file (its side file `<name>.blob` next to it is used) or a `.cbt.zst`
  * (decompressed through `zstd -dc --long=31`; its side file `trace.blob.zst` is decompressed into
  * --tmp, default $TMPDIR, and removed afterwards). Without --policy each trace runs under the
- * preset of its original. Prints one line per trace; --json writes a JSON array of the reports.
+ * preset of its original. `--store device` (CUDA builds) replays through the dynG store
+ * (cpp/src/hypergraph/escher; M8a step 3, ADR 0038) on the current CUDA device, under --policy
+ * (default escher_gpu). Prints one line per trace; --json writes a JSON array of the reports.
  * Exit status: 0 every trace matched, 1 a mismatch, 2 a usage or input error.
  */
 #include "parity/escher/cbst_compare.hpp"
+#if defined(DYNG_CBST_DEVICE_STORE) && DYNG_CBST_DEVICE_STORE
+#include "parity/escher/cbst_device_adapter.hpp"
+#endif
 
 #include <cstdio>
 #include <cstdlib>
@@ -31,7 +36,7 @@ namespace {
 int usage() {
   std::fprintf(
       stderr,
-      "usage: dyng_cbst_replay [--store host_model] [--policy NAME] [--fields "
+      "usage: dyng_cbst_replay [--store host_model|device] [--policy NAME] [--fields "
       "semantic|offsets|exact] [--json OUT] [--tmp DIR] [--max-mismatches N] <trace>...\n");
   return 2;
 }
@@ -70,17 +75,35 @@ int main(int argc, char** argv) {
     }
   }
   if (traces.empty()) return usage();
-  if (!policy_name.empty()) {
-    dyng::testing::cbst_host_policy p;
-    if (!dyng::testing::cbst_host_policy::from_name(policy_name, p)) {
-      std::fprintf(stderr, "unknown policy %s\n", policy_name.c_str());
+  cmp::store_factory factory;
+  if (store == "host_model") {
+    if (!policy_name.empty()) {
+      dyng::testing::cbst_host_policy p;
+      if (!dyng::testing::cbst_host_policy::from_name(policy_name, p)) {
+        std::fprintf(stderr, "unknown policy %s\n", policy_name.c_str());
+        return 2;
+      }
+    }
+    factory = cmp::host_model_factory(policy_name);
+  } else if (store == "device") {
+#if defined(DYNG_CBST_DEVICE_STORE) && DYNG_CBST_DEVICE_STORE
+    if (!cmp::device_available()) {
+      std::fprintf(stderr, "store device: no CUDA device is visible\n");
       return 2;
     }
-  }
-  if (store != "host_model") {
-    std::fprintf(stderr,
-                 "store %s: only host_model exists (the dynG store follows in M8a step 3)\n",
-                 store.c_str());
+    try {
+      (void)cmp::device_store_adapter(policy_name.empty() ? "escher_gpu" : policy_name);
+    } catch (const std::exception& e) {
+      std::fprintf(stderr, "%s\n", e.what());
+      return 2;
+    }
+    factory = cmp::device_store_factory(policy_name);
+#else
+    std::fprintf(stderr, "store device: this build has no CUDA (configure a CUDA preset)\n");
+    return 2;
+#endif
+  } else {
+    std::fprintf(stderr, "unknown store %s (host_model, device)\n", store.c_str());
     return 2;
   }
   if (tmp_dir.empty()) {
@@ -92,8 +115,7 @@ int main(int argc, char** argv) {
   for (const std::string& path : traces) {
     try {
       cmp::trace_source source(path, tmp_dir);
-      const cmp::replay_report rep =
-          cmp::replay(source.reader(), cmp::host_model_factory(policy_name), opt, path);
+      const cmp::replay_report rep = cmp::replay(source.reader(), factory, opt, path);
       all_ok &= rep.ok();
       std::printf(
           "%s: %s, %lld ops (%lld compared, %lld unreplayable), %lld mappings, %lld keys, "

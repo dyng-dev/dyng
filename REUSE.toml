@@ -45,3 +45,11 @@ path = ["CODE_OF_CONDUCT.md"]
 precedence = "override"
 SPDX-FileCopyrightText = ["Organization for Ethical Source", "2026 The dynG Authors"]
 SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# The manual hunks of the CBST store transplant (a unified diff, which cannot carry a header;
+# parity/escher_port/transplant.py, ADR 0038).
+[[annotations]]
+path = ["parity/escher_port/manual_hunks.patch"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 The dynG Authors"
+SPDX-License-Identifier = "Apache-2.0"

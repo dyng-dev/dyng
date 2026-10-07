@@ -1,0 +1,406 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The rename map of the CBST store port (M8a step 3, commit c1 "transplant"; ADR 0038).
+# parity/escher_port/transplant.py reads ESCHER-GPU@abcf9b2 with `git archive`-equivalent
+# `git show`, assembles every target file from its parts, rewrites the includes, applies the
+# [context] rules and then the whole-token renames of [names], replaces include guards with
+# `#pragma once`, wraps the code in the namespace, adds the SPDX and provenance header, runs
+# clang-format and finally applies the manual hunks (manual_hunks.patch). The result is the
+# c1 tree of cpp/src/hypergraph/escher (transplant.py --check compares them).
+
+schema = 1
+origin = "ESCHER-GPU"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+namespace = "dyng::detail::escher"
+target_dir = "cpp/src/hypergraph/escher"
+
+# The target files (in cpp/src/hypergraph/escher) and the parts of ESCHER-GPU they are assembled
+# from: whole files, or line ranges [first, last] (1-based, inclusive) in the order given.
+[[file]]
+target = "cbst_store.hpp"
+brief = "The CBST store: node and context records, the host API (construct, rebuild, insert, append = fill, erase, remove_values = unfill) and the store object (ESCHER-GPU's CBSTOperations)."
+parts = [{ path = "include/structure.hpp" }]
+
+[[file]]
+target = "cbst_store.cu"
+brief = "The host side of the CBST store: construction, rebuild, best-fit insert with the surplus rebuild, fill with overflow segments and payload growth, erase, unfill, and the store object."
+parts = [{ path = "structure/operations.cu" }]
+
+[[file]]
+target = "kernels.cuh"
+brief = "Declarations of the CBST store's kernels."
+parts = [{ path = "kernel/kernels.cuh" }]
+
+[[file]]
+target = "device_utils.cuh"
+brief = "Device and host helpers of the CBST kernels: padded sizes and the 64-bit in-order rank of a heap position (the CBST layout)."
+parts = [{ path = "kernel/device_utils.cuh" }]
+
+[[file]]
+target = "build_tree.cu"
+brief = "Tree construction kernels: the empty heap-ordered tree, node records at their in-order rank, the tail metadata scan, the rebuild of the surplus insert."
+parts = [{ path = "kernel/build_tree.cu" }]
+
+[[file]]
+target = "delete_avail.cu"
+brief = "Erase kernels: locate the nodes, mark them available, and the level-wise subtree_avail reduction."
+parts = [{ path = "kernel/delete_avail.cu" }]
+
+[[file]]
+target = "insert_reuse.cu"
+brief = "Best-fit reuse kernels of insert: the order-statistic walk over deleted slots, the matching pipeline and the degree-binned reuse."
+parts = [{ path = "kernel/insert_reuse.cu" }]
+
+[[file]]
+target = "payload.cu"
+brief = "Fill kernels: the degree-binned appends into tail segments, the overflow plan, the overflow segments and their metadata."
+parts = [{ path = "kernel/payload.cu" }]
+
+[[file]]
+target = "unfill.cu"
+brief = "Unfill kernels: degree-binned removal of values from rows (serial over chained rows, warp and block compaction of one-segment rows)."
+parts = [{ path = "kernel/unfill.cu" }]
+
+[[file]]
+target = "find.cu"
+brief = "Debug lookups of keys and rows (ESCHER-GPU's findAndPrint)."
+parts = [
+  { path = "kernel/find.cu", lines = [1, 5] },
+  { path = "kernel/motif_utils.cuh", lines = [11, 24] },
+  { path = "kernel/find.cu", lines = [6, 56] },
+]
+
+[[file]]
+target = "row_view.cuh"
+brief = "The key-indexed row view of a CBST (the locator): offset, length and the first entry above the key of every row."
+parts = [{ path = "include/row_view.hpp" }]
+
+[[file]]
+target = "locator.cu"
+brief = "Builds the row view of a CBST: directly over one-segment rows, or over a sorted copy of chained rows."
+parts = [
+  { path = "kernel/locator.cu", lines = [1, 12] },
+  { path = "kernel/delta_merge.cu", lines = [10, 19] },
+  { path = "kernel/delta_merge.cu", lines = [46, 61] },
+  { path = "kernel/delta_merge.cu", lines = [74, 104] },
+  { path = "kernel/locator.cu", lines = [13, 153] },
+]
+
+[[file]]
+target = "integrity.hpp"
+brief = "The CBST integrity checker (a test oracle of the store): rows by BST search, reachability, tail metadata, disjoint segments."
+parts = [{ path = "include/integrity.hpp" }]
+
+[[file]]
+target = "integrity.cu"
+brief = "The CBST integrity checker: copies a tree to the host and checks it against the expected rows."
+parts = [{ path = "structure/integrity.cu" }]
+
+[[file]]
+target = "flatten.cpp"
+brief = "flatten_rows: the CBST construct layout of a list of rows (padded rows, INT_MIN terminators, 64-bit total, OpenMP)."
+parts = [{ path = "utils/flatten.cpp" }]
+
+# Includes of the originals and their replacements ("" drops the line).
+[includes]
+'"../include/structure.hpp"' = '"hypergraph/escher/cbst_store.hpp"'
+'"structure.hpp"' = '"hypergraph/escher/cbst_store.hpp"'
+'"../include/row_view.hpp"' = '"hypergraph/escher/row_view.cuh"'
+'"../include/integrity.hpp"' = '"hypergraph/escher/integrity.hpp"'
+'"../include/utils.hpp"' = '"hypergraph/escher/flatten.hpp"'
+'"../include/printUtils.hpp"' = '"hypergraph/escher/transplant_shims.hpp"'
+'"../kernel/kernels.cuh"' = '"hypergraph/escher/kernels.cuh"'
+'"kernels.cuh"' = '"hypergraph/escher/kernels.cuh"'
+'"device_utils.cuh"' = '"hypergraph/escher/device_utils.cuh"'
+'"motif_utils.cuh"' = ''
+'"delta_merge.cuh"' = ''
+
+# Context-dependent renames (Python regular expressions, applied in order before [names]): the
+# store object's fill and unfill become append and remove_values (PLAN Appendix B); the
+# degree-bin counters keep their field names fill, reuse and unfill.
+[[context]]
+pattern = 'CBSTOperations::fill\b'
+replacement = 'CBSTOperations::append'
+[[context]]
+pattern = 'CBSTOperations::unfill\b'
+replacement = 'CBSTOperations::remove_values'
+[[context]]
+pattern = '\bvoid fill\('
+replacement = 'void append('
+[[context]]
+pattern = '\bvoid unfill\('
+replacement = 'void remove_values('
+
+# Whole-token renames (identifiers, and the same words in comments and strings). Types, kernels
+# and functions follow PLAN 4.4.1 (types and functions snake_case without _t; kernels
+# <verb>_<object>_kernel, degree-binned <verb>_{thread,warp,block}_kernel); every other
+# camelCase identifier of the ported files becomes its snake_case spelling. CUDA runtime and
+# built-in names (cuda*, threadIdx, blockIdx, blockDim, atomicAdd) are not renamed.
+[names]
+# explicit
+CBSTContext = "cbst_context"
+CBSTNode = "cbst_node"
+CBSTOperations = "cbst_store"
+DegreeBinLaunches = "degree_bin_launches"
+DegreeBins = "degree_bins"
+HostTree = "host_tree"
+InsertMapping = "insert_mapping"
+IsSet = "is_set"
+LessThan = "less_than"
+RowLocator = "row_locator"
+RowView = "row_view"
+Segment = "segment"
+TempBuffer = "temp_buffer"
+allocateSpace = "allocate_space_kernel"
+applyDeletes = "apply_deletes_kernel"
+applyReuse = "apply_reuse_thread_kernel"
+applyReuse_block = "apply_reuse_block_kernel"
+applyReuse_warp = "apply_reuse_warp_kernel"
+buildEmptyBinaryTree = "build_empty_tree_kernel"
+buildRowLocatorKernel = "build_row_locator_kernel"
+chainedRowLengths = "chained_row_lengths_kernel"
+computeAssigned = "compute_assigned_kernel"
+computeBInPlace = "compute_b_in_place_kernel"
+computeItemSizes = "compute_item_sizes_kernel"
+computeNextMultipleOf4 = "compute_next_multiple_of_4_kernel"
+constructCBST = "construct_cbst"
+degreeBinLaunches = "degree_bin_launch_counts"
+deleteCBST = "delete_cbst"
+extractKeysFromPositions = "extract_keys_from_positions_kernel"
+extractSlotCapacities = "extract_slot_capacities_kernel"
+fillCBST = "fill_cbst"
+findContents = "find_contents_kernel"
+findNode = "find_node_kernel"
+fixupOverflowMetadata = "fixup_overflow_metadata_kernel"
+flatten2DVector = "flatten_rows"
+forEachChainedEntry = "for_each_chained_entry"
+gatherChainedRows = "gather_chained_rows_kernel"
+initTailMetadata = "init_tail_metadata_kernel"
+insertCBST = "insert_cbst"
+insertNode_block = "insert_node_block_kernel"
+insertNode_thread = "insert_node_thread_kernel"
+insertNode_warp = "insert_node_warp_kernel"
+kEmpty = "empty_row"
+locateDeleteTargets = "locate_delete_targets_kernel"
+locateReusableSlots = "locate_reusable_slots_kernel"
+lowerBoundKernel = "lower_bound_kernel"
+makePair = "pack_pair"
+nextMultipleOf32 = "next_multiple_of_32"
+nextMultipleOf4 = "next_multiple_of_4"
+pairMatches = "pair_matches_kernel"
+pairValue = "pair_value"
+pairValues = "pair_values_kernel"
+placeNodeRecords = "place_node_records_kernel"
+printEachNode = "print_nodes_kernel"
+rankOrderNodes = "rank_order_nodes_kernel"
+readFlat = "read_flat"
+rebuildCBSTFromDevice = "rebuild_cbst_from_device"
+recordKeysAndStarts = "record_keys_and_starts_kernel"
+reduceAvailLevel = "reduce_avail_level_kernel"
+rowHeadsKernel = "row_heads_kernel"
+storeItemsIntoNodes = "store_items_kernel"
+unfillCBST = "unfill_cbst"
+unfill_block = "unfill_block_kernel"
+unfill_thread = "unfill_thread_kernel"
+unfill_warp = "unfill_warp_kernel"
+updatePartialSolution = "update_partial_solution_kernel"
+# camelCase -> snake_case
+binCount = "bin_count"
+binIndices = "bin_indices"
+blockSize = "block_size"
+blocksBuild = "blocks_build"
+blocksOld = "blocks_old"
+bstFind = "bst_find"
+buildSortedCopy = "build_sorted_copy"
+cbstRankOfPosition = "cbst_rank_of_position"
+chainedRows = "chained_rows"
+checkCuda = "check_cuda"
+checkCudaLocator = "check_cuda_locator"
+checkTreeRows = "check_tree_rows"
+chunkKept = "chunk_kept"
+copyBytes_ = "copy_bytes_"
+copyLen = "copy_len"
+currLoc = "curr_loc"
+d_allPositions = "d_all_positions"
+d_deleteKeys = "d_delete_keys"
+d_deletePositions = "d_delete_positions"
+d_deletedKeys = "d_deleted_keys"
+d_flatPayload = "d_flat_payload"
+d_insertKeys = "d_insert_keys"
+d_insertPayload = "d_insert_payload"
+d_insertPrefixSizes = "d_insert_prefix_sizes"
+d_itemOrder = "d_item_order"
+d_itemSizes = "d_item_sizes"
+d_matchedItemIdx = "d_matched_item_idx"
+d_matchedSlotIdx = "d_matched_slot_idx"
+d_prefixMax = "d_prefix_max"
+d_rankedLive = "d_ranked_live"
+d_relocationPlan = "d_relocation_plan"
+d_slotCaps = "d_slot_caps"
+d_slotOrder = "d_slot_order"
+d_startOffsets = "d_start_offsets"
+d_subtreeAvail = "d_subtree_avail"
+datasetName = "dataset_name"
+deleteIndex = "delete_index"
+deleteIndices = "delete_indices"
+deleteKeys = "delete_keys"
+deleteSize = "delete_size"
+deletedKeys = "deleted_keys"
+deviceBytes = "device_bytes"
+elemIdx = "elem_idx"
+endVal = "end_val"
+ensurePayloadCapacity = "ensure_payload_capacity"
+findAndPrint = "find_and_print"
+finishReuse = "finish_reuse"
+fixedSize = "fixed_size"
+flatPayload = "flat_payload"
+flatPayloadSize = "flat_payload_size"
+flatValues = "flat_values"
+g_binLaunches = "g_bin_launches"
+globalIdx = "global_idx"
+globalTid = "global_tid"
+hadOverflow = "had_overflow"
+idxPS = "idx_ps"
+idxPartialSolution = "idx_partial_solution"
+initialPayloadSize = "initial_payload_size"
+insertIndex = "insert_index"
+insertIndices = "insert_indices"
+insertKeys = "insert_keys"
+insertNode = "insert_node"
+insertPayload = "insert_payload"
+insertPrefixSizes = "insert_prefix_sizes"
+insertSize = "insert_size"
+insertSizes = "insert_sizes"
+insertValues = "insert_values"
+itemIdx = "item_idx"
+itemOrder = "item_order"
+itemOrder_ptr = "item_order_ptr"
+itemSizes = "item_sizes"
+itemToKey = "item_to_key"
+keptInChunk = "kept_in_chunk"
+keysToUnfill = "keys_to_unfill"
+laneOffset = "lane_offset"
+lastKey = "last_key"
+lastLen = "last_len"
+lastLevelStart = "last_level_start"
+lastLoc = "last_loc"
+leftCount = "left_count"
+leftSum = "left_sum"
+lenPS = "len_ps"
+lenPartialSolution = "len_partial_solution"
+levelEnd = "level_end"
+levelStart = "level_start"
+liveInTail = "live_in_tail"
+lowerMask = "lower_mask"
+matchCount = "match_count"
+matchIdx = "match_idx"
+matchedItemIndices = "matched_item_indices"
+matchedSizes = "matched_sizes"
+matchedSlotIndices = "matched_slot_indices"
+maxDetails = "max_details"
+maxKey = "max_key"
+metaErrors = "meta_errors"
+metaOk = "meta_ok"
+myPos = "my_pos"
+newKeys = "new_keys"
+newN = "new_n"
+newPayload = "new_payload"
+newPrefixSizes = "new_prefix_sizes"
+nextKey = "next_key"
+nextMultiple = "next_multiple"
+nodeFound = "node_found"
+numBlocks = "num_blocks"
+numBlocksD = "num_blocks_d"
+numBlocksR = "num_blocks_r"
+numItems = "num_items"
+numNodes = "num_nodes"
+numRecords = "num_records"
+numRows = "num_rows"
+numValues = "num_values"
+numWarps = "num_warps"
+numWritten = "num_written"
+oldN = "old_n"
+orderInsensitive = "order_insensitive"
+origIdx = "orig_idx"
+outCapacities = "out_capacities"
+outKeys = "out_keys"
+outLo = "out_lo"
+outPositions = "out_positions"
+outSizes = "out_sizes"
+overflowCount = "overflow_count"
+overflowStart = "overflow_start"
+overlapErrors = "overlap_errors"
+paddedRowSize = "padded_row_size"
+partialSolution = "partial_solution"
+payloadCapacity = "payload_capacity"
+payloadSize = "payload_size"
+perThreadPadded = "per_thread_padded"
+prefixMax = "prefix_max"
+prefixSizes = "prefix_sizes"
+printRow = "print_row"
+printVector = "print_vector"
+rankedLive = "ranked_live"
+reachErrors = "reach_errors"
+readRow = "read_row"
+rebuildFromDevice = "rebuild_from_device"
+recomputeSubtreeAvail = "recompute_subtree_avail"
+relocationPlanHostOut = "relocation_plan_host_out"
+remEnd = "rem_end"
+remStart = "rem_start"
+removeIt = "remove_it"
+removePrefixSizes = "remove_prefix_sizes"
+reserveKeys = "reserve_keys"
+reserveScratch = "reserve_scratch"
+reuseK = "reuse_k"
+reusedSlotValue = "reused_slot_value"
+rightSum = "right_sum"
+rowErrors = "row_errors"
+scratchItemCapacity = "scratch_item_capacity"
+scratchPayloadCapacity = "scratch_payload_capacity"
+searchIndex = "search_index"
+searchIndices = "search_indices"
+searchSize = "search_size"
+segBase = "seg_base"
+segBegin = "seg_begin"
+segLen = "seg_len"
+sh_numValues = "sh_num_values"
+sh_origIdx = "sh_orig_idx"
+sh_remEnd = "sh_rem_end"
+sh_remStart = "sh_rem_start"
+sh_segBase = "sh_seg_base"
+sh_valuesStart = "sh_values_start"
+sh_writeOffset = "sh_write_offset"
+sh_writePos = "sh_write_pos"
+slotIdx = "slot_idx"
+slotOrder = "slot_order"
+slotOrder_ptr = "slot_order_ptr"
+sortedCaps = "sorted_caps"
+sortedRecords = "sorted_records"
+sortedSizes = "sorted_sizes"
+spaceAvailableFrom = "space_available_from"
+startIdx = "start_idx"
+startOffsets = "start_offsets"
+startPartialSolution = "start_partial_solution"
+storeStartIdx = "store_start_idx"
+subtreeAvail = "subtree_avail"
+surplusIndices = "surplus_indices"
+surplusRecords = "surplus_records"
+tailBase = "tail_base"
+tailCapacity = "tail_capacity"
+totalAppended = "total_appended"
+totalSize = "total_size"
+unfillBstFind = "unfill_bst_find"
+unfillRowSerial = "unfill_row_serial"
+updatedFlat = "updated_flat"
+validOldCount = "valid_old_count"
+valuesStart = "values_start"
+valuesToRemove = "values_to_remove"
+warpBase = "warp_base"
+warpId = "warp_id"
+warpIdx = "warp_idx"
+warpKept = "warp_kept"
+warpLane = "warp_lane"
+withOut = "with_out"
+writeOffset = "write_offset"
+writePos = "write_pos"

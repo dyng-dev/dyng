@@ -127,6 +127,26 @@ dyng_add_test(
   LIBRARIES dyng_cbst_compare
 )
 list(APPEND _dyng_private_tests dyng_cbst_model_large_tests)
+# The dynG CBST store (cpp/src/hypergraph/escher, M8a step 3, ADR 0038) as a store of the replay:
+# the device adapter, the replays of the committed traces on the device (labels gpu, parity, cbst)
+# and dyng_cbst_replay --store device.
+if(DYNG_ENABLE_CUDA)
+  add_library(dyng_cbst_device STATIC parity/escher/cbst_device_adapter.cpp)
+  target_link_libraries(dyng_cbst_device PUBLIC dyng_cbst_compare)
+  target_include_directories(dyng_cbst_device PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_warnings(dyng_cbst_device)
+  dyng_enable_sanitizers(dyng_cbst_device)
+  dyng_set_cuda_options(dyng_cbst_device)
+  target_link_libraries(dyng_cbst_replay PRIVATE dyng_cbst_device)
+  target_compile_definitions(dyng_cbst_replay PRIVATE DYNG_CBST_DEVICE_STORE=1)
+  dyng_add_test(
+    NAME dyng_cbst_device_tests
+    SOURCES parity/escher/cbst_device_replay_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  list(APPEND _dyng_private_tests dyng_cbst_device_tests)
+endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   add_test(
     NAME cbst_model_isolation

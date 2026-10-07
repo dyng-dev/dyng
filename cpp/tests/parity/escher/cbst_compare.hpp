@@ -91,6 +91,9 @@ struct key_digest {
 struct tree_digest {
   std::int64_t num_records = 0, fixed_size = 0, bump = 0, alignment = 0;
   std::int64_t scratch_items = -1, scratch_payload = -1, device_bytes = -1, d = -1;
+  /// The store's own integrity verdict on its rows as read (the violations ESCHER-GPU's
+  /// checkTreeRows counts; -1: the store does not check), compared with the trace's `check.rows`.
+  std::int64_t integrity = -1;
   std::vector<std::int32_t> keys;           ///< BST order
   std::vector<std::int32_t> subtree_avail;  ///< by heap position
   std::vector<key_digest> records;          ///< BST order (digest(), not scalars())

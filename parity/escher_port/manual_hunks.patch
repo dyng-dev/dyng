@@ -1,0 +1,81 @@
+--- a/cpp/src/hypergraph/escher/flatten.cpp
++++ b/cpp/src/hypergraph/escher/flatten.cpp
+@@ -13,6 +13,8 @@
+ #include "hypergraph/escher/flatten.hpp"
+ 
+ #include <climits>
++#include <cstddef>
++#include <utility>
+ #include <vector>
+ 
+ namespace dyng::detail::escher {
+@@ -36,7 +38,9 @@
+     total += padded_row_size(static_cast<long long>(vec2d[i].size()));
+   }
+   std::vector<int> flat_values(total, 0);
++#if defined(_OPENMP)
+ #pragma omp parallel for schedule(dynamic, 1024)
++#endif
+   for (long long i = 0; i < num_rows; ++i) {
+     int* row = flat_values.data() + start_offsets[i];
+     const std::vector<int>& values = vec2d[i];
+--- a/cpp/src/hypergraph/escher/flatten.hpp
++++ b/cpp/src/hypergraph/escher/flatten.hpp
+@@ -0,0 +1,19 @@
++// SPDX-FileCopyrightText: 2026 The dynG Authors
++// SPDX-License-Identifier: Apache-2.0
++// Derived from ESCHER-GPU@abcf9b2:include/utils.hpp
++/**
++ * @file flatten.hpp
++ * @brief flatten_rows: the CBST construct layout of a list of rows (ESCHER-GPU's flatten2DVector,
++ *        declared in its include/utils.hpp).
++ */
++#pragma once
++
++#include <utility>
++#include <vector>
++
++namespace dyng::detail::escher {
++
++std::pair<std::vector<int>, std::vector<int>> flatten_rows(
++    const std::vector<std::vector<int>>& vec2d);
++
++}  // namespace dyng::detail::escher
+--- a/cpp/src/hypergraph/escher/transplant_shims.hpp
++++ b/cpp/src/hypergraph/escher/transplant_shims.hpp
+@@ -0,0 +1,35 @@
++// SPDX-FileCopyrightText: 2026 The dynG Authors
++// SPDX-License-Identifier: Apache-2.0
++// Derived from ESCHER-GPU@abcf9b2:include/printUtils.hpp
++/**
++ * @file transplant_shims.hpp
++ * @brief The two helpers of ESCHER-GPU's utils/printUtils.cpp that the transplanted store calls
++ *        (M8a step 3, commit c1 only; the next commit replaces them by the log sink).
++ *
++ * verbose() is ESCHER-GPU's --verbose flag, off unless the user asks: every traced run of the
++ * golden sets ran with it off, so the transplant keeps it off. print_vector is the debug print
++ * of printVector.
++ */
++#pragma once
++
++#include <iostream>
++#include <string>
++#include <vector>
++
++namespace dyng::detail::escher {
++
++/// ESCHER-GPU's verbose(): off.
++inline bool verbose() {
++  return false;
++}
++
++/// ESCHER-GPU's printVector.
++inline void print_vector(const std::vector<int>& vec, const std::string& name) {
++  std::cout << name << ": [ ";
++  for (int val : vec) {
++    std::cout << val << " ";
++  }
++  std::cout << "]" << std::endl;
++}
++
++}  // namespace dyng::detail::escher
