@@ -130,6 +130,15 @@ struct cbst_store {
   void remove_values(const std::vector<int>& keys_to_unfill,
                      const std::vector<int>& values_to_remove,
                      const std::vector<int>& remove_prefix_sizes);
+  // A deep copy of the store on `res` (dynG addition): every array copied, the node pointers
+  // re-wired to the copy; it is independent of its source. The copy waits for the work queued
+  // on the source's stream; its counters start at zero. Throws invalid_argument_error for a
+  // poisoned store.
+  cbst_store clone(const resources& res) const;
+  // The same on the store's own resources.
+  cbst_store clone() const {
+    return clone(ctx_.res);
+  }
   // The heap position of the node of every key (-1: absent).
   std::vector<int> find(const std::vector<int>& ids) const;
   // The degree-bin launches of the store's operations so far.

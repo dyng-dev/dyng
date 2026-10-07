@@ -15,9 +15,14 @@
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/resources.hpp>
+#include <dyng/core/stream.hpp>
+
+#include <cuda_runtime_api.h>
 
 #include <gtest/gtest.h>
 
+#include <climits>
+#include <cstddef>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -112,6 +117,93 @@ TEST(CbstStoreEmptyTree, OperationsBeforeConstructThrow) {
   EXPECT_THROW(s.erase({1}), invalid_argument_error);
   EXPECT_THROW(s.remove_values(b.keys, b.payload, b.prefix), invalid_argument_error);
   EXPECT_FALSE(s.poisoned());
+}
+
+}  // namespace
+}  // namespace dyng::detail::escher
+
+namespace dyng::detail::escher {
+namespace {
+
+/// A tree with reused, chained (fill overflow), grown and deleted rows.
+rows build_busy_tree(cbst_store& s) {
+  rows want = {{1, 2, 3}, {4}, {5, 6, 7, 8, 9}, {10}};
+  std::vector<int> keys = {1, 2, 3, 4};
+  std::vector<int> flat, starts;
+  for (const auto& r : want) {
+    starts.push_back(static_cast<int>(flat.size()));
+    const std::size_t padded = (r.size() + 4) / 4 * 4;
+    flat.insert(flat.end(), r.begin(), r.end());
+    flat.insert(flat.end(), padded - r.size() - 1, 0);
+    flat.push_back(INT_MIN);
+  }
+  s.construct(keys.data(), starts.data(), 4, flat.data(), static_cast<int>(flat.size()));
+  std::vector<int> big(40);
+  for (int i = 0; i < 40; ++i) big[static_cast<std::size_t>(i)] = 100 + i;
+  const batch fill = make_batch({2, 4}, {big, {11, 12}});
+  s.append(fill.keys, fill.payload, fill.prefix);  // key 2 overflows into a chained segment
+  want[1].insert(want[1].end(), big.begin(), big.end());
+  want[3].insert(want[3].end(), {11, 12});
+  s.erase({3});
+  want[2].clear();
+  const batch ins = make_batch({0, 0}, {{50, 51}, {52, 53, 54, 55, 56, 57, 58}});
+  const insert_mapping m = s.insert(ins.keys, ins.payload, ins.prefix);
+  EXPECT_EQ(m.item_to_key, (std::vector<int>{3, 5}));  // reuse of key 3, then a surplus row
+  want[2] = {50, 51};
+  want.push_back({52, 53, 54, 55, 56, 57, 58});
+  s.remove_values({2}, {100, 4}, {2});
+  want[1].erase(want[1].begin(), want[1].begin() + 2);
+  return want;
+}
+
+// --- Store clone (dynG addition) -----------------------------------------------------------------
+
+TEST(CbstStoreClone, EqualsItsSourceAndIsIndependent) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store source(res, "source", 64);
+  const rows want = build_busy_tree(source);
+  ASSERT_EQ(violations(source, want, true), 0);
+  cbst_store copy = source.clone();
+  EXPECT_EQ(violations(copy, want, true), 0);
+  EXPECT_EQ(copy.context().num_records, source.context().num_records);
+  EXPECT_EQ(copy.context().initial_payload_size, source.context().initial_payload_size);
+  EXPECT_EQ(copy.context().fixed_size, source.context().fixed_size);
+  EXPECT_EQ(copy.device_bytes(), source.device_bytes());
+  EXPECT_NE(copy.context().d_nodes, source.context().d_nodes);
+  // Changing the copy leaves the source as it was, and the other way round.
+  const batch more = make_batch({1, 5}, {{200, 201, 202, 203, 204, 205}, {206}});
+  copy.append(more.keys, more.payload, more.prefix);
+  copy.erase({4});
+  rows changed = want;
+  changed[0].insert(changed[0].end(), {200, 201, 202, 203, 204, 205});
+  changed[4].push_back(206);
+  changed[3].clear();
+  EXPECT_EQ(violations(copy, changed, true), 0);
+  EXPECT_EQ(violations(source, want, true), 0);
+  source.erase({1});
+  rows source_rows = want;
+  source_rows[0].clear();
+  EXPECT_EQ(violations(source, source_rows, true), 0);
+  EXPECT_EQ(violations(copy, changed, true), 0);
+}
+
+TEST(CbstStoreClone, OntoAnotherStream) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store source(res, "source", 64);
+  const rows want = build_busy_tree(source);
+  cudaStream_t other = nullptr;
+  ASSERT_EQ(cudaStreamCreateWithFlags(&other, cudaStreamNonBlocking), cudaSuccess);
+  {
+    const resources res2 = resources::cuda(res.device(), stream_ref(other));
+    cbst_store copy = source.clone(res2);
+    EXPECT_EQ(violations(copy, want, true), 0);
+    cbst_store copy_of_copy = copy.clone(res);
+    EXPECT_EQ(violations(copy_of_copy, want, true), 0);
+  }
+  ASSERT_EQ(cudaStreamSynchronize(other), cudaSuccess);
+  ASSERT_EQ(cudaStreamDestroy(other), cudaSuccess);
 }
 
 }  // namespace

@@ -17,6 +17,7 @@ namespace dyng::detail::escher {
 
 // Build tree
 __global__ void build_empty_tree_kernel(cbst_node* nodes, int n);
+__global__ void rewire_tree_kernel(cbst_node* nodes, int n);
 __global__ void store_items_kernel(cbst_node* nodes, int* indices, int* values, int n,
                                    int total_size);
 __global__ void init_tail_metadata_kernel(cbst_node* nodes, const int* flat_values, int n);

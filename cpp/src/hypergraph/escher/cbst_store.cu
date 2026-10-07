@@ -866,6 +866,62 @@ void cbst_store::remove_values(const std::vector<int>& keys_to_unfill,
           [&] { unfill_cbst(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_); });
 }
 
+// A device copy of one array of a context into the matching array of another (same size).
+template <typename value_t>
+static void copy_array(cbst_context& to, buffer<value_t>& to_storage, value_t*& to_view,
+                       const buffer<value_t>& from) {
+  allocate(to, to_storage, to_view, from.size());
+  if (!from.empty())
+    DYNG_CUDA_TRY(cudaMemcpyAsync(to_view, from.data(), from.size() * sizeof(value_t),
+                                  cudaMemcpyDeviceToDevice, stream_of(to)));
+}
+
+cbst_store cbst_store::clone(const resources& res) const {
+  check_not_poisoned("clone");
+  const scoped_device guard(ctx_.res.device());
+  cbst_store copy(res, ctx_.dataset_name, ctx_.fixed_size, ctx_.alignment);
+  cbst_context& c = copy.ctx_;
+  // The copy is ordered after the work queued on the source's stream.
+  if (stream_of(c) != stream_of(ctx_)) {
+    cudaEvent_t ready;
+    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&ready, cudaEventDisableTiming));
+    DYNG_CUDA_TRY(cudaEventRecord(ready, stream_of(ctx_)));
+    DYNG_CUDA_TRY(cudaStreamWaitEvent(stream_of(c), ready, 0));
+    DYNG_CUDA_TRY(cudaEventDestroy(ready));
+  }
+  c.num_records = ctx_.num_records;
+  c.initial_payload_size = ctx_.initial_payload_size;
+  c.scratch_item_capacity = ctx_.scratch_item_capacity;
+  c.scratch_payload_capacity = ctx_.scratch_payload_capacity;
+  copy_array(c, c.nodes_storage, c.d_nodes, ctx_.nodes_storage);
+  copy_array(c, c.keys_storage, c.d_keys, ctx_.keys_storage);
+  copy_array(c, c.start_offsets_storage, c.d_start_offsets, ctx_.start_offsets_storage);
+  copy_array(c, c.flat_payload_storage, c.d_flat_payload, ctx_.flat_payload_storage);
+  copy_array(c, c.avail_storage, c.d_avail, ctx_.avail_storage);
+  copy_array(c, c.subtree_avail_storage, c.d_subtree_avail, ctx_.subtree_avail_storage);
+  // The operation scratch: the same capacities (its contents are inputs of the next operation).
+  allocate(c, c.insert_keys_storage, c.d_insert_keys, ctx_.insert_keys_storage.size());
+  allocate(c, c.insert_payload_storage, c.d_insert_payload, ctx_.insert_payload_storage.size());
+  allocate(c, c.insert_prefix_sizes_storage, c.d_insert_prefix_sizes,
+           ctx_.insert_prefix_sizes_storage.size());
+  allocate(c, c.relocation_plan_storage, c.d_relocation_plan, ctx_.relocation_plan_storage.size());
+  if (c.nodes_storage.size() > 0) {
+    const int n = static_cast<int>(c.nodes_storage.size());
+    rewire_tree_kernel<<<(n + 255) / 256, 256, 0, stream_of(c)>>>(c.d_nodes, n);
+    DYNG_CHECK_KERNEL(stream_of(c));
+  }
+  // Later work on the source's stream waits for the copy's reads.
+  if (stream_of(c) != stream_of(ctx_)) {
+    cudaEvent_t copied;
+    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&copied, cudaEventDisableTiming));
+    DYNG_CUDA_TRY(cudaEventRecord(copied, stream_of(c)));
+    DYNG_CUDA_TRY(cudaStreamWaitEvent(stream_of(ctx_), copied, 0));
+    DYNG_CUDA_TRY(cudaEventDestroy(copied));
+  }
+  copy.constructed_ = constructed_;
+  return copy;
+}
+
 // ESCHER-GPU's findAndPrint printed the rows from the device; the lookup now returns the heap
 // position of every key's node (-1: not in the tree) and prints nothing.
 std::vector<int> cbst_store::find(const std::vector<int>& ids) const {

@@ -73,6 +73,18 @@ __global__ void init_tail_metadata_kernel(cbst_node* nodes, const int* flat_valu
   node.occupancy = count;
 }
 
+// The child and parent pointers of a copied tree (store clone; dynG addition): CBST nodes hold
+// absolute device pointers, so the copy of a node array points into its source until they are
+// re-wired to the copy's own heap positions (the layout of build_empty_tree_kernel).
+__global__ void rewire_tree_kernel(cbst_node* nodes, int n) {
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid < n) {
+    nodes[tid].left = (2 * tid + 1 < n) ? &nodes[2 * tid + 1] : nullptr;
+    nodes[tid].right = (2 * tid + 2 < n) ? &nodes[2 * tid + 2] : nullptr;
+    nodes[tid].parent = (tid == 0) ? nullptr : &nodes[(tid - 1) / 2];
+  }
+}
+
 // Rebuild after surplus inserts: places full node records (sorted by key) at
 // their heap positions, so surviving rows keep their offset, length and
 // tail metadata. Child/parent pointers come from build_empty_tree_kernel.
@@ -113,6 +125,7 @@ __global__ void record_keys_and_starts_kernel(const cbst_node* records, int n, i
 
 // Every kernel of this file is loaded by resources::warm_up().
 DYNG_REGISTER_KERNEL(build_empty_tree_kernel);
+DYNG_REGISTER_KERNEL(rewire_tree_kernel);
 DYNG_REGISTER_KERNEL(store_items_kernel);
 DYNG_REGISTER_KERNEL(init_tail_metadata_kernel);
 DYNG_REGISTER_KERNEL(place_node_records_kernel);
