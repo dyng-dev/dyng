@@ -14,6 +14,10 @@
 #     For a target with a writer, also dyng_fuzz_selftest_<name> (DYNG_FUZZ_CORRUPT_WRITES=1: every
 #     file the writer produces gets a line of garbage) and the CTest fuzz.selftest.<name>, which
 #     passes only if the replay reports the broken round trip: the check can fail.
+#
+# fuzz.corpus.<name> runs with -malloc_limit_mb=256: no committed input needs a single allocation
+# that large, and every reproducer of cpp/fuzz/regressions asked for more before its fix (the
+# smallest, csr_triplet/oom_weight_columns, 400 MB).
 
 set(DYNG_FUZZ_TARGETS
     matrix_market
@@ -61,7 +65,7 @@ foreach(_name IN LISTS DYNG_FUZZ_TARGETS)
       list(SORT _found)
       list(APPEND _files ${_found})
     endforeach()
-    add_test(NAME fuzz.corpus.${_name} COMMAND fuzz_${_name} ${_files})
+    add_test(NAME fuzz.corpus.${_name} COMMAND fuzz_${_name} -malloc_limit_mb=256 ${_files})
     set_tests_properties(
       fuzz.corpus.${_name}
       PROPERTIES LABELS "cpu;io;fuzz" ENVIRONMENT

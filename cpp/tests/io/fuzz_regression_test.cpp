@@ -9,9 +9,11 @@
  * hold: a few bytes made a reader reserve gigabytes before it reported the short file. This
  * executable replaces the global operator new with one that records the largest single request,
  * so the tests check the bound with the regular compilers too (not under the sanitizers, which
- * replace operator new themselves; the size checks are then skipped, and the libFuzzer build
- * checks them instead: its CTest fuzz.corpus.<target> replays the reproducers of
- * cpp/fuzz/regressions with a 2 GB allocation limit).
+ * replace operator new themselves; the size checks are then skipped). The libFuzzer build checks
+ * the same bounds: its CTest fuzz.corpus.<target> replays the reproducers of cpp/fuzz/regressions
+ * (one per test below: matrix_market/oom_announced_entries, csr_triplet/oom_announced_edges and
+ * csr_triplet/oom_weight_columns, the last with 10,000 x 10,000 weights) with a single-allocation
+ * limit of 256 MB (-malloc_limit_mb=256), which each of them exceeded before its fix.
  */
 #include "support/data_paths.hpp"
 #include "support/gtest_helpers.hpp"
