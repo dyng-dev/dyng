@@ -386,6 +386,12 @@ insert of `beginBatch` plus `finishBatch`) is noted for M11.
   hashes; its construct payload is in the side file.
 - **B's `bin/main`** is not in `mosp_escher_test` (deviation 1 of the retrospective); its
   `DynamicGraph` calls are covered by the seeded MOSP stress tests in the set.
+- **The release certificate.** `certify.py` lists the `cbst_trace` sets with their kind and
+  checks any replay record of one like any other set's, but a set without a replay record is
+  shown as "listed" and kept out of the golden verdict (there is no store yet). The store's
+  replay (steps 2-4) should write `parity-cbst_trace_<set>-*.json` records (`set`, the
+  manifest, `configs` = the presets, `matrix`, `passed`) so that the 0.3.0 certificate gates
+  them; then the `passed is None` exception of `golden_suites` can be removed.
 - **The 1,024-hop chain bound of B** is not reached in any trace of B (the longest chain of every
   set is in section 5's table; PLAN 6.4.5's bounded `readFlat` is merged in step 4).
 

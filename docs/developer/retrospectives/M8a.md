@@ -37,7 +37,8 @@ not gated, in M8 (it is gated in M9). (2) O16: the hypergraph `id_reuse` default
 | `f0d8920` | `datasets/registry.toml`: the coauth-DBLP archive and both originals' variants |
 | `c418064`, `a040c20` | the fixes of the resume (below): output-option files are not inputs; the summary skips hash-only inputs; the comparator sees compactions |
 | `40cc358` | the golden sets (`export_goldens.py cbst_trace`), their manifests in `goldens.toml`, the committed subset and the reader, census, dispatch and comparator tests |
-| (the docs commit) | ADR 0036, `parity/results/M8a.md` with the census, twin and cross-check records, this retrospective, the M8a / M8b split in `docs/developer/plan.md` and `docs/roadmap.md`, GOVERNANCE.md, CHANGELOG |
+| `f320cd6` | ADR 0036, `parity/results/M8a.md` with the census, twin and cross-check records, this retrospective, the M8a / M8b split in `docs/developer/plan.md` and `docs/roadmap.md`, GOVERNANCE.md, CHANGELOG |
+| (the certify commit) | `certify.py` lists the `cbst_trace` sets without gating them before the store's replay records exist (deviation 7) |
 
 ### Deviations from the plan and the step's text (each with the same intent)
 
@@ -67,7 +68,11 @@ not gated, in M8 (it is gated in M9). (2) O16: the hypergraph `id_reuse` default
    compared through B's store up to their first rebuild (`rebuild_only_in_a`); the step's
    minimum (H2V and V2H of A, and B's h2h through A) is fully replayed. A's coauth H2H inputs are
    hash-only (the 10 GB budget), so they could not be replayed anyway.
-7. **Subset size.** The committed subset is 307,170 bytes ("at most about 300 KB"); the
+7. **The trace sets in the release certificate.** `certify.py` lists the `cbst_trace` sets
+   (kind `cbst_trace`) but keeps a set without a replay record out of the golden verdict: the
+   store that replays them does not exist before step 2. A replay record of one is checked as
+   usual; the store's replay writes them later (`parity/results/M8a.md`, section 8).
+8. **Subset size.** The committed subset is 307,170 bytes ("at most about 300 KB"); the
    repository's test data stays at 470 KB, under 1 MB.
 
 ### The interruption and the resume (2026-10-07)

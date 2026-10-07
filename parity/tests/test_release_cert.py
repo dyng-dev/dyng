@@ -459,6 +459,7 @@ def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> 
         "mosp_sssp",
         "mosp_combined",
         "cycle_enum",
+        "cbst_trace",
     }
     assert doc["environment"]["driver"]["nvidia"] == DRIVER["nvidia"]
     assert "named by" in doc["environment"]["driver"]["source"]
@@ -948,3 +949,33 @@ def test_ctest_progress_lines(cert) -> None:
         "L.R<(anonymous namespace)::t<int,int>>": "Failed",
         "A.B": "Passed",
     }
+
+
+def test_cbst_trace_sets_are_listed_not_gated(cert, tmp_path: Path) -> None:
+    """The CBST trace goldens of M8a are listed with their kind; without a replay record they
+    stay out of the golden verdict, and a replay record of one is checked like any other."""
+    import tomllib
+
+    sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
+    traces = [n for n, s in sets.items() if s.get("kind") == "cbst_trace"]
+    assert traces
+    results = tmp_path / "results"
+    results.mkdir()
+    problems: list[str] = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    for n in traces:
+        assert listed[n]["kind"] == "cbst_trace" and listed[n]["passed"] is None
+    assert listed["sssp"]["passed"] is False  # an algorithm set without replays still fails
+    record = {
+        "set": traces[0],
+        "port": {"commit": head()},
+        "goldens": {"manifest_sha256": "0" * 64},
+        "configs": ["cuda"],
+        "matrix": {"g": {"cuda": "equal"}},
+        "passed": True,
+    }
+    (results / f"parity-{traces[0]}-0.json").write_text(json.dumps(record))
+    problems = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    assert listed[traces[0]]["passed"] is False
+    assert any("replayed manifest" in p for p in problems)
