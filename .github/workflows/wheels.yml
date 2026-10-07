@@ -39,13 +39,23 @@ on:
         description: Build and test the CUDA plugin wheels dyng-cu12 and dyng-cu13 too
         type: boolean
         default: true
+  # Every change to what the distributions are built from, the library (cpp/) included: the
+  # published plugin configuration (the nanobind module in plugin mode, nvcc 12.x / 13.x with
+  # gcc-toolset and the static runtime) is built nowhere else, so a library change that breaks it
+  # fails in its pull request, not at the release tag. Not a required check (10 to 20 minutes per
+  # plugin).
   pull_request:
     paths:
       - pyproject.toml
       - VERSION
       - CMakeLists.txt
       - cmake/**
+      - cpp/**
       - python/**
+      - LICENSE
+      - NOTICE
+      - LICENSES/**
+      - THIRD_PARTY_LICENSES.txt
       - THIRD_PARTY_LICENSES_CUDA.txt
       - ci/wheel_check.py
       - ci/plugin_pyproject.py

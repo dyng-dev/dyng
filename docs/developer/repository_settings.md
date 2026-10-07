@@ -257,7 +257,7 @@ Required checks (the job names as they appear in a pull request's checks list):
 | DCO app (integration id 1861) | `DCO` (required since 2026-09-30; step 7) |
 
 Do **not** require checks of workflows that run only for some files (`labels.yml`, and
-`wheels.yml`, which runs on pull requests only when they touch the packaging), only on
+`wheels.yml`, which runs on pull requests only when they touch the packaging or the library), only on
 tags (`release.yml`), only on some events (`welcome.yml`, the first-interaction greeting) or
 only on a schedule (the `external-links` job of `docs.yml`): a required check that never runs
 blocks every pull request. When a
