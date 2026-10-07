@@ -130,15 +130,17 @@ TEST(CbstEarlyMemory, Coauth50kStoreBytesWithin105PercentOfEscherGpu) {
         starts.assign(n, used > 0 ? static_cast<int>(used - 1) : 0);
       }
       buffer<int> d_starts(res, std::max<std::size_t>(n, 1)), d_flat(res, cap);
-      if (n > 0)
+      if (n > 0) {
         ASSERT_EQ(
             cudaMemcpy(d_starts.data(), starts.data(), n * sizeof(int), cudaMemcpyHostToDevice),
             cudaSuccess);
+      }
       ASSERT_EQ(cudaMemset(d_flat.data(), 0, cap * sizeof(int)), cudaSuccess);
-      if (used > 0)
+      if (used > 0) {
         ASSERT_EQ(
             cudaMemcpy(d_flat.data(), flat.data(), used * sizeof(int), cudaMemcpyHostToDevice),
             cudaSuccess);
+      }
       // The adapter's convention: the row offsets of exactly n rows (1 for 0).
       s.rebuild_from_device(std::move(d_starts), static_cast<int>(n), std::move(d_flat),
                             static_cast<int>(used), static_cast<int>(cap));
