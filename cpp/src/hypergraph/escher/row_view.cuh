@@ -36,7 +36,7 @@ struct row_view {
 class row_locator {
  public:
   row_locator() = default;
-  ~row_locator();
+  ~row_locator() = default;
   row_locator(const row_locator&) = delete;
   row_locator& operator=(const row_locator&) = delete;
 
@@ -56,6 +56,8 @@ class row_locator {
   }
 
  private:
+  // The arrays (from the memory resource of the tree's resources) and their device pointers.
+  buffer<int> loc_storage_, len_storage_, out_storage_, copy_storage_;
   int* loc_ = nullptr;
   int* len_ = nullptr;
   int* out_ = nullptr;

@@ -9,6 +9,9 @@
 #include "hypergraph/escher/cbst_store.hpp"
 #include "hypergraph/escher/integrity.hpp"
 
+#include <dyng/core/buffer.hpp>
+#include <dyng/core/resources.hpp>
+
 #include <cuda_runtime_api.h>
 
 #include <cxxabi.h>
@@ -218,7 +221,8 @@ std::array<std::int64_t, 9> bins_now() {
 
 }  // namespace
 
-device_store_adapter::device_store_adapter(std::string policy) : policy_(std::move(policy)) {
+device_store_adapter::device_store_adapter(std::string policy)
+    : policy_(std::move(policy)), res_(resources::cuda()) {
   if (policy_ != "escher_gpu")
     throw tr::trace_error("device store: no policy '" + policy_ + "' (M8a step 3 has escher_gpu)");
 }
@@ -235,7 +239,7 @@ void device_store_adapter::create_tree(std::uint32_t id, const std::string& data
   t->name = dataset;
   trees_[id] = std::move(t);
   tree& r = *trees_[id];
-  r.store = std::make_unique<esc::cbst_store>(r.name, static_cast<int>(capacity),
+  r.store = std::make_unique<esc::cbst_store>(res_, r.name, static_cast<int>(capacity),
                                               static_cast<int>(alignment));
 }
 
@@ -261,14 +265,12 @@ op_outcome device_store_adapter::run(std::uint32_t id, const op_request& op) {
       s.construct(keys.data(), starts.data(), static_cast<int>(op.num_records), flat.data(),
                   static_cast<int>(op.flat_size));
     } else if (op.op == "rebuild") {
-      int* d_starts = nullptr;
-      int* d_flat = nullptr;
       const std::size_t n = static_cast<std::size_t>(std::max<std::int64_t>(op.num_records, 0));
       const std::size_t cap = static_cast<std::size_t>(std::max<std::int64_t>(op.capacity, 0));
-      cuda_check(cudaMalloc(reinterpret_cast<void**>(&d_starts), std::max<std::size_t>(n, 1) * 4),
-                 "rebuild starts");
-      cuda_check(cudaMalloc(reinterpret_cast<void**>(&d_flat), std::max<std::size_t>(cap, 1) * 4),
-                 "rebuild payload");
+      buffer<int> starts(res_, std::max<std::size_t>(n, 1));
+      buffer<int> payload(res_, std::max<std::size_t>(cap, 1));
+      int* d_starts = starts.data();
+      int* d_flat = payload.data();
       if (n > 0)
         cuda_check(cudaMemcpy(d_starts, op.starts.data(), n * 4, cudaMemcpyHostToDevice),
                    "rebuild starts");
@@ -276,7 +278,7 @@ op_outcome device_store_adapter::run(std::uint32_t id, const op_request& op) {
       if (!op.flat.empty())
         cuda_check(cudaMemcpy(d_flat, op.flat.data(), op.flat.size() * 4, cudaMemcpyHostToDevice),
                    "rebuild payload");
-      s.rebuild_from_device(d_starts, static_cast<int>(op.num_records), d_flat,
+      s.rebuild_from_device(std::move(starts), static_cast<int>(op.num_records), std::move(payload),
                             static_cast<int>(op.flat_size), static_cast<int>(op.capacity));
     } else if (op.op == "insert") {
       const esc::insert_mapping m = s.insert(std::vector<int>(op.keys.begin(), op.keys.end()),

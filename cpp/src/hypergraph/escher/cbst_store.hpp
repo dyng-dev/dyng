@@ -12,6 +12,9 @@
  */
 #pragma once
 
+#include <dyng/core/buffer.hpp>
+#include <dyng/core/resources.hpp>
+
 #include <cuda_runtime.h>
 
 #include <cstddef>
@@ -56,6 +59,13 @@ struct cbst_context {
   // demand by the operations.
   int scratch_item_capacity;
   long long scratch_payload_capacity;
+  // The resources of the store and the buffers the device pointers above view (allocated from
+  // the resources' memory resource, ordered on their stream).
+  resources res;
+  buffer<cbst_node> nodes_storage;
+  buffer<int> keys_storage, start_offsets_storage, flat_payload_storage, insert_keys_storage,
+      insert_payload_storage, insert_prefix_sizes_storage, relocation_plan_storage, avail_storage,
+      subtree_avail_storage;
 };
 
 // Mapping returned by insert_cbst: for each input item i, item_to_key[i] is the
@@ -74,7 +84,7 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
 // keys 1..num_records start at d_start_offsets (flattened layout) in d_flat_payload
 // (flat_payload_size used entries, payload_capacity allocated). Takes ownership of
 // both buffers and releases the previous tree and payload.
-void rebuild_cbst_from_device(int* d_start_offsets, int num_records, int* d_flat_payload,
+void rebuild_cbst_from_device(buffer<int> start_offsets, int num_records, buffer<int> flat_payload,
                               int flat_payload_size, int payload_capacity, cbst_context& ctx);
 void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
                const std::vector<int>& insert_prefix_sizes, cbst_context& ctx);
@@ -97,7 +107,8 @@ const degree_bin_launches& degree_bin_launch_counts();
 
 // OO wrapper to manage CBST lifecycle and operations
 struct cbst_store {
-  explicit cbst_store(std::string dataset_name, int payload_capacity, int alignment = 4);
+  cbst_store(const resources& res, std::string dataset_name, int payload_capacity,
+             int alignment = 4);
   ~cbst_store();
   cbst_store(const cbst_store&) = delete;
   cbst_store& operator=(const cbst_store&) = delete;
@@ -106,7 +117,7 @@ struct cbst_store {
 
   void construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
                  int flat_payload_size);
-  void rebuild_from_device(int* d_start_offsets, int num_records, int* d_flat_payload,
+  void rebuild_from_device(buffer<int> start_offsets, int num_records, buffer<int> flat_payload,
                            int flat_payload_size, int payload_capacity);
   insert_mapping insert(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
                         const std::vector<int>& insert_prefix_sizes);

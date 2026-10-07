@@ -19,6 +19,8 @@
 
 #include "parity/escher/cbst_compare.hpp"
 
+#include <dyng/core/resources.hpp>
+
 #include <array>
 #include <cstdint>
 #include <map>
@@ -63,6 +65,7 @@ class device_store_adapter final : public store_adapter {
 
  private:
   std::string policy_;
+  resources res_;  ///< every tree's store runs on these (resources::cuda())
   std::map<std::uint32_t, std::unique_ptr<tree>> trees_;
   std::array<std::int64_t, 9> total_bins_{};
   std::uint64_t digest_hash_ = 0xcbf29ce484222325ULL;
