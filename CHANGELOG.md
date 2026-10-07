@@ -66,6 +66,24 @@ Before 0.1.0 anything may change.
 - M6b: configuring `DYNG_SANITIZE=thread` with `DYNG_ENABLE_OPENMP=ON` and a compiler other than
   Clang is an error (GCC's libgomp is not instrumented, so every parallel region would be reported
   as a race); use the preset `tsan` (OpenMP off) or `tsan-openmp` (Clang with Archer).
+- M6b review: configuring with a `DYNG_ALGORITHMS` name that no algorithm has is an error (a stale
+  name such as the tutorial's `my_bfs` after `new_algorithm.py --remove` used to skip every other
+  algorithm quietly); `scripts/new_algorithm.py` takes the default of `--since` from `VERSION`;
+  `scripts/regen.py --check` rejects the scaffold line in a manifest whose maturity is not
+  `experimental`.
+- M6b review: the conformance kit also runs every check with `deletions_first = false` (a third
+  property preset) and the batch mix `cancel` (edges inserted and deleted, or deleted and
+  re-inserted, in one batch) in C2, C3, C4, C9 and C10.
+- M6b review: the reader fuzzers treat any exception in the write -> read round trip as a finding
+  (a rejected copy used to count as a rejected input); `fuzz.selftest.<target>` plants a writer
+  bug and checks that the replay reports it; the corpus replay of the libFuzzer build runs with a
+  256 MB allocation limit and the third finding's reproducer; `fuzz.yml` sets
+  `vm.mmap_rnd_bits=28`, accepts at most 1000 s per target on demand and uploads the reproducers
+  of a cancelled run.
+- M6b review: the documentation site (built from `main`) shows a banner naming the development
+  version and the latest release; the README and the landing page name 0.1.0 as the latest
+  release; the algorithm pages name releases instead of milestones; M6b's ADRs are 0033 and 0034
+  (M6a has 0030-0032); ADR 0029 is accepted (the author, option A).
 
 ### Fixed
 
@@ -80,6 +98,17 @@ Before 0.1.0 anything may change.
   file that is not UTF-8; both are now `dyng.FileFormatError` with the path and line.
 - M6b: the cycle_count kernel tests did not build with Clang's ASan or TSan (their counting
   `operator new` collided with the sanitizer runtime's); they now detect Clang's sanitizers too.
+- M6b review: `dynamic_bfs` (every backend) and the tutorial's `my_bfs` returned levels that were
+  too low when `batch_semantics::deletions_first = false` and a batch inserted an edge and deleted
+  it again: the seed offered a level along the requested insertion, which is not in the graph. It
+  now offers only along an edge of G_{t+1}. `applied_batch::delta` is documented as what it is,
+  the requested changes, not the net change.
+- M6b review: `dynamic_bfs` and `triangle_delta` kept the scaffold line in their manifests, so
+  `new_algorithm.py <name> --remove` deleted them without `--force`.
+- M6b review: the tutorial "Your first dynamic algorithm": step 4.2 now replaces the scaffold's
+  `reads_prepared_graph()` (adding a second one did not compile), the clean-up resets
+  `DYNG_ALGORITHMS`, the prerequisites follow the install page (no compiler in the conda
+  environment), and the reference solution's comments describe the incremental algorithm.
 
 ### M7: the sssp operators engine (0.2, branch `m7-mosp`)
 
