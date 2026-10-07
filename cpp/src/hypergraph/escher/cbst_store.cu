@@ -1005,6 +1005,16 @@ std::vector<int> cbst_store::find(const std::vector<int>& ids) const {
   return positions;
 }
 
+size_t cbst_store::allocated_bytes() const {
+  const cbst_context& c = ctx_;
+  return c.nodes_storage.size() * sizeof(cbst_node) +
+         (c.keys_storage.size() + c.start_offsets_storage.size() + c.flat_payload_storage.size() +
+          c.insert_keys_storage.size() + c.insert_payload_storage.size() +
+          c.insert_prefix_sizes_storage.size() + c.relocation_plan_storage.size() +
+          c.avail_storage.size() + c.subtree_avail_storage.size()) *
+             sizeof(int);
+}
+
 const cbst_context& cbst_store::context() const {
   return ctx_;
 }

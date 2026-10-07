@@ -176,8 +176,14 @@ struct cbst_store {
   // Accessor to underlying device-resident context (read-only)
   const cbst_context& context() const;
   // Device memory held by the tree (nodes, index arrays, payload capacity,
-  // operation buffers).
+  // operation buffers): ESCHER-GPU's accounting, computed from the record count and the
+  // capacities (so a tree that is created but not yet constructed counts its payload capacity).
   size_t device_bytes() const;
+  // The bytes of the arrays the store holds now, in the same scope as device_bytes() (the nodes,
+  // keys, row offsets, avail, subtree_avail, payload and operation scratch; not the
+  // temporaries of an operation, which are released when it returns, nor a row locator's
+  // arrays). Equal to device_bytes() once the tree is constructed (dynG addition).
+  size_t allocated_bytes() const;
 
  private:
   void check_not_poisoned(const char* op) const;

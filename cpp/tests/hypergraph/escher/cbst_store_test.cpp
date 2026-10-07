@@ -14,6 +14,7 @@
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/error.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/stream.hpp>
 
@@ -270,6 +271,94 @@ TEST(CbstStoreDownload, HoldsTheWholeState) {
   for (auto& r : got) std::sort(r.begin(), r.end());
   for (auto& r : want) std::sort(r.begin(), r.end());
   EXPECT_EQ(got, want);
+}
+
+}  // namespace
+}  // namespace dyng::detail::escher
+
+namespace dyng::detail::escher {
+namespace {
+
+/// A device memory resource that counts the live bytes and their peak (and can be told to fail
+/// an allocation).
+class counting_resource {
+ public:
+  explicit counting_resource(int device) : upstream_(default_device_memory_resource(device)) {}
+  void* allocate(stream_ref s, std::size_t bytes, std::size_t alignment) {
+    if (fail_after_ >= 0 && allocations_ >= fail_after_)
+      throw out_of_memory_error("counting_resource: injected allocation failure");
+    void* p = upstream_.allocate(s, bytes, alignment);
+    ++allocations_;
+    live_ += static_cast<long long>(bytes);
+    peak_ = std::max(peak_, live_);
+    return p;
+  }
+  void deallocate(stream_ref s, void* p, std::size_t bytes, std::size_t alignment) noexcept {
+    live_ -= static_cast<long long>(bytes);
+    upstream_.deallocate(s, p, bytes, alignment);
+  }
+  void* allocate_sync(std::size_t bytes, std::size_t alignment) {
+    return allocate(stream_ref(), bytes, alignment);
+  }
+  void deallocate_sync(void* p, std::size_t bytes, std::size_t alignment) noexcept {
+    deallocate(stream_ref(), p, bytes, alignment);
+  }
+  [[nodiscard]] memory_space space() const noexcept {
+    return memory_space::device;
+  }
+  long long live() const {
+    return live_;
+  }
+  long long peak() const {
+    return peak_;
+  }
+  long long allocations() const {
+    return allocations_;
+  }
+  /// Fail every allocation after the next `n` (-1: never).
+  void fail_after(long long n) {
+    fail_after_ = n < 0 ? -1 : allocations_ + n;
+  }
+
+ private:
+  memory_resource_ref upstream_;
+  long long live_ = 0, peak_ = 0, allocations_ = 0, fail_after_ = -1;
+};
+
+// --- device_bytes() in ESCHER-GPU's accounting scope (dynG addition) ------------------------------
+
+TEST(CbstStoreDeviceBytes, IsWhatTheStoreHolds) {
+  DYNG_SKIP_IF_NO_CUDA();
+  resources res = resources::cuda();
+  counting_resource counter(res.device());
+  res.set_memory_resource(counter);
+  {
+    cbst_store s(res, "bytes", 64);
+    // Created, not constructed: ESCHER-GPU's deviceBytes() counts the payload capacity already.
+    EXPECT_EQ(s.device_bytes(), 64 * sizeof(int));
+    EXPECT_EQ(s.allocated_bytes(), 0U);
+    auto check = [&](const char* what) {
+      SCOPED_TRACE(what);
+      ASSERT_EQ(cudaStreamSynchronize(static_cast<cudaStream_t>(res.stream().get())), cudaSuccess);
+      EXPECT_EQ(s.allocated_bytes(), s.device_bytes());
+      // The temporaries of an operation are gone when it returns: the store holds exactly its
+      // arrays.
+      EXPECT_EQ(counter.live(), static_cast<long long>(s.allocated_bytes()));
+    };
+    // construct, fill with an overflow, erase, reuse and surplus, unfill
+    (void)build_busy_tree(s);
+    check("after the busy tree");
+    const batch more = make_batch({1, 2, 3, 4, 5}, {{7}, {8}, {9}, {10}, {11}});
+    s.append(more.keys, more.payload, more.prefix);
+    check("after append");
+    s.erase({1, 2});
+    check("after erase");
+    const batch big = make_batch({0, 0, 0}, {{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}, {1}, {2}});
+    (void)s.insert(big.keys, big.payload, big.prefix);
+    check("after insert");
+    EXPECT_GT(counter.peak(), counter.live());  // the temporaries existed during the operations
+  }
+  EXPECT_EQ(counter.live(), 0);
 }
 
 }  // namespace
