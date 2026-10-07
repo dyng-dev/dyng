@@ -1480,6 +1480,10 @@ def cmd_write(args: argparse.Namespace) -> int:
         "originals": originals(),
         "golden_suites": goldens,
         "committed_fixtures": fixtures,
+        "required_suites": {
+            name: {"algorithm": spec["algorithm"], "since": ".".join(map(str, spec["since"]))}
+            for name, spec in required_suites(args.version).items()
+        },
         "performance": perf,
         "checks": checklist,
     }

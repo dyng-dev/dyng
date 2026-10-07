@@ -213,8 +213,9 @@ around it is written by hand). The certificate records:
 - every **committed fixture set** of `cpp/tests/data` (`parity/fixtures/fixtures.toml`: the
   generator script, the original and its commit, the CTests that compare the set) with the
   SHA-256 of its files and the result of each of its tests in the release checks;
-- the performance-gate table of every suite (gated, and recorded-only readings separately) and
-  how each reading's inputs were verified;
+- the suites the version requires (`required_suites`, from `REQUIRED_SUITES`), the
+  performance-gate table of every suite (gated, and recorded-only readings separately) and how
+  each reading's inputs were verified;
 - the checks, with their scopes and evidence.
 
 It exits 1, and says why in `verdict.problems`, if any part failed or is missing (a required

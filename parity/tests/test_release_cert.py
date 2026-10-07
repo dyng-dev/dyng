@@ -1193,6 +1193,7 @@ def test_a_02_certificate_needs_the_mosp_gates(cert, bench, tmp_path: Path, fixe
 
     assert write("0.2.0rc1") == 0, problems()
     doc = json.loads((results / "parity.json").read_text())
+    assert doc["required_suites"]["ipdps25_dynamosp_mosp"] == {"algorithm": "mosp", "since": "0.2"}
     mosp = next(s for s in doc["performance"] if s["suite"] == "ipdps25_dynamosp_mosp")
     assert mosp["passed"] and {r["region"] for r in mosp["gate_table"]} == {
         "compute",
