@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <cstdint>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -920,6 +921,66 @@ cbst_store cbst_store::clone(const resources& res) const {
   }
   copy.constructed_ = constructed_;
   return copy;
+}
+
+// A device array on the host (part of download()).
+template <typename value_t>
+static std::vector<value_t> download_array(const cbst_context& ctx, const value_t* device,
+                                           size_t count) {
+  std::vector<value_t> host(count);
+  if (count > 0 && device != nullptr)
+    DYNG_CUDA_TRY(cudaMemcpyAsync(host.data(), device, count * sizeof(value_t),
+                                  cudaMemcpyDeviceToHost, stream_of(ctx)));
+  return host;
+}
+
+cbst_host_state cbst_store::download() const {
+  const scoped_device guard(ctx_.res.device());
+  cbst_host_state h;
+  h.num_records = ctx_.num_records;
+  h.fixed_size = ctx_.fixed_size;
+  h.initial_payload_size = ctx_.initial_payload_size;
+  h.alignment = ctx_.alignment;
+  h.scratch_item_capacity = ctx_.scratch_item_capacity;
+  h.scratch_payload_capacity = ctx_.scratch_payload_capacity;
+  const size_t n = ctx_.d_nodes != nullptr ? static_cast<size_t>(std::max(ctx_.num_records, 0)) : 0;
+  const std::vector<cbst_node> nodes = download_array(ctx_, ctx_.d_nodes, n);
+  h.keys = download_array(ctx_, ctx_.d_keys, ctx_.d_keys != nullptr ? n : 0);
+  h.start_offsets =
+      download_array(ctx_, ctx_.d_start_offsets, ctx_.d_start_offsets != nullptr ? n : 0);
+  h.avail = download_array(ctx_, ctx_.d_avail, ctx_.d_avail != nullptr ? n : 0);
+  h.subtree_avail =
+      download_array(ctx_, ctx_.d_subtree_avail, ctx_.d_subtree_avail != nullptr ? n : 0);
+  const long long used =
+      std::max(0LL, std::min<long long>(ctx_.initial_payload_size, ctx_.fixed_size));
+  h.payload = download_array(ctx_, ctx_.d_flat_payload,
+                             ctx_.d_flat_payload != nullptr ? static_cast<size_t>(used) : 0);
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx_)));
+  note_host_sync();
+  const auto base = reinterpret_cast<std::uintptr_t>(ctx_.d_nodes);
+  auto position = [&](const cbst_node* p) -> long long {
+    if (p == nullptr) return -1;
+    const auto a = reinterpret_cast<std::uintptr_t>(p);
+    if (a < base || (a - base) % sizeof(cbst_node) != 0) return -2;
+    const auto t = static_cast<long long>((a - base) / sizeof(cbst_node));
+    return t < static_cast<long long>(n) ? t : -2;
+  };
+  h.nodes.resize(n);
+  for (size_t t = 0; t < n; ++t) {
+    const cbst_node& d = nodes[t];
+    cbst_host_node& x = h.nodes[t];
+    x.index = d.index;
+    x.value = d.value;
+    x.length = d.length;
+    x.size = d.size;
+    x.occupancy = d.occupancy;
+    x.tail_base = d.tail_base;
+    x.tail_capacity = d.tail_capacity;
+    x.left = position(d.left);
+    x.right = position(d.right);
+    x.parent = position(d.parent);
+  }
+  return h;
 }
 
 // ESCHER-GPU's findAndPrint printed the rows from the device; the lookup now returns the heap

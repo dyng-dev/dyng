@@ -61,8 +61,7 @@ std::vector<value_t> download(const value_t* device, std::int64_t n) {
 struct host_state {
   std::int64_t num_records = 0, fixed_size = 0, bump = 0, alignment = 0;
   std::int64_t scratch_items = 0, scratch_payload = 0, device_bytes = 0;
-  std::vector<esc::cbst_node> nodes;
-  std::uintptr_t nodes_base = 0;  ///< the device address of nodes[0] (the child pointers)
+  std::vector<esc::cbst_host_node> nodes;  ///< children as heap positions (download())
   std::vector<int> avail, subtree_avail, flat;
 };
 
@@ -78,27 +77,34 @@ namespace {
 host_state read_state(const esc::cbst_store& s, bool full) {
   const esc::cbst_context& c = s.context();
   host_state h;
-  cuda_check(cudaDeviceSynchronize(), "synchronize");
-  h.num_records = c.num_records;
-  h.fixed_size = c.fixed_size;
-  h.bump = c.initial_payload_size;
-  h.alignment = c.alignment;
-  h.scratch_items = c.scratch_item_capacity;
-  h.scratch_payload = c.scratch_payload_capacity;
   h.device_bytes = static_cast<std::int64_t>(s.device_bytes());
-  const std::int64_t n = c.d_nodes != nullptr ? std::max<std::int64_t>(c.num_records, 0) : 0;
   if (!full) {
+    cuda_check(cudaDeviceSynchronize(), "synchronize");
+    h.num_records = c.num_records;
+    h.fixed_size = c.fixed_size;
+    h.bump = c.initial_payload_size;
+    h.alignment = c.alignment;
+    h.scratch_items = c.scratch_item_capacity;
+    h.scratch_payload = c.scratch_payload_capacity;
     // The scalars only: D is the root's subtree_avail.
+    const std::int64_t n = c.d_nodes != nullptr ? std::max<std::int64_t>(c.num_records, 0) : 0;
     if (n > 0 && c.d_subtree_avail != nullptr) h.subtree_avail = download(c.d_subtree_avail, 1);
     return h;
   }
-  h.nodes = download(c.d_nodes, n);
-  h.nodes_base = reinterpret_cast<std::uintptr_t>(c.d_nodes);
-  h.avail = c.d_avail != nullptr ? download(c.d_avail, n) : std::vector<int>(n, 0);
+  // The whole state through the store's own download (dynG addition).
+  esc::cbst_host_state d = s.download();
+  h.num_records = d.num_records;
+  h.fixed_size = d.fixed_size;
+  h.bump = d.initial_payload_size;
+  h.alignment = d.alignment;
+  h.scratch_items = d.scratch_item_capacity;
+  h.scratch_payload = d.scratch_payload_capacity;
+  h.nodes = std::move(d.nodes);
+  const std::size_t n = h.nodes.size();
+  h.avail = d.avail.size() == n ? std::move(d.avail) : std::vector<int>(n, 0);
   h.subtree_avail =
-      c.d_subtree_avail != nullptr ? download(c.d_subtree_avail, n) : std::vector<int>(n, 0);
-  const std::int64_t used = std::max<std::int64_t>(0, std::min(h.bump, h.fixed_size));
-  h.flat = c.d_flat_payload != nullptr ? download(c.d_flat_payload, used) : std::vector<int>();
+      d.subtree_avail.size() == n ? std::move(d.subtree_avail) : std::vector<int>(n, 0);
+  h.flat = std::move(d.payload);
   return h;
 }
 
@@ -115,13 +121,7 @@ tree_digest digest_of(const host_state& h, bool with_rows) {
   d.d = (h.num_records > 0 && !h.subtree_avail.empty()) ? h.subtree_avail[0] : -1;
   if (!with_rows) return d;
   const auto n = static_cast<std::int64_t>(h.nodes.size());
-  auto child = [&](const esc::cbst_node* p) -> std::int64_t {
-    if (p == nullptr) return -1;
-    const auto a = reinterpret_cast<std::uintptr_t>(p);
-    if (a < h.nodes_base || (a - h.nodes_base) % sizeof(esc::cbst_node) != 0) return -2;
-    const auto t = static_cast<std::int64_t>((a - h.nodes_base) / sizeof(esc::cbst_node));
-    return t < n ? t : -2;
-  };
+  auto child = [&](std::int64_t t) -> std::int64_t { return t < n ? t : -2; };
   std::vector<std::int64_t> order;
   order.reserve(static_cast<std::size_t>(n));
   std::vector<char> seen(static_cast<std::size_t>(n), 0);
@@ -157,7 +157,7 @@ tree_digest digest_of(const host_state& h, bool with_rows) {
   d.keys.reserve(order.size());
   d.records.reserve(order.size());
   for (std::int64_t t : order) {
-    const esc::cbst_node& nd = h.nodes[static_cast<std::size_t>(t)];
+    const esc::cbst_host_node& nd = h.nodes[static_cast<std::size_t>(t)];
     key_digest k;
     k.key = nd.index;
     k.avail = h.avail[static_cast<std::size_t>(t)];

@@ -82,6 +82,23 @@ struct cbst_context {
       subtree_avail_storage;
 };
 
+// One node of a downloaded tree (cbst_store::download(); dynG addition): the record without
+// the device pointers; the children and the parent as heap positions (-1: none; -2: a pointer
+// that is not to a node of this tree).
+struct cbst_host_node {
+  int index = 0, value = 0, length = 0, size = 0, occupancy = 0, tail_base = 0, tail_capacity = 0;
+  long long left = -1, right = -1, parent = -1;
+};
+
+// The state of a store on the host (cbst_store::download(); dynG addition).
+struct cbst_host_state {
+  long long num_records = 0, fixed_size = 0, initial_payload_size = 0, alignment = 0;
+  long long scratch_item_capacity = 0, scratch_payload_capacity = 0;
+  std::vector<cbst_host_node> nodes;  // by heap position
+  std::vector<int> keys, start_offsets, avail, subtree_avail;
+  std::vector<int> payload;  // the used prefix (initial_payload_size entries, at most fixed_size)
+};
+
 // Mapping returned by insert_cbst: for each input item i, item_to_key[i] is the
 // actual CBST key the item was stored under (may differ from new_keys[i] due to
 // best-fit matching reusing a deleted slot's key).
@@ -139,6 +156,8 @@ struct cbst_store {
   cbst_store clone() const {
     return clone(ctx_.res);
   }
+  // The store's state on the host (dynG addition; synchronizes the stream).
+  cbst_host_state download() const;
   // The heap position of the node of every key (-1: absent).
   std::vector<int> find(const std::vector<int>& ids) const;
   // The degree-bin launches of the store's operations so far.

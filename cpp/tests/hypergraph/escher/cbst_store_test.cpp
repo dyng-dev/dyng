@@ -21,6 +21,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <climits>
 #include <cstddef>
 #include <sstream>
@@ -204,6 +205,71 @@ TEST(CbstStoreClone, OntoAnotherStream) {
   }
   ASSERT_EQ(cudaStreamSynchronize(other), cudaSuccess);
   ASSERT_EQ(cudaStreamDestroy(other), cudaSuccess);
+}
+
+}  // namespace
+}  // namespace dyng::detail::escher
+
+namespace dyng::detail::escher {
+namespace {
+
+// --- Download of the state (dynG addition) -------------------------------------------------------
+
+/// The rows of a downloaded tree by key (BST search from the root, the chain followed).
+std::vector<std::vector<int>> rows_of(const cbst_host_state& h, int max_key) {
+  std::vector<std::vector<int>> out(static_cast<std::size_t>(max_key));
+  for (int key = 1; key <= max_key; ++key) {
+    long long t = h.nodes.empty() ? -1 : 0;
+    while (t >= 0 && h.nodes[static_cast<std::size_t>(t)].index != key)
+      t = h.nodes[static_cast<std::size_t>(t)].index > key
+              ? h.nodes[static_cast<std::size_t>(t)].left
+              : h.nodes[static_cast<std::size_t>(t)].right;
+    if (t < 0 || h.avail[static_cast<std::size_t>(t)] != 0) continue;
+    long long loc = h.nodes[static_cast<std::size_t>(t)].value;
+    for (;;) {
+      const int v = h.payload[static_cast<std::size_t>(loc)];
+      if (v < 0 && v != INT_MIN) {
+        loc = -static_cast<long long>(v);
+        continue;
+      }
+      if (v == 0 || v == INT_MIN) break;
+      out[static_cast<std::size_t>(key - 1)].push_back(v);
+      ++loc;
+    }
+  }
+  return out;
+}
+
+TEST(CbstStoreDownload, HoldsTheWholeState) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "download", 64);
+  rows want = build_busy_tree(s);
+  const cbst_host_state h = s.download();
+  const cbst_context& c = s.context();
+  EXPECT_EQ(h.num_records, c.num_records);
+  EXPECT_EQ(h.fixed_size, c.fixed_size);
+  EXPECT_EQ(h.initial_payload_size, c.initial_payload_size);
+  EXPECT_EQ(h.alignment, 4);
+  EXPECT_EQ(h.scratch_item_capacity, c.scratch_item_capacity);
+  EXPECT_EQ(h.scratch_payload_capacity, c.scratch_payload_capacity);
+  ASSERT_EQ(h.nodes.size(), static_cast<std::size_t>(c.num_records));
+  EXPECT_EQ(h.payload.size(), static_cast<std::size_t>(c.initial_payload_size));
+  EXPECT_EQ(h.keys, (std::vector<int>{1, 2, 3, 4, 5}));
+  // The heap layout of the pointers, as positions.
+  const auto n = static_cast<long long>(h.nodes.size());
+  for (long long t = 0; t < n; ++t) {
+    const cbst_host_node& x = h.nodes[static_cast<std::size_t>(t)];
+    EXPECT_EQ(x.left, 2 * t + 1 < n ? 2 * t + 1 : -1);
+    EXPECT_EQ(x.right, 2 * t + 2 < n ? 2 * t + 2 : -1);
+    EXPECT_EQ(x.parent, t == 0 ? -1 : (t - 1) / 2);
+  }
+  // subtree_avail: no deleted slot is left (the one erased was reused).
+  for (int v : h.subtree_avail) EXPECT_EQ(v, 0);
+  rows got = rows_of(h, 5);
+  for (auto& r : got) std::sort(r.begin(), r.end());
+  for (auto& r : want) std::sort(r.begin(), r.end());
+  EXPECT_EQ(got, want);
 }
 
 }  // namespace
