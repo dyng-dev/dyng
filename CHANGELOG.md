@@ -309,6 +309,17 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   container); `wheels.yml` builds the plugins for pull requests that change the library or the
   licence files too.
 
+### M6a: acceptance fixes (0.2, branch `m6a-cuda-wheels`)
+
+- Fixed: `ci/plugin_wheels.sh` checks every plugin's CUDA toolkit for `bin/nvcc` and
+  `bin/cuobjdump` before anything is built (or the output directory cleared) and names what is
+  missing; before, a toolkit without cuobjdump failed the code-object check only after the build.
+- Docs: `docs/developer/wheels.md`: the conda-forge CUDA 12.9 recipe for the local cu12 build
+  installs `cuda-cuobjdump` (it could not pass the code-object check without it).
+  `docs/developer/repository_settings.md` and `release.md`: a final release with the plugins is
+  approved in two "Review deployments" dialogs (`pypi-cu12` and `pypi-cu13`, then `pypi`), as
+  `release.yml` orders them.
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

@@ -182,7 +182,8 @@ were built with in `.../core/dist`). `DYNG_WHEEL_SKIP_TESTS=1` builds and checks
 setting.
 
 The local builds of 2026-10-06 (M6a): cu13 with CUDA 13.1 (`/usr/local/cuda-13.1`), cu12 with
-CUDA 12.9 (conda-forge's packages in `$DYNG_SCRATCH/tools/cuda-12.9`); 5.5 MB and 5.6 MB; both
+CUDA 12.9 (conda-forge's packages, the recipe above in a fresh prefix, `cuda-cuobjdump`
+included; re-run after the acceptance found the recipe without it); 5.5 MB and 5.7 MB; both
 `manylinux_2_28_x86_64` (auditwheel reports the module itself consistent with
 `manylinux_2_17`), `twine check --strict` and `ci/wheel_check.py` clean; the install tests pass
 on Python 3.12 and 3.13 with the RTX A5000 (driver 590.48.01, CUDA 13.1). How these builds
