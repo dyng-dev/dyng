@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Additive export patch of ESCHER-GPU@abcf9b2 (PLAN Sections 6.4.5 and 8.3; ADRs 0013 and 0035).
+# Additive export patch of ESCHER-GPU@abcf9b2 (PLAN Sections 6.4.5 and 8.3; ADRs 0013 and 0036).
 # Called by parity/build_reference.sh with the PATCHED scratch copy as its only argument, after
 # the copy was built with the original Makefile (make all-types build/cbst_test). It changes no
 # tracked file: it relinks the copy's unchanged objects of every executable that links the CBST

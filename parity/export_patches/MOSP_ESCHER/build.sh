@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# Additive export patch of MOSP_ESCHER@4b86159 (PLAN Sections 6.4.5 and 8.3; ADRs 0013 and 0035).
+# Additive export patch of MOSP_ESCHER@4b86159 (PLAN Sections 6.4.5 and 8.3; ADRs 0013 and 0036).
 # Called by parity/build_reference.sh with the PATCHED scratch copy (an archive of the COMMITTED
 # tree; the clone's uncommitted changes never reach it) as its only argument, after the copy was
 # built with the original Makefile (make all). It changes no tracked file: it relinks the copy's

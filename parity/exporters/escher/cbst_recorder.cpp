@@ -351,6 +351,12 @@ struct tree_info {
   tree_memory memory;
 };
 
+// Options whose value names a file the program WRITES (the originals' --out / --timing): such a
+// file is not an input even when it exists already (a CSV that an earlier run appended to).
+bool is_output_option(const std::string& a) {
+  return a == "--out" || a == "--timing" || a == "-o" || a == "--output";
+}
+
 std::string normalize_arg(const std::string& a) {
   if (!a.empty() && a[0] == '/') {
     const auto slash = a.find_last_of('/');
@@ -479,11 +485,13 @@ bool recorder::open() {
     std::vector<std::string> raw = read_argv();
     for (const auto& a : raw) args.push_back(normalize_arg(a));
     f.strings("argv", args);
-    // Input files named on the command line: content hash and size; files up to 16 MiB are
-    // copied into <dir>/inputs/<name>.<hash> (the awk-generated test inputs).
+    // Input files named on the command line (not the value of an output option): content hash
+    // and size; files up to 16 MiB are copied into <dir>/inputs/<name>.<hash> (the
+    // awk-generated test inputs).
     std::vector<std::string> inputs;
     for (std::size_t i = 1; i < raw.size(); ++i) {
       struct stat st{};
+      if (is_output_option(raw[i - 1])) continue;
       if (::stat(raw[i].c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;
       std::ifstream in(raw[i], std::ios::binary);
       std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -702,7 +710,8 @@ bool start_invocation_log() {
   for (std::size_t i = 0; i < args.size(); ++i) {
     std::fprintf(f, "arg=%s\n", args[i].c_str());
     struct stat st{};
-    if (i > 0 && ::stat(args[i].c_str(), &st) == 0 && S_ISREG(st.st_mode))
+    if (i > 0 && !is_output_option(args[i - 1]) && ::stat(args[i].c_str(), &st) == 0 &&
+        S_ISREG(st.st_mode))
       std::fprintf(f, "input=%zu %s\n", i, copy_input(dir, args[i]).c_str());
   }
   std::fclose(f);
