@@ -147,9 +147,14 @@ and CuPy 14 for CUDA 13; 5.6 GB, so it is made once and not per run):
 ```bash
 source scripts/dev_env.sh
 # once, besides the tools of the CPU wheel: a CUDA 12.x toolkit for cu12 (none is installed
-# system-wide on the development machine; conda-forge's packages work)
+# system-wide on the development machine; conda-forge's packages work; cuda-cuobjdump is needed
+# for the check of the module's SASS and PTX, and the script refuses a toolkit without it)
 conda create -p "$DYNG_SCRATCH/tools/cuda-12.9" -c conda-forge --override-channels \
-  cuda-version=12.9 cuda-nvcc cuda-cudart-dev cuda-cudart-static cuda-cccl cuda-nvtx-dev
+  cuda-version=12.9 cuda-nvcc cuda-cudart-dev cuda-cudart-static cuda-cccl cuda-nvtx-dev \
+  cuda-cuobjdump
+# (an environment made before 2026-10-06 without it:
+#  conda install -p "$DYNG_SCRATCH/tools/cuda-12.9" -c conda-forge --override-channels \
+#    cuda-version=12.9 cuda-cuobjdump)
 # every time: cu13 with /usr/local/cuda-13.1 (the default), cu12 with that toolkit
 DYNG_PLUGINS="cu12 cu13" DYNG_CUDA12_ROOT="$DYNG_SCRATCH/tools/cuda-12.9" \
   flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
