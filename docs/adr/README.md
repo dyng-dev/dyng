@@ -32,6 +32,9 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0027](0027-mosp-api-and-composition.md) | The mosp API (0.2) and mosp as a composition of K sssp problems | Accepted under delegation (2026-09-30) |
 | [0028](0028-mosp-python-and-cli.md) | mosp in Python and on the command line (0.2) | Accepted under delegation (2026-10-01) |
 | [0029](0029-packing-window-across-backends.md) | The packing window, where the host and CUDA backends follow different originals (non-canonical input trees) | Proposed (2026-10-01, M7 review; a parity rule, for the author) |
+| [0030](0030-cuda-plugin-wheels.md) | The CUDA plugin wheels `dyng-cu12` / `dyng-cu13` built from the same sources (a rendered `pyproject.toml`, `DYNG_PYTHON_PLUGIN`, the static CUDA runtime, the plugin package, the pinned extras, the licence files) | Accepted under delegation (2026-10-06) |
+| [0031](0031-plugin-selection-and-device-arrays.md) | Choosing a CUDA plugin (the driver's major, the version pin), the CPU fallback with `dyng.BackendWarning`, and arrays in device memory from Python (`__cuda_array_interface__`, DLPack stream ordering, device inputs) | Accepted under delegation (2026-10-06) |
+| [0032](0032-plugin-ci-and-release.md) | The CUDA plugin wheels in CI and in the release workflow (cibuildwheel with the CUDA toolkits pinned file by file, the GPU-less fallback smoke test, one publishing environment pair per distribution, the wheel-vs-parity row) | Accepted under delegation (2026-10-06) |
 
 Planned (PLAN Section 12.3): 0005 layout, 0007 framework,
 0008 backends, 0012 versioning and stability.

@@ -2,7 +2,8 @@
 
 dynG is a C++17 library with a Python package on top. The Python package (`pip install dyng`)
 contains the sequential and OpenMP backends and needs no GPU; the CUDA backend comes with the C++
-build today and as Python plugin wheels in 0.1.x.
+build and, from 0.2, as the Python plugin wheels `dyng-cu12` / `dyng-cu13`
+(`pip install "dyng[cu13]"`, {doc}`install`).
 
 A first result in ten lines, in Python:
 

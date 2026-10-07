@@ -7,6 +7,9 @@
  *
  * Tests that make CUDA API calls fail on purpose belong to the suite CudaApiErrors: ci/gpu_local.sh
  * runs them under compute-sanitizer without API-error reporting, and every other test with it.
+ * CudaApiErrors.AForkedChildIsToldAboutFork forks after CUDA is initialized: the child cannot use
+ * CUDA, and the error must name fork (the Python plugin's selection never initializes CUDA in the
+ * parent, ADR 0031; a parent that used CUDA itself still forks children that cannot).
  */
 #include "core/resources_access.hpp"
 #include "cuda/cuda_test_kernels.hpp"
@@ -21,6 +24,10 @@
 #include <cuda_runtime_api.h>
 
 #include <gtest/gtest.h>
+
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include <cstdint>
 #include <string>
@@ -82,6 +89,34 @@ TEST(CudaApiErrors, CheckKernelReportsALaunchFailure) {
     EXPECT_NE(std::string(e.what()).find("cudaGetLastError()"), std::string::npos) << e.what();
   }
   EXPECT_NO_THROW(res.synchronize());  // not sticky
+}
+
+TEST(CudaApiErrors, AForkedChildIsToldAboutFork) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const auto res = dyng::resources::cuda();  // initializes CUDA in this process
+  res.synchronize();
+  const pid_t pid = fork();
+  ASSERT_GE(pid, 0);
+  if (pid == 0) {
+    // The child: only async-signal-safe exits after the attempt (no gtest assertions here).
+    int code = 1;
+    try {
+      (void)dyng::resources::cuda();
+      code = 2;  // CUDA worked in a forked child: the test's premise does not hold
+    } catch (const dyng::error& e) {
+      const std::string what = e.what();
+      code = what.find("fork") != std::string::npos ? 0 : 3;
+    } catch (...) {
+      code = 4;
+    }
+    _exit(code);
+  }
+  int status = 0;
+  ASSERT_EQ(waitpid(pid, &status, 0), pid);
+  ASSERT_TRUE(WIFEXITED(status));
+  EXPECT_EQ(WEXITSTATUS(status), 0)
+      << "1: no exception, 2: CUDA worked after fork, 3: the message does not name fork, "
+         "4: another exception";
 }
 
 TEST(DeviceErrorFlags, KernelsRaiseAndTheHostThrows) {

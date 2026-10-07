@@ -9,6 +9,7 @@ clean venv); the fixture data are read from the source tree (cpp/tests/data).
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from pathlib import Path
 
 # The default resources use every OpenMP thread; a shared or small machine runs the suite faster
@@ -67,3 +68,13 @@ def data() -> Path:
     if not DATA.is_dir():
         pytest.skip("the test data of the source tree (cpp/tests/data) are not available")
     return DATA
+
+
+@pytest.fixture
+def host_default_resources() -> Iterator[None]:
+    """The sequential backend as the default resources for the test, also when a CUDA plugin's
+    module is active (whose default backend is cuda): for tests of host-memory behaviour."""
+    old = dyng.get_default_resources()
+    dyng.set_default_resources("sequential")
+    yield
+    dyng.set_default_resources(old)

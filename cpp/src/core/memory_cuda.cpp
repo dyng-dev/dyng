@@ -185,9 +185,7 @@ cuda_async_memory_resource& default_device_memory_resource(int device) {
   static std::vector<cuda_async_memory_resource*>* table = nullptr;
   const int count = detail::cuda_device_count();
   if (count == 0) {
-    throw not_supported_error(
-        "dyng: the cuda backend is built but no CUDA device is visible (check the driver and "
-        "CUDA_VISIBLE_DEVICES)");
+    detail::throw_no_cuda_device();
   }
   DYNG_EXPECTS(device >= 0 && device < count, "CUDA device ", device, " does not exist; ", count,
                " device(s) visible");

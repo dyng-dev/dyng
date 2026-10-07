@@ -23,7 +23,7 @@ void bind_functions(nb::module_& m) {
             lock_set locks;
             locks.add(g.mutex, false);
             locks.lock();
-            return new cycle_count_holder(cycle_count::compute(res, g.value, opt));
+            return new cycle_count_holder(cycle_count::compute(res, g.value, opt), res);
           });
         },
         nb::arg("resources"), nb::arg("graph"), nb::arg("options"), nb::rv_policy::take_ownership);
@@ -102,6 +102,9 @@ void bind_cycle_count(nb::module_& m) {
                    [](const cycle_count_holder& h) {
                      return read_result(h, [](const cycle_count::result& r) { return r.bound(); });
                    })
+      .def_prop_ro(
+          "writer", [](const cycle_count_holder& h) { return writer_of(h); },
+          "The resources of the call that last wrote this result (orders its device arrays).")
       .def_prop_ro("generation", &cycle_count_holder::generation,
                    "The number of updates of this result (dyng.Array's staleness check).")
       .def_prop_ro("options",
@@ -136,7 +139,7 @@ void bind_cycle_count(nb::module_& m) {
               lock_set locks;
               locks.add(h.mutex, false);
               locks.lock();
-              return new cycle_count_holder(h.get().clone(res));
+              return new cycle_count_holder(h.get().clone(res), res);
             });
           },
           nb::arg("resources"), nb::rv_policy::take_ownership);

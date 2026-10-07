@@ -28,8 +28,10 @@ from typing import Any, Literal
 import numpy as np
 
 from . import _dtypes
+from . import _writer as _writer_state
 from ._backend import native
 from ._convert import as_bool, as_int, copy_fields, enum_member, enum_name, with_options
+from ._writer import resolve_on, writing
 from .array import Array
 from .batch import EdgeBatch
 from .errors import NotSupportedError, StaleResultError
@@ -125,6 +127,11 @@ class Result:
     _native: Any
     _resources: Resources
     _vertex: np.dtype
+    # the bookkeeping of dyng._writer (a side table: the slots stay as in 0.1)
+    _writer = _writer_state.WRITER
+    _streams = _writer_state.STREAMS
+    _write_lock = _writer_state.WRITE_LOCK
+    __del__ = _writer_state.release
 
     def __init__(self) -> None:
         raise TypeError("use dyng.sssp.compute() or dyng.sssp.Result.from_arrays()")
@@ -135,10 +142,16 @@ class Result:
         self._native = handle
         self._resources = resources
         self._vertex = vertex
+        _writer_state.track(self, resources)
         return self
 
     def _array(self, getter: Any, what: str) -> Array:
-        return _result_array(self._native, getter, f"sssp.Result.{what}")
+        return _result_array(
+            self._native,
+            getter,
+            f"sssp.Result.{what}",
+            (self._resources, self._writer, self._streams),
+        )
 
     @property
     def source(self) -> int:
@@ -221,7 +234,7 @@ class Result:
         """
         _check_graph(graph)
         opt = with_options(Options, options, kwargs, "sssp.Result.from_arrays")
-        res = resolve(resources, graph._resources)
+        res = resolve_on(graph, resources)
         d = _dtypes.checked_cast(
             _dtypes.to_numpy(distances, "from_arrays: distances"),
             _dtypes.INT64,
@@ -264,14 +277,25 @@ class Result:
         )
 
 
-def _result_array(handle: Any, getter: Any, what: str) -> Array:
+def _result_array(handle: Any, getter: Any, what: str, keep: Any = None) -> Array:
     """An Array of a native result's current state, stale once the result is updated.
 
     The generation is read before the array, so an update in between makes the Array stale
-    (never current with an older state's memory).
+    (never current with an older state's memory). The Array asks the handle for the resources
+    of the call that last wrote the result (``handle.writer``) when it needs their stream (device
+    memory only). ``keep`` (the result's Python resources, those of its last writer and the
+    resources of every stream used on it, dyng._writer) lives as long as the Array, so a stream
+    object passed to ``Resources.cuda(stream=...)`` outlives the Array's use of it and the
+    release of the result's memory.
     """
     generation = handle.generation
-    return Array(getter(), lambda: bool(handle.generation == generation), what)
+    return Array(
+        getter(),
+        lambda: bool(handle.generation == generation),
+        what,
+        lambda: handle.writer,
+        keep,
+    )
 
 
 def _check_graph(graph: Graph) -> None:
@@ -312,7 +336,7 @@ def compute(
     """
     _check_graph(graph)
     opt = with_options(Options, options, kwargs, "sssp.compute")
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     src = as_int(source, "sssp.compute: source")
     handle = native.sssp_compute(res._native, graph._native, src, opt._to_native())
     return Result._wrap(handle, graph.vertex_dtype, res)
@@ -350,6 +374,8 @@ def update(
             "dyng.sssp.update: the result was computed on another graph (its vertex ids are "
             f"{result.vertex_dtype.name}, the graph's {graph.vertex_dtype.name})"
         )
-    res = resolve(resources, graph._resources)
+    res = resolve_on(graph, resources)
     nb = batch._native_for(graph)
-    return Stats._from_native(native.sssp_update(res._native, graph._native, nb, result._native))
+    with writing([result], res):
+        out = native.sssp_update(res._native, graph._native, nb, result._native)
+    return Stats._from_native(out)

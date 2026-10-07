@@ -17,9 +17,11 @@
 #include <dyng/core/types.hpp>
 #include <dyng/version.hpp>
 
+#include <nanobind/stl/optional.h>
 #include <nanobind/stl/string.h>
 
 #include <cstdint>
+#include <optional>
 
 #if defined(DYNG_PYTHON_HAS_OPENMP) && DYNG_PYTHON_HAS_OPENMP
 #include <omp.h>
@@ -30,6 +32,9 @@
 #endif
 #ifndef DYNG_PYTHON_COMPILER
 #define DYNG_PYTHON_COMPILER "unknown"
+#endif
+#ifndef DYNG_PYTHON_PLUGIN
+#define DYNG_PYTHON_PLUGIN ""
 #endif
 
 namespace dyng::python {
@@ -77,14 +82,18 @@ void bind_resources(nb::module_& m) {
                   "The OpenMP backend (0 threads: the OpenMP default).")
       .def_static(
           "cuda",
-          [](int device, std::uintptr_t stream, int host_threads) {
-            const stream_ref s = stream == 0
-                                     ? stream_ref()
-                                     : stream_ref(reinterpret_cast<cuda_stream_handle>(stream));
+          [](int device, std::optional<std::uintptr_t> stream, int host_threads) {
+            // None: the per-thread default stream (a default stream_ref). An integer is a
+            // cudaStream_t as C++ reads it: 0 is the legacy default stream, as in
+            // stream_ref(0), PyTorch's and CuPy's default streams.
+            const stream_ref s = stream.has_value()
+                                     ? stream_ref(reinterpret_cast<cuda_stream_handle>(*stream))
+                                     : stream_ref();
             return resources::cuda(device, s, host_threads);
           },
-          nb::arg("device") = 0, nb::arg("stream") = 0, nb::arg("host_threads") = 0,
-          "The CUDA backend (stream: a cudaStream_t as an integer, 0 = per-thread default).")
+          nb::arg("device") = 0, nb::arg("stream").none() = nb::none(), nb::arg("host_threads") = 0,
+          "The CUDA backend (stream: None = the per-thread default stream, or a cudaStream_t as "
+          "an integer: 0 = the legacy default stream).")
       .def_prop_ro("backend", &resources::get_backend)
       .def_prop_ro("device", &resources::device)
       .def_prop_ro(
@@ -125,6 +134,18 @@ void bind_resources(nb::module_& m) {
   config["cuda"] = static_cast<bool>(DYNG_HAS_CUDA);
   config["build_type"] = DYNG_PYTHON_BUILD_TYPE;
   config["compiler"] = DYNG_PYTHON_COMPILER;
+  // The CUDA plugin this module belongs to ("cu12", "cu13"; empty in dyng._core) and the CUDA
+  // part of its build (ADR 0030); empty strings in a build without CUDA.
+  config["plugin"] = DYNG_PYTHON_PLUGIN;
+#if defined(DYNG_PYTHON_CUDA_TOOLKIT)
+  config["cuda_toolkit"] = DYNG_PYTHON_CUDA_TOOLKIT;
+  config["cuda_architectures"] = DYNG_PYTHON_CUDA_ARCHITECTURES;
+  config["cuda_runtime"] = DYNG_PYTHON_CUDA_RUNTIME;
+#else
+  config["cuda_toolkit"] = "";
+  config["cuda_architectures"] = "";
+  config["cuda_runtime"] = "";
+#endif
 #if defined(DYNG_PYTHON_HAS_OPENMP) && DYNG_PYTHON_HAS_OPENMP
   config["openmp_version"] = static_cast<int>(_OPENMP);
 #else

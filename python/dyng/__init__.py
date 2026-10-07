@@ -19,7 +19,8 @@ The algorithms are :mod:`dyng.sssp` (dynamic single-source shortest paths) and
 :mod:`dyng.cycle_count` (exact directed simple-cycle histograms) since 0.1, and :mod:`dyng.mosp`
 (dynamic multi-objective shortest paths) since 0.2; :func:`update` updates several results with
 one batch. Backends: ``Resources("sequential")`` and ``Resources("openmp")`` in this
-wheel (the CUDA plugins follow in 0.1.x). Cite with :func:`citation`.
+wheel, and ``Resources.cuda()`` with a CUDA plugin wheel (``pip install "dyng[cu13]"`` or
+``"dyng[cu12]"``). Cite with :func:`citation`.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from .array import Array
 from .batch import EdgeBatch
 from .config import config, get_log_level, set_log_level, show_config, use_cpu_only
 from .errors import (
+    BackendWarning,
     CapacityError,
     ConvergenceError,
     CudaError,
@@ -111,4 +113,5 @@ __all__ = [
     "CudaError",
     "OutOfMemoryError",
     "InternalError",
+    "BackendWarning",
 ]

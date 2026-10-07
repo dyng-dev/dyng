@@ -9,6 +9,10 @@ import time
 
 import dyng
 import numpy as np
+import pytest
+
+# Host memory (to_numpy(copy=False) views): the sequential backend even with a CUDA plugin.
+pytestmark = pytest.mark.usefixtures("host_default_resources")
 
 
 def _dense_graph(n: int) -> dyng.Graph:

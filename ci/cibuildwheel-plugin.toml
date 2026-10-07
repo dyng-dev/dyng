@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# cibuildwheel's configuration of the CUDA plugin wheels dyng-cu12 / dyng-cu13 (PLAN 7.7, 7.8;
+# ADRs 0030 and 0032), used by wheels.yml as `config-file` with `package-dir` = the unpacked core
+# sdist and DYNG_PLUGIN=cu12|cu13 in the environment. The CPU wheel keeps [tool.cibuildwheel] of
+# pyproject.toml.
+#
+# In the manylinux_2_28 image: `before-all` (ci/cibw_plugin.sh) installs the plugin's CUDA
+# toolkit from the RPM files of ci/cuda_toolkits.toml (downloaded and verified on the host),
+# checks it, and renders the plugin's source tree (ci/plugin_pyproject.py); then the wheel is
+# built once (abi3, cp312) with the image's host compiler (gcc-toolset), the module linked with
+# -Wl,--exclude-libs,ALL as in the local build (ci/plugin_wheels.sh: libdyng's and the static
+# CUDA runtime's symbols are not exported; ci/wheel_check.py checks the export list), and
+# repaired by ci/cibw_plugin_repair.sh: auditwheel with the user's driver excluded, then the
+# module's SASS and PTX checked with the toolkit's cuobjdump against the release list of that
+# toolkit (ci/wheel_check.py --code-objects). No test runs here: the runners have no GPU and the
+# plugin needs the core wheel of the same version, which is not on PyPI yet, so wheels.yml's
+# job plugin-install-test installs both wheels into fresh venvs and runs ci/plugin_smoke.py
+# --expect fallback and the pytest suite.
+
+[tool.cibuildwheel]
+build = ["cp312-manylinux_x86_64"]
+archs = ["x86_64"]
+manylinux-x86_64-image = "manylinux_2_28"
+build-frontend = "build"
+build-verbosity = 1
+environment-pass = ["DYNG_PLUGIN"]
+before-all = "bash {project}/ci/cibw_plugin.sh {project} {package}"
+# The hosted runners have 4 cores and 16 GB; nvcc with seven architectures per translation unit
+# needs about 2 GB per job.
+environment = { CUDACXX = "/usr/local/cuda/bin/nvcc", CUDAToolkit_ROOT = "/usr/local/cuda", CMAKE_BUILD_PARALLEL_LEVEL = "4" }
+# libstdc++ stays the image's (gcc-toolset links what the system's libstdc++.so.6 lacks
+# statically); the local build links it statically with conda's GCC (docs/developer/wheels.md).
+config-settings = { "cmake.define.CUDAToolkit_ROOT" = "/usr/local/cuda", "cmake.define.CMAKE_MODULE_LINKER_FLAGS" = "-Wl,--exclude-libs,ALL" }
+repair-wheel-command = "bash {project}/ci/cibw_plugin_repair.sh {project} {wheel} {dest_dir}"
+test-skip = "*"

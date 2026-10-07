@@ -1,0 +1,81 @@
+Third-party software in the CUDA plugin wheels of dynG (dyng-cu12, dyng-cu13)
+==============================================================================
+
+The CUDA plugin wheels contain everything listed in THIRD_PARTY_LICENSES.txt (nanobind,
+robin-map, the GCC runtime; the plugin's module is dyng_cu<N>/_core.abi3.so, its bundled OpenMP
+runtime dyng_cu<N>.libs/libgomp-*.so.*), and in addition the parts of the NVIDIA CUDA Toolkit
+below, which the module is compiled or linked with. The wheels carry as licence files this
+file, THIRD_PARTY_LICENSES.txt, LICENSES/Apache-2.0.txt and NVIDIA_CUDA_EULA.txt (the End User
+License Agreement of the CUDA Toolkit release the wheel was built with, copied from that toolkit
+when the wheel is built; ci/plugin_pyproject.py). The CPU wheel `dyng` and the sdist contain none
+of this. The NVIDIA driver (libcuda.so) is never part of a wheel: it is the user's.
+
+  4. The CUDA Runtime (libcudart_static.a), linked statically into dyng_cu<N>/_core.abi3.so.
+     Licence: the NVIDIA CUDA Toolkit End User License Agreement (NVIDIA_CUDA_EULA.txt), whose
+     Attachment A lists libcudart_static.a among the files that may be distributed with
+     applications. The module also contains device code compiled from the toolkit's headers
+     (cooperative_groups, the CUDA runtime headers) under the same agreement.
+  5. The CUDA C++ Core Libraries (CCCL: CUB, Thrust, libcu++), header-only libraries of the CUDA
+     Toolkit whose templates are compiled into the module (dynG uses CUB's device scan and
+     libcu++'s cuda/ headers):
+       - CUB: BSD-3-Clause (the notice below);
+       - Thrust: Apache-2.0 (LICENSES/Apache-2.0.txt), with utilities based on Boost under the
+         Boost Software License 1.0, which does not apply to machine-executable object code;
+       - libcu++ and the newer CCCL files: Apache-2.0 WITH LLVM-exception (the exception
+         below: embedded object code may be distributed without the conditions of sections
+         4(a), 4(b) and 4(d) of the Apache License).
+  6. NVTX 3 (the toolkit's header-only nvtx3/ headers; in the build when the toolkit has them,
+     see dyng.show_config()): Apache-2.0 WITH LLVM-exception.
+
+==============================================================================
+5a. CUB: BSD-3-Clause
+==============================================================================
+
+Copyright (c) 2011, Duane Merrill.  All rights reserved.
+Copyright (c) 2011-2018, NVIDIA CORPORATION.  All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the NVIDIA CORPORATION nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+==============================================================================
+5c, 6. LLVM Exceptions to the Apache 2.0 License (libcu++, CCCL, NVTX 3)
+==============================================================================
+
+Copyright (c) NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+Licensed under the Apache License, Version 2.0 (LICENSES/Apache-2.0.txt), with the following
+exceptions:
+
+---- LLVM Exceptions to the Apache 2.0 License ----
+
+As an exception, if, as a result of your compiling your source code, portions
+of this Software are embedded into an Object form of such source code, you
+may redistribute such embedded portions in such Object form without complying
+with the conditions of Sections 4(a), 4(b) and 4(d) of the License.
+
+In addition, if you combine or link compiled forms of this Software with
+software that is licensed under the GPLv2 ("Combined Software") and if a
+court of competent jurisdiction determines that the patent provision (Section
+3), the indemnity provision (Section 9) or other Section of the License
+conflicts with the conditions of the GPLv2, you may retroactively and
+prospectively choose to deem waived or otherwise exclude such Section(s) of
+the License, but only in their entirety and only with respect to the Combined
+Software.

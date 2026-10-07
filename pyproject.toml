@@ -22,7 +22,9 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "dyng"
-dynamic = ["version"]
+# optional-dependencies is dynamic so that the extras cu12 / cu13 pin the CUDA plugin of exactly
+# this version (the [[tool.dynamic-metadata]] entries below; ADR 0030).
+dynamic = ["version", "optional-dependencies"]
 description = "dynG: dynamic graph and hypergraph algorithms that update their results under batches of changes"
 readme = "python/README.md"
 requires-python = ">=3.12"
@@ -58,14 +60,6 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = ["numpy>=1.26"]
-
-[project.optional-dependencies]
-# How these differ from PLAN 7.7's list is recorded in ADR 0011 item 15: cu12 / cu13 and
-# cupy-cu12 / cupy-cu13 come with the CUDA plugin wheels of 0.1.x, networkx and scipy with
-# dyng.interop (0.2), and pandas serves Profiler.to_dataframe().
-test = ["pytest>=8", "hypothesis>=6.100"]
-torch = ["torch"]
-pandas = ["pandas"]
 
 [project.scripts]
 # The command line (PLAN Section 5.6; ADR 0025): `dyng sssp ...`, `dyng cycle_count ...`,
@@ -138,6 +132,16 @@ provider = "scikit_build_core.metadata.regex"
 input = "VERSION"
 regex = '(?P<value>\S+)'  # VERSION holds a bare version string
 
+[[tool.dynamic-metadata]]
+# The extras (PLAN 7.7). cu12 / cu13 install the CUDA plugin wheel of exactly this version
+# (dyng-cu12 / dyng-cu13, ADR 0030), filled from VERSION by the template provider; cupy-cu12 /
+# cupy-cu13 add CuPy for the plugin's device arrays. How the list differs from PLAN 7.7's is
+# recorded in ADR 0011 item 15 (networkx and scipy come with dyng.interop; pandas serves
+# Profiler.to_dataframe()) and ADR 0030.
+field = "optional-dependencies"
+provider = "scikit_build_core.metadata.template"
+result = { test = ["pytest>=8", "hypothesis>=6.100"], torch = ["torch"], pandas = ["pandas"], cu12 = ["dyng-cu12=={project[version]}"], cu13 = ["dyng-cu13=={project[version]}"], cupy-cu12 = ["cupy-cuda12x"], cupy-cu13 = ["cupy-cuda13x"] }
+
 [tool.cibuildwheel]
 # The CPU wheel of PLAN Section 7.7, built by .github/workflows/wheels.yml on GitHub-hosted
 # runners inside the manylinux_2_28 image (auditwheel bundles libgomp). The wheel is abi3: it is
@@ -156,9 +160,10 @@ test-environment = { OMP_NUM_THREADS = "2", DYNG_HYPOTHESIS_PROFILE = "dev" }
 test-command = "python -m pytest -q -p no:cacheprovider python/tests/test_api_surface.py python/tests/test_sssp.py python/tests/test_cycle_count.py python/tests/test_cli.py python/tests/test_parity.py"
 
 [tool.mypy]
-# The typed layer is checked strictly (ci/python.sh, .github/workflows/python.yml; PLAN 8.7).
-mypy_path = "python"
-packages = ["dyng"]
+# The typed layer is checked strictly (ci/python.sh, .github/workflows/python.yml; PLAN 8.7), and
+# the import package of the CUDA plugins, python/plugin/dyng_plugin (ADR 0030).
+mypy_path = "python,python/plugin"
+packages = ["dyng", "dyng_plugin"]
 strict = true
 python_version = "3.12"
 

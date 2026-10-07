@@ -46,6 +46,16 @@ struct cuda_device_properties {
 [[nodiscard]] int cuda_device_count() noexcept;
 
 /**
+ * @brief Throw the error of a CUDA call that finds no device it can use.
+ *
+ * The message says why: no device is visible (the driver, `CUDA_VISIBLE_DEVICES`), or the CUDA
+ * runtime cannot be initialized in this process (`cudaErrorInitializationError`), which is what a
+ * process forked after its parent initialized CUDA gets (the message names fork and the remedy).
+ * @throws not_supported_error always.
+ */
+[[noreturn]] void throw_no_cuda_device();
+
+/**
  * @brief Query a device's properties.
  * @param[in] device Device ordinal.
  * @return The properties.
