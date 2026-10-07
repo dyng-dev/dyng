@@ -9,7 +9,7 @@
 # Never rename the file or the environments.
 #
 # Triggered by a tag `v*` (created by the author, or by the AI assistant on the author's behalf,
-# GOVERNANCE.md 2026-09-30; the `release tags` ruleset):
+# GOVERNANCE.md 2026-09-30 for 0.1.0 and 2026-10-06 for 0.2.0; the `release tags` ruleset):
 #   * the tag must equal the version of the package being released (checked below);
 #   * every release goes to TestPyPI first; final versions then go to PyPI, which needs the
 #     author's approval (the required reviewer of each `pypi*` environment: one approval per
