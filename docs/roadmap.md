@@ -16,7 +16,14 @@ of the release is `benchmarks/results/0.1.0/`, carried over from the release can
 the documentation are complete.
 
 After 0.1.0 the releases come in smaller steps (the author's decision of 2026-10-02): the
-hardening that was planned as 0.1.x and `mosp` make **0.2.0**, which is in preparation; the
+hardening that was planned as 0.1.x and `mosp` make **0.2.0**, whose release candidate
+**0.2.0rc1** is prepared on the branch `release-0.2.0` (TestPyPI only: `pip install -i
+https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu13]==0.2.0rc1"`).
+Everything listed for 0.2.0 below is in it; `mosp` is stable from 0.2.0 (the author's decision of
+2026-10-07), with its own release gates against the originals in the certificate
+`benchmarks/results/0.2.0rc1/`. As for 0.1.0, the AI assistant pushes the tags and creates the
+GitHub Release on the author's behalf, the author merges the release pull requests and approves
+the three PyPI uploads (`dyng-cu12`, `dyng-cu13`, then `dyng`; {doc}`developer/release`). The
 hypergraph and `triad_count` follow as 0.3.0, `label_propagation` and `hyper_sssp` as 0.4.0.
 
 ## 0.1.0: the first release
@@ -33,8 +40,8 @@ hypergraph and `triad_count` follow as 0.3.0, `label_propagation` and `hyper_sss
 
 ## 0.2.0: `mosp`, CUDA wheels and hardening
 
-- `mosp`: multi-objective shortest paths (DynaMOSP), and a second `sssp` engine for GPUs
-  without cooperative launch.
+- `mosp`: multi-objective shortest paths (DynaMOSP), **stable** (SemVer applies from 0.2.0), and
+  a second `sssp` engine for GPUs without cooperative launch.
 - CUDA wheels as plugins: `pip install "dyng[cu12]"` or `"dyng[cu13]"`.
 - A tutorial on writing your own dynamic algorithm ("Your first dynamic algorithm") and the two
   tutorial algorithms `dynamic_bfs` and `triangle_delta` (teaching material).

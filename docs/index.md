@@ -10,12 +10,14 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Alpha.** The latest release is **0.1.0**, the first (`pip install dyng`): `sssp` and
-`cycle_count`, stable (SemVer applies from 0.1.0). These pages are built from the main branch,
-which is heading for 0.2.0 ({doc}`roadmap`): the table below also lists `mosp` (stable from 0.2.0) and
-the teaching algorithms `dynamic_bfs` and `triangle_delta` (maturity `tutorial`, written for
-{doc}`tutorials/your_first_dynamic_algorithm`), which are not released yet, and the CUDA plugin
-wheels come with 0.2.0 too.
+**Alpha: 0.2 release candidate.** The latest release is **0.1.0**, the first (`pip install
+dyng`): `sssp` and `cycle_count`, stable (SemVer applies from 0.1.0). These pages are built from
+the main branch, which is **0.2.0rc1**, the release candidate of 0.2.0 ({doc}`roadmap`), on
+TestPyPI only: the table below also lists `mosp` (stable from 0.2.0) and the teaching algorithms
+`dynamic_bfs` and `triangle_delta` (maturity `tutorial`, written for
+{doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin wheels
+(`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`) are part of it
+too; they reach PyPI with 0.2.0.
 :::
 
 ## Algorithms
@@ -40,7 +42,11 @@ release will contain.
 
 ```bash
 pip install dyng                       # the Python package (CPU backends), from PyPI
+pip install "dyng[cu13]"               # from 0.2.0: with the CUDA plugin (cu12 for CUDA 12 drivers)
 ```
+
+The release candidate 0.2.0rc1 is on TestPyPI until 0.2.0 is released
+({doc}`getting_started/install`).
 
 or build from source (the C++ library, the CUDA backend, the development tools):
 

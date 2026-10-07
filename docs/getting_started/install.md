@@ -92,8 +92,15 @@ manylinux_2_28; OpenMP's runtime is bundled). It contains the sequential and Ope
 the `dyng` command line ({doc}`../api/cli`); NumPy is its only dependency.
 
 ```bash
-pip install dyng                   # from PyPI
+pip install dyng                   # from PyPI (0.1.0)
 python -c "import dyng; dyng.show_config()"
+```
+
+The release candidate of 0.2.0, **0.2.0rc1**, is on TestPyPI only (its dependency NumPy comes
+from PyPI):
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.2.0rc1
 ```
 
 The same package can be built from a clone (it compiles the C++ core, so it needs CMake >=
@@ -129,6 +136,13 @@ version:
 pip install "dyng[cu13]"           # NVIDIA driver 580 or newer (CUDA 13.x)
 pip install "dyng[cu12]"           # NVIDIA driver 525 or newer (CUDA 12.x)
 python -c "import dyng; dyng.show_config()"
+```
+
+Until 0.2.0 is on PyPI, the plugins are in the release candidate 0.2.0rc1 on TestPyPI only:
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu13]==0.2.0rc1"
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu12]==0.2.0rc1"
 ```
 
 A plugin contains the CUDA runtime (no CUDA toolkit is needed), code for the GPU architectures
