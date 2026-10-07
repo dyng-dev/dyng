@@ -3,8 +3,9 @@
 Maturity: **stable** from 0.2.0 (SemVer applies, as for `sssp` and `cycle_count` from 0.1.0; the
 author's decision of 2026-10-07, after the API review and freeze of
 {doc}`ADR 0035 <../adr/0035-mosp-api-review-and-freeze-0-2>`; the sequential,
-OpenMP and CUDA backends, the Python binding `dyng.mosp` and the command line `dyng mosp`, new in
-0.2.0, not released yet).
+OpenMP and CUDA backends, the Python binding `dyng.mosp`, the command line `dyng mosp` and the
+benchmark-suite record `benchmarks/paper/ipdps25_dynamosp_mosp.yaml`, new in 0.2.0, not released
+yet).
 Header: `<dyng/mosp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 on the MOSP golden corpus, combined graph included
 ([M7 record](https://github.com/dyng-dev/dyng/blob/main/parity/results/M7.md)).
@@ -212,7 +213,10 @@ originals' `gpu_compute_ms` / `compute_ms`, and "(b) end to end" with their `end
 `parity/results/M7.md`: on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa with the original
 bench's batches, "(a) compute" is 0.99-1.01x of MOSP-CUDA's on cuda and 0.67-0.92x of
 MOSP-OpenMP's on OpenMP (gate 1.05), "(b) end to end" 0.70-0.91x and 0.75-0.92x (gate 1.10), and
-the peak device memory 0.93-1.02x of MOSP-CUDA's (gate 1.05).
+the peak device memory 0.93-1.02x of MOSP-CUDA's (gate 1.05). From 0.2.0 these gates are the
+benchmark suite `benchmarks/paper/ipdps25_dynamosp_mosp.yaml`, which `parity/bench_suite.py`
+runs and every release certificate (`benchmarks/results/<version>/`) must contain
+({doc}`../developer/benchmarks`).
 
 Medians of the A/B runs on the 50K safe batch (K = 3, default preferences; RTX A5000 at locked
 boost clocks with the fused engine, 28 OpenMP threads on a Xeon Gold 6258R; ratio dynG /

@@ -454,6 +454,23 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   Python check of `ci/api_check.sh`) reports changes of `dyng.mosp` signatures, defaults and names
   as breaking.
 
+### R020: the mosp benchmark suite (0.2, branch `release-0.2.0`)
+
+- Added: the benchmark-suite record **`benchmarks/paper/ipdps25_dynamosp_mosp.yaml`**: the MOSP
+  update of DynaMOSP (IPDPS 2025) on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa (K = 3,
+  the 50K safe, 50K unsafe and 10K local batches of seed 777, the sssp suite's inputs and
+  digests), "(a) compute" and "(b) end to end" against the unpatched `bin/mosp` of
+  MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 (CUDA at the boost clock lock, the default-clock
+  reading recorded, not gated), the device memory against MOSP-CUDA's; the gates M7 took.
+- Parity tools: `parity/bench_suite.py` runs a mosp suite through `parity/perf_ab.py mosp` and
+  `perf_ab.py memory --mosp`, and refuses a record that is not of mosp or not of the suite's K,
+  batches, preferences, CUDA engine and output scope, or whose `invalidated` counts differ
+  between the two sides; `--batches` narrows an sssp or mosp execution (a partial one).
+- Parity tools: `parity/certify.py write` requires the suites of each release series
+  (`REQUIRED_SUITES`: the sssp and cycle_count suites from 0.1, the mosp suite from 0.2: a 0.2
+  certificate without the mosp gates fails), and a gated reading of every gated metric of each
+  suite on every backend it is gated on.
+
 ### Changed
 
 - `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.

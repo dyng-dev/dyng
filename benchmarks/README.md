@@ -13,17 +13,21 @@ benchmarks/
                               records, the golden replays, the checks, parity.json, README.md
 ```
 
-## The suites of 0.1
+## The suites
 
 | Suite | Algorithm | Paper | Readings |
 |---|---|---|---|
 | `paper/ipdps25_dynamosp_sosp.yaml` | `sssp` | DynaMOSP (IPDPS 2025, TPDS 2025): the per-objective SOSP update | roadNet-PA, roadNet-CA, rgg_n_2_20_s0, road_usa; K = 3, U[1, 100] seed 12345, source 0; 50K safe / 50K unsafe / 10K local batches (seed 777); OpenMP (28 threads pinned) and CUDA (boost clock lock) gated; CUDA at default clocks recorded; device memory |
 | `paper/ieee_tc_dyntrucy.yaml` | `cycle_count` | TruCy / DynTruCy (IEEE TC) | DD, GitHub, Twitch, COLLAB; static k = 3..7, updates 25K+25K (DD also 50K and 100K), seed 1; OpenMP (56 threads) and CUDA (boost lock; the COLLAB update at the base lock, ADR 0021) gated; CUDA at default clocks recorded; device memory |
+| `paper/ipdps25_dynamosp_mosp.yaml` (0.2) | `mosp` | DynaMOSP (IPDPS 2025): the MOSP update, the K per-objective updates plus the combined graph and its SOSP | the same four graphs, inputs and batches as the sssp suite (K = 3, default preferences); "(a) compute" (<= 1.05x) and "(b) end to end" (<= 1.10x, every output file written by both sides, as the originals' `bench/run.sh`) against the unpatched `bin/mosp` of MOSP-OpenMP@c352151 (28 threads pinned) and MOSP-CUDA@e220ee2 (boost clock lock); CUDA at default clocks recorded; device memory (`perf_ab.py memory --mosp`, <= 1.05x); the per-objective updates, the combined step and the path costs reported |
 
-The mosp-level DynaMOSP suites (`ipdps25_dynamosp.yaml`, `tpds25_dynamosp.yaml`: the K updates
-plus the combined graph, the papers' "(a) compute" totals) come with `mosp` in 0.2; the temporal
-datasets of DynTruCy (CollegeMsg, email-Eu-core, time-window mode) with the temporal modes in 0.4
-(listed under `deferred` in the suite). The ESCHER, DynLP and H-SOSP suites follow their ports.
+The mosp suite reads the gates M7 took (`parity/results/M7.md` sections 6 and 8) and is required
+in every certificate from 0.2.0 on; the per-objective update alone stays in the sssp suite. The K
+sweep of the TPDS 2025 extension (roadNet-CA widened to four objectives, `tpds25_dynamosp`) is
+reported, not gated (M7.md section 5), and listed under `deferred` in the mosp suite; the temporal
+datasets of DynTruCy (CollegeMsg, email-Eu-core, time-window mode) come with the temporal modes in
+0.4 (listed under `deferred` in the suite). The ESCHER, DynLP and H-SOSP suites follow their
+ports.
 
 ## The suite format
 
@@ -34,16 +38,17 @@ what is measured.
 | Key | Content |
 |---|---|
 | `suite`, `title`, `algorithm`, `paper` | the name (equal to the file name), what is measured, the paper and its scope |
-| `harness` | the harness entry (`perf_ab.sssp`: `parity/perf_ab.py run` or `memory`; `perf_ab.cycle_count`: `parity/perf_ab.py cycle_count run` or `memory`), the input root, the compat executable, the build presets (`parity`, `parity-cuda`), the region map |
+| `harness` | the harness entry (`perf_ab.sssp`: `parity/perf_ab.py run` or `memory`; `perf_ab.mosp`: `parity/perf_ab.py mosp` or `memory --mosp`; `perf_ab.cycle_count`: `parity/perf_ab.py cycle_count run` or `memory`), the input root, the compat executable, the build presets (`parity`, `parity-cuda`), the region map |
+| `graph` | sssp, mosp: K (`num_weights`), the weights' distribution and seed, the source; mosp: the preferences (`default`, all 1, the only ones the harness runs) |
 | `datasets` | name, `source` (collection, id, URL), `recipe` (how the inputs are made from the source), `sha256` (one digest, or a map file -> digest relative to the input root) |
-| `batches` | name, generator, sizes, `seed` (and the harness's directory for sssp) |
+| `batches` | name, generator, sizes, `seed` (and the harness's directory for sssp and mosp) |
 | `cases` | cycle_count: task, dataset, k, batch; the harness names a case `<dataset>_k<k>[_<D>_<I>_s<seed>]` |
-| `backends` | threads, GPU, scopes, environment, and the baseline each backend is compared with |
-| `runs` | sssp: alternating rounds per dataset (`default`, or per dataset); cycle_count: per reading |
+| `backends` | threads, GPU, scopes, environment, and the baseline each backend is compared with; mosp: the CUDA engine (`engine`, `perf_ab.py mosp --cuda-engine`; `automatic` is the fused engine on the RTX A5000) |
+| `runs` | sssp, mosp: alternating rounds per dataset (`default`, or per dataset); cycle_count: per reading |
 | `metrics` | each gated region of `parity/timed_regions/<algorithm>.toml`, per backend: the original's timer and the dynG profiler stages it sums, and its gate kind (`compute`, `end_to_end`, `memory`, `none`) |
 | `baselines` | the pinned originals (commit equal to `parity/references.toml`, variant `unpatched`) |
 | `tolerance` | PLAN 8.6: `compute` 1.05, `compute_short` 1.10 below `short_region_ms` 10, `end_to_end` 1.10, `memory` 1.05 |
-| `readings` | one harness invocation per dataset (sssp) or per case list (cycle_count): `kind` run or memory, backend, `clocks` (CUDA: `boost`, `base`, or `none` = default clocks), runs, `gated` (a default-clock reading is recorded and never gated, ADR 0018) |
+| `readings` | one harness invocation per dataset (sssp, mosp) or per case list (cycle_count): `kind` run or memory, backend, `clocks` (CUDA: `boost`, `base`, or `none` = default clocks), runs, `gated` (a default-clock reading is recorded and never gated, ADR 0018) |
 | `paper_reference` | informational: the paper's published numbers |
 
 `validate` requires, among others: every gated region of the region map is a metric with the same
@@ -70,6 +75,7 @@ parity/bench_suite.py validate benchmarks/paper/*.yaml
 parity/bench_suite.py plan benchmarks/paper/ieee_tc_dyntrucy.yaml        # the commands, not run
 parity/bench_suite.py run benchmarks/paper/ipdps25_dynamosp_sosp.yaml --version 0.1.0rc1
 parity/bench_suite.py run benchmarks/paper/ieee_tc_dyntrucy.yaml --version 0.1.0rc1
+parity/bench_suite.py run benchmarks/paper/ipdps25_dynamosp_mosp.yaml --version 0.2.0rc1
 ```
 
 `run` first checks the SHA-256 of every input against the suite (`--no-verify-inputs` skips it),
@@ -78,8 +84,8 @@ then runs each planned command; `--skip-existing` resumes an interrupted executi
 commit). The full records go to `$DYNG_SCRATCH/runs/bench/<version>/`, with the log of every
 command (`<suite>.log`); `run` never replaces a record that exists (`--skip-existing` keeps it,
 `--force` replaces it; to take a reading again, move its record to `superseded/` first).
-`--readings` and `--datasets` select a part and `--runs` overrides the rounds (at least 5): such
-a **narrowed** execution is summarized as `<suite>.partial.json` and only into an `--out` outside
+`--readings`, `--datasets` and (sssp, mosp) `--batches` select a part and `--runs` overrides the
+rounds (at least 5): such a **narrowed** execution is summarized as `<suite>.partial.json` and only into an `--out` outside
 `benchmarks/results/` (a release's summary is the whole suite's; after taking readings again, run
 `summarize` for the whole suite). The harness records name the NVIDIA driver and the CUDA driver
 API version, and the inputs as measured: the sssp harness hashes every input file when a run
@@ -95,6 +101,10 @@ the end of `run`, or on its own) writes to `benchmarks/results/<version>/`:
 
 The summary re-derives every gate from the suite's tolerances and fails if a record's gate,
 reference commit or variant, input digests, clock lock or build preset differ from the suite, if
+a record is of another algorithm or other batches than the suite's (a mosp record must say
+`mosp`: an sssp record of `perf_ab.py run` or `memory` without `--mosp` has the same shape), if a
+mosp record has another K, other preferences or another CUDA engine, did not write the output
+files, or has `invalidated` counts that differ between the two sides in a round, if
 a gated reading is missing or incomplete, if a gated region exceeds its gate or is provisional
 (a region under 10 ms read with fewer than 20 rounds), or if the inputs of a record are not
 verified. A record's inputs are verified by the digests the harness took while measuring; a
@@ -115,7 +125,12 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
    and CUDA; the cycle_count CPU corpus `--full`: sequential and OpenMP; the cycle_count CUDA
    corpus: cuda, cuda:resident, cuda:int64).
 2. **The performance gates**: `parity/bench_suite.py run` for every suite of the release's
-   algorithms.
+   algorithms. `certify.py` requires the suites of `REQUIRED_SUITES` by release series:
+   `ipdps25_dynamosp_sosp` (sssp) and `ieee_tc_dyntrucy` (cycle_count) from 0.1,
+   `ipdps25_dynamosp_mosp` (mosp) from 0.2 (a 0.2.0rc1 or 0.2.0 certificate without the mosp
+   gates fails); each summary must hold a gated reading of every gated metric of its suite file
+   on every backend it is gated on (mosp: "(a) compute" and "(b) end to end" on OpenMP and CUDA,
+   the device memory on CUDA).
 3. **The checks**: the `asan` and `tsan` presets' test suites, `ci/gpu_local.sh` (the CUDA
    tests, the CUDA goldens and compute-sanitizer memcheck, synccheck and racecheck), the mutation
    CTests (`ctest -L mutation`) and the golden mutations (`parity/mutate.py run --json
@@ -202,7 +217,8 @@ around it is written by hand). The certificate records:
   how each reading's inputs were verified;
 - the checks, with their scopes and evidence.
 
-It exits 1, and says why in `verdict.problems`, if any part failed or is missing, if a replayed
+It exits 1, and says why in `verdict.problems`, if any part failed or is missing (a required
+suite, or a gated metric of a suite without a gated reading), if a replayed
 manifest is not the one of `goldens.toml`, if a measured tree was dirty, if a suite summary is
 not of the committed suite file (SHA-256), is partial, or misses, repeats or has an incomplete
 reading of the suite's plan, if a summary's inputs are not verified, if the records' drivers
