@@ -79,8 +79,10 @@ both cannot hold together. Three further questions came up:
    reader from a fresh clone to a green kit: it scaffolds `my_bfs` and changes three files. The
    finished files are in `examples/tutorial_algorithms/my_bfs/` with `// [tutorial: ...]`
    markers; the page quotes them by marker (`literalinclude`; a missing marker fails the Sphinx
-   build with warnings as errors), and `ci/scaffold_check.sh` scaffolds `my_bfs`, copies the
-   files in, builds it and runs its kit and hand cases next to the scaffold probes. `my_bfs` is a
+   build with warnings as errors), and `ci/scaffold_check.sh` scaffolds `my_bfs`, makes the
+   tutorial's edits in the scaffold's own files (`ci/tutorial_edits.py`, from the M6b review:
+   copying the finished files in could not catch a prose step that does not compile), builds it
+   and runs its kit and hand cases next to the scaffold probes. `my_bfs` is a
    simpler algorithm than `dynamic_bfs` (sequential, no BFS tree: it invalidates every vertex
    below a deleted shortest-path edge), so that the lesson fits one sitting; its last section
    shows what `dynamic_bfs` adds.
