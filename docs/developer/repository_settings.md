@@ -317,10 +317,11 @@ refuses two identical pending publishers. Give them the rules of `pypi` / `testp
    bypass); the same for `pypi-cu13`.
 7. `testpypi-cu12` and `testpypi-cu13`: step 3 (tag rule `v*`).
 
-A final release with the plugins then waits for three approvals (`pypi`, `pypi-cu12`,
-`pypi-cu13`); the **Review deployments** dialog of the run lists the waiting environments with a
-checkbox each, so one **Approve and deploy** can approve all three. Never rename the six
-environments.
+A final release with the plugins then waits for three approvals in two **Review deployments**
+dialogs of the run, because `publish-pypi` (environment `pypi`) needs `publish-pypi-plugins` to
+succeed first (ADR 0032 item 6): first `pypi-cu12` and `pypi-cu13`, waiting together (the dialog
+lists them with a checkbox each: tick both → **Approve and deploy**); then, once both plugins are
+on PyPI, `pypi` alone, in a second dialog. Never rename the six environments.
 
 Docs: <https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments>.
 
