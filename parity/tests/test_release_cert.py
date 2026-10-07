@@ -48,7 +48,7 @@ def head() -> str:
 
 def test_the_release_suites_exist_and_validate(bench) -> None:
     names = {p.stem for p in SUITES}
-    assert {"ieee_tc_dyntrucy", "ipdps25_dynamosp_sosp"} <= names
+    assert {"ieee_tc_dyntrucy", "ipdps25_dynamosp_sosp", "ipdps25_dynamosp_mosp"} <= names
     for path in SUITES:
         assert bench.validate(bench.load_suite(path)) == [], path
 
@@ -128,7 +128,25 @@ CC_DIGESTS = {
 }
 
 
-def _cc_record(cases: list[str], commit: str, clocks: str | None = None, ratio: float = 0.9):
+def _gated_metrics(bench, suite: dict, backend: str) -> list[tuple[str, str]]:
+    """(region name, gate kind) of every timed metric the suite gates on `backend` (a
+    per-objective metric as objective 0's region)."""
+    out = []
+    for name, metric in suite["metrics"].items():
+        gate = bench.metric_gate(metric, backend) if backend in metric else None
+        if gate in (None, "none", "memory"):
+            continue
+        out.append((f"{name} obj0" if metric.get("per_objective") else name, gate))
+    return out
+
+
+def _cc_record(
+    cases: list[str],
+    commit: str,
+    clocks: str | None = None,
+    ratio: float = 0.9,
+    regions: list[tuple[str, str]] | None = None,
+):
     record = {
         "schema": 1,
         "algorithm": "cycle_count",
@@ -147,9 +165,10 @@ def _cc_record(cases: list[str], commit: str, clocks: str | None = None, ratio: 
     }
     if clocks:
         record["protocol"]["clocks"] = {"control": clocks}
+    regions = regions or [("static_end_to_end", "compute")]
     for case in cases:
         record["results"][f"count/{case}"] = {
-            "regions": [_region("static_end_to_end", 100.0, 100.0 * ratio)],
+            "regions": [_region(name, 100.0, 100.0 * ratio, kind) for name, kind in regions],
             "monitor": {"rounds": [1, 2, 3], "rejected": [{"reasons": ["x"], "windows": {}}]},
         }
     return record
@@ -175,12 +194,16 @@ def _write_cc_records(bench, suite, records: Path, commit: str, **kw) -> list[di
                 },
             }
         else:
-            rec = _cc_record(reading["cases"], commit, reading.get("clocks"), **kw)
+            regions = _gated_metrics(bench, suite, reading["backend"])
+            rec = _cc_record(reading["cases"], commit, reading.get("clocks"), regions=regions, **kw)
         Path(job["record"]).write_text(json.dumps(rec))
     return jobs
 
 
 def _write_sssp_records(bench, suite, records: Path, commit: str, ratio: float = 0.9):
+    """Records of the suites over the MOSP bench inputs (sssp: perf_ab.py run|memory; mosp:
+    perf_ab.py mosp, memory --mosp), with a region of every gated metric."""
+    mosp = suite["algorithm"] == "mosp"
     records.mkdir(parents=True, exist_ok=True)
     jobs = bench.plan(suite, records=records, build_root=Path("/b"))
     for job in jobs:
@@ -189,6 +212,7 @@ def _write_sssp_records(bench, suite, records: Path, commit: str, ratio: float =
         backend = reading["backend"]
         base = suite["backends"][backend]["baseline"]
         rec = {
+            "algorithm": suite["algorithm"],
             "reference": {
                 "name": base,
                 "commit": suite["baselines"][base]["commit"],
@@ -203,6 +227,7 @@ def _write_sssp_records(bench, suite, records: Path, commit: str, ratio: float =
             ],
             "results": {},
         }
+        regions = _gated_metrics(bench, suite, backend)
         for batch in ("safe50k", "unsafe50k", "local10k"):
             if job["kind"] == "memory":
                 rec["results"][batch] = {
@@ -211,9 +236,21 @@ def _write_sssp_records(bench, suite, records: Path, commit: str, ratio: float =
                     "ratio": ratio,
                 }
             else:
-                rec["results"][batch] = {"regions": [_region("apply", 50.0, 50.0 * ratio)]}
+                rec["results"][batch] = {
+                    "regions": [_region(n, 50.0, 50.0 * ratio, kind) for n, kind in regions],
+                    "invalidated": {"original": 7, "port": 7, "equal_in_every_sample": True},
+                }
+        rec["protocol"] = {}
         if backend == "cuda" and job["kind"] == "run":
-            rec["protocol"] = {"gpu_clocks": {"control": reading["clocks"]}}
+            rec["protocol"]["gpu_clocks"] = {"control": reading["clocks"]}
+        if mosp:
+            rec["objectives"] = suite["graph"]["num_weights"]
+            if job["kind"] == "run":
+                rec["preferences"] = "default (all 1)"
+                rec["protocol"]["outputs"] = (
+                    "written by both (bench/run.sh), into a directory deleted after each run"
+                )
+                rec["cuda_engine"] = "automatic" if backend == "cuda" else None
         Path(job["record"]).write_text(json.dumps(rec))
     return jobs
 
@@ -948,3 +985,284 @@ def test_ctest_progress_lines(cert) -> None:
         "L.R<(anonymous namespace)::t<int,int>>": "Failed",
         "A.B": "Passed",
     }
+
+
+# --- R020: the mosp suite (ipdps25_dynamosp_mosp) and its gates in the certificate ----------------
+
+MOSP_SUITE = REPO / "benchmarks/paper/ipdps25_dynamosp_mosp.yaml"
+
+
+def test_the_mosp_suite_covers_the_m7_gates(bench) -> None:
+    suite = bench.load_suite(MOSP_SUITE)
+    assert bench.validate(suite) == []
+    assert suite["algorithm"] == "mosp" and suite["harness"]["tool"] == "perf_ab.mosp"
+    assert suite["harness"]["region_map"] == "parity/timed_regions/mosp.toml"
+    # The graphs and batches of M7's gates (parity/results/M7.md sections 6 and 8), K = 3.
+    assert [d["name"] for d in suite["datasets"]] == [
+        "roadNet-PA",
+        "roadNet-CA",
+        "rgg",
+        "road_usa_g",
+    ]
+    assert [b["name"] for b in suite["batches"]] == ["safe50k", "unsafe50k", "local10k"]
+    assert all(b["seed"] == 777 for b in suite["batches"])
+    assert suite["graph"]["num_weights"] == 3
+    # Its inputs are the sssp suite's (the same prepared directories).
+    sosp = bench.load_suite(REPO / "benchmarks/paper/ipdps25_dynamosp_sosp.yaml")
+    assert {d["name"]: d["sha256"] for d in suite["datasets"]} == {
+        d["name"]: d["sha256"] for d in sosp["datasets"]
+    }
+    # The gates: "(a) compute" and "(b) end to end" on both backends, the device memory on cuda.
+    gated = {
+        (name, backend)
+        for name, metric in suite["metrics"].items()
+        for backend in ("openmp", "cuda")
+        if backend in metric and bench.metric_gate(metric, backend) != "none"
+    }
+    assert gated == {
+        ("compute", "openmp"),
+        ("compute", "cuda"),
+        ("end_to_end", "openmp"),
+        ("end_to_end", "cuda"),
+        ("device_memory", "cuda"),
+    }
+    readings = {r["name"]: r for r in suite["readings"]}
+    assert readings["cuda"]["clocks"] == "boost" and readings["cuda"]["gated"]  # ADR 0018
+    assert readings["cuda-default-clocks"]["clocks"] == "none"
+    assert not readings["cuda-default-clocks"]["gated"]
+    assert {"MOSP-OpenMP", "MOSP-CUDA"} == set(suite["baselines"])
+
+
+@pytest.mark.parametrize(
+    ("edit", "message"),
+    [
+        (lambda s: s["harness"].update(tool="perf_ab.sssp"), "harness.tool"),
+        (lambda s: s["harness"].update(region_map="parity/timed_regions/sssp.toml"), "region_map"),
+        (lambda s: s["metrics"]["compute"].update(gate="none"), "region map says"),
+        (lambda s: s["metrics"]["compute"]["cuda"].update(port=["sssp.engine"]), "port stages"),
+        (lambda s: s["metrics"].pop("end_to_end"), "is not a metric"),
+        (lambda s: s["graph"].pop("num_weights"), "num_weights"),
+        (lambda s: s["graph"].update(preferences=[1, 2, 3]), "preferences"),
+        (lambda s: s["backends"]["cuda"].update(engine="fast"), "engine"),
+        (lambda s: s["batches"][0].update(directory="x"), "directory"),
+        (lambda s: s["datasets"][0].update(hops=1), "hops"),
+        (lambda s: s["baselines"]["MOSP-CUDA"].update(variant="patched"), "unpatched"),
+        (lambda s: s["readings"][2].update(gated=True), "not gated"),
+    ],
+)
+def test_validate_finds_what_differs_in_the_mosp_suite(bench, edit, message: str) -> None:
+    suite = bench.load_suite(MOSP_SUITE)
+    edit(suite)
+    errors = bench.validate(suite)
+    assert any(message in e for e in errors), errors
+
+
+def test_plan_of_the_mosp_suite(bench, tmp_path: Path) -> None:
+    suite = bench.load_suite(MOSP_SUITE)
+    jobs = bench.plan(suite, records=tmp_path, build_root=Path("/b"))
+    assert len(jobs) == 4 * 4  # four readings x four graphs
+    by = {(j["reading"], j["dataset"]): j["argv"] for j in jobs}
+    omp = by[("openmp", "roadNet-PA")]
+    assert omp[2:4] == ["mosp", "--backend"] and omp[omp.index("--backend") + 1] == "openmp"
+    assert "/b/parity/tools/compat/dyng-compat-mosp" in omp
+    assert omp[omp.index("--threads") + 1] == "28" and "--lock-clocks" not in omp
+    assert omp[omp.index("--batches") + 1] == "safe50k,unsafe50k,local10k"
+    cuda = by[("cuda", "road_usa_g")]
+    assert cuda[2] == "mosp" and "/b/parity-cuda/tools/compat/dyng-compat-mosp" in cuda
+    assert cuda[cuda.index("--runs") + 1] == "11" and cuda[cuda.index("--gpu") + 1] == "0"
+    assert cuda[cuda.index("--lock-clocks") + 1] == "boost"
+    assert cuda[cuda.index("--cuda-engine") + 1] == "automatic"
+    default = by[("cuda-default-clocks", "rgg")]
+    assert default[default.index("--lock-clocks") + 1] == "none"
+    assert default[default.index("--runs") + 1] == "21"
+    memory = by[("cuda-memory", "roadNet-CA")]
+    assert memory[2] == "memory" and "--mosp" in memory
+    assert memory[memory.index("--gpu") + 1] == "1"
+    assert all(j["lock"] == "exclusive (the harness)" for j in jobs)
+    # perf_ab.py accepts every planned command line (parsing only: --help of each subcommand
+    # lists the options the plan uses).
+    for sub, options in (
+        ("mosp", ["--cuda-engine", "--lock-clocks", "--batches", "--threads", "--json"]),
+        ("memory", ["--mosp", "--batches", "--gpu", "--json"]),
+    ):
+        proc = subprocess.run(
+            [sys.executable, REPO / "parity/perf_ab.py", sub, "--help"],
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, proc.stderr
+        for option in options:
+            assert option in proc.stdout, (sub, option)
+
+
+def test_summary_of_the_mosp_suite(bench, tmp_path: Path) -> None:
+    suite = bench.load_suite(MOSP_SUITE)
+    jobs = _write_sssp_records(bench, suite, tmp_path / "rec", head())
+    out = tmp_path / "out"
+    summary = bench.summarize(suite, jobs, out=out, version="t", records=tmp_path, inputs=None)
+    assert summary["verdict"]["passed"], summary["verdict"]
+    assert summary["algorithm"] == "mosp" and (out / "ipdps25_dynamosp_mosp.json").is_file()
+    regions = {g["region"] for r in summary["readings"] for g in r["regions"]}
+    assert {"compute", "end_to_end", "device_memory"} <= regions
+
+    # Records that are not the suite's are refused, one finding each.
+    def refused(job: dict, edit, text: str) -> None:
+        path = Path(job["record"])
+        good = path.read_text()
+        rec = json.loads(good)
+        edit(rec)
+        path.write_text(json.dumps(rec))
+        got = bench.summarize(
+            suite, jobs, out=tmp_path / "o", version="t", records=tmp_path, inputs=None
+        )
+        path.write_text(good)
+        problems = " ".join(got["verdict"]["problems"])
+        assert not got["verdict"]["passed"] and text in problems, problems
+
+    cuda = next(j for j in jobs if j["reading"] == "cuda")
+    memory = next(j for j in jobs if j["reading"] == "cuda-memory")
+    omp = next(j for j in jobs if j["reading"] == "openmp")
+    refused(cuda, lambda r: r.update(algorithm="sssp"), "a record of algorithm 'sssp'")
+    refused(memory, lambda r: r.pop("algorithm"), "a record of algorithm None")  # no --mosp
+    refused(cuda, lambda r: r.update(objectives=2), "2 objectives")
+    refused(omp, lambda r: r.update(preferences="1,2,3"), "preferences '1,2,3'")
+    refused(
+        omp,
+        lambda r: r["protocol"].update(outputs="--no-output on both"),
+        "writes every output file",
+    )
+    refused(cuda, lambda r: r.update(cuda_engine="operators"), "CUDA engine 'operators'")
+    refused(cuda, lambda r: r["results"].pop("local10k"), "the suite's are")
+    refused(
+        omp,
+        lambda r: r["results"]["safe50k"]["invalidated"].update(equal_in_every_sample=False),
+        "invalidated counts are not equal",
+    )
+    refused(
+        cuda,
+        lambda r: r["protocol"].update(gpu_clocks={"control": "none"}),
+        "clocks 'none'",
+    )
+
+
+def test_release_series_and_the_required_suites(cert) -> None:
+    assert cert.release_series("0.2.0rc1") == (0, 2)
+    assert cert.release_series("0.1.0") == (0, 1)
+    assert cert.release_series("0.10.3.dev0") == (0, 10)
+    assert cert.release_series("v1.0") == (1, 0)
+    assert cert.release_series("t") is None
+    assert set(cert.required_suites("0.1.0")) == {"ipdps25_dynamosp_sosp", "ieee_tc_dyntrucy"}
+    for version in ("0.2.0rc1", "0.2.0", "0.3.0", "t"):
+        assert "ipdps25_dynamosp_mosp" in cert.required_suites(version), version
+    # Every required suite is a committed suite of its algorithm.
+    for name, spec in cert.REQUIRED_SUITES.items():
+        path = REPO / "benchmarks" / "paper" / f"{name}.yaml"
+        assert path.is_file() and f"algorithm: {spec['algorithm']}\n" in path.read_text()
+
+
+def test_the_committed_summaries_read_every_gated_metric(cert) -> None:
+    """The coverage rule holds for the summaries the 0.1.0 certificate was written from."""
+    results = REPO / "benchmarks" / "results" / "0.1.0"
+    for name in ("ipdps25_dynamosp_sosp", "ieee_tc_dyntrucy"):
+        doc = json.loads((results / f"{name}.json").read_text())
+        rows = [
+            {"backend": r["backend"], "region": g["region"]}
+            for r in doc["readings"]
+            if r["gated"]
+            for g in r["regions"]
+            if "gate" in g
+        ]
+        assert cert.missing_gates(REPO / doc["suite_file"], rows) == [], name
+        assert cert.missing_gates(REPO / doc["suite_file"], []) != []
+
+
+def test_a_02_certificate_needs_the_mosp_gates(cert, bench, tmp_path: Path, fixed_driver) -> None:
+    commit = head()
+    results = _full_results(cert, bench, tmp_path, commit)
+    log = tmp_path / "asan.log"
+    log.write_text(_ctest_log(_fixture_test_names(cert)))
+    base = ["--results", str(results)]
+    check = ["check", *base, "--name", "asan", "--command", "ctest", "--ctest-log", str(log)]
+    assert cert.main(check) == 0
+
+    def write(version: str) -> int:
+        return cert.main(["write", *base, "--version", version, "--allow-dirty"])
+
+    def problems() -> str:
+        return " ".join(json.loads((results / "parity.json").read_text())["verdict"]["problems"])
+
+    assert write("0.2.0rc1") == 0, problems()
+    doc = json.loads((results / "parity.json").read_text())
+    mosp = next(s for s in doc["performance"] if s["suite"] == "ipdps25_dynamosp_mosp")
+    assert mosp["passed"] and {r["region"] for r in mosp["gate_table"]} == {
+        "compute",
+        "end_to_end",
+        "device_memory",
+    }
+    assert "`ipdps25_dynamosp_mosp`" in (results / "README.md").read_text()
+
+    # A gated metric without a reading: the memory reading's regions dropped from the summary.
+    path = results / "ipdps25_dynamosp_mosp.json"
+    full = path.read_text()
+    cut = json.loads(full)
+    for r in cut["readings"]:
+        if r["reading"] == "cuda-memory":
+            r["regions"] = []
+    path.write_text(json.dumps(cut))
+    assert write("0.2.0rc1") == 1
+    assert "no gated reading of device_memory (cuda)" in problems()
+
+    # Without the mosp suite: a 0.2 certificate fails, a 0.1 certificate does not need it.
+    path.unlink()
+    for record in results.glob("ipdps25_dynamosp_mosp-*.json"):
+        record.unlink()
+    assert write("0.2.0rc1") == 1
+    assert "no performance suite of mosp" in problems()
+    assert write("0.1.0") == 0, problems()
+    path.write_text(full)
+
+
+def test_a_narrowed_mosp_execution(bench, tmp_path: Path) -> None:
+    """--datasets and --batches narrow a mosp execution (the plumbing check of R020): the
+    harness gets the batches, the summary is partial and checks the records against them."""
+    suite = bench.load_suite(MOSP_SUITE)
+    jobs = bench.plan(
+        suite,
+        records=tmp_path / "rec",
+        build_root=Path("/b"),
+        readings=["openmp", "cuda"],
+        datasets=["roadNet-PA"],
+        batches=["safe50k"],
+    )
+    assert [(j["reading"], j["dataset"]) for j in jobs] == [
+        ("openmp", "roadNet-PA"),
+        ("cuda", "roadNet-PA"),
+    ]
+    assert all(j["argv"][j["argv"].index("--batches") + 1] == "safe50k" for j in jobs)
+    with pytest.raises(bench.SuiteError, match="unknown batches"):
+        bench.plan(suite, records=tmp_path, build_root=Path("/b"), batches=["big"])
+    cc = bench.load_suite(REPO / "benchmarks/paper/ieee_tc_dyntrucy.yaml")
+    with pytest.raises(bench.SuiteError, match="--batches"):
+        bench.plan(cc, records=tmp_path, build_root=Path("/b"), batches=["u25k"])
+    full = _write_sssp_records(bench, suite, tmp_path / "rec", head())
+    for job in full:
+        path = Path(job["record"])
+        rec = json.loads(path.read_text())
+        rec["results"] = {"safe50k": rec["results"]["safe50k"]}
+        path.write_text(json.dumps(rec))
+    out = tmp_path / "out"
+    narrowed = {"readings": ["openmp", "cuda"], "datasets": ["roadNet-PA"], "batches": ["safe50k"]}
+    summary = bench.summarize(
+        suite, jobs, out=out, version="t", records=tmp_path / "rec", inputs=None, partial=narrowed
+    )
+    assert summary["verdict"]["passed"], summary["verdict"]
+    assert (out / "ipdps25_dynamosp_mosp.partial.json").is_file()
+    # The same one-batch records do not make the whole suite's summary.
+    whole = bench.summarize(
+        suite, full, out=tmp_path / "o2", version="t", records=tmp_path / "rec", inputs=None
+    )
+    assert not whole["verdict"]["passed"]
+    assert "the suite's are" in " ".join(whole["verdict"]["problems"])
+    with pytest.raises(SystemExit) as exc:
+        bench.main(["summarize", str(MOSP_SUITE), "--batches", "safe50k", "--version", "t"])
+    assert exc.value.code == 2

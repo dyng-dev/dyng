@@ -7,6 +7,7 @@
     parity/bench_suite.py plan     benchmarks/paper/ieee_tc_dyntrucy.yaml [--readings cuda]
     parity/bench_suite.py run      benchmarks/paper/ieee_tc_dyntrucy.yaml --version 0.1.0rc1
                                    [--readings openmp,cuda] [--datasets ...] [--runs N]
+                                   [--batches safe50k]
                                    [--build-root build] [--skip-existing | --force]
                                    [--no-verify-inputs] [--records DIR] [--out DIR]
     parity/bench_suite.py summarize benchmarks/paper/ieee_tc_dyntrucy.yaml --version 0.1.0rc1
@@ -15,8 +16,9 @@ A suite file (docs/developer/benchmarks.md) is machine-readable: datasets with t
 digests and the recipe that makes them, batches with their seeds, backends, the number of runs,
 the metrics as regions of parity/timed_regions/<algorithm>.toml with the dynG profiler stages they
 sum, the baselines (the pinned originals of parity/references.toml, unpatched copies), the
-tolerances of PLAN 8.6, and the readings: one reading is one harness invocation per dataset (sssp)
-or per case list (cycle_count), gated or recorded only (the default-clock readings of ADR 0018).
+tolerances of PLAN 8.6, and the readings: one reading is one harness invocation per dataset (sssp,
+mosp) or per case list (cycle_count), gated or recorded only (the default-clock readings of ADR
+0018).
 
 validate   checks a suite file against itself and against the harness it drives: the region map
            (every metric is a region with the same gate and the same profiler stages), the
@@ -25,7 +27,8 @@ validate   checks a suite file against itself and against the harness it drives:
 plan       prints the harness commands one execution of the suite runs (nothing is run).
 run        verifies the inputs against the suite's digests (SHA-256 of every file; skip with
            --no-verify-inputs), then runs every planned command: parity/perf_ab.py run|memory for
-           sssp, parity/perf_ab.py cycle_count run|memory for cycle_count. Each timing command
+           sssp, parity/perf_ab.py mosp and memory --mosp for mosp, parity/perf_ab.py cycle_count
+           run|memory for cycle_count. Each timing command
            takes the exclusive perf lock $DYNG_SCRATCH/perf.lock itself and runs only on a
            parity-preset build (--build-root/<preset>/tools/compat/...); the CUDA readings lock
            the GPU clocks for the whole A/B (--lock-clocks of the reading: boost, base, or none
@@ -40,13 +43,16 @@ summarize  reads the records of every planned command and writes, under
            verdict, the NVIDIA driver each record names, the inputs check and the overall
            verdict. It re-derives every gate from the suite's tolerances and refuses a record
            whose gate, reference commit, inputs, clock lock or build preset differs from the
-           suite. The inputs of every record must be verified: by the digests the harness took
+           suite (a mosp record must also be of mosp, with the suite's K, batches and CUDA
+           engine, every output written and the invalidated counts equal in every round). The
+           inputs of every record must be verified: by the digests the harness took
            while measuring, or, for a record without them, by hashing the files again, each
            unchanged since the execution started (the first command of <records>/<suite>.log).
            Exit 1 if a gated region exceeds its gate, a gated reading is missing or incomplete,
            or a check fails.
 
---readings, --datasets and --runs narrow the suite: such an execution is written as
+--readings, --datasets, --batches (sssp, mosp) and --runs narrow the suite: such an execution is
+written as
 <suite>.partial.json and only to an --out outside benchmarks/results/ (a release's summary covers
 the whole suite, and parity/certify.py checks that it does).
 """
@@ -71,17 +77,28 @@ SCRATCH = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-w
 sys.path.insert(0, str(REPO / "parity"))
 
 SCHEMA = 1
-TOOLS = {"sssp": "perf_ab.sssp", "cycle_count": "perf_ab.cycle_count"}
+TOOLS = {"sssp": "perf_ab.sssp", "mosp": "perf_ab.mosp", "cycle_count": "perf_ab.cycle_count"}
 REGION_MAPS = {
     "sssp": "parity/timed_regions/sssp.toml",
+    "mosp": "parity/timed_regions/mosp.toml",
     "cycle_count": "parity/timed_regions/cycle_count.toml",
 }
 # The region map's section per backend.
 MAP_KEYS = {
     "sssp": {"openmp": "mosp_openmp", "cuda": "mosp_cuda"},
+    "mosp": {"openmp": "mosp_openmp", "cuda": "mosp_cuda"},
     "cycle_count": {"openmp": "cycle_enum_openmp", "cuda": "cycle_enum_cuda"},
 }
-EXECUTABLES = {"sssp": "dyng-compat-mosp", "cycle_count": "dyng-compat-cycle-enum"}
+EXECUTABLES = {
+    "sssp": "dyng-compat-mosp",
+    "mosp": "dyng-compat-mosp",
+    "cycle_count": "dyng-compat-cycle-enum",
+}
+# The algorithms whose harness runs one command per dataset over the MOSP bench inputs
+# ($DYNG_SCRATCH/bench/mosp/<graph>, parity/perf_ab.py prepare): sssp (`perf_ab.py run|memory`)
+# and mosp (`perf_ab.py mosp`, `perf_ab.py memory --mosp`, M7).
+PER_DATASET = ("sssp", "mosp")
+CUDA_ENGINES = ("automatic", "fused", "operators")  # perf_ab.py mosp --cuda-engine
 PRESETS = {"openmp": "parity", "cuda": "parity-cuda"}
 CLOCKS = ("boost", "base", "none")
 KINDS = ("run", "memory")
@@ -303,7 +320,7 @@ def validate(suite: dict) -> list[str]:
                 )
 
     # Algorithm-specific: the harness's names.
-    if algorithm == "sssp":
+    if algorithm in PER_DATASET:
         for dname, d in datasets.items():
             if need(
                 dname in perf_ab.HOPS, f"dataset {dname}: perf_ab.py knows {sorted(perf_ab.HOPS)}"
@@ -323,6 +340,23 @@ def validate(suite: dict) -> list[str]:
                 )
         runs = suite.get("runs") or {}
         need(isinstance(runs.get("default"), int), "runs.default missing")
+        if algorithm == "mosp":
+            # perf_ab.py mosp runs every column of the prepared CSR (no -k) with the default
+            # preferences (no --pref): the record's `objectives` must be the suite's K.
+            graph = suite.get("graph") or {}
+            need(
+                isinstance(graph.get("num_weights"), int) and graph["num_weights"] >= 1,
+                "graph.num_weights (K) missing",
+            )
+            need(
+                graph.get("preferences", "default") == "default",
+                "graph.preferences: the harness runs the default preferences (all 1)",
+            )
+            engine = (backends.get("cuda") or {}).get("engine", "automatic")
+            need(
+                engine in CUDA_ENGINES,
+                f"backends.cuda.engine must be one of {CUDA_ENGINES} (perf_ab.py --cuda-engine)",
+            )
     else:
         cases = {
             case_name(c, batches)
@@ -405,6 +439,7 @@ def plan(
     build_root: Path,
     readings: list[str] | None = None,
     datasets: list[str] | None = None,
+    batches: list[str] | None = None,
     runs: int | None = None,
     lock_timeout: float = 4 * 3600.0,
 ) -> list[dict]:
@@ -420,22 +455,31 @@ def plan(
         unknown = set(datasets) - set(names)
         if unknown:
             raise SuiteError(f"unknown datasets {sorted(unknown)}")
+    batch_names = [b["name"] for b in suite["batches"]]
+    if batches:
+        if algorithm not in PER_DATASET:
+            raise SuiteError(f"--batches narrows the suites of {PER_DATASET}, not {algorithm}")
+        unknown = set(batches) - set(batch_names)
+        if unknown:
+            raise SuiteError(f"unknown batches {sorted(unknown)}")
+        batch_names = [b for b in batch_names if b in batches]
     py = sys.executable
     harness = str(REPO / "parity" / "perf_ab.py")
     jobs = []
     for r in selected:
         backend = r["backend"]
         exe = build_root / PRESETS[backend] / "tools" / "compat" / EXECUTABLES[algorithm]
-        if algorithm == "sssp":
+        if algorithm in PER_DATASET:
             for dataset in names:
                 if datasets and dataset not in datasets:
                     continue
                 out = records / record_name(suite, r, dataset)
                 if r["kind"] == "run":
+                    command = "mosp" if algorithm == "mosp" else "run"
                     argv = [
                         py,
                         harness,
-                        "run",
+                        command,
                         "--backend",
                         backend,
                         "--exe",
@@ -450,6 +494,9 @@ def plan(
                             str(r.get("gpu", suite["backends"]["cuda"].get("gpu", 0))),
                         ]
                         argv += ["--lock-clocks", r["clocks"]]
+                        if algorithm == "mosp":
+                            engine = suite["backends"]["cuda"].get("engine", "automatic")
+                            argv += ["--cuda-engine", engine]
                     argv += ["--threads", str(suite["backends"]["openmp"].get("threads", 28))]
                 else:
                     argv = [
@@ -463,12 +510,17 @@ def plan(
                         "--graph",
                         dataset,
                     ]
+                    if algorithm == "mosp":
+                        argv.append("--mosp")  # the whole MOSP update, the original's scope
                     argv += ["--gpu", str(r.get("gpu", 1))]
+                if algorithm == "mosp" or batches:
+                    argv += ["--batches", ",".join(batch_names)]
                 argv += ["--lock-timeout", str(int(lock_timeout)), "--json", str(out)]
                 jobs.append(
                     {
                         "reading": r["name"],
                         "dataset": dataset,
+                        "batches": batch_names,
                         "kind": r["kind"],
                         "gated": r["gated"],
                         "record": out,
@@ -571,8 +623,8 @@ def verify_inputs(suite: dict, datasets: list[str] | None = None) -> dict:
 
 
 def record_datasets(suite: dict, job: dict, record: dict) -> list[str]:
-    """The suite datasets a record measured: the job's (sssp), or those its cases read."""
-    if suite["algorithm"] == "sssp":
+    """The suite datasets a record measured: the job's (sssp, mosp), or those its cases read."""
+    if suite["algorithm"] in PER_DATASET:
         return [job["dataset"]]
     names = set()
     for key in record.get("results", {}):
@@ -631,7 +683,7 @@ def check_record_inputs(
     names = record_datasets(suite, job, record)
     by_name = {d["name"]: d for d in suite["datasets"]}
     out: dict = {"datasets": names}
-    if suite["algorithm"] == "sssp" and record.get("inputs_hashed") == "run start":
+    if suite["algorithm"] in PER_DATASET and record.get("inputs_hashed") == "run start":
         got = {}
         for line in record.get("inputs_sha256", []):
             sha, rel = line.split(None, 1)
@@ -779,6 +831,45 @@ def read_record(
         or (record.get("baseline") or {}).get("experiment")
     ):
         problems.append(f"{where}: not the unpatched original (an experiment)")
+    # The record is of the suite's algorithm: an sssp record (`perf_ab.py run`, `memory` without
+    # --mosp) has the shape of a mosp one, so a mosp suite needs the field; the records of the
+    # 0.1 suites carry it as well, and a record of another algorithm is refused.
+    algorithm = suite["algorithm"]
+    named = record.get("algorithm", None if algorithm == "mosp" else algorithm)
+    if named != algorithm:
+        problems.append(f"{where}: a record of algorithm {named!r}, the suite is {algorithm!r}")
+    if algorithm in PER_DATASET:
+        # Every batch of the suite, and no other (the harness's record keys are batch names).
+        want = job.get("batches") or [b["name"] for b in suite["batches"]]
+        got = sorted(record.get("results", {}))
+        if got != sorted(want):
+            problems.append(f"{where}: batches {got}, the suite's are {sorted(want)}")
+    if algorithm == "mosp":
+        objectives = record.get("objectives")
+        if objectives != (suite.get("graph") or {}).get("num_weights"):
+            problems.append(
+                f"{where}: {objectives} objectives, the suite's K is "
+                f"{(suite.get('graph') or {}).get('num_weights')}"
+            )
+        if job["kind"] == "run":
+            preferences = record.get("preferences")
+            if preferences != "default (all 1)":
+                problems.append(
+                    f"{where}: preferences {preferences!r}, the suite's are the default"
+                )
+            outputs = (record.get("protocol") or {}).get("outputs", "")
+            if not str(outputs).startswith("written by both"):
+                problems.append(
+                    f"{where}: outputs {outputs!r}: the suite's scope writes every output file "
+                    "on both sides (bench/run.sh)"
+                )
+            if backend == "cuda":
+                engine = suite["backends"]["cuda"].get("engine", "automatic")
+                if record.get("cuda_engine") != engine:
+                    problems.append(
+                        f"{where}: CUDA engine {record.get('cuda_engine')!r}, the suite's is "
+                        f"{engine!r}"
+                    )
     port = record.get("port", {})
     build = port.get("build") or {}
     if job["kind"] == "run" and build.get("parity_preset") is False:
@@ -789,7 +880,7 @@ def read_record(
         )
     # Inputs: every digest a record carries must be the suite's, and the inputs it measured must
     # be verified (check_record_inputs).
-    if suite["algorithm"] == "sssp" and record.get("inputs_sha256"):
+    if suite["algorithm"] in PER_DATASET and record.get("inputs_sha256"):
         dataset = next(d for d in suite["datasets"] if d["name"] == job["dataset"])
         got = {}
         for line in record.get("inputs_sha256", []):
@@ -825,6 +916,16 @@ def read_record(
             if result.get("complete") is False:
                 complete = False
                 problems.append(f"{where}: {case} is incomplete (more rejected rounds than runs)")
+            # The deterministic counter (PLAN 8.3; mosp.toml [counters]): the `invalidated` of
+            # every objective equal on both sides in every round (a mosp record must say so).
+            inv = result.get("invalidated")
+            if algorithm in PER_DATASET and (
+                (algorithm == "mosp" and not isinstance(inv, dict))
+                or (isinstance(inv, dict) and inv.get("equal_in_every_sample") is not True)
+            ):
+                problems.append(
+                    f"{where}: {case}: the invalidated counts are not equal in every round"
+                )
             for reg in result.get("regions", []):
                 row = {
                     "case": case
@@ -1040,6 +1141,12 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--readings", type=lambda s: [x for x in s.split(",") if x], default=None)
         p.add_argument("--datasets", type=lambda s: [x for x in s.split(",") if x], default=None)
         p.add_argument(
+            "--batches",
+            type=lambda s: [x for x in s.split(",") if x],
+            default=None,
+            help="sssp, mosp: only these batches (a narrowed, partial execution)",
+        )
+        p.add_argument(
             "--runs", type=int, default=None, help="override every reading's runs (>= 5)"
         )
         p.add_argument(
@@ -1094,13 +1201,18 @@ def main(argv: list[str] | None = None) -> int:
     # full summary and compacted records it would otherwise replace.
     partial = {
         k: v
-        for k, v in (("readings", args.readings), ("datasets", args.datasets), ("runs", args.runs))
+        for k, v in (
+            ("readings", args.readings),
+            ("datasets", args.datasets),
+            ("batches", args.batches),
+            ("runs", args.runs),
+        )
         if v
     } or None
     results_root = (REPO / "benchmarks" / "results").resolve()
     if partial and args.command != "plan" and out.resolve().is_relative_to(results_root):
         parser.error(
-            "--readings, --datasets or --runs narrow the suite: give --out outside "
+            "--readings, --datasets, --batches or --runs narrow the suite: give --out outside "
             "benchmarks/results/ (the release's summary covers the whole suite)"
         )
     jobs = plan(
@@ -1109,6 +1221,7 @@ def main(argv: list[str] | None = None) -> int:
         build_root=args.build_root.resolve(),
         readings=args.readings,
         datasets=args.datasets,
+        batches=args.batches,
         runs=args.runs,
         lock_timeout=args.lock_timeout,
     )

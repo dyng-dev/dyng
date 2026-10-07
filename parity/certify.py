@@ -40,6 +40,11 @@ configuration), the tolerances used, the performance-gate table (every gated reg
 ratio, gate, verdict; the recorded default-clock readings separately) and the checks. It also
 rewrites the generated part of README.md (between the certify markers) from the certificate. Exit
 1 if any part failed or is missing; the certificate is written either way, with the reason.
+
+The performance part needs the summary of every suite of REQUIRED_SUITES whose release series has
+come (sssp's ipdps25_dynamosp_sosp and cycle_count's ieee_tc_dyntrucy from 0.1, mosp's
+ipdps25_dynamosp_mosp from 0.2: a 0.2 certificate without the mosp gates fails), and each summary
+must hold a gated reading of every gated metric of its suite file on every backend it is gated on.
 """
 
 from __future__ import annotations
@@ -168,6 +173,21 @@ REQUIRED_REPLAYS = {
     "cycle_count_cuda": ["cuda"],
     "mosp_scale": ["sequential", "openmp", "cuda"],
 }
+# The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
+# series on which its algorithm's gates became part of the release (PLAN 8.6, Appendix F): sssp and
+# cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
+# certificate of a version that does not parse as <major>.<minor> needs every suite. Each summary
+# must also hold every gated metric of its suite (`missing_gates`): a reading of every gated
+# region on every backend the suite gates it on.
+REQUIRED_SUITES = {
+    "ipdps25_dynamosp_sosp": {"algorithm": "sssp", "since": (0, 1)},
+    "ieee_tc_dyntrucy": {"algorithm": "cycle_count", "since": (0, 1)},
+    "ipdps25_dynamosp_mosp": {"algorithm": "mosp", "since": (0, 2)},
+}
+RELEASE_SERIES = re.compile(r"^v?(\d+)\.(\d+)(?:[.\-+a-z]|$)", re.I)
+# A region of a summary named after its metric: "sosp_update obj1" (per objective),
+# "update[resident]", "device_memory[original]" (cycle_count's scopes).
+REGION_SUFFIX = re.compile(r"(?: obj\d+|\[[^\]]*\])$")
 # "100% tests passed out of 595" (CMake 4) or "95% tests passed, 1 tests failed out of 20".
 CTEST = re.compile(r"(\d+)% tests passed(?:, (\d+) tests? failed)? out of (\d+)")
 # One test of ctest's progress output: "  3/595 Test   #1: Name ......   Passed    0.09 sec"
@@ -706,6 +726,41 @@ def suite_coverage(doc: dict, where: str) -> list[str]:
     return out
 
 
+def release_series(version: str) -> tuple[int, int] | None:
+    """(major, minor) of a version ("0.2.0rc1" -> (0, 2)); None if it does not parse."""
+    m = RELEASE_SERIES.match(version or "")
+    return (int(m[1]), int(m[2])) if m else None
+
+
+def required_suites(version: str) -> dict[str, dict]:
+    """The suites of REQUIRED_SUITES a certificate of `version` needs (all, for an unparsable
+    version)."""
+    series = release_series(version)
+    return {
+        name: spec
+        for name, spec in REQUIRED_SUITES.items()
+        if series is None or series >= spec["since"]
+    }
+
+
+def missing_gates(suite_file: Path, gate_table: list[dict]) -> list[str]:
+    """The gated metrics of a suite file (metric x backend, gate other than "none") that no gated
+    row of a summary's gate table reads: "<metric> (<backend>)"."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import bench_suite
+
+    suite = bench_suite.load_suite(suite_file)
+    read = {(row.get("backend"), REGION_SUFFIX.sub("", row["region"])) for row in gate_table}
+    out = []
+    for name, metric in (suite.get("metrics") or {}).items():
+        for backend in suite.get("backends") or {}:
+            if backend not in metric or bench_suite.metric_gate(metric, backend) == "none":
+                continue
+            if (backend, name) not in read:
+                out.append(f"{name} ({backend})")
+    return out
+
+
 def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
     suites = []
     for path in sorted(results.glob("*.json")):
@@ -782,6 +837,15 @@ def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
                     gates.append(row)
                 elif "gate" in region:
                     recorded.append(row)
+        rel = doc.get("suite_file")
+        if rel and (REPO / rel).is_file():
+            missing = missing_gates(REPO / rel, gates)
+            if missing:
+                problems.append(
+                    f"{path.name}: no gated reading of {', '.join(missing)} (every gated metric "
+                    "of the suite must be read)"
+                )
+                ok = False
         suites.append(
             {
                 "suite": doc["suite"],
@@ -1358,10 +1422,16 @@ def cmd_write(args: argparse.Namespace) -> int:
     perf = performance(results, head, problems)
     if not perf:
         problems.append("no performance-suite summary (parity/bench_suite.py run)")
-    algorithms = {s["algorithm"] for s in perf}
-    for algo in ("sssp", "cycle_count"):
-        if algo not in algorithms:
-            problems.append(f"no performance suite of {algo}")
+    present = {s["suite"]: s for s in perf}
+    for name, spec in required_suites(args.version).items():
+        if name not in present:
+            since = ".".join(map(str, spec["since"]))
+            problems.append(
+                f"no performance suite of {spec['algorithm']}: the summary {name}.json of "
+                f"benchmarks/paper/{name}.yaml is required from {since} on"
+            )
+        elif present[name]["algorithm"] != spec["algorithm"]:
+            problems.append(f"{name}.json: algorithm {present[name]['algorithm']!r}")
     checklist = checks(results, head, problems)
     fixtures = committed_fixtures(checklist, problems)
     env = environment()
