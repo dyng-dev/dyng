@@ -27,7 +27,8 @@ Planned, each written when its code exists:
 green conformance kit with `scripts/new_algorithm.py` and the fixed-point template. Its reference
 solution is in `examples/tutorial_algorithms/my_bfs/`; the tutorial quotes it by marked ranges (a
 change that removes a marker breaks the documentation build), and `ci/scaffold_check.sh` scaffolds
-`my_bfs`, puts the reference files in and runs its kit, so a framework change that breaks the
-tutorial breaks CI. The two teaching algorithms of the library, {doc}`../algorithms/dynamic_bfs`
+`my_bfs`, makes the tutorial's edits in the scaffold's files where the prose puts them
+(`ci/tutorial_edits.py`) and runs its kit, so a framework or scaffold change that breaks the
+tutorial, or a step whose prose does not build, breaks CI. The two teaching algorithms of the library, {doc}`../algorithms/dynamic_bfs`
 and {doc}`../algorithms/triangle_delta` (maturity `tutorial`), are the finished versions on every
 backend (ADR 0033).

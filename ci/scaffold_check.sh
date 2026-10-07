@@ -10,8 +10,10 @@
 # scaffold_probe_ad: aggregate_delta on sequential), checks that scripts/regen.py --check passes
 # on the result, and follows the tutorial "Your first dynamic algorithm"
 # (docs/tutorials/your_first_dynamic_algorithm.md): it scaffolds my_bfs with the tutorial's command
-# and puts in the files the tutorial has the reader write (examples/tutorial_algorithms/my_bfs, the
-# tutorial's reference solution, which the tutorial quotes). It then configures a Debug build of
+# and makes the tutorial's edits in the scaffold's files, each where the prose puts it
+# (ci/tutorial_edits.py, which pastes the ranges of the reference solution
+# examples/tutorial_algorithms/my_bfs that the tutorial quotes), so a step the prose gets wrong
+# fails the build. It then configures a Debug build of
 # the probes and my_bfs alone (-DDYNG_ALGORITHMS=<the probes>: the
 # subset build of the "add an algorithm" guide, PLAN 9.4 step 3; the build adds sssp, which the
 # library's generators and the composition check C10 need) with warnings as errors and the budgets
@@ -55,12 +57,10 @@ python3 "${src}/scripts/new_algorithm.py" scaffold_probe_fp --family fixed_point
   --title "Scaffold probe (fixed point)" --computes "a scaffold check" --root "${src}"
 python3 "${src}/scripts/new_algorithm.py" scaffold_probe_ad --family aggregate_delta --backends seq \
   --title "Scaffold probe (aggregate delta)" --computes "a scaffold check" --root "${src}"
-echo "==> the tutorial: my_bfs, scaffolded, then the reader's files put in"
+echo "==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)"
 python3 "${src}/scripts/new_algorithm.py" my_bfs --family fixed_point --backends seq,omp \
   --title "My first dynamic BFS" --computes "BFS levels from a source" --root "${src}"
-tutorial="${src}/examples/tutorial_algorithms/my_bfs"
-cp "${tutorial}/problem.hpp" "${tutorial}/my_bfs.cpp" "${src}/cpp/src/algorithms/my_bfs/"
-cp "${tutorial}/my_bfs_test.cpp" "${src}/cpp/tests/algorithms/my_bfs/"
+python3 "${src}/ci/tutorial_edits.py" --root "${src}"
 python3 "${src}/scripts/regen.py" --check --root "${src}"
 # The generated CODEOWNERS lines (a long name once ran the path into the owner).
 if python3 -c "import yaml" 2>/dev/null; then
