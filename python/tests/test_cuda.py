@@ -244,7 +244,7 @@ def test_tutorial_algorithms_on_cuda_equal_sequential(
     )
     assert np.array_equal(b_cuda[0], b_seq[0]) and b_cuda[1] == b_seq[1] > 0
     assert np.array_equal(l_cuda, l_seq) and t_cuda == t_seq
-    assert (s_bfs, s_tri) == ("device", "device")
+    assert (s_bfs, s_tri) == ("device", "host")  # the triangle count is a host scalar
 
 
 # -------------------------------------------------------------------------------------------------
