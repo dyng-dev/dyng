@@ -18,6 +18,19 @@ __all__ = ["config", "show_config", "set_log_level", "get_log_level", "use_cpu_o
 LogLevelName = Literal["off", "error", "warn", "info", "debug", "trace"]
 
 
+def _cuda_available(chosen: Any, build: dict[str, Any]) -> bool:
+    """Whether the CUDA backend can run, without initializing CUDA in this process when a plugin
+    is active: its probe (NVML or a child process; ADR 0031) already counted the devices, and a
+    process that only looked at the configuration can still fork workers that use CUDA."""
+    if not build.get("cuda"):
+        return False
+    report = next((p for p in chosen.plugins if p.state == "chosen"), None)
+    status = getattr(sys.modules.get(report.module), "status", None) if report else None
+    if callable(status):
+        return bool(getattr(status(), "usable", False))
+    return bool(native.backend_available(native.Backend.cuda))
+
+
 def config() -> dict[str, Any]:
     """The configuration of this installation as a dict (what :func:`show_config` prints).
 
@@ -27,18 +40,24 @@ def config() -> dict[str, Any]:
     """
     import numpy as np
 
-    backends = {}
-    for b in native.Backend:
-        backends[b.name] = bool(native.backend_available(b))
     build = dict(native.build_config)
     chosen = _backend.selection()
+    backends = {}
+    for b in native.Backend:
+        if b.name == "cuda":
+            backends[b.name] = _cuda_available(chosen, build)
+        else:
+            backends[b.name] = bool(native.backend_available(b))
+    # The native default_backend() (CUDA if available, else OpenMP, else sequential), from the
+    # availability above: asking the native module would initialize CUDA.
+    default = next(b for b in ("cuda", "openmp", "sequential") if backends.get(b))
     return {
         "version": native.__version__,
         "native_module": _backend.active_module_name,
         "selection": chosen.reason,
         "plugins": [dataclasses.asdict(p) for p in chosen.plugins],
         "backends": backends,
-        "default_backend": enum_name(native.default_backend()),
+        "default_backend": default,
         "openmp_max_threads": int(native.openmp_max_threads()),
         "build": build,
         "python": sys.version.split()[0],
