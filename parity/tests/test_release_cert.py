@@ -398,6 +398,22 @@ def _replays(cert, results: Path, commit: str) -> None:
             "passed": True,
         }
         (results / f"parity-mosp_scale-{i}.json").write_text(json.dumps(record))
+    # The CBST trace goldens (M8a): every set replayed through the dynG store under its original's
+    # preset and dyng_default (parity/certify.py, CBST_REQUIRED_PRESETS).
+    for name, spec in sets.items():
+        if spec.get("kind") != "cbst_trace":
+            continue
+        for preset in (cert.CBST_ORIGINAL_PRESET[spec["reference"]], "dyng_default"):
+            config = f"device:{preset}/exact"
+            record = {
+                "set": name,
+                "port": {"commit": commit},
+                "goldens": {"manifest_sha256": spec["manifest_sha256"]},
+                "configs": [config],
+                "matrix": {"case": {config: "equal"}},
+                "passed": True,
+            }
+            (results / f"parity-{name}-device-{preset}.json").write_text(json.dumps(record))
 
 
 @pytest.fixture()
