@@ -835,9 +835,12 @@ past its size after the construct), and the store holds what it accounts (`alloc
 not gated in M8): 3,018.9 MiB for A's whole `build/main`, 2,772.6 MiB for the store replay under
 either preset (the pool reached 2,912 MiB).
 
-**The early-warning table** (reported, not gated; `parity/perf_ab.py cbst early`, record
-`M8a-early-warning.json`; GPU 0, exclusive lock; A = unpatched `build/main` of coauth50k, dynG =
-the store replay under `escher_gpu()`; per op, the 3 ops of each class):
+**The early-warning table** (reported, not gated; `parity/perf_ab.py cbst early`; GPU 0, exclusive
+lock; A = unpatched `build/main` of coauth50k, dynG = the store replay under `escher_gpu()`; per
+op, the 3 ops of each class). **Superseded by section 14** (the M8a review): this first table was
+one run per side at the default clocks, and its allocation column missed every allocation of the
+dynG store (`cudaMallocFromPoolAsync`): dynG makes as many allocation calls as A (25 / 2 / 1 / 3
+per op), all stream-ordered. The record `M8a-early-warning.json` is now section 14's.
 
 | op | device time per op, A / dynG | ratio | blocking runtime calls per op | allocation calls per op |
 |---|---:|---:|---:|---:|
@@ -850,8 +853,8 @@ Registers per thread (CUPTI), A / dynG: `insert_node_thread` 32 / 32, `apply_reu
 `apply_reuse_warp` 28 / 28, `unfill_thread` 23 / 24, `locate_delete_targets`, `apply_deletes`,
 `reduce_avail_level`, `fixup_overflow_metadata` 16 / 16, `allocate_space` 26 / 26 (the warp and
 block fill and unfill kernels do not run on coauth50k). dynG allocates from the stream-ordered
-pool (no runtime allocation call after the warm-up); its blocking calls are A's read points
-(ADR 0038). The 1.11x of v2h unfill (the bounded chain walk and the dead-key lookup of ADR 0039)
+pool (as many calls as A, none synchronous; the "0" above was a counting error, section 14); its
+blocking calls are A's read points (ADR 0038). The 1.11x of v2h unfill (the bounded chain walk and the dead-key lookup of ADR 0039)
 is the item to watch in M9, which gates `update`.
 
 **Criterion 16, robustness.** compute-sanitizer memcheck (leak check), racecheck, synccheck and
@@ -876,3 +879,139 @@ runs them (step `cbst`).
 | `ctest -L cbst -LE slow` (dev-cuda, GPU 1) and `ctest -L cbst` (cpu-only) at `96143fb` | 151 of 151 and 48 of 48 |
 | `ci/gpu_local.sh` (dev-cuda, GPU 1; at `f03b3eb` with only the step's documents and records uncommitted; about 4 hours) | all 16 steps passed, among them the `cbst` sanitizers, the device replays of the small sets under the originals' presets and under `dyng_default()`, and the compact-after-every-op lockstep |
 | both originals' HEAD and `git status --porcelain` | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |
+
+## 14. The review fixes (2026-10-08)
+
+Independent reviewers confirmed 26 problems at `2ee8bcc` (store correctness, parity honesty,
+provenance, measurements); every one is fixed on the branch (`docs/developer/retrospectives/M8a.md`,
+"The review fixes", lists each with its commit). This section records the evidence.
+
+**The store** (`aa26772`, `9175297`, `e4ceaff`, `3961dc0`, `0feda27`; tests in
+`cpp/tests/hypergraph/escher/cbst_contract_test.cpp`, 13 tests): an empty reconstruct drops the
+earlier tree (find, rows and an append to a former key: the documented error, nothing written,
+`allocated_bytes() == device_bytes()`); `rebuild_from_device` with 0 records under every preset,
+then insert and append; the row locator on `max_key` 0 and `row_locator::build` (contiguous rows
+with `out[]`, a chained row `internal_error`); six malformed batches rejected by insert, append and
+remove_values (and the free functions) with the state unchanged and the store not poisoned; six
+malformed construct layouts rejected before any allocation; every read of a poisoned store but
+`download()` throws; a pending device error is copied by `clone()`; `clone()` onto the other GPU
+and back under every preset (both GPUs of the machine); the counted Debug check of the row
+counts; two stores on two non-blocking streams through churn that grows and compacts, under
+`dyng_default()` and `escher_gpu()`, equal a sequential run; the hysteresis: on 2,000 rows with 5
+values of net growth per round, the default compacts at rounds 22, 43, 136, 212, 286 and 354
+(one growth), the same churn without the hysteresis at 22, 43, 60, 74, 85, 92, 97, 100, 102, 104,
+106, 108, 109, 110, 111, 188, ..., and the host model predicts every growth and compaction.
+compute-sanitizer memcheck (with leak check) of `dyng_cbst_store_tests`: 0 errors.
+
+**The default preset's policy differences** (`8214aab`). A planted compaction-padding defect
+(`(count + 3) / 4 * 4 + 1` slots, the review's) in `compact.cu`, rebuilt into the replay tool:
+
+| replay under `dyng_default()`, field set `policy` | before the fix (review, at `2ee8bcc`) | after |
+|---|---|---|
+| `escher_gpu_test` | OK, 70 documented | OK, 70 documented (counts pinned: a defect that changes them fails) |
+| `escher_gpu_targeted` | OK | 4 documented, pinned 3: **fails** |
+| `mosp_escher_test` | OK, 2,401 documented (unmutated: 1) | **10,519 mismatches**, the first at op 197 of `test_cbst_ops` (both sides compacted) |
+| `mosp_escher_targeted` | 5 mismatches | 8 mismatches |
+| the policy lockstep on the committed traces | (did not exist) | **fails** (e.g. key 1 length: store 5, model 4) |
+
+Without the defect: the four small sets under `dyng_default()` 1,166 / 52 / 14,104 / 53 ops
+compared, 0 mismatches, documented `policy_difference` 65 + `policy_mapping` 5 / 2 +
+`construct_below_payload` 1 / `policy_difference` 4 + `policy_exception` 1 /
+`construct_below_payload` 1 + `policy_exception` 1 (the hysteresis adds the 4 differences of
+`mosp_escher_test`: B compacted, the default compacted and grew); the large sets 0 documented.
+Every count is pinned in `parity/cbst_documented.toml`. The policy lockstep with the host model
+(`CbstPolicyLockstepLarge`, the four small sets, Release, GPU 1): `escher_gpu()` 14,319 ops, 133
+growths; `mosp_escher()` 15,237 ops (78 trees stop where the model cannot predict the original:
+A's rebuilds, which B lacks); `dyng_default()` 15,385 ops, 110 growths; 0 problems in each.
+
+**B's sets judged against the model** (`301dffc`): at the head, `mosp_escher_test` and
+`mosp_escher_targeted` under `escher_gpu()` agree with the host model in the whole first
+divergence of every tree (10,185 and 43 ops compared); the DBLP sets 0 trees diverge.
+
+**The merge-step table, replayed again** with the whole-first-divergence comparison
+(`parity/cbst_merge_steps.sh --out <dir>`; records and rows under
+`$DYNG_SCRATCH/m8a/merge-steps/run-review` for `477d592` .. `7e397a2`, `run-review2` for
+`2bc0e24` .. `be449b6`, `00319da` .. `f03b3eb`, `2ee8bcc` and the code commits of the fixes
+`aa26772` .. `8214aab`, and `run-review2-head` for `--large` at `9acb3b5`). The first run
+(`run-review`) passed every commit up to `7e397a2` and failed every commit from `2bc0e24` on in B's
+sets under the staging preset; it was interrupted at `d3af511`. Diagnosed with the commits' own
+replay tools: in every failing tree the store and the host model under `mosp_escher_staged()`
+diverge at the same op with every compared field, key and value equal, and differ only in the
+wording of the exception message (`capacity_error` at B's fixed capacity, where B compacted), in the
+InsertMapping of a thrown insert (which neither returns) and, at `c981416` only, in the wording of
+"this preset has no `compact()`" (merged one commit later, `c05d7cc`). The table's divergences were
+therefore described correctly; `32cf67d` and `4b1c519` compare exactly those non-values as one
+status (retrospective deviation 63), every other value as before. The second run: **every row
+`ok`**, 30 commits (`2bc0e24` .. `be449b6`, 13; `00319da` .. `f03b3eb`, 9; `2ee8bcc`; the 6 code
+commits of the fixes; and `9acb3b5`; `c981416` ran twice, its first row `FAILED` as above, its
+second, after `4b1c519`, `ok`), each cell as the table of its section says (the same trees, ops, fields and documented
+divergences; `mosp_escher_test` under `dyng_default()` documents 5 divergences from `3961dc0` on,
+the hysteresis's 4 `policy_difference` and B's 1 `policy_exception`, 1 before). **At the head
+`9acb3b5`, every set** (`--large`, the pinned counts of `parity/cbst_documented.toml` checked):
+`escher_gpu_test` 1,176 ops, 0 mismatches (`dyng_default()`: 1,166 ops, 0, 65 `policy_difference`
++ 5 `policy_mapping`); `escher_gpu_targeted` 52 ops, 0, 1 `construct_below_payload`
+(`dyng_default()`: + 2 `policy_difference`); `mosp_escher_test` under `mosp_escher()` 14,104 ops, 0,
+31 `construct_without_row_counts` (`dyng_default()`: 14,104 ops, 0, 4 `policy_difference` + 1
+`policy_exception`; `escher_gpu()`: 39 trees diverge as the model, 10,185 ops compared);
+`mosp_escher_targeted` 53 ops, 0, 1 `construct_below_payload` (`dyng_default()`: + 1
+`policy_exception`; `escher_gpu()`: 7 trees as the model); `escher_gpu_coauth50k` 15 ops, 0, 3
+unreplayable (hash-only H2H rebuilds); `escher_gpu_syn1m` 54 unreplayable (batches mode);
+`mosp_escher_dblp50k_hyperedge` 27 ops and `_vertex` 21 ops, 0 under `mosp_escher()` and
+`dyng_default()`, 0 trees diverge under `escher_gpu()`; 3,390 + 12 + 240 + 12 + 3 + 3 + 3 twin
+constructs byte-identical.
+
+**The certificate and `bin/main`** (`16a7251`): `ci/gpu_local.sh` writes
+`parity-cbst_trace_<set>-device-<preset>.json` for the small sets under both presets, and
+`certify.py` fails a certificate without them; `cbst_trace_goldens.py once main` recorded
+MOSP_ESCHER's `bin/main` (111 CBST ops of a fresh random graph) and replayed it under
+`mosp_escher()`: 111 ops compared, 0 mismatches, nothing documented.
+
+**The records** (`b912ff5`): the replay records `M8a-device-*.json` of the current presets are
+those of the `--large` run at `9acb3b5` (the tool named relative to `$DYNG_SCRATCH`); the staging
+preset's records of the small sets are `be449b6`'s from `run-review2` (the whole-first-divergence
+comparison), those of the DBLP sets keep `be449b6`'s results (0 trees diverge, which the stricter
+comparison cannot change) with the tool path made portable. A test checks that no record names a
+personal path.
+
+**Criterion 15, again** (GPU 0, exclusive perf lock, the store at its final code, `a6d3a03`; the
+records' "+dirty" is only this section's uncommitted documents and records): every tree's
+`device_bytes()` after its construct and after every op of the 3 batches equals ESCHER-GPU's
+`deviceBytes()`, under `escher_gpu()` and `dyng_default()` (18 readings each, ratio 1.0000; no
+compaction happens on coauth50k, so the hysteresis never triggers); nsys peaks 3,018.9 MiB (A) and
+2,772.6 MiB (the store replay, pool 2,912 MiB), as before.
+
+**The early-warning table, re-measured** (`parity/perf_ab.py cbst early --runs 20`, record
+`M8a-early-warning.json`, schema 2; GPU 0, exclusive lock, clocks locked by `perf_ab.ClockLock`
+at SM 1,695 MHz / memory 7,601 MHz; 20 runs per side, alternating; device time per op, median
+[min, max] of the 20 runs; calls per op, A / dynG):
+
+| op | A | dynG | ratio | blocking | allocations (synchronous) | frees |
+|---|---:|---:|---:|---:|---:|---:|
+| h2v insert | 3.249 [3.226, 3.281] ms | 3.212 [3.206, 3.219] ms | 0.99 | 17 / 7 | 25 (10) / 25 (0) | 25 / 25 |
+| h2v erase | 0.102 [0.101, 0.103] ms | 0.103 [0.102, 0.103] ms | 1.00 | 0 / 0 | 2 (0) / 2 (0) | 2 / 2 |
+| v2h unfill | 0.744 [0.735, 0.753] ms | 0.847 [0.846, 0.849] ms | **1.14** | 0 / 0 | 1 (0) / 1 (0) | 1 / 1 |
+| v2h fill | 0.110 [0.109, 0.111] ms | 0.103 [0.103, 0.104] ms | 0.94 | 2 / 1 | 3 (1) / 3 (0) | 3 / 3 |
+
+Every hot kernel, from `cuobjdump -res-usage` and `-sass` of the sm_86 code of both binaries
+(registers, SASS instructions; theoretical occupancy at 256 threads per block is 1.0 for all of
+them, A and dynG): `insert_node` thread 32, 376 / 32, 416; warp 28, 160 / 28, 192; block 16, 112
+/ 16, 136; `apply_reuse` thread, warp and block equal (30, 144; 28, 152; 22, 72);
+**`unfill` thread 23, 192 / 24, 376; warp 23, 352 / 25, 552; block 36, 568 / 36, 752**; the
+delete kernels, `reduce_avail_level`, `allocate_space` and `fixup_overflow_metadata` equal. The
+unfill kernels grew by the bounded chain walk and the dead-key rule (ADR 0039 (d) and section 5):
+v2h unfill is 1.14x of A's device time at locked clocks (the first single run at default clocks
+showed 1.11x); about 0.1 ms per op, the item to watch in M9, which gates `update`. Every other
+class is at or below A. The allocation counts are corrected: dynG makes as many allocation calls
+as A per op, all stream-ordered (`cudaMallocFromPoolAsync`), none of A's 10 synchronous
+`cudaMalloc` per insert.
+
+**The checks of the fixes** (2026-10-08; shared perf lock, niced; GPU 1 unless stated):
+
+| check | result |
+|---|---|
+| `ctest -L cbst -LE slow` (dev-cuda) on the final tree | 167 of 167 passed (`CbstContractClone.OntoAnotherDevice` skips with one visible GPU; with both GPUs visible: passed) |
+| every store commit of the fixes built in a temporary worktree (Release; `dyng_cbst_store_tests`, `_host_tests`, `_policy_tests`, `_compact_tests`, `_device_tests`) | all passed at each: `aa26772` 38 / 6 / 9 / 1 / 5 tests, `9175297` 40 / 6 / 9 / 1 / 5, `e4ceaff` 43 / 6 / 9 / 1 / 5, `3961dc0` 45 / 6 / 9 / 1 / 5, `0feda27` 47 / 7 / 9 / 1 / 5, `8214aab` 47 / 7 / 9 / 2 / 5 (one GPU visible: the two-GPU clone test skips) |
+| compute-sanitizer memcheck (leak check), racecheck, synccheck, initcheck on `dyng_cbst_store_tests` and `dyng_cbst_compact_tests` (the final store code) | 0 errors, 0 hazards, 0 leaks; 47 + 2 tests passed under each tool |
+| the Clang 18 syntax pass (dev: 239 files; dev-cuda: 456 files), the `_FORTIFY_SOURCE=3` cpu-only build | 0 failures; the fortified build clean |
+| `ci/check.sh` (every step: cpu-only and dev builds with `ctest -L cpu`, format, tidy, reuse, provenance, harness, docs, regen, python, scaffold, pre-commit) | the full run failed `harness` (the replay records not yet regenerated, `b912ff5`) and `docs` (the API baseline of `compaction_headroom`, `f0eb0ca`); both passed again after those commits, every other step passed |
+| the six originals' HEAD and `git status --porcelain` before and after the fixes' runs | unchanged; MOSP_ESCHER keeps exactly its pre-existing uncommitted files of step 1 |
