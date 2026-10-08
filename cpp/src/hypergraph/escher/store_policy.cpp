@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu (ensurePayloadCapacity)
 // Derived from ESCHER-GPU@abcf9b2:structure/dynamic_hypergraph.cu (payloadCapacity)
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (ensureScratchCapacity)
 /**
  * @file store_policy.cpp
  * @brief The CBST store's payload policy, its preset escher_gpu() (M8a, ADR 0038) and the staging
@@ -22,6 +23,7 @@ store_policy store_policy::escher_gpu() {
   p.name = "escher_gpu";
   p.growth = growth_rule::escher_gpu;
   p.compaction = compaction_rule::never;
+  p.scratch = scratch_rule::exact;
   p.alignment = 4;
   return p;
 }
@@ -31,6 +33,7 @@ store_policy store_policy::mosp_escher_staged() {
   p.name = "mosp_escher_staged";
   p.growth = growth_rule::none;  // MOSP_ESCHER's fixed capacity
   p.compaction = compaction_rule::never;
+  p.scratch = scratch_rule::geometric;  // (g) MOSP_ESCHER's ensureScratchCapacity
   p.alignment = 4;
   return p;
 }
@@ -74,6 +77,17 @@ long long store_policy::grown_capacity(long long needed, long long capacity,
                          std::to_string(INT_MAX) + ")");
   }
   return grown;
+}
+
+long long store_policy::scratch_capacity(long long needed, long long capacity, long long empty,
+                                         long long limit) const {
+  if (scratch == scratch_rule::exact) return std::max(capacity, needed);
+  if (needed <= capacity) return capacity;
+  // MOSP_ESCHER's ensureScratchCapacity (escher/structure/operations.cu@4b86159:145-149), in 64
+  // bits and capped at `limit` (its int loop overflowed near INT_MAX).
+  long long grown = capacity > 0 ? capacity : empty;
+  while (grown < needed) grown += grown / 2 + 1;
+  return std::min(grown, std::max(limit, needed));
 }
 
 }  // namespace dyng::detail::escher

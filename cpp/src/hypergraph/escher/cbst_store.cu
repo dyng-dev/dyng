@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu
 // Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (constructCBST validation, the
-// caller's row counts)
+// caller's row counts, ensureScratchCapacity)
 /**
  * @file cbst_store.cu
  * @brief The host side of the CBST store: construction, rebuild, best-fit insert with the surplus
@@ -190,20 +190,30 @@ static std::vector<int> item_sizes(const std::vector<int>& prefix_sizes) {
 // Grows the per-operation input buffers so that an operation with num_items
 // keys and payload_size values fits (they were sized by num_records only and
 // overflowed for batches with more values than 3 x num_records).
+// The capacities follow the policy's scratch rule (M8a step 4, behaviour (g)): exact under
+// escher_gpu() (ESCHER-GPU's reserveScratch, which the memory gate measures), geometric under the
+// MOSP_ESCHER presets (its ensureScratchCapacity, escher/structure/operations.cu@4b86159:139-165,
+// which reallocated all four buffers when one grew; here only the arrays that grow are).
 static void reserve_scratch(cbst_context& ctx, int num_items, size_t payload_size) {
-  if (num_items > ctx.scratch_item_capacity) {
+  const long long items =
+      ctx.policy.scratch_capacity(num_items, ctx.scratch_item_capacity, 1, INT_MAX / 3);
+  const long long values = ctx.policy.scratch_capacity(static_cast<long long>(payload_size),
+                                                       ctx.scratch_payload_capacity, 4, LLONG_MAX);
+  if (items > ctx.scratch_item_capacity) {
     release(ctx.insert_keys_storage, ctx.d_insert_keys);
     release(ctx.insert_prefix_sizes_storage, ctx.d_insert_prefix_sizes);
     release(ctx.relocation_plan_storage, ctx.d_relocation_plan);
-    allocate(ctx, ctx.insert_keys_storage, ctx.d_insert_keys, num_items);
-    allocate(ctx, ctx.insert_prefix_sizes_storage, ctx.d_insert_prefix_sizes, num_items);
-    allocate(ctx, ctx.relocation_plan_storage, ctx.d_relocation_plan, 3 * num_items);
-    ctx.scratch_item_capacity = num_items;
+    allocate(ctx, ctx.insert_keys_storage, ctx.d_insert_keys, static_cast<size_t>(items));
+    allocate(ctx, ctx.insert_prefix_sizes_storage, ctx.d_insert_prefix_sizes,
+             static_cast<size_t>(items));
+    allocate(ctx, ctx.relocation_plan_storage, ctx.d_relocation_plan,
+             3 * static_cast<size_t>(items));
+    ctx.scratch_item_capacity = static_cast<int>(items);
   }
-  if (static_cast<long long>(payload_size) > ctx.scratch_payload_capacity) {
+  if (values > ctx.scratch_payload_capacity) {
     release(ctx.insert_payload_storage, ctx.d_insert_payload);
-    allocate(ctx, ctx.insert_payload_storage, ctx.d_insert_payload, payload_size);
-    ctx.scratch_payload_capacity = static_cast<long long>(payload_size);
+    allocate(ctx, ctx.insert_payload_storage, ctx.d_insert_payload, static_cast<size_t>(values));
+    ctx.scratch_payload_capacity = values;
   }
 }
 

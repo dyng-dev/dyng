@@ -67,6 +67,26 @@ TEST(CbstStorePolicy, TheStagingPresetAndTheNames) {
   EXPECT_FALSE(store_policy::from_name("mosp_escher", q));  // M8a step 5
 }
 
+// The growth of the operation scratch (M8a step 4, behaviour (g)): exact under escher_gpu()
+// (ESCHER-GPU's reserveScratch), geometric under the MOSP_ESCHER presets (its
+// ensureScratchCapacity: +n/2+1 steps from the current size, from 1 item or 4 values).
+TEST(CbstStorePolicy, TheScratchGrowth) {
+  const store_policy exact = store_policy::escher_gpu();
+  EXPECT_EQ(exact.scratch, store_policy::scratch_rule::exact);
+  EXPECT_EQ(exact.scratch_capacity(10, 4, 1, INT_MAX), 10);
+  EXPECT_EQ(exact.scratch_capacity(3, 4, 1, INT_MAX), 4);
+  const store_policy geometric = store_policy::mosp_escher_staged();
+  EXPECT_EQ(geometric.scratch, store_policy::scratch_rule::geometric);
+  EXPECT_EQ(geometric.scratch_capacity(10, 4, 1, INT_MAX), 11);   // 4, 7, 11
+  EXPECT_EQ(geometric.scratch_capacity(50, 12, 4, INT_MAX), 67);  // 12, 19, 29, 44, 67
+  EXPECT_EQ(geometric.scratch_capacity(3, 4, 1, INT_MAX), 4);     // it fits: unchanged
+  EXPECT_EQ(geometric.scratch_capacity(1, 0, 1, INT_MAX), 1);     // from 1
+  EXPECT_EQ(geometric.scratch_capacity(5, 0, 4, INT_MAX), 7);     // from 4: 4, 7
+  // Capped (MOSP_ESCHER's int loop overflowed near INT_MAX), never below the need.
+  EXPECT_EQ(geometric.scratch_capacity(INT_MAX - 5, 1500000000, 1, INT_MAX), INT_MAX);
+  EXPECT_EQ(geometric.scratch_capacity(100, 90, 1, 95), 100);
+}
+
 TEST(CbstFlatten, TheConstructLayout) {
   const auto [flat, starts] = flatten_rows({{1, 2, 3}, {}, {4, 5, 6, 7}, {8}});
   // Row i takes ((n + 4) / 4) * 4 slots: its values, zeros, INT_MIN in the last slot.

@@ -795,6 +795,8 @@ cbst_host_policy staged_host_policy() {
   // (c) the caller's row counts as the fast path of construct, the scan without them (never
   // MOSP_ESCHER's legacy occupancy 0).
   p.occupancy = cbst_host_policy::occupancy_rule::caller_counts_or_scan;
+  // (g) the geometric scratch growth.
+  p.scratch = cbst_host_policy::scratch_rule::geometric;
   return p;
 }
 

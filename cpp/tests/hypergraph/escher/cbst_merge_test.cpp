@@ -308,6 +308,38 @@ TEST(CbstMergeFind, TheRowsOfKeys) {
   EXPECT_EQ(empty.rows({1}), rows{{}});
 }
 
+// --- (g) The scratch growth -----------------------------------------------------------------------
+
+// The operation scratch grows to an operation's size under escher_gpu() (ESCHER-GPU's
+// reserveScratch, the scope of the memory gate) and geometrically under the MOSP_ESCHER presets
+// (its ensureScratchCapacity, escher/structure/operations.cu@4b86159:139-165); device_bytes()
+// counts what the store holds either way.
+TEST(CbstMergeScratch, ExactUnderEscherGpuGeometricUnderMospEscher) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  for (const store_policy& policy :
+       {store_policy::escher_gpu(), store_policy::mosp_escher_staged()}) {
+    SCOPED_TRACE(policy.name);
+    cbst_store s(res, "scratch", 1 << 12, 4, policy);
+    construct_rows(s, {{1}, {2}, {3}, {4}});
+    EXPECT_EQ(s.context().scratch_item_capacity, 4);
+    EXPECT_EQ(s.context().scratch_payload_capacity, 12);
+    // An append of 50 values on the 4 keys, then an insert of 10 items.
+    const batch b = make_batch(
+        {1, 2, 3, 4}, {iota_row(100, 13), iota_row(200, 13), iota_row(300, 12), iota_row(400, 12)});
+    s.append(b.keys, b.payload, b.prefix);
+    rows values;
+    for (int i = 0; i < 10; ++i) values.push_back(iota_row(1000 + 5 * i, 5));
+    const bool exact = policy.scratch == store_policy::scratch_rule::exact;
+    EXPECT_EQ(s.context().scratch_item_capacity, 4);
+    EXPECT_EQ(s.context().scratch_payload_capacity, exact ? 50 : 67);  // 12, 19, 29, 44, 67
+    const batch more = make_batch({0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, values);
+    (void)s.insert(more.keys, more.payload, more.prefix);
+    EXPECT_EQ(s.context().scratch_item_capacity, exact ? 10 : 11);  // 4, 7, 11
+    EXPECT_EQ(s.device_bytes(), s.allocated_bytes());
+  }
+}
+
 // --- (e) The integrity checks --------------------------------------------------------------------
 
 /// A tree with chained, deleted, reused and surplus rows.
