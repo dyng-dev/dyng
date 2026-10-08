@@ -189,6 +189,16 @@ if(DYNG_ENABLE_CUDA)
   )
   target_compile_definitions(dyng_cbst_compact_large_tests PRIVATE DYNG_CBST_COMPACT_LARGE=1)
   list(APPEND _dyng_private_tests dyng_cbst_compact_large_tests)
+  # MOSP_ESCHER's 9 CBST scenarios and its smoke test under every preset, in lockstep with the
+  # host model (M8a step 5).
+  dyng_add_test(
+    NAME dyng_cbst_scenario_tests
+    SOURCES parity/escher/cbst_scenarios_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_scenario_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_scenario_tests)
   # The presets of M8a step 5 (ADR 0039): random operation sequences, requested keys and best-fit
   # ties under every preset, in lockstep with the host model.
   dyng_add_test(
