@@ -259,6 +259,15 @@ class trace_source {
 /// empty (an unknown original then throws cbst_trace::trace_error).
 store_factory host_model_factory(const std::string& policy);
 
+/// The host-model policy equal to the dynG store's staging preset mosp_escher_staged() (M8a step
+/// 4, ADR 0039): MOSP_ESCHER's behaviours the store has merged so far, a fixed capacity, no
+/// automatic compaction, dynG's exceptions.
+dyng::testing::cbst_host_policy staged_host_policy();
+
+/// The host-model policy of a name: the presets of cbst_host_policy::from_name() and
+/// "mosp_escher_staged" (staged_host_policy()). False if the name is unknown.
+bool resolve_host_policy(const std::string& name, dyng::testing::cbst_host_policy& out);
+
 /// Whether the rows of a dataset are compared in order (H2V, H2H, V2V; any case).
 bool order_sensitive(const std::string& dataset);
 

@@ -4,7 +4,8 @@
 // Derived from ESCHER-GPU@abcf9b2:structure/dynamic_hypergraph.cu (payloadCapacity)
 /**
  * @file store_policy.cpp
- * @brief The CBST store's payload policy and its preset escher_gpu() (M8a, ADR 0038).
+ * @brief The CBST store's payload policy, its preset escher_gpu() (M8a, ADR 0038) and the staging
+ *        preset mosp_escher_staged() (M8a step 4, ADR 0039).
  */
 #include "hypergraph/escher/store_policy.hpp"
 
@@ -23,6 +24,26 @@ store_policy store_policy::escher_gpu() {
   p.compaction = compaction_rule::never;
   p.alignment = 4;
   return p;
+}
+
+store_policy store_policy::mosp_escher_staged() {
+  store_policy p;
+  p.name = "mosp_escher_staged";
+  p.growth = growth_rule::none;  // MOSP_ESCHER's fixed capacity
+  p.compaction = compaction_rule::never;
+  p.alignment = 4;
+  return p;
+}
+
+bool store_policy::from_name(const std::string& name, store_policy& out) {
+  if (name == "escher_gpu") {
+    out = escher_gpu();
+  } else if (name == "mosp_escher_staged") {
+    out = mosp_escher_staged();
+  } else {
+    return false;
+  }
+  return true;
 }
 
 long long store_policy::initial_capacity(long long requested, long long size, bool in_place) const {

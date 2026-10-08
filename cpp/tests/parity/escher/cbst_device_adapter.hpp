@@ -34,7 +34,7 @@ class device_store_adapter final : public store_adapter {
  public:
   /**
    * @brief Every tree runs under the named store policy.
-   * @param[in] policy "escher_gpu" (the only preset of M8a step 3).
+   * @param[in] policy A preset of store_policy::from_name() ("escher_gpu", "mosp_escher_staged").
    * @throws cbst_trace::trace_error for an unknown policy.
    */
   explicit device_store_adapter(std::string policy);

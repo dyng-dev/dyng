@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
   if (store == "host_model") {
     if (!policy_name.empty()) {
       dyng::testing::cbst_host_policy p;
-      if (!dyng::testing::cbst_host_policy::from_name(policy_name, p)) {
+      if (!cmp::resolve_host_policy(policy_name, p)) {
         std::fprintf(stderr, "unknown policy %s\n", policy_name.c_str());
         return 2;
       }

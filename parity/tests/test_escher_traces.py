@@ -303,7 +303,7 @@ def test_model_replay_rules_of_the_sets() -> None:
     assert g.allowed_unreplayable("cbst_trace_escher_gpu_syn1m", h2v)
     assert not g.allowed_unreplayable("cbst_trace_escher_gpu_test", h2h)
     assert not g.allowed_unreplayable("cbst_trace_mosp_escher_test", h2h)
-    # The device store has the preset escher_gpu only in M8a step 3.
+    # The device store has the presets escher_gpu and mosp_escher_staged in M8a step 4.
     assert (
         g.compare_main(
             ["--store", "device", "--policy", "mosp_escher", "--set", "cbst_trace_escher_gpu_test"]
@@ -323,6 +323,9 @@ def test_device_replay_judged_against_the_model() -> None:
 
     assert g.against_model("cbst_trace_mosp_escher_test", args)
     assert not g.against_model("cbst_trace_escher_gpu_test", args)
+    args.policy = "mosp_escher_staged"  # MOSP_ESCHER's behaviours merged so far (M8a step 4)
+    assert g.against_model("cbst_trace_mosp_escher_test", args)
+    args.policy = ""
     model = {
         "trees": [{"tree": 1}, {"tree": 2}, {"tree": 3}],
         "mismatches": [

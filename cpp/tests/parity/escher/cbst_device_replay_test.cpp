@@ -9,9 +9,10 @@
  *   (offsets, occupancy, tail capacity, the bump pointer, the capacity, deviceBytes(), the
  *   degree-bin launches of every op, the integrity verdict), apart from the documented
  *   divergences of the port (replay_report::documented).
- * - The traces of MOSP_ESCHER@4b86159 under escher_gpu(): every tree diverges at exactly the op
- *   and in exactly the field where the host model under the same preset diverges (the behaviour
- *   differences of ADR 0037), and nowhere else.
+ * - The traces of MOSP_ESCHER@4b86159 under escher_gpu() and under the staging preset
+ *   mosp_escher_staged() (MOSP_ESCHER's behaviours merged so far, M8a step 4, ADR 0039): every
+ *   tree diverges at exactly the op and in exactly the field where the host model under the same
+ *   preset diverges (the behaviour differences of ADR 0037), and nowhere else.
  * - A replay run twice gives identical digests.
  */
 #include "parity/escher/cbst_compare.hpp"
@@ -115,15 +116,17 @@ TEST(CbstDeviceReplay, MospEscherTracesDivergeWhereTheModelDoes) {
   DYNG_SKIP_WITHOUT_DEVICE();
   const auto traces = committed_traces("mosp_escher");
   ASSERT_FALSE(traces.empty());
-  for (const auto& path : traces) {
-    SCOPED_TRACE(path);
-    const replay_report dev =
-        replay_with(path, device_store_factory("escher_gpu"), field_set::exact, 100000);
-    const replay_report model =
-        replay_with(path, host_model_factory("escher_gpu"), field_set::exact, 100000);
-    EXPECT_EQ(dev.compared, model.compared);
-    EXPECT_EQ(first_divergences(dev), first_divergences(model))
-        << "device: " << describe(dev) << "\nmodel: " << describe(model);
+  for (const char* preset : {"escher_gpu", "mosp_escher_staged"}) {
+    for (const auto& path : traces) {
+      SCOPED_TRACE(std::string(preset) + " " + path);
+      const replay_report dev =
+          replay_with(path, device_store_factory(preset), field_set::exact, 100000);
+      const replay_report model =
+          replay_with(path, host_model_factory(preset), field_set::exact, 100000);
+      EXPECT_EQ(dev.compared, model.compared);
+      EXPECT_EQ(first_divergences(dev), first_divergences(model))
+          << "device: " << describe(dev) << "\nmodel: " << describe(model);
+    }
   }
 }
 

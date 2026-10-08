@@ -5,8 +5,9 @@
 /**
  * @file store_policy.hpp
  * @brief How a CBST store sizes and grows its payload, and whether it compacts (M8a, ADR 0038):
- *        the internal store_policy and its preset escher_gpu(), which reproduces ESCHER-GPU@abcf9b2.
- *        MOSP_ESCHER's preset and dynG's default follow in M8a steps 4-5.
+ *        the internal store_policy, its preset escher_gpu(), which reproduces ESCHER-GPU@abcf9b2,
+ *        and the staging preset mosp_escher_staged() of MOSP_ESCHER@4b86159's behaviours merged
+ *        so far (M8a step 4). MOSP_ESCHER's full preset and dynG's default follow in M8a step 5.
  *
  * Host-only (no CUDA): the hypergraph container (M8b) sizes its trees with initial_capacity()
  * before it creates them; the store grows its payload with grown_capacity().
@@ -43,6 +44,24 @@ struct store_policy {
    * @return The preset.
    */
   static store_policy escher_gpu();
+
+  /**
+   * @brief The staging preset of M8a step 4 (ADR 0039): MOSP_ESCHER@4b86159's behaviours merged
+   *        so far, before its automatic compaction (step 5, which replaces this preset by
+   *        mosp_escher()). A fixed capacity (MOSP_ESCHER's: a full payload is a capacity_error,
+   *        where MOSP_ESCHER would compact first), alignment 4, never compacts on its own. The
+   *        trace replay runs MOSP_ESCHER's traces under it after every merge step.
+   * @return The preset.
+   */
+  static store_policy mosp_escher_staged();
+
+  /**
+   * @brief The preset of a name ("escher_gpu", "mosp_escher_staged").
+   * @param[in] name The name.
+   * @param[out] out The preset.
+   * @return false if the name is unknown.
+   */
+  [[nodiscard]] static bool from_name(const std::string& name, store_policy& out);
 
   /**
    * @brief The initial payload capacity of a tree (ESCHER-GPU's payloadCapacity).

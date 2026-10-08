@@ -223,8 +223,10 @@ std::array<std::int64_t, 9> bins_now(const esc::cbst_store& s) {
 
 device_store_adapter::device_store_adapter(std::string policy)
     : policy_(std::move(policy)), res_(resources::cuda()) {
-  if (policy_ != esc::store_policy::escher_gpu().name)
-    throw tr::trace_error("device store: no policy '" + policy_ + "' (M8a step 3 has escher_gpu)");
+  esc::store_policy p;
+  if (!esc::store_policy::from_name(policy_, p))
+    throw tr::trace_error("device store: no policy '" + policy_ +
+                          "' (the store has escher_gpu and mosp_escher_staged)");
 }
 
 device_store_adapter::~device_store_adapter() = default;
@@ -239,9 +241,10 @@ void device_store_adapter::create_tree(std::uint32_t id, const std::string& data
   t->name = dataset;
   trees_[id] = std::move(t);
   tree& r = *trees_[id];
+  esc::store_policy policy;
+  (void)esc::store_policy::from_name(policy_, policy);  // checked by the constructor
   r.store = std::make_unique<esc::cbst_store>(res_, r.name, static_cast<int>(capacity),
-                                              static_cast<int>(alignment),
-                                              esc::store_policy::escher_gpu());
+                                              static_cast<int>(alignment), std::move(policy));
 }
 
 void device_store_adapter::destroy_tree(std::uint32_t id) {

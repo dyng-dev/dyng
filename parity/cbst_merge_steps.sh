@@ -17,7 +17,8 @@
 # golden sets through THIS tree's parity/compare.py cbst_trace --store device with the commit's
 # tool: the sets of ESCHER-GPU must match in the exact field set (documented divergences listed),
 # the sets of MOSP_ESCHER must diverge in every tree where the host model under the same preset
-# does (until the store has MOSP_ESCHER's preset). The JSON records go to
+# does (until the store has MOSP_ESCHER's preset), under escher_gpu() and, from the commit that
+# adds it, under the staging preset mosp_escher_staged() (M8a step 4). The JSON records go to
 # $DYNG_SCRATCH/m8a/merge-steps/<sha7>/; the row, with one column per set, to stdout and to
 # $DYNG_SCRATCH/m8a/merge-steps/rows.md.
 #
@@ -108,35 +109,53 @@ for commit in "${commits[@]}"; do
       cells+=("committed traces: FAILED")
       row_status="FAILED"
     fi
+    # MOSP_ESCHER's sets also run under the staging preset of its behaviours merged so far
+    # (store_policy::mosp_escher_staged(), M8a step 4, ADR 0039) from the commit that adds it.
+    staged=0
+    if git grep -q mosp_escher_staged "${sha}" -- cpp/src/hypergraph/escher/store_policy.cpp; then
+      staged=1
+    fi
     for set in "${sets[@]}"; do
-      log="${out}/${set}.log"
-      if CUDA_VISIBLE_DEVICES="${gpu}" heavy python3 parity/compare.py cbst_trace --store device \
-        --fields exact --skip-verify --replay-exe "${build}/cpp/tests/dyng_cbst_replay" \
-        --record "${out}" --set "${set}" >"${log}" 2>&1; then
-        verdict="OK"
-      else
-        verdict="FAILED"
-        row_status="FAILED"
+      policies=("")
+      if [ "${staged}" = 1 ] && [[ "${set}" == cbst_trace_mosp_escher_* ]]; then
+        policies+=("mosp_escher_staged")
       fi
-      cells+=("${set#cbst_trace_}: $(python3 - "${out}" "${set}" "${verdict}" <<'PY'
+      for policy in "${policies[@]}"; do
+        suffix="${policy:+-${policy}}"
+        log="${out}/${set}${suffix}.log"
+        policy_args=()
+        [ -n "${policy}" ] && policy_args=(--policy "${policy}")
+        if CUDA_VISIBLE_DEVICES="${gpu}" heavy python3 parity/compare.py cbst_trace --store device \
+          --fields exact --skip-verify --replay-exe "${build}/cpp/tests/dyng_cbst_replay" \
+          --record "${out}" --set "${set}" "${policy_args[@]}" >"${log}" 2>&1; then
+          verdict="OK"
+        else
+          verdict="FAILED"
+          row_status="FAILED"
+        fi
+        record="${out}/M8a-device-${set#cbst_trace_}-exact${suffix}.json"
+        cells+=("${set#cbst_trace_}${policy:+ (${policy})}: $(python3 - "${record}" "${verdict}" <<'PY'
 import json, sys
 from pathlib import Path
-out, name, verdict = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
-recs = list(out.glob(f"M8a-device-{name[len('cbst_trace_'):]}-exact*.json"))
-if not recs:
+record, verdict = Path(sys.argv[1]), sys.argv[2]
+if not record.is_file():
     print(f"{verdict} (no record)")
     raise SystemExit
-r = json.loads(recs[0].read_text())
+r = json.loads(record.read_text())
 t = r["totals"]
+policy = r.get("policy") or "escher_gpu"
+if policy == "the original's preset":
+    policy = "escher_gpu"
 if r.get("against_model"):
     diverged = sum(1 for c in r["cases"] for _ in c.get("first_divergences", {}))
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops compared, {diverged} trees "
-          f"diverge, each where the host model under escher_gpu does")
+          f"diverge, each where the host model under {policy} does")
 else:
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops, {t['mismatch_count']} "
           f"mismatches, {t['documented']} documented, {t['unreplayable']} unreplayable")
 PY
 )")
+      done
     done
   fi
   row="| \`${short}\` | ${subject} | ${row_status} | $(IFS=';'; echo "${cells[*]}" | sed 's/;/; /g') |"

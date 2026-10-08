@@ -773,11 +773,34 @@ replay_report replay(tr::reader& in, const store_factory& make_store, const opti
   return r.run();
 }
 
+cbst_host_policy staged_host_policy() {
+  // The behaviours of MOSP_ESCHER@4b86159 the dynG store has merged at this commit (M8a step 4,
+  // ADR 0039), on top of the store's own rules (exceptions, construct validation) and ESCHER-GPU's
+  // behaviour for everything not merged yet. A fixed capacity: where MOSP_ESCHER compacts, the
+  // store (and this model) throws capacity_error.
+  cbst_host_policy p = cbst_host_policy::escher_gpu();
+  p.name = "mosp_escher_staged";
+  p.growth = cbst_host_policy::growth_rule::none;
+  p.compaction = cbst_host_policy::compaction_rule::none;
+  p.failure = cbst_host_policy::failure_rule::exception;
+  p.error_type = "dyng::capacity_error";
+  p.validate_construct = true;
+  return p;
+}
+
+bool resolve_host_policy(const std::string& name, cbst_host_policy& out) {
+  if (name == "mosp_escher_staged") {
+    out = staged_host_policy();
+    return true;
+  }
+  return cbst_host_policy::from_name(name, out);
+}
+
 store_factory host_model_factory(const std::string& policy) {
   return [policy](const std::string& repo) -> std::unique_ptr<store_adapter> {
     const std::string name = policy.empty() ? default_policy(repo) : policy;
     cbst_host_policy p;
-    if (!cbst_host_policy::from_name(name, p))
+    if (!resolve_host_policy(name, p))
       throw tr::trace_error("no host-model policy '" + name + "' (original '" + repo + "')");
     return std::make_unique<host_model_adapter>(std::move(p));
   };

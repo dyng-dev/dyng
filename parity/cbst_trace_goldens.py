@@ -752,10 +752,16 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
     }
 
 
+# The presets of the dynG device store (store_policy::from_name): ESCHER-GPU's, and the staging
+# preset of MOSP_ESCHER's behaviours merged so far (M8a step 4, ADR 0039).
+DEVICE_PRESETS = ("escher_gpu", "mosp_escher_staged")
+
+
 def against_model(set_name: str, args) -> bool:
     """Whether a device replay of a set is judged against the host model under the same preset:
-    the traces of an original whose preset the store does not have yet (MOSP_ESCHER's in step 3,
-    where the store has escher_gpu() only)."""
+    the traces of an original whose preset the store does not have yet (MOSP_ESCHER's under
+    escher_gpu() and under the staging preset mosp_escher_staged() of M8a step 4, which has no
+    automatic compaction yet)."""
     preset = args.policy or "escher_gpu"
     original = {"ESCHER-GPU": "escher_gpu", "MOSP_ESCHER": "mosp_escher"}
     return original[SETS[set_name]["reference"]] != preset
@@ -957,7 +963,7 @@ def compare_main(argv: list[str]) -> int:
     )
     p.add_argument(
         "--policy",
-        choices=["escher_gpu", "mosp_escher", "dyng_default"],
+        choices=["escher_gpu", "mosp_escher", "dyng_default", "mosp_escher_staged"],
         default="",
         help="the store's policy (default: the preset of each trace's original)",
     )
@@ -996,10 +1002,11 @@ def compare_main(argv: list[str]) -> int:
         return 0
     exe = None
     if args.store == "device":
-        if args.policy not in ("", "escher_gpu"):
+        if args.policy not in ("",) + DEVICE_PRESETS:
             print(
-                "compare.py cbst_trace --store device: the store has the preset escher_gpu only "
-                "(M8a step 3; mosp_escher and dyng_default follow in steps 4-5)",
+                "compare.py cbst_trace --store device: the store has the presets "
+                + ", ".join(DEVICE_PRESETS)
+                + " (M8a step 4; mosp_escher and dyng_default follow in step 5)",
                 file=sys.stderr,
             )
             return 2

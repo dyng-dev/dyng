@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file cbst_host_test.cpp
- * @brief Host parts of the CBST store (M8a step 3, ADR 0038): the payload policy escher_gpu()
+ * @brief Host parts of the CBST store (M8a steps 3-4, ADR 0038, 0039): the payload policies
  *        (ESCHER-GPU's payloadCapacity and ensurePayloadCapacity) and flatten_rows (its
  *        flatten2DVector), on every build.
  */
@@ -48,6 +48,23 @@ TEST(CbstStorePolicy, EscherGpuGrowth) {
   store_policy fixed = p;
   fixed.growth = store_policy::growth_rule::none;
   EXPECT_THROW((void)fixed.grown_capacity(101, 100, "t"), capacity_error);
+}
+
+TEST(CbstStorePolicy, TheStagingPresetAndTheNames) {
+  // MOSP_ESCHER's behaviours merged so far (M8a step 4, ADR 0039): a fixed capacity, no
+  // compaction of its own yet.
+  const store_policy p = store_policy::mosp_escher_staged();
+  EXPECT_EQ(p.name, "mosp_escher_staged");
+  EXPECT_EQ(p.growth, store_policy::growth_rule::none);
+  EXPECT_EQ(p.compaction, store_policy::compaction_rule::never);
+  EXPECT_EQ(p.alignment, 4);
+  EXPECT_THROW((void)p.grown_capacity(101, 100, "t"), capacity_error);
+  store_policy q;
+  ASSERT_TRUE(store_policy::from_name("escher_gpu", q));
+  EXPECT_EQ(q.name, "escher_gpu");
+  ASSERT_TRUE(store_policy::from_name("mosp_escher_staged", q));
+  EXPECT_EQ(q.name, "mosp_escher_staged");
+  EXPECT_FALSE(store_policy::from_name("mosp_escher", q));  // M8a step 5
 }
 
 TEST(CbstFlatten, TheConstructLayout) {
