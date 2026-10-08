@@ -16,7 +16,12 @@
  * arrays of the recorded sizes (row count, used payload, capacity) filled with an empty row
  * layout, which is all the accounting depends on. The values of the other operations are the
  * recorded ones. With $DYNG_CBST_MEMORY_JSON the table (tree, op, point, A's bytes, dynG's
- * device_bytes and allocated_bytes, ratio) is written there for parity/results/M8a.md.
+ * device_bytes and allocated_bytes, ratio, and the op's host synchronizations) is written there
+ * for parity/results/M8a.md.
+ *
+ * $DYNG_CBST_MEMORY_PRESET selects the store preset (default escher_gpu; M8a step 5 also reads
+ * dyng_default): under escher_gpu() the accounting must EQUAL ESCHER-GPU's, under another preset
+ * it must stay within the 1.05x gate (the default's geometric scratch may hold a little more).
  *
  * Labels gpu, parity, cbst and slow; skipped without a device or the set.
  */
@@ -72,7 +77,7 @@ std::vector<int> input_or_zeros(tr::reader& in, const tr::record& rec, const std
 
 struct reading {
   std::string tree, op, point;
-  std::int64_t seq = 0, a_bytes = 0, dyng_bytes = 0, held = 0;
+  std::int64_t seq = 0, a_bytes = 0, dyng_bytes = 0, held = 0, syncs = 0;
 };
 
 TEST(CbstEarlyMemory, Coauth50kStoreBytesWithin105PercentOfEscherGpu) {
@@ -86,6 +91,10 @@ TEST(CbstEarlyMemory, Coauth50kStoreBytesWithin105PercentOfEscherGpu) {
   trace_source source(trace.string(), fs::temp_directory_path().string());
   tr::reader& in = source.reader();
   const resources res = resources::cuda();
+  const char* preset_env = std::getenv("DYNG_CBST_MEMORY_PRESET");
+  const std::string preset = preset_env && *preset_env ? preset_env : "escher_gpu";
+  esc::store_policy policy;
+  ASSERT_TRUE(esc::store_policy::from_name(preset, policy)) << preset;
   std::map<std::int64_t, std::string> names;
   std::map<std::int64_t, std::unique_ptr<esc::cbst_store>> trees;
   std::vector<reading> table;
@@ -97,7 +106,7 @@ TEST(CbstEarlyMemory, Coauth50kStoreBytesWithin105PercentOfEscherGpu) {
       names[id] = rec.text("dataset_name");
       trees[id] = std::make_unique<esc::cbst_store>(
           res, names[id], static_cast<int>(rec.integer("payload_capacity")),
-          static_cast<int>(rec.integer("alignment", 4)), esc::store_policy::escher_gpu());
+          static_cast<int>(rec.integer("alignment", 4)), policy);
       continue;
     }
     if (rec.kind == tr::record_kind::batch) {
@@ -109,6 +118,7 @@ TEST(CbstEarlyMemory, Coauth50kStoreBytesWithin105PercentOfEscherGpu) {
     const std::int64_t id = rec.integer("tree");
     esc::cbst_store& s = *trees.at(id);
     const std::string op = rec.text("op");
+    const long long syncs_before = s.host_syncs();
     bool hashed = false;
     if (op == "construct") {
       std::vector<int> keys = input_or_zeros(in, rec, "in.keys", hashed);
@@ -170,23 +180,27 @@ TEST(CbstEarlyMemory, Coauth50kStoreBytesWithin105PercentOfEscherGpu) {
     r.a_bytes = rec.integer("after.device_bytes");
     r.dyng_bytes = static_cast<std::int64_t>(s.device_bytes());
     r.held = static_cast<std::int64_t>(s.allocated_bytes());
+    r.syncs = s.host_syncs() - syncs_before;
     table.push_back(r);
     SCOPED_TRACE(r.tree + " " + r.op + " seq " + std::to_string(r.seq));
     EXPECT_LE(static_cast<double>(r.dyng_bytes), 1.05 * static_cast<double>(r.a_bytes));
-    EXPECT_EQ(r.dyng_bytes, r.a_bytes);  // the same accounting of the same arrays
-    EXPECT_EQ(r.held, r.dyng_bytes);     // and the store holds what it accounts
+    if (preset == "escher_gpu") {
+      EXPECT_EQ(r.dyng_bytes, r.a_bytes);  // the same accounting of the same arrays
+    }
+    EXPECT_EQ(r.held, r.dyng_bytes);  // and the store holds what it accounts
   }
   EXPECT_EQ(table.size(), 18U);
   if (const char* out = std::getenv("DYNG_CBST_MEMORY_JSON")) {
     std::ofstream f(out);
-    f << "{\"trace\": \"" << trace.string() << "\", \"readings\": [";
+    f << "{\"trace\": \"" << trace.string() << "\", \"preset\": \"" << preset
+      << "\", \"readings\": [";
     for (std::size_t i = 0; i < table.size(); ++i) {
       const reading& r = table[i];
       f << (i ? ",\n" : "\n") << "{\"seq\": " << r.seq << ", \"tree\": \"" << r.tree
         << "\", \"op\": \"" << r.op << "\", \"point\": \"" << r.point
         << "\", \"escher_gpu_device_bytes\": " << r.a_bytes
         << ", \"dyng_device_bytes\": " << r.dyng_bytes << ", \"dyng_allocated_bytes\": " << r.held
-        << ", \"ratio\": "
+        << ", \"host_syncs\": " << r.syncs << ", \"ratio\": "
         << (r.a_bytes ? static_cast<double>(r.dyng_bytes) / static_cast<double>(r.a_bytes) : 0.0)
         << "}";
     }
