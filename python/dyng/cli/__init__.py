@@ -30,7 +30,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+import warnings
 from collections.abc import Sequence
+from typing import TextIO
 
 import dyng
 
@@ -80,9 +82,31 @@ def _message(e: BaseException) -> str:
     return str(e).removeprefix("dyng: ")
 
 
+def _show_warning(
+    message: Warning | str,
+    category: type[Warning],
+    filename: str,
+    lineno: int,
+    file: TextIO | None = None,
+    line: str | None = None,
+) -> None:
+    """A warning in the command line's form, ``dyng: warning: <message>`` on standard error (the
+    Python form names the caller's line, which for the command is the console-script wrapper);
+    a warning that is not dynG's keeps its category's name."""
+    kind = "" if issubclass(category, dyng.BackendWarning) else f"{category.__name__}: "
+    text = str(message).removeprefix("dyng: ")
+    print(f"dyng: warning: {kind}{text}", file=sys.stderr if file is None else file)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the ``dyng`` command with ``argv`` (default: ``sys.argv[1:]``); returns the exit
     status."""
+    with warnings.catch_warnings():
+        warnings.showwarning = _show_warning
+        return _main(argv)
+
+
+def _main(argv: Sequence[str] | None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
