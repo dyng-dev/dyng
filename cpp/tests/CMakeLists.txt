@@ -166,8 +166,9 @@ if(DYNG_ENABLE_CUDA)
   dyng_add_test(
     NAME dyng_cbst_store_tests
     SOURCES hypergraph/escher/cbst_store_test.cpp hypergraph/escher/cbst_layout_test.cu
-            hypergraph/escher/cbst_merge_test.cpp
+            hypergraph/escher/cbst_merge_test.cpp hypergraph/escher/cbst_contract_test.cpp
     LABELS gpu cbst
+    LIBRARIES dyng::testing
   )
   dyng_set_cuda_options(dyng_cbst_store_tests)
   list(APPEND _dyng_private_tests dyng_cbst_store_tests)

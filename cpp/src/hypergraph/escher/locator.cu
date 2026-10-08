@@ -150,9 +150,25 @@ static void reserve_keys(const cbst_context& tree, int max_key, int& capacity, b
 }
 
 void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
+  DYNG_EXPECTS(max_key >= 0, "CBST ", tree.dataset_name, ": row locator: max_key ", max_key,
+               " is negative");
   const scoped_device guard(tree.res.device());
   reserve_keys(tree, max_key, capacity_, loc_storage_, len_storage_, out_storage_, loc_, len_,
                out_);
+  if (max_key == 0) {
+    // No keys (an empty V2H tree, a hypergraph without vertices): an empty view, nothing to
+    // launch (dynG addition, M8a review: the row kernels were launched with 0 blocks).
+    DYNG_CUDA_TRY(cudaMemsetAsync(loc_, 0, sizeof(int), stream_of(tree)));
+    DYNG_CUDA_TRY(cudaMemsetAsync(len_, 0, sizeof(int), stream_of(tree)));
+    copy_ = allocate(tree, copy_storage_, 1);
+    copy_bytes_ = sizeof(int);
+    view_.flat = copy_;
+    view_.loc = loc_;
+    view_.len = len_;
+    view_.out = nullptr;
+    view_.max_key = 0;
+    return;
+  }
   const int block = 256;
   buffer<int> head_storage(tree.res, static_cast<size_t>(max_key) + 1);
   int* d_head = head_storage.data();
@@ -160,9 +176,11 @@ void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
   if (tree.num_records > 0)
     row_heads_kernel<<<(tree.num_records + block - 1) / block, block, 0, stream_of(tree)>>>(
         tree.d_nodes, tree.d_avail, tree.num_records, max_key, d_head);
+  DYNG_CHECK_KERNEL(stream_of(tree));
   DYNG_CUDA_TRY(cudaMemsetAsync(len_, 0, (max_key + 1) * sizeof(int), stream_of(tree)));
   chained_row_lengths_kernel<<<(max_key + block - 1) / block, block, 0, stream_of(tree)>>>(
       tree.d_flat_payload, tree.initial_payload_size, d_head, max_key, len_, tree.d_control);
+  DYNG_CHECK_KERNEL(stream_of(tree));
   thrust::device_ptr<int> len(len_), loc(loc_);
   thrust_allocator alloc(tree.res);
   thrust::exclusive_scan(thrust_policy(tree.res, alloc), len, len + max_key + 1, loc);
@@ -184,6 +202,7 @@ void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
   gather_chained_rows_kernel<<<(max_key + block - 1) / block, block, 0, stream_of(tree)>>>(
       tree.d_flat_payload, tree.initial_payload_size, d_head, max_key, loc_, d_pairs,
       tree.d_control);
+  DYNG_CHECK_KERNEL(stream_of(tree));
   thrust::sort(thrust_policy(tree.res, alloc), thrust::device_ptr<unsigned long long>(d_pairs),
                thrust::device_ptr<unsigned long long>(d_pairs) + total);
   copy_ = allocate(tree, copy_storage_, static_cast<size_t>(std::max(1LL, total)));
@@ -201,6 +220,8 @@ void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
 }
 
 void row_locator::build(const cbst_context& tree, int max_key, bool with_out) {
+  DYNG_EXPECTS(max_key >= 0, "CBST ", tree.dataset_name, ": row locator: max_key ", max_key,
+               " is negative");
   const scoped_device guard(tree.res.device());
   reserve_keys(tree, max_key, capacity_, loc_storage_, len_storage_, out_storage_, loc_, len_,
                out_);
@@ -217,6 +238,7 @@ void row_locator::build(const cbst_context& tree, int max_key, bool with_out) {
     build_row_locator_kernel<<<grid, block, 0, stream_of(tree)>>>(
         tree.d_nodes, tree.d_avail, tree.num_records, tree.d_flat_payload, max_key, loc_, len_,
         with_out ? out_ : nullptr, d_chained);
+    DYNG_CHECK_KERNEL(stream_of(tree));
   }
   int chained = 0;
   DYNG_CUDA_TRY(

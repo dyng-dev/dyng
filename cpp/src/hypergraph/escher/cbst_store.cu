@@ -150,6 +150,25 @@ static void release(buffer<value_t>& storage, value_t*& view) {
   view = nullptr;
 }
 
+// Releases the per-record arrays of a tree (nodes, keys, row offsets, avail, subtree_avail).
+static void release_tree_arrays(cbst_context& ctx) {
+  release(ctx.nodes_storage, ctx.d_nodes);
+  release(ctx.keys_storage, ctx.d_keys);
+  release(ctx.start_offsets_storage, ctx.d_start_offsets);
+  release(ctx.avail_storage, ctx.d_avail);
+  release(ctx.subtree_avail_storage, ctx.d_subtree_avail);
+}
+
+// Releases the operation scratch (the per-operation input buffers).
+static void release_scratch(cbst_context& ctx) {
+  release(ctx.insert_keys_storage, ctx.d_insert_keys);
+  release(ctx.insert_payload_storage, ctx.d_insert_payload);
+  release(ctx.insert_prefix_sizes_storage, ctx.d_insert_prefix_sizes);
+  release(ctx.relocation_plan_storage, ctx.d_relocation_plan);
+  ctx.scratch_item_capacity = 0;
+  ctx.scratch_payload_capacity = 0;
+}
+
 // Degree binning of per-item work (ESCHER+ thread / warp / block levels):
 // items with fewer than 32 values run one per thread, fewer than 1024 one
 // per warp, larger ones one per block. The three index lists are uploaded
@@ -318,7 +337,11 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
   if (num_records == 0) {
     // An empty tree (dynG addition): its payload is allocated as for any other tree, so that a
     // later insert or append has a buffer to write to (ESCHER-GPU and MOSP_ESCHER kept none, and
-    // an insert into the empty tree failed).
+    // an insert into the empty tree failed). The arrays of an earlier tree go (M8a review: a
+    // lookup walked the old nodes and an append wrote into stale rows), and so does its
+    // operation scratch, which a construct sizes by its record count (0 here).
+    release_tree_arrays(ctx);
+    release_scratch(ctx);
     allocate(ctx, ctx.flat_payload_storage, ctx.d_flat_payload, ctx.fixed_size);
     if (ctx.fixed_size > 0)
       DYNG_CUDA_TRY(
@@ -402,19 +425,16 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
 
 void rebuild_cbst_from_device(buffer<int> start_offsets, int num_records, buffer<int> flat_payload,
                               int flat_payload_size, int payload_capacity, cbst_context& ctx) {
-  DYNG_EXPECTS(start_offsets.size() >= static_cast<size_t>(std::max(num_records, 0)) &&
+  DYNG_EXPECTS(num_records >= 0 && flat_payload_size >= 0 &&
+                   start_offsets.size() >= static_cast<size_t>(std::max(num_records, 0)) &&
                    flat_payload.size() >= static_cast<size_t>(std::max(payload_capacity, 0)) &&
                    flat_payload_size <= payload_capacity,
                "CBST ", ctx.dataset_name, ": rebuild_from_device: ", start_offsets.size(),
                " row offsets and a payload of ", flat_payload.size(), " for ", num_records,
                " rows, ", flat_payload_size, " used of a capacity of ", payload_capacity);
   reset_control(ctx);
-  release(ctx.nodes_storage, ctx.d_nodes);
-  release(ctx.keys_storage, ctx.d_keys);
-  release(ctx.start_offsets_storage, ctx.d_start_offsets);
+  release_tree_arrays(ctx);
   release(ctx.flat_payload_storage, ctx.d_flat_payload);
-  release(ctx.avail_storage, ctx.d_avail);
-  release(ctx.subtree_avail_storage, ctx.d_subtree_avail);
   ctx.start_offsets_storage = std::move(start_offsets);
   ctx.d_start_offsets = ctx.start_offsets_storage.data();
   ctx.flat_payload_storage = std::move(flat_payload);
@@ -422,6 +442,13 @@ void rebuild_cbst_from_device(buffer<int> start_offsets, int num_records, buffer
   ctx.fixed_size = payload_capacity;
   ctx.initial_payload_size = flat_payload_size;
   ctx.num_records = num_records;
+  // A merged tree of 0 records (every row deleted) is valid: the payload is kept for later
+  // inserts and appends, and there is nothing to build (dynG addition, M8a review: the build
+  // kernels were launched with 0 blocks, a CUDA error that poisoned the store).
+  if (num_records == 0) {
+    release(ctx.start_offsets_storage, ctx.d_start_offsets);
+    return;
+  }
   allocate(ctx, ctx.nodes_storage, ctx.d_nodes, num_records);
   DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_nodes, 0, num_records * sizeof(cbst_node), stream_of(ctx)));
   allocate(ctx, ctx.keys_storage, ctx.d_keys, num_records);
@@ -1249,7 +1276,7 @@ cbst_host_state cbst_store::download() const {
 std::vector<int> cbst_store::find(const std::vector<int>& ids) const {
   const scoped_device guard(ctx_.res.device());
   std::vector<int> positions(ids.size(), -1);
-  if (ids.empty() || ctx_.d_nodes == nullptr) return positions;
+  if (ids.empty() || ctx_.d_nodes == nullptr || ctx_.num_records <= 0) return positions;
   buffer<int> search(ctx_.res, ids.size());
   buffer<int> found(ctx_.res, ids.size());
   int* d_search = search.data();
