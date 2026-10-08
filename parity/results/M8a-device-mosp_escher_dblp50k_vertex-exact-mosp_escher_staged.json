@@ -5,7 +5,7 @@
  "store": "device",
  "policy": "mosp_escher_staged",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
  "date": "2026-10-08T02:39:03+00:00",
  "head": "be449b65a021e230da5337276f5c87515179452d",
  "cases": [

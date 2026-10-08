@@ -1,13 +1,14 @@
 {
  "set": "cbst_trace_escher_gpu_coauth50k",
+ "documented_rules": {},
  "reference": "ESCHER-GPU",
  "manifest_sha256": "7ddec4438292cdf25cbbcd028e26f87e04bd518ee50b6ef856c3e5ea8635ae57",
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T06:15:47+00:00",
- "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:10:33+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
  "cases": [
   {
    "case": "coauth_b50k_s1",

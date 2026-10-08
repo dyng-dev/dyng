@@ -1,13 +1,16 @@
 {
  "set": "cbst_trace_mosp_escher_targeted",
+ "documented_rules": {
+  "construct_below_payload": 1
+ },
  "reference": "MOSP_ESCHER",
  "manifest_sha256": "280d185aaa4f4321c96810cb41bf336e67a5a82fff0c340565b222a80072e353",
  "store": "device",
  "policy": "mosp_escher_staged",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T02:20:46+00:00",
- "head": "be449b65a021e230da5337276f5c87515179452d",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T20:47:30+00:00",
+ "head": "f0eb0ca1820f524da55b4c0d119a655c8da6f48a",
  "cases": [
   {
    "case": "targeted_large",
@@ -26,7 +29,8 @@
    "mismatch_count": 0,
    "documented": [],
    "twin_constructs": 2,
-   "first_divergences": {}
+   "first_divergences": {},
+   "documented_rules": {}
   },
   {
    "case": "targeted_small",
@@ -73,6 +77,9 @@
      0,
      "construct validation"
     ]
+   },
+   "documented_rules": {
+    "construct_below_payload": 1
    }
   }
  ],

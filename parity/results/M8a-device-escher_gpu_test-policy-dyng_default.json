@@ -1,13 +1,17 @@
 {
  "set": "cbst_trace_escher_gpu_test",
+ "documented_rules": {
+  "policy_difference": 65,
+  "policy_mapping": 5
+ },
  "reference": "ESCHER-GPU",
  "manifest_sha256": "3b978a38514b6e2586894b15dd2a711b5baf4faaa1c61198f802649eaa22bc42",
  "store": "device",
  "policy": "dyng_default",
  "fields": "policy",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T06:13:21+00:00",
- "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:07:50+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
  "cases": [
   {
    "case": "001-main",
@@ -799,7 +803,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 29,
@@ -809,7 +813,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -926,7 +930,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -970,7 +974,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     }
    ],
    "twin_constructs": 3,
@@ -1004,7 +1008,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 20,
@@ -1014,7 +1018,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 22,
@@ -1034,7 +1038,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 28,
@@ -1044,7 +1048,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1054,7 +1058,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     }
    ],
    "twin_constructs": 3,
@@ -1120,7 +1124,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 29,
@@ -1130,7 +1134,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1247,7 +1251,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1291,7 +1295,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     }
    ],
    "twin_constructs": 3,
@@ -1325,7 +1329,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 20,
@@ -1335,7 +1339,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 22,
@@ -1355,7 +1359,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 28,
@@ -1365,7 +1369,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1375,7 +1379,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     }
    ],
    "twin_constructs": 3,
@@ -1441,7 +1445,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 29,
@@ -1451,7 +1455,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1568,7 +1572,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1612,7 +1616,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     }
    ],
    "twin_constructs": 3,
@@ -1646,7 +1650,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 20,
@@ -1656,7 +1660,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 22,
@@ -1676,7 +1680,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 28,
@@ -1686,7 +1690,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1696,7 +1700,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     }
    ],
    "twin_constructs": 3,
@@ -1762,7 +1766,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 29,
@@ -1772,7 +1776,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1889,7 +1893,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -1933,7 +1937,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     }
    ],
    "twin_constructs": 3,
@@ -1967,7 +1971,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 20,
@@ -1977,7 +1981,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 22,
@@ -1997,7 +2001,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 28,
@@ -2007,7 +2011,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 30,
@@ -2017,7 +2021,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     }
    ],
    "twin_constructs": 3,
@@ -2083,7 +2087,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 34,
@@ -2093,7 +2097,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 35,
@@ -2210,7 +2214,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 35,
@@ -2254,7 +2258,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     }
    ],
    "twin_constructs": 4,
@@ -2288,7 +2292,7 @@
      "dataset": "H2V",
      "op": "insert",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 24,
@@ -2298,7 +2302,7 @@
      "dataset": "H2V",
      "op": "erase",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 26,
@@ -2318,7 +2322,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.growth, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
     },
     {
      "seq": 33,
@@ -2328,7 +2332,7 @@
      "dataset": "V2H",
      "op": "unfill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     },
     {
      "seq": 35,
@@ -2338,7 +2342,7 @@
      "dataset": "V2H",
      "op": "fill",
      "rule": "policy_difference",
-     "detail": "after.fixed_size, after.initial_payload_size, key.length, event.compaction"
+     "detail": "after.fixed_size, after.initial_payload_size, key.length (after the policy difference)"
     }
    ],
    "twin_constructs": 4,

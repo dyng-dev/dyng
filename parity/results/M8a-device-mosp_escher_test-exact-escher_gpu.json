@@ -1,13 +1,16 @@
 {
  "set": "cbst_trace_mosp_escher_test",
+ "documented_rules": {
+  "construct_without_row_counts": 31
+ },
  "reference": "MOSP_ESCHER",
  "manifest_sha256": "fe2d29edce2a48ec7eb0f2067287a962838323b4712cb84443457761b6c27b90",
  "store": "device",
  "policy": "escher_gpu",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T06:13:58+00:00",
- "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:08:32+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
  "cases": [
   {
    "case": "001-test_cbst_smoke",

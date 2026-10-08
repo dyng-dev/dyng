@@ -1,13 +1,14 @@
 {
  "set": "cbst_trace_mosp_escher_dblp50k_hyperedge",
+ "documented_rules": {},
  "reference": "MOSP_ESCHER",
  "manifest_sha256": "3b26a7697d1875373b1577ca3731e8ccbbbd888b29c31b4787f5fd5224f13e80",
  "store": "device",
  "policy": "mosp_escher",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T06:24:55+00:00",
- "head": "f03b3eb3b2b8ff9bc1f650213ab44add26f579a2",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:19:36+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
  "cases": [
   {
    "case": "dblp_hyperedge_50000",

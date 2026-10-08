@@ -559,3 +559,15 @@ def test_documented_divergence_counts_are_pinned(tmp_path: Path) -> None:
         assert g.original_preset(name) in pinned.get(name, {}), name
         assert "dyng_default" in pinned.get(name, {}), name
 
+
+def test_replay_records_have_no_personal_paths(monkeypatch, tmp_path: Path) -> None:
+    """PLAN 3.4: the committed replay records name the tool relative to the repository or
+    $DYNG_SCRATCH (M8a review: 32 records carried /home/<user>/... paths)."""
+    g = load("parity/cbst_trace_goldens.py")
+    monkeypatch.setenv("DYNG_SCRATCH", str(tmp_path))
+    assert g.portable(tmp_path / "m8a" / "wt" / "dyng_cbst_replay") == (
+        "$DYNG_SCRATCH/m8a/wt/dyng_cbst_replay"
+    )
+    assert g.portable(REPO / "build" / "x") == "build/x"
+    for record in (REPO / "parity" / "results").glob("M8a-device-*.json"):
+        assert str(Path.home()) not in record.read_text(), record.name

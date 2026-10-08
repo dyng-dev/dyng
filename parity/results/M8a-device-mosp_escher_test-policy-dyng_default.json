@@ -1,13 +1,17 @@
 {
  "set": "cbst_trace_mosp_escher_test",
+ "documented_rules": {
+  "policy_difference": 4,
+  "policy_exception": 1
+ },
  "reference": "MOSP_ESCHER",
  "manifest_sha256": "fe2d29edce2a48ec7eb0f2067287a962838323b4712cb84443457761b6c27b90",
  "store": "device",
  "policy": "dyng_default",
  "fields": "policy",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T06:14:44+00:00",
- "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:09:29+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
  "cases": [
   {
    "case": "001-test_cbst_smoke",
@@ -215,6 +219,46 @@
    "mismatch_count": 0,
    "documented": [
     {
+     "seq": 2321,
+     "op_index": 2309,
+     "tree_op": 75,
+     "tree": 4,
+     "dataset": "churn-growth",
+     "op": "fill",
+     "rule": "policy_difference",
+     "detail": "after.fixed_size, event.growth"
+    },
+    {
+     "seq": 2322,
+     "op_index": 2310,
+     "tree_op": 76,
+     "tree": 4,
+     "dataset": "churn-growth",
+     "op": "fill",
+     "rule": "policy_difference",
+     "detail": "after.fixed_size (after the policy difference)"
+    },
+    {
+     "seq": 2323,
+     "op_index": 2311,
+     "tree_op": 77,
+     "tree": 4,
+     "dataset": "churn-growth",
+     "op": "fill",
+     "rule": "policy_difference",
+     "detail": "after.fixed_size (after the policy difference)"
+    },
+    {
+     "seq": 2324,
+     "op_index": 2312,
+     "tree_op": 78,
+     "tree": 4,
+     "dataset": "churn-growth",
+     "op": "fill",
+     "rule": "policy_difference",
+     "detail": "after.fixed_size (after the policy difference)"
+    },
+    {
      "seq": 2325,
      "op_index": 2313,
      "tree_op": 79,
@@ -229,6 +273,7 @@
    "unreplayable_trees": [],
    "first_mismatches": [],
    "documented_rules": {
+    "policy_difference": 4,
     "policy_exception": 1
    }
   },
@@ -538,7 +583,7 @@
   "compactions": 48,
   "exceptions": 1,
   "mismatch_count": 0,
-  "documented": 1,
+  "documented": 5,
   "twin_constructs": 3390
  },
  "problems": [],

@@ -1,13 +1,14 @@
 {
  "set": "cbst_trace_escher_gpu_test",
+ "documented_rules": {},
  "reference": "ESCHER-GPU",
  "manifest_sha256": "3b978a38514b6e2586894b15dd2a711b5baf4faaa1c61198f802649eaa22bc42",
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T06:13:06+00:00",
- "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:07:30+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
  "cases": [
   {
    "case": "001-main",

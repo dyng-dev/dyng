@@ -1,13 +1,16 @@
 {
  "set": "cbst_trace_escher_gpu_targeted",
+ "documented_rules": {
+  "construct_below_payload": 1
+ },
  "reference": "ESCHER-GPU",
  "manifest_sha256": "6f4c9428ac5e93b9182a11c6934937832cacf1b590eb5fd2e98363f071a9c260",
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T06:13:22+00:00",
- "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:07:51+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
  "cases": [
   {
    "case": "targeted_large",
@@ -54,7 +57,7 @@
      "dataset": "targeted-small_capacity",
      "op": "construct",
      "rule": "construct_below_payload",
-     "detail": "trace: no exception; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:279)"
+     "detail": "trace: no exception; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:314)"
     }
    ],
    "twin_constructs": 10,
