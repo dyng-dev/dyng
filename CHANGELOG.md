@@ -18,8 +18,11 @@ Before 0.1.0 anything may change.
   resource, with exceptions instead of process exits; dynG additions: the empty tree, `clone()`,
   `download()`, `allocated_bytes()`, poisoning after a failed operation, the payload policy
   `store_policy::escher_gpu()`. It replays ESCHER-GPU's CBST traces in every recorded field
-  (`parity/compare.py cbst_trace --store device`); `parity/escher_port/transplant.py` regenerates
-  its first commit from the original.
+  but one documented divergence (`construct_below_payload`: the targeted construct whose capacity
+  is below its payload throws instead of keeping a tree without nodes) and the 57 operations that
+  cannot be replayed (the 3 H2H rebuilds of coauth50k, whose inputs are recorded as hashes only,
+  and the 54 operations of the batches-mode set syn1m) (`parity/compare.py cbst_trace --store
+  device`); `parity/escher_port/transplant.py` regenerates its first commit from the original.
 - M8a (internal): **MOSP_ESCHER@4b86159's CBST behaviours merged into the store** (ADR 0039):
   construct validation, the fill clamps, caller row counts as a fast path of construct, one
   bounded chain walk for every reader and the unfill writer (bounded by the used payload; a
@@ -33,14 +36,22 @@ Before 0.1.0 anything may change.
   `capacity_error`; flat * 1.3 + extra, at most 2.0e9) replaces the staging preset, and dynG's
   default `store_policy::dyng_default()` compacts first and then grows (`capacity_error` only
   beyond `max_payload`, the int32 offsets; `out_of_memory_error` on an allocation failure).
-  MOSP_ESCHER's CBST traces replay in every recorded field under `mosp_escher()`; every set
-  replays under the default with the field set `policy`. Tests: MOSP_ESCHER's 9 CBST scenarios and
+  MOSP_ESCHER's CBST traces replay in every recorded field under `mosp_escher()` but the
+  documented divergences `construct_without_row_counts` (31 constructs of make test without row
+  counts, whose occupancy 0 the store does not take over; ADR 0039 (c)) and
+  `construct_below_payload` (one targeted construct); every set replays under the default with
+  the field set `policy`, its documented divergences pinned per set and rule
+  (`parity/cbst_documented.toml`), and the store's layout under every preset is checked in
+  lockstep with the host model on the traces' operations. Tests: MOSP_ESCHER's 9 CBST scenarios and
   its smoke test under every preset in lockstep with the host model, random operation sequences,
   the graph-on-CBST test (PLAN 6.1 D8), the partial-failure rule, and the 7 CBST mutations
   (`ctest -L mutation`, `parity/mutate.py run --suites cbst`); `parity/perf_ab.py cbst early`, the
   early-warning table of the store against ESCHER-GPU.
 - M8a: `dyng::testing::cbst_host_policy::max_payload`, the largest payload a growth reaches
   (tests lower it), and `cbst_host_policy::dyng_default()` no longer provisional.
+- M8a review: `dyng::testing::cbst_host_policy::compaction_headroom`, the hysteresis of an
+  automatic compaction (`dyng_default()`: 8, also the store's default preset: after a compaction
+  at a trigger point the payload grows when fewer than 1/8 of its slots are free).
 - M8a: **`dyng::testing::cbst_host_model`** (`dyng/testing/cbst_host_model.hpp`, ADR 0037), a
   sequential host model of the ESCHER CBST store of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159
   (best-fit reuse, surplus keys and the rebuild, fill overflow segments, unfill, A's growth, B's
