@@ -2,14 +2,14 @@
  "schema": 1,
  "algorithm": "sssp",
  "label": "",
- "date": "2026-10-07T22:17:24Z",
+ "date": "2026-10-08T19:09:52Z",
  "reference": {
   "name": "MOSP-OpenMP",
   "commit": "c35215135341d5b5d1553458afe4b2226edc38fb"
  },
  "port": {
   "repository": "dyng",
-  "commit": "8bc3e614b2f55c7539a5eeee61a896b7a3b5cb23"
+  "commit": "b1a4869a936868b572213f66f089d7587d0f1972"
  },
  "driver": "compat",
  "executable": "build/parity-cuda/tools/compat/dyng-compat-mosp",
@@ -46,12 +46,12 @@
  ],
  "matrix": {
   "testcases": {
-   "cuda": {
+   "cuda-fused": {
     "cases": 10,
     "pass": 10,
     "fail": []
    },
-   "cuda-operators": {
+   "cuda": {
     "cases": 10,
     "pass": 10,
     "fail": []
@@ -61,7 +61,7 @@
     "pass": 10,
     "fail": []
    },
-   "cuda-fused": {
+   "cuda-operators": {
     "cases": 10,
     "pass": 10,
     "fail": []
@@ -100,12 +100,12 @@
    }
   },
   "thesis": {
-   "cuda": {
+   "cuda-fused": {
     "cases": 1,
     "pass": 1,
     "fail": []
    },
-   "cuda-fused": {
+   "cuda": {
     "cases": 1,
     "pass": 1,
     "fail": []
@@ -127,17 +127,12 @@
    }
   },
   "escher": {
-   "cuda": {
+   "cuda-fused": {
     "cases": 4,
     "pass": 4,
     "fail": []
    },
    "cuda-operators": {
-    "cases": 4,
-    "pass": 4,
-    "fail": []
-   },
-   "cuda-fused": {
     "cases": 4,
     "pass": 4,
     "fail": []
@@ -151,10 +146,15 @@
     "cases": 4,
     "pass": 4,
     "fail": []
+   },
+   "cuda": {
+    "cases": 4,
+    "pass": 4,
+    "fail": []
    }
   },
   "fixtures": {
-   "cuda-operators": {
+   "cuda": {
     "cases": 17,
     "pass": 17,
     "fail": []
@@ -164,12 +164,12 @@
     "pass": 17,
     "fail": []
    },
-   "cuda": {
+   "cuda-fused": {
     "cases": 17,
     "pass": 17,
     "fail": []
    },
-   "cuda-fused": {
+   "cuda-operators": {
     "cases": 17,
     "pass": 17,
     "fail": []
@@ -208,22 +208,22 @@
    }
   },
   "large_weights": {
-   "cuda-fused": {
-    "cases": 2,
-    "pass": 2,
-    "fail": []
-   },
-   "cuda-operators": {
-    "cases": 2,
-    "pass": 2,
-    "fail": []
-   },
    "cuda": {
     "cases": 2,
     "pass": 2,
     "fail": []
    },
    "cuda/int64": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "cuda-fused": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "cuda-operators": {
     "cases": 2,
     "pass": 2,
     "fail": []
@@ -235,17 +235,17 @@
    }
   },
   "packing": {
+   "cuda": {
+    "cases": 3,
+    "pass": 3,
+    "fail": []
+   },
    "cuda-fused": {
     "cases": 3,
     "pass": 3,
     "fail": []
    },
    "cuda/int64": {
-    "cases": 3,
-    "pass": 3,
-    "fail": []
-   },
-   "cuda": {
     "cases": 3,
     "pass": 3,
     "fail": []
@@ -272,12 +272,12 @@
     "pass": 200,
     "fail": []
    },
-   "cuda-operators": {
+   "cuda/int64": {
     "cases": 200,
     "pass": 200,
     "fail": []
    },
-   "cuda/int64": {
+   "cuda-operators": {
     "cases": 200,
     "pass": 200,
     "fail": []
@@ -289,16 +289,6 @@
    }
   },
   "noncanonical": {
-   "cuda-fused": {
-    "cases": 107,
-    "pass": 107,
-    "fail": []
-   },
-   "cuda": {
-    "cases": 107,
-    "pass": 107,
-    "fail": []
-   },
    "cuda-operators": {
     "cases": 107,
     "pass": 107,
@@ -310,6 +300,16 @@
     "fail": []
    },
    "cuda-operators/int64": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "cuda": {
+    "cases": 107,
+    "pass": 107,
+    "fail": []
+   },
+   "cuda-fused": {
     "cases": 107,
     "pass": 107,
     "fail": []

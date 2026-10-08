@@ -1,402 +1,402 @@
-# Excerpt of $DYNG_SCRATCH/runs/r020-certify-phase-a.log (sha256 9e0569842ee3a45b05481dd3c103fdbfd2150a7b687d74bd89629960d12b2996, 368550 bytes): its step headers and result lines, written by parity/certify.py check.
-== start 2026-10-07T18:41:08Z commit 8bc3e61
-== suite ipdps25_dynamosp_mosp 2026-10-07T18:41:08Z
-== 2026-10-07T13:41:19-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-roadNet-PA.json
+# Excerpt of $DYNG_SCRATCH/runs/r020-cert3-phase-a.log (sha256 aa7fbd604cbb431ca92104f9a1a841370e1c1bbf7ed7a82e6430d3683fc37d35, 377831 bytes): its step headers and result lines, written by parity/certify.py check.
+== build 2026-10-08T12:38:41Z
+== build rc=0 2026-10-08T12:41:26Z
+== start 2026-10-08T12:41:26Z commit b1a4869
+== suite ipdps25_dynamosp_mosp 2026-10-08T12:41:26Z
+== 2026-10-08T07:41:36-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-roadNet-PA.json
+== 2026-10-08T07:55:53-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-roadNet-CA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 57.49 | 45.72 | 0.795 | <= 1.05 ok | 13 % / 5 % (noisy) | - |
-| safe50k | sosp_update obj0 | as measured | 17.43 | 13.96 | 0.801 | - | 24 % / 11 % (noisy) | - |
-| safe50k | sosp_update obj1 | as measured | 12.89 | 11.07 | 0.858 | - | 13 % / 2 % (noisy) | - |
-| safe50k | sosp_update obj2 | as measured | 12.69 | 11.17 | 0.880 | - | 11 % / 5 % (noisy) | - |
-| safe50k | combined | as measured | 14.88 | 9.49 | 0.637 | - | 18 % / 12 % (noisy) | - |
-| safe50k | end_to_end | as measured | 577.17 | 513.05 | 0.889 | <= 1.10 ok | 23 % / 9 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 15.58 | - | - | 0 % / 102 % (noisy) | - |
-| unsafe50k | compute | as measured | 56.50 | 44.17 | 0.782 | <= 1.05 ok | 15 % / 6 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 16.29 | 13.39 | 0.822 | - | 27 % / 9 % (noisy) | - |
-| unsafe50k | sosp_update obj1 | as measured | 12.74 | 10.66 | 0.836 | - | 12 % / 7 % (noisy) | - |
-| unsafe50k | sosp_update obj2 | as measured | 12.73 | 10.82 | 0.850 | - | 10 % / 6 % | - |
-| unsafe50k | combined | as measured | 14.87 | 9.22 | 0.620 | - | 20 % / 8 % (noisy) | - |
-| unsafe50k | end_to_end | as measured | 542.64 | 503.94 | 0.929 | <= 1.10 ok | 27 % / 7 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 15.78 | - | - | 0 % / 85 % (noisy) | - |
-| local10k | compute | as measured | 106.79 | 71.05 | 0.665 | <= 1.05 ok | 28 % / 15 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 28.20 | 19.15 | 0.679 | - | 28 % / 17 % (noisy) | - |
-| local10k | sosp_update obj1 | as measured | 25.28 | 17.49 | 0.692 | - | 29 % / 17 % (noisy) | - |
-| local10k | sosp_update obj2 | as measured | 24.97 | 17.25 | 0.691 | - | 27 % / 17 % (noisy) | - |
-| local10k | combined | as measured | 28.36 | 17.18 | 0.606 | - | 27 % / 15 % (noisy) | - |
-| local10k | end_to_end | as measured | 579.51 | 519.02 | 0.896 | <= 1.10 ok | 22 % / 10 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 14.78 | - | - | 0 % / 67 % (noisy) | - |
-== 2026-10-07T13:42:40-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-roadNet-CA.json
+| safe50k | compute | as measured | 99.29 | 78.54 | 0.791 | <= 1.05 ok | 15 % / 9 % (noisy) | - |
+| safe50k | sosp_update obj0 | as measured | 32.73 | 24.19 | 0.739 | - | 29 % / 8 % (noisy) | - |
+| safe50k | sosp_update obj1 | as measured | 21.96 | 19.21 | 0.875 | - | 11 % / 10 % (noisy) | - |
+| safe50k | sosp_update obj2 | as measured | 21.32 | 19.05 | 0.893 | - | 11 % / 8 % (noisy) | - |
+| safe50k | combined | as measured | 24.01 | 16.44 | 0.685 | - | 13 % / 14 % (noisy) | - |
+| safe50k | end_to_end | as measured | 1020.11 | 757.56 | 0.743 | <= 1.10 ok | 19 % / 6 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 33.20 | - | - | 0 % / 84 % (noisy) | - |
+| unsafe50k | compute | as measured | 94.34 | 77.75 | 0.824 | <= 1.05 ok | 8 % / 5 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 30.13 | 24.19 | 0.803 | - | 23 % / 9 % (noisy) | - |
+| unsafe50k | sosp_update obj1 | as measured | 20.57 | 18.95 | 0.921 | - | 8 % / 5 % | - |
+| unsafe50k | sosp_update obj2 | as measured | 20.13 | 18.58 | 0.923 | - | 7 % / 5 % | - |
+| unsafe50k | combined | as measured | 23.32 | 16.17 | 0.693 | - | 7 % / 9 % | - |
+| unsafe50k | end_to_end | as measured | 979.70 | 757.73 | 0.773 | <= 1.10 ok | 22 % / 6 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 31.64 | - | - | 0 % / 85 % (noisy) | - |
+| local10k | compute | as measured | 67.94 | 49.39 | 0.727 | <= 1.05 ok | 17 % / 5 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 13.44 | 9.79 | 0.728 | - | 27 % / 14 % (noisy) | - |
+| local10k | sosp_update obj1 | as measured | 10.02 | 7.42 | 0.741 | - | 20 % / 10 % (noisy) | - |
+| local10k | sosp_update obj2 | as measured | 9.25 | 7.69 | 0.831 | - | 19 % / 5 % (noisy) | - |
+| local10k | combined | as measured | 34.63 | 24.67 | 0.713 | - | 14 % / 2 % (noisy) | - |
+| local10k | end_to_end | as measured | 850.99 | 730.96 | 0.859 | <= 1.10 ok | 27 % / 4 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 29.65 | - | - | 0 % / 89 % (noisy) | - |
+== 2026-10-08T07:58:46-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-rgg.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 98.68 | 80.30 | 0.814 | <= 1.05 ok | 13 % / 6 % (noisy) | - |
-| safe50k | sosp_update obj0 | as measured | 30.54 | 24.49 | 0.802 | - | 28 % / 8 % (noisy) | - |
-| safe50k | sosp_update obj1 | as measured | 22.01 | 19.74 | 0.897 | - | 8 % / 8 % | - |
-| safe50k | sosp_update obj2 | as measured | 21.41 | 19.34 | 0.903 | - | 8 % / 6 % | - |
-| safe50k | combined | as measured | 24.38 | 16.94 | 0.695 | - | 9 % / 9 % | - |
-| safe50k | end_to_end | as measured | 1020.48 | 855.70 | 0.839 | <= 1.10 ok | 23 % / 8 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 29.73 | - | - | 0 % / 57 % (noisy) | - |
-| unsafe50k | compute | as measured | 96.11 | 78.85 | 0.820 | <= 1.05 ok | 7 % / 5 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 31.10 | 24.47 | 0.787 | - | 20 % / 7 % (noisy) | - |
-| unsafe50k | sosp_update obj1 | as measured | 20.85 | 19.21 | 0.921 | - | 3 % / 6 % | - |
-| unsafe50k | sosp_update obj2 | as measured | 20.32 | 18.84 | 0.927 | - | 4 % / 6 % | - |
-| unsafe50k | combined | as measured | 23.63 | 16.21 | 0.686 | - | 10 % / 6 % (noisy) | - |
-| unsafe50k | end_to_end | as measured | 1007.37 | 843.83 | 0.838 | <= 1.10 ok | 21 % / 6 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 28.43 | - | - | 0 % / 76 % (noisy) | - |
-| local10k | compute | as measured | 78.03 | 50.56 | 0.648 | <= 1.05 ok | 17 % / 6 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 17.02 | 10.02 | 0.589 | - | 29 % / 8 % (noisy) | - |
-| local10k | sosp_update obj1 | as measured | 11.15 | 7.42 | 0.666 | - | 24 % / 6 % (noisy) | - |
-| local10k | sosp_update obj2 | as measured | 10.79 | 7.88 | 0.731 | - | 21 % / 5 % (noisy) | - |
-| local10k | combined | as measured | 39.00 | 25.00 | 0.641 | - | 14 % / 11 % (noisy) | - |
-| local10k | end_to_end | as measured | 895.97 | 818.96 | 0.914 | <= 1.10 ok | 25 % / 6 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 23.34 | - | - | 0 % / 90 % (noisy) | - |
-== 2026-10-07T13:45:26-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-rgg.json
+| safe50k | compute | as measured | 153.25 | 141.96 | 0.926 | <= 1.05 ok | 4 % / 5 % | - |
+| safe50k | sosp_update obj0 | as measured | 51.45 | 50.57 | 0.983 | - | 7 % / 11 % (noisy) | - |
+| safe50k | sosp_update obj1 | as measured | 39.91 | 38.09 | 0.954 | - | 3 % / 3 % | - |
+| safe50k | sosp_update obj2 | as measured | 44.35 | 42.49 | 0.958 | - | 3 % / 2 % | - |
+| safe50k | combined | as measured | 17.36 | 10.49 | 0.605 | - | 12 % / 10 % (noisy) | - |
+| safe50k | end_to_end | as measured | 1455.11 | 1135.76 | 0.781 | <= 1.10 ok | 32 % / 7 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 39.26 | - | - | 0 % / 83 % (noisy) | - |
+| unsafe50k | compute | as measured | 153.34 | 142.21 | 0.927 | <= 1.05 ok | 3 % / 5 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 51.56 | 50.78 | 0.985 | - | 6 % / 11 % (noisy) | - |
+| unsafe50k | sosp_update obj1 | as measured | 39.98 | 38.19 | 0.955 | - | 3 % / 4 % | - |
+| unsafe50k | sosp_update obj2 | as measured | 44.29 | 42.39 | 0.957 | - | 3 % / 7 % | - |
+| unsafe50k | combined | as measured | 17.29 | 10.49 | 0.607 | - | 9 % / 5 % | - |
+| unsafe50k | end_to_end | as measured | 1356.85 | 1142.33 | 0.842 | <= 1.10 ok | 33 % / 6 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 40.60 | - | - | 0 % / 105 % (noisy) | - |
+| local10k | compute | as measured | 266.25 | 177.67 | 0.667 | <= 1.05 ok | 18 % / 10 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 78.02 | 54.59 | 0.700 | - | 23 % / 9 % (noisy) | - |
+| local10k | sosp_update obj1 | as measured | 68.28 | 46.44 | 0.680 | - | 18 % / 12 % (noisy) | - |
+| local10k | sosp_update obj2 | as measured | 76.56 | 53.99 | 0.705 | - | 18 % / 10 % (noisy) | - |
+| local10k | combined | as measured | 43.47 | 23.83 | 0.548 | - | 18 % / 14 % (noisy) | - |
+| local10k | end_to_end | as measured | 1422.01 | 1146.41 | 0.806 | <= 1.10 ok | 33 % / 7 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 47.72 | - | - | 0 % / 119 % (noisy) | - |
+== 2026-10-08T08:23:22-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-road_usa_g.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 154.02 | 142.38 | 0.924 | <= 1.05 ok | 3 % / 4 % | - |
-| safe50k | sosp_update obj0 | as measured | 51.76 | 50.79 | 0.981 | - | 3 % / 8 % | - |
-| safe50k | sosp_update obj1 | as measured | 40.24 | 38.29 | 0.951 | - | 3 % / 2 % | - |
-| safe50k | sosp_update obj2 | as measured | 44.55 | 42.52 | 0.954 | - | 9 % / 3 % | - |
-| safe50k | combined | as measured | 17.40 | 10.66 | 0.613 | - | 6 % / 7 % | - |
-| safe50k | end_to_end | as measured | 1423.25 | 1359.70 | 0.955 | <= 1.10 ok | 32 % / 8 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 31.23 | - | - | 0 % / 97 % (noisy) | - |
-| unsafe50k | compute | as measured | 153.34 | 141.96 | 0.926 | <= 1.05 ok | 4 % / 4 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 51.58 | 50.54 | 0.980 | - | 5 % / 8 % | - |
-| unsafe50k | sosp_update obj1 | as measured | 40.16 | 38.18 | 0.951 | - | 3 % / 5 % | - |
-| unsafe50k | sosp_update obj2 | as measured | 44.53 | 42.35 | 0.951 | - | 3 % / 5 % | - |
-| unsafe50k | combined | as measured | 17.30 | 10.59 | 0.612 | - | 8 % / 4 % | - |
-| unsafe50k | end_to_end | as measured | 1475.42 | 1366.07 | 0.926 | <= 1.10 ok | 30 % / 6 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 34.98 | - | - | 0 % / 78 % (noisy) | - |
-| local10k | compute | as measured | 267.21 | 190.40 | 0.713 | <= 1.05 ok | 18 % / 11 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 77.60 | 57.54 | 0.741 | - | 17 % / 10 % (noisy) | - |
-| local10k | sosp_update obj1 | as measured | 69.14 | 49.66 | 0.718 | - | 18 % / 14 % (noisy) | - |
-| local10k | sosp_update obj2 | as measured | 76.93 | 57.31 | 0.745 | - | 17 % / 10 % (noisy) | - |
-| local10k | combined | as measured | 43.74 | 25.76 | 0.589 | - | 21 % / 12 % (noisy) | - |
-| local10k | end_to_end | as measured | 1480.05 | 1395.21 | 0.943 | <= 1.10 ok | 31 % / 7 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 46.99 | - | - | 0 % / 58 % (noisy) | - |
-== 2026-10-07T13:48:56-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-openmp-road_usa_g.json
-== 2026-10-07T13:55:09-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-roadNet-PA.json
-== 2026-10-07T13:57:38-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-roadNet-CA.json
+| safe50k | compute | as measured | 1121.80 | 1009.50 | 0.900 | <= 1.05 ok | 7 % / 1 % | - |
+| safe50k | sosp_update obj0 | as measured | 293.25 | 273.51 | 0.933 | - | 5 % / 1 % | - |
+| safe50k | sosp_update obj1 | as measured | 265.07 | 253.63 | 0.957 | - | 3 % / 1 % | - |
+| safe50k | sosp_update obj2 | as measured | 263.68 | 252.84 | 0.959 | - | 3 % / 1 % | - |
+| safe50k | combined | as measured | 301.18 | 229.89 | 0.763 | - | 27 % / 2 % (noisy) | - |
+| safe50k | end_to_end | as measured | 10981.81 | 8246.37 | 0.751 | <= 1.10 ok | 20 % / 3 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 371.04 | - | - | 0 % / 53 % (noisy) | - |
+| unsafe50k | compute | as measured | 1139.52 | 1011.24 | 0.887 | <= 1.05 ok | 2 % / 2 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 296.32 | 272.83 | 0.921 | - | 4 % / 1 % | - |
+| unsafe50k | sosp_update obj1 | as measured | 268.44 | 253.98 | 0.946 | - | 3 % / 2 % | - |
+| unsafe50k | sosp_update obj2 | as measured | 265.64 | 252.92 | 0.952 | - | 3 % / 2 % | - |
+| unsafe50k | combined | as measured | 302.41 | 229.65 | 0.759 | - | 3 % / 6 % | - |
+| unsafe50k | end_to_end | as measured | 10757.26 | 8294.17 | 0.771 | <= 1.10 ok | 17 % / 5 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 377.13 | - | - | 0 % / 33 % (noisy) | - |
+| local10k | compute | as measured | 616.88 | 479.57 | 0.777 | <= 1.05 ok | 16 % / 1 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 74.33 | 57.02 | 0.767 | - | 18 % / 2 % (noisy) | - |
+| local10k | sosp_update obj1 | as measured | 61.95 | 54.78 | 0.884 | - | 20 % / 2 % (noisy) | - |
+| local10k | sosp_update obj2 | as measured | 62.22 | 55.07 | 0.885 | - | 19 % / 2 % (noisy) | - |
+| local10k | combined | as measured | 417.79 | 312.67 | 0.748 | - | 15 % / 1 % (noisy) | - |
+| local10k | end_to_end | as measured | 9062.46 | 7741.50 | 0.854 | <= 1.10 ok | 23 % / 2 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 303.47 | - | - | 0 % / 41 % (noisy) | - |
+== 2026-10-08T09:32:56-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-roadNet-PA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 31.26 | 31.03 | 0.993 | <= 1.05 ok | 1 % / 0 % | - |
-| safe50k | sosp_update obj0 | as measured | 8.75 | 8.62 | 0.985 | - | 2 % / 1 % | 8.61 |
-| safe50k | sosp_update obj1 | as measured | 8.86 | 8.79 | 0.993 | - | 1 % / 1 % | 8.79 |
-| safe50k | sosp_update obj2 | as measured | 8.71 | 8.70 | 0.998 | - | 1 % / 1 % | 8.69 |
-| safe50k | combined | as measured | 4.93 | 4.90 | 0.995 | - | 1 % / 1 % | - |
-| safe50k | end_to_end | as measured | 1074.40 | 932.24 | 0.868 | <= 1.10 ok | 19 % / 4 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 36.14 | - | - | 0 % / 68 % (noisy) | - |
-| unsafe50k | compute | as measured | 31.21 | 30.95 | 0.992 | <= 1.05 ok | 0 % / 0 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 8.74 | 8.59 | 0.982 | - | 1 % / 1 % | 8.58 |
-| unsafe50k | sosp_update obj1 | as measured | 8.82 | 8.78 | 0.996 | - | 1 % / 1 % | 8.78 |
-| unsafe50k | sosp_update obj2 | as measured | 8.72 | 8.69 | 0.996 | - | 1 % / 1 % | 8.68 |
-| unsafe50k | combined | as measured | 4.91 | 4.90 | 0.996 | - | 1 % / 1 % | - |
-| unsafe50k | end_to_end | as measured | 1075.21 | 941.85 | 0.876 | <= 1.10 ok | 20 % / 4 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 34.69 | - | - | 0 % / 51 % (noisy) | - |
-| local10k | compute | as measured | 18.50 | 18.44 | 0.997 | <= 1.05 ok | 0 % / 0 % | - |
-| local10k | sosp_update obj0 | as measured | 3.50 | 3.39 | 0.968 | - | 1 % / 1 % | 3.38 |
-| local10k | sosp_update obj1 | as measured | 3.08 | 3.08 | 0.998 | - | 1 % / 1 % | 3.07 |
-| local10k | sosp_update obj2 | as measured | 3.43 | 3.43 | 1.000 | - | 1 % / 1 % | 3.43 |
-| local10k | combined | as measured | 8.48 | 8.55 | 1.007 | - | 1 % / 0 % | - |
-| local10k | end_to_end | as measured | 1007.05 | 911.23 | 0.905 | <= 1.10 ok | 22 % / 5 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 32.34 | - | - | 0 % / 47 % (noisy) | - |
-== 2026-10-07T14:00:57-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-rgg.json
+| safe50k | compute | as measured | 16.80 | 16.89 | 1.005 | <= 1.05 ok | 1 % / 0 % | - |
+| safe50k | sosp_update obj0 | as measured | 4.76 | 4.68 | 0.983 | - | 2 % / 1 % | 4.67 |
+| safe50k | sosp_update obj1 | as measured | 4.74 | 4.76 | 1.004 | - | 1 % / 0 % | 4.76 |
+| safe50k | sosp_update obj2 | as measured | 4.83 | 4.88 | 1.011 | - | 1 % / 1 % | 4.87 |
+| safe50k | combined | as measured | 2.48 | 2.58 | 1.039 | - | 1 % / 1 % | - |
+| safe50k | end_to_end | as measured | 693.95 | 592.34 | 0.854 | <= 1.10 ok | 19 % / 4 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 19.44 | - | - | 0 % / 54 % (noisy) | - |
+| unsafe50k | compute | as measured | 16.78 | 16.85 | 1.004 | <= 1.05 ok | 1 % / 1 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 4.74 | 4.66 | 0.985 | - | 2 % / 1 % | 4.66 |
+| unsafe50k | sosp_update obj1 | as measured | 4.73 | 4.75 | 1.003 | - | 1 % / 1 % | 4.74 |
+| unsafe50k | sosp_update obj2 | as measured | 4.83 | 4.86 | 1.007 | - | 1 % / 1 % | 4.86 |
+| unsafe50k | combined | as measured | 2.48 | 2.58 | 1.038 | - | 1 % / 1 % | - |
+| unsafe50k | end_to_end | as measured | 702.08 | 587.02 | 0.836 | <= 1.10 ok | 15 % / 4 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 19.75 | - | - | 0 % / 50 % (noisy) | - |
+| local10k | compute | as measured | 35.01 | 34.86 | 0.996 | <= 1.05 ok | 0 % / 0 % | - |
+| local10k | sosp_update obj0 | as measured | 9.36 | 9.23 | 0.987 | - | 1 % / 0 % | 9.23 |
+| local10k | sosp_update obj1 | as measured | 9.44 | 9.41 | 0.997 | - | 0 % / 0 % | 9.40 |
+| local10k | sosp_update obj2 | as measured | 9.21 | 9.19 | 0.997 | - | 0 % / 0 % | 9.18 |
+| local10k | combined | as measured | 7.00 | 7.02 | 1.003 | - | 0 % / 1 % | - |
+| local10k | end_to_end | as measured | 679.53 | 598.05 | 0.880 | <= 1.10 ok | 16 % / 4 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 20.94 | - | - | 0 % / 35 % (noisy) | - |
+== 2026-10-08T09:47:37-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-roadNet-CA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 81.43 | 81.31 | 0.998 | <= 1.05 ok | 0 % / 0 % | - |
-| safe50k | sosp_update obj0 | as measured | 25.88 | 25.71 | 0.993 | - | 1 % / 1 % | 25.70 |
-| safe50k | sosp_update obj1 | as measured | 25.48 | 25.49 | 1.000 | - | 1 % / 1 % | 25.49 |
-| safe50k | sosp_update obj2 | as measured | 26.16 | 26.11 | 0.998 | - | 0 % / 1 % | 26.10 |
-| safe50k | combined | as measured | 3.93 | 3.99 | 1.016 | - | 1 % / 1 % | - |
-| safe50k | end_to_end | as measured | 1458.76 | 1385.76 | 0.950 | <= 1.10 ok | 29 % / 3 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 44.43 | - | - | 0 % / 70 % (noisy) | - |
-| unsafe50k | compute | as measured | 81.43 | 81.38 | 0.999 | <= 1.05 ok | 0 % / 0 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 25.86 | 25.73 | 0.995 | - | 0 % / 1 % | 25.72 |
-| unsafe50k | sosp_update obj1 | as measured | 25.47 | 25.52 | 1.002 | - | 0 % / 1 % | 25.51 |
-| unsafe50k | sosp_update obj2 | as measured | 26.17 | 26.13 | 0.999 | - | 0 % / 1 % | 26.13 |
-| unsafe50k | combined | as measured | 3.94 | 3.99 | 1.013 | - | 2 % / 1 % | - |
-| unsafe50k | end_to_end | as measured | 1476.17 | 1391.99 | 0.943 | <= 1.10 ok | 32 % / 2 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 44.56 | - | - | 0 % / 73 % (noisy) | - |
-| local10k | compute | as measured | 205.39 | 205.39 | 1.000 | <= 1.05 ok | 0 % / 0 % | - |
-| local10k | sosp_update obj0 | as measured | 61.50 | 61.41 | 0.999 | - | 0 % / 0 % | 61.41 |
-| local10k | sosp_update obj1 | as measured | 63.85 | 63.90 | 1.001 | - | 0 % / 1 % | 63.89 |
-| local10k | sosp_update obj2 | as measured | 61.61 | 61.58 | 0.999 | - | 0 % / 0 % | 61.57 |
-| local10k | combined | as measured | 18.44 | 18.49 | 1.003 | - | 0 % / 0 % | - |
-| local10k | end_to_end | as measured | 1531.30 | 1480.78 | 0.967 | <= 1.10 ok | 29 % / 5 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 52.28 | - | - | 0 % / 41 % (noisy) | - |
-== 2026-10-07T14:05:04-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-road_usa_g.json
+| safe50k | compute | as measured | 31.26 | 31.04 | 0.993 | <= 1.05 ok | 0 % / 1 % | - |
+| safe50k | sosp_update obj0 | as measured | 8.76 | 8.62 | 0.985 | - | 1 % / 1 % | 8.61 |
+| safe50k | sosp_update obj1 | as measured | 8.86 | 8.80 | 0.993 | - | 1 % / 2 % | 8.79 |
+| safe50k | sosp_update obj2 | as measured | 8.71 | 8.70 | 0.999 | - | 1 % / 1 % | 8.70 |
+| safe50k | combined | as measured | 4.92 | 4.90 | 0.997 | - | 1 % / 1 % | - |
+| safe50k | end_to_end | as measured | 1044.26 | 875.42 | 0.838 | <= 1.10 ok | 20 % / 4 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 35.72 | - | - | 0 % / 58 % (noisy) | - |
+| unsafe50k | compute | as measured | 31.21 | 30.93 | 0.991 | <= 1.05 ok | 1 % / 1 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 8.74 | 8.58 | 0.983 | - | 2 % / 1 % | 8.58 |
+| unsafe50k | sosp_update obj1 | as measured | 8.82 | 8.79 | 0.996 | - | 1 % / 1 % | 8.78 |
+| unsafe50k | sosp_update obj2 | as measured | 8.73 | 8.68 | 0.994 | - | 1 % / 1 % | 8.67 |
+| unsafe50k | combined | as measured | 4.91 | 4.89 | 0.994 | - | 1 % / 1 % | - |
+| unsafe50k | end_to_end | as measured | 1091.33 | 872.80 | 0.800 | <= 1.10 ok | 19 % / 5 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 35.14 | - | - | 0 % / 33 % (noisy) | - |
+| local10k | compute | as measured | 18.49 | 18.44 | 0.997 | <= 1.05 ok | 0 % / 0 % | - |
+| local10k | sosp_update obj0 | as measured | 3.50 | 3.38 | 0.968 | - | 2 % / 1 % | 3.38 |
+| local10k | sosp_update obj1 | as measured | 3.08 | 3.08 | 1.000 | - | 1 % / 1 % | 3.07 |
+| local10k | sosp_update obj2 | as measured | 3.44 | 3.43 | 1.000 | - | 1 % / 1 % | 3.43 |
+| local10k | combined | as measured | 8.48 | 8.55 | 1.007 | - | 1 % / 1 % | - |
+| local10k | end_to_end | as measured | 1016.32 | 851.80 | 0.838 | <= 1.10 ok | 20 % / 3 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 29.97 | - | - | 0 % / 32 % (noisy) | - |
+== 2026-10-08T09:52:47-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-rgg.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 364.21 | 366.01 | 1.005 | <= 1.05 ok | 0 % / 0 % | - |
-| safe50k | sosp_update obj0 | as measured | 102.76 | 102.71 | 1.000 | - | 0 % / 0 % | 102.70 |
-| safe50k | sosp_update obj1 | as measured | 101.81 | 101.75 | 0.999 | - | 0 % / 0 % | 101.74 |
-| safe50k | sosp_update obj2 | as measured | 102.00 | 102.00 | 1.000 | - | 0 % / 0 % | 102.00 |
-| safe50k | combined | as measured | 57.53 | 59.48 | 1.034 | - | 0 % / 0 % | - |
-| safe50k | end_to_end | as measured | 10229.13 | 8442.96 | 0.825 | <= 1.10 ok | 23 % / 2 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 391.30 | - | - | 0 % / 11 % (noisy) | - |
-| unsafe50k | compute | as measured | 364.18 | 366.01 | 1.005 | <= 1.05 ok | 0 % / 0 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 102.87 | 102.88 | 1.000 | - | 0 % / 0 % | 102.88 |
-| unsafe50k | sosp_update obj1 | as measured | 101.81 | 101.73 | 0.999 | - | 1 % / 0 % | 101.73 |
-| unsafe50k | sosp_update obj2 | as measured | 102.06 | 102.07 | 1.000 | - | 0 % / 0 % | 102.06 |
-| unsafe50k | combined | as measured | 57.53 | 59.48 | 1.034 | - | 0 % / 0 % | - |
-| unsafe50k | end_to_end | as measured | 10830.47 | 8421.69 | 0.778 | <= 1.10 ok | 20 % / 2 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 384.15 | - | - | 0 % / 31 % (noisy) | - |
-| local10k | compute | as measured | 170.65 | 170.26 | 0.998 | <= 1.05 ok | 0 % / 0 % | - |
-| local10k | sosp_update obj0 | as measured | 22.71 | 22.54 | 0.993 | - | 0 % / 0 % | 22.53 |
-| local10k | sosp_update obj1 | as measured | 22.03 | 21.94 | 0.996 | - | 0 % / 1 % | 21.93 |
-| local10k | sosp_update obj2 | as measured | 22.19 | 22.08 | 0.995 | - | 0 % / 0 % | 22.07 |
-| local10k | combined | as measured | 103.72 | 103.70 | 1.000 | - | 0 % / 0 % | - |
-| local10k | end_to_end | as measured | 9386.75 | 8256.20 | 0.880 | <= 1.10 ok | 18 % / 2 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 292.49 | - | - | 0 % / 38 % (noisy) | - |
-== 2026-10-07T14:21:37-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-PA.json
+| safe50k | compute | as measured | 81.44 | 81.30 | 0.998 | <= 1.05 ok | 0 % / 0 % | - |
+| safe50k | sosp_update obj0 | as measured | 25.88 | 25.70 | 0.993 | - | 1 % / 1 % | 25.70 |
+| safe50k | sosp_update obj1 | as measured | 25.47 | 25.48 | 1.000 | - | 1 % / 1 % | 25.47 |
+| safe50k | sosp_update obj2 | as measured | 26.15 | 26.14 | 0.999 | - | 0 % / 1 % | 26.13 |
+| safe50k | combined | as measured | 3.93 | 3.98 | 1.014 | - | 1 % / 2 % | - |
+| safe50k | end_to_end | as measured | 1444.33 | 1246.90 | 0.863 | <= 1.10 ok | 26 % / 4 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 40.02 | - | - | 0 % / 65 % (noisy) | - |
+| unsafe50k | compute | as measured | 81.45 | 81.37 | 0.999 | <= 1.05 ok | 0 % / 0 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 25.88 | 25.73 | 0.994 | - | 1 % / 1 % | 25.72 |
+| unsafe50k | sosp_update obj1 | as measured | 25.46 | 25.50 | 1.002 | - | 1 % / 1 % | 25.50 |
+| unsafe50k | sosp_update obj2 | as measured | 26.15 | 26.14 | 0.999 | - | 1 % / 1 % | 26.13 |
+| unsafe50k | combined | as measured | 3.93 | 3.99 | 1.016 | - | 1 % / 7 % | - |
+| unsafe50k | end_to_end | as measured | 1561.56 | 1243.00 | 0.796 | <= 1.10 ok | 27 % / 3 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 41.31 | - | - | 0 % / 64 % (noisy) | - |
+| local10k | compute | as measured | 205.41 | 205.38 | 1.000 | <= 1.05 ok | 0 % / 0 % | - |
+| local10k | sosp_update obj0 | as measured | 61.52 | 61.41 | 0.998 | - | 0 % / 0 % | 61.40 |
+| local10k | sosp_update obj1 | as measured | 63.83 | 63.88 | 1.001 | - | 0 % / 0 % | 63.88 |
+| local10k | sosp_update obj2 | as measured | 61.60 | 61.61 | 1.000 | - | 0 % / 0 % | 61.60 |
+| local10k | combined | as measured | 18.45 | 18.48 | 1.002 | - | 1 % / 0 % | - |
+| local10k | end_to_end | as measured | 1624.77 | 1346.22 | 0.829 | <= 1.10 ok | 25 % / 5 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 49.20 | - | - | 0 % / 54 % (noisy) | - |
+== 2026-10-08T09:56:42-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --gpu 0 --lock-clocks boost --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-road_usa_g.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 16.76 | 16.82 | 1.004 | <= 1.05 ok | 1 % / 1 % | - |
-| safe50k | sosp_update obj0 | as measured | 4.74 | 4.66 | 0.984 | - | 1 % / 1 % | 4.65 |
-| safe50k | sosp_update obj1 | as measured | 4.72 | 4.76 | 1.009 | - | 1 % / 1 % | 4.75 |
-| safe50k | sosp_update obj2 | as measured | 4.81 | 4.86 | 1.010 | - | 1 % / 1 % | 4.85 |
-| safe50k | combined | as measured | 2.50 | 2.55 | 1.018 | - | 1 % / 1 % | - |
-| safe50k | end_to_end | as measured | 713.61 | 654.02 | 0.916 | <= 1.10 ok | 16 % / 4 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 20.61 | - | - | 0 % / 67 % (noisy) | - |
-| unsafe50k | compute | as measured | 16.75 | 16.77 | 1.001 | <= 1.05 ok | 0 % / 0 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 4.71 | 4.64 | 0.984 | - | 1 % / 1 % | 4.63 |
-| unsafe50k | sosp_update obj1 | as measured | 4.71 | 4.75 | 1.009 | - | 1 % / 1 % | 4.74 |
-| unsafe50k | sosp_update obj2 | as measured | 4.82 | 4.84 | 1.004 | - | 1 % / 1 % | 4.83 |
-| unsafe50k | combined | as measured | 2.50 | 2.54 | 1.017 | - | 1 % / 1 % | - |
-| unsafe50k | end_to_end | as measured | 732.53 | 651.96 | 0.890 | <= 1.10 ok | 15 % / 4 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 19.91 | - | - | 0 % / 75 % (noisy) | - |
-| local10k | compute | as measured | 34.98 | 34.81 | 0.995 | <= 1.05 ok | 0 % / 0 % | - |
-| local10k | sosp_update obj0 | as measured | 9.35 | 9.22 | 0.986 | - | 1 % / 0 % | 9.21 |
-| local10k | sosp_update obj1 | as measured | 9.43 | 9.40 | 0.997 | - | 0 % / 0 % | 9.39 |
-| local10k | sosp_update obj2 | as measured | 9.20 | 9.17 | 0.997 | - | 0 % / 0 % | 9.17 |
-| local10k | combined | as measured | 7.01 | 7.01 | 1.000 | - | 1 % / 1 % | - |
-| local10k | end_to_end | as measured | 717.56 | 661.68 | 0.922 | <= 1.10 ok | 16 % / 4 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 22.07 | - | - | 0 % / 42 % (noisy) | - |
-== 2026-10-07T14:25:40-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-CA.json
+| safe50k | compute | as measured | 364.19 | 366.12 | 1.005 | <= 1.05 ok | 0 % / 0 % | - |
+| safe50k | sosp_update obj0 | as measured | 102.73 | 102.67 | 0.999 | - | 1 % / 1 % | 102.67 |
+| safe50k | sosp_update obj1 | as measured | 101.83 | 101.78 | 0.999 | - | 1 % / 0 % | 101.77 |
+| safe50k | sosp_update obj2 | as measured | 102.08 | 102.10 | 1.000 | - | 0 % / 0 % | 102.09 |
+| safe50k | combined | as measured | 57.52 | 59.49 | 1.034 | - | 0 % / 0 % | - |
+| safe50k | end_to_end | as measured | 10816.19 | 7783.60 | 0.720 | <= 1.10 ok | 17 % / 2 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 378.41 | - | - | 0 % / 30 % (noisy) | - |
+| unsafe50k | compute | as measured | 364.24 | 365.95 | 1.005 | <= 1.05 ok | 0 % / 0 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 102.90 | 102.72 | 0.998 | - | 1 % / 0 % | 102.72 |
+| unsafe50k | sosp_update obj1 | as measured | 101.77 | 101.66 | 0.999 | - | 0 % / 0 % | 101.66 |
+| unsafe50k | sosp_update obj2 | as measured | 102.08 | 102.09 | 1.000 | - | 0 % / 0 % | 102.09 |
+| unsafe50k | combined | as measured | 57.54 | 59.48 | 1.034 | - | 0 % / 0 % | - |
+| unsafe50k | end_to_end | as measured | 10967.80 | 7782.38 | 0.710 | <= 1.10 ok | 19 % / 1 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 370.20 | - | - | 0 % / 16 % (noisy) | - |
+| local10k | compute | as measured | 170.65 | 170.25 | 0.998 | <= 1.05 ok | 0 % / 0 % | - |
+| local10k | sosp_update obj0 | as measured | 22.72 | 22.56 | 0.993 | - | 0 % / 0 % | 22.55 |
+| local10k | sosp_update obj1 | as measured | 22.04 | 21.91 | 0.994 | - | 0 % / 1 % | 21.90 |
+| local10k | sosp_update obj2 | as measured | 22.19 | 22.10 | 0.996 | - | 0 % / 1 % | 22.09 |
+| local10k | combined | as measured | 103.70 | 103.71 | 1.000 | - | 0 % / 0 % | - |
+| local10k | end_to_end | as measured | 9045.17 | 7566.66 | 0.837 | <= 1.10 ok | 24 % / 1 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 266.31 | - | - | 0 % / 18 % (noisy) | - |
+== 2026-10-08T10:09:32-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-PA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 30.74 | 31.00 | 1.009 | <= 1.05 ok | 0 % / 0 % | - |
-| safe50k | sosp_update obj0 | as measured | 8.64 | 8.63 | 0.998 | - | 1 % / 1 % | 8.62 |
-| safe50k | sosp_update obj1 | as measured | 8.72 | 8.81 | 1.010 | - | 1 % / 1 % | 8.80 |
-| safe50k | sosp_update obj2 | as measured | 8.62 | 8.70 | 1.009 | - | 1 % / 1 % | 8.69 |
-| safe50k | combined | as measured | 4.77 | 4.88 | 1.022 | - | 1 % / 1 % | - |
-| safe50k | end_to_end | as measured | 1099.02 | 960.45 | 0.874 | <= 1.10 ok | 18 % / 3 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 37.07 | - | - | 0 % / 50 % (noisy) | - |
-| unsafe50k | compute | as measured | 30.71 | 30.96 | 1.008 | <= 1.05 ok | 1 % / 1 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 8.66 | 8.59 | 0.992 | - | 2 % / 1 % | 8.58 |
-| unsafe50k | sosp_update obj1 | as measured | 8.72 | 8.79 | 1.009 | - | 1 % / 1 % | 8.79 |
-| unsafe50k | sosp_update obj2 | as measured | 8.57 | 8.68 | 1.014 | - | 1 % / 1 % | 8.68 |
-| unsafe50k | combined | as measured | 4.76 | 4.86 | 1.022 | - | 1 % / 1 % | - |
-| unsafe50k | end_to_end | as measured | 1098.41 | 966.68 | 0.880 | <= 1.10 ok | 19 % / 5 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 35.03 | - | - | 0 % / 62 % (noisy) | - |
-| local10k | compute | as measured | 18.59 | 18.43 | 0.991 | <= 1.05 ok | 1 % / 1 % | - |
-| local10k | sosp_update obj0 | as measured | 3.49 | 3.37 | 0.966 | - | 3 % / 2 % | 3.37 |
-| local10k | sosp_update obj1 | as measured | 3.08 | 3.07 | 0.996 | - | 1 % / 1 % | 3.07 |
-| local10k | sosp_update obj2 | as measured | 3.44 | 3.43 | 0.997 | - | 1 % / 1 % | 3.42 |
-| local10k | combined | as measured | 8.57 | 8.55 | 0.998 | - | 1 % / 1 % | - |
-| local10k | end_to_end | as measured | 1051.00 | 943.88 | 0.898 | <= 1.10 ok | 19 % / 4 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 31.60 | - | - | 0 % / 45 % (noisy) | - |
-== 2026-10-07T14:28:29-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-rgg.json
+| safe50k | compute | as measured | 16.78 | 16.84 | 1.003 | <= 1.05 ok | 1 % / 1 % | - |
+| safe50k | sosp_update obj0 | as measured | 4.74 | 4.66 | 0.984 | - | 2 % / 1 % | 4.66 |
+| safe50k | sosp_update obj1 | as measured | 4.72 | 4.76 | 1.009 | - | 1 % / 1 % | 4.76 |
+| safe50k | sosp_update obj2 | as measured | 4.82 | 4.86 | 1.009 | - | 1 % / 1 % | 4.85 |
+| safe50k | combined | as measured | 2.51 | 2.55 | 1.017 | - | 1 % / 1 % | - |
+| safe50k | end_to_end | as measured | 727.45 | 623.79 | 0.858 | <= 1.10 ok | 16 % / 6 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 20.28 | - | - | 0 % / 57 % (noisy) | - |
+| unsafe50k | compute | as measured | 16.75 | 16.76 | 1.001 | <= 1.05 ok | 1 % / 0 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 4.72 | 4.64 | 0.983 | - | 2 % / 1 % | 4.64 |
+| unsafe50k | sosp_update obj1 | as measured | 4.71 | 4.74 | 1.008 | - | 1 % / 1 % | 4.74 |
+| unsafe50k | sosp_update obj2 | as measured | 4.82 | 4.84 | 1.003 | - | 1 % / 1 % | 4.83 |
+| unsafe50k | combined | as measured | 2.50 | 2.54 | 1.019 | - | 1 % / 1 % | - |
+| unsafe50k | end_to_end | as measured | 735.99 | 624.54 | 0.849 | <= 1.10 ok | 12 % / 6 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 20.43 | - | - | 0 % / 59 % (noisy) | - |
+| local10k | compute | as measured | 35.00 | 34.82 | 0.995 | <= 1.05 ok | 0 % / 0 % | - |
+| local10k | sosp_update obj0 | as measured | 9.36 | 9.22 | 0.985 | - | 1 % / 1 % | 9.21 |
+| local10k | sosp_update obj1 | as measured | 9.43 | 9.40 | 0.997 | - | 0 % / 0 % | 9.40 |
+| local10k | sosp_update obj2 | as measured | 9.21 | 9.18 | 0.997 | - | 0 % / 0 % | 9.17 |
+| local10k | combined | as measured | 7.01 | 7.02 | 1.001 | - | 1 % / 1 % | - |
+| local10k | end_to_end | as measured | 720.74 | 637.82 | 0.885 | <= 1.10 ok | 15 % / 4 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 20.52 | - | - | 0 % / 25 % (noisy) | - |
+== 2026-10-08T10:11:42-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-roadNet-CA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 79.22 | 78.46 | 0.990 | <= 1.05 ok | 2 % / 2 % | - |
-| safe50k | sosp_update obj0 | as measured | 25.15 | 24.89 | 0.990 | - | 2 % / 2 % | 24.88 |
-| safe50k | sosp_update obj1 | as measured | 24.81 | 24.61 | 0.992 | - | 3 % / 2 % | 24.61 |
-| safe50k | sosp_update obj2 | as measured | 25.48 | 25.27 | 0.992 | - | 2 % / 2 % | 25.27 |
-| safe50k | combined | as measured | 3.77 | 3.72 | 0.988 | - | 4 % / 4 % | - |
-| safe50k | end_to_end | as measured | 1574.53 | 1403.74 | 0.892 | <= 1.10 ok | 28 % / 7 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 43.54 | - | - | 0 % / 61 % (noisy) | - |
-| unsafe50k | compute | as measured | 79.22 | 78.55 | 0.992 | <= 1.05 ok | 1 % / 2 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 25.17 | 24.92 | 0.990 | - | 1 % / 2 % | 24.91 |
-| unsafe50k | sosp_update obj1 | as measured | 24.81 | 24.66 | 0.994 | - | 1 % / 2 % | 24.65 |
-| unsafe50k | sosp_update obj2 | as measured | 25.49 | 25.28 | 0.992 | - | 1 % / 3 % | 25.27 |
-| unsafe50k | combined | as measured | 3.76 | 3.74 | 0.995 | - | 1 % / 5 % | - |
-| unsafe50k | end_to_end | as measured | 1447.06 | 1404.33 | 0.970 | <= 1.10 ok | 32 % / 5 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 41.41 | - | - | 0 % / 62 % (noisy) | - |
-| local10k | compute | as measured | 188.41 | 188.10 | 0.998 | <= 1.05 ok | 0 % / 0 % | - |
-| local10k | sosp_update obj0 | as measured | 56.40 | 56.20 | 0.997 | - | 0 % / 0 % | 56.20 |
-| local10k | sosp_update obj1 | as measured | 58.55 | 58.48 | 0.999 | - | 0 % / 0 % | 58.47 |
-| local10k | sosp_update obj2 | as measured | 56.45 | 56.42 | 1.000 | - | 0 % / 1 % | 56.42 |
-| local10k | combined | as measured | 17.02 | 17.02 | 1.000 | - | 0 % / 0 % | - |
-| local10k | end_to_end | as measured | 1638.68 | 1474.43 | 0.900 | <= 1.10 ok | 26 % / 6 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 51.57 | - | - | 0 % / 40 % (noisy) | - |
-== 2026-10-07T14:32:08-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-road_usa_g.json
+| safe50k | compute | as measured | 30.75 | 31.00 | 1.008 | <= 1.05 ok | 1 % / 0 % | - |
+| safe50k | sosp_update obj0 | as measured | 8.65 | 8.63 | 0.998 | - | 1 % / 1 % | 8.62 |
+| safe50k | sosp_update obj1 | as measured | 8.73 | 8.81 | 1.009 | - | 1 % / 1 % | 8.81 |
+| safe50k | sosp_update obj2 | as measured | 8.61 | 8.68 | 1.009 | - | 1 % / 1 % | 8.67 |
+| safe50k | combined | as measured | 4.77 | 4.87 | 1.022 | - | 1 % / 1 % | - |
+| safe50k | end_to_end | as measured | 1092.95 | 905.41 | 0.828 | <= 1.10 ok | 17 % / 3 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 34.41 | - | - | 0 % / 62 % (noisy) | - |
+| unsafe50k | compute | as measured | 30.72 | 30.96 | 1.008 | <= 1.05 ok | 0 % / 1 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 8.65 | 8.59 | 0.993 | - | 1 % / 1 % | 8.59 |
+| unsafe50k | sosp_update obj1 | as measured | 8.72 | 8.81 | 1.010 | - | 1 % / 1 % | 8.80 |
+| unsafe50k | sosp_update obj2 | as measured | 8.58 | 8.71 | 1.015 | - | 1 % / 3 % | 8.70 |
+| unsafe50k | combined | as measured | 4.77 | 4.86 | 1.019 | - | 1 % / 1 % | - |
+| unsafe50k | end_to_end | as measured | 1102.78 | 902.09 | 0.818 | <= 1.10 ok | 19 % / 3 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 34.64 | - | - | 0 % / 58 % (noisy) | - |
+| local10k | compute | as measured | 18.59 | 18.44 | 0.992 | <= 1.05 ok | 1 % / 0 % | - |
+| local10k | sosp_update obj0 | as measured | 3.50 | 3.38 | 0.965 | - | 4 % / 1 % | 3.37 |
+| local10k | sosp_update obj1 | as measured | 3.08 | 3.08 | 0.997 | - | 1 % / 1 % | 3.07 |
+| local10k | sosp_update obj2 | as measured | 3.44 | 3.43 | 0.998 | - | 1 % / 1 % | 3.42 |
+| local10k | combined | as measured | 8.57 | 8.56 | 0.999 | - | 1 % / 0 % | - |
+| local10k | end_to_end | as measured | 1060.14 | 879.28 | 0.829 | <= 1.10 ok | 14 % / 4 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 30.34 | - | - | 0 % / 37 % (noisy) | - |
+== 2026-10-08T10:14:21-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-rgg.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | compute | as measured | 358.99 | 361.68 | 1.007 | <= 1.05 ok | 0 % / 0 % | - |
-| safe50k | sosp_update obj0 | as measured | 101.16 | 102.11 | 1.009 | - | 1 % / 1 % | 102.10 |
-| safe50k | sosp_update obj1 | as measured | 100.25 | 100.95 | 1.007 | - | 1 % / 1 % | 100.94 |
-| safe50k | sosp_update obj2 | as measured | 100.58 | 101.36 | 1.008 | - | 0 % / 0 % | 101.35 |
-| safe50k | combined | as measured | 56.95 | 57.27 | 1.006 | - | 0 % / 0 % | - |
-| safe50k | end_to_end | as measured | 11076.31 | 8374.12 | 0.756 | <= 1.10 ok | 11 % / 2 % (noisy) | - |
-| safe50k | path_costs | as measured | 0.00 | 371.13 | - | - | 0 % / 16 % (noisy) | - |
-| unsafe50k | compute | as measured | 359.12 | 361.40 | 1.006 | <= 1.05 ok | 0 % / 0 % | - |
-| unsafe50k | sosp_update obj0 | as measured | 101.22 | 102.04 | 1.008 | - | 1 % / 1 % | 102.03 |
-| unsafe50k | sosp_update obj1 | as measured | 100.23 | 100.90 | 1.007 | - | 0 % / 1 % | 100.90 |
-| unsafe50k | sosp_update obj2 | as measured | 100.64 | 101.25 | 1.006 | - | 0 % / 0 % | 101.25 |
-| unsafe50k | combined | as measured | 56.91 | 57.26 | 1.006 | - | 0 % / 0 % | - |
-| unsafe50k | end_to_end | as measured | 10932.84 | 8402.42 | 0.769 | <= 1.10 ok | 18 % / 3 % (noisy) | - |
-| unsafe50k | path_costs | as measured | 0.00 | 370.44 | - | - | 0 % / 27 % (noisy) | - |
-| local10k | compute | as measured | 158.29 | 158.12 | 0.999 | <= 1.05 ok | 2 % / 5 % | - |
-| local10k | sosp_update obj0 | as measured | 21.23 | 21.61 | 1.018 | - | 8 % / 7 % | 21.60 |
-| local10k | sosp_update obj1 | as measured | 20.62 | 20.94 | 1.016 | - | 7 % / 7 % | 20.93 |
-| local10k | sosp_update obj2 | as measured | 20.75 | 20.82 | 1.004 | - | 2 % / 7 % | 20.82 |
-| local10k | combined | as measured | 95.70 | 94.61 | 0.989 | - | 0 % / 4 % | - |
-| local10k | end_to_end | as measured | 9149.86 | 8188.40 | 0.895 | <= 1.10 ok | 24 % / 2 % (noisy) | - |
-| local10k | path_costs | as measured | 0.00 | 275.04 | - | - | 0 % / 27 % (noisy) | - |
-== 2026-10-07T14:44:16-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-roadNet-PA.json
-== 2026-10-07T14:45:24-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-roadNet-CA.json
-== 2026-10-07T14:46:48-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-rgg.json
-== 2026-10-07T14:47:15-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph road_usa_g --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-road_usa_g.json
-ipdps25_dynamosp_mosp: 48 / 48 gated regions within their gates (ratios 0.648-1.019) FAILED
-== suite ipdps25_dynamosp_mosp rc=1 2026-10-07T19:48:21Z
-== suite ipdps25_dynamosp_sosp 2026-10-07T19:48:21Z
-== 2026-10-07T14:48:30-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-roadNet-PA.json
+| safe50k | compute | as measured | 79.16 | 78.42 | 0.991 | <= 1.05 ok | 2 % / 2 % | - |
+| safe50k | sosp_update obj0 | as measured | 25.20 | 24.88 | 0.987 | - | 2 % / 2 % | 24.87 |
+| safe50k | sosp_update obj1 | as measured | 24.77 | 24.60 | 0.993 | - | 2 % / 2 % | 24.60 |
+| safe50k | sosp_update obj2 | as measured | 25.47 | 25.23 | 0.991 | - | 2 % / 2 % | 25.23 |
+| safe50k | combined | as measured | 3.76 | 3.71 | 0.987 | - | 4 % / 4 % | - |
+| safe50k | end_to_end | as measured | 1461.05 | 1266.70 | 0.867 | <= 1.10 ok | 30 % / 4 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 42.79 | - | - | 0 % / 64 % (noisy) | - |
+| unsafe50k | compute | as measured | 79.29 | 78.59 | 0.991 | <= 1.05 ok | 2 % / 2 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 25.22 | 24.92 | 0.988 | - | 2 % / 2 % | 24.90 |
+| unsafe50k | sosp_update obj1 | as measured | 24.82 | 24.66 | 0.993 | - | 2 % / 2 % | 24.65 |
+| unsafe50k | sosp_update obj2 | as measured | 25.52 | 25.28 | 0.991 | - | 2 % / 2 % | 25.28 |
+| unsafe50k | combined | as measured | 3.77 | 3.73 | 0.988 | - | 4 % / 4 % | - |
+| unsafe50k | end_to_end | as measured | 1588.11 | 1253.82 | 0.790 | <= 1.10 ok | 26 % / 5 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 36.85 | - | - | 0 % / 72 % (noisy) | - |
+| local10k | compute | as measured | 188.94 | 188.65 | 0.998 | <= 1.05 ok | 0 % / 0 % | - |
+| local10k | sosp_update obj0 | as measured | 56.52 | 56.37 | 0.997 | - | 0 % / 0 % | 56.36 |
+| local10k | sosp_update obj1 | as measured | 58.72 | 58.63 | 0.998 | - | 0 % / 0 % | 58.63 |
+| local10k | sosp_update obj2 | as measured | 56.62 | 56.57 | 0.999 | - | 0 % / 1 % | 56.56 |
+| local10k | combined | as measured | 17.06 | 17.09 | 1.002 | - | 1 % / 0 % | - |
+| local10k | end_to_end | as measured | 1504.42 | 1346.99 | 0.895 | <= 1.10 ok | 26 % / 3 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 51.31 | - | - | 0 % / 81 % (noisy) | - |
+== 2026-10-08T10:17:52-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py mosp --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --gpu 0 --lock-clocks none --cuda-engine automatic --threads 28 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-default-clocks-road_usa_g.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 16.85 | 14.22 | 0.844 | <= 1.05 ok | 25 % / 11 % (noisy) | - |
-| safe50k | sosp_update obj1 | as measured | 12.67 | 10.70 | 0.844 | <= 1.05 ok | 13 % / 6 % (noisy) | - |
-| safe50k | sosp_update obj2 | as measured | 12.63 | 10.85 | 0.859 | <= 1.05 ok | 14 % / 6 % (noisy) | - |
-| safe50k | sosp_total | as measured | 41.87 | 35.79 | 0.855 | - | 16 % / 7 % (noisy) | - |
-| safe50k | apply | as measured | 76.60 | 69.74 | 0.910 | <= 1.10 ok | 27 % / 20 % (noisy) | - |
-| safe50k | end_to_end | as measured | 366.01 | 332.90 | 0.910 | <= 1.10 ok | 27 % / 10 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 16.82 | 13.87 | 0.825 | <= 1.05 ok | 23 % / 6 % (noisy) | - |
-| unsafe50k | sosp_update obj1 | as measured | 12.85 | 10.55 | 0.821 | <= 1.05 ok | 13 % / 2 % (noisy) | - |
-| unsafe50k | sosp_update obj2 | as measured | 12.73 | 10.67 | 0.838 | <= 1.05 ok | 8 % / 4 % | - |
-| unsafe50k | sosp_total | as measured | 42.45 | 35.09 | 0.827 | - | 15 % / 3 % (noisy) | - |
-| unsafe50k | apply | as measured | 83.90 | 69.41 | 0.827 | <= 1.10 ok | 27 % / 22 % (noisy) | - |
-| unsafe50k | end_to_end | as measured | 379.40 | 329.93 | 0.870 | <= 1.10 ok | 32 % / 6 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 28.07 | 18.62 | 0.663 | <= 1.05 ok | 27 % / 18 % (noisy) | - |
-| local10k | sosp_update obj1 | as measured | 25.09 | 16.16 | 0.644 | <= 1.05 ok | 21 % / 20 % (noisy) | - |
-| local10k | sosp_update obj2 | as measured | 24.59 | 15.82 | 0.643 | <= 1.05 ok | 20 % / 20 % (noisy) | - |
-| local10k | sosp_total | as measured | 77.89 | 50.54 | 0.649 | - | 22 % / 18 % (noisy) | - |
-| local10k | apply | as measured | 66.30 | 56.69 | 0.855 | <= 1.10 ok | 27 % / 25 % (noisy) | - |
-| local10k | end_to_end | as measured | 388.10 | 329.79 | 0.850 | <= 1.10 ok | 32 % / 11 % (noisy) | - |
-== 2026-10-07T14:49:22-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-roadNet-CA.json
+| safe50k | compute | as measured | 359.00 | 361.77 | 1.008 | <= 1.05 ok | 0 % / 1 % | - |
+| safe50k | sosp_update obj0 | as measured | 101.25 | 102.12 | 1.009 | - | 1 % / 1 % | 102.12 |
+| safe50k | sosp_update obj1 | as measured | 100.26 | 100.95 | 1.007 | - | 0 % / 1 % | 100.94 |
+| safe50k | sosp_update obj2 | as measured | 100.65 | 101.34 | 1.007 | - | 1 % / 0 % | 101.34 |
+| safe50k | combined | as measured | 56.96 | 57.32 | 1.006 | - | 0 % / 0 % | - |
+| safe50k | end_to_end | as measured | 10569.21 | 7693.56 | 0.728 | <= 1.10 ok | 18 % / 1 % (noisy) | - |
+| safe50k | path_costs | as measured | 0.00 | 345.56 | - | - | 0 % / 11 % (noisy) | - |
+| unsafe50k | compute | as measured | 359.18 | 361.69 | 1.007 | <= 1.05 ok | 0 % / 1 % | - |
+| unsafe50k | sosp_update obj0 | as measured | 101.17 | 102.10 | 1.009 | - | 1 % / 1 % | 102.10 |
+| unsafe50k | sosp_update obj1 | as measured | 100.27 | 100.92 | 1.006 | - | 0 % / 1 % | 100.91 |
+| unsafe50k | sosp_update obj2 | as measured | 100.57 | 101.28 | 1.007 | - | 1 % / 0 % | 101.27 |
+| unsafe50k | combined | as measured | 56.94 | 57.32 | 1.007 | - | 0 % / 0 % | - |
+| unsafe50k | end_to_end | as measured | 10786.98 | 7685.19 | 0.712 | <= 1.10 ok | 17 % / 1 % (noisy) | - |
+| unsafe50k | path_costs | as measured | 0.00 | 338.67 | - | - | 0 % / 16 % (noisy) | - |
+| local10k | compute | as measured | 158.38 | 157.65 | 0.995 | <= 1.05 ok | 2 % / 5 % | - |
+| local10k | sosp_update obj0 | as measured | 21.28 | 21.45 | 1.008 | - | 7 % / 7 % | 21.44 |
+| local10k | sosp_update obj1 | as measured | 20.68 | 20.90 | 1.010 | - | 7 % / 6 % | 20.89 |
+| local10k | sosp_update obj2 | as measured | 20.77 | 20.89 | 1.005 | - | 4 % / 6 % | 20.88 |
+| local10k | combined | as measured | 95.70 | 94.63 | 0.989 | - | 0 % / 5 % | - |
+| local10k | end_to_end | as measured | 9505.58 | 7541.64 | 0.793 | <= 1.10 ok | 15 % / 3 % (noisy) | - |
+| local10k | path_costs | as measured | 0.00 | 267.04 | - | - | 0 % / 49 % (noisy) | - |
+== 2026-10-08T10:29:34-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-roadNet-PA.json
+== 2026-10-08T10:30:11-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-roadNet-CA.json
+== 2026-10-08T10:30:35-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-rgg.json
+== 2026-10-08T10:31:02-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py memory --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph road_usa_g --mosp --gpu 1 --batches safe50k,unsafe50k,local10k --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_mosp-cuda-memory-road_usa_g.json
+ipdps25_dynamosp_mosp: 54 / 54 gated regions within their gates (ratios 0.667-1.019) FAILED
+== suite ipdps25_dynamosp_mosp rc=1 2026-10-08T15:32:27Z
+== suite ipdps25_dynamosp_sosp 2026-10-08T15:32:27Z
+== 2026-10-08T10:32:37-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-roadNet-PA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 29.79 | 24.81 | 0.833 | <= 1.05 ok | 25 % / 11 % (noisy) | - |
-| safe50k | sosp_update obj1 | as measured | 20.65 | 19.12 | 0.926 | <= 1.05 ok | 8 % / 3 % | - |
-| safe50k | sosp_update obj2 | as measured | 20.27 | 18.81 | 0.928 | <= 1.05 ok | 8 % / 3 % | - |
-| safe50k | sosp_total | as measured | 72.07 | 62.90 | 0.873 | - | 12 % / 4 % (noisy) | - |
-| safe50k | apply | as measured | 138.90 | 124.48 | 0.896 | <= 1.10 ok | 3 % / 11 % (noisy) | - |
-| safe50k | end_to_end | as measured | 632.14 | 562.93 | 0.891 | <= 1.10 ok | 30 % / 5 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 31.64 | 24.55 | 0.776 | <= 1.05 ok | 25 % / 8 % (noisy) | - |
-| unsafe50k | sosp_update obj1 | as measured | 20.99 | 19.18 | 0.914 | <= 1.05 ok | 10 % / 5 % | - |
-| unsafe50k | sosp_update obj2 | as measured | 20.43 | 18.95 | 0.928 | <= 1.05 ok | 7 % / 5 % | - |
-| unsafe50k | sosp_total | as measured | 73.59 | 62.51 | 0.849 | - | 15 % / 5 % (noisy) | - |
-| unsafe50k | apply | as measured | 139.90 | 121.39 | 0.868 | <= 1.10 ok | 11 % / 9 % (noisy) | - |
-| unsafe50k | end_to_end | as measured | 662.09 | 561.66 | 0.848 | <= 1.10 ok | 37 % / 6 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 13.97 | 10.56 | 0.756 | <= 1.05 ok | 37 % / 22 % (noisy) | - |
-| local10k | sosp_update obj1 | as measured | 10.02 | 7.43 | 0.742 | <= 1.05 ok | 22 % / 18 % (noisy) | - |
-| local10k | sosp_update obj2 | as measured | 9.26 | 7.94 | 0.858 | <= 1.10 ok | 22 % / 14 % (noisy) | - |
-| local10k | sosp_total | as measured | 33.29 | 26.01 | 0.781 | - | 27 % / 18 % (noisy) | - |
-| local10k | apply | as measured | 125.80 | 111.65 | 0.888 | <= 1.10 ok | 5 % / 11 % (noisy) | - |
-| local10k | end_to_end | as measured | 617.40 | 515.07 | 0.834 | <= 1.10 ok | 30 % / 8 % (noisy) | - |
-== 2026-10-07T14:50:46-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-rgg.json
+| safe50k | sosp_update obj0 | as measured | 17.67 | 14.07 | 0.796 | <= 1.05 ok | 29 % / 9 % (noisy) | - |
+| safe50k | sosp_update obj1 | as measured | 12.68 | 10.65 | 0.840 | <= 1.05 ok | 14 % / 6 % (noisy) | - |
+| safe50k | sosp_update obj2 | as measured | 12.54 | 10.79 | 0.860 | <= 1.05 ok | 9 % / 7 % | - |
+| safe50k | sosp_total | as measured | 42.12 | 35.50 | 0.843 | - | 18 % / 6 % (noisy) | - |
+| safe50k | apply | as measured | 76.80 | 69.11 | 0.900 | <= 1.10 ok | 28 % / 20 % (noisy) | - |
+| safe50k | end_to_end | as measured | 369.09 | 283.94 | 0.769 | <= 1.10 ok | 33 % / 6 % (noisy) | - |
+| unsafe50k | sosp_update obj0 | as measured | 16.86 | 13.93 | 0.826 | <= 1.05 ok | 19 % / 9 % (noisy) | - |
+| unsafe50k | sosp_update obj1 | as measured | 12.82 | 10.50 | 0.819 | <= 1.05 ok | 10 % / 5 % (noisy) | - |
+| unsafe50k | sosp_update obj2 | as measured | 12.66 | 10.62 | 0.839 | <= 1.05 ok | 9 % / 4 % | - |
+| unsafe50k | sosp_total | as measured | 42.46 | 35.11 | 0.827 | - | 12 % / 5 % (noisy) | - |
+| unsafe50k | apply | as measured | 77.60 | 80.42 | 1.036 | <= 1.10 ok | 26 % / 18 % (noisy) | - |
+| unsafe50k | end_to_end | as measured | 369.05 | 291.48 | 0.790 | <= 1.10 ok | 40 % / 8 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 28.24 | 19.96 | 0.707 | <= 1.05 ok | 17 % / 18 % (noisy) | - |
+| local10k | sosp_update obj1 | as measured | 25.23 | 17.94 | 0.711 | <= 1.05 ok | 22 % / 16 % (noisy) | - |
+| local10k | sosp_update obj2 | as measured | 24.78 | 17.77 | 0.717 | <= 1.05 ok | 22 % / 17 % (noisy) | - |
+| local10k | sosp_total | as measured | 78.37 | 55.76 | 0.711 | - | 19 % / 17 % (noisy) | - |
+| local10k | apply | as measured | 66.70 | 65.32 | 0.979 | <= 1.10 ok | 30 % / 23 % (noisy) | - |
+| local10k | end_to_end | as measured | 402.57 | 298.88 | 0.742 | <= 1.10 ok | 34 % / 8 % (noisy) | - |
+== 2026-10-08T10:34:38-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-roadNet-CA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 52.31 | 51.14 | 0.978 | <= 1.05 ok | 6 % / 9 % | - |
-| safe50k | sosp_update obj1 | as measured | 40.05 | 37.78 | 0.943 | <= 1.05 ok | 2 % / 3 % | - |
-| safe50k | sosp_update obj2 | as measured | 44.42 | 41.94 | 0.944 | <= 1.05 ok | 2 % / 3 % | - |
-| safe50k | sosp_total | as measured | 136.95 | 131.09 | 0.957 | - | 3 % / 5 % | - |
-| safe50k | apply | as measured | 228.10 | 180.54 | 0.792 | <= 1.10 ok | 8 % / 5 % | - |
-| safe50k | end_to_end | as measured | 1106.12 | 1079.93 | 0.976 | <= 1.10 ok | 38 % / 5 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 52.11 | 51.65 | 0.991 | <= 1.05 ok | 6 % / 8 % | - |
-| unsafe50k | sosp_update obj1 | as measured | 40.15 | 37.85 | 0.943 | <= 1.05 ok | 2 % / 3 % | - |
-| unsafe50k | sosp_update obj2 | as measured | 44.45 | 42.06 | 0.946 | <= 1.05 ok | 3 % / 4 % | - |
-| unsafe50k | sosp_total | as measured | 136.62 | 131.32 | 0.961 | - | 2 % / 4 % | - |
-| unsafe50k | apply | as measured | 228.00 | 182.84 | 0.802 | <= 1.10 ok | 9 % / 6 % | - |
-| unsafe50k | end_to_end | as measured | 1140.12 | 1084.71 | 0.951 | <= 1.10 ok | 42 % / 3 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 79.02 | 55.76 | 0.706 | <= 1.05 ok | 20 % / 12 % (noisy) | - |
-| local10k | sosp_update obj1 | as measured | 69.43 | 47.02 | 0.677 | <= 1.05 ok | 18 % / 15 % (noisy) | - |
-| local10k | sosp_update obj2 | as measured | 77.86 | 54.84 | 0.704 | <= 1.05 ok | 20 % / 12 % (noisy) | - |
-| local10k | sosp_total | as measured | 226.12 | 157.64 | 0.697 | - | 18 % / 12 % (noisy) | - |
-| local10k | apply | as measured | 203.20 | 159.79 | 0.786 | <= 1.10 ok | 13 % / 8 % (noisy) | - |
-| local10k | end_to_end | as measured | 1301.37 | 1089.78 | 0.837 | <= 1.10 ok | 36 % / 6 % (noisy) | - |
-== 2026-10-07T14:53:20-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-road_usa_g.json
+| safe50k | sosp_update obj0 | as measured | 30.75 | 24.56 | 0.799 | <= 1.05 ok | 34 % / 11 % (noisy) | - |
+| safe50k | sosp_update obj1 | as measured | 20.88 | 19.22 | 0.921 | <= 1.05 ok | 8 % / 5 % | - |
+| safe50k | sosp_update obj2 | as measured | 20.21 | 18.84 | 0.932 | <= 1.05 ok | 7 % / 5 % | - |
+| safe50k | sosp_total | as measured | 72.19 | 62.62 | 0.867 | - | 15 % / 5 % (noisy) | - |
+| safe50k | apply | as measured | 139.80 | 125.97 | 0.901 | <= 1.10 ok | 9 % / 10 % (noisy) | - |
+| safe50k | end_to_end | as measured | 664.09 | 484.64 | 0.730 | <= 1.10 ok | 33 % / 3 % (noisy) | - |
+| unsafe50k | sosp_update obj0 | as measured | 30.80 | 24.73 | 0.803 | <= 1.05 ok | 25 % / 7 % (noisy) | - |
+| unsafe50k | sosp_update obj1 | as measured | 20.95 | 19.22 | 0.917 | <= 1.05 ok | 10 % / 5 % (noisy) | - |
+| unsafe50k | sosp_update obj2 | as measured | 20.49 | 19.08 | 0.931 | <= 1.05 ok | 9 % / 5 % | - |
+| unsafe50k | sosp_total | as measured | 73.06 | 62.66 | 0.858 | - | 14 % / 4 % (noisy) | - |
+| unsafe50k | apply | as measured | 139.60 | 126.34 | 0.905 | <= 1.10 ok | 10 % / 9 % | - |
+| unsafe50k | end_to_end | as measured | 682.24 | 484.68 | 0.710 | <= 1.10 ok | 34 % / 3 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 13.60 | 10.22 | 0.751 | <= 1.05 ok | 37 % / 15 % (noisy) | - |
+| local10k | sosp_update obj1 | as measured | 10.30 | 7.43 | 0.722 | <= 1.05 ok | 21 % / 13 % (noisy) | - |
+| local10k | sosp_update obj2 | as measured | 9.27 | 7.86 | 0.848 | <= 1.10 ok | 22 % / 13 % (noisy) | - |
+| local10k | sosp_total | as measured | 33.45 | 25.60 | 0.765 | - | 26 % / 13 % (noisy) | - |
+| local10k | apply | as measured | 125.30 | 109.45 | 0.873 | <= 1.10 ok | 11 % / 11 % (noisy) | - |
+| local10k | end_to_end | as measured | 612.55 | 430.81 | 0.703 | <= 1.10 ok | 37 % / 4 % (noisy) | - |
+== 2026-10-08T10:35:58-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-rgg.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 294.90 | 272.49 | 0.924 | <= 1.05 ok | 3 % / 1 % | - |
-| safe50k | sosp_update obj1 | as measured | 267.12 | 252.34 | 0.945 | <= 1.05 ok | 3 % / 1 % | - |
-| safe50k | sosp_update obj2 | as measured | 265.70 | 252.08 | 0.949 | <= 1.05 ok | 3 % / 1 % | - |
-| safe50k | sosp_total | as measured | 827.44 | 777.01 | 0.939 | - | 3 % / 1 % | - |
-| safe50k | apply | as measured | 1313.30 | 1196.66 | 0.911 | <= 1.10 ok | 2 % / 2 % | - |
-| safe50k | end_to_end | as measured | 6084.49 | 5876.32 | 0.966 | <= 1.10 ok | 38 % / 2 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 299.04 | 272.05 | 0.910 | <= 1.05 ok | 5 % / 2 % | - |
-| unsafe50k | sosp_update obj1 | as measured | 272.48 | 251.85 | 0.924 | <= 1.05 ok | 4 % / 2 % | - |
-| unsafe50k | sosp_update obj2 | as measured | 271.84 | 250.87 | 0.923 | <= 1.05 ok | 4 % / 2 % | - |
-| unsafe50k | sosp_total | as measured | 844.51 | 774.86 | 0.918 | - | 4 % / 2 % | - |
-| unsafe50k | apply | as measured | 1309.70 | 1199.64 | 0.916 | <= 1.10 ok | 1 % / 4 % | - |
-| unsafe50k | end_to_end | as measured | 6260.75 | 5915.79 | 0.945 | <= 1.10 ok | 22 % / 4 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 73.70 | 55.24 | 0.749 | <= 1.05 ok | 16 % / 12 % (noisy) | - |
-| local10k | sosp_update obj1 | as measured | 62.40 | 53.17 | 0.852 | <= 1.05 ok | 18 % / 10 % (noisy) | - |
-| local10k | sosp_update obj2 | as measured | 62.09 | 53.15 | 0.856 | <= 1.05 ok | 18 % / 12 % (noisy) | - |
-| local10k | sosp_total | as measured | 197.27 | 161.55 | 0.819 | - | 17 % / 11 % (noisy) | - |
-| local10k | apply | as measured | 1287.40 | 1165.63 | 0.905 | <= 1.10 ok | 1 % / 2 % | - |
-| local10k | end_to_end | as measured | 5876.50 | 5220.80 | 0.888 | <= 1.10 ok | 38 % / 4 % (noisy) | - |
-== 2026-10-07T15:01:04-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --gpu 0 --lock-clocks boost --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-cuda-roadNet-PA.json
+| safe50k | sosp_update obj0 | as measured | 52.03 | 51.40 | 0.988 | <= 1.05 ok | 6 % / 12 % (noisy) | - |
+| safe50k | sosp_update obj1 | as measured | 40.20 | 37.97 | 0.944 | <= 1.05 ok | 2 % / 6 % | - |
+| safe50k | sosp_update obj2 | as measured | 44.53 | 42.21 | 0.948 | <= 1.05 ok | 3 % / 3 % | - |
+| safe50k | sosp_total | as measured | 136.81 | 131.57 | 0.962 | - | 3 % / 7 % | - |
+| safe50k | apply | as measured | 227.60 | 184.08 | 0.809 | <= 1.10 ok | 9 % / 5 % | - |
+| safe50k | end_to_end | as measured | 1224.15 | 890.39 | 0.727 | <= 1.10 ok | 36 % / 2 % (noisy) | - |
+| unsafe50k | sosp_update obj0 | as measured | 51.88 | 51.30 | 0.989 | <= 1.05 ok | 7 % / 9 % | - |
+| unsafe50k | sosp_update obj1 | as measured | 40.13 | 38.04 | 0.948 | <= 1.05 ok | 2 % / 3 % | - |
+| unsafe50k | sosp_update obj2 | as measured | 44.47 | 42.18 | 0.949 | <= 1.05 ok | 2 % / 4 % | - |
+| unsafe50k | sosp_total | as measured | 136.52 | 131.87 | 0.966 | - | 3 % / 5 % | - |
+| unsafe50k | apply | as measured | 228.50 | 180.91 | 0.792 | <= 1.10 ok | 9 % / 5 % | - |
+| unsafe50k | end_to_end | as measured | 1230.39 | 886.85 | 0.721 | <= 1.10 ok | 37 % / 1 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 78.92 | 59.70 | 0.756 | <= 1.05 ok | 15 % / 11 % (noisy) | - |
+| local10k | sosp_update obj1 | as measured | 69.44 | 51.31 | 0.739 | <= 1.05 ok | 17 % / 14 % (noisy) | - |
+| local10k | sosp_update obj2 | as measured | 77.47 | 59.15 | 0.764 | <= 1.05 ok | 15 % / 10 % (noisy) | - |
+| local10k | sosp_total | as measured | 226.19 | 170.61 | 0.754 | - | 15 % / 10 % (noisy) | - |
+| local10k | apply | as measured | 202.00 | 154.31 | 0.764 | <= 1.10 ok | 11 % / 7 % (noisy) | - |
+| local10k | end_to_end | as measured | 1182.98 | 893.12 | 0.755 | <= 1.10 ok | 40 % / 3 % (noisy) | - |
+== 2026-10-08T10:38:21-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py run --backend openmp --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-openmp-road_usa_g.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 4.75 | 4.71 | 0.992 | <= 1.10 ok | 2 % / 1 % | 4.71 |
-| safe50k | sosp_update obj1 | as measured | 4.74 | 4.77 | 1.006 | <= 1.10 ok | 1 % / 1 % | 4.76 |
-| safe50k | sosp_update obj2 | as measured | 4.82 | 4.86 | 1.009 | <= 1.10 ok | 1 % / 1 % | 4.86 |
-| safe50k | sosp_total | as measured | 14.32 | 14.34 | 1.002 | - | 1 % / 0 % | - |
-| safe50k | apply | as measured | 80.30 | 55.41 | 0.690 | <= 1.10 ok | 8 % / 22 % (noisy) | - |
-| safe50k | end_to_end | as measured | 535.89 | 480.03 | 0.896 | <= 1.10 ok | 21 % / 7 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 4.73 | 4.70 | 0.993 | <= 1.10 ok | 2 % / 1 % | 4.69 |
-| unsafe50k | sosp_update obj1 | as measured | 4.74 | 4.74 | 1.002 | <= 1.10 ok | 1 % / 1 % | 4.74 |
-| unsafe50k | sosp_update obj2 | as measured | 4.83 | 4.86 | 1.007 | <= 1.10 ok | 1 % / 1 % | 4.86 |
-| unsafe50k | sosp_total | as measured | 14.31 | 14.31 | 1.000 | - | 1 % / 0 % | - |
-| unsafe50k | apply | as measured | 81.60 | 55.53 | 0.681 | <= 1.10 ok | 8 % / 21 % (noisy) | - |
-| unsafe50k | end_to_end | as measured | 517.33 | 473.31 | 0.915 | <= 1.10 ok | 20 % / 5 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 9.36 | 9.26 | 0.989 | <= 1.10 ok | 1 % / 1 % | 9.25 |
-| local10k | sosp_update obj1 | as measured | 9.44 | 9.41 | 0.996 | <= 1.10 ok | 0 % / 1 % | 9.40 |
-| local10k | sosp_update obj2 | as measured | 9.20 | 9.18 | 0.998 | <= 1.10 ok | 0 % / 0 % | 9.17 |
-| local10k | sosp_total | as measured | 28.00 | 27.84 | 0.994 | - | 0 % / 0 % | - |
-| local10k | apply | as measured | 66.50 | 43.96 | 0.661 | <= 1.10 ok | 14 % / 31 % (noisy) | - |
-| local10k | end_to_end | as measured | 522.60 | 480.05 | 0.919 | <= 1.10 ok | 22 % / 7 % (noisy) | - |
-== 2026-10-07T15:02:51-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --gpu 0 --lock-clocks boost --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-cuda-roadNet-CA.json
+| safe50k | sosp_update obj0 | as measured | 294.57 | 272.61 | 0.925 | <= 1.05 ok | 3 % / 1 % | - |
+| safe50k | sosp_update obj1 | as measured | 265.95 | 252.79 | 0.950 | <= 1.05 ok | 3 % / 1 % | - |
+| safe50k | sosp_update obj2 | as measured | 265.30 | 252.33 | 0.951 | <= 1.05 ok | 9 % / 2 % | - |
+| safe50k | sosp_total | as measured | 825.03 | 777.87 | 0.943 | - | 5 % / 1 % | - |
+| safe50k | apply | as measured | 1308.70 | 1186.26 | 0.906 | <= 1.10 ok | 3 % / 1 % | - |
+| safe50k | end_to_end | as measured | 6086.78 | 5009.60 | 0.823 | <= 1.10 ok | 39 % / 1 % (noisy) | - |
+| unsafe50k | sosp_update obj0 | as measured | 299.31 | 272.26 | 0.910 | <= 1.05 ok | 3 % / 1 % | - |
+| unsafe50k | sosp_update obj1 | as measured | 273.01 | 252.81 | 0.926 | <= 1.05 ok | 3 % / 1 % | - |
+| unsafe50k | sosp_update obj2 | as measured | 271.52 | 251.37 | 0.926 | <= 1.05 ok | 3 % / 1 % | - |
+| unsafe50k | sosp_total | as measured | 843.27 | 776.68 | 0.921 | - | 3 % / 1 % | - |
+| unsafe50k | apply | as measured | 1308.30 | 1187.34 | 0.908 | <= 1.10 ok | 1 % / 1 % | - |
+| unsafe50k | end_to_end | as measured | 6678.32 | 5005.65 | 0.750 | <= 1.10 ok | 20 % / 1 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 73.29 | 58.69 | 0.801 | <= 1.05 ok | 19 % / 11 % (noisy) | - |
+| local10k | sosp_update obj1 | as measured | 61.96 | 56.12 | 0.906 | <= 1.05 ok | 18 % / 10 % (noisy) | - |
+| local10k | sosp_update obj2 | as measured | 62.17 | 56.44 | 0.908 | <= 1.05 ok | 19 % / 11 % (noisy) | - |
+| local10k | sosp_total | as measured | 198.01 | 171.56 | 0.866 | - | 18 % / 10 % (noisy) | - |
+| local10k | apply | as measured | 1284.70 | 1164.33 | 0.906 | <= 1.10 ok | 1 % / 1 % | - |
+| local10k | end_to_end | as measured | 6171.82 | 4360.23 | 0.706 | <= 1.10 ok | 38 % / 1 % (noisy) | - |
+== 2026-10-08T11:14:27-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py run --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-PA --runs 21 --gpu 0 --lock-clocks boost --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-cuda-roadNet-PA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 8.75 | 8.64 | 0.987 | <= 1.10 ok | 2 % / 1 % | 8.63 |
-| safe50k | sosp_update obj1 | as measured | 8.85 | 8.77 | 0.990 | <= 1.10 ok | 1 % / 1 % | 8.76 |
-| safe50k | sosp_update obj2 | as measured | 8.71 | 8.70 | 0.998 | <= 1.10 ok | 1 % / 1 % | 8.69 |
-| safe50k | sosp_total | as measured | 26.32 | 26.11 | 0.992 | - | 1 % / 1 % | - |
-| safe50k | apply | as measured | 113.60 | 94.46 | 0.832 | <= 1.10 ok | 4 % / 15 % (noisy) | - |
-| safe50k | end_to_end | as measured | 706.06 | 688.73 | 0.975 | <= 1.10 ok | 27 % / 3 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 8.74 | 8.64 | 0.989 | <= 1.10 ok | 1 % / 1 % | 8.63 |
-| unsafe50k | sosp_update obj1 | as measured | 8.83 | 8.78 | 0.995 | <= 1.10 ok | 1 % / 1 % | 8.78 |
-| unsafe50k | sosp_update obj2 | as measured | 8.72 | 8.70 | 0.998 | <= 1.10 ok | 1 % / 1 % | 8.70 |
-| unsafe50k | sosp_total | as measured | 26.29 | 26.13 | 0.994 | - | 0 % / 0 % | - |
-| unsafe50k | apply | as measured | 113.80 | 93.95 | 0.826 | <= 1.10 ok | 6 % / 10 % | - |
-| unsafe50k | end_to_end | as measured | 758.96 | 689.45 | 0.908 | <= 1.10 ok | 28 % / 4 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 3.50 | 3.42 | 0.977 | <= 1.10 ok | 3 % / 1 % | 3.41 |
-| local10k | sosp_update obj1 | as measured | 3.08 | 3.08 | 1.000 | <= 1.10 ok | 1 % / 1 % | 3.08 |
-| local10k | sosp_update obj2 | as measured | 3.44 | 3.43 | 0.999 | <= 1.10 ok | 1 % / 1 % | 3.42 |
-| local10k | sosp_total | as measured | 10.02 | 9.93 | 0.992 | - | 1 % / 0 % | - |
-| local10k | apply | as measured | 98.40 | 79.27 | 0.806 | <= 1.10 ok | 5 % / 9 % | - |
-| local10k | end_to_end | as measured | 709.46 | 656.89 | 0.926 | <= 1.10 ok | 28 % / 4 % (noisy) | - |
-== 2026-10-07T15:04:53-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --gpu 0 --lock-clocks boost --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-cuda-rgg.json
+| safe50k | sosp_update obj0 | as measured | 4.76 | 4.71 | 0.991 | <= 1.10 ok | 2 % / 1 % | 4.71 |
+| safe50k | sosp_update obj1 | as measured | 4.74 | 4.76 | 1.006 | <= 1.10 ok | 1 % / 1 % | 4.76 |
+| safe50k | sosp_update obj2 | as measured | 4.82 | 4.85 | 1.007 | <= 1.10 ok | 1 % / 1 % | 4.85 |
+| safe50k | sosp_total | as measured | 14.31 | 14.34 | 1.002 | - | 1 % / 1 % | - |
+| safe50k | apply | as measured | 79.80 | 54.42 | 0.682 | <= 1.10 ok | 9 % / 27 % (noisy) | - |
+| safe50k | end_to_end | as measured | 518.33 | 442.61 | 0.854 | <= 1.10 ok | 22 % / 5 % (noisy) | - |
+| unsafe50k | sosp_update obj0 | as measured | 4.73 | 4.70 | 0.994 | <= 1.10 ok | 2 % / 1 % | 4.70 |
+| unsafe50k | sosp_update obj1 | as measured | 4.73 | 4.75 | 1.003 | <= 1.10 ok | 1 % / 1 % | 4.74 |
+| unsafe50k | sosp_update obj2 | as measured | 4.83 | 4.87 | 1.007 | <= 1.10 ok | 1 % / 1 % | 4.86 |
+| unsafe50k | sosp_total | as measured | 14.29 | 14.32 | 1.002 | - | 1 % / 0 % | - |
+| unsafe50k | apply | as measured | 80.90 | 54.89 | 0.678 | <= 1.10 ok | 6 % / 30 % (noisy) | - |
+| unsafe50k | end_to_end | as measured | 514.03 | 444.13 | 0.864 | <= 1.10 ok | 23 % / 5 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 9.36 | 9.26 | 0.989 | <= 1.10 ok | 1 % / 0 % | 9.25 |
+| local10k | sosp_update obj1 | as measured | 9.44 | 9.41 | 0.997 | <= 1.10 ok | 1 % / 0 % | 9.40 |
+| local10k | sosp_update obj2 | as measured | 9.21 | 9.18 | 0.997 | <= 1.10 ok | 0 % / 0 % | 9.18 |
+| local10k | sosp_total | as measured | 28.01 | 27.85 | 0.994 | - | 0 % / 0 % | - |
+| local10k | apply | as measured | 66.50 | 42.76 | 0.643 | <= 1.10 ok | 10 % / 30 % (noisy) | - |
+| local10k | end_to_end | as measured | 518.31 | 439.19 | 0.847 | <= 1.10 ok | 22 % / 4 % (noisy) | - |
+== 2026-10-08T11:25:50-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py run --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph roadNet-CA --runs 21 --gpu 0 --lock-clocks boost --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-cuda-roadNet-CA.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 25.86 | 25.80 | 0.997 | <= 1.05 ok | 1 % / 0 % | 25.79 |
-| safe50k | sosp_update obj1 | as measured | 25.48 | 25.54 | 1.002 | <= 1.05 ok | 0 % / 0 % | 25.54 |
-| safe50k | sosp_update obj2 | as measured | 26.17 | 26.17 | 1.000 | <= 1.05 ok | 0 % / 1 % | 26.17 |
-| safe50k | sosp_total | as measured | 77.52 | 77.51 | 1.000 | - | 0 % / 0 % | - |
-| safe50k | apply | as measured | 172.20 | 132.69 | 0.771 | <= 1.10 ok | 5 % / 8 % | - |
-| safe50k | end_to_end | as measured | 1218.70 | 1161.40 | 0.953 | <= 1.10 ok | 32 % / 4 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 25.87 | 25.80 | 0.997 | <= 1.05 ok | 1 % / 0 % | 25.80 |
-| unsafe50k | sosp_update obj1 | as measured | 25.48 | 25.53 | 1.002 | <= 1.05 ok | 1 % / 1 % | 25.53 |
-| unsafe50k | sosp_update obj2 | as measured | 26.15 | 26.17 | 1.001 | <= 1.05 ok | 1 % / 0 % | 26.16 |
-| unsafe50k | sosp_total | as measured | 77.50 | 77.51 | 1.000 | - | 0 % / 0 % | - |
-| unsafe50k | apply | as measured | 173.30 | 136.43 | 0.787 | <= 1.10 ok | 5 % / 7 % | - |
-| unsafe50k | end_to_end | as measured | 1235.60 | 1167.00 | 0.944 | <= 1.10 ok | 34 % / 4 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 61.52 | 61.45 | 0.999 | <= 1.05 ok | 0 % / 0 % | 61.44 |
-| local10k | sosp_update obj1 | as measured | 63.87 | 63.92 | 1.001 | <= 1.05 ok | 0 % / 0 % | 63.92 |
-| local10k | sosp_update obj2 | as measured | 61.59 | 61.60 | 1.000 | <= 1.05 ok | 0 % / 1 % | 61.59 |
-| local10k | sosp_total | as measured | 186.94 | 186.98 | 1.000 | - | 0 % / 0 % | - |
-| local10k | apply | as measured | 145.60 | 104.03 | 0.715 | <= 1.10 ok | 6 % / 12 % (noisy) | - |
-| local10k | end_to_end | as measured | 1311.01 | 1242.97 | 0.948 | <= 1.10 ok | 32 % / 4 % (noisy) | - |
-== 2026-10-07T15:08:12-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert/clone-a/parity/perf_ab.py run --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph road_usa_g --runs 11 --gpu 0 --lock-clocks boost --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-cuda-road_usa_g.json
+| safe50k | sosp_update obj0 | as measured | 8.75 | 8.64 | 0.987 | <= 1.10 ok | 1 % / 1 % | 8.63 |
+| safe50k | sosp_update obj1 | as measured | 8.85 | 8.76 | 0.990 | <= 1.10 ok | 1 % / 1 % | 8.76 |
+| safe50k | sosp_update obj2 | as measured | 8.71 | 8.70 | 0.999 | <= 1.10 ok | 1 % / 1 % | 8.70 |
+| safe50k | sosp_total | as measured | 26.31 | 26.10 | 0.992 | - | 1 % / 1 % | - |
+| safe50k | apply | as measured | 113.40 | 97.82 | 0.863 | <= 1.10 ok | 4 % / 10 % (noisy) | - |
+| safe50k | end_to_end | as measured | 757.01 | 630.25 | 0.833 | <= 1.10 ok | 28 % / 3 % (noisy) | - |
+| unsafe50k | sosp_update obj0 | as measured | 8.75 | 8.64 | 0.987 | <= 1.10 ok | 1 % / 1 % | 8.64 |
+| unsafe50k | sosp_update obj1 | as measured | 8.82 | 8.79 | 0.996 | <= 1.10 ok | 1 % / 1 % | 8.78 |
+| unsafe50k | sosp_update obj2 | as measured | 8.72 | 8.72 | 0.999 | <= 1.10 ok | 1 % / 1 % | 8.71 |
+| unsafe50k | sosp_total | as measured | 26.30 | 26.14 | 0.994 | - | 1 % / 0 % | - |
+| unsafe50k | apply | as measured | 113.90 | 92.94 | 0.816 | <= 1.10 ok | 5 % / 11 % (noisy) | - |
+| unsafe50k | end_to_end | as measured | 747.76 | 629.37 | 0.842 | <= 1.10 ok | 27 % / 3 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 3.50 | 3.42 | 0.976 | <= 1.10 ok | 1 % / 2 % | 3.41 |
+| local10k | sosp_update obj1 | as measured | 3.08 | 3.08 | 1.000 | <= 1.10 ok | 1 % / 1 % | 3.07 |
+| local10k | sosp_update obj2 | as measured | 3.43 | 3.43 | 1.000 | <= 1.10 ok | 1 % / 1 % | 3.42 |
+| local10k | sosp_total | as measured | 10.01 | 9.92 | 0.991 | - | 0 % / 1 % | - |
+| local10k | apply | as measured | 99.80 | 82.68 | 0.828 | <= 1.10 ok | 7 % / 9 % | - |
+| local10k | end_to_end | as measured | 693.08 | 598.77 | 0.864 | <= 1.10 ok | 27 % / 3 % (noisy) | - |
+== 2026-10-08T11:28:53-05:00 /home/sskg8/anaconda3/envs/dyng-dev/bin/python /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/parity/perf_ab.py run --backend cuda --exe /home/sskg8/Projects/dyng-work/r020/cert3/clone-a/build/parity-cuda/tools/compat/dyng-compat-mosp --graph rgg --runs 21 --gpu 0 --lock-clocks boost --threads 28 --lock-timeout 14400 --json /home/sskg8/Projects/dyng-work/runs/bench/0.2.0rc1/ipdps25_dynamosp_sosp-cuda-rgg.json
 | batch | region | reading | original (ms) | dynG (ms) | ratio | gate | spread A / B | dynG device (ms) |
-| safe50k | sosp_update obj0 | as measured | 102.75 | 102.79 | 1.000 | <= 1.05 ok | 0 % / 0 % | 102.78 |
-| safe50k | sosp_update obj1 | as measured | 101.83 | 101.76 | 0.999 | <= 1.05 ok | 0 % / 0 % | 101.76 |
-| safe50k | sosp_update obj2 | as measured | 102.02 | 102.12 | 1.001 | <= 1.05 ok | 0 % / 0 % | 102.11 |
-| safe50k | sosp_total | as measured | 306.64 | 306.69 | 1.000 | - | 0 % / 0 % | - |
-| safe50k | apply | as measured | 1064.00 | 1011.58 | 0.951 | <= 1.10 ok | 4 % / 1 % | - |
-| safe50k | end_to_end | as measured | 6180.27 | 5661.68 | 0.916 | <= 1.10 ok | 35 % / 1 % (noisy) | - |
-| unsafe50k | sosp_update obj0 | as measured | 102.86 | 102.70 | 0.998 | <= 1.05 ok | 1 % / 0 % | 102.69 |
-| unsafe50k | sosp_update obj1 | as measured | 101.78 | 101.80 | 1.000 | <= 1.05 ok | 0 % / 0 % | 101.79 |
-| unsafe50k | sosp_update obj2 | as measured | 102.03 | 102.09 | 1.001 | <= 1.05 ok | 0 % / 0 % | 102.09 |
-| unsafe50k | sosp_total | as measured | 306.65 | 306.62 | 1.000 | - | 0 % / 0 % | - |
-| unsafe50k | apply | as measured | 1064.20 | 1012.83 | 0.952 | <= 1.10 ok | 4 % / 0 % | - |
-| unsafe50k | end_to_end | as measured | 6521.65 | 5654.49 | 0.867 | <= 1.10 ok | 23 % / 2 % (noisy) | - |
-| local10k | sosp_update obj0 | as measured | 22.71 | 22.60 | 0.995 | <= 1.05 ok | 1 % / 0 % | 22.59 |
-| local10k | sosp_update obj1 | as measured | 22.03 | 21.92 | 0.995 | <= 1.05 ok | 0 % / 0 % | 21.92 |
-| local10k | sosp_update obj2 | as measured | 22.20 | 22.09 | 0.995 | <= 1.05 ok | 0 % / 0 % | 22.08 |
-| local10k | sosp_total | as measured | 66.94 | 66.60 | 0.995 | - | 0 % / 0 % | - |
-| local10k | apply | as measured | 1062.30 | 990.50 | 0.932 | <= 1.10 ok | 4 % / 1 % | - |
-# ... 447 more lines in the full file
+| safe50k | sosp_update obj0 | as measured | 25.91 | 25.82 | 0.997 | <= 1.05 ok | 1 % / 1 % | 25.82 |
+| safe50k | sosp_update obj1 | as measured | 25.48 | 25.53 | 1.002 | <= 1.05 ok | 1 % / 1 % | 25.52 |
+| safe50k | sosp_update obj2 | as measured | 26.16 | 26.16 | 1.000 | <= 1.05 ok | 0 % / 1 % | 26.15 |
+| safe50k | sosp_total | as measured | 77.54 | 77.52 | 1.000 | - | 0 % / 1 % | - |
+| safe50k | apply | as measured | 167.40 | 134.88 | 0.806 | <= 1.10 ok | 7 % / 6 % | - |
+| safe50k | end_to_end | as measured | 1321.52 | 1032.96 | 0.782 | <= 1.10 ok | 33 % / 2 % (noisy) | - |
+| unsafe50k | sosp_update obj0 | as measured | 25.89 | 25.81 | 0.997 | <= 1.05 ok | 1 % / 0 % | 25.80 |
+| unsafe50k | sosp_update obj1 | as measured | 25.48 | 25.54 | 1.002 | <= 1.05 ok | 1 % / 1 % | 25.54 |
+| unsafe50k | sosp_update obj2 | as measured | 26.14 | 26.14 | 1.000 | <= 1.05 ok | 1 % / 1 % | 26.14 |
+| unsafe50k | sosp_total | as measured | 77.53 | 77.50 | 1.000 | - | 0 % / 0 % | - |
+| unsafe50k | apply | as measured | 166.50 | 134.77 | 0.809 | <= 1.10 ok | 6 % / 7 % | - |
+| unsafe50k | end_to_end | as measured | 1298.45 | 1030.32 | 0.793 | <= 1.10 ok | 36 % / 1 % (noisy) | - |
+| local10k | sosp_update obj0 | as measured | 61.50 | 61.47 | 0.999 | <= 1.05 ok | 1 % / 0 % | 61.46 |
+# ... 471 more lines in the full file

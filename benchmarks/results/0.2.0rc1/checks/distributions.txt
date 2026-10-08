@@ -1,6 +1,6 @@
-# Excerpt of $DYNG_SCRATCH/runs/r020-cert/c/distributions.log (sha256 dd76110a7941470343e0887d5b88d8fc6c1464fff8842dfddbcfd0fa928dbf9c, 30102 bytes): its step headers and result lines, written by parity/certify.py check.
-== commit bc1304f8113afb74e0cbe9184bda180b8e810834 VERSION 0.2.0rc1
-== select (release.yml) for GITHUB_REF_NAME=v0.2.0rc1 (2026-10-07T22:50:00Z)
+# Excerpt of $DYNG_SCRATCH/runs/r020-cert3/c/distributions.log (sha256 4271a374b8fb67962bee60c17f80393483de29fd9c3af1a9b8da28929fe6c362, 32673 bytes): its step headers and result lines, written by parity/certify.py check.
+== commit b1a4869a936868b572213f66f089d7587d0f1972 VERSION 0.2.0rc1
+== select (release.yml) for GITHUB_REF_NAME=v0.2.0rc1 (2026-10-08T12:45:56Z)
 rc=0 select
 kind=package
 version=0.2.0rc1
@@ -8,9 +8,9 @@ prerelease=true
 rc=0 select outputs kind=package version=0.2.0rc1 prerelease=true plugins=true
 select: v0.2.0 refused
 select: v0.2.0-rc.1 refused
-== release metadata (2026-10-07T22:50:01Z)
+== release metadata (2026-10-08T12:45:56Z)
 rc=0 release-metadata
-== ci/wheels.sh (2026-10-07T22:50:01Z)
+== ci/wheels.sh (2026-10-08T12:45:56Z)
 ==> sdist
 ==> wheel from the sdist (GCC 12, glibc 2.28 sysroot, static and hidden libstdc++)
 ==> auditwheel repair --plat manylinux_2_28_x86_64
@@ -20,14 +20,14 @@ ylinux_2_28_x86_64.whl: PASSED
 Checking
 /home/sskg8/Projects/dyng-work/wheels/0.2.0rc1/dist/dyng-0.2.0rc1.tar.gz: PASSED
 ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
-ok     dyng-0.2.0rc1.tar.gz (0.99 MB)
+ok     dyng-0.2.0rc1.tar.gz (1.00 MB)
 ==> Python 3.12: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.2.0rc1/venv-3.12)
-543 passed, 67 skipped in 17.04s
+546 passed, 67 skipped in 16.57s
 ==> Python 3.13: a fresh venv with only the wheel (/home/sskg8/Projects/dyng-work/wheels/0.2.0rc1/venv-3.13)
-543 passed, 67 skipped in 16.53s
+546 passed, 67 skipped in 16.11s
 ==> distributions in /home/sskg8/Projects/dyng-work/wheels/0.2.0rc1/dist
 rc=0 ci/wheels.sh
-== ci/plugin_wheels.sh cu12 cu13 with the CI toolkits (2026-10-07T22:51:18Z)
+== ci/plugin_wheels.sh cu12 cu13 with the CI toolkits (2026-10-08T12:47:10Z)
 ==> cu12: the source tree from dyng-0.2.0rc1.tar.gz (CUDA 12.9, /home/sskg8/Projects/dyng-work/tools/ci-cuda/root-cu12/usr/local/cuda-12.9)
 ==> cu12: wheel (GCC 12.4.0 / glibc 2.28 host compiler, static cudart, release architectures)
 ==> cu12: auditwheel repair --plat manylinux_2_28_x86_64 (libcuda excluded)
@@ -45,108 +45,116 @@ ok     dyng_cu12-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (6.00 MB)
 ok     dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (6.25 MB)
 ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
 ==> cu12, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/wheels/0.2.0rc1-plugins/venv-cu12-3.12)
-55 passed, 7 skipped, 548 deselected in 5.63s
-543 passed, 67 skipped in 17.67s
+55 passed, 7 skipped, 551 deselected in 4.16s
+546 passed, 67 skipped in 17.36s
 ==> cu12, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/wheels/0.2.0rc1-plugins/venv-cu12-3.13)
-55 passed, 7 skipped, 548 deselected in 4.08s
-543 passed, 67 skipped in 50.25s
+55 passed, 7 skipped, 551 deselected in 11.72s
+546 passed, 67 skipped in 14.90s
 ==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/wheels/0.2.0rc1-plugins/venv-cu13-3.12)
-55 passed, 7 skipped, 548 deselected in 12.51s
-543 passed, 67 skipped in 23.35s
+55 passed, 7 skipped, 551 deselected in 4.06s
+546 passed, 67 skipped in 15.25s
 ==> cu13, Python 3.13: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/wheels/0.2.0rc1-plugins/venv-cu13-3.13)
-55 passed, 7 skipped, 548 deselected in 5.40s
-543 passed, 67 skipped in 28.89s
+55 passed, 7 skipped, 551 deselected in 3.99s
+546 passed, 67 skipped in 14.71s
 ==> plugin wheels in /home/sskg8/Projects/dyng-work/wheels/0.2.0rc1-plugins/dist
 rc=0 ci/plugin_wheels.sh
-== collect: twine check --strict, wheel_check --release-set --split (2026-10-07T22:59:14Z)
+== collect: twine check --strict, wheel_check --release-set --split (2026-10-08T12:53:36Z)
 Checking
--manylinux_2_28_x86_64.whl: PASSED
+3-manylinux_2_28_x86_64.whl: PASSED
 Checking
--abi3-manylinux_2_28_x86_64.whl: PASSED
+2-abi3-manylinux_2_28_x86_64.whl: PASSED
 Checking
--abi3-manylinux_2_28_x86_64.whl: PASSED
+2-abi3-manylinux_2_28_x86_64.whl: PASSED
 Checking
-/home/sskg8/Projects/dyng-work/r020/cert/dist-work/dist/dyng-0.2.0rc1.tar.gz: PASSED
+/home/sskg8/Projects/dyng-work/r020/cert3/dist-work/dist/dyng-0.2.0rc1.tar.gz: PASSED
 rc=0 twine check --strict
 ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
 rc=0 wheel_check dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl
-ok     dyng-0.2.0rc1.tar.gz (0.99 MB)
+ok     dyng-0.2.0rc1.tar.gz (1.00 MB)
 rc=0 wheel_check dyng-0.2.0rc1.tar.gz
 ok     dyng_cu12-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (6.00 MB)
 rc=0 wheel_check dyng_cu12-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl
 ok     dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (6.25 MB)
 rc=0 wheel_check dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl
 ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
-ok     dyng-0.2.0rc1.tar.gz (0.99 MB)
+ok     dyng-0.2.0rc1.tar.gz (1.00 MB)
 ok     dyng_cu12-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (6.00 MB)
 ok     dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (6.25 MB)
 rc=0 wheel_check --release-set --split
 rc=0 release-metadata
-== venv core-312 (Python 3.12.14) (2026-10-07T22:59:16Z)
+== venv core-312 (Python 3.12.14) (2026-10-08T12:53:37Z)
 rc=0 install core-312
-269 passed, 2 skipped in 7.86s
+295 passed, 2 skipped in 6.40s
 rc=0 test subset core-312
 rc=0 README quickstart core-312 (output equal to the README's)
 rc=0 dyng --version core-312
-== venv core-cu12-312 (Python 3.12.14) (2026-10-07T22:59:34Z)
+== venv core-cu12-312 (Python 3.12.14) (2026-10-08T12:53:52Z)
 rc=0 install core-cu12-312
-268 passed, 3 skipped in 8.91s
+294 passed, 3 skipped in 7.02s
 rc=0 test subset core-cu12-312
 rc=0 README quickstart core-cu12-312 (output equal to the README's)
 rc=0 dyng --version core-cu12-312
 rc=0 plugin_smoke --expect cuda core-cu12-312
-55 passed, 9 skipped, 533 deselected in 4.56s
+55 passed, 9 skipped, 536 deselected in 3.93s
 rc=0 pytest -m gpu core-cu12-312
-== venv core-cu13-312 (Python 3.12.14) (2026-10-07T23:00:00Z)
+== venv core-cu13-312 (Python 3.12.14) (2026-10-08T12:54:14Z)
 rc=0 install core-cu13-312
-268 passed, 3 skipped in 8.26s
+294 passed, 3 skipped in 6.92s
 rc=0 test subset core-cu13-312
 rc=0 README quickstart core-cu13-312 (output equal to the README's)
 rc=0 dyng --version core-cu13-312
 rc=0 plugin_smoke --expect cuda core-cu13-312
-55 passed, 9 skipped, 533 deselected in 4.39s
+55 passed, 9 skipped, 536 deselected in 3.68s
 rc=0 pytest -m gpu core-cu13-312
-== venv core-313 (Python 3.13.15) (2026-10-07T23:00:24Z)
+== venv core-313 (Python 3.13.15) (2026-10-08T12:54:35Z)
 rc=0 install core-313
-269 passed, 2 skipped in 8.60s
+295 passed, 2 skipped in 6.11s
 rc=0 test subset core-313
 rc=0 README quickstart core-313 (output equal to the README's)
 rc=0 dyng --version core-313
-== venv core-cu12-313 (Python 3.13.15) (2026-10-07T23:00:43Z)
+== venv core-cu12-313 (Python 3.13.15) (2026-10-08T12:54:49Z)
 rc=0 install core-cu12-313
-268 passed, 3 skipped in 10.06s
+294 passed, 3 skipped in 6.62s
 rc=0 test subset core-cu12-313
 rc=0 README quickstart core-cu12-313 (output equal to the README's)
 rc=0 dyng --version core-cu12-313
 rc=0 plugin_smoke --expect cuda core-cu12-313
-55 passed, 9 skipped, 533 deselected in 4.68s
+55 passed, 9 skipped, 536 deselected in 3.73s
 rc=0 pytest -m gpu core-cu12-313
-== venv core-cu13-313 (Python 3.13.15) (2026-10-07T23:01:11Z)
+== venv core-cu13-313 (Python 3.13.15) (2026-10-08T12:55:09Z)
 rc=0 install core-cu13-313
-268 passed, 3 skipped in 7.97s
+294 passed, 3 skipped in 6.65s
 rc=0 test subset core-cu13-313
 rc=0 README quickstart core-cu13-313 (output equal to the README's)
 rc=0 dyng --version core-cu13-313
 rc=0 plugin_smoke --expect cuda core-cu13-313
-55 passed, 9 skipped, 533 deselected in 13.42s
+55 passed, 9 skipped, 536 deselected in 3.79s
 rc=0 pytest -m gpu core-cu13-313
-== a local simple index laid out like TestPyPI: pip install "dyng[cu13]==0.2.0rc1" (2026-10-07T23:01:47Z)
-== venv index-cu13-312 (Python 3.12.14) (2026-10-07T23:01:49Z)
+== a local simple index laid out like TestPyPI: pip install "dyng[cu13]==0.2.0rc1" (2026-10-08T12:55:29Z)
+== venv index-cu13-312 (Python 3.12.14) (2026-10-08T12:55:32Z)
 rc=0 install index-cu13-312
-268 passed, 3 skipped in 7.88s
+294 passed, 3 skipped in 6.91s
 rc=0 test subset index-cu13-312
 rc=0 README quickstart index-cu13-312 (output equal to the README's)
 rc=0 dyng --version index-cu13-312
 rc=0 plugin_smoke --expect cuda index-cu13-312
-55 passed, 9 skipped, 533 deselected in 4.44s
+55 passed, 9 skipped, 536 deselected in 3.87s
 rc=0 pytest -m gpu index-cu13-312
-== venv index-cu13-313 (Python 3.13.15) (2026-10-07T23:02:14Z)
+== venv index-cu13-313 (Python 3.13.15) (2026-10-08T12:55:53Z)
 rc=0 install index-cu13-313
-268 passed, 3 skipped in 6.31s
+294 passed, 3 skipped in 7.40s
 rc=0 test subset index-cu13-313
 rc=0 README quickstart index-cu13-313 (output equal to the README's)
 rc=0 dyng --version index-cu13-313
 rc=0 plugin_smoke --expect cuda index-cu13-313
-55 passed, 9 skipped, 533 deselected in 4.64s
+55 passed, 9 skipped, 536 deselected in 4.27s
 rc=0 pytest -m gpu index-cu13-313
-== done fail=0 (2026-10-07T23:02:37Z)
+== venv docform-cu13-312: numpy from PyPI, then --no-deps dyng dyng-cu13 from the local index (2026-10-08T12:56:16Z)
+rc=0 numpy 312
+rc=0 docform install 312
+rc=0 plugin_smoke --expect cuda docform-312
+== venv docform-cu13-313: numpy from PyPI, then --no-deps dyng dyng-cu13 from the local index (2026-10-08T12:56:23Z)
+rc=0 numpy 313
+rc=0 docform install 313
+rc=0 plugin_smoke --expect cuda docform-313
+== done fail=0 (2026-10-08T12:56:28Z)

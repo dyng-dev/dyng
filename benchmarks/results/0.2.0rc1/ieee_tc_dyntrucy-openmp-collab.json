@@ -2,7 +2,7 @@
  "schema": 1,
  "algorithm": "cycle_count",
  "backend": "openmp",
- "date": "2026-10-07T20:56:04Z",
+ "date": "2026-10-08T17:32:00Z",
  "reference": {
   "name": "CycleEnumeration-GPU",
   "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
@@ -16,7 +16,7 @@
   "kind": "original"
  },
  "port": {
-  "commit": "8bc3e614b2f55c7539a5eeee61a896b7a3b5cb23",
+  "commit": "b1a4869a936868b572213f66f089d7587d0f1972",
   "binary": "build/parity/tools/compat/dyng-compat-cycle-enum",
   "build": {
    "CMAKE_BUILD_TYPE": "Release",
@@ -78,25 +78,25 @@
     {
      "region": "static_end_to_end",
      "gate_kind": "compute",
-     "original_ms": 44582.25009124726,
+     "original_ms": 44647.034810855985,
      "original_samples": [
-      44552.158487029374,
-      44475.036554038525,
-      44675.53228046745,
-      44672.442629002035,
-      44582.25009124726
+      44726.25445108861,
+      44675.37813261151,
+      44647.034810855985,
+      44587.918881326914,
+      44544.96677406132
      ],
-     "original_spread": 0.004497209674670254,
-     "port_ms": 14150.228171609342,
+     "original_spread": 0.004060463988152798,
+     "port_ms": 14652.025134302676,
      "port_samples": [
-      14145.656970329583,
-      14150.228171609342,
-      14159.984339028597,
-      14162.060744129121,
-      14126.301176846027
+      14674.814363010228,
+      14635.051312856376,
+      14676.332101225853,
+      14634.52463131398,
+      14652.025134302676
      ],
-     "port_spread": 0.0025271371492680958,
-     "ratio": 0.317396007214706,
+     "port_spread": 0.002853357780147096,
+     "ratio": 0.3281746525021191,
      "gate": 1.05,
      "within_gate": true,
      "provisional": false,
@@ -105,46 +105,46 @@
     {
      "region": "static_count",
      "gate_kind": "none",
-     "port_ms": 11713.2,
+     "port_ms": 12227.1,
      "port_samples": [
-      11687.7,
-      11725.4,
-      11713.2,
-      11740.3,
-      11698.1
+      12265.3,
+      12234.5,
+      12219.7,
+      12218.7,
+      12227.1
      ],
-     "port_spread": 0.004490660109961286,
-     "port_stage_ms": 11713.16767,
+     "port_spread": 0.0038112062549581294,
+     "port_stage_ms": 12227.038154,
      "noisy": false
     },
     {
      "region": "static_read",
      "gate_kind": "none",
-     "port_ms": 2414.9269999999997,
+     "port_ms": 2408.5939999999996,
      "port_samples": [
-      2450.992,
-      2414.712,
-      2436.875,
-      2414.9269999999997,
-      2413.219
+      2402.04,
+      2392.9230000000002,
+      2449.282,
+      2408.5939999999996,
+      2417.386
      ],
-     "port_spread": 0.015641466595056556,
-     "port_stage_ms": 136.881618,
+     "port_spread": 0.02339912828812159,
+     "port_stage_ms": 142.093918,
      "noisy": false
     }
    ],
    "port_stages_median_ms": {
-    "cycle_count.compute": 11713.16767,
-    "cycle_count.count": 11713.123775,
-    "cycle_count.finalize": 0.000922,
-    "cycle_count.reset": 0.001144,
-    "graph.build": 136.881618
+    "cycle_count.compute": 12227.038154,
+    "cycle_count.count": 12226.992187,
+    "cycle_count.finalize": 0.0009,
+    "cycle_count.reset": 0.00129,
+    "graph.build": 142.093918
    },
    "port_report_median_ms": {
     "update_ms": 0.0,
-    "compute_ms": 11713.2,
-    "read_ms": 2278.1,
-    "build_ms": 136.912,
+    "compute_ms": 12227.1,
+    "read_ms": 2266.47,
+    "build_ms": 142.124,
     "prior_ms": 0.0,
     "generate_ms": 0.0,
     "kernel_ms": 0.0,
@@ -153,38 +153,38 @@
     "update_device_ms": 0.0
    },
    "load_average": {
-    "min": 45.9404296875,
-    "max": 54.732421875
+    "min": 42.654296875,
+    "max": 55.41357421875
    },
    "contamination": {
     "original": {
      "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
      "flag_cores": 2.0,
-     "foreign_cores_median": 0.05074012407104612,
-     "foreign_cores_max": 0.05535815070146677,
+     "foreign_cores_median": 0.07770502615854616,
+     "foreign_cores_max": 0.13000792822978977,
      "flagged_runs": 0,
      "runs": 5,
      "foreign_cores_per_run": [
-      0.043,
-      0.051,
-      0.055,
-      0.048,
-      0.054
+      0.13,
+      0.034,
+      0.084,
+      0.039,
+      0.078
      ]
     },
     "port": {
      "method": "(/proc/stat busy CPU time - RUSAGE_SELF - RUSAGE_CHILDREN) / wall, per run",
      "flag_cores": 2.0,
-     "foreign_cores_median": 0.06128762382264324,
-     "foreign_cores_max": 0.09135206516895233,
+     "foreign_cores_median": 0.05483861062304401,
+     "foreign_cores_max": 0.06874550261224599,
      "flagged_runs": 0,
      "runs": 5,
      "foreign_cores_per_run": [
-      0.05,
-      0.061,
-      0.04,
-      0.072,
-      0.091
+      0.038,
+      0.055,
+      0.064,
+      0.036,
+      0.069
      ]
     }
    }

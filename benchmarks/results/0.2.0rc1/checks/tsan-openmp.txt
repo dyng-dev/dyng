@@ -1,174 +1,56 @@
-# Excerpt of $DYNG_SCRATCH/runs/r020-cert/c/tsan-openmp.log (sha256 b2849e84ae68140e071b0ea01d9f8ed7dbae5147132b9a05531be04b8b396e44, 373080 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r020-cert3/c/tsan-openmp.log (sha256 7b624a7023306b607f1827b24d050cc031450ec2d3c96915e9233c839f3f8fa0, 319412 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> Archer: /home/sskg8/anaconda3/envs/dyng-clang/lib/libarcher.so.bak
 ==> preset tsan-openmp: configure, build, test (label cpu)
-      |                      ^
-      |               ^
-      |                       ^
-      |          ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |        ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |        ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |                ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |            ^
-      |   ^
-      |     ^
-      |                                  ^
-      |                      ^
-      |               ^
-      |                       ^
-      |        ^
-      |     ^
-      |                                  ^
-100% tests passed out of 835
+100% tests passed out of 839
 The following tests did not run:
 	 40 - HostMemoryResource.HugeAllocationThrowsOutOfMemory (Skipped)
 	 56 - Resources.OpenmpNotBuiltThrows (Skipped)
 	161 - AllocationFailure.InsertEdgeIsStrong (Skipped)
 	162 - AllocationFailure.DeleteEdgeIsStrong (Skipped)
 	163 - AllocationFailure.AddEdgeIsStrong (Skipped)
-	328 - Backends/SsspBackend.ImpossibleGrowthIsAnOutOfMemoryError/sequential (Skipped)
-	329 - Backends/SsspBackend.ImpossibleGrowthIsAnOutOfMemoryError/openmp (Skipped)
-	356 - CycleCountBackend.PlacementIsChecked (Skipped)
-	367 - CycleCountWorkspace.SteadyStatePhasesAllocateNothing (Skipped)
-	467 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
-	475 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
-	480 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
-	488 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
-	493 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
-	501 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
-	506 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
-	514 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
-	519 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
-	527 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
-	532 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
-	540 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
-	545 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
-	553 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
-	558 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,int,int> >> (Skipped)
-	566 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,int,int> >> (Skipped)
-	571 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,long,int> >> (Skipped)
-	579 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,long,int> >> (Skipped)
-	584 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<long,long,int> >> (Skipped)
-	592 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<long,long,int> >> (Skipped)
-	597 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,int> >> (Skipped)
-	605 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,int> >> (Skipped)
-	610 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,int> >> (Skipped)
-	618 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,int> >> (Skipped)
-	623 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<long,long,int> >> (Skipped)
-	631 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<long,long,int> >> (Skipped)
-	636 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
-	644 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
-	649 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
-	657 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
-	662 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,int> >> (Skipped)
-	670 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,int> >> (Skipped)
-	675 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,int> >> (Skipped)
-	683 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,int> >> (Skipped)
-	688 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<long,long,int> >> (Skipped)
-	696 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<long,long,int> >> (Skipped)
-	701 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
-	709 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
-	714 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
-	722 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
-	802 - MospAllocationFailure.SetOptionsIsStrong (Skipped)
+	330 - Backends/SsspBackend.ImpossibleGrowthIsAnOutOfMemoryError/sequential (Skipped)
+	331 - Backends/SsspBackend.ImpossibleGrowthIsAnOutOfMemoryError/openmp (Skipped)
+	358 - CycleCountBackend.PlacementIsChecked (Skipped)
+	369 - CycleCountWorkspace.SteadyStatePhasesAllocateNothing (Skipped)
+	469 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	477 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	482 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	490 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	495 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	503 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	508 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	516 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	521 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	529 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	534 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	542 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	547 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	555 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	560 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,int,int> >> (Skipped)
+	568 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,int,int> >> (Skipped)
+	573 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,long,int> >> (Skipped)
+	581 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,long,int> >> (Skipped)
+	586 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<long,long,int> >> (Skipped)
+	594 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<long,long,int> >> (Skipped)
+	599 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,int> >> (Skipped)
+	607 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,int> >> (Skipped)
+	612 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,int> >> (Skipped)
+	620 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,int> >> (Skipped)
+	625 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<long,long,int> >> (Skipped)
+	633 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<long,long,int> >> (Skipped)
+	638 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	646 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	651 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	659 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	664 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,int> >> (Skipped)
+	672 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,int> >> (Skipped)
+	677 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,int> >> (Skipped)
+	685 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,int> >> (Skipped)
+	690 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<long,long,int> >> (Skipped)
+	698 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<long,long,int> >> (Skipped)
+	703 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	711 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	716 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	724 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	806 - MospAllocationFailure.SetOptionsIsStrong (Skipped)
 preset tsan-openmp: OK

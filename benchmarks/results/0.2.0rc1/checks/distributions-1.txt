@@ -1,0 +1,60 @@
+# Copy of $DYNG_SCRATCH/runs/r020-cert2-toolkits.log (sha256 387812ddcbcd49555280cee096108dbe660c579ec60977dba9ed9e504405c8f6, 1701 bytes), written by parity/certify.py check.
+Thu Oct  8 06:12:58 AM UTC 2026
+packages in the repository: 13073
+cuda-nvcc-12-0
+cuda-nvcc-12-0
+cuda-nvcc-12-1
+cuda-nvcc-12-1
+cuda-nvcc-12-2
+cuda-nvcc-12-2
+cuda-nvcc-12-2
+cuda-nvcc-12-3
+cuda-nvcc-12-3
+cuda-nvcc-12-3
+cuda-nvcc-12-4
+cuda-nvcc-12-4
+cuda-nvcc-12-5
+cuda-nvcc-12-5
+cuda-nvcc-12-6
+cuda-nvcc-12-6
+cuda-nvcc-12-6
+cuda-nvcc-12-6
+cuda-nvcc-12-8
+cuda-nvcc-12-8
+cuda-nvcc-12-9
+cuda-nvcc-12-9
+cuda-nvcc-13-0
+cuda-nvcc-13-0
+cuda-nvcc-13-1
+cuda-nvcc-13-1
+cuda-nvcc-13-2
+cuda-nvcc-13-2
+cuda-nvcc-13-2
+cuda-nvcc-13-3
+cuda-nvcc-13-3
+cuda-nvcc-13-4
+cuda-nvcc-13-4
+cu12: CUDA 12.9 (nvcc 12.9.86), 12 packages, 183 MB
+cu13: CUDA 13.4 (nvcc 13.4.92), 14 packages, 140 MB
+lock: identical to ci/cuda_toolkits.toml
+newest of the repository: cuda-nvcc-12-0 12.0.140
+newest of the repository: cuda-nvcc-12-1 12.1.105
+newest of the repository: cuda-nvcc-12-2 12.2.140
+newest of the repository: cuda-nvcc-12-3 12.3.107
+newest of the repository: cuda-nvcc-12-4 12.4.131
+newest of the repository: cuda-nvcc-12-5 12.5.82
+newest of the repository: cuda-nvcc-12-6 12.6.85
+newest of the repository: cuda-nvcc-12-8 12.8.93
+newest of the repository: cuda-nvcc-12-9 12.9.86
+newest of the repository: cuda-nvcc-13-0 13.0.88
+newest of the repository: cuda-nvcc-13-1 13.1.115
+newest of the repository: cuda-nvcc-13-2 13.2.86
+newest of the repository: cuda-nvcc-13-3 13.3.73
+newest of the repository: cuda-nvcc-13-4 13.4.92
+usage: cuda_toolkit.py verify [-h] --plugin {cu12,cu13}
+                              [--lock-file LOCK_FILE] --dest DEST
+                              [--signatures]
+
+options:
+verify --signatures cu12 rc=0
+verify --signatures cu13 rc=0
