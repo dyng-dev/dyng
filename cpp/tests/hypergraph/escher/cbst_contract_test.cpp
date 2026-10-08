@@ -161,6 +161,41 @@ TEST(CbstContractLocator, MaxKeyZero) {
   EXPECT_FALSE(some.poisoned());
 }
 
+// row_locator::build: the view over one-segment rows (H2V, H2H and V2V rows), with out[] the
+// first entry above the key; a chained row is ESCHER-GPU's exit(2), now internal_error.
+TEST(CbstContractLocator, BuildOverContiguousRowsAndChainedRows) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "direct", 256);
+  construct_rows(s, {{1, 2, 5}, {1, 3}, {4, 7, 9}});
+  s.erase({2});
+  row_locator view;
+  view.build(s.context(), 4, true);
+  const row_view& v = view.view();
+  EXPECT_EQ(v.max_key, 4);
+  EXPECT_EQ(v.out != nullptr, true);
+  EXPECT_EQ(row_of_view(v, 1), (std::vector<int>{1, 2, 5}));
+  EXPECT_EQ(row_of_view(v, 2), std::vector<int>{});  // deleted
+  EXPECT_EQ(row_of_view(v, 3), (std::vector<int>{4, 7, 9}));
+  EXPECT_EQ(row_of_view(v, 4), std::vector<int>{});  // absent
+  // out[key]: the first entry of the row greater than the key.
+  int out1 = 0, out3 = 0, loc1 = 0, loc3 = 0;
+  ASSERT_EQ(cudaMemcpy(&out1, v.out + 1, sizeof(int), cudaMemcpyDeviceToHost), cudaSuccess);
+  ASSERT_EQ(cudaMemcpy(&out3, v.out + 3, sizeof(int), cudaMemcpyDeviceToHost), cudaSuccess);
+  ASSERT_EQ(cudaMemcpy(&loc1, v.loc + 1, sizeof(int), cudaMemcpyDeviceToHost), cudaSuccess);
+  ASSERT_EQ(cudaMemcpy(&loc3, v.loc + 3, sizeof(int), cudaMemcpyDeviceToHost), cudaSuccess);
+  EXPECT_EQ(out1 - loc1, 1);  // 2 > 1
+  EXPECT_EQ(out3 - loc3, 0);  // 4 > 3
+  row_locator plain;
+  plain.build(s.context(), 3, false);
+  EXPECT_EQ(plain.view().out, nullptr);
+  // A row that spans two segments.
+  const batch big = make_batch({1}, {iota_row(100, 10)});
+  s.append(big.keys, big.payload, big.prefix);
+  row_locator chained;
+  EXPECT_THROW(chained.build(s.context(), 3, false), internal_error);
+}
+
 // --- The shape of a batch ------------------------------------------------------------------------
 
 // A batch whose prefix sums do not describe its payload is rejected before anything changes (the
@@ -359,6 +394,72 @@ TEST(CbstContractSyncs, TheDebugCheckOfTheRowCountsIsCounted) {
 #else
   EXPECT_EQ(s.host_syncs() - before, 1);
 #endif
+}
+
+// --- Two stores on two streams, with compaction and growth ----------------------------------------
+
+/// Churn that compacts and grows a small store: appends, removals, an erase, a reuse, surplus
+/// rows and an explicit compact().
+void churn_step(cbst_store& s, int step) {
+  switch (step % 5) {
+    case 0: {
+      const batch b = make_batch({1, 2}, {iota_row(1000 + step * 50, 24), iota_row(9, 3)});
+      s.append(b.keys, b.payload, b.prefix);
+      break;
+    }
+    case 1: {
+      const batch b = make_batch({1}, {iota_row(1000 + (step - 1) * 50, 20)});
+      s.remove_values(b.keys, b.payload, b.prefix);
+      break;
+    }
+    case 2:
+      s.erase({3});
+      break;
+    case 3: {
+      const batch b = make_batch({0, 0}, {iota_row(300 + step, 2), iota_row(400 + step, 30)});
+      (void)s.insert(b.keys, b.payload, b.prefix);
+      break;
+    }
+    default:
+      (void)s.compact();
+      break;
+  }
+}
+
+TEST(CbstContractStreams, TwoStoresWithCompactionAndGrowthEqualSequentialRuns) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  const int steps = 40;
+  for (const store_policy& policy : {store_policy::dyng_default(), store_policy::escher_gpu()}) {
+    SCOPED_TRACE(policy.name);
+    cbst_store reference(res, "reference", 48, 4, policy);
+    construct_rows(reference, {iota_row(1, 5), iota_row(20, 3), iota_row(30, 7)});
+    for (int step = 0; step < steps; ++step) churn_step(reference, step);
+    const cbst_store_stats ref_stats = reference.stats();
+    EXPECT_GT(ref_stats.growths, 0);
+    EXPECT_GT(ref_stats.compactions, 0);
+    const std::vector<long long> want = fingerprint(reference.download());
+    cudaStream_t a = nullptr, b = nullptr;
+    ASSERT_EQ(cudaStreamCreateWithFlags(&a, cudaStreamNonBlocking), cudaSuccess);
+    ASSERT_EQ(cudaStreamCreateWithFlags(&b, cudaStreamNonBlocking), cudaSuccess);
+    {
+      const resources ra = resources::cuda(res.device(), stream_ref(a));
+      const resources rb = resources::cuda(res.device(), stream_ref(b));
+      cbst_store sa(ra, "a", 48, 4, policy), sb(rb, "b", 48, 4, policy);
+      construct_rows(sa, {iota_row(1, 5), iota_row(20, 3), iota_row(30, 7)});
+      construct_rows(sb, {iota_row(1, 5), iota_row(20, 3), iota_row(30, 7)});
+      for (int step = 0; step < steps; ++step) {  // interleaved, no host synchronization between
+        churn_step(sa, step);
+        churn_step(sb, step);
+      }
+      EXPECT_EQ(fingerprint(sa.download()), want);
+      EXPECT_EQ(fingerprint(sb.download()), want);
+      EXPECT_EQ(sa.stats().compactions, ref_stats.compactions);
+      EXPECT_EQ(sb.stats().growths, ref_stats.growths);
+    }
+    ASSERT_EQ(cudaStreamDestroy(a), cudaSuccess);
+    ASSERT_EQ(cudaStreamDestroy(b), cudaSuccess);
+  }
 }
 
 // --- The hysteresis of the default preset's compaction (ADR 0040) ---------------------------------

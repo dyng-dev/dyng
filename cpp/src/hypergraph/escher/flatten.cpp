@@ -14,6 +14,7 @@
 
 #include <dyng/core/error.hpp>
 
+#include <algorithm>
 #include <climits>
 #include <cstddef>
 #include <string>
@@ -32,7 +33,8 @@ static inline long long padded_row_size(long long num) {
 // Row i occupies [start_offsets[i], start_offsets[i] + padded): its values,
 // zero padding, and INT_MIN in the last slot. Rows are written in parallel.
 std::pair<std::vector<int>, std::vector<int>> flatten_rows(
-    const std::vector<std::vector<int>>& vec2d) {
+    const std::vector<std::vector<int>>& vec2d, long long max_slots) {
+  max_slots = std::min<long long>(max_slots, INT_MAX);
   const long long num_rows = static_cast<long long>(vec2d.size());
   std::vector<int> start_offsets(num_rows);
   long long total = 0;
@@ -42,10 +44,11 @@ std::pair<std::vector<int>, std::vector<int>> flatten_rows(
   }
   // The payload offsets are int32 (PLAN 4.4.2): a layout of more than 2^31 - 1 slots cannot be
   // addressed (ESCHER-GPU truncated the offsets).
-  if (total > INT_MAX) {
+  if (total > max_slots) {
     throw capacity_error("dyng: flatten_rows: the CBST layout of " + std::to_string(num_rows) +
-                         " rows needs " + std::to_string(total) +
-                         " payload slots, more than the int32 offsets address (2^31 - 1)");
+                         " rows needs " + std::to_string(total) + " payload slots, more than " +
+                         (max_slots == INT_MAX ? std::string("the int32 offsets address (2^31 - 1)")
+                                               : std::to_string(max_slots)));
   }
   std::vector<int> flat_values(total, 0);
 #if defined(_OPENMP)

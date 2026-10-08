@@ -135,6 +135,28 @@ add_test(NAME cbst_source_rules
                  "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
 )
 set_tests_properties(cbst_source_rules PROPERTIES LABELS "cpu;cbst")
+# The launch rule itself: a launch on a literal default stream is reported (M8a review).
+set(_cbst_rules_fixture "${CMAKE_CURRENT_BINARY_DIR}/cbst_source_rules_fixture")
+file(MAKE_DIRECTORY "${_cbst_rules_fixture}/src/hypergraph" "${_cbst_rules_fixture}/include/dyng")
+file(WRITE "${_cbst_rules_fixture}/src/hypergraph/launch.cu"
+     "void f(cudaStream_t s) {\n"
+     "  k<<<1, 32, 0, 0>>>();\n"
+     "  k<<<1, 32, 0, nullptr>>>();\n"
+     "  k<<<1, 32, 0, cudaStreamLegacy>>>();\n"
+     "  k<<<1, 32>>>();\n"
+     "  k<<<1, 32, 0, s>>>();\n"
+     "}\n"
+)
+add_test(NAME cbst_source_rules_default_stream
+         COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${_cbst_rules_fixture} -P
+                 "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
+)
+set_tests_properties(
+  cbst_source_rules_default_stream
+  PROPERTIES LABELS "cpu;cbst" PASS_REGULAR_EXPRESSION
+             "launch.cu:2: launch on the default stream: 1, 32, 0, 0.*launch.cu:3: .*launch.cu:4: .*launch.cu:5: "
+             FAIL_REGULAR_EXPRESSION "launch.cu:6: "
+)
 # The host parts of the store (its payload policy, flatten_rows), on every build.
 dyng_add_test(
   NAME dyng_cbst_host_tests

@@ -133,5 +133,16 @@ TEST(CbstFlatten, TheConstructLayout) {
   EXPECT_TRUE(no_starts.empty());
 }
 
+// A layout beyond the int32 offsets is a capacity_error (ESCHER-GPU truncated the offsets); the
+// limit is lowered to reach it without 8 GB of rows (M8a review).
+TEST(CbstFlatten, ALayoutBeyondTheLimitIsACapacityError) {
+  const std::vector<std::vector<int>> rows = {{1, 2, 3}, {}, {4, 5, 6, 7}, {8}};  // 20 slots
+  EXPECT_EQ(flatten_rows(rows, 20).first.size(), 20U);
+  EXPECT_THROW((void)flatten_rows(rows, 19), capacity_error);
+  EXPECT_THROW((void)flatten_rows({{1}}, 3), capacity_error);
+  // The limit never exceeds INT_MAX.
+  EXPECT_EQ(flatten_rows(rows, 1LL << 40).first.size(), 20U);
+}
+
 }  // namespace
 }  // namespace dyng::detail::escher
