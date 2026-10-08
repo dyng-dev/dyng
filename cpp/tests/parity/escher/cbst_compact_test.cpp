@@ -29,6 +29,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -45,8 +46,22 @@ namespace tr = dyng::test::cbst_trace;
 struct lockstep_result {
   std::int64_t ops = 0, compactions = 0, moved_back = 0, live_rows = 0, dead_rows = 0;
   std::int64_t stopped_trees = 0;
+  std::int64_t dead_key_stops = 0;  ///< trees stopped at an item naming a dead or absent key
   std::vector<std::string> problems;
 };
+
+/// Whether an append (fill) or remove_values (unfill) names a key that the model's state has
+/// not or holds deleted (neither operation changes the keys or avail).
+bool names_dead_or_absent_key(const op_request& req, const tree_digest& model) {
+  if (req.op != "fill" && req.op != "unfill") return false;
+  std::map<std::int32_t, std::int32_t> avail;
+  for (const key_digest& k : model.records) avail[k.key] = k.avail;
+  for (std::int32_t key : req.keys) {
+    const auto it = avail.find(key);
+    if (it == avail.end() || it->second != 0) return true;
+  }
+  return false;
+}
 
 /// The promises of a compaction (`before` and `after` are the store's states).
 std::string broken_promise(const tree_digest& before, const tree_digest& after,
@@ -123,7 +138,16 @@ lockstep_result lockstep(tr::reader& in) {
       // Both fail (a fixed capacity, ...) or the documented construct below its payload (the
       // store throws, the model keeps ESCHER-GPU's tree without nodes): the tree stops here.
       const bool documented = req.op == "construct" && req.capacity < req.flat_size;
-      if (a_ok != b_ok && !documented)
+      // The trace's inputs follow the original's InsertMappings; once compacting after every op
+      // changed a length, a later insert of the lockstep can map items elsewhere (store and model
+      // alike), and the trace's next fill or unfill may then name a key that is deleted or absent
+      // here. The store then applies dynG's rule (ADR 0039, section 5: the item is skipped and
+      // the operation throws internal_error), the model the originals' behaviour (it writes);
+      // checked against the model's state, this ends the tree as an agreed stop.
+      const bool dead_key = !a_ok && b_ok && a.error_type == "dyng::internal_error" &&
+                            names_dead_or_absent_key(req, model.digest(id));
+      if (dead_key) ++r.dead_key_stops;
+      if (a_ok != b_ok && !documented && !dead_key)
         r.problems.push_back(where + ": the store " + (a_ok ? "succeeded" : a.message) +
                              ", the model " + (b_ok ? "succeeded" : b.message));
       stopped.insert(id);
@@ -231,14 +255,17 @@ TEST(CbstCompactLockstepLarge, CompactAfterEveryOpOfTheSmallSets) {
       total.live_rows += r.live_rows;
       total.dead_rows += r.dead_rows;
       total.stopped_trees += r.stopped_trees;
+      total.dead_key_stops += r.dead_key_stops;
     }
   }
   std::printf(
       "lockstep: %lld ops, %lld compactions (%lld reclaimed space), %lld live and %lld "
-      "deleted rows checked after a compaction, %lld trees stopped at a failing op\n",
+      "deleted rows checked after a compaction, %lld trees stopped at a failing op (%lld at an "
+      "item naming a dead or absent key)\n",
       static_cast<long long>(total.ops), static_cast<long long>(total.compactions),
       static_cast<long long>(total.moved_back), static_cast<long long>(total.live_rows),
-      static_cast<long long>(total.dead_rows), static_cast<long long>(total.stopped_trees));
+      static_cast<long long>(total.dead_rows), static_cast<long long>(total.stopped_trees),
+      static_cast<long long>(total.dead_key_stops));
   EXPECT_GT(total.compactions, 10000);
 }
 #endif
