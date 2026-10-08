@@ -449,7 +449,8 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
   blocking runtime calls per op insert 17 / 7, fill 2 / 1, erase and unfill 0 / 0; allocation
   calls per op insert 25 / 0, erase 2 / 0, unfill 1 / 0, fill 3 / 0 (dynG allocates from the
   stream-ordered pool); registers per thread equal for every hot kernel but `unfill_thread`
-  (23 / 24); the warp and block bins do not run on coauth50k.
+  (23 / 24); the warp and block bins do not run on coauth50k. (Corrected by the review fixes: one
+  run at default clocks, and the dynG allocations were not counted; see "The review fixes".)
 - **Mutations**: all 7 killed (4-13 failed tests each); a mutant suite runs in 2-7 s.
 - **Sanitizers** (reduced sizes, GPU 1): memcheck, racecheck, synccheck and initcheck clean on
   `dyng_cbst_scenario_tests`, `_policy_tests`, `_graph_tests`, `_store_tests` and
@@ -472,16 +473,170 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
   facade (open since step 3).
 - **The line graph**: A's H2H rebuild inputs are hash-only in the golden set coauth50k; M8b's
   `sorted_merge` can be checked against the recorded hashes and the store accounting.
-- **Watch**: v2h unfill at 1.11x of A's device time per op (the bounded walk and the dead-key
-  lookup); M9 gates the `update` region and the nsys peak.
+- **Watch**: v2h unfill at 1.14x of A's device time per op at locked clocks (1.11x in the first
+  single run; the bounded walk and the dead-key lookup, visible in the unfill kernels' SASS); M9
+  gates the `update` region and the nsys peak.
+- **The store's contracts after the review**: a poisoned store refuses `rows()`, `find()` and
+  `check_errors()`; batches are validated (`validate_batch`); `dyng_default()` grows after a
+  compaction that leaves less than 1/8 free (size the container's trees knowing that a long-churn
+  tree under the default ends up with at least 1/8 of slack).
 
 ### Open items and author decisions
 
 - No new author decision is needed. For the author's review: the field-level documented divergence
   `construct_without_row_counts` (deviation 42) and the field set `policy` that defines criterion
   10(c) (deviation 45).
-- The release certificate's records for the cbst_trace sets (`compare.py --certificate`) are
-  written at release time; `certify.py`'s exception for sets without a record stays until then.
+- The release certificate's records for the cbst_trace sets: closed by the review fixes
+  (`certify.py` requires them; `ci/gpu_local.sh` writes them; see "The review fixes").
+- The hosted CI has not run on this branch (nothing is pushed); the orchestrator opens the PR.
+
+## The review fixes (2026-10-08)
+
+Independent reviewers confirmed 26 problems in the milestone as submitted at `2ee8bcc`; all are
+fixed on the branch, each in its own small commit (`aa26772` .. the commit of this record), with
+the affected tests, replays and measurements re-run after it (`parity/results/M8a.md`, section 14).
+
+### What was fixed
+
+- **Store correctness** (`cpp/src/hypergraph/escher`, ADR 0038 "Later changes", ADR 0040):
+  - a construct of 0 records after an earlier tree kept the old arrays (stale `find()` positions,
+    appends into stale rows); `rebuild_from_device` with 0 records launched 0-block grids and
+    poisoned the store; `row_locator::build_sorted_copy(max_key 0)` launched zero grids
+    (`aa26772`);
+  - no operation checked its batch's shape (an out-of-bounds device read that lost the CUDA
+    context); the construct accepted zero-length, overlapping or unordered rows and unsorted keys
+    (a fill then overwrote the next row); the fill's overflow plan was summed in int32 and could
+    wrap (`9175297`);
+  - `rows()`, `find()` and `check_errors()` succeeded on a poisoned store; `clone()` dropped a
+    pending device error and failed onto another device; the Debug check of the caller's row
+    counts synchronized uncounted (`e4ceaff`);
+  - `dyng_default()` had no hysteresis and compacted the whole payload more and more often before
+    it grew (`3961dc0`);
+  - test gaps: `row_locator::build`, `flatten_rows`' limit, two streams with compaction and growth,
+    a launch on a literal default stream (`0feda27`).
+- **Parity honesty** (`parity/`, `cpp/tests/parity/escher`):
+  - the criterion-10(c) replay labelled any layout difference a policy difference (a planted
+    compaction-padding defect passed): policy points now need differing events, the store's layout
+    under every preset is checked in lockstep with the host model, and the documented divergences
+    are pinned per set and rule (`8214aab`);
+  - B's sets judged against the model compared only the first field name of each tree's first
+    divergence: now the whole set of (field, key, expected, actual), with the unreplayable check
+    (`301dffc`);
+  - the release certificate left the CBST sets out of its verdict and no step wrote their
+    records: now required under the original's preset and `dyng_default` (`16a7251`, `6bb7782`);
+  - B's `bin/main` was never replayed: recorded and replayed once by `ci/gpu_local.sh`
+    (`cbst_trace_goldens.py once main`; `16a7251`).
+- **Provenance and records**: the provenance check's CBST symbols derived from the rename map, and
+  `cbst_merge_test.cpp`'s header (`9e2a3db`); two wrong citations (`5440447`); the "every recorded
+  field" claims qualified (`d8a2a25`); section 12's lockstep record dated (`7668ed5`); personal
+  paths out of the replay records (`3439022` and the regenerated records); `cbst_merge_steps.sh`
+  no longer replaces the records it is cited by (`6865a42`).
+- **Measurements**: the early-warning table re-measured with PLAN 8.6's protocol (20 alternating
+  runs per side at locked clocks, medians and spread; registers, occupancy and SASS of every hot
+  kernel from cuobjdump; every allocation call counted, `cudaMallocFromPoolAsync` included)
+  (`f12e58d` and the record).
+
+### The findings and their commits
+
+| # | finding (severity) | commit |
+|---|---|---|
+| 1 | the criterion-10(c) replay labelled layout differences as policy differences (high) | `8214aab` |
+| 2 | the release certificate never gated the CBST sets (medium) | `16a7251`, `6bb7782` |
+| 3 | B's sets judged against the model on one field name per tree (medium) | `301dffc`, refined by `32cf67d` |
+| 4 | B's `bin/main` never replayed (low) | `16a7251` |
+| 5 | construct of 0 records kept the old node arrays (high) | `aa26772` |
+| 6 | `rebuild_from_device` with 0 records poisoned the store (high) | `aa26772` |
+| 7 | `row_locator::build_sorted_copy(max_key 0)` launched zero grids (medium) | `aa26772` |
+| 8 | no validation of an operation's batch shape (medium) | `9175297` |
+| 9 | construct accepted zero-length or unordered rows (medium) | `9175297` |
+| 10 | `clone()` onto another device failed (medium) | `e4ceaff` |
+| 11 | reads of a poisoned store succeeded (medium) | `e4ceaff` |
+| 12 | `clone()` dropped a pending device error (medium) | `e4ceaff` |
+| 13 | the Debug check of the row counts synchronized uncounted (low) | `e4ceaff` |
+| 14 | the fill's overflow prefix sum was int32 (low) | `9175297` (deviation 59) |
+| 15 | test gaps: `row_locator::build`, `flatten_rows`' limit, two streams, literal default stream (low) | `0feda27` |
+| 16 | provenance SYMBOLS missed about 20 port identifiers (medium) | `9e2a3db` |
+| 17 | `cbst_merge_test.cpp` had no `Derived from` line (low) | `9e2a3db` |
+| 18 | the "every recorded field" claims named no exemptions (low) | `d8a2a25` |
+| 19 | section 12 dated no commit for its lockstep pass (low) | `7668ed5` |
+| 20 | ADR 0040 cited B's fill throw at the wrong lines (low) | `5440447` |
+| 21 | the README credited A's 64-bit rank to the port (low) | `5440447` |
+| 22 | personal paths in 32 replay records (low) | `3439022` and the regenerated records |
+| 23 | `cbst_merge_steps.sh` deleted the records it is cited by (low) | `6865a42` |
+| 24 | the early-warning table did not follow PLAN 8.6's protocol (medium) | `f12e58d` and the record |
+| 25 | the early-warning table counted no dynG allocation (medium) | `f12e58d` and the record |
+| 26 | `dyng_default()` had no compaction hysteresis (medium) | `3961dc0` |
+
+### Deviations (each with the same intent)
+
+56. **The hysteresis is a new rule of the default preset**, not of PLAN 6.4.5's literal text
+    ("compact first, then grow"): after an automatic compaction the default also grows when fewer
+    than 1/8 of the slots are free (ADR 0040 section 1). It keeps the plan's order and its
+    failure rule, changes no original's preset, and is mirrored by the host model, so the
+    criterion-10(c) replays document the extra growths (B's `mosp_escher_test`: 5 documented
+    divergences instead of 1, pinned).
+57. **The policy lockstep's model of `mosp_escher()` scans** where B's construct had no row counts
+    (the store never takes B's `nullptr` path, ADR 0039 (c)); the replay against B's trace still
+    documents that divergence (`construct_without_row_counts`). Trees whose next op the model
+    cannot predict (an op the preset's original lacks, e.g. A's rebuilds under `mosp_escher()`)
+    stop as counted agreed stops.
+58. **The comparison with the model after a trace divergence** (the review's "better" fix) is the
+    policy lockstep at the head; the merge-step replays of earlier commits compare the whole first
+    divergence only, because the lockstep test does not exist in those commits' trees.
+59. **The fill's int32 overflow path is not exercised by a test**: it needs batches of several GB.
+    It is reached only when the bump pointer plus the item sizes plus 3 per item passes INT_MAX
+    (code inspection; the traces never come near), and then it reads the plan back exactly before
+    deciding. `flatten_rows`' limit is tested through its new parameter instead.
+60. **`download()` stays readable on a poisoned store** (the forensic exception, documented):
+    the tests use it to show what a failed operation wrote.
+61. **One intermediate commit failed two Python tests**: `16a7251` made the certificate require
+    the CBST records, and the full-certificate fixture got them in `6bb7782`.
+62. **Commits were staged from the tested final tree**, hunk by hunk; every store commit was then
+    built and its CBST tests run in a temporary worktree (section 14).
+63. **The whole-first-divergence comparison reads a thrown op's status by its exception type**
+    (`32cf67d`). Its first full re-run of the merge-step table failed every commit from
+    `2bc0e24` on, in B's sets under the staging preset; in every failing tree the store and the
+    host model threw `capacity_error` at the same op with every compared value equal, and the
+    sets differed only in the two stores' wording of the message and in the InsertMapping of a
+    thrown insert, which neither returns. The table's divergences were described correctly. The
+    comparison now takes the status of a thrown op as "exception <type>" (criterion 3's recorded
+    field) and a thrown op's mapping as none; a different type or any other value still fails
+    (`a7fd8e8`). The re-run then failed one more row, `c981416`, at the targeted `compact()`
+    that the store merges one commit later: the store reports it unsupported, the model's
+    staging policy "has no compact()"; `4b1c519` reads exactly these two wordings as one status
+    (the model's other "undefined" statuses stay distinct; `9acb3b5`). Nothing else of the
+    comparison changed.
+64. **`3961dc0` changed the testing header without the API baseline** (`compaction_headroom`):
+    `ci/check.sh`'s docs step failed on the branch until `f0eb0ca` regenerated
+    `public_api.txt` (ADR 0023; the CHANGELOG already listed the field).
+
+### Measurements
+
+- **The planted defect** (the review's compaction padding): the default-preset replay now fails
+  (`mosp_escher_test` 10,519 mismatches, first at op 197; `escher_gpu_targeted` off its pinned
+  count; the policy lockstep fails), where it passed with 2,401 "documented" divergences before.
+- **Replays at the head**: every set under its original's preset and `dyng_default()` with 0
+  mismatches and exactly the pinned documented divergences; B's sets under `escher_gpu()` agree
+  with the host model in the whole first divergence of every tree; the policy lockstep over the
+  small sets 14,319 / 15,237 / 15,385 ops (`escher_gpu()` / `mosp_escher()` / `dyng_default()`),
+  0 problems; B's `bin/main` recorded once, 111 ops replayed, 0 mismatches.
+- **The merge-step table** replayed again with the whole-first-divergence comparison: every row
+  `ok` after `32cf67d` and `4b1c519` (the first run's failures were the two stores' wording of
+  one exception or missing operation, deviation 63); at the head every set, the large ones
+  included, with 0 mismatches and the pinned documented divergences (results section 14).
+- **Memory (criterion 15)**: unchanged, 1.0000 of ESCHER-GPU's accounting at all 18 readings
+  under both presets.
+- **Early warning** (20 alternating runs per side, locked clocks): v2h unfill **1.14x** of A
+  (0.847 / 0.744 ms, the spread under 2%), h2v insert 0.99x, erase 1.00x, fill 0.94x; the unfill
+  kernels' SASS grew (thread 192 -> 376, warp 352 -> 552, block 568 -> 752 instructions; registers
+  23 -> 24, 23 -> 25, 36 -> 36), all at full theoretical occupancy; dynG makes as many allocation
+  calls per op as A, all stream-ordered (step 5's "0" was a counting error).
+- **Effort**: about 9 hours over two sessions (a usage limit interrupted the first), most of it
+  waiting for the perf lock and replaying the merge steps between the release branch's
+  certificate runs.
+
+### Open items
+
 - The hosted CI has not run on this branch (nothing is pushed); the orchestrator opens the PR.
 
 ## The acceptance criteria
@@ -497,12 +652,12 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
 | 7 | timed regions | `parity/timed_regions/hypergraph.toml` (before the first port commit) |
 | 8 | host model, the go/no-go | step 2; ADR 0037; section 10 |
 | 9 | verbatim port | step 3; ADR 0038; section 11 |
-| 10 | replay at every merge-step commit | sections 11-13 (`parity/cbst_merge_steps.sh`); (a) every commit; (b) from `00319da` no divergence but `construct_without_row_counts`; (c) from `9d599aa` |
+| 10 | replay at every merge-step commit | sections 11-13 (`parity/cbst_merge_steps.sh`); (a) every commit; (b) from `00319da` no divergence but `construct_without_row_counts`; (c) from `9d599aa`, with the stricter comparison, the policy lockstep and the pinned counts of the review fixes (section 14) |
 | 11 | one B behaviour per commit | steps 4-5; ADR 0039 section 2, ADR 0040 |
 | 12 | presets and error policy | ADR 0040 sections 1, 2, 4; `CbstStorePresets`, `CbstScenario.ChurnGrowth` |
 | 13 | scenarios and unit tests | `cbst_scenarios_test.cpp`, `cbst_policy_test.cpp`, `cbst_graph_test.cpp`, `cbst_merge_test.cpp`, `cbst_store_test.cpp` |
 | 14 | kernel-path coverage | `dyng_cbst_coverage_tests` (section 11); the random scenario under every preset |
-| 15 | early store memory | `parity/results/M8a-memory.json`, `M8a-memory-dyng_default.json`; section 13 |
+| 15 | early store memory | `parity/results/M8a-memory.json`, `M8a-memory-dyng_default.json`; sections 13 and 14 |
 | 16 | GPU robustness | the sanitizers (sections 11-13), two streams, host syncs, double replay |
 | 17 | mutations | `cbst.mutation.*`, `parity/mutate.py run --suites cbst` |
 | 18 | CI and records | `ci/check.sh`, `ci/gpu_local.sh` (section 13); ADRs 0036-0040; this record; the PR is the orchestrator's |
