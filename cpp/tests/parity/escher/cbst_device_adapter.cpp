@@ -389,6 +389,9 @@ op_outcome device_store_adapter::run(std::uint32_t id, const op_request& op) {
       out.message = "the store has no operation '" + op.op + "' under " + policy_;
       return out;
     }
+    // The store's device error word (a broken chain, a dead or absent key; M8a step 4) after
+    // every operation: an error is the operation's exception.
+    s.check_errors();
     cuda_check(cudaDeviceSynchronize(), "after the operation");
   } catch (const std::exception& e) {
     out.status = op_status::error;

@@ -103,13 +103,16 @@ __global__ void fixup_overflow_metadata_kernel(cbst_node* nodes, int* insert_ind
 // Unfill (degree-binned)
 __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                      int* values_to_remove, int* remove_prefix_sizes,
-                                     int* bin_indices, int bin_count);
+                                     int* bin_indices, int bin_count, int used,
+                                     std::uint32_t* control);
 __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                    int* values_to_remove, int* remove_prefix_sizes,
-                                   int* bin_indices, int bin_count);
+                                   int* bin_indices, int bin_count, int used,
+                                   std::uint32_t* control);
 __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                     int* values_to_remove, int* remove_prefix_sizes,
-                                    int* bin_indices, int bin_count);
+                                    int* bin_indices, int bin_count, int used,
+                                    std::uint32_t* control);
 
 // Host launchers of the construction kernels and of the inverse layout formula, for the layout
 // test of ESCHER-GPU's tests/cbst_test.cu (which launched the kernels directly; the host stubs of

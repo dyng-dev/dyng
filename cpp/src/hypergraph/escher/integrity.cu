@@ -11,6 +11,7 @@
  * cpp/src/hypergraph/escher/README.md).
  */
 #include "core/cuda_runtime.hpp"
+#include "hypergraph/escher/chain.cuh"
 #include "hypergraph/escher/integrity.hpp"
 #include "util/cuda_check.hpp"
 
@@ -75,29 +76,17 @@ struct host_tree {
     long long begin, end;
   };
 
-  // Reads a row following chain pointers. Returns false if the walk leaves
-  // the payload or does not terminate.
+  // Reads a row following chain pointers, with the bounded walk of chain.cuh (M8a step 4).
+  // Returns false if the walk leaves the payload or does not terminate.
   bool read_row(int t, std::vector<int>& row, std::vector<segment>* segments) const {
     row.clear();
-    long long loc = nodes[t].value, seg_begin = loc;
-    const long long limit = static_cast<long long>(flat.size());
-    for (long long steps = 0; steps <= limit; ++steps) {
-      if (loc < 0 || loc >= limit) return false;
-      int v = flat[loc];
-      if (v < 0 && v != INT_MIN) {
-        if (segments) segments->push_back({seg_begin, loc});
-        loc = -static_cast<long long>(v);
-        seg_begin = loc;
-        continue;
-      }
-      if (v == 0 || v == INT_MIN) {
-        if (segments) segments->push_back({seg_begin, loc});
-        return true;
-      }
-      row.push_back(v);
-      ++loc;
-    }
-    return false;
+    const chain_end e = walk_chain(
+        flat, static_cast<long long>(flat.size()), nodes[t].value,
+        [&](long long, int v) { row.push_back(v); },
+        [&](long long begin, long long end, int) {
+          if (segments) segments->push_back({begin, end});
+        });
+    return e == chain_end::terminated;
   }
 };
 

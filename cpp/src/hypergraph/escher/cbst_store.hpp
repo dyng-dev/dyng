@@ -20,10 +20,19 @@
 #include <cuda_runtime.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 namespace dyng::detail::escher {
+
+// The words of a store's control block (cbst_context::d_control).
+enum control_word : int {
+  control_errors = 0,    // the bits of device_error (util/device_error_flags.hpp)
+  control_overruns = 1,  // row walks that overran the used payload (a broken chain)
+  control_rejected = 2,  // append / remove_values items that named a dead or absent key
+  control_words = 4,
+};
 
 // CBST node definition shared by kernels across translation units
 struct cbst_node {
@@ -80,6 +89,14 @@ struct cbst_context {
   long long host_syncs = 0;
   // The degree-bin launches of this store's operations.
   degree_bin_launches bin_launches;
+  // The store's device error word and its counters (M8a step 4, ADR 0039; PLAN 4.7.3), on the
+  // device (d_control) and in a pinned host mirror (h_control) that every read point refreshes:
+  // [control_errors] the bits of device_error, [control_overruns] row walks that left the used
+  // payload or read more slots than it has (a broken chain, chain.cuh), [control_rejected] items
+  // of append / remove_values that named a dead or absent key. Reset by construct and rebuild.
+  buffer<std::uint32_t> control_storage, control_mirror_storage;
+  std::uint32_t* d_control = nullptr;
+  std::uint32_t* h_control = nullptr;
   buffer<cbst_node> nodes_storage;
   buffer<int> keys_storage, start_offsets_storage, flat_payload_storage, insert_keys_storage,
       insert_payload_storage, insert_prefix_sizes_storage, relocation_plan_storage, avail_storage,
@@ -109,6 +126,14 @@ struct cbst_host_state {
 struct insert_mapping {
   std::vector<int> item_to_key;
 };
+
+// Queues the copy of the control block into its pinned mirror on the store's stream (before a
+// read point's synchronization).
+void enqueue_control_readback(const cbst_context& ctx);
+// After the synchronization that followed enqueue_control_readback(): throws the exception of the
+// device error word (internal_error for a broken chain or a dead or absent key, with the counts)
+// if a kernel raised it.
+void throw_if_control_raised(const cbst_context& ctx, const char* what);
 
 // Host API for CBST operations (free functions). The payload buffer grows on
 // demand when fill overflow or surplus inserts need more room.
@@ -180,8 +205,14 @@ struct cbst_store {
   cbst_store clone() const {
     return clone(ctx_.res);
   }
-  // The store's state on the host (dynG addition; synchronizes the stream).
+  // The store's state on the host (dynG addition; synchronizes the stream). It does not check the
+  // device error word.
   cbst_host_state download() const;
+  // Waits for the store's work and throws the exception of its device error word if a kernel
+  // raised it since the last read point (a broken chain, a dead or absent key; M8a step 4): the
+  // read point of the operations without one of their own (erase, remove_values), for the end of
+  // the container's update. An error poisons the store. One host synchronization.
+  void check_errors();
   // The heap position of the node of every key (-1: absent).
   std::vector<int> find(const std::vector<int>& ids) const;
   // The degree-bin launches of the store's operations so far.
@@ -210,7 +241,8 @@ struct cbst_store {
   // The bytes of the arrays the store holds now, in the same scope as device_bytes() (the nodes,
   // keys, row offsets, avail, subtree_avail, payload and operation scratch; not the
   // temporaries of an operation, which are released when it returns, nor a row locator's
-  // arrays). Equal to device_bytes() once the tree is constructed (dynG addition).
+  // arrays, nor the control block of control_words words of M8a step 4, which ESCHER-GPU did not
+  // have). Equal to device_bytes() once the tree is constructed (dynG addition).
   size_t allocated_bytes() const;
 
  private:

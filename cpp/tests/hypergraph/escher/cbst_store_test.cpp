@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstddef>
+#include <cstdint>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -343,7 +344,10 @@ TEST(CbstStoreDeviceBytes, IsWhatTheStoreHolds) {
       EXPECT_EQ(s.allocated_bytes(), s.device_bytes());
       // The temporaries of an operation are gone when it returns: the store holds exactly its
       // arrays.
-      EXPECT_EQ(counter.live(), static_cast<long long>(s.allocated_bytes()));
+      // (The store's control block, the device error word and its counters of M8a step 4, is
+      // outside ESCHER-GPU's accounting scope.)
+      EXPECT_EQ(counter.live(), static_cast<long long>(s.allocated_bytes() +
+                                                       control_words * sizeof(std::uint32_t)));
     };
     // construct, fill with an overflow, erase, reuse and surplus, unfill
     (void)build_busy_tree(s);
@@ -378,9 +382,10 @@ TEST(CbstStoreErrors, ACapacityBelowThePayloadIsRejectedBeforeAnythingChanges) {
   std::vector<int> keys = {1, 2}, starts = {0, 4};
   std::vector<int> flat = {1, 2, 3, INT_MIN, 4, 0, 0, INT_MIN};
   cbst_store small(res, "smaller", 7);
+  const long long created = counter.allocations();  // the stores' control blocks
   EXPECT_THROW(small.construct(keys.data(), starts.data(), 2, flat.data(), 8),
                invalid_argument_error);
-  EXPECT_EQ(counter.allocations(), 0);  // nothing was allocated
+  EXPECT_EQ(counter.allocations(), created);  // nothing was allocated
   EXPECT_FALSE(small.poisoned());
   EXPECT_EQ(small.context().num_records, 0);
   s.construct(keys.data(), starts.data(), 2, flat.data(), 8);
@@ -405,6 +410,7 @@ TEST(CbstStoreErrors, TheConstructValidation) {
                invalid_argument_error);
   // A capacity below the payload, also for a tree of 0 records.
   cbst_store small(res, "small", 4);
+  const long long created = counter.allocations();  // the stores' control blocks
   EXPECT_THROW(small.construct(nullptr, nullptr, 0, flat.data(), 8), invalid_argument_error);
   // Missing arrays.
   EXPECT_THROW(s.construct(nullptr, starts.data(), 2, flat.data(), 8), invalid_argument_error);
@@ -413,7 +419,7 @@ TEST(CbstStoreErrors, TheConstructValidation) {
   // A record count beyond the int32 indexing of the operation scratch (3 ints per record).
   EXPECT_THROW(s.construct(keys.data(), starts.data(), INT_MAX / 3 + 1, flat.data(), 8),
                capacity_error);
-  EXPECT_EQ(counter.allocations(), 0);  // nothing was allocated
+  EXPECT_EQ(counter.allocations(), created);  // nothing was allocated
   for (const cbst_store* t : {&s, &negative, &small}) {
     EXPECT_FALSE(t->poisoned());
     EXPECT_EQ(t->context().num_records, 0);

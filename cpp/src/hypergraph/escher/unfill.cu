@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:kernel/unfill.cu
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/find.cu (the bounded chain walk)
 /**
  * @file unfill.cu
  * @brief Unfill kernels: degree-binned removal of values from rows (serial over chained rows, warp
@@ -10,10 +11,13 @@
  * parity/escher_port/rename_map.toml (M8a, ADR 0038; the encoding is described in
  * cpp/src/hypergraph/escher/README.md).
  */
+#include "hypergraph/escher/chain.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "util/device_error_flags.cuh"
 #include "util/kernel_registry.hpp"
 
 #include <climits>
+#include <cstdint>
 
 namespace dyng::detail::escher {
 
@@ -37,41 +41,53 @@ static __device__ cbst_node* unfill_bst_find(cbst_node* nodes, int key) {
 // fill appends at tail_base + occupancy. (The original subtracted removals
 // from every segment from the tail occupancy, so a later fill overwrote
 // live entries of the tail segment.)
+// The row is walked with the bounded walk of chain.cuh (M8a step 4, ADR 0039): a chain that leaves
+// the `used` payload slots or reads more slots than it has raises the store's device error word
+// (control) and leaves the occupancy as it was; it never hangs.
 static __device__ int unfill_row_serial(const cbst_node* node, int* flat_values,
-                                        const int* values_to_remove, int start, int end) {
-  int seg_base = node->value;
-  for (;;) {
-    int w = 0;
-    int i = 0;
-    for (;;) {
-      int val = flat_values[seg_base + i];
-      if (val == INT_MIN || val == 0 || val < 0) break;
-      bool remove_it = false;
-      for (int r = start; r < end; ++r) {
-        if (values_to_remove[r] == val) {
-          remove_it = true;
-          break;
+                                        const int* values_to_remove, int start, int end,
+                                        long long used, std::uint32_t* control) {
+  long long seg_base = node->value;  // the segment being compacted
+  int w = 0;                         // its values kept so far
+  int tail_live = 0;
+  const chain_end e = walk_chain(
+      flat_values, used, node->value,
+      [&](long long slot, int val) {
+        (void)slot;  // seg_base + w <= slot: the kept value moves down or stays
+        bool remove_it = false;
+        for (int r = start; r < end; ++r) {
+          if (values_to_remove[r] == val) {
+            remove_it = true;
+            break;
+          }
         }
-      }
-      if (!remove_it) {
-        flat_values[seg_base + w] = val;
-        ++w;
-      }
-      ++i;
-    }
-    int end_val = flat_values[seg_base + i];
-    bool chained = end_val < 0 && end_val != INT_MIN;
-    flat_values[seg_base + w] = chained ? end_val : INT_MIN;
-    for (int z = w + 1; z <= i; ++z) flat_values[seg_base + z] = 0;
-    if (!chained) return w;
-    seg_base = -end_val;
+        if (!remove_it) {
+          flat_values[seg_base + w] = val;
+          ++w;
+        }
+      },
+      [&](long long begin, long long end_slot, int end_val) {
+        (void)begin;  // == seg_base
+        bool chained = end_val < 0 && end_val != INT_MIN;
+        flat_values[seg_base + w] = chained ? end_val : INT_MIN;
+        for (long long z = seg_base + w + 1; z <= end_slot; ++z) flat_values[z] = 0;
+        tail_live = w;
+        w = 0;
+        if (chained) seg_base = -static_cast<long long>(end_val);
+      });
+  if (e == chain_end::overrun) {
+    raise_device_error(control + control_errors, device_error::internal);
+    atomicAdd(reinterpret_cast<unsigned int*>(control + control_overruns), 1U);
+    return node->occupancy;
   }
+  return tail_live;
 }
 
 // ── Thread-level unfill with metadata (small bins) ──────────────────────
 __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                      int* values_to_remove, int* remove_prefix_sizes,
-                                     int* bin_indices, int bin_count) {
+                                     int* bin_indices, int bin_count, int used,
+                                     std::uint32_t* control) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= bin_count) return;
 
@@ -82,7 +98,7 @@ __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* ke
 
   cbst_node* cur = unfill_bst_find(nodes, key);
   if (cur == nullptr) return;
-  cur->occupancy = unfill_row_serial(cur, flat_values, values_to_remove, start, end);
+  cur->occupancy = unfill_row_serial(cur, flat_values, values_to_remove, start, end, used, control);
 }
 
 // ── Warp-level unfill (medium bins, 32 <= occupancy < 1024) ─────────────
@@ -91,7 +107,8 @@ __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* ke
 // Falls back to thread-level logic for multi-segment (overflow chain) nodes.
 __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                    int* values_to_remove, int* remove_prefix_sizes,
-                                   int* bin_indices, int bin_count) {
+                                   int* bin_indices, int bin_count, int used,
+                                   std::uint32_t* control) {
   int global_tid = threadIdx.x + blockIdx.x * blockDim.x;
   int warp_idx = global_tid >> 5;
   int lane = threadIdx.x & 31;
@@ -115,7 +132,8 @@ __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys
   // For multi-segment (overflow chain), fall back to lane 0 doing serial work.
   if (cur->tail_base != cur->value) {
     if (lane == 0)
-      cur->occupancy = unfill_row_serial(cur, flat_values, values_to_remove, rem_start, rem_end);
+      cur->occupancy =
+          unfill_row_serial(cur, flat_values, values_to_remove, rem_start, rem_end, used, control);
     return;
   }
 
@@ -173,7 +191,8 @@ __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys
 // for the removal set and block-wide scan for compaction.
 __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                     int* values_to_remove, int* remove_prefix_sizes,
-                                    int* bin_indices, int bin_count) {
+                                    int* bin_indices, int bin_count, int used,
+                                    std::uint32_t* control) {
   int idx = blockIdx.x;
   if (idx >= bin_count) return;
 
@@ -206,8 +225,8 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
   // Multi-segment fallback: thread 0 does serial
   if (sh_node->tail_base != sh_node->value) {
     if (threadIdx.x == 0)
-      sh_node->occupancy =
-          unfill_row_serial(sh_node, flat_values, values_to_remove, sh_rem_start, sh_rem_end);
+      sh_node->occupancy = unfill_row_serial(sh_node, flat_values, values_to_remove, sh_rem_start,
+                                             sh_rem_end, used, control);
     return;
   }
 

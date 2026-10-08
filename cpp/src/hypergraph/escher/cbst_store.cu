@@ -15,8 +15,10 @@
  */
 #include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
+#include "core/resources_access.hpp"
 #include "hypergraph/escher/cbst_store.hpp"
 #include "util/cuda_check.hpp"
+#include "util/device_error_flags.hpp"
 #include "util/thrust_allocator.cuh"
 
 #include <dyng/core/backend.hpp>
@@ -60,12 +62,41 @@ static cudaStream_t stream_of(const cbst_context& ctx) {
   return static_cast<cudaStream_t>(ctx.res.stream().get());
 }
 
+void enqueue_control_readback(const cbst_context& ctx) {
+  if (ctx.d_control == nullptr) return;
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.h_control, ctx.d_control, control_words * sizeof(std::uint32_t),
+                                cudaMemcpyDeviceToHost, stream_of(ctx)));
+}
+
+void throw_if_control_raised(const cbst_context& ctx, const char* what) {
+  if (ctx.h_control == nullptr) return;
+  const volatile std::uint32_t* mirror = ctx.h_control;
+  const std::uint32_t bits = mirror[control_errors];
+  if (bits == 0) return;
+  std::ostringstream detail;
+  detail << mirror[control_overruns]
+         << " row walks overran the used payload (a cyclic or broken chain), "
+         << mirror[control_rejected] << " append / remove_values items named a dead or absent key";
+  throw_device_errors(bits, "CBST " + ctx.dataset_name + ": " + what, detail.str());
+}
+
 // One host synchronization with the store's stream, at a point where ESCHER-GPU reads a value
-// back (ADR 0038 lists them); counted per store and by the budget counters.
+// back (ADR 0038 lists them); counted per store and by the budget counters. The control block
+// comes back with it (M8a step 4): a device error raised since the last read point throws here.
 static void synchronize(cbst_context& ctx) {
+  enqueue_control_readback(ctx);
   DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx)));
   note_host_sync();
   ++ctx.host_syncs;
+  throw_if_control_raised(ctx, "a device error");
+}
+
+// Clears the control block (a new tree).
+static void reset_control(cbst_context& ctx) {
+  if (ctx.d_control == nullptr) return;
+  DYNG_CUDA_TRY(
+      cudaMemsetAsync(ctx.d_control, 0, control_words * sizeof(std::uint32_t), stream_of(ctx)));
+  for (int w = 0; w < control_words; ++w) ctx.h_control[w] = 0;
 }
 
 // A Thrust algorithm that returns a value to the host waited for the stream (count_if, the end of
@@ -264,6 +295,7 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
   // Rejected before anything changes or is allocated.
   validate_construct(keys, start_offsets, num_records, flat_payload, flat_payload_size,
                      payload_capacity, dataset_name, row_counts);
+  reset_control(ctx);
   ctx.fixed_size = payload_capacity;
   ctx.num_records = num_records;
   ctx.initial_payload_size = flat_payload_size;
@@ -363,6 +395,7 @@ void rebuild_cbst_from_device(buffer<int> start_offsets, int num_records, buffer
                "CBST ", ctx.dataset_name, ": rebuild_from_device: ", start_offsets.size(),
                " row offsets and a payload of ", flat_payload.size(), " for ", num_records,
                " rows, ", flat_payload_size, " used of a capacity of ", payload_capacity);
+  reset_control(ctx);
   release(ctx.nodes_storage, ctx.d_nodes);
   release(ctx.keys_storage, ctx.d_keys);
   release(ctx.start_offsets_storage, ctx.d_start_offsets);
@@ -806,6 +839,14 @@ cbst_store::cbst_store(const resources& res, std::string dataset_name, int paylo
   ctx_.dataset_name = std::move(dataset_name);
   ctx_.fixed_size = payload_capacity;
   ctx_.alignment = alignment;
+  // The control block (M8a step 4): a few words on the device and their pinned mirror.
+  const scoped_device guard(res.device());
+  ctx_.control_storage = buffer<std::uint32_t>(res, control_words);
+  ctx_.control_mirror_storage =
+      buffer<std::uint32_t>(control_words, res.stream(), resources_access::staging_memory(res), -1);
+  ctx_.d_control = ctx_.control_storage.data();
+  ctx_.h_control = ctx_.control_mirror_storage.data();
+  reset_control(ctx_);
 }
 
 cbst_store::~cbst_store() = default;
@@ -823,6 +864,8 @@ static void clear_views(cbst_context& ctx) {
   ctx.d_relocation_plan = nullptr;
   ctx.d_avail = nullptr;
   ctx.d_subtree_avail = nullptr;
+  ctx.d_control = nullptr;
+  ctx.h_control = nullptr;
 }
 
 cbst_store::cbst_store(cbst_store&& other) noexcept
@@ -1004,6 +1047,17 @@ cbst_store cbst_store::clone(const resources& res) const {
   return copy;
 }
 
+void cbst_store::check_errors() {
+  if (!constructed_ || poisoned_) return;
+  const scoped_device guard(ctx_.res.device());
+  try {
+    synchronize(ctx_);
+  } catch (...) {
+    poisoned_ = true;
+    throw;
+  }
+}
+
 // A device array on the host (part of download()).
 template <typename value_t>
 static std::vector<value_t> download_array(const cbst_context& ctx, const value_t* device,
@@ -1133,19 +1187,23 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
     unfill_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
                            stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
                                              ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
-                                             bins.bin(0), bins.count[0]);
+                                             bins.bin(0), bins.count[0], ctx.initial_payload_size,
+                                             ctx.d_control);
   if (bins.count[1] > 0)
     unfill_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size, 0,
                          stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
                                            ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
-                                           bins.bin(1), bins.count[1]);
+                                           bins.bin(1), bins.count[1], ctx.initial_payload_size,
+                                           ctx.d_control);
   if (bins.count[2] > 0) {
     size_t shmem = sizeof(int) * static_cast<size_t>(block_size + 1);
     unfill_block_kernel<<<bins.count[2], block_size, shmem, stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
-        ctx.d_insert_prefix_sizes, bins.bin(2), bins.count[2]);
+        ctx.d_insert_prefix_sizes, bins.bin(2), bins.count[2], ctx.initial_payload_size,
+        ctx.d_control);
   }
   DYNG_CHECK_KERNEL(stream_of(ctx));
+  // No read point: a broken chain the walks found surfaces at the next one (or check_errors()).
 }
 
 }  // namespace dyng::detail::escher

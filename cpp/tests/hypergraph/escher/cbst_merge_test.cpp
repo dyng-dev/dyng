@@ -7,6 +7,8 @@
  */
 #include "hypergraph/escher/cbst_store.hpp"
 #include "hypergraph/escher/cbst_test_support.hpp"
+#include "hypergraph/escher/integrity.hpp"
+#include "hypergraph/escher/row_view.cuh"
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/error.hpp>
@@ -14,7 +16,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <climits>
+#include <cstddef>
+#include <sstream>
+#include <string>
 #include <vector>
 
 namespace dyng::detail::escher {
@@ -131,6 +137,144 @@ TEST(CbstMergeRowCounts, AFastPathWithTheNodesOfTheScan) {
                                static_cast<int>(l.flat.size()), wrong.data()),
                internal_error);
 #endif
+}
+
+// --- (d) The bounded chain walk (chain.cuh) ------------------------------------------------------
+
+// A row of 2,000 segments (each append of 3 values to a full tail adds one): more than
+// MOSP_ESCHER's literal 1,024 hops, which would truncate it; the walk bounded by the used payload
+// reads it completely, in the integrity checker, the row locator and the unfill writer.
+TEST(CbstMergeChain, TwoThousandOverflowingAppendsReadBackCompletely) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "long chain", 64);
+  rows want = {iota_row(1, 3), iota_row(100, 2)};
+  construct_rows(s, want);
+  int next = 1000;
+  for (int i = 0; i < 2000; ++i, next += 3) {
+    const std::vector<int> three = iota_row(next, 3);
+    const batch b = make_batch({1}, {three});
+    s.append(b.keys, b.payload, b.prefix);
+    want[0].insert(want[0].end(), three.begin(), three.end());
+  }
+  ASSERT_EQ(want[0].size(), 6003U);
+  EXPECT_EQ(violations(s, want), 0);  // in read order
+  // The row has 2,001 segments: 2,000 chain hops.
+  const cbst_host_state h = s.download();
+  long long hops = 0;
+  for (const cbst_host_node& n : h.nodes) {
+    if (n.index != 1) continue;
+    for (long long loc = n.value;;) {
+      const int v = h.payload[static_cast<std::size_t>(loc)];
+      if (v == 0 || v == INT_MIN) break;
+      if (v < 0) {
+        ++hops;
+        loc = -static_cast<long long>(v);
+      } else {
+        ++loc;
+      }
+    }
+  }
+  EXPECT_EQ(hops, 2000);
+  // The row locator's sorted copy (V2H rows are read so) has every value.
+  row_locator view;
+  view.build_sorted_copy(s.context(), 2);
+  int length = 0;
+  ASSERT_EQ(cudaMemcpy(&length, view.view().len + 1, sizeof length, cudaMemcpyDeviceToHost),
+            cudaSuccess);
+  EXPECT_EQ(length, 6003);
+  // The serial unfill walks the 2,000 segments: values of the first, a middle and the last go.
+  const batch drop = make_batch({1}, {{2, 3001, next - 1}});
+  s.remove_values(drop.keys, drop.payload, drop.prefix);
+  for (int v : {2, 3001, next - 1}) want[0].erase(std::find(want[0].begin(), want[0].end(), v));
+  s.check_errors();
+  EXPECT_EQ(violations(s, want), 0);
+  EXPECT_FALSE(s.poisoned());
+}
+
+/// A store whose row of key 2 (slots 4..7: 4, 5, 0, INT_MIN) is made a cyclic chain: slot 6
+/// points back to slot 4.
+void make_cyclic(cbst_store& s) {
+  construct_rows(s, {iota_row(1, 3), {4, 5}});
+  write_payload(s, 6, -4);
+}
+
+// A cyclic chain raises the store's device error word: the walks stop (no hang), nothing is
+// truncated silently, the host throws internal_error at the next read point and the store is
+// poisoned.
+TEST(CbstMergeChain, ACyclicChainRaisesTheErrorWithoutAHang) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  const batch drop = make_batch({2}, {{5}});
+  {
+    // The unfill writer (remove_values has no read point of its own: check_errors()).
+    cbst_store s(res, "cycle", 64);
+    make_cyclic(s);
+    s.remove_values(drop.keys, drop.payload, drop.prefix);
+    EXPECT_THROW(s.check_errors(), internal_error);
+    EXPECT_TRUE(s.poisoned());
+    EXPECT_THROW(s.erase({1}), invalid_argument_error);
+  }
+  {
+    // ... or the next operation's read point (here the fill's total).
+    cbst_store s(res, "cycle", 64);
+    make_cyclic(s);
+    s.remove_values(drop.keys, drop.payload, drop.prefix);
+    const batch more = make_batch({1}, {{9}});
+    EXPECT_THROW(s.append(more.keys, more.payload, more.prefix), internal_error);
+    EXPECT_TRUE(s.poisoned());
+  }
+  {
+    // The row locator's chained reads.
+    cbst_store s(res, "cycle", 64);
+    make_cyclic(s);
+    row_locator view;
+    EXPECT_THROW(view.build_sorted_copy(s.context(), 2), internal_error);
+  }
+  {
+    // The integrity checker (host) reports the row as unterminated.
+    cbst_store s(res, "cycle", 64);
+    make_cyclic(s);
+    std::ostringstream log;
+    EXPECT_GT(check_tree_rows(s.context(), {iota_row(1, 3), {4, 5}}, false, "cycle", log), 0);
+    EXPECT_NE(log.str().find("unterminated"), std::string::npos) << log.str();
+  }
+  {
+    // A chain pointer past the used payload is an overrun too.
+    cbst_store s(res, "past the end", 64);
+    construct_rows(s, {iota_row(1, 3), {4, 5}});
+    write_payload(s, 6, -40);
+    s.remove_values(drop.keys, drop.payload, drop.prefix);
+    EXPECT_THROW(s.check_errors(), internal_error);
+  }
+}
+
+// MOSP_ESCHER's unfill-chain scenario (tests/unit/test_cbst_ops.cu@4b86159:268-281): unfill on
+// a chained row, then fill (the tail occupancy was wrong in the original ESCHER code).
+TEST(CbstMergeChain, MospEschersUnfillChainScenario) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "unfill-chain", 4096);
+  construct_rows(s, {{1, 2}, {50}});
+  auto fill = [&](const std::vector<int>& v) {
+    const batch b = make_batch({1}, {v});
+    s.append(b.keys, b.payload, b.prefix);
+  };
+  auto unfill = [&](const std::vector<int>& v) {
+    const batch b = make_batch({1}, {v});
+    s.remove_values(b.keys, b.payload, b.prefix);
+  };
+  fill({3, 4, 5});  // overflows into a chained segment
+  EXPECT_EQ(violations(s, {{1, 2, 3, 4, 5}, {50}}), 0);
+  unfill({1});  // removal from the head segment
+  EXPECT_EQ(violations(s, {{2, 3, 4, 5}, {50}}), 0);
+  fill({6});
+  EXPECT_EQ(violations(s, {{2, 3, 4, 5, 6}, {50}}), 0);
+  unfill({5, 6});
+  fill({7, 8, 9, 10, 11, 12, 13});
+  EXPECT_EQ(violations(s, {{2, 3, 4, 7, 8, 9, 10, 11, 12, 13}, {50}}), 0);
+  s.check_errors();
+  EXPECT_FALSE(s.poisoned());
 }
 
 }  // namespace

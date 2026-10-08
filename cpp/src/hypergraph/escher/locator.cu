@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:kernel/locator.cu
 // Derived from ESCHER-GPU@abcf9b2:kernel/delta_merge.cu
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/find.cu (the bounded chain walk)
 /**
  * @file locator.cu
  * @brief Builds the row view of a CBST: directly over one-segment rows, or over a sorted copy of
@@ -13,8 +14,10 @@
  */
 #include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
+#include "hypergraph/escher/chain.cuh"
 #include "hypergraph/escher/row_view.cuh"
 #include "util/cuda_check.hpp"
+#include "util/device_error_flags.cuh"
 #include "util/kernel_registry.hpp"
 #include "util/thrust_allocator.cuh"
 
@@ -28,6 +31,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <cstdint>
 
 namespace dyng::detail::escher {
 
@@ -41,19 +45,16 @@ __device__ __forceinline__ unsigned long long pack_pair(int key, int value) {
   return (static_cast<unsigned long long>(key) << 32) | static_cast<unsigned int>(value);
 }
 
-// Calls f(value) for every entry of a (possibly chained) CBST row.
+// Calls f(value) for every entry of a (possibly chained) CBST row, with the bounded walk of
+// chain.cuh (M8a step 4, ADR 0039): a broken chain raises the tree's device error word (the
+// locator throws at its read point) instead of hanging.
 template <class F>
-__device__ __forceinline__ void for_each_chained_entry(const int* flat, int loc, F&& f) {
+__device__ __forceinline__ void for_each_chained_entry(const int* flat, long long used, int loc,
+                                                       std::uint32_t* control, F&& f) {
   if (loc < 0) return;
-  while (true) {
-    int v = flat[loc];
-    if (v < 0 && v != INT_MIN) {
-      loc = -v;
-      continue;
-    }
-    if (v == 0 || v == INT_MIN) return;
-    f(v);
-    ++loc;
+  if (walk_chain(flat, used, loc, [&](long long, int v) { f(v); }) == chain_end::overrun) {
+    raise_device_error(control + control_errors, device_error::internal);
+    atomicAdd(reinterpret_cast<unsigned int*>(control + control_overruns), 1U);
   }
 }
 
@@ -67,21 +68,23 @@ __global__ void row_heads_kernel(const cbst_node* nodes, const int* avail, int n
   if (key >= 1 && key <= max_key) head[key] = nodes[t].value;
 }
 
-__global__ void chained_row_lengths_kernel(const int* flat, const int* head, int max_key,
-                                           int* len) {
+__global__ void chained_row_lengths_kernel(const int* flat, long long used, const int* head,
+                                           int max_key, int* len, std::uint32_t* control) {
   int key = blockIdx.x * blockDim.x + threadIdx.x + 1;
   if (key > max_key) return;
   int n = 0;
-  for_each_chained_entry(flat, head[key], [&](int) { ++n; });
+  for_each_chained_entry(flat, used, head[key], control, [&](int) { ++n; });
   len[key] = n;
 }
 
-__global__ void gather_chained_rows_kernel(const int* flat, const int* head, int max_key,
-                                           const int* loc, unsigned long long* out) {
+__global__ void gather_chained_rows_kernel(const int* flat, long long used, const int* head,
+                                           int max_key, const int* loc, unsigned long long* out,
+                                           std::uint32_t* control) {
   int key = blockIdx.x * blockDim.x + threadIdx.x + 1;
   if (key > max_key) return;
   int o = loc[key];
-  for_each_chained_entry(flat, head[key], [&](int v) { out[o++] = pack_pair(key, v); });
+  for_each_chained_entry(flat, used, head[key], control,
+                         [&](int v) { out[o++] = pack_pair(key, v); });
 }
 
 __global__ void pair_values_kernel(const unsigned long long* pairs, long long n, int* values) {
@@ -159,7 +162,7 @@ void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
         tree.d_nodes, tree.d_avail, tree.num_records, max_key, d_head);
   DYNG_CUDA_TRY(cudaMemsetAsync(len_, 0, (max_key + 1) * sizeof(int), stream_of(tree)));
   chained_row_lengths_kernel<<<(max_key + block - 1) / block, block, 0, stream_of(tree)>>>(
-      tree.d_flat_payload, d_head, max_key, len_);
+      tree.d_flat_payload, tree.initial_payload_size, d_head, max_key, len_, tree.d_control);
   thrust::device_ptr<int> len(len_), loc(loc_);
   thrust_allocator alloc(tree.res);
   thrust::exclusive_scan(thrust_policy(tree.res, alloc), len, len + max_key + 1, loc);
@@ -168,14 +171,19 @@ void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
                                 stream_of(tree)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(&last_len, len_ + max_key, sizeof(int), cudaMemcpyDeviceToHost,
                                 stream_of(tree)));
+  enqueue_control_readback(tree);
   synchronize(tree);
+  // A broken chain stops the view here (the lengths are not all known); the store itself is
+  // poisoned at its next read point.
+  throw_if_control_raised(tree, "row locator");
   long long total = static_cast<long long>(last_loc) + last_len;
 
   // (key, value) pairs sorted globally = rows in key order, each sorted
   buffer<unsigned long long> pairs_storage(tree.res, static_cast<size_t>(std::max(1LL, total)));
   unsigned long long* d_pairs = pairs_storage.data();
   gather_chained_rows_kernel<<<(max_key + block - 1) / block, block, 0, stream_of(tree)>>>(
-      tree.d_flat_payload, d_head, max_key, loc_, d_pairs);
+      tree.d_flat_payload, tree.initial_payload_size, d_head, max_key, loc_, d_pairs,
+      tree.d_control);
   thrust::sort(thrust_policy(tree.res, alloc), thrust::device_ptr<unsigned long long>(d_pairs),
                thrust::device_ptr<unsigned long long>(d_pairs) + total);
   copy_ = allocate(tree, copy_storage_, static_cast<size_t>(std::max(1LL, total)));
