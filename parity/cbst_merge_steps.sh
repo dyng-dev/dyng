@@ -147,9 +147,14 @@ policy = r.get("policy") or "escher_gpu"
 if policy == "the original's preset":
     policy = "escher_gpu"
 if r.get("against_model"):
-    diverged = sum(1 for c in r["cases"] for _ in c.get("first_divergences", {}))
+    fields = {}
+    for c in r["cases"]:
+        for _op, field in c.get("first_divergences", {}).values():
+            fields[field] = fields.get(field, 0) + 1
+    diverged = sum(fields.values())
+    classes = ", ".join(f"{f} {n}" for f, n in sorted(fields.items()))
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops compared, {diverged} trees "
-          f"diverge, each where the host model under {policy} does")
+          f"diverge, each where the host model under {policy} does ({classes})")
 else:
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops, {t['mismatch_count']} "
           f"mismatches, {t['documented']} documented, {t['unreplayable']} unreplayable")
