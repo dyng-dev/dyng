@@ -10,6 +10,16 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- M8a (internal, not public API): **the ESCHER CBST store** (`cpp/src/hypergraph/escher`,
+  `dyng::detail::escher::cbst_store`, ADR 0038), the port of ESCHER-GPU@abcf9b2's store in the new
+  module `dyng_hypergraph`: construct, rebuild from the device, best-fit insert with surplus rows
+  and the rebuild, append (fill) with overflow segments and payload growth, erase, remove_values
+  (unfill), the row locator and the integrity checker, on the resources' stream and memory
+  resource, with exceptions instead of process exits; dynG additions: the empty tree, `clone()`,
+  `download()`, `allocated_bytes()`, poisoning after a failed operation, the payload policy
+  `store_policy::escher_gpu()`. It replays ESCHER-GPU's CBST traces in every recorded field
+  (`parity/compare.py cbst_trace --store device`); `parity/escher_port/transplant.py` regenerates
+  its first commit from the original.
 - M8a: **`dyng::testing::cbst_host_model`** (`dyng/testing/cbst_host_model.hpp`, ADR 0037), a
   sequential host model of the ESCHER CBST store of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159
   (best-fit reuse, surplus keys and the rebuild, fill overflow segments, unfill, A's growth, B's

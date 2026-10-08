@@ -158,3 +158,99 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
   `records()` with the store's digest.
 - The 3 coauth H2H rebuilds stay unreplayable until M8b computes the line-graph merge: their inputs'
   recorded hashes can then check dynG's merge.
+
+## Step 3: the verbatim port of ESCHER-GPU's store (verbatim-port)
+
+### What was built
+
+| Commit | Class | What |
+|---|---|---|
+| `477d592` | c1 transplant | ESCHER-GPU@abcf9b2's store in `cpp/src/hypergraph/escher` (`dyng::detail::escher`, the OBJECT module `dyng_hypergraph`), regenerated from the original by `parity/escher_port/transplant.py` (the rename map, the manual hunks); the device adapter of the comparator, the device replays of the committed traces, `dyng_cbst_replay --store device` |
+| `3634128` | c2 errors | `DYNG_CUDA_TRY`, `capacity_error` at the offset limit and in `flatten_rows`, the construct below its payload rejected, the log sink, `find()`, poisoning; the comparator's documented divergences |
+| `528b41a` | c3 memory | `buffer<T>` on the resources' memory resource, pooled temporaries |
+| `9220f9c` | c4 streams | the resources' stream, `par_nosync`, A's read points only, stable sorts |
+| `f2c48df` | c5 registration | `DYNG_REGISTER_KERNEL`, profiler stages, per-store bin counters |
+| `69cac6d` | harness | `compare.py cbst_trace --store device` (MOSP_ESCHER's sets judged against the host model under the same preset) |
+| `c89a9b8`, `e22cd71`, `9e54f3a`, `cef82b5` | dynG additions | the empty tree; clone; download; `allocated_bytes()` |
+| `d2be78a` | tests | the cbst_test layout sizes, kernel-path coverage, errors, two streams, host syncs per op, the source rules |
+| `f67eee1` | policy | `store_policy` and `escher_gpu()` |
+| `3716bbe` | test | the early memory reading on coauth-DBLP, `perf_ab.py cbst memory` |
+| `762522e`, `f16c453` | harness, CI | `parity/cbst_merge_steps.sh`, the transplant check, the certificate records; `ci/gpu_local.sh` step `cbst`, the provenance symbols |
+| (the docs commit) | docs | ADR 0038, the store's README, `parity/results/M8a.md` section 11 with the merge-step table, this section, GOVERNANCE.md, CHANGELOG |
+
+### Deviations from the step's text (each with the same intent)
+
+15. **c1 carries the replay harness.** The step asks for the replay after every commit, so the
+    device adapter, its tests and `--store device` of the replay tool are in c1 next to the
+    transplant; the store files of c1 are the pure transplant (`transplant.py --check`).
+16. **The exception of a construct below its payload is `invalid_argument_error`** (the caller's
+    capacity contradicts its own payload; `capacity_error` is reserved for the offset limit and
+    full payloads). A kept a tree without nodes there, so the replay reports it as the documented
+    divergence `construct_below_payload` (one op of the golden sets, A's targeted scenario
+    `small_capacity`), by a precise rule and not as a tolerated mismatch.
+17. **The device error word has no user yet.** No kernel of A detects a contract violation;
+    B's bounded chain walker (step 4) is its first user.
+18. **The comparator learned three things** (test code, used by every later step): the store's own
+    integrity verdict is compared with the trace's `check.rows` (after the state, so that a first
+    divergence names a state field), documented divergences are reported apart from mismatches,
+    and `compare.py` judges MOSP_ESCHER's sets under `escher_gpu()` by their first divergences per
+    tree against the host model under the same preset (the step's "up to their first divergence,
+    listed with its cause": the causes are the behaviour classes of ADR 0037).
+19. **`store_policy` is its own commit after the additions**, not part of the transplant: c1-c5
+    keep A's growth inline as A had it, and the policy struct then takes it over with the same
+    numbers (the replays are unchanged).
+20. **Thrust's temporary storage** comes from a Thrust allocator over `memory_resource_ref`
+    (`util/thrust_allocator.cuh`): Thrust takes an allocator, not a CCCL memory resource, so the
+    adapters of `cccl_memory_resource.cuh` are not needed for it.
+21. **The layout test calls two host launchers of the library** (`launch_build_layout`,
+    `launch_extract_keys_from_positions`): nvcc keeps the host stubs of a library's kernels
+    hidden, so a test cannot launch them directly as A's `cbst_test` did.
+22. **`find.cu`.** A's debug lookups printed from the device; `find()` returns the heap position
+    of every key, and `findContents` (which printed rows) is gone (rows are read with `download()`).
+23. **Untested at full scale:** `flatten_rows`' 2^31 check and the growth beyond `INT_MAX` need more
+    than 8 GB of host or device memory; the policy's numbers (`grown_capacity` at and beyond
+    `INT_MAX`) are unit-tested on the host, `flatten_rows`' check is code-reviewed only.
+24. **The memory reading replays the coauth H2H rebuilds by their sizes.** Their inputs are
+    hash-only (A's line-graph merge); the accounting depends on the row count, the used payload
+    and the capacity only, which are recorded in full.
+25. **The merge-step script builds a reduced library** (`DYNG_ALGORITHMS=sssp`, minimal index
+    types, no tools or tutorials, Release): only the replay targets are needed, and every commit
+    builds in a few minutes.
+26. **ADR number.** 0038 (0035 is the release branch's, 0036-0037 this milestone's).
+27. **Names.** Every camelCase identifier of the ported files became its snake_case spelling
+    (locals included), the kernels `<verb>_<object>_kernel`; all listed in `rename_map.toml`.
+    The store's stages are `hypergraph.cbst.<op>`, nested under the container's
+    `hypergraph.apply.*` of the timed-region map.
+
+### Measurements
+
+- The replay of the small sets (escher_gpu_test, escher_gpu_targeted, mosp_escher_test,
+  mosp_escher_targeted) on the device takes about 4 minutes with a Release tool and 6 jobs on one
+  GPU; a commit of the merge-step table takes about 8 minutes (the reduced build included). The
+  large sets take about 25 minutes (coauth-DBLP's 33 million key states, B's DBLP runs with 63 and
+  48 million).
+- The store accounting on coauth-DBLP equals A's `deviceBytes()` at every op (ratio 1.0000);
+  the nsys peaks: A's whole program 3,018.9 MiB, the store replay 2,772.6 MiB
+  (`parity/results/M8a.md`, section 11).
+- Sanitizers: racecheck over the store tests takes 85 s (the 2^24-key layout), the other tools a
+  few seconds each.
+
+- `ci/gpu_local.sh` (dev-cuda, GPU 1, at `7e397a2`): all 14 steps passed, the new step `cbst`
+  included (about 2 hours; memcheck over every GPU executable is most of it).
+
+### Notes for step 4 (MOSP_ESCHER's behaviours)
+
+- The store takes a `store_policy`; add `mosp_escher()` and grow the struct (B's fixed capacity
+  `flat * 1.3 + extra`, compaction triggers, construct validation, the fill clamps, scratch
+  growth, caller counts) one behaviour per commit; `parity/cbst_merge_steps.sh` replays any list
+  of commits.
+- The device adapter accepts `escher_gpu` only (`device_store_adapter`); `compare.py cbst_trace
+  --store device --policy` rejects the others. Map B's `escher::EscherError` to the dynG
+  exception of each throw site in the comparator when the B preset arrives (the exception type is
+  compared).
+- MOSP_ESCHER's traces now diverge under `escher_gpu()` at three classes only (caller counts,
+  scratch growth, compaction / capacity / validation): each commit of step 4 should move the
+  first divergence of exactly the trees of its class, which `first_divergences` per tree shows.
+- `cbst_store.hpp` still includes `<cuda_runtime.h>` (as A's `structure.hpp`); the container of
+  M8b, compiled by the host compiler in CPU builds, needs a host-only facade or a forward-declared
+  context.

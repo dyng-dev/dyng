@@ -2,7 +2,7 @@
 
 Date: 2026-10-07 onwards. M8a ports the CBST store of ESCHER-GPU@abcf9b2 (A) and merges the
 behaviours of MOSP_ESCHER@4b86159 (B) into it, proven by CBST trace replay against both
-originals (PLAN 6.4.5). Each step adds its section; step 1 (refs-traces) writes sections 1-8.
+originals (PLAN 6.4.5). Each step adds its section; step 1 (refs-traces) writes sections 1-9, step 2 (host-model) section 10, step 3 (verbatim-port) section 11.
 
 | Item | Value |
 |---|---|
@@ -493,3 +493,130 @@ build of `dyng_cbst_replay`, 8 jobs, 4 min 45 s with the manifest checks; record
 | `parity/compare.py cbst_trace --store host_model --fields exact` (all 8 sets) | 8 of 8 OK (table above) |
 | `pytest parity/tests` | passed |
 | `ci/docs.sh` (`--update-api`: 98 lines of `public_api.txt` for `dyng/testing/cbst_host_model.hpp`), `ci/check.sh`, the Clang 18 syntax pass, the `_FORTIFY_SOURCE=3` cpu-only build | passed |
+
+## 11. Step verbatim-port: the port of ESCHER-GPU's store (criteria 9, 10(a), 14, 15, 16; ADR 0038)
+
+`dyng::detail::escher::cbst_store` (`cpp/src/hypergraph/escher`, the OBJECT module
+`dyng_hypergraph`) is ESCHER-GPU@abcf9b2's store, transplanted (c1) and changed by one class of
+mechanical change per commit (c2 errors, c3 memory, c4 streams, c5 registration and counters),
+then the dynG additions and the payload policy (ADR 0038; the store's README documents the
+encoding). The transplant is reproducible: `python3 parity/escher_port/transplant.py --check
+--rev 477d592` regenerates c1 from the original with `rename_map.toml` and
+`manual_hunks.patch` ("17 files, identical"; pytest `test_escher_port.py`).
+
+**The replay of every commit** (`parity/cbst_merge_steps.sh <commit>...`: a temporary worktree,
+a Release CUDA build of the commit's replay targets, its own replay tests of the committed traces
+and `compare.py cbst_trace --store device --fields exact` of the golden sets with the commit's
+tool; GPU 1). ESCHER-GPU's sets must match in the `exact` field set (criterion 10(a) and more:
+InsertMapping, rows in order, avail, subtree_avail, length, size, offsets, occupancy, tail
+capacity, segments, the bump pointer, the capacity, the record count, the scratch capacities, D,
+`device_bytes()` = A's `deviceBytes()`, the per-op degree-bin launches, the exception, the
+integrity verdict, the state before every op). MOSP_ESCHER's sets run under `escher_gpu()` (the
+store has no B preset in this step) and must diverge in every tree at exactly the op and in
+exactly the field where the host model under `escher_gpu()` does (ADR 0037's behaviour classes),
+and nowhere else. No B source line is merged in this step (B's behaviours are steps 4-5), so the
+table has no "cited B lines" yet.
+
+**The merge-step table.** Every row: the commit's own `dyng_cbst_device_tests` passed; A's sets
+in `exact` (traces, ops compared, mismatches, documented divergences); B's sets under
+`escher_gpu()` judged against the host model under the same preset (trees that diverge, each at
+the model's op and field); "cited B lines": none (no B behaviour is merged in step 3). Small
+sets at every commit; the large sets at the verbatim-port head `f2c48df` and at `7e397a2`.
+
+| commit | change (class) | A: escher_gpu_test | A: escher_gpu_targeted | B: mosp_escher_test | B: mosp_escher_targeted | large sets |
+|---|---|---|---|---|---|---|
+| `477d592` | c1 transplant | 75 traces, 1,176 ops, 0 mismatches | 2 traces, 52 ops, 0 mismatches | 50 trees diverge, as the model | 7 trees diverge, as the model | |
+| `3634128` | c2 errors | 1,176 ops, 0 | 52 ops, 0, 1 documented (`construct_below_payload`) | 50, as the model | 7, as the model | |
+| `528b41a` | c3 memory | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `9220f9c` | c4 streams | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `f2c48df` | c5 registration, counters (the verbatim-port head) | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | coauth50k: 15 ops, 0 mismatches, 3 unreplayable (hash-only H2H rebuilds); syn1m: 54 unreplayable (batches mode); DBLP hyperedge 27 ops and vertex 21 ops: 0 trees diverge |
+| `69cac6d` | harness: `--store device` in compare.py | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `c89a9b8` | addition: the empty tree | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `e22cd71` | addition: clone | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `9e54f3a` | addition: download | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `cef82b5` | addition: `allocated_bytes()` | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `d2be78a` | tests | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `f67eee1` | `store_policy::escher_gpu()` | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | |
+| `7e397a2` | the step's last code commit | 1,176 ops, 0 | 52 ops, 0, 1 documented | 50, as the model | 7, as the model | as at `f2c48df` |
+
+The rows are `$DYNG_SCRATCH/m8a/merge-steps/rows.md` (the first run of `477d592` failed in the
+harness, a missing key of the totals fixed in `762522e`, and was run again); the records of the
+last row are `parity/results/M8a-device-<set>-exact.json`. B's 10,163 compared ops of
+`mosp_escher_test` are those up to each tree's first divergence (the rest of a diverged tree is
+not compared).
+
+**The documented divergence.** One op of the golden sets: the targeted scenario
+`small_capacity` (a construct with a capacity of 8 below a payload of 32), where ESCHER-GPU
+printed "Overflow" and kept a tree with 8 records and no nodes, MOSP_ESCHER threw its
+`EscherError`, and dynG throws `invalid_argument_error` before it allocates anything (c2 on;
+rule `construct_below_payload`, ADR 0038). The tree has no later op.
+
+**MOSP_ESCHER's first divergences under `escher_gpu()`** (the same at every commit from c1; the
+host model under the same preset agrees tree by tree): `mosp_escher_test` 50 of its trees
+(`test_cbst_smoke`: 11 at their construct, `key.occupancy`: B's caller counts are null there,
+occupancy 0, where A scans, `caller_counts`; 34 at the first operation that grows B's scratch,
+`after.scratch_payload`: B grows its operation scratch geometrically, A to the exact size; 5 at a
+fill or insert that B compacts and A grows, `after.fixed_size`, `grows_vs_compacts`; the
+remaining trees, `DynamicGraph`'s and the H-SOSP trees that neither grow nor compact, are
+identical in every field); `mosp_escher_targeted` 7 trees (4 at a
+scratch growth, among them the tree of the explicit `compact()`; one each at a compaction where
+A grows, `grows_vs_compacts`, at B's capacity throw, `status`, and at
+`construct_below_payload`). B's DBLP runs (`dblp50k_hyperedge`, `dblp50k_vertex`) are identical
+to A's behaviour in every field (0 divergences: no compaction, no scratch growth at that scale).
+
+**Criterion 14, kernel-path coverage** (`dyng_cbst_coverage_tests`): replaying A's skewed (042-main)
+and medium (043-main) traces runs every degree bin, every op with A's recorded launch counts
+(`exact`): fill thread / warp / block 5 / 3 / 2 launches, reuse 5 / 3 / 2, unfill 5 / 3 / 2.
+
+**Criterion 15, the early store memory** (the author's decision of 2026-10-07: store accounting;
+`dyng_cbst_memory_tests`, `parity/perf_ab.py cbst memory --gpu 0` under the exclusive perf lock;
+record `M8a-memory.json`). On `escher_gpu_coauth50k` every tree's `device_bytes()` after its
+construct and after every operation of the 3 batches equals ESCHER-GPU's recorded
+`deviceBytes()` of the same tree (ratio 1.0000, gate <= 1.05), and the store holds exactly that
+(`allocated_bytes()`):
+
+| tree | after construct | after batch 1 | after batch 2 | after batch 3 |
+|---|---:|---:|---:|---:|
+| H2V | 316,792,888 | 316,792,888 | 316,792,888 | 316,792,888 |
+| V2H | 258,644,044 | 258,644,044 | 258,644,044 | 258,644,044 |
+| H2H | 1,288,129,912 | 1,288,644,432 | 1,289,056,696 | 1,289,513,600 |
+
+(bytes; dynG = ESCHER-GPU at every point and after every op of every batch, 18 readings). The
+H2H rebuilds have hash-only inputs (A's line-graph merge): they are replayed with arrays of the
+recorded sizes, all the accounting depends on. ESCHER-GPU's `DynamicHypergraph::deviceBytes()`
+(1,922,784,204 after the build) also counts its row views (59.2 MB), which are the container's
+(M8b) and compared there. **Nsight Systems** (recorded, not gated in M8): the peak of live device
+allocations is 3,018.9 MiB for A's whole `build/main` (store, row views, motif counting) and
+2,772.6 MiB for the store replay (the three trees, 1,777 MiB, plus the new row offsets and
+payload of an H2H rebuild, about 985 MiB, which the store takes before it releases the old
+ones, as A's rebuild does; the stream-ordered pool reached 2,912 MiB). Measured at `7e397a2`
+(the docs of this section uncommitted), GPU 0.
+
+**Criterion 16, robustness.** compute-sanitizer memcheck (with leak check), racecheck,
+synccheck and initcheck: 0 errors and 0 hazards on `dyng_cbst_store_tests` (14 tests: the layout
+sizes, the empty tree, clone, download, the accounting, the errors, two streams, the syncs, the
+policy), `dyng_cbst_device_tests` (A's and B's committed traces, replayed twice) and
+`dyng_cbst_coverage_tests`; `ci/gpu_local.sh` runs them (step `cbst`). Two stores on two
+non-blocking streams equal a sequential run; two replays give identical digests; the host
+synchronizations per op are A's read points and never more than A's blocking calls
+(`CbstStoreSyncs`; ADR 0038, section 5).
+
+**Criterion 9.** `cbst_source_rules` (cpu, cbst): no `exit(`, print, `verbose(`, `ESCHER_DEBUG`,
+`cudaDeviceSynchronize`, raw `cudaMalloc` / `cudaFree`, synchronous copy, Thrust without the
+resources' policy or default-stream launch in `cpp/src/hypergraph`, and no public header exposes
+the store. `ci/provenance_check.py` covers the CBST identifiers; every file carries its
+`// Derived from ESCHER-GPU@abcf9b2:<path>` line.
+
+**The checks of step 3** (2026-10-07; shared perf lock, niced; GPU 1 unless stated):
+
+| check | result |
+|---|---|
+| `ci/check.sh` (cpu-only and dev: build and `ctest -L cpu`, format, tidy, reuse, provenance, harness, docs, regen, python, api, scaffold, pre-commit) | passed (877 and 906 tests), after the REUSE fix `b0fd3b3` |
+| `ctest -L cbst` in dev-cuda (cpu and gpu, the slow replays included) | 63 of 63 passed |
+| the replays of the small sets at every commit, the large sets at `f2c48df` (the verbatim-port head) and `7e397a2` (the step's last code commit) | the merge-step table above |
+| the sanitizers (memcheck, racecheck, synccheck, initcheck) | clean (criterion 16) |
+| `transplant.py --check --rev 477d592` | identical |
+| the Clang 18 syntax pass (dev: 222 files; dev-cuda: 304 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed |
+| compile with the ci-cuda12 preset (CUDA 12.9) and with CUDA 13.4 (ci-cuda13), release architectures, warnings as errors (the library and every CBST target) | passed |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1; at `7e397a2` with this section's docs uncommitted) | all 14 steps passed: build, `ctest -L gpu` (486), `ctest -L cpu` (906), the sssp and cycle_count CUDA goldens, memcheck on every GPU executable, synccheck (sssp, mosp, cycle_count), racecheck, the cbst sanitizers (racecheck, synccheck, initcheck), the cbst replays of the small sets, the plugin wheel, clang-tidy |
+| both originals' HEAD and `git status --porcelain` | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |
