@@ -523,6 +523,57 @@ TEST(CbstMergeStats, NoProcessGlobalMempoolSetting) {
   EXPECT_EQ(after, before);
 }
 
+// --- (j) Dead and absent keys -------------------------------------------------------------------
+
+// The rule for append and remove_values items naming a key that is not in the tree or is deleted
+// (neither original had one: absent keys were skipped silently, deleted keys written to): the item
+// is skipped, counted, and raises the device error word; the next read point throws
+// internal_error (append's own, or check_errors() after remove_values, which has none) and the
+// store is poisoned. Erase keeps both originals' behaviour: absent keys are ignored, a deleted key
+// stays deleted.
+TEST(CbstMergeDeadKeys, AppendAndRemoveValuesOnDeadOrAbsentKeys) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  const rows want = {iota_row(1, 3), iota_row(10, 3), {7}};
+  for (int key : {2, 9}) {  // deleted, absent
+    SCOPED_TRACE(key);
+    for (const std::vector<int>& values : {iota_row(50, 2), iota_row(60, 40), iota_row(70, 1100)}) {
+      SCOPED_TRACE(values.size());  // the thread, warp and block kernels
+      {
+        cbst_store s(res, "dead", 1 << 13);
+        construct_rows(s, want);
+        s.erase({2});
+        const cbst_host_state before = s.download();
+        const batch b = make_batch({key}, {values});
+        EXPECT_THROW(s.append(b.keys, b.payload, b.prefix), internal_error);
+        EXPECT_TRUE(s.poisoned());
+        EXPECT_EQ(s.stats().rejected_items, 1);
+        EXPECT_EQ(s.download().payload, before.payload);  // nothing was written
+      }
+      {
+        cbst_store s(res, "dead", 1 << 13);
+        construct_rows(s, want);
+        s.erase({2});
+        const batch b = make_batch({key}, {values});
+        s.remove_values(b.keys, b.payload, b.prefix);
+        EXPECT_THROW(s.check_errors(), internal_error);
+        EXPECT_TRUE(s.poisoned());
+      }
+    }
+  }
+  // Erase: absent keys are ignored, a deleted key erased again stays deleted.
+  cbst_store s(res, "erase", 256);
+  construct_rows(s, want);
+  s.erase({2});
+  s.erase({2, 9, 0, -3});
+  s.check_errors();
+  EXPECT_FALSE(s.poisoned());
+  EXPECT_EQ(violations(s, {want[0], {}, want[2]}), 0);
+  std::ostringstream log;
+  EXPECT_EQ(check_subtree_avail(s.context(), "erase", log), 0) << log.str();
+  EXPECT_EQ(s.download().subtree_avail[0], 1);
+}
+
 // --- (e) The integrity checks --------------------------------------------------------------------
 
 /// A tree with chained, deleted, reused and surplus rows.

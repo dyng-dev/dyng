@@ -13,9 +13,11 @@
  */
 #include "hypergraph/escher/device_utils.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "hypergraph/escher/lookup.cuh"
 #include "util/kernel_registry.hpp"
 
 #include <climits>
+#include <cstdint>
 
 namespace dyng::detail::escher {
 
@@ -121,7 +123,8 @@ static __device__ __forceinline__ int clamped_occupancy(const cbst_node* node) {
 // Uses occupancy to skip serial scan. Direct write at tail_base + occupancy.
 __global__ void insert_node_thread_kernel(cbst_node* nodes, int* flat_values, int* insert_indices,
                                           int* insert_values, int* insert_sizes,
-                                          int* partial_solution, int* bin_indices, int bin_count) {
+                                          int* partial_solution, int* bin_indices, int bin_count,
+                                          const int* avail, std::uint32_t* control) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= bin_count) return;
 
@@ -131,7 +134,8 @@ __global__ void insert_node_thread_kernel(cbst_node* nodes, int* flat_values, in
   int num_values = (orig_idx == 0) ? insert_sizes[orig_idx]
                                    : insert_sizes[orig_idx] - insert_sizes[orig_idx - 1];
 
-  cbst_node* current = bst_find(nodes, insert_index);
+  // An absent or deleted key is skipped and reported (M8a step 4, lookup.cuh).
+  cbst_node* current = find_item_node(nodes, avail, insert_index, control, true);
   if (current == nullptr) return;
 
   const int occupancy = clamped_occupancy(current);
@@ -164,7 +168,8 @@ __global__ void insert_node_thread_kernel(cbst_node* nodes, int* flat_values, in
 // bin_indices[warp_idx] → original insert index.
 __global__ void insert_node_warp_kernel(cbst_node* nodes, int* flat_values, int* insert_indices,
                                         int* insert_values, int* insert_sizes,
-                                        int* partial_solution, int* bin_indices, int bin_count) {
+                                        int* partial_solution, int* bin_indices, int bin_count,
+                                        const int* avail, std::uint32_t* control) {
   int global_tid = threadIdx.x + blockIdx.x * blockDim.x;
   int warp_idx = global_tid >> 5;
   int lane = threadIdx.x & 31;
@@ -184,7 +189,8 @@ __global__ void insert_node_warp_kernel(cbst_node* nodes, int* flat_values, int*
   int node_found = 0;
   // All lanes participate in the bst_find independently (same key, same result)
   // This avoids the need for shfl broadcast of the pointer.
-  cbst_node* current = bst_find(nodes, insert_index);
+  // An absent or deleted key is skipped and reported by lane 0 (M8a step 4, lookup.cuh).
+  cbst_node* current = find_item_node(nodes, avail, insert_index, control, lane == 0);
   if (current != nullptr) {
     node_found = 1;
     occupancy = clamped_occupancy(current);
@@ -224,7 +230,8 @@ __global__ void insert_node_warp_kernel(cbst_node* nodes, int* flat_values, int*
 // bin_indices[blockIdx.x] → original insert index.
 __global__ void insert_node_block_kernel(cbst_node* nodes, int* flat_values, int* insert_indices,
                                          int* insert_values, int* insert_sizes,
-                                         int* partial_solution, int* bin_indices, int bin_count) {
+                                         int* partial_solution, int* bin_indices, int bin_count,
+                                         const int* avail, std::uint32_t* control) {
   int idx = blockIdx.x;
   if (idx >= bin_count) return;
 
@@ -244,7 +251,8 @@ __global__ void insert_node_block_kernel(cbst_node* nodes, int* flat_values, int
     sh_num_values = (sh_orig_idx == 0) ? insert_sizes[sh_orig_idx]
                                        : insert_sizes[sh_orig_idx] - insert_sizes[sh_orig_idx - 1];
 
-    sh_node = bst_find(nodes, insert_index);
+    // An absent or deleted key is skipped and reported (M8a step 4, lookup.cuh).
+    sh_node = find_item_node(nodes, avail, insert_index, control, true);
     if (sh_node != nullptr) {
       sh_occupancy = clamped_occupancy(sh_node);
       sh_write_pos = sh_node->tail_base + sh_occupancy;

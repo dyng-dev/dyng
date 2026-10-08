@@ -93,21 +93,37 @@ TEST(CbstStoreEmptyTree, InsertBuildsTheTree) {
   }
 }
 
-TEST(CbstStoreEmptyTree, AppendEraseAndRemoveValuesChangeNothing) {
+TEST(CbstStoreEmptyTree, EraseChangesNothingAppendAndRemoveValuesNameAbsentKeys) {
   DYNG_SKIP_IF_NO_CUDA();
   const resources res = resources::cuda();
-  cbst_store s(res, "empty", 16);
-  construct_empty(s);
   const batch b = make_batch({1, 2}, {{1, 2, 3}, {4}});
-  s.append(b.keys, b.payload, b.prefix);
-  s.remove_values(b.keys, b.payload, b.prefix);
-  s.erase({1, 2});
-  EXPECT_EQ(s.context().num_records, 0);
-  EXPECT_EQ(s.context().initial_payload_size, 0);
-  EXPECT_EQ(violations(s, {}), 0);
-  // ... and an insert still works afterwards.
-  EXPECT_EQ(s.insert(b.keys, b.payload, b.prefix).item_to_key, (std::vector<int>{1, 2}));
-  EXPECT_EQ(violations(s, {{1, 2, 3}, {4}}), 0);
+  {
+    cbst_store s(res, "empty", 16);
+    construct_empty(s);
+    s.erase({1, 2});  // absent keys: erase ignores them (both originals)
+    s.check_errors();
+    EXPECT_EQ(s.context().num_records, 0);
+    EXPECT_EQ(s.context().initial_payload_size, 0);
+    EXPECT_EQ(violations(s, {}), 0);
+    // ... and an insert still works afterwards.
+    EXPECT_EQ(s.insert(b.keys, b.payload, b.prefix).item_to_key, (std::vector<int>{1, 2}));
+    EXPECT_EQ(violations(s, {{1, 2, 3}, {4}}), 0);
+  }
+  // Appending to or removing values from absent keys is the error of M8a step 4 (ADR 0039; the
+  // originals ignored the items silently): nothing is written, and the read point throws.
+  {
+    cbst_store s(res, "empty", 16);
+    construct_empty(s);
+    EXPECT_THROW(s.append(b.keys, b.payload, b.prefix), internal_error);
+    EXPECT_EQ(s.stats().rejected_items, 2);
+    EXPECT_EQ(s.context().initial_payload_size, 0);
+  }
+  {
+    cbst_store s(res, "empty", 16);
+    construct_empty(s);
+    s.remove_values(b.keys, b.payload, b.prefix);
+    EXPECT_THROW(s.check_errors(), internal_error);
+  }
 }
 
 TEST(CbstStoreEmptyTree, OperationsBeforeConstructThrow) {

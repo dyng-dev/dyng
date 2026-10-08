@@ -466,16 +466,19 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
     insert_node_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
                                 stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
-        ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(0), bins.count[0]);
+        ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(0), bins.count[0], ctx.d_avail,
+        ctx.d_control);
   if (bins.count[1] > 0)
     insert_node_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size, 0,
                               stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
                                                 ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
-                                                ctx.d_relocation_plan, bins.bin(1), bins.count[1]);
+                                                ctx.d_relocation_plan, bins.bin(1), bins.count[1],
+                                                ctx.d_avail, ctx.d_control);
   if (bins.count[2] > 0)
     insert_node_block_kernel<<<bins.count[2], block_size, 0, stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
-        ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(2), bins.count[2]);
+        ctx.d_insert_prefix_sizes, ctx.d_relocation_plan, bins.bin(2), bins.count[2], ctx.d_avail,
+        ctx.d_control);
   DYNG_CHECK_KERNEL(stream_of(ctx));
 
   // ── Overflow handling ────────────────────────────────────────────────
@@ -1351,19 +1354,19 @@ void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>&
                            stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
                                              ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
                                              bins.bin(0), bins.count[0], ctx.initial_payload_size,
-                                             ctx.d_control);
+                                             ctx.d_control, ctx.d_avail);
   if (bins.count[1] > 0)
     unfill_warp_kernel<<<(bins.count[1] * 32 + block_size - 1) / block_size, block_size, 0,
                          stream_of(ctx)>>>(ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys,
                                            ctx.d_insert_payload, ctx.d_insert_prefix_sizes,
                                            bins.bin(1), bins.count[1], ctx.initial_payload_size,
-                                           ctx.d_control);
+                                           ctx.d_control, ctx.d_avail);
   if (bins.count[2] > 0) {
     size_t shmem = sizeof(int) * static_cast<size_t>(block_size + 1);
     unfill_block_kernel<<<bins.count[2], block_size, shmem, stream_of(ctx)>>>(
         ctx.d_nodes, ctx.d_flat_payload, ctx.d_insert_keys, ctx.d_insert_payload,
         ctx.d_insert_prefix_sizes, bins.bin(2), bins.count[2], ctx.initial_payload_size,
-        ctx.d_control);
+        ctx.d_control, ctx.d_avail);
   }
   DYNG_CHECK_KERNEL(stream_of(ctx));
   // No read point: a broken chain the walks found surfaces at the next one (or check_errors()).

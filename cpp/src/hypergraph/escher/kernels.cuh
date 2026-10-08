@@ -96,13 +96,16 @@ __global__ void apply_reuse_block_kernel(cbst_node* nodes, int* flat_values, int
 // Degree-binned insert_node (fill)
 __global__ void insert_node_thread_kernel(cbst_node* nodes, int* flat_values, int* insert_indices,
                                           int* insert_values, int* insert_sizes,
-                                          int* partial_solution, int* bin_indices, int bin_count);
+                                          int* partial_solution, int* bin_indices, int bin_count,
+                                          const int* avail, std::uint32_t* control);
 __global__ void insert_node_warp_kernel(cbst_node* nodes, int* flat_values, int* insert_indices,
                                         int* insert_values, int* insert_sizes,
-                                        int* partial_solution, int* bin_indices, int bin_count);
+                                        int* partial_solution, int* bin_indices, int bin_count,
+                                        const int* avail, std::uint32_t* control);
 __global__ void insert_node_block_kernel(cbst_node* nodes, int* flat_values, int* insert_indices,
                                          int* insert_values, int* insert_sizes,
-                                         int* partial_solution, int* bin_indices, int bin_count);
+                                         int* partial_solution, int* bin_indices, int bin_count,
+                                         const int* avail, std::uint32_t* control);
 __global__ void fixup_overflow_metadata_kernel(cbst_node* nodes, int* insert_indices,
                                                int* insert_sizes, int* partial_solution,
                                                int space_available_from, int insert_size);
@@ -111,15 +114,15 @@ __global__ void fixup_overflow_metadata_kernel(cbst_node* nodes, int* insert_ind
 __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                      int* values_to_remove, int* remove_prefix_sizes,
                                      int* bin_indices, int bin_count, int used,
-                                     std::uint32_t* control);
+                                     std::uint32_t* control, const int* avail);
 __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                    int* values_to_remove, int* remove_prefix_sizes,
                                    int* bin_indices, int bin_count, int used,
-                                   std::uint32_t* control);
+                                   std::uint32_t* control, const int* avail);
 __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                     int* values_to_remove, int* remove_prefix_sizes,
                                     int* bin_indices, int bin_count, int used,
-                                    std::uint32_t* control);
+                                    std::uint32_t* control, const int* avail);
 
 // Payload compaction (two passes, one warp per node; MOSP_ESCHER's compactCBST)
 __global__ void compact_sizes_kernel(const cbst_node* nodes, const int* avail, int n,

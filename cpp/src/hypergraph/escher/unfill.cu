@@ -13,6 +13,7 @@
  */
 #include "hypergraph/escher/chain.cuh"
 #include "hypergraph/escher/kernels.cuh"
+#include "hypergraph/escher/lookup.cuh"
 #include "util/device_error_flags.cuh"
 #include "util/kernel_registry.hpp"
 
@@ -24,15 +25,6 @@ namespace dyng::detail::escher {
 // ═══════════════════════════════════════════════════════════════════════════
 // Degree-binned unfill kernels (using occupancy/tail_base/tail_capacity)
 // ═══════════════════════════════════════════════════════════════════════════
-
-// ── Helper: BST traversal ───────────────────────────────────────────────
-static __device__ cbst_node* unfill_bst_find(cbst_node* nodes, int key) {
-  cbst_node* current = nodes;
-  while (current != nullptr && current->index != key) {
-    current = (current->index > key) ? current->left : current->right;
-  }
-  return current;
-}
 
 // ── Serial unfill of one row (all segments) ─────────────────────────────
 // Removes values_to_remove[start, end) from the row of `node`, compacting each
@@ -87,7 +79,7 @@ static __device__ int unfill_row_serial(const cbst_node* node, int* flat_values,
 __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                      int* values_to_remove, int* remove_prefix_sizes,
                                      int* bin_indices, int bin_count, int used,
-                                     std::uint32_t* control) {
+                                     std::uint32_t* control, const int* avail) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= bin_count) return;
 
@@ -96,7 +88,8 @@ __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* ke
   int start = (orig_idx == 0) ? 0 : remove_prefix_sizes[orig_idx - 1];
   int end = remove_prefix_sizes[orig_idx];
 
-  cbst_node* cur = unfill_bst_find(nodes, key);
+  // An absent or deleted key is skipped and reported (M8a step 4, lookup.cuh).
+  cbst_node* cur = find_item_node(nodes, avail, key, control, true);
   if (cur == nullptr) return;
   cur->occupancy = unfill_row_serial(cur, flat_values, values_to_remove, start, end, used, control);
 }
@@ -108,7 +101,7 @@ __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* ke
 __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                    int* values_to_remove, int* remove_prefix_sizes,
                                    int* bin_indices, int bin_count, int used,
-                                   std::uint32_t* control) {
+                                   std::uint32_t* control, const int* avail) {
   int global_tid = threadIdx.x + blockIdx.x * blockDim.x;
   int warp_idx = global_tid >> 5;
   int lane = threadIdx.x & 31;
@@ -119,8 +112,9 @@ __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys
   int rem_start = (orig_idx == 0) ? 0 : remove_prefix_sizes[orig_idx - 1];
   int rem_end = remove_prefix_sizes[orig_idx];
 
-  // All lanes do BST traversal (same key, same result)
-  cbst_node* cur = unfill_bst_find(nodes, key);
+  // All lanes do BST traversal (same key, same result); an absent or deleted key is skipped and
+  // reported by lane 0 (M8a step 4, lookup.cuh).
+  cbst_node* cur = find_item_node(nodes, avail, key, control, lane == 0);
   if (cur == nullptr) return;
 
   int seg_base = cur->tail_base;
@@ -195,7 +189,7 @@ __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys
 __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                     int* values_to_remove, int* remove_prefix_sizes,
                                     int* bin_indices, int bin_count, int used,
-                                    std::uint32_t* control) {
+                                    std::uint32_t* control, const int* avail) {
   int idx = blockIdx.x;
   if (idx >= bin_count) return;
 
@@ -213,7 +207,8 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
     sh_rem_start = (orig_idx == 0) ? 0 : remove_prefix_sizes[orig_idx - 1];
     sh_rem_end = remove_prefix_sizes[orig_idx];
 
-    sh_node = unfill_bst_find(nodes, key);
+    // An absent or deleted key is skipped and reported (M8a step 4, lookup.cuh).
+    sh_node = find_item_node(nodes, avail, key, control, true);
     if (sh_node != nullptr) {
       sh_seg_base = sh_node->tail_base;
       // Clamped to the tail capacity, as the fill kernels clamp it (M8a step 4, ADR 0039).
