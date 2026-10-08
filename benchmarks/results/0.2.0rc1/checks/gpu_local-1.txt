@@ -1,0 +1,19 @@
+# Copy of $DYNG_SCRATCH/runs/r020-cert/final4/gpu_local_summary.md (sha256 1a45894b5a74af6211c29af6f2f7c43a657c88fb8f90171821adbabf0e7d94fe, 476 bytes), written by parity/certify.py check.
+### ci/gpu_local.sh: dev-cuda
+
+commit 1826355; GPU 1: NVIDIA RTX A5000, 590.48.01; CUDA 13.1
+
+| step | result |
+|---|---|
+| build | passed |
+| ctest -L gpu | passed |
+| ctest -L cpu | passed |
+| parity (cuda goldens) | passed |
+| parity (cycle_count cuda goldens) | passed |
+| memcheck | passed |
+| synccheck | passed |
+| synccheck (mosp) | passed |
+| synccheck (cycle_count) | passed |
+| racecheck | passed |
+| plugin wheel (pytest -m gpu) | passed |
+| clang-tidy | passed |

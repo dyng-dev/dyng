@@ -1,0 +1,26 @@
+# Copy of $DYNG_SCRATCH/runs/r020-cert/c/mutation-ctests.log (sha256 ad4ca695fee77f5b4ac5fbdc3718355cae16a06f81401881f44a8a588c855338, 1327 bytes), written by parity/certify.py check.
+Test project /home/sskg8/Projects/dyng-work/r020/cert/clone-c2/build/dev-cuda
+    Start 1167: cycle_count.mutation.control
+1/7 Test #1167: cycle_count.mutation.control ....................   Passed   22.73 sec
+    Start 1168: cycle_count.mutation.cuda.control
+2/7 Test #1168: cycle_count.mutation.cuda.control ...............   Passed   34.00 sec
+    Start 1169: cycle_count.mutation.double_count_5
+3/7 Test #1169: cycle_count.mutation.double_count_5 .............   Passed   28.17 sec
+    Start 1170: cycle_count.mutation.weak_ownership
+4/7 Test #1170: cycle_count.mutation.weak_ownership .............   Passed   17.46 sec
+    Start 1171: cycle_count.mutation.skip_workspace_resize
+5/7 Test #1171: cycle_count.mutation.skip_workspace_resize ......   Passed   16.66 sec
+    Start 1172: cycle_count.mutation.cuda.cuda_double_count_5
+6/7 Test #1172: cycle_count.mutation.cuda.cuda_double_count_5 ...   Passed   29.25 sec
+    Start 1173: cycle_count.mutation.cuda.cuda_weak_ownership
+7/7 Test #1173: cycle_count.mutation.cuda.cuda_weak_ownership ...   Passed   27.05 sec
+
+100% tests passed out of 7
+
+Label Time Summary:
+cpu            =  85.01 sec*proc (4 tests)
+cycle_count    = 175.31 sec*proc (7 tests)
+gpu            =  90.30 sec*proc (3 tests)
+mutation       = 175.31 sec*proc (7 tests)
+
+Total Test time (real) = 177.04 sec

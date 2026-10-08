@@ -1,0 +1,3 @@
+# Copy of $DYNG_SCRATCH/runs/r020-cert/final4/api-check.log (sha256 e40cb388129d1abfd35ed1a5c59f802fdbd26f6a711568d8dad27bcca911852c, 117 bytes), written by parity/certify.py check.
+==> griffe check dyng against 8b9067e (griffe 2.3.0)
+api-check: no breaking change of the Python API against 8b9067e
