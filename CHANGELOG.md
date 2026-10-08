@@ -189,8 +189,10 @@ temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` com
 - Changed: `docs/developer/release.md` for 0.2 (every packaging- and repo-scope check is re-run on
   a later tag day, `api-check` included; the record of the hosted sanitizer jobs; `wheels.yml`
   green before the merge; mosp in the smoke test; the final-release checklist in version-neutral
-  terms); GOVERNANCE.md: the layout-control decision is due before `v0.2.0`, and the PyPI names of
-  the plugins are a new open decision.
+  terms); GOVERNANCE.md: the author's decision on layout control (2026-10-08: the one-layout
+  protocol stays for the gates, ADR 0024 for dynG-against-dynG bars, the alignment flags are a
+  performance option for 0.3) closes that open decision, and the PyPI names of the plugins are a
+  new open decision.
 - The release certificate was measured again on the reviewed code (R020 retrospective, step 5).
 
 ### Added (M6b)
