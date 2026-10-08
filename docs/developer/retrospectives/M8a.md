@@ -425,7 +425,10 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
 55. **Per-commit checks** as in step 4 (deviation 39): the CUDA build, `ctest -L cbst -LE slow`,
     the fast `ci/check.sh` steps before each commit, the replays (`cbst_merge_steps.sh`) right
     after it; the full `ci/check.sh`, the portability checks, the sanitizers, the large sets,
-    `ci/gpu_local.sh` and the fresh-clone builds at the end.
+    `ci/gpu_local.sh` and the fresh-clone builds at the end. After the documents were committed,
+    the whole merge-step table (34 commits, `477d592` to `e7157af`) was replayed once more with
+    the final comparator, and the large sets at the head's code (`f03b3eb`): every row `ok`
+    (`parity/results/M8a.md`, section 13, "The checks of step 5").
 
 ### Measurements
 
@@ -451,8 +454,9 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
 - **Sanitizers** (reduced sizes, GPU 1): memcheck, racecheck, synccheck and initcheck clean on
   `dyng_cbst_scenario_tests`, `_policy_tests`, `_graph_tests`, `_store_tests` and
   `_device_tests` (racecheck 32-236 s per executable).
-- **Effort**: step 5 took about 4 hours of wall-clock time after the resume (the lock and GPU 1
-  shared with the release branch's runs); M8a as a whole about 2 days for its five steps against
+- **Effort**: step 5 took about 4 hours of wall-clock time after the first resume and about 2
+  more for the final checks after the second (the whole merge-step table takes 77 minutes, the
+  large sets 24; the lock and GPU 1 shared with the release branch's runs); M8a as a whole about 2 days for its five steps against
   the plan's 1-1.5 weeks for M8 + M9 (`docs/developer/plan.md` section 4 re-baselines 0.3.0:
   1.5-2 weeks of focused effort, 3-4 weeks calendar).
 

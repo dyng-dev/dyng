@@ -865,10 +865,12 @@ runs them (step `cbst`).
 | `ctest -L cbst -LE slow` (dev-cuda) and the fast `ci/check.sh` steps before every commit | passed |
 | `ctest -L cbst` with the slow tests (dev-cuda) | 155 of 155 after `f03b3eb` (the large lockstep had failed before it, above) |
 | the merge-step replays of every commit, the large sets at `00319da` and `e7157af` | every row `ok` (table above) |
+| at the end: `parity/cbst_merge_steps.sh` over the whole merge-step table (the 34 commits of sections 11-13 from `477d592` to `e7157af`, small sets) with the final comparator, then `--large f03b3eb` (the head's code) | every row `ok`; every commit reproduces its recorded result (A's sets 1,176 + 52 ops with 0 mismatches at every commit; B's sets diverging tree by tree where the host model does up to `be449b6`; from `00319da` 14,104 + 53 ops with 0 mismatches under `mosp_escher()`); at `f03b3eb` every small and large set as in the table above |
 | `ctest -L mutation -R cbst` | the control passes, all 7 mutations killed |
 | the sanitizers | clean (criterion 16) |
-| the full `ci/check.sh` (format, cpu-only and dev builds with `ctest -L cpu`: 881 and 910 tests, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, pre-commit) | passed at `e7157af` |
-| the Clang 18 syntax pass (dev: 222 files; dev-cuda: 455 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed (after the `struct cbst_store` forward declaration of `e7157af`) |
-| fresh clone of the branch at `f03b3eb`: the cpu-only (with `ctest -L cbst`: 48 tests), dev-cuda and parity-cuda presets | built and passed |
+| the full `ci/check.sh` (format, cpu-only and dev builds with `ctest -L cpu`: 881 and 910 tests, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, pre-commit) | passed at `e7157af`, and again at `96143fb` (the step's last commit before this record; 881 and 910 tests) |
+| the Clang 18 syntax pass (dev: 222 files; dev-cuda: 455 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed (after the `struct cbst_store` forward declaration of `e7157af`), and again at `96143fb` (222 and 455 files, 0 failures; the fortified build clean) |
+| fresh clone of the branch at `f03b3eb` and again at `96143fb`: the cpu-only (with `ctest -L cbst`: 48 tests), dev-cuda and parity-cuda presets | built and passed |
+| `ctest -L cbst -LE slow` (dev-cuda, GPU 1) and `ctest -L cbst` (cpu-only) at `96143fb` | 151 of 151 and 48 of 48 |
 | `ci/gpu_local.sh` (dev-cuda, GPU 1; at `f03b3eb` with only the step's documents and records uncommitted; about 4 hours) | all 16 steps passed, among them the `cbst` sanitizers, the device replays of the small sets under the originals' presets and under `dyng_default()`, and the compact-after-every-op lockstep |
 | both originals' HEAD and `git status --porcelain` | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |
