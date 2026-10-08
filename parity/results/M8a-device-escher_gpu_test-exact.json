@@ -5,9 +5,9 @@
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T02:19:25+00:00",
- "head": "be449b65a021e230da5337276f5c87515179452d",
+ "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T06:13:06+00:00",
+ "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
  "cases": [
   {
    "case": "001-main",
@@ -27,7 +27,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "002-type1",
@@ -47,7 +48,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "003-type2",
@@ -67,7 +69,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "004-type3",
@@ -87,7 +90,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "005-coarseTriangle",
@@ -107,7 +111,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "006-main",
@@ -127,7 +132,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "007-main",
@@ -147,7 +153,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "008-type1",
@@ -167,7 +174,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "009-type1",
@@ -187,7 +195,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "010-type2",
@@ -207,7 +216,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "011-type2",
@@ -227,7 +237,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "012-type3",
@@ -247,7 +258,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "013-type3",
@@ -267,7 +279,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "014-coarseTriangle",
@@ -287,7 +300,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "015-coarseTriangle",
@@ -307,7 +321,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "016-main",
@@ -327,7 +342,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "017-main",
@@ -347,7 +363,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "018-main",
@@ -367,7 +384,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "019-main",
@@ -387,7 +405,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "020-type1",
@@ -407,7 +426,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "021-type1",
@@ -427,7 +447,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "022-type1",
@@ -447,7 +468,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "023-type1",
@@ -467,7 +489,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "024-type2",
@@ -487,7 +510,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "025-type2",
@@ -507,7 +531,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "026-type2",
@@ -527,7 +552,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "027-type2",
@@ -547,7 +573,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "028-type3",
@@ -567,7 +594,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "029-type3",
@@ -587,7 +615,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "030-type3",
@@ -607,7 +636,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "031-type3",
@@ -627,7 +657,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "032-coarseTriangle",
@@ -647,7 +678,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "033-coarseTriangle",
@@ -667,7 +699,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "034-coarseTriangle",
@@ -687,7 +720,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "035-coarseTriangle",
@@ -707,7 +741,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "036-main",
@@ -727,7 +762,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "037-main",
@@ -747,7 +783,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "038-main",
@@ -767,7 +804,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "039-main",
@@ -787,7 +825,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "040-main",
@@ -807,7 +846,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "041-main",
@@ -827,7 +867,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "042-main",
@@ -847,7 +888,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "043-main",
@@ -867,7 +909,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "044-type1",
@@ -887,7 +930,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "045-type1",
@@ -907,7 +951,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "046-type1",
@@ -927,7 +972,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "047-type1",
@@ -947,7 +993,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "048-type1",
@@ -967,7 +1014,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "049-type1",
@@ -987,7 +1035,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "050-type1",
@@ -1007,7 +1056,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "051-type1",
@@ -1027,7 +1077,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "052-type2",
@@ -1047,7 +1098,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "053-type2",
@@ -1067,7 +1119,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "054-type2",
@@ -1087,7 +1140,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "055-type2",
@@ -1107,7 +1161,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "056-type2",
@@ -1127,7 +1182,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "057-type2",
@@ -1147,7 +1203,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "058-type2",
@@ -1167,7 +1224,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "059-type2",
@@ -1187,7 +1245,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "060-type3",
@@ -1207,7 +1266,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "061-type3",
@@ -1227,7 +1287,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "062-type3",
@@ -1247,7 +1308,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "063-type3",
@@ -1267,7 +1329,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "064-type3",
@@ -1287,7 +1350,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "065-type3",
@@ -1307,7 +1371,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "066-type3",
@@ -1327,7 +1392,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "067-type3",
@@ -1347,7 +1413,8 @@
    "documented": [],
    "twin_constructs": 3,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "068-coarseTriangle",
@@ -1367,7 +1434,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "069-coarseTriangle",
@@ -1387,7 +1455,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "070-coarseTriangle",
@@ -1407,7 +1476,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "071-coarseTriangle",
@@ -1427,7 +1497,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "072-coarseTriangle",
@@ -1447,7 +1518,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "073-coarseTriangle",
@@ -1467,7 +1539,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "074-coarseTriangle",
@@ -1487,7 +1560,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "075-coarseTriangle",
@@ -1507,7 +1581,8 @@
    "documented": [],
    "twin_constructs": 4,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   }
  ],
  "totals": {

@@ -1,0 +1,167 @@
+{
+ "schema": 1,
+ "what": "M8a step 5 early-warning table (reported, not gated): per store operation of escher_gpu_coauth50k, ESCHER-GPU's unpatched build/main against the dynG store replay under escher_gpu(): device time of the kernels, blocking and allocating runtime calls, registers of the hot kernels (values are [ESCHER-GPU, dynG])",
+ "date": "2026-10-08T05:33:00Z",
+ "set": "escher_gpu_coauth50k",
+ "original": [
+  "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/unpatched/build/main",
+  "--input",
+  "$DYNG_SCRATCH/datasets/hyper/coauth.hg",
+  "--batches",
+  "3",
+  "--batch-size",
+  "50000",
+  "--seed",
+  "1",
+  "--check"
+ ],
+ "port": {
+  "commit": "043a6dd8299816b631b5a8184cc81e753b5c38c6",
+  "binary": "build/parity-cuda/cpp/tests/dyng_cbst_memory_tests"
+ },
+ "gpu": 0,
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "ops": [
+  {
+   "op": "h2v insert",
+   "ops": [
+    3,
+    3
+   ],
+   "device_ms_per_op": [
+    3.183,
+    3.069
+   ],
+   "blocking_per_op": [
+    17.0,
+    7.0
+   ],
+   "allocations_per_op": [
+    25.0,
+    0.0
+   ],
+   "ratio": 0.964
+  },
+  {
+   "op": "h2v erase",
+   "ops": [
+    3,
+    3
+   ],
+   "device_ms_per_op": [
+    0.1,
+    0.1
+   ],
+   "blocking_per_op": [
+    0.0,
+    0.0
+   ],
+   "allocations_per_op": [
+    2.0,
+    0.0
+   ],
+   "ratio": 1.0
+  },
+  {
+   "op": "v2h unfill",
+   "ops": [
+    3,
+    3
+   ],
+   "device_ms_per_op": [
+    0.711,
+    0.79
+   ],
+   "blocking_per_op": [
+    0.0,
+    0.0
+   ],
+   "allocations_per_op": [
+    1.0,
+    0.0
+   ],
+   "ratio": 1.111
+  },
+  {
+   "op": "v2h fill",
+   "ops": [
+    3,
+    3
+   ],
+   "device_ms_per_op": [
+    0.105,
+    0.1
+   ],
+   "blocking_per_op": [
+    2.0,
+    1.0
+   ],
+   "allocations_per_op": [
+    3.0,
+    0.0
+   ],
+   "ratio": 0.952
+  }
+ ],
+ "registers": {
+  "insertNode_thread": [
+   32,
+   32
+  ],
+  "insertNode_warp": [
+   null,
+   null
+  ],
+  "insertNode_block": [
+   null,
+   null
+  ],
+  "applyReuse": [
+   30,
+   30
+  ],
+  "applyReuse_warp": [
+   28,
+   28
+  ],
+  "applyReuse_block": [
+   null,
+   null
+  ],
+  "unfill_thread": [
+   23,
+   24
+  ],
+  "unfill_warp": [
+   null,
+   null
+  ],
+  "unfill_block": [
+   null,
+   null
+  ],
+  "locateDeleteTargets": [
+   16,
+   16
+  ],
+  "applyDeletes": [
+   16,
+   16
+  ],
+  "reduceAvailLevel": [
+   16,
+   16
+  ],
+  "allocateSpace": [
+   26,
+   26
+  ],
+  "fixupOverflowMetadata": [
+   16,
+   16
+  ]
+ }
+}

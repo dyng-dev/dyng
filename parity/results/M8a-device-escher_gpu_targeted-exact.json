@@ -5,9 +5,9 @@
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T02:19:26+00:00",
- "head": "be449b65a021e230da5337276f5c87515179452d",
+ "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T06:13:22+00:00",
+ "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
  "cases": [
   {
    "case": "targeted_large",
@@ -27,7 +27,8 @@
    "documented": [],
    "twin_constructs": 2,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {}
   },
   {
    "case": "targeted_small",
@@ -53,12 +54,15 @@
      "dataset": "targeted-small_capacity",
      "op": "construct",
      "rule": "construct_below_payload",
-     "detail": "trace: no exception; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:278)"
+     "detail": "trace: no exception; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:279)"
     }
    ],
    "twin_constructs": 10,
    "unreplayable_trees": [],
-   "first_mismatches": []
+   "first_mismatches": [],
+   "documented_rules": {
+    "construct_below_payload": 1
+   }
   }
  ],
  "totals": {

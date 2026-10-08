@@ -717,3 +717,158 @@ setting; appends and removals on dead or absent keys at the thread, warp and blo
 | `ci/check.sh` with `DYNG_CHECK_ONLY="format reuse provenance precommit"` before every commit; the full `ci/check.sh` at the end | passed: every step of the full run (format, the cpu-only and dev builds with `ctest -L cpu`, 879 and 908 tests, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, parity) at the step's last code commit; the pre-commit end-of-file fixer corrected the then uncommitted `parity/results/M8a.md`, and its re-run with the final documents passed |
 | the Clang 18 syntax pass (dev-cuda: 308 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed |
 | both originals' HEAD and `git status --porcelain` | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |
+
+## 13. Step merge-policies: automatic compaction, the presets, scenarios, mutations (criteria 10-18; ADR 0040)
+
+B's automatic compaction and its preset `mosp_escher()`, dynG's default `dyng_default()`, the
+partial-failure rule, B's 9 scenarios and smoke test, the graph-on-CBST test, the 7 mutations and
+the final readings (ADR 0040 cites B's lines and lists every deviation from B's literal code).
+**How each commit is judged** (`parity/cbst_merge_steps.sh <commit>`, as in section 12):
+
+- **A's sets under `escher_gpu()`**: identical in the `exact` field set (criterion 10(a)).
+- **B's sets under `mosp_escher()`** (from `00319da`, the commit that completes it): identical in
+  the `exact` field set (criterion 10(b) and more: InsertMapping, rows in order, avail,
+  subtree_avail, length, offsets, occupancy, tail capacity, segments, the bump pointer, the
+  capacity, scratch, D, the state before every op, the integrity verdicts; compactions inferred by
+  the same rule on both sides; B's `escher::EscherError` mapped to the dynG exception of its throw
+  site). The only documented divergences: `construct_without_row_counts` (the occupancy of the
+  keys of B's 11 `test_cbst_smoke` constructs with `rowOccupancy = nullptr`, which criterion 11
+  forbids porting, and B's own integrity verdict on exactly those keys; every other field and
+  every later op compared; 31 ops) and `construct_below_payload` (B's targeted construct below its
+  payload; B threw, as the store does; the tree has no other op).
+- **B's sets under `escher_gpu()`**: judged against the host model under the same preset, tree by
+  tree (39 trees of `mosp_escher_test` diverge, not 50: the smoke trees' occupancy rule applies to
+  the model too, so they no longer diverge at their constructs).
+- **Every set under `dyng_default()`** (from `9d599aa`; criterion 10(c)): the field set `policy`
+  (ADR 0040, section 3): rows, avail and subtree_avail identical on all sets; InsertMapping
+  identical up to the first policy difference; the policy differences listed below.
+
+| commit | change (B's lines) | A: test / targeted (`escher_gpu`) | B: test / targeted (`mosp_escher`) | B under `escher_gpu` | every set under `dyng_default` |
+|---|---|---|---|---|---|
+| `00319da` | B's automatic compaction (`operations.cu:409-444`, `694-721`), `mosp_escher()` (`DynamicHypergraph.cpp:79-107`); the exception mapping; `construct_without_row_counts` | 1,176 ops, 0 / 52 ops, 0, 1 documented | **14,104 ops, 0 mismatches**, 31 documented; **53 ops, 0**, 1 documented; 48 + 3 compactions, 1 + 2 exceptions at B's ops | 39 / 7 trees diverge, as the model | (not yet) |
+| `9d599aa` | `dyng_default()`, `max_payload`; the field set `policy`; the preset lockstep | as `00319da` | as `00319da` | as `00319da` | A test: 1,166 ops, 0 mismatches (65 `policy_difference`, 5 `policy_mapping`); A targeted: 52 ops, 0 (2 differences, 1 `construct_below_payload`); B test: 14,104 ops, 0 (1 `policy_exception`); B targeted: 53 ops, 0 (1 `policy_exception`, 1 `construct_below_payload`) |
+| `78a8dd5` | partial-failure tests | as `00319da` | as `00319da` | as `00319da` | as `9d599aa` |
+| `6e56612` | B's scenarios and smoke test | as `00319da` | as `00319da` | as `00319da` | as `9d599aa` |
+| `33b0ac7` | the graph-on-CBST test | as `00319da` | as `00319da` | as `00319da` | as `9d599aa` |
+| `c385ac8` | the 7 mutation hooks (off) | as `00319da` | as `00319da` | as `00319da` | as `9d599aa` |
+| `043a6dd` | the early-warning tooling | as `00319da` | as `00319da` | as `00319da` | as `9d599aa` |
+| `e7157af` | `ci/gpu_local.sh`, reduced sizes | as `00319da` | as `00319da` | as `00319da` | as `9d599aa` |
+| `f03b3eb` | the compact lockstep's dead-key stop (test only; see below) | as `00319da` | as `00319da` | as `00319da` | as `9d599aa` |
+
+"as `00319da`" means the same ops, mismatches (none) and documented divergences. **The large
+sets** at `00319da` (the commit that completes `mosp_escher()`) and at the final code commit
+`e7157af` (`f03b3eb` changes only `cbst_compact_test.cpp`, which no replay builds):
+`escher_gpu_coauth50k` 15 ops, 0 mismatches, 3 unreplayable (the hash-only H2H rebuilds) under
+`escher_gpu()` and under `dyng_default()`; `escher_gpu_syn1m` 54 unreplayable (batches mode);
+`mosp_escher_dblp50k_hyperedge` 27 ops and `mosp_escher_dblp50k_vertex` 21 ops: 0 mismatches
+under `mosp_escher()` and `dyng_default()`, 0 trees diverge under `escher_gpu()` (judged against
+the model). The records of the final run are `parity/results/M8a-device-<set>-exact[-<preset>].json`
+and `M8a-device-<set>-policy-dyng_default.json` (the step-4 records of the staging preset are
+kept; their `head` is the main worktree's at the time, the `exe` the commit's build).
+
+**dynG's default: where the policies differ** (criterion 10(c), from the records):
+
+- `escher_gpu_test`: in 30 trees, at the op where A grows and the default compacts first (the
+  bump pointer, the capacity and the compacted rows' lengths differ: `policy_difference`); in 5 of
+  them (the H2V trees of A's medium graph `043-main`, `051-type1`, `059-type2`, `067-type3`,
+  `075-coarseTriangle`) the insert at op 4, after the compaction at op 2, maps items to other
+  slots (`policy_mapping`, the end of the comparison of those trees: 10 ops). Rows, avail and
+  subtree_avail are identical everywhere else; no InsertMapping differs before a policy
+  difference.
+- `escher_gpu_targeted`: `fill_compact` (op 4) and `insert_compact` (op 3), where A grows.
+- `mosp_escher_test`: `churn-growth` op 79, where B throws at its fixed capacity and the default
+  grows (`policy_exception`); `mosp_escher_targeted`: the capacity throw (op 1), the same.
+- The large sets: none (no growth or compaction happens on coauth50k or the DBLP runs).
+
+**Scenarios and unit tests (criterion 13)** (`dyng_cbst_scenario_tests`, `dyng_cbst_policy_tests`,
+`dyng_cbst_graph_tests`, `dyng_cbst_store_tests`; every op mirrored on the host model and compared
+in every field): B's scale (n = 1..1100 and 65,535 .. 2^20), reuse, terminator, erase, surplus,
+bestfit, unfill-chain, random (rows of 1..3,000 values: every fill, reuse and unfill kernel level
+ran), churn (small, random, insert, growth) and `test_cbst_smoke` (with and without counts),
+under `escher_gpu()`, `mosp_escher()` and `dyng_default()`: 39 tests, all passing; churn-growth
+throws `capacity_error` only under `mosp_escher()` (with more than 245 live values in 256 slots)
+and grows under the other two; the churn scenarios compact under the B presets and grow under
+`escher_gpu()`. 40 random sequences per preset (2,400 / 601 / 2,400 ops; growths, compactions,
+compactions then growths, compactions then exceptions) agree with the host model; permuted,
+garbage and live requested keys give the same InsertMapping and state; batches of many ties match
+the model. The graph-on-CBST agrees with `dyng::graph::apply` on sorted rows after every batch
+under every preset, and B's `test_dynamicgraph_roundtrip` trace replays under `mosp_escher()`
+with no mismatch. Earlier steps' tests cover the 0-record tree, the 2,000 overflowing appends, the
+cyclic chain, the clamps, dead or absent keys and the clone.
+
+**Presets and errors (criterion 12)** (`CbstStorePresets`, `CbstScenario.ChurnGrowth`): the default
+compacts first and grows only when the compacted rows do not fit; `escher_gpu()` grows;
+`mosp_escher()` compacts, then throws; `dyng_default(64)` raises `capacity_error` beyond 64 slots
+and poisons the store; an injected allocation failure at every allocation of an insert (reuse and
+surplus) and of an overflowing fill raises `out_of_memory_error` under every preset and poisons
+the store, after which every operation throws until a construct.
+
+**The compact-after-every-op lockstep** (`dyng_cbst_compact_large_tests`, the four small sets) had
+failed since `be449b6`; with the dead-key stop of `f03b3eb`: 14,007 ops, 13,964 compactions
+(4,105 reclaimed space), 34,933,621 live and 400,925 deleted rows checked after a compaction, 0
+problems, 43 trees stopped at a failing op (41 at a fill or unfill naming a key that the lockstep's
+state holds deleted or absent, confirmed in the model's state; 2 at the targeted constructs below
+their payload).
+
+**Mutations (criterion 17)** (`ctest -L mutation -R cbst`: a copy of libdyng with the mutated
+hypergraph module against the committed-trace replays, the preset lockstep and the graph test):
+
+| mutation | killed by |
+|---|---|
+| control (no mutation) | passes |
+| `unfill_drops_last` (B's #4) | 10 failed tests (the replays of both originals, the lockstep, the graph test, B's roundtrip trace) |
+| `graph_own_ids` (B's #5) | 6 (the graph-on-CBST test under every preset) |
+| `reversed_ties` | 13 (the replays, the lockstep incl. the ties test, the roundtrip trace) |
+| `surplus_rule1` | 12 (the replays, the lockstep) |
+| `keep_dead_slots` | 9 (the replays, the lockstep) |
+| `compaction_padding` | 4 (B's replays under `mosp_escher()`, the lockstep under the B presets) |
+| `requested_keys` | 12 (the replays, the requested-keys test, the lockstep) |
+
+**Criterion 15, the store memory** (GPU 0, exclusive perf lock, at `043a6dd`; records
+`M8a-memory.json` and `M8a-memory-dyng_default.json`): every tree's `device_bytes()` after its
+construct and after every op of the 3 batches of `escher_gpu_coauth50k` equals ESCHER-GPU's
+recorded `deviceBytes()` under `escher_gpu()` (18 readings, ratio 1.0000, gate <= 1.05) and under
+`dyng_default()` (the same 18 values: no compaction on this run, and the scratch never grows
+past its size after the construct), and the store holds what it accounts (`allocated_bytes()`). The nsys peak of live device allocations (recorded,
+not gated in M8): 3,018.9 MiB for A's whole `build/main`, 2,772.6 MiB for the store replay under
+either preset (the pool reached 2,912 MiB).
+
+**The early-warning table** (reported, not gated; `parity/perf_ab.py cbst early`, record
+`M8a-early-warning.json`; GPU 0, exclusive lock; A = unpatched `build/main` of coauth50k, dynG =
+the store replay under `escher_gpu()`; per op, the 3 ops of each class):
+
+| op | device time per op, A / dynG | ratio | blocking runtime calls per op | allocation calls per op |
+|---|---:|---:|---:|---:|
+| h2v erase | 0.100 / 0.100 ms | 1.00 | 0 / 0 | 2 / 0 |
+| v2h unfill | 0.711 / 0.790 ms | **1.11** | 0 / 0 | 1 / 0 |
+| h2v insert | 3.183 / 3.069 ms | 0.96 | 17 / 7 | 25 / 0 |
+| v2h fill | 0.105 / 0.100 ms | 0.95 | 2 / 1 | 3 / 0 |
+
+Registers per thread (CUPTI), A / dynG: `insert_node_thread` 32 / 32, `apply_reuse` 30 / 30,
+`apply_reuse_warp` 28 / 28, `unfill_thread` 23 / 24, `locate_delete_targets`, `apply_deletes`,
+`reduce_avail_level`, `fixup_overflow_metadata` 16 / 16, `allocate_space` 26 / 26 (the warp and
+block fill and unfill kernels do not run on coauth50k). dynG allocates from the stream-ordered
+pool (no runtime allocation call after the warm-up); its blocking calls are A's read points
+(ADR 0038). The 1.11x of v2h unfill (the bounded chain walk and the dead-key lookup of ADR 0039)
+is the item to watch in M9, which gates `update`.
+
+**Criterion 16, robustness.** compute-sanitizer memcheck (leak check), racecheck, synccheck and
+initcheck: 0 errors, 0 hazards on `dyng_cbst_scenario_tests`, `dyng_cbst_policy_tests`,
+`dyng_cbst_graph_tests` (reduced sizes, `DYNG_CBST_REDUCED=1`), `dyng_cbst_store_tests` and
+`dyng_cbst_device_tests` (one replay of each original's committed traces); `ci/gpu_local.sh`
+runs them (step `cbst`).
+
+**The checks of step 5** (2026-10-08; shared perf lock, niced; GPU 1 unless stated):
+
+| check | result |
+|---|---|
+| `ctest -L cbst -LE slow` (dev-cuda) and the fast `ci/check.sh` steps before every commit | passed |
+| `ctest -L cbst` with the slow tests (dev-cuda) | 155 of 155 after `f03b3eb` (the large lockstep had failed before it, above) |
+| the merge-step replays of every commit, the large sets at `00319da` and `e7157af` | every row `ok` (table above) |
+| `ctest -L mutation -R cbst` | the control passes, all 7 mutations killed |
+| the sanitizers | clean (criterion 16) |
+| the full `ci/check.sh` (format, cpu-only and dev builds with `ctest -L cpu`: 881 and 910 tests, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, pre-commit) | passed at `e7157af` |
+| the Clang 18 syntax pass (dev: 222 files; dev-cuda: 455 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed (after the `struct cbst_store` forward declaration of `e7157af`) |
+| fresh clone of the branch at `f03b3eb`: the cpu-only (with `ctest -L cbst`: 48 tests), dev-cuda and parity-cuda presets | built and passed |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1; at `f03b3eb` with only the step's documents and records uncommitted; about 4 hours) | all 16 steps passed, among them the `cbst` sanitizers, the device replays of the small sets under the originals' presets and under `dyng_default()`, and the compact-after-every-op lockstep |
+| both originals' HEAD and `git status --porcelain` | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |

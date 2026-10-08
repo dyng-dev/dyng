@@ -1,0 +1,85 @@
+{
+ "set": "cbst_trace_mosp_escher_targeted",
+ "reference": "MOSP_ESCHER",
+ "manifest_sha256": "280d185aaa4f4321c96810cb41bf336e67a5a82fff0c340565b222a80072e353",
+ "store": "device",
+ "policy": "mosp_escher",
+ "fields": "exact",
+ "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-e7157af/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T06:14:45+00:00",
+ "head": "e7157afb28a0829dfee247b22fee4a3d54395a3d",
+ "cases": [
+  {
+   "case": "targeted_large",
+   "ok": true,
+   "store": "device:mosp_escher",
+   "exit": "normal",
+   "ops": 11,
+   "compared": 11,
+   "unreplayable": 0,
+   "mappings": 1,
+   "keys_compared": 48,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 2,
+   "unreplayable_trees": [],
+   "first_mismatches": [],
+   "documented_rules": {}
+  },
+  {
+   "case": "targeted_small",
+   "ok": true,
+   "store": "device:mosp_escher",
+   "exit": "normal",
+   "ops": 42,
+   "compared": 42,
+   "unreplayable": 0,
+   "mappings": 6,
+   "keys_compared": 397,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 3,
+   "exceptions": 2,
+   "mismatch_count": 0,
+   "documented": [
+    {
+     "seq": 74,
+     "op_index": 41,
+     "tree_op": 0,
+     "tree": 11,
+     "dataset": "targeted-small_capacity",
+     "op": "construct",
+     "rule": "construct_below_payload",
+     "detail": "trace: exception escher::EscherError; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:279)"
+    }
+   ],
+   "twin_constructs": 10,
+   "unreplayable_trees": [],
+   "first_mismatches": [],
+   "documented_rules": {
+    "construct_below_payload": 1
+   }
+  }
+ ],
+ "totals": {
+  "ops": 53,
+  "compared": 53,
+  "unreplayable": 0,
+  "mappings": 7,
+  "keys_compared": 445,
+  "hash_only_rows": 0,
+  "growths": 0,
+  "compactions": 3,
+  "exceptions": 2,
+  "mismatch_count": 0,
+  "documented": 1,
+  "twin_constructs": 12
+ },
+ "problems": [],
+ "against_model": false,
+ "passed": true
+}
