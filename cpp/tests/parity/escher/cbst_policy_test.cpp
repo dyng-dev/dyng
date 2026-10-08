@@ -129,11 +129,12 @@ TEST_P(CbstPresetLockstep, RandomSequencesAgreeWithTheHostModel) {
   DYNG_SKIP_WITHOUT_DEVICE();
   const std::string preset = GetParam();
   sequence_totals totals;
-  for (std::uint64_t seed = 1; seed <= 40; ++seed) random_sequence(preset, seed, 60, totals);
+  const std::uint64_t seeds = reduced_sizes() ? 6 : 40;  // reduced: under the sanitizers
+  for (std::uint64_t seed = 1; seed <= seeds; ++seed) random_sequence(preset, seed, 60, totals);
   std::printf("%s: %lld ops, %lld inserts, %lld growths, %lld compactions, %lld errors\n",
               preset.c_str(), totals.ops, totals.inserts, totals.growths, totals.compactions,
               totals.errors);
-  EXPECT_GT(totals.ops, preset == "mosp_escher" ? 500 : 2000);
+  EXPECT_GT(totals.ops, static_cast<long long>(seeds) * (preset == "mosp_escher" ? 10 : 50));
   // The sequences reach what the preset does with a full payload.
   if (preset == "escher_gpu") {
     EXPECT_GT(totals.growths, 0);

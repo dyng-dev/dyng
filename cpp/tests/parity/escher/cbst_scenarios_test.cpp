@@ -58,9 +58,14 @@ class CbstScenario : public ::testing::TestWithParam<const char*> {
 // overflow of the in-order rank formula).
 TEST_P(CbstScenario, Scale) {
   DYNG_SKIP_WITHOUT_DEVICE();
+  // Reduced under the sanitizers (reduced_sizes()): n = 1..64 and 65,537.
   std::vector<int> sizes;
-  for (int n = 1; n <= 1100; ++n) sizes.push_back(n);
-  for (int n : {65535, 65536, 65537, 70000, 131071, 200000, 1 << 20}) sizes.push_back(n);
+  for (int n = 1; n <= (reduced_sizes() ? 64 : 1100); ++n) sizes.push_back(n);
+  if (reduced_sizes()) {
+    sizes.push_back(65537);
+  } else {
+    for (int n : {65535, 65536, 65537, 70000, 131071, 200000, 1 << 20}) sizes.push_back(n);
+  }
   for (int n : sizes) {
     rows values(static_cast<std::size_t>(n));
     for (int i = 0; i < n; ++i)
@@ -176,7 +181,10 @@ TEST_P(CbstScenario, UnfillChain) {
 TEST_P(CbstScenario, Random) {
   DYNG_SKIP_WITHOUT_DEVICE();
   std::array<std::int64_t, 9> bins{};
-  for (int n : {300, 5000, 70000}) {
+  // Reduced under the sanitizers: n = 300 and 5,000 (the block-level rows are kept).
+  const std::vector<int> ns =
+      reduced_sizes() ? std::vector<int>{300, 5000} : std::vector<int>{300, 5000, 70000};
+  for (int n : ns) {
     SCOPED_TRACE("n=" + std::to_string(n));
     std::mt19937_64 rng(static_cast<std::uint64_t>(1234 + n));
     auto rnd = [&](int lo, int hi) { return lo + static_cast<int>(rng() % (hi - lo + 1)); };
@@ -231,7 +239,9 @@ TEST_P(CbstScenario, Random) {
     EXPECT_CLEAN(h);
     for (std::size_t i = 0; i < 9; ++i) bins[i] += h.bins()[i];
   }
-  // Every kernel level of fill, reuse and unfill ran.
+  // Every kernel level of fill, reuse and unfill ran (the full sizes only: the block-level
+  // unfill needs the rows of n = 70,000; dyng_cbst_coverage_tests covers every level too).
+  if (reduced_sizes()) return;
   static const char* const names[9] = {"fill/thread",   "fill/warp",   "fill/block",
                                        "reuse/thread",  "reuse/warp",  "reuse/block",
                                        "unfill/thread", "unfill/warp", "unfill/block"};
@@ -292,7 +302,8 @@ TEST_P(CbstScenario, ChurnRandom) {
   }
   lockstep_tree h(preset(), "churn-random", flat * 3 / 2);
   h.construct(values);
-  for (int round = 0; round < 300 && h.problems().empty(); ++round) {
+  const int rounds = reduced_sizes() ? 40 : 300;  // reduced under the sanitizers
+  for (int round = 0; round < rounds && h.problems().empty(); ++round) {
     std::map<int, row> add, rem;
     long long added = 0, removed = 0;
     for (int i = 0; i < n / 10; ++i) {
@@ -321,7 +332,7 @@ TEST_P(CbstScenario, ChurnRandom) {
     }
     h.erase(std::vector<int>(er.begin(), er.end()));
     h.insert(items);
-    if (round % 20 == 0 || round == 299) h.check("round " + std::to_string(round));
+    if (round % 20 == 0 || round == rounds - 1) h.check("round " + std::to_string(round));
   }
   EXPECT_CLEAN(h);
   const auto [growths, compactions] = h.events();

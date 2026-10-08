@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <map>
 #include <set>
 #include <sstream>
@@ -38,6 +39,13 @@
 #include <vector>
 
 namespace dyng::test::cbst_compare {
+
+/// Whether the tests run their reduced sizes ($DYNG_CBST_REDUCED: the compute-sanitizer runs of
+/// ci/gpu_local.sh, where the full scenarios would take hours; the sizes are named in each test).
+inline bool reduced_sizes() {
+  const char* v = std::getenv("DYNG_CBST_REDUCED");
+  return v != nullptr && *v != '\0' && std::string(v) != "0";
+}
 
 /// The host-model policy a device-store preset is checked against.
 inline dyng::testing::cbst_host_policy lockstep_model_policy(const std::string& preset) {

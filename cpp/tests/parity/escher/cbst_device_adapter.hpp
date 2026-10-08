@@ -29,7 +29,7 @@
 #include <string>
 
 namespace dyng::detail::escher {
-class cbst_store;
+struct cbst_store;
 }  // namespace dyng::detail::escher
 
 namespace dyng::test::cbst_compare {
