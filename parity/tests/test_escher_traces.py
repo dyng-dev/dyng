@@ -509,6 +509,26 @@ def test_first_divergence_of_a_thrown_op() -> None:
     assert g.first_divergence_sets(kept) != g.first_divergence_sets(kept_model)
 
 
+def test_first_divergence_of_an_operation_the_preset_lacks() -> None:
+    """compact() before the commit that merges it: the device store reports it unsupported, the
+    model's policy has none; one status. A model "undefined" for another reason stays distinct."""
+    g = load("parity/cbst_trace_goldens.py")
+
+    def report(actual):
+        m = {"tree": 10, "tree_op": 3, "op": "compact", "key": -1, "field": "status"}
+        return {
+            "trees": [{"tree": 10}],
+            "mismatches": [dict(m, expected="ok", actual=actual)],
+            "documented": [],
+        }
+
+    store = report("unsupported: the store has no operation 'compact' under mosp_escher_staged")
+    model = report("undefined: the policy has no compact() (ESCHER-GPU has none)")
+    assert g.first_divergence_sets(store) == g.first_divergence_sets(model)
+    other = report("undefined: compaction: an endless row chain")
+    assert g.first_divergence_sets(store) != g.first_divergence_sets(other)
+
+
 def test_documented_divergence_counts_are_pinned(tmp_path: Path) -> None:
     """M8a review: a replay whose documented divergences differ from the pinned counts fails."""
     g = load("parity/cbst_trace_goldens.py")
