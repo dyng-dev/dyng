@@ -199,6 +199,16 @@ if(DYNG_ENABLE_CUDA)
   )
   dyng_set_cuda_options(dyng_cbst_scenario_tests)
   list(APPEND _dyng_private_tests dyng_cbst_scenario_tests)
+  # The internal graph-on-CBST test (PLAN 6.1 D8, M8a step 5): a graph on two stores against
+  # dyng::graph's apply, under every preset, and MOSP_ESCHER's test_dynamicgraph_roundtrip trace.
+  dyng_add_test(
+    NAME dyng_cbst_graph_tests
+    SOURCES parity/escher/cbst_graph_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_graph_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_graph_tests)
   # The presets of M8a step 5 (ADR 0039): random operation sequences, requested keys and best-fit
   # ties under every preset, in lockstep with the host model.
   dyng_add_test(
