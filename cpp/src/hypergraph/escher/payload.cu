@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:kernel/payload.cu
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/payload.cu (the fill clamps)
 /**
  * @file payload.cu
  * @brief Fill kernels: the degree-binned appends into tail segments, the overflow plan, the
@@ -105,6 +106,17 @@ static __device__ cbst_node* bst_find(cbst_node* nodes, int key) {
   return current;
 }
 
+// The occupancy of a tail segment as the fill kernels use it: clamped to [0, tail_capacity].
+// MOSP_ESCHER clamps the room left in the tail, max(0, tail_capacity - occupancy)
+// (escher/kernel/payload.cu@4b86159:123, 178, 241), so that a row without room for its
+// terminator does not write before its write position or read values[-1] in allocate_space; dynG
+// clamps the occupancy itself, so that the write position (and the chain pointer of an overflow)
+// stays inside the segment too (M8a step 4, ADR 0039). Only inconsistent metadata (occupancy above
+// the tail capacity) is affected; no state of either original's traces has it.
+static __device__ __forceinline__ int clamped_occupancy(const cbst_node* node) {
+  return min(max(node->occupancy, 0), node->tail_capacity);
+}
+
 // ── Thread-level insert_node (small payloads, num_values < 32) ────────────
 // Uses occupancy to skip serial scan. Direct write at tail_base + occupancy.
 __global__ void insert_node_thread_kernel(cbst_node* nodes, int* flat_values, int* insert_indices,
@@ -122,8 +134,9 @@ __global__ void insert_node_thread_kernel(cbst_node* nodes, int* flat_values, in
   cbst_node* current = bst_find(nodes, insert_index);
   if (current == nullptr) return;
 
-  int write_pos = current->tail_base + current->occupancy;
-  int remaining = current->tail_capacity - current->occupancy;
+  const int occupancy = clamped_occupancy(current);
+  int write_pos = current->tail_base + occupancy;
+  int remaining = current->tail_capacity - occupancy;
 
   if (num_values <= remaining) {
     // All values fit in the current segment
@@ -131,7 +144,7 @@ __global__ void insert_node_thread_kernel(cbst_node* nodes, int* flat_values, in
       flat_values[write_pos + i] = values[i];
     }
     flat_values[write_pos + num_values] = INT_MIN;
-    current->occupancy += num_values;
+    current->occupancy = occupancy + num_values;
   } else {
     // Partial fit: write what we can, record overflow
     for (int i = 0; i < remaining; ++i) {
@@ -167,15 +180,16 @@ __global__ void insert_node_warp_kernel(cbst_node* nodes, int* flat_values, int*
 
   // We need shared data across the warp. Use __shfl_sync for broadcast.
   // Lane 0 finds the node and broadcasts metadata.
-  int write_pos = 0, remaining = 0;
+  int write_pos = 0, remaining = 0, occupancy = 0;
   int node_found = 0;
   // All lanes participate in the bst_find independently (same key, same result)
   // This avoids the need for shfl broadcast of the pointer.
   cbst_node* current = bst_find(nodes, insert_index);
   if (current != nullptr) {
     node_found = 1;
-    write_pos = current->tail_base + current->occupancy;
-    remaining = current->tail_capacity - current->occupancy;
+    occupancy = clamped_occupancy(current);
+    write_pos = current->tail_base + occupancy;
+    remaining = current->tail_capacity - occupancy;
   }
 
   // Broadcast from lane 0 (consistent across lanes since same key)
@@ -195,7 +209,7 @@ __global__ void insert_node_warp_kernel(cbst_node* nodes, int* flat_values, int*
   if (lane == 0) {
     if (num_values <= remaining) {
       flat_values[write_pos + num_values] = INT_MIN;
-      current->occupancy += num_values;
+      current->occupancy = occupancy + num_values;
     } else {
       partial_solution[orig_idx * 3] = write_pos + remaining;
       partial_solution[orig_idx * 3 + 1] = remaining;
@@ -217,6 +231,7 @@ __global__ void insert_node_block_kernel(cbst_node* nodes, int* flat_values, int
   // Shared metadata for the block
   __shared__ int sh_write_pos;
   __shared__ int sh_remaining;
+  __shared__ int sh_occupancy;
   __shared__ int sh_num_values;
   __shared__ int sh_values_start;
   __shared__ int sh_orig_idx;
@@ -231,8 +246,9 @@ __global__ void insert_node_block_kernel(cbst_node* nodes, int* flat_values, int
 
     sh_node = bst_find(nodes, insert_index);
     if (sh_node != nullptr) {
-      sh_write_pos = sh_node->tail_base + sh_node->occupancy;
-      sh_remaining = sh_node->tail_capacity - sh_node->occupancy;
+      sh_occupancy = clamped_occupancy(sh_node);
+      sh_write_pos = sh_node->tail_base + sh_occupancy;
+      sh_remaining = sh_node->tail_capacity - sh_occupancy;
     }
   }
   __syncthreads();
@@ -251,7 +267,7 @@ __global__ void insert_node_block_kernel(cbst_node* nodes, int* flat_values, int
   if (threadIdx.x == 0) {
     if (sh_num_values <= sh_remaining) {
       flat_values[sh_write_pos + sh_num_values] = INT_MIN;
-      sh_node->occupancy += sh_num_values;
+      sh_node->occupancy = sh_occupancy + sh_num_values;
     } else {
       partial_solution[sh_orig_idx * 3] = sh_write_pos + sh_remaining;
       partial_solution[sh_orig_idx * 3 + 1] = sh_remaining;

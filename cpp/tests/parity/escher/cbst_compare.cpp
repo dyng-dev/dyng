@@ -785,6 +785,7 @@ cbst_host_policy staged_host_policy() {
   p.failure = cbst_host_policy::failure_rule::exception;
   p.error_type = "dyng::capacity_error";
   p.validate_construct = true;
+  p.clamp_fill_tail = true;  // (b) the fill clamps
   return p;
 }
 

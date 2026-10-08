@@ -107,7 +107,9 @@ __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys
   if (cur == nullptr) return;
 
   int seg_base = cur->tail_base;
-  int occ = cur->occupancy;
+  // Clamped to the tail capacity, as the fill kernels clamp it (M8a step 4, ADR 0039): a row with
+  // inconsistent metadata is not read or compacted past its segment.
+  int occ = min(max(cur->occupancy, 0), cur->tail_capacity);
 
   // For single-segment nodes (tail_base == value), do cooperative compaction.
   // For multi-segment (overflow chain), fall back to lane 0 doing serial work.
@@ -192,7 +194,8 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
     sh_node = unfill_bst_find(nodes, key);
     if (sh_node != nullptr) {
       sh_seg_base = sh_node->tail_base;
-      sh_occ = sh_node->occupancy;
+      // Clamped to the tail capacity, as the fill kernels clamp it (M8a step 4, ADR 0039).
+      sh_occ = min(max(sh_node->occupancy, 0), sh_node->tail_capacity);
     }
     sh_write_offset = 0;
   }

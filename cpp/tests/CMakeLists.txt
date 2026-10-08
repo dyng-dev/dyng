@@ -162,10 +162,11 @@ if(DYNG_ENABLE_CUDA)
   )
   list(APPEND _dyng_private_tests dyng_cbst_device_tests)
   # The store's own tests: ESCHER-GPU's cbst_test layout sizes on the construction kernels, the
-  # dynG additions, the error policy, the streams.
+  # dynG additions, the error policy, the streams, MOSP_ESCHER's merged behaviours (M8a step 4).
   dyng_add_test(
     NAME dyng_cbst_store_tests
     SOURCES hypergraph/escher/cbst_store_test.cpp hypergraph/escher/cbst_layout_test.cu
+            hypergraph/escher/cbst_merge_test.cpp
     LABELS gpu cbst
   )
   dyng_set_cuda_options(dyng_cbst_store_tests)
