@@ -1036,7 +1036,7 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
         "store": args.store,
         "policy": args.policy or "the original's preset",
         "fields": args.fields,
-        "exe": str(exe),
+        "exe": portable(exe),
         "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
         "head": subprocess.run(
             ["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True
