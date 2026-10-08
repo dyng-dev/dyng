@@ -29,6 +29,13 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                dyng-compat-cycle-enum (`compare.py cycle_count`): histograms and generated
                batches; the `cuda` configuration replays the set `cycle_count_cuda` (the
                original's CUDA backend)
+  cbst         the ESCHER CBST store (M8a, acceptance criterion 17): the GoogleTest suites
+               dyng_cbst_device_tests (the committed traces of ESCHER-GPU@abcf9b2 and
+               MOSP_ESCHER@4b86159 replayed in the exact field set), dyng_cbst_policy_tests (random
+               sequences, requested keys and ties under every preset, in lockstep with the host
+               model) and dyng_cbst_graph_tests (the graph-on-CBST test), run on the GPU; a
+               mutation is detected when a test of them fails. The same mutations are the CTests
+               `cbst.mutation.<name>` (ctest -L mutation) of every CUDA build.
 
 The control (no mutation) must pass on every (suite, configuration) the chosen mutations use;
 every mutation must fail (at least one case differs). Builds and replays take the shared perf
@@ -60,7 +67,20 @@ SUITES = {
     "sssp": {"target": "dyng-compat-mosp", "compare": [], "goldens": "sssp"},
     "mosp": {"target": "dyng-compat-mosp", "compare": [], "goldens": "sssp"},
     "cycle_count": {"target": "dyng-compat-cycle-enum", "compare": ["cycle_count"]},
+    # GoogleTest suites (run directly, not through compare.py; M8a).
+    "cbst": {
+        "targets": ["dyng_cbst_device_tests", "dyng_cbst_policy_tests", "dyng_cbst_graph_tests"],
+        "runner": "gtest",
+        "compare": [],
+    },
 }
+
+
+def suite_targets(suite: str) -> list[str]:
+    """The build targets of a suite: its compatibility driver, or its GoogleTest executables."""
+    spec = SUITES[suite]
+    return list(spec["targets"]) if "targets" in spec else [spec["target"]]
+
 
 MUTATIONS = [
     # PLAN 8.4, sssp: "a skipped subtree invalidation (the count-to-infinity revert)": only the
@@ -169,6 +189,58 @@ MUTATIONS = [
         "new": "static_cast<std::int64_t>(weights[static_cast<std::size_t>(edge)]);  // MUTATION",
         "config": "sequential",
     },
+    # cbst (M8a, acceptance criterion 17): the hooks DYNG_MUTATION_CBST_* in
+    # cpp/src/hypergraph/escher (and, for the graph's own ids, in its test).
+    {
+        "name": "cbst_unfill_drops_last",
+        "suite": "cbst",
+        "plan": "M8a 17: remove_values ignores the last value of each removal list "
+        "(MOSP_ESCHER #4, the triad mutation)",
+        "defines": ["DYNG_MUTATION_CBST_UNFILL_DROPS_LAST"],
+        "config": "cuda",
+    },
+    {
+        "name": "cbst_graph_own_ids",
+        "suite": "cbst",
+        "plan": "M8a 17: graph-on-CBST keeps its own edge ids (MOSP_ESCHER #5)",
+        "defines": ["DYNG_MUTATION_CBST_GRAPH_OWN_IDS"],
+        "config": "cuda",
+    },
+    {
+        "name": "cbst_reversed_ties",
+        "suite": "cbst",
+        "plan": "M8a 17: reversed best-fit tie order",
+        "defines": ["DYNG_MUTATION_CBST_REVERSED_TIES"],
+        "config": "cuda",
+    },
+    {
+        "name": "cbst_surplus_rule1",
+        "suite": "cbst",
+        "plan": "M8a 17: surplus rows padded with rule 1 instead of rule 2",
+        "defines": ["DYNG_MUTATION_CBST_SURPLUS_RULE1"],
+        "config": "cuda",
+    },
+    {
+        "name": "cbst_keep_dead_slots",
+        "suite": "cbst",
+        "plan": "M8a 17: a surplus rebuild that keeps unmatched dead slots",
+        "defines": ["DYNG_MUTATION_CBST_KEEP_DEAD_SLOTS"],
+        "config": "cuda",
+    },
+    {
+        "name": "cbst_compaction_padding",
+        "suite": "cbst",
+        "plan": "M8a 17: compaction padding changed",
+        "defines": ["DYNG_MUTATION_CBST_COMPACTION_PADDING"],
+        "config": "cuda",
+    },
+    {
+        "name": "cbst_requested_keys",
+        "suite": "cbst",
+        "plan": "M8a 17: requested keys honoured",
+        "defines": ["DYNG_MUTATION_CBST_REQUESTED_KEYS"],
+        "config": "cuda",
+    },
 ]
 
 
@@ -210,14 +282,21 @@ def configure_args(defines: list[str]) -> list[str]:
 
 def build(copy: Path, targets: list[str], defines: list[str], log: Path) -> dict | None:
     """Builds `targets` in the copy (parity-cuda preset); their paths, or None on a failure."""
-    out = copy / "build" / "parity-cuda" / "tools" / "compat"
+    tree = copy / "build" / "parity-cuda"
     if sh(heavy(["cmake", "--preset", "parity-cuda", *configure_args(defines)]), log, cwd=copy):
         return None
     argv = ["cmake", "--build", "--preset", "parity-cuda", "--target", *targets]
     if sh(heavy(argv), log, cwd=copy):
         return None
-    exes = {t: out / t for t in targets}
-    return exes if all(e.is_file() for e in exes.values()) else None
+    exes = {}
+    for t in targets:  # a compatibility driver (tools/compat) or a test (cpp/tests)
+        found = [
+            p for p in (tree / "tools" / "compat" / t, tree / "cpp" / "tests" / t) if p.is_file()
+        ]
+        if not found:
+            return None
+        exes[t] = found[0]
+    return exes
 
 
 def failures(doc: dict, configs: list[str]) -> dict:
@@ -233,6 +312,41 @@ def failures(doc: dict, configs: list[str]) -> dict:
                 bad = 1 if isinstance(cell, list) and cell else 0
             per_config[config] = per_config.get(config, 0) + bad
     return per_config
+
+
+def run_gtests(suite: str, exes: dict, config: str, out: Path, log: Path) -> dict:
+    """Runs the GoogleTest executables of `suite` (on the GPU of $DYNG_TEST_GPU, default 1). A
+    suite passes when every executable runs to its summary line and exits 0; the failed tests are
+    counted (a mutation is detected only by a failed test, never by a crash)."""
+    import re
+
+    env = dict(os.environ)
+    env.setdefault("CUDA_VISIBLE_DEVICES", os.environ.get("DYNG_TEST_GPU", "1"))
+    failed, complete, rc_all, per_exe = 0, True, 0, {}
+    for target in suite_targets(suite):
+        exe = exes[target]
+        proc = subprocess.run(
+            heavy([str(exe), "--gtest_brief=1"]), capture_output=True, text=True, env=env
+        )
+        with open(log, "a") as f:
+            f.write(f"== {exe}\n{proc.stdout}{proc.stderr}")
+        ran = re.search(r"\[==========\] \d+ tests? from \d+ test suites? ran", proc.stdout)
+        bad = set(re.findall(r"\[  FAILED  \] ([A-Za-z0-9_/.]+)", proc.stdout))
+        complete = complete and ran is not None
+        failed += len(bad)
+        rc_all = rc_all or proc.returncode
+        per_exe[target] = {
+            "rc": proc.returncode,
+            "complete": ran is not None,
+            "failed": sorted(bad),
+        }
+    out.write_text(json.dumps(per_exe, indent=1) + "\n")
+    return {
+        "rc": rc_all,
+        "passed": complete and rc_all == 0 and failed == 0,
+        "failed_cases": {config: failed} if complete else None,
+        "tests": per_exe,
+    }
 
 
 def replay(suite: str, exe: Path, config: str, out: Path, log: Path) -> dict:
@@ -256,7 +370,7 @@ def replay(suite: str, exe: Path, config: str, out: Path, log: Path) -> dict:
 def replay_key(mutation: dict) -> tuple:
     """Mutations with the same key are replayed the same way (the control replays each once)."""
     suite = SUITES[mutation["suite"]]
-    return (suite["target"], tuple(suite["compare"]), mutation["config"])
+    return (tuple(suite_targets(mutation["suite"])), tuple(suite["compare"]), mutation["config"])
 
 
 def run(args: argparse.Namespace) -> int:
@@ -302,7 +416,7 @@ def run(args: argparse.Namespace) -> int:
         shutil.copytree(src, copy, symlinks=True)
         apply(copy, entry)
         replays = list(control_replays.values()) if is_control else [entry]
-        targets = sorted({SUITES[r["suite"]]["target"] for r in replays})
+        targets = sorted({t for r in replays for t in suite_targets(r["suite"])})
         print(f"[mutate] {entry['name']}: build {' '.join(targets)}", flush=True)
         exes = build(copy, targets, entry.get("defines", []), log)
         if exes is None:
@@ -313,7 +427,12 @@ def run(args: argparse.Namespace) -> int:
                 print(f"[mutate] {entry['name']}: replay {r['suite']} on {r['config']}", flush=True)
                 tag = f"{r['suite']}-{r['config'].replace(':', '')}" if is_control else ""
                 out = work / (f"control-{tag}.json" if is_control else f"{entry['name']}.json")
-                one = replay(r["suite"], exes[SUITES[r["suite"]]["target"]], r["config"], out, log)
+                if SUITES[r["suite"]].get("runner") == "gtest":
+                    one = run_gtests(r["suite"], exes, r["config"], out, log)
+                else:
+                    one = replay(
+                        r["suite"], exes[SUITES[r["suite"]]["target"]], r["config"], out, log
+                    )
                 runs.append({"suite": r["suite"], "config": r["config"], **one})
             result = {"build": "ok"}
             if is_control:
@@ -343,9 +462,11 @@ def run(args: argparse.Namespace) -> int:
             "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
             "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), "
             "parity/goldens.toml",
+            "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the "
+            "lockstep and graph-on-CBST tests (no golden corpus)",
         },
-        "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum, "
-        "from git archive HEAD",
+        "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst "
+        "test executables, from git archive HEAD",
         "results": results,
         "passed": control_ok and detected,
     }

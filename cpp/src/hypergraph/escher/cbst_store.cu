@@ -33,6 +33,7 @@
 #include <thrust/device_ptr.h>
 #include <thrust/execution_policy.h>
 #include <thrust/functional.h>
+#include <thrust/reverse.h>
 #include <thrust/scan.h>
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
@@ -668,6 +669,12 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
     // A stable sort (ESCHER-GPU's sort_by_key on int keys is Thrust's radix sort, which is
     // stable): slots of equal capacity stay in the order of the order-statistic walk, which is
     // key order (ADR 0038, the tie rule).
+#if defined(DYNG_MUTATION_CBST_REVERSED_TIES)
+    // MUTATION (PLAN 8.4, M8a acceptance criterion 17): slots of equal capacity in reverse key
+    // order (the best-fit tie order reversed).
+    thrust::reverse(thrust_policy(ctx.res, alloc), caps_ptr, caps_ptr + D);
+    thrust::reverse(thrust_policy(ctx.res, alloc), slot_order_ptr, slot_order_ptr + D);
+#endif
     thrust::stable_sort_by_key(thrust_policy(ctx.res, alloc), caps_ptr, caps_ptr + D,
                                slot_order_ptr);
 
@@ -821,7 +828,13 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       int global_idx = surplus_indices[s];
       int start = (global_idx == 0) ? 0 : new_prefix_sizes[global_idx - 1];
       int len = new_prefix_sizes[global_idx] - start;
+#if defined(DYNG_MUTATION_CBST_SURPLUS_RULE1)
+      // MUTATION (PLAN 8.4, M8a acceptance criterion 17): a surplus row padded by padding rule 1
+      // (the construct's (n + 4) / 4 * 4 slots) instead of rule 2.
+      int aligned = (len + 4) / 4 * 4 - 1;
+#else
       int aligned = next_multiple(len, ctx.alignment);
+#endif
       cbst_node& r = surplus_records[s];
       r = cbst_node{};
       r.value = static_cast<int>(base + packed.size());
@@ -874,6 +887,11 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       next_key = last_key + 1;
     }
     for (int i = 0; i < surplus; ++i) {
+#if defined(DYNG_MUTATION_CBST_REQUESTED_KEYS)
+      // MUTATION (PLAN 8.4, M8a acceptance criterion 17): a surplus row takes its requested key
+      // when that key is above the next free one (requested keys honoured).
+      next_key = std::max(next_key, new_keys[surplus_indices[i]]);
+#endif
       surplus_records[i].index = next_key;
       surplus_records[i].size = ctx.initial_payload_size;
       mapping.item_to_key[surplus_indices[i]] = next_key;

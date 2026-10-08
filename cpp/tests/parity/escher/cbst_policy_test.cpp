@@ -98,7 +98,10 @@ void random_sequence(const std::string& preset, std::uint64_t seed, int steps,
         row vals;
         for (int v : current[key])
           if (rng() % 3 == 0) vals.push_back(v);
-        vals.push_back(next_value + 1000000);  // a value the row does not hold
+        // A value the row does not hold, at a random place (not always last: a lost last value of
+        // a removal list must show; MOSP_ESCHER's mutation #4).
+        vals.insert(vals.begin() + static_cast<std::ptrdiff_t>(rng() % (vals.size() + 1)),
+                    next_value + 1000000);
         rem[key] = vals;
       }
       out = h.remove_values(rem, at + " unfill");

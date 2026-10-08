@@ -555,6 +555,96 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
   endforeach()
 endif()
 
+# CBST mutation tests (PLAN Section 8.4; M8a acceptance criterion 17): the 7 recorded mutations of
+# the ESCHER CBST store (MOSP_ESCHER@4b86159's #4 and #5 and the five rules of the store's
+# README) must make the store's suites fail. As for cycle_count, each mutant is a copy of libdyng
+# whose hypergraph module is rebuilt with DYNG_MUTATION_CBST_<NAME> (the hooks are in
+# cpp/src/hypergraph/escher; the graph-on-CBST hook is in its test), linked with the replays of
+# the committed traces of both originals, the lockstep tests of the presets against the host
+# model and the graph-on-CBST test; the CTest cbst.mutation.<name> passes when that suite fails,
+# and the control copy must pass. Labels gpu;mutation;cbst (CUDA builds).
+option(DYNG_CBST_MUTATION_TESTS "Build the mutation tests of the CBST store" ${DYNG_MUTATION_TESTS})
+if(DYNG_CBST_MUTATION_TESTS AND DYNG_ENABLE_CUDA AND TARGET dyng_hypergraph)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_property(_dyng_hg_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_dyng_hypergraph)
+  set(_dyng_hg_sources)
+  foreach(_source IN LISTS _dyng_hg_relative)  # dyng_add_module's paths are relative to cpp/
+    if(NOT IS_ABSOLUTE "${_source}")
+      set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+    endif()
+    list(APPEND _dyng_hg_sources "${_source}")
+  endforeach()
+  set(_dyng_hg_other_objects)
+  foreach(_module IN LISTS _dyng_modules)
+    if(NOT _module STREQUAL "dyng_hypergraph")
+      list(APPEND _dyng_hg_other_objects $<TARGET_OBJECTS:${_module}>)
+    endif()
+  endforeach()
+  # name|define|expected verdict
+  set(_dyng_cbst_mutants
+      "control||pass"
+      "unfill_drops_last|DYNG_MUTATION_CBST_UNFILL_DROPS_LAST|fail"
+      "graph_own_ids|DYNG_MUTATION_CBST_GRAPH_OWN_IDS|fail"
+      "reversed_ties|DYNG_MUTATION_CBST_REVERSED_TIES|fail"
+      "surplus_rule1|DYNG_MUTATION_CBST_SURPLUS_RULE1|fail"
+      "keep_dead_slots|DYNG_MUTATION_CBST_KEEP_DEAD_SLOTS|fail"
+      "compaction_padding|DYNG_MUTATION_CBST_COMPACTION_PADDING|fail"
+      "requested_keys|DYNG_MUTATION_CBST_REQUESTED_KEYS|fail"
+  )
+  foreach(_entry IN LISTS _dyng_cbst_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _expect)
+    set(_lib dyng_cbst_mutant_${_name})
+    add_library(${_lib}_hypergraph OBJECT ${_dyng_hg_sources})
+    add_library(${_lib} STATIC ${_dyng_hg_other_objects} $<TARGET_OBJECTS:${_lib}_hypergraph>)
+    set(_exe dyng_cbst_mutant_${_name}_tests)
+    add_executable(
+      ${_exe}
+      parity/escher/cbst_device_replay_test.cpp
+      parity/escher/cbst_policy_test.cpp
+      parity/escher/cbst_graph_test.cpp
+      parity/escher/cbst_trace.cpp
+      parity/escher/cbst_compare.cpp
+      parity/escher/cbst_device_adapter.cpp
+      $<TARGET_OBJECTS:dyng_testing_cbst_model>
+    )
+    foreach(_target ${_lib}_hypergraph ${_lib} ${_exe})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_hypergraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads ${DYNG_CUDART_TARGET})
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    target_include_directories(${_exe} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_compile_definitions(${_exe} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+    target_link_libraries(${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gtest_main)
+    add_test(NAME cbst.mutation.${_name}
+             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                     -DNAME=cbst.${_name} -P "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+    )
+    set_tests_properties(
+      cbst.mutation.${_name} PROPERTIES LABELS "gpu;mutation;cbst" ENVIRONMENT
+                                        "${DYNG_TEST_ENVIRONMENT}"
+    )
+  endforeach()
+endif()
+
 dyng_add_test(
   NAME dyng_testing_tests
   SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp

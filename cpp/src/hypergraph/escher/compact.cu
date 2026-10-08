@@ -42,7 +42,12 @@ __global__ void compact_sizes_kernel(const cbst_node* nodes, const int* avail, i
       count = 0;
     }
     live_count[warp] = count;
+#if defined(DYNG_MUTATION_CBST_COMPACTION_PADDING)
+    // MUTATION (PLAN 8.4, M8a acceptance criterion 17): the compaction pads a live row by 4 more.
+    const int slots = live ? (count + 4) / 4 * 4 + 4 : node.length;
+#else
     const int slots = live ? (count + 4) / 4 * 4 : node.length;
+#endif
     slots_by_rank[cbst_rank_of_position(static_cast<int>(warp), n)] = slots;
   }
 }

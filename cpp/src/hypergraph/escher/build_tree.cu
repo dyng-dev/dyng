@@ -144,7 +144,14 @@ __global__ void rank_order_nodes_kernel(const cbst_node* nodes, const int* avail
   if (tid >= n) return;
   int rank = cbst_rank_of_position(tid, n);
   ranked[rank] = nodes[tid];
+#if defined(DYNG_MUTATION_CBST_KEEP_DEAD_SLOTS)
+  // MUTATION (PLAN 8.4, M8a acceptance criterion 17): the surplus rebuild keeps the deleted slots
+  // that no item reused (the drop rule broken).
+  (void)avail;
+  ranked_live[rank] = 1;
+#else
   ranked_live[rank] = avail[tid] == 0;
+#endif
 }
 
 // Sorted key and row offset arrays of a record list.

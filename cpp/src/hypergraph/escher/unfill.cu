@@ -75,6 +75,19 @@ static __device__ int unfill_row_serial(const cbst_node* node, int* flat_values,
   return tail_live;
 }
 
+// The end of an item's removal list, [start, end). The mutation hook of PLAN 8.4
+// DYNG_MUTATION_CBST_UNFILL_DROPS_LAST (M8a acceptance criterion 17; MOSP_ESCHER's mutation #4:
+// "unfill ignores the last value of each removal list") drops the last value; the CTest
+// cbst.mutation.unfill_drops_last and parity/mutate.py must see the suite fail.
+__device__ inline int removal_end(int start, int end) {
+#if defined(DYNG_MUTATION_CBST_UNFILL_DROPS_LAST)
+  return end > start ? end - 1 : end;  // MUTATION
+#else
+  (void)start;
+  return end;
+#endif
+}
+
 // ── Thread-level unfill with metadata (small bins) ──────────────────────
 __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* keys,
                                      int* values_to_remove, int* remove_prefix_sizes,
@@ -86,7 +99,7 @@ __global__ void unfill_thread_kernel(cbst_node* nodes, int* flat_values, int* ke
   int orig_idx = bin_indices[tid];
   int key = keys[orig_idx];
   int start = (orig_idx == 0) ? 0 : remove_prefix_sizes[orig_idx - 1];
-  int end = remove_prefix_sizes[orig_idx];
+  int end = removal_end(start, remove_prefix_sizes[orig_idx]);
 
   // An absent or deleted key is skipped and reported (M8a step 4, lookup.cuh).
   cbst_node* cur = find_item_node(nodes, avail, key, control, true);
@@ -110,7 +123,7 @@ __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys
   int orig_idx = bin_indices[warp_idx];
   int key = keys[orig_idx];
   int rem_start = (orig_idx == 0) ? 0 : remove_prefix_sizes[orig_idx - 1];
-  int rem_end = remove_prefix_sizes[orig_idx];
+  int rem_end = removal_end(rem_start, remove_prefix_sizes[orig_idx]);
 
   // All lanes do BST traversal (same key, same result); an absent or deleted key is skipped and
   // reported by lane 0 (M8a step 4, lookup.cuh).
@@ -205,7 +218,7 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
     int orig_idx = bin_indices[idx];
     int key = keys[orig_idx];
     sh_rem_start = (orig_idx == 0) ? 0 : remove_prefix_sizes[orig_idx - 1];
-    sh_rem_end = remove_prefix_sizes[orig_idx];
+    sh_rem_end = removal_end(sh_rem_start, remove_prefix_sizes[orig_idx]);
 
     // An absent or deleted key is skipped and reported (M8a step 4, lookup.cuh).
     sh_node = find_item_node(nodes, avail, key, control, true);

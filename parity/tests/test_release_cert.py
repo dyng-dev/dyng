@@ -633,6 +633,26 @@ def test_mutation_points_match_the_code_once() -> None:
     hooks = "\n".join(
         p.read_text() for p in sorted((REPO / "cpp/src/algorithms/cycle_count").iterdir())
     )
+    # The CBST mutation hooks (M8a): the store's sources and the graph-on-CBST test.
+    hooks += "\n".join(
+        p.read_text() for p in sorted((REPO / "cpp/src/hypergraph/escher").iterdir())
+    )
+    hooks += (REPO / "cpp/tests/parity/escher/cbst_graph_test.cpp").read_text()
+    assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "cbst"} == {
+        "cbst_unfill_drops_last",
+        "cbst_graph_own_ids",
+        "cbst_reversed_ties",
+        "cbst_surplus_rule1",
+        "cbst_keep_dead_slots",
+        "cbst_compaction_padding",
+        "cbst_requested_keys",
+    }
+    assert mutate.suite_targets("cbst") == [
+        "dyng_cbst_device_tests",
+        "dyng_cbst_policy_tests",
+        "dyng_cbst_graph_tests",
+    ]
+    assert mutate.suite_targets("sssp") == ["dyng-compat-mosp"]
     for m in mutate.MUTATIONS:
         assert m["suite"] in mutate.SUITES, m["name"]
         if "defines" in m:
