@@ -193,6 +193,13 @@ temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` com
   protocol stays for the gates, ADR 0024 for dynG-against-dynG bars, the alignment flags are a
   performance option for 0.3) closes that open decision, and the PyPI names of the plugins are a
   new open decision.
+- Changed: `io::read_csr_triplet()` parses a plain decimal token while it scans it and writes each
+  weight straight into its objective's column. The release candidate's first certificate showed
+  dynG's end-to-end readings of sssp and mosp 5-12 % slower than 0.1.0's, all of it in reading the
+  graph (the reader's source was unchanged, so code placement: the hot loop of the text reader
+  moved). Reading rgg_n_2_20_s0 now takes about 507 ms (0.1.0: 578 ms; the first certificate's
+  build: 692 ms); values and errors are exactly those of the general path, which every other
+  token still takes, and the fuzz guards are unchanged.
 - The release certificate was measured again on the reviewed code (R020 retrospective, step 5).
 
 ### Added (M6b)
