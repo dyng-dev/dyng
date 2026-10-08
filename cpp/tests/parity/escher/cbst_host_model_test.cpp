@@ -105,8 +105,9 @@ TEST(CbstLayout, TheFormula) {
   EXPECT_EQ(cbst_rank_of_position(-1, 4), -1);
   EXPECT_EQ(cbst_rank_of_position(4, 4), -1);
   EXPECT_EQ(cbst_rank_of_position(0, 0), -1);
-  // The 64-bit evaluation, n above 65,535 (the original's int32 product overflowed): the root of
-  // 70,000 nodes has 32,767 + 4,465 nodes on its left (15 full levels and the whole last level).
+  // The 64-bit evaluation, n above 65,535 (as ESCHER-GPU@abcf9b2 does; the upstream ESCHER
+  // code's int32 product overflowed): the root of 70,000 nodes has 32,767 + 4,465 nodes on its
+  // left (15 full levels and the whole last level).
   EXPECT_EQ(cbst_rank_of_position(0, 70000), 37232);
   EXPECT_EQ(cbst_rank_of_position(69999, 70000), 8928);  // the 4,465th leaf: rank 2 * 4464
 }

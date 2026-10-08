@@ -66,7 +66,7 @@ bool equivalent_exception(const std::string& op, const std::string& trace_type,
   // MOSP_ESCHER@4b86159 throws escher::EscherError at every site; the dynG store throws the
   // exception of PLAN 4.7.3 for the site (M8a step 5, ADR 0039): the construct validation
   // (escher/structure/operations.cu:196-211) invalid_argument_error (or capacity_error for a
-  // record count beyond the int32 scratch), the payload overflow of a fill (:446-453), of the
+  // record count beyond the int32 scratch), the payload overflow of a fill (:436-444), of the
   // surplus rows of an insert (:713-721) and of a compaction (compactCBST) capacity_error.
   if (trace_type != "escher::EscherError") return false;
   if (op == "construct")

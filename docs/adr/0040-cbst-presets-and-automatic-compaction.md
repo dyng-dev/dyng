@@ -42,7 +42,7 @@ sizing of `mosp_escher()` is used by the container (M8b) only and unit-tested he
   write what fits each row's tail; when the overflow segments do not fit behind the bump pointer,
   the store reads the relocation plan (one more read point, B's copy), compacts, and appends the
   values that did not fit their tails once more, without compaction; what still does not fit
-  grows by the policy or is a `capacity_error` (B: `EscherError`, `:446-453`).
+  grows by the policy or is a `capacity_error` (B: `EscherError`, `:436-444`).
 - **insert** (B's `insertCBST`, `:694-721`): after the best-fit reuse, the surplus rows are
   sized; when they do not fit, the store compacts first; when they still do not fit and the
   policy does not grow, `capacity_error` names the first row that does not fit, before any surplus

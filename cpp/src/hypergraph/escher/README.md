@@ -43,7 +43,8 @@ directory sees a key or a shifted value.
 
 **The tree.** `num_records` nodes in heap order (node `t` has children `2t+1` and `2t+2`); the
 node at heap position `t` holds the key of in-order rank `cbst_rank_of_position(t, n)` (computed
-in 64 bits: A's original 32-bit product overflowed above 65,535 keys), so a search from the root
+in 64 bits, as ESCHER-GPU@abcf9b2 already does; the upstream ESCHER code's 32-bit product
+overflowed above 65,535 keys), so a search from the root
 by key finds every node (`d_keys` holds the keys sorted). A node (`cbst_node`, 56 bytes) holds
 its key (`index`), the offset of its row's first segment (`value`), that segment's slot count
 (`length`, terminator included), `size` (the payload size when it was placed), the tail segment
