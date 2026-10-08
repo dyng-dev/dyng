@@ -452,6 +452,63 @@ def test_whole_first_divergence_against_the_model() -> None:
     assert g.first_divergence_sets(as_status)[2] == g.first_divergence_sets(as_documented)[2]
 
 
+def test_first_divergence_of_a_thrown_op() -> None:
+    """An op that both the store and the model throw at: the exception type is compared, not the
+    message each words differently, and a thrown insert's InsertMapping is none on either side
+    (the merge-step replays of the staging preset, M8a review fixes). Every other value still
+    counts."""
+    g = load("parity/cbst_trace_goldens.py")
+
+    def report(*mismatches):
+        return {"trees": [{"tree": 8}], "mismatches": list(mismatches), "documented": []}
+
+    m = {"tree": 8, "tree_op": 3, "op": "insert", "key": -1}
+    store = report(
+        dict(m, field="out.mapping", expected="item 0: 13 of [13,14]", actual="- of []"),
+        dict(
+            m,
+            field="status",
+            expected="ok",
+            actual="exception dyng::capacity_error: dyng: CBST t: 106 payload entries do not fit "
+            "its capacity of 96 (policy mosp_escher_staged does not grow the payload)",
+        ),
+        dict(m, field="after.num_records", expected="14", actual="12"),
+    )
+    model = report(
+        dict(m, field="out.mapping", expected="item 0: 13 of [13,14]", actual="0 of [0,0]"),
+        dict(
+            m,
+            field="status",
+            expected="ok",
+            actual="exception dyng::capacity_error: insertCBST: payload overflow (106 > 96)",
+        ),
+        dict(m, field="after.num_records", expected="14", actual="12"),
+    )
+    assert g.first_divergence_sets(store) == g.first_divergence_sets(model)
+    assert ("status", -1, "ok", "exception dyng::capacity_error") in g.first_divergence_sets(store)[
+        8
+    ][1]
+    # Another exception type, or another state value at the op: not as the model.
+    other_type = report(
+        dict(store["mismatches"][0]),
+        dict(store["mismatches"][1], actual="exception dyng::internal_error: x"),
+        dict(store["mismatches"][2]),
+    )
+    assert g.first_divergence_sets(other_type) != g.first_divergence_sets(model)
+    other_state = report(
+        dict(store["mismatches"][0]),
+        dict(store["mismatches"][1]),
+        dict(store["mismatches"][2], actual="13"),
+    )
+    assert g.first_divergence_sets(other_state) != g.first_divergence_sets(model)
+    # An op that did not throw keeps its mapping: a different mapping is not as the model.
+    kept = report(dict(m, field="out.mapping", expected="item 0: 13 of [13,14]", actual="- of []"))
+    kept_model = report(
+        dict(m, field="out.mapping", expected="item 0: 13 of [13,14]", actual="0 of [0,0]")
+    )
+    assert g.first_divergence_sets(kept) != g.first_divergence_sets(kept_model)
+
+
 def test_documented_divergence_counts_are_pinned(tmp_path: Path) -> None:
     """M8a review: a replay whose documented divergences differ from the pinned counts fails."""
     g = load("parity/cbst_trace_goldens.py")
