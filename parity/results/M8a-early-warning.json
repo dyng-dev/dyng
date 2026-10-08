@@ -1,8 +1,31 @@
 {
- "schema": 1,
- "what": "M8a step 5 early-warning table (reported, not gated): per store operation of escher_gpu_coauth50k, ESCHER-GPU's unpatched build/main against the dynG store replay under escher_gpu(): device time of the kernels, blocking and allocating runtime calls, registers of the hot kernels (values are [ESCHER-GPU, dynG])",
- "date": "2026-10-08T05:33:00Z",
+ "schema": 2,
+ "what": "M8a step 5 early-warning table (reported, not gated): per store operation of escher_gpu_coauth50k, ESCHER-GPU's unpatched build/main against the dynG store replay under escher_gpu(): device time of the kernels (median, min, max of the runs), blocking, allocating (all and synchronous) and freeing runtime calls; registers, shared memory, theoretical occupancy and SASS instructions of the hot kernels (values are [ESCHER-GPU, dynG])",
+ "date": "2026-10-08T16:49:42Z",
  "set": "escher_gpu_coauth50k",
+ "runs": 20,
+ "order": "alternating A, dynG per run",
+ "clock": {
+  "control": "boost",
+  "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+  "how": "ncu --clock-control boost on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+  "before": {
+   "pstate": "P0",
+   "sm_mhz": 1695,
+   "memory_mhz": 8001
+  },
+  "locked": {
+   "pstate": "P2",
+   "sm_mhz": 1695,
+   "memory_mhz": 7601
+  },
+  "check": "every busy GPU sample of every accepted round at the locked clocks",
+  "after_reset": {
+   "pstate": "P0",
+   "sm_mhz": 1800,
+   "memory_mhz": 8001
+  }
+ },
  "original": [
   "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/unpatched/build/main",
   "--input",
@@ -16,8 +39,9 @@
   "--check"
  ],
  "port": {
-  "commit": "043a6dd8299816b631b5a8184cc81e753b5c38c6",
-  "binary": "build/parity-cuda/cpp/tests/dyng_cbst_memory_tests"
+  "commit": "a6d3a034b9fff45d262b5171ccddd544d62bd071+dirty",
+  "binary": "build/parity-cuda/cpp/tests/dyng_cbst_memory_tests",
+  "kernels_from": "build/parity-cuda/cpp/libdyng.so.0.2.0"
  },
  "gpu": 0,
  "driver": {
@@ -32,8 +56,16 @@
     3
    ],
    "device_ms_per_op": [
-    3.183,
-    3.069
+    {
+     "median": 3.2489,
+     "min": 3.2262,
+     "max": 3.2812
+    },
+    {
+     "median": 3.2123,
+     "min": 3.206,
+     "max": 3.2188
+    }
    ],
    "blocking_per_op": [
     17.0,
@@ -41,9 +73,17 @@
    ],
    "allocations_per_op": [
     25.0,
+    25.0
+   ],
+   "sync_allocations_per_op": [
+    10.0,
     0.0
    ],
-   "ratio": 0.964
+   "frees_per_op": [
+    25.0,
+    25.0
+   ],
+   "ratio": 0.989
   },
   {
    "op": "h2v erase",
@@ -52,8 +92,16 @@
     3
    ],
    "device_ms_per_op": [
-    0.1,
-    0.1
+    {
+     "median": 0.102,
+     "min": 0.101,
+     "max": 0.1028
+    },
+    {
+     "median": 0.1025,
+     "min": 0.1022,
+     "max": 0.1029
+    }
    ],
    "blocking_per_op": [
     0.0,
@@ -61,9 +109,17 @@
    ],
    "allocations_per_op": [
     2.0,
+    2.0
+   ],
+   "sync_allocations_per_op": [
+    0.0,
     0.0
    ],
-   "ratio": 1.0
+   "frees_per_op": [
+    2.0,
+    2.0
+   ],
+   "ratio": 1.005
   },
   {
    "op": "v2h unfill",
@@ -72,8 +128,16 @@
     3
    ],
    "device_ms_per_op": [
-    0.711,
-    0.79
+    {
+     "median": 0.7439,
+     "min": 0.7345,
+     "max": 0.7531
+    },
+    {
+     "median": 0.8473,
+     "min": 0.8462,
+     "max": 0.8491
+    }
    ],
    "blocking_per_op": [
     0.0,
@@ -81,9 +145,17 @@
    ],
    "allocations_per_op": [
     1.0,
+    1.0
+   ],
+   "sync_allocations_per_op": [
+    0.0,
     0.0
    ],
-   "ratio": 1.111
+   "frees_per_op": [
+    1.0,
+    1.0
+   ],
+   "ratio": 1.139
   },
   {
    "op": "v2h fill",
@@ -92,8 +164,16 @@
     3
    ],
    "device_ms_per_op": [
-    0.105,
-    0.1
+    {
+     "median": 0.11,
+     "min": 0.1087,
+     "max": 0.1106
+    },
+    {
+     "median": 0.1029,
+     "min": 0.1025,
+     "max": 0.1038
+    }
    ],
    "blocking_per_op": [
     2.0,
@@ -101,67 +181,215 @@
    ],
    "allocations_per_op": [
     3.0,
+    3.0
+   ],
+   "sync_allocations_per_op": [
+    1.0,
     0.0
    ],
-   "ratio": 0.952
+   "frees_per_op": [
+    3.0,
+    3.0
+   ],
+   "ratio": 0.935
   }
  ],
- "registers": {
+ "kernels": {
   "insertNode_thread": [
-   32,
-   32
+   {
+    "registers": 32,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 376
+   },
+   {
+    "registers": 32,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 416
+   }
   ],
   "insertNode_warp": [
-   null,
-   null
+   {
+    "registers": 28,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 160
+   },
+   {
+    "registers": 28,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 192
+   }
   ],
   "insertNode_block": [
-   null,
-   null
+   {
+    "registers": 16,
+    "shared_bytes": 32,
+    "occupancy_256": 1.0,
+    "sass_instructions": 112
+   },
+   {
+    "registers": 16,
+    "shared_bytes": 32,
+    "occupancy_256": 1.0,
+    "sass_instructions": 136
+   }
   ],
   "applyReuse": [
-   30,
-   30
+   {
+    "registers": 30,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 144
+   },
+   {
+    "registers": 30,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 144
+   }
   ],
   "applyReuse_warp": [
-   28,
-   28
+   {
+    "registers": 28,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 152
+   },
+   {
+    "registers": 28,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 152
+   }
   ],
   "applyReuse_block": [
-   null,
-   null
+   {
+    "registers": 22,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 72
+   },
+   {
+    "registers": 22,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 72
+   }
   ],
   "unfill_thread": [
-   23,
-   24
+   {
+    "registers": 23,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 192
+   },
+   {
+    "registers": 24,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 376
+   }
   ],
   "unfill_warp": [
-   null,
-   null
+   {
+    "registers": 23,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 352
+   },
+   {
+    "registers": 25,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 552
+   }
   ],
   "unfill_block": [
-   null,
-   null
+   {
+    "registers": 36,
+    "shared_bytes": 32,
+    "occupancy_256": 1.0,
+    "sass_instructions": 568
+   },
+   {
+    "registers": 36,
+    "shared_bytes": 32,
+    "occupancy_256": 1.0,
+    "sass_instructions": 752
+   }
   ],
   "locateDeleteTargets": [
-   16,
-   16
+   {
+    "registers": 12,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 48
+   },
+   {
+    "registers": 12,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 48
+   }
   ],
   "applyDeletes": [
-   16,
-   16
+   {
+    "registers": 14,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 40
+   },
+   {
+    "registers": 14,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 40
+   }
   ],
   "reduceAvailLevel": [
-   16,
-   16
+   {
+    "registers": 12,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 40
+   },
+   {
+    "registers": 12,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 40
+   }
   ],
   "allocateSpace": [
-   26,
-   26
+   {
+    "registers": 26,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 280
+   },
+   {
+    "registers": 26,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 280
+   }
   ],
   "fixupOverflowMetadata": [
-   16,
-   16
+   {
+    "registers": 16,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 80
+   },
+   {
+    "registers": 16,
+    "shared_bytes": 0,
+    "occupancy_256": 1.0,
+    "sass_instructions": 80
+   }
   ]
  }
 }
