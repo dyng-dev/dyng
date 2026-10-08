@@ -839,6 +839,21 @@ def exception_status(actual: str) -> str:
     return actual.split(": ", 1)[0]
 
 
+def lacks_operation(actual: str) -> bool:
+    """Whether a status says that the preset has no such operation at all: the device store's
+    "unsupported: the store has no operation '<op>' under <preset>" and the host model's
+    "undefined: the policy has no <op>() ..." (an operation not merged yet at a merge-step
+    commit, e.g. compact() before c05d7cc). The model's other "undefined" statuses (behaviour the
+    original leaves undefined) are not this and stay as reported."""
+    return (actual.startswith("unsupported: ") and " has no operation " in actual) or (
+        actual.startswith("undefined: the policy has no ")
+    )
+
+
+# The status of an op that the preset does not have (see lacks_operation).
+NO_SUCH_OPERATION = "not run: the preset has no such operation"
+
+
 def first_divergence_sets(report: dict) -> dict[int, tuple[int, frozenset] | None]:
     """The whole first divergence of every tree of a replay report (M8a review): the op of the
     tree and the set of (field, key, expected, actual) of every mismatch the comparator reported
@@ -850,8 +865,9 @@ def first_divergence_sets(report: dict) -> dict[int, tuple[int, frozenset] | Non
     message (the status is compared as "exception <type>", exception_status) and the
     InsertMapping, which a thrown insert does not return (the device store reports none, the host
     model the zeros of its unfilled output): an out.mapping mismatch of such an op is compared as
-    the trace's mapping against THREW_NO_MAPPING. Every other field, key and value at the op is
-    compared as reported."""
+    the trace's mapping against THREW_NO_MAPPING. An op that the preset does not have at all is
+    one status, NO_SUCH_OPERATION, however each side words it (lacks_operation). Every other
+    field, key and value at the op is compared as reported."""
     first_op: dict[int, int] = {}
     found: dict[int, set] = {}
     validation: set[int] = set()
@@ -868,6 +884,8 @@ def first_divergence_sets(report: dict) -> dict[int, tuple[int, frozenset] | Non
         if m["field"] == "status" and actual.startswith("exception "):
             threw.add(t)
             actual = exception_status(actual)
+        elif m["field"] == "status" and lacks_operation(actual):
+            actual = NO_SUCH_OPERATION
         found.setdefault(t, set()).add((m["field"], m.get("key"), str(m.get("expected")), actual))
     out: dict[int, tuple[int, frozenset] | None] = {t["tree"]: None for t in report["trees"]}
     for t, op in first_op.items():
