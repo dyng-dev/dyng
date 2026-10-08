@@ -2,8 +2,10 @@
 
 **dynG** keeps the results of graph algorithms up to date while the graph changes in batches of
 edge insertions and deletions, without recomputing from scratch. It unifies the research codes of
-DynaMOSP (dynamic shortest paths) and TruCy / DynTruCy (cycle counting), with more algorithms
-(multi-objective shortest paths, hypergraph motifs, label propagation) to follow.
+DynaMOSP (dynamic single- and multi-objective shortest paths) and TruCy / DynTruCy (cycle
+counting): `dyng.sssp`, `dyng.mosp` and `dyng.cycle_count` are stable, with more algorithms
+(hypergraph motifs, label propagation) to follow; `dyng.dynamic_bfs` and `dyng.triangle_delta`
+are small tutorial algorithms.
 
 <!-- snippet: pypi-readme -->
 ```python
@@ -17,6 +19,12 @@ print(tree.distances.to_numpy(), stats.invalidated)
 
 hist = dyng.cycle_count.compute(g, max_length=4)                     # simple cycles by length
 print(hist.counts.tolist(), hist.total)
+
+w2 = [[4, 1], [1, 5], [1, 1], [5, 2]]                                # two objectives per edge
+g2 = dyng.Graph.from_edges([0, 0, 1, 2], [1, 2, 2, 3], w2)
+paths = dyng.mosp.compute(g2, source=0)                              # multi-objective (MOSP)
+dyng.mosp.update(g2, dyng.EdgeBatch(delete=([0], [2])), paths)
+print(paths.path_costs.to_numpy().tolist())                          # the K costs per vertex
 ```
 
 The package also installs the `dyng` command line, which reads and writes the formats of the
@@ -26,6 +34,7 @@ original tools:
 $ dyng cycle_count compute --graph DD_A.txt --max-length 6       # histogram CSV
 $ dyng sssp compute --graph roadNet-CA_ --out init                # MOSP's distance and tree files
 $ dyng sssp update --graph roadNet-CA_ --changes batch --init init --out updated
+$ dyng mosp update --graph roadNet-CA_ --changes batch --init init --preferences 4,1,4 --out out
 ```
 
 This wheel contains the sequential and OpenMP backends (`dyng.Resources("openmp")`). The CUDA
