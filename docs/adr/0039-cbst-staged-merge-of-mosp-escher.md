@@ -135,3 +135,18 @@ sets names a dead or absent key (0 of 1.87 M fill, 1.84 M unfill and 0.29 M eras
   mapped to the dynG exception of each throw site in the comparator; the 11 `test_cbst_smoke`
   constructs with `rowOccupancy = nullptr` need a documented divergence (B's legacy occupancy 0 is
   never taken over), or criterion 10(b)'s "no divergence" cannot hold for them.
+
+## Later changes
+
+- **2026-10-08 (the M8a review fixes): what "as the model" compares.** A tree of B's traces
+  replayed under a preset other than B's own diverges as the model only when the store's whole
+  first divergence equals the model's: the same op, and the same set of (field, key, expected,
+  actual) of every mismatch there (`parity/cbst_trace_goldens.py` `first_divergence_sets`;
+  before, only the op and the first field name were compared). Two outputs that are not values
+  of the parity are compared by their meaning, not their text: the status of an op that threw
+  by its exception type (each store words the message its own way), with no InsertMapping for a
+  thrown insert; and the status of an op that the preset does not have at all (`compact()`
+  before `c05d7cc`), which the store reports as unsupported and the model as "the policy has no
+  ...". Every other field, key and value counts as reported; the model's other "undefined"
+  statuses stay distinct. The whole merge-step table passes under this rule
+  (`parity/results/M8a.md`, section 14).
