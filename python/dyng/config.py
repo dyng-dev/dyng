@@ -87,10 +87,16 @@ def show_config(file: IO[str] | None = None) -> None:
         f"  Python / NumPy    : {c['python']} / {c['numpy']}",
         f"  platform          : {c['platform']}",
     ]
-    if not c["build"]["cuda"]:
+    if not c["build"]["cuda"] and not c["plugins"]:
         lines.append(
             "  CUDA              : not in this module (the CPU wheel); the CUDA plugins: "
             'pip install "dyng[cu13]" or "dyng[cu12]"'
+        )
+    elif not c["build"]["cuda"]:
+        # A plugin is installed but not used: reinstalling it would not help; its line says why.
+        lines.append(
+            "  CUDA              : not in this module (the CPU wheel); the installed CUDA "
+            "plugins are not used (see the plugin lines below)"
         )
     else:
         b = c["build"]

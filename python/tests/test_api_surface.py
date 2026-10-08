@@ -113,6 +113,8 @@ def test_show_config(capsys: pytest.CaptureFixture[str]) -> None:
     c = dyng.config()
     if not c["build"]["cuda"]:
         assert c["native_module"] == "dyng._core"
+        # The pip hint only when no plugin is installed (else the plugin lines say why).
+        assert ('pip install "dyng[cu13]"' in out) == (not c["plugins"])
     assert c["native_module"] in out and c["selection"] in out
     assert c["backends"]["sequential"] is True
 
