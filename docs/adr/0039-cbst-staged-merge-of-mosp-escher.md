@@ -5,7 +5,8 @@
   10, 11 and parts of 13 and 16). It changes no rule the author approved and weakens no
   comparison: ESCHER-GPU's traces are still compared in the `exact` field set at every commit,
   and MOSP_ESCHER's traces are judged tree by tree against the host model under the same preset.
-  Step 5 (automatic compaction, `mosp_escher()`, dynG's default) extends this ADR.
+  Step 5 (automatic compaction, `mosp_escher()`, dynG's default) extends this ADR: ADR 0040,
+  which replaces the staging preset by `mosp_escher()`.
 - **Date:** 2026-10-07
 - **Deciders:** the AI assistant, on the author's behalf (M8a, step merge-invariant)
 - **Number:** 0035 is the 0.2.0 release branch's, 0036-0038 this milestone's.
