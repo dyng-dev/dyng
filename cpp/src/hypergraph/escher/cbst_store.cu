@@ -308,6 +308,21 @@ void validate_construct(const int* keys, const int* start_offsets, int num_recor
                          "(3 entries per record; at most " +
                          std::to_string(INT_MAX / 3) + " records)");
   }
+  // The layout (dynG, M8a review; neither original checked it): keys strictly increasing (the
+  // tree is a BST over them), every row at least one slot (its terminator) and inside the
+  // payload, the rows in key order without overlap. A zero-length row would put its chain pointer
+  // or terminator into the next row's first slot.
+  for (int r = 0; r < num_records; ++r) {
+    const long long end = r + 1 < num_records ? start_offsets[r + 1] : flat_payload_size;
+    DYNG_EXPECTS(start_offsets[r] >= 0 && start_offsets[r] < end, "CBST ", dataset_name,
+                 ": construct: row ", r, " (key ", keys[r], ") starts at ", start_offsets[r],
+                 " and ends at ", end,
+                 "; every row needs at least one slot (its terminator) inside the payload of ",
+                 flat_payload_size, ", and the row offsets must increase");
+    DYNG_EXPECTS(r == 0 || keys[r - 1] < keys[r], "CBST ", dataset_name, ": construct: key ",
+                 keys[r], " of row ", r, " does not follow key ", r == 0 ? 0 : keys[r - 1],
+                 "; the keys must be strictly increasing");
+  }
   if (row_counts == nullptr) return;
   // The caller's row counts (the fast path of construct): each within the tail capacity of its
   // row (the slots up to the next row's offset, or the payload's end, but the terminator), as
@@ -319,6 +334,33 @@ void validate_construct(const int* keys, const int* start_offsets, int num_recor
                  ": construct: the row count ", row_counts[r], " of key ", keys[r],
                  " does not fit its row of ", tail_capacity, " value slots");
   }
+}
+
+void validate_batch(const std::vector<int>& keys, const std::vector<int>& payload,
+                    const std::vector<int>& prefix_sizes, const std::string& dataset_name,
+                    const char* op) {
+  DYNG_EXPECTS(prefix_sizes.size() == keys.size(), "CBST ", dataset_name, ": ", op, ": ",
+               keys.size(), " keys but ", prefix_sizes.size(), " prefix sizes");
+  if (keys.empty()) return;
+  // The operation's int32 indexing: 3 relocation-plan entries per item (the fill), the payload
+  // offsets of the prefix sums.
+  if (3LL * static_cast<long long>(keys.size()) > INT_MAX) {
+    throw capacity_error("dyng: CBST " + dataset_name + ": " + op + ": " +
+                         std::to_string(keys.size()) +
+                         " items exceed the int32 indexing of the store's operation scratch "
+                         "(3 entries per item; at most " +
+                         std::to_string(INT_MAX / 3) + " items)");
+  }
+  int previous = 0;
+  for (size_t i = 0; i < prefix_sizes.size(); ++i) {
+    DYNG_EXPECTS(prefix_sizes[i] >= previous, "CBST ", dataset_name, ": ", op,
+                 ": the prefix sizes must be non-decreasing and non-negative (item ", i, ": ",
+                 prefix_sizes[i], " after ", previous, ")");
+    previous = prefix_sizes[i];
+  }
+  DYNG_EXPECTS(static_cast<size_t>(prefix_sizes.back()) == payload.size(), "CBST ", dataset_name,
+               ": ", op, ": the last prefix size ", prefix_sizes.back(),
+               " is not the payload size ", payload.size());
 }
 
 void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_payload,
@@ -470,6 +512,37 @@ void rebuild_cbst_from_device(buffer<int> start_offsets, int num_records, buffer
   DYNG_CHECK_KERNEL(stream_of(ctx));
 }
 
+static void fill_impl(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
+                      const std::vector<int>& insert_prefix_sizes, cbst_context& ctx,
+                      bool allow_compact);
+
+// The compaction of a fill whose overflow segments do not fit (MOSP_ESCHER's fillImpl): the
+// payload is compacted and the values of the overflowing items that did not fit their tails are
+// appended once more, without compaction. `plan` is the relocation plan on the host: plan[3i + 1]
+// is how many of item i's values the tail took; item i overflowed iff its padded overflow size is
+// not 0 (`cumulative`: plan[3i + 2] holds the inclusive prefix sums of the padded sizes; else the
+// raw overflow sizes).
+static void compact_and_refill(const std::vector<int>& insert_keys,
+                               const std::vector<int>& insert_payload,
+                               const std::vector<int>& insert_prefix_sizes,
+                               const std::vector<int>& plan, bool cumulative, cbst_context& ctx) {
+  const int K = static_cast<int>(insert_keys.size());
+  std::vector<int> rest_keys, rest_payload, rest_prefix;
+  for (int i = 0; i < K; ++i) {
+    const int here = plan[3 * static_cast<size_t>(i) + 2];
+    const int before = !cumulative || i == 0 ? 0 : plan[3 * static_cast<size_t>(i - 1) + 2];
+    if (here == before) continue;
+    const int start = i == 0 ? 0 : insert_prefix_sizes[static_cast<size_t>(i - 1)];
+    rest_keys.push_back(insert_keys[static_cast<size_t>(i)]);
+    rest_payload.insert(rest_payload.end(),
+                        insert_payload.begin() + start + plan[3 * static_cast<size_t>(i) + 1],
+                        insert_payload.begin() + insert_prefix_sizes[static_cast<size_t>(i)]);
+    rest_prefix.push_back(static_cast<int>(rest_payload.size()));
+  }
+  compact_cbst(ctx);
+  fill_impl(rest_keys, rest_payload, rest_prefix, ctx, false);
+}
+
 // The fill. When its overflow segments do not fit behind the bump pointer and the policy compacts
 // (MOSP_ESCHER's fillImpl, escher/structure/operations.cu@4b86159:409-444; M8a step 5), the
 // payload is compacted and the values that did not fit their rows' tails are appended once more,
@@ -489,12 +562,14 @@ static void fill_impl(const std::vector<int>& insert_keys, const std::vector<int
                                 stream_of(ctx)));
   DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_insert_prefix_sizes, insert_prefix_sizes.data(),
                                 K * sizeof(int), cudaMemcpyHostToDevice, stream_of(ctx)));
-  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_relocation_plan, 0, 3 * K * sizeof(int), stream_of(ctx)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_relocation_plan, 0, 3 * static_cast<size_t>(K) * sizeof(int),
+                                stream_of(ctx)));
 
   int block_size = 256;
 
   // ── Degree-binned insert_node dispatch ────────────────────────────────
-  degree_bins bins(ctx.res, item_sizes(insert_prefix_sizes));
+  const std::vector<int> sizes = item_sizes(insert_prefix_sizes);
+  degree_bins bins(ctx.res, sizes);
   bins.record(ctx.bin_launches.fill);
   if (bins.count[0] > 0)
     insert_node_thread_kernel<<<(bins.count[0] + block_size - 1) / block_size, block_size, 0,
@@ -516,6 +591,35 @@ static void fill_impl(const std::vector<int>& insert_keys, const std::vector<int
   DYNG_CHECK_KERNEL(stream_of(ctx));
 
   // ── Overflow handling ────────────────────────────────────────────────
+  // The int32 range of the overflow plan (dynG, M8a review): an item overflows by at most its
+  // size, padded to a multiple of 4, so the bump pointer plus the sizes plus 3 per item bounds
+  // the end of the appended segments. Beyond INT_MAX (batches of several GB) the plan's padded
+  // overflow is summed exactly on the host first (one more read point): when the segments
+  // would end past the int32 offsets, the store compacts first where the policy compacts, or
+  // throws capacity_error (the tails were written in place: the store is poisoned).
+  long long bound = ctx.initial_payload_size;
+  for (int v : sizes) bound += static_cast<long long>(v) + 3;
+  if (bound > INT_MAX) {
+    std::vector<int> raw(3 * static_cast<size_t>(K));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(raw.data(), ctx.d_relocation_plan, raw.size() * sizeof(int),
+                                  cudaMemcpyDeviceToHost, stream_of(ctx)));
+    synchronize(ctx);
+    long long padded_total = 0;
+    for (int i = 0; i < K; ++i) {
+      const long long over = raw[3 * static_cast<size_t>(i) + 2];
+      padded_total += over > 0 ? (over + 3) / 4 * 4 : 0;
+    }
+    if (static_cast<long long>(ctx.initial_payload_size) + padded_total > INT_MAX) {
+      if (allow_compact && ctx.policy.compaction != store_policy::compaction_rule::never) {
+        compact_and_refill(insert_keys, insert_payload, insert_prefix_sizes, raw, false, ctx);
+        return;
+      }
+      throw capacity_error("dyng: CBST " + ctx.dataset_name +
+                           ": fill: the overflow segments end at " +
+                           std::to_string(ctx.initial_payload_size + padded_total) +
+                           " payload slots, beyond the int32 offsets of the CBST");
+    }
+  }
   // Padded overflow sizes -> cumulative offsets of the appended segments.
   temp_buffer<int> tmp(ctx.res, K);
   int num_blocks = (K + block_size - 1) / block_size;
@@ -550,19 +654,7 @@ static void fill_impl(const std::vector<int>& insert_keys, const std::vector<int
     DYNG_CUDA_TRY(cudaMemcpyAsync(plan.data(), ctx.d_relocation_plan, plan.size() * sizeof(int),
                                   cudaMemcpyDeviceToHost, stream_of(ctx)));
     synchronize(ctx);
-    std::vector<int> rest_keys, rest_payload, rest_prefix;
-    for (int i = 0; i < K; ++i) {
-      const int before = i == 0 ? 0 : plan[3 * static_cast<size_t>(i - 1) + 2];
-      if (plan[3 * static_cast<size_t>(i) + 2] == before) continue;
-      const int start = i == 0 ? 0 : insert_prefix_sizes[static_cast<size_t>(i - 1)];
-      rest_keys.push_back(insert_keys[static_cast<size_t>(i)]);
-      rest_payload.insert(rest_payload.end(),
-                          insert_payload.begin() + start + plan[3 * static_cast<size_t>(i) + 1],
-                          insert_payload.begin() + insert_prefix_sizes[static_cast<size_t>(i)]);
-      rest_prefix.push_back(static_cast<int>(rest_payload.size()));
-    }
-    compact_cbst(ctx);
-    fill_impl(rest_keys, rest_payload, rest_prefix, ctx, false);
+    compact_and_refill(insert_keys, insert_payload, insert_prefix_sizes, plan, true, ctx);
     return;
   }
   if (total_appended > 0) {
@@ -594,6 +686,7 @@ static void fill_impl(const std::vector<int>& insert_keys, const std::vector<int
 
 void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
                const std::vector<int>& insert_prefix_sizes, cbst_context& ctx) {
+  validate_batch(insert_keys, insert_payload, insert_prefix_sizes, ctx.dataset_name, "fill");
   fill_impl(insert_keys, insert_payload, insert_prefix_sizes, ctx, true);
 }
 
@@ -633,6 +726,7 @@ struct is_set {
 
 insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<int>& new_payload,
                            const std::vector<int>& new_prefix_sizes, cbst_context& ctx) {
+  validate_batch(new_keys, new_payload, new_prefix_sizes, ctx.dataset_name, "insert");
   insert_mapping mapping;
   int K = static_cast<int>(new_keys.size());
   mapping.item_to_key.resize(K, 0);
@@ -1094,6 +1188,9 @@ insert_mapping cbst_store::insert(const std::vector<int>& insert_keys,
                                   const std::vector<int>& insert_prefix_sizes) {
   const scoped_device guard(ctx_.res.device());
   scoped_stage stage(ctx_.res, "hypergraph.cbst.insert");
+  check_not_poisoned("insert");
+  // The batch's shape, before anything changes (the store is not poisoned by it).
+  validate_batch(insert_keys, insert_payload, insert_prefix_sizes, ctx_.dataset_name, "insert");
   return guarded("insert", [&] {
     return insert_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_);
   });
@@ -1103,6 +1200,8 @@ void cbst_store::append(const std::vector<int>& insert_keys, const std::vector<i
                         const std::vector<int>& insert_prefix_sizes) {
   const scoped_device guard(ctx_.res.device());
   scoped_stage stage(ctx_.res, "hypergraph.cbst.append");
+  check_not_poisoned("append");
+  validate_batch(insert_keys, insert_payload, insert_prefix_sizes, ctx_.dataset_name, "append");
   guarded("append", [&] { fill_cbst(insert_keys, insert_payload, insert_prefix_sizes, ctx_); });
 }
 
@@ -1117,6 +1216,9 @@ void cbst_store::remove_values(const std::vector<int>& keys_to_unfill,
                                const std::vector<int>& remove_prefix_sizes) {
   const scoped_device guard(ctx_.res.device());
   scoped_stage stage(ctx_.res, "hypergraph.cbst.remove_values");
+  check_not_poisoned("remove_values");
+  validate_batch(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_.dataset_name,
+                 "remove_values");
   guarded("remove_values",
           [&] { unfill_cbst(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_); });
 }
@@ -1445,6 +1547,7 @@ int compact_cbst(cbst_context& ctx) {
 
 void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>& values_to_remove,
                  const std::vector<int>& remove_prefix_sizes, cbst_context& ctx) {
+  validate_batch(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx.dataset_name, "unfill");
   if (keys_to_unfill.empty()) return;
   int K = static_cast<int>(keys_to_unfill.size());
   reserve_scratch(ctx, K, values_to_remove.size());

@@ -35,6 +35,19 @@ namespace {
 
 using namespace test_support;
 
+/// The comparable part of a downloaded state (everything but the device addresses).
+std::vector<long long> fingerprint(const cbst_host_state& h) {
+  std::vector<long long> f = {h.num_records,           h.fixed_size,
+                              h.initial_payload_size,  h.alignment,
+                              h.scratch_item_capacity, h.scratch_payload_capacity};
+  for (const auto& n : h.nodes)
+    f.insert(f.end(), {n.index, n.value, n.length, n.size, n.occupancy, n.tail_base,
+                       n.tail_capacity, n.left, n.right, n.parent});
+  for (const auto* v : {&h.keys, &h.start_offsets, &h.avail, &h.subtree_avail, &h.payload})
+    f.insert(f.end(), v->begin(), v->end());
+  return f;
+}
+
 /// An empty tree: construct with 0 records.
 void construct_empty(cbst_store& s) {
   std::vector<int> none;
@@ -146,6 +159,98 @@ TEST(CbstContractLocator, MaxKeyZero) {
   }
   some.check_errors();
   EXPECT_FALSE(some.poisoned());
+}
+
+// --- The shape of a batch ------------------------------------------------------------------------
+
+// A batch whose prefix sums do not describe its payload is rejected before anything changes (the
+// kernels read the payload through them): invalid_argument_error, the store not poisoned, its state
+// as before.
+TEST(CbstContractBatch, AMalformedBatchIsRejectedBeforeAnythingChanges) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "shape", 256);
+  construct_rows(s, {{1, 2, 3}, {4}, {5, 6}});
+  const std::vector<long long> before = fingerprint(s.download());
+  struct malformed {
+    const char* what;
+    std::vector<int> keys, payload, prefix;
+  };
+  const std::vector<malformed> cases = {
+      {"more prefix sizes than keys", {1}, {7, 8}, {1, 2}},
+      {"fewer prefix sizes than keys", {1, 2}, {7, 8}, {2}},
+      {"a prefix beyond the payload", {1}, {7, 8}, {600}},
+      {"a prefix short of the payload", {1, 2}, {7, 8, 9}, {1, 2}},
+      {"a decreasing prefix", {1, 2}, {7, 8}, {2, 1}},
+      {"a negative prefix", {1, 2}, {7, 8}, {-1, 2}},
+  };
+  for (const malformed& m : cases) {
+    SCOPED_TRACE(m.what);
+    EXPECT_THROW((void)s.insert(m.keys, m.payload, m.prefix), invalid_argument_error);
+    EXPECT_THROW(s.append(m.keys, m.payload, m.prefix), invalid_argument_error);
+    EXPECT_THROW(s.remove_values(m.keys, m.payload, m.prefix), invalid_argument_error);
+    EXPECT_FALSE(s.poisoned());
+  }
+  s.check_errors();
+  EXPECT_EQ(fingerprint(s.download()), before);
+  EXPECT_EQ(violations(s, {{1, 2, 3}, {4}, {5, 6}}), 0);
+  // An empty batch is valid (and changes nothing).
+  (void)s.insert({}, {}, {});
+  s.append({}, {}, {});
+  s.remove_values({}, {}, {});
+  EXPECT_EQ(fingerprint(s.download()), before);
+  // The free functions check the same.
+  cbst_context& ctx = const_cast<cbst_context&>(s.context());
+  EXPECT_THROW(fill_cbst({1}, {7, 8}, {600}, ctx), invalid_argument_error);
+  EXPECT_THROW((void)insert_cbst({1}, {7, 8}, {600}, ctx), invalid_argument_error);
+  EXPECT_THROW(unfill_cbst({1}, {7, 8}, {1, 2}, ctx), invalid_argument_error);
+  EXPECT_EQ(fingerprint(s.download()), before);
+}
+
+// --- The construct layout ------------------------------------------------------------------------
+
+// Rows of no slot, overlapping or unordered rows, rows outside the payload and unsorted or
+// repeated keys are rejected before anything is allocated (a zero-length row put the chain pointer
+// of an append into the next row's first slot).
+TEST(CbstContractConstruct, TheLayoutIsValidated) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  struct layout_case {
+    const char* what;
+    std::vector<int> keys, starts, flat;
+  };
+  const std::vector<int> flat = {5, 6, 0, INT_MIN, 7, 0, 0, INT_MIN};
+  const std::vector<layout_case> cases = {
+      {"a zero-length row", {1, 2}, {0, 0}, {5, 6, 0, INT_MIN}},
+      {"decreasing offsets", {1, 2}, {4, 0}, flat},
+      {"a negative offset", {1, 2}, {-1, 4}, flat},
+      {"the last row outside the payload", {1, 2}, {0, 8}, flat},
+      {"unsorted keys", {2, 1}, {0, 4}, flat},
+      {"a repeated key", {1, 1}, {0, 4}, flat},
+  };
+  for (const layout_case& c : cases) {
+    SCOPED_TRACE(c.what);
+    cbst_store s(res, "layout", 16);
+    std::vector<int> keys = c.keys, starts = c.starts, payload = c.flat;
+    EXPECT_THROW(s.construct(keys.data(), starts.data(), static_cast<int>(keys.size()),
+                             payload.data(), static_cast<int>(payload.size())),
+                 invalid_argument_error);
+    EXPECT_FALSE(s.poisoned());
+    EXPECT_EQ(s.context().num_records, 0);
+    EXPECT_EQ(s.allocated_bytes(), 0U);
+  }
+  // Keys need not be 1..n, only strictly increasing.
+  cbst_store s(res, "layout", 16);
+  std::vector<int> keys = {3, 7}, starts = {0, 4}, payload = flat;
+  s.construct(keys.data(), starts.data(), 2, payload.data(), 8);
+  EXPECT_EQ(s.rows({3, 7}), (rows{{5, 6}, {7}}));
+  // The zero-length row of the review's probe: the append to key 1 would have overwritten key 2.
+  cbst_store probe(res, "probe", 16);
+  std::vector<int> pk = {1, 2}, ps = {0, 1}, pf = {INT_MIN, 5, 6, INT_MIN};
+  probe.construct(pk.data(), ps.data(), 2, pf.data(), 4);
+  const batch one = make_batch({1}, {{9}});
+  probe.append(one.keys, one.payload, one.prefix);
+  EXPECT_EQ(probe.rows({1, 2}), (rows{{9}, {5, 6}}));
 }
 
 }  // namespace

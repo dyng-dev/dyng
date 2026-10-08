@@ -168,12 +168,23 @@ void throw_if_control_raised(const cbst_context& ctx, const char* what);
 // demand when fill overflow or surplus inserts need more room.
 // The construct's arguments (MOSP_ESCHER's validation; nothing is changed): throws
 // invalid_argument_error for negative sizes, a capacity below the payload and null arrays, and
-// capacity_error for a record count beyond the int32 indexing of the operation scratch.
+// capacity_error for a record count beyond the int32 indexing of the operation scratch. The
+// layout (dynG, M8a review): the keys strictly increasing, the row offsets strictly increasing
+// from at least 0, the last one below the payload size (every row has at least one slot, its
+// terminator), else invalid_argument_error.
 // With `row_counts` (not null), also the caller's row counts: every count within its row's tail
 // capacity (the slots of the row's segment but its terminator).
 void validate_construct(const int* keys, const int* start_offsets, int num_records,
                         const int* flat_payload, int flat_payload_size, int payload_capacity,
                         const std::string& dataset_name, const int* row_counts = nullptr);
+// The shape of a batch of insert, append (fill) or remove_values (unfill) (dynG addition, M8a
+// review; PLAN 4.7.3): one prefix size per key, non-decreasing from 0, the last one the payload
+// size; throws invalid_argument_error otherwise (the device kernels read the payload through the
+// prefix sums), and capacity_error for more than INT_MAX / 3 items (the int32 indexing of the
+// operation scratch). The store's operations check it before anything changes.
+void validate_batch(const std::vector<int>& keys, const std::vector<int>& payload,
+                    const std::vector<int>& prefix_sizes, const std::string& dataset_name,
+                    const char* op);
 // The tree over a flattened layout. The tail occupancy of every row is scanned from the payload
 // (ESCHER-GPU's initTailMetadata) or, with `row_counts` (one count per record, in key order;
 // MOSP_ESCHER's rowOccupancy), taken from the caller's counts: a fast path with the same result,
