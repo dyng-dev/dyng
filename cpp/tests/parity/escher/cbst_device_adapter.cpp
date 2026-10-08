@@ -278,7 +278,7 @@ device_store_adapter::device_store_adapter(std::string policy, bool allow_compac
   esc::store_policy p;
   if (!esc::store_policy::from_name(policy_, p))
     throw tr::trace_error("device store: no policy '" + policy_ +
-                          "' (the store has escher_gpu and mosp_escher_staged)");
+                          "' (the store has escher_gpu and mosp_escher)");
 }
 
 device_store_adapter::~device_store_adapter() = default;
@@ -451,8 +451,11 @@ tree_digest device_store_adapter::digest(std::uint32_t id) {
 
 store_factory device_store_factory(const std::string& policy) {
   return [policy](const std::string& repo) -> std::unique_ptr<store_adapter> {
-    (void)repo;
-    return std::make_unique<device_store_adapter>(policy.empty() ? "escher_gpu" : policy);
+    // Without a policy, the preset of the trace's original (M8a step 5).
+    const std::string preset = default_policy(repo);
+    return std::make_unique<device_store_adapter>(!policy.empty()   ? policy
+                                                  : !preset.empty() ? preset
+                                                                    : "escher_gpu");
   };
 }
 

@@ -9,10 +9,12 @@
  *   (offsets, occupancy, tail capacity, the bump pointer, the capacity, deviceBytes(), the
  *   degree-bin launches of every op, the integrity verdict), apart from the documented
  *   divergences of the port (replay_report::documented).
- * - The traces of MOSP_ESCHER@4b86159 under escher_gpu() and under the staging preset
- *   mosp_escher_staged() (MOSP_ESCHER's behaviours merged so far, M8a step 4, ADR 0039): every
- *   tree diverges at exactly the op and in exactly the field where the host model under the same
- *   preset diverges (the behaviour differences of ADR 0037), and nowhere else.
+ * - The traces of MOSP_ESCHER@4b86159 under mosp_escher() (M8a step 5, ADR 0039): no mismatch
+ *   in the `exact` field set apart from the documented divergences (constructs without row
+ *   counts, a construct below its payload), the automatic compactions at the same ops.
+ * - The traces of MOSP_ESCHER under escher_gpu(): every tree diverges at exactly the op and in
+ *   exactly the field where the host model under the same preset diverges (the behaviour
+ *   differences of ADR 0037), and nowhere else.
  * - A replay run twice gives identical digests.
  */
 #include "parity/escher/cbst_compare.hpp"
@@ -106,17 +108,39 @@ std::map<std::uint32_t, std::pair<std::int64_t, std::string>> first_divergences(
     if (slot.first < 0) slot = {m.tree_op, validation ? "construct validation" : m.field};
   }
   for (const auto& d : r.documented) {
+    if (d.rule != "construct_below_payload") continue;  // the others exempt fields, not ops
     auto& slot = out[d.tree];
     if (slot.first < 0 || d.tree_op < slot.first) slot = {d.tree_op, "construct validation"};
   }
   return out;
 }
 
+TEST(CbstDeviceReplay, MospEscherTracesMatchUnderMospEscher) {
+  DYNG_SKIP_WITHOUT_DEVICE();
+  const auto traces = committed_traces("mosp_escher");
+  ASSERT_FALSE(traces.empty());
+  std::int64_t ops = 0, compactions = 0;
+  for (const auto& path : traces) {
+    SCOPED_TRACE(path);
+    const replay_report r =
+        replay_with(path, device_store_factory("mosp_escher"), field_set::exact);
+    EXPECT_TRUE(r.ok()) << describe(r);
+    EXPECT_EQ(r.unreplayable, 0);
+    for (const auto& d : r.documented)
+      EXPECT_TRUE(d.rule == "construct_without_row_counts" || d.rule == "construct_below_payload")
+          << d.rule;
+    ops += r.compared;
+    compactions += r.compactions;
+  }
+  EXPECT_GT(ops, 40);
+  EXPECT_GT(compactions, 0);  // the automatic compactions of the targeted trace
+}
+
 TEST(CbstDeviceReplay, MospEscherTracesDivergeWhereTheModelDoes) {
   DYNG_SKIP_WITHOUT_DEVICE();
   const auto traces = committed_traces("mosp_escher");
   ASSERT_FALSE(traces.empty());
-  for (const char* preset : {"escher_gpu", "mosp_escher_staged"}) {
+  for (const char* preset : {"escher_gpu"}) {
     for (const auto& path : traces) {
       SCOPED_TRACE(std::string(preset) + " " + path);
       const replay_report dev =
@@ -138,7 +162,7 @@ TEST(CbstDeviceReplay, EveryConstructIsBuiltBothWaysWithIdenticalNodes) {
   const auto traces = committed_traces("");
   ASSERT_FALSE(traces.empty());
   std::int64_t constructs = 0;
-  for (const char* preset : {"escher_gpu", "mosp_escher_staged"}) {
+  for (const char* preset : {"escher_gpu", "mosp_escher"}) {
     for (const auto& path : traces) {
       SCOPED_TRACE(std::string(preset) + " " + path);
       auto in = cbst_trace::reader::open(path);

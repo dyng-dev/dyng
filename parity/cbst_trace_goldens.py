@@ -733,7 +733,7 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
         capture_output=True,
         text=True,
     ).stdout.strip()
-    config = f"device:{args.policy or 'escher_gpu'}/{args.fields}"
+    config = f"device:{args.policy or original_preset(set_name)}/{args.fields}"
     matrix = {
         c["case"]: {config: "equal" if c.get("ok") and "error" not in c else "DIFFERENT"}
         for c in record["cases"]
@@ -752,19 +752,27 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
     }
 
 
-# The presets of the dynG device store (store_policy::from_name): ESCHER-GPU's, and the staging
-# preset of MOSP_ESCHER's behaviours merged so far (M8a step 4, ADR 0039).
-DEVICE_PRESETS = ("escher_gpu", "mosp_escher_staged")
+# The presets of the dynG device store (store_policy::from_name): ESCHER-GPU's and MOSP_ESCHER's
+# (M8a step 5, ADR 0039). The staging preset mosp_escher_staged of M8a step 4 is
+# accepted for the replay tools of the commits that have it (parity/cbst_merge_steps.sh over the
+# merge-step table).
+DEVICE_PRESETS = ("escher_gpu", "mosp_escher", "mosp_escher_staged")
 
 
 def against_model(set_name: str, args) -> bool:
     """Whether a device replay of a set is judged against the host model under the same preset:
-    the traces of an original whose preset the store does not have yet (MOSP_ESCHER's under
-    escher_gpu() and under the staging preset mosp_escher_staged() of M8a step 4, which has no
-    automatic compaction yet)."""
-    preset = args.policy or "escher_gpu"
-    original = {"ESCHER-GPU": "escher_gpu", "MOSP_ESCHER": "mosp_escher"}
-    return original[SETS[set_name]["reference"]] != preset
+    the traces of an original replayed under another original's preset (MOSP_ESCHER's under
+    escher_gpu()), and, for the replay tools of M8a step 4, under the staging preset
+    mosp_escher_staged(), which had no automatic compaction yet. A set replayed under its own
+    original's preset (MOSP_ESCHER's under mosp_escher() from M8a step 5) is judged against the
+    trace itself."""
+    return (args.policy or original_preset(set_name)) != original_preset(set_name)
+
+
+def original_preset(set_name: str) -> str:
+    """The store preset of a set's original: escher_gpu for ESCHER-GPU's, mosp_escher for
+    MOSP_ESCHER's (the device store's preset without --policy, from M8a step 5)."""
+    return {"ESCHER-GPU": "escher_gpu", "MOSP_ESCHER": "mosp_escher"}[SETS[set_name]["reference"]]
 
 
 def first_divergences(report: dict) -> dict[int, tuple[int, str] | None]:
@@ -792,10 +800,24 @@ def first_divergences(report: dict) -> dict[int, tuple[int, str] | None]:
         named = [f for f in fs if f != "check.rows"]
         out[t] = (first_op[t], (named or fs)[0])
     for d in report.get("documented", []):
+        if d.get("rule") != "construct_below_payload":
+            continue  # construct_without_row_counts exempts fields, it does not end a tree
         cur = out.get(d["tree"])
         if cur is None or d["tree_op"] < cur[0]:
             out[d["tree"]] = (d["tree_op"], "construct validation")
     return out
+
+
+# The documented divergences a record keeps per case (all are counted, by rule).
+DOCUMENTED_KEPT = 50
+
+
+def rule_counts(report: dict) -> dict[str, int]:
+    """The documented divergences of a replay report, counted by rule."""
+    out: dict[str, int] = {}
+    for d in report.get("documented", []):
+        out[d["rule"]] = out.get(d["rule"], 0) + 1
+    return dict(sorted(out.items()))
 
 
 def replay_set(set_name: str, args, exe: Path) -> dict:
@@ -890,7 +912,8 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
                     "first_divergences": {
                         str(t): v for t, v in sorted(dev_first.items()) if v is not None
                     },
-                    "documented": r.get("documented", []),
+                    "documented": r.get("documented", [])[:DOCUMENTED_KEPT],
+                    "documented_rules": rule_counts(r),
                 }
             )
             continue
@@ -924,7 +947,8 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
                     if tr["unreplayable"]
                 ],
                 "first_mismatches": r["mismatches"][:5],
-                "documented": r.get("documented", []),
+                "documented": r.get("documented", [])[:DOCUMENTED_KEPT],
+                "documented_rules": rule_counts(r),
             }
         )
     spec = toml.get("sets", {}).get(set_name, {})
@@ -975,7 +999,11 @@ def compare_main(argv: list[str]) -> int:
         default="",
         help="the store's policy (default: the preset of each trace's original)",
     )
-    p.add_argument("--fields", choices=["semantic", "offsets", "exact"], default="exact")
+    p.add_argument(
+        "--fields",
+        choices=["semantic", "offsets", "exact"],
+        default="exact",
+    )
     p.add_argument("--replay-exe", type=Path, help="dyng_cbst_replay (default: find it in build/)")
     p.add_argument("--jobs", type=int, default=max(1, min(8, (os.cpu_count() or 4) // 4)))
     p.add_argument(
@@ -1014,7 +1042,7 @@ def compare_main(argv: list[str]) -> int:
             print(
                 "compare.py cbst_trace --store device: the store has the presets "
                 + ", ".join(DEVICE_PRESETS)
-                + " (M8a step 4; mosp_escher and dyng_default follow in step 5)",
+                + " (M8a step 5)",
                 file=sys.stderr,
             )
             return 2

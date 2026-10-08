@@ -3,10 +3,11 @@
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu (ensurePayloadCapacity)
 // Derived from ESCHER-GPU@abcf9b2:structure/dynamic_hypergraph.cu (payloadCapacity)
 // Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (ensureScratchCapacity)
+// Derived from MOSP_ESCHER@4b86159:hypergraph/src/DynamicHypergraph.cpp (constructFromRows)
 /**
  * @file store_policy.cpp
- * @brief The CBST store's payload policy, its preset escher_gpu() (M8a, ADR 0038) and the staging
- *        preset mosp_escher_staged() (M8a step 4, ADR 0039).
+ * @brief The CBST store's payload policy and its presets escher_gpu() (M8a, ADR 0038),
+ *        and mosp_escher() (M8a step 5, ADR 0039).
  */
 #include "hypergraph/escher/store_policy.hpp"
 
@@ -28,21 +29,25 @@ store_policy store_policy::escher_gpu() {
   return p;
 }
 
-store_policy store_policy::mosp_escher_staged() {
+store_policy store_policy::mosp_escher(long long extra) {
   store_policy p;
-  p.name = "mosp_escher_staged";
+  p.name = "mosp_escher";
   p.growth = growth_rule::none;  // MOSP_ESCHER's fixed capacity
-  p.compaction = compaction_rule::never;
-  p.scratch = scratch_rule::geometric;  // (g) MOSP_ESCHER's ensureScratchCapacity
+  // escher/structure/operations.cu@4b86159:409-444 (fillImpl), 694-721 (insertCBST)
+  p.compaction = compaction_rule::mosp_escher;
+  p.scratch = scratch_rule::geometric;  // its ensureScratchCapacity
   p.alignment = 4;
+  // hypergraph/src/DynamicHypergraph.cpp@4b86159:79-107 (headroomFactor 1.3, extraPayloadInts)
+  p.headroom = 1.3;
+  p.extra = extra;
   return p;
 }
 
 bool store_policy::from_name(const std::string& name, store_policy& out) {
   if (name == "escher_gpu") {
     out = escher_gpu();
-  } else if (name == "mosp_escher_staged") {
-    out = mosp_escher_staged();
+  } else if (name == "mosp_escher") {
+    out = mosp_escher();
   } else {
     return false;
   }
@@ -50,6 +55,21 @@ bool store_policy::from_name(const std::string& name, store_policy& out) {
 }
 
 long long store_policy::initial_capacity(long long requested, long long size, bool in_place) const {
+  if (headroom > 0) {
+    // MOSP_ESCHER's constructFromRows (hypergraph/src/DynamicHypergraph.cpp@4b86159:79-107): the
+    // flat size times the headroom plus the extra entries, capped at 2.0e9; a payload above the
+    // cap is an error (escher::EscherError there).
+    constexpr long long max_initial = 2000000000LL;
+    long long capacity =
+        static_cast<long long>(static_cast<double>(size) * headroom) + std::max(extra, 0LL);
+    capacity = std::min(capacity, max_initial);
+    if (capacity < size) {
+      throw capacity_error("dyng: CBST initial payload of " + std::to_string(size) +
+                           " values exceeds the cap of " + std::to_string(max_initial) +
+                           " values per CBST (policy " + name + ")");
+    }
+    return capacity;
+  }
   // ESCHER-GPU: trees updated in place get 1/8 of slack for appends and grow on demand; trees
   // rebuilt by the delta merge are sized exactly; a requested capacity is a lower bound for the
   // in-place trees.

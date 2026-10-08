@@ -276,17 +276,22 @@ class trace_source {
 /// empty (an unknown original then throws cbst_trace::trace_error).
 store_factory host_model_factory(const std::string& policy);
 
-/// The host-model policy equal to the dynG store's staging preset mosp_escher_staged() (M8a step
-/// 4, ADR 0039): MOSP_ESCHER's behaviours the store has merged so far, a fixed capacity, no
-/// automatic compaction, dynG's exceptions.
-dyng::testing::cbst_host_policy staged_host_policy();
+/// The host-model policy that behaves like the dynG store under its preset `preset`
+/// ("escher_gpu", "mosp_escher"; M8a step 5, ADR 0039): the original's behaviour with the rules
+/// the store adds under every preset. An unknown preset gives a policy with an empty name.
+dyng::testing::cbst_host_policy store_equivalent_host_policy(const std::string& preset);
 
 /// The host-model policy of a name: the presets of cbst_host_policy::from_name() and
-/// "mosp_escher_staged" (staged_host_policy()). False if the name is unknown.
+/// "store:<preset>" (store_equivalent_host_policy()). False if the name is unknown.
 bool resolve_host_policy(const std::string& name, dyng::testing::cbst_host_policy& out);
 
 /// Whether the rows of a dataset are compared in order (H2V, H2H, V2V; any case).
 bool order_sensitive(const std::string& dataset);
+
+/// Whether the exception a store threw at an op is the trace's: the same type, or
+/// MOSP_ESCHER's escher::EscherError and the dynG exception of its throw site (M8a step 5).
+bool equivalent_exception(const std::string& op, const std::string& trace_type,
+                          const std::string& store_type);
 
 /// The default policy of an original ("ESCHER-GPU" -> escher_gpu, "MOSP_ESCHER" -> mosp_escher).
 std::string default_policy(const std::string& repo);

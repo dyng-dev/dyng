@@ -56,6 +56,22 @@ bool order_sensitive(const std::string& dataset) {
   return up == "H2V" || up == "H2H" || up == "V2V";
 }
 
+bool equivalent_exception(const std::string& op, const std::string& trace_type,
+                          const std::string& store_type) {
+  if (trace_type == store_type) return true;
+  // MOSP_ESCHER@4b86159 throws escher::EscherError at every site; the dynG store throws the
+  // exception of PLAN 4.7.3 for the site (M8a step 5, ADR 0039): the construct validation
+  // (escher/structure/operations.cu:196-211) invalid_argument_error (or capacity_error for a
+  // record count beyond the int32 scratch), the payload overflow of a fill (:446-453), of the
+  // surplus rows of an insert (:713-721) and of a compaction (compactCBST) capacity_error.
+  if (trace_type != "escher::EscherError") return false;
+  if (op == "construct")
+    return store_type == "dyng::invalid_argument_error" || store_type == "dyng::capacity_error";
+  if (op == "fill" || op == "insert" || op == "compact")
+    return store_type == "dyng::capacity_error";
+  return false;
+}
+
 std::string default_policy(const std::string& repo) {
   if (repo == "ESCHER-GPU") return "escher_gpu";
   if (repo == "MOSP_ESCHER") return "mosp_escher";
@@ -305,6 +321,9 @@ struct tree_run {
   bool unreplayable = false;
   std::int64_t ops = 0;
   layout_snapshot trace_before, store_before;
+  /// The keys of a MOSP_ESCHER construct without row counts whose trace occupancy is still that
+  /// construct's 0, and the store's (scanned) occupancy of each (construct_without_row_counts).
+  std::map<std::int32_t, std::int64_t> legacy_occupancy;
 };
 
 // The values of an input array (false: hash only).
@@ -410,6 +429,23 @@ class replayer {
   }
 
  private:
+  // Reports the pending mismatches of an op when it has been compared.
+  struct pending_flush {
+    replayer* r;
+    tree_run* t;
+    tree_summary* s;
+    pending_flush(replayer* replay, tree_run* run, tree_summary* summary)
+        : r(replay), t(run), s(summary) {}
+    pending_flush(const pending_flush&) = delete;
+    pending_flush& operator=(const pending_flush&) = delete;
+    ~pending_flush() {
+      if (r->pending_.empty()) return;
+      for (mismatch& m : r->pending_) r->add(std::move(m), s);
+      r->pending_.clear();
+      t->diverged = true;
+    }
+  };
+
   void add(mismatch m, tree_summary* t) {
     ++report_.mismatch_count;
     if (t) ++t->mismatches;
@@ -478,9 +514,11 @@ class replayer {
       m.key = key;
       m.expected = expected;
       m.actual = actual;
-      add(std::move(m), &s);
-      t.diverged = true;
+      pending_.push_back(std::move(m));
     };
+    // The mismatches of the op are reported when it has been compared (a documented divergence
+    // can still replace them, below); any mismatch ends the comparison of the tree.
+    pending_flush flush{this, &t, &s};
     if (!rec.has("digest.mode")) {
       apply_trace(rec, s, op_index, tree_op, op);
       stop_tree(t, s, "the trace has no state digests (batches mode)");
@@ -516,7 +554,7 @@ class replayer {
       return;
     }
     const bool exact = opt_.fields == field_set::exact;
-    const bool offsets = opt_.fields != field_set::semantic;
+    const bool offsets = opt_.fields == field_set::offsets || opt_.fields == field_set::exact;
     // The state before the operation (exact): the store must start where the original did.
     const tree_digest pre = store_->scalars(id);
     if (exact) {
@@ -577,7 +615,7 @@ class replayer {
       differ("status", -1, threw ? "exception " + rec.text("exception.type") : "ok",
              out.status == op_status::error ? "exception " + out.error_type + ": " + out.message
                                             : "ok");
-    } else if (threw && rec.text("exception.type") != out.error_type) {
+    } else if (threw && !equivalent_exception(op, rec.text("exception.type"), out.error_type)) {
       differ("exception.type", -1, rec.text("exception.type"), out.error_type);
     }
     // The InsertMapping.
@@ -615,6 +653,25 @@ class replayer {
     const tr::tree_state* after = tracker_.tree(id);
     const tree_digest got = store_->digest(id);
     if (after != nullptr) compare_state(rec, *after, got, s, differ, offsets, exact);
+    // The documented divergence construct_without_row_counts (M8a step 5, ADR 0039; acceptance
+    // criterion 11 of M8a: MOSP_ESCHER's nullptr path is never ported). A construct of
+    // MOSP_ESCHER without row counts (rowOccupancy = nullptr) gave every row the tail occupancy
+    // 0, where the dynG store scans the rows (ADR 0039 (c)). Only that difference is exempted:
+    // the occupancy of the keys built that way, while the trace still has 0 and the store still
+    // has the scanned count, and MOSP_ESCHER's own integrity verdict, which counts one metadata
+    // violation per live such key (escher/structure/integrity.cu@4b86159:160-186), when it is
+    // exactly that count and the store's verdict is clean. Every other field of the op, and every
+    // later op of the tree, is still compared.
+    if (op == "construct") {
+      t.legacy_occupancy.clear();
+      if (report_.repo == "MOSP_ESCHER" && !req.has_row_counts && out.status == op_status::ok) {
+        for (const mismatch& m : pending_)
+          if (m.field == "key.occupancy" && m.expected == "0")
+            t.legacy_occupancy[static_cast<std::int32_t>(m.key)] = std::stoll(m.actual);
+      }
+    }
+    if (!t.legacy_occupancy.empty() && after != nullptr)
+      exempt_legacy_occupancy(rec, *after, t, base, differ);
     // Growth and compaction, inferred by the same rule on both sides.
     if (after != nullptr && op != "construct" && op != "rebuild") {
       const layout_snapshot trace_after = snapshot_of(*after);
@@ -648,6 +705,68 @@ class replayer {
       t.store_before = store_after;
     } else {
       t.store_before = snapshot_of(got);
+    }
+  }
+
+  // The exemptions of construct_without_row_counts (above) at one op; then the keys whose trace
+  // occupancy is no longer the construct's 0 leave the set.
+  template <class differ_t>
+  void exempt_legacy_occupancy(const tr::record& rec, const tr::tree_state& after, tree_run& t,
+                               const mismatch& base, differ_t& differ) {
+    std::int64_t exempted = 0, live = 0;
+    std::vector<mismatch> keep;
+    keep.reserve(pending_.size());
+    for (mismatch& m : pending_) {
+      const auto it = t.legacy_occupancy.find(static_cast<std::int32_t>(m.key));
+      if (m.field == "key.occupancy" && it != t.legacy_occupancy.end() && m.expected == "0" &&
+          m.actual == std::to_string(it->second)) {
+        ++exempted;
+        const auto k = after.by_key.find(it->first);
+        if (k != after.by_key.end() && k->second.avail == 0) ++live;
+        continue;
+      }
+      keep.push_back(std::move(m));
+    }
+    const std::int64_t trace_rows = rec.integer("check.rows", -1);
+    std::int64_t rows_exempted = -1;
+    for (auto it = keep.begin(); it != keep.end(); ++it) {
+      if (it->field == "check.rows" && it->actual == "0" && trace_rows == live) {
+        rows_exempted = trace_rows;
+        keep.erase(it);
+        break;
+      }
+    }
+    pending_ = std::move(keep);
+    // MOSP_ESCHER's checker reports every live such key; a trace whose verdict does not is not
+    // explained by the rule.
+    if (live > 0 && trace_rows >= 0 && trace_rows != live && rows_exempted < 0)
+      differ("check.rows (construct_without_row_counts)", -1,
+             std::to_string(live) + " metadata violations (the live keys built without row counts)",
+             std::to_string(trace_rows) + " in the trace");
+    if (exempted > 0) {
+      documented_divergence d;
+      d.seq = base.seq;
+      d.op_index = base.op_index;
+      d.tree_op = base.tree_op;
+      d.tree = base.tree;
+      d.dataset = base.dataset;
+      d.op = base.op;
+      d.rule = "construct_without_row_counts";
+      d.detail = std::to_string(exempted) +
+                 " key.occupancy fields exempted (the trace's 0 of MOSP_ESCHER's rowOccupancy = "
+                 "nullptr against the store's scanned count; " +
+                 std::to_string(live) + " live)" +
+                 (rows_exempted >= 0 ? "; check.rows " + std::to_string(rows_exempted) +
+                                           " (its metadata violations of those keys) against 0"
+                                     : std::string());
+      report_.documented.push_back(std::move(d));
+    }
+    for (auto it = t.legacy_occupancy.begin(); it != t.legacy_occupancy.end();) {
+      const auto k = after.by_key.find(it->first);
+      if (k == after.by_key.end() || k->second.occupancy != 0)
+        it = t.legacy_occupancy.erase(it);
+      else
+        ++it;
     }
   }
 
@@ -772,6 +891,7 @@ class replayer {
   std::unique_ptr<store_adapter> owned_;
   options opt_;
   replay_report report_;
+  std::vector<mismatch> pending_;  // the mismatches of the op being compared
   tr::state_tracker tracker_;
   std::map<std::uint32_t, tree_run> runs_;
 };
@@ -790,33 +910,39 @@ replay_report replay(tr::reader& in, const store_factory& make_store, const opti
   return r.run();
 }
 
-cbst_host_policy staged_host_policy() {
-  // The behaviours of MOSP_ESCHER@4b86159 the dynG store has merged at this commit (M8a step 4,
-  // ADR 0039), on top of the store's own rules (exceptions, construct validation) and ESCHER-GPU's
-  // behaviour for everything not merged yet. A fixed capacity: where MOSP_ESCHER compacts, the
-  // store (and this model) throws capacity_error.
-  cbst_host_policy p = cbst_host_policy::escher_gpu();
-  p.name = "mosp_escher_staged";
-  p.growth = cbst_host_policy::growth_rule::none;
-  p.compaction = cbst_host_policy::compaction_rule::none;
+cbst_host_policy store_equivalent_host_policy(const std::string& preset) {
+  // The host-model policy that behaves like the dynG store under one of its presets (M8a step 5,
+  // ADR 0039): the original's behaviour, with the rules the store adds under every preset
+  // (exceptions, the construct validation, the fill clamps, the caller's row counts as a fast
+  // path and the scan without them, never MOSP_ESCHER's legacy occupancy 0; rebuild_from_device,
+  // compact() and the degree-bin counters exist). dynG's default preset is the model's own
+  // cbst_host_policy::dyng_default(), written independently of the store.
+  cbst_host_policy p;
+  if (preset == "escher_gpu") {
+    p = cbst_host_policy::escher_gpu();
+    p.name = "store:escher_gpu";
+  } else if (preset == "mosp_escher") {
+    p = cbst_host_policy::mosp_escher();
+    p.name = "store:mosp_escher";
+    p.has_rebuild = true;
+  } else {
+    return p;
+  }
   p.failure = cbst_host_policy::failure_rule::exception;
   p.error_type = "dyng::capacity_error";
   p.validate_construct = true;
-  p.clamp_fill_tail = true;  // (b) the fill clamps
-  // (c) the caller's row counts as the fast path of construct, the scan without them (never
-  // MOSP_ESCHER's legacy occupancy 0).
+  p.clamp_fill_tail = true;
   p.occupancy = cbst_host_policy::occupancy_rule::caller_counts_or_scan;
-  // (g) the geometric scratch growth.
-  p.scratch = cbst_host_policy::scratch_rule::geometric;
-  // (h) an explicit compact().
   p.has_compact = true;
+  p.counts_bin_launches = true;
   return p;
 }
 
 bool resolve_host_policy(const std::string& name, cbst_host_policy& out) {
-  if (name == "mosp_escher_staged") {
-    out = staged_host_policy();
-    return true;
+  const std::string prefix = "store:";
+  if (name.rfind(prefix, 0) == 0) {
+    out = store_equivalent_host_policy(name.substr(prefix.size()));
+    return !out.name.empty();
   }
   return cbst_host_policy::from_name(name, out);
 }

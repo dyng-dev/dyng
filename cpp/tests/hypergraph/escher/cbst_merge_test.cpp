@@ -317,8 +317,7 @@ TEST(CbstMergeFind, TheRowsOfKeys) {
 TEST(CbstMergeScratch, ExactUnderEscherGpuGeometricUnderMospEscher) {
   DYNG_SKIP_IF_NO_CUDA();
   const resources res = resources::cuda();
-  for (const store_policy& policy :
-       {store_policy::escher_gpu(), store_policy::mosp_escher_staged()}) {
+  for (const store_policy& policy : {store_policy::escher_gpu(), store_policy::mosp_escher()}) {
     SCOPED_TRACE(policy.name);
     cbst_store s(res, "scratch", 1 << 12, 4, policy);
     construct_rows(s, {{1}, {2}, {3}, {4}});
@@ -350,7 +349,7 @@ TEST(CbstMergeScratch, ExactUnderEscherGpuGeometricUnderMospEscher) {
 TEST(CbstMergeCompact, ChurnSmallInAFixedPayload) {
   DYNG_SKIP_IF_NO_CUDA();
   const resources res = resources::cuda();
-  cbst_store s(res, "churn-small", 2000, 4, store_policy::mosp_escher_staged());
+  cbst_store s(res, "churn-small", 2000, 4, store_policy::mosp_escher());
   rows want(4);
   int next = 1;
   for (auto& r : want) {
@@ -399,7 +398,7 @@ TEST(CbstMergeCompact, ChurnSmallInAFixedPayload) {
 TEST(CbstMergeCompact, TheCompactedLayout) {
   DYNG_SKIP_IF_NO_CUDA();
   const resources res = resources::cuda();
-  cbst_store s(res, "layout", 256, 4, store_policy::mosp_escher_staged());
+  cbst_store s(res, "layout", 256, 4, store_policy::mosp_escher());
   construct_rows(s, {iota_row(1, 3), iota_row(10, 5), {7}});
   const batch fill = make_batch({1}, {iota_row(100, 6)});  // key 1 chained: 9 values
   s.append(fill.keys, fill.payload, fill.prefix);
@@ -440,8 +439,7 @@ TEST(CbstMergeCompact, TheCompactedLayout) {
 TEST(CbstMergeCompact, CompactedRowsThatDoNotFit) {
   DYNG_SKIP_IF_NO_CUDA();
   const resources res = resources::cuda();
-  for (const store_policy& policy :
-       {store_policy::mosp_escher_staged(), store_policy::escher_gpu()}) {
+  for (const store_policy& policy : {store_policy::mosp_escher(), store_policy::escher_gpu()}) {
     SCOPED_TRACE(policy.name);
     cbst_store s(res, "tight", 4 + 5 + 5, 4, policy);
     construct_rows(s, {{1}});

@@ -303,13 +303,13 @@ def test_model_replay_rules_of_the_sets() -> None:
     assert g.allowed_unreplayable("cbst_trace_escher_gpu_syn1m", h2v)
     assert not g.allowed_unreplayable("cbst_trace_escher_gpu_test", h2h)
     assert not g.allowed_unreplayable("cbst_trace_mosp_escher_test", h2h)
-    # The device store has the presets escher_gpu and mosp_escher_staged in M8a step 4.
-    assert (
-        g.compare_main(
-            ["--store", "device", "--policy", "mosp_escher", "--set", "cbst_trace_escher_gpu_test"]
-        )
-        == 2
-    )
+    # The device store has the presets escher_gpu and mosp_escher from M8a step 5 (and the replay
+    # tools of M8a step 4 the staging preset mosp_escher_staged).
+    assert g.DEVICE_PRESETS == ("escher_gpu", "mosp_escher", "mosp_escher_staged")
+    assert g.rule_counts({"documented": [{"rule": "b"}, {"rule": "a"}, {"rule": "b"}]}) == {
+        "a": 1,
+        "b": 2,
+    }
 
 
 def test_device_replay_judged_against_the_model() -> None:
@@ -321,10 +321,16 @@ def test_device_replay_judged_against_the_model() -> None:
     class args:  # noqa: N801 - a namespace
         policy = ""
 
-    assert g.against_model("cbst_trace_mosp_escher_test", args)
+    # Without --policy every set runs under its original's preset (M8a step 5).
+    assert not g.against_model("cbst_trace_mosp_escher_test", args)
     assert not g.against_model("cbst_trace_escher_gpu_test", args)
+    args.policy = "escher_gpu"
+    assert g.against_model("cbst_trace_mosp_escher_test", args)
     args.policy = "mosp_escher_staged"  # MOSP_ESCHER's behaviours merged so far (M8a step 4)
     assert g.against_model("cbst_trace_mosp_escher_test", args)
+    args.policy = "mosp_escher"  # MOSP_ESCHER's preset (M8a step 5): judged against the trace
+    assert not g.against_model("cbst_trace_mosp_escher_test", args)
+    assert g.against_model("cbst_trace_escher_gpu_test", args)
     args.policy = ""
     model = {
         "trees": [{"tree": 1}, {"tree": 2}, {"tree": 3}],
@@ -353,6 +359,9 @@ def test_device_replay_judged_against_the_model() -> None:
         {"tree": 2, "tree_op": 7, "op": "fill", "field": "event.compaction"},
     ]
     assert g.first_divergences(store)[2] == (7, "event.compaction")
+    # construct_without_row_counts exempts fields of an op; it does not end a tree (M8a step 5).
+    store["documented"] = [{"tree": 3, "tree_op": 0, "rule": "construct_without_row_counts"}]
+    assert g.first_divergences(store)[3] is None
 
 
 def test_model_replay_tool_on_the_committed_subset(tmp_path: Path) -> None:

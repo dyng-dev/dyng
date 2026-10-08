@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file cbst_host_test.cpp
- * @brief Host parts of the CBST store (M8a steps 3-4, ADR 0038, 0039): the payload policies
+ * @brief Host parts of the CBST store (M8a steps 3-5, ADR 0038, 0039): the payload policies
  *        (ESCHER-GPU's payloadCapacity and ensurePayloadCapacity) and flatten_rows (its
  *        flatten2DVector), on every build.
  */
@@ -50,21 +50,29 @@ TEST(CbstStorePolicy, EscherGpuGrowth) {
   EXPECT_THROW((void)fixed.grown_capacity(101, 100, "t"), capacity_error);
 }
 
-TEST(CbstStorePolicy, TheStagingPresetAndTheNames) {
-  // MOSP_ESCHER's behaviours merged so far (M8a step 4, ADR 0039): a fixed capacity, no
-  // compaction of its own yet.
-  const store_policy p = store_policy::mosp_escher_staged();
-  EXPECT_EQ(p.name, "mosp_escher_staged");
+TEST(CbstStorePolicy, TheMospEscherPresetAndTheNames) {
+  // MOSP_ESCHER@4b86159 (M8a step 5, ADR 0039): a fixed capacity of flat * 1.3 + extra, at most
+  // 2.0e9 (DynamicHypergraph's constructFromRows), compaction at its trigger points.
+  const store_policy p = store_policy::mosp_escher();
+  EXPECT_EQ(p.name, "mosp_escher");
   EXPECT_EQ(p.growth, store_policy::growth_rule::none);
-  EXPECT_EQ(p.compaction, store_policy::compaction_rule::never);
+  EXPECT_EQ(p.compaction, store_policy::compaction_rule::mosp_escher);
+  EXPECT_EQ(p.scratch, store_policy::scratch_rule::geometric);
   EXPECT_EQ(p.alignment, 4);
   EXPECT_THROW((void)p.grown_capacity(101, 100, "t"), capacity_error);
+  EXPECT_EQ(p.initial_capacity(0, 1000, true), 1300 + (1 << 20));
+  EXPECT_EQ(p.initial_capacity(1 << 30, 1000, false), 1300 + (1 << 20));  // no lower bound
+  EXPECT_EQ(store_policy::mosp_escher(8).initial_capacity(0, 10, true), 13 + 8);
+  EXPECT_EQ(store_policy::mosp_escher(0).initial_capacity(0, 3, true), 3);  // floor(3.9)
+  EXPECT_EQ(p.initial_capacity(0, 1800000000LL, true), 2000000000LL);       // the cap
+  EXPECT_THROW((void)p.initial_capacity(0, 2000000001LL, true), capacity_error);
   store_policy q;
   ASSERT_TRUE(store_policy::from_name("escher_gpu", q));
   EXPECT_EQ(q.name, "escher_gpu");
-  ASSERT_TRUE(store_policy::from_name("mosp_escher_staged", q));
-  EXPECT_EQ(q.name, "mosp_escher_staged");
-  EXPECT_FALSE(store_policy::from_name("mosp_escher", q));  // M8a step 5
+  ASSERT_TRUE(store_policy::from_name("mosp_escher", q));
+  EXPECT_EQ(q.name, "mosp_escher");
+  EXPECT_EQ(q.extra, 1 << 20);
+  EXPECT_FALSE(store_policy::from_name("mosp_escher_staged", q));  // the staging preset of step 4
 }
 
 // The growth of the operation scratch (M8a step 4, behaviour (g)): exact under escher_gpu()
@@ -75,7 +83,7 @@ TEST(CbstStorePolicy, TheScratchGrowth) {
   EXPECT_EQ(exact.scratch, store_policy::scratch_rule::exact);
   EXPECT_EQ(exact.scratch_capacity(10, 4, 1, INT_MAX), 10);
   EXPECT_EQ(exact.scratch_capacity(3, 4, 1, INT_MAX), 4);
-  const store_policy geometric = store_policy::mosp_escher_staged();
+  const store_policy geometric = store_policy::mosp_escher();
   EXPECT_EQ(geometric.scratch, store_policy::scratch_rule::geometric);
   EXPECT_EQ(geometric.scratch_capacity(10, 4, 1, INT_MAX), 11);   // 4, 7, 11
   EXPECT_EQ(geometric.scratch_capacity(50, 12, 4, INT_MAX), 67);  // 12, 19, 29, 44, 67

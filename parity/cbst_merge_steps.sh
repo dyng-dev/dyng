@@ -17,8 +17,9 @@
 # golden sets through THIS tree's parity/compare.py cbst_trace --store device with the commit's
 # tool: the sets of ESCHER-GPU must match in the exact field set (documented divergences listed),
 # the sets of MOSP_ESCHER must diverge in every tree where the host model under the same preset
-# does (until the store has MOSP_ESCHER's preset), under escher_gpu() and, from the commit that
-# adds it, under the staging preset mosp_escher_staged() (M8a step 4). The JSON records go to
+# does under escher_gpu() and, from the commit that adds it, under the staging preset
+# mosp_escher_staged() (M8a step 4); from the commit that adds MOSP_ESCHER's preset mosp_escher()
+# (M8a step 5) they must also match under it in the exact field set. The JSON records go to
 # $DYNG_SCRATCH/m8a/merge-steps/<sha7>/; the row, with one column per set, to stdout and to
 # $DYNG_SCRATCH/m8a/merge-steps/rows.md.
 #
@@ -36,7 +37,7 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     -h | --help)
-      sed -n '5,26p' "${BASH_SOURCE[0]}"
+      sed -n '5,27p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -109,31 +110,41 @@ for commit in "${commits[@]}"; do
       cells+=("committed traces: FAILED")
       row_status="FAILED"
     fi
-    # MOSP_ESCHER's sets also run under the staging preset of its behaviours merged so far
-    # (store_policy::mosp_escher_staged(), M8a step 4, ADR 0039) from the commit that adds it.
+    # MOSP_ESCHER's sets run under escher_gpu() (judged against the host model), under the
+    # staging preset of its behaviours merged so far (store_policy::mosp_escher_staged(), M8a
+    # step 4, ADR 0039) from the commit that adds it, and under its own preset
+    # (store_policy::mosp_escher(), M8a step 5) from the commit that adds that.
     staged=0
-    if git grep -q mosp_escher_staged "${sha}" -- cpp/src/hypergraph/escher/store_policy.cpp; then
+    mosp=0
+    policy_src=cpp/src/hypergraph/escher/store_policy.cpp
+    if git grep -q mosp_escher_staged "${sha}" -- "${policy_src}"; then
       staged=1
+    fi
+    if git grep -q 'store_policy::mosp_escher(long long' "${sha}" -- "${policy_src}"; then
+      mosp=1
     fi
     for set in "${sets[@]}"; do
       policies=("")
-      if [ "${staged}" = 1 ] && [[ "${set}" == cbst_trace_mosp_escher_* ]]; then
-        policies+=("mosp_escher_staged")
+      if [[ "${set}" == cbst_trace_mosp_escher_* ]]; then
+        policies=("escher_gpu")
+        [ "${staged}" = 1 ] && policies+=("mosp_escher_staged")
+        [ "${mosp}" = 1 ] && policies+=("mosp_escher")
       fi
       for policy in "${policies[@]}"; do
         suffix="${policy:+-${policy}}"
         log="${out}/${set}${suffix}.log"
         policy_args=()
         [ -n "${policy}" ] && policy_args=(--policy "${policy}")
+        fields=exact
         if CUDA_VISIBLE_DEVICES="${gpu}" heavy python3 parity/compare.py cbst_trace --store device \
-          --fields exact --skip-verify --replay-exe "${build}/cpp/tests/dyng_cbst_replay" \
+          --fields "${fields}" --skip-verify --replay-exe "${build}/cpp/tests/dyng_cbst_replay" \
           --record "${out}" --set "${set}" "${policy_args[@]}" >"${log}" 2>&1; then
           verdict="OK"
         else
           verdict="FAILED"
           row_status="FAILED"
         fi
-        record="${out}/M8a-device-${set#cbst_trace_}-exact${suffix}.json"
+        record="${out}/M8a-device-${set#cbst_trace_}-${fields}${suffix}.json"
         cells+=("${set#cbst_trace_}${policy:+ (${policy})}: $(python3 - "${record}" "${verdict}" <<'PY'
 import json, sys
 from pathlib import Path
@@ -158,8 +169,14 @@ if r.get("against_model"):
           f"diverge, each where the host model under {policy} does ({classes}){twins}")
 else:
     twins = f", {t['twin_constructs']} twin constructs" if "twin_constructs" in t else ""
+    rules = {}
+    for c in r["cases"]:
+        for rule, n in c.get("documented_rules", {}).items():
+            rules[rule] = rules.get(rule, 0) + n
+    named = " (" + ", ".join(f"{k} {n}" for k, n in sorted(rules.items())) + ")" if rules else ""
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops, {t['mismatch_count']} "
-          f"mismatches, {t['documented']} documented, {t['unreplayable']} unreplayable{twins}")
+          f"mismatches, {t['documented']} documented{named}, {t['unreplayable']} "
+          f"unreplayable{twins}")
 PY
 )")
       done

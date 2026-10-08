@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu (ensurePayloadCapacity)
 // Derived from ESCHER-GPU@abcf9b2:structure/dynamic_hypergraph.cu (payloadCapacity)
-// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (ensureScratchCapacity)
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (ensureScratchCapacity, the
+// compaction trigger points of fillImpl and insertCBST)
+// Derived from MOSP_ESCHER@4b86159:hypergraph/src/DynamicHypergraph.cpp (constructFromRows)
 /**
  * @file store_policy.hpp
- * @brief How a CBST store sizes and grows its payload, and whether it compacts (M8a, ADR 0038):
- *        the internal store_policy, its preset escher_gpu(), which reproduces ESCHER-GPU@abcf9b2,
- *        and the staging preset mosp_escher_staged() of MOSP_ESCHER@4b86159's behaviours merged
- *        so far (M8a step 4). MOSP_ESCHER's full preset and dynG's default follow in M8a step 5.
+ * @brief How a CBST store sizes and grows its payload, and when it compacts (M8a, ADR 0038,
+ *        0039): the internal store_policy and its presets: escher_gpu(), which reproduces
+ *        ESCHER-GPU@abcf9b2, and mosp_escher(), which reproduces MOSP_ESCHER@4b86159.
  *
  * Host-only (no CUDA): the hypergraph container (M8b) sizes its trees with initial_capacity()
  * before it creates them; the store grows its payload with grown_capacity().
@@ -27,9 +28,13 @@ struct store_policy {
     none,        ///< it does not: capacity_error
     escher_gpu,  ///< to max(needed * 1.25, capacity * 1.5) in integers, at most INT_MAX
   };
-  /// When a store compacts its payload.
+  /// When a store compacts its payload (M8a step 5, ADR 0039).
   enum class compaction_rule : std::uint8_t {
-    never,  ///< ESCHER-GPU
+    never,        ///< ESCHER-GPU: a full payload grows by the growth rule
+    mosp_escher,  ///< MOSP_ESCHER's trigger points: a fill whose overflow segments do not fit
+                  ///< compacts, then appends the values that did not fit their tails once more;
+                  ///< an insert whose surplus rows do not fit compacts before appending them;
+                  ///< what still does not fit grows by the growth rule (none: capacity_error)
   };
 
   /// How the operation scratch (the per-operation input buffers) grows (M8a step 4, ADR 0039).
@@ -44,6 +49,10 @@ struct store_policy {
   compaction_rule compaction = compaction_rule::never;  ///< compaction
   scratch_rule scratch = scratch_rule::exact;           ///< growth of the operation scratch
   int alignment = 4;  ///< the padding of a surplus row (rows of `alignment` slots + terminator)
+  /// The initial capacity of MOSP_ESCHER's trees: flat * headroom + extra, at most 2.0e9
+  /// (0: ESCHER-GPU's sizing, initial_capacity()).
+  double headroom = 0.0;
+  long long extra = 0;  ///< see headroom
 
   /**
    * @brief ESCHER-GPU@abcf9b2's policy: in-place trees (H2V, V2H) start at max(requested,
@@ -56,18 +65,19 @@ struct store_policy {
   static store_policy escher_gpu();
 
   /**
-   * @brief The staging preset of M8a step 4 (ADR 0039): MOSP_ESCHER@4b86159's behaviours merged
-   *        so far, before its automatic compaction (step 5, which replaces this preset by
-   *        mosp_escher()). A fixed capacity (MOSP_ESCHER's: a full payload is a capacity_error,
-   *        where MOSP_ESCHER would compact first), alignment 4, never compacts on its own, the
-   *        operation scratch grows geometrically (MOSP_ESCHER's ensureScratchCapacity). The
-   *        trace replay runs MOSP_ESCHER's traces under it after every merge step.
+   * @brief MOSP_ESCHER@4b86159's policy (M8a step 5, ADR 0039): every tree starts at
+   *        flat * 1.3 + extra entries, at most 2.0e9 (DynamicHypergraph's constructFromRows); a
+   *        fixed capacity; compaction at MOSP_ESCHER's trigger points (compaction_rule::
+   *        mosp_escher), then capacity_error where MOSP_ESCHER threw escher::EscherError;
+   *        alignment 4; the operation scratch grows geometrically (its ensureScratchCapacity).
+   * @param[in] extra The extra entries of every tree (MOSP_ESCHER's Caps::extraPayloadInts;
+   *            its default 2^20).
    * @return The preset.
    */
-  static store_policy mosp_escher_staged();
+  static store_policy mosp_escher(long long extra = 1LL << 20);
 
   /**
-   * @brief The preset of a name ("escher_gpu", "mosp_escher_staged").
+   * @brief The preset of a name ("escher_gpu", "mosp_escher").
    * @param[in] name The name.
    * @param[out] out The preset.
    * @return false if the name is unknown.
@@ -75,12 +85,15 @@ struct store_policy {
   [[nodiscard]] static bool from_name(const std::string& name, store_policy& out);
 
   /**
-   * @brief The initial payload capacity of a tree (ESCHER-GPU's payloadCapacity).
+   * @brief The initial payload capacity of a tree: ESCHER-GPU's payloadCapacity, or with a
+   *        headroom MOSP_ESCHER's constructFromRows (floor(size * headroom) + extra, at most
+   *        2.0e9; `requested` and `in_place` are not used).
    * @param[in] requested The caller's lower bound (A's --payload-capacity; 0 for none).
    * @param[in] size      The payload entries of the tree's construct layout.
    * @param[in] in_place  The tree is updated in place (H2V, V2H), not rebuilt by a merge.
    * @return The capacity.
-   * @throws capacity_error if it exceeds the int32 offsets (INT_MAX).
+   * @throws capacity_error if it exceeds the int32 offsets (INT_MAX), or MOSP_ESCHER's cap is
+   *         below the size.
    */
   [[nodiscard]] long long initial_capacity(long long requested, long long size,
                                            bool in_place) const;

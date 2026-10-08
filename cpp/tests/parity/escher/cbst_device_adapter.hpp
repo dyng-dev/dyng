@@ -35,7 +35,7 @@ class device_store_adapter final : public store_adapter {
  public:
   /**
    * @brief Every tree runs under the named store policy.
-   * @param[in] policy A preset of store_policy::from_name() ("escher_gpu", "mosp_escher_staged").
+   * @param[in] policy A preset of store_policy::from_name() ("escher_gpu", "mosp_escher").
    * @param[in] allow_compact Run compact() under escher_gpu() too (ESCHER-GPU had no compact(), so
    *            a replay of a trace under it reports the operation as unsupported by default).
    * @throws cbst_trace::trace_error for an unknown policy.
@@ -85,7 +85,7 @@ class device_store_adapter final : public store_adapter {
   std::uint64_t digest_hash_ = 0xcbf29ce484222325ULL;
 };
 
-/// The dynG device store under `policy` (empty: escher_gpu for every original).
+/// The dynG device store under `policy` (empty: the preset of each trace's original, M8a step 5).
 store_factory device_store_factory(const std::string& policy);
 
 /// Whether a CUDA device is visible (the device replays skip otherwise).

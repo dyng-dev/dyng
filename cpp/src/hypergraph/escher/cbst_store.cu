@@ -442,8 +442,14 @@ void rebuild_cbst_from_device(buffer<int> start_offsets, int num_records, buffer
   DYNG_CHECK_KERNEL(stream_of(ctx));
 }
 
-void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
-               const std::vector<int>& insert_prefix_sizes, cbst_context& ctx) {
+// The fill. When its overflow segments do not fit behind the bump pointer and the policy compacts
+// (MOSP_ESCHER's fillImpl, escher/structure/operations.cu@4b86159:409-444; M8a step 5), the
+// payload is compacted and the values that did not fit their rows' tails are appended once more,
+// without compaction (`allow_compact` false); what still does not fit grows by the policy or is a
+// capacity_error.
+static void fill_impl(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
+                      const std::vector<int>& insert_prefix_sizes, cbst_context& ctx,
+                      bool allow_compact) {
   if (insert_keys.empty()) return;
   int K = static_cast<int>(insert_keys.size());
   reserve_scratch(ctx, K, insert_payload.size());
@@ -505,8 +511,34 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
     synchronize(ctx);
     log_ints(ctx, "cumulative relocation plan", relocation_plan_host_out);
   }
+  const long long needed = static_cast<long long>(ctx.initial_payload_size) + total_appended;
+  if (total_appended > 0 && needed > ctx.fixed_size && allow_compact &&
+      ctx.policy.compaction != store_policy::compaction_rule::never) {
+    // The insert_node kernels have written the values that fit into each row's tail (such a
+    // row's tail is now full and still ends in its terminator slot); plan[3i + 1] is how many of
+    // item i's values that was, and item i overflowed iff its padded overflow size (the cumulative
+    // plan[3i + 2]) is not 0. One more read point (MOSP_ESCHER's copy of the plan).
+    std::vector<int> plan(3 * static_cast<size_t>(K));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(plan.data(), ctx.d_relocation_plan, plan.size() * sizeof(int),
+                                  cudaMemcpyDeviceToHost, stream_of(ctx)));
+    synchronize(ctx);
+    std::vector<int> rest_keys, rest_payload, rest_prefix;
+    for (int i = 0; i < K; ++i) {
+      const int before = i == 0 ? 0 : plan[3 * static_cast<size_t>(i - 1) + 2];
+      if (plan[3 * static_cast<size_t>(i) + 2] == before) continue;
+      const int start = i == 0 ? 0 : insert_prefix_sizes[static_cast<size_t>(i - 1)];
+      rest_keys.push_back(insert_keys[static_cast<size_t>(i)]);
+      rest_payload.insert(rest_payload.end(),
+                          insert_payload.begin() + start + plan[3 * static_cast<size_t>(i) + 1],
+                          insert_payload.begin() + insert_prefix_sizes[static_cast<size_t>(i)]);
+      rest_prefix.push_back(static_cast<int>(rest_payload.size()));
+    }
+    compact_cbst(ctx);
+    fill_impl(rest_keys, rest_payload, rest_prefix, ctx, false);
+    return;
+  }
   if (total_appended > 0) {
-    ensure_payload_capacity(ctx, static_cast<long long>(ctx.initial_payload_size) + total_appended);
+    ensure_payload_capacity(ctx, needed);
     if (log_enabled(log_level::trace))
       log_message(log_level::trace, "dyng: CBST " + ctx.dataset_name + ": space available from " +
                                         std::to_string(ctx.initial_payload_size));
@@ -530,6 +562,11 @@ void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& inse
     synchronize(ctx);
     log_ints(ctx, "updated payload", updated_flat);
   }
+}
+
+void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
+               const std::vector<int>& insert_prefix_sizes, cbst_context& ctx) {
+  fill_impl(insert_keys, insert_payload, insert_prefix_sizes, ctx, true);
 }
 
 void delete_cbst(const std::vector<int>& delete_keys, cbst_context& ctx) {
@@ -742,6 +779,39 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
       int q = (num + a - 1) / a;
       return q * a;
     };
+    // The slots of the surplus rows. When they do not fit behind the bump pointer and the policy
+    // compacts, the payload is compacted first (MOSP_ESCHER's insertCBST,
+    // escher/structure/operations.cu@4b86159:694-701; the best-fit reuse above is complete);
+    // what still does not fit grows by the policy, or is a capacity_error naming the first row
+    // that does not fit (MOSP_ESCHER threw per row, :713-721, before writing any of them).
+    long long surplus_slots = 0;
+    for (int s = 0; s < surplus; ++s) {
+      const int global_idx = surplus_indices[s];
+      const int len =
+          new_prefix_sizes[global_idx] - (global_idx == 0 ? 0 : new_prefix_sizes[global_idx - 1]);
+      surplus_slots += next_multiple(len, ctx.alignment) + 1;
+    }
+    if (ctx.initial_payload_size + surplus_slots > ctx.fixed_size &&
+        ctx.policy.compaction != store_policy::compaction_rule::never) {
+      compact_cbst(ctx);
+    }
+    if (ctx.initial_payload_size + surplus_slots > ctx.fixed_size &&
+        ctx.policy.growth == store_policy::growth_rule::none) {
+      long long end = ctx.initial_payload_size;
+      int row = 0;
+      for (; row < surplus; ++row) {
+        const int global_idx = surplus_indices[row];
+        const int len =
+            new_prefix_sizes[global_idx] - (global_idx == 0 ? 0 : new_prefix_sizes[global_idx - 1]);
+        end += next_multiple(len, ctx.alignment) + 1;
+        if (end > ctx.fixed_size) break;
+      }
+      throw capacity_error("dyng: CBST " + ctx.dataset_name + ": insert: surplus row " +
+                           std::to_string(row) + " of " + std::to_string(surplus) +
+                           " exceeds the payload capacity (" + std::to_string(end) + " > " +
+                           std::to_string(ctx.fixed_size) + "; policy " + ctx.policy.name +
+                           " does not grow the payload)");
+    }
     // Pack every surplus row (values, zero padding, INT_MIN) on the host and
     // append them with a single copy.
     std::vector<int> packed;

@@ -14,7 +14,8 @@
  * --tmp, default $TMPDIR, and removed afterwards). Without --policy each trace runs under the
  * preset of its original. `--store device` (CUDA builds) replays through the dynG store
  * (cpp/src/hypergraph/escher; M8a step 3, ADR 0038) on the current CUDA device, under --policy
- * (default escher_gpu). Prints one line per trace; --json writes a JSON array of the reports.
+ * (default: the preset of the trace's original, escher_gpu or mosp_escher; M8a step 5). Prints
+ * one line per trace; --json writes a JSON array of the reports.
  * Exit status: 0 every trace matched, 1 a mismatch, 2 a usage or input error.
  */
 #include "parity/escher/cbst_compare.hpp"
