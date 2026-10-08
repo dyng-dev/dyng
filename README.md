@@ -134,10 +134,13 @@ backend comes with the plugin wheels of 0.2: `pip install "dyng[cu13]"` for an N
 CUDA 13 (driver 580 or newer), `pip install "dyng[cu12]"` for CUDA 12 (driver 525 or newer); the
 plugins need a GPU of compute capability 7.5 or newer
 ([install guide](docs/getting_started/install.md)). Until 0.2.0 is released they are in the
-release candidate on TestPyPI only:
+release candidate on TestPyPI only. The names `dyng-cu13` and `dyng-cu12` are not on PyPI before
+0.2.0, so the plugin is taken from TestPyPI alone, after NumPy (the only other dependency) from
+PyPI:
 
 ```bash
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu13]==0.2.0rc1"
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"   # or dyng-cu12
 pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.2.0rc1   # the CPU package alone
 ```
 

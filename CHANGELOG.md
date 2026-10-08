@@ -16,11 +16,14 @@ The release candidate of dynG 0.2.0: a third stable algorithm, the CUDA backend 
 the hardening planned after 0.1.0. Release candidates are published on TestPyPI only:
 
 ```bash
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu13]==0.2.0rc1"
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"
 ```
 
-(`"dyng[cu12]==0.2.0rc1"` for an NVIDIA driver of CUDA 12, `dyng==0.2.0rc1` for the CPU package
-alone); 0.2.0 follows on PyPI. Nothing of 0.1.0 changes incompatibly: `sssp` and `cycle_count`
+(`dyng-cu12==0.2.0rc1` for an NVIDIA driver of CUDA 12; `pip install -i
+https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.2.0rc1` for the
+CPU package alone; the plugins come from TestPyPI alone, because their names are not on PyPI
+before 0.2.0); 0.2.0 follows on PyPI, with `pip install "dyng[cu13]"`. Nothing of 0.1.0 changes incompatibly: `sssp` and `cycle_count`
 keep their API. The entries below the summary are the detailed record of milestones M7, M6a and
 M6b and of the release preparation R020.
 

@@ -17,13 +17,15 @@ the documentation are complete.
 
 After 0.1.0 the releases come in smaller steps (the author's decision of 2026-10-02): the
 hardening that was planned as 0.1.x and `mosp` make **0.2.0**, whose release candidate
-**0.2.0rc1** is prepared on the branch `release-0.2.0` (TestPyPI only: `pip install -i
-https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu13]==0.2.0rc1"`).
+**0.2.0rc1** is prepared on the branch `release-0.2.0` (TestPyPI only; with the CUDA plugin:
+`pip install "numpy>=1.26"`, then `pip install -i https://test.pypi.org/simple/ --no-deps
+"dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"`, {doc}`getting_started/install`).
 Everything listed for 0.2.0 below is in it; `mosp` is stable from 0.2.0 (the author's decision of
 2026-10-07), with its own release gates against the originals in the certificate
 `benchmarks/results/0.2.0rc1/`. As for 0.1.0, the AI assistant pushes the tags and creates the
-GitHub Release on the author's behalf, the author merges the release pull requests and approves
-the three PyPI uploads (`dyng-cu12`, `dyng-cu13`, then `dyng`; {doc}`developer/release`). The
+GitHub Release on the author's behalf; new for 0.2.0, the author merges the release pull
+requests personally (0.1.0's were merged by the AI assistant) and approves three PyPI uploads
+(`dyng-cu12` and `dyng-cu13`, then `dyng`; 0.1.0 had one, `dyng`; {doc}`developer/release`). The
 hypergraph and `triad_count` follow as 0.3.0, `label_propagation` and `hyper_sssp` as 0.4.0.
 
 ## 0.1.0: the first release

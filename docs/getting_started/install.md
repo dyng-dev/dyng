@@ -142,11 +142,15 @@ pip install "dyng[cu12]"           # NVIDIA driver 525 or newer (CUDA 12.x)
 python -c "import dyng; dyng.show_config()"
 ```
 
-Until 0.2.0 is on PyPI, the plugins are in the release candidate 0.2.0rc1 on TestPyPI only:
+Until 0.2.0 is on PyPI, the plugins are in the release candidate 0.2.0rc1 on TestPyPI only. The
+names `dyng-cu13` and `dyng-cu12` are not on PyPI before 0.2.0, so do not let pip look for the
+plugin there (an `--extra-index-url https://pypi.org/simple/` would): install NumPy from PyPI
+first, then `dyng` and the plugin from TestPyPI alone:
 
 ```bash
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu13]==0.2.0rc1"
-pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "dyng[cu12]==0.2.0rc1"
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu12==0.2.0rc1"   # or CUDA 12
 ```
 
 A plugin contains the CUDA runtime (no CUDA toolkit is needed), code for the GPU architectures
