@@ -811,6 +811,41 @@ def first_divergences(report: dict) -> dict[int, tuple[int, str] | None]:
     return out
 
 
+def first_divergence_sets(report: dict) -> dict[int, tuple[int, frozenset] | None]:
+    """The whole first divergence of every tree of a replay report (M8a review): the op of the
+    tree and the set of (field, key, expected, actual) of every mismatch the comparator reported
+    at that op (the integrity verdict check.rows aside, as in first_divergences); a construct
+    below its payload is the one class "construct validation" (see first_divergences). Two stores
+    diverge alike only when these are equal: the same op, the same fields, keys and values."""
+    first_op: dict[int, int] = {}
+    found: dict[int, set] = {}
+    validation: set[int] = set()
+    for m in report["mismatches"]:
+        t = m["tree"]
+        if t not in first_op:
+            first_op[t] = m["tree_op"]
+        if m["tree_op"] != first_op[t] or m["field"] == "check.rows":
+            continue
+        if m["op"] == "construct" and m["field"] in ("status", "exception.type"):
+            validation.add(t)
+        found.setdefault(t, set()).add(
+            (m["field"], m.get("key"), str(m.get("expected")), str(m.get("actual")))
+        )
+    out: dict[int, tuple[int, frozenset] | None] = {t["tree"]: None for t in report["trees"]}
+    for t, op in first_op.items():
+        if t in validation:
+            out[t] = (op, frozenset({("construct validation",)}))
+        else:
+            out[t] = (op, frozenset(found.get(t, set())))
+    for d in report.get("documented", []):
+        if d.get("rule") != "construct_below_payload":
+            continue
+        cur = out.get(d["tree"])
+        if cur is None or d["tree_op"] <= cur[0]:
+            out[d["tree"]] = (d["tree_op"], frozenset({("construct validation",)}))
+    return out
+
+
 # The documented divergences a record keeps per case (all are counted, by rule).
 DOCUMENTED_KEPT = 50
 
@@ -890,22 +925,41 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
                 bad.append(f"{r['case']}: host model: {m['error']}")
                 continue
             dev_first, model_first = first_divergences(r), first_divergences(m)
-            if dev_first != model_first:
+            # The whole first divergence (every field, key and value at that op), not only its
+            # op and first field name (M8a review).
+            dev_sets, model_sets = first_divergence_sets(r), first_divergence_sets(m)
+            same = dev_first == model_first and dev_sets == model_sets
+            if not same:
                 diff = sorted(
                     t
-                    for t in set(dev_first) | set(model_first)
-                    if dev_first.get(t) != model_first.get(t)
+                    for t in set(dev_sets) | set(model_sets)
+                    if (dev_sets.get(t), dev_first.get(t))
+                    != (model_sets.get(t), model_first.get(t))
                 )
+
+                def shown(sets, t):
+                    v = sets.get(t)
+                    return None if v is None else (v[0], sorted(map(str, v[1]))[:6])
+
                 bad.append(
                     f"{r['case']}: the first divergences differ from the host model's under "
                     f"{args.policy or 'escher_gpu'} in trees {diff[:8]}: store "
-                    f"{[dev_first.get(t) for t in diff[:4]]}, model "
-                    f"{[model_first.get(t) for t in diff[:4]]}"
+                    f"{[shown(dev_sets, t) for t in diff[:3]]}, model "
+                    f"{[shown(model_sets, t) for t in diff[:3]]}"
+                )
+            # Unreplayable trees are checked here too (M8a review).
+            disallowed = [
+                t for t in r["trees"] if t["unreplayable"] and not allowed_unreplayable(set_name, t)
+            ]
+            for tr in disallowed:
+                bad.append(
+                    f"{r['case']}: tree {tr['tree']} ({tr['dataset']}) unreplayable: "
+                    f"{tr['unreplayable_reason']}"
                 )
             cases.append(
                 {
                     "case": r["case"],
-                    "ok": dev_first == model_first,
+                    "ok": same and not disallowed,
                     "store": r["store"],
                     "exit": r["exit"],
                     **{
