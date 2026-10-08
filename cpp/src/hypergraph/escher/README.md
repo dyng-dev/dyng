@@ -14,8 +14,8 @@ proves it is ADR 0036 / 0037 and `parity/results/M8a.md`.
 | `cbst_store.{hpp,cu}`, `build_tree.cu`, `payload.cu`, `insert_reuse.cu`, `delete_avail.cu`, `unfill.cu`, `find.cu`, `kernels.cuh`, `device_utils.cuh`, `row_view.cuh`, `locator.cu`, `integrity.{hpp,cu}`, `flatten.{hpp,cpp}` | ESCHER-GPU@abcf9b2 (A), transplanted in commit c1 (`parity/escher_port/transplant.py` regenerates it) and changed since by one class of mechanical change per commit (errors, memory, streams, registration and counters) |
 | the empty tree, `clone()` and `rewire_tree_kernel`, `download()`, `allocated_bytes()`, poisoning, `launch_build_layout` / `launch_extract_keys_from_positions`, `store_policy` (A's numbers) | dynG (M8a step 3) |
 | MOSP_ESCHER@4b86159's (B) behaviours, merged one per commit (ADR 0039 lists every deviation from B's literal code): construct validation (`validate_construct`), the fill clamps (`payload.cu`), caller row counts (`set_initial_occupancy_kernel` in `build_tree.cu`), the bounded chain walk (`chain.cuh`, B's `readFlat` and `warpWalkRow`), its integrity checks (`check_subtree_avail`), the scratch growth rule, `compact()` (`compact.cu`, B's compaction kernels), B's accounting scope in `stats()` | M8a step 4 |
-| the control block (the device error word), `check_errors()`, `rows()`, `check_tree_index`, the rule for dead or absent keys (`lookup.cuh`), the staging preset `mosp_escher_staged()` | dynG (M8a step 4) |
-| B's automatic compaction, the presets `mosp_escher()` and dynG's default | M8a step 5 |
+| the control block (the device error word), `check_errors()`, `rows()`, `check_tree_index`, the rule for dead or absent keys (`lookup.cuh`); the staging preset `mosp_escher_staged()` (replaced by `mosp_escher()` in step 5) | dynG (M8a step 4) |
+| B's automatic compaction (`fill_impl`, the surplus check of `insert_cbst`), the presets `mosp_escher()` and `dyng_default()`, `store_policy::max_payload`, the mutation hooks `DYNG_MUTATION_CBST_*` (PLAN 8.4) | M8a step 5 (ADR 0040) |
 
 ESCHER-GPU's `include/binning.hpp` and `utils/binning.cpp` are dead code (no object of its
 Makefile builds them) and are not ported; the degree binning of the store is `degree_bins` in
@@ -140,20 +140,28 @@ Every operation runs on the stream of the store's `resources` (kernels, copies, 
 points (ADR 0038): fill 1 (the total appended), insert up to 5 (D, the matched count, the
 matched pairs, the surviving count, the last surviving key), the others 0; `host_syncs()` counts
 them. An operation that fails after it started changing the tree **poisons** the store: every
-later operation throws until it is constructed or rebuilt.
+later operation throws until it is constructed or rebuilt. Only the precondition checks, the
+construct validation and `compact()`'s `capacity_error` give the strong guarantee (ADR 0040,
+section 4).
 
 ## The policies (`store_policy.hpp`)
 
 | preset | initial capacity (the container's choice) | a full payload | compaction |
 |---|---|---|---|
 | `escher_gpu()` | in-place trees (H2V, V2H) `max(requested, size + size/8 + 1024)`; merged trees (H2H, V2V) their exact size | grows to `max(needed + needed/4, 3 * capacity / 2)`, at most `INT_MAX`, then `capacity_error` | never |
-| `mosp_escher_staged()` (M8a step 4 only) | the replay's | `capacity_error` (B's fixed capacity, before its automatic compaction is merged) | explicit `compact()` only |
-| `mosp_escher()` | (step 5) `flat * 1.3 + extra`, at most 2.0e9 | compacts at B's trigger points, then throws | B's |
-| dynG default | (step 5) | compacts first, then grows; `capacity_error` only at the int32 offset limit or on OOM | first |
+| `mosp_escher(extra = 2^20)` | `floor(flat * 1.3) + extra`, at most 2.0e9 (B's `constructFromRows`) | `capacity_error` (B's `EscherError`) | at B's trigger points, first |
+| `dyng_default(max_payload = INT_MAX)` | as `escher_gpu()` | grows by A's rule, at most `max_payload`, then `capacity_error`; `out_of_memory_error` on an allocation failure | at B's trigger points, first |
+
+**B's trigger points** (`compaction_rule::mosp_escher`): a fill whose overflow segments do not fit
+behind the bump pointer compacts and then appends, once more and without compacting, the values
+that did not fit the rows' tails; an insert whose surplus rows do not fit compacts after the
+best-fit reuse, before it appends them. What still does not fit grows by the policy (or is a
+`capacity_error`, naming the first surplus row that does not fit, before any is written).
+`max_payload` (INT_MAX, the int32 offsets) bounds every growth; tests lower it.
 
 The operation scratch grows to an operation's size under `escher_gpu()` (A's `reserveScratch`) and
-geometrically (+n/2+1 steps, B's `ensureScratchCapacity`) under the MOSP_ESCHER presets and, from
-step 5, dynG's default.
+geometrically (+n/2+1 steps, B's `ensureScratchCapacity`) under `mosp_escher()` and dynG's
+default.
 
 `device_bytes()` is ESCHER-GPU's `deviceBytes()`: `num_records x (56 + 4 x 4)` bytes for the
 nodes, keys, row offsets, avail and subtree_avail, the payload capacity, and the operation scratch
@@ -162,3 +170,27 @@ store holds in that scope, equal to it once the tree is constructed.
 (`stats()` also gives MOSP_ESCHER's `escherDeviceBytes()` scope, without the scratch, the payload
 capacity and use, growths, compactions and the path counters; the control block is in neither
 scope.)
+
+## The merge log
+
+The store was built in five steps, every commit replayed against both originals' traces
+(`parity/results/M8a.md`, sections 11-13; `parity/cbst_merge_steps.sh <commit>...` rebuilds any
+of them):
+
+1. **The transplant** of A's store (`477d592`, reproducible with `parity/escher_port/transplant.py
+   --check --rev 477d592`), then one class of mechanical change per commit: errors, memory,
+   streams, registration and counters (ADR 0038). A's traces match in every recorded field at
+   every commit.
+2. **The dynG additions**: the empty tree, `clone()`, `download()`, `allocated_bytes()`,
+   `store_policy::escher_gpu()`.
+3. **B's behaviours that change no trace of A**, one per commit (ADR 0039): validation, the fill
+   clamps, caller row counts, `chain.cuh`, integrity, `rows()`, scratch growth, `compact()`, the
+   accounting, dead or absent keys.
+4. **B's automatic compaction and its preset** `mosp_escher()` (ADR 0040): from this commit B's
+   traces match in every recorded field too, apart from the constructs B made without row counts
+   (`construct_without_row_counts`: their occupancy only).
+5. **dynG's default** `dyng_default()`: every set replayed with the field set `policy` (the rows,
+   avail and subtree_avail identical; the points where the policies differ listed).
+
+The mutation hooks (`#if defined(DYNG_MUTATION_CBST_...)`, off in every normal build) put back
+the bugs of PLAN 8.4's CBST list; `ctest -L mutation` must see each one fail the store's suites.
