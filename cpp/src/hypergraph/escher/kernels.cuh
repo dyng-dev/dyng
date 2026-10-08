@@ -47,6 +47,12 @@ __global__ void reduce_avail_level_kernel(int level_start, int level_end, int nu
 // Lookup / find
 __global__ void find_node_kernel(const cbst_node* nodes, const int* search_indices, int search_size,
                                  int* positions);
+__global__ void find_row_lengths_kernel(const cbst_node* nodes, const int* avail, const int* flat,
+                                        long long used, const int* keys, int num_keys, int* lengths,
+                                        std::uint32_t* control);
+__global__ void find_row_values_kernel(const cbst_node* nodes, const int* avail, const int* flat,
+                                       long long used, const int* keys, int num_keys,
+                                       const long long* offsets, const int* lengths, int* out);
 
 // Insert reuse (two-phase: locate then apply)
 __global__ void locate_reusable_slots_kernel(int* subtree_avail, int* avail, int num_records,

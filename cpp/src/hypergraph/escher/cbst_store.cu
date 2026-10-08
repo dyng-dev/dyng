@@ -1140,6 +1140,48 @@ std::vector<int> cbst_store::find(const std::vector<int>& ids) const {
   return positions;
 }
 
+std::vector<std::vector<int>> cbst_store::rows(const std::vector<int>& keys) const {
+  const scoped_device guard(ctx_.res.device());
+  std::vector<std::vector<int>> out(keys.size());
+  if (keys.empty() || ctx_.d_nodes == nullptr || ctx_.num_records <= 0) return out;
+  const int k = static_cast<int>(keys.size());
+  const int block = 256, grid = (k + block - 1) / block;
+  temp_buffer<int> d_keys(ctx_.res, keys.size()), d_lengths(ctx_.res, keys.size());
+  DYNG_CUDA_TRY(cudaMemcpyAsync(d_keys.get(), keys.data(), keys.size() * sizeof(int),
+                                cudaMemcpyHostToDevice, stream_of(ctx_)));
+  find_row_lengths_kernel<<<grid, block, 0, stream_of(ctx_)>>>(
+      ctx_.d_nodes, ctx_.d_avail, ctx_.d_flat_payload, ctx_.initial_payload_size, d_keys.get(), k,
+      d_lengths.get(), ctx_.d_control);
+  DYNG_CHECK_KERNEL(stream_of(ctx_));
+  std::vector<int> lengths(keys.size());
+  DYNG_CUDA_TRY(cudaMemcpyAsync(lengths.data(), d_lengths.get(), keys.size() * sizeof(int),
+                                cudaMemcpyDeviceToHost, stream_of(ctx_)));
+  enqueue_control_readback(ctx_);
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx_)));
+  note_host_sync();
+  throw_if_control_raised(ctx_, "rows");
+  std::vector<long long> offsets(keys.size() + 1, 0);
+  for (size_t i = 0; i < keys.size(); ++i) offsets[i + 1] = offsets[i] + lengths[i];
+  const long long total = offsets.back();
+  if (total == 0) return out;
+  temp_buffer<long long> d_offsets(ctx_.res, offsets.size());
+  temp_buffer<int> d_values(ctx_.res, static_cast<size_t>(total));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(d_offsets.get(), offsets.data(), offsets.size() * sizeof(long long),
+                                cudaMemcpyHostToDevice, stream_of(ctx_)));
+  find_row_values_kernel<<<grid, block, 0, stream_of(ctx_)>>>(
+      ctx_.d_nodes, ctx_.d_avail, ctx_.d_flat_payload, ctx_.initial_payload_size, d_keys.get(), k,
+      d_offsets.get(), d_lengths.get(), d_values.get());
+  DYNG_CHECK_KERNEL(stream_of(ctx_));
+  std::vector<int> values(static_cast<size_t>(total));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(values.data(), d_values.get(), values.size() * sizeof(int),
+                                cudaMemcpyDeviceToHost, stream_of(ctx_)));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx_)));
+  note_host_sync();
+  for (size_t i = 0; i < keys.size(); ++i)
+    out[i].assign(values.begin() + offsets[i], values.begin() + offsets[i + 1]);
+  return out;
+}
+
 size_t cbst_store::allocated_bytes() const {
   const cbst_context& c = ctx_;
   return c.nodes_storage.size() * sizeof(cbst_node) +

@@ -159,6 +159,7 @@ TEST(CbstMergeChain, TwoThousandOverflowingAppendsReadBackCompletely) {
   }
   ASSERT_EQ(want[0].size(), 6003U);
   EXPECT_EQ(violations(s, want), 0);  // in read order
+  EXPECT_EQ(s.rows({1, 2}), want);    // the row reads of find (f)
   // The row has 2,001 segments: 2,000 chain hops.
   const cbst_host_state h = s.download();
   long long hops = 0;
@@ -225,6 +226,13 @@ TEST(CbstMergeChain, ACyclicChainRaisesTheErrorWithoutAHang) {
     EXPECT_TRUE(s.poisoned());
   }
   {
+    // The row reads of find (f).
+    cbst_store s(res, "cycle", 64);
+    make_cyclic(s);
+    EXPECT_EQ(s.rows({1}), rows{iota_row(1, 3)});
+    EXPECT_THROW((void)s.rows({1, 2}), internal_error);
+  }
+  {
     // The row locator's chained reads.
     cbst_store s(res, "cycle", 64);
     make_cyclic(s);
@@ -275,6 +283,29 @@ TEST(CbstMergeChain, MospEschersUnfillChainScenario) {
   EXPECT_EQ(violations(s, {{2, 3, 4, 7, 8, 9, 10, 11, 12, 13}, {50}}), 0);
   s.check_errors();
   EXPECT_FALSE(s.poisoned());
+}
+
+// --- (f) The row reads of find ------------------------------------------------------------------
+
+// ESCHER-GPU's and MOSP_ESCHER's findContents printed the rows of keys from the device; rows()
+// returns them, read along the chain (chain.cuh): live keys in read order, absent and deleted keys
+// empty, in the order of the keys asked for.
+TEST(CbstMergeFind, TheRowsOfKeys) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "find", 256);
+  rows want = {iota_row(1, 3), iota_row(10, 2), {7}};
+  construct_rows(s, want);
+  const batch fill = make_batch({1}, {iota_row(100, 40)});  // a chained row
+  s.append(fill.keys, fill.payload, fill.prefix);
+  for (int v : iota_row(100, 40)) want[0].push_back(v);
+  s.erase({2});
+  EXPECT_EQ(s.rows({3, 1, 2, 99, 1}), (rows{want[2], want[0], {}, {}, want[0]}));
+  EXPECT_EQ(s.find({3, 2, 99})[2], -1);
+  EXPECT_TRUE(s.rows({}).empty());
+  cbst_store empty(res, "empty", 16);
+  empty.construct(nullptr, nullptr, 0, nullptr, 0);
+  EXPECT_EQ(empty.rows({1}), rows{{}});
 }
 
 // --- (e) The integrity checks --------------------------------------------------------------------

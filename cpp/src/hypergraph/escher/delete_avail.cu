@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:kernel/delete_avail.cu
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/delete_avail.cu (its comment)
 /**
  * @file delete_avail.cu
  * @brief Erase kernels: locate the nodes, mark them available, and the level-wise subtree_avail
@@ -46,8 +47,10 @@ __global__ void apply_deletes_kernel(cbst_node* nodes, int* positions, int delet
     int pos = positions[tid];
     if (pos >= 0) {
       // The node keeps its key: overwriting it (the original set -1) broke
-      // the BST order, so searches for keys in the node's left subtree
-      // failed until the next rebuild. Deletion is recorded in avail[].
+      // the BST order, so keys in the node's left subtree could no longer be
+      // found and later fills / unfills / erases on them were silently
+      // skipped until the next rebuild. Deletion is recorded in avail[].
+      // (MOSP_ESCHER's wording, escher/kernel/delete_avail.cu@4b86159:33-36.)
       avail[pos] = 1;
       nodes[pos].occupancy = 0;
       nodes[pos].tail_base = nodes[pos].value;

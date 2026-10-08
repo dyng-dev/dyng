@@ -215,6 +215,11 @@ struct cbst_store {
   void check_errors();
   // The heap position of the node of every key (-1: absent).
   std::vector<int> find(const std::vector<int>& ids) const;
+  // The row of every key in read order (empty for an absent or deleted key), read along its chain
+  // with the bounded walk of chain.cuh (M8a step 4; ESCHER-GPU's findContents printed them).
+  // Throws internal_error for a broken chain (a row is never truncated). Two host
+  // synchronizations.
+  std::vector<std::vector<int>> rows(const std::vector<int>& keys) const;
   // The degree-bin launches of the store's operations so far.
   const degree_bin_launches& bin_launches() const {
     return ctx_.bin_launches;
