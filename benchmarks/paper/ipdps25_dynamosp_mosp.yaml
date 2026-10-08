@@ -89,6 +89,13 @@ datasets:
       init/obj1/distancesOriginal.txt: f0991b9d18ac5acb5f5128ad3d21a16979d93c8dbaba1b953bba14ca45cf67a9
       init/obj2/SSSPTreeOriginal.txt: 98a53310608fec31900742ee99caaaba2636efd65e2cacb92890c5bac10dc687
       init/obj2/distancesOriginal.txt: 6958d05a2a4d71196cea3a0e1b246ee7a82468e349223b800d8f7f8eb5d6ca8d
+  # rgg's unsafe50k batch is byte-identical to its safe50k batch (the same delete.txt and
+  # insert.txt digests below): mospPrep's --safe filter (filterUnsafeDeletions of
+  # MOSP-CUDA@e220ee2 src/changeGenerator.cu) drops only deletions that make a vertex reachable
+  # from the source unreachable, and none of the 25,000 seed-777 deletions on rgg_n_2_20_s0
+  # (average degree about 13) does. The rgg unsafe50k readings therefore repeat the safe50k ones
+  # and are not independent coverage of disconnecting deletions (R020); the other three graphs'
+  # safe batches keep 21,884-23,319 of the 25,000 deletions.
   - name: rgg
     source: {collection: SuiteSparse, id: DIMACS10/rgg_n_2_20_s0, url: "https://sparse.tamu.edu/DIMACS10/rgg_n_2_20_s0"}
     recipe: *mosp_recipe

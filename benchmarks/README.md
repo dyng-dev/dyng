@@ -29,6 +29,15 @@ datasets of DynTruCy (CollegeMsg, email-Eu-core, time-window mode) come with the
 0.4 (listed under `deferred` in the suite). The ESCHER, DynLP and H-SOSP suites follow their
 ports.
 
+**rgg's unsafe50k batch equals its safe50k batch.** The original's `--safe` filter
+(`filterUnsafeDeletions` of MOSP-CUDA@e220ee2) drops only the deletions that make a vertex
+unreachable from the source, and none of the 25,000 seed-777 deletions of `rgg_n_2_20_s0`
+(average degree about 13) does, so both directories hold byte-identical files (the same digests
+in both suite files). The rgg unsafe50k readings of the sssp and mosp suites repeat the safe50k
+ones and are not independent coverage of disconnecting deletions; on roadNet-PA, roadNet-CA and
+road_usa the safe batch keeps 23,201, 23,319 and 21,884 of the 25,000 deletions. A disconnecting
+rgg batch would be a new reading of a later suite.
+
 ## The suite format
 
 A suite is YAML (schema 1). `parity/bench_suite.py validate` checks every key below, and checks
