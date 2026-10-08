@@ -684,7 +684,9 @@ targeted capacity throw (B compacts, then throws `escher::EscherError`; the stor
 traces, every GPU build) and `dyng_cbst_compact_large_tests` (the four small golden sets, slow):
 the store under `escher_gpu()` and the host model (whose compaction is written independently of
 the store, ADR 0037) replay every op of every trace in lockstep and both compact after every op
-that succeeded. The four small sets: **15,385 ops, 15,383 compactions (4,881 reclaimed space),
+that succeeded. The four small sets, **measured at `c05d7cc`** (the test failed from `be449b6` on,
+which step 4 did not re-run it after; fixed by `f03b3eb`, section 13): **15,385 ops, 15,383
+compactions (4,881 reclaimed space),
 41,315,718 live and 595,997 deleted rows checked after a compaction; 0 problems** (2 trees stop
 early: the targeted constructs below their payload, the documented divergence of ADR 0038). After every op and every
 compaction the two states are equal in every field (offsets included), and every compaction kept
@@ -712,7 +714,7 @@ setting; appends and removals on dead or absent keys at the thread, warp and blo
 |---|---|
 | `ctest -L cbst -LE slow` in dev-cuda (Debug), before every commit | passed (82 tests at the end) |
 | the merge-step replays of every commit (table above) | every row `ok` |
-| `dyng_cbst_compact_large_tests` (Release) | passed (above) |
+| `dyng_cbst_compact_large_tests` (Release) | passed at `c05d7cc` (above); failing from `be449b6` on, which step 4 did not re-run (found and fixed in step 5, `f03b3eb`; section 13) |
 | compute-sanitizer memcheck on the touched tests before each commit; memcheck and racecheck on `dyng_cbst_store_tests` after (d) and (h); memcheck on `dyng_cbst_device_tests` and `dyng_cbst_compact_tests`; at the end synccheck and initcheck on `dyng_cbst_store_tests` and `dyng_cbst_compact_tests`, racecheck on `dyng_cbst_compact_tests` | 0 errors, 0 hazards |
 | `ci/check.sh` with `DYNG_CHECK_ONLY="format reuse provenance precommit"` before every commit; the full `ci/check.sh` at the end | passed: every step of the full run (format, the cpu-only and dev builds with `ctest -L cpu`, 879 and 908 tests, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, parity) at the step's last code commit; the pre-commit end-of-file fixer corrected the then uncommitted `parity/results/M8a.md`, and its re-run with the final documents passed |
 | the Clang 18 syntax pass (dev-cuda: 308 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed |
