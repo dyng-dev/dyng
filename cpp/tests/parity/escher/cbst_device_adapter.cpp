@@ -17,9 +17,11 @@
 #include <cxxabi.h>
 
 #include <algorithm>
+#include <atomic>
 #include <climits>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <sstream>
 #include <stdexcept>
@@ -65,7 +67,14 @@ struct host_state {
   std::vector<int> avail, subtree_avail, flat;
 };
 
+/// The twin constructs of every adapter of the process.
+std::atomic<std::int64_t> all_twin_constructs{0};
+
 }  // namespace
+
+std::int64_t device_store_adapter::total_twin_constructs() noexcept {
+  return all_twin_constructs.load();
+}
 
 struct device_store_adapter::tree {
   std::string name;
@@ -208,6 +217,49 @@ std::int64_t integrity_of(const esc::cbst_store& s, const tree_digest& d) {
   return esc::check_tree_rows(s.context(), expected, false, s.context().dataset_name.c_str(), log);
 }
 
+/// The scanned tail occupancy of every row of a construct layout, computed on the host as
+/// init_tail_metadata_kernel does (the values before the first 0 or terminator, at most the row's
+/// tail capacity): row counts for the fast path of construct where a trace has none.
+std::vector<int> scanned_counts(const std::vector<int>& starts, const std::vector<int>& flat,
+                                std::int64_t flat_size) {
+  std::vector<int> counts(starts.size(), 0);
+  for (std::size_t r = 0; r < starts.size(); ++r) {
+    const std::int64_t end = r + 1 < starts.size() ? starts[r + 1] : flat_size;
+    const std::int64_t capacity = std::max<std::int64_t>(0, end - starts[r] - 1);
+    int c = 0;
+    while (c < capacity) {
+      const std::int64_t p = starts[r] + c;
+      if (p < 0 || p >= static_cast<std::int64_t>(flat.size())) break;
+      const int v = flat[static_cast<std::size_t>(p)];
+      if (v == 0 || v == INT_MIN) break;
+      ++c;
+    }
+    counts[r] = c;
+  }
+  return counts;
+}
+
+/// The node array of a store as bytes, its child and parent pointers replaced by their offsets
+/// from the array (two stores' arrays are then comparable byte for byte).
+std::vector<unsigned char> node_bytes(const esc::cbst_store& s) {
+  const esc::cbst_context& c = s.context();
+  const std::int64_t n = c.d_nodes != nullptr ? std::max<std::int64_t>(c.num_records, 0) : 0;
+  std::vector<esc::cbst_node> nodes = download(c.d_nodes, n);
+  const auto base = reinterpret_cast<std::uintptr_t>(c.d_nodes);
+  auto rebase = [&](esc::cbst_node*& p) {
+    std::uintptr_t a = p == nullptr ? 0 : reinterpret_cast<std::uintptr_t>(p) - base + 1;
+    std::memcpy(&p, &a, sizeof p);
+  };
+  for (esc::cbst_node& nd : nodes) {
+    rebase(nd.left);
+    rebase(nd.right);
+    rebase(nd.parent);
+  }
+  std::vector<unsigned char> out(nodes.size() * sizeof(esc::cbst_node));
+  if (!out.empty()) std::memcpy(out.data(), nodes.data(), out.size());
+  return out;
+}
+
 std::array<std::int64_t, 9> bins_now(const esc::cbst_store& s) {
   const esc::degree_bin_launches& b = s.bin_launches();
   std::array<std::int64_t, 9> out{};
@@ -266,8 +318,41 @@ op_outcome device_store_adapter::run(std::uint32_t id, const op_request& op) {
       std::vector<int> keys(op.keys.begin(), op.keys.end());
       std::vector<int> starts(op.starts.begin(), op.starts.end());
       std::vector<int> flat(op.flat.begin(), op.flat.end());
-      s.construct(keys.data(), starts.data(), static_cast<int>(op.num_records), flat.data(),
-                  static_cast<int>(op.flat_size));
+      const int n = static_cast<int>(op.num_records);
+      const int size = static_cast<int>(op.flat_size);
+      // MOSP_ESCHER's caller row counts take the fast path of construct under a preset of its
+      // behaviours (ESCHER-GPU had no counts and scanned); its nullptr (occupancy 0) is never
+      // passed on: without counts the store scans.
+      std::vector<int> counts(op.row_counts.begin(), op.row_counts.end());
+      const bool with_counts = op.has_row_counts && policy_ != esc::store_policy::escher_gpu().name;
+      if (with_counts)
+        s.construct(keys.data(), starts.data(), n, flat.data(), size, counts.data());
+      else
+        s.construct(keys.data(), starts.data(), n, flat.data(), size);
+      // Every construct is also built the other way (the counts when the store scanned: the
+      // trace's, or the scan computed on the host; the scan when it took the counts) and the
+      // two node arrays must be equal byte for byte (M8a step 4, behaviour (c)).
+      if (n > 0) {
+        esc::store_policy policy;
+        (void)esc::store_policy::from_name(policy_, policy);
+        esc::cbst_store twin(res_, it->second->name, s.context().fixed_size, s.context().alignment,
+                             std::move(policy));
+        if (with_counts) {
+          twin.construct(keys.data(), starts.data(), n, flat.data(), size);
+        } else {
+          if (!op.has_row_counts) counts = scanned_counts(starts, flat, op.flat_size);
+          twin.construct(keys.data(), starts.data(), n, flat.data(), size, counts.data());
+        }
+        ++twin_constructs_;
+        all_twin_constructs.fetch_add(1);
+        cuda_check(cudaDeviceSynchronize(), "after the twin construct");
+        if (node_bytes(twin) != node_bytes(s)) {
+          out.status = op_status::error;
+          out.error_type = "device adapter: construct";
+          out.message = "the node arrays built from the row counts and by the scan differ";
+          return out;
+        }
+      }
     } else if (op.op == "rebuild") {
       const std::size_t n = static_cast<std::size_t>(std::max<std::int64_t>(op.num_records, 0));
       const std::size_t cap = static_cast<std::size_t>(std::max<std::int64_t>(op.capacity, 0));

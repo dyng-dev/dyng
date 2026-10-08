@@ -153,11 +153,13 @@ if r.get("against_model"):
             fields[field] = fields.get(field, 0) + 1
     diverged = sum(fields.values())
     classes = ", ".join(f"{f} {n}" for f, n in sorted(fields.items()))
+    twins = f", {t['twin_constructs']} twin constructs" if "twin_constructs" in t else ""
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops compared, {diverged} trees "
-          f"diverge, each where the host model under {policy} does ({classes})")
+          f"diverge, each where the host model under {policy} does ({classes}){twins}")
 else:
+    twins = f", {t['twin_constructs']} twin constructs" if "twin_constructs" in t else ""
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops, {t['mismatch_count']} "
-          f"mismatches, {t['documented']} documented, {t['unreplayable']} unreplayable")
+          f"mismatches, {t['documented']} documented, {t['unreplayable']} unreplayable{twins}")
 PY
 )")
       done

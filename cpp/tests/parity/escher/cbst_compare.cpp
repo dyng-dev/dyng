@@ -786,6 +786,9 @@ cbst_host_policy staged_host_policy() {
   p.error_type = "dyng::capacity_error";
   p.validate_construct = true;
   p.clamp_fill_tail = true;  // (b) the fill clamps
+  // (c) the caller's row counts as the fast path of construct, the scan without them (never
+  // MOSP_ESCHER's legacy occupancy 0).
+  p.occupancy = cbst_host_policy::occupancy_rule::caller_counts_or_scan;
   return p;
 }
 

@@ -11,7 +11,8 @@
  * the root, every key's record and its row read along the chain from its first segment (at most
  * as many steps as the used payload has slots), subtree_avail by heap position. It also runs the
  * store's integrity checker (ESCHER-GPU's checkTreeRows, ported) on the rows as read, which the
- * comparator compares with the original's verdict (`check.rows`).
+ * comparator compares with the original's verdict (`check.rows`). Every construct is built both
+ * from row counts and by the scan, and the two node arrays must be equal byte for byte.
  *
  * CUDA builds only (library dyng_cbst_device).
  */
@@ -55,6 +56,15 @@ class device_store_adapter final : public store_adapter {
     return total_bins_;
   }
 
+  /// The constructs built both ways (the caller's row counts and the scan) and compared byte for
+  /// byte (M8a step 4): every construct of more than 0 records.
+  [[nodiscard]] std::int64_t twin_constructs() const noexcept {
+    return twin_constructs_;
+  }
+
+  /// The twin constructs of every adapter of the process so far (the replay tool reports them).
+  [[nodiscard]] static std::int64_t total_twin_constructs() noexcept;
+
   /// A 64-bit hash of every digest the adapter returned, in order (two replays of a trace that
   /// leave identical states give identical hashes).
   [[nodiscard]] std::uint64_t digest_hash() const noexcept {
@@ -68,6 +78,7 @@ class device_store_adapter final : public store_adapter {
   resources res_;  ///< every tree's store runs on these (resources::cuda())
   std::map<std::uint32_t, std::unique_ptr<tree>> trees_;
   std::array<std::int64_t, 9> total_bins_{};
+  std::int64_t twin_constructs_ = 0;
   std::uint64_t digest_hash_ = 0xcbf29ce484222325ULL;
 };
 

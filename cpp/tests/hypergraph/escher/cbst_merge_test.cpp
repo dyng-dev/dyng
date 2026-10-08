@@ -3,7 +3,7 @@
 /**
  * @file cbst_merge_test.cpp
  * @brief Unit tests of the MOSP_ESCHER@4b86159 behaviours merged into the dynG CBST store (M8a step
- *        4, ADR 0039), one section per behaviour: the fill clamps, ...
+ *        4, ADR 0039), one section per behaviour.
  */
 #include "hypergraph/escher/cbst_store.hpp"
 #include "hypergraph/escher/cbst_test_support.hpp"
@@ -70,6 +70,67 @@ TEST(CbstMergeFillClamps, OccupancyAboveTheTailCapacityIsClamped) {
   // Every row reads back completely; the metadata is consistent again where the rows changed.
   EXPECT_EQ(violations(s, want), 0);
   EXPECT_FALSE(s.poisoned());
+}
+
+// --- (c) The caller's row counts -----------------------------------------------------------------
+
+/// The node array of a store with its pointers as heap positions (comparable across stores).
+std::vector<long long> nodes_of(const cbst_store& s) {
+  std::vector<long long> out;
+  for (const cbst_host_node& n : s.download().nodes)
+    out.insert(out.end(), {n.index, n.value, n.length, n.size, n.occupancy, n.tail_base,
+                           n.tail_capacity, n.left, n.right, n.parent});
+  return out;
+}
+
+// MOSP_ESCHER's rowOccupancy (escher/structure/operations.cu@4b86159:123-132, 268-275) as a fast
+// path of construct next to the scan, which stays the default: the same nodes; never its nullptr
+// path (occupancy 0); counts that do not fit their rows are rejected, and in Debug builds counts
+// that differ from the scan are an internal_error.
+TEST(CbstMergeRowCounts, AFastPathWithTheNodesOfTheScan) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  const rows want = {iota_row(1, 3), {}, iota_row(10, 5), {7}, iota_row(20, 12)};
+  layout l = make_layout(want);
+  std::vector<int> counts;
+  for (const auto& r : want) counts.push_back(static_cast<int>(r.size()));
+  cbst_store scan(res, "scan", 1024), fast(res, "fast", 1024);
+  scan.construct(l.keys.data(), l.starts.data(), 5, l.flat.data(), static_cast<int>(l.flat.size()));
+  fast.construct(l.keys.data(), l.starts.data(), 5, l.flat.data(), static_cast<int>(l.flat.size()),
+                 counts.data());
+  EXPECT_EQ(nodes_of(fast), nodes_of(scan));
+  EXPECT_EQ(violations(fast, want), 0);
+  // Appends land after the constructed values (the reason for the counts).
+  const batch b = make_batch({2, 4}, {{30, 31}, {8, 9, 10, 11}});
+  fast.append(b.keys, b.payload, b.prefix);
+  rows grown = want;
+  grown[1] = {30, 31};
+  grown[3] = {7, 8, 9, 10, 11};
+  EXPECT_EQ(violations(fast, grown), 0);
+  // No nullptr path, and counts that do not fit their rows are rejected before anything changes.
+  cbst_store other(res, "other", 1024);
+  EXPECT_THROW(other.construct(l.keys.data(), l.starts.data(), 5, l.flat.data(),
+                               static_cast<int>(l.flat.size()), nullptr),
+               invalid_argument_error);
+  std::vector<int> too_many = counts;
+  too_many[0] = 4;  // a row of 4 slots holds 3 values
+  EXPECT_THROW(other.construct(l.keys.data(), l.starts.data(), 5, l.flat.data(),
+                               static_cast<int>(l.flat.size()), too_many.data()),
+               invalid_argument_error);
+  std::vector<int> negative = counts;
+  negative[2] = -1;
+  EXPECT_THROW(other.construct(l.keys.data(), l.starts.data(), 5, l.flat.data(),
+                               static_cast<int>(l.flat.size()), negative.data()),
+               invalid_argument_error);
+  EXPECT_FALSE(other.poisoned());
+#ifndef NDEBUG
+  // Debug builds: counts that fit but differ from the payload are a broken invariant.
+  std::vector<int> wrong = counts;
+  wrong[2] = 2;
+  EXPECT_THROW(other.construct(l.keys.data(), l.starts.data(), 5, l.flat.data(),
+                               static_cast<int>(l.flat.size()), wrong.data()),
+               internal_error);
+#endif
 }
 
 }  // namespace

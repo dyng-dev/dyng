@@ -115,7 +115,18 @@ int main(int argc, char** argv) {
   for (const std::string& path : traces) {
     try {
       cmp::trace_source source(path, tmp_dir);
-      const cmp::replay_report rep = cmp::replay(source.reader(), factory, opt, path);
+#if defined(DYNG_CBST_DEVICE_STORE) && DYNG_CBST_DEVICE_STORE
+      const std::int64_t twins_before = cmp::device_store_adapter::total_twin_constructs();
+#endif
+      cmp::replay_report rep = cmp::replay(source.reader(), factory, opt, path);
+#if defined(DYNG_CBST_DEVICE_STORE) && DYNG_CBST_DEVICE_STORE
+      // The constructs the device store also built the other way (row counts and scan) with
+      // byte-identical node arrays (M8a step 4).
+      if (store == "device")
+        rep.notes.push_back(
+            "twin constructs: " +
+            std::to_string(cmp::device_store_adapter::total_twin_constructs() - twins_before));
+#endif
       all_ok &= rep.ok();
       std::printf(
           "%s: %s, %lld ops (%lld compared, %lld unreplayable), %lld mappings, %lld keys, "

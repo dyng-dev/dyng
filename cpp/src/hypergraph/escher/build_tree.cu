@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:kernel/build_tree.cu
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (setInitialOccupancy)
 /**
  * @file build_tree.cu
  * @brief Tree construction kernels: the empty heap-ordered tree, node records at their in-order
@@ -74,6 +75,37 @@ __global__ void init_tail_metadata_kernel(cbst_node* nodes, const int* flat_valu
   node.occupancy = count;
 }
 
+// The caller's row counts as the tail occupancies (MOSP_ESCHER's setInitialOccupancy,
+// escher/structure/operations.cu@4b86159:123-132): the node at heap position t holds the record of
+// in-order rank cbst_rank_of_position(t, n). The tail segment is the row's first segment
+// (store_items_kernel set it), as after init_tail_metadata_kernel.
+__global__ void set_initial_occupancy_kernel(cbst_node* nodes, const int* row_counts, int n) {
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid < n) {
+    int rank = cbst_rank_of_position(tid, n);
+    if (rank < n) {
+      nodes[tid].tail_base = nodes[tid].value;
+      nodes[tid].occupancy = row_counts[rank];
+    }
+  }
+}
+
+// Debug builds: the number of nodes whose occupancy is not the scan of their row
+// (init_tail_metadata_kernel's count), i.e. whose caller count was wrong.
+__global__ void count_occupancy_mismatches_kernel(const cbst_node* nodes, const int* flat_values,
+                                                  int n, int* mismatches) {
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if (tid >= n) return;
+  const cbst_node& node = nodes[tid];
+  int count = 0;
+  while (count < node.tail_capacity) {
+    int v = flat_values[node.value + count];
+    if (v == 0 || v == INT_MIN) break;
+    ++count;
+  }
+  if (count != node.occupancy) atomicAdd(mismatches, 1);
+}
+
 // The child and parent pointers of a copied tree (store clone; dynG addition): CBST nodes hold
 // absolute device pointers, so the copy of a node array points into its source until they are
 // re-wired to the copy's own heap positions (the layout of build_empty_tree_kernel).
@@ -138,6 +170,8 @@ DYNG_REGISTER_KERNEL(build_empty_tree_kernel);
 DYNG_REGISTER_KERNEL(rewire_tree_kernel);
 DYNG_REGISTER_KERNEL(store_items_kernel);
 DYNG_REGISTER_KERNEL(init_tail_metadata_kernel);
+DYNG_REGISTER_KERNEL(set_initial_occupancy_kernel);
+DYNG_REGISTER_KERNEL(count_occupancy_mismatches_kernel);
 DYNG_REGISTER_KERNEL(place_node_records_kernel);
 DYNG_REGISTER_KERNEL(rank_order_nodes_kernel);
 DYNG_REGISTER_KERNEL(record_keys_and_starts_kernel);

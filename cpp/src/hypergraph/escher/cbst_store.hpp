@@ -115,12 +115,19 @@ struct insert_mapping {
 // The construct's arguments (MOSP_ESCHER's validation; nothing is changed): throws
 // invalid_argument_error for negative sizes, a capacity below the payload and null arrays, and
 // capacity_error for a record count beyond the int32 indexing of the operation scratch.
+// With `row_counts` (not null), also the caller's row counts: every count within its row's tail
+// capacity (the slots of the row's segment but its terminator).
 void validate_construct(const int* keys, const int* start_offsets, int num_records,
                         const int* flat_payload, int flat_payload_size, int payload_capacity,
-                        const std::string& dataset_name);
+                        const std::string& dataset_name, const int* row_counts = nullptr);
+// The tree over a flattened layout. The tail occupancy of every row is scanned from the payload
+// (ESCHER-GPU's initTailMetadata) or, with `row_counts` (one count per record, in key order;
+// MOSP_ESCHER's rowOccupancy), taken from the caller's counts: a fast path with the same result,
+// which a Debug build checks against the scan. A null `row_counts` means the scan, never
+// MOSP_ESCHER's legacy occupancy 0.
 void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_payload,
                     int flat_payload_size, int payload_capacity, const std::string& dataset_name,
-                    cbst_context& ctx);
+                    cbst_context& ctx, const int* row_counts = nullptr);
 // Rebuilds the tree over a payload that is already on the device: rows of
 // keys 1..num_records start at d_start_offsets (flattened layout) in d_flat_payload
 // (flat_payload_size used entries, payload_capacity allocated). Takes ownership of
@@ -145,8 +152,15 @@ struct cbst_store {
   cbst_store(cbst_store&& other) noexcept;
   cbst_store& operator=(cbst_store&& other) noexcept;
 
+  // The tree over a flattened layout; the tail occupancy of every row scanned from the payload.
   void construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
                  int flat_payload_size);
+  // The same with the caller's row counts (the values of every row, in key order; MOSP_ESCHER's
+  // rowOccupancy) as the tail occupancies: a fast path next to the scan, with the same nodes
+  // (checked against the scan in Debug builds). `row_counts` must not be null and every count
+  // must fit its row (invalid_argument_error).
+  void construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
+                 int flat_payload_size, const int* row_counts);
   void rebuild_from_device(buffer<int> start_offsets, int num_records, buffer<int> flat_payload,
                            int flat_payload_size, int payload_capacity);
   insert_mapping insert(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
@@ -200,6 +214,8 @@ struct cbst_store {
   size_t allocated_bytes() const;
 
  private:
+  void construct_impl(int* keys, int* start_offsets, int num_records, int* flat_payload,
+                      int flat_payload_size, const int* row_counts);
   void check_not_poisoned(const char* op) const;
   template <typename op_t>
   auto guarded(const char* op, op_t&& body);

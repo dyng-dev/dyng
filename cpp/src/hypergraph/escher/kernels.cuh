@@ -21,6 +21,9 @@ __global__ void rewire_tree_kernel(cbst_node* nodes, int n);
 __global__ void store_items_kernel(cbst_node* nodes, int* indices, int* values, int n,
                                    int total_size);
 __global__ void init_tail_metadata_kernel(cbst_node* nodes, const int* flat_values, int n);
+__global__ void set_initial_occupancy_kernel(cbst_node* nodes, const int* row_counts, int n);
+__global__ void count_occupancy_mismatches_kernel(const cbst_node* nodes, const int* flat_values,
+                                                  int n, int* mismatches);
 __global__ void place_node_records_kernel(cbst_node* nodes, const cbst_node* sorted_records, int n);
 __global__ void rank_order_nodes_kernel(const cbst_node* nodes, const int* avail, int n,
                                         cbst_node* ranked, int* ranked_live);

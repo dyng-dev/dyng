@@ -844,11 +844,19 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
         )
     }
     totals["documented"] = 0
+    # The device store builds every construct both from row counts and by the scan and compares
+    # the node arrays byte for byte (M8a step 4); the tool notes how many it built.
+    totals["twin_constructs"] = 0
     for i, r in enumerate(reports):
         if "error" in r:
             bad.append(f"{r['case']}: {r['error']}")
             cases.append({"case": r["case"], "error": r["error"]})
             continue
+        r["twin_constructs"] = sum(
+            int(n.split(": ", 1)[1])
+            for n in r.get("notes", [])
+            if n.startswith("twin constructs: ")
+        )
         for k in totals:
             totals[k] += len(r.get("documented", [])) if k == "documented" else r[k]
         if models is not None:
@@ -1069,7 +1077,7 @@ def compare_main(argv: list[str]) -> int:
                 f"{t['keys_compared']} key states, {t['hash_only_rows']} hash-only rows, "
                 f"{t['growths']} growths, {t['compactions']} compactions, {t['exceptions']} "
                 f"exceptions, {t['mismatch_count']} mismatches, {t['documented']} documented "
-                "divergences"
+                f"divergences, {t['twin_constructs']} twin constructs"
                 + (
                     " (judged against the host model under the same preset)"
                     if record.get("against_model")

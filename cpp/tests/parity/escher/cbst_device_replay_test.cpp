@@ -130,6 +130,31 @@ TEST(CbstDeviceReplay, MospEscherTracesDivergeWhereTheModelDoes) {
   }
 }
 
+// Every construct of both originals' committed traces is built from row counts and by the scan,
+// with node arrays equal byte for byte (the adapter's twin check; a difference is a status
+// mismatch of the replay).
+TEST(CbstDeviceReplay, EveryConstructIsBuiltBothWaysWithIdenticalNodes) {
+  DYNG_SKIP_WITHOUT_DEVICE();
+  const auto traces = committed_traces("");
+  ASSERT_FALSE(traces.empty());
+  std::int64_t constructs = 0;
+  for (const char* preset : {"escher_gpu", "mosp_escher_staged"}) {
+    for (const auto& path : traces) {
+      SCOPED_TRACE(std::string(preset) + " " + path);
+      auto in = cbst_trace::reader::open(path);
+      device_store_adapter store(preset);
+      options opt;
+      opt.fields = field_set::exact;
+      opt.max_mismatches = 100000;
+      const replay_report r = replay(*in, store, opt, path);
+      for (const auto& m : r.mismatches)
+        EXPECT_EQ(m.actual.find("the node arrays built from the row counts"), std::string::npos);
+      constructs += store.twin_constructs();
+    }
+  }
+  EXPECT_GT(constructs, 40);
+}
+
 TEST(CbstDeviceReplay, ReplayingTwiceGivesIdenticalDigests) {
   DYNG_SKIP_WITHOUT_DEVICE();
   const auto traces = committed_traces("");

@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu
-// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (constructCBST validation)
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (constructCBST validation, the
+// caller's row counts)
 /**
  * @file cbst_store.cu
  * @brief The host side of the CBST store: construction, rebuild, best-fit insert with the surplus
@@ -225,7 +226,7 @@ static void ensure_payload_capacity(cbst_context& ctx, long long needed) {
 // are not taken over (the store orders the kernels on its stream).
 void validate_construct(const int* keys, const int* start_offsets, int num_records,
                         const int* flat_payload, int flat_payload_size, int payload_capacity,
-                        const std::string& dataset_name) {
+                        const std::string& dataset_name, const int* row_counts) {
   DYNG_EXPECTS(num_records >= 0, "CBST ", dataset_name, ": construct: the record count ",
                num_records, " is negative");
   DYNG_EXPECTS(flat_payload_size >= 0 && payload_capacity >= 0, "CBST ", dataset_name,
@@ -244,14 +245,25 @@ void validate_construct(const int* keys, const int* start_offsets, int num_recor
                          "(3 entries per record; at most " +
                          std::to_string(INT_MAX / 3) + " records)");
   }
+  if (row_counts == nullptr) return;
+  // The caller's row counts (the fast path of construct): each within the tail capacity of its
+  // row (the slots up to the next row's offset, or the payload's end, but the terminator), as
+  // store_items_kernel derives it.
+  for (int r = 0; r < num_records; ++r) {
+    const long long end = r + 1 < num_records ? start_offsets[r + 1] : flat_payload_size;
+    const long long tail_capacity = std::max(0LL, end - start_offsets[r] - 1);
+    DYNG_EXPECTS(row_counts[r] >= 0 && row_counts[r] <= tail_capacity, "CBST ", dataset_name,
+                 ": construct: the row count ", row_counts[r], " of key ", keys[r],
+                 " does not fit its row of ", tail_capacity, " value slots");
+  }
 }
 
 void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_payload,
                     int flat_payload_size, int payload_capacity, const std::string& dataset_name,
-                    cbst_context& ctx) {
+                    cbst_context& ctx, const int* row_counts) {
   // Rejected before anything changes or is allocated.
   validate_construct(keys, start_offsets, num_records, flat_payload, flat_payload_size,
-                     payload_capacity, dataset_name);
+                     payload_capacity, dataset_name, row_counts);
   ctx.fixed_size = payload_capacity;
   ctx.num_records = num_records;
   ctx.initial_payload_size = flat_payload_size;
@@ -304,9 +316,37 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
   build_empty_tree_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(ctx.d_nodes, num_records);
   store_items_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
       ctx.d_nodes, ctx.d_keys, ctx.d_start_offsets, num_records, flat_payload_size);
-  init_tail_metadata_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
-      ctx.d_nodes, ctx.d_flat_payload, num_records);
-  DYNG_CHECK_KERNEL(stream_of(ctx));
+  if (row_counts == nullptr) {
+    // The default: the occupancies scanned from the payload (ESCHER-GPU's initTailMetadata).
+    init_tail_metadata_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+        ctx.d_nodes, ctx.d_flat_payload, num_records);
+    DYNG_CHECK_KERNEL(stream_of(ctx));
+  } else {
+    // The fast path: the caller's row counts (MOSP_ESCHER's rowOccupancy,
+    // escher/structure/operations.cu@4b86159:268-275, without its device synchronization).
+    temp_buffer<int> d_row_counts(ctx.res, num_records);
+    DYNG_CUDA_TRY(cudaMemcpyAsync(d_row_counts.get(), row_counts, num_records * sizeof(int),
+                                  cudaMemcpyHostToDevice, stream_of(ctx)));
+    set_initial_occupancy_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+        ctx.d_nodes, d_row_counts.get(), num_records);
+    DYNG_CHECK_KERNEL(stream_of(ctx));
+#ifndef NDEBUG
+    // Debug builds: the counts must be the scan (an extra synchronization, Debug only).
+    temp_buffer<int> d_mismatches(ctx.res, 1);
+    DYNG_CUDA_TRY(cudaMemsetAsync(d_mismatches.get(), 0, sizeof(int), stream_of(ctx)));
+    count_occupancy_mismatches_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
+        ctx.d_nodes, ctx.d_flat_payload, num_records, d_mismatches.get());
+    DYNG_CHECK_KERNEL(stream_of(ctx));
+    int mismatches = 0;
+    DYNG_CUDA_TRY(cudaMemcpyAsync(&mismatches, d_mismatches.get(), sizeof(int),
+                                  cudaMemcpyDeviceToHost, stream_of(ctx)));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx)));
+    if (mismatches != 0) {
+      DYNG_FAIL("CBST ", dataset_name, ": ", mismatches,
+                " of the caller's row counts differ from the rows of the payload");
+    }
+#endif
+  }
 
   if (log_enabled(log_level::debug)) {
     log_message(log_level::debug, "dyng: CBST " + dataset_name + ": constructed " +
@@ -830,14 +870,28 @@ auto cbst_store::guarded(const char* op, op_t&& body) {
 
 void cbst_store::construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
                            int flat_payload_size) {
+  construct_impl(keys, start_offsets, num_records, flat_payload, flat_payload_size, nullptr);
+}
+
+void cbst_store::construct(int* keys, int* start_offsets, int num_records, int* flat_payload,
+                           int flat_payload_size, const int* row_counts) {
+  // The caller's counts are required here: MOSP_ESCHER's nullptr (occupancy 0, its legacy
+  // behaviour) is not taken over.
+  DYNG_EXPECTS(num_records == 0 || row_counts != nullptr, "CBST ", ctx_.dataset_name,
+               ": construct: the row counts of ", num_records, " records must not be null");
+  construct_impl(keys, start_offsets, num_records, flat_payload, flat_payload_size, row_counts);
+}
+
+void cbst_store::construct_impl(int* keys, int* start_offsets, int num_records, int* flat_payload,
+                                int flat_payload_size, const int* row_counts) {
   const scoped_device guard(ctx_.res.device());
   scoped_stage stage(ctx_.res, "hypergraph.cbst.construct");
   // The validation, before anything changes (the store is not poisoned by it).
   validate_construct(keys, start_offsets, num_records, flat_payload, flat_payload_size,
-                     ctx_.fixed_size, ctx_.dataset_name);
+                     ctx_.fixed_size, ctx_.dataset_name, row_counts);
   try {
     construct_cbst(keys, start_offsets, num_records, flat_payload, flat_payload_size,
-                   ctx_.fixed_size, ctx_.dataset_name, ctx_);
+                   ctx_.fixed_size, ctx_.dataset_name, ctx_, row_counts);
   } catch (...) {
     poisoned_ = true;
     throw;
