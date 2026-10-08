@@ -49,9 +49,17 @@ Counts are of the commits reachable from the pinned commit (`git log <commit>` i
   repeated here (the repository never records host names or personal paths).
 
 Which dynG files derive from each original: `git grep -l "Derived from <repository>@"`.
-`ci/provenance_check.py` fails when a library or tool source names an original's function, class
-or kernel (its `SYMBOLS` list; for ESCHER-GPU the CBST API and every kernel and helper of the store
-port) without such a line.
+`ci/provenance_check.py` fails when a library or tool source (`cpp/src`, `cpp/include`, `tools`)
+names an original's function, class or kernel (its `SYMBOLS` list) without such a line. For the
+ESCHER CBST store the list is derived from the explicit renames of
+`parity/escher_port/rename_map.toml` (every original identifier the transplant renamed), plus the
+dynG names of the port's kernels and internal free functions (`*_kernel`, `construct_cbst`,
+`walk_chain`, `compact_cbst`, ...), so port code moved out of `cpp/src/hypergraph/escher` under
+its dynG names still needs its line; the types a caller of the store names (`cbst_store`,
+`cbst_context`, ...) are not in the list (`ci/tests/test_provenance_check.py`). Test sources are
+outside the check's scope (harness code names the originals' functions to describe their traces);
+a test that ports an original's scenarios carries the line by convention (for example the CBST
+scenario tests under `cpp/tests/hypergraph/escher` and `cpp/tests/parity/escher`).
 
 The ESCHER CBST store (`cpp/src/hypergraph/escher`, M8a) is a transplant of ESCHER-GPU@abcf9b2's
 store that can be regenerated from the original: `parity/escher_port/transplant.py` reads the

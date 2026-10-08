@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from MOSP_ESCHER@4b86159:tests/unit/test_cbst_ops.cu (the unfill-chain and churn-small
+// scenarios)
 /**
  * @file cbst_merge_test.cpp
  * @brief Unit tests of the MOSP_ESCHER@4b86159 behaviours merged into the dynG CBST store (M8a step
