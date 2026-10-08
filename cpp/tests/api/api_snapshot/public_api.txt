@@ -755,6 +755,7 @@
       bool counts_bin_launches = true
       std::string error_type
       std::int64_t max_payload = 2147483647
+      std::int64_t compaction_headroom = 0
       [[nodiscard]] static cbst_host_policy escher_gpu()
       [[nodiscard]] static cbst_host_policy mosp_escher()
       [[nodiscard]] static cbst_host_policy dyng_default()
