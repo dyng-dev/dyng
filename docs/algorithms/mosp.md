@@ -95,7 +95,7 @@ MOSP path to u7 costs (15, 3, 20) with Pref {4, 1, 4} and (15, 24, 7) with Pref 
 | `preferences` | empty (all 1) | one value >= 1 per objective, lcm <= 2^20 (fixed at compute) |
 | `delta` | 0 (automatic) | near-far width of the K sssp updates (sssp's rule per objective); the combined solve always uses the automatic width of the combined graph, as the originals do |
 | `cuda_engine` | automatic | sssp's CUDA engine for the K updates and the combined solve |
-| `compute_path_costs` | true | compute the path costs; while false, `path_costs()` throws |
+| `compute_path_costs` | true | compute the path costs in `compute()` and `update()`; `path_costs()` throws if it was false at the last of them (a change by `set_options()` takes effect at the next `update()`) |
 | `validate_inputs` | true | sssp's O(n) checks of every tree adopted with `result::from_arrays()` |
 | `num_objectives` | 0 (all) | the objectives are the first `num_objectives` weight columns (MOSP's `-k`; fixed at compute) |
 

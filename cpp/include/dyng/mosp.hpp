@@ -87,8 +87,11 @@ struct options {
   /// Engine of the CUDA backend for the K sssp updates and the combined solve (see
   /// sssp::options::cuda_engine); ignored by the host backends. A tunable.
   engine cuda_engine = engine::automatic;
-  /// Compute the path costs (Step 3's last line) in compute() and update(). A tunable; while it is
-  /// false, path_costs() throws.
+  /// Compute the path costs (Step 3's last line) in compute() and update(). Changeable with
+  /// result::set_options(), but not a tunable in sssp's sense: it decides what the result holds.
+  /// path_costs() throws if it was false at the last compute() or update(); set_options() takes
+  /// effect at the next update() (costs computed before stay readable until then, and costs are
+  /// not readable before an update() recomputes them).
   bool compute_path_costs = true;
   /// O(K n) checks on imported trees in result::from_arrays() (sssp's checks, per objective).
   bool validate_inputs = true;
@@ -251,7 +254,11 @@ class result {
   [[nodiscard]] const options& get_options() const;
 
   /**
-   * @brief Change the tunables (delta, cuda_engine, compute_path_costs, validate_inputs).
+   * @brief Change the changeable options (the tunables delta and cuda_engine, and
+   *        compute_path_costs and validate_inputs).
+   *
+   * The new options take effect at the next update(); in particular compute_path_costs does not
+   * change what path_costs() returns or throws until then.
    * @param[in] opt The new options; preferences and num_objectives must stay the same.
    * @throws invalid_argument_error if a fixed option differs or `opt.delta` is negative, or for a
    *         moved-from result.
@@ -464,8 +471,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *         graph, or `r` was left unusable by a failed update.
  * @throws invalid_argument_error if a batch id or weight is invalid or the batch has insertions
  *         with another number of weights than the graph (a batch without insertions is accepted
- *         whatever its number of weights; nothing is changed); or, for trees imported without
- *         validation, as sssp::update() (then the graph was updated and `r` is left unusable).
+ *         whatever its number of weights), `g` or `r` belongs to another backend than `res`, or a
+ *         batch array must be copied and the copy policy is copy_policy::error (nothing is
+ *         changed); or, for trees imported without validation, as sssp::update() (then the graph
+ *         was updated and `r` is left unusable).
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
  *         cannot run (nothing is changed).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
