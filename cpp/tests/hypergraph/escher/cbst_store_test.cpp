@@ -779,5 +779,54 @@ TEST(CbstStorePresets, ASmallMaxPayloadRaisesCapacityError) {
   EXPECT_FALSE(s.poisoned());
 }
 
+// An injected allocation failure under every preset, at every allocation of an insert with a
+// reused slot and a surplus row and of a fill that overflows: out_of_memory_error, and the store
+// is poisoned (an updating operation gives the basic guarantee only: ADR 0039), so every later
+// operation throws until the store is constructed again.
+TEST(CbstStorePresets, AnInjectedAllocationFailureUnderEveryPreset) {
+  DYNG_SKIP_IF_NO_CUDA();
+  resources res = resources::cuda();
+  counting_resource counter(res.device());
+  res.set_memory_resource(counter);
+  for (const store_policy& policy :
+       {store_policy::escher_gpu(), store_policy::mosp_escher(16), store_policy::dyng_default()}) {
+    for (const char* op : {"insert", "append"}) {
+      SCOPED_TRACE(policy.name + " " + op);
+      int poisoned = 0;
+      for (int k = 0; k < 64; ++k) {
+        cbst_store s(res, "oom", 64, 4, policy);
+        construct_rows(s, {iota_row(1, 3), iota_row(10, 3)});
+        s.erase({2});
+        const batch b = std::string(op) == "insert"
+                            ? make_batch({3, 4}, {iota_row(100, 3), iota_row(200, 9)})
+                            : make_batch({1}, {iota_row(300, 20)});
+        counter.fail_after(k);
+        bool threw = false;
+        try {
+          if (std::string(op) == "insert")
+            (void)s.insert(b.keys, b.payload, b.prefix);
+          else
+            s.append(b.keys, b.payload, b.prefix);
+        } catch (const out_of_memory_error&) {
+          threw = true;
+        }
+        counter.fail_after(-1);
+        if (!threw) {
+          EXPECT_FALSE(s.poisoned());
+          break;
+        }
+        EXPECT_TRUE(s.poisoned());
+        ++poisoned;
+        EXPECT_THROW(s.erase({1}), invalid_argument_error);
+        EXPECT_THROW((void)s.compact(), invalid_argument_error);
+        EXPECT_THROW(s.append(b.keys, b.payload, b.prefix), invalid_argument_error);
+        construct_rows(s, {{1}});
+        EXPECT_FALSE(s.poisoned());
+      }
+      EXPECT_GT(poisoned, 1);
+    }
+  }
+}
+
 }  // namespace
 }  // namespace dyng::detail::escher
