@@ -826,15 +826,36 @@ def first_divergences(report: dict) -> dict[int, tuple[int, str] | None]:
     return out
 
 
+# The actual InsertMapping of an op that the store threw (see first_divergence_sets).
+THREW_NO_MAPPING = "(none: the op threw)"
+
+
+def exception_status(actual: str) -> str:
+    """The status a replay reports for an op that threw, "exception <type>: <message>", reduced to
+    "exception <type>": the exception type is the recorded field (criterion 3, PLAN 6.4.5); the
+    message is each store's own wording of the same failure (the device store's
+    "dyng: CBST h2v: 27664 payload entries do not fit its capacity of 27655 ...", the host
+    model's "fillCBST: payload overflow (27664 > 27655)")."""
+    return actual.split(": ", 1)[0]
+
+
 def first_divergence_sets(report: dict) -> dict[int, tuple[int, frozenset] | None]:
     """The whole first divergence of every tree of a replay report (M8a review): the op of the
     tree and the set of (field, key, expected, actual) of every mismatch the comparator reported
     at that op (the integrity verdict check.rows aside, as in first_divergences); a construct
     below its payload is the one class "construct validation" (see first_divergences). Two stores
-    diverge alike only when these are equal: the same op, the same fields, keys and values."""
+    diverge alike only when these are equal: the same op, the same fields, keys and values.
+
+    Two outputs of an op that the store threw are not values of the parity: the exception's
+    message (the status is compared as "exception <type>", exception_status) and the
+    InsertMapping, which a thrown insert does not return (the device store reports none, the host
+    model the zeros of its unfilled output): an out.mapping mismatch of such an op is compared as
+    the trace's mapping against THREW_NO_MAPPING. Every other field, key and value at the op is
+    compared as reported."""
     first_op: dict[int, int] = {}
     found: dict[int, set] = {}
     validation: set[int] = set()
+    threw: set[int] = set()
     for m in report["mismatches"]:
         t = m["tree"]
         if t not in first_op:
@@ -843,15 +864,24 @@ def first_divergence_sets(report: dict) -> dict[int, tuple[int, frozenset] | Non
             continue
         if m["op"] == "construct" and m["field"] in ("status", "exception.type"):
             validation.add(t)
-        found.setdefault(t, set()).add(
-            (m["field"], m.get("key"), str(m.get("expected")), str(m.get("actual")))
-        )
+        actual = str(m.get("actual"))
+        if m["field"] == "status" and actual.startswith("exception "):
+            threw.add(t)
+            actual = exception_status(actual)
+        found.setdefault(t, set()).add((m["field"], m.get("key"), str(m.get("expected")), actual))
     out: dict[int, tuple[int, frozenset] | None] = {t["tree"]: None for t in report["trees"]}
     for t, op in first_op.items():
         if t in validation:
             out[t] = (op, frozenset({("construct validation",)}))
-        else:
-            out[t] = (op, frozenset(found.get(t, set())))
+            continue
+        items = found.get(t, set())
+        if t in threw:
+            # An op the store threw has no InsertMapping: the trace's is compared with none.
+            items = {
+                (f, k, e, THREW_NO_MAPPING) if f == "out.mapping" else (f, k, e, a)
+                for f, k, e, a in items
+            }
+        out[t] = (op, frozenset(items))
     for d in report.get("documented", []):
         if d.get("rule") != "construct_below_payload":
             continue
