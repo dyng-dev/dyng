@@ -8,9 +8,15 @@
 #
 #   parity/cbst_merge_steps.sh <commit>...            # the small sets
 #   parity/cbst_merge_steps.sh --large <commit>...    # the small and the large sets
+#   parity/cbst_merge_steps.sh --out DIR <commit>...  # the records and rows under DIR
 #   DYNG_TEST_GPU=1 parity/cbst_merge_steps.sh ...     # the GPU of the replays (default 1)
 #
-# For every commit: `git worktree add --detach` into $DYNG_SCRATCH/m8a/merge-steps (removed
+# The output directory (--out, or $DYNG_MERGE_STEPS_DIR) defaults to a fresh
+# $DYNG_SCRATCH/m8a/merge-steps/run-<UTC time>, so a re-run never replaces the records that
+# parity/results/M8a.md cites; an existing record directory of a commit is an error unless
+# --force is given (M8a review).
+#
+# For every commit: `git worktree add --detach` into the output directory (removed
 # afterwards), a Release CUDA build of the commit's replay targets only (dyng_cbst_replay and
 # dyng_cbst_device_tests; DYNG_ALGORITHMS=sssp, minimal index types, warnings as errors), the
 # commit's own replay tests on the committed traces (dyng_cbst_device_tests), and the replay of the
@@ -19,9 +25,10 @@
 # the sets of MOSP_ESCHER must diverge in every tree where the host model under the same preset
 # does under escher_gpu() and, from the commit that adds it, under the staging preset
 # mosp_escher_staged() (M8a step 4); from the commit that adds MOSP_ESCHER's preset mosp_escher()
-# (M8a step 5) they must also match under it in the exact field set. The JSON records go to
-# $DYNG_SCRATCH/m8a/merge-steps/<sha7>/; the row, with one column per set, to stdout and to
-# $DYNG_SCRATCH/m8a/merge-steps/rows.md.
+# (M8a step 5) they must also match under it in the exact field set. The documented divergences
+# are checked against the counts pinned in parity/cbst_documented.toml at this tree's HEAD only
+# (they are the head store's). The JSON records go to <out>/<sha7>/; the row, with one column per
+# set, to stdout and to <out>/rows.md.
 #
 # Machine rules: every build and replay takes the SHARED perf lock and runs niced; the original
 # repositories and the main worktree are not touched (only `git worktree add/remove`, which writes
@@ -29,6 +36,8 @@
 set -euo pipefail
 
 large=0
+force=0
+work="${DYNG_MERGE_STEPS_DIR:-}"
 commits=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -36,8 +45,16 @@ while [ "$#" -gt 0 ]; do
       large=1
       shift
       ;;
+    --out)
+      work="$2"
+      shift 2
+      ;;
+    --force)
+      force=1
+      shift
+      ;;
     -h | --help)
-      sed -n '5,27p' "${BASH_SOURCE[0]}"
+      sed -n '5,35p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -47,7 +64,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 if [ "${#commits[@]}" -eq 0 ]; then
-  echo "usage: parity/cbst_merge_steps.sh [--large] <commit>..." >&2
+  echo "usage: parity/cbst_merge_steps.sh [--large] [--out DIR] [--force] <commit>..." >&2
   exit 2
 fi
 
@@ -64,8 +81,12 @@ heavy() {
     nice -n 10 "$@"
   fi
 }
-work="${DYNG_SCRATCH}/m8a/merge-steps"
+if [ -z "${work}" ]; then
+  work="${DYNG_SCRATCH}/m8a/merge-steps/run-$(date -u +%Y%m%dT%H%M%SZ)"
+fi
 mkdir -p "${work}"
+echo "records and rows: ${work}"
+head_sha="$(git rev-parse HEAD)"
 small_sets=(cbst_trace_escher_gpu_test cbst_trace_escher_gpu_targeted cbst_trace_mosp_escher_test
   cbst_trace_mosp_escher_targeted)
 large_sets=(cbst_trace_escher_gpu_coauth50k cbst_trace_escher_gpu_syn1m
@@ -82,8 +103,18 @@ for commit in "${commits[@]}"; do
   subject="$(git log -1 --format=%s "${sha}")"
   wt="${work}/wt-${short}"
   out="${work}/${short}"
-  rm -rf "${out}"
+  if [ -e "${out}" ]; then
+    if [ "${force}" != 1 ]; then
+      echo "parity/cbst_merge_steps.sh: ${out} exists (the records of an earlier run); choose" \
+        "another --out or pass --force to replace them" >&2
+      exit 2
+    fi
+    rm -rf "${out}"
+  fi
   mkdir -p "${out}"
+  # The pinned documented-divergence counts are the head store's (parity/cbst_documented.toml).
+  counts=(--documented-counts none)
+  [ "${sha}" = "${head_sha}" ] && counts=()
   echo "==> ${short} ${subject}"
   if [ -e "${wt}" ]; then
     git worktree remove --force "${wt}" || rm -rf "${wt}"
@@ -146,7 +177,7 @@ for commit in "${commits[@]}"; do
         [ "${policy}" = dyng_default ] && fields=policy
         if CUDA_VISIBLE_DEVICES="${gpu}" heavy python3 parity/compare.py cbst_trace --store device \
           --fields "${fields}" --skip-verify --replay-exe "${build}/cpp/tests/dyng_cbst_replay" \
-          --record "${out}" --set "${set}" "${policy_args[@]}" >"${log}" 2>&1; then
+          --record "${out}" --set "${set}" "${policy_args[@]}" "${counts[@]}" >"${log}" 2>&1; then
           verdict="OK"
         else
           verdict="FAILED"
