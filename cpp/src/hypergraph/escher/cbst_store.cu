@@ -3,6 +3,7 @@
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu
 // Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (constructCBST validation, the
 // caller's row counts, ensureScratchCapacity, compactCBST)
+// Derived from MOSP_ESCHER@4b86159:hypergraph/src/DynamicHypergraph.cpp (escherDeviceBytes)
 /**
  * @file cbst_store.cu
  * @brief The host side of the CBST store: construction, rebuild, best-fit insert with the surplus
@@ -255,6 +256,7 @@ static void ensure_payload_capacity(cbst_context& ctx, long long needed) {
   ctx.flat_payload_storage = std::move(grown_storage);
   ctx.d_flat_payload = grown;
   ctx.fixed_size = static_cast<int>(capacity);
+  ++ctx.growths;
 }
 
 // MOSP_ESCHER's construct validation (escher/structure/operations.cu@4b86159:196-211; M8a step
@@ -1213,6 +1215,30 @@ std::vector<std::vector<int>> cbst_store::rows(const std::vector<int>& keys) con
   for (size_t i = 0; i < keys.size(); ++i)
     out[i].assign(values.begin() + offsets[i], values.begin() + offsets[i + 1]);
   return out;
+}
+
+cbst_store_stats cbst_store::stats() const {
+  const cbst_context& c = ctx_;
+  cbst_store_stats st;
+  st.num_records = c.num_records;
+  st.payload_capacity = c.fixed_size;
+  st.payload_used = c.initial_payload_size;
+  st.growths = c.growths;
+  st.compactions = c.compactions;
+  st.compaction_temp_bytes = c.compaction_temp_bytes;
+  st.device_bytes = static_cast<long long>(device_bytes());
+  st.scratch_bytes = (5LL * c.scratch_item_capacity + c.scratch_payload_capacity) *
+                     static_cast<long long>(sizeof(int));
+  st.mosp_escher_bytes = st.device_bytes - st.scratch_bytes;
+  st.host_syncs = c.host_syncs;
+  st.bin_launches = c.bin_launches;
+  if (c.h_control != nullptr) {
+    const volatile std::uint32_t* mirror = c.h_control;
+    st.serial_unfills = mirror[control_serial_unfills];
+    st.chain_overruns = mirror[control_overruns];
+    st.rejected_items = mirror[control_rejected];
+  }
+  return st;
 }
 
 size_t cbst_store::allocated_bytes() const {

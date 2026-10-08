@@ -28,9 +28,10 @@ namespace dyng::detail::escher {
 
 // The words of a store's control block (cbst_context::d_control).
 enum control_word : int {
-  control_errors = 0,    // the bits of device_error (util/device_error_flags.hpp)
-  control_overruns = 1,  // row walks that overran the used payload (a broken chain)
-  control_rejected = 2,  // append / remove_values items that named a dead or absent key
+  control_errors = 0,          // the bits of device_error (util/device_error_flags.hpp)
+  control_overruns = 1,        // row walks that overran the used payload (a broken chain)
+  control_rejected = 2,        // append / remove_values items that named a dead or absent key
+  control_serial_unfills = 3,  // warp / block unfill items that walked a chained row serially
   control_words = 4,
 };
 
@@ -97,13 +98,38 @@ struct cbst_context {
   buffer<std::uint32_t> control_storage, control_mirror_storage;
   std::uint32_t* d_control = nullptr;
   std::uint32_t* h_control = nullptr;
-  // Payload compactions so far, and the largest temporary one of them took (M8a step 4).
+  // Payload compactions and growths so far, and the largest temporary a compaction took (M8a
+  // step 4).
   long long compactions = 0;
   long long compaction_temp_bytes = 0;
+  long long growths = 0;
   buffer<cbst_node> nodes_storage;
   buffer<int> keys_storage, start_offsets_storage, flat_payload_storage, insert_keys_storage,
       insert_payload_storage, insert_prefix_sizes_storage, relocation_plan_storage, avail_storage,
       subtree_avail_storage;
+};
+
+// The storage counters of a store (cbst_store::stats(); M8a step 4). The device counters are those
+// of the last read point (no synchronization).
+struct cbst_store_stats {
+  long long num_records = 0;
+  long long payload_capacity = 0;       // fixed_size: payload slots allocated
+  long long payload_used = 0;           // initial_payload_size: the bump pointer
+  long long growths = 0;                // payload growths (store_policy::grown_capacity)
+  long long compactions = 0;            // payload compactions
+  long long compaction_temp_bytes = 0;  // the largest temporary of a compaction
+  // device_bytes(): ESCHER-GPU's deviceBytes() scope (nodes, keys, row offsets, avail,
+  // subtree_avail, the payload capacity and the operation scratch), the memory gate's.
+  long long device_bytes = 0;
+  // MOSP_ESCHER's escherDeviceBytes() scope (hypergraph/src/DynamicHypergraph.cpp@4b86159:145-156):
+  // the payload capacity and the per-record arrays, without the operation scratch.
+  long long mosp_escher_bytes = 0;
+  long long scratch_bytes = 0;  // the operation scratch (the difference of the two)
+  long long host_syncs = 0;
+  degree_bin_launches bin_launches;  // the degree-binned kernel paths of every operation
+  long long serial_unfills = 0;      // warp / block unfill items on chained rows (serial walk)
+  long long chain_overruns = 0;      // row walks that overran (a broken chain; an error)
+  long long rejected_items = 0;      // items naming a dead or absent key (an error)
 };
 
 // One node of a downloaded tree (cbst_store::download(); dynG addition): the record without
@@ -239,6 +265,8 @@ struct cbst_store {
   const degree_bin_launches& bin_launches() const {
     return ctx_.bin_launches;
   }
+  // The store's storage counters (M8a step 4).
+  cbst_store_stats stats() const;
   // Payload compactions so far (compact(); automatic ones from M8a step 5).
   long long compactions() const {
     return ctx_.compactions;

@@ -131,9 +131,12 @@ __global__ void unfill_warp_kernel(cbst_node* nodes, int* flat_values, int* keys
   // For single-segment nodes (tail_base == value), do cooperative compaction.
   // For multi-segment (overflow chain), fall back to lane 0 doing serial work.
   if (cur->tail_base != cur->value) {
-    if (lane == 0)
+    if (lane == 0) {
       cur->occupancy =
           unfill_row_serial(cur, flat_values, values_to_remove, rem_start, rem_end, used, control);
+      // A path counter (M8a step 4): warp items that took the serial walk of a chained row.
+      atomicAdd(reinterpret_cast<unsigned int*>(control + control_serial_unfills), 1U);
+    }
     return;
   }
 
@@ -224,9 +227,12 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
 
   // Multi-segment fallback: thread 0 does serial
   if (sh_node->tail_base != sh_node->value) {
-    if (threadIdx.x == 0)
+    if (threadIdx.x == 0) {
       sh_node->occupancy = unfill_row_serial(sh_node, flat_values, values_to_remove, sh_rem_start,
                                              sh_rem_end, used, control);
+      // A path counter (M8a step 4): block items that took the serial walk of a chained row.
+      atomicAdd(reinterpret_cast<unsigned int*>(control + control_serial_unfills), 1U);
+    }
     return;
   }
 

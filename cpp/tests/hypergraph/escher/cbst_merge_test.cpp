@@ -462,6 +462,67 @@ TEST(CbstMergeCompact, CompactedRowsThatDoNotFit) {
   }
 }
 
+rows busy(cbst_store& s);  // the busy tree of the integrity tests below
+
+// --- (i) Memory accounting and storage counters -----------------------------------------------
+
+// device_bytes() keeps ESCHER-GPU's deviceBytes() scope (the memory gate's); stats() also gives
+// MOSP_ESCHER's escherDeviceBytes() scope (no operation scratch), the payload capacity and use,
+// growths, compactions and the path counters.
+TEST(CbstMergeStats, TheAccountingAndTheCounters) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "stats", 64);
+  construct_rows(s, {iota_row(1, 3), iota_row(10, 7), {5}});
+  const batch fill = make_batch({1}, {iota_row(100, 80)});  // a chained row; the payload grows
+  s.append(fill.keys, fill.payload, fill.prefix);
+  const batch drop = make_batch({1}, {iota_row(100, 40)});  // a warp item on the chained row
+  s.remove_values(drop.keys, drop.payload, drop.prefix);
+  s.check_errors();  // the read point that brings the device counters back
+  (void)s.compact();
+  const cbst_store_stats st = s.stats();
+  const cbst_context& c = s.context();
+  EXPECT_EQ(st.num_records, 3);
+  EXPECT_EQ(st.payload_capacity, c.fixed_size);
+  EXPECT_EQ(st.payload_used, c.initial_payload_size);
+  EXPECT_EQ(st.growths, 1);
+  EXPECT_EQ(st.compactions, 1);
+  EXPECT_GT(st.compaction_temp_bytes, 0);
+  EXPECT_EQ(st.device_bytes, static_cast<long long>(s.device_bytes()));
+  EXPECT_EQ(st.device_bytes,
+            3LL * (56 + 16) + 4LL * c.fixed_size +
+                4LL * (5LL * c.scratch_item_capacity + c.scratch_payload_capacity));
+  EXPECT_EQ(st.mosp_escher_bytes, 3LL * (56 + 16) + 4LL * c.fixed_size);  // escherDeviceBytes
+  EXPECT_EQ(st.scratch_bytes, st.device_bytes - st.mosp_escher_bytes);
+  EXPECT_EQ(st.bin_launches.fill[1], 1);    // the 80 values: warp level
+  EXPECT_EQ(st.bin_launches.unfill[1], 1);  // the 40 removals: warp level
+  EXPECT_EQ(st.serial_unfills, 1);          // ... on a chained row: the serial walk
+  EXPECT_EQ(st.chain_overruns, 0);
+  EXPECT_EQ(st.rejected_items, 0);
+  EXPECT_EQ(st.host_syncs, s.host_syncs());
+}
+
+// The store changes no process-global setting of the CUDA runtime: MOSP_ESCHER's TempBuffer raised
+// the release threshold of the device's default memory pool for the whole process
+// (escher/structure/operations.cu@4b86159:57-69); dynG's temporaries come from the resources'
+// memory resource.
+TEST(CbstMergeStats, NoProcessGlobalMempoolSetting) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cudaMemPool_t pool = nullptr;
+  ASSERT_EQ(cudaDeviceGetDefaultMemPool(&pool, res.device()), cudaSuccess);
+  unsigned long long before = 0, after = 0;
+  ASSERT_EQ(cudaMemPoolGetAttribute(pool, cudaMemPoolAttrReleaseThreshold, &before), cudaSuccess);
+  {
+    cbst_store s(res, "pool", 1 << 12);
+    (void)busy(s);
+    (void)s.compact();
+    s.check_errors();
+  }
+  ASSERT_EQ(cudaMemPoolGetAttribute(pool, cudaMemPoolAttrReleaseThreshold, &after), cudaSuccess);
+  EXPECT_EQ(after, before);
+}
+
 // --- (e) The integrity checks --------------------------------------------------------------------
 
 /// A tree with chained, deleted, reused and surplus rows.
