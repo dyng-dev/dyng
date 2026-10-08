@@ -145,6 +145,15 @@ SYMBOLS = [
     "buildRowLocatorKernel",
     "TempBuffer",
     "DegreeBins",
+    # MOSP_ESCHER@4b86159, its behaviours merged into the store (M8a step 4)
+    "readFlat",
+    "setInitialOccupancy",
+    "warpWalkRow",
+    "compactSizesKernel",
+    "compactCopyKernel",
+    "ensureScratchCapacity",
+    "checkSubtreeAvail",
+    "EscherError",
 ]
 PINNED = re.compile(
     r"\b(MOSP-OpenMP|MOSP-CUDA|MOSP_ESCHER|ESCHER-GPU|LabelPropagation-CUDA|"
