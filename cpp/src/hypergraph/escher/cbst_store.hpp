@@ -97,6 +97,9 @@ struct cbst_context {
   buffer<std::uint32_t> control_storage, control_mirror_storage;
   std::uint32_t* d_control = nullptr;
   std::uint32_t* h_control = nullptr;
+  // Payload compactions so far, and the largest temporary one of them took (M8a step 4).
+  long long compactions = 0;
+  long long compaction_temp_bytes = 0;
   buffer<cbst_node> nodes_storage;
   buffer<int> keys_storage, start_offsets_storage, flat_payload_storage, insert_keys_storage,
       insert_payload_storage, insert_prefix_sizes_storage, relocation_plan_storage, avail_storage,
@@ -166,6 +169,12 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
                            const std::vector<int>& new_prefix_sizes, cbst_context& ctx);
 void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>& values_to_remove,
                  const std::vector<int>& remove_prefix_sizes, cbst_context& ctx);
+// MOSP_ESCHER's compactCBST (escher/structure/operations.cu@4b86159:289-339; M8a step 4): every
+// row rewritten as one segment in key order (compact.cu), through a pooled temporary of the
+// compacted size; returns the new bump pointer. When the compacted rows need more than the
+// capacity (a live row of L values takes (L + 4) / 4 * 4 slots, a deleted row its `length`), the
+// payload grows by the policy first (capacity_error without growth, before anything changed).
+int compact_cbst(cbst_context& ctx);
 
 // OO wrapper to manage CBST lifecycle and operations
 struct cbst_store {
@@ -196,6 +205,12 @@ struct cbst_store {
   void remove_values(const std::vector<int>& keys_to_unfill,
                      const std::vector<int>& values_to_remove,
                      const std::vector<int>& remove_prefix_sizes);
+  // Compacts the payload (MOSP_ESCHER's compact(); M8a step 4): live rows become single segments
+  // of (count + 4) / 4 * 4 slots, deleted rows keep their first segment of `length` slots, emptied,
+  // and drop their chains; keys, node positions and avail do not change, the bump pointer moves to
+  // the compacted size, which is returned. A capacity_error of a fixed payload too small for the
+  // compacted rows leaves the store as it was (not poisoned). One host synchronization.
+  int compact();
   // A deep copy of the store on `res` (dynG addition): every array copied, the node pointers
   // re-wired to the copy; it is independent of its source. The copy waits for the work queued
   // on the source's stream; its counters start at zero. Throws invalid_argument_error for a
@@ -223,6 +238,15 @@ struct cbst_store {
   // The degree-bin launches of the store's operations so far.
   const degree_bin_launches& bin_launches() const {
     return ctx_.bin_launches;
+  }
+  // Payload compactions so far (compact(); automatic ones from M8a step 5).
+  long long compactions() const {
+    return ctx_.compactions;
+  }
+  // The largest temporary a compaction took (bytes; from the store's memory resource, released
+  // when the compaction returns).
+  long long compaction_temp_bytes() const {
+    return ctx_.compaction_temp_bytes;
   }
   // Host synchronizations of the store's operations so far (ADR 0038, the read points).
   long long host_syncs() const {

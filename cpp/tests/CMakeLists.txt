@@ -171,6 +171,24 @@ if(DYNG_ENABLE_CUDA)
   )
   dyng_set_cuda_options(dyng_cbst_store_tests)
   list(APPEND _dyng_private_tests dyng_cbst_store_tests)
+  # The explicit compact() after every operation of both originals' traces, in lockstep with the
+  # host model (M8a step 4): the committed traces, and the small golden sets of $DYNG_SCRATCH
+  # (slow; skipped without them).
+  dyng_add_test(
+    NAME dyng_cbst_compact_tests
+    SOURCES parity/escher/cbst_compact_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  list(APPEND _dyng_private_tests dyng_cbst_compact_tests)
+  dyng_add_test(
+    NAME dyng_cbst_compact_large_tests
+    SOURCES parity/escher/cbst_compact_test.cpp
+    LABELS gpu parity cbst slow
+    LIBRARIES dyng_cbst_device
+  )
+  target_compile_definitions(dyng_cbst_compact_large_tests PRIVATE DYNG_CBST_COMPACT_LARGE=1)
+  list(APPEND _dyng_private_tests dyng_cbst_compact_large_tests)
   # Kernel-path coverage on ESCHER-GPU's skewed and medium traces (in $DYNG_SCRATCH; skipped
   # without them).
   dyng_add_test(

@@ -273,8 +273,8 @@ std::array<std::int64_t, 9> bins_now(const esc::cbst_store& s) {
 
 }  // namespace
 
-device_store_adapter::device_store_adapter(std::string policy)
-    : policy_(std::move(policy)), res_(resources::cuda()) {
+device_store_adapter::device_store_adapter(std::string policy, bool allow_compact)
+    : policy_(std::move(policy)), allow_compact_(allow_compact), res_(resources::cuda()) {
   esc::store_policy p;
   if (!esc::store_policy::from_name(policy_, p))
     throw tr::trace_error("device store: no policy '" + policy_ +
@@ -380,6 +380,11 @@ op_outcome device_store_adapter::run(std::uint32_t id, const op_request& op) {
                std::vector<int>(op.prefix.begin(), op.prefix.end()));
     } else if (op.op == "erase") {
       s.erase(std::vector<int>(op.keys.begin(), op.keys.end()));
+    } else if (op.op == "compact" &&
+               (allow_compact_ || policy_ != esc::store_policy::escher_gpu().name)) {
+      // MOSP_ESCHER's compact() (M8a step 4); ESCHER-GPU had none, so a trace replayed under
+      // escher_gpu() cannot call it (unless the adapter is told to: the compaction tests).
+      out.compact_return = s.compact();
     } else if (op.op == "unfill") {
       s.remove_values(std::vector<int>(op.keys.begin(), op.keys.end()),
                       std::vector<int>(op.payload.begin(), op.payload.end()),

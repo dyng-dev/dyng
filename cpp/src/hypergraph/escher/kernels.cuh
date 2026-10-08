@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:kernel/kernels.cuh
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/kernels.cuh (the compaction kernels)
 /**
  * @file kernels.cuh
  * @brief Declarations of the CBST store's kernels.
@@ -119,6 +120,14 @@ __global__ void unfill_block_kernel(cbst_node* nodes, int* flat_values, int* key
                                     int* values_to_remove, int* remove_prefix_sizes,
                                     int* bin_indices, int bin_count, int used,
                                     std::uint32_t* control);
+
+// Payload compaction (two passes, one warp per node; MOSP_ESCHER's compactCBST)
+__global__ void compact_sizes_kernel(const cbst_node* nodes, const int* avail, int n,
+                                     const int* flat, long long used, int* live_count,
+                                     long long* slots_by_rank, std::uint32_t* control);
+__global__ void compact_copy_kernel(cbst_node* nodes, const int* avail, int n, const int* flat,
+                                    long long used, const int* live_count,
+                                    const long long* offset_by_rank, int* dst, int* start_offsets);
 
 // Host launchers of the construction kernels and of the inverse layout formula, for the layout
 // test of ESCHER-GPU's tests/cbst_test.cu (which launched the kernels directly; the host stubs of

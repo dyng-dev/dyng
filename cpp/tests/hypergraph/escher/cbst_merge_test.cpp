@@ -340,6 +340,128 @@ TEST(CbstMergeScratch, ExactUnderEscherGpuGeometricUnderMospEscher) {
   }
 }
 
+// --- (h) An explicit compact() ------------------------------------------------------------------
+
+// MOSP_ESCHER's churn-small scenario (tests/unit/test_cbst_ops.cu@4b86159:351-377) under its fixed
+// capacity of 2,000 slots: four rows of 8 values; every round each row gets 4 new values and loses
+// its 4 oldest. Without compaction the bump pointer runs out after a few dozen rounds; with an
+// explicit compact() whenever the next round might not fit (MOSP_ESCHER compacted inside the fill;
+// the automatic compaction is M8a step 5), 500 rounds run in the fixed payload.
+TEST(CbstMergeCompact, ChurnSmallInAFixedPayload) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "churn-small", 2000, 4, store_policy::mosp_escher_staged());
+  rows want(4);
+  int next = 1;
+  for (auto& r : want) {
+    r = iota_row(next, 8);
+    next += 8;
+  }
+  construct_rows(s, want);
+  int compactions = 0;
+  for (int round = 0; round < 500; ++round) {
+    if (s.context().initial_payload_size > 2000 - 4 * 16) {
+      const int before = s.context().initial_payload_size;
+      EXPECT_LT(s.compact(), before);
+      ++compactions;
+    }
+    batch add, rem;
+    rows adds(4), rems(4);
+    for (int k = 1; k <= 4; ++k) {
+      adds[static_cast<std::size_t>(k - 1)] = iota_row(next, 4);
+      next += 4;
+      std::vector<int>& row = want[static_cast<std::size_t>(k - 1)];
+      rems[static_cast<std::size_t>(k - 1)].assign(row.begin(), row.begin() + 4);
+    }
+    add = make_batch({1, 2, 3, 4}, adds);
+    rem = make_batch({1, 2, 3, 4}, rems);
+    s.append(add.keys, add.payload, add.prefix);
+    s.remove_values(rem.keys, rem.payload, rem.prefix);
+    for (std::size_t k = 0; k < 4; ++k) {
+      want[k].erase(want[k].begin(), want[k].begin() + 4);
+      want[k].insert(want[k].end(), adds[k].begin(), adds[k].end());
+    }
+    if (round % 25 == 0 || round == 499) {
+      ASSERT_EQ(violations(s, want, true), 0) << "round " << round;
+      std::ostringstream log;
+      ASSERT_EQ(check_subtree_avail(s.context(), "churn", log), 0) << log.str();
+    }
+  }
+  EXPECT_GE(compactions, 3);  // 5: every ~100 rounds
+  EXPECT_EQ(s.compactions(), compactions);
+  EXPECT_GT(s.compaction_temp_bytes(), 0);
+  EXPECT_FALSE(s.poisoned());
+}
+
+// The layout compact() leaves: live rows single segments of (count + 4) / 4 * 4 slots in key order
+// from slot 0, deleted rows their first segment of `length` slots, emptied; the bump pointer at the
+// compacted size; the keys, avail and subtree_avail unchanged.
+TEST(CbstMergeCompact, TheCompactedLayout) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "layout", 256, 4, store_policy::mosp_escher_staged());
+  construct_rows(s, {iota_row(1, 3), iota_row(10, 5), {7}});
+  const batch fill = make_batch({1}, {iota_row(100, 6)});  // key 1 chained: 9 values
+  s.append(fill.keys, fill.payload, fill.prefix);
+  s.erase({2});  // key 2: length 8, deleted
+  const std::vector<int> avail_before = s.download().avail;
+  EXPECT_EQ(s.compact(), 12 + 8 + 4);  // 9 values: 12 slots; key 2: 8 slots; {7}: 4 slots
+  const cbst_host_state h = s.download();
+  EXPECT_EQ(h.initial_payload_size, 24);
+  EXPECT_EQ(h.avail, avail_before);
+  EXPECT_EQ(h.keys, (std::vector<int>{1, 2, 3}));
+  EXPECT_EQ(h.start_offsets, (std::vector<int>{0, 12, 20}));
+  for (const cbst_host_node& n : h.nodes) {
+    const int want_value[] = {0, 0, 12, 20}, want_length[] = {0, 12, 8, 4};
+    EXPECT_EQ(n.value, want_value[n.index]);
+    EXPECT_EQ(n.length, want_length[n.index]);
+    EXPECT_EQ(n.tail_base, n.value);
+    EXPECT_EQ(n.tail_capacity, n.length - 1);
+  }
+  std::vector<int> row1 = iota_row(1, 3);
+  for (int v : iota_row(100, 6)) row1.push_back(v);
+  EXPECT_EQ(std::vector<int>(h.payload.begin(), h.payload.begin() + 12),
+            (std::vector<int>{1, 2, 3, 100, 101, 102, 103, 104, 105, INT_MIN, 0, 0}));
+  EXPECT_EQ(h.payload[12], INT_MIN);  // the deleted row, emptied
+  EXPECT_EQ(violations(s, {row1, {}, {7}}), 0);
+  // Its slot is reused by a best fit as before (capacity 7).
+  const batch ins = make_batch({0}, {iota_row(50, 7)});
+  EXPECT_EQ(s.insert(ins.keys, ins.payload, ins.prefix).item_to_key, (std::vector<int>{2}));
+  EXPECT_EQ(violations(s, {row1, iota_row(50, 7), {7}}), 0);
+  // An empty tree has nothing to compact.
+  cbst_store empty(res, "empty", 16);
+  empty.construct(nullptr, nullptr, 0, nullptr, 0);
+  EXPECT_EQ(empty.compact(), 0);
+}
+
+// Compacted rows can need more slots than the payload has (a surplus row of 4 values takes 5
+// slots, compacted 8): a fixed payload throws capacity_error before anything changes (the store is
+// not poisoned); escher_gpu() grows it (A's growth rule) first.
+TEST(CbstMergeCompact, CompactedRowsThatDoNotFit) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  for (const store_policy& policy :
+       {store_policy::mosp_escher_staged(), store_policy::escher_gpu()}) {
+    SCOPED_TRACE(policy.name);
+    cbst_store s(res, "tight", 4 + 5 + 5, 4, policy);
+    construct_rows(s, {{1}});
+    const batch ins = make_batch({0, 0}, {iota_row(10, 4), iota_row(20, 4)});
+    (void)s.insert(ins.keys, ins.payload, ins.prefix);  // two surplus rows of 5 slots: full
+    ASSERT_EQ(s.context().initial_payload_size, 14);
+    const rows want = {{1}, iota_row(10, 4), iota_row(20, 4)};
+    if (policy.growth == store_policy::growth_rule::none) {
+      EXPECT_THROW((void)s.compact(), capacity_error);
+      EXPECT_FALSE(s.poisoned());
+      EXPECT_EQ(s.context().initial_payload_size, 14);
+      EXPECT_EQ(violations(s, want), 0);
+    } else {
+      EXPECT_EQ(s.compact(), 4 + 8 + 8);
+      EXPECT_GE(s.context().fixed_size, 20);
+      EXPECT_EQ(violations(s, want), 0);
+    }
+  }
+}
+
 // --- (e) The integrity checks --------------------------------------------------------------------
 
 /// A tree with chained, deleted, reused and surplus rows.

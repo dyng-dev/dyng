@@ -307,6 +307,51 @@ struct tree_run {
   layout_snapshot trace_before, store_before;
 };
 
+// The values of an input array (false: hash only).
+bool input(const tr::record& rec, tr::reader& in, const std::string& name,
+           std::vector<std::int32_t>& out, std::string& missing) {
+  const tr::field* f = rec.find(name);
+  if (f == nullptr || f->kind != tr::field::type::array) {
+    out.clear();
+    return true;
+  }
+  if (f->array.kind == tr::array_field::storage::hash_only) {
+    missing += (missing.empty() ? "" : ", ") + name;
+    return false;
+  }
+  out = in.ints(f->array);
+  return true;
+}
+
+}  // namespace
+
+bool decode_op(const tr::record& rec, tr::reader& in, op_request& req, std::string& missing) {
+  req = op_request{};
+  req.op = rec.text("op");
+  const std::string& op = req.op;
+  bool have = true;
+  if (op == "construct" || op == "rebuild") {
+    have &= input(rec, in, "in.keys", req.keys, missing);
+    have &= input(rec, in, "in.start_offsets", req.starts, missing);
+    have &= input(rec, in, "in.flat_payload", req.flat, missing);
+    req.num_records = rec.integer("in.num_records");
+    req.flat_size = rec.integer("in.flat_payload_size");
+    req.capacity = rec.integer("in.capacity");
+    req.alignment = rec.integer("in.alignment", 4);
+    if (rec.has("in.row_occupancy_null") && rec.integer("in.row_occupancy_null") == 0) {
+      req.has_row_counts = true;
+      have &= input(rec, in, "in.row_occupancy", req.row_counts, missing);
+    }
+  } else if (op != "compact") {
+    have &= input(rec, in, "in.keys", req.keys, missing);
+    have &= input(rec, in, "in.payload", req.payload, missing);
+    have &= input(rec, in, "in.prefix", req.prefix, missing);
+  }
+  return have;
+}
+
+namespace {
+
 class replayer {
  public:
   replayer(tr::reader& in, store_adapter* store, const store_factory* make_store,
@@ -393,22 +438,6 @@ class replayer {
     }
   }
 
-  // The values of an input array (false: hash only).
-  bool input(const tr::record& rec, const std::string& name, std::vector<std::int32_t>& out,
-             std::string& missing) {
-    const tr::field* f = rec.find(name);
-    if (f == nullptr || f->kind != tr::field::type::array) {
-      out.clear();
-      return true;
-    }
-    if (f->array.kind == tr::array_field::storage::hash_only) {
-      missing += (missing.empty() ? "" : ", ") + name;
-      return false;
-    }
-    out = in_.ints(f->array);
-    return true;
-  }
-
   void stop_tree(tree_run& t, tree_summary& s, const std::string& why) {
     t.unreplayable = true;
     s.unreplayable_reason = why;
@@ -467,34 +496,16 @@ class replayer {
     }
     // Decode the inputs.
     op_request req;
-    req.op = op;
     std::string missing;
-    bool have = true;
-    if (op == "construct" || op == "rebuild") {
-      have &= input(rec, "in.keys", req.keys, missing);
-      have &= input(rec, "in.start_offsets", req.starts, missing);
-      have &= input(rec, "in.flat_payload", req.flat, missing);
-      req.num_records = rec.integer("in.num_records");
-      req.flat_size = rec.integer("in.flat_payload_size");
-      req.capacity = rec.integer("in.capacity");
-      req.alignment = rec.integer("in.alignment", 4);
-      if (rec.has("in.row_occupancy_null") && rec.integer("in.row_occupancy_null") == 0) {
-        req.has_row_counts = true;
-        have &= input(rec, "in.row_occupancy", req.row_counts, missing);
-      }
-      if (have && op == "construct" &&
-          (static_cast<std::int64_t>(req.keys.size()) != req.num_records ||
-           static_cast<std::int64_t>(req.flat.size()) != req.flat_size)) {
-        apply_trace(rec, s, op_index, tree_op, op);
-        stop_tree(t, s, "the construct's arrays do not have the recorded sizes");
-        ++s.unreplayable;
-        ++report_.unreplayable;
-        return;
-      }
-    } else if (op != "compact") {
-      have &= input(rec, "in.keys", req.keys, missing);
-      have &= input(rec, "in.payload", req.payload, missing);
-      have &= input(rec, "in.prefix", req.prefix, missing);
+    const bool have = decode_op(rec, in_, req, missing);
+    if (have && op == "construct" &&
+        (static_cast<std::int64_t>(req.keys.size()) != req.num_records ||
+         static_cast<std::int64_t>(req.flat.size()) != req.flat_size)) {
+      apply_trace(rec, s, op_index, tree_op, op);
+      stop_tree(t, s, "the construct's arrays do not have the recorded sizes");
+      ++s.unreplayable;
+      ++report_.unreplayable;
+      return;
     }
     if (!have) {
       apply_trace(rec, s, op_index, tree_op, op);
@@ -797,6 +808,8 @@ cbst_host_policy staged_host_policy() {
   p.occupancy = cbst_host_policy::occupancy_rule::caller_counts_or_scan;
   // (g) the geometric scratch growth.
   p.scratch = cbst_host_policy::scratch_rule::geometric;
+  // (h) an explicit compact().
+  p.has_compact = true;
   return p;
 }
 

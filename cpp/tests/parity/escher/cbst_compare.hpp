@@ -65,6 +65,17 @@ struct op_request {
   std::int64_t alignment = 4;  ///< construct
 };
 
+/**
+ * @brief Decodes the inputs of an operation record of a trace.
+ * @param[in] rec      The record.
+ * @param[in,out] in   Its reader (the side file of digest-mode traces).
+ * @param[out] req     The operation.
+ * @param[out] missing The inputs recorded as hashes only (appended, comma separated).
+ * @return false if an input is a hash only (the operation cannot be replayed).
+ */
+bool decode_op(const cbst_trace::record& rec, cbst_trace::reader& in, op_request& req,
+               std::string& missing);
+
 /// How a store's operation ended.
 enum class op_status { ok, error, process_exit, undefined, unsupported };
 

@@ -174,6 +174,7 @@ dyng_add_module(
   CUDA_SOURCES
     src/hypergraph/escher/build_tree.cu
     src/hypergraph/escher/cbst_store.cu
+    src/hypergraph/escher/compact.cu
     src/hypergraph/escher/delete_avail.cu
     src/hypergraph/escher/find.cu
     src/hypergraph/escher/insert_reuse.cu

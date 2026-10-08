@@ -1,12 +1,13 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from MOSP_ESCHER@4b86159:escher/kernel/find.cu (readFlat, the bounded chain walk)
+// Derived from MOSP_ESCHER@4b86159:escher/kernel/payload.cu (warpWalkRow)
 // Derived from ESCHER-GPU@abcf9b2:kernel/motif_utils.cuh (readFlat)
 /**
  * @file chain.cuh
  * @brief The one bounded walk of a CBST row along its chain of payload segments (M8a step 4,
  *        ADR 0039), used by every reader of the store (the row reads of find, the row locator,
- *        the integrity checker) and by the unfill writer.
+ *        the integrity checker, the compaction's warp walk) and by the unfill writer.
  *
  * A row is read from its first slot: a value > 0 belongs to the row, 0 or INT_MIN ends it, any
  * other negative value -p continues it at slot p (README.md, "The payload"). ESCHER-GPU's readFlat
@@ -76,5 +77,52 @@ __host__ __device__ inline chain_end walk_chain(flat_t&& flat, long long used, l
                                                 value_t&& value) {
   return walk_chain(flat, used, base, value, [](long long, long long, int) {});
 }
+
+#ifdef __CUDACC__
+/**
+ * @brief The same walk by one warp, 32 slots at a time (MOSP_ESCHER's warpWalkRow,
+ *        escher/kernel/payload.cu@4b86159:338-366, used by the compaction): copies the values of
+ *        the row to `dst` (when not null, at dst[0..count)) and returns their number in every
+ *        lane, or -1 for a broken chain (a read outside the used payload ends the row in
+ *        MOSP_ESCHER's walk, and it had no bound on the hops; here both are overruns). All 32
+ *        lanes of the warp must call it.
+ * @param flat The payload.
+ * @param used The slots in use.
+ * @param base The row's first slot.
+ * @param dst  Where the values go, or nullptr.
+ * @return The number of values, or -1.
+ */
+__device__ inline int warp_walk_chain(const int* flat, long long used, long long base, int* dst) {
+  const int lane = threadIdx.x & 31;
+  int count = 0;
+  long long seg = base, c = 0, steps = 0;
+  for (;;) {
+    const long long p = seg + c + lane;
+    const bool outside = p < 0 || p >= used;
+    const int v = outside ? 0 : flat[p];
+    const unsigned end_mask = __ballot_sync(0xFFFFFFFFu, v <= 0);
+    const unsigned outside_mask = __ballot_sync(0xFFFFFFFFu, outside);
+    const int n = end_mask ? __ffs(end_mask) - 1 : 32;
+    // The end of the row (or of the 32 slots) must lie inside the payload, and no walk reads more
+    // slots than the payload has.
+    if ((end_mask ? (outside_mask >> n) & 1U : outside_mask) != 0U) return -1;
+    steps += n + (end_mask ? 1 : 0);
+    if (steps > used) return -1;
+    if (dst != nullptr && lane < n) dst[count + lane] = v;
+    count += n;
+    if (end_mask == 0) {
+      c += 32;
+      continue;
+    }
+    const int end_value = __shfl_sync(0xFFFFFFFFu, v, n);
+    if (end_value < 0 && end_value != INT_MIN) {
+      seg = -static_cast<long long>(end_value);
+      c = 0;
+    } else {
+      return count;
+    }
+  }
+}
+#endif
 
 }  // namespace dyng::detail::escher

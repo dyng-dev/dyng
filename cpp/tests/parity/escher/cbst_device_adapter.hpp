@@ -36,9 +36,11 @@ class device_store_adapter final : public store_adapter {
   /**
    * @brief Every tree runs under the named store policy.
    * @param[in] policy A preset of store_policy::from_name() ("escher_gpu", "mosp_escher_staged").
+   * @param[in] allow_compact Run compact() under escher_gpu() too (ESCHER-GPU had no compact(), so
+   *            a replay of a trace under it reports the operation as unsupported by default).
    * @throws cbst_trace::trace_error for an unknown policy.
    */
-  explicit device_store_adapter(std::string policy);
+  explicit device_store_adapter(std::string policy, bool allow_compact = false);
   ~device_store_adapter() override;
   device_store_adapter(const device_store_adapter&) = delete;
   device_store_adapter& operator=(const device_store_adapter&) = delete;
@@ -75,6 +77,7 @@ class device_store_adapter final : public store_adapter {
 
  private:
   std::string policy_;
+  bool allow_compact_ = false;
   resources res_;  ///< every tree's store runs on these (resources::cuda())
   std::map<std::uint32_t, std::unique_ptr<tree>> trees_;
   std::array<std::int64_t, 9> total_bins_{};

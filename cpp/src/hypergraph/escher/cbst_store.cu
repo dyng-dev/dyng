@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu
 // Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (constructCBST validation, the
-// caller's row counts, ensureScratchCapacity)
+// caller's row counts, ensureScratchCapacity, compactCBST)
 /**
  * @file cbst_store.cu
  * @brief The host side of the CBST store: construction, rebuild, best-fit insert with the surplus
@@ -1001,6 +1001,29 @@ void cbst_store::remove_values(const std::vector<int>& keys_to_unfill,
           [&] { unfill_cbst(keys_to_unfill, values_to_remove, remove_prefix_sizes, ctx_); });
 }
 
+int cbst_store::compact() {
+  const scoped_device guard(ctx_.res.device());
+  scoped_stage stage(ctx_.res, "hypergraph.cbst.compact");
+  check_not_poisoned("compact");
+  if (!constructed_) {
+    throw invalid_argument_error("dyng: CBST " + ctx_.dataset_name +
+                                 ": compact before construct or rebuild_from_device");
+  }
+  const int bump = ctx_.initial_payload_size;
+  const int capacity = ctx_.fixed_size;
+  try {
+    return compact_cbst(ctx_);
+  } catch (const capacity_error&) {
+    // The compacted rows do not fit a payload that cannot grow: thrown before anything changed.
+    if (ctx_.initial_payload_size == bump && ctx_.fixed_size == capacity) throw;
+    poisoned_ = true;
+    throw;
+  } catch (...) {
+    poisoned_ = true;
+    throw;
+  }
+}
+
 // A device copy of one array of a context into the matching array of another (same size).
 template <typename value_t>
 static void copy_array(cbst_context& to, buffer<value_t>& to_storage, value_t*& to_view,
@@ -1212,6 +1235,68 @@ size_t cbst_store::device_bytes() const {
          static_cast<size_t>(ctx_.fixed_size) * sizeof(int) +
          static_cast<size_t>(ctx_.scratch_item_capacity) * 5 * sizeof(int) +
          static_cast<size_t>(ctx_.scratch_payload_capacity) * sizeof(int);
+}
+
+int compact_cbst(cbst_context& ctx) {
+  const int n = ctx.num_records;
+  if (n <= 0 || ctx.d_nodes == nullptr) return ctx.initial_payload_size;
+  const int block_size = 256;
+  const int warp_blocks = static_cast<int>((32LL * n + block_size - 1) / block_size);
+  const long long limit = ctx.initial_payload_size;
+
+  // Pass 1: live values and compacted slots per row; offsets by key order.
+  temp_buffer<int> live_count(ctx.res, n);
+  temp_buffer<long long> offsets(ctx.res, static_cast<size_t>(n) + 1);
+  DYNG_CUDA_TRY(cudaMemsetAsync(offsets.get() + n, 0, sizeof(long long), stream_of(ctx)));
+  compact_sizes_kernel<<<warp_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, ctx.d_avail, n, ctx.d_flat_payload, limit, live_count.get(), offsets.get(),
+      ctx.d_control);
+  DYNG_CHECK_KERNEL(stream_of(ctx));
+  thrust::device_ptr<long long> off_ptr(offsets.get());
+  thrust_allocator alloc(ctx.res);
+  thrust::exclusive_scan(thrust_policy(ctx.res, alloc), off_ptr, off_ptr + n + 1, off_ptr);
+  long long total = 0;
+  DYNG_CUDA_TRY(cudaMemcpyAsync(&total, offsets.get() + n, sizeof(long long),
+                                cudaMemcpyDeviceToHost, stream_of(ctx)));
+  synchronize(ctx);  // the read point (and a broken chain of pass 1 throws here)
+  if (total > INT_MAX) {
+    throw capacity_error("dyng: CBST " + ctx.dataset_name + ": the compacted rows need " +
+                         std::to_string(total) +
+                         " payload slots, more than the int32 offsets of the CBST hold");
+  }
+  // MOSP_ESCHER threw when the compacted rows exceed the capacity; dynG grows the payload by the
+  // policy first (capacity_error without growth), before anything changed.
+  ensure_payload_capacity(ctx, total);
+
+  // Pass 2: copy every row into a zeroed buffer at its new offset, then back to the front of the
+  // payload; the rest of the used prefix is cleared so the tail beyond the new bump pointer is
+  // zero again.
+  temp_buffer<int> compacted(ctx.res, static_cast<size_t>(total));
+  ctx.compaction_temp_bytes =
+      std::max(ctx.compaction_temp_bytes,
+               static_cast<long long>(std::max<long long>(total, 1) * sizeof(int) +
+                                      (static_cast<long long>(n) + 1) * sizeof(long long) +
+                                      static_cast<long long>(n) * sizeof(int)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(compacted.get(), 0, static_cast<size_t>(total) * sizeof(int),
+                                stream_of(ctx)));
+  compact_copy_kernel<<<warp_blocks, block_size, 0, stream_of(ctx)>>>(
+      ctx.d_nodes, ctx.d_avail, n, ctx.d_flat_payload, limit, live_count.get(), offsets.get(),
+      compacted.get(), ctx.d_start_offsets);
+  DYNG_CHECK_KERNEL(stream_of(ctx));
+  DYNG_CUDA_TRY(cudaMemcpyAsync(ctx.d_flat_payload, compacted.get(),
+                                static_cast<size_t>(total) * sizeof(int), cudaMemcpyDeviceToDevice,
+                                stream_of(ctx)));
+  if (total < limit)
+    DYNG_CUDA_TRY(cudaMemsetAsync(ctx.d_flat_payload + total, 0,
+                                  static_cast<size_t>(limit - total) * sizeof(int),
+                                  stream_of(ctx)));
+  ctx.initial_payload_size = static_cast<int>(total);
+  ++ctx.compactions;
+  if (log_enabled(log_level::debug))
+    log_message(log_level::debug, "dyng: CBST " + ctx.dataset_name + ": compacted " +
+                                      std::to_string(limit) + " payload slots to " +
+                                      std::to_string(total));
+  return ctx.initial_payload_size;
 }
 
 void unfill_cbst(const std::vector<int>& keys_to_unfill, const std::vector<int>& values_to_remove,
