@@ -91,7 +91,8 @@ every traced run) and `printVector`, removed by c2.
   throws `invalid_argument_error` until `construct` or `rebuild_from_device`. A tree that was
   never constructed rejects operations the same way.
 - No kernel of A detects a contract violation, so the device error word has no user in this
-  step; B's bounded chain walker (step 4) will raise it.
+  step; B's bounded chain walker (step 4) will raise it. (Step 4, ADR 0039: the store's control
+  block holds the word; broken chains and items on dead or absent keys raise it.)
 
 ### 4. Memory (c3) and accounting
 
@@ -140,7 +141,8 @@ replay compares per operation.
 
 - **The empty tree:** construct with 0 records allocates the payload; insert reads no D and
   builds the tree from its surplus rows; the level reduction of an empty tree does nothing (A
-  launched 0 blocks); append, erase and remove_values change nothing.
+  launched 0 blocks); append, erase and remove_values change nothing. (Step 4, ADR 0039 section
+  5: append and remove_values items name absent keys there, and throw `internal_error`.)
 - **Clone:** an independent deep copy on any resources (event-ordered with the source's stream
   both ways); the nodes' absolute pointers are re-wired (`rewire_tree_kernel`).
 - **Download:** the state on the host, the pointers as heap positions; the replay adapter reads
@@ -180,6 +182,16 @@ the small sets. Racecheck sees shared memory only; the global-memory hazard of t
 (two items naming one row in one fill or unfill) is undefined in both and in the host model
 (ADR 0037) and occurs in no trace. Two stores on two non-blocking streams, interleaved without
 host synchronization, equal a sequential run; a replay run twice gives identical digests.
+
+## Later changes
+
+M8a step 4 (ADR 0039) merges MOSP_ESCHER's behaviours on top of this port, one per commit, and
+lists every deviation from B's literal code there (section 2): the construct validation, the fill
+clamps (dynG clamps the occupancy, B the room), the caller row counts (never B's `nullptr`), the
+chain walk bounded by the used payload instead of B's 1,024 hops, the integrity checks, `rows()`,
+the scratch rule, `compact()` (growth or `capacity_error` instead of `EscherError`), the storage
+counters (no process-global mempool setting) and the rule for dead or absent keys. A's traces
+still match in the `exact` field set after each of them.
 
 ## Consequences
 

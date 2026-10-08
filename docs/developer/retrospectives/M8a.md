@@ -254,3 +254,98 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
 - `cbst_store.hpp` still includes `<cuda_runtime.h>` (as A's `structure.hpp`); the container of
   M8b, compiled by the host compiler in CPU builds, needs a host-only facade or a forward-declared
   context.
+
+## Step 4: MOSP_ESCHER's behaviours, part 1 (merge-invariant)
+
+### What was built
+
+- Ten behaviours of MOSP_ESCHER@4b86159 merged into the store, one per commit (ADR 0039): (a)
+  construct validation; (b) the fill clamps; (c) caller row counts as a fast path of construct;
+  (d) one bounded chain walk, `chain.cuh`, for every reader and the unfill writer; (e) B's
+  integrity checks and dynG's index checks; (f) `rows()` (B's `find.cu`) and B's `delete_avail.cu`
+  comment; (g) the scratch growth rule; (h) an explicit `compact()` (`compact.cu`); (i) the storage
+  counters (`stats()`, B's accounting scope) without B's process-global mempool setting; (j) a rule
+  for appends and removals on dead or absent keys. (k), the disposition of every other differing
+  file, is ADR 0039 section 6 (`atomicAdd_sll` verified unused and not ported).
+- The store's control block: PLAN 4.7.3's device error word, its counters and a pinned mirror
+  read back with every read point; `check_errors()`.
+- The harness: the staging preset `mosp_escher_staged()` and its host-model twin
+  (`staged_host_policy()`), so that B's traces are judged after every commit; the merge-step rows
+  list the first divergences by field; every construct of every replay built both ways (twin
+  constructs); the replay compares three integrity checks; `decode_op` shared by the replay and the
+  new compact-after-every-op lockstep (`dyng_cbst_compact_tests`, `dyng_cbst_compact_large_tests`).
+- 23 new tests (17 in `cbst_merge_test.cpp`; the twin constructs, the lockstep (2), the validation, the staging preset and the scratch rules), the merge-step table (`parity/results/M8a.md`,
+  section 12), ADR 0039, the store README and ADR 0038 updated.
+
+### Deviations from the step's text (each with the same intent)
+
+28. **A staging preset.** The step asks for B's sets "under the most complete B preset of that
+    commit"; there was no B preset before step 5, so `store_policy::mosp_escher_staged()` (B's
+    behaviours merged so far, B's fixed capacity, no automatic compaction) is that preset, and the
+    comparator's `staged_host_policy()` gives the host model the same behaviours. Each commit then
+    shows B's divergences moving: 50 + 7 trees before, 18 + 4 after (only automatic compaction and
+    the constructs without row counts remain). Step 5 replaces the preset by `mosp_escher()`.
+29. **Harness commits in the table.** `2bc0e24` (the staging preset), `1e01ad8` (the rows by
+    field) and `4402fcf` (the provenance identifiers) change no store behaviour; they have rows of
+    their own.
+30. **The chain bound** is the used payload, not B's 1,024 hops (as the step asks; ADR 0039
+    section 3): the longest chain of any trace is 98 hops, so no trace changes, and the stop
+    condition (B's bound observable in its own traces) does not apply.
+31. **The clamps go further than B's literal code:** dynG clamps the occupancy (the write position
+    and an overflow's chain pointer stay in the segment), B only the room; the warp and block unfill
+    kernels clamp it too. Only inconsistent metadata is affected; no trace state has it.
+32. **The device error word is a control block** of 4 words outside ESCHER-GPU's accounting scope:
+    `device_bytes()` must stay A's `deviceBytes()` (criterion 10(a)) and `allocated_bytes()` keeps
+    its scope; the accounting test counts the block separately.
+33. **Dead or absent keys:** the rule chosen of the two the step offers is "count them and surface
+    them as internal_error at the next existing sync point"; the items are also skipped (nothing is
+    written). An empty tree's append and remove_values now throw (ADR 0038 had them change
+    nothing); the test was changed accordingly.
+34. **Caller counts** are also range-checked on the host (dynG; B trusted them), and the Debug check
+    against the scan costs one synchronization in Debug builds only. A's traces have no counts:
+    their twin constructs use counts computed on the host.
+35. **`compact()` grows or throws `capacity_error`** where B threw `EscherError`, before anything
+    changed (not poisoning); a traced `compact()` is unsupported under `escher_gpu()` (A had none),
+    except in the lockstep, which enables it.
+36. **The host model's `compact()`** already existed (step 2 wrote it from B's `compactCBST`,
+    independently of the store); the step uses it as the oracle of the lockstep instead of adding a
+    second one.
+37. **Validation:** a capacity below the payload is now rejected for a tree of 0 records too (B's
+    rule; step 3 allowed it), and a record count above `INT_MAX / 3` is a `capacity_error` (dynG:
+    the scratch's int32 indexing).
+38. **The integrity checks in the replay:** `check.subtree_avail` is compared with B's recorded
+    verdict and with 0 for A's states (A had no such check); `check.index` (dynG's) with 0.
+39. **Per-commit checks:** before each commit the CUDA build, `ctest -L cbst -LE slow`, memcheck on
+    the touched tests (and racecheck after (d) and (h)) and the fast `ci/check.sh` steps (format,
+    reuse, provenance, pre-commit); the replays right after each commit (a temporary worktree
+    needs the commit); the full `ci/check.sh`, the portability checks and the large sets at the
+    end of the step.
+40. **The 11 `test_cbst_smoke` constructs without row counts** stay listed divergences: B's
+    `nullptr` path (occupancy 0) is never merged; step 5 must document them for criterion 10(b).
+41. **ADR number** 0039. The scratch rule of dynG's default preset (step 5) is chosen here:
+    geometric.
+
+### Measurements
+
+- A commit of the merge-step table takes about 8-10 minutes (the reduced Release build and the
+  small sets under both presets; GPU 1, shared with the 0.2.0 release's test runs).
+- The compact-after-every-op lockstep over the four small sets takes 211 s (Release, GPU 1):
+  15,385 ops, 15,383 compactions.
+- Racecheck over `dyng_cbst_store_tests` takes about 170 s (the 2^24-key layout and the new
+  2,000-segment row).
+
+### Notes for step 5 (automatic compaction and the presets)
+
+- Replace `mosp_escher_staged()` by `mosp_escher()` (`store_policy::compaction_rule`: B's trigger
+  points in `fillImpl` and `insertCBST`, ADR 0039 section 2 (h) gives the kernels) and its
+  host-model twin by the model's `mosp_escher()`; `compare.py`'s `against_model` then stops
+  judging B's sets against the model.
+- Map `escher::EscherError` to the dynG exception of each throw site in the comparator (construct
+  validation: `invalid_argument_error`; fill, insert, compact capacity: `capacity_error`).
+- Document the 11 `rowOccupancy = nullptr` constructs of `test_cbst_smoke` (B's legacy occupancy
+  0, never merged) as a divergence class, or criterion 10(b) cannot hold for them.
+- dynG's default: compact first, then grow (A's rule), the geometric scratch, `capacity_error` only
+  at the int32 offsets or on OOM; `cbst_host_policy::dyng_default()` must be aligned with it.
+- The mutations of criterion 17 that touch this part (compaction padding, surplus padding, the
+  tie order, requested keys) can use `dyng_cbst_compact_tests` and the replays: a changed
+  compaction padding fails the lockstep.

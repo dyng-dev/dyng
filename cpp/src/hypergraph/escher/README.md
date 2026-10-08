@@ -13,7 +13,9 @@ proves it is ADR 0036 / 0037 and `parity/results/M8a.md`.
 |---|---|
 | `cbst_store.{hpp,cu}`, `build_tree.cu`, `payload.cu`, `insert_reuse.cu`, `delete_avail.cu`, `unfill.cu`, `find.cu`, `kernels.cuh`, `device_utils.cuh`, `row_view.cuh`, `locator.cu`, `integrity.{hpp,cu}`, `flatten.{hpp,cpp}` | ESCHER-GPU@abcf9b2 (A), transplanted in commit c1 (`parity/escher_port/transplant.py` regenerates it) and changed since by one class of mechanical change per commit (errors, memory, streams, registration and counters) |
 | the empty tree, `clone()` and `rewire_tree_kernel`, `download()`, `allocated_bytes()`, poisoning, `launch_build_layout` / `launch_extract_keys_from_positions`, `store_policy` (A's numbers) | dynG (M8a step 3) |
-| MOSP_ESCHER@4b86159's (B) behaviours: construct validation, the fill clamps, caller row counts, the bounded chain walker (`chain.cuh`), its integrity checks, compaction (`compact.cu`), the presets `mosp_escher()` and dynG's default | M8a steps 4-5 |
+| MOSP_ESCHER@4b86159's (B) behaviours, merged one per commit (ADR 0039 lists every deviation from B's literal code): construct validation (`validate_construct`), the fill clamps (`payload.cu`), caller row counts (`set_initial_occupancy_kernel` in `build_tree.cu`), the bounded chain walk (`chain.cuh`, B's `readFlat` and `warpWalkRow`), its integrity checks (`check_subtree_avail`), the scratch growth rule, `compact()` (`compact.cu`, B's compaction kernels), B's accounting scope in `stats()` | M8a step 4 |
+| the control block (the device error word), `check_errors()`, `rows()`, `check_tree_index`, the rule for dead or absent keys (`lookup.cuh`), the staging preset `mosp_escher_staged()` | dynG (M8a step 4) |
+| B's automatic compaction, the presets `mosp_escher()` and dynG's default | M8a step 5 |
 
 ESCHER-GPU's `include/binning.hpp` and `utils/binning.cpp` are dead code (no object of its
 Makefile builds them) and are not ported; the degree binning of the store is `degree_bins` in
@@ -61,7 +63,11 @@ slots below it are in use, slots above it are 0). A slot holds
 | `INT_MIN` | the terminator: the row ends here |
 | `< 0`, not `INT_MIN` | a chain pointer: the row continues at slot `-v` (an overflow segment appended by a fill) |
 
-A row is read from `value` along its chain until 0 or `INT_MIN`.
+A row is read from `value` along its chain until 0 or `INT_MIN`. Every reader and the unfill
+writer walk it with `chain.cuh`, bounded by the used payload: a walk that reads more slots than
+`initial_payload_size` or leaves the used prefix is a broken chain, which raises the device error
+word (below); a row is never truncated (B's literal 1,024-hop bound is not ported: under
+`escher_gpu()` a legitimate V2H row can have more hops; ADR 0039, section 3).
 
 **The three padding rules.**
 
@@ -81,7 +87,9 @@ terminator); this capacity decides which items a deleted slot can take.
 ## The operations
 
 - **construct** (A's `constructCBST`): the tree over a flattened layout; the occupancy of every
-  row is scanned from the payload (`init_tail_metadata_kernel`). A capacity below the payload is
+  row is scanned from the payload (`init_tail_metadata_kernel`), or taken from the caller's row
+  counts (B's `rowOccupancy`, a fast path with the same nodes; never B's `nullptr`, occupancy 0).
+  B's validation runs first: negative sizes, a capacity below the payload and null arrays are
   rejected (`invalid_argument_error`) before anything is allocated (A printed "Overflow" and kept
   a tree without nodes). A tree of 0 records is valid (dynG; both originals broke on it).
 - **rebuild_from_device** (A's `rebuildCBSTFromDevice`): the tree over row offsets and a payload
@@ -110,6 +118,22 @@ terminator); this capacity decides which items a deleted slot can take.
   of removals: the thread kernel walks the whole chain (`unfill_row_serial`); the warp and block
   kernels compact the first `occupancy` slots of a one-segment row in parallel (and fall back to
   the serial walk for a chained row).
+- **compact** (B's `compactCBST`; explicit in M8a step 4): every row rewritten as one segment in
+  key order: a live row of `L` values takes `(L + 4) / 4 * 4` slots (construct padding, rule 1), a
+  deleted row keeps its first segment of `length` slots, emptied, and drops its chain; keys, node
+  positions and avail do not change; the bump pointer moves to the compacted size. A payload too
+  small for the compacted rows grows by the policy (or `capacity_error`, nothing changed).
+- **rows** (A's and B's `findContents`, which printed them): the rows of keys, read along their
+  chains.
+
+**Dead and absent keys.** An append or remove_values item naming a key that is not in the tree, or
+whose node is deleted, is skipped and counted, and raises the device error word (dynG's rule; the
+originals skipped absent keys silently and wrote to deleted rows); erase ignores absent keys.
+
+**The device error word** (the control block, PLAN 4.7.3): a broken chain or a rejected item
+sets it on the device; every read point copies it back with its synchronization and throws
+`internal_error`, poisoning the store; `check_errors()` is the read point of erase and
+remove_values, which have none.
 
 Every operation runs on the stream of the store's `resources` (kernels, copies, Thrust with
 `par_nosync`), allocates from their memory resource, and synchronizes the host only at A's read
@@ -123,10 +147,18 @@ later operation throws until it is constructed or rebuilt.
 | preset | initial capacity (the container's choice) | a full payload | compaction |
 |---|---|---|---|
 | `escher_gpu()` | in-place trees (H2V, V2H) `max(requested, size + size/8 + 1024)`; merged trees (H2H, V2V) their exact size | grows to `max(needed + needed/4, 3 * capacity / 2)`, at most `INT_MAX`, then `capacity_error` | never |
-| `mosp_escher()` | (step 4) `flat * 1.3 + extra`, at most 2.0e9 | compacts at B's trigger points, then throws | B's |
+| `mosp_escher_staged()` (M8a step 4 only) | the replay's | `capacity_error` (B's fixed capacity, before its automatic compaction is merged) | explicit `compact()` only |
+| `mosp_escher()` | (step 5) `flat * 1.3 + extra`, at most 2.0e9 | compacts at B's trigger points, then throws | B's |
 | dynG default | (step 5) | compacts first, then grows; `capacity_error` only at the int32 offset limit or on OOM | first |
+
+The operation scratch grows to an operation's size under `escher_gpu()` (A's `reserveScratch`) and
+geometrically (+n/2+1 steps, B's `ensureScratchCapacity`) under the MOSP_ESCHER presets and, from
+step 5, dynG's default.
 
 `device_bytes()` is ESCHER-GPU's `deviceBytes()`: `num_records x (56 + 4 x 4)` bytes for the
 nodes, keys, row offsets, avail and subtree_avail, the payload capacity, and the operation scratch
 (`5 x scratch_item_capacity + scratch_payload_capacity` ints); `allocated_bytes()` is what the
 store holds in that scope, equal to it once the tree is constructed.
+(`stats()` also gives MOSP_ESCHER's `escherDeviceBytes()` scope, without the scratch, the payload
+capacity and use, growths, compactions and the path counters; the control block is in neither
+scope.)

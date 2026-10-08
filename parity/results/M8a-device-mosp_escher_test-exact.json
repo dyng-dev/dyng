@@ -5,9 +5,9 @@
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "$DYNG_SCRATCH/m8a/merge-steps/wt-7e397a2/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T00:12:06+00:00",
- "head": "7e397a2f165ff5fb318e70beb0911a2fa4cc3780",
+ "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T02:20:06+00:00",
+ "head": "be449b65a021e230da5337276f5c87515179452d",
  "cases": [
   {
    "case": "001-test_cbst_smoke",
@@ -25,6 +25,7 @@
    "exceptions": 0,
    "mismatch_count": 1189,
    "documented": [],
+   "twin_constructs": 11,
    "first_divergences": {
     "1": [
      0,
@@ -88,6 +89,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 1107,
    "first_divergences": {}
   },
   {
@@ -106,6 +108,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 1,
    "first_divergences": {}
   },
   {
@@ -124,6 +127,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 1,
    "first_divergences": {}
   },
   {
@@ -142,6 +146,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 1,
    "first_divergences": {}
   },
   {
@@ -160,6 +165,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 1,
    "first_divergences": {}
   },
   {
@@ -178,6 +184,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 1,
    "first_divergences": {}
   },
   {
@@ -196,6 +203,7 @@
    "exceptions": 0,
    "mismatch_count": 1,
    "documented": [],
+   "twin_constructs": 1,
    "first_divergences": {
     "1": [
      5,
@@ -219,6 +227,7 @@
    "exceptions": 0,
    "mismatch_count": 3,
    "documented": [],
+   "twin_constructs": 3,
    "first_divergences": {
     "1": [
      8,
@@ -250,6 +259,7 @@
    "exceptions": 0,
    "mismatch_count": 8324,
    "documented": [],
+   "twin_constructs": 4,
    "first_divergences": {
     "1": [
      1,
@@ -285,6 +295,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 6,
    "first_divergences": {}
   },
   {
@@ -303,6 +314,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "first_divergences": {}
   },
   {
@@ -321,6 +333,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 78,
    "first_divergences": {}
   },
   {
@@ -339,6 +352,7 @@
    "exceptions": 0,
    "mismatch_count": 4,
    "documented": [],
+   "twin_constructs": 45,
    "first_divergences": {
     "12": [
      17,
@@ -374,6 +388,7 @@
    "exceptions": 0,
    "mismatch_count": 34459,
    "documented": [],
+   "twin_constructs": 84,
    "first_divergences": {
     "18": [
      3,
@@ -437,6 +452,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "first_divergences": {}
   },
   {
@@ -455,6 +471,7 @@
    "exceptions": 0,
    "mismatch_count": 11,
    "documented": [],
+   "twin_constructs": 150,
    "first_divergences": {
     "9": [
      1,
@@ -518,6 +535,7 @@
    "exceptions": 0,
    "mismatch_count": 2,
    "documented": [],
+   "twin_constructs": 60,
    "first_divergences": {
     "21": [
      1,
@@ -545,6 +563,7 @@
    "exceptions": 0,
    "mismatch_count": 1,
    "documented": [],
+   "twin_constructs": 24,
    "first_divergences": {
     "24": [
      4,
@@ -568,6 +587,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "first_divergences": {}
   },
   {
@@ -586,6 +606,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "first_divergences": {}
   },
   {
@@ -604,6 +625,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 600,
    "first_divergences": {}
   },
   {
@@ -622,6 +644,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 600,
    "first_divergences": {}
   },
   {
@@ -640,6 +663,7 @@
    "exceptions": 0,
    "mismatch_count": 2,
    "documented": [],
+   "twin_constructs": 600,
    "first_divergences": {
     "223": [
      3,
@@ -663,7 +687,8 @@
   "compactions": 5,
   "exceptions": 0,
   "mismatch_count": 43996,
-  "documented": 0
+  "documented": 0,
+  "twin_constructs": 3390
  },
  "problems": [],
  "against_model": true,

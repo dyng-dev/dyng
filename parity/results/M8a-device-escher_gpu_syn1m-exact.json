@@ -5,9 +5,9 @@
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "$DYNG_SCRATCH/m8a/merge-steps/wt-7e397a2/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T00:13:21+00:00",
- "head": "7e397a2f165ff5fb318e70beb0911a2fa4cc3780",
+ "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T02:21:51+00:00",
+ "head": "be449b65a021e230da5337276f5c87515179452d",
  "cases": [
   {
    "case": "syn1m_b50k_s1",
@@ -25,6 +25,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 0,
    "unreplayable_trees": [
     {
      "tree": 1,
@@ -63,6 +64,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 0,
    "unreplayable_trees": [
     {
      "tree": 1,
@@ -101,6 +103,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 0,
    "unreplayable_trees": [
     {
      "tree": 1,
@@ -135,7 +138,8 @@
   "compactions": 0,
   "exceptions": 0,
   "mismatch_count": 0,
-  "documented": 0
+  "documented": 0,
+  "twin_constructs": 0
  },
  "problems": [],
  "against_model": false,

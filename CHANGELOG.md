@@ -20,6 +20,14 @@ Before 0.1.0 anything may change.
   `store_policy::escher_gpu()`. It replays ESCHER-GPU's CBST traces in every recorded field
   (`parity/compare.py cbst_trace --store device`); `parity/escher_port/transplant.py` regenerates
   its first commit from the original.
+- M8a (internal): **MOSP_ESCHER@4b86159's CBST behaviours merged into the store** (ADR 0039):
+  construct validation, the fill clamps, caller row counts as a fast path of construct, one
+  bounded chain walk for every reader and the unfill writer (bounded by the used payload; a
+  broken chain raises the store's device error word, `internal_error` at the next read point), its
+  integrity checks and dynG's checks of the index arrays, `rows()`, the scratch growth rule, an
+  explicit `compact()`, storage counters (`stats()`), `check_errors()`, and a defined rule for
+  appends and removals on dead or absent keys; the staging preset `mosp_escher_staged()` of the
+  merge steps.
 - M8a: **`dyng::testing::cbst_host_model`** (`dyng/testing/cbst_host_model.hpp`, ADR 0037), a
   sequential host model of the ESCHER CBST store of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159
   (best-fit reuse, surplus keys and the rebuild, fill overflow segments, unfill, A's growth, B's

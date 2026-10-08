@@ -5,9 +5,9 @@
  "store": "device",
  "policy": "the original's preset",
  "fields": "exact",
- "exe": "$DYNG_SCRATCH/m8a/merge-steps/wt-7e397a2/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T00:11:24+00:00",
- "head": "7e397a2f165ff5fb318e70beb0911a2fa4cc3780",
+ "exe": "/home/sskg8/Projects/dyng-work/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T02:19:25+00:00",
+ "head": "be449b65a021e230da5337276f5c87515179452d",
  "cases": [
   {
    "case": "001-main",
@@ -25,6 +25,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -44,6 +45,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -63,6 +65,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -82,6 +85,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -101,6 +105,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -120,6 +125,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -139,6 +145,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -158,6 +165,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -177,6 +185,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -196,6 +205,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -215,6 +225,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -234,6 +245,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -253,6 +265,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -272,6 +285,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -291,6 +305,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -310,6 +325,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -329,6 +345,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -348,6 +365,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -367,6 +385,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -386,6 +405,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -405,6 +425,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -424,6 +445,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -443,6 +465,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -462,6 +485,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -481,6 +505,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -500,6 +525,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -519,6 +545,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -538,6 +565,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -557,6 +585,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -576,6 +605,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -595,6 +625,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -614,6 +645,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -633,6 +665,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -652,6 +685,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -671,6 +705,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -690,6 +725,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -709,6 +745,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -728,6 +765,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -747,6 +785,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -766,6 +805,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -785,6 +825,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -804,6 +845,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -823,6 +865,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -842,6 +885,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -861,6 +905,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -880,6 +925,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -899,6 +945,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -918,6 +965,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -937,6 +985,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -956,6 +1005,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -975,6 +1025,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -994,6 +1045,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1013,6 +1065,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1032,6 +1085,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1051,6 +1105,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1070,6 +1125,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1089,6 +1145,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1108,6 +1165,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1127,6 +1185,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1146,6 +1205,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1165,6 +1225,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1184,6 +1245,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1203,6 +1265,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1222,6 +1285,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1241,6 +1305,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1260,6 +1325,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1279,6 +1345,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 3,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1298,6 +1365,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1317,6 +1385,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1336,6 +1405,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1355,6 +1425,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1374,6 +1445,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1393,6 +1465,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1412,6 +1485,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   },
@@ -1431,6 +1505,7 @@
    "exceptions": 0,
    "mismatch_count": 0,
    "documented": [],
+   "twin_constructs": 4,
    "unreplayable_trees": [],
    "first_mismatches": []
   }
@@ -1446,7 +1521,8 @@
   "compactions": 0,
   "exceptions": 0,
   "mismatch_count": 0,
-  "documented": 0
+  "documented": 0,
+  "twin_constructs": 240
  },
  "problems": [],
  "against_model": false,

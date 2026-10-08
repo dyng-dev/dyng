@@ -2,7 +2,7 @@
 
 Date: 2026-10-07 onwards. M8a ports the CBST store of ESCHER-GPU@abcf9b2 (A) and merges the
 behaviours of MOSP_ESCHER@4b86159 (B) into it, proven by CBST trace replay against both
-originals (PLAN 6.4.5). Each step adds its section; step 1 (refs-traces) writes sections 1-9, step 2 (host-model) section 10, step 3 (verbatim-port) section 11.
+originals (PLAN 6.4.5). Each step adds its section; step 1 (refs-traces) writes sections 1-9, step 2 (host-model) section 10, step 3 (verbatim-port) section 11, step 4 (merge-invariant) section 12.
 
 | Item | Value |
 |---|---|
@@ -619,4 +619,101 @@ the store. `ci/provenance_check.py` covers the CBST identifiers; every file carr
 | the Clang 18 syntax pass (dev: 222 files; dev-cuda: 304 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed |
 | compile with the ci-cuda12 preset (CUDA 12.9) and with CUDA 13.4 (ci-cuda13), release architectures, warnings as errors (the library and every CBST target) | passed |
 | `ci/gpu_local.sh` (dev-cuda, GPU 1; at `7e397a2` with this section's docs uncommitted) | all 14 steps passed: build, `ctest -L gpu` (486), `ctest -L cpu` (906), the sssp and cycle_count CUDA goldens, memcheck on every GPU executable, synccheck (sssp, mosp, cycle_count), racecheck, the cbst sanitizers (racecheck, synccheck, initcheck), the cbst replays of the small sets, the plugin wheel, clang-tidy |
+| both originals' HEAD and `git status --porcelain` | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |
+
+## 12. Step merge-invariant: MOSP_ESCHER's behaviours, part 1 (criteria 10, 11, parts of 13 and 16; ADR 0039)
+
+The behaviours of B that change no trace of A, merged one per commit (ADR 0039, section 2, cites
+B's lines and lists every deviation from B's literal code). **How each commit is judged**
+(`parity/cbst_merge_steps.sh <commit>`; Release CUDA build of the commit's replay targets, its own
+`dyng_cbst_device_tests`, `compare.py cbst_trace --store device --fields exact` with the commit's
+tool, GPU 1):
+
+- **A's sets under `escher_gpu()`**: identical in the `exact` field set (criterion 10(a) and
+  more: offsets, occupancy, tail capacity, `device_bytes()` = A's `deviceBytes()`, per-op
+  degree-bin launches, the integrity verdicts), the one documented divergence of ADR 0038 apart.
+- **B's sets under `escher_gpu()`** and, from `2bc0e24`, **under the staging preset
+  `mosp_escher_staged()`** (B's behaviours merged so far, B's fixed capacity, no automatic
+  compaction yet): every tree diverges at exactly the op and in exactly the field where the host
+  model under the same preset does (criterion 10(b): every listed divergence is caused by a
+  behaviour not merged yet). The cells list the first divergences by field.
+- From `4ac07db` every construct is also built the other way (row counts / scan) and the node
+  arrays must be equal byte for byte ("twin constructs"; criterion 11, caller counts).
+- From `bd195c8` the replay compares, after every op, the store's three integrity checks with the
+  originals': `check.rows` (A's and B's verdict), `check.subtree_avail` (B's; 0 for A's states)
+  and `check.index` (dynG's; 0).
+
+| commit | behaviour (B's lines) | expected effect on the traces | A: escher_gpu_test | A: escher_gpu_targeted | B: mosp_escher_test under escher_gpu / staging | B: mosp_escher_targeted under escher_gpu / staging |
+|---|---|---|---|---|---|---|
+| `2bc0e24` | harness: the staging preset `mosp_escher_staged()` (no store behaviour) | none; B's sets also run under the staging preset | 75 traces, 1,176 ops, 0 mismatches | 52 ops, 0 mismatches, 1 documented | 50 / 50 trees diverge as the model | 7 / 7 as the model |
+| `1e01ad8` | harness: the rows list the first divergences by field | none | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `e18912f` | as `e18912f` |
+| `e18912f` | (a) construct validation (`operations.cu:196-211`) | none (every construct of the traces is valid; the construct below its payload was already rejected) | 1,176 ops, 0 | 52 ops, 0, 1 documented | escher_gpu: fixed_size 5, scratch_payload 34, key.occupancy 11; staging: scratch_payload 34, key.occupancy 11, status 5 | escher_gpu: fixed_size 1, scratch_payload 4, construct validation 1, status 1; staging: scratch_payload 4, construct validation 1, exception.type 1, status 1 |
+| `a831fc4` | (b) the fill clamps (`payload.cu:123, 178, 241`) | none (no state of the traces has occupancy > tail capacity) | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `e18912f` | as `e18912f` |
+| `4ac07db` | (c) caller row counts (`operations.cu:123-132, 268-275`) | none; 240 + 12 (A) and 3,390 + 12 (B) twin constructs byte-identical | 1,176 ops, 0, 240 twins | 52 ops, 0, 1 documented, 12 twins | as `e18912f` (the 11 constructs without counts keep B's legacy occupancy 0: never merged) | as `e18912f` |
+| `4402fcf` | ci: the provenance check knows B's identifiers | none | 1,176 ops, 0, 240 twins | 52 ops, 0, 1 documented, 12 twins | as `e18912f` | as `e18912f` |
+| `d3af511` | (d) one bounded chain walk (`find.cu:9-20`) | none (the longest chain of any trace: 98 hops) | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `e18912f` | as `e18912f` |
+| `bd195c8` | (e) the integrity merge (`integrity.cu`, `:131-134`, `:218-243`) and dynG's index checks | none; every state passes all three checks as the originals' | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `e18912f` | as `e18912f` |
+| `6cc54ef` | (f) the `find.cu` and `delete_avail.cu` differences (`rows()`) | none | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `e18912f` | as `e18912f` |
+| `c981416` | (g) scratch growth (`operations.cu:139-165`) | A: none (exact); B under the staging preset: the 38 scratch divergences go | 1,176 ops, 0 | 52 ops, 0, 1 documented | escher_gpu: as before; **staging: 18 trees (key.occupancy 11, status 7), 10,620 ops compared** | escher_gpu: as before; **staging: 5 trees (construct validation 1, exception.type 1, status 3)** |
+| `c05d7cc` | (h) an explicit `compact()` (`operations.cu:289-339`, `payload.cu:338-409`) | A: none (A has no `compact()`); B's traced `compact()` now replays under the staging preset, offsets included | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `c981416` | **staging: 4 trees** (construct validation 1, exception.type 1, status 2) |
+| `8bbb8eb` | (i) accounting and storage counters (`DynamicHypergraph.cpp:145-156`; not `operations.cu:57-69`) | none | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `c981416` | as `c05d7cc` |
+| `be449b6` | (j) dead or absent keys (dynG's rule) | none (no item of the traces names one) | 1,176 ops, 0 | 52 ops, 0, 1 documented | as `c981416` | as `c05d7cc` |
+
+Every row is `ok`: the commit's own committed-trace replays passed, and every set passed its
+judgement (rows in `$DYNG_SCRATCH/m8a/merge-steps/rows.md`, records in
+`$DYNG_SCRATCH/m8a/merge-steps/<sha7>/`). "as `e18912f`" means the same trees diverge at the same
+ops in the same fields. **The large sets at the step's last code commit `be449b6`**
+(`parity/cbst_merge_steps.sh --large`): `escher_gpu_coauth50k` 15 ops, 0 mismatches, 3
+unreplayable (the hash-only H2H rebuilds), 3 twin constructs; `escher_gpu_syn1m` 54 unreplayable
+(batches mode); `mosp_escher_dblp50k_hyperedge` 27 ops and `mosp_escher_dblp50k_vertex` 21 ops:
+0 trees diverge under `escher_gpu()` and under the staging preset, 3 twin constructs each. The
+records of this run are `parity/results/M8a-device-<set>-exact[-mosp_escher_staged].json`
+(replacing step 3's).
+
+**B's divergences that remain under the staging preset** (step 5 removes the first two classes):
+`test_cbst_ops` churn small / random / insert / growth and `test_hsosp_matches_dijkstra` h2v /
+v2h / h2h at their first automatic compaction (`status`: the store throws `capacity_error` at B's
+fixed capacity, B compacted); the targeted `fill_compact` and `insert_compact` (the same), the
+targeted capacity throw (B compacts, then throws `escher::EscherError`; the store throws
+`dyng::capacity_error` at the op: `exception.type`), the targeted construct below its payload
+(the documented divergence of ADR 0038); and the 11 `test_cbst_smoke` constructs with
+`rowOccupancy = nullptr` (B's legacy occupancy 0, `key.occupancy`), which dynG never takes over
+(ADR 0039: step 5 must document them).
+
+**The compact-after-every-op proof (behaviour (h)).** `dyng_cbst_compact_tests` (committed
+traces, every GPU build) and `dyng_cbst_compact_large_tests` (the four small golden sets, slow):
+the store under `escher_gpu()` and the host model (whose compaction is written independently of
+the store, ADR 0037) replay every op of every trace in lockstep and both compact after every op
+that succeeded. The four small sets: **15,385 ops, 15,383 compactions (4,881 reclaimed space),
+41,315,718 live and 595,997 deleted rows checked after a compaction; 0 problems** (2 trees stop
+early: the targeted constructs below their payload, the documented divergence of ADR 0038). After every op and every
+compaction the two states are equal in every field (offsets included), and every compaction kept
+the keys, avail, subtree_avail and every live row (in order) unchanged, left every live row one
+segment of (count+4)/4*4 slots and every deleted row its length, emptied, with clean integrity
+checks (a compaction padding changed to (count+8)/4*4 is caught on the committed traces).
+
+**Unit tests** (`cpp/tests/hypergraph/escher/cbst_merge_test.cpp`, `dyng_cbst_store_tests`): the
+validation; occupancy above the tail capacity on rows of every degree bin (clamped; memcheck
+clean; without the clamps the neighbouring rows are corrupted); the row-count fast path (same
+nodes, null and out-of-range counts rejected, wrong counts an `internal_error` in Debug builds);
+2,000 overflowing appends on one key (2,000 hops) read back completely by the integrity checker,
+the row locator, `rows()` and the unfill writer; a hand-made cyclic chain and a chain pointer past
+the payload raise `internal_error` without a hang or a truncated row (remove_values with
+`check_errors()`, the next fill's read point, the row locator, `rows()`, the host checker); B's
+unfill-chain scenario; the integrity checks (a corrupted subtree_avail entry, key, row offset and
+avail flag caught; unsorted expected rows no false failure); the scratch rules; churn-small (500
+rounds in B's fixed 2,000 slots with explicit compactions); the compacted layout; compacted rows
+that do not fit; the storage counters and B's accounting scope; no process-global mempool
+setting; appends and removals on dead or absent keys at the thread, warp and block level.
+
+**The checks of step 4** (2026-10-07; shared perf lock, niced; GPU 1):
+
+| check | result |
+|---|---|
+| `ctest -L cbst -LE slow` in dev-cuda (Debug), before every commit | passed (82 tests at the end) |
+| the merge-step replays of every commit (table above) | every row `ok` |
+| `dyng_cbst_compact_large_tests` (Release) | passed (above) |
+| compute-sanitizer memcheck on the touched tests before each commit; memcheck and racecheck on `dyng_cbst_store_tests` after (d) and (h); memcheck on `dyng_cbst_device_tests` and `dyng_cbst_compact_tests`; at the end synccheck and initcheck on `dyng_cbst_store_tests` and `dyng_cbst_compact_tests`, racecheck on `dyng_cbst_compact_tests` | 0 errors, 0 hazards |
+| `ci/check.sh` with `DYNG_CHECK_ONLY="format reuse provenance precommit"` before every commit; the full `ci/check.sh` at the end | passed: every step of the full run (format, the cpu-only and dev builds with `ctest -L cpu`, 879 and 908 tests, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, parity) at the step's last code commit; the pre-commit end-of-file fixer corrected the then uncommitted `parity/results/M8a.md`, and its re-run with the final documents passed |
+| the Clang 18 syntax pass (dev-cuda: 308 files), the `_FORTIFY_SOURCE=3` cpu-only build | passed |
 | both originals' HEAD and `git status --porcelain` | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |
