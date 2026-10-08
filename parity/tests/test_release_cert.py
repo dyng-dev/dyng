@@ -291,6 +291,72 @@ def _fixture_test_names(cert) -> list[str]:
     return [p.replace("*", "X") for p in cert.fixture_patterns()]
 
 
+def _golden_mutation_record(commit: str) -> dict:
+    """A passed record of parity/mutate.py run: the control and every mutation detected, each
+    replay of a manifest of parity/goldens.toml."""
+    import tomllib
+
+    mutate = load("parity/mutate.py")
+    sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
+    sssp = {"manifest_sha256": sets["sssp"]["manifest_sha256"]}
+    return {
+        "schema": 2,
+        "commit": commit,
+        "results": [
+            {
+                "name": "control",
+                "verdict": "passed",
+                "replays": [{"suite": "sssp", "config": "sequential", "goldens": sssp}],
+            },
+            *(
+                {
+                    "name": m["name"],
+                    "suite": m["suite"],
+                    "config": m["config"],
+                    "goldens": sssp,
+                    "detected": True,
+                    "verdict": "detected",
+                }
+                for m in mutate.MUTATIONS
+            ),
+        ],
+        "passed": True,
+    }
+
+
+def _release_checks(cert, results: Path, tmp_path: Path, commit: str, skip=()) -> None:
+    """Records every check of REQUIRED_CHECKS but asan and those in `skip`, each passed."""
+    log = tmp_path / "check.log"
+    log.write_text(_ctest_log(_fixture_test_names(cert)))
+    gpu = tmp_path / "gpu_local_summary.md"
+    gpu.write_text(
+        "| step | result |\n|---|---|\n| memcheck | passed |\n| synccheck | passed |\n"
+        "| racecheck | passed |\n"
+    )
+    (results / "mutation-goldens.json").write_text(json.dumps(_golden_mutation_record(commit)))
+    base = ["check", "--results", str(results), "--commit", commit, "--command", "x"]
+    recorded = {
+        "tsan": ["--ctest-log", str(log)],
+        "tsan-openmp": ["--ctest-log", str(log)],
+        "mutation-ctests": ["--ctest-log", str(log)],
+        "mutation-sssp": ["--scope", "library", "--result", "passed", "--evidence", str(log)],
+        "mutation-goldens": [
+            "--scope",
+            "library",
+            "--json-verdict",
+            str(results / "mutation-goldens.json"),
+        ],
+        "distributions": ["--scope", "packaging", "--result", "passed", "--evidence", str(log)],
+        "check-parity": ["--scope", "repo", "--result", "passed", "--evidence", str(log)],
+        "api-check": ["--scope", "repo", "--result", "passed", "--evidence", str(log)],
+        "gpu_local": ["--scope", "repo", "--gpu-summary", str(gpu)],
+    }
+    assert set(recorded) | {"asan"} == set(cert.REQUIRED_CHECKS)
+    for name, extra in recorded.items():
+        if name not in skip:
+            assert cert.main([*base, "--name", name, *extra]) == 0, name
+
+
 def test_summary_passes_and_compacts(bench, tmp_path: Path) -> None:
     suite = bench.load_suite(REPO / "benchmarks/paper/ieee_tc_dyntrucy.yaml")
     jobs = _write_cc_records(bench, suite, tmp_path / "rec", head(), ratio=0.9)
@@ -468,6 +534,7 @@ def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> 
         "ctest --preset asan",
     ]
     assert cert.main([*args, "--ctest-log", str(log)]) == 0
+    _release_checks(cert, results, tmp_path, commit)
     assert (
         cert.main(["write", "--results", str(results), "--version", "t", "--allow-dirty"]) == 0
     ), json.loads((results / "parity.json").read_text())["verdict"]
@@ -754,6 +821,7 @@ def test_certificate_refuses_a_partial_or_changed_suite(
     base = ["--results", str(results)]
     check = ["check", *base, "--name", "asan", "--command", "ctest", "--ctest-log", str(log)]
     assert cert.main(check) == 0
+    _release_checks(cert, results, tmp_path, commit)
     write = ["write", *base, "--version", "t", "--allow-dirty"]
     assert cert.main(write) == 0
 
@@ -1192,6 +1260,7 @@ def test_a_02_certificate_needs_the_mosp_gates(cert, bench, tmp_path: Path, fixe
     base = ["--results", str(results)]
     check = ["check", *base, "--name", "asan", "--command", "ctest", "--ctest-log", str(log)]
     assert cert.main(check) == 0
+    _release_checks(cert, results, tmp_path, commit)
 
     def write(version: str) -> int:
         return cert.main(["write", *base, "--version", version, "--allow-dirty"])
@@ -1318,3 +1387,178 @@ def test_a_diagnostic_execution_keeps_contaminated_rounds_flagged(bench, tmp_pat
     )
     assert not summary["verdict"]["passed"]
     assert "not a gate reading" in " ".join(summary["verdict"]["problems"])
+
+
+# --- The release checks, the gate rows, the packaging scope (R020 review) ------------------------
+
+
+@pytest.fixture()
+def certified(cert, bench, tmp_path: Path, fixed_driver):
+    """A results directory that certifies, and helpers to write it and read its problems."""
+    commit = head()
+    results = _full_results(cert, bench, tmp_path, commit)
+    log = tmp_path / "asan.log"
+    log.write_text(_ctest_log(_fixture_test_names(cert)))
+    base = ["--results", str(results)]
+    asan = ["check", *base, "--name", "asan", "--command", "x", "--ctest-log", str(log)]
+    assert cert.main(asan) == 0
+    _release_checks(cert, results, tmp_path, commit)
+
+    def write(version: str = "0.2.0rc1") -> int:
+        return cert.main(["write", *base, "--version", version, "--allow-dirty"])
+
+    def problems() -> str:
+        return " ".join(json.loads((results / "parity.json").read_text())["verdict"]["problems"])
+
+    assert write() == 0, problems()
+    return results, write, problems
+
+
+def _edit_checks(results: Path, edit) -> str:
+    path = results / "checks.json"
+    full = path.read_text()
+    doc = json.loads(full)
+    edit(doc["checks"])
+    path.write_text(json.dumps(doc))
+    return full
+
+
+def test_a_certificate_needs_every_release_check(cert, certified) -> None:
+    results, write, problems = certified
+    for name in cert.required_checks("0.2.0rc1"):
+
+        def drop(cs: list[dict], n: str = name) -> None:
+            cs.remove(next(c for c in cs if c["name"] == n))
+
+        full = _edit_checks(results, drop)
+        assert write() == 1, name
+        assert f"check {name} is missing (required from" in problems()
+        (results / "checks.json").write_text(full)
+    # 0.1 needed mutation-sssp, not tsan-openmp, mutation-goldens or api-check.
+    assert set(cert.required_checks("0.1.0")) == {
+        "asan",
+        "tsan",
+        "mutation-ctests",
+        "mutation-sssp",
+        "distributions",
+        "check-parity",
+        "gpu_local",
+    }
+    assert "mutation-goldens" in cert.required_checks("0.2.0") and "mutation-sssp" not in (
+        cert.required_checks("0.3.0")
+    )
+
+    # A record of a narrower scope than its check needs, and a gpu_local without racecheck.
+    def narrow(cs: list[dict]) -> None:
+        next(c for c in cs if c["name"] == "distributions")["scope"] = "tests"
+        del next(c for c in cs if c["name"] == "gpu_local")["steps"]["racecheck"]
+
+    full = _edit_checks(results, narrow)
+    assert write() == 1
+    text = problems()
+    assert "check distributions: recorded with scope tests, it needs at least packaging" in text
+    assert "check gpu_local: the step racecheck did not pass or was not run" in text
+    (results / "checks.json").write_text(full)
+    assert write() == 0, problems()
+
+
+def test_the_golden_mutation_record_is_read(cert, certified) -> None:
+    results, write, problems = certified
+    path = results / "mutation-goldens.json"
+    full = path.read_text()
+    cases = [
+        (lambda d: d["results"].pop(), "is missing"),  # the last mutation dropped (mosp)
+        (lambda d: d["results"][1].update(detected=False, verdict="NOT DETECTED"), "NOT DETECTED"),
+        (lambda d: d["results"][0].update(verdict="FAILED"), "the control did not pass"),
+        (
+            lambda d: d["results"][2]["goldens"].update(manifest_sha256="0" * 64),
+            "is not one of parity/goldens.toml",
+        ),
+        (lambda d: d.update(commit="0" * 40), "does not have the release's library sources"),
+    ]
+    for edit, message in cases:
+        doc = json.loads(full)
+        edit(doc)
+        path.write_text(json.dumps(doc))
+        assert write() == 1, message
+        assert "check mutation-goldens: " in problems() and message in problems(), problems()
+    path.write_text(full)
+    assert write() == 0, problems()
+
+
+def test_the_gate_rows_are_recomputed(cert, certified) -> None:
+    results, write, problems = certified
+    path = results / "ipdps25_dynamosp_mosp.json"
+    full = path.read_text()
+
+    def first_gated(doc: dict) -> dict:
+        return next(g for r in doc["readings"] if r["gated"] for g in r["regions"] if "gate" in g)
+
+    # A ratio above its gate, the flag and the verdict left as they were.
+    doc = json.loads(full)
+    row = first_gated(doc)
+    row["port_ms"] = row["original_ms"] * 1.3
+    row["ratio"] = 1.3
+    path.write_text(json.dumps(doc))
+    assert write() == 1
+    text = problems()
+    assert "differ from its record's" in text and "within_gate True but 1.3000" in text
+    assert "the verdict says passed with 1 gated rows above the gate" in text
+    perf = json.loads((results / "parity.json").read_text())["performance"]
+    mosp = next(s for s in perf if s["suite"] == "ipdps25_dynamosp_mosp")
+    assert not mosp["passed"] and any(r["within_gate"] is False for r in mosp["gate_table"])
+    # A ratio that is not port / original; a gate that is not the suite's.
+    doc = json.loads(full)
+    first_gated(doc)["ratio"] *= 0.5
+    path.write_text(json.dumps(doc))
+    assert write() == 1 and "is not" in problems() and "ratio" in problems()
+    doc = json.loads(full)
+    first_gated(doc)["gate"] = 2.0
+    path.write_text(json.dumps(doc))
+    assert write() == 1 and "the suite's tolerance says" in problems()
+    path.write_text(full)
+    assert write() == 0, problems()
+
+
+def test_measured_commits_are_full_and_once(cert, certified) -> None:
+    results, write, problems = certified
+    commit = head()
+    checks = json.loads((results / "checks.json").read_text())
+    checks["checks"][0]["commit"] = commit[:7]  # a short SHA of the same commit
+    (results / "checks.json").write_text(json.dumps(checks))
+    assert write() == 0, problems()
+    assert json.loads((results / "parity.json").read_text())["measured_commits"] == [commit]
+
+
+PLUGIN_INPUTS = [
+    "ci/plugin_wheels.sh",
+    "ci/plugin_pyproject.py",
+    "ci/plugin_smoke.py",
+    "ci/cuda_toolkit.py",
+    "ci/cuda_toolkits.toml",
+    "ci/cibw_plugin.sh",
+    "ci/cibw_plugin_repair.sh",
+    "ci/cibuildwheel-plugin.toml",
+    "THIRD_PARTY_LICENSES_CUDA.txt",
+]
+
+
+def test_the_packaging_scope_covers_the_sdist_and_the_plugins(cert) -> None:
+    members = cert.sdist_members()
+    assert "pyproject.toml" in members and "python/dyng/__init__.py" in members
+    assert "docs/references.bib" in members and not any(m.startswith("docs/adr") for m in members)
+    assert not any(m.startswith(("ci/", "parity/", ".github/")) for m in members)
+    outside = [m for m in members if not cert.in_paths(m, cert.PACKAGING_PATHS)]
+    assert outside == [], f"sdist members outside the packaging scope: {outside}"
+    tracked = set(subprocess.check_output(["git", "-C", REPO, "ls-files"], text=True).split())
+    for path in PLUGIN_INPUTS:
+        assert path in tracked and cert.in_paths(path, cert.PACKAGING_PATHS), path
+    # A change of a plugin input invalidates a distributions record: M6a's toolkit pins and the
+    # plugin_wheels.sh preflight touch no other file of the scope.
+    for commit in ("d670ada", "1be9f2c"):
+        if cert.resolve(commit) is None:
+            continue  # a shallow clone
+        parent = cert.git("rev-parse", commit + "~1")
+        changed = cert.code_diff(parent, commit, "packaging")
+        assert changed and set(changed) <= set(PLUGIN_INPUTS), changed
+        assert cert.same_code(parent, commit, "packaging") is False

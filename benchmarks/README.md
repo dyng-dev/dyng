@@ -146,8 +146,16 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
 3. **The checks**: the `asan` and `tsan` presets' test suites, `ci/gpu_local.sh` (the CUDA
    tests, the CUDA goldens and compute-sanitizer memcheck, synccheck and racecheck), the mutation
    CTests (`ctest -L mutation`) and the golden mutations (`parity/mutate.py run --json
-   benchmarks/results/<version>/mutation-sssp.json`), one `parity/certify.py check` each, for
-   example
+   benchmarks/results/<version>/mutation-goldens.json`; 0.1: `mutation-sssp.json`), one
+   `parity/certify.py check` each. `certify.py` requires the checks of `REQUIRED_CHECKS` by
+   release series, each recorded with at least its scope: from 0.1 `asan`, `tsan`,
+   `mutation-ctests` (tests), `distributions` (packaging), `check-parity` and `gpu_local` (repo,
+   with the steps memcheck, synccheck and racecheck passed), and the golden mutations
+   `mutation-sssp` (0.1 only, library); from 0.2 also `tsan-openmp` (tests), `mutation-goldens`
+   (library) and `api-check` (repo, `ci/api_check.sh`). The `mutation-goldens` record itself is
+   read: every mutation of `parity/mutate.py list` must be in it and detected, the control
+   passed, its commit must have the release's library sources and every replay a golden
+   manifest of `goldens.toml`. For example
 
    ```bash
    parity/certify.py check --version 0.1.0rc1 --name asan --command "ctest --preset asan" \
@@ -185,8 +193,8 @@ around it is written by hand). The certificate records:
   | Scope | Paths | For |
   |---|---|---|
   | `library` | `cpp/include cpp/src cpp/CMakeLists.txt tools cmake CMakeLists.txt CMakePresets.json docs/references.bib` | the gates, the golden replays, `mutate.py` (`check --scope library`) |
-  | `tests` | the library paths, `cpp/tests`, `examples` and `README.md` (its C++ quickstart is a test) | a C++ test suite: the sanitizer presets, `ctest -L mutation` (the default of `check`) |
-  | `packaging` | the test paths, `python`, `pyproject.toml`, `VERSION`, `CHANGELOG.md`, `CITATION.cff`, the licence files, `ci/wheels.sh`, `ci/wheel_check.py`, `release.yml`, `wheels.yml` | the distributions (`select`, `ci/wheels.sh`, `twine check`, `wheel_check`, the fresh venvs) |
+  | `tests` | the library paths, `cpp/tests`, `cpp/fuzz` (the fuzzers' corpus and regressions, replayed by every test build), `examples` and `README.md` (its C++ quickstart is a test) | a C++ test suite: the sanitizer presets, `ctest -L mutation` (the default of `check`) |
+  | `packaging` | the test paths, `python`, `pyproject.toml`, `VERSION`, `CHANGELOG.md`, `CITATION.cff`, the licence files (`THIRD_PARTY_LICENSES_CUDA.txt` too), every other top-level file the sdist ships (`certify.sdist_members()`, checked by `parity/tests`), `ci/wheels.sh`, `ci/wheel_check.py`, `ci/wheel-toolchain.yml`, `release.yml`, `wheels.yml`, and the CUDA plugins' build inputs (`ci/plugin_wheels.sh`, `ci/plugin_pyproject.py`, `ci/plugin_smoke.py`, `ci/without_cuda_driver.sh`, `ci/cuda_toolkit.py`, `ci/cuda_toolkits.toml`, `ci/cibw_plugin*.sh`, `ci/cibuildwheel-plugin.toml`) | the distributions (`select`, `ci/wheels.sh`, `ci/plugin_wheels.sh`, `twine check`, `wheel_check`, the fresh venvs) |
   | `repo` | every tracked file but `benchmarks/results/` | a check of the whole tree: `ci/check.sh`, `ci/gpu_local.sh` |
 
   `VERSION` is not a library path: it only names the build, so a release candidate's gates
@@ -227,13 +235,18 @@ around it is written by hand). The certificate records:
   SHA-256 of its files and the result of each of its tests in the release checks;
 - the suites the version requires (`required_suites`, from `REQUIRED_SUITES`), the
   performance-gate table of every suite (gated, and recorded-only readings separately) and how
-  each reading's inputs were verified;
+  each reading's inputs were verified. The table is **recomputed**, not copied: every gated row's
+  medians must be those of the compacted record next to the summary, its ratio port / original,
+  its gate the suite file's tolerance for the region (the short-region compute gate below
+  `short_region_ms`) and `within_gate` ratio <= gate, and the summary's verdict and counts must
+  agree with the rows; the README counts the recomputed rows;
 - the checks, with their scopes and evidence.
 
 It exits 1, and says why in `verdict.problems`, if any part failed or is missing (a required
 suite, or a gated metric of a suite without a gated reading), if a replayed
 manifest is not the one of `goldens.toml`, if a measured tree was dirty, if a suite summary is
 not of the committed suite file (SHA-256), is partial, or misses, repeats or has an incomplete
-reading of the suite's plan, if a summary's inputs are not verified, if the records' drivers
-disagree, if a directory of `cpp/tests/data` is not in `fixtures.toml`, or if a fixture test
+reading of the suite's plan, if a summary's inputs are not verified, if a gated row does not
+recompute, if a required check is missing or recorded with too narrow a scope, if the records'
+drivers disagree, if a directory of `cpp/tests/data` is not in `fixtures.toml`, or if a fixture test
 pattern was not passed by any release check (or failed in one).
