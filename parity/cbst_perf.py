@@ -22,16 +22,24 @@ kind Device: cudaMalloc and cudaMallocAsync):
 - the port: the store replay of the same run (dyng_cbst_memory_tests: every operation of the
   trace on dynG stores under escher_gpu(), the H2H rebuilds with arrays of the recorded sizes).
 
-`early` (reported, not gated; M8a step 5): both processes once more under `nsys profile -t cuda`
-(no memory trace). Both bracket every store operation with cudaDeviceSynchronize (A's
-ScopedTimer stages maintain.h2v_delete, v2h_unfill, h2v_insert and v2h_fill; the replay after
-every operation), so the timeline splits into one segment per operation; a segment is classed by
-the kernels it ran (erase: the delete kernels; unfill: unfill_*; insert: the best-fit and rebuild
-kernels; fill: insert_node_* / allocate_space). Per class: the operations, the device time of
-their kernels per operation, the blocking runtime calls per operation (cudaMemcpy and
-cudaMemcpyToSymbol without Async, cudaStreamSynchronize, cudaEventSynchronize; the brackets
-excluded) and the allocation calls per operation (cudaMalloc, cudaMallocAsync, cudaMallocHost,
-cudaHostAlloc); and the registers per thread of the hot kernels (CUPTI's kernel records).
+`early` (reported, not gated; M8a step 5, the protocol of PLAN 8.6 from the M8a review): both
+processes under `nsys profile -t cuda` (no memory trace), --runs times each (default 20: every
+class is far below 10 ms per operation), alternating A, dynG, A, dynG, ... with the GPU clocks
+locked for the whole batch (perf_ab.ClockLock, ADR 0018; --lock-clocks, default boost). Both
+bracket every store operation with cudaDeviceSynchronize (A's ScopedTimer stages
+maintain.h2v_delete, v2h_unfill, h2v_insert and v2h_fill; the replay after every operation), so
+the timeline splits into one segment per operation; a segment is classed by the kernels it ran
+(erase: the delete kernels; unfill: unfill_*; insert: the best-fit and rebuild kernels; fill:
+insert_node_* / allocate_space). Per class: the operations, the device time of their kernels per
+operation (the median of the runs, with the minimum and maximum), the blocking runtime calls per
+operation (cudaMemcpy and cudaMemcpyToSymbol without Async, cudaStreamSynchronize,
+cudaEventSynchronize; the brackets excluded), the allocation calls per operation (every runtime
+allocation: cudaMalloc, cudaMallocAsync, cudaMallocFromPoolAsync, cudaMallocHost, cudaHostAlloc,
+cudaMallocManaged; of them the synchronous ones, i.e. not stream-ordered, separately) and the
+free calls per operation (cudaFree, cudaFreeAsync, cudaFreeHost). For every hot kernel of both
+binaries, from `cuobjdump -res-usage` and `cuobjdump -sass` of the sm_86 code (so also the
+kernels the run does not launch): registers per thread, shared memory, the theoretical
+occupancy at 256 threads per block on sm_86, and the SASS instruction count.
 
 Under the EXCLUSIVE perf lock ($DYNG_SCRATCH/perf.lock), as every measurement.
 """
@@ -209,13 +217,19 @@ BLOCKING = {
     "cudaEventSynchronize",
     "cudaMemset",
 }
+# Every runtime allocation (M8a review: the dynG store allocates its temporaries through
+# cudaMallocFromPoolAsync, which the table did not count); of them the synchronous ones (not
+# stream-ordered), and the frees.
 ALLOCATING = {
     "cudaMalloc",
     "cudaMallocAsync",
+    "cudaMallocFromPoolAsync",
     "cudaMallocHost",
     "cudaHostAlloc",
     "cudaMallocManaged",
 }
+SYNC_ALLOCATING = {"cudaMalloc", "cudaMallocHost", "cudaHostAlloc", "cudaMallocManaged"}
+FREEING = {"cudaFree", "cudaFreeAsync", "cudaFreeHost"}
 
 
 def runtime_name(name: str) -> str:
@@ -283,7 +297,14 @@ def segments(cmd: list[str], env: dict, report: Path, dyng_side: bool) -> dict:
         if c[2] != "cudaDeviceSynchronize" and c[0] < starts[i]:
             seg_calls.setdefault(i, []).append(c)
     classes = {
-        name: {"ops": 0, "kernel_ns": 0, "blocking": 0, "allocations": 0}
+        name: {
+            "ops": 0,
+            "kernel_ns": 0,
+            "blocking": 0,
+            "allocations": 0,
+            "sync_allocations": 0,
+            "frees": 0,
+        }
         for name, _, _ in OP_CLASSES
     }
     for i, ks in seg_kernels.items():
@@ -296,6 +317,8 @@ def segments(cmd: list[str], env: dict, report: Path, dyng_side: bool) -> dict:
                 for call in seg_calls.get(i, []):
                     c["blocking"] += call[2] in BLOCKING
                     c["allocations"] += call[2] in ALLOCATING
+                    c["sync_allocations"] += call[2] in SYNC_ALLOCATING
+                    c["frees"] += call[2] in FREEING
                 break
     regs: dict[str, int] = {}
     for _, _, name, r in kernels:
@@ -303,66 +326,175 @@ def segments(cmd: list[str], env: dict, report: Path, dyng_side: bool) -> dict:
     return {"classes": classes, "registers": regs}
 
 
+CUOBJDUMP = os.environ.get("CUOBJDUMP", "/usr/local/cuda-13.1/bin/cuobjdump")
+ARCH = "sm_86"
+
+
+def kernel_resources(binary: Path, names: list[str]) -> dict:
+    """Registers, shared memory and SASS instruction count of the kernels `names` (unmangled
+    names) in the sm_86 code of `binary` (cuobjdump -res-usage and -sass), and the theoretical
+    occupancy at 256 threads per block on sm_86 (65,536 registers in units of 256 per warp, at
+    most 48 warps and 16 blocks per SM; the store's kernels use 256 threads)."""
+    import re
+
+    def per_function(text: str) -> dict[str, list[str]]:
+        out: dict[str, list[str]] = {}
+        arch, current = None, None
+        for line in text.splitlines():
+            m = re.search(r"arch = (sm_\d+)", line)
+            if m:
+                arch = m.group(1)
+                continue
+            m = re.match(r"\s*Function\s*:?\s*(\S+?):?$", line)
+            if m:
+                current = m.group(1) if arch == ARCH else None
+                if current:
+                    out.setdefault(current, [])
+                continue
+            if current:
+                out[current].append(line)
+        return out
+
+    res = per_function(
+        subprocess.run(
+            [CUOBJDUMP, "-res-usage", str(binary)], capture_output=True, text=True
+        ).stdout
+    )
+    sass = per_function(
+        subprocess.run([CUOBJDUMP, "-sass", str(binary)], capture_output=True, text=True).stdout
+    )
+    found: dict = {}
+    for name in names:
+        tag = f"{len(name)}{name}"
+        mangled = next((f for f in res if tag in f), None)
+        if mangled is None:
+            found[name] = None
+            continue
+        usage = " ".join(res[mangled])
+        regs = int(re.search(r"REG:(\d+)", usage).group(1))
+        shared = int(re.search(r"SHARED:(\d+)", usage).group(1))
+        per_warp = -(-regs * 32 // 256) * 256
+        blocks = min(16, 48 // 8, (65536 // per_warp) // 8 if per_warp else 16)
+        instructions = sum(
+            1 for line in sass.get(mangled, []) if re.match(r"\s*/\*[0-9a-f]{4,}\*/", line)
+        )
+        found[name] = {
+            "registers": regs,
+            "shared_bytes": shared,
+            "occupancy_256": round(blocks * 8 / 48, 3),
+            "sass_instructions": instructions,
+        }
+    return found
+
+
 def early(args: argparse.Namespace) -> int:
+    import statistics
+
     tests = find_tests(args.build).resolve()
     _, argv = golden_case()
     cmd, env = original_command(argv, args.gpu)
     (perf_ab.SCRATCH / "runs").mkdir(parents=True, exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="dyng-early-cbst-", dir=perf_ab.SCRATCH / "runs"))
+    runs: dict[str, list[dict]] = {"a": [], "d": []}
     try:
         with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
-            a = segments(cmd, env, work / "a", dyng_side=False)
-            d = segments(
-                [str(tests), "--gtest_filter=CbstEarlyMemory.*"],
-                dict(env, DYNG_CBST_MEMORY_PRESET="escher_gpu"),
-                work / "b",
-                dyng_side=True,
-            )
+            with perf_ab.ClockLock(args.gpu, args.lock_clocks) as clocks:
+                for r in range(args.runs):  # A, dynG, A, dynG, ...
+                    runs["a"].append(segments(cmd, env, work / f"a{r}", dyng_side=False))
+                    runs["d"].append(
+                        segments(
+                            [str(tests), "--gtest_filter=CbstEarlyMemory.*"],
+                            dict(env, DYNG_CBST_MEMORY_PRESET="escher_gpu"),
+                            work / f"b{r}",
+                            dyng_side=True,
+                        )
+                    )
+                clock_record = clocks.record
     finally:
         subprocess.run(["rm", "-rf", str(work)], check=False)
     rows = []
     for cls, _, _ in OP_CLASSES:
-        ca, cd = a["classes"][cls], d["classes"][cls]
+        side = {k: [run["classes"][cls] for run in v] for k, v in runs.items()}
 
-        def per(c: dict, k: str) -> float | None:
-            return round(c[k] / c["ops"], 3) if c["ops"] else None
+        def per_op(cs: list[dict], key: str) -> float | None:
+            # Counts are the same in every run; the first run's per operation.
+            return round(cs[0][key] / cs[0]["ops"], 3) if cs and cs[0]["ops"] else None
 
+        def ms(cs: list[dict]) -> dict | None:
+            v = [c["kernel_ns"] / 1e6 / c["ops"] for c in cs if c["ops"]]
+            if not v:
+                return None
+            return {
+                "median": round(statistics.median(v), 4),
+                "min": round(min(v), 4),
+                "max": round(max(v), 4),
+            }
+
+        ma, md = ms(side["a"]), ms(side["d"])
         row = {
             "op": cls,
-            "ops": [ca["ops"], cd["ops"]],
-            "device_ms_per_op": [
-                round(ca["kernel_ns"] / 1e6 / ca["ops"], 3) if ca["ops"] else None,
-                round(cd["kernel_ns"] / 1e6 / cd["ops"], 3) if cd["ops"] else None,
+            "ops": [side["a"][0]["ops"], side["d"][0]["ops"]],
+            "device_ms_per_op": [ma, md],
+            "blocking_per_op": [per_op(side["a"], "blocking"), per_op(side["d"], "blocking")],
+            "allocations_per_op": [
+                per_op(side["a"], "allocations"),
+                per_op(side["d"], "allocations"),
             ],
-            "blocking_per_op": [per(ca, "blocking"), per(cd, "blocking")],
-            "allocations_per_op": [per(ca, "allocations"), per(cd, "allocations")],
+            "sync_allocations_per_op": [
+                per_op(side["a"], "sync_allocations"),
+                per_op(side["d"], "sync_allocations"),
+            ],
+            "frees_per_op": [per_op(side["a"], "frees"), per_op(side["d"], "frees")],
         }
-        dm = row["device_ms_per_op"]
-        row["ratio"] = round(dm[1] / dm[0], 3) if dm[0] and dm[1] else None
+        row["ratio"] = round(md["median"] / ma["median"], 3) if ma and md else None
         rows.append(row)
         print(
-            f"{cls:11} ops {ca['ops']}/{cd['ops']}  device ms/op A {dm[0]} dynG {dm[1]} "
-            f"(x{row['ratio']})  blocking/op {row['blocking_per_op']}  allocations/op "
-            f"{row['allocations_per_op']}"
+            f"{cls:11} ops {row['ops'][0]}/{row['ops'][1]}  device ms/op (median of "
+            f"{args.runs}) A {ma} dynG {md} (x{row['ratio']})  blocking/op "
+            f"{row['blocking_per_op']}  allocations/op {row['allocations_per_op']} (synchronous "
+            f"{row['sync_allocations_per_op']})  frees/op {row['frees_per_op']}"
         )
-    registers = {k: [a["registers"].get(k), d["registers"].get(v)] for k, v in HOT_KERNELS.items()}
-    for k, (ra, rd) in registers.items():
-        print(f"  registers {k:24} A {ra}  dynG {rd}")
+    original_binary = Path(cmd[0])
+    library = next(
+        (
+            p
+            for p in (
+                tests.parent.parent / "libdyng.so",
+                tests.parent.parent.parent / "cpp" / "libdyng.so",
+            )
+            if p.exists()
+        ),
+        None,
+    )
+    a_res = kernel_resources(original_binary, list(HOT_KERNELS))
+    d_res = kernel_resources(library or tests, list(HOT_KERNELS.values()))
+    kernels = {k: [a_res.get(k), d_res.get(v)] for k, v in HOT_KERNELS.items()}
+    for k, (ra, rd) in kernels.items():
+        print(f"  {k:24} A {ra}  dynG {rd}")
     if args.json:
         doc = {
-            "schema": 1,
+            "schema": 2,
             "what": "M8a step 5 early-warning table (reported, not gated): per store operation of "
             "escher_gpu_coauth50k, ESCHER-GPU's unpatched build/main against the dynG store replay "
-            "under escher_gpu(): device time of the kernels, blocking and allocating runtime "
-            "calls, registers of the hot kernels (values are [ESCHER-GPU, dynG])",
+            "under escher_gpu(): device time of the kernels (median, min, max of the runs), "
+            "blocking, allocating (all and synchronous) and freeing runtime calls; registers, "
+            "shared memory, theoretical occupancy and SASS instructions of the hot kernels "
+            "(values are [ESCHER-GPU, dynG])",
             "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "set": SET,
+            "runs": args.runs,
+            "order": "alternating A, dynG per run",
+            "clock": clock_record,
             "original": [perf_ab.portable_path(c) if "/" in c else c for c in cmd],
-            "port": {"commit": perf_ab.port_commit(), "binary": perf_ab.portable_path(tests)},
+            "port": {
+                "commit": perf_ab.port_commit(),
+                "binary": perf_ab.portable_path(tests),
+                "kernels_from": perf_ab.portable_path(library or tests),
+            },
             "gpu": args.gpu,
             "driver": perf_ab.driver_versions(),
             "ops": rows,
-            "registers": registers,
+            "kernels": kernels,
         }
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(doc, indent=1) + "\n")
@@ -386,6 +518,13 @@ def main(argv: list[str] | None = None) -> int:
     e.add_argument("--json", type=Path)
     e.add_argument("--lock-timeout", type=float, default=3 * 3600.0)
     e.add_argument("--no-lock", action="store_true")
+    e.add_argument(
+        "--runs",
+        type=int,
+        default=20,
+        help="runs of each side, alternating (PLAN 8.6: at least 20 for regions under 10 ms)",
+    )
+    e.add_argument("--lock-clocks", default="boost", choices=["boost", "base", "none"])
     args = parser.parse_args(argv)
     return early(args) if args.command == "early" else memory(args)
 
