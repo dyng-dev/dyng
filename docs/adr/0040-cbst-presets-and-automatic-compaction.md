@@ -31,6 +31,20 @@ offset limit or on OOM, with exceptions everywhere"), the partial-failure rule (
 | scratch | exact (A) | geometric (B) | geometric (ADR 0039 (g)) |
 | failure | `capacity_error` beyond INT_MAX | `capacity_error` where B threw `escher::EscherError` | `capacity_error` only beyond `max_payload` (the int32 offsets), `out_of_memory_error` on an allocation failure |
 
+**The hysteresis of the default** (`store_policy::compaction_headroom`, M8a review): after an
+operation that compacted at a trigger point, `dyng_default()` also grows the payload by A's rule
+when fewer than `capacity / 8` slots are free, to the capacity that leaves that many free (at
+most `max_payload`; 8 is the slack of A's initial sizing). Compact-then-grow alone has none: after
+a compaction the rows are tight, so while live data grows slowly toward the capacity the free
+space after each compaction shrinks and the O(payload) compactions come more and more often (the
+review measured gaps of 20, 21, ..., 4 rounds; the control run of `CbstContractHysteresis` 21,
+17, 14, ..., 1) before the first growth. With it, the next compaction comes only after
+`capacity / 8` slots were used again, so a compaction is amortized over that many slots. The rule applies at the
+two automatic trigger points only (not to an explicit `compact()`), never under `mosp_escher()`
+(B's literal policy, `compaction_headroom` 0) and is mirrored by the host model's
+`cbst_host_policy::dyng_default()` (`compaction_headroom` 8), which predicts the extra growths:
+the default preset's replays against the model (section 3) include them.
+
 `max_payload` (dynG) bounds every growth and initial capacity of a policy; it is INT_MAX for every
 preset and lowered only by tests, which reach the limit with it (`CbstStorePresets`). The trace
 replay takes each tree's capacity from the trace (B's callers pass their own), so the initial
@@ -85,12 +99,15 @@ sizing of `mosp_escher()` is used by the container (M8b) only and unit-tested he
 Every operation that changes the tree (insert, append, erase, remove_values through `guarded()`;
 construct after its validation, rebuild_from_device and compact, except as below, with their own
 handlers): **an exception poisons the store**, which then throws `invalid_argument_error` for
-every operation but construct and rebuild_from_device. The guarantees:
+every operation but construct and rebuild_from_device, and (M8a review) for the reads `rows()`,
+`find()`, `clone()` and `check_errors()`, whose state would be undefined; `download()` is the one
+forensic read a poisoned store allows. The guarantees:
 
 | operation | guarantee |
 |---|---|
 | the precondition checks (a poisoned or unconstructed store) | strong (nothing changes) |
-| construct: the validation (`validate_construct`; negative sizes, a capacity below the payload, null arrays, counts beyond their rows, `capacity_error` for the scratch indexing) | strong |
+| construct: the validation (`validate_construct`; negative sizes, a capacity below the payload, null arrays, counts beyond their rows, `capacity_error` for the scratch indexing; M8a review: keys not strictly increasing, rows of no slot, unordered or outside the payload) | strong |
+| insert, append, remove_values: the batch shape (`validate_batch`, M8a review: one prefix size per key, non-decreasing from 0, the last one the payload size; `capacity_error` beyond `INT_MAX / 3` items) | strong |
 | `compact()`: `capacity_error` of compacted rows that do not fit a payload that cannot grow | strong (the store is not poisoned) |
 | `initial_capacity()`, `grown_capacity()` (host) | strong |
 | every other failure of an updating operation (a `capacity_error` of a fill or insert after its in-place writes, `out_of_memory_error` at any allocation, `internal_error` from the device error word, a CUDA error) | basic: the store is poisoned; nothing is leaked |

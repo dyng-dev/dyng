@@ -92,9 +92,13 @@ terminator); this capacity decides which items a deleted slot can take.
   counts (B's `rowOccupancy`, a fast path with the same nodes; never B's `nullptr`, occupancy 0).
   B's validation runs first: negative sizes, a capacity below the payload and null arrays are
   rejected (`invalid_argument_error`) before anything is allocated (A printed "Overflow" and kept
-  a tree without nodes). A tree of 0 records is valid (dynG; both originals broke on it).
+  a tree without nodes), and so is a malformed layout (dynG, M8a review): the keys must be
+  strictly increasing, the row offsets strictly increasing from at least 0 with the last one below
+  the payload size (every row has at least one slot, its terminator). A tree of 0 records is
+  valid (dynG; both originals broke on it); it drops the arrays of an earlier tree.
 - **rebuild_from_device** (A's `rebuildCBSTFromDevice`): the tree over row offsets and a payload
-  already on the device (keys `1..n`), e.g. a line graph merged on the device.
+  already on the device (keys `1..n`), e.g. a line graph merged on the device; with 0 records
+  (every row deleted) it keeps the payload and builds nothing (dynG).
 - **append = fill** (A's `fillCBST`): appends values to rows, binned per item by its value count
   (thread < 32, warp < 1024, block otherwise); what does not fit the tail segment goes to an
   overflow segment (rule 3), growing the payload by the policy when needed.
@@ -131,19 +135,29 @@ terminator); this capacity decides which items a deleted slot can take.
 whose node is deleted, is skipped and counted, and raises the device error word (dynG's rule; the
 originals skipped absent keys silently and wrote to deleted rows); erase ignores absent keys.
 
+**The shape of a batch** (dynG, M8a review; PLAN 4.7.3): insert, append and remove_values take
+one prefix size per key, non-decreasing from 0, the last one the payload size; anything else is an
+`invalid_argument_error` before anything changes (the kernels read the payload through the prefix
+sums), and more than `INT_MAX / 3` items a `capacity_error`. A fill whose overflow segments would
+end beyond the int32 offsets is summed exactly on the host first and compacts (where the policy
+compacts) or throws `capacity_error` instead of wrapping.
+
 **The device error word** (the control block, PLAN 4.7.3): a broken chain or a rejected item
 sets it on the device; every read point copies it back with its synchronization and throws
 `internal_error`, poisoning the store; `check_errors()` is the read point of erase and
-remove_values, which have none.
+remove_values, which have none. `clone()` copies the word, so an error the source has not read
+yet throws at the copy's next read point too.
 
 Every operation runs on the stream of the store's `resources` (kernels, copies, Thrust with
 `par_nosync`), allocates from their memory resource, and synchronizes the host only at A's read
 points (ADR 0038): fill 1 (the total appended), insert up to 5 (D, the matched count, the
 matched pairs, the surviving count, the last surviving key), the others 0; `host_syncs()` counts
-them. An operation that fails after it started changing the tree **poisons** the store: every
-later operation throws until it is constructed or rebuilt. Only the precondition checks, the
-construct validation and `compact()`'s `capacity_error` give the strong guarantee (ADR 0040,
-section 4).
+them (a Debug build's check of the caller's row counts adds one counted synchronization to a
+construct with counts). An operation that fails after it started changing the tree **poisons**
+the store: every later operation, `rows()`, `find()`, `clone()` and `check_errors()` throw
+`invalid_argument_error` until it is constructed or rebuilt; `download()` is the one forensic read
+it allows. Only the precondition checks, the construct validation, the batch shape and
+`compact()`'s `capacity_error` give the strong guarantee (ADR 0040, section 4).
 
 ## The policies (`store_policy.hpp`)
 
@@ -151,7 +165,7 @@ section 4).
 |---|---|---|---|
 | `escher_gpu()` | in-place trees (H2V, V2H) `max(requested, size + size/8 + 1024)`; merged trees (H2H, V2V) their exact size | grows to `max(needed + needed/4, 3 * capacity / 2)`, at most `INT_MAX`, then `capacity_error` | never |
 | `mosp_escher(extra = 2^20)` | `floor(flat * 1.3) + extra`, at most 2.0e9 (B's `constructFromRows`) | `capacity_error` (B's `EscherError`) | at B's trigger points, first |
-| `dyng_default(max_payload = INT_MAX)` | as `escher_gpu()` | grows by A's rule, at most `max_payload`, then `capacity_error`; `out_of_memory_error` on an allocation failure | at B's trigger points, first |
+| `dyng_default(max_payload = INT_MAX)` | as `escher_gpu()` | grows by A's rule, at most `max_payload`, then `capacity_error`; `out_of_memory_error` on an allocation failure | at B's trigger points, first; then grows when fewer than 1/8 of the slots are free (the hysteresis) |
 
 **B's trigger points** (`compaction_rule::mosp_escher`): a fill whose overflow segments do not fit
 behind the bump pointer compacts and then appends, once more and without compacting, the values
@@ -159,6 +173,14 @@ that did not fit the rows' tails; an insert whose surplus rows do not fit compac
 best-fit reuse, before it appends them. What still does not fit grows by the policy (or is a
 `capacity_error`, naming the first surplus row that does not fit, before any is written).
 `max_payload` (INT_MAX, the int32 offsets) bounds every growth; tests lower it.
+
+**The hysteresis of the default** (`compaction_headroom = 8`; M8a review, ADR 0040 section 1):
+after an operation that compacted at a trigger point, `dyng_default()` also grows the payload by
+A's rule when fewer than `capacity / 8` slots are free, to the capacity that leaves that many
+(at most `max_payload`). Without it, live data that grows slowly toward the capacity compacted
+the whole payload (O(payload) each time) more and more often, down to every operation, before it
+ever grew. `mosp_escher()` keeps B's literal policy; the host model's `dyng_default()` predicts
+the same growths.
 
 The operation scratch grows to an operation's size under `escher_gpu()` (A's `reserveScratch`) and
 geometrically (+n/2+1 steps, B's `ensureScratchCapacity`) under `mosp_escher()` and dynG's

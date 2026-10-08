@@ -88,7 +88,8 @@ every traced run) and `printVector`, removed by c2.
   of every key's node.
 - **Poisoning** (PLAN 4.7.3, basic guarantee): an operation that fails after it began (any
   exception after the validation) marks the store poisoned; every later operation and `clone()`
-  throws `invalid_argument_error` until `construct` or `rebuild_from_device`. A tree that was
+  throws `invalid_argument_error` until `construct` or `rebuild_from_device` (and, M8a review,
+  `rows()`, `find()` and `check_errors()`; `download()` is the forensic exception). A tree that was
   never constructed rejects operations the same way.
 - No kernel of A detects a contract violation, so the device error word has no user in this
   step; B's bounded chain walker (step 4) will raise it. (Step 4, ADR 0039: the store's control
@@ -118,7 +119,7 @@ A's read points, each counted (`host_syncs()`, and the budget counters):
 
 | operation | read points (dynG synchronizations) | A's blocking calls on the same path |
 |---|---|---|
-| construct | 0 | 3 (`cudaMemcpy` uploads; plus implicit `cudaMalloc` synchronization) |
+| construct | 0 (Debug builds, with the caller's row counts: +1, the check of the counts against the scan, counted; M8a review) | 3 (`cudaMemcpy` uploads; plus implicit `cudaMalloc` synchronization) |
 | rebuild_from_device | 0 | 7 (6 `cudaFree`, `thrust::sequence`) |
 | append (fill) | 1: the total appended | 2 (`inclusive_scan`, the total); +1 with growth (`cudaFree`) |
 | erase, remove_values | 0 | 0 |
@@ -143,8 +144,9 @@ replay compares per operation.
   builds the tree from its surplus rows; the level reduction of an empty tree does nothing (A
   launched 0 blocks); append, erase and remove_values change nothing. (Step 4, ADR 0039 section
   5: append and remove_values items name absent keys there, and throw `internal_error`.)
-- **Clone:** an independent deep copy on any resources (event-ordered with the source's stream
-  both ways); the nodes' absolute pointers are re-wired (`rewire_tree_kernel`).
+- **Clone:** an independent deep copy on any resources, of the same device or another (event-
+  ordered with the source's stream both ways; a peer copy across devices, M8a review); the nodes'
+  absolute pointers are re-wired (`rewire_tree_kernel`).
 - **Download:** the state on the host, the pointers as heap positions; the replay adapter reads
   the store through it.
 - **`allocated_bytes()`** (section 4).
@@ -192,6 +194,24 @@ chain walk bounded by the used payload instead of B's 1,024 hops, the integrity 
 the scratch rule, `compact()` (growth or `capacity_error` instead of `EscherError`), the storage
 counters (no process-global mempool setting) and the rule for dead or absent keys. A's traces
 still match in the `exact` field set after each of them.
+
+M8a review (the fix phase) tightens the store's contracts without changing a replayed result:
+
+- **Trees of 0 records:** a construct of 0 records after an earlier tree releases that tree's
+  arrays and operation scratch (a lookup walked the old nodes, an append wrote into stale rows);
+  `rebuild_from_device` with 0 records keeps the payload and launches nothing (it launched 0
+  blocks, a CUDA error); the row locator handles `max_key` 0 the same way.
+- **Validation before anything changes** (strong guarantee): the construct layout (keys strictly
+  increasing, every row at least one slot inside the payload, offsets increasing) and the shape of
+  every batch (`validate_batch`: one prefix size per key, non-decreasing from 0, the last one the
+  payload size); a fill whose overflow segments would pass the int32 offsets is summed exactly on
+  the host and compacts or throws `capacity_error` instead of wrapping.
+- **Poisoning covers the reads:** `rows()`, `find()` and `check_errors()` throw on a poisoned
+  store (`download()` is the forensic exception).
+- **Clone:** onto resources of another device (a peer copy on the copy's device, events across
+  the two streams); the device error word is copied with the state, so an error the source has
+  not read throws at the copy's next read point too.
+- **The Debug check of the caller's row counts** is a counted synchronization (the table above).
 
 ## Consequences
 
