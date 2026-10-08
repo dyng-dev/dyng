@@ -150,6 +150,49 @@ temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` com
   the manifest of every algorithm (mosp and the tutorial algorithms too, not only sssp and
   cycle_count); no build reads a manifest.
 
+### R020: review fixes (0.2, branch `release-0.2.0`)
+
+- Changed (documentation of the frozen mosp API; no signature changed): `options::
+  compute_path_costs` takes effect at the next `compute()` or `update()` (`set_options()` changes
+  it for the next `update()`; `path_costs()` follows the option of the last one), as
+  `path_costs()` documented; it is no longer called a tunable. `mosp::update()` documents the
+  backend-mismatch and copy-policy errors it shares with `sssp::update()`. The Python module and
+  `Stats` docstrings state the determinism exception for trees imported without
+  canonicalization and the meaning of `converged`, `fallback_used` and `engine_used` (ADR 0035,
+  amendment A1).
+- Changed: the API check enforces the C++ freeze: `ci/api_check.sh` (`api-check.yml`) compares
+  the frozen sections of the C++ API baseline with the base branch (`ci/api_snapshot.py
+  --against`) and fails on a breaking change without the `api-change` label and a CHANGELOG
+  entry, as it does for Python; the freeze tests of `ci/tests/test_api_check.py` run in CI
+  (griffe installed, `DYNG_REQUIRE_GRIFFE=1`) (ADR 0035, amendments A2 and A3).
+- Changed: `parity/certify.py` requires every release check of the version's series
+  (`REQUIRED_CHECKS`: the sanitizer presets, the mutation CTests and golden mutations, the
+  distributions, `check-parity`, `api-check`, `gpu_local` with its compute-sanitizer steps), reads
+  the golden-mutation record against `parity/mutate.py list`, recomputes every gate row from the
+  records and the suite's tolerance instead of copying its flags, names each measured commit once
+  as a full SHA, and its `packaging` and `tests` scopes cover the CUDA plugins' build inputs, every
+  file the sdist ships and the fuzzers' regressions.
+- Fixed: `find_package(dyng 0.2 REQUIRED)` in README.md and the install guide (0.1 refuses an
+  installed 0.2, `SameMinorVersion` before 1.0); `ci/cmake_consumer.sh` (`ci/check.sh`, `cpu.yml`)
+  builds a consumer with the documented block against an installed build.
+- Changed: the release candidate's plugin install takes `dyng` and the plugin from TestPyPI alone
+  (`--no-deps`, NumPy from PyPI first), because the names `dyng-cu12` / `dyng-cu13` are not on
+  PyPI before 0.2.0.
+- Fixed: `dyng.show_config()` no longer suggests `pip install "dyng[cu13]"` when a plugin is
+  installed but unusable, and the selection reason says whether a plugin of the driver's CUDA
+  major is installed; the `dyng` command prints a `BackendWarning` as `dyng: warning: ...` instead
+  of naming the console-script wrapper's line.
+- Changed: the PyPI description (`python/README.md`) names mosp and runs it; the wheel's test
+  subset runs `test_mosp.py`; the getting-started next steps name mosp and the tutorial
+  algorithms. The benchmark suites and `benchmarks/README.md` say that rgg's unsafe50k batch is
+  byte-identical to its safe50k batch (no deletion disconnects a vertex there).
+- Changed: `docs/developer/release.md` for 0.2 (every packaging- and repo-scope check is re-run on
+  a later tag day, `api-check` included; the record of the hosted sanitizer jobs; `wheels.yml`
+  green before the merge; mosp in the smoke test; the final-release checklist in version-neutral
+  terms); GOVERNANCE.md: the layout-control decision is due before `v0.2.0`, and the PyPI names of
+  the plugins are a new open decision.
+- The release certificate was measured again on the reviewed code (R020 retrospective, step 5).
+
 ### Added (M6b)
 
 - M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0033), created with
