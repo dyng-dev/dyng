@@ -1445,7 +1445,97 @@ def coverage_main(argv: list[str]) -> int:
     return 0
 
 
+# Invocations of a suite that are recorded and replayed once instead of kept as a golden set
+# (EXCLUDED: their inputs differ from run to run): `cbst_trace_goldens.py once`.
+ONCE = {"main": ("MOSP_ESCHER", ["bin/main"], "mosp_escher")}
+
+
+def once_main(argv: list[str]) -> int:
+    """Records one run of an excluded invocation (EXCLUDED) of an original's patched copy and
+    replays its trace right away through the dynG store under the original's preset, every field
+    compared (M8a review: MOSP_ESCHER's bin/main, whose graph comes from std::random_device, is
+    not a golden set, but its CBST operations are replayed; the trace carries the original's own
+    states, so one run checks itself). Not a golden: nothing is kept but the summary."""
+    p = argparse.ArgumentParser(
+        prog="cbst_trace_goldens.py once",
+        description=once_main.__doc__,
+    )
+    p.add_argument("invocation", choices=sorted(ONCE))
+    p.add_argument("--scratch", type=Path, default=scratch_default())
+    p.add_argument("--replay-exe", type=Path, help="dyng_cbst_replay (default: find it in build/)")
+    p.add_argument("--gpu", type=int, default=1, help="CUDA_VISIBLE_DEVICES (default 1)")
+    p.add_argument("--json", type=Path, help="write the replay report here")
+    args = p.parse_args(argv)
+    repo, argv_rel, preset = ONCE[args.invocation]
+    ref_dir = reference_dir(repo, args.scratch, False)
+    exe = args.replay_exe or find_replay_exe(cuda=True)
+    if exe is None or not exe.is_file():
+        print("dyng_cbst_replay (a CUDA build) not found: pass --replay-exe", file=sys.stderr)
+        return 2
+    global VERIFIER
+    VERIFIER = ref_dir / "parity_export" / "bin" / "cbst_trace_tool"
+    ref = references()[repo]
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="cbst-once-", dir=args.scratch / "runs") as t:
+        raw = Path(t)
+        env = run_env(ref, raw, {"mode": "auto"})
+        env["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
+        work = raw / "work"
+        work.mkdir()
+        run = subprocess.run(
+            [str(ref_dir / argv_rel[0]), *argv_rel[1:]],
+            cwd=work,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if run.returncode != 0:
+            print(f"{argv_rel[0]} failed (exit {run.returncode}):", file=sys.stderr)
+            print("\n".join((run.stdout + run.stderr).splitlines()[-20:]), file=sys.stderr)
+            return 1
+        cases = collect(raw, repo, None)
+        if not cases:
+            print(f"{argv_rel[0]}: no CBST call was recorded", file=sys.stderr)
+            return 1
+        bad = 0
+        reports = []
+        for c in cases:
+            problems = verify(c["trace"])
+            report = replay_case(exe, c["trace"], preset, "exact", raw, "device")
+            reports.append(report)
+            if "error" in report:
+                problems.append(report["error"])
+            elif not report["ok"]:
+                m = report["mismatches"][0] if report["mismatches"] else {}
+                problems.append(
+                    f"{report['mismatch_count']} mismatches, first at op {m.get('op_index')} "
+                    f"(tree {m.get('tree')} {m.get('dataset')}, {m.get('op')}) {m.get('field')} "
+                    f"key {m.get('key')}: trace {m.get('expected')}, store {m.get('actual')}"
+                )
+            unreplayable = [tr for tr in report.get("trees", []) if tr["unreplayable"]]
+            problems += [
+                f"tree {tr['tree']} unreplayable: {tr['unreplayable_reason']}"
+                for tr in unreplayable
+            ]
+            ops = c["end"].get("num_ops")
+            rules = rule_counts(report) if "error" not in report else {}
+            print(
+                f"{repo} {' '.join(argv_rel)} (recorded once, replayed under {preset}, exact): "
+                f"{ops} ops, {report.get('compared', 0)} compared, "
+                f"{report.get('mismatch_count', '?')} mismatches, documented {rules or 'none'}: "
+                + ("OK" if not problems else "FAILED")
+            )
+            for pr in problems:
+                print("  " + pr)
+            bad += bool(problems)
+        if args.json:
+            args.json.write_text(json.dumps(reports, indent=1) + "\n")
+    return 1 if bad else 0
+
+
 def main() -> int:
+    if sys.argv[1:2] == ["once"]:
+        return once_main(sys.argv[2:])
     if sys.argv[1:2] == ["coverage"]:
         return coverage_main(sys.argv[2:])
     if sys.argv[1:2] == ["datasets"]:

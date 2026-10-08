@@ -971,9 +971,10 @@ def test_ctest_progress_lines(cert) -> None:
     }
 
 
-def test_cbst_trace_sets_are_listed_not_gated(cert, tmp_path: Path) -> None:
-    """The CBST trace goldens of M8a are listed with their kind; without a replay record they
-    stay out of the golden verdict, and a replay record of one is checked like any other."""
+def test_cbst_trace_sets_are_gated(cert, tmp_path: Path) -> None:
+    """The CBST trace goldens of M8a are gated (M8a review): a set without a replay of the dynG
+    store under its original's preset and under dynG's default fails the certificate; with both
+    records it passes; a record of one is checked like any other."""
     import tomllib
 
     sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
@@ -984,18 +985,37 @@ def test_cbst_trace_sets_are_listed_not_gated(cert, tmp_path: Path) -> None:
     problems: list[str] = []
     listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
     for n in traces:
-        assert listed[n]["kind"] == "cbst_trace" and listed[n]["passed"] is None
+        assert listed[n]["kind"] == "cbst_trace" and listed[n]["passed"] is False
+        assert any(n in p and "no replay of the CBST store" in p for p in problems)
     assert listed["sssp"]["passed"] is False  # an algorithm set without replays still fails
-    record = {
-        "set": traces[0],
-        "port": {"commit": head()},
-        "goldens": {"manifest_sha256": "0" * 64},
-        "configs": ["cuda"],
-        "matrix": {"g": {"cuda": "equal"}},
-        "passed": True,
-    }
-    (results / f"parity-{traces[0]}-0.json").write_text(json.dumps(record))
+    name = traces[0]
+    original = cert.CBST_ORIGINAL_PRESET[sets[name]["reference"]]
+
+    def write(preset: str, manifest: str) -> None:
+        record = {
+            "set": name,
+            "port": {"commit": head()},
+            "goldens": {"manifest_sha256": manifest},
+            "configs": [f"device:{preset}/exact"],
+            "matrix": {"g": {f"device:{preset}/exact": "equal"}},
+            "passed": True,
+        }
+        (results / f"parity-{name}-device-{preset}.json").write_text(json.dumps(record))
+
+    # Only the original's preset: the default's replay is missing.
+    write(original, sets[name]["manifest_sha256"])
     problems = []
     listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
-    assert listed[traces[0]]["passed"] is False
+    assert listed[name]["passed"] is False
+    assert any("dyng_default" in p for p in problems if name in p)
+    # Both presets: the set passes.
+    write("dyng_default", sets[name]["manifest_sha256"])
+    problems = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    assert listed[name]["passed"] is True, [p for p in problems if name in p]
+    # A record of another manifest fails like any other.
+    write("dyng_default", "0" * 64)
+    problems = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    assert listed[name]["passed"] is False
     assert any("replayed manifest" in p for p in problems)

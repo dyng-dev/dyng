@@ -168,6 +168,13 @@ REQUIRED_REPLAYS = {
     "cycle_count_cuda": ["cuda"],
     "mosp_scale": ["sequential", "openmp", "cuda"],
 }
+# The CBST trace goldens of M8a (kind "cbst_trace"): every certificate must replay each set
+# through the dynG store under its original's preset and under dynG's default preset (the
+# records `compare.py cbst_trace --store device --certificate <dir>` writes, as ci/gpu_local.sh
+# does; config "device:<preset>/<fields>"). A set without them fails the certificate (M8a review:
+# they were listed without entering the verdict).
+CBST_ORIGINAL_PRESET = {"ESCHER-GPU": "escher_gpu", "MOSP_ESCHER": "mosp_escher"}
+CBST_REQUIRED_PRESETS = ("<original>", "dyng_default")
 # "100% tests passed out of 595" (CMake 4) or "95% tests passed, 1 tests failed out of 20".
 CTEST = re.compile(r"(\d+)% tests passed(?:, (\d+) tests? failed)? out of (\d+)")
 # One test of ctest's progress output: "  3/595 Test   #1: Name ......   Passed    0.09 sec"
@@ -574,13 +581,25 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
         entry["passed"] = (
             bool(entry["replays"]) and not missing and all(r["passed"] for r in entry["replays"])
         )
-        if entry["kind"] == "cbst_trace" and not entry["replays"]:
-            # The CBST trace goldens (M8a) are the parity data of the internal ESCHER store, which
-            # its own replay tests read (ctest -L cbst, from M8a step 2); they are listed here,
-            # and a replay record of one is checked like any other, but until the store's
-            # replay writes records (M8a, before 0.3.0) they do not enter the golden verdict.
-            entry["passed"] = None
-            entry["status"] = "listed: replayed by the CBST store tests, no replay record yet"
+        if entry["kind"] == "cbst_trace":
+            # The CBST trace goldens (M8a): replays of the dynG store under the original's preset
+            # and dynG's default are required (CBST_REQUIRED_PRESETS).
+            presets = {
+                c.split(":", 1)[1].split("/")[0]
+                for r in entry["replays"]
+                for c in r["configs"]
+                if c.startswith("device:")
+            }
+            original = CBST_ORIGINAL_PRESET.get(spec["reference"], "")
+            wanted = [original if p == "<original>" else p for p in CBST_REQUIRED_PRESETS]
+            absent = [p for p in wanted if p and p not in presets]
+            entry["required_presets"] = wanted
+            if absent:
+                problems.append(
+                    f"golden set {name}: no replay of the CBST store under {', '.join(absent)} "
+                    "(compare.py cbst_trace --store device --certificate <results>)"
+                )
+                entry["passed"] = False
         out.append(entry)
     return out
 
