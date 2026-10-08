@@ -58,5 +58,8 @@ print(tree.distances.tolist(), hist.counts.tolist(), st_hist.cycles_removed, st_
 
 The same steps from the command line, on files in MOSP's formats, are in {doc}`../api/cli`
 (`dyng sssp compute` and `dyng sssp update`) and in the tutorial
-{doc}`../tutorials/sssp_mosp_files`. The next steps are the algorithm pages, {doc}`../algorithms/sssp` and
-{doc}`../algorithms/cycle_count`, which have longer Python and CLI examples.
+{doc}`../tutorials/sssp_mosp_files`. The next steps are the algorithm pages, {doc}`../algorithms/sssp`,
+{doc}`../algorithms/mosp` (several weights per edge: multi-objective shortest paths) and
+{doc}`../algorithms/cycle_count`, which have longer Python and CLI examples; the tutorial
+algorithms {doc}`../algorithms/dynamic_bfs` and {doc}`../algorithms/triangle_delta` show how an
+algorithm is written.
