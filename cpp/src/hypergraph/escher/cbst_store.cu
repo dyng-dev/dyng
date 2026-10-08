@@ -441,7 +441,8 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
         ctx.d_nodes, d_row_counts.get(), num_records);
     DYNG_CHECK_KERNEL(stream_of(ctx));
 #ifndef NDEBUG
-    // Debug builds: the counts must be the scan (an extra synchronization, Debug only).
+    // Debug builds: the counts must be the scan (an extra synchronization, Debug only; counted
+    // like every other, ADR 0038 section 5).
     temp_buffer<int> d_mismatches(ctx.res, 1);
     DYNG_CUDA_TRY(cudaMemsetAsync(d_mismatches.get(), 0, sizeof(int), stream_of(ctx)));
     count_occupancy_mismatches_kernel<<<num_blocks, block_size, 0, stream_of(ctx)>>>(
@@ -451,6 +452,7 @@ void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_pa
     DYNG_CUDA_TRY(cudaMemcpyAsync(&mismatches, d_mismatches.get(), sizeof(int),
                                   cudaMemcpyDeviceToHost, stream_of(ctx)));
     DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(ctx)));
+    count_implicit_synchronization(ctx);
     if (mismatches != 0) {
       DYNG_FAIL("CBST ", dataset_name, ": ", mismatches,
                 " of the caller's row counts differ from the rows of the payload");
@@ -1246,64 +1248,96 @@ int cbst_store::compact() {
   }
 }
 
+// A device copy of `bytes` from a context's device to another's, on the destination's stream
+// with its device current: a peer copy between two devices (the stream-ordered pool's memory is
+// not mapped on its peers, so a plain device-to-device copy is rejected), a device-to-device copy
+// within one.
+static void copy_bytes(const cbst_context& to, void* dst, const cbst_context& from, const void* src,
+                       size_t bytes) {
+  if (bytes == 0) return;
+  if (to.res.device() == from.res.device()) {
+    DYNG_CUDA_TRY(cudaMemcpyAsync(dst, src, bytes, cudaMemcpyDeviceToDevice, stream_of(to)));
+  } else {
+    DYNG_CUDA_TRY(
+        cudaMemcpyPeerAsync(dst, to.res.device(), src, from.res.device(), bytes, stream_of(to)));
+  }
+}
+
 // A device copy of one array of a context into the matching array of another (same size).
 template <typename value_t>
 static void copy_array(cbst_context& to, buffer<value_t>& to_storage, value_t*& to_view,
-                       const buffer<value_t>& from) {
-  allocate(to, to_storage, to_view, from.size());
-  if (!from.empty())
-    DYNG_CUDA_TRY(cudaMemcpyAsync(to_view, from.data(), from.size() * sizeof(value_t),
-                                  cudaMemcpyDeviceToDevice, stream_of(to)));
+                       const cbst_context& from, const buffer<value_t>& from_storage) {
+  allocate(to, to_storage, to_view, from_storage.size());
+  copy_bytes(to, to_view, from, from_storage.data(), from_storage.size() * sizeof(value_t));
+}
+
+// Makes `waiter` wait for the work queued so far on `signaller` (an event recorded on the
+// signaller's device, waited for on the waiter's).
+static void order_after(const cbst_context& signaller, const cbst_context& waiter) {
+  // (One stream handle names one stream only on one device: the per-thread default stream's
+  // handle is the same on every device.)
+  if (stream_of(signaller) == stream_of(waiter) && signaller.res.device() == waiter.res.device())
+    return;
+  cudaEvent_t event = nullptr;
+  {
+    const scoped_device guard(signaller.res.device());
+    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+    DYNG_CUDA_TRY(cudaEventRecord(event, stream_of(signaller)));
+  }
+  const scoped_device guard(waiter.res.device());
+  DYNG_CUDA_TRY(cudaStreamWaitEvent(stream_of(waiter), event, 0));
+  DYNG_CUDA_TRY(cudaEventDestroy(event));
 }
 
 cbst_store cbst_store::clone(const resources& res) const {
   check_not_poisoned("clone");
-  const scoped_device guard(ctx_.res.device());
+  DYNG_EXPECTS(res.get_backend() == backend::cuda, "CBST ", ctx_.dataset_name,
+               ": clone: the store needs resources of the CUDA backend");
   cbst_store copy(res, ctx_.dataset_name, ctx_.fixed_size, ctx_.alignment, ctx_.policy);
   cbst_context& c = copy.ctx_;
-  // The copy is ordered after the work queued on the source's stream.
-  if (stream_of(c) != stream_of(ctx_)) {
-    cudaEvent_t ready;
-    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&ready, cudaEventDisableTiming));
-    DYNG_CUDA_TRY(cudaEventRecord(ready, stream_of(ctx_)));
-    DYNG_CUDA_TRY(cudaStreamWaitEvent(stream_of(c), ready, 0));
-    DYNG_CUDA_TRY(cudaEventDestroy(ready));
-  }
-  c.num_records = ctx_.num_records;
-  c.initial_payload_size = ctx_.initial_payload_size;
-  c.scratch_item_capacity = ctx_.scratch_item_capacity;
-  c.scratch_payload_capacity = ctx_.scratch_payload_capacity;
-  copy_array(c, c.nodes_storage, c.d_nodes, ctx_.nodes_storage);
-  copy_array(c, c.keys_storage, c.d_keys, ctx_.keys_storage);
-  copy_array(c, c.start_offsets_storage, c.d_start_offsets, ctx_.start_offsets_storage);
-  copy_array(c, c.flat_payload_storage, c.d_flat_payload, ctx_.flat_payload_storage);
-  copy_array(c, c.avail_storage, c.d_avail, ctx_.avail_storage);
-  copy_array(c, c.subtree_avail_storage, c.d_subtree_avail, ctx_.subtree_avail_storage);
-  // The operation scratch: the same capacities (its contents are inputs of the next operation).
-  allocate(c, c.insert_keys_storage, c.d_insert_keys, ctx_.insert_keys_storage.size());
-  allocate(c, c.insert_payload_storage, c.d_insert_payload, ctx_.insert_payload_storage.size());
-  allocate(c, c.insert_prefix_sizes_storage, c.d_insert_prefix_sizes,
-           ctx_.insert_prefix_sizes_storage.size());
-  allocate(c, c.relocation_plan_storage, c.d_relocation_plan, ctx_.relocation_plan_storage.size());
-  if (c.nodes_storage.size() > 0) {
-    const int n = static_cast<int>(c.nodes_storage.size());
-    rewire_tree_kernel<<<(n + 255) / 256, 256, 0, stream_of(c)>>>(c.d_nodes, n);
-    DYNG_CHECK_KERNEL(stream_of(c));
+  // The copy is ordered after the work queued on the source's stream; it is made on the copy's
+  // device (the source's or another: M8a review).
+  order_after(ctx_, c);
+  {
+    const scoped_device guard(res.device());
+    c.num_records = ctx_.num_records;
+    c.initial_payload_size = ctx_.initial_payload_size;
+    c.scratch_item_capacity = ctx_.scratch_item_capacity;
+    c.scratch_payload_capacity = ctx_.scratch_payload_capacity;
+    copy_array(c, c.nodes_storage, c.d_nodes, ctx_, ctx_.nodes_storage);
+    copy_array(c, c.keys_storage, c.d_keys, ctx_, ctx_.keys_storage);
+    copy_array(c, c.start_offsets_storage, c.d_start_offsets, ctx_, ctx_.start_offsets_storage);
+    copy_array(c, c.flat_payload_storage, c.d_flat_payload, ctx_, ctx_.flat_payload_storage);
+    copy_array(c, c.avail_storage, c.d_avail, ctx_, ctx_.avail_storage);
+    copy_array(c, c.subtree_avail_storage, c.d_subtree_avail, ctx_, ctx_.subtree_avail_storage);
+    // The device error word and its counters: an error the source raised but has not read yet
+    // (erase and remove_values have no read point) is the copy's too, and its next read point
+    // throws it (M8a review: the copy started clean).
+    if (ctx_.d_control != nullptr && c.d_control != nullptr)
+      copy_bytes(c, c.d_control, ctx_, ctx_.d_control, control_words * sizeof(std::uint32_t));
+    // The operation scratch: the same capacities (its contents are inputs of the next operation).
+    allocate(c, c.insert_keys_storage, c.d_insert_keys, ctx_.insert_keys_storage.size());
+    allocate(c, c.insert_payload_storage, c.d_insert_payload, ctx_.insert_payload_storage.size());
+    allocate(c, c.insert_prefix_sizes_storage, c.d_insert_prefix_sizes,
+             ctx_.insert_prefix_sizes_storage.size());
+    allocate(c, c.relocation_plan_storage, c.d_relocation_plan,
+             ctx_.relocation_plan_storage.size());
+    if (c.nodes_storage.size() > 0) {
+      const int n = static_cast<int>(c.nodes_storage.size());
+      rewire_tree_kernel<<<(n + 255) / 256, 256, 0, stream_of(c)>>>(c.d_nodes, n);
+      DYNG_CHECK_KERNEL(stream_of(c));
+    }
   }
   // Later work on the source's stream waits for the copy's reads.
-  if (stream_of(c) != stream_of(ctx_)) {
-    cudaEvent_t copied;
-    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&copied, cudaEventDisableTiming));
-    DYNG_CUDA_TRY(cudaEventRecord(copied, stream_of(c)));
-    DYNG_CUDA_TRY(cudaStreamWaitEvent(stream_of(ctx_), copied, 0));
-    DYNG_CUDA_TRY(cudaEventDestroy(copied));
-  }
+  order_after(c, ctx_);
   copy.constructed_ = constructed_;
   return copy;
 }
 
 void cbst_store::check_errors() {
-  if (!constructed_ || poisoned_) return;
+  // A poisoned store's state is undefined: its end-of-update read point throws (M8a review).
+  check_not_poisoned("check_errors");
+  if (!constructed_) return;
   const scoped_device guard(ctx_.res.device());
   try {
     synchronize(ctx_);
@@ -1376,6 +1410,7 @@ cbst_host_state cbst_store::download() const {
 // ESCHER-GPU's findAndPrint printed the rows from the device; the lookup now returns the heap
 // position of every key's node (-1: not in the tree) and prints nothing.
 std::vector<int> cbst_store::find(const std::vector<int>& ids) const {
+  check_not_poisoned("find");
   const scoped_device guard(ctx_.res.device());
   std::vector<int> positions(ids.size(), -1);
   if (ids.empty() || ctx_.d_nodes == nullptr || ctx_.num_records <= 0) return positions;
@@ -1396,6 +1431,7 @@ std::vector<int> cbst_store::find(const std::vector<int>& ids) const {
 }
 
 std::vector<std::vector<int>> cbst_store::rows(const std::vector<int>& keys) const {
+  check_not_poisoned("rows");
   const scoped_device guard(ctx_.res.device());
   std::vector<std::vector<int>> out(keys.size());
   if (keys.empty() || ctx_.d_nodes == nullptr || ctx_.num_records <= 0) return out;

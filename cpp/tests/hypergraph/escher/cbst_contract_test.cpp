@@ -253,5 +253,113 @@ TEST(CbstContractConstruct, TheLayoutIsValidated) {
   EXPECT_EQ(probe.rows({1, 2}), (rows{{9}, {5, 6}}));
 }
 
+// --- Reads of a poisoned store -------------------------------------------------------------------
+
+// A poisoned store's state is undefined: rows(), find() and check_errors() (the end of the
+// container's update) throw invalid_argument_error; download() is the documented forensic read.
+TEST(CbstContractPoison, EveryReadButDownloadThrows) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  store_policy fixed = store_policy::escher_gpu();
+  fixed.name = "fixed";
+  fixed.growth = store_policy::growth_rule::none;
+  cbst_store s(res, "poisoned", 8, 4, fixed);
+  construct_rows(s, {{1, 2, 3}, {4}});
+  const batch big = make_batch({1}, {iota_row(100, 100)});
+  EXPECT_THROW(s.append(big.keys, big.payload, big.prefix), capacity_error);
+  ASSERT_TRUE(s.poisoned());
+  EXPECT_THROW((void)s.rows({1}), invalid_argument_error);
+  EXPECT_THROW((void)s.find({1}), invalid_argument_error);
+  EXPECT_THROW(s.check_errors(), invalid_argument_error);
+  EXPECT_THROW((void)s.clone(), invalid_argument_error);
+  const cbst_host_state h = s.download();  // the forensic read
+  EXPECT_EQ(h.num_records, 2);
+  construct_rows(s, {{1}});
+  EXPECT_FALSE(s.poisoned());
+  EXPECT_EQ(s.rows({1}), rows{{1}});
+  s.check_errors();
+}
+
+// --- Clone --------------------------------------------------------------------------------------
+
+// An error the source raised but has not read (remove_values has no read point) is the copy's
+// too: both throw at their next read point.
+TEST(CbstContractClone, APendingDeviceErrorIsCopied) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "pending", 64);
+  construct_rows(s, {{1, 2}, {3}});
+  const batch absent = make_batch({9}, {{1}});
+  s.remove_values(absent.keys, absent.payload, absent.prefix);
+  cbst_store c = s.clone();
+  EXPECT_THROW(c.check_errors(), internal_error);
+  EXPECT_TRUE(c.poisoned());
+  EXPECT_THROW(s.check_errors(), internal_error);
+  // A clean source gives a clean copy.
+  cbst_store t(res, "clean", 64);
+  construct_rows(t, {{1, 2}, {3}});
+  cbst_store d = t.clone();
+  d.check_errors();
+  EXPECT_FALSE(d.poisoned());
+}
+
+// A clone onto the resources of another device (skipped with one device): equal to its source,
+// independent of it, under every preset; and back.
+TEST(CbstContractClone, OntoAnotherDevice) {
+  DYNG_SKIP_IF_NO_CUDA();
+  if (cuda_device_count() < 2) GTEST_SKIP() << "one CUDA device: no other device to clone onto";
+  for (const store_policy& policy :
+       {store_policy::escher_gpu(), store_policy::mosp_escher(64), store_policy::dyng_default()}) {
+    SCOPED_TRACE(policy.name);
+    const resources r0 = resources::cuda(0), r1 = resources::cuda(1);
+    cbst_store source(r1, "source", 64, 4, policy);
+    construct_rows(source, {{1, 2, 3}, {4}, {5, 6, 7, 8, 9}});
+    const batch more = make_batch({2}, {iota_row(100, 40)});
+    source.append(more.keys, more.payload, more.prefix);
+    source.erase({3});
+    const rows want = {{1, 2, 3},
+                       [] {
+                         std::vector<int> r = {4};
+                         const std::vector<int> m = iota_row(100, 40);
+                         r.insert(r.end(), m.begin(), m.end());
+                         return r;
+                       }(),
+                       {}};
+    cbst_store copy = source.clone(r0);
+    EXPECT_EQ(copy.context().res.device(), 0);
+    EXPECT_EQ(fingerprint(copy.download()).size(), fingerprint(source.download()).size());
+    EXPECT_EQ(copy.rows({1, 2, 3}), source.rows({1, 2, 3}));
+    EXPECT_EQ(copy.rows({1, 2, 3}), want);
+    const batch ins = make_batch({0}, {{50, 51}});
+    EXPECT_EQ(copy.insert(ins.keys, ins.payload, ins.prefix).item_to_key, std::vector<int>{3});
+    EXPECT_EQ(source.rows({3}), rows{{}});
+    cbst_store back = copy.clone(r1);
+    EXPECT_EQ(back.rows({1, 2, 3}), copy.rows({1, 2, 3}));
+    back.check_errors();
+    copy.check_errors();
+    source.check_errors();
+  }
+}
+
+// --- Host synchronizations ------------------------------------------------------------------------
+
+// The Debug-only check of the caller's row counts waits for the stream, and that wait is counted
+// like every other (ADR 0038 section 5).
+TEST(CbstContractSyncs, TheDebugCheckOfTheRowCountsIsCounted) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "counts", 64, 4, store_policy::mosp_escher(64));
+  layout l = make_layout({{1, 2, 3}, {4}});
+  std::vector<int> counts = {3, 1};
+  const long long before = s.host_syncs();
+  s.construct(l.keys.data(), l.starts.data(), 2, l.flat.data(), static_cast<int>(l.flat.size()),
+              counts.data());
+#ifdef NDEBUG
+  EXPECT_EQ(s.host_syncs() - before, 0);
+#else
+  EXPECT_EQ(s.host_syncs() - before, 1);
+#endif
+}
+
 }  // namespace
 }  // namespace dyng::detail::escher

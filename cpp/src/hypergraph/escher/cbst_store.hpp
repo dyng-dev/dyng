@@ -248,9 +248,12 @@ struct cbst_store {
   // the compacted size, which is returned. A capacity_error of a fixed payload too small for the
   // compacted rows leaves the store as it was (not poisoned). One host synchronization.
   int compact();
-  // A deep copy of the store on `res` (dynG addition): every array copied, the node pointers
-  // re-wired to the copy; it is independent of its source. The copy waits for the work queued
-  // on the source's stream; its counters start at zero. Throws invalid_argument_error for a
+  // A deep copy of the store on `res` (dynG addition), on the same device or another: every array
+  // copied, the node pointers re-wired to the copy; it is independent of its source. The copy
+  // waits for the work queued on the source's stream, and later work on the source's stream waits
+  // for the copy. The device error word and its counters are copied (an error the source raised
+  // but has not read yet throws at the copy's next read point too); the host counters (host
+  // syncs, growths, compactions, launches) start at zero. Throws invalid_argument_error for a
   // poisoned store.
   cbst_store clone(const resources& res) const;
   // The same on the store's own resources.
@@ -258,19 +261,22 @@ struct cbst_store {
     return clone(ctx_.res);
   }
   // The store's state on the host (dynG addition; synchronizes the stream). It does not check the
-  // device error word.
+  // device error word, and it is the one read that a poisoned store allows (the forensic read of
+  // the half-applied state; the tests use it to see what a failed operation wrote).
   cbst_host_state download() const;
   // Waits for the store's work and throws the exception of its device error word if a kernel
   // raised it since the last read point (a broken chain, a dead or absent key; M8a step 4): the
   // read point of the operations without one of their own (erase, remove_values), for the end of
-  // the container's update. An error poisons the store. One host synchronization.
+  // the container's update. An error poisons the store, and a poisoned store throws
+  // invalid_argument_error here (its state is undefined). One host synchronization.
   void check_errors();
-  // The heap position of the node of every key (-1: absent).
+  // The heap position of the node of every key (-1: absent). Throws invalid_argument_error for a
+  // poisoned store.
   std::vector<int> find(const std::vector<int>& ids) const;
   // The row of every key in read order (empty for an absent or deleted key), read along its chain
   // with the bounded walk of chain.cuh (M8a step 4; ESCHER-GPU's findContents printed them).
-  // Throws internal_error for a broken chain (a row is never truncated). Two host
-  // synchronizations.
+  // Throws internal_error for a broken chain (a row is never truncated) and
+  // invalid_argument_error for a poisoned store. Two host synchronizations.
   std::vector<std::vector<int>> rows(const std::vector<int>& keys) const;
   // The degree-bin launches of the store's operations so far.
   const degree_bin_launches& bin_launches() const {
