@@ -58,6 +58,13 @@ struct store_policy {
   /// The largest payload capacity in entries (INT_MAX: the int32 offsets of the CBST); a payload
   /// that needs more is a capacity_error. Tests lower it to reach the limit (M8a step 5).
   long long max_payload = INT_MAX;
+  /// The hysteresis of an automatic compaction (dyng_default(); M8a review, ADR 0040): after an
+  /// operation that compacted at a trigger point, the payload also grows by the growth rule when
+  /// fewer than capacity / compaction_headroom slots are free, to the capacity that leaves that
+  /// many free (at most max_payload). Without it, live data that grows slowly toward the capacity
+  /// compacts the whole payload more and more often before it ever grows. 0: never (the
+  /// originals' presets).
+  long long compaction_headroom = 0;
 
   /**
    * @brief ESCHER-GPU@abcf9b2's policy: in-place trees (H2V, V2H) start at max(requested,
@@ -85,9 +92,10 @@ struct store_policy {
    * @brief dynG's default, the target policy of PLAN 6.4.5 (M8a step 5, ADR 0039): ESCHER-GPU's
    *        initial sizing; a payload that does not fit is compacted first, at MOSP_ESCHER's
    *        trigger points (compaction_rule::mosp_escher), and grows by ESCHER-GPU's rule when
-   *        the compacted rows still do not fit; capacity_error only beyond max_payload (the
-   *        int32 offsets) and out_of_memory_error on an allocation failure; alignment 4; the
-   *        operation scratch grows geometrically.
+   *        the compacted rows still do not fit, or when the operation leaves fewer than 1/8 of
+   *        the slots free (compaction_headroom 8, the slack of ESCHER-GPU's initial sizing);
+   *        capacity_error only beyond max_payload (the int32 offsets) and out_of_memory_error on
+   *        an allocation failure; alignment 4; the operation scratch grows geometrically.
    * @param[in] max_payload The largest payload capacity (INT_MAX; lower only in tests).
    * @return The preset.
    */

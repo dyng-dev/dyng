@@ -361,5 +361,122 @@ TEST(CbstContractSyncs, TheDebugCheckOfTheRowCountsIsCounted) {
 #endif
 }
 
+// --- The hysteresis of the default preset's compaction (ADR 0040) ---------------------------------
+
+/// Long churn near the capacity: every round removes `drop` single values and appends `add`
+/// (net growth add - drop values per round). Returns the rounds at which the store compacted.
+std::vector<int> long_churn(cbst_store& s, testing::cbst_host_model& model, int rounds, int drop,
+                            int add) {
+  const int keys = static_cast<int>(s.context().num_records);
+  std::vector<std::vector<int>> live(static_cast<std::size_t>(keys));
+  for (int k = 1; k <= keys; ++k) live[static_cast<std::size_t>(k - 1)] = s.rows({k})[0];
+  std::vector<int> compacting_rounds;
+  int next = 1000000;
+  long long compactions = s.compactions();
+  for (int round = 0; round < rounds; ++round) {
+    batch rem, app;
+    for (int i = 0; i < drop; ++i) {
+      const int k = 1 + (round * 7919 + i * 31) % keys;
+      auto& row = live[static_cast<std::size_t>(k - 1)];
+      if (row.size() <= 1 || std::find(rem.keys.begin(), rem.keys.end(), k) != rem.keys.end())
+        continue;
+      rem.keys.push_back(k);
+      rem.payload.push_back(row.back());
+      rem.prefix.push_back(static_cast<int>(rem.payload.size()));
+      row.pop_back();
+    }
+    for (int i = 0; i < add; ++i) {
+      const int k = 1 + (round * 104729 + i * 17) % keys;
+      if (std::find(app.keys.begin(), app.keys.end(), k) != app.keys.end()) continue;
+      app.keys.push_back(k);
+      app.payload.push_back(next);
+      app.prefix.push_back(static_cast<int>(app.payload.size()));
+      live[static_cast<std::size_t>(k - 1)].push_back(next++);
+    }
+    s.remove_values(rem.keys, rem.payload, rem.prefix);
+    EXPECT_EQ(model.remove_values(rem.keys, rem.payload, rem.prefix).status,
+              testing::cbst_op_status::ok);
+    s.append(app.keys, app.payload, app.prefix);
+    EXPECT_EQ(model.append(app.keys, app.payload, app.prefix).status, testing::cbst_op_status::ok);
+    if (s.compactions() != compactions) compacting_rounds.push_back(round);
+    compactions = s.compactions();
+    // The store's layout is the model's (capacity, bump pointer, every key's record).
+    EXPECT_EQ(s.context().fixed_size, model.payload_capacity()) << "round " << round;
+    EXPECT_EQ(s.context().initial_payload_size, model.bump()) << "round " << round;
+  }
+  s.check_errors();
+  std::vector<std::vector<int>> got = s.rows([&] {
+    std::vector<int> all(static_cast<std::size_t>(keys));
+    for (int k = 1; k <= keys; ++k) all[static_cast<std::size_t>(k - 1)] = k;
+    return all;
+  }());
+  for (std::size_t k = 0; k < got.size(); ++k) {
+    std::sort(got[k].begin(), got[k].end());
+    std::sort(live[k].begin(), live[k].end());
+  }
+  EXPECT_EQ(got, live);
+  return compacting_rounds;
+}
+
+// Live data that grows slowly toward the capacity: without the hysteresis the default preset
+// compacted the whole payload more and more often (the review's 20, 21, ..., 4 rounds apart)
+// before it grew. With it, after every compaction at least 1/8 of the payload is free, so the
+// rounds between two compactions stay bounded below, and the store grows instead of thrashing.
+TEST(CbstContractHysteresis, TheDefaultPresetDoesNotCompactEveryFewOps) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  rows initial;
+  for (int k = 0; k < 2000; ++k) initial.push_back(iota_row(10 * k + 1, 3 + k % 10));
+  const layout l = make_layout(initial);
+  const long long flat = static_cast<long long>(l.flat.size());
+  const int capacity = static_cast<int>(flat + flat / 8 + 1024);
+  cbst_store s(res, "churn", capacity, 4, store_policy::dyng_default());
+  testing::cbst_host_model model(testing::cbst_host_policy::dyng_default(), capacity, 4, "churn");
+  construct_rows(s, initial);
+  ASSERT_EQ(model.construct(l.keys, l.starts, l.flat).status, testing::cbst_op_status::ok);
+  // Net growth 5 values per round over 400 rounds (2,000 values): live data rises toward the
+  // capacity; every round's removals and appends leave holes that only a compaction reclaims.
+  const std::vector<int> at = long_churn(s, model, 400, 195, 200);
+  ASSERT_GE(at.size(), 2U);
+  // Rounds between two compactions: never fewer than half of the first gap.
+  const int first_gap = at[1] - at[0];
+  for (std::size_t i = 2; i < at.size(); ++i)
+    EXPECT_GE(at[i] - at[i - 1], first_gap / 2)
+        << "compactions at rounds " << at[i - 1] << " and " << at[i];
+  // The store grew rather than thrash, and the model predicted every event.
+  EXPECT_GT(s.stats().growths, 0);
+  long long model_compactions = 0, model_growths = 0;
+  for (const testing::cbst_model_event& e : model.events())
+    (e.what == testing::cbst_model_event::kind::compaction ? model_compactions : model_growths)++;
+  EXPECT_EQ(model_compactions, s.compactions());
+  EXPECT_EQ(model_growths, s.stats().growths);
+  // The control: the same churn without the hysteresis compacts within fewer rounds than that
+  // (at rounds 22, 43, 60, 74, ..., 108, 109, 110, 111 when this test was written).
+  store_policy without = store_policy::dyng_default();
+  without.compaction_headroom = 0;
+  testing::cbst_host_policy model_without = testing::cbst_host_policy::dyng_default();
+  model_without.compaction_headroom = 0;
+  cbst_store t(res, "churn", capacity, 4, without);
+  testing::cbst_host_model control(model_without, capacity, 4, "churn");
+  construct_rows(t, initial);
+  ASSERT_EQ(control.construct(l.keys, l.starts, l.flat).status, testing::cbst_op_status::ok);
+  const std::vector<int> thrash = long_churn(t, control, 400, 195, 200);
+  int smallest = 400;
+  for (std::size_t i = 1; i < thrash.size(); ++i)
+    smallest = std::min(smallest, thrash[i] - thrash[i - 1]);
+  EXPECT_LT(smallest, first_gap / 2);
+}
+
+// The hysteresis is the default preset's only: mosp_escher() stays MOSP_ESCHER's literal policy
+// and escher_gpu() never compacts.
+TEST(CbstContractHysteresis, OnlyTheDefaultPresetHasIt) {
+  EXPECT_EQ(store_policy::dyng_default().compaction_headroom, 8);
+  EXPECT_EQ(store_policy::mosp_escher().compaction_headroom, 0);
+  EXPECT_EQ(store_policy::escher_gpu().compaction_headroom, 0);
+  EXPECT_EQ(testing::cbst_host_policy::dyng_default().compaction_headroom, 8);
+  EXPECT_EQ(testing::cbst_host_policy::mosp_escher().compaction_headroom, 0);
+  EXPECT_EQ(testing::cbst_host_policy::escher_gpu().compaction_headroom, 0);
+}
+
 }  // namespace
 }  // namespace dyng::detail::escher

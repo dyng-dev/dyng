@@ -279,6 +279,22 @@ static void ensure_payload_capacity(cbst_context& ctx, long long needed) {
   ++ctx.growths;
 }
 
+// The hysteresis of an automatic compaction (store_policy::compaction_headroom; M8a review, ADR
+// 0040): after an operation that compacted at a trigger point, the payload grows by the policy's
+// rule when fewer than capacity / headroom slots are free, so that the next compaction comes only
+// after that many slots were used again (a compaction is O(payload)).
+static void keep_headroom_after_compaction(cbst_context& ctx, long long compactions_before) {
+  const long long headroom = ctx.policy.compaction_headroom;
+  if (headroom <= 0 || ctx.compactions == compactions_before ||
+      ctx.policy.growth == store_policy::growth_rule::none)
+    return;
+  const long long slack = ctx.fixed_size / headroom;
+  if (static_cast<long long>(ctx.fixed_size) - ctx.initial_payload_size >= slack) return;
+  const long long needed = std::min(static_cast<long long>(ctx.initial_payload_size) + slack,
+                                    std::min<long long>(ctx.policy.max_payload, INT_MAX));
+  ensure_payload_capacity(ctx, needed);
+}
+
 // MOSP_ESCHER's construct validation (escher/structure/operations.cu@4b86159:196-211; M8a step
 // 4): negative sizes, a capacity below the payload (also for a tree of 0 records) and missing
 // arrays are rejected with invalid_argument_error before anything changes or is allocated
@@ -689,7 +705,9 @@ static void fill_impl(const std::vector<int>& insert_keys, const std::vector<int
 void fill_cbst(const std::vector<int>& insert_keys, const std::vector<int>& insert_payload,
                const std::vector<int>& insert_prefix_sizes, cbst_context& ctx) {
   validate_batch(insert_keys, insert_payload, insert_prefix_sizes, ctx.dataset_name, "fill");
+  const long long compactions = ctx.compactions;
   fill_impl(insert_keys, insert_payload, insert_prefix_sizes, ctx, true);
+  keep_headroom_after_compaction(ctx, compactions);
 }
 
 void delete_cbst(const std::vector<int>& delete_keys, cbst_context& ctx) {
@@ -733,6 +751,7 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
   int K = static_cast<int>(new_keys.size());
   mapping.item_to_key.resize(K, 0);
   if (K == 0) return mapping;
+  const long long compactions = ctx.compactions;
 
   int block_size = 256;
   reserve_scratch(ctx, K, new_payload.size());
@@ -1051,6 +1070,7 @@ insert_mapping insert_cbst(const std::vector<int>& new_keys, const std::vector<i
 
   // Recompute subtree_avail bottom-up (reused slots are no longer available)
   recompute_subtree_avail(ctx);
+  keep_headroom_after_compaction(ctx, compactions);
 
   return mapping;
 }

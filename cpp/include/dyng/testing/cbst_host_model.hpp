@@ -154,6 +154,11 @@ struct cbst_host_policy {
                                     ///< ("escher::EscherError" for MOSP_ESCHER)
   std::int64_t max_payload = 2147483647;  ///< the largest payload capacity a growth reaches
                                           ///< (2^31 - 1: the int32 offsets; tests lower it)
+  std::int64_t compaction_headroom = 0;   ///< after an operation that compacted at a trigger
+                                          ///< point, grow by the growth rule when fewer than
+                                          ///< capacity / compaction_headroom slots are free, to
+                                          ///< the capacity that leaves that many (at most
+                                          ///< max_payload); 0: never (dyng_default(): 8)
 
   /**
    * @brief ESCHER-GPU\@abcf9b2: growth, no compaction, process exit on failure, scanned
@@ -171,7 +176,8 @@ struct cbst_host_policy {
   /**
    * @brief dynG's default, the target policy of PLAN 6.4.5 (M8a step 5): MOSP_ESCHER's
    *        compaction at its trigger points first, then growth by ESCHER-GPU's rule where
-   *        MOSP_ESCHER throws, a failure only beyond max_payload (dyng::capacity_error); scanned
+   *        MOSP_ESCHER throws or fewer than 1/8 of the slots stay free after a compaction
+   *        (compaction_headroom), a failure only beyond max_payload (dyng::capacity_error); scanned
    *        occupancy when the caller gives no counts; the construct validation and the fill
    *        clamps; geometric scratch; rebuild, compact() and the launch counters.
    * @return The preset.

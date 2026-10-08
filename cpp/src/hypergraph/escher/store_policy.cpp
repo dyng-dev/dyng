@@ -51,6 +51,7 @@ store_policy store_policy::dyng_default(long long max_payload) {
   p.scratch = scratch_rule::geometric;
   p.alignment = 4;
   p.max_payload = std::min<long long>(max_payload, INT_MAX);
+  p.compaction_headroom = 8;  // the M8a review's hysteresis (ADR 0040)
   return p;
 }
 

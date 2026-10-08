@@ -193,6 +193,7 @@ cbst_host_policy cbst_host_policy::dyng_default() {
   p.has_rebuild = true;
   p.counts_bin_launches = true;
   p.error_type = "dyng::capacity_error";
+  p.compaction_headroom = 8;
   return p;
 }
 
@@ -372,6 +373,20 @@ struct cbst_host_model::impl {
     fail(std::string(what) + ": payload overflow (" + std::to_string(needed) + " > " +
          std::to_string(capacity) + ")");
     return false;
+  }
+
+  /// The hysteresis of an automatic compaction (cbst_host_policy::compaction_headroom): after an
+  /// operation that compacted, grow when fewer than capacity / headroom slots are free.
+  void keep_headroom() {
+    if (policy.compaction_headroom <= 0 || result->compactions == 0 ||
+        result->status != cbst_op_status::ok ||
+        policy.growth != cbst_host_policy::growth_rule::escher_gpu)
+      return;
+    const std::int64_t slack = capacity / policy.compaction_headroom;
+    if (capacity - bump >= slack) return;
+    const std::int64_t needed =
+        std::min(bump + slack, std::min<std::int64_t>(policy.max_payload, INT_MAX));
+    (void)make_room(needed, "the headroom after a compaction");
   }
 
   void reserve_scratch(std::int64_t items, std::int64_t values) {
@@ -985,7 +1000,10 @@ cbst_op_result cbst_host_model::rebuild(const std::vector<std::int32_t>& starts,
 cbst_op_result cbst_host_model::insert(const std::vector<std::int32_t>& keys,
                                        const std::vector<std::int32_t>& payload,
                                        const std::vector<std::int32_t>& prefix) {
-  return impl_->run([&] { impl_->insert(keys, payload, prefix); });
+  return impl_->run([&] {
+    impl_->insert(keys, payload, prefix);
+    impl_->keep_headroom();
+  });
 }
 
 cbst_op_result cbst_host_model::erase(const std::vector<std::int32_t>& keys) {
@@ -995,7 +1013,10 @@ cbst_op_result cbst_host_model::erase(const std::vector<std::int32_t>& keys) {
 cbst_op_result cbst_host_model::append(const std::vector<std::int32_t>& keys,
                                        const std::vector<std::int32_t>& payload,
                                        const std::vector<std::int32_t>& prefix) {
-  return impl_->run([&] { impl_->append(keys, payload, prefix, true); });
+  return impl_->run([&] {
+    impl_->append(keys, payload, prefix, true);
+    impl_->keep_headroom();
+  });
 }
 
 cbst_op_result cbst_host_model::remove_values(const std::vector<std::int32_t>& keys,
