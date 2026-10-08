@@ -387,6 +387,45 @@ TEST(CbstStoreErrors, ACapacityBelowThePayloadIsRejectedBeforeAnythingChanges) {
   EXPECT_EQ(violations(s, {{1, 2, 3}, {4}}), 0);
 }
 
+// MOSP_ESCHER's construct validation (escher/structure/operations.cu@4b86159:196-211, M8a step
+// 4): every invalid argument is rejected before anything is allocated or changed.
+TEST(CbstStoreErrors, TheConstructValidation) {
+  DYNG_SKIP_IF_NO_CUDA();
+  resources res = resources::cuda();
+  counting_resource counter(res.device());
+  res.set_memory_resource(counter);
+  std::vector<int> keys = {1, 2}, starts = {0, 4};
+  std::vector<int> flat = {1, 2, 3, INT_MIN, 4, 0, 0, INT_MIN};
+  cbst_store s(res, "validated", 8);
+  // Negative sizes.
+  EXPECT_THROW(s.construct(keys.data(), starts.data(), -1, flat.data(), 8), invalid_argument_error);
+  EXPECT_THROW(s.construct(keys.data(), starts.data(), 2, flat.data(), -8), invalid_argument_error);
+  cbst_store negative(res, "negative", -1);
+  EXPECT_THROW(negative.construct(keys.data(), starts.data(), 2, flat.data(), 8),
+               invalid_argument_error);
+  // A capacity below the payload, also for a tree of 0 records.
+  cbst_store small(res, "small", 4);
+  EXPECT_THROW(small.construct(nullptr, nullptr, 0, flat.data(), 8), invalid_argument_error);
+  // Missing arrays.
+  EXPECT_THROW(s.construct(nullptr, starts.data(), 2, flat.data(), 8), invalid_argument_error);
+  EXPECT_THROW(s.construct(keys.data(), nullptr, 2, flat.data(), 8), invalid_argument_error);
+  EXPECT_THROW(s.construct(keys.data(), starts.data(), 2, nullptr, 8), invalid_argument_error);
+  // A record count beyond the int32 indexing of the operation scratch (3 ints per record).
+  EXPECT_THROW(s.construct(keys.data(), starts.data(), INT_MAX / 3 + 1, flat.data(), 8),
+               capacity_error);
+  EXPECT_EQ(counter.allocations(), 0);  // nothing was allocated
+  for (const cbst_store* t : {&s, &negative, &small}) {
+    EXPECT_FALSE(t->poisoned());
+    EXPECT_EQ(t->context().num_records, 0);
+  }
+  // Valid arguments still construct (and an empty tree needs no arrays).
+  s.construct(keys.data(), starts.data(), 2, flat.data(), 8);
+  EXPECT_EQ(violations(s, {{1, 2, 3}, {4}}), 0);
+  cbst_store empty(res, "empty", 0);
+  empty.construct(nullptr, nullptr, 0, nullptr, 0);
+  EXPECT_EQ(violations(empty, {}), 0);
+}
+
 TEST(CbstStoreErrors, AFailureAfterInPlaceWritesPoisonsTheStore) {
   DYNG_SKIP_IF_NO_CUDA();
   resources res = resources::cuda();

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:structure/operations.cu
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (constructCBST validation)
 /**
  * @file cbst_store.cu
  * @brief The host side of the CBST store: construction, rebuild, best-fit insert with the surplus
@@ -214,14 +215,43 @@ static void ensure_payload_capacity(cbst_context& ctx, long long needed) {
   ctx.fixed_size = static_cast<int>(capacity);
 }
 
+// MOSP_ESCHER's construct validation (escher/structure/operations.cu@4b86159:196-211; M8a step
+// 4): negative sizes, a capacity below the payload (also for a tree of 0 records) and missing
+// arrays are rejected with invalid_argument_error before anything changes or is allocated
+// (ESCHER-GPU printed "Overflow" and returned a tree without nodes, or read the null arrays);
+// a record count whose operation scratch (3 ints per record, ESCHER-GPU's sizing) exceeds the
+// int32 indexing of the store is a capacity_error. MOSP_ESCHER threw escher::EscherError for all
+// of them; its device synchronizations after the construct kernels (operations.cu:259, 263, 274)
+// are not taken over (the store orders the kernels on its stream).
+void validate_construct(const int* keys, const int* start_offsets, int num_records,
+                        const int* flat_payload, int flat_payload_size, int payload_capacity,
+                        const std::string& dataset_name) {
+  DYNG_EXPECTS(num_records >= 0, "CBST ", dataset_name, ": construct: the record count ",
+               num_records, " is negative");
+  DYNG_EXPECTS(flat_payload_size >= 0 && payload_capacity >= 0, "CBST ", dataset_name,
+               ": construct: the payload size ", flat_payload_size, " and capacity ",
+               payload_capacity, " must not be negative");
+  DYNG_EXPECTS(payload_capacity >= flat_payload_size, "CBST ", dataset_name, ": payload capacity ",
+               payload_capacity, " is below the payload size ", flat_payload_size);
+  DYNG_EXPECTS(num_records == 0 || (keys != nullptr && start_offsets != nullptr), "CBST ",
+               dataset_name, ": construct: the keys and row offsets of ", num_records,
+               " records must not be null");
+  DYNG_EXPECTS(flat_payload_size == 0 || flat_payload != nullptr, "CBST ", dataset_name,
+               ": construct: a payload of ", flat_payload_size, " entries must not be null");
+  if (3LL * num_records > INT_MAX) {
+    throw capacity_error("dyng: CBST " + dataset_name + ": " + std::to_string(num_records) +
+                         " records exceed the int32 indexing of the store's operation scratch "
+                         "(3 entries per record; at most " +
+                         std::to_string(INT_MAX / 3) + " records)");
+  }
+}
+
 void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_payload,
                     int flat_payload_size, int payload_capacity, const std::string& dataset_name,
                     cbst_context& ctx) {
-  // A capacity below the payload is rejected before anything changes or is allocated (ESCHER-GPU
-  // printed "Overflow" and returned a tree without nodes).
-  DYNG_EXPECTS(num_records == 0 || payload_capacity >= flat_payload_size, "CBST ", dataset_name,
-               ": payload capacity ", payload_capacity, " is below the payload size ",
-               flat_payload_size);
+  // Rejected before anything changes or is allocated.
+  validate_construct(keys, start_offsets, num_records, flat_payload, flat_payload_size,
+                     payload_capacity, dataset_name);
   ctx.fixed_size = payload_capacity;
   ctx.num_records = num_records;
   ctx.initial_payload_size = flat_payload_size;
@@ -802,11 +832,12 @@ void cbst_store::construct(int* keys, int* start_offsets, int num_records, int* 
                            int flat_payload_size) {
   const scoped_device guard(ctx_.res.device());
   scoped_stage stage(ctx_.res, "hypergraph.cbst.construct");
+  // The validation, before anything changes (the store is not poisoned by it).
+  validate_construct(keys, start_offsets, num_records, flat_payload, flat_payload_size,
+                     ctx_.fixed_size, ctx_.dataset_name);
   try {
     construct_cbst(keys, start_offsets, num_records, flat_payload, flat_payload_size,
                    ctx_.fixed_size, ctx_.dataset_name, ctx_);
-  } catch (const invalid_argument_error&) {
-    throw;  // the validation, before anything changed
   } catch (...) {
     poisoned_ = true;
     throw;

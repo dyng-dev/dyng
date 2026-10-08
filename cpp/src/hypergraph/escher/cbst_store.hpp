@@ -112,6 +112,12 @@ struct insert_mapping {
 
 // Host API for CBST operations (free functions). The payload buffer grows on
 // demand when fill overflow or surplus inserts need more room.
+// The construct's arguments (MOSP_ESCHER's validation; nothing is changed): throws
+// invalid_argument_error for negative sizes, a capacity below the payload and null arrays, and
+// capacity_error for a record count beyond the int32 indexing of the operation scratch.
+void validate_construct(const int* keys, const int* start_offsets, int num_records,
+                        const int* flat_payload, int flat_payload_size, int payload_capacity,
+                        const std::string& dataset_name);
 void construct_cbst(int* keys, int* start_offsets, int num_records, int* flat_payload,
                     int flat_payload_size, int payload_capacity, const std::string& dataset_name,
                     cbst_context& ctx);
