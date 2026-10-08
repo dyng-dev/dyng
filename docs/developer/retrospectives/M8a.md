@@ -1,7 +1,8 @@
 # Retrospective: M8a (the ESCHER CBST store)
 
-Status: **in progress** on the branch `m8a-escher-store` (from `main` at `8b9067e`, which
-contains M7 and M6b). M8a is the first half of PLAN 11.3's M8 row: the internal ESCHER store,
+Status: **done** on the branch `m8a-escher-store` (from `main` at `8b9067e`, which contains M7
+and M6b; `origin/main` has not moved since, so there was nothing to merge), waiting for the
+author's review and merge. M8a is the first half of PLAN 11.3's M8 row: the internal ESCHER store,
 proven against both originals by CBST trace replay. M8b (the hypergraph container, its I/O and
 Python, the header freeze) follows on the accepted store; both are in 0.3.0 with M9. Each step
 adds its section; the milestone's acceptance table and the open items close the record.
@@ -349,3 +350,155 @@ compared). The layout check of the 17 large sizes takes 20 s in the Debug build.
 - The mutations of criterion 17 that touch this part (compaction padding, surplus padding, the
   tie order, requested keys) can use `dyng_cbst_compact_tests` and the replays: a changed
   compaction padding fails the lockstep.
+
+## Step 5: automatic compaction, the presets, scenarios, mutations (merge-policies)
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `00319da` | B's automatic compaction at its two trigger points (`fill_impl`, the surplus check of `insert_cbst`) and `store_policy::mosp_escher(extra)`, which replaces the staging preset; the comparator maps B's `escher::EscherError` per throw site, runs each trace under its original's preset by default, and documents `construct_without_row_counts` field by field |
+| `9d599aa` | `store_policy::dyng_default(max_payload)` and `max_payload`; `cbst_host_policy::max_payload` and the model's `dyng_default()` (no longer provisional); the field set `policy` (criterion 10(c)); the lockstep of the device store with the host model (`cbst_lockstep.hpp`) and its random sequences, requested-keys and many-ties tests (`cbst_policy_test.cpp`) |
+| `78a8dd5` | an injected allocation failure at every allocation of an insert and a fill under every preset (partial failure, poisoning) |
+| `6e56612` | B's 9 `test_cbst_ops` scenarios and `test_cbst_smoke` under every preset, in lockstep with the host model |
+| `33b0ac7` | the graph-on-CBST test (PLAN 6.1 D8) and the replay of B's `test_dynamicgraph_roundtrip` trace |
+| `c385ac8` | the 7 CBST mutation hooks, the CTests `cbst.mutation.*` and `parity/mutate.py`'s suite `cbst` |
+| `043a6dd` | `perf_ab.py cbst early` (the early-warning table) and `cbst memory --preset dyng_default` |
+| `e7157af` | `ci/gpu_local.sh`: the new executables under the sanitizers, the default-preset replays; the reduced sizes |
+| `f03b3eb` | the compact-after-every-op lockstep stops a tree at a verified dead-key item (a step-4 failure found here) |
+| (the docs commit) | ADR 0040, the store's README, `parity/results/M8a.md` section 13 and its records, this section, plan, roadmap, GOVERNANCE, CHANGELOG |
+
+### Deviations from the step's text (each with the same intent)
+
+42. **`construct_without_row_counts` is a field-level exemption, not a tree-level one.** The
+    resumed work had made the whole tree stop at such a construct; that would have left the 22
+    later ops of the 11 `test_cbst_smoke` trees uncompared. The rule now exempts only the
+    occupancy of the keys B built with `rowOccupancy = nullptr` (while the trace still has 0 and
+    the store its scanned count) and B's `check.rows` when it is exactly one metadata violation
+    per live such key (B's own checker, `integrity.cu:160-186`), and keeps comparing everything
+    else (ADR 0040, section 3). The difference is mandated by criterion 11 ("never B's `nullptr`
+    path") and ADR 0039 (c). With it, B's `mosp_escher_test` replays all 14,104 ops with 0
+    mismatches; 31 ops carry the documented exemption.
+43. **B's sets under `escher_gpu()` diverge in 39 trees, not 50**: the same field-level rule
+    applies to the host model under `escher_gpu()` (which also scans), so the smoke trees no longer
+    count as diverging at their constructs on either side; the judgement (store = model, tree by
+    tree) is unchanged.
+44. **The device store's default preset is the trace's original's** (`escher_gpu` for A,
+    `mosp_escher` for B): "the original's preset" in the records now means that.
+45. **Criterion 10(c) needed a definition**, the field set `policy` (ADR 0040, section 3): after
+    a policy difference the rows of deleted keys are the policy's (a compaction empties them, A
+    keeps their stale values), and an InsertMapping that differs after a length changed is
+    documented and ends the tree, because its later rows sit under other keys. That happens in 5
+    trees, all H2V trees of A's medium graph (`043-main`, `051-type1`, `059-type2`, `067-type3`,
+    `075-coarseTriangle`: the insert at op 4, after the default compacted at op 2 where A grew).
+    A mapping difference before a policy difference is still a mismatch; there is none.
+46. **`max_payload`** is a field of `store_policy` and of the public test policy
+    `cbst_host_policy` (the API snapshot is updated); it is INT_MAX for every preset.
+47. **Poisoning is conservative:** the store does not tell a failure before its first write from a
+    later one, so every failure of an updating operation poisons it; only the precondition checks,
+    the construct validation and `compact()`'s `capacity_error` are strong (ADR 0040, section 4).
+48. **The mutations are hooks in the sources** (`#if defined(DYNG_MUTATION_CBST_...)`), as
+    cycle_count's are, plus one in the graph test (the graph-on-CBST is a test, PLAN 6.1 D8); the
+    CTests rebuild a copy of the hypergraph module per mutation (8 copies in every CUDA build with
+    `DYNG_CBST_MUTATION_TESTS`, default on); `mutate.py`'s suite `cbst` runs GoogleTest
+    executables instead of `compare.py`.
+49. **A mutation found a blind spot**: with the absent value of every removal list placed last,
+    the random lockstep did not see "unfill ignores the last value" (only the replays and the
+    graph test did); the absent value is now placed at random.
+50. **Reduced sizes under the sanitizers** (`DYNG_CBST_REDUCED=1`, ADR 0040 section 5): the full
+    scenarios (scale up to 2^20, random with 70,000 rows) would take hours under racecheck; the
+    full sizes run in every `ctest`.
+51. **The early-warning table splits the timelines at `cudaDeviceSynchronize`** (A's ScopedTimer
+    stages bracket every store operation, and the replay synchronizes after every op), classifies
+    each segment by its kernels, and counts blocking and allocating runtime calls per segment; it
+    is reported, not gated.
+52. **A step-4 test was failing**: `dyng_cbst_compact_large_tests` (slow) had failed since
+    `be449b6` (the dead-key rule), which step 4 did not re-run it after (its retrospective says
+    the lockstep passed: true at `c05d7cc`). The lockstep now ends a tree at a fill or unfill that
+    names a key the model's state holds deleted or absent (`f03b3eb`); the four small sets: 14,007
+    ops, 13,964 compactions, 0 problems, 41 trees stopped at such an item (15,385 ops before the
+    rule existed).
+53. **The ADR is new (0040)** rather than an extension of 0039's text, which keeps ADR 0039 as
+    the record of part 1.
+54. **No pull request is opened by this step**: the orchestrator opens it and the author merges
+    (the session rules forbid pushing); item 9 of the step is left to the orchestrator.
+55. **Per-commit checks** as in step 4 (deviation 39): the CUDA build, `ctest -L cbst -LE slow`,
+    the fast `ci/check.sh` steps before each commit, the replays (`cbst_merge_steps.sh`) right
+    after it; the full `ci/check.sh`, the portability checks, the sanitizers, the large sets,
+    `ci/gpu_local.sh` and the fresh-clone builds at the end.
+
+### Measurements
+
+- **Replays** (`parity/results/M8a.md`, section 13): every commit of the step `ok`; A's sets 1,176
+  + 52 ops, 0 mismatches; B's sets under `mosp_escher()` 14,104 + 53 ops, 0 mismatches, 51
+  compactions and 3 exceptions at B's ops; the large sets at `00319da` and at the final commit:
+  coauth50k 15 ops, 0 mismatches; DBLP hyperedge 27 and vertex 21 ops, 0 mismatches under
+  `mosp_escher()`.
+- **Memory (criterion 15; GPU 0, exclusive lock, `043a6dd`)**: every tree's `device_bytes()` after
+  its construct and after every op of the 3 batches equals ESCHER-GPU's `deviceBytes()` (18
+  readings, worst ratio 1.0000) under `escher_gpu()` and under `dyng_default()` (the same values
+  at every point: no compaction happens on coauth50k, and the scratch never grows past its size
+  after the construct, so the geometric rule and A's exact one hold the same bytes); the nsys
+  peak of live device allocations is 3,018.9 MiB for A's whole program and 2,772.6 MiB for the
+  store replay under either preset (recorded, not gated).
+- **Early warning** (same run): device time per op h2v insert 3.18 / 3.07 ms (A / dynG, 0.96x),
+  h2v erase 0.10 / 0.10 ms, v2h unfill 0.71 / 0.79 ms (**1.11x**), v2h fill 0.105 / 0.100 ms;
+  blocking runtime calls per op insert 17 / 7, fill 2 / 1, erase and unfill 0 / 0; allocation
+  calls per op insert 25 / 0, erase 2 / 0, unfill 1 / 0, fill 3 / 0 (dynG allocates from the
+  stream-ordered pool); registers per thread equal for every hot kernel but `unfill_thread`
+  (23 / 24); the warp and block bins do not run on coauth50k.
+- **Mutations**: all 7 killed (4-13 failed tests each); a mutant suite runs in 2-7 s.
+- **Sanitizers** (reduced sizes, GPU 1): memcheck, racecheck, synccheck and initcheck clean on
+  `dyng_cbst_scenario_tests`, `_policy_tests`, `_graph_tests`, `_store_tests` and
+  `_device_tests` (racecheck 32-236 s per executable).
+- **Effort**: step 5 took about 4 hours of wall-clock time after the resume (the lock and GPU 1
+  shared with the release branch's runs); M8a as a whole about 2 days for its five steps against
+  the plan's 1-1.5 weeks for M8 + M9 (`docs/developer/plan.md` section 4 re-baselines 0.3.0:
+  1.5-2 weeks of focused effort, 3-4 weeks calendar).
+
+### The M8b handoff
+
+- **The store's contract** (`cpp/src/hypergraph/escher/README.md`): 1-based keys and `+1` values;
+  `insert_mapping::item_to_key` is the only source of a new row's key; requested keys are ignored;
+  a failed update poisons the store (ADR 0040, section 4); `check_errors()` is the read point of
+  the end of an update.
+- **Sizing**: the container calls `store_policy::initial_capacity()` of its preset (in-place trees
+  with slack, merged trees exact; `mosp_escher()` flat * 1.3 + extra).
+- **`cbst_store.hpp` includes `<cuda_runtime.h>`**: a host-compiled container needs a host-only
+  facade (open since step 3).
+- **The line graph**: A's H2H rebuild inputs are hash-only in the golden set coauth50k; M8b's
+  `sorted_merge` can be checked against the recorded hashes and the store accounting.
+- **Watch**: v2h unfill at 1.11x of A's device time per op (the bounded walk and the dead-key
+  lookup); M9 gates the `update` region and the nsys peak.
+
+### Open items and author decisions
+
+- No new author decision is needed. For the author's review: the field-level documented divergence
+  `construct_without_row_counts` (deviation 42) and the field set `policy` that defines criterion
+  10(c) (deviation 45).
+- The release certificate's records for the cbst_trace sets (`compare.py --certificate`) are
+  written at release time; `certify.py`'s exception for sets without a record stays until then.
+- The hosted CI has not run on this branch (nothing is pushed); the orchestrator opens the PR.
+
+## The acceptance criteria
+
+| # | criterion | where it is met |
+|---|---|---|
+| 1 | base and references | step 1; `parity/results/M8a.md` sections 1-2; `parity/references.toml` |
+| 2 | additive recorders | step 1; ADR 0036; the census and twin checks |
+| 3 | trace format | ADR 0036; `cbst_trace.{hpp,cpp}`, `parity/escher_trace.py` |
+| 4 | golden sets | step 1; `parity/goldens.toml`, section 3 |
+| 5 | dataset pins | step 1; `datasets/registry.toml`, section 4 |
+| 6 | cross-check of the originals | step 1; section 6 |
+| 7 | timed regions | `parity/timed_regions/hypergraph.toml` (before the first port commit) |
+| 8 | host model, the go/no-go | step 2; ADR 0037; section 10 |
+| 9 | verbatim port | step 3; ADR 0038; section 11 |
+| 10 | replay at every merge-step commit | sections 11-13 (`parity/cbst_merge_steps.sh`); (a) every commit; (b) from `00319da` no divergence but `construct_without_row_counts`; (c) from `9d599aa` |
+| 11 | one B behaviour per commit | steps 4-5; ADR 0039 section 2, ADR 0040 |
+| 12 | presets and error policy | ADR 0040 sections 1, 2, 4; `CbstStorePresets`, `CbstScenario.ChurnGrowth` |
+| 13 | scenarios and unit tests | `cbst_scenarios_test.cpp`, `cbst_policy_test.cpp`, `cbst_graph_test.cpp`, `cbst_merge_test.cpp`, `cbst_store_test.cpp` |
+| 14 | kernel-path coverage | `dyng_cbst_coverage_tests` (section 11); the random scenario under every preset |
+| 15 | early store memory | `parity/results/M8a-memory.json`, `M8a-memory-dyng_default.json`; section 13 |
+| 16 | GPU robustness | the sanitizers (sections 11-13), two streams, host syncs, double replay |
+| 17 | mutations | `cbst.mutation.*`, `parity/mutate.py run --suites cbst` |
+| 18 | CI and records | `ci/check.sh`, `ci/gpu_local.sh` (section 13); ADRs 0036-0040; this record; the PR is the orchestrator's |

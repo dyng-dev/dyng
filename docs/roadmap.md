@@ -50,7 +50,10 @@ which the author may connect later (checkpoint A4); it is not part of 0.2.0, and
 
 Built in three milestones: M8a (the ESCHER store, internal: one store that reproduces both
 ESCHER-GPU's and MOSP_ESCHER's CBST, proven by trace replay against both), M8b (the hypergraph
-container on it, its I/O and Python, the header freeze) and M9 (`triad_count`).
+container on it, its I/O and Python, the header freeze) and M9 (`triad_count`). M8a is done
+(pending the author's merge): the store replays both originals' CBST traces in every recorded
+field under their presets `escher_gpu()` and `mosp_escher()`, and dynG's default compacts first
+and then grows.
 
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
   views, hypergraph generators, and binary batch files (`.dgb`).

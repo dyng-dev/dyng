@@ -28,6 +28,19 @@ Before 0.1.0 anything may change.
   explicit `compact()`, storage counters (`stats()`), `check_errors()`, and a defined rule for
   appends and removals on dead or absent keys; the staging preset `mosp_escher_staged()` of the
   merge steps.
+- M8a (internal): **MOSP_ESCHER's automatic compaction and the store presets** (ADR 0040):
+  `store_policy::mosp_escher()` (compaction at MOSP_ESCHER's fill and insert trigger points, then
+  `capacity_error`; flat * 1.3 + extra, at most 2.0e9) replaces the staging preset, and dynG's
+  default `store_policy::dyng_default()` compacts first and then grows (`capacity_error` only
+  beyond `max_payload`, the int32 offsets; `out_of_memory_error` on an allocation failure).
+  MOSP_ESCHER's CBST traces replay in every recorded field under `mosp_escher()`; every set
+  replays under the default with the field set `policy`. Tests: MOSP_ESCHER's 9 CBST scenarios and
+  its smoke test under every preset in lockstep with the host model, random operation sequences,
+  the graph-on-CBST test (PLAN 6.1 D8), the partial-failure rule, and the 7 CBST mutations
+  (`ctest -L mutation`, `parity/mutate.py run --suites cbst`); `parity/perf_ab.py cbst early`, the
+  early-warning table of the store against ESCHER-GPU.
+- M8a: `dyng::testing::cbst_host_policy::max_payload`, the largest payload a growth reaches
+  (tests lower it), and `cbst_host_policy::dyng_default()` no longer provisional.
 - M8a: **`dyng::testing::cbst_host_model`** (`dyng/testing/cbst_host_model.hpp`, ADR 0037), a
   sequential host model of the ESCHER CBST store of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159
   (best-fit reuse, surplus keys and the rebuild, fill overflow segments, unfill, A's growth, B's
