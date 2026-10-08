@@ -135,5 +135,11 @@ To change the API on purpose:
    cannot be chained with `&&` to `ci/api_snapshot.py --update`.)
 
 A pull request whose baseline diff has no `api-change` label and no CHANGELOG entry is not
-merged. The `api-check.yml` workflow of M5 adds the label check and `griffe` for the Python API;
-until then the reviewers check the label by hand.
+merged. `api-check.yml` enforces it for the frozen API: `ci/api_check.sh` compares the frozen
+sections of the committed baseline with the base branch's (`ci/api_snapshot.py --against`) and
+the Python API with `griffe`, and fails on a breaking change of either (a removed or changed
+declaration of a frozen header, a frozen header removed or no longer frozen; for Python a
+removed name or parameter, a changed default) unless the pull request has the `api-change` label
+and `CHANGELOG.md` changed. Lines only added to a frozen section and every change of a tracked
+section are reported, not failed; the reviewers read them in the baseline diff
+({doc}`../adr/0035-mosp-api-review-and-freeze-0-2`, amendment A2).

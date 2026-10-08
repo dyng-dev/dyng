@@ -96,6 +96,42 @@ command line `dyng mosp compute|update` (`python/dyng/cli/_algorithms.py`); and
 4. **What is not frozen:** `dyng::detail` (the participant, the solve), the profiler stage names
    other than those the benchmark suites use (PLAN 5.9), and the tracked headers of finding 19.
 
+## Amendments (2026-10-08, the R020 review)
+
+Accepted under delegation, as the review: documentation of the frozen API and its enforcement,
+no signature, default or name changed (the C++ baseline and the Python API are unchanged).
+
+- **A1. Documentation of the frozen header and module.** The reviewers found what this review
+  missed: the field comment of `options::compute_path_costs` said that `path_costs()` throws
+  "while" the option is false and called it a tunable, while the accessor's `@throws` (and the
+  code) follow the option of the last `compute()` or `update()`; `set_options()` changes it for
+  the next `update()`. The field comment, `set_options()`, the Python `Options` and
+  `Result.set_options` docstrings (and so the `dyng mosp` help) and the option table of
+  `docs/algorithms/mosp.md` now say so, and the option is no longer called a tunable (it decides
+  what the result holds). `update()`'s `@throws invalid_argument_error` adds the cases
+  `sssp::update()` documents and mosp reaches through the same checks: a graph or result of
+  another backend, a batch copy refused by `copy_policy::error`. The Python module docstring
+  states the determinism exception of the C++ documentation (trees imported without
+  canonicalization inside sssp's packing window), and `Stats` gives `converged`,
+  `fallback_used` and `engine_used` their C++ meaning and determinism (finding 5 had amended the
+  header only). New tests pin when `compute_path_costs` takes effect
+  (`MospBackend.ComputePathCostsTakesEffectAtTheNextUpdate`,
+  `test_compute_path_costs_takes_effect_at_the_next_update`).
+- **A2. The C++ freeze is enforced, not only labelled.** Decision 2's `frozen` label changed only
+  the section header of the baseline: `ci/docs.sh --update-api` in the same pull request made a
+  frozen change pass like a tracked one, and the label check that PLAN 5.9 ("Enforcement") and
+  ADR 0023 Decision 3 give `api-check.yml` existed for Python only. `ci/api_snapshot.py --against
+  <base>` now compares the frozen sections of the committed baseline with the base branch's, and
+  `ci/api_check.sh` (`api-check.yml`, `ci/check.sh`) fails on a breaking change of the frozen C++
+  API (a removed or changed declaration, a frozen header removed or unfrozen) unless the pull
+  request has the `api-change` label and a CHANGELOG entry, exactly as for Python; added lines
+  are reported. `ci/tests/test_api_snapshot.py` shows a deliberate change of mosp's
+  `compute_path_costs` default and of `max_objectives` failing against `HEAD`.
+- **A3. The Python demonstrations run in CI.** `ci/tests/test_api_check.py` skipped itself on
+  every hosted run (the harness job of `lint.yml` did not install griffe). Both `lint.yml`'s
+  harness job and `api-check.yml` now install `griffe==2.3.0` and set `DYNG_REQUIRE_GRIFFE=1`,
+  under which a missing griffe fails the module instead of skipping it.
+
 ## Consequences
 
 - From 0.2.0, `mosp` is covered like `sssp` and `cycle_count`: the algorithm tables, the

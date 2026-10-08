@@ -266,3 +266,95 @@ def test_the_umbrella_includes_are_listed() -> None:
         "#include <dyng/a.hpp>",
         "#include <dyng/b.hpp>",
     ]
+
+
+# --- The frozen API against the base branch (--against; R020) ------------------------------------
+
+BASELINE_TEXT = api_snapshot.BASELINE.read_text()
+
+
+def _edit(text: str, old: str, new: str) -> str:
+    assert text.count(old) == 1, old
+    return text.replace(old, new)
+
+
+def test_an_unchanged_baseline_has_no_frozen_change() -> None:
+    assert api_snapshot.frozen_changes(BASELINE_TEXT, BASELINE_TEXT) == ([], [])
+
+
+def test_a_changed_mosp_declaration_is_a_breaking_change() -> None:
+    # A deliberate change of a mosp signature (the frozen header of 0.2, ADR 0035): the default
+    # of compute_path_costs and the limit max_objectives.
+    changed = _edit(
+        BASELINE_TEXT, "bool compute_path_costs = true", "bool compute_path_costs = false"
+    )
+    changed = _edit(changed, "max_objectives = 64", "max_objectives = 32")
+    breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, changed)
+    assert breaking and all(b.startswith("[dyng/mosp.hpp]") for b in breaking)
+    assert any("compute_path_costs = false" in b for b in breaking)
+
+
+def test_appended_lines_and_tracked_sections_are_not_breaking() -> None:
+    lines = BASELINE_TEXT.splitlines(keepends=True)
+    at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/mosp.hpp]"))
+    added = "".join(
+        [*lines[: at + 1], "  inline constexpr int dyng::mosp::new_limit = 1\n", *lines[at + 1 :]]
+    )
+    breaking, appended = api_snapshot.frozen_changes(BASELINE_TEXT, added)
+    assert breaking == [] and appended == [
+        "[dyng/mosp.hpp] + inline constexpr int dyng::mosp::new_limit = 1"
+    ]
+    # dynamic_bfs is a tutorial algorithm: tracked, not frozen (ADR 0035).
+    at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/dynamic_bfs.hpp]"))
+    tracked = "".join([*lines[: at + 1], *lines[at + 2 :]])
+    assert api_snapshot.frozen_changes(BASELINE_TEXT, tracked) == ([], [])
+
+
+def test_unfreezing_or_removing_a_frozen_header_is_breaking() -> None:
+    unfrozen = _edit(BASELINE_TEXT, "[dyng/mosp.hpp] frozen", "[dyng/mosp.hpp] tracked")
+    assert api_snapshot.frozen_changes(BASELINE_TEXT, unfrozen)[0] == [
+        "[dyng/mosp.hpp] no longer frozen"
+    ]
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    assert secs["dyng/mosp.hpp"][0] == "frozen" and secs["dyng/sssp.hpp"][0] == "frozen"
+    removed = "\n".join(
+        line for line in BASELINE_TEXT.splitlines() if not line.startswith("[dyng/sssp.hpp]")
+    )
+    breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, removed)
+    assert breaking  # its lines now belong to the section above, so they are no longer sssp's
+
+
+def test_against_fails_without_the_label(tmp_path, monkeypatch, capsys) -> None:
+    changed = tmp_path / "public_api.txt"
+    changed.write_text(_edit(BASELINE_TEXT, "max_objectives = 64", "max_objectives = 32"))
+    monkeypatch.delenv("DYNG_API_CHANGE", raising=False)
+    assert api_snapshot.check_against("HEAD", changed) == 1
+    assert "breaking change of the frozen API: [dyng/mosp.hpp]" in capsys.readouterr().out
+    # With the label, a CHANGELOG entry is still required (CHANGELOG.md equals HEAD's here,
+    # unless the working tree changed it).
+    monkeypatch.setenv("DYNG_API_CHANGE", "1")
+    import subprocess
+
+    clean = (
+        subprocess.run(
+            ["git", "-C", str(api_snapshot.REPO), "diff", "--quiet", "HEAD", "--", "CHANGELOG.md"]
+        ).returncode
+        == 0
+    )
+    assert api_snapshot.check_against("HEAD", changed) == (1 if clean else 0)
+    head = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(api_snapshot.REPO),
+            "show",
+            "HEAD:cpp/tests/api/api_snapshot/public_api.txt",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    unchanged = tmp_path / "same.txt"
+    unchanged.write_text(head)
+    monkeypatch.delenv("DYNG_API_CHANGE")
+    assert api_snapshot.check_against("HEAD", unchanged) == 0

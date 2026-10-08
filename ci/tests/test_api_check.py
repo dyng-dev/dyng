@@ -9,12 +9,18 @@ the working tree with a base revision of the history); nothing is built or impor
 
 from __future__ import annotations
 
+import os
 import shutil
 from pathlib import Path
 
 import pytest
 
-griffe = pytest.importorskip("griffe")
+# CI (lint.yml's harness job, api-check.yml) sets DYNG_REQUIRE_GRIFFE=1: there a missing griffe
+# fails these tests instead of skipping them.
+if os.environ.get("DYNG_REQUIRE_GRIFFE") == "1":
+    import griffe
+else:
+    griffe = pytest.importorskip("griffe")
 
 PACKAGE = Path(__file__).resolve().parent.parent.parent / "python" / "dyng"
 

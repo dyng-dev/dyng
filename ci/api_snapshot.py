@@ -40,6 +40,18 @@ baseline is updated (docs/developer/api_review_checklist.md, "Updating the API b
      API differs, so the two must not be joined with `&&`) and commit the new baseline in the
      same pull request, so the reviewers see the API diff next to the code.
 
+The baseline check above cannot tell a deliberate change from an accident once the baseline is
+updated in the same pull request, so the frozen sections are also compared with the base branch:
+
+    ci/api_snapshot.py --against <base revision>    # ci/api_check.sh runs it (api-check.yml)
+
+compares the committed baseline with the base revision's. A **breaking** change of the frozen
+API (a declaration line of a section frozen at the base or now removed or changed, or a frozen
+section removed) fails unless DYNG_API_CHANGE=1 (the pull request's `api-change` label) and
+CHANGELOG.md differs from the base, as the Python half of ci/api_check.sh requires (PLAN 5.9,
+"Enforcement"); lines only added to a frozen section (an appended field, a new function) and
+every change of a tracked section are reported, not failed.
+
 Headers are marked `frozen` (the stable API: core/*, graph/*, update.hpp and the top-level library
 headers, reviewed for 0.1 in ADR 0023, and the header dyng/<name>.hpp of every algorithm whose
 manifest says maturity "stable": sssp and cycle_count since 0.1, mosp since 0.2, ADR 0035) or
@@ -351,6 +363,90 @@ def listing(xml_dir: Path, include_dir: Path | None = None) -> str:
     return "".join(out)
 
 
+def sections(text: str) -> dict[str, tuple[str, list[str]]]:
+    """{header: (status, declaration lines)} of a listing."""
+    out: dict[str, tuple[str, list[str]]] = {}
+    current: list[str] | None = None
+    for line in text.splitlines():
+        m = re.match(r"^\[(?P<header>[^\]]+)\] (?P<status>frozen|tracked)$", line)
+        if m:
+            current = []
+            out[m["header"]] = (m["status"], current)
+        elif current is not None and line.startswith("  "):
+            current.append(line)
+    return out
+
+
+def frozen_changes(base: str, current: str) -> tuple[list[str], list[str]]:
+    """(breaking, added) changes of the frozen API between two listings: for every section
+    frozen in either, the base's declaration lines that the current section no longer has (in
+    order: a removed or changed line, or the whole section removed), and the lines it adds."""
+    old, new = sections(base), sections(current)
+    breaking: list[str] = []
+    added: list[str] = []
+    for header in sorted(set(old) | set(new)):
+        o_status, o_lines = old.get(header, ("tracked", []))
+        n_status, n_lines = new.get(header, ("tracked", []))
+        if "frozen" not in (o_status, n_status):
+            continue
+        if header not in new:
+            breaking.append(f"[{header}] removed")
+            continue
+        matcher = difflib.SequenceMatcher(a=o_lines, b=n_lines, autojunk=False)
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag in ("replace", "delete"):
+                breaking += [f"[{header}] - {line.strip()}" for line in o_lines[i1:i2]]
+            if tag in ("replace", "insert"):
+                (breaking if tag == "replace" else added).extend(
+                    f"[{header}] + {line.strip()}" for line in n_lines[j1:j2]
+                )
+        if o_status == "frozen" and n_status != "frozen":
+            breaking.append(f"[{header}] no longer frozen")
+    return breaking, added
+
+
+def check_against(base_rev: str, baseline: Path) -> int:
+    """The frozen API of the committed baseline against the base revision's (DYNG_API_CHANGE)."""
+    import os
+    import subprocess
+
+    rel = BASELINE.relative_to(REPO).as_posix()
+    shown = subprocess.run(
+        ["git", "-C", str(REPO), "show", f"{base_rev}:{rel}"], capture_output=True, text=True
+    )
+    if shown.returncode != 0:
+        print(f"api-snapshot: {base_rev} has no {rel}: nothing to compare yet")
+        return 0
+    breaking, added = frozen_changes(shown.stdout, baseline.read_text())
+    for line in added:
+        print(f"api-snapshot: added to the frozen API: {line}")
+    if not breaking:
+        print(f"api-snapshot: no breaking change of the frozen C++ API against {base_rev}")
+        return 0
+    for line in breaking:
+        print(f"api-snapshot: breaking change of the frozen API: {line}")
+    if os.environ.get("DYNG_API_CHANGE", "0") == "1":
+        unchanged = subprocess.run(
+            ["git", "-C", str(REPO), "diff", "--quiet", base_rev, "--", "CHANGELOG.md"]
+        ).returncode
+        if unchanged == 0:
+            print(
+                "api-snapshot: breaking changes with the api-change label, but CHANGELOG.md has "
+                "no entry (PLAN 5.9: a 'Changed' or 'Removed' entry and a migration note)",
+                file=sys.stderr,
+            )
+            return 1
+        print("api-snapshot: breaking changes accepted (api-change label, CHANGELOG.md updated)")
+        return 0
+    print(
+        f"api-snapshot: the frozen C++ API has breaking changes against {base_rev}. If they are "
+        "intended, add the label api-change and a CHANGELOG 'Changed' or 'Removed' entry with a "
+        "migration note (PLAN Section 5.9, ADR 0035); otherwise keep the old declarations.",
+        file=sys.stderr,
+    )
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--xml", type=Path, default=DEFAULT_XML, help="Doxygen XML directory")
@@ -364,7 +460,15 @@ def main(argv: list[str] | None = None) -> int:
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--update", action="store_true", help="rewrite the baseline")
     mode.add_argument("--print", action="store_true", help="print the listing")
+    mode.add_argument(
+        "--against",
+        metavar="REV",
+        help="compare the frozen sections of the committed baseline with REV's (no Doxygen XML "
+        "needed; DYNG_API_CHANGE=1 accepts a breaking change with a CHANGELOG entry)",
+    )
     args = parser.parse_args(argv)
+    if args.against:
+        return check_against(args.against, args.baseline)
 
     if not (args.xml / "index.xml").exists():
         print(
