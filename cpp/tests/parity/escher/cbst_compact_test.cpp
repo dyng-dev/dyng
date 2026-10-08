@@ -48,43 +48,6 @@ struct lockstep_result {
   std::vector<std::string> problems;
 };
 
-/// The first difference of two digests (empty: equal). Fields one side does not report (-1) are
-/// not compared.
-std::string difference(const tree_digest& a, const tree_digest& b) {
-  std::ostringstream o;
-  auto scalar = [&](const char* name, std::int64_t x, std::int64_t y) {
-    if (o.tellp() == 0 && x != y && x >= 0 && y >= 0)
-      o << name << ": store " << x << ", model " << y;
-  };
-  scalar("num_records", a.num_records, b.num_records);
-  scalar("fixed_size", a.fixed_size, b.fixed_size);
-  scalar("bump", a.bump, b.bump);
-  scalar("alignment", a.alignment, b.alignment);
-  scalar("scratch_items", a.scratch_items, b.scratch_items);
-  scalar("scratch_payload", a.scratch_payload, b.scratch_payload);
-  scalar("device_bytes", a.device_bytes, b.device_bytes);
-  if (o.tellp() != 0) return o.str();
-  if (a.keys != b.keys) return "keys";
-  if (a.subtree_avail != b.subtree_avail) return "subtree_avail";
-  if (a.records.size() != b.records.size()) return "record count";
-  for (std::size_t i = 0; i < a.records.size(); ++i) {
-    const key_digest &x = a.records[i], &y = b.records[i];
-    const std::int64_t fx[] = {x.avail, x.length,    x.size,     x.occupancy, x.tail_capacity,
-                               x.value, x.tail_base, x.segments, x.row_len,   x.terminated};
-    const std::int64_t fy[] = {y.avail, y.length,    y.size,     y.occupancy, y.tail_capacity,
-                               y.value, y.tail_base, y.segments, y.row_len,   y.terminated};
-    static const char* const names[] = {"avail",         "length",    "size",      "occupancy",
-                                        "tail_capacity", "value",     "tail_base", "segments",
-                                        "row_len",       "terminated"};
-    for (std::size_t f = 0; f < 10; ++f)
-      if (fx[f] != fy[f])
-        return "key " + std::to_string(x.key) + " " + names[f] + ": store " +
-               std::to_string(fx[f]) + ", model " + std::to_string(fy[f]);
-    if (x.row != y.row) return "key " + std::to_string(x.key) + " row";
-  }
-  return "";
-}
-
 /// The promises of a compaction (`before` and `after` are the store's states).
 std::string broken_promise(const tree_digest& before, const tree_digest& after,
                            lockstep_result& r) {
@@ -171,7 +134,7 @@ lockstep_result lockstep(tr::reader& in) {
     if (req.op == "compact" && a.compact_return != b.compact_return)
       r.problems.push_back(where + ": compact() returned another bump pointer");
     const tree_digest before = store.digest(id);
-    std::string diff = difference(before, model.digest(id));
+    std::string diff = digest_difference(before, model.digest(id));
     if (!diff.empty()) {
       r.problems.push_back(where + ": " + diff);
       stopped.insert(id);
@@ -191,7 +154,7 @@ lockstep_result lockstep(tr::reader& in) {
                            ", the model " + std::to_string(cb.compact_return));
     const tree_digest after = store.digest(id);
     if (after.bump < before.bump) ++r.moved_back;
-    diff = difference(after, model.digest(id));
+    diff = digest_difference(after, model.digest(id));
     if (diff.empty()) diff = broken_promise(before, after, r);
     if (!diff.empty()) {
       r.problems.push_back(where + ", after compact(): " + diff);

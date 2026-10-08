@@ -28,6 +28,10 @@
 #include <memory>
 #include <string>
 
+namespace dyng::detail::escher {
+class cbst_store;
+}  // namespace dyng::detail::escher
+
 namespace dyng::test::cbst_compare {
 
 /// The dynG device store as a store of the comparator.
@@ -35,7 +39,8 @@ class device_store_adapter final : public store_adapter {
  public:
   /**
    * @brief Every tree runs under the named store policy.
-   * @param[in] policy A preset of store_policy::from_name() ("escher_gpu", "mosp_escher").
+   * @param[in] policy A preset of store_policy::from_name() ("escher_gpu", "mosp_escher",
+   *            "dyng_default").
    * @param[in] allow_compact Run compact() under escher_gpu() too (ESCHER-GPU had no compact(), so
    *            a replay of a trace under it reports the operation as unsupported by default).
    * @throws cbst_trace::trace_error for an unknown policy.
@@ -72,6 +77,10 @@ class device_store_adapter final : public store_adapter {
   [[nodiscard]] std::uint64_t digest_hash() const noexcept {
     return digest_hash_;
   }
+
+  /// The store of a tree (nullptr if there is none): the scenario tests read it back with the
+  /// store's own integrity checker against their expected rows.
+  [[nodiscard]] const dyng::detail::escher::cbst_store* store(std::uint32_t tree) const;
 
   struct tree;  ///< one store and its name
 

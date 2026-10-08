@@ -189,6 +189,16 @@ if(DYNG_ENABLE_CUDA)
   )
   target_compile_definitions(dyng_cbst_compact_large_tests PRIVATE DYNG_CBST_COMPACT_LARGE=1)
   list(APPEND _dyng_private_tests dyng_cbst_compact_large_tests)
+  # The presets of M8a step 5 (ADR 0039): random operation sequences, requested keys and best-fit
+  # ties under every preset, in lockstep with the host model.
+  dyng_add_test(
+    NAME dyng_cbst_policy_tests
+    SOURCES parity/escher/cbst_policy_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_policy_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_policy_tests)
   # Kernel-path coverage on ESCHER-GPU's skewed and medium traces (in $DYNG_SCRATCH; skipped
   # without them).
   dyng_add_test(

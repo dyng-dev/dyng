@@ -33,6 +33,8 @@ const char* to_string(field_set f) {
       return "offsets";
     case field_set::exact:
       return "exact";
+    case field_set::policy:
+      return "policy";
   }
   return "?";
 }
@@ -44,6 +46,8 @@ bool parse_field_set(const std::string& name, field_set& out) {
     out = field_set::offsets;
   } else if (name == "exact") {
     out = field_set::exact;
+  } else if (name == "policy") {
+    out = field_set::policy;
   } else {
     return false;
   }
@@ -70,6 +74,41 @@ bool equivalent_exception(const std::string& op, const std::string& trace_type,
   if (op == "fill" || op == "insert" || op == "compact")
     return store_type == "dyng::capacity_error";
   return false;
+}
+
+std::string digest_difference(const tree_digest& a, const tree_digest& b) {
+  std::ostringstream o;
+  auto scalar = [&](const char* name, std::int64_t x, std::int64_t y) {
+    if (o.tellp() == 0 && x != y && x >= 0 && y >= 0)
+      o << name << ": store " << x << ", model " << y;
+  };
+  scalar("num_records", a.num_records, b.num_records);
+  scalar("fixed_size", a.fixed_size, b.fixed_size);
+  scalar("bump", a.bump, b.bump);
+  scalar("alignment", a.alignment, b.alignment);
+  scalar("scratch_items", a.scratch_items, b.scratch_items);
+  scalar("scratch_payload", a.scratch_payload, b.scratch_payload);
+  scalar("device_bytes", a.device_bytes, b.device_bytes);
+  if (o.tellp() != 0) return o.str();
+  if (a.keys != b.keys) return "keys";
+  if (a.subtree_avail != b.subtree_avail) return "subtree_avail";
+  if (a.records.size() != b.records.size()) return "record count";
+  for (std::size_t i = 0; i < a.records.size(); ++i) {
+    const key_digest &x = a.records[i], &y = b.records[i];
+    const std::int64_t fx[] = {x.avail, x.length,    x.size,     x.occupancy, x.tail_capacity,
+                               x.value, x.tail_base, x.segments, x.row_len,   x.terminated};
+    const std::int64_t fy[] = {y.avail, y.length,    y.size,     y.occupancy, y.tail_capacity,
+                               y.value, y.tail_base, y.segments, y.row_len,   y.terminated};
+    static const char* const names[] = {"avail",         "length",    "size",      "occupancy",
+                                        "tail_capacity", "value",     "tail_base", "segments",
+                                        "row_len",       "terminated"};
+    for (std::size_t f = 0; f < 10; ++f)
+      if (fx[f] != fy[f])
+        return "key " + std::to_string(x.key) + " " + names[f] + ": store " +
+               std::to_string(fx[f]) + ", model " + std::to_string(fy[f]);
+    if (x.row != y.row) return "key " + std::to_string(x.key) + " row";
+  }
+  return "";
 }
 
 std::string default_policy(const std::string& repo) {
@@ -324,6 +363,10 @@ struct tree_run {
   /// The keys of a MOSP_ESCHER construct without row counts whose trace occupancy is still that
   /// construct's 0, and the store's (scanned) occupancy of each (construct_without_row_counts).
   std::map<std::int32_t, std::int64_t> legacy_occupancy;
+  /// field_set::policy: the tree's first operation at which the payload policies differ (-1:
+  /// none yet), and whether a per-key length has differed since.
+  std::int64_t policy_point = -1;
+  bool length_differs = false;
 };
 
 // The values of an input array (false: hash only).
@@ -706,6 +749,93 @@ class replayer {
     } else {
       t.store_before = snapshot_of(got);
     }
+    if (opt_.fields == field_set::policy && after != nullptr)
+      judge_policy_differences(rec, *after, t, base, threw);
+  }
+
+  // field_set::policy (above): the differences of an op that the payload policies explain are
+  // documented instead of reported; everything else stays a mismatch.
+  void judge_policy_differences(const tr::record& rec, const tr::tree_state& after, tree_run& t,
+                                const mismatch& base, bool threw) {
+    if (pending_.empty()) return;
+    auto document = [&](const std::string& rule, const std::string& detail) {
+      documented_divergence d;
+      d.seq = base.seq;
+      d.op_index = base.op_index;
+      d.tree_op = base.tree_op;
+      d.tree = base.tree;
+      d.dataset = base.dataset;
+      d.op = base.op;
+      d.rule = rule;
+      d.detail = detail;
+      report_.documented.push_back(std::move(d));
+    };
+    const std::string& op = base.op;
+    // The original's fixed capacity threw where the store's policy grew the payload: the
+    // original's state after its exception is not the store's; the tree ends here.
+    if (threw && (op == "fill" || op == "insert" || op == "compact") &&
+        rec.text("exception.type") == "escher::EscherError") {
+      for (const mismatch& m : pending_) {
+        if (m.field == "status" && m.actual == "ok") {
+          document("policy_exception", "the original threw " + rec.text("exception.type") +
+                                           " (its fixed payload capacity); the store's policy "
+                                           "grew the payload (capacity " +
+                                           std::to_string(rec.integer("after.fixed_size")) +
+                                           " in the trace)");
+          pending_.clear();
+          t.diverged = true;
+          return;
+        }
+      }
+    }
+    static const std::set<std::string> layout_fields = {
+        "after.fixed_size", "after.initial_payload_size", "event.growth", "event.compaction"};
+    const bool point_here = std::any_of(pending_.begin(), pending_.end(), [](const mismatch& m) {
+      return layout_fields.count(m.field) != 0;
+    });
+    const bool earlier_point = t.policy_point >= 0;
+    if (!point_here && !earlier_point) return;  // not explained by the policies: mismatches
+    // An InsertMapping that differs after an earlier policy difference changed a length.
+    if (earlier_point && t.length_differs &&
+        std::any_of(pending_.begin(), pending_.end(),
+                    [](const mismatch& m) { return m.field == "out.mapping"; })) {
+      for (const mismatch& m : pending_) {
+        if (m.field != "out.mapping") continue;
+        document("policy_mapping", "the InsertMapping differs after the policy difference at op " +
+                                       std::to_string(t.policy_point) + " of the tree (trace " +
+                                       m.expected + ", store " + m.actual + ")");
+        break;
+      }
+      pending_.clear();
+      t.diverged = true;
+      return;
+    }
+    std::vector<std::string> fields;
+    std::vector<mismatch> keep;
+    for (mismatch& m : pending_) {
+      bool explained = layout_fields.count(m.field) != 0;
+      if (m.field == "key.length") {
+        explained = true;
+        t.length_differs = true;
+      }
+      if (m.field.rfind("key.row", 0) == 0) {
+        const auto k = after.by_key.find(static_cast<std::int32_t>(m.key));
+        explained = k != after.by_key.end() && k->second.avail != 0;  // a deleted key's row
+      }
+      if (explained) {
+        if (std::find(fields.begin(), fields.end(), m.field) == fields.end())
+          fields.push_back(m.field);
+      } else {
+        keep.push_back(std::move(m));
+      }
+    }
+    pending_ = std::move(keep);
+    if (point_here && !earlier_point) t.policy_point = base.tree_op;
+    if (!fields.empty()) {
+      std::string list;
+      for (const auto& f : fields) list += (list.empty() ? "" : ", ") + f;
+      document("policy_difference", list + (point_here ? "" : " (after the policy difference)"));
+    }
   }
 
   // The exemptions of construct_without_row_counts (above) at one op; then the keys whose trace
@@ -875,8 +1005,12 @@ class replayer {
     }
     // The integrity verdict, after the state: the original's checkTreeRows on the rows as read,
     // and the store's own check where it has one (the device store; the host model has none).
-    if (got.integrity >= 0 && rec.integer("check.rows", -1) >= 0)
+    if (opt_.fields == field_set::policy) {
+      // The store's own checks must be clean (the original's verdict is about its own layout).
+      if (got.integrity >= 0) scalar("check.rows", 0, got.integrity);
+    } else if (got.integrity >= 0 && rec.integer("check.rows", -1) >= 0) {
       scalar("check.rows", rec.integer("check.rows"), got.integrity);
+    }
     // The store's availability check against the original's (MOSP_ESCHER records it; the states
     // of ESCHER-GPU, which has no such check, must have none either), and dynG's checks of the
     // index arrays, which no state of an original fails (M8a step 4).

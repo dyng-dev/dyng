@@ -353,10 +353,12 @@ struct cbst_host_model::impl {
     if (needed <= capacity) return true;
     if (policy.growth == cbst_host_policy::growth_rule::escher_gpu) {
       std::int64_t grown = std::max(needed + needed / 4, 3 * capacity / 2);
-      grown = std::min<std::int64_t>(grown, INT_MAX);
+      grown = std::min<std::int64_t>(grown, std::min<std::int64_t>(policy.max_payload, INT_MAX));
       if (needed > grown) {
         fail(std::string(what) + ": " + std::to_string(needed) +
-             " payload entries exceed the int32 offsets of the CBST");
+             " payload entries exceed the largest payload (" +
+             std::to_string(std::min<std::int64_t>(policy.max_payload, INT_MAX)) +
+             "; the int32 offsets of the CBST at most)");
         return false;
       }
       // The used prefix is copied, the rest of the new buffer is zero.

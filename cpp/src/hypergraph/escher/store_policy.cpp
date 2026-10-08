@@ -7,7 +7,7 @@
 /**
  * @file store_policy.cpp
  * @brief The CBST store's payload policy and its presets escher_gpu() (M8a, ADR 0038),
- *        and mosp_escher() (M8a step 5, ADR 0039).
+ *        mosp_escher() and dyng_default() (M8a step 5, ADR 0039).
  */
 #include "hypergraph/escher/store_policy.hpp"
 
@@ -43,11 +43,24 @@ store_policy store_policy::mosp_escher(long long extra) {
   return p;
 }
 
+store_policy store_policy::dyng_default(long long max_payload) {
+  store_policy p;
+  p.name = "dyng_default";
+  p.growth = growth_rule::escher_gpu;  // ESCHER-GPU's growth, after the compaction
+  p.compaction = compaction_rule::mosp_escher;
+  p.scratch = scratch_rule::geometric;
+  p.alignment = 4;
+  p.max_payload = std::min<long long>(max_payload, INT_MAX);
+  return p;
+}
+
 bool store_policy::from_name(const std::string& name, store_policy& out) {
   if (name == "escher_gpu") {
     out = escher_gpu();
   } else if (name == "mosp_escher") {
     out = mosp_escher();
+  } else if (name == "dyng_default") {
+    out = dyng_default();
   } else {
     return false;
   }
@@ -74,10 +87,11 @@ long long store_policy::initial_capacity(long long requested, long long size, bo
   // rebuilt by the delta merge are sized exactly; a requested capacity is a lower bound for the
   // in-place trees.
   const long long capacity = in_place ? std::max(requested, size + size / 8 + 1024) : size;
-  if (capacity > INT_MAX) {
+  if (capacity > max_payload) {
     throw capacity_error("dyng: CBST payload capacity " + std::to_string(capacity) +
-                         " exceeds the int32 offsets of the CBST (at most " +
-                         std::to_string(INT_MAX) + ")");
+                         " exceeds the largest payload of policy " + name + " (" +
+                         std::to_string(max_payload) +
+                         (max_payload == INT_MAX ? ", the int32 offsets of the CBST)" : ")"));
   }
   return capacity;
 }
@@ -90,11 +104,12 @@ long long store_policy::grown_capacity(long long needed, long long capacity,
                          " (policy " + this->name + " does not grow the payload)");
   }
   long long grown = std::max(needed + needed / 4, 3LL * capacity / 2);
-  grown = std::min<long long>(grown, INT_MAX);
+  grown = std::min<long long>(grown, max_payload);
   if (needed > grown) {
     throw capacity_error("dyng: CBST " + name + ": " + std::to_string(needed) +
-                         " payload entries exceed the int32 offsets of the CBST (at most " +
-                         std::to_string(INT_MAX) + ")");
+                         " payload entries exceed the largest payload of policy " + this->name +
+                         " (at most " + std::to_string(max_payload) +
+                         (max_payload == INT_MAX ? ", the int32 offsets of the CBST)" : ")"));
   }
   return grown;
 }

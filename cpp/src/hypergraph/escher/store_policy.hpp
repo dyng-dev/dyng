@@ -9,13 +9,15 @@
  * @file store_policy.hpp
  * @brief How a CBST store sizes and grows its payload, and when it compacts (M8a, ADR 0038,
  *        0039): the internal store_policy and its presets: escher_gpu(), which reproduces
- *        ESCHER-GPU@abcf9b2, and mosp_escher(), which reproduces MOSP_ESCHER@4b86159.
+ *        ESCHER-GPU@abcf9b2, mosp_escher(), which reproduces MOSP_ESCHER@4b86159, and
+ *        dyng_default(), the target policy of PLAN 6.4.5 (compact first, then grow).
  *
  * Host-only (no CUDA): the hypergraph container (M8b) sizes its trees with initial_capacity()
  * before it creates them; the store grows its payload with grown_capacity().
  */
 #pragma once
 
+#include <climits>
 #include <cstdint>
 #include <string>
 
@@ -53,6 +55,9 @@ struct store_policy {
   /// (0: ESCHER-GPU's sizing, initial_capacity()).
   double headroom = 0.0;
   long long extra = 0;  ///< see headroom
+  /// The largest payload capacity in entries (INT_MAX: the int32 offsets of the CBST); a payload
+  /// that needs more is a capacity_error. Tests lower it to reach the limit (M8a step 5).
+  long long max_payload = INT_MAX;
 
   /**
    * @brief ESCHER-GPU@abcf9b2's policy: in-place trees (H2V, V2H) start at max(requested,
@@ -77,7 +82,19 @@ struct store_policy {
   static store_policy mosp_escher(long long extra = 1LL << 20);
 
   /**
-   * @brief The preset of a name ("escher_gpu", "mosp_escher").
+   * @brief dynG's default, the target policy of PLAN 6.4.5 (M8a step 5, ADR 0039): ESCHER-GPU's
+   *        initial sizing; a payload that does not fit is compacted first, at MOSP_ESCHER's
+   *        trigger points (compaction_rule::mosp_escher), and grows by ESCHER-GPU's rule when
+   *        the compacted rows still do not fit; capacity_error only beyond max_payload (the
+   *        int32 offsets) and out_of_memory_error on an allocation failure; alignment 4; the
+   *        operation scratch grows geometrically.
+   * @param[in] max_payload The largest payload capacity (INT_MAX; lower only in tests).
+   * @return The preset.
+   */
+  static store_policy dyng_default(long long max_payload = INT_MAX);
+
+  /**
+   * @brief The preset of a name ("escher_gpu", "mosp_escher", "dyng_default").
    * @param[in] name The name.
    * @param[out] out The preset.
    * @return false if the name is unknown.
@@ -92,8 +109,8 @@ struct store_policy {
    * @param[in] size      The payload entries of the tree's construct layout.
    * @param[in] in_place  The tree is updated in place (H2V, V2H), not rebuilt by a merge.
    * @return The capacity.
-   * @throws capacity_error if it exceeds the int32 offsets (INT_MAX), or MOSP_ESCHER's cap is
-   *         below the size.
+   * @throws capacity_error if it exceeds max_payload (the int32 offsets, INT_MAX), or
+   *         MOSP_ESCHER's cap is below the size.
    */
   [[nodiscard]] long long initial_capacity(long long requested, long long size,
                                            bool in_place) const;
@@ -103,8 +120,8 @@ struct store_policy {
    * @param[in] needed   The entries that must fit (> capacity).
    * @param[in] capacity The current capacity.
    * @param[in] name     The tree's name, for the message.
-   * @return The new capacity (>= needed).
-   * @throws capacity_error if the policy does not grow or `needed` exceeds INT_MAX.
+   * @return The new capacity (>= needed), at most max_payload.
+   * @throws capacity_error if the policy does not grow or `needed` exceeds max_payload.
    */
   [[nodiscard]] long long grown_capacity(long long needed, long long capacity,
                                          const std::string& name) const;

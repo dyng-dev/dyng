@@ -655,5 +655,129 @@ TEST(CbstStorePolicyOnDevice, EscherGpuGrowsAFixedPolicyThrows) {
   }
 }
 
+// --- The presets of M8a step 5 (ADR 0039) ------------------------------------------------------
+
+/// Values first, first + 1, ..., first + n - 1.
+std::vector<int> iota_row(int first, int n) {
+  std::vector<int> r(static_cast<std::size_t>(n));
+  for (int i = 0; i < n; ++i) r[static_cast<std::size_t>(i)] = first + i;
+  return r;
+}
+
+/// Constructs `s` over rows of keys 1..n (ESCHER-GPU's flatten2DVector layout).
+void construct_rows(cbst_store& s, const rows& values) {
+  std::vector<int> keys, starts, flat;
+  for (std::size_t i = 0; i < values.size(); ++i) {
+    keys.push_back(static_cast<int>(i) + 1);
+    starts.push_back(static_cast<int>(flat.size()));
+    const std::size_t padded = (values[i].size() + 4) / 4 * 4;
+    flat.insert(flat.end(), values[i].begin(), values[i].end());
+    flat.insert(flat.end(), padded - values[i].size() - 1, 0);
+    flat.push_back(INT_MIN);
+  }
+  s.construct(keys.data(), starts.data(), static_cast<int>(keys.size()), flat.data(),
+              static_cast<int>(flat.size()));
+}
+
+// dynG's default compacts first and grows only when the compacted rows do not fit; escher_gpu()
+// grows; mosp_escher() compacts and then throws.
+TEST(CbstStorePresets, DefaultCompactsFirstThenGrows) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  const store_policy d = store_policy::dyng_default();
+  EXPECT_EQ(d.name, "dyng_default");
+  EXPECT_EQ(d.growth, store_policy::growth_rule::escher_gpu);
+  EXPECT_EQ(d.compaction, store_policy::compaction_rule::mosp_escher);
+  EXPECT_EQ(d.scratch, store_policy::scratch_rule::geometric);
+  EXPECT_EQ(d.max_payload, INT_MAX);
+  store_policy named;
+  ASSERT_TRUE(store_policy::from_name("dyng_default", named));
+  EXPECT_EQ(named.name, "dyng_default");
+  for (const store_policy& policy :
+       {store_policy::escher_gpu(), store_policy::mosp_escher(), store_policy::dyng_default()}) {
+    SCOPED_TRACE(policy.name);
+    cbst_store s(res, "churn", 40, 4, policy);
+    construct_rows(s, {iota_row(1, 8), iota_row(100, 8)});  // 24 slots
+    rows want = {iota_row(1, 8), iota_row(100, 8)};
+    int next = 1000;
+    bool threw = false;
+    // Churn that fits once compacted: 8 live values in key 1.
+    for (int round = 0; round < 20 && !threw; ++round) {
+      const batch add = make_batch({1}, {iota_row(next, 4)});
+      try {
+        s.append(add.keys, add.payload, add.prefix);
+      } catch (const capacity_error&) {
+        threw = true;
+        break;
+      }
+      want[0].insert(want[0].end(), add.payload.begin(), add.payload.end());
+      const batch rem = make_batch({1}, {std::vector<int>(want[0].begin(), want[0].begin() + 4)});
+      s.remove_values(rem.keys, rem.payload, rem.prefix);
+      want[0].erase(want[0].begin(), want[0].begin() + 4);
+      next += 4;
+    }
+    EXPECT_FALSE(threw);
+    EXPECT_EQ(violations(s, want, true), 0);
+    const cbst_store_stats st = s.stats();
+    if (policy.name == "escher_gpu") {
+      EXPECT_EQ(s.compactions(), 0);
+      EXPECT_GT(st.growths, 0);
+    } else {
+      EXPECT_GT(s.compactions(), 0);
+      EXPECT_EQ(st.growths, 0);
+      EXPECT_EQ(s.context().fixed_size, 40);
+    }
+    // Live rows that no longer fit, compacted: mosp_escher() throws, the others grow.
+    const batch big = make_batch({2}, {iota_row(5000, 40)});
+    if (policy.name == "mosp_escher") {
+      EXPECT_THROW(s.append(big.keys, big.payload, big.prefix), capacity_error);
+      EXPECT_TRUE(s.poisoned());  // the tail was written before the payload was full
+    } else {
+      const long long compactions = s.compactions();
+      s.append(big.keys, big.payload, big.prefix);
+      want[1].insert(want[1].end(), big.payload.begin(), big.payload.end());
+      EXPECT_GT(s.context().fixed_size, 40);
+      EXPECT_EQ(violations(s, want, true), 0);
+      if (policy.name == "dyng_default") {
+        EXPECT_GT(s.compactions(), compactions);  // it compacted first
+      }
+    }
+  }
+}
+
+// A forced small max_payload: the default preset raises capacity_error at the limit (where the
+// int32 offsets would end), the store is poisoned after the in-place writes, and every later
+// operation throws until it is constructed again.
+TEST(CbstStorePresets, ASmallMaxPayloadRaisesCapacityError) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  EXPECT_EQ(store_policy::dyng_default(64).max_payload, 64);
+  EXPECT_EQ(store_policy::dyng_default(1LL << 40).max_payload, INT_MAX);
+  EXPECT_THROW((void)store_policy::dyng_default(64).grown_capacity(65, 40, "t"), capacity_error);
+  EXPECT_EQ(store_policy::dyng_default(64).grown_capacity(60, 40, "t"), 64);  // min(75, 64)
+  EXPECT_THROW((void)store_policy::dyng_default(64).initial_capacity(0, 100, true), capacity_error);
+  cbst_store s(res, "limit", 40, 4, store_policy::dyng_default(64));
+  construct_rows(s, {iota_row(1, 8), iota_row(100, 8)});
+  // 24 used + an overflow segment of 30 values (32 slots) = 56: grows to min(70, 64) = 64.
+  const batch fits = make_batch({1}, {iota_row(1000, 30)});
+  s.append(fits.keys, fits.payload, fits.prefix);
+  EXPECT_EQ(s.context().fixed_size, 64);
+  EXPECT_EQ(violations(s, {[] {
+                             std::vector<int> r = iota_row(1, 8);
+                             const std::vector<int> more = iota_row(1000, 30);
+                             r.insert(r.end(), more.begin(), more.end());
+                             return r;
+                           }(),
+                           iota_row(100, 8)}),
+            0);
+  const batch over = make_batch({2}, {iota_row(2000, 40)});
+  EXPECT_THROW(s.append(over.keys, over.payload, over.prefix), capacity_error);
+  EXPECT_TRUE(s.poisoned());
+  EXPECT_THROW(s.erase({1}), invalid_argument_error);
+  EXPECT_THROW((void)s.compact(), invalid_argument_error);
+  construct_rows(s, {{1}});
+  EXPECT_FALSE(s.poisoned());
+}
+
 }  // namespace
 }  // namespace dyng::detail::escher

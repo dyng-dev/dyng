@@ -23,6 +23,16 @@
  *    termination of every key, every row in order, the scratch capacities, the record count,
  *    ESCHER-GPU's deviceBytes() and degree-bin launch counts where the trace has them, and the
  *    state before every operation.
+ *  - field_set::policy (M8a step 5, acceptance criterion 10(c): a store under a policy other than
+ *    the original's, dynG's default): the semantic fields up to the first operation of a tree at
+ *    which the payload policies differ (a growth or compaction on one side only, a different
+ *    capacity or bump pointer, or a capacity exception of the original where the store grew;
+ *    documented as "policy_difference" or "policy_exception"); from there on the keys, avail,
+ *    subtree_avail, the rows of the live keys, every InsertMapping and every exception, while
+ *    per-key lengths, the layout and the rows of deleted keys (which a compaction empties) are
+ *    the policy's. An InsertMapping that differs after a policy difference changed a length is
+ *    documented ("policy_mapping") and ends the comparison of the tree; anywhere else it is a
+ *    mismatch. The store's own integrity checks must be clean.
  * A row recorded as a hash only is compared by its hash (in order). An operation the store
  * cannot run is a mismatch; an operation whose inputs the trace holds as hashes only cannot be
  * replayed: its tree is reported as unreplayable from there on, never silently skipped.
@@ -45,9 +55,9 @@
 namespace dyng::test::cbst_compare {
 
 /// The fields a replay compares.
-enum class field_set { semantic, offsets, exact };
+enum class field_set { semantic, offsets, exact, policy };
 
-/// The name of a field set ("semantic", "offsets", "exact").
+/// The name of a field set ("semantic", "offsets", "exact", "policy").
 const char* to_string(field_set f);
 /// Parses a field set name; false if unknown.
 bool parse_field_set(const std::string& name, field_set& out);
@@ -284,6 +294,11 @@ dyng::testing::cbst_host_policy store_equivalent_host_policy(const std::string& 
 /// The host-model policy of a name: the presets of cbst_host_policy::from_name() and
 /// "store:<preset>" (store_equivalent_host_policy()). False if the name is unknown.
 bool resolve_host_policy(const std::string& name, dyng::testing::cbst_host_policy& out);
+
+/// The first difference of two digests of the same tree in every field (empty: equal; a scalar
+/// one side does not report, -1, is not compared): the lockstep tests of the device store and
+/// the host model (M8a steps 4-5).
+std::string digest_difference(const tree_digest& a, const tree_digest& b);
 
 /// Whether the rows of a dataset are compared in order (H2V, H2H, V2V; any case).
 bool order_sensitive(const std::string& dataset);

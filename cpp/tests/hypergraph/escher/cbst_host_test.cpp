@@ -75,6 +75,33 @@ TEST(CbstStorePolicy, TheMospEscherPresetAndTheNames) {
   EXPECT_FALSE(store_policy::from_name("mosp_escher_staged", q));  // the staging preset of step 4
 }
 
+// dynG's default (M8a step 5, ADR 0039): ESCHER-GPU's sizing and growth after MOSP_ESCHER's
+// compaction, capacity_error only beyond max_payload (INT_MAX: the int32 offsets).
+TEST(CbstStorePolicy, TheDefaultPreset) {
+  const store_policy d = store_policy::dyng_default();
+  EXPECT_EQ(d.name, "dyng_default");
+  EXPECT_EQ(d.growth, store_policy::growth_rule::escher_gpu);
+  EXPECT_EQ(d.compaction, store_policy::compaction_rule::mosp_escher);
+  EXPECT_EQ(d.scratch, store_policy::scratch_rule::geometric);
+  EXPECT_EQ(d.alignment, 4);
+  EXPECT_EQ(d.max_payload, INT_MAX);
+  EXPECT_EQ(d.initial_capacity(0, 1000, true), 1000 + 125 + 1024);  // ESCHER-GPU's sizing
+  EXPECT_EQ(d.initial_capacity(0, 1000, false), 1000);
+  EXPECT_EQ(d.grown_capacity(101, 100, "t"), 150);
+  EXPECT_EQ(d.grown_capacity(INT_MAX, INT_MAX - 1, "t"), INT_MAX);
+  EXPECT_THROW((void)d.grown_capacity(static_cast<long long>(INT_MAX) + 1, 100, "t"),
+               capacity_error);
+  const store_policy small = store_policy::dyng_default(64);
+  EXPECT_EQ(small.max_payload, 64);
+  EXPECT_EQ(small.grown_capacity(60, 40, "t"), 64);
+  EXPECT_THROW((void)small.grown_capacity(65, 40, "t"), capacity_error);
+  EXPECT_THROW((void)small.initial_capacity(0, 100, true), capacity_error);
+  EXPECT_EQ(store_policy::dyng_default(1LL << 40).max_payload, INT_MAX);
+  store_policy q;
+  ASSERT_TRUE(store_policy::from_name("dyng_default", q));
+  EXPECT_EQ(q.name, "dyng_default");
+}
+
 // The growth of the operation scratch (M8a step 4, behaviour (g)): exact under escher_gpu()
 // (ESCHER-GPU's reserveScratch), geometric under the MOSP_ESCHER presets (its
 // ensureScratchCapacity: +n/2+1 steps from the current size, from 1 item or 4 values).

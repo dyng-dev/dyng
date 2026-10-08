@@ -278,7 +278,7 @@ device_store_adapter::device_store_adapter(std::string policy, bool allow_compac
   esc::store_policy p;
   if (!esc::store_policy::from_name(policy_, p))
     throw tr::trace_error("device store: no policy '" + policy_ +
-                          "' (the store has escher_gpu and mosp_escher)");
+                          "' (the store has escher_gpu, mosp_escher and dyng_default)");
 }
 
 device_store_adapter::~device_store_adapter() = default;
@@ -297,6 +297,11 @@ void device_store_adapter::create_tree(std::uint32_t id, const std::string& data
   (void)esc::store_policy::from_name(policy_, policy);  // checked by the constructor
   r.store = std::make_unique<esc::cbst_store>(res_, r.name, static_cast<int>(capacity),
                                               static_cast<int>(alignment), std::move(policy));
+}
+
+const esc::cbst_store* device_store_adapter::store(std::uint32_t id) const {
+  const auto it = trees_.find(id);
+  return it == trees_.end() ? nullptr : it->second->store.get();
 }
 
 void device_store_adapter::destroy_tree(std::uint32_t id) {

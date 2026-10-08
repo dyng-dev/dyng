@@ -152,6 +152,8 @@ struct cbst_host_policy {
   bool counts_bin_launches = true;  ///< degree-bin launches are counted (ESCHER-GPU)
   std::string error_type;           ///< the exception type a failure reports
                                     ///< ("escher::EscherError" for MOSP_ESCHER)
+  std::int64_t max_payload = 2147483647;  ///< the largest payload capacity a growth reaches
+                                          ///< (2^31 - 1: the int32 offsets; tests lower it)
 
   /**
    * @brief ESCHER-GPU\@abcf9b2: growth, no compaction, process exit on failure, scanned
@@ -167,9 +169,11 @@ struct cbst_host_policy {
    */
   [[nodiscard]] static cbst_host_policy mosp_escher();
   /**
-   * @brief The target policy of PLAN 6.4.5 (provisional): MOSP_ESCHER's behaviour, but growth
-   *        (ESCHER-GPU's rule) where MOSP_ESCHER throws, scanned occupancy when the caller gives
-   *        no counts, exceptions, rebuild and compact().
+   * @brief dynG's default, the target policy of PLAN 6.4.5 (M8a step 5): MOSP_ESCHER's
+   *        compaction at its trigger points first, then growth by ESCHER-GPU's rule where
+   *        MOSP_ESCHER throws, a failure only beyond max_payload (dyng::capacity_error); scanned
+   *        occupancy when the caller gives no counts; the construct validation and the fill
+   *        clamps; geometric scratch; rebuild, compact() and the launch counters.
    * @return The preset.
    */
   [[nodiscard]] static cbst_host_policy dyng_default();

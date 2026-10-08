@@ -344,6 +344,28 @@ TEST(CbstHostModel, DyngDefaultCompactsFirstThenGrows) {
   EXPECT_EQ(row_of(m, 1), want);
 }
 
+// A lowered max_payload (M8a step 5): the default compacts, grows up to the limit, and fails
+// with dyng::capacity_error beyond it.
+TEST(CbstHostModel, DyngDefaultFailsOnlyBeyondMaxPayload) {
+  cbst_host_policy p = cbst_host_policy::dyng_default();
+  EXPECT_EQ(p.max_payload, INT32_MAX);
+  p.max_payload = 64;
+  cbst_host_model m = built(p, {{1, 2, 3}, {4, 5, 6}}, 24);
+  ints some;
+  for (int v = 100; v < 130; ++v) some.push_back(v);
+  const items fits = items_of({some}, {1});
+  cbst_op_result r = m.append(fits.keys, fits.payload, fits.prefix);
+  ASSERT_EQ(r.status, cbst_op_status::ok) << r.message;
+  EXPECT_TRUE(r.grew);
+  EXPECT_EQ(m.payload_capacity(), 50);  // 8 + 32 needed: max(40 + 10, 24 * 3 / 2), below 64
+  ints more;
+  for (int v = 200; v < 260; ++v) more.push_back(v);
+  const items over = items_of({more}, {2});
+  r = m.append(over.keys, over.payload, over.prefix);
+  EXPECT_EQ(r.status, cbst_op_status::error);
+  EXPECT_EQ(r.error_type, "dyng::capacity_error");
+}
+
 TEST(CbstHostModel, ExplicitCompactOnlyWhereThePolicyHasIt) {
   cbst_host_model a = built(cbst_host_policy::escher_gpu(), {{1}}, 16);
   EXPECT_EQ(a.compact().status, cbst_op_status::undefined);

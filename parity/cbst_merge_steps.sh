@@ -123,6 +123,12 @@ for commit in "${commits[@]}"; do
     if git grep -q 'store_policy::mosp_escher(long long' "${sha}" -- "${policy_src}"; then
       mosp=1
     fi
+    # dynG's default preset (store_policy::dyng_default(), M8a step 5): every set, field set
+    # "policy" (criterion 10(c)), from the commit that adds it.
+    dflt=0
+    if git grep -q 'store_policy::dyng_default(long long' "${sha}" -- "${policy_src}"; then
+      dflt=1
+    fi
     for set in "${sets[@]}"; do
       policies=("")
       if [[ "${set}" == cbst_trace_mosp_escher_* ]]; then
@@ -130,12 +136,14 @@ for commit in "${commits[@]}"; do
         [ "${staged}" = 1 ] && policies+=("mosp_escher_staged")
         [ "${mosp}" = 1 ] && policies+=("mosp_escher")
       fi
+      [ "${dflt}" = 1 ] && policies+=("dyng_default")
       for policy in "${policies[@]}"; do
         suffix="${policy:+-${policy}}"
         log="${out}/${set}${suffix}.log"
         policy_args=()
         [ -n "${policy}" ] && policy_args=(--policy "${policy}")
         fields=exact
+        [ "${policy}" = dyng_default ] && fields=policy
         if CUDA_VISIBLE_DEVICES="${gpu}" heavy python3 parity/compare.py cbst_trace --store device \
           --fields "${fields}" --skip-verify --replay-exe "${build}/cpp/tests/dyng_cbst_replay" \
           --record "${out}" --set "${set}" "${policy_args[@]}" >"${log}" 2>&1; then
@@ -173,7 +181,9 @@ else:
     for c in r["cases"]:
         for rule, n in c.get("documented_rules", {}).items():
             rules[rule] = rules.get(rule, 0) + n
-    named = " (" + ", ".join(f"{k} {n}" for k, n in sorted(rules.items())) + ")" if rules else ""
+    named = ""
+    if rules:
+        named = " [" + ", ".join(f"{k} {n}" for k, n in sorted(rules.items())) + "]"
     print(f"{verdict}: {len(r['cases'])} traces, {t['compared']} ops, {t['mismatch_count']} "
           f"mismatches, {t['documented']} documented{named}, {t['unreplayable']} "
           f"unreplayable{twins}")

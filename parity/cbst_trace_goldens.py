@@ -752,11 +752,11 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
     }
 
 
-# The presets of the dynG device store (store_policy::from_name): ESCHER-GPU's and MOSP_ESCHER's
-# (M8a step 5, ADR 0039). The staging preset mosp_escher_staged of M8a step 4 is
+# The presets of the dynG device store (store_policy::from_name): ESCHER-GPU's, MOSP_ESCHER's and
+# dynG's default (M8a step 5, ADR 0039). The staging preset mosp_escher_staged of M8a step 4 is
 # accepted for the replay tools of the commits that have it (parity/cbst_merge_steps.sh over the
 # merge-step table).
-DEVICE_PRESETS = ("escher_gpu", "mosp_escher", "mosp_escher_staged")
+DEVICE_PRESETS = ("escher_gpu", "mosp_escher", "dyng_default", "mosp_escher_staged")
 
 
 def against_model(set_name: str, args) -> bool:
@@ -765,7 +765,10 @@ def against_model(set_name: str, args) -> bool:
     escher_gpu()), and, for the replay tools of M8a step 4, under the staging preset
     mosp_escher_staged(), which had no automatic compaction yet. A set replayed under its own
     original's preset (MOSP_ESCHER's under mosp_escher() from M8a step 5) is judged against the
-    trace itself."""
+    trace itself, and so is a set under dynG's default (dyng_default; field set "policy",
+    acceptance criterion 10(c))."""
+    if args.policy == "dyng_default":
+        return False
     return (args.policy or original_preset(set_name)) != original_preset(set_name)
 
 
@@ -1001,8 +1004,10 @@ def compare_main(argv: list[str]) -> int:
     )
     p.add_argument(
         "--fields",
-        choices=["semantic", "offsets", "exact"],
-        default="exact",
+        choices=["semantic", "offsets", "exact", "policy"],
+        default=None,
+        help="the compared fields (default: exact; policy under --policy dyng_default, M8a "
+        "criterion 10(c))",
     )
     p.add_argument("--replay-exe", type=Path, help="dyng_cbst_replay (default: find it in build/)")
     p.add_argument("--jobs", type=int, default=max(1, min(8, (os.cpu_count() or 4) // 4)))
@@ -1022,6 +1027,8 @@ def compare_main(argv: list[str]) -> int:
     )
     p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
     args = p.parse_args(argv)
+    if args.fields is None:
+        args.fields = "policy" if args.policy == "dyng_default" else "exact"
     names = args.set or list(SETS)
     if args.list:
         toml = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
