@@ -405,3 +405,80 @@ def test_device_replay_certificate_record() -> None:
     matrix, compared, failed = certify.replay_matrix(doc)
     assert (compared, failed) == (2, 1)
     assert matrix["001-main"] == {"device:escher_gpu/exact": "equal"}
+
+
+def test_whole_first_divergence_against_the_model() -> None:
+    """M8a review: a store diverges like the model only when every field, key and value of the
+    first divergent op agrees, not only the op and the first field name."""
+    g = load("parity/cbst_trace_goldens.py")
+
+    def report(mismatches, documented=()):
+        return {
+            "trees": [{"tree": 1}, {"tree": 2}],
+            "mismatches": mismatches,
+            "documented": list(documented),
+        }
+
+    m = {"tree": 1, "tree_op": 5, "op": "fill", "key": -1}
+    model = report([dict(m, field="after.scratch_payload", expected="4", actual="8")])
+    same = report(
+        [
+            dict(m, field="after.scratch_payload", expected="4", actual="8"),
+            dict(m, field="check.rows", expected="0", actual="1"),
+        ]
+    )
+    assert g.first_divergence_sets(model) == g.first_divergence_sets(same)
+    # The same op and first field, but a row of the store differs too: not as the model.
+    worse = report(
+        [
+            dict(m, field="after.scratch_payload", expected="4", actual="8"),
+            dict(m, field="key.row", key=3, expected="[1]", actual="[2]"),
+        ]
+    )
+    assert g.first_divergences(model) == g.first_divergences(worse)
+    assert g.first_divergence_sets(model) != g.first_divergence_sets(worse)
+    # Another value of the same field: not as the model either.
+    other = report([dict(m, field="after.scratch_payload", expected="4", actual="16")])
+    assert g.first_divergence_sets(model) != g.first_divergence_sets(other)
+    # A construct below its payload is one class, reported either way.
+    c = {"tree": 2, "tree_op": 0, "op": "construct", "key": -1}
+    as_status = report(
+        [
+            dict(c, field="status", expected="error", actual="ok"),
+            dict(c, field="after.fixed_size", expected="8", actual="0"),
+        ]
+    )
+    as_documented = report([], [{"tree": 2, "tree_op": 0, "rule": "construct_below_payload"}])
+    assert g.first_divergence_sets(as_status)[2] == g.first_divergence_sets(as_documented)[2]
+
+
+def test_documented_divergence_counts_are_pinned(tmp_path: Path) -> None:
+    """M8a review: a replay whose documented divergences differ from the pinned counts fails."""
+    g = load("parity/cbst_trace_goldens.py")
+    table = tmp_path / "counts.toml"
+    table.write_text(
+        "[cbst_trace_mosp_escher_test.dyng_default]\npolicy_difference = 4\npolicy_exception = 1\n"
+        "[cbst_trace_escher_gpu_test.escher_gpu]\n"
+    )
+    ok = {"policy_difference": 4, "policy_exception": 1}
+    assert (
+        g.documented_count_problems("cbst_trace_mosp_escher_test", "dyng_default", ok, table) == []
+    )
+    assert g.documented_count_problems("cbst_trace_escher_gpu_test", "escher_gpu", {}, table) == []
+    planted = {"policy_difference": 2400, "policy_exception": 1}
+    assert g.documented_count_problems(
+        "cbst_trace_mosp_escher_test", "dyng_default", planted, table
+    )
+    assert g.documented_count_problems(
+        "cbst_trace_escher_gpu_test", "escher_gpu", {"policy_difference": 1}, table
+    )
+    # A set and preset without pinned counts fails too.
+    assert g.documented_count_problems("cbst_trace_escher_gpu_test", "dyng_default", {}, table)
+    # The committed table pins every set of the M8a goldens under its original's preset.
+    import tomllib
+
+    pinned = tomllib.loads((REPO / "parity" / "cbst_documented.toml").read_text())
+    for name in g.SETS:  # the presets parity/certify.py requires
+        assert g.original_preset(name) in pinned.get(name, {}), name
+        assert "dyng_default" in pinned.get(name, {}), name
+

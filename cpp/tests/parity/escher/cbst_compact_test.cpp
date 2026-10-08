@@ -14,6 +14,14 @@
  * (count + 4) / 4 * 4 slots; every deleted row its length, emptied; the store's integrity checks
  * clean. The committed traces run in every GPU build (labels gpu, parity, cbst); the small golden
  * sets in $DYNG_SCRATCH in the slow test.
+ *
+ * The same lockstep without the compactions (M8a review) checks every preset's layout on the
+ * traces' operations: the store and the host model under escher_gpu(), mosp_escher() and
+ * dyng_default() replay every operation of both originals' traces and must agree on every field
+ * after every operation (InsertMapping, offsets, lengths, occupancy, the bump pointer and the
+ * capacity, so every growth and compaction), also where a preset's policy makes the replay diverge
+ * from the trace: the criterion-10(c) replay of the default preset against the trace documents
+ * those divergences, and this lockstep is what checks the store's side of them.
  */
 #include "parity/escher/cbst_compare.hpp"
 #include "parity/escher/cbst_device_adapter.hpp"
@@ -46,7 +54,9 @@ namespace tr = dyng::test::cbst_trace;
 struct lockstep_result {
   std::int64_t ops = 0, compactions = 0, moved_back = 0, live_rows = 0, dead_rows = 0;
   std::int64_t stopped_trees = 0;
-  std::int64_t dead_key_stops = 0;  ///< trees stopped at an item naming a dead or absent key
+  std::int64_t dead_key_stops = 0;   ///< trees stopped at an item naming a dead or absent key
+  std::int64_t undefined_stops = 0;  ///< trees stopped where the model cannot predict the original
+  std::int64_t growths = 0;          ///< payload growths (store and model agree on every one)
   std::vector<std::string> problems;
 };
 
@@ -91,13 +101,24 @@ std::string broken_promise(const tree_digest& before, const tree_digest& after,
   return "";
 }
 
-/// Replays the operations of a trace through the store and the host model, both compacting
-/// after every operation that succeeded.
-lockstep_result lockstep(tr::reader& in) {
+/// Replays the operations of a trace through the store and the host model under the preset
+/// `preset`; with `compact_each` (escher_gpu() with an explicit compact()), both compact after
+/// every operation that succeeded.
+lockstep_result lockstep(tr::reader& in, const std::string& preset = "escher_gpu",
+                         bool compact_each = true) {
   lockstep_result r;
-  device_store_adapter store("escher_gpu", /*allow_compact=*/true);
-  dyng::testing::cbst_host_policy policy = dyng::testing::cbst_host_policy::escher_gpu();
-  policy.has_compact = true;
+  device_store_adapter store(preset, /*allow_compact=*/compact_each);
+  dyng::testing::cbst_host_policy policy;
+  if (!dyng::testing::cbst_host_policy::from_name(preset, policy)) {
+    r.problems.push_back("unknown preset " + preset);
+    return r;
+  }
+  if (compact_each) policy.has_compact = true;
+  // The store never takes MOSP_ESCHER's nullptr path (a construct without row counts scans the
+  // rows, ADR 0039 (c); the documented divergence construct_without_row_counts of the replay
+  // against the trace): the model of the store's mosp_escher() scans there too.
+  if (preset == "mosp_escher")
+    policy.occupancy = dyng::testing::cbst_host_policy::occupancy_rule::caller_counts_or_scan;
   host_model_adapter model(policy);
   std::set<std::uint32_t> stopped;
   op_request compact;
@@ -131,9 +152,19 @@ lockstep_result lockstep(tr::reader& in) {
       continue;
     }
     ++r.ops;
+    const tree_digest store_before = compact_each ? tree_digest{} : store.digest(id);
     const op_outcome a = store.run(id, req);
     const op_outcome b = model.run(id, req);
     const bool a_ok = a.status == op_status::ok, b_ok = b.status == op_status::ok;
+    if (!compact_each && b.status == op_status::undefined) {
+      // The original's result is not defined here (an operation its policy lacks, a race the
+      // trace's inputs create after a policy divergence, ...): the model cannot predict it, and
+      // the tree stops as an agreed stop (counted).
+      ++r.undefined_stops;
+      stopped.insert(id);
+      ++r.stopped_trees;
+      continue;
+    }
     if (!a_ok || !b_ok) {
       // Both fail (a fixed capacity, ...) or the documented construct below its payload (the
       // store throws, the model keeps ESCHER-GPU's tree without nodes): the tree stops here.
@@ -159,9 +190,17 @@ lockstep_result lockstep(tr::reader& in) {
       r.problems.push_back(where + ": compact() returned another bump pointer");
     const tree_digest before = store.digest(id);
     std::string diff = digest_difference(before, model.digest(id));
+    if (diff.empty() && !compact_each &&
+        (before.integrity > 0 || before.integrity_subtree > 0 || before.integrity_index > 0))
+      diff = "the store's integrity checks fail";
     if (!diff.empty()) {
       r.problems.push_back(where + ": " + diff);
       stopped.insert(id);
+      continue;
+    }
+    if (!compact_each) {
+      if (before.fixed_size > store_before.fixed_size) ++r.growths;
+      if (before.bump < store_before.bump) ++r.moved_back;
       continue;
     }
     // The compaction after the operation.
@@ -195,7 +234,47 @@ std::string describe(const lockstep_result& r) {
   return o.str();
 }
 
+/// The presets whose layout the policy lockstep checks.
+const char* const presets[] = {"escher_gpu", "mosp_escher", "dyng_default"};
+
+std::string describe_policy(const std::string& preset, const lockstep_result& r) {
+  std::ostringstream o;
+  o << preset << ": " << r.ops << " ops, " << r.growths << " growths, " << r.moved_back
+    << " ops that moved the bump pointer back (compactions, rebuilds, constructs), "
+    << r.stopped_trees << " trees stopped (" << r.dead_key_stops << " at a dead or absent key, "
+    << r.undefined_stops << " where the original is undefined)";
+  return o.str();
+}
+
 #if !defined(DYNG_CBST_COMPACT_LARGE)
+// Every preset's store against the host model's same preset on every operation of the committed
+// traces, without compactions in between (M8a review: the layout of the default preset is checked
+// here, not only its rows against the trace).
+TEST(CbstPolicyLockstep, EveryPresetOnTheCommittedTraces) {
+  if (!device_available()) GTEST_SKIP() << "no CUDA device";
+  const fs::path root = data_path("goldens/cbst_trace");
+  ASSERT_TRUE(fs::is_directory(root));
+  std::vector<std::string> traces;
+  for (const auto& e : fs::recursive_directory_iterator(root))
+    if (e.is_regular_file() && e.path().extension() == ".cbt") traces.push_back(e.path().string());
+  std::sort(traces.begin(), traces.end());
+  ASSERT_FALSE(traces.empty());
+  for (const char* preset : presets) {
+    lockstep_result total;
+    for (const auto& path : traces) {
+      SCOPED_TRACE(std::string(preset) + " " + path);
+      auto in = tr::reader::open(path);
+      const lockstep_result r = lockstep(*in, preset, false);
+      EXPECT_TRUE(r.problems.empty()) << describe(r);
+      total.ops += r.ops;
+      total.growths += r.growths;
+      total.moved_back += r.moved_back;
+    }
+    std::printf("%s\n", describe_policy(preset, total).c_str());
+    EXPECT_GT(total.ops, 100);
+  }
+}
+
 TEST(CbstCompactLockstep, CompactAfterEveryOpOfTheCommittedTraces) {
   if (!device_available()) GTEST_SKIP() << "no CUDA device";
   const fs::path root = data_path("goldens/cbst_trace");
@@ -267,6 +346,42 @@ TEST(CbstCompactLockstepLarge, CompactAfterEveryOpOfTheSmallSets) {
       static_cast<long long>(total.dead_rows), static_cast<long long>(total.stopped_trees),
       static_cast<long long>(total.dead_key_stops));
   EXPECT_GT(total.compactions, 10000);
+}
+
+// Every preset's store against the host model's same preset on every operation of the four small
+// golden sets (M8a review; ci/gpu_local.sh runs it next to the criterion-10(c) replay).
+TEST(CbstPolicyLockstepLarge, EveryPresetOnTheSmallSets) {
+  if (!device_available()) GTEST_SKIP() << "no CUDA device";
+  const fs::path root = scratch() / "goldens" / "cbst_trace";
+  if (!fs::is_directory(root)) GTEST_SKIP() << "no CBST trace golden sets under " << root;
+  const fs::path tmp = scratch() / "runs";
+  fs::create_directories(tmp);
+  for (const char* preset : presets) {
+    lockstep_result total;
+    for (const char* set :
+         {"escher_gpu_test", "escher_gpu_targeted", "mosp_escher_test", "mosp_escher_targeted"}) {
+      if (!fs::is_directory(root / set)) GTEST_SKIP() << "no set " << set;
+      std::vector<fs::path> traces;
+      for (const auto& c : fs::directory_iterator(root / set))
+        if (fs::is_regular_file(c.path() / "trace.cbt.zst"))
+          traces.push_back(c.path() / "trace.cbt.zst");
+      std::sort(traces.begin(), traces.end());
+      for (const fs::path& path : traces) {
+        SCOPED_TRACE(std::string(preset) + " " + path.string());
+        trace_source source(path.string(), tmp.string());
+        const lockstep_result r = lockstep(source.reader(), preset, false);
+        EXPECT_TRUE(r.problems.empty()) << describe(r);
+        total.ops += r.ops;
+        total.growths += r.growths;
+        total.moved_back += r.moved_back;
+        total.stopped_trees += r.stopped_trees;
+        total.dead_key_stops += r.dead_key_stops;
+        total.undefined_stops += r.undefined_stops;
+      }
+    }
+    std::printf("policy lockstep %s\n", describe_policy(preset, total).c_str());
+    EXPECT_GT(total.ops, 10000);
+  }
 }
 #endif
 

@@ -790,8 +790,14 @@ class replayer {
     }
     static const std::set<std::string> layout_fields = {
         "after.fixed_size", "after.initial_payload_size", "event.growth", "event.compaction"};
+    // A policy difference is a point where the two sides followed different policies: the trace's
+    // and the store's growth or compaction events differ at this op (the original's exception is
+    // policy_exception, above). A layout field that differs where both sides grew and compacted
+    // alike is not explained by the policies (M8a review: a planted compaction-padding defect was
+    // labelled a policy difference): it stays a mismatch, unless an earlier policy difference of
+    // the tree already made the layouts differ.
     const bool point_here = std::any_of(pending_.begin(), pending_.end(), [](const mismatch& m) {
-      return layout_fields.count(m.field) != 0;
+      return m.field == "event.growth" || m.field == "event.compaction";
     });
     const bool earlier_point = t.policy_point >= 0;
     if (!point_here && !earlier_point) return;  // not explained by the policies: mismatches

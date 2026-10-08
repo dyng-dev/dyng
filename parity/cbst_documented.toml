@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The documented divergences of the dynG CBST store's trace replays (M8a review; ADR 0040 section
+# 3): for every golden set of parity/goldens.toml's cbst_trace group and every store preset it is
+# replayed under (`parity/compare.py cbst_trace --store device [--policy <preset>]`), the number
+# of documented divergences per rule over all its cases. A replay whose counts differ fails: a
+# store defect that the comparator would label a documented divergence changes them (a planted
+# compaction-padding defect raised mosp_escher_test's from 1 to 2,401 under the comparator before
+# the review).
+#
+#   [<set>.<preset>]   rule = count  (an empty table: no documented divergence)
+#
+# The rules: construct_below_payload and construct_without_row_counts (ADR 0038, 0040),
+# policy_difference, policy_mapping and policy_exception (the field set "policy" of
+# dyng_default, criterion 10(c)). The counts are the head store's; parity/cbst_merge_steps.sh
+# checks them at the head commit only. Update them only with the reason in parity/results.
+
+
+[cbst_trace_escher_gpu_test.escher_gpu]
+
+[cbst_trace_escher_gpu_test.dyng_default]
+policy_difference = 65
+policy_mapping = 5
+
+[cbst_trace_escher_gpu_targeted.escher_gpu]
+construct_below_payload = 1
+
+[cbst_trace_escher_gpu_targeted.dyng_default]
+construct_below_payload = 1
+policy_difference = 2
+
+[cbst_trace_escher_gpu_coauth50k.escher_gpu]
+
+[cbst_trace_escher_gpu_coauth50k.dyng_default]
+
+[cbst_trace_escher_gpu_syn1m.escher_gpu]
+
+[cbst_trace_escher_gpu_syn1m.dyng_default]
+
+[cbst_trace_mosp_escher_test.escher_gpu]
+construct_without_row_counts = 31
+
+[cbst_trace_mosp_escher_test.mosp_escher]
+construct_without_row_counts = 31
+
+[cbst_trace_mosp_escher_test.dyng_default]
+policy_difference = 4
+policy_exception = 1
+
+[cbst_trace_mosp_escher_targeted.escher_gpu]
+construct_below_payload = 1
+
+[cbst_trace_mosp_escher_targeted.mosp_escher]
+construct_below_payload = 1
+
+[cbst_trace_mosp_escher_targeted.dyng_default]
+construct_below_payload = 1
+policy_exception = 1
+
+[cbst_trace_mosp_escher_dblp50k_hyperedge.escher_gpu]
+
+[cbst_trace_mosp_escher_dblp50k_hyperedge.mosp_escher]
+
+[cbst_trace_mosp_escher_dblp50k_hyperedge.dyng_default]
+
+[cbst_trace_mosp_escher_dblp50k_vertex.escher_gpu]
+
+[cbst_trace_mosp_escher_dblp50k_vertex.mosp_escher]
+
+[cbst_trace_mosp_escher_dblp50k_vertex.dyng_default]

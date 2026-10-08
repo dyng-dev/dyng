@@ -217,6 +217,21 @@ def scratch_default() -> Path:
     return Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
 
 
+def portable(path: Path | str) -> str:
+    """A path for the committed records (parity/compare.py's portable_path; PLAN 3.4: no personal
+    paths in the repository): relative to the repository, or under $DYNG_SCRATCH."""
+    p = Path(path).resolve()
+    for base, label in [(REPO, None), (scratch_default().resolve(), "$DYNG_SCRATCH")]:
+        try:
+            rel = p.relative_to(base).as_posix()
+        except ValueError:
+            continue
+        return rel if label is None else f"{label}/{rel}"
+    if p.is_relative_to(Path.home()):
+        return f"<outside the repository>/{p.name}"
+    return p.as_posix()
+
+
 def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -1009,8 +1024,13 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
             }
         )
     spec = toml.get("sets", {}).get(set_name, {})
+    documented_rules: dict[str, int] = {}
+    for r in reports:
+        for rule, n in rule_counts(r).items() if "error" not in r else []:
+            documented_rules[rule] = documented_rules.get(rule, 0) + n
     return {
         "set": set_name,
+        "documented_rules": dict(sorted(documented_rules.items())),
         "reference": SETS[set_name]["reference"],
         "manifest_sha256": spec.get("manifest_sha256"),
         "store": args.store,
@@ -1027,6 +1047,28 @@ def replay_set(set_name: str, args, exe: Path) -> dict:
         "against_model": models is not None,
         "passed": not bad and bool(traces),
     }
+
+
+DOCUMENTED_COUNTS = REPO / "parity" / "cbst_documented.toml"
+
+
+def documented_count_problems(set_name: str, preset: str, got: dict, path: Path) -> list[str]:
+    """The documented divergences of a replay against the counts pinned for its set and preset
+    (M8a review: a defect that the comparator labels a documented divergence changes the counts,
+    and a replay with other counts fails instead of passing)."""
+    table = tomllib.loads(path.read_text())
+    want = table.get(set_name, {}).get(preset)
+    if want is None:
+        return [
+            f"no documented-divergence counts pinned for {set_name} under {preset} in "
+            f"{portable(path)} (the replay found {got or 'none'})"
+        ]
+    if dict(sorted(want.items())) != dict(sorted(got.items())):
+        return [
+            f"documented divergences under {preset}: {got or 'none'}, pinned "
+            f"{dict(sorted(want.items())) or 'none'} ({portable(path)})"
+        ]
+    return []
 
 
 def compare_main(argv: list[str]) -> int:
@@ -1077,7 +1119,15 @@ def compare_main(argv: list[str]) -> int:
         "--certificate",
         type=Path,
         help="with --store device: also write the release certificate's replay record "
-        "parity-<set>-device.json here (parity/certify.py)",
+        "parity-<set>-device-<preset>.json here (parity/certify.py, which requires the original's "
+        "preset and dyng_default for every set)",
+    )
+    p.add_argument(
+        "--documented-counts",
+        default=str(DOCUMENTED_COUNTS),
+        help="with --store device: the pinned documented-divergence counts per set, preset and "
+        "rule (default parity/cbst_documented.toml; 'none' for the store of another commit, as "
+        "parity/cbst_merge_steps.sh passes for every commit but the head)",
     )
     p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
     args = p.parse_args(argv)
@@ -1158,6 +1208,16 @@ def compare_main(argv: list[str]) -> int:
         if exe is not None and not problems:
             record = replay_set(n, args, exe)
             problems += record["problems"]
+            if args.store == "device" and args.documented_counts != "none":
+                pinned = documented_count_problems(
+                    n,
+                    args.policy or original_preset(n),
+                    record["documented_rules"],
+                    Path(args.documented_counts),
+                )
+                problems += pinned
+                record["problems"] += pinned
+                record["passed"] = record["passed"] and not pinned
             t = record["totals"]
             print(
                 f"{n}: replay through {args.store} ({record['policy']}, {args.fields}): "
@@ -1182,7 +1242,8 @@ def compare_main(argv: list[str]) -> int:
             if args.certificate and args.store == "device":
                 args.certificate.mkdir(parents=True, exist_ok=True)
                 doc = certificate_record(n, record, args)
-                path = args.certificate / f"parity-{n}-device.json"
+                preset = args.policy or original_preset(n)
+                path = args.certificate / f"parity-{n}-device-{preset}.json"
                 path.write_text(json.dumps(doc, indent=1) + "\n")
                 print(f"{n}: wrote {path}")
         print(f"{n}: " + ("OK" if not problems else "FAILED"))

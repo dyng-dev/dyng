@@ -93,6 +93,24 @@ sizing of `mosp_escher()` is used by the container (M8b) only and unit-tested he
   differs after a policy difference changed a length is documented (`policy_mapping`) and ends the
   tree (its later rows sit under other keys); a mapping difference anywhere else is a mismatch.
   The store's own integrity checks must be clean throughout.
+- **M8a review: "policy" never means "unchecked".** A reviewer planted a compaction-padding defect
+  and the default-preset replay passed: every layout difference opened a policy point, so the
+  defect's lengths and rows were filed as documented. Three changes close it:
+  1. A tree's first policy point is an op where the trace's and the store's growth or compaction
+     events differ (or the original threw, `policy_exception`); a capacity or bump-pointer
+     difference where both sides grew and compacted alike is a mismatch.
+  2. The store's own side of the policy differences is checked in lockstep with the host model
+     under the same preset (`CbstPolicyLockstep` in `cbst_compact_test.cpp`: every op of the
+     committed traces, and `CbstPolicyLockstepLarge` over the four small sets, under
+     `escher_gpu()`, `mosp_escher()` and `dyng_default()`): InsertMapping, offsets, lengths,
+     occupancy, the bump pointer and the capacity after every op, so every growth and compaction
+     and the hysteresis of section 1. The model of the store's `mosp_escher()` scans where B's
+     construct had no row counts (ADR 0039 (c)); where the model cannot predict the original (an
+     op its policy lacks) the tree stops and is counted.
+  3. The documented divergences of every set under every preset are pinned per rule in
+     `parity/cbst_documented.toml`; `compare.py cbst_trace --store device` fails when a replay's
+     counts differ (`--documented-counts none` for the store of another commit:
+     `parity/cbst_merge_steps.sh` checks them at the head only).
 
 ### 4. Partial failure (PLAN 4.7.3)
 
