@@ -43,8 +43,8 @@ repos:
     rev: v2.4.3
     hooks:
       - id: codespell
-        # The certificates' check excerpts are verbatim log lines (wrapped tool output such as
-        # "ore/dist/..." included), committed as evidence and never edited.
+        # The certificates' check excerpts are verbatim log lines (wrapped tool output cut
+        # mid-word included), committed as evidence and never edited.
         exclude: ^benchmarks/results/[^/]+/checks/
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.9
