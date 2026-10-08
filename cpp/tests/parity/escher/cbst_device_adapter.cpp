@@ -418,12 +418,19 @@ tree_digest device_store_adapter::digest(std::uint32_t id) {
   if (it == trees_.end()) return {};
   tree_digest d = digest_of(read_state(*it->second->store, true), true);
   d.integrity = integrity_of(*it->second->store, d);
+  {
+    std::ostringstream log;
+    const esc::cbst_context& c = it->second->store->context();
+    d.integrity_subtree = esc::check_subtree_avail(c, c.dataset_name.c_str(), log);
+    d.integrity_index = esc::check_tree_index(c, c.dataset_name.c_str(), log);
+  }
   auto fold = [this](const void* p, std::size_t n) {
     digest_hash_ = tr::fnv1a64(p, n, digest_hash_);
   };
-  const std::int64_t scalars[] = {d.num_records,   d.fixed_size,      d.bump,         d.alignment,
-                                  d.scratch_items, d.scratch_payload, d.device_bytes, d.d,
-                                  d.integrity};
+  const std::int64_t scalars[] = {
+      d.num_records,   d.fixed_size,        d.bump,           d.alignment,
+      d.scratch_items, d.scratch_payload,   d.device_bytes,   d.d,
+      d.integrity,     d.integrity_subtree, d.integrity_index};
   fold(scalars, sizeof scalars);
   fold(d.keys.data(), d.keys.size() * sizeof(std::int32_t));
   fold(d.subtree_avail.data(), d.subtree_avail.size() * sizeof(std::int32_t));

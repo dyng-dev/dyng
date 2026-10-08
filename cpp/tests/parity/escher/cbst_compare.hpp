@@ -94,6 +94,12 @@ struct tree_digest {
   /// The store's own integrity verdict on its rows as read (the violations ESCHER-GPU's
   /// checkTreeRows counts; -1: the store does not check), compared with the trace's `check.rows`.
   std::int64_t integrity = -1;
+  /// The store's availability check (MOSP_ESCHER's checkSubtreeAvail; -1: none), compared with the
+  /// trace's `check.subtree_avail` (0 where the trace has none).
+  std::int64_t integrity_subtree = -1;
+  /// The store's checks of its index arrays (dynG's, M8a step 4; -1: none), which must find
+  /// nothing on any state of a trace.
+  std::int64_t integrity_index = -1;
   std::vector<std::int32_t> keys;           ///< BST order
   std::vector<std::int32_t> subtree_avail;  ///< by heap position
   std::vector<key_digest> records;          ///< BST order (digest(), not scalars())

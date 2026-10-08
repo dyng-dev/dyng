@@ -277,5 +277,89 @@ TEST(CbstMergeChain, MospEschersUnfillChainScenario) {
   EXPECT_FALSE(s.poisoned());
 }
 
+// --- (e) The integrity checks --------------------------------------------------------------------
+
+/// A tree with chained, deleted, reused and surplus rows.
+rows busy(cbst_store& s) {
+  rows want = {iota_row(1, 3), {9, 7, 8}, iota_row(20, 5), {4}};
+  construct_rows(s, want);
+  const batch fill = make_batch({2, 4}, {iota_row(50, 9), {3, 2, 1}});
+  s.append(fill.keys, fill.payload, fill.prefix);
+  for (int v : iota_row(50, 9)) want[1].push_back(v);
+  want[3].insert(want[3].end(), {3, 2, 1});
+  s.erase({3});
+  want[2].clear();
+  const batch ins = make_batch({0, 0}, {{6, 5}, iota_row(70, 6)});
+  (void)s.insert(ins.keys, ins.payload, ins.prefix);
+  want[2] = {6, 5};
+  want.push_back(iota_row(70, 6));
+  return want;
+}
+
+TEST(CbstMergeIntegrity, EveryCheckIsCleanOnAValidTree) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "valid", 256);
+  const rows want = busy(s);
+  std::ostringstream log;
+  EXPECT_EQ(violations(s, want), 0);
+  EXPECT_EQ(check_subtree_avail(s.context(), "valid", log), 0) << log.str();
+  EXPECT_EQ(check_tree_index(s.context(), "valid", log), 0) << log.str();
+  s.erase({1, 4});
+  EXPECT_EQ(check_subtree_avail(s.context(), "valid", log), 0) << log.str();
+  EXPECT_EQ(check_tree_index(s.context(), "valid", log), 0) << log.str();
+}
+
+// Order-insensitive rows (V2H) are compared as sorted multisets on both sides
+// (escher/structure/integrity.cu@4b86159:131-134): unsorted expected rows are no failure.
+TEST(CbstMergeIntegrity, UnsortedExpectedRowsGiveNoFalseFailure) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "v2h", 256);
+  rows want = busy(s);
+  for (auto& r : want) std::reverse(r.begin(), r.end());
+  std::ostringstream log;
+  EXPECT_EQ(check_tree_rows(s.context(), want, true, "v2h", log), 0) << log.str();
+  // In order they differ (the rows are read in their order).
+  EXPECT_GT(check_tree_rows(s.context(), want, false, "v2h", log), 0);
+  // A missing value is a failure as a multiset too.
+  want[0].pop_back();
+  EXPECT_GT(check_tree_rows(s.context(), want, true, "v2h", log), 0);
+}
+
+TEST(CbstMergeIntegrity, ACorruptedSubtreeAvailEntryIsCaught) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store s(res, "corrupt", 256);
+  (void)busy(s);
+  s.erase({2});
+  std::ostringstream log;
+  ASSERT_EQ(check_subtree_avail(s.context(), "corrupt", log), 0) << log.str();
+  int wrong = 7;
+  ASSERT_EQ(
+      cudaMemcpy(s.context().d_subtree_avail + 1, &wrong, sizeof wrong, cudaMemcpyHostToDevice),
+      cudaSuccess);
+  // Node 1 and its parent, the root, are inconsistent.
+  EXPECT_EQ(check_subtree_avail(s.context(), "corrupt", log), 2);
+  EXPECT_NE(log.str().find("subtree_avail[1] = 7"), std::string::npos) << log.str();
+}
+
+TEST(CbstMergeIntegrity, TheIndexArraysAreCheckedAgainstTheNodes) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  // A key, a row offset and an avail flag overwritten in turn.
+  for (int which = 0; which < 3; ++which) {
+    SCOPED_TRACE(which);
+    cbst_store s(res, "index", 256);
+    (void)busy(s);
+    const cbst_context& c = s.context();
+    int* array = which == 0 ? c.d_keys : (which == 1 ? c.d_start_offsets : c.d_avail);
+    const int value = which == 0 ? 1000 : (which == 1 ? 3 : 2);
+    ASSERT_EQ(cudaMemcpy(array + 2, &value, sizeof value, cudaMemcpyHostToDevice), cudaSuccess);
+    std::ostringstream log;
+    EXPECT_GT(check_tree_index(c, "index", log), 0) << log.str();
+  }
+}
+
 }  // namespace
 }  // namespace dyng::detail::escher

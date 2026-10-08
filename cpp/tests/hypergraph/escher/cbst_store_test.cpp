@@ -36,9 +36,9 @@ namespace {
 using rows = std::vector<std::vector<int>>;
 
 /// The violations the integrity checker finds against `expected` (rows of keys 1..n).
-int violations(const cbst_store& s, const rows& expected, bool order_insensitive = false) {
+long long violations(const cbst_store& s, const rows& expected, bool order_insensitive = false) {
   std::ostringstream log;
-  const int v = check_tree_rows(s.context(), expected, order_insensitive, "test", log);
+  const long long v = check_tree_rows(s.context(), expected, order_insensitive, "test", log);
   if (v != 0) ADD_FAILURE() << log.str();
   return v;
 }

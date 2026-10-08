@@ -747,6 +747,12 @@ class replayer {
     // and the store's own check where it has one (the device store; the host model has none).
     if (got.integrity >= 0 && rec.integer("check.rows", -1) >= 0)
       scalar("check.rows", rec.integer("check.rows"), got.integrity);
+    // The store's availability check against the original's (MOSP_ESCHER records it; the states
+    // of ESCHER-GPU, which has no such check, must have none either), and dynG's checks of the
+    // index arrays, which no state of an original fails (M8a step 4).
+    if (got.integrity_subtree >= 0)
+      scalar("check.subtree_avail", rec.integer("check.subtree_avail", 0), got.integrity_subtree);
+    if (got.integrity_index >= 0) scalar("check.index", 0, got.integrity_index);
   }
 
   tr::reader& in_;

@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
 // Derived from ESCHER-GPU@abcf9b2:structure/integrity.cu
+// Derived from MOSP_ESCHER@4b86159:escher/structure/integrity.cu (long long counts, sorted
+// expected rows, checkSubtreeAvail)
 /**
  * @file integrity.cu
  * @brief The CBST integrity checker: copies a tree to the host and checks it against the expected
@@ -99,8 +101,8 @@ void print_row(std::ostream& log, const std::vector<int>& r) {
 
 }  // namespace
 
-int check_tree_rows(const cbst_context& ctx, const std::vector<std::vector<int>>& expected,
-                    bool order_insensitive, const char* name, std::ostream& log) {
+long long check_tree_rows(const cbst_context& ctx, const std::vector<std::vector<int>>& expected,
+                          bool order_insensitive, const char* name, std::ostream& log) {
   host_tree tree(ctx);
   const int max_details = 5;
   long long row_errors = 0, reach_errors = 0, meta_errors = 0, overlap_errors = 0;
@@ -110,16 +112,21 @@ int check_tree_rows(const cbst_context& ctx, const std::vector<std::vector<int>>
   int max_key = static_cast<int>(expected.size());
   for (int t = 0; t < tree.size(); ++t)
     if (tree.live(t)) max_key = std::max(max_key, tree.nodes[t].index);
-  std::vector<int> got;
+  std::vector<int> got, want;
   for (int key = 1; key <= max_key; ++key) {
-    static const std::vector<int> empty_row;
-    const std::vector<int>& want =
-        key <= static_cast<int>(expected.size()) ? expected[key - 1] : empty_row;
+    want.clear();
+    if (key <= static_cast<int>(expected.size())) want = expected[key - 1];
     int t = tree.find(key);
     bool ok = true;
     got.clear();
     if (t >= 0 && tree.live(t)) ok = tree.read_row(t, got, nullptr);
-    if (ok && order_insensitive) std::sort(got.begin(), got.end());
+    // Order-insensitive rows are compared as sorted multisets on both sides (MOSP_ESCHER,
+    // escher/structure/integrity.cu@4b86159:131-134; ESCHER-GPU sorted only the rows it read, so an
+    // unsorted expected row was a false failure).
+    if (order_insensitive) {
+      std::sort(got.begin(), got.end());
+      std::sort(want.begin(), want.end());
+    }
     if (!ok || got != want) {
       ++row_errors;
       if (details++ < max_details) {
@@ -189,7 +196,122 @@ int check_tree_rows(const cbst_context& ctx, const std::vector<std::vector<int>>
   log << "[check] " << name << ": " << max_key << " keys, " << row_errors << " wrong rows, "
       << reach_errors << " unreachable nodes, " << meta_errors << " metadata violations, "
       << overlap_errors << " overlapping segments" << (total ? "  <-- FAILED" : "") << "\n";
-  return static_cast<int>(std::min<long long>(total, INT_MAX));
+  return total;
+}
+
+namespace {
+
+template <typename value_t>
+std::vector<value_t> copy_to_host(const cbst_context& ctx, const value_t* device, size_t n) {
+  std::vector<value_t> out(n);
+  if (n == 0 || device == nullptr) return out;
+  const scoped_device guard(ctx.res.device());
+  const auto stream = static_cast<cudaStream_t>(ctx.res.stream().get());
+  DYNG_CUDA_TRY(
+      cudaMemcpyAsync(out.data(), device, n * sizeof(value_t), cudaMemcpyDeviceToHost, stream));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream));
+  return out;
+}
+
+}  // namespace
+
+long long check_subtree_avail(const cbst_context& ctx, const char* name, std::ostream& log) {
+  const int n = ctx.num_records;
+  if (n <= 0 || ctx.d_avail == nullptr || ctx.d_subtree_avail == nullptr) return 0;
+  const std::vector<int> avail = copy_to_host(ctx, ctx.d_avail, static_cast<size_t>(n));
+  const std::vector<int> sub = copy_to_host(ctx, ctx.d_subtree_avail, static_cast<size_t>(n));
+  long long bad = 0;
+  for (int i = 0; i < n; ++i) {
+    const long long l = 2LL * i + 1 < n ? sub[2 * i + 1] : 0;
+    const long long r = 2LL * i + 2 < n ? sub[2 * i + 2] : 0;
+    if (sub[i] != avail[i] + l + r) {
+      if (bad < 5)
+        log << "[check] " << name << " subtree_avail[" << i << "] = " << sub[i] << ", expected "
+            << avail[i] + l + r << "\n";
+      ++bad;
+    }
+  }
+  log << "[check] " << name << ": " << bad << " inconsistent subtree_avail entries"
+      << (bad ? "  <-- FAILED" : "") << "\n";
+  return bad;
+}
+
+long long check_tree_index(const cbst_context& ctx, const char* name, std::ostream& log) {
+  const int n = ctx.num_records;
+  if (n <= 0 || ctx.d_nodes == nullptr) return 0;
+  host_tree tree(ctx);
+  const std::vector<int> avail = copy_to_host(ctx, ctx.d_avail, static_cast<size_t>(n));
+  const std::vector<int> keys = copy_to_host(ctx, ctx.d_keys, static_cast<size_t>(n));
+  const std::vector<int> starts = copy_to_host(ctx, ctx.d_start_offsets, static_cast<size_t>(n));
+  long long flags = 0, ordered = 0, index = 0, offsets = 0, layout = 0;
+  int details = 0;
+  auto detail = [&](auto&&... parts) {
+    if (details++ < 5) {
+      log << "[check] " << name << " ";
+      (log << ... << parts);
+      log << "\n";
+    }
+  };
+  for (int t = 0; t < n; ++t) {
+    // The avail flags are 0 or 1 (subtree_avail counts them).
+    if (!avail.empty() && avail[t] != 0 && avail[t] != 1) {
+      ++flags;
+      detail("avail[", t, "] = ", avail[t]);
+    }
+    // The heap layout of the pointers.
+    const cbst_node& nd = tree.nodes[t];
+    const int left = tree.child(nd.left), right = tree.child(nd.right);
+    const int parent = tree.child(nd.parent);
+    if (left != (2 * t + 1 < n ? 2 * t + 1 : -1) || right != (2 * t + 2 < n ? 2 * t + 2 : -1) ||
+        parent != (t == 0 ? -1 : (t - 1) / 2)) {
+      ++layout;
+      detail("node ", t, ": its child or parent pointers are not the heap layout");
+    }
+  }
+  // The keys array (by in-order rank) is strictly increasing, and holds the key of the node at
+  // the heap position of each rank; the row offsets array its first segment's offset.
+  std::vector<int> rank_of(static_cast<size_t>(n));
+  {
+    // The in-order walk of the heap layout: the rank of every heap position.
+    std::vector<int> stack;
+    int r = 0;
+    int t = 0;
+    while (t >= 0 || !stack.empty()) {
+      while (t >= 0) {
+        stack.push_back(t);
+        t = 2 * t + 1 < n ? 2 * t + 1 : -1;
+      }
+      t = stack.back();
+      stack.pop_back();
+      rank_of[static_cast<size_t>(t)] = r++;
+      t = 2 * t + 2 < n ? 2 * t + 2 : -1;
+    }
+  }
+  for (int i = 1; i < n; ++i) {
+    if (keys[i - 1] >= keys[i]) {
+      ++ordered;
+      detail("keys[", i - 1, "] = ", keys[i - 1], " >= keys[", i, "] = ", keys[i]);
+    }
+  }
+  for (int t = 0; t < n; ++t) {
+    const int r = rank_of[static_cast<size_t>(t)];
+    if (keys[r] != tree.nodes[t].index) {
+      ++index;
+      detail("node ", t, " (rank ", r, ") holds key ", tree.nodes[t].index, ", the keys array ",
+             keys[r]);
+    }
+    if (starts[r] != tree.nodes[t].value) {
+      ++offsets;
+      detail("node ", t, " (key ", tree.nodes[t].index, ") starts at ", tree.nodes[t].value,
+             ", the row offsets array at ", starts[r]);
+    }
+  }
+  const long long total = flags + ordered + index + offsets + layout;
+  log << "[check] " << name << ": " << flags << " avail flags not 0/1, " << ordered
+      << " unordered keys, " << index << " keys not those of their nodes, " << offsets
+      << " row offsets not those of their nodes, " << layout << " nodes off the heap layout"
+      << (total ? "  <-- FAILED" : "") << "\n";
+  return total;
 }
 
 }  // namespace dyng::detail::escher
