@@ -8,7 +8,7 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.2.0rc1] - 2026-10-08
+## [0.2.0rc1] - 2026-10-09
 
 ### Summary
 
@@ -66,8 +66,8 @@ temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` com
 ### R020: the release changes (0.2, branch `release-0.2.0`)
 
 - Changed: `VERSION` 0.2.0rc1 (it was 0.2.0.dev0, the development version after 0.1.0);
-  `CITATION.cff` `version: 0.2.0rc1`, `date-released: 2026-10-08` (written 2026-10-07, set to the
-  day the review fixes were certified); this section `[0.2.0rc1]` with the summary above: everything that was under `Unreleased` (M7, M6a, M6b and R020) moved
+  `CITATION.cff` `version: 0.2.0rc1`, `date-released: 2026-10-09` (written 2026-10-07, set to
+  2026-10-08 when the review fixes were certified, then to the tag day); this section `[0.2.0rc1]` with the summary above: everything that was under `Unreleased` (M7, M6a, M6b and R020) moved
   here, an empty `Unreleased` above it, and the link references.
 - Docs: the status texts for the release candidate: the status blocks of `README.md` and the
   documentation's start page ("Alpha: 0.2 release candidate"), the install lines of the release
