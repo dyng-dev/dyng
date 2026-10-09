@@ -1,4 +1,4 @@
-# Copy of $DYNG_SCRATCH/runs/r020-cert3/final/api-check.log (sha256 4d190ba0cc851fb47a46bcfebec8bdc48c3f4a86ddd5f96457b09c2117c1af01, 258 bytes), written by parity/certify.py check.
+# Copy of $DYNG_SCRATCH/runs/r020-tagday/api-check.log (sha256 4d190ba0cc851fb47a46bcfebec8bdc48c3f4a86ddd5f96457b09c2117c1af01, 258 bytes), written by parity/certify.py check.
 ==> the frozen C++ API against 8b9067e (ci/api_snapshot.py --against)
 api-snapshot: no breaking change of the frozen C++ API against 8b9067e
 ==> griffe check dyng against 8b9067e (griffe 2.3.0)

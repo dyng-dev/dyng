@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r020-cert3/final/gpu_local.log (sha256 4cf8399139caef725a733e9fe10963bff437c67ff1d00b0909a6c8d194c11b32, 540970 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r020-tagday/gpu_local.log (sha256 08fb1c9450a132c0c7fbd39fba6c8b3300f11eabcc6d3dae0370a086719c4045, 541111 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> preset dev-cuda: configure and build
 ==> ctest -L gpu (GPU 1)
 100% tests passed out of 466
@@ -130,25 +130,25 @@ The following tests did not run:
     ==> auditwheel repair --plat manylinux_2_28_x86_64
     ==> twine check, ci/wheel_check.py
     Checking
-    core/dist/dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+    s/core/dist/dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
     Checking
-    core/dist/dyng-0.2.0rc1.tar.gz: PASSED
+    s/core/dist/dyng-0.2.0rc1.tar.gz: PASSED
     ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
     ok     dyng-0.2.0rc1.tar.gz (1.00 MB)
-    ==> distributions in /home/sskg8/Projects/dyng-work/r020/cert3/clone-c4/build/dev-cuda/plugin-wheels/core/dist (install tests skipped)
+    ==> distributions in /home/sskg8/Projects/dyng-work/r020/tagday/clone-gpu/build/dev-cuda/plugin-wheels/core/dist (install tests skipped)
 ==> cu13: the source tree from dyng-0.2.0rc1.tar.gz (CUDA 13.1, /usr/local/cuda-13.1)
 ==> cu13: wheel (GCC 12.4.0 / glibc 2.28 host compiler, static cudart, release architectures)
 ==> cu13: auditwheel repair --plat manylinux_2_28_x86_64 (libcuda excluded)
     ok     dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: SASS sm_75, sm_80, sm_86, sm_89, sm_90, sm_100, sm_120 and PTX sm_120 (the release list of CUDA 13.1)
 ==> twine check, ci/wheel_check.py
 Checking
-dist/dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+s/dist/dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
 ok     dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (5.85 MB)
 ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
-==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r020/cert3/clone-c4/build/dev-cuda/plugin-wheels/venv-cu13-3.12)
-55 passed, 7 skipped, 551 deselected in 3.92s
-546 passed, 67 skipped in 16.28s
-==> plugin wheels in /home/sskg8/Projects/dyng-work/r020/cert3/clone-c4/build/dev-cuda/plugin-wheels/dist
+==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r020/tagday/clone-gpu/build/dev-cuda/plugin-wheels/venv-cu13-3.12)
+55 passed, 7 skipped, 551 deselected in 3.80s
+546 passed, 67 skipped in 16.10s
+==> plugin wheels in /home/sskg8/Projects/dyng-work/r020/tagday/clone-gpu/build/dev-cuda/plugin-wheels/dist
 ==> clang-tidy (naming rules, library sources, CUDA branches)
 ### ci/gpu_local.sh: dev-cuda
 | step | result |

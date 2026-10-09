@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r020-cert3/final/check-parity.log (sha256 e247cd1bd634c8d1a91ff732b914b2f03bcd5f5f6db60ca46ab015a8afaabc7c, 770964 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r020-tagday/check-parity.log (sha256 0e7f698a7b2032d91d80ab51117e276d61f75e5461cf6ac8e524e31c89380140, 771077 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -128,22 +128,22 @@ reuse: OK
 provenance: OK (168 files checked)
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-226 passed in 119.68s (0:01:59)
+226 passed in 62.73s (0:01:02)
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
-==> pip install -e . into /home/sskg8/Projects/dyng-work/r020/cert3/clone-c3/build/py-venv (build directory build/)
-==> installed: 0.2.0rc1 /home/sskg8/Projects/dyng-work/r020/cert3/clone-c3/python/dyng/__init__.py
+==> pip install -e . into /home/sskg8/Projects/dyng-work/r020/tagday/clone-repo/build/py-venv (build directory build/)
+==> installed: 0.2.0rc1 /home/sskg8/Projects/dyng-work/r020/tagday/clone-repo/python/dyng/__init__.py
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng and python/plugin/dyng_plugin
 ==> pytest python/tests
-547 passed, 66 skipped in 29.68s
+547 passed, 66 skipped in 21.11s
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> the frozen C++ API against origin/main (ci/api_snapshot.py --against)
 ==> griffe check dyng against origin/main (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.3VlkGf/src
+==> copy of the working tree in /tmp/dyng-scaffold.i5KLSC/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 ==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)
 github_meta_check: OK (labels, issue forms, chooser, CODEOWNERS, PR template, workflows)
@@ -188,7 +188,7 @@ scaffold_check: OK (80 tests of the probes and 41 of the tutorial's my_bfs passe
 doxygen-coverage: OK (138 compounds checked)
 doc-snippets: OK (7 snippets)
 api-snapshot: OK (719 declarations match public_api.txt)
-docs_links: OK (repository URLs in 1723 files, relative links and anchors of build/docs/html)
+docs_links: OK (repository URLs in 1724 files, relative links and anchors of build/docs/html)
 docs: OK
 ==> pre-commit run --all-files
 pre-commit: OK
