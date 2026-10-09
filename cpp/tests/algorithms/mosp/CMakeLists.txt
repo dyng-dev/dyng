@@ -22,6 +22,13 @@ dyng_add_test(
 )
 target_include_directories(dyng_mosp_path_costs_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
+# set_options() under host allocation failures (its own executable: it replaces operator new).
+dyng_add_test(
+  NAME dyng_mosp_allocation_failure_tests
+  SOURCES mosp_allocation_failure_test.cpp
+  LABELS cpu mosp
+)
+
 if(DYNG_ENABLE_CUDA)
   dyng_add_test(
     NAME dyng_mosp_cuda_tests

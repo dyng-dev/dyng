@@ -1,0 +1,167 @@
+# Excerpt of $DYNG_SCRATCH/runs/r020-tagday/gpu_local.log (sha256 08fb1c9450a132c0c7fbd39fba6c8b3300f11eabcc6d3dae0370a086719c4045, 541111 bytes): its step headers and result lines, written by parity/certify.py check.
+==> preset dev-cuda: configure and build
+==> ctest -L gpu (GPU 1)
+100% tests passed out of 466
+The following tests did not run:
+	490 - CudaResources.CallsDoNotChangeTheCurrentDevice (Skipped)
+	616 - cuda.Backends/CycleCountRandom.UnboundedUpdateCostsAboutTheBoundedOne/cuda (Skipped)
+	753 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	766 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	779 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	792 - cuda.cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	948 - cuda.dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,int> >> (Skipped)
+	961 - cuda.dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,int> >> (Skipped)
+	974 - cuda.dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<long,long,int> >> (Skipped)
+	987 - cuda.dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	1000 - cuda.dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	1078 - cuda.triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,int> >> (Skipped)
+	1091 - cuda.triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,int> >> (Skipped)
+	1104 - cuda.triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<long,long,int> >> (Skipped)
+	1117 - cuda.triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	1130 - cuda.triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+==> ctest -L cpu (CUDA-enabled build)
+100% tests passed out of 868
+The following tests did not run:
+	 10 - Backend.CudaUnavailableWithoutCudaBuild (Skipped)
+	 19 - Copy.DeviceCopiesAreNotSupportedWithoutCuda (Skipped)
+	 56 - Resources.OpenmpNotBuiltThrows (Skipped)
+	 57 - Resources.CudaNotBuiltThrowsNotSupported (Skipped)
+	623 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	631 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,int,int> >> (Skipped)
+	636 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	644 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<int,long,int> >> (Skipped)
+	649 - sssp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	657 - sssp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::sssp,dyng::graph<long,long,int> >> (Skipped)
+	701 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	709 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,int> >> (Skipped)
+	714 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	722 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,int> >> (Skipped)
+	727 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	735 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	740 - cycle_count/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	748 - cycle_count/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::cycle_count,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	805 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,int,int> >> (Skipped)
+	813 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,int,int> >> (Skipped)
+	818 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,long,int> >> (Skipped)
+	826 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<int,long,int> >> (Skipped)
+	831 - mosp/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<long,long,int> >> (Skipped)
+	839 - mosp/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::mosp,dyng::graph<long,long,int> >> (Skipped)
+	883 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,int> >> (Skipped)
+	891 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,int> >> (Skipped)
+	896 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,int> >> (Skipped)
+	904 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,int> >> (Skipped)
+	909 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<long,long,int> >> (Skipped)
+	917 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<long,long,int> >> (Skipped)
+	922 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	930 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	935 - dynamic_bfs/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	943 - dynamic_bfs/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::dynamic_bfs,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	1013 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,int> >> (Skipped)
+	1021 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,int> >> (Skipped)
+	1026 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,int> >> (Skipped)
+	1034 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,int> >> (Skipped)
+	1039 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<long,long,int> >> (Skipped)
+	1047 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<long,long,int> >> (Skipped)
+	1052 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	1060 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,int,dyng::unweighted> >> (Skipped)
+	1065 - triangle_delta/conformance.C4_EnginesAgree<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+	1073 - triangle_delta/conformance.C12_NonDefaultStreamsOrderTheWork<dyng::conformance::suite_case<dyng::conformance::tags::triangle_delta,dyng::graph<int,long,dyng::unweighted> >> (Skipped)
+==> golden corpus on cuda (GPU 1)
+| group | cases | cuda | cuda-operators |
+| testcases | 10 | 10/10 | 10/10 |
+| regressions | 3 | 3/3 | 3/3 |
+| thesis | 1 | 1/1 | 1/1 |
+| escher | 4 | 4/4 | 4/4 |
+| fixtures | 17 | 17/17 | 17/17 |
+| sosp | 148 | 148/148 | 148/148 |
+| large_weights | 2 | 2/2 | 2/2 |
+| packing | 3 | 3/3 | 3/3 |
+| stress | 200 | 200/200 | 200/200 |
+| noncanonical | 107 | 107/107 | 107/107 |
+| **all** | 495 | 495/495 | 495/495 |
+| case | total | cuda | cuda:resident |
+| count/DD_k3 | 2,020,240 | equal | equal |
+| count/DD_k4 | 4,396,674 | equal | equal |
+| count/DD_k5 | 9,476,048 | equal | equal |
+| count/DD_k6 | 21,485,606 | equal | equal |
+| count/DD_k7 | 54,966,172 | equal | equal |
+| count/collab_k3 | 1,257,799,573 | equal | equal |
+| count/github_k3 | 7,112,157 | equal | equal |
+| count/github_k4 | 75,872,845 | equal | equal |
+| count/twitch_k3 | 48,891,585 | equal | equal |
+| count/twitch_k4 | 389,362,369 | equal | equal |
+| update/DD_k3_25000_25000_s1 | 1,943,758 | equal | equal |
+| update/DD_k4_100000_100000_s1 | 3,586,606 | equal | equal |
+| update/DD_k4_1000_1000_s1 | 4,388,002 | equal | equal |
+| update/DD_k4_25000_25000_s1 | 4,182,398 | equal | equal |
+| update/DD_k4_50000_50000_s1 | 3,975,602 | equal | equal |
+| update/DD_k5_25000_25000_s1 | 8,897,380 | equal | equal |
+| update/collab_k4_25000_25000_s1 | 198,933,705,678 | equal | equal |
+| update/github_k4_100000_100000_s1 | 71,068,705 | equal | equal |
+| update/github_k4_1000_1000_s1 | 75,819,437 | equal | equal |
+| update/github_k4_25000_25000_s1 | 74,644,109 | equal | equal |
+| update/github_k4_50000_50000_s1 | 73,432,075 | equal | equal |
+| update/twitch_k4_1000_1000_s1 | 389,293,913 | equal | equal |
+| update/twitch_k4_25000_25000_s1 | 387,651,174 | equal | equal |
+| update/twitch_k4_50000_50000_s1 | 385,936,907 | equal | equal |
+==> compute-sanitizer memcheck (GPU 1)
+[  PASSED  ] 26 tests.
+[  PASSED  ] 6 tests.
+[  PASSED  ] 60 tests.
+[  PASSED  ] 60 tests.
+[  PASSED  ] 39 tests.
+[  PASSED  ] 48 tests.
+[  PASSED  ] 39 tests.
+[  PASSED  ] 60 tests.
+[  PASSED  ] 60 tests.
+[  PASSED  ] 22 tests.
+[  PASSED  ] 5 tests.
+[  PASSED  ] 4 tests.
+==> compute-sanitizer synccheck, CUDA sssp suite (GPU 1)
+[  PASSED  ] 60 tests.
+[  PASSED  ] 22 tests.
+[  PASSED  ] 60 tests.
+==> compute-sanitizer racecheck, CUDA cycle_count suite (GPU 1)
+[  PASSED  ] 60 tests.
+==> the CUDA plugin wheel from Python (GPU 1)
+==> the core sdist and wheel of this tree: ci/wheels.sh (build and check only)
+    ==> sdist
+    ==> wheel from the sdist (GCC 12, glibc 2.28 sysroot, static and hidden libstdc++)
+    ==> auditwheel repair --plat manylinux_2_28_x86_64
+    ==> twine check, ci/wheel_check.py
+    Checking
+    s/core/dist/dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+    Checking
+    s/core/dist/dyng-0.2.0rc1.tar.gz: PASSED
+    ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
+    ok     dyng-0.2.0rc1.tar.gz (1.00 MB)
+    ==> distributions in /home/sskg8/Projects/dyng-work/r020/tagday/clone-gpu/build/dev-cuda/plugin-wheels/core/dist (install tests skipped)
+==> cu13: the source tree from dyng-0.2.0rc1.tar.gz (CUDA 13.1, /usr/local/cuda-13.1)
+==> cu13: wheel (GCC 12.4.0 / glibc 2.28 host compiler, static cudart, release architectures)
+==> cu13: auditwheel repair --plat manylinux_2_28_x86_64 (libcuda excluded)
+    ok     dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: SASS sm_75, sm_80, sm_86, sm_89, sm_90, sm_100, sm_120 and PTX sm_120 (the release list of CUDA 13.1)
+==> twine check, ci/wheel_check.py
+Checking
+s/dist/dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl: PASSED
+ok     dyng_cu13-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (5.85 MB)
+ok     dyng-0.2.0rc1-cp312-abi3-manylinux_2_28_x86_64.whl (1.70 MB)
+==> cu13, Python 3.12: a fresh venv with the core and the plugin wheel (/home/sskg8/Projects/dyng-work/r020/tagday/clone-gpu/build/dev-cuda/plugin-wheels/venv-cu13-3.12)
+55 passed, 7 skipped, 551 deselected in 3.80s
+546 passed, 67 skipped in 16.10s
+==> plugin wheels in /home/sskg8/Projects/dyng-work/r020/tagday/clone-gpu/build/dev-cuda/plugin-wheels/dist
+==> clang-tidy (naming rules, library sources, CUDA branches)
+### ci/gpu_local.sh: dev-cuda
+| step | result |
+| build | passed |
+| ctest -L gpu | passed |
+| ctest -L cpu | passed |
+| parity (cuda goldens) | passed |
+| parity (cycle_count cuda goldens) | passed |
+| memcheck | passed |
+| synccheck | passed |
+| synccheck (mosp) | passed |
+| synccheck (cycle_count) | passed |
+| racecheck | passed |
+| plugin wheel (pytest -m gpu) | passed |
+| clang-tidy | passed |
+ci/gpu_local.sh: all steps passed

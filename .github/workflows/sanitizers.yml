@@ -11,8 +11,9 @@
 #   tsan-openmp / clang-18 ThreadSanitizer with the OpenMP backends: Clang's libomp with its OMPT
 #                          tool Archer (OMP_TOOL_LIBRARIES), which tells TSan about OpenMP's
 #                          synchronization; 4 OpenMP threads
-# No GPU is needed (compute-sanitizer, the device-side counterpart, runs in ci/gpu_local.sh). Not a
-# required check yet: the lead maintainer decides (docs/developer/repository_settings.md, step 9).
+# No GPU is needed (compute-sanitizer, the device-side counterpart, runs in ci/gpu_local.sh). The
+# three jobs are required checks of `main` since 2026-10-07 (the author's decision; renaming a job
+# changes its check name: update docs/developer/repository_settings.md, step 9, and the ruleset).
 name: sanitizers
 
 on:

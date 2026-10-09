@@ -15,6 +15,8 @@
 # Steps (each can be skipped by name in DYNG_CHECK_SKIP, or selected with DYNG_CHECK_ONLY):
 #   format     clang-format --dry-run --Werror on all tracked C++/CUDA sources
 #   build      configure, build and `ctest -L cpu` for every preset in DYNG_CHECK_PRESETS
+#   consumer   ci/cmake_consumer.sh: the install guide's find_package() block builds a consumer
+#              against the installed cpu-only build (the documented version must find it)
 #   tidy       clang-tidy with only the naming rules of ADR 0004 (readability-identifier-naming)
 #              on the library sources and the public headers they include; needs the
 #              compile_commands.json of a preset configured above (skipped if clang-tidy is
@@ -55,7 +57,7 @@
 #              (the 90 MB budget) and the wheel alone in fresh venvs for Python 3.12 and 3.13 with
 #              the pytest suite (needs the tools of docs/developer/wheels.md)
 #
-# The GitHub workflows mirror these steps: cpu.yml runs `build` and `scaffold`; lint.yml runs
+# The GitHub workflows mirror these steps: cpu.yml runs `build`, `consumer` and `scaffold`; lint.yml runs
 # `precommit` (which includes clang-format, REUSE, provenance and regen), `harness`, `tidy` (on a
 # configured cpu-only tree) and the name-reservation package check; docs.yml runs `docs`;
 # python.yml runs `python` (and the suite against an installed sdist); api-check.yml runs `api`;
@@ -82,7 +84,7 @@ for arg in "$@"; do
     --parity) run_parity=1 ;;
     --wheels) run_wheels=1 ;;
     -h | --help)
-      sed -n '5,75p' "${BASH_SOURCE[0]}"
+      sed -n '5,77p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -144,6 +146,18 @@ if ! skipped build; then
       failed+=("build:${preset}")
     fi
   done
+fi
+
+if ! skipped consumer; then
+  step "consumer: the documented find_package() against the installed cpu-only build (ci/cmake_consumer.sh)"
+  if [ ! -f build/cpu-only/CMakeCache.txt ]; then
+    echo "no build/cpu-only (build step skipped?)"
+    failed+=("consumer")
+  elif heavy ci/cmake_consumer.sh build/cpu-only; then
+    :
+  else
+    failed+=("consumer")
+  fi
 fi
 
 if ! skipped tidy; then

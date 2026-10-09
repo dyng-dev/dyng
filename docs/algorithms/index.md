@@ -11,7 +11,7 @@ code, how to cite).
 |---|---|---|---|---|---|---|
 | {doc}`sssp` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | 0.1 |
 | {doc}`cycle_count` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | 0.1 |
-| {doc}`mosp` | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | 0.2 |
+| {doc}`mosp` | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | 0.2 |
 | {doc}`dynamic_bfs` | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | 0.2 |
 | {doc}`triangle_delta` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | 0.2 |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned | 0.3 |
@@ -23,8 +23,8 @@ Columns:
 
 - **Family**: *fixed point* (a value per element, iterated until nothing changes) or *aggregate
   delta* (a global count, updated by one signed recount); see {doc}`../concepts/update_model`.
-- **Maturity**: `experimental` (may change in any release), `stable` (SemVer applies from
-  0.1.0), `tutorial` (teaching material for contributors, covered like `experimental`; not a
+- **Maturity**: `experimental` (may change in any release), `stable` (SemVer applies from the
+  release that made it stable: 0.1.0 for `sssp` and `cycle_count`, 0.2.0 for `mosp`), `tutorial` (teaching material for contributors, covered like `experimental`; not a
   research algorithm: {doc}`dynamic_bfs` and {doc}`triangle_delta`, the subjects of
   {doc}`../tutorials/your_first_dynamic_algorithm`), `planned` (not written yet). A planned
   algorithm gets its page when its port starts.

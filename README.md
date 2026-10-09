@@ -1,10 +1,12 @@
 # dynG: dynamic graph and hypergraph updates on GPUs
 
-> **Alpha.** The latest release is **0.1.0**, the first: the C++ library, the Python package
-> (`pip install dyng`) and the `dyng` command line, with `sssp` and `cycle_count`, stable (SemVer
-> applies from 0.1.0). This README describes the main branch, which is heading for 0.2.0: `mosp`
-> (experimental), the teaching algorithms `dynamic_bfs` and `triangle_delta` and the CUDA plugin
-> wheels are not released yet.
+> **Alpha: 0.2 release candidate.** The latest release is **0.1.0** (`pip install dyng`): the C++
+> library, the Python package and the `dyng` command line, with `sssp` and `cycle_count`, stable
+> (SemVer applies from 0.1.0). **0.2.0rc1**, the release candidate of 0.2.0, is on TestPyPI only:
+> `mosp` (stable from 0.2.0), the `sssp` operators engine, the CUDA plugin wheels
+> (`pip install "dyng[cu13]"` / `"dyng[cu12]"`) and the teaching algorithms `dynamic_bfs` and
+> `triangle_delta` (see [Install](#install)). This README describes the main branch, which is
+> 0.2.0rc1.
 
 dynG is a C++17/CUDA library with Python bindings that keeps the results of graph and
 hypergraph algorithms up to date while the structure changes in **batches** of insertions,
@@ -26,7 +28,7 @@ pages, the C++ and Python API reference; built from `docs/` on every push to `ma
 |---|---|---|---|---|---|---|
 | [`sssp`](docs/algorithms/sssp.md) | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | [`cycle_count`](docs/algorithms/cycle_count.md) | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | TruCy / DynTruCy |
-| [`mosp`](docs/algorithms/mosp.md) | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
+| [`mosp`](docs/algorithms/mosp.md) | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | [`dynamic_bfs`](docs/algorithms/dynamic_bfs.md) | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | [`triangle_delta`](docs/algorithms/triangle_delta.md) | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.3) | ESCHER / ESCHER+ |
@@ -106,10 +108,10 @@ files in the original tools' formats: `dyng sssp update --graph G --changes DIR 
 | `sssp` on CUDA (the fused persistent cooperative kernel) | working (M1b); byte-identical to MOSP-CUDA@e220ee2 on the same corpus, cross-backend equal, performance gates recorded ([M1b certificate](parity/results/M1b.md)) |
 | `cycle_count`: exact k-bounded directed cycle histograms (TruCy/DynTruCy update), sequential and OpenMP | working (M2a); bit-identical to CycleEnumeration-GPU@0a976ad on its 24-case golden corpus ([parity certificate](parity/results/M2a.md)) |
 | `cycle_count` on CUDA (the work-queue static counters, the update on a resident device graph) | working (M2b); bit-identical to CycleEnumeration-GPU@0a976ad's CUDA backend on its golden corpus and cross-backend equal, within the CUDA performance gates in both scopes (at the boost lock: static kernels 0.67-1.00x, updates 0.39-0.93x, chained updates on the resident graph 0.23-0.89x; the COLLAB update is read at the base lock, ADR 0021) and the original's device memory ([M2b certificate](parity/results/M2b.md)) |
-| `sssp`'s CUDA operators engine and `mosp`: multi-objective shortest paths (DynaMOSP MOSP update) on every backend, with `dyng.mosp` and `dyng mosp` | working on the branch `m7-mosp` (0.2): the operators engine byte-identical to the fused one; mosp byte-identical to MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 (combined graph and path costs included) and within their gates ([M7 record](parity/results/M7.md)) |
+| `sssp`'s CUDA operators engine and `mosp`: multi-objective shortest paths (DynaMOSP MOSP update) on every backend, with `dyng.mosp` and `dyng mosp` | working (M7; in 0.2.0rc1, `mosp` stable from 0.2.0): the operators engine byte-identical to the fused one; mosp byte-identical to MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 (combined graph and path costs included) and within their gates ([M7 record](parity/results/M7.md); the release gates of 0.2.0rc1 in `benchmarks/results/0.2.0rc1/`) |
 | `triad_count` (ESCHER/ESCHER+), hypergraph container | planned (0.3) |
 | `label_propagation` (DynLP), `hyper_sssp` (H-SOSP) | planned (0.4) |
-| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; the CUDA plugin wheels `dyng-cu12` / `dyng-cu13` (`pip install "dyng[cu13]"`) are on `main` for 0.2.0 (M6a), not released yet |
+| Python package `dyng` (the sequential and OpenMP backends; `import dyng`) and the `dyng` command line | working: on PyPI since 0.1.0 (`pip install dyng`), a CPU wheel for CPython >= 3.12 (abi3, manylinux_2_28 x86_64) (M5), byte-identical to the originals on the Python-level parity subset; the CUDA plugin wheels `dyng-cu12` / `dyng-cu13` (`pip install "dyng[cu13]"`; M6a) are in the release candidate 0.2.0rc1 (TestPyPI) and come to PyPI with 0.2.0 |
 
 ## The name
 
@@ -123,13 +125,26 @@ and RAFT, but it is **not affiliated** with either project.
 ### Python package
 
 ```bash
-pip install dyng                         # from PyPI (Python >= 3.12, Linux x86-64)
+pip install dyng                         # from PyPI: 0.1.0 (Python >= 3.12, Linux x86-64)
 pip install .                            # or from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
 ```
 
-The wheel contains the sequential and OpenMP backends and the `dyng` command line; the CUDA
-backend comes with the plugin wheels of 0.2 (`pip install "dyng[cu13]"` or `"dyng[cu12]"`,
-matching the NVIDIA driver's CUDA major). For development:
+The wheel contains the sequential and OpenMP backends and the `dyng` command line. The CUDA
+backend comes with the plugin wheels of 0.2: `pip install "dyng[cu13]"` for an NVIDIA driver of
+CUDA 13 (driver 580 or newer), `pip install "dyng[cu12]"` for CUDA 12 (driver 525 or newer); the
+plugins need a GPU of compute capability 7.5 or newer
+([install guide](docs/getting_started/install.md)). Until 0.2.0 is released they are in the
+release candidate on TestPyPI only. The names `dyng-cu13` and `dyng-cu12` are not on PyPI before
+0.2.0, so the plugin is taken from TestPyPI alone, after NumPy (the only other dependency) from
+PyPI:
+
+```bash
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"   # or dyng-cu12
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.2.0rc1   # the CPU package alone
+```
+
+For development:
 `pip install -e . --no-build-isolation -Ceditable.rebuild=true -Cbuild-dir=build` in the
 `dyng-dev` environment (below), then `ci/python.sh` runs the stubs check and the pytest suite.
 
@@ -251,7 +266,7 @@ exclusive perf lock (`parity/README.md`). The committed records are the
 ## Using the library from C++
 
 ```cmake
-find_package(dyng 0.1 REQUIRED)
+find_package(dyng 0.2 REQUIRED)
 target_link_libraries(my_app PRIVATE dyng::dyng)
 ```
 

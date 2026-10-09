@@ -10,21 +10,22 @@ version is the file `VERSION`; tags are `v` + `VERSION` (`v0.1.0rc1`, `v0.1.0`),
 
 **Who does what.** Publishing steps belong to the **author** (the lead maintainer) unless the
 author delegates one in the approvals log of GOVERNANCE.md. For 0.1.0 the author did so on
-2026-09-30:
+2026-09-30, for 0.2.0 on 2026-10-06 (the tags and the GitHub Release) and 2026-10-07 (the
+author merges the release pull requests):
 
-| Step | 0.1.0 (`v0.1.0rc1`, `v0.1.0`) | later releases |
-|---|---|---|
-| the checks, the certificate, the version bump, the CHANGELOG, `CITATION.cff` (steps 1-6, 9) | the AI assistant, in the release branch and its pull request | a maintainer or the AI assistant |
-| merging the release pull request into `main` (merge commit, ADR 0019) | the AI assistant, through the pull request (the `main` ruleset) | the author |
-| pushing the tag (steps 7, 10), which uploads to TestPyPI | the **AI assistant**, on the author's behalf | the **author** |
-| the approval of the `pypi` deployment (step 10), which uploads to PyPI; from 0.2.0 also of `pypi-cu12` and `pypi-cu13` (the CUDA plugins): three approvals | the **author** (never delegated) | the **author** |
-| the GitHub Release (step 11) | the **AI assistant**, on the author's behalf | the **author** |
-| Zenodo, conda-forge (steps 12, 13; checkpoint A4; the documentation is on GitHub Pages, not Read the Docs) | the **author** (Zenodo is not connected for 0.1.0, so 0.1.0 has no DOI: GOVERNANCE.md, 2026-10-01) | the **author** |
+| Step | 0.1.0 (`v0.1.0rc1`, `v0.1.0`) | 0.2.0 (`v0.2.0rc1`, `v0.2.0`) | later releases |
+|---|---|---|---|
+| the checks, the certificate, the version bump, the CHANGELOG, `CITATION.cff` (steps 1-6, 9) | the AI assistant, in the release branch and its pull request | the AI assistant, in the release branch (`release-0.2.0`) and its pull requests | a maintainer or the AI assistant |
+| merging the release pull request into `main` (merge commit, ADR 0019) | the AI assistant, through the pull request (the `main` ruleset) | the **author**, personally; the AI assistant reports when each pull request is green and ready to merge (2026-10-07) | the author |
+| pushing the signed tag (steps 7, 10), which uploads to TestPyPI | the **AI assistant**, on the author's behalf | the **AI assistant**, on the author's behalf (2026-10-06) | the **author** |
+| the approval of the PyPI deployments (step 10), which upload to PyPI: `pypi` for `dyng`; from 0.2.0 also `pypi-cu12` and `pypi-cu13` for the CUDA plugins, three approvals | the **author** (never delegated) | the **author** (never delegated): `pypi-cu12` and `pypi-cu13` together, then `pypi` once both plugins are on PyPI | the **author** |
+| the GitHub Release (step 11) | the **AI assistant**, on the author's behalf | the **AI assistant**, on the author's behalf (2026-10-06) | the **author** |
+| Zenodo, conda-forge (steps 12, 13; checkpoint A4; the documentation is on GitHub Pages, not Read the Docs) | the **author** (Zenodo is not connected for 0.1.0, so 0.1.0 has no DOI: GOVERNANCE.md, 2026-10-01) | the **author** (Zenodo is still not connected: 0.2.0 gets a DOI only if the author connects it before step 11) | the **author** |
 
-So the AI assistant can take a release candidate to TestPyPI on its own, but nothing reaches PyPI
-before the author approves the deployment in the `release.yml` run: one deployment per
-distribution, `pypi` for `dyng` and, from 0.2.0, `pypi-cu12` and `pypi-cu13` for the CUDA plugin
-wheels `dyng-cu12` and `dyng-cu13` (ADR 0032).
+So the AI assistant can take a release candidate to TestPyPI on its own once the author has merged
+its pull request, but nothing reaches PyPI before the author approves the deployment in the
+`release.yml` run: one deployment per distribution, `pypi` for `dyng` and, from 0.2.0,
+`pypi-cu12` and `pypi-cu13` for the CUDA plugin wheels `dyng-cu12` and `dyng-cu13` (ADR 0032).
 
 ## Checklist
 
@@ -35,21 +36,22 @@ The documentation site is not a step of its own: the `deploy` job of `docs.yml` 
 (step 9) also updates the status blocks of `README.md` and `docs/index.md`, which name the latest
 release; after its merge, check that the `deploy` job succeeded and that the site shows the
 release without the development-version banner (`docs/conf.py` shows the banner while `VERSION`
-is a development or pre-release version, with the latest release read from `CHANGELOG.md`).
+is a development or pre-release version, with the latest release read from `CHANGELOG.md`; for a
+release candidate the banner says that it is on TestPyPI only).
 
 | # | Step | Command or place | Who |
 |---|---|---|---|
 | 1 | Full parity on the GPU machine: the golden corpora of every ported algorithm on every backend, each replay written to `benchmarks/results/<version>/parity-<set>-<backend>.json` | `ci/check.sh --parity` (CPU backends), `ci/gpu_local.sh` (CUDA: the corpora, the sanitizers); the largest corpora with `parity/compare.py ... --json` ({doc}`benchmarks`) | maintainer |
 | 2 | The performance gates against the originals (manual, under the exclusive lock; CUDA at locked clocks, the default-clock readings recorded, ADRs 0018 and 0021): every benchmark suite of the release's algorithms, run from a clean checkout of the release commit | `parity/bench_suite.py run benchmarks/paper/<suite>.yaml --version <version>` ({doc}`benchmarks`): the suite summaries and the compacted records in `benchmarks/results/<version>/` | maintainer |
-| 3 | Sanitizers and mutation checks green, each recorded; then the parity certificate written and committed | the `asan` / `tsan` / `tsan-openmp` presets (`ci/sanitizers.sh`; from 0.2.0 also the hosted `sanitizers.yml` of the release commit), `compute-sanitizer` in `ci/gpu_local.sh`, the CTests `*.mutation.*` and `parity/mutate.py run` (the mutations that need the golden corpus), each recorded with `parity/certify.py check`; then `parity/certify.py write --version <version>` writes `benchmarks/results/<version>/parity.json` and the tables of its `README.md`. It fails if any part failed or is missing (a suite summary must cover its whole suite, with verified inputs; every committed fixture set of `cpp/tests/data` needs its tests passed in a check), or if a part was measured on other code than the release commit's in the paths of its scope; the one exception is a library difference confined to the generated algorithm metadata, accepted for the gates, the replays and the golden mutations (never for a test-suite check) with a passed `parity/certify.py equivalence` record ({doc}`benchmarks`, "The release certificate") | maintainer |
-| 4 | The distributions build and install | `ci/check.sh --wheels` locally; from 0.2.0 also the CUDA plugins on the GPU machine, `ci/plugin_wheels.sh` with `DYNG_PLUGINS="cu12 cu13"` (the GPU tests on GPU 1; {doc}`wheels`); `wheels.yml` (manual run, with the plugins) on hosted runners. Before that, the CUDA toolkits of `ci/cuda_toolkits.toml` are the latest 12.x and 13.x (re-pin with `ci/cuda_toolkit.py lock`, {doc}`wheels`) | maintainer |
+| 3 | Sanitizers and mutation checks green, each recorded; then the parity certificate written and committed | the `asan` / `tsan` / `tsan-openmp` presets (`ci/sanitizers.sh`; from 0.2.0 also the hosted `sanitizers.yml` jobs of the release pull request's head, which exist only once the pull request is open: recorded with `parity/certify.py check --name sanitizers-hosted --scope tests --commit <the head> --result passed --evidence <the job logs>` in a later commit of that pull request or in the tag-day pull request, {ref}`release-late-tag-day`), `compute-sanitizer` in `ci/gpu_local.sh`, the CTests `*.mutation.*` and `parity/mutate.py run` (the mutations that need the golden corpus), each recorded with `parity/certify.py check` (`certify.py` requires the local ones by release series, `REQUIRED_CHECKS`, {doc}`benchmarks`); then `parity/certify.py write --version <version>` writes `benchmarks/results/<version>/parity.json` and the tables of its `README.md`. It fails if any part failed or is missing (from 0.2.0 the summaries of the sssp, cycle_count and mosp suites are required, each with a gated reading of every gated metric; a suite summary must cover its whole suite, with verified inputs; every committed fixture set of `cpp/tests/data` needs its tests passed in a check), or if a part was measured on other code than the release commit's in the paths of its scope; the one exception is a library difference confined to the generated algorithm metadata, accepted for the gates, the replays and the golden mutations (never for a test-suite check) with a passed `parity/certify.py equivalence` record ({doc}`benchmarks`, "The release certificate") | maintainer |
+| 4 | The distributions build and install | `ci/check.sh --wheels` locally; from 0.2.0 also the CUDA plugins on the GPU machine, `ci/plugin_wheels.sh` with `DYNG_PLUGINS="cu12 cu13"` (the GPU tests on GPU 1; {doc}`wheels`); `wheels.yml` (manual run, with the plugins) on hosted runners, green on the release pull request's head commit **before the author merges it** (it is not a required check, and it is the only build of the published setup: manylinux_2_28, gcc-toolset, the pinned toolkits; the run is linked in the pull request). Before that, the CUDA toolkits of `ci/cuda_toolkits.toml` are the latest 12.x and 13.x (re-pin with `ci/cuda_toolkit.py lock`, {doc}`wheels`) | maintainer |
 | 5 | The release-candidate pull request: set `VERSION` to `X.Y.ZrcN` (for example `0.1.0rc1`; `release.yml` requires the tag to equal `VERSION`); move the CHANGELOG's `Unreleased` entries under `## [X.Y.ZrcN] - <date>` (the draft summary of the release is kept at the top while it is prepared) | a pull request | maintainer |
 | 6 | `version: X.Y.ZrcN` and `date-released` in `CITATION.cff` | the same pull request | maintainer |
-| 7 | Release candidate: tag `vX.Y.ZrcN` (equal to `VERSION`) on `main` after the merge; `release.yml` builds the sdist and the wheels through `wheels.yml` and uploads them to TestPyPI (environment `testpypi`; from 0.2.0 also `testpypi-cu12` / `testpypi-cu13` for the plugins, which go first, `dyng` after them); pre-releases stop there. Before pushing: build the distributions locally as `release.yml` would ({ref}`release-local-build`), and check that the CHANGELOG heading's date and `CITATION.cff`'s `date-released` are **the day of the tag** (UTC); if the merge fell on a later day, fix both in a small pull request first (the tagged files cannot be changed afterwards) | `python ci/wheel_check.py --release-metadata --release-date today`; `git tag -s -m "dynG X.Y.ZrcN" vX.Y.ZrcN && git push origin vX.Y.ZrcN` | **author** (0.1.0rc1: the AI assistant on the author's behalf) |
-| 8 | Smoke-install the RC from TestPyPI in a clean venv on a CPU machine and on the GPU machine (CPU backends): import, `dyng.show_config()`, `sssp` and `cycle_count` on both backends, `dyng --version`; from 0.2.0 also **both CUDA plugins as CI built them**, each in its own fresh venv on the GPU machine: `dyng[cu12]` and `dyng[cu13]` from TestPyPI, `ci/plugin_smoke.py --expect cuda` and `pytest -m gpu` on GPU 1 ({ref}`release-gpu-check`; the GPU tests of step 4 ran on locally built wheels, linked with another host compiler) | `pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==X.Y.ZrcN` (and `"dyng[cu12]==X.Y.ZrcN"`, `"dyng[cu13]==X.Y.ZrcN"`) | author or maintainer |
+| 7 | Release candidate: tag `vX.Y.ZrcN` (equal to `VERSION`) on `main` after the merge; `release.yml` builds the sdist and the wheels through `wheels.yml` and uploads them to TestPyPI (environment `testpypi`; from 0.2.0 also `testpypi-cu12` / `testpypi-cu13` for the plugins, which go first, `dyng` after them); pre-releases stop there. Before pushing: build the distributions locally as `release.yml` would ({ref}`release-local-build`), and check that the CHANGELOG heading's date and `CITATION.cff`'s `date-released` are **the day of the tag** (UTC); if the merge fell on a later day, fix both in a small pull request first (the tagged files cannot be changed afterwards) | `python ci/wheel_check.py --release-metadata --release-date today`; `git tag -s -m "dynG X.Y.ZrcN" vX.Y.ZrcN && git push origin vX.Y.ZrcN` | **author** (0.1.0rc1, 0.2.0rc1: the AI assistant on the author's behalf) |
+| 8 | Smoke-install the RC from TestPyPI in a clean venv on a CPU machine and on the GPU machine (CPU backends): import, `dyng.show_config()`, `sssp`, `cycle_count` and (from 0.2.0, stable) `mosp` (`dyng.mosp.compute` and `update`) on both host backends, `dyng --version`; from 0.2.0 also **both CUDA plugins as CI built them**, each in its own fresh venv on the GPU machine: `dyng-cu12` and `dyng-cu13` from TestPyPI alone (`--no-deps`, NumPy from PyPI first: the plugin names are not on PyPI before the final release, so pip must not look for them there), `ci/plugin_smoke.py --expect cuda` and `pytest -m gpu` on GPU 1 ({ref}`release-gpu-check`; the GPU tests of step 4 ran on locally built wheels, linked with another host compiler) | `pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==X.Y.ZrcN`; with a plugin `pip install "numpy>=1.26"` then `pip install -i https://test.pypi.org/simple/ --no-deps dyng==X.Y.ZrcN dyng-cu13==X.Y.ZrcN` (and `dyng-cu12`) | author or maintainer |
 | 9 | The final-release pull request ({ref}`release-final-pr`): `VERSION` `X.Y.Z`; the CHANGELOG section renamed `## [X.Y.Z] - <date>` with its link references; `version: X.Y.Z` and `date-released` in `CITATION.cff`; the texts the release candidate wrote for its own state (the status lines, the install lines, `SECURITY.md`); and the certificate under `benchmarks/results/X.Y.Z/` (the release candidate's carried over, or measured again). Without a release candidate, steps 5-6 do this directly and 7-8 are skipped | a pull request; `python ci/wheel_check.py --release-metadata`; `parity/certify.py write --version X.Y.Z` | maintainer |
-| 10 | Final release: tag `vX.Y.Z` (equal to `VERSION`) on `main` after that merge; `release.yml` uploads to TestPyPI, then waits for the **approval of the `pypi` environment** (from 0.2.0: of `pypi-cu12` and `pypi-cu13`, then, once both plugins are on PyPI, of `pypi`, one per distribution) and uploads the same files to PyPI. **Before approving `pypi-cu12` and `pypi-cu13`**, the GPU tests of both plugin wheels of this run's `dist` artifact pass on the GPU machine ({ref}`release-gpu-check`; the final tag's wheels are new builds, not the RC's). Before pushing, as in step 7: the release date is the day of the tag ({ref}`release-late-tag-day` when that day is later than the final-release pull request's), and the author's open decisions due before the release are taken (GOVERNANCE.md, "Open decisions"; for 0.1.0 these were O3, the `NOTICE` wording, confirmed as drafted on 2026-10-01, and the licence expression, to which the author raised no objection by the tag day, the approval of the `pypi` deployment being the final confirmation: both in the approvals log) | `python ci/wheel_check.py --release-metadata --release-date today`; `git tag -s -m "dynG X.Y.Z" vX.Y.Z && git push origin vX.Y.Z`; approve the deployment in the Actions run (**Review deployments** → tick every pending environment → **Approve and deploy**; from 0.2.0 twice: `pypi-cu12` and `pypi-cu13` together, then `pypi` once the plugins are on PyPI) | the tag: **author** (0.1.0: the AI assistant on the author's behalf); the approval: **author** |
-| 11 | The GitHub Release from the CHANGELOG section, with the distributions of the `release.yml` run attached (a release candidate may get a GitHub pre-release, `--prerelease`) | `gh release create vX.Y.Z --title "dynG X.Y.Z" --notes-file <the CHANGELOG section> dist/*` | **author** (0.1.0: the AI assistant on the author's behalf) |
+| 10 | Final release: tag `vX.Y.Z` (equal to `VERSION`) on `main` after that merge; `release.yml` uploads to TestPyPI, then waits for the **approval of the `pypi` environment** (from 0.2.0: of `pypi-cu12` and `pypi-cu13`, then, once both plugins are on PyPI, of `pypi`, one per distribution) and uploads the same files to PyPI. **Before approving `pypi-cu12` and `pypi-cu13`**, the GPU tests of both plugin wheels of this run's `dist` artifact pass on the GPU machine ({ref}`release-gpu-check`; the final tag's wheels are new builds, not the RC's). Before pushing, as in step 7: the release date is the day of the tag ({ref}`release-late-tag-day` when that day is later than the final-release pull request's), and the author's open decisions due before the release are taken (GOVERNANCE.md, "Open decisions"; for 0.1.0 these were O3, the `NOTICE` wording, confirmed as drafted on 2026-10-01, and the licence expression, to which the author raised no objection by the tag day, the approval of the `pypi` deployment being the final confirmation: both in the approvals log) | `python ci/wheel_check.py --release-metadata --release-date today`; `git tag -s -m "dynG X.Y.Z" vX.Y.Z && git push origin vX.Y.Z`; approve the deployment in the Actions run (**Review deployments** → tick every pending environment → **Approve and deploy**; from 0.2.0 twice: `pypi-cu12` and `pypi-cu13` together, then `pypi` once the plugins are on PyPI) | the tag: **author** (0.1.0, 0.2.0: the AI assistant on the author's behalf); the approval: **author** |
+| 11 | The GitHub Release from the CHANGELOG section, with the distributions of the `release.yml` run attached (a release candidate may get a GitHub pre-release, `--prerelease`) | `gh release create vX.Y.Z --title "dynG X.Y.Z" --notes-file <the CHANGELOG section> dist/*` | **author** (0.1.0, 0.2.0: the AI assistant on the author's behalf) |
 | 12 | The Zenodo DOI of the release (once Zenodo is connected, checkpoint A4), then the DOI in `CITATION.cff` and the README. Zenodo archives only the GitHub Releases published after it is switched on: for a DOI of this release, the author switches it on **before step 11**; otherwise the release can only be uploaded to Zenodo by hand ({doc}`repository_settings`, section 14). **0.1.0:** Zenodo is not connected, so 0.1.0 has no DOI (the author, 2026-10-01); it may be connected later (A4), and the releases published after that get DOIs | Zenodo's GitHub integration | **author** |
 | 13 | conda-forge: merge the bot's feedstock pull request (from 0.4) | the `dyng-feedstock` repository | author |
 | 14 | Announce (Discussions); curate the next "good first issue" backlog; write the milestone retrospective; bump `VERSION` to the next `.dev0` | a pull request | maintainer |
@@ -133,12 +135,17 @@ release's state:
   kept above it, and the link references: `[Unreleased]: .../compare/vX.Y.Z...main` and
   `[X.Y.Z]: .../compare/<previous tag>...vX.Y.Z`; the summary's install line (`pip install
   dyng`, no longer TestPyPI);
-- the status lines: `README.md` (the "Alpha: 0.1 release candidate" block, the install lines
-  "once 0.1.0 is published"), `docs/index.md` (the same block and install line),
-  `docs/getting_started/install.md` (`pip install dyng ... once 0.1.0 is published`),
+- the status lines, each written by the release candidate for "X.Y.ZrcN on TestPyPI, X.Y.Z
+  not released": `README.md` (the "Alpha: X.Y release candidate" block, the "Until X.Y.Z is
+  released" install lines and the TestPyPI commands), `docs/index.md` (the same block and
+  install lines), `docs/getting_started/index.md` ("until X.Y.Z is released, in the release
+  candidate ... on TestPyPI"), `docs/getting_started/install.md` (the "Until X.Y.Z is on PyPI"
+  lines and their TestPyPI commands, the latest release of the `pip install dyng` line),
   `SECURITY.md` (the status paragraph and the supported-versions row of the release
-  candidates), `CONTRIBUTING.md` and `SUPPORT.md` (the "0.1 release candidate" wording),
-  `docs/roadmap.md` ("Where we are") and `docs/developer/plan.md` (the status line);
+  candidates), `CONTRIBUTING.md` and `SUPPORT.md` (the "X.Y.ZrcN, the release candidate"
+  wording), `docs/citing.md` (the DOI sentence: which releases have a DOI, step 12),
+  `docs/roadmap.md` ("Where we are") and `docs/developer/plan.md` (the status line); a `grep
+  -rn "X.Y.ZrcN\|release candidate"` over the user-facing files finds what is left;
 - the certificate (`benchmarks/results/X.Y.Z/`), one of:
   - **carried over**, when the library did not change since the release candidate's measured
     commits (`git diff <measured> HEAD` over the library paths is empty, which `certify.py
@@ -149,10 +156,12 @@ release's state:
     `parity.json` naming `X.Y.Z` and the final commit. `VERSION`, `CHANGELOG.md` and
     `CITATION.cff` are outside the library scope, so the gates, the replays and the golden
     mutations carry over; the checks whose scope the final pull request touches are **run
-    again** on the final tree and recorded with `certify.py check` first: those of the
-    `packaging` and `repo` scopes (the distributions, `ci/check.sh`, `ci/gpu_local.sh`) always
-    (they see the new `VERSION`), and the C++ test suites of the `tests` scope (the sanitizer
-    presets, `ctest -L mutation`) when `README.md` changed, whose C++ quickstart is a test;
+    again** on the final tree and recorded with `certify.py check` first: **every** check of the
+    `packaging` and `repo` scopes always (they see the new `VERSION`; for 0.2: the
+    distributions, `ci/check.sh --parity` (`check-parity`), `ci/api_check.sh <main>`
+    (`api-check`) and `ci/gpu_local.sh`; `certify.py write` names every stale record), and the
+    C++ test suites of the `tests` scope (the sanitizer presets, `ctest -L mutation`) when
+    `README.md` or another test path changed, whose C++ quickstart is a test;
   - **measured again**, when code changed: steps 1-3 for `X.Y.Z`.
   Commit the directory with the release; `release.yml` publishes the version the certificate
   names.
@@ -179,11 +188,15 @@ bring the certificate to its tree:
    `benchmarks/results/`, from fresh clones of that commit, run again: the distributions
    ({ref}`release-local-build`: `select` for the tag, `ci/wheels.sh`, `twine check --strict`,
    `ci/wheel_check.py --platform manylinux_2_28_x86_64 --require-libgomp`, fresh 3.12 and 3.13
-   venvs with the wheel's test subset and the README quickstart), `ci/check.sh --parity` and
-   `ci/gpu_local.sh`. Record each with `parity/certify.py check --version X.Y.Z` (the names
-   `distributions`, `check-parity` and `gpu_local`, replacing the records of the same names).
-   The `tests` records stand while `README.md` and the test paths are unchanged; otherwise the
-   sanitizer presets and `ctest -L mutation` are run again too.
+   venvs with the wheel's test subset and the README quickstart; from 0.2 the plugin wheels
+   too), `ci/check.sh --parity`, `ci/api_check.sh <main as pushed>` and `ci/gpu_local.sh`: in
+   general **every** check recorded with the `packaging` or the `repo` scope, which
+   `certify.py write` reports as stale otherwise. Record each with `parity/certify.py check
+   --version X.Y.Z` under the name it had (for 0.2: `distributions`, `check-parity`,
+   `api-check` and `gpu_local`), replacing the old record. The `tests` records stand while
+   `README.md` and the test paths are unchanged; otherwise the sanitizer presets and `ctest -L
+   mutation` are run again too. The same pull request may add the record of the hosted
+   `sanitizers.yml` jobs of the release pull request (step 3).
 3. `parity/certify.py write --version X.Y.Z` on the committed tree, which checks every measured
    commit against it in the paths of its scope; commit `benchmarks/results/X.Y.Z/`.
 
@@ -213,8 +226,11 @@ For a release candidate (step 8) the same files are on TestPyPI, and the install
 is checked too, per plugin in a fresh venv:
 
 ```bash
-python3.12 -m venv /tmp/rc-cu12 && /tmp/rc-cu12/bin/pip install -i https://test.pypi.org/simple/ \
-    --extra-index-url https://pypi.org/simple/ "dyng[cu12]==$v" "pytest>=8" "hypothesis==6.167.1"
+# NumPy and the test tools from PyPI, then dyng and the plugin from TestPyPI alone (--no-deps:
+# the plugin names are not on PyPI before the final release, so pip must not look there)
+python3.12 -m venv /tmp/rc-cu12 && /tmp/rc-cu12/bin/pip install "numpy>=1.26" "pytest>=8" \
+    "hypothesis==6.167.1" && /tmp/rc-cu12/bin/pip install -i https://test.pypi.org/simple/ \
+    --no-deps "dyng==$v" "dyng-cu12==$v"
 (cd /tmp && CUDA_VISIBLE_DEVICES=1 /tmp/rc-cu12/bin/python "$OLDPWD/ci/plugin_smoke.py" \
     --plugin cu12 --expect cuda --version "$v")
 CUDA_VISIBLE_DEVICES=1 DYNG_REQUIRE_CUDA=1 /tmp/rc-cu12/bin/python -m pytest -q -m gpu python/tests

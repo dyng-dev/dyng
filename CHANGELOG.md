@@ -8,7 +8,201 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-### Added
+## [0.2.0rc1] - 2026-10-09
+
+### Summary
+
+The release candidate of dynG 0.2.0: a third stable algorithm, the CUDA backend from Python, and
+the hardening planned after 0.1.0. Release candidates are published on TestPyPI only:
+
+```bash
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"
+```
+
+(`dyng-cu12==0.2.0rc1` for an NVIDIA driver of CUDA 12; `pip install -i
+https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.2.0rc1` for the
+CPU package alone; the plugins come from TestPyPI alone, because their names are not on PyPI
+before 0.2.0); 0.2.0 follows on PyPI, with `pip install "dyng[cu13]"`. Nothing of 0.1.0 changes incompatibly: `sssp` and `cycle_count`
+keep their API. The entries below the summary are the detailed record of milestones M7, M6a and
+M6b and of the release preparation R020.
+
+- **`mosp` is stable** (SemVer applies from 0.2.0): dynamic multi-objective shortest paths, the
+  MOSP update of DynaMOSP (the K single-objective trees, the combined graph of the preferences,
+  its shortest-path tree and the path costs), on the sequential, OpenMP and CUDA backends, in C++
+  (`<dyng/mosp.hpp>`), Python (`dyng.mosp`) and on the command line (`dyng mosp`, the original
+  tools' files byte for byte). It is byte-identical to MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2
+  on their golden corpus and on 20 paper-scale cases, and its API was reviewed before the freeze
+  (ADR 0035); `dyng.update()` keeps mosp, sssp and cycle_count results on one graph.
+- **The `sssp` operators engine:** CUDA `sssp` (and so `mosp`) also runs on GPUs and drivers
+  without cooperative launch, byte-identical to the fused engine; `cuda_engine` chooses
+  (`automatic`, `fused`, `operators`).
+- **CUDA from Python:** the plugin wheels `dyng-cu13` and `dyng-cu12`, installed with
+  `pip install "dyng[cu13]"` (NVIDIA driver 580 or newer, CUDA 13) or `"dyng[cu12]"` (driver 525
+  or newer, CUDA 12). They bring their own CUDA runtime (no toolkit needed) and code for sm_75 to
+  sm_120 (Turing to Blackwell). `import dyng` picks the plugin of the driver's CUDA major and falls
+  back to the CPU backends with one `dyng.BackendWarning` that says why; results stay in device
+  memory and go to PyTorch or CuPy through DLPack or `__cuda_array_interface__` without a copy;
+  `dyng.show_config()` says what was chosen.
+- **The tutorial "Your first dynamic algorithm"** and the teaching algorithms `dynamic_bfs` and
+  `triangle_delta` (maturity `tutorial`, not under the stability promise): from a fresh clone to a
+  new algorithm that passes the conformance kit on every backend.
+- **The documentation site** <https://dyng-dev.github.io/dyng/>, built from `main`.
+- **Robustness:** libFuzzer targets for every file reader (the reader bugs they found are fixed),
+  the recorded bug mutations of sssp, cycle_count and mosp checked against their golden suites,
+  long Hypothesis runs, and ASan + UBSan and TSan (with OpenMP and Archer) on every pull request,
+  now required checks.
+- **The release certificate** `benchmarks/results/0.2.0rc1/` (PLAN 8.3 and 8.6): golden parity of
+  sssp, cycle_count and mosp on every backend, the release performance gates of all three against
+  the unpatched originals (mosp's for the first time, the new suite
+  `benchmarks/paper/ipdps25_dynamosp_mosp.yaml`; CUDA at locked clocks, ADRs 0018 and 0021), the
+  sanitizers and the mutation checks.
+
+Known limitations of 0.2.0: Linux x86-64 only (aarch64 wheels later); the plugins need a GPU of
+compute capability 7.5 or newer; `cycle_count` counts simple cycles only (no time-window or
+temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` come with 0.3.0,
+`label_propagation` and `hyper_sssp` with 0.4.0; no DOI (Zenodo is not connected).
+
+### R020: the release changes (0.2, branch `release-0.2.0`)
+
+- Changed: `VERSION` 0.2.0rc1 (it was 0.2.0.dev0, the development version after 0.1.0);
+  `CITATION.cff` `version: 0.2.0rc1`, `date-released: 2026-10-09` (written 2026-10-07, set to
+  2026-10-08 when the review fixes were certified, then to the tag day); this section `[0.2.0rc1]` with the summary above: everything that was under `Unreleased` (M7, M6a, M6b and R020) moved
+  here, an empty `Unreleased` above it, and the link references.
+- Docs: the status texts for the release candidate: the status blocks of `README.md` and the
+  documentation's start page ("Alpha: 0.2 release candidate"), the install lines of the release
+  candidate from TestPyPI (`"dyng[cu13]==0.2.0rc1"`, `"dyng[cu12]==0.2.0rc1"`, `dyng==0.2.0rc1`)
+  with the plugins' driver and GPU requirements (README, `docs/getting_started`), `SECURITY.md`
+  (0.2.0rc1 supported until 0.2.0), `SUPPORT.md`, `CONTRIBUTING.md`, the roadmap and the
+  developer plan. The documentation site's banner names a release candidate as such (TestPyPI
+  only; `docs/conf.py`).
+- Governance: the author's decisions for 0.2.0 in the approvals log of `GOVERNANCE.md`: the AI
+  assistant pushes the signed tags `v0.2.0rc1` / `v0.2.0` and creates the GitHub Release on the
+  author's behalf (2026-10-06); the author merges the release pull requests and approves the
+  three PyPI deployments, `pypi-cu12` and `pypi-cu13` together, then `pypi` (2026-10-07); the
+  sanitizer checks `asan / gcc-13`, `tsan / gcc-13` and `tsan-openmp / clang-18` are required
+  checks of `main` (2026-10-07; 27 required checks); and the repository state of 2026-10-07 (M6b
+  merged, the first Pages deployment, the website field). `docs/developer/release.md` says who
+  does what for 0.2.0; `docs/developer/repository_settings.md` lists the 27 required checks.
+- CI: the pinned CUDA toolkits of the plugin wheels were checked against NVIDIA's RHEL 8
+  repository on 2026-10-07: CUDA 12.9 (nvcc 12.9.86) and 13.4 (nvcc 13.4.92) are still the
+  newest 12.x and 13.x, and a fresh `ci/cuda_toolkit.py lock` of both reproduces
+  `ci/cuda_toolkits.toml` byte for byte (no re-pin; the cached RPMs pass `verify --signatures`).
+- Docs: two informational investigations in `docs/developer/retrospectives/R020.md` (record
+  `parity/results/R020-investigations.json`; no gate applies, nothing in the library changed):
+  (a) the CUDA 13.4 cu13 wheel's cycle_count update is not slower than the CUDA 13.1 builds
+  (0.965-0.986x over 8 processes per side; the update kernels within 1 % under Nsight Compute):
+  M6a's 8.8 % was the process mode of the host stage `cycle_count.normalize`, so the wheel keeps
+  CUDA 13.4; (b) a measured proposal for the open decision on layout control (function, loop and
+  branch alignment against the originals and dynG against dynG), attached to the decision in
+  `GOVERNANCE.md`, which stays open; the certificate uses the accepted one-layout protocol.
+
+### R020: the mosp API review and freeze (0.2, branch `release-0.2.0`)
+
+- Changed: **`mosp` is stable** from 0.2.0 (the author's decision of 2026-10-07, GOVERNANCE.md):
+  `<dyng/mosp.hpp>`, the Python module `dyng.mosp` and the command line `dyng mosp` follow the
+  stable tier of the stability policy, as `sssp` and `cycle_count` since 0.1.0. The API review
+  before the freeze (ADR 0035) changed no signature, so existing code needs no change. The
+  manifest, the registry (`dyng::algorithms()`, `dyng.algorithms()`), the algorithm tables and
+  `docs/algorithms/mosp.md` say `stable`; `dynamic_bfs` and `triangle_delta` stay `tutorial`.
+- Docs: the review's amendments of `<dyng/mosp.hpp>`: what the inherited `update_stats` counters
+  mean for mosp and which are deterministic; the exceptions `result::from_arrays()` inherits from
+  sssp's import; `clone()` sizes the pooled workspace; `path_costs()` stays host memory by
+  default; `max_objectives` and `max_preference_scale` may be raised, never lowered;
+  `set_options()` allocates nothing after its checks (its strong guarantee, pinned by the new
+  `dyng_mosp_allocation_failure_tests`).
+- CI: `ci/api_snapshot.py` marks an algorithm's header *frozen* exactly when its manifest says
+  maturity `stable` (sssp, cycle_count, mosp) and *tracked* otherwise (the tutorial algorithms);
+  the baseline's header comment says so. New tests: the label follows the manifest, a changed
+  mosp signature fails the C++ check, and `ci/tests/test_api_check.py` shows that griffe (the
+  Python check of `ci/api_check.sh`) reports changes of `dyng.mosp` signatures, defaults and names
+  as breaking.
+
+### R020: the mosp benchmark suite (0.2, branch `release-0.2.0`)
+
+- Added: the benchmark-suite record **`benchmarks/paper/ipdps25_dynamosp_mosp.yaml`**: the MOSP
+  update of DynaMOSP (IPDPS 2025) on roadNet-PA, roadNet-CA, rgg_n_2_20_s0 and road_usa (K = 3,
+  the 50K safe, 50K unsafe and 10K local batches of seed 777, the sssp suite's inputs and
+  digests), "(a) compute" and "(b) end to end" against the unpatched `bin/mosp` of
+  MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 (CUDA at the boost clock lock, the default-clock
+  reading recorded, not gated), the device memory against MOSP-CUDA's; the gates M7 took.
+- Parity tools: `parity/bench_suite.py` runs a mosp suite through `parity/perf_ab.py mosp` and
+  `perf_ab.py memory --mosp`, and refuses a record that is not of mosp or not of the suite's K,
+  batches, preferences, CUDA engine and output scope, or whose `invalidated` counts differ
+  between the two sides; `--batches` narrows an sssp or mosp execution (a partial one), and
+  `--keep-contaminated` makes a diagnostic one for a busy machine (rounds with foreign load kept
+  and flagged, never a gate reading: a record that kept them is refused otherwise).
+- Parity tools: `parity/certify.py write` requires the suites of each release series
+  (`REQUIRED_SUITES`: the sssp and cycle_count suites from 0.1, the mosp suite from 0.2: a 0.2
+  certificate without the mosp gates fails), and a gated reading of every gated metric of each
+  suite on every backend it is gated on.
+
+### R020: the release certificate (0.2, branch `release-0.2.0`)
+
+- Added: the release certificate of 0.2.0rc1, `benchmarks/results/0.2.0rc1/` (`parity.json` and
+  its `README.md`): the golden replays of sssp, cycle_count and mosp (the paper-scale
+  `mosp_scale` set included) on every backend, the three performance suites against the
+  unpatched originals, the sanitizer presets and compute-sanitizer, the mutation checks, the
+  distributions as `release.yml` builds them for `v0.2.0rc1`, and `ci/check.sh --parity` and
+  `ci/gpu_local.sh` on the release tree; the summary is in
+  `docs/developer/retrospectives/R020.md`.
+- Parity tools: the generated-metadata exception of `parity/certify.py` (`METADATA_PATHS`) covers
+  the manifest of every algorithm (mosp and the tutorial algorithms too, not only sssp and
+  cycle_count); no build reads a manifest.
+
+### R020: review fixes (0.2, branch `release-0.2.0`)
+
+- Changed (documentation of the frozen mosp API; no signature changed): `options::
+  compute_path_costs` takes effect at the next `compute()` or `update()` (`set_options()` changes
+  it for the next `update()`; `path_costs()` follows the option of the last one), as
+  `path_costs()` documented; it is no longer called a tunable. `mosp::update()` documents the
+  backend-mismatch and copy-policy errors it shares with `sssp::update()`. The Python module and
+  `Stats` docstrings state the determinism exception for trees imported without
+  canonicalization and the meaning of `converged`, `fallback_used` and `engine_used` (ADR 0035,
+  amendment A1).
+- Changed: the API check enforces the C++ freeze: `ci/api_check.sh` (`api-check.yml`) compares
+  the frozen sections of the C++ API baseline with the base branch (`ci/api_snapshot.py
+  --against`) and fails on a breaking change without the `api-change` label and a CHANGELOG
+  entry, as it does for Python; the freeze tests of `ci/tests/test_api_check.py` run in CI
+  (griffe installed, `DYNG_REQUIRE_GRIFFE=1`) (ADR 0035, amendments A2 and A3).
+- Changed: `parity/certify.py` requires every release check of the version's series
+  (`REQUIRED_CHECKS`: the sanitizer presets, the mutation CTests and golden mutations, the
+  distributions, `check-parity`, `api-check`, `gpu_local` with its compute-sanitizer steps), reads
+  the golden-mutation record against `parity/mutate.py list`, recomputes every gate row from the
+  records and the suite's tolerance instead of copying its flags, names each measured commit once
+  as a full SHA, and its `packaging` and `tests` scopes cover the CUDA plugins' build inputs, every
+  file the sdist ships and the fuzzers' regressions.
+- Fixed: `find_package(dyng 0.2 REQUIRED)` in README.md and the install guide (0.1 refuses an
+  installed 0.2, `SameMinorVersion` before 1.0); `ci/cmake_consumer.sh` (`ci/check.sh`, `cpu.yml`)
+  builds a consumer with the documented block against an installed build.
+- Changed: the release candidate's plugin install takes `dyng` and the plugin from TestPyPI alone
+  (`--no-deps`, NumPy from PyPI first), because the names `dyng-cu12` / `dyng-cu13` are not on
+  PyPI before 0.2.0.
+- Fixed: `dyng.show_config()` no longer suggests `pip install "dyng[cu13]"` when a plugin is
+  installed but unusable, and the selection reason says whether a plugin of the driver's CUDA
+  major is installed; the `dyng` command prints a `BackendWarning` as `dyng: warning: ...` instead
+  of naming the console-script wrapper's line.
+- Changed: the PyPI description (`python/README.md`) names mosp and runs it; the wheel's test
+  subset runs `test_mosp.py`; the getting-started next steps name mosp and the tutorial
+  algorithms. The benchmark suites and `benchmarks/README.md` say that rgg's unsafe50k batch is
+  byte-identical to its safe50k batch (no deletion disconnects a vertex there).
+- Changed: `docs/developer/release.md` for 0.2 (every packaging- and repo-scope check is re-run on
+  a later tag day, `api-check` included; the record of the hosted sanitizer jobs; `wheels.yml`
+  green before the merge; mosp in the smoke test; the final-release checklist in version-neutral
+  terms); GOVERNANCE.md: the author's decision on layout control (2026-10-08: the one-layout
+  protocol stays for the gates, ADR 0024 for dynG-against-dynG bars, the alignment flags are a
+  performance option for 0.3) closes that open decision, and the PyPI names of the plugins are a
+  new open decision.
+- Changed: `io::read_csr_triplet()` parses a plain decimal token while it scans it and writes each
+  weight straight into its objective's column. The release candidate's first certificate showed
+  dynG's end-to-end readings of sssp and mosp 5-12 % slower than 0.1.0's, all of it in reading the
+  graph (the reader's source was unchanged, so code placement: the hot loop of the text reader
+  moved). Reading rgg_n_2_20_s0 now takes about 507 ms (0.1.0: 578 ms; the first certificate's
+  build: 692 ms); values and errors are exactly those of the general path, which every other
+  token still takes, and the fuzz guards are unchanged.
+- The release certificate was measured again on the reviewed code (R020 retrospective, step 5).
+
+### Added (M6b)
 
 - M6b: the **tutorial algorithms** (teaching material, maturity `tutorial`; ADR 0033), created with
   `scripts/new_algorithm.py` and completed on the sequential, OpenMP and CUDA backends (Tier A),
@@ -61,7 +255,7 @@ Before 0.1.0 anything may change.
   `hyper_sssp`. The planned versions in the documentation, the docstrings and the messages of
   features that are not there yet follow it.
 
-### Changed
+### Changed (M6b)
 
 - M6b: configuring `DYNG_SANITIZE=thread` with `DYNG_ENABLE_OPENMP=ON` and a compiler other than
   Clang is an error (GCC's libgomp is not instrumented, so every parallel region would be reported
@@ -85,7 +279,7 @@ Before 0.1.0 anything may change.
   release; the algorithm pages name releases instead of milestones; M6b's ADRs are 0033 and 0034
   (M6a has 0030-0032); ADR 0029 is accepted (the author, option A).
 
-### Fixed
+### Fixed (M6b)
 
 - M6b, found by the reader fuzzers (and the review their memory use prompted):
   `io::read_matrix_market()` reserved memory for the number of entries the size line announced
@@ -111,8 +305,6 @@ Before 0.1.0 anything may change.
   environment), and the reference solution's comments describe the incremental algorithm.
 
 ### M7: the sssp operators engine (0.2, branch `m7-mosp`)
-
-These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
 
 - Added: the CUDA **operators engine** of `sssp` (decision O24, ADR 0026;
   `cpp/src/algorithms/sssp/operators.{cuh,cu}`): MOSP_ESCHER@4b86159's multi-kernel host loop with
@@ -143,8 +335,6 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
   against the fused one, A/B/A/B at locked clocks; reported, not gated).
 
 ### M7: `mosp` (0.2, branch `m7-mosp`)
-
-These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
 
 - Added: **`dyng::mosp`** (`<dyng/mosp.hpp>`, ADR 0027), dynamic multi-objective shortest paths
   (DynaMOSP; MOSP-CUDA@e220ee2 `mospUpdate.cu` / `combinedGraphGpu.cu`, MOSP-OpenMP@c352151
@@ -177,8 +367,6 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
   `-k` below the graph's columns) after MOSP-OpenMP and MOSP-CUDA agreed on them.
 
 ### M7: parity and gates of `mosp` (0.2, branch `m7-mosp`)
-
-These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
 
 - Changed (performance, same values): on the openmp and cuda backends `mosp`'s path costs run on
   the host threads of the resources handle (a level-synchronous traversal of the MOSP tree; the
@@ -213,8 +401,6 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
 
 ### M7: `mosp` in Python and on the command line (0.2, branch `m7-mosp`)
 
-These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
-
 - Added: **`dyng.mosp`** (ADR 0028): `compute(graph, source, *, options=None, resources=None,
   **kwargs)`, `update(graph, batch, result, *, resources=None)`, `Options` (`preferences`,
   `delta`, `cuda_engine`, `compute_path_costs`, `validate_inputs`, `num_objectives`), `Stats`
@@ -243,8 +429,6 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
 
 ### M7: review fixes (0.2, branch `m7-mosp`)
 
-These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[Unreleased]`.
-
 - Fixed: on CUDA, a `mosp::update()` that added vertices went one host synchronization over its
   I9 budget (the release of the old pinned copy of the MOSP tree), which a Debug build logged and
   strict budgets turned into `internal_error` and a poisoned result; the reserving run now counts
@@ -266,8 +450,6 @@ These entries belong to the 0.2 work: after the 0.1.0 release they stay under `[
   knows mosp's paper-scale goldens and fixtures.
 
 ### M6a: the CUDA plugin wheels (0.2, branch `m6a-cuda-wheels`)
-
-These entries belong to the 0.2 work (PLAN Appendix F).
 
 - Added: the CUDA plugin distributions **`dyng-cu12`** and **`dyng-cu13`** (ADR 0030; PLAN 5.4,
   7.7, 7.8), built from the core sdist: `ci/plugin_pyproject.py` renders a plugin's
@@ -432,10 +614,6 @@ These entries belong to the 0.2 work (PLAN Appendix F).
   `ci/wheel_check.py` refuses a plugin wheel with any other expression.
 - Docs: `docs/developer/repository_settings.md` item 11b is done: the four plugin environments
   have the protection rules of `testpypi` / `pypi`.
-
-### Changed
-
-- `VERSION` is 0.2.0.dev0, the development version after the 0.1.0 release.
 
 ## [0.1.0] - 2026-10-02
 
@@ -1292,6 +1470,7 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
   Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.1.0...main
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.2.0rc1...main
+[0.2.0rc1]: https://github.com/dyng-dev/dyng/compare/v0.1.0...v0.2.0rc1
 [0.1.0]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/dyng-dev/dyng/tree/v0.0.1

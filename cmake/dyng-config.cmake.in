@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # Package configuration for find_package(dyng) (PLAN Section 7.6).
-#   find_package(dyng 0.1 REQUIRED)
+#   find_package(dyng X.Y REQUIRED)  # X.Y: the major and minor version of the installed dyng
+#   (SameMinorVersion before 1.0: cmake/install.cmake)
 #   target_link_libraries(my_app PRIVATE dyng::dyng)
 
 @PACKAGE_INIT@

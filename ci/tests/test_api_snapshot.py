@@ -149,11 +149,92 @@ def test_the_committed_baseline_is_well_formed() -> None:
     for header in (
         "dyng/sssp.hpp",
         "dyng/cycle_count.hpp",
+        "dyng/mosp.hpp",  # stable from 0.2.0 (ADR 0035)
         "dyng/update.hpp",
         "dyng/graph/graph.hpp",
         "dyng/core/resources.hpp",
     ):
         assert f"[{header}] frozen\n" in text
+    # The tutorial algorithms are listed and checked, but not frozen (ADRs 0033, 0035).
+    for header in ("dyng/dynamic_bfs.hpp", "dyng/triangle_delta.hpp"):
+        assert f"[{header}] tracked\n" in text
+
+
+def test_an_algorithm_header_is_frozen_exactly_when_its_manifest_says_stable() -> None:
+    manifests = [
+        p
+        for p in sorted(api_snapshot.ALGORITHMS_DIR.glob("*/manifest.toml"))
+        if not p.parent.name.startswith("_")
+    ]
+    assert manifests
+    seen = {}
+    for manifest in manifests:
+        data = api_snapshot.tomllib.loads(manifest.read_text(encoding="utf-8"))
+        header = f"dyng/{data['name']}.hpp"
+        assert (api_snapshot.INCLUDE_DIR / header).is_file(), header
+        expected = "frozen" if data["maturity"] == "stable" else "tracked"
+        assert api_snapshot.status(header) == expected, (header, data["maturity"])
+        seen[data["name"]] = api_snapshot.status(header)
+    assert seen["sssp"] == seen["cycle_count"] == seen["mosp"] == "frozen"
+    assert seen["dynamic_bfs"] == seen["triangle_delta"] == "tracked"
+
+
+def test_the_maturity_decides_the_freeze(tmp_path: Path) -> None:
+    for name, maturity in (("alpha", "stable"), ("beta", "experimental"), ("gamma", "tutorial")):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "manifest.toml").write_text(
+            f'name = "{name}"\nmaturity = "{maturity}"\n'
+        )
+    (tmp_path / "_template").mkdir()
+    (tmp_path / "_template" / "manifest.toml").write_text('name = "t"\nmaturity = "stable"\n')
+    assert api_snapshot.stable_algorithm_headers(tmp_path) == ["dyng/alpha.hpp"]
+
+
+MOSP_INDEX = """<?xml version='1.0' encoding='UTF-8'?>
+<doxygenindex>
+  <compound refid="group__mosp" kind="group"><name>mosp</name></compound>
+  <compound refid="mosp_8hpp" kind="file"><name>mosp.hpp</name></compound>
+</doxygenindex>
+"""
+
+MOSP_GROUP = """<?xml version='1.0' encoding='UTF-8'?>
+<doxygen><compounddef id="group__mosp" kind="group">
+  <compoundname>mosp</compoundname>
+  <sectiondef kind="func">
+    <memberdef kind="function" id="m1" prot="public" static="no" nodiscard="yes" const="no"
+               explicit="no" inline="yes" virt="non-virtual">
+      <templateparamlist><param><type>typename vertex_t</type></param></templateparamlist>
+      <type>result&lt; vertex_t &gt;</type><definition>result&lt; vertex_t &gt; dyng::mosp::compute
+      </definition>
+      <argsstring>{args}</argsstring><name>compute</name>
+      <qualifiedname>dyng::mosp::compute</qualifiedname>
+      <location file="dyng/mosp.hpp" line="40" column="1"/>
+    </memberdef>
+  </sectiondef>
+</compounddef></doxygen>
+"""
+
+
+def test_a_mosp_signature_change_fails_in_the_frozen_mosp_section(tmp_path: Path, capsys) -> None:
+    """The freeze of mosp (ADR 0035): a deliberate change of a mosp signature fails the check."""
+    xml = tmp_path / "xml"
+    xml.mkdir()
+    (xml / "index.xml").write_text(MOSP_INDEX)
+    (xml / "mosp_8hpp.xml").write_text(_file("mosp_8hpp", "dyng/mosp.hpp"))
+    before = "(const resources &amp;res, vertex_t source, const options &amp;opt={})"
+    after = "(const resources &amp;res, vertex_t source, int k, const options &amp;opt={})"
+    (xml / "group__mosp.xml").write_text(MOSP_GROUP.format(args=before))
+    baseline = tmp_path / "public_api.txt"
+    assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline), "--update"]) == 0
+    assert "[dyng/mosp.hpp] frozen\n" in baseline.read_text()
+    (xml / "group__mosp.xml").write_text(MOSP_GROUP.format(args=after))
+    assert api_snapshot.main(["--xml", str(xml), "--baseline", str(baseline)]) == 1
+    out = capsys.readouterr().out
+    assert (
+        "-  template <typename vertex_t> [[nodiscard]] result< vertex_t > dyng::mosp::compute("
+        in out
+    )
+    assert "vertex_t source, int k, const options &opt={})" in out
 
 
 def test_the_detail_contract_is_read_from_the_source() -> None:
@@ -185,3 +266,95 @@ def test_the_umbrella_includes_are_listed() -> None:
         "#include <dyng/a.hpp>",
         "#include <dyng/b.hpp>",
     ]
+
+
+# --- The frozen API against the base branch (--against; R020) ------------------------------------
+
+BASELINE_TEXT = api_snapshot.BASELINE.read_text()
+
+
+def _edit(text: str, old: str, new: str) -> str:
+    assert text.count(old) == 1, old
+    return text.replace(old, new)
+
+
+def test_an_unchanged_baseline_has_no_frozen_change() -> None:
+    assert api_snapshot.frozen_changes(BASELINE_TEXT, BASELINE_TEXT) == ([], [])
+
+
+def test_a_changed_mosp_declaration_is_a_breaking_change() -> None:
+    # A deliberate change of a mosp signature (the frozen header of 0.2, ADR 0035): the default
+    # of compute_path_costs and the limit max_objectives.
+    changed = _edit(
+        BASELINE_TEXT, "bool compute_path_costs = true", "bool compute_path_costs = false"
+    )
+    changed = _edit(changed, "max_objectives = 64", "max_objectives = 32")
+    breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, changed)
+    assert breaking and all(b.startswith("[dyng/mosp.hpp]") for b in breaking)
+    assert any("compute_path_costs = false" in b for b in breaking)
+
+
+def test_appended_lines_and_tracked_sections_are_not_breaking() -> None:
+    lines = BASELINE_TEXT.splitlines(keepends=True)
+    at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/mosp.hpp]"))
+    added = "".join(
+        [*lines[: at + 1], "  inline constexpr int dyng::mosp::new_limit = 1\n", *lines[at + 1 :]]
+    )
+    breaking, appended = api_snapshot.frozen_changes(BASELINE_TEXT, added)
+    assert breaking == [] and appended == [
+        "[dyng/mosp.hpp] + inline constexpr int dyng::mosp::new_limit = 1"
+    ]
+    # dynamic_bfs is a tutorial algorithm: tracked, not frozen (ADR 0035).
+    at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/dynamic_bfs.hpp]"))
+    tracked = "".join([*lines[: at + 1], *lines[at + 2 :]])
+    assert api_snapshot.frozen_changes(BASELINE_TEXT, tracked) == ([], [])
+
+
+def test_unfreezing_or_removing_a_frozen_header_is_breaking() -> None:
+    unfrozen = _edit(BASELINE_TEXT, "[dyng/mosp.hpp] frozen", "[dyng/mosp.hpp] tracked")
+    assert api_snapshot.frozen_changes(BASELINE_TEXT, unfrozen)[0] == [
+        "[dyng/mosp.hpp] no longer frozen"
+    ]
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    assert secs["dyng/mosp.hpp"][0] == "frozen" and secs["dyng/sssp.hpp"][0] == "frozen"
+    removed = "\n".join(
+        line for line in BASELINE_TEXT.splitlines() if not line.startswith("[dyng/sssp.hpp]")
+    )
+    breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, removed)
+    assert breaking  # its lines now belong to the section above, so they are no longer sssp's
+
+
+def test_against_fails_without_the_label(tmp_path, monkeypatch, capsys) -> None:
+    changed = tmp_path / "public_api.txt"
+    changed.write_text(_edit(BASELINE_TEXT, "max_objectives = 64", "max_objectives = 32"))
+    monkeypatch.delenv("DYNG_API_CHANGE", raising=False)
+    assert api_snapshot.check_against("HEAD", changed) == 1
+    assert "breaking change of the frozen API: [dyng/mosp.hpp]" in capsys.readouterr().out
+    # With the label, a CHANGELOG entry is still required (CHANGELOG.md equals HEAD's here,
+    # unless the working tree changed it).
+    monkeypatch.setenv("DYNG_API_CHANGE", "1")
+    import subprocess
+
+    clean = (
+        subprocess.run(
+            ["git", "-C", str(api_snapshot.REPO), "diff", "--quiet", "HEAD", "--", "CHANGELOG.md"]
+        ).returncode
+        == 0
+    )
+    assert api_snapshot.check_against("HEAD", changed) == (1 if clean else 0)
+    head = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(api_snapshot.REPO),
+            "show",
+            "HEAD:cpp/tests/api/api_snapshot/public_api.txt",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    unchanged = tmp_path / "same.txt"
+    unchanged.write_text(head)
+    monkeypatch.delenv("DYNG_API_CHANGE")
+    assert api_snapshot.check_against("HEAD", unchanged) == 0

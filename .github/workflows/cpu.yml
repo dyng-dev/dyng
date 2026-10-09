@@ -4,7 +4,7 @@
 # CPU build and tests on GitHub-hosted runners (PLAN Section 8.8): the cpu-only (Release) and
 # dev (Debug) presets with GCC 12/13 and Clang 17/18 (PLAN Section 7.1), OpenMP on and off,
 # `ctest -L cpu` (the conformance kit on the host backends included), and the scaffold check. No
-# GPU is needed. Mirrors the `build` and `scaffold` steps of ci/check.sh. The `parity` step
+# GPU is needed. Mirrors the `build`, `consumer` and `scaffold` steps of ci/check.sh. The `parity` step
 # (ci/check.sh --parity) is not run here: the golden corpus lives outside the repository until it
 # is published as a release asset.
 name: cpu
@@ -85,6 +85,11 @@ jobs:
         run: cmake --build --preset ${{ matrix.preset }}
       - name: Test
         run: ctest --preset ${{ matrix.preset }} -L cpu
+      # The install guide's find_package() line against this build (the `consumer` step of
+      # ci/check.sh): it must find the installed package of this VERSION.
+      - name: The documented find_package() finds the installed build
+        if: matrix.preset == 'cpu-only'
+        run: ci/cmake_consumer.sh build/cpu-only
 
   # The scaffold check (PLAN Section 4.8, the `scaffold` step of ci/check.sh):
   # scripts/new_algorithm.py generates a throwaway algorithm of each family in a copy of the tree,

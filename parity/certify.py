@@ -40,6 +40,15 @@ configuration), the tolerances used, the performance-gate table (every gated reg
 ratio, gate, verdict; the recorded default-clock readings separately) and the checks. It also
 rewrites the generated part of README.md (between the certify markers) from the certificate. Exit
 1 if any part failed or is missing; the certificate is written either way, with the reason.
+
+The performance part needs the summary of every suite of REQUIRED_SUITES whose release series has
+come (sssp's ipdps25_dynamosp_sosp and cycle_count's ieee_tc_dyntrucy from 0.1, mosp's
+ipdps25_dynamosp_mosp from 0.2: a 0.2 certificate without the mosp gates fails), and each summary
+must hold a gated reading of every gated metric of its suite file on every backend it is gated on.
+Every gated row is recomputed from the compacted record next to its summary and the suite file's
+tolerance (recheck_gates). The checks part needs every check of REQUIRED_CHECKS of the version's
+series, each with at least its scope (and gpu_local its compute-sanitizer steps); the
+golden-mutation record is read against `parity/mutate.py list` (golden_mutations).
 """
 
 from __future__ import annotations
@@ -79,11 +88,16 @@ LIBRARY_PATHS = [
     "docs/references.bib",
 ]
 # The C++ test suites also build and run the examples and the README's C++ quickstart (extracted
-# from README.md at configure time, examples/cpp/CMakeLists.txt).
-TEST_PATHS = [*LIBRARY_PATHS, "cpp/tests", "examples", "README.md"]
-# What the distributions are built from and checked with: the sdist's sources (the library, the
-# tests, the Python package, the metadata files and the licences) and the scripts and workflows
-# that build and check them (release.yml's select, wheels.yml, ci/wheels.sh, ci/wheel_check.py).
+# from README.md at configure time, examples/cpp/CMakeLists.txt), and replay the reader fuzzers'
+# seed corpus and regressions (cpp/fuzz, in every test build).
+TEST_PATHS = [*LIBRARY_PATHS, "cpp/tests", "cpp/fuzz", "examples", "README.md"]
+# What the distributions are built from and checked with: every member of the sdist (the library,
+# the tests, the Python package, the metadata files, the licences and the other top-level files
+# pyproject.toml's sdist.exclude keeps in; parity/tests checks that sdist_members() is covered),
+# the scripts and workflows that build and check the core distributions (release.yml's select,
+# wheels.yml, ci/wheels.sh, ci/wheel_check.py) and those of the CUDA plugin wheels built from that
+# sdist (from 0.2: ci/plugin_wheels.sh, the plugins' pyproject and licence files, the pinned
+# toolkits, cibuildwheel's plugin build, the smoke test).
 PACKAGING_PATHS = [
     *TEST_PATHS,
     "python",
@@ -95,8 +109,27 @@ PACKAGING_PATHS = [
     "LICENSES",
     "NOTICE",
     "THIRD_PARTY_LICENSES.txt",
+    "THIRD_PARTY_LICENSES_CUDA.txt",
+    "AUTHORS.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "REUSE.toml",
+    "environment.yml",
+    "ruff.toml",
+    ".gitattributes",
+    ".gitignore",
     "ci/wheels.sh",
     "ci/wheel_check.py",
+    "ci/wheel-toolchain.yml",
+    "ci/plugin_wheels.sh",
+    "ci/plugin_pyproject.py",
+    "ci/plugin_smoke.py",
+    "ci/without_cuda_driver.sh",
+    "ci/cuda_toolkit.py",
+    "ci/cuda_toolkits.toml",
+    "ci/cibw_plugin.sh",
+    "ci/cibw_plugin_repair.sh",
+    "ci/cibuildwheel-plugin.toml",
     ".github/workflows/release.yml",
     ".github/workflows/wheels.yml",
 ]
@@ -109,6 +142,8 @@ CODE_PATHS = {
     "packaging": PACKAGING_PATHS,
     "repo": REPO_PATHS,
 }
+# The scopes from the narrowest to the widest: a record of a wider scope covers a narrower one.
+SCOPE_ORDER = ["library", "tests", "packaging", "repo"]
 SCOPE_HELP = {
     "library": "a build of the library and the tools (the gates, the replays, mutate.py)",
     "tests": "a test suite of the C++ tests (the sanitizer presets, ctest -L mutation)",
@@ -124,6 +159,12 @@ FIXTURES = REPO / "parity" / "fixtures" / "fixtures.toml"
 # read them) when equivalence.json shows, for both commits built in the same place with the same
 # VERSION, that the compat tools are byte-identical and libdyng differs only inside `functions`,
 # with every section and every symbol at the same address (`certify.py equivalence`).
+# Every algorithm's manifest (mosp from 0.2, the tutorial algorithms too; not the `_template`).
+ALGORITHM_MANIFESTS = sorted(
+    p.parent.name
+    for p in (REPO / "cpp" / "src" / "algorithms").glob("*/manifest.toml")
+    if not p.parent.name.startswith("_")
+)
 METADATA_PATHS = {
     "cpp/src/core/registry_table.inc": {
         "what": "the algorithm registry table generated from the manifests by scripts/regen.py "
@@ -136,7 +177,7 @@ METADATA_PATHS = {
             "generates the registry table from it; no build reads it",
             "functions": [],
         }
-        for name in ("sssp", "cycle_count")
+        for name in ALGORITHM_MANIFESTS
     },
 }
 # What `equivalence` builds and compares: the measured programs and the library they load.
@@ -168,6 +209,43 @@ REQUIRED_REPLAYS = {
     "cycle_count_cuda": ["cuda"],
     "mosp_scale": ["sequential", "openmp", "cuda"],
 }
+# The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
+# series on which its algorithm's gates became part of the release (PLAN 8.6, Appendix F): sssp and
+# cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
+# certificate of a version that does not parse as <major>.<minor> needs every suite. Each summary
+# must also hold every gated metric of its suite (`missing_gates`): a reading of every gated
+# region on every backend the suite gates it on.
+REQUIRED_SUITES = {
+    "ipdps25_dynamosp_sosp": {"algorithm": "sssp", "since": (0, 1)},
+    "ieee_tc_dyntrucy": {"algorithm": "cycle_count", "since": (0, 1)},
+    "ipdps25_dynamosp_mosp": {"algorithm": "mosp", "since": (0, 2)},
+}
+# The release checks a certificate needs (checks.json), each from the release series on which it
+# became part of the release (docs/developer/release.md, steps 1-4), with the narrowest scope its
+# record may have (a record of a wider scope covers it), "until" the series that replaced it,
+# and the steps a gpu_local record must have passed. The golden mutations: mutation-sssp in 0.1,
+# mutation-goldens (every mutation of `parity/mutate.py list`) from 0.2, whose record is read
+# (golden_mutations()).
+REQUIRED_CHECKS = {
+    "asan": {"since": (0, 1), "scope": "tests"},
+    "tsan": {"since": (0, 1), "scope": "tests"},
+    "tsan-openmp": {"since": (0, 2), "scope": "tests"},
+    "mutation-ctests": {"since": (0, 1), "scope": "tests"},
+    "mutation-sssp": {"since": (0, 1), "until": (0, 2), "scope": "library"},
+    "mutation-goldens": {"since": (0, 2), "scope": "library"},
+    "distributions": {"since": (0, 1), "scope": "packaging"},
+    "check-parity": {"since": (0, 1), "scope": "repo"},
+    "api-check": {"since": (0, 2), "scope": "repo"},
+    "gpu_local": {
+        "since": (0, 1),
+        "scope": "repo",
+        "steps": ["memcheck", "synccheck", "racecheck"],
+    },
+}
+RELEASE_SERIES = re.compile(r"^v?(\d+)\.(\d+)(?:[.\-+a-z]|$)", re.I)
+# A region of a summary named after its metric: "sosp_update obj1" (per objective),
+# "update[resident]", "device_memory[original]" (cycle_count's scopes).
+REGION_SUFFIX = re.compile(r"(?: obj\d+|\[[^\]]*\])$")
 # "100% tests passed out of 595" (CMake 4) or "95% tests passed, 1 tests failed out of 20".
 CTEST = re.compile(r"(\d+)% tests passed(?:, (\d+) tests? failed)? out of (\d+)")
 # One test of ctest's progress output: "  3/595 Test   #1: Name ......   Passed    0.09 sec"
@@ -706,6 +784,190 @@ def suite_coverage(doc: dict, where: str) -> list[str]:
     return out
 
 
+def release_series(version: str) -> tuple[int, int] | None:
+    """(major, minor) of a version ("0.2.0rc1" -> (0, 2)); None if it does not parse."""
+    m = RELEASE_SERIES.match(version or "")
+    return (int(m[1]), int(m[2])) if m else None
+
+
+def required_suites(version: str) -> dict[str, dict]:
+    """The suites of REQUIRED_SUITES a certificate of `version` needs (all, for an unparsable
+    version)."""
+    series = release_series(version)
+    return {
+        name: spec
+        for name, spec in REQUIRED_SUITES.items()
+        if series is None or series >= spec["since"]
+    }
+
+
+def required_checks(version: str) -> dict[str, dict]:
+    """The checks of REQUIRED_CHECKS a certificate of `version` needs (for an unparsable version,
+    those of the newest series)."""
+    series = release_series(version)
+    newest = max(spec["since"] for spec in REQUIRED_CHECKS.values())
+    at = series or newest
+    return {
+        name: spec
+        for name, spec in REQUIRED_CHECKS.items()
+        if at >= spec["since"] and ("until" not in spec or at < spec["until"])
+    }
+
+
+def sdist_members() -> list[str]:
+    """The tracked files the sdist ships: every tracked file but those pyproject.toml's
+    [tool.scikit-build] sdist.exclude names (gitignore-style: "dir/" a directory, a pattern
+    with an inner slash anchored at the root), plus sdist.include."""
+    sk = tomllib.loads((REPO / "pyproject.toml").read_text())["tool"]["scikit-build"]
+    sdist = sk.get("sdist", {})
+    excludes = sdist.get("exclude", [])
+    includes = set(sdist.get("include", []))
+
+    def excluded(path: str) -> bool:
+        parts = path.split("/")
+        for pattern in excludes:
+            directory = pattern.endswith("/")
+            pat = pattern.rstrip("/")
+            if "/" in pat:  # anchored at the root
+                if path == pat or path.startswith(pat + "/"):
+                    return True
+            elif directory:
+                if any(fnmatchcase(part, pat) for part in parts[:-1]):
+                    return True
+            elif any(fnmatchcase(part, pat) for part in parts):
+                return True
+        return False
+
+    files = [f for f in git("ls-files", "-z").split("\0") if f]
+    return sorted(f for f in files if f in includes or not excluded(f))
+
+
+def in_paths(path: str, paths: list[str]) -> bool:
+    """True if `path` falls under one of `paths` (files or directories, as git pathspecs)."""
+    return any(path == p or path.startswith(p.rstrip("/") + "/") or p == "." for p in paths)
+
+
+def missing_gates(suite_file: Path, gate_table: list[dict]) -> list[str]:
+    """The gated metrics of a suite file (metric x backend, gate other than "none") that no gated
+    row of a summary's gate table reads: "<metric> (<backend>)"."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import bench_suite
+
+    suite = bench_suite.load_suite(suite_file)
+    read = {(row.get("backend"), REGION_SUFFIX.sub("", row["region"])) for row in gate_table}
+    out = []
+    for name, metric in (suite.get("metrics") or {}).items():
+        for backend in suite.get("backends") or {}:
+            if backend not in metric or bench_suite.metric_gate(metric, backend) == "none":
+                continue
+            if (backend, name) not in read:
+                out.append(f"{name} ({backend})")
+    return out
+
+
+def record_region(record: dict | None, region: dict) -> dict | None:
+    """The medians of `region` (a summary row) in the compacted harness record it came from:
+    {"original": ..., "port": ...} in ms (a timed region) or MiB (device memory); None if the
+    record does not hold it."""
+    if record is None:
+        return None
+    by_case = record.get("results") or {}
+    case = region["case"]
+    key = case if case in by_case else case.split("/", 1)[-1]
+    result = by_case.get(key)
+    if not isinstance(result, dict):
+        return None
+    if region.get("gate_kind") == "memory":
+        side = "port" + region["region"][len("device_memory") :]
+        original = (result.get("original") or {}).get("peak_live_mib")
+        port = (result.get(side) or {}).get("peak_live_mib")
+        return None if original is None or port is None else {"original": original, "port": port}
+    for reg in result.get("regions", []) or []:
+        if reg.get("region") == region["region"]:
+            return {"original": reg.get("original_ms"), "port": reg.get("port_ms")}
+    return None
+
+
+def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> dict[int, dict]:
+    """Recomputes every gated row of a summary instead of trusting its flags: the medians must be
+    those of the compacted record next to it, the ratio port / original, the gate the suite
+    file's tolerance for the region (bench_suite.expected_gate: the short-region compute gate
+    below short_region_ms), within_gate ratio <= gate; and the summary's verdict must agree with
+    the rows. Returns {id(region): the recomputed ratio, gate and within_gate}."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import bench_suite
+
+    rel = doc.get("suite_file")
+    if rel and (REPO / rel).is_file():
+        tol = bench_suite.load_suite(REPO / rel)["tolerance"]
+    else:
+        problems.append(f"{name}: its suite file {rel} is not in the repository")
+        tol = doc.get("tolerance") or {}
+    out: dict[int, dict] = {}
+    exceeded = 0
+    gated = 0
+    for reading in doc.get("readings", []):
+        rec = reading.get("record")
+        record = None
+        if rec and (results / rec).is_file():
+            record = json.loads((results / rec).read_text())
+        for region in reading.get("regions", []):
+            if "gate" not in region:
+                continue
+            where = f"{name}: {reading.get('reading')} {region['case']} {region['region']}"
+            kind = region.get("gate_kind")
+            unit = "mib" if kind == "memory" else "ms"
+            original, port = region.get(f"original_{unit}"), region.get(f"port_{unit}")
+            if not original or port is None:
+                problems.append(f"{where}: no medians to recompute the ratio from")
+                out[id(region)] = {"ratio": None, "gate": region.get("gate"), "within_gate": False}
+                continue
+            source = record_region(record, region)
+            if source is None:
+                problems.append(f"{where}: not in its record {rec}")
+            elif source != {"original": original, "port": port}:
+                problems.append(
+                    f"{where}: medians {original} / {port} differ from its record's "
+                    f"{source['original']} / {source['port']}"
+                )
+            ratio = port / original
+            if not isinstance(region.get("ratio"), int | float) or abs(
+                region["ratio"] - ratio
+            ) > 1e-9 * max(1.0, ratio):
+                problems.append(f"{where}: ratio {region.get('ratio')} is not {port} / {original}")
+            if kind == "memory":
+                gate = tol.get("memory")
+            elif kind in ("compute", "end_to_end"):
+                gate = bench_suite.expected_gate(tol, kind, original)
+            else:
+                gate = None
+            if gate is None or abs(region["gate"] - gate) > 1e-9:
+                problems.append(
+                    f"{where}: gate {region['gate']}, the suite's tolerance says {gate}"
+                )
+                gate = gate if gate is not None else region["gate"]
+            within = ratio <= gate
+            if bool(region.get("within_gate")) != within:
+                problems.append(
+                    f"{where}: within_gate {region.get('within_gate')} but {ratio:.4f} vs {gate}"
+                )
+            if reading.get("gated"):
+                gated += 1
+                exceeded += not within
+            out[id(region)] = {"ratio": ratio, "gate": gate, "within_gate": within}
+    verdict = doc.get("verdict") or {}
+    if verdict.get("gated_regions") != gated or verdict.get("within_gate") != gated - exceeded:
+        problems.append(
+            f"{name}: the verdict counts {verdict.get('within_gate')} / "
+            f"{verdict.get('gated_regions')} within the gate, the rows {gated - exceeded} / {gated}"
+        )
+    if verdict.get("passed") and exceeded:
+        problems.append(
+            f"{name}: the verdict says passed with {exceeded} gated rows above the gate"
+        )
+    return out
+
+
 def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
     suites = []
     for path in sorted(results.glob("*.json")):
@@ -726,6 +988,9 @@ def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
             continue  # a harness record (the summaries name them)
         verdict = doc["verdict"]
         ok = bool(verdict.get("passed"))
+        before = len(problems)
+        recomputed = recheck_gates(doc, path.name, results, problems)
+        ok = ok and len(problems) == before
         for problem in suite_coverage(doc, path.name):
             problems.append(problem)
             ok = False
@@ -778,10 +1043,21 @@ def performance(results: Path, head: str, problems: list[str]) -> list[dict]:
                 ):
                     if key in region:
                         row[key] = region[key]
+                if id(region) in recomputed:  # the certificate states what it recomputed
+                    row |= recomputed[id(region)]
                 if reading.get("gated") and "gate" in region:
                     gates.append(row)
                 elif "gate" in region:
                     recorded.append(row)
+        rel = doc.get("suite_file")
+        if rel and (REPO / rel).is_file():
+            missing = missing_gates(REPO / rel, gates)
+            if missing:
+                problems.append(
+                    f"{path.name}: no gated reading of {', '.join(missing)} (every gated metric "
+                    "of the suite must be read)"
+                )
+                ok = False
         suites.append(
             {
                 "suite": doc["suite"],
@@ -985,12 +1261,71 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 0 if passed else 1
 
 
-def checks(results: Path, head: str, problems: list[str]) -> list[dict]:
+def golden_mutations(record_path: Path, head: str, results: Path) -> list[str]:
+    """What is wrong with a golden-mutation record (parity/mutate.py run --json): every mutation
+    of `parity/mutate.py list` must be in it and detected, the control must have passed, the
+    record's commit must have the release's library sources, and every replay must have used
+    a golden manifest of parity/goldens.toml."""
+    if not record_path.is_file():
+        return [f"its record {record_path.name} is not next to checks.json"]
+    sys.path.insert(0, str(REPO / "parity"))
+    import mutate
+
+    doc = json.loads(record_path.read_text())
+    out = []
+    rows = {r.get("name"): r for r in doc.get("results", [])}
+    control = rows.pop("control", None)
+    if not control or control.get("verdict") != "passed":
+        out.append("the control did not pass")
+    for m in mutate.MUTATIONS:
+        got = rows.get(m["name"])
+        if got is None:
+            out.append(f"mutation {m['name']} is missing")
+        elif got.get("detected") is not True or got.get("verdict") != "detected":
+            out.append(f"mutation {m['name']}: {got.get('verdict')}")
+    known = {m["name"] for m in mutate.MUTATIONS}
+    out += [f"mutation {n} is not in parity/mutate.py" for n in sorted(set(rows) - known)]
+    if doc.get("passed") is not True:
+        out.append("the record says it did not pass")
+    if same_code(doc.get("commit", ""), head, "library", results) is not True:
+        out.append(f"its commit {doc.get('commit')} does not have the release's library sources")
+    manifests = {
+        spec["manifest_sha256"]
+        for spec in tomllib.loads((REPO / "parity" / "goldens.toml").read_text())["sets"].values()
+        if "manifest_sha256" in spec
+    }
+    replays = [*(control or {}).get("replays", []), *rows.values()]
+    for r in replays:
+        digest = (r.get("goldens") or {}).get("manifest_sha256")
+        if digest not in manifests:
+            out.append(
+                f"{r.get('name', 'control')} {r.get('suite')} {r.get('config')}: golden manifest "
+                f"{digest} is not one of parity/goldens.toml"
+            )
+    return out
+
+
+def checks(results: Path, head: str, problems: list[str], version: str = "") -> list[dict]:
     path = results / "checks.json"
     if not path.is_file():
         problems.append("checks.json is missing (sanitizers, mutation checks: certify.py check)")
         return []
     out = json.loads(path.read_text())["checks"]
+    by_name = {c["name"]: c for c in out}
+    for name, spec in required_checks(version).items():
+        c = by_name.get(name)
+        since = ".".join(map(str, spec["since"]))
+        if c is None:
+            problems.append(f"check {name} is missing (required from {since} on)")
+            continue
+        scope = c.get("scope", "tests")
+        if scope not in SCOPE_ORDER or SCOPE_ORDER.index(scope) < SCOPE_ORDER.index(spec["scope"]):
+            problems.append(
+                f"check {name}: recorded with scope {scope}, it needs at least {spec['scope']}"
+            )
+        for step in spec.get("steps", []):
+            if (c.get("steps") or {}).get(step) != "passed":
+                problems.append(f"check {name}: the step {step} did not pass or was not run")
     for c in out:
         code = same_code(c.get("commit", ""), head, c.get("scope", "tests"), results)
         c["release_code"] = code is True
@@ -1001,6 +1336,9 @@ def checks(results: Path, head: str, problems: list[str]) -> list[dict]:
                 f"check {c['name']}: commit {c.get('commit')} does not have the release's "
                 f"{c.get('scope', 'tests')} sources"
             )
+        if c["name"] == "mutation-goldens":
+            for problem in golden_mutations(results / c.get("record", ""), head, results):
+                problems.append(f"check mutation-goldens: {problem}")
     return out
 
 
@@ -1358,18 +1696,30 @@ def cmd_write(args: argparse.Namespace) -> int:
     perf = performance(results, head, problems)
     if not perf:
         problems.append("no performance-suite summary (parity/bench_suite.py run)")
-    algorithms = {s["algorithm"] for s in perf}
-    for algo in ("sssp", "cycle_count"):
-        if algo not in algorithms:
-            problems.append(f"no performance suite of {algo}")
-    checklist = checks(results, head, problems)
+    present = {s["suite"]: s for s in perf}
+    for name, spec in required_suites(args.version).items():
+        if name not in present:
+            since = ".".join(map(str, spec["since"]))
+            problems.append(
+                f"no performance suite of {spec['algorithm']}: the summary {name}.json of "
+                f"benchmarks/paper/{name}.yaml is required from {since} on"
+            )
+        elif present[name]["algorithm"] != spec["algorithm"]:
+            problems.append(f"{name}.json: algorithm {present[name]['algorithm']!r}")
+    checklist = checks(results, head, problems, args.version)
     fixtures = committed_fixtures(checklist, problems)
     env = environment()
     env["driver"] = measured_driver(perf, env["driver"], problems)
+    # Each measured commit once, as its full SHA (records name commits short or full).
     measured = sorted(
-        {r["port_commit"] for g in goldens for r in g["replays"]}
-        | {c for s in perf for c in (s["port_commits"] or [])}
-        | {c["commit"] for c in checklist}
+        {
+            (resolve(c) + ("+dirty" if c.endswith("+dirty") else "")) if resolve(c) else c
+            for c in (
+                {r["port_commit"] for g in goldens for r in g["replays"]}
+                | {c for s in perf for c in (s["port_commits"] or [])}
+                | {c["commit"] for c in checklist}
+            )
+        }
     )
     version_file = (REPO / "VERSION").read_text().strip()
     equivalences = []
@@ -1410,6 +1760,10 @@ def cmd_write(args: argparse.Namespace) -> int:
         "originals": originals(),
         "golden_suites": goldens,
         "committed_fixtures": fixtures,
+        "required_suites": {
+            name: {"algorithm": spec["algorithm"], "since": ".".join(map(str, spec["since"]))}
+            for name, spec in required_suites(args.version).items()
+        },
         "performance": perf,
         "checks": checklist,
     }

@@ -111,8 +111,12 @@ The public declarations are frozen in a committed listing,
 `docs` job of CI and the local gate (`ci/check.sh`, step `docs`) fail on any change of a public
 signature, default value, enumerator, field or entity that the baseline does not contain. The
 listing ignores comments and line numbers, so documentation edits never need it. Headers are
-marked `frozen` (the reviewed 0.1 API) or `tracked` (`io/*`, `generators/*`, `testing/*`: checked
-the same way, reviewed and frozen with the CLI and the Python layer in M5).
+marked `frozen` (the reviewed 0.1 core API, and the header of every algorithm whose manifest says
+maturity `stable`: `sssp` and `cycle_count` since 0.1, `mosp` since 0.2,
+{doc}`../adr/0035-mosp-api-review-and-freeze-0-2`) or `tracked` (`io/*`, `generators/*`,
+`testing/*` and the algorithms at another maturity, such as the tutorial algorithms: checked the
+same way, not frozen). The label of an algorithm's header follows its manifest
+(`ci/api_snapshot.py`), so making an algorithm stable freezes its header.
 
 To change the API on purpose:
 
@@ -131,5 +135,11 @@ To change the API on purpose:
    cannot be chained with `&&` to `ci/api_snapshot.py --update`.)
 
 A pull request whose baseline diff has no `api-change` label and no CHANGELOG entry is not
-merged. The `api-check.yml` workflow of M5 adds the label check and `griffe` for the Python API;
-until then the reviewers check the label by hand.
+merged. `api-check.yml` enforces it for the frozen API: `ci/api_check.sh` compares the frozen
+sections of the committed baseline with the base branch's (`ci/api_snapshot.py --against`) and
+the Python API with `griffe`, and fails on a breaking change of either (a removed or changed
+declaration of a frozen header, a frozen header removed or no longer frozen; for Python a
+removed name or parameter, a changed default) unless the pull request has the `api-change` label
+and `CHANGELOG.md` changed. Lines only added to a frozen section and every change of a tracked
+section are reported, not failed; the reviewers read them in the baseline diff
+({doc}`../adr/0035-mosp-api-review-and-freeze-0-2`, amendment A2).

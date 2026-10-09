@@ -77,9 +77,13 @@ Install a build (`cmake --install build/cpu-only --prefix <prefix>`) and find it
 project:
 
 ```cmake
-find_package(dyng 0.1 REQUIRED)
+find_package(dyng 0.2 REQUIRED)
 target_link_libraries(my_app PRIVATE dyng::dyng)
 ```
+
+Before 1.0 a minor release may break the API, so the package accepts only a request of its own
+minor version: `find_package(dyng 0.2)` finds 0.2.x (the release candidates included) and refuses
+0.1 and 0.3.
 
 Or add the source tree with `add_subdirectory()`; the target name is the same. Everything is in
 namespace `dyng`, and `#include <dyng/dyng.hpp>` includes the whole public API
@@ -92,8 +96,15 @@ manylinux_2_28; OpenMP's runtime is bundled). It contains the sequential and Ope
 the `dyng` command line ({doc}`../api/cli`); NumPy is its only dependency.
 
 ```bash
-pip install dyng                   # from PyPI
+pip install dyng                   # from PyPI (0.1.0)
 python -c "import dyng; dyng.show_config()"
+```
+
+The release candidate of 0.2.0, **0.2.0rc1**, is on TestPyPI only (its dependency NumPy comes
+from PyPI):
+
+```bash
+pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.2.0rc1
 ```
 
 The same package can be built from a clone (it compiles the C++ core, so it needs CMake >=
@@ -129,6 +140,17 @@ version:
 pip install "dyng[cu13]"           # NVIDIA driver 580 or newer (CUDA 13.x)
 pip install "dyng[cu12]"           # NVIDIA driver 525 or newer (CUDA 12.x)
 python -c "import dyng; dyng.show_config()"
+```
+
+Until 0.2.0 is on PyPI, the plugins are in the release candidate 0.2.0rc1 on TestPyPI only. The
+names `dyng-cu13` and `dyng-cu12` are not on PyPI before 0.2.0, so do not let pip look for the
+plugin there (an `--extra-index-url https://pypi.org/simple/` would): install NumPy from PyPI
+first, then `dyng` and the plugin from TestPyPI alone:
+
+```bash
+pip install "numpy>=1.26"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"
+pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu12==0.2.0rc1"   # or CUDA 12
 ```
 
 A plugin contains the CUDA runtime (no CUDA toolkit is needed), code for the GPU architectures

@@ -646,6 +646,9 @@ void result<vertex_t, distance_t>::set_options(const options& opt) {
   DYNG_EXPECTS(opt.num_objectives == st.opt.num_objectives,
                "mosp::result::set_options: num_objectives is fixed at compute() (",
                st.opt.num_objectives, "); got ", opt.num_objectives);
+  // Strong and allocation-free after the checks (the mosp API review, ADR 0035): the K sssp
+  // results accept their options (delta >= 0 was checked, objective k is column k), and the
+  // preferences are equal, so the copy assignment reuses their storage.
   for (int k = 0; k < st.num_objectives; ++k) {
     st.objectives[static_cast<std::size_t>(k)].set_options(detail::objective_options(opt, k));
   }
