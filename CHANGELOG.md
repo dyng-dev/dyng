@@ -8,24 +8,22 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
-## [0.2.0rc1] - 2026-10-09
+## [0.2.0] - 2026-10-14
 
 ### Summary
 
-The release candidate of dynG 0.2.0: a third stable algorithm, the CUDA backend from Python, and
-the hardening planned after 0.1.0. Release candidates are published on TestPyPI only:
+dynG 0.2.0: a third stable algorithm, the CUDA backend from Python, and the hardening planned
+after 0.1.0. Install it from PyPI (Python >= 3.12, Linux x86-64):
 
 ```bash
-pip install "numpy>=1.26"
-pip install -i https://test.pypi.org/simple/ --no-deps "dyng==0.2.0rc1" "dyng-cu13==0.2.0rc1"
+pip install dyng            # the sequential and OpenMP backends
+pip install "dyng[cu13]"    # with the CUDA backend, for an NVIDIA driver of CUDA 13 ("dyng[cu12]": CUDA 12)
 ```
 
-(`dyng-cu12==0.2.0rc1` for an NVIDIA driver of CUDA 12; `pip install -i
-https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ dyng==0.2.0rc1` for the
-CPU package alone; the plugins come from TestPyPI alone, because their names are not on PyPI
-before 0.2.0); 0.2.0 follows on PyPI, with `pip install "dyng[cu13]"`. Nothing of 0.1.0 changes incompatibly: `sssp` and `cycle_count`
-keep their API. The entries below the summary are the detailed record of milestones M7, M6a and
-M6b and of the release preparation R020.
+0.2.0 is the release candidate 0.2.0rc1 (tag `v0.2.0rc1`, published on TestPyPI only and
+smoke-tested from there) with the final-release changes below and no change to the library. Nothing of 0.1.0 changes incompatibly: `sssp` and `cycle_count` keep their API.
+The entries below the summary are the detailed record of milestones M7, M6a and M6b and of the
+release preparation (R020, R021).
 
 - **`mosp` is stable** (SemVer applies from 0.2.0): dynamic multi-objective shortest paths, the
   MOSP update of DynaMOSP (the K single-objective trees, the combined graph of the preferences,
@@ -52,7 +50,7 @@ M6b and of the release preparation R020.
   the recorded bug mutations of sssp, cycle_count and mosp checked against their golden suites,
   long Hypothesis runs, and ASan + UBSan and TSan (with OpenMP and Archer) on every pull request,
   now required checks.
-- **The release certificate** `benchmarks/results/0.2.0rc1/` (PLAN 8.3 and 8.6): golden parity of
+- **The release certificate** `benchmarks/results/0.2.0/` (PLAN 8.3 and 8.6): golden parity of
   sssp, cycle_count and mosp on every backend, the release performance gates of all three against
   the unpatched originals (mosp's for the first time, the new suite
   `benchmarks/paper/ipdps25_dynamosp_mosp.yaml`; CUDA at locked clocks, ADRs 0018 and 0021), the
@@ -62,6 +60,32 @@ Known limitations of 0.2.0: Linux x86-64 only (aarch64 wheels later); the plugin
 compute capability 7.5 or newer; `cycle_count` counts simple cycles only (no time-window or
 temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` come with 0.3.0,
 `label_propagation` and `hyper_sssp` with 0.4.0; no DOI (Zenodo is not connected).
+
+### Final release (R021)
+
+- Changed: `VERSION` 0.2.0, `CITATION.cff` `version: 0.2.0` and `date-released: 2026-10-14`
+  (the planned tag day); this section, the release candidate's `[0.2.0rc1]`, renamed `[0.2.0] -
+  2026-10-14` with its link references, its summary with the install lines from PyPI.
+- Docs: the status texts of the release candidate brought to the release (README, the
+  documentation's start page, the getting-started and install pages, `SECURITY.md` with its
+  supported versions, `CONTRIBUTING.md`, `SUPPORT.md`, `docs/citing.md`, the roadmap and the
+  developer plan): `pip install dyng` and `pip install "dyng[cu13]"` / `"dyng[cu12]"` from PyPI.
+- Governance: the author's decisions of 2026-10-09 in the approvals log of `GOVERNANCE.md`: the
+  plugin names `dyng-cu12` / `dyng-cu13` stay unreserved on PyPI until 0.2.0 creates both
+  projects, without placeholder releases (the open decision R020 added is closed); and the state
+  of the trusted publishers (TestPyPI's re-created for the plugins, PyPI's checked).
+  `docs/developer/release.md` records the lesson of the release candidate's failed publish jobs
+  (a plugin's pending publisher needs the project name `dyng-cu<N>` and its own environment);
+  `docs/developer/repository_settings.md` the publishers' state.
+- Added: `benchmarks/results/0.2.0/`, the certificate of the release, carried over from 0.2.0rc1
+  (`docs/developer/release.md`, step 9): the library did not change since the measured commits,
+  so the gates, the golden replays and the golden mutations stand; the distributions (as
+  `release.yml` builds them for `v0.2.0`), `ci/check.sh --parity`, `ci/api_check.sh`,
+  `ci/gpu_local.sh` and the C++ test suites (the sanitizer presets, the mutation CTests;
+  `README.md` changed) were run again on the final tree, and the hosted `sanitizers.yml` jobs
+  of the release candidate's pull request are recorded. The smoke test of 0.2.0rc1 from TestPyPI
+  (the CPU package and both CUDA plugins, on GPU 1) is recorded there and in
+  `docs/developer/retrospectives/R021.md`.
 
 ### R020: the release changes (0.2, branch `release-0.2.0`)
 
@@ -1470,7 +1494,7 @@ approximate TruCy mode); Linux x86-64 only. `dyng` 0.0.1 on PyPI was only the na
   (`tools/name_reservation/`), published to PyPI and TestPyPI by `release.yml` through Trusted
   Publishing from tag `v0.0.1` (commit `15a6051`). It contains no library code.
 
-[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.2.0rc1...main
-[0.2.0rc1]: https://github.com/dyng-dev/dyng/compare/v0.1.0...v0.2.0rc1
+[Unreleased]: https://github.com/dyng-dev/dyng/compare/v0.2.0...main
+[0.2.0]: https://github.com/dyng-dev/dyng/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/dyng-dev/dyng/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/dyng-dev/dyng/tree/v0.0.1
