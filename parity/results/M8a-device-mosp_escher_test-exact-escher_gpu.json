@@ -4,13 +4,13 @@
   "construct_without_row_counts": 31
  },
  "reference": "MOSP_ESCHER",
- "manifest_sha256": "fe2d29edce2a48ec7eb0f2067287a962838323b4712cb84443457761b6c27b90",
+ "manifest_sha256": "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60",
  "store": "device",
  "policy": "escher_gpu",
  "fields": "exact",
- "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
- "date": "2026-10-08T21:08:32+00:00",
- "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
+ "exe": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-13T22:54:15+00:00",
+ "head": "5e8555b5bce135ada36bcd1fbc2bc3dec0a3017b",
  "cases": [
   {
    "case": "001-test_cbst_smoke",
