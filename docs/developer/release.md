@@ -98,7 +98,20 @@ unpublished on that index, and a plugin without its `dyng` is harmless (it requi
 
 **If a publish job fails.** Re-run the failed jobs of the same `release.yml` run (**Re-run failed
 jobs**: only the failed legs run again, with the same artifact; the TestPyPI uploads skip
-the files already there); their approvals are asked again. Do not push the tag again. If a plugin
+the files already there); their approvals are asked again. Do not push the tag again.
+
+The release candidate 0.2.0rc1 showed how a plugin's first upload fails (run 37871452302,
+{doc}`repository_settings`, section 11): a project that does not exist yet is created only by a
+**pending publisher with the project name `dyng-cu<N>` and the plugin's own environment**
+(`testpypi-cu<N>` on TestPyPI, `pypi-cu<N>` on PyPI), workflow `release.yml`, repository
+`dyng-dev/dyng`. A publisher whose environment differs fails with `invalid-publisher` (no
+publisher matches the token's claims); a publisher added to the existing project `dyng` (or a
+pending one with another project name) cannot create `dyng-cu<N>` and fails with "400 Non-user
+identities cannot create new projects". Fix the publisher on the index (the author's account),
+then **Re-run failed jobs** of the same run: attempt 3 of 0.2.0rc1's run uploaded exactly the
+files the first attempt built (the builds did not run again; the hashes on TestPyPI equal the
+run's `dist` artifact, {doc}`retrospectives/R021`). Before the final release's tag, check the
+pending publishers on PyPI against the environments of `release.yml` in the same way. If a plugin
 can never be uploaded for this version (for example a file the index refuses), `dyng X.Y.Z` stays
 unpublished: fix the cause and release the next patch version. Should `dyng X.Y.Z` ever be on
 PyPI without a plugin of the same version (an upload by hand), yank it on PyPI until the plugin
@@ -277,4 +290,6 @@ and run the wheel's test subset and the README quickstart from an empty director
 The readiness list of 0.1.0, with what is done and what waits for the author, is in the M5
 retrospective ({doc}`retrospectives/M5`), the R010 retrospective ({doc}`retrospectives/R010`)
 and the R011 retrospective, the final-release record ({doc}`retrospectives/R011`), and the R012
-retrospective, the tag day ({doc}`retrospectives/R012`).
+retrospective, the tag day ({doc}`retrospectives/R012`). Those of 0.2.0 are in the R020
+retrospective, the release candidate ({doc}`retrospectives/R020`), and the R021 retrospective,
+its smoke test from TestPyPI and the final-release pull request ({doc}`retrospectives/R021`).
