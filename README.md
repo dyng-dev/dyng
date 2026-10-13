@@ -126,6 +126,7 @@ and RAFT, but it is **not affiliated** with either project.
 ```bash
 pip install dyng                         # from PyPI: 0.2.0 (Python >= 3.12, Linux x86-64)
 pip install "dyng[cu13]"                 # with the CUDA backend (NVIDIA driver of CUDA 13; "dyng[cu12]": CUDA 12)
+pip install -U "dyng[cu13]"              # upgrading from 0.1.0: without -U pip keeps 0.1.0, which has no CUDA extras
 pip install .                            # or from a clone (builds the C++ core; needs CMake >= 3.30 and a C++17 compiler)
 ```
 

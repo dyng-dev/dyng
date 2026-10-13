@@ -100,6 +100,9 @@ pip install dyng                   # from PyPI (0.2.0)
 python -c "import dyng; dyng.show_config()"
 ```
 
+An environment that has an earlier release keeps it unless pip is told to upgrade: `pip install
+-U dyng` (and `pip install -U "dyng[cu13]"` for the plugin, below).
+
 The same package can be built from a clone (it compiles the C++ core, so it needs CMake >=
 3.30 and Ninja, for example from the `dyng-dev` environment, and a C++17 compiler from the
 system):
@@ -134,6 +137,11 @@ pip install "dyng[cu13]"           # NVIDIA driver 580 or newer (CUDA 13.x)
 pip install "dyng[cu12]"           # NVIDIA driver 525 or newer (CUDA 12.x)
 python -c "import dyng; dyng.show_config()"
 ```
+
+**Upgrading from 0.1.0:** `pip install -U "dyng[cu13]"` (or `"dyng[cu12]"`). Without `-U`, pip
+treats the installed `dyng` 0.1.0 as satisfying the requirement, only warns that 0.1.0 does not
+provide the extra `cu13`, and installs neither 0.2.0 nor the plugin (0.1.0's own error message
+for `Resources.cuda()` names the line without `-U`).
 
 A plugin contains the CUDA runtime (no CUDA toolkit is needed), code for the GPU architectures
 sm_75 to sm_120 (Turing to Blackwell) and PTX for newer ones. Which one to install: `nvidia-smi`

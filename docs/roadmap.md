@@ -6,23 +6,21 @@ contributors can help. Dates are not promised; the order is. The maintainers' de
 
 ## Where we are
 
-**0.1.0 is released** (`pip install dyng`; the release checklist is {doc}`developer/release`).
-Everything listed for 0.1.0 below is done: `sssp` and `cycle_count` work on all three backends
-(sequential, OpenMP and CUDA), are byte-identical to the original MOSP-OpenMP, MOSP-CUDA and
-CycleEnumeration-GPU codes on their golden corpora, and are within the performance gates against
-the originals (ADR 0018 and ADR 0021 record how the CUDA gates are read; the parity certificate
-of the release is `benchmarks/results/0.1.0/`, carried over from the release candidate
-0.1.0rc1, which was published on TestPyPI only); the Python package, the `dyng` command line and
-the documentation are complete.
+**0.2.0 is released** (`pip install dyng`; with the CUDA backend `pip install "dyng[cu13]"` or
+`"dyng[cu12]"`, upgrading from 0.1.0 with `pip install -U`, {doc}`getting_started/install`; the
+release checklist is {doc}`developer/release`). Everything listed for 0.2.0 below is done:
+`mosp` is stable from 0.2.0 (the author's decision of 2026-10-07), byte-identical to the
+original MOSP-OpenMP and MOSP-CUDA codes and within its own release gates against them, and the
+CUDA backend comes from PyPI as the plugin wheels `dyng-cu12` and `dyng-cu13`. The parity
+certificate of the release is `benchmarks/results/0.2.0/`, carried over from the release
+candidate 0.2.0rc1, which was published on TestPyPI only. The hypergraph and `triad_count`
+follow as 0.3.0, `label_propagation` and `hyper_sssp` as 0.4.0.
 
-After 0.1.0 the releases come in smaller steps (the author's decision of 2026-10-02): the
-hardening that was planned as 0.1.x and `mosp` make **0.2.0, which is released** (`pip install
-dyng`, with the CUDA backend `pip install "dyng[cu13]"` or `"dyng[cu12]"`,
-{doc}`getting_started/install`). Everything listed for 0.2.0 below is done; `mosp` is stable
-from 0.2.0 (the author's decision of 2026-10-07), with its own release gates against the
-originals in the certificate of the release, `benchmarks/results/0.2.0/`, carried over from the
-release candidate 0.2.0rc1, which was published on TestPyPI only. The hypergraph and
-`triad_count` follow as 0.3.0, `label_propagation` and `hyper_sssp` as 0.4.0.
+Before it, **0.1.0** (2026-10-02) made `sssp` and `cycle_count` work on all three backends,
+byte-identical to the original codes on their golden corpora and within the performance gates
+against them (certificate `benchmarks/results/0.1.0/`), with the Python package, the `dyng`
+command line and the documentation. After 0.1.0 the releases come in smaller steps (the
+author's decision of 2026-10-02): the hardening planned as 0.1.x and `mosp` made 0.2.0.
 
 ## 0.1.0: the first release
 

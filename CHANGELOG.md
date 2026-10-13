@@ -20,6 +20,9 @@ pip install dyng            # the sequential and OpenMP backends
 pip install "dyng[cu13]"    # with the CUDA backend, for an NVIDIA driver of CUDA 13 ("dyng[cu12]": CUDA 12)
 ```
 
+Upgrading from 0.1.0: `pip install -U "dyng[cu13]"` (or `-U dyng`). Without `-U`, pip keeps the
+installed 0.1.0, which has no `cu12` / `cu13` extras, and only warns.
+
 0.2.0 is the release candidate 0.2.0rc1 (tag `v0.2.0rc1`, published on TestPyPI only and
 smoke-tested from there) with the final-release changes below and no change to the library. Nothing of 0.1.0 changes incompatibly: `sssp` and `cycle_count` keep their API.
 The entries below the summary are the detailed record of milestones M7, M6a and M6b and of the
@@ -70,6 +73,14 @@ temporal modes, no approximate TruCy mode); the hypergraph and `triad_count` com
   documentation's start page, the getting-started and install pages, `SECURITY.md` with its
   supported versions, `CONTRIBUTING.md`, `SUPPORT.md`, `docs/citing.md`, the roadmap and the
   developer plan): `pip install dyng` and `pip install "dyng[cu13]"` / `"dyng[cu12]"` from PyPI.
+- Docs (the review of the final-release pull request): the upgrade line `pip install -U
+  "dyng[cu13]"` for users of 0.1.0 (README, the start page, the install guide, this summary);
+  the maturity lines of `sssp`, `mosp`, `dynamic_bfs` and `triangle_delta` and the tutorial no
+  longer call 0.2.0's content unreleased; the roadmap's "Where we are" opens with 0.2.0;
+  `CONTRIBUTING.md` no longer promises micro-benchmarks for 0.1; `docs/developer/release.md`
+  step 9 names those pages and widens its grep, its local-build block reads the tag from
+  `VERSION`; the certificate's README says which of the release candidate's check records were
+  replaced.
 - Governance: the author's decisions of 2026-10-09 in the approvals log of `GOVERNANCE.md`: the
   plugin names `dyng-cu12` / `dyng-cu13` stay unreserved on PyPI until 0.2.0 creates both
   projects, without placeholder releases (the open decision R020 added is closed); and the state

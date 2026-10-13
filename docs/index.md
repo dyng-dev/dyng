@@ -41,6 +41,7 @@ release will contain.
 ```bash
 pip install dyng                       # the Python package (CPU backends), from PyPI
 pip install "dyng[cu13]"               # with the CUDA plugin (cu12 for CUDA 12 drivers)
+pip install -U "dyng[cu13]"            # upgrading from 0.1.0 (without -U pip keeps 0.1.0)
 ```
 
 or build from source (the C++ library, the CUDA backend, the development tools):

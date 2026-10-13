@@ -195,8 +195,9 @@ Changes to kernels or hot paths must not make dynG slower than the gates of the 
 algorithms stay within a stated tolerance of the original). Performance is measured on the lab
 GPU machine with the A/B/A/B runner `parity/perf_ab.py` (see [parity/README.md](parity/README.md));
 a maintainer adds the `ci:bench` label to request a comparison table on a pull request.
-Micro-benchmarks (nvbench / Google Benchmark) arrive with the 0.1 series. Please describe in the
-pull request how you measured any performance claim.
+There are no micro-benchmark suites (nvbench / Google Benchmark) yet: they are planned for a
+later release, and the release gates run the paper suites with `parity/bench_suite.py`. Please
+describe in the pull request how you measured any performance claim.
 
 ## Style
 
