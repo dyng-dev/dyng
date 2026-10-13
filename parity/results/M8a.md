@@ -239,7 +239,7 @@ from the sssp group `escher`; data zstd-compressed in `$DYNG_SCRATCH/goldens/cbs
 | `cbst_trace_escher_gpu_coauth50k` | 1 | `build/main --input <abs>/coauth.hg --batches 3 --batch-size 50000 --seed 1 --check` | digest | `H2H:rebuild`, `H2H:rows` | 888.1 MB | `7ddec4438292...` |
 | `cbst_trace_escher_gpu_syn1m` | 3 | `build/main 1000000 10 1 333333 --batches 3 --batch-size 50000 --seed s`, s = 1, 2, 3 (batch dumps) | batches | the ops' inputs (the batch records carry them) | 55.7 MB | `d73a368586dd...` |
 | `cbst_trace_escher_gpu_targeted` | 2 | `cbst_targeted small|large` through A's unchanged `CBSTOperations` | full | none | 24 KB | `6f4c9428ac5e...` |
-| `cbst_trace_mosp_escher_test` | 24 | every CBST-calling invocation of B's `make test` but `bin/main` (retrospective, deviation 1): `test_cbst_smoke`, the 9 `test_cbst_ops` scenarios, `test_dynamicgraph_roundtrip`, `test_snapshot_matches_updateCSR`, the `test_h2h_*` tests, `test_hsosp_matches_dijkstra` (300-batch churn), `test_hsosp_scale`, `hsospStress` (both), `hsospBench` (smoke, real hyperedge / vertex, cli), `test_mosp_update`, `stressTest`, `parallelStressTest` (both) | auto | none | 265.5 MB | `fe2d29edce2a...` |
+| `cbst_trace_mosp_escher_test` | 24 | every CBST-calling invocation of B's `make test` but `bin/main` (retrospective, deviation 1): `test_cbst_smoke`, the 9 `test_cbst_ops` scenarios, `test_dynamicgraph_roundtrip`, `test_snapshot_matches_updateCSR`, the `test_h2h_*` tests, `test_hsosp_matches_dijkstra` (300-batch churn), `test_hsosp_scale`, `hsospStress` (both), `hsospBench` (smoke, real hyperedge / vertex, cli), `test_mosp_update`, `stressTest`, `parallelStressTest` (both) | auto | none | 265.5 MB | `ed6400698e3d...` (re-pinned, section 15; was `fe2d29edce2a...`) |
 | `cbst_trace_mosp_escher_dblp50k_hyperedge` | 1 | `hsospBench --hg <abs>/coauth.hg --kind hyperedge --batch 50000 --batches 3 --verify none --out hyperedge_50000_r1.csv` (B's `results/README.md`; seed 20260725 and `--maxcard 25` are the defaults of `scripts/run_experiments.sh` and `hsospBench`) | digest | none | 2,753.8 MB | `3b26a7697d18...` |
 | `cbst_trace_mosp_escher_dblp50k_vertex` | 1 | the same with `--kind vertex` | digest | none | 2,008.3 MB | `1068e319acbc...` |
 | `cbst_trace_mosp_escher_targeted` | 2 | `cbst_targeted small|large` through B's unchanged `CBSTOperations` | full | none | 25 KB | `280d185aaa4f...` |
@@ -1016,3 +1016,30 @@ as A per op, all stream-ordered (`cudaMallocFromPoolAsync`), none of A's 10 sync
 | `ci/check.sh` (every step: cpu-only and dev builds with `ctest -L cpu`, format, tidy, reuse, provenance, harness, docs, regen, python, scaffold, pre-commit) | the full run failed `harness` (the replay records not yet regenerated, `b912ff5`) and `docs` (the API baseline of `compaction_headroom`, `f0eb0ca`); both passed again after those commits, every other step passed |
 | `ci/gpu_local.sh` with `DYNG_GPU_SKIP="gpu cpu parity memcheck synccheck racecheck plugin tidy"` (the build and the changed `cbst` step; dev-cuda, GPU 1, at `299aa97`; about 1.5 hours) | all steps passed: the cbst sanitizers, the device replays of the small sets under the originals' presets and under `dyng_default()` with their certificate records written, MOSP_ESCHER's `bin/main` recorded and replayed once (108 ops this time, 0 mismatches), the compact-after-every-op lockstep (14,007 ops) and the policy lockstep (14,319 / 15,237 / 15,385 ops) |
 | the six originals' HEAD and `git status --porcelain` before and after the fixes' runs | unchanged; MOSP_ESCHER keeps exactly its pre-existing uncommitted files of step 1 |
+
+## 15. The acceptance fix (2026-10-13)
+
+The acceptance verifier failed criterion 4 at `953fdbf`: the manifest of
+`cbst_trace_mosp_escher_test` was reproducible only by chance. Its traces are deterministic, but
+the set's `info.json` (hashed into `MANIFEST.sha256`) recorded the op counts of the excluded
+`bin/main`, whose graph comes from `std::random_device` (108 or 111 ops; the verifier saw 111 in 2
+of 6 runs, and a third export with 111 gave manifest `b5a4bfa2...` instead of the pinned
+`fe2d29ed...`).
+
+**The fix** (`c210ed3`): the `excluded` record of `info.json` holds the invocation and the reason
+only (`cbst_trace_goldens.py`, `excluded_entry`); a test shows that two runs with different op
+counts give the same record (`test_excluded_invocations_record_nothing_run_dependent`). One run of
+`bin/main` is still recorded and replayed by `cbst_trace_goldens.py once main` (`ci/gpu_local.sh`).
+ADR 0036 "Later changes" and retrospective deviation 1 say so.
+
+**The re-pin** (`5e8555b`; shared perf lock, niced, GPU 1; logs under
+`$DYNG_SCRATCH/runs/m8a-fix-mosp-test-export.log` and `$DYNG_SCRATCH/m8a/accept-fix`):
+
+| check | result |
+|---|---|
+| `parity/export_goldens.py cbst_trace cbst_trace_mosp_escher_test --twice` (the scratch reference, then a fresh `git archive` copy) | identical manifests, `ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60`; 24 cases, 58 files, 265,455,682 bytes; all 24 case digests equal to the earlier pins (only `info.json` changed) |
+| three more exports from a third scratch (`build_reference.sh --fresh`, then `export_goldens.py ... --no-toml`), each followed by one traced `bin/main` (`cbst_trace_goldens.py once main`) | all three manifests `ed6400698e3d...`, while `bin/main` recorded 108, 111 and 111 ops (each replayed under `mosp_escher()`, 0 mismatches): the manifest no longer depends on the random graph |
+| the set's replay records, re-run against the new manifest | host model 14,104 ops, 0 mismatches; device under `mosp_escher()` 14,104 ops, 0 mismatches, 31 `construct_without_row_counts`; under `escher_gpu()` 39 trees diverge as the model; under `dyng_default()` 0 mismatches, 5 documented (`96193bf`; every result equal to the earlier record) |
+| `parity/cbst_merge_steps.sh be449b6` (the staging preset's record) | `ok`, the row equal to the table's: `mosp_escher_test` (`mosp_escher_staged`) 10,620 ops compared, 18 trees diverge where the host model does |
+| `pytest parity/tests` | 114 passed |
+| the originals' HEAD and `git status --porcelain=v1 --untracked-files=all` before and after | unchanged (MOSP_ESCHER keeps its pre-existing uncommitted files) |

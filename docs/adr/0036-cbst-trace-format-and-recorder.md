@@ -158,5 +158,15 @@ The recorder is written for reuse: M9's golden batches (synthetic 100K / 1M / 2M
 - Traces with tracing on are slower (every op reads the tree back and runs the original's
   integrity check), never different: tracing changes timing only.
 - MOSP_ESCHER's demo `bin/main` cannot be part of a reproducible set; it is recorded and listed
-  as excluded with the reason (its CBST calls are those of `DynamicGraph`, which the seeded
+  as excluded with the reason and nothing measured from its run, so that the set's `info.json`
+  and manifest stay reproducible (its CBST calls are those of `DynamicGraph`, which the seeded
   `stressTest`, `parallelStressTest` and `test_dynamicgraph_roundtrip` make too).
+
+## Later changes
+
+- M8a acceptance (2026-10-13): the `excluded` record of `bin/main` in the `info.json` of
+  `cbst_trace_mosp_escher_test` carried the op counts of that run (108 or 111 ops, by the graph
+  `std::random_device` drew), so the set's manifest was reproducible only by chance. The record
+  now holds the invocation and the reason only (`cbst_trace_goldens.py`, `excluded_entry`,
+  tested); the set was exported again twice and re-pinned. `cbst_trace_goldens.py once main`
+  still records and replays one run of `bin/main`.

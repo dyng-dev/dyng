@@ -47,7 +47,8 @@ not gated, in M8 (it is gated in M9). (2) O16: the hypergraph `id_reuse` default
    `std::random_device` (`mosp/src/generateGraph.cu:89-90`), so two runs of the unpatched copy
    print different numbers and record different traces; no set that contains it can be exported
    twice with identical manifests. It is recorded in every export and listed in the set's
-   `info.json` under `excluded` with its op counts; its CBST calls are `DynamicGraph`'s, which
+   `info.json` under `excluded` by its invocation and the reason (not its op counts, which vary
+   from run to run: see "The acceptance fix"); its CBST calls are `DynamicGraph`'s, which
    the seeded `stressTest`, `parallelStressTest` and `test_dynamicgraph_roundtrip` make too (all
    in the set). The twin output check compares it on its exit status and verdict lines.
 2. **Section names.** The sets are named `cbst_trace/<set>` in the milestone text and live in
@@ -638,6 +639,26 @@ the affected tests, replays and measurements re-run after it (`parity/results/M8
 ### Open items
 
 - The hosted CI has not run on this branch (nothing is pushed); the orchestrator opens the PR.
+
+## The acceptance fix (2026-10-13)
+
+The independent acceptance verifier passed 17 of the 18 criteria at `953fdbf` and failed
+criterion 4: the manifest of `cbst_trace_mosp_escher_test` was not reproducible. The set's
+`info.json` listed the op counts of the excluded `bin/main` (deviation 1), and those counts follow
+the graph that `std::random_device` draws (108 or 111 ops), so a re-export matched the pin only
+when `bin/main` happened to draw a graph of the same size.
+
+- **Fix** (`c210ed3`): the `excluded` record holds the invocation and the reason only, tested
+  with two runs of different op counts. The set was exported again twice and re-pinned
+  (`5e8555b`, manifest `ed6400698e3d...`; all 24 case digests unchanged). Its replay records were
+  re-run against the new manifest with unchanged results (`96193bf`).
+- **Evidence**: three more exports from a third fresh scratch gave the same manifest while
+  `bin/main` recorded 108, 111 and 111 ops (`parity/results/M8a.md`, section 15).
+- **Lesson**: anything measured from an invocation that is excluded because its inputs vary must
+  stay out of a hashed manifest. The `--twice` check passed by chance (both exports drew graphs
+  of the same size), so it could not catch this; a test of the record now does.
+- **Deviations**: none; the plan's "exported twice, byte-identical manifests" now holds for every
+  run.
 
 ## The acceptance criteria
 
