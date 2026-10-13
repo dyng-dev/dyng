@@ -11,7 +11,7 @@ change are recorded as ADRs ({doc}`../adr/index`), progress and re-estimates in 
 retrospectives ({doc}`retrospectives/index`). The public, user-facing version is
 {doc}`../roadmap`.
 
-Status: 2026-10-06. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
+Status: 2026-10-14. M1a, M1b (CUDA `sssp`), M2 (`cycle_count`), M3 (the framework, the
 conformance kit and the 0.1 API freeze), M4 (this infrastructure) and M5 (the Python package, a
 CPU wheel, the `dyng` command line and the documentation of 0.1; pull request #4, merged at
 `8842acf`) are done and merged into `main`. **0.1.0 is released**: the release preparation R010
@@ -24,8 +24,11 @@ the release the author re-grouped the next releases into smaller steps (2026-10-
 pull request #8) plus M6 (the hardening planned as 0.1.x), which runs as two parallel milestones,
 M6a (the CUDA plugin wheels) and M6b (the tutorial algorithms, the documentation on GitHub Pages,
 fuzzers, mutation checks, sanitizer jobs; {doc}`retrospectives/M6b`), merged by pull requests #9
-and #10; the release preparation R020 makes the release candidate 0.2.0rc1 on the branch
-`release-0.2.0` ({doc}`retrospectives/R020`); **0.3.0** is M8 and M9 (the hypergraph and
+and #10. **0.2.0 is released**: the release preparation R020 made the release candidate
+0.2.0rc1 (pull request #11, on TestPyPI; {doc}`retrospectives/R020`), and the final-release pull
+request R021 made 0.2.0 with the certificate carried over, after the smoke test of 0.2.0rc1 and
+both CUDA plugins from TestPyPI ({doc}`retrospectives/R021`; the release date 2026-10-14, the
+planned tag day); **0.3.0** is M8 and M9 (the hypergraph and
 `triad_count`); **0.4.0** is M10 and M11 (`label_propagation`, `hyper_sssp`).
 
 ## 1. What dynG is
@@ -152,7 +155,7 @@ A1 ─► M4 GitHub infrastructure (parallel with M1-M3) ───────�
 | **M6a** CUDA plugin wheels | `dyng-cu12` / `dyng-cu13` built from the core sdist, the choice of the plugin, device arrays in Python; the plugin publishing environments (`GOVERNANCE.md`, 2026-10-02) | `pip install "dyng[cu13]"` works on the GPU machine | **done** (ADRs 0030-0032; merged by pull request #9, `9e0622f`; {doc}`retrospectives/M6a`) |
 | **M6b** hardening | the tutorial algorithms and "Your first dynamic algorithm"; the documentation on GitHub Pages; reader fuzzers; the cycle_count and mosp mutation suites; the Hypothesis profile `full`; sanitizer jobs (ASan + UBSan, TSan, TSan with OpenMP and Archer) | tutorials pass the kit on every backend; mutations fail as expected; sanitizer and fuzz jobs green | **done** on `m6b-hardening` (ADRs 0033 and 0034; {doc}`retrospectives/M6b`) |
 | **M7** `sssp` operators engine + `mosp` | the multi-kernel engine as the non-cooperative fallback; composition over K x `sssp`; combined graph; path costs; `dyng prep` | fused == operators byte-identical; byte parity of all MOSP CLI outputs; performance gate | **done** on `m7-mosp` (0.2; ADRs 0026-0028): the operators engine byte-identical to the fused one (C4, the corpus), mosp byte-identical to both originals and within every gate, `dyng.mosp` and `dyng mosp`; merged into `main` by pull request #8 (`7d64c90`) after 0.1.0. PLAN 11.3 also lists the `.dgb` binary batches for M7; they moved to M8, with which PLAN 6.2 (order 7) ships them, because no M7 deliverable reads them ({doc}`retrospectives/M7`, "Review and fix") |
-| **0.2.0** | M7 + M6 (M6a, M6b) | release checklist | release candidate 0.2.0rc1 in preparation (R020: the mosp API review and freeze, ADR 0035; the mosp benchmark suite; the certificate; {doc}`retrospectives/R020`) |
+| **0.2.0** | M7 + M6 (M6a, M6b); the release preparation R020 and the final-release pull request R021 | release checklist | **done** (R020, {doc}`retrospectives/R020`: the mosp API review and freeze, ADR 0035; the mosp benchmark suite; 0.2.0rc1 with its certificate, on TestPyPI; R021, {doc}`retrospectives/R021`: the smoke test of 0.2.0rc1 and both plugins from TestPyPI, `VERSION` 0.2.0, the certificate `benchmarks/results/0.2.0/` carried over; the release date 2026-10-14; the tags and the GitHub Release are pushed by the AI assistant on the author's behalf, the author merges the pull request and approves the three PyPI deployments) |
 | **M8** ESCHER store + hypergraph | the staged CBST merge (ESCHER-GPU first, then the MOSP_ESCHER behaviours one by one); `hypergraph` with `escher` storage; `hyperedge_batch`; `.hg` I/O; the `.dgb` binary batches and the streaming `batch_reader` (PLAN 5.7; moved from M7) | CBST trace replay identical for both originals' policies after every merge step; integrity after every batch | |
 | **M9** `triad_count` | wedge engine, h-motif patterns, reference backends, experimental `count_local_patterns` | exact counts and deltas on the golden batches; "baseline + deltas == recount"; performance gate; memory <= 1.05x | |
 | **0.3.0** | M8 + M9 | release checklist | |
