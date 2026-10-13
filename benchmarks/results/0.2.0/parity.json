@@ -1,14 +1,15 @@
 {
  "schema": 1,
  "what": "dynG parity certificate (PLAN 8.3): golden parity with the pinned originals, the performance gates of PLAN 8.6 and the release checks",
- "version": "0.2.0rc1",
- "version_file": "0.2.0rc1",
- "date": "2026-10-09T01:28:50Z",
- "commit": "616718aa4a62b68fc05d8242a5c3cc2c50c64d47",
- "branch": "release-0.2.0",
+ "version": "0.2.0",
+ "version_file": "0.2.0",
+ "date": "2026-10-13T20:56:07Z",
+ "commit": "c7a33abfc30c6b4b40ad81d8f0dffbe89446831d",
+ "branch": "release-0.2.0-final",
  "measured_commits": [
-  "616718aa4a62b68fc05d8242a5c3cc2c50c64d47",
-  "b1a4869a936868b572213f66f089d7587d0f1972"
+  "b1a4869a936868b572213f66f089d7587d0f1972",
+  "c3512fed01a09e5c21e6e13fd0777b15b164b925",
+  "d553b794987ee5d5d171315c746491395013e677"
  ],
  "code_paths": {
   "library": [
@@ -9037,11 +9038,41 @@
    "release_code": true
   },
   {
+   "name": "sanitizers-hosted",
+   "command": "the hosted sanitizers.yml jobs of pull request #11 (the release candidate's), run 37870378099 (event pull_request, head d553b79, tested as its merge 5694faa into 8b9067e, the same tree): asan / gcc-13, tsan / gcc-13, tsan-openmp / clang-18; the job logs read with gh run view --log (read-only). Scope library: README.md, a path of the tests scope, changed since d553b79 (the status texts only); the tests scope is covered by the local presets run again on the final tree (docs/developer/release.md step 3)",
+   "commit": "d553b794987ee5d5d171315c746491395013e677",
+   "scope": "library",
+   "date": "2026-10-09T01:42:49Z",
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/sanitizers-hosted/asan-gcc-13.log",
+     "sha256": "4c80907378772d4e73417ccb3db55449d30f1309f9d916a71644f38a0b45890b",
+     "bytes": 471072,
+     "excerpt": "checks/sanitizers-hosted.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/sanitizers-hosted/tsan-gcc-13.log",
+     "sha256": "4a5a98aede3894af3dbc30a998b59fe043ba61733c7d8066ee3d0c25a9f6ccd0",
+     "bytes": 436969,
+     "excerpt": "checks/sanitizers-hosted-1.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/sanitizers-hosted/tsan-openmp-clang-18.log",
+     "sha256": "1212b77b401095df3d7f5352ad59021e37c7189b96228e9c5890822a4694016a",
+     "bytes": 498894,
+     "excerpt": "checks/sanitizers-hosted-2.txt"
+    }
+   ],
+   "details": "all three jobs succeeded: asan / gcc-13 839 of 839 tests passed, tsan / gcc-13 745 of 745, tsan-openmp / clang-18 839 of 839 (https://github.com/dyng-dev/dyng/actions/runs/37870378099)",
+   "result": "passed",
+   "release_code": true
+  },
+  {
    "name": "asan",
    "command": "ci/sanitizers.sh asan (ctest -L cpu of the asan preset), from a clean clone",
-   "commit": "b1a4869",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "tests",
-   "date": "2026-10-08T12:41:57Z",
+   "date": "2026-10-13T19:51:48Z",
    "ctest": {
     "tests": 839,
     "failed": 0,
@@ -9081,8 +9112,8 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-cert3/c/asan.log",
-     "sha256": "5289db52ed27bc18bb38899d7a834b8726230354a75f8ae8929bb0e0e87926cd",
+     "file": "$DYNG_SCRATCH/runs/r021/cert/asan.log",
+     "sha256": "b89bf4fee270b13917f82b57b8153e938f6fd57cbe0cdbb37428cc73986053e1",
      "bytes": 319084,
      "excerpt": "checks/asan.txt"
     }
@@ -9093,9 +9124,9 @@
   {
    "name": "tsan",
    "command": "ci/sanitizers.sh tsan (ctest -L cpu of the tsan preset), from a clean clone",
-   "commit": "b1a4869",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "tests",
-   "date": "2026-10-08T12:43:48Z",
+   "date": "2026-10-13T19:53:54Z",
    "ctest": {
     "tests": 745,
     "failed": 0,
@@ -9132,9 +9163,9 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-cert3/c/tsan.log",
-     "sha256": "f4260e4388ceeb2f9d867c70937188ee9daf84e7281a313300d57ad6f00aeab4",
-     "bytes": 293572,
+     "file": "$DYNG_SCRATCH/runs/r021/cert/tsan.log",
+     "sha256": "1b96dd69863dfb6ff6db0c8794c11ed562d7ec4790d4974eead92e7f95e867d6",
+     "bytes": 293573,
      "excerpt": "checks/tsan.txt"
     }
    ],
@@ -9143,10 +9174,10 @@
   },
   {
    "name": "tsan-openmp",
-   "command": "ci/sanitizers.sh tsan-openmp (Clang 18.1.8 of the conda env dyng-clang through a local wrapper: --gcc-install-dir GCC 12, --sysroot=/, the rpath of its libomp, -Wno-error=deprecated-declarations; Archer DYNG_ARCHER_LIBRARY; ctest -L cpu), from a clean clone",
-   "commit": "b1a4869",
+   "command": "ci/sanitizers.sh tsan-openmp (Clang 18.1.8 of the conda env dyng-clang through a local wrapper: --gcc-install-dir GCC 12, --sysroot=/, -Wno-deprecated-declarations; Archer DYNG_ARCHER_LIBRARY; ctest -L cpu), from a clean clone",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "tests",
-   "date": "2026-10-08T12:45:55Z",
+   "date": "2026-10-13T19:55:49Z",
    "ctest": {
     "tests": 839,
     "failed": 0,
@@ -9186,9 +9217,9 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-cert3/c/tsan-openmp.log",
-     "sha256": "7b624a7023306b607f1827b24d050cc031450ec2d3c96915e9233c839f3f8fa0",
-     "bytes": 319412,
+     "file": "$DYNG_SCRATCH/runs/r021/cert/tsan-openmp.log",
+     "sha256": "01663db2c198e2631b928d688ed865c2055e7274114ab1ead51abb07115eae7e",
+     "bytes": 319371,
      "excerpt": "checks/tsan-openmp.txt"
     }
    ],
@@ -9198,9 +9229,9 @@
   {
    "name": "mutation-ctests",
    "command": "ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone",
-   "commit": "b1a4869",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "tests",
-   "date": "2026-10-08T12:44:08Z",
+   "date": "2026-10-13T20:00:44Z",
    "ctest": {
     "tests": 7,
     "failed": 0,
@@ -9210,9 +9241,9 @@
    "fixture_tests": {},
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-cert3/c/mutation-ctests.log",
-     "sha256": "75d2b5c74b64cea4df11aa9341915529cf471301db9c439378a345b64f50df86",
-     "bytes": 1328,
+     "file": "$DYNG_SCRATCH/runs/r021/cert/mutation-ctests.log",
+     "sha256": "0bb38148b572a046b7932581706dbfaad0c7df008d1c545a3da8a230ab3b5699",
+     "bytes": 1330,
      "excerpt": "checks/mutation-ctests.txt"
     }
    ],
@@ -9221,34 +9252,34 @@
   },
   {
    "name": "distributions",
-   "command": "release.yml's select step for GITHUB_REF_NAME=v0.2.0rc1 (v0.2.0 and v0.2.0-rc.1 refused); ci/wheel_check.py --release-metadata (and --release-date today, the tag day 2026-10-09); ci/wheels.sh; ci/plugin_wheels.sh with DYNG_PLUGINS='cu12 cu13' and the CI toolkits of ci/cuda_toolkits.toml (CUDA 12.9 and 13.4, still the newest 12.x and 13.x of NVIDIA's RHEL 8 repository on 2026-10-08, unpacked by ci/cuda_toolkit.py extract; verify --signatures passed); twine check --strict; ci/wheel_check.py on each file and --release-set --split; fresh Python 3.12 and 3.13 venvs: the core wheel alone, core + dyng-cu12, core + dyng-cu13, dyng[cu13]==0.2.0rc1 from a local simple index laid out like TestPyPI (--extra-index-url PyPI), and the documented form (NumPy from PyPI, then --no-deps dyng dyng-cu13 from the index): the wheel's test subset (test_mosp.py included), the README quickstart, dyng --version, ci/plugin_smoke.py --expect cuda and pytest -m gpu on GPU 1; from a clean clone, the whole run under the shared lock",
-   "commit": "616718a",
+   "command": "release.yml's select step for GITHUB_REF_NAME=v0.2.0 (a final release: prerelease=false, plugins=true; v0.2.0rc1, v0.2.0-rc.1 and v0.2.1 refused); ci/wheel_check.py --release-metadata (and --release-date 2026-10-14, the planned tag day); ci/wheels.sh; ci/plugin_wheels.sh with DYNG_PLUGINS='cu12 cu13' and the CI toolkits of ci/cuda_toolkits.toml (CUDA 12.9 and 13.4, still the newest 12.x and 13.x of NVIDIA's RHEL 8 repository on 2026-10-13); twine check --strict; ci/wheel_check.py on each file and --release-set --split; fresh Python 3.12 and 3.13 venvs: the core wheel alone, core + dyng-cu12, core + dyng-cu13, dyng[cu12]==0.2.0 and dyng[cu13]==0.2.0 from a local simple index with the three distributions (--extra-index-url PyPI): the wheel's test subset, the README quickstart, dyng --version, ci/plugin_smoke.py --expect cuda and pytest -m gpu on GPU 1; and the final release's documented lines without a version (pip install dyng, \"dyng[cu13]\", \"dyng[cu12]\" from that index with PyPI as the extra index): 0.2.0 and the plugin of the same version installed, dyng --version, the README quickstart, ci/plugin_smoke.py --expect cuda; from a clean clone, the whole run under the shared lock",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "packaging",
-   "date": "2026-10-09T00:18:06Z",
+   "date": "2026-10-13T20:11:23Z",
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-tagday/distributions.log",
-     "sha256": "30f64a5fd95b8a17e68deb40f9015ef91cac3b12c7910a55d972d02a0c3ccdba",
-     "bytes": 32972,
+     "file": "$DYNG_SCRATCH/runs/r021/cert/distributions.log",
+     "sha256": "ffb5fd759a0a2c89806c6d6ed9d46b98a406d716d078d611498b6ddd3da96ea2",
+     "bytes": 40668,
      "excerpt": "checks/distributions.txt"
     },
     {
-     "file": "$DYNG_SCRATCH/runs/r020-cert2-toolkits.log",
-     "sha256": "387812ddcbcd49555280cee096108dbe660c579ec60977dba9ed9e504405c8f6",
-     "bytes": 1701,
+     "file": "$DYNG_SCRATCH/runs/r021/toolkits-check.log",
+     "sha256": "01e9a922177ce00c7b1b9f41b76972cc0e3c0cae276fe00326587c925d6c8bdc",
+     "bytes": 454,
      "excerpt": "checks/distributions-1.txt"
     }
    ],
-   "details": "select: kind=package version=0.2.0rc1 prerelease=true plugins=true; ci/wheel_check.py --release-metadata --release-date today passed on 2026-10-09; 4 files (sdist, abi3 CPU wheel, dyng_cu12, dyng_cu13 wheels), all checks passed; 12 venvs passed (core/cu12/cu13/index-cu13 x 3.12/3.13 with the test subset 295 or 294 passed, 2 or 3 skipped, pytest -m gpu 55 passed; docform-cu13 x 3.12/3.13 smoke)",
+   "details": "select: kind=package version=0.2.0 prerelease=false plugins=true, the three distributions (v0.2.0rc1, v0.2.0-rc.1 and v0.2.1 refused); --release-metadata and --release-date 2026-10-14 passed (--release-date today warns until the tag day); 4 files (sdist, abi3 CPU wheel, dyng_cu12, dyng_cu13 wheels), twine and every wheel_check passed; ci/plugin_wheels.sh: smoke, both fallbacks, pytest -m gpu 55 passed and the DYNG_CPU_ONLY=1 suite 546 passed per plugin and Python version; 10 venvs with the test subset passed (core, core+cu12, core+cu13, dyng[cu12]==0.2.0, dyng[cu13]==0.2.0 x 3.12/3.13: 295 or 294 passed, 2 or 3 skipped; pytest -m gpu 55 passed with each plugin); 6 venvs of the documented lines without a version (dyng, dyng[cu13], dyng[cu12] x 3.12/3.13) installed 0.2.0 and the plugin of the same version, README quickstart, dyng --version and plugin_smoke --expect cuda passed",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "check-parity",
-   "command": "ci/check.sh --parity, from a clean clone (origin/main set to 8b9067e, main as pushed)",
-   "commit": "616718a",
+   "command": "ci/check.sh --parity, from a clean clone (origin/main set to 406c3a6, main as pushed)",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "repo",
-   "date": "2026-10-09T00:30:52Z",
+   "date": "2026-10-13T20:15:04Z",
    "fixture_tests": {
     "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
     "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
@@ -9313,40 +9344,40 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-tagday/check-parity.log",
-     "sha256": "0e7f698a7b2032d91d80ab51117e276d61f75e5461cf6ac8e524e31c89380140",
-     "bytes": 771077,
+     "file": "$DYNG_SCRATCH/runs/r021/cert/check-parity.log",
+     "sha256": "a0c59ad6490e9a2a82510b77bec47ed6d9f2ae71c2933d53935d8f6a3cd4ddf6",
+     "bytes": 770987,
      "excerpt": "checks/check-parity.txt"
     }
    ],
-   "details": "all checks passed: cpu-only 839/839, dev 868/868, the harness and CI-script tests (226), ci/python.sh (547 passed, 66 skipped), ci/api_check.sh (the frozen C++ API and griffe), the scaffold and tutorial check, ci/docs.sh (API snapshot 719 declarations, Sphinx -W, links), pre-commit, the parity preset 4/4",
+   "details": "all checks passed: cpu-only 839/839, dev 868/868, the consumer build with the documented find_package(), the harness and CI-script tests (226), ci/python.sh (547 passed, 66 skipped), ci/api_check.sh (the frozen C++ API and griffe), the scaffold and tutorial check, ci/docs.sh (Doxygen, the API baseline, Sphinx -W, links), pre-commit, the parity preset 4/4",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "api-check",
-   "command": "ci/api_check.sh 8b9067e (the frozen C++ API with ci/api_snapshot.py --against and the Python API with griffe, against main as pushed), from a clean clone",
-   "commit": "616718a",
+   "command": "ci/api_check.sh 406c3a6 (the frozen C++ API with ci/api_snapshot.py --against and the Python API with griffe, against main as pushed, the merge of 0.2.0rc1), from a clean clone",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "repo",
-   "date": "2026-10-09T00:30:53Z",
+   "date": "2026-10-13T20:15:05Z",
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-tagday/api-check.log",
-     "sha256": "4d190ba0cc851fb47a46bcfebec8bdc48c3f4a86ddd5f96457b09c2117c1af01",
-     "bytes": 258,
+     "file": "$DYNG_SCRATCH/runs/r021/cert/api-check.log",
+     "sha256": "1cf374d160221a972d9e79d559df59b6e44e68b739547e41909e130cba250ca8",
+     "bytes": 390,
      "excerpt": "checks/api-check.txt"
     }
    ],
-   "details": "no breaking change of the frozen C++ API or of the Python API against 8b9067e",
+   "details": "no breaking change of the frozen C++ API or of the Python API against 406c3a6",
    "result": "passed",
    "release_code": true
   },
   {
    "name": "gpu_local",
    "command": "ci/gpu_local.sh (dev-cuda, GPU 1, every step), from a clean clone",
-   "commit": "616718a",
+   "commit": "c3512fed01a09e5c21e6e13fd0777b15b164b925",
    "scope": "repo",
-   "date": "2026-10-09T01:27:44Z",
+   "date": "2026-10-13T20:55:44Z",
    "steps": {
     "build": "passed",
     "ctest -L gpu": "passed",
@@ -9458,14 +9489,14 @@
    },
    "evidence": [
     {
-     "file": "$DYNG_SCRATCH/runs/r020-tagday/gpu_local.log",
-     "sha256": "08fb1c9450a132c0c7fbd39fba6c8b3300f11eabcc6d3dae0370a086719c4045",
-     "bytes": 541111,
+     "file": "$DYNG_SCRATCH/runs/r021/cert/gpu_local.log",
+     "sha256": "bed97245e533fde0e4d62cb551df049c55faaeff5c079d4e9d0d794e24727dfe",
+     "bytes": 540919,
      "excerpt": "checks/gpu_local.txt"
     },
     {
-     "file": "$DYNG_SCRATCH/runs/r020-tagday/gpu_local_summary.md",
-     "sha256": "344d48df50898e72696a8074c5018946dd00e0e0a5817473d6faa14ae246244c",
+     "file": "$DYNG_SCRATCH/runs/r021/cert/gpu_local_summary.md",
+     "sha256": "0bc42ca444d6b7be6ffacbf39684731d3e8cbf781bb09ca3017303f14488c7d4",
      "bytes": 476,
      "excerpt": "checks/gpu_local-1.txt"
     }
