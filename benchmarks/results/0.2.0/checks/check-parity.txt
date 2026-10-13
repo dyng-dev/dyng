@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r021/cert/check-parity.log (sha256 a0c59ad6490e9a2a82510b77bec47ed6d9f2ae71c2933d53935d8f6a3cd4ddf6, 770987 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r021/cert/check-parity.log (sha256 decfd79e9b19596bb3771c19d9385a6fc87340a09eb87697a85a5357e843443c, 770986 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> clang-format (clang-format version 22.1.8 (https://github.com/conda-forge/clangdev-feedstock 4376d67fb227e616ccc5717854d9d41ab142e4fa))
 clang-format: OK
 ==> preset cpu-only: configure, build, test (label cpu)
@@ -128,7 +128,7 @@ reuse: OK
 provenance: OK (168 files checked)
 ==> scripts/regen.py --check (the files generated from the manifests)
 ==> parity harness (Python): compile and smoke tests
-226 passed in 137.87s (0:02:17)
+226 passed in 75.37s (0:01:15)
 harness: OK
 ==> Python package: development install, stubs, pytest (ci/python.sh)
 ==> the environment's dyng is an editable install of /home/sskg8/Projects/dyng; not re-pointing it
@@ -137,13 +137,13 @@ harness: OK
 ==> scripts/regen.py --stubs --check
 ==> mypy (strict) over python/dyng and python/plugin/dyng_plugin
 ==> pytest python/tests
-547 passed, 66 skipped in 21.14s
+547 passed, 66 skipped in 21.71s
 python: OK
 ==> Python API check: griffe against the base branch (ci/api_check.sh)
 ==> the frozen C++ API against origin/main (ci/api_snapshot.py --against)
 ==> griffe check dyng against origin/main (griffe 2.3.0)
 ==> scaffold: scripts/new_algorithm.py builds and passes the conformance kit (ci/scaffold_check.sh)
-==> copy of the working tree in /tmp/dyng-scaffold.FX9uwI/src
+==> copy of the working tree in /tmp/dyng-scaffold.2U0sly/src
 ==> scripts/new_algorithm.py: one algorithm of each family
 ==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)
 github_meta_check: OK (labels, issue forms, chooser, CODEOWNERS, PR template, workflows)
@@ -188,7 +188,7 @@ scaffold_check: OK (80 tests of the probes and 41 of the tutorial's my_bfs passe
 doxygen-coverage: OK (138 compounds checked)
 doc-snippets: OK (7 snippets)
 api-snapshot: OK (719 declarations match public_api.txt)
-docs_links: OK (repository URLs in 1725 files, relative links and anchors of build/docs/html)
+docs_links: OK (repository URLs in 1741 files, relative links and anchors of build/docs/html)
 docs: OK
 ==> pre-commit run --all-files
 pre-commit: OK

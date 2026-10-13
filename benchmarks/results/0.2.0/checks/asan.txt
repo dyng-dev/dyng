@@ -1,4 +1,4 @@
-# Excerpt of $DYNG_SCRATCH/runs/r021/cert/asan.log (sha256 b89bf4fee270b13917f82b57b8153e938f6fd57cbe0cdbb37428cc73986053e1, 319084 bytes): its step headers and result lines, written by parity/certify.py check.
+# Excerpt of $DYNG_SCRATCH/runs/r021/cert/asan.log (sha256 30b0c5fcd0bd829051b6ef183600519609c3a474ec5e7526c9e8c309b32cf546, 319084 bytes): its step headers and result lines, written by parity/certify.py check.
 ==> preset asan: configure, build, test (label cpu)
 100% tests passed out of 839
 The following tests did not run:

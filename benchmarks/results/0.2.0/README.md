@@ -13,9 +13,14 @@ carried over to 0.2.0.
 
 This certificate is the release candidate's (`benchmarks/results/0.2.0rc1/`), **carried over**
 as `docs/developer/release.md` (step 9, "The final-release pull request") prescribes: the
-library did not change since the release candidate's measured commits (`git diff` from `b1a4869`
-and from `616718a` to the final commit touches no path of the `library` scope), which
-`certify.py write` verified for every part in the paths of its scope.
+library did not change since the release candidate's measured commits, which `certify.py write`
+verified for every part in the paths of its scope. This certificate's measured commits are
+`b1a4869` (the golden replays, the performance gates and the golden mutations, `library` scope),
+`d553b79` (the hosted sanitizer jobs of pull request #11, `library` scope) and `649f756` (the
+checks run again on the final tree, below, whose diff to the final commit outside this directory
+is empty); `git diff` from each to the final commit touches no path of its scope. `616718a`, where
+the release candidate's re-run checks of its tag day ran, is not measured here: its records were
+replaced.
 
 - **Carried over unchanged:** the golden replays (`parity-*.json`), the suite summaries and the
   compacted records of the performance gates of sssp, cycle_count and mosp, and the golden
@@ -23,8 +28,9 @@ and from `616718a` to the final commit touches no path of the `library` scope), 
   for 0.2.0rc1. Only `VERSION` (0.2.0rc1, now 0.2.0), `CHANGELOG.md`, `CITATION.cff` and
   documents changed (R021, `docs/developer/retrospectives/R021.md`), none a library path.
 - **Run again on the final tree** from fresh clones of the branch `release-0.2.0-final` at
-  `c3512fe`, the last commit outside this directory, concurrently under the shared lock and never
-  during a timing run, and recorded with `certify.py check --version 0.2.0` in place of the
+  `649f756`, the last commit outside this directory, concurrently under the shared lock and never
+  during a timing run (a first run at `c3512fe` was replaced after the review of the pull request
+  changed `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md` and documents, R021 step 3), and recorded with `certify.py check --version 0.2.0` in place of the
   release candidate's records of the same names (logs under `$DYNG_SCRATCH/runs/r021/cert/`):
   - the `packaging` check `distributions`: the distributions as `release.yml` builds them for the
     tag `v0.2.0` (`select` reports a final release: `prerelease=false`, `plugins=true`; the core
@@ -33,12 +39,16 @@ and from `616718a` to the final commit touches no path of the `library` scope), 
     `collect` checks; fresh 3.12 / 3.13 venvs with the wheel's test subset, the README quickstart
     and the GPU tests of both plugins on GPU 1; and the final release's documented install lines
     without a version, `pip install dyng`, `"dyng[cu13]"` and `"dyng[cu12]"`, against a local
-    simple index of the three distributions with PyPI as the extra index);
+    simple index of the three distributions with PyPI as the extra index; and the upgrade from
+    0.1.0: a venv with `dyng==0.1.0` from PyPI keeps it for `pip install "dyng[cuN]"`, and `pip
+    install -U "dyng[cuN]"`, the documented upgrade line, installs 0.2.0 and the plugin of the
+    same version);
   - the `repo` checks `check-parity` (`ci/check.sh --parity`), `api-check` (`ci/api_check.sh
     406c3a6`, against `main` as pushed, the merge of 0.2.0rc1) and `gpu_local`
     (`ci/gpu_local.sh`, every step, the compute-sanitizer steps included);
   - the `tests` checks `asan`, `tsan`, `tsan-openmp` and `mutation-ctests`, because `README.md`,
-    whose C++ quickstart is a test, changed (its status block and install lines).
+    whose C++ quickstart is a test, changed (its status block and install lines; the C++
+    quickstart itself did not).
 - **Added:** `sanitizers-hosted`, the hosted `sanitizers.yml` jobs of the release candidate's
   pull request #11 (run 37870378099 on its head `d553b79`: `asan / gcc-13`, `tsan / gcc-13`,
   `tsan-openmp / clang-18`, all green; release.md step 3), recorded with the scope `library`:
@@ -78,6 +88,17 @@ sha256 `df229fd3aba73104...`), the scripts `$DYNG_SCRATCH/r021/run_smoke.sh` and
 `smoke_rc_cpu.py`. No separate CPU-only machine was available (R021, deviation 2).
 
 ## What was run, and how (measured for 0.2.0rc1)
+
+This section is the release candidate's, as its certificate described it. Its golden replays,
+performance gates and golden mutations (at `b1a4869`) are the ones carried over here. Its
+**check records** are not: the sanitizer presets and the mutation CTests at `b1a4869`, the
+distributions of `v0.2.0rc1`, `ci/check.sh --parity`, `ci/api_check.sh 8b9067e` and
+`ci/gpu_local.sh` at `616718a` were replaced in this directory's `checks.json` and `checks/` by
+the R021 runs at `649f756` listed in "Carried over from 0.2.0rc1" above (the distributions of
+`v0.2.0`, `ci/api_check.sh 406c3a6`), and the hosted `sanitizers.yml` jobs of the release pull
+request, which this section says are recorded once it is open, are recorded (`sanitizers-hosted`,
+at `d553b79`). The statements below about which check records stand, and at which commits, are
+the release candidate's; the generated tables at the end of this page are this certificate's.
 
 - **Code.** The release branch `release-0.2.0` (from `main` at `8b9067e`, the merge of M6b).
   Every measured build comes from a clean `git clone` of the branch (the commit each record
