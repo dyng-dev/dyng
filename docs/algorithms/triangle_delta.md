@@ -1,7 +1,7 @@
 # triangle_delta: the triangle count under edge batches (tutorial)
 
-Maturity: **tutorial** (teaching material, not a research algorithm; new in 0.2.0, not
-released yet). Header: `<dyng/triangle_delta.hpp>`. Python: `dyng.triangle_delta`. Oracle: `compute`.
+Maturity: **tutorial** (teaching material, not a research algorithm; new in 0.2.0).
+Header: `<dyng/triangle_delta.hpp>`. Python: `dyng.triangle_delta`. Oracle: `compute`.
 Determinism: `exact_value`. Backends: sequential, openmp, cuda. Family: aggregate delta, Tier A (the
 framework's operators), ownership `min_member`.
 
