@@ -1424,8 +1424,8 @@ mode = "auto"
 hash_only = []
 num_cases = 24
 num_files = 58
-num_bytes = 265455945
-manifest_sha256 = "fe2d29edce2a48ec7eb0f2067287a962838323b4712cb84443457761b6c27b90"
+num_bytes = 265455682
+manifest_sha256 = "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60"
 
 [sets.cbst_trace_mosp_escher_test.cases]
 "001-test_cbst_smoke" = { ops = 33, files = 2, trace_bytes = 339633, sha256 = "7838ff4c3b4066d37c635a40ba0f6eeb0ee8c12ea17ef0831f68b61b0cea80f9" }
