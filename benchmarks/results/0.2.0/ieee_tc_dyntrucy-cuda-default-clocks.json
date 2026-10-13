@@ -1,0 +1,3499 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "backend": "cuda",
+ "date": "2026-10-08T18:46:36Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "variant": "unpatched",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/cycle-enum",
+  "build": "name=CycleEnumeration-GPU\ncommit=0a976adfa801a712135bf1adb51a228f353a0751\nvariant=unpatched\narchive_sha256=53eef2ed4394c0d8ab079f9ef50b2394946f4a0d611a0425a0a32b7892fe39c3\nexported=2026-09-28T00:00:24Z\nbuild=env NVCC=/usr/local/cuda-13.1/bin/nvcc cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCYCLE_ENUM_ENABLE_OPENMP=ON -DCYCLE_ENUM_ENABLE_CUDA=ON -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.1/bin/nvcc -DCMAKE_CUDA_HOST_COMPILER=/usr/bin/g++ -DCMAKE_CUDA_ARCHITECTURES=86 && cmake --build build -j16\nbuild_env=\ncxx=/usr/bin/g++\ncxx_version=g++ (Debian 12.2.0-14+deb12u1) 12.2.0\nnvcc_version=Build cuda_13.1.r13.1/compiler.37061995_0\n"
+ },
+ "baseline": {
+  "experiment": false,
+  "label": "original",
+  "kind": "original"
+ },
+ "port": {
+  "commit": "b1a4869a936868b572213f66f089d7587d0f1972",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-cycle-enum",
+  "build": {
+   "CMAKE_BUILD_TYPE": "Release",
+   "CMAKE_CXX_FLAGS": "",
+   "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+   "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+   "DYNG_BUILD_PARITY_TESTS": "ON",
+   "DYNG_ENABLE_OPENMP": "ON",
+   "DYNG_ENABLE_CUDA": "ON",
+   "DYNG_CUDA_ARCHITECTURES": "86",
+   "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+   "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.1/bin/nvcc",
+   "build_dir": "build/parity-cuda",
+   "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0",
+   "cuda_compiler": "Build cuda_13.1.r13.1/compiler.37061995_0",
+   "parity_preset": true
+  }
+ },
+ "region_map": {
+  "file": "parity/timed_regions/cycle_count.toml",
+  "key": "cycle_enum_cuda",
+  "regions": [
+   "static_kernel",
+   "static_memcpy",
+   "static_total",
+   "static_end_to_end",
+   "update",
+   "update_device",
+   "update_chain_steady",
+   "update_chain_worst",
+   "update_end_to_end"
+  ]
+ },
+ "protocol": {
+  "runs": 11,
+  "order": "A, B[scope] for every --scopes entry, repeated; one untimed round per case first",
+  "backend": "cuda (--backend cuda --cuda-device 0 on both; CUDA_VISIBLE_DEVICES = 0, CUDA_MODULE_LOADING=EAGER)",
+  "scopes": "original,resident",
+  "gpu": 0,
+  "clocks": {
+   "control": "none",
+   "note": "default GPU clocks (DVFS), as measured"
+  },
+  "lock": "perf.lock (exclusive)",
+  "statistic": "median",
+  "outputs": "standard output captured (the histogram CSV), compared every round",
+  "short_regions": "< 10.0 ms need >= 20 runs",
+  "monitor": "parity/perf_ab.py MachineMonitor: rounds with foreign GPU processes, off-lock busy samples or more than --max-foreign-cpu foreign cores are repeated",
+  "max_foreign_cpu_cores": 2.0,
+  "update_events": "short",
+  "chain": 4
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "datasets_sha256": {
+  "DD": "e538ec13a262b84a0664db2f22e6ff720fb5bb74965536c37f4b8e962d156e4a",
+  "github": "a5a43e92b9a22054882017a2b5dea267535c8d94705ac4987d967e517448c9d4",
+  "twitch": "c2270e018af70321c8f6d1517abc097204105ec7bafe71527555b4f954fbea82",
+  "collab": "043c465d207992054d2567a277bfba9fad24d994040241987e61f9e9daa12ae4"
+ },
+ "datasets_hashed": "after the runs, by the measuring process",
+ "results": {
+  "count/DD_k4": {
+   "task": "count",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 1.39776,
+     "original_samples": [
+      1.4039,
+      1.39878,
+      1.37626,
+      1.39776,
+      1.3824,
+      1.42336,
+      1.40595,
+      1.38342,
+      1.38246,
+      1.39059,
+      1.40288
+     ],
+     "original_spread": 0.03369677197802192,
+     "port_ms": 0.9728,
+     "port_samples": [
+      0.971776,
+      0.960512,
+      0.972928,
+      0.9728,
+      0.969696,
+      0.980032,
+      0.975808,
+      0.973824,
+      0.970752,
+      0.972992,
+      0.964608
+     ],
+     "port_spread": 0.020065789473684193,
+     "port_stage_ms": 0.979357,
+     "ratio": 0.695970695970696,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 1.13715,
+     "original_samples": [
+      1.19606,
+      1.1559,
+      1.12755,
+      1.1632,
+      1.12867,
+      1.16726,
+      1.1337,
+      1.13715,
+      1.1216,
+      1.12752,
+      1.17155
+     ],
+     "original_spread": 0.0654794881941696,
+     "port_ms": 1.03328,
+     "port_samples": [
+      1.0177,
+      1.02621,
+      1.07562,
+      1.0807,
+      1.03328,
+      1.12173,
+      1.06582,
+      1.05261,
+      1.00627,
+      1.00147,
+      0.989984
+     ],
+     "port_spread": 0.12750270981728082,
+     "port_stage_ms": 1.047149,
+     "ratio": 0.9086576089346171,
+     "noisy": true
+    },
+    {
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 2.54912,
+     "original_samples": [
+      2.61181,
+      2.56989,
+      2.51939,
+      2.5751,
+      2.52358,
+      2.59987,
+      2.54912,
+      2.53088,
+      2.51821,
+      2.53267,
+      2.59072
+     ],
+     "original_spread": 0.03671855385387913,
+     "port_ms": 2.96925,
+     "port_samples": [
+      2.95302,
+      2.97574,
+      3.00739,
+      2.96925,
+      2.89082,
+      3.12768,
+      3.04166,
+      3.02614,
+      2.94531,
+      2.9176,
+      2.90144
+     ],
+     "port_spread": 0.0797709859392101,
+     "port_stage_ms": 2.979088,
+     "ratio": 1.164813739643485,
+     "noisy": false
+    },
+    {
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 501.53280049562454,
+     "original_samples": [
+      513.1029793992639,
+      498.9148797467351,
+      504.7710305079818,
+      497.4795700982213,
+      487.10344452410936,
+      489.3945148214698,
+      501.53280049562454,
+      504.75951936095953,
+      497.36618623137474,
+      525.6475377827883,
+      508.9290849864483
+     ],
+     "original_spread": 0.0768525871500107,
+     "port_ms": 476.5686700120568,
+     "port_samples": [
+      497.78423737734556,
+      468.8754128292203,
+      471.1610311642289,
+      473.0133153498173,
+      463.3146096020937,
+      492.3571366816759,
+      483.5037821903825,
+      481.72055184841156,
+      479.931908659637,
+      476.5686700120568,
+      474.76892825216055
+     ],
+     "port_spread": 0.07232877430734129,
+     "ratio": 0.9502243313719508,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 1.39776,
+     "original_samples": [
+      1.4039,
+      1.39878,
+      1.37626,
+      1.39776,
+      1.3824,
+      1.42336,
+      1.40595,
+      1.38342,
+      1.38246,
+      1.39059,
+      1.40288
+     ],
+     "original_spread": 0.03369677197802192,
+     "port_ms": 0.963584,
+     "port_samples": [
+      0.985088,
+      0.956416,
+      0.951008,
+      0.96336,
+      0.961536,
+      0.96768,
+      0.963584,
+      0.964608,
+      0.964608,
+      0.964864,
+      0.951296
+     ],
+     "port_spread": 0.035367959617428266,
+     "port_stage_ms": 0.969477,
+     "ratio": 0.6893772893772895,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 1.13715,
+     "original_samples": [
+      1.19606,
+      1.1559,
+      1.12755,
+      1.1632,
+      1.12867,
+      1.16726,
+      1.1337,
+      1.13715,
+      1.1216,
+      1.12752,
+      1.17155
+     ],
+     "original_spread": 0.0654794881941696,
+     "port_ms": 0.007648,
+     "port_samples": [
+      0.007648,
+      0.007264,
+      0.008384,
+      0.008736,
+      0.007168,
+      0.00784,
+      0.008128,
+      0.007296,
+      0.00704,
+      0.009088,
+      0.00752
+     ],
+     "port_spread": 0.2677824267782427,
+     "port_stage_ms": NaN,
+     "ratio": 0.006725585894560964,
+     "noisy": true
+    },
+    {
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 2.54912,
+     "original_samples": [
+      2.61181,
+      2.56989,
+      2.51939,
+      2.5751,
+      2.52358,
+      2.59987,
+      2.54912,
+      2.53088,
+      2.51821,
+      2.53267,
+      2.59072
+     ],
+     "original_spread": 0.03671855385387913,
+     "port_ms": 1.0144,
+     "port_samples": [
+      1.03533,
+      1.00448,
+      1.00186,
+      1.01347,
+      1.00957,
+      1.01898,
+      1.01549,
+      1.0144,
+      1.01578,
+      1.01827,
+      0.999424
+     ],
+     "port_spread": 0.035396293375394426,
+     "port_stage_ms": 1.020972,
+     "ratio": 0.3979412503138338,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.compute": 2.979088,
+     "cycle_count.count": 0.979357,
+     "cycle_count.enact_fused": 1.881896,
+     "cycle_count.finalize": 0.014575,
+     "cycle_count.reset": 0.864374,
+     "graph.build": 8.718571,
+     "graph.upload": 1.032785
+    },
+    "resident": {
+     "cycle_count.compute": 1.020972,
+     "cycle_count.count": 0.969477,
+     "cycle_count.enact_fused": 1.008897,
+     "cycle_count.finalize": 0.013912,
+     "cycle_count.reset": 0.014948
+    }
+   },
+   "extra_processes": [],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 62,
+      "rounds_with_busy_samples": 8
+     },
+     "port[original]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 50,
+      "rounds_with_busy_samples": 7
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 68,
+      "rounds_with_busy_samples": 8
+     }
+    }
+   }
+  },
+  "count/github_k4": {
+   "task": "count",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 58.4855,
+     "original_samples": [
+      58.4855,
+      57.7135,
+      59.2958,
+      58.3731,
+      59.7769,
+      60.2122,
+      59.7645,
+      58.2032,
+      60.2808,
+      58.3209,
+      57.94
+     ],
+     "original_spread": 0.04389635037744391,
+     "port_ms": 57.891,
+     "port_samples": [
+      58.2092,
+      57.6902,
+      58.3567,
+      57.891,
+      57.1441,
+      57.2477,
+      57.6276,
+      58.9701,
+      57.8406,
+      58.6138,
+      58.0924
+     ],
+     "port_spread": 0.031542035895044146,
+     "port_stage_ms": 57.897523,
+     "ratio": 0.989835087329338,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 3.53648,
+     "original_samples": [
+      3.6535,
+      3.53648,
+      3.35069,
+      3.40931,
+      3.56042,
+      3.54179,
+      3.53014,
+      3.46643,
+      3.58938,
+      3.47555,
+      3.54749
+     ],
+     "original_spread": 0.08562468895625029,
+     "port_ms": 3.47878,
+     "port_samples": [
+      3.48093,
+      3.43184,
+      3.45235,
+      3.4895,
+      3.47878,
+      3.53098,
+      3.64253,
+      3.45875,
+      3.4159,
+      3.50986,
+      3.43331
+     ],
+     "port_spread": 0.0651464018995164,
+     "port_stage_ms": 3.494914,
+     "ratio": 0.9836843414921052,
+     "noisy": false
+    },
+    {
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 62.1739,
+     "original_samples": [
+      62.1739,
+      61.2851,
+      62.6809,
+      61.8153,
+      63.377,
+      63.791,
+      63.3332,
+      61.7036,
+      63.909,
+      61.8305,
+      61.5262
+     ],
+     "original_spread": 0.04220259626627892,
+     "port_ms": 62.3061,
+     "port_samples": [
+      62.6044,
+      62.0412,
+      62.705,
+      62.3061,
+      61.531,
+      61.7027,
+      62.1927,
+      63.3657,
+      62.1644,
+      63.0658,
+      62.4316
+     ],
+     "port_spread": 0.02944655499220779,
+     "port_stage_ms": 62.315824,
+     "ratio": 1.0021262941523694,
+     "noisy": false
+    },
+    {
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 836.6910889744759,
+     "original_samples": [
+      829.9700869247317,
+      840.8704241737723,
+      823.566866107285,
+      840.2310581877828,
+      836.6910889744759,
+      832.4812343344092,
+      837.5060986727476,
+      821.4816777035594,
+      843.996069394052,
+      825.769036076963,
+      840.6670894473791
+     ],
+     "original_spread": 0.026908846033113967,
+     "port_ms": 764.2278773710132,
+     "port_samples": [
+      751.0629063472152,
+      761.7325745522976,
+      766.9661184772849,
+      748.8346807658672,
+      764.4142471253872,
+      764.9651039391756,
+      768.3062171563506,
+      764.2278773710132,
+      746.6535242274404,
+      780.1932469010353,
+      753.8765743374825
+     ],
+     "port_spread": 0.04388707042325318,
+     "ratio": 0.9133931117967563,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 58.4855,
+     "original_samples": [
+      58.4855,
+      57.7135,
+      59.2958,
+      58.3731,
+      59.7769,
+      60.2122,
+      59.7645,
+      58.2032,
+      60.2808,
+      58.3209,
+      57.94
+     ],
+     "original_spread": 0.04389635037744391,
+     "port_ms": 57.7597,
+     "port_samples": [
+      58.2103,
+      59.2906,
+      57.4186,
+      59.2538,
+      57.7055,
+      58.833,
+      57.7597,
+      58.6526,
+      57.5601,
+      57.2211,
+      57.464
+     ],
+     "port_spread": 0.03582947972375199,
+     "port_stage_ms": 57.765434,
+     "ratio": 0.9875900864316797,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 3.53648,
+     "original_samples": [
+      3.6535,
+      3.53648,
+      3.35069,
+      3.40931,
+      3.56042,
+      3.54179,
+      3.53014,
+      3.46643,
+      3.58938,
+      3.47555,
+      3.54749
+     ],
+     "original_spread": 0.08562468895625029,
+     "port_ms": 0.00944,
+     "port_samples": [
+      0.00928,
+      0.009088,
+      0.009952,
+      0.009472,
+      0.009376,
+      0.00944,
+      0.009376,
+      0.009728,
+      0.010752,
+      0.009632,
+      0.009344
+     ],
+     "port_spread": 0.17627118644067782,
+     "port_stage_ms": NaN,
+     "ratio": 0.002669320906664254,
+     "noisy": true
+    },
+    {
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 62.1739,
+     "original_samples": [
+      62.1739,
+      61.2851,
+      62.6809,
+      61.8153,
+      63.377,
+      63.791,
+      63.3332,
+      61.7036,
+      63.909,
+      61.8305,
+      61.5262
+     ],
+     "original_spread": 0.04220259626627892,
+     "port_ms": 57.8133,
+     "port_samples": [
+      58.2634,
+      59.345,
+      57.4741,
+      59.3063,
+      57.76,
+      58.8883,
+      57.8133,
+      58.7061,
+      57.6161,
+      57.2754,
+      57.5163
+     ],
+     "port_spread": 0.035797991119690474,
+     "port_stage_ms": 57.818245,
+     "ratio": 0.9298644608107259,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.compute": 62.315824,
+     "cycle_count.count": 57.897523,
+     "cycle_count.enact_fused": 58.767966,
+     "cycle_count.finalize": 0.017167,
+     "cycle_count.reset": 0.824668,
+     "graph.build": 34.315398,
+     "graph.upload": 3.477987
+    },
+    "resident": {
+     "cycle_count.compute": 57.818245,
+     "cycle_count.count": 57.765434,
+     "cycle_count.enact_fused": 57.806753,
+     "cycle_count.finalize": 0.01648,
+     "cycle_count.reset": 0.014613
+    }
+   },
+   "extra_processes": [],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 72,
+      "rounds_with_busy_samples": 7
+     },
+     "port[original]": {
+      "sm_mhz_min": 1440,
+      "busy_samples": 49,
+      "rounds_with_busy_samples": 9
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1455,
+      "busy_samples": 87,
+      "rounds_with_busy_samples": 11
+     }
+    }
+   }
+  },
+  "count/twitch_k4": {
+   "task": "count",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 38.0365,
+     "original_samples": [
+      38.7564,
+      38.4133,
+      38.0365,
+      37.9894,
+      37.9976,
+      37.9576,
+      38.3774,
+      37.9505,
+      38.1491,
+      38.3281,
+      37.9802
+     ],
+     "original_spread": 0.021187543543701476,
+     "port_ms": 37.9208,
+     "port_samples": [
+      37.4126,
+      38.8178,
+      37.7989,
+      37.502,
+      38.1256,
+      38.6847,
+      37.4866,
+      38.8393,
+      37.5398,
+      38.3252,
+      37.9208
+     ],
+     "port_spread": 0.0376231514103079,
+     "port_stage_ms": 37.928,
+     "ratio": 0.9969581849013448,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 11.4513,
+     "original_samples": [
+      11.4513,
+      11.5928,
+      11.7812,
+      11.6752,
+      11.6006,
+      11.1235,
+      11.6688,
+      11.1775,
+      10.9208,
+      11.3058,
+      11.4404
+     ],
+     "original_spread": 0.07513557412695504,
+     "port_ms": 11.3131,
+     "port_samples": [
+      11.3131,
+      12.0829,
+      11.9795,
+      11.7441,
+      12.0063,
+      11.0521,
+      11.4378,
+      11.2234,
+      11.2252,
+      11.1843,
+      11.1273
+     ],
+     "port_spread": 0.09111560933784736,
+     "port_stage_ms": 11.328299999999999,
+     "ratio": 0.987931501226935,
+     "noisy": false
+    },
+    {
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 49.6678,
+     "original_samples": [
+      50.241,
+      50.0397,
+      49.8527,
+      49.6969,
+      49.6307,
+      49.115,
+      50.0799,
+      49.1595,
+      49.1054,
+      49.6678,
+      49.4562
+     ],
+     "original_spread": 0.022863907803446028,
+     "port_ms": 50.4211,
+     "port_samples": [
+      49.6137,
+      51.8049,
+      50.6747,
+      50.1859,
+      51.0383,
+      50.6391,
+      49.807,
+      50.9619,
+      49.6516,
+      50.4211,
+      49.9857
+     ],
+     "port_spread": 0.043457996751360084,
+     "port_stage_ms": 50.430309,
+     "ratio": 1.015166768006636,
+     "noisy": false
+    },
+    {
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 1858.622120693326,
+     "original_samples": [
+      1852.593761868775,
+      1863.64287417382,
+      1861.9934087619185,
+      1868.9384711906314,
+      1848.9003786817193,
+      1865.7811200246215,
+      1833.2900451496243,
+      1841.787178069353,
+      1868.8053200021386,
+      1857.7052811160684,
+      1858.622120693326
+     ],
+     "original_spread": 0.019180028927939925,
+     "port_ms": 1628.2634548842907,
+     "port_samples": [
+      1605.1436988636851,
+      1667.9453123360872,
+      1644.3566540256143,
+      1625.2698143944144,
+      1628.2634548842907,
+      1659.399390220642,
+      1648.578042164445,
+      1641.7949125170708,
+      1617.35834274441,
+      1622.6221658289433,
+      1602.274851873517
+     ],
+     "port_spread": 0.040331593923316866,
+     "ratio": 0.8760594403540705,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 38.0365,
+     "original_samples": [
+      38.7564,
+      38.4133,
+      38.0365,
+      37.9894,
+      37.9976,
+      37.9576,
+      38.3774,
+      37.9505,
+      38.1491,
+      38.3281,
+      37.9802
+     ],
+     "original_spread": 0.021187543543701476,
+     "port_ms": 37.9607,
+     "port_samples": [
+      38.5455,
+      38.7021,
+      37.6709,
+      37.8704,
+      37.9607,
+      38.2905,
+      37.9136,
+      38.5567,
+      37.719,
+      37.6648,
+      38.5884
+     ],
+     "port_spread": 0.027325628874072444,
+     "port_stage_ms": 37.967387,
+     "ratio": 0.9980071773165251,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 11.4513,
+     "original_samples": [
+      11.4513,
+      11.5928,
+      11.7812,
+      11.6752,
+      11.6006,
+      11.1235,
+      11.6688,
+      11.1775,
+      10.9208,
+      11.3058,
+      11.4404
+     ],
+     "original_spread": 0.07513557412695504,
+     "port_ms": 0.009696,
+     "port_samples": [
+      0.009408,
+      0.009344,
+      0.010688,
+      0.0104,
+      0.009184,
+      0.010112,
+      0.009504,
+      0.010016,
+      0.009696,
+      0.009504,
+      0.011744
+     ],
+     "port_spread": 0.264026402640264,
+     "port_stage_ms": NaN,
+     "ratio": 0.0008467160933693118,
+     "noisy": true
+    },
+    {
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 49.6678,
+     "original_samples": [
+      50.241,
+      50.0397,
+      49.8527,
+      49.6969,
+      49.6307,
+      49.115,
+      50.0799,
+      49.1595,
+      49.1054,
+      49.6678,
+      49.4562
+     ],
+     "original_spread": 0.022863907803446028,
+     "port_ms": 38.0157,
+     "port_samples": [
+      38.6032,
+      38.7566,
+      37.7278,
+      37.9264,
+      38.0157,
+      38.3465,
+      37.9687,
+      38.614,
+      37.7739,
+      37.7194,
+      38.6482
+     ],
+     "port_spread": 0.02728346446336641,
+     "port_stage_ms": 38.020792,
+     "ratio": 0.76539931303581,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.compute": 50.430309,
+     "cycle_count.count": 37.928,
+     "cycle_count.enact_fused": 38.810024,
+     "cycle_count.finalize": 0.017335,
+     "cycle_count.reset": 0.798655,
+     "graph.build": 111.697503,
+     "graph.upload": 11.311798
+    },
+    "resident": {
+     "cycle_count.compute": 38.020792,
+     "cycle_count.count": 37.967387,
+     "cycle_count.enact_fused": 38.009095,
+     "cycle_count.finalize": 0.016602,
+     "cycle_count.reset": 0.0145
+    }
+   },
+   "extra_processes": [],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 735,
+      "busy_samples": 57,
+      "rounds_with_busy_samples": 8
+     },
+     "port[original]": {
+      "sm_mhz_min": 630,
+      "busy_samples": 81,
+      "rounds_with_busy_samples": 10
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1440,
+      "busy_samples": 72,
+      "rounds_with_busy_samples": 8
+     }
+    }
+   }
+  },
+  "count/collab_k3": {
+   "task": "count",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "static_kernel[original]",
+     "gate_kind": "compute",
+     "original_ms": 51.4632,
+     "original_samples": [
+      51.2993,
+      51.6874,
+      52.6613,
+      51.1529,
+      51.4632,
+      51.415,
+      51.8483,
+      52.3028,
+      51.2359,
+      51.3321,
+      51.7029
+     ],
+     "original_spread": 0.02931026442195578,
+     "port_ms": 51.3188,
+     "port_samples": [
+      51.8328,
+      50.9594,
+      51.3239,
+      51.3188,
+      50.9635,
+      51.1435,
+      51.9088,
+      51.2051,
+      51.0268,
+      51.763,
+      52.1093
+     ],
+     "port_spread": 0.02240699314870954,
+     "port_stage_ms": 51.32499,
+     "ratio": 0.9971941115204651,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[original]",
+     "gate_kind": "none",
+     "original_ms": 11.1464,
+     "original_samples": [
+      11.1524,
+      10.988,
+      10.8567,
+      11.3945,
+      11.3165,
+      11.0638,
+      11.0401,
+      10.6954,
+      11.1464,
+      11.3642,
+      11.7428
+     ],
+     "original_spread": 0.09396755903251287,
+     "port_ms": 11.2829,
+     "port_samples": [
+      11.2247,
+      10.8493,
+      10.9118,
+      11.4922,
+      11.2829,
+      11.3004,
+      10.9254,
+      10.8943,
+      11.6278,
+      11.4209,
+      11.7385
+     ],
+     "port_spread": 0.07880952591975474,
+     "port_stage_ms": 11.297576000000001,
+     "ratio": 1.012246106366181,
+     "noisy": false
+    },
+    {
+     "region": "static_total[original]",
+     "gate_kind": "none",
+     "original_ms": 62.7116,
+     "original_samples": [
+      62.4615,
+      62.6846,
+      63.5327,
+      62.5588,
+      62.7948,
+      62.4953,
+      62.9054,
+      63.0103,
+      62.3986,
+      62.7116,
+      63.4605
+     ],
+     "original_spread": 0.018084373544926244,
+     "port_ms": 63.5527,
+     "port_samples": [
+      63.9574,
+      62.6765,
+      63.1191,
+      63.7103,
+      63.1028,
+      63.3092,
+      63.7065,
+      62.9865,
+      63.5527,
+      64.0733,
+      64.7307
+     ],
+     "port_spread": 0.03232278093613649,
+     "port_stage_ms": 63.563228,
+     "ratio": 1.0134121916838352,
+     "noisy": false
+    },
+    {
+     "region": "static_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 2986.5459175780416,
+     "original_samples": [
+      2969.096818007529,
+      2974.803010933101,
+      3014.706203714013,
+      2951.8232429400086,
+      2990.232542157173,
+      2986.5459175780416,
+      2965.6834388151765,
+      2964.79547675699,
+      3002.229173667729,
+      3007.622198201716,
+      3050.262921489775
+     ],
+     "original_spread": 0.032961046394892474,
+     "port_ms": 2704.8408426344395,
+     "port_samples": [
+      2704.8408426344395,
+      2666.057645343244,
+      2641.5337342768908,
+      2753.952748142183,
+      2827.825540676713,
+      2704.5168103650212,
+      2765.2180679142475,
+      2705.0806554034352,
+      2667.390638962388,
+      2695.314477197826,
+      2781.0920206829906
+     ],
+     "port_spread": 0.0688734817455578,
+     "ratio": 0.9056752908818316,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_kernel[resident]",
+     "gate_kind": "compute",
+     "original_ms": 51.4632,
+     "original_samples": [
+      51.2993,
+      51.6874,
+      52.6613,
+      51.1529,
+      51.4632,
+      51.415,
+      51.8483,
+      52.3028,
+      51.2359,
+      51.3321,
+      51.7029
+     ],
+     "original_spread": 0.02931026442195578,
+     "port_ms": 51.6403,
+     "port_samples": [
+      51.6352,
+      51.4826,
+      51.4355,
+      51.9915,
+      51.367,
+      51.7131,
+      51.8657,
+      51.6403,
+      51.5092,
+      52.0305,
+      52.1073
+     ],
+     "port_spread": 0.014335702929688728,
+     "port_stage_ms": 51.646165,
+     "ratio": 1.0034412939731692,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "static_memcpy[resident]",
+     "gate_kind": "none",
+     "original_ms": 11.1464,
+     "original_samples": [
+      11.1524,
+      10.988,
+      10.8567,
+      11.3945,
+      11.3165,
+      11.0638,
+      11.0401,
+      10.6954,
+      11.1464,
+      11.3642,
+      11.7428
+     ],
+     "original_spread": 0.09396755903251287,
+     "port_ms": 0.009536,
+     "port_samples": [
+      0.009664,
+      0.009536,
+      0.008768,
+      0.00944,
+      0.009408,
+      0.0096,
+      0.009664,
+      0.009312,
+      0.00992,
+      0.009152,
+      0.0096
+     ],
+     "port_spread": 0.12080536912751681,
+     "port_stage_ms": NaN,
+     "ratio": 0.0008555228593985502,
+     "noisy": true
+    },
+    {
+     "region": "static_total[resident]",
+     "gate_kind": "none",
+     "original_ms": 62.7116,
+     "original_samples": [
+      62.4615,
+      62.6846,
+      63.5327,
+      62.5588,
+      62.7948,
+      62.4953,
+      62.9054,
+      63.0103,
+      62.3986,
+      62.7116,
+      63.4605
+     ],
+     "original_spread": 0.018084373544926244,
+     "port_ms": 51.6951,
+     "port_samples": [
+      51.6878,
+      51.5375,
+      51.4908,
+      52.0459,
+      51.4233,
+      51.7688,
+      51.9199,
+      51.6951,
+      51.5643,
+      52.0851,
+      52.161
+     ],
+     "port_spread": 0.014270211296621997,
+     "port_stage_ms": 51.700155,
+     "ratio": 0.8243307458269283,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.compute": 63.563228,
+     "cycle_count.count": 51.32499,
+     "cycle_count.enact_fused": 52.154033,
+     "cycle_count.finalize": 0.017098,
+     "cycle_count.reset": 0.783592,
+     "graph.build": 110.514569,
+     "graph.upload": 11.280763
+    },
+    "resident": {
+     "cycle_count.compute": 51.700155,
+     "cycle_count.count": 51.646165,
+     "cycle_count.enact_fused": 51.688185,
+     "cycle_count.finalize": 0.016222,
+     "cycle_count.reset": 0.014903
+    }
+   },
+   "extra_processes": [],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 345,
+      "busy_samples": 29,
+      "rounds_with_busy_samples": 3
+     },
+     "port[original]": {
+      "sm_mhz_min": 510,
+      "busy_samples": 78,
+      "rounds_with_busy_samples": 8
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1620,
+      "busy_samples": 76,
+      "rounds_with_busy_samples": 8
+     }
+    }
+   }
+  },
+  "update/DD_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 5.46996,
+     "original_samples": [
+      5.44238,
+      5.46273,
+      5.68753,
+      5.65284,
+      5.45894,
+      5.54391,
+      5.5347,
+      5.506869999999999,
+      5.38058,
+      5.42287,
+      5.46996
+     ],
+     "original_spread": 0.056115584026208525,
+     "port_ms": 3.75164,
+     "port_samples": [
+      3.80547,
+      3.69701,
+      3.6981,
+      3.77032,
+      3.75164,
+      3.81658,
+      3.75843,
+      3.7017,
+      3.70918,
+      3.73005,
+      3.80941
+     ],
+     "port_spread": 0.03187139490995936,
+     "port_stage_ms": 3.747309,
+     "ratio": 0.6858624194692465,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 563.7246342375875,
+     "original_samples": [
+      563.0120439454913,
+      570.7716746255755,
+      552.8555056080222,
+      562.1136343106627,
+      566.9064670801163,
+      579.0729047730565,
+      564.2758077010512,
+      549.9297063797712,
+      567.1956287696958,
+      546.701867133379,
+      563.7246342375875
+     ],
+     "original_spread": 0.057423493091548,
+     "port_ms": 544.9946410953999,
+     "port_samples": [
+      522.5624358281493,
+      544.027466326952,
+      548.1176665052772,
+      539.49502017349,
+      552.6234339922667,
+      560.3811452165246,
+      544.9946410953999,
+      551.1876782402396,
+      540.6663734465837,
+      537.8001341596246,
+      552.2934915497899
+     ],
+     "port_spread": 0.06939280964738004,
+     "ratio": 0.966774570411458,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_device[original]",
+     "gate_kind": "none",
+     "original_ms": 5.46996,
+     "original_samples": [
+      5.44238,
+      5.46273,
+      5.68753,
+      5.65284,
+      5.45894,
+      5.54391,
+      5.5347,
+      5.506869999999999,
+      5.38058,
+      5.42287,
+      5.46996
+     ],
+     "original_spread": 0.056115584026208525,
+     "port_ms": 3.92243,
+     "port_samples": [
+      3.93526,
+      3.97306,
+      3.86762,
+      3.88426,
+      3.91891,
+      3.9041,
+      3.94669,
+      3.92243,
+      3.86387,
+      3.96154,
+      3.94429
+     ],
+     "port_spread": 0.027837335529250974,
+     "port_stage_ms": 3.94131,
+     "ratio": 0.7170856825278429,
+     "noisy": false
+    },
+    {
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.46996,
+     "original_samples": [
+      5.44238,
+      5.46273,
+      5.68753,
+      5.65284,
+      5.45894,
+      5.54391,
+      5.5347,
+      5.506869999999999,
+      5.38058,
+      5.42287,
+      5.46996
+     ],
+     "original_spread": 0.056115584026208525,
+     "port_ms": 3.39877,
+     "port_samples": [
+      3.33847,
+      3.4328,
+      3.37301,
+      3.49661,
+      3.34816,
+      3.39658,
+      3.39287,
+      3.44232,
+      3.41658,
+      3.40315,
+      3.39877
+     ],
+     "port_spread": 0.046528597110131006,
+     "port_stage_ms": 3.394109,
+     "ratio": 0.6213518928840429,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "region": "update_device[resident]",
+     "gate_kind": "none",
+     "original_ms": 5.46996,
+     "original_samples": [
+      5.44238,
+      5.46273,
+      5.68753,
+      5.65284,
+      5.45894,
+      5.54391,
+      5.5347,
+      5.506869999999999,
+      5.38058,
+      5.42287,
+      5.46996
+     ],
+     "original_spread": 0.056115584026208525,
+     "port_ms": 3.58662,
+     "port_samples": [
+      3.59184,
+      3.58662,
+      3.60157,
+      3.50346,
+      3.45571,
+      3.64611,
+      3.57494,
+      3.60845,
+      3.57869,
+      3.59014,
+      3.53306
+     ],
+     "port_spread": 0.0530861925712789,
+     "port_stage_ms": 3.61068,
+     "ratio": 0.6556940087313252,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.46996,
+     "original_samples": [
+      5.44238,
+      5.46273,
+      5.68753,
+      5.65284,
+      5.45894,
+      5.54391,
+      5.5347,
+      5.506869999999999,
+      5.38058,
+      5.42287,
+      5.46996
+     ],
+     "original_spread": 0.056115584026208525,
+     "port_ms": 1.74075,
+     "port_samples": [
+      1.74075,
+      1.71621,
+      1.79749,
+      1.757,
+      1.72672,
+      1.73959,
+      1.76036,
+      1.72874,
+      1.72303,
+      1.76206,
+      1.76766
+     ],
+     "port_spread": 0.046692517592991534,
+     "ratio": 0.3182381589627712,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 5.46996,
+     "original_samples": [
+      5.44238,
+      5.46273,
+      5.68753,
+      5.65284,
+      5.45894,
+      5.54391,
+      5.5347,
+      5.506869999999999,
+      5.38058,
+      5.42287,
+      5.46996
+     ],
+     "original_spread": 0.056115584026208525,
+     "port_ms": 3.36914,
+     "port_samples": [
+      3.36914,
+      3.34223,
+      3.47187,
+      3.31233,
+      3.39026,
+      3.36052,
+      3.52876,
+      3.35244,
+      3.34464,
+      3.39224,
+      3.3971
+     ],
+     "port_spread": 0.06423894525012315,
+     "ratio": 0.6159350342598483,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.commit": 0.455987,
+     "cycle_count.compute": 3.065745,
+     "cycle_count.count": 0.9759,
+     "cycle_count.count_minus": 1.113444,
+     "cycle_count.count_plus": 0.222661,
+     "cycle_count.enact_fused": 2.104336,
+     "cycle_count.finalize": 0.007542999999999999,
+     "cycle_count.identify_affected": 0.000457,
+     "cycle_count.normalize": 1.8669870000000002,
+     "cycle_count.reset": 0.884225,
+     "cycle_count.update": 3.747309,
+     "graph.apply": 0.443397,
+     "graph.build": 8.354851,
+     "graph.upload": 2.034634
+    },
+    "resident": {
+     "cycle_count.commit": 0.456283,
+     "cycle_count.compute": 2.947674,
+     "cycle_count.count": 0.974706,
+     "cycle_count.count_minus": 0.245172,
+     "cycle_count.count_plus": 0.22511,
+     "cycle_count.enact_fused": 2.065912,
+     "cycle_count.finalize": 0.0073869999999999995,
+     "cycle_count.identify_affected": 0.000448,
+     "cycle_count.normalize": 2.383979,
+     "cycle_count.reset": 0.84538,
+     "cycle_count.update": 3.394109,
+     "graph.apply": 0.444636,
+     "graph.build": 8.74841,
+     "graph.upload": 1.060442
+    }
+   },
+   "extra_processes": [
+    "chain[resident]",
+    "events[original]",
+    "events[resident]"
+   ],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 60,
+      "rounds_with_busy_samples": 8
+     },
+     "port[original]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 69,
+      "rounds_with_busy_samples": 9
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 64,
+      "rounds_with_busy_samples": 10
+     }
+    }
+   },
+   "chain_ms_by_round": [
+    [
+     3.36914,
+     1.74075,
+     1.72337,
+     1.80715
+    ],
+    [
+     3.34223,
+     1.75169,
+     1.71621,
+     1.71036
+    ],
+    [
+     3.47187,
+     1.84689,
+     1.76222,
+     1.79749
+    ],
+    [
+     3.31233,
+     1.77751,
+     1.72838,
+     1.757
+    ],
+    [
+     3.39026,
+     1.77474,
+     1.72672,
+     1.72636
+    ],
+    [
+     3.36052,
+     1.7467,
+     1.73741,
+     1.73959
+    ],
+    [
+     3.52876,
+     1.79434,
+     1.71667,
+     1.76036
+    ],
+    [
+     3.35244,
+     1.73531,
+     1.7254,
+     1.72874
+    ],
+    [
+     3.34464,
+     1.74771,
+     1.71203,
+     1.72303
+    ],
+    [
+     3.39224,
+     1.79598,
+     1.73736,
+     1.76206
+    ],
+    [
+     3.3971,
+     1.76766,
+     1.76879,
+     1.71975
+    ]
+   ]
+  },
+  "update/DD_k4_50000_50000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 6.96137,
+     "original_samples": [
+      6.96137,
+      7.03754,
+      6.89144,
+      7.1021399999999995,
+      6.94276,
+      6.967700000000001,
+      8.625070000000001,
+      6.93364,
+      6.94519,
+      7.01374,
+      6.90523
+     ],
+     "original_spread": 0.24903575014688212,
+     "port_ms": 5.86907,
+     "port_samples": [
+      5.86907,
+      5.93308,
+      5.83708,
+      5.87377,
+      5.8126,
+      5.86949,
+      5.83631,
+      5.80829,
+      5.84613,
+      5.87658,
+      5.97851
+     ],
+     "port_spread": 0.029002891429136063,
+     "port_stage_ms": 5.865645,
+     "ratio": 0.8430912306054699,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": true
+    },
+    {
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 577.7935776859522,
+     "original_samples": [
+      585.228219628334,
+      577.7935776859522,
+      577.6243228465319,
+      572.2645735368133,
+      564.0168953686953,
+      588.994961231947,
+      600.5175551399589,
+      555.6335551664233,
+      582.5586654245853,
+      567.8197555243969,
+      587.7548484131694
+     ],
+     "original_spread": 0.07768172182407211,
+     "port_ms": 556.4935933798552,
+     "port_samples": [
+      554.7060463577509,
+      536.048075184226,
+      544.7405716404319,
+      565.7398523762822,
+      571.807156316936,
+      545.3802011907101,
+      547.5458288565278,
+      556.4935933798552,
+      562.8571221604943,
+      566.3339486345649,
+      569.631353020668
+     ],
+     "port_spread": 0.06425784871219767,
+     "ratio": 0.96313565063945,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_device[original]",
+     "gate_kind": "none",
+     "original_ms": 6.96137,
+     "original_samples": [
+      6.96137,
+      7.03754,
+      6.89144,
+      7.1021399999999995,
+      6.94276,
+      6.967700000000001,
+      8.625070000000001,
+      6.93364,
+      6.94519,
+      7.01374,
+      6.90523
+     ],
+     "original_spread": 0.24903575014688212,
+     "port_ms": 6.0311,
+     "port_samples": [
+      6.00816,
+      5.91219,
+      6.37331,
+      5.9375,
+      5.91843,
+      6.01472,
+      6.09475,
+      6.0311,
+      6.04915,
+      6.15453,
+      6.1289
+     ],
+     "port_spread": 0.07645703105569468,
+     "port_stage_ms": 6.047334,
+     "ratio": 0.8663668214733595,
+     "noisy": true
+    },
+    {
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 6.96137,
+     "original_samples": [
+      6.96137,
+      7.03754,
+      6.89144,
+      7.1021399999999995,
+      6.94276,
+      6.967700000000001,
+      8.625070000000001,
+      6.93364,
+      6.94519,
+      7.01374,
+      6.90523
+     ],
+     "original_spread": 0.24903575014688212,
+     "port_ms": 5.45805,
+     "port_samples": [
+      5.48795,
+      5.45805,
+      5.40113,
+      5.48661,
+      5.41135,
+      5.32416,
+      5.46249,
+      5.51688,
+      5.49897,
+      5.405,
+      5.43956
+     ],
+     "port_spread": 0.03530931376590533,
+     "port_stage_ms": 5.453305,
+     "ratio": 0.784048254869372,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": true
+    },
+    {
+     "region": "update_device[resident]",
+     "gate_kind": "none",
+     "original_ms": 6.96137,
+     "original_samples": [
+      6.96137,
+      7.03754,
+      6.89144,
+      7.1021399999999995,
+      6.94276,
+      6.967700000000001,
+      8.625070000000001,
+      6.93364,
+      6.94519,
+      7.01374,
+      6.90523
+     ],
+     "original_spread": 0.24903575014688212,
+     "port_ms": 5.66454,
+     "port_samples": [
+      5.51619,
+      5.6825,
+      5.66454,
+      5.66426,
+      5.71328,
+      5.70774,
+      5.70301,
+      5.48109,
+      5.62966,
+      5.66714,
+      5.63418
+     ],
+     "port_spread": 0.040990089221719705,
+     "port_stage_ms": 5.687764,
+     "ratio": 0.8137105196247291,
+     "noisy": true
+    },
+    {
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 6.96137,
+     "original_samples": [
+      6.96137,
+      7.03754,
+      6.89144,
+      7.1021399999999995,
+      6.94276,
+      6.967700000000001,
+      8.625070000000001,
+      6.93364,
+      6.94519,
+      7.01374,
+      6.90523
+     ],
+     "original_spread": 0.24903575014688212,
+     "port_ms": 3.14388,
+     "port_samples": [
+      3.10942,
+      3.19232,
+      3.14476,
+      3.14388,
+      3.14946,
+      3.18496,
+      3.07859,
+      3.1429,
+      3.08013,
+      3.1101,
+      3.14558
+     ],
+     "port_spread": 0.03617504484904001,
+     "ratio": 0.4516180004797906,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": true
+    },
+    {
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 6.96137,
+     "original_samples": [
+      6.96137,
+      7.03754,
+      6.89144,
+      7.1021399999999995,
+      6.94276,
+      6.967700000000001,
+      8.625070000000001,
+      6.93364,
+      6.94519,
+      7.01374,
+      6.90523
+     ],
+     "original_spread": 0.24903575014688212,
+     "port_ms": 5.45635,
+     "port_samples": [
+      5.41444,
+      5.45635,
+      5.62124,
+      5.55417,
+      5.48712,
+      5.44452,
+      5.60025,
+      5.52668,
+      5.425,
+      5.42524,
+      5.44311
+     ],
+     "port_spread": 0.037900794487157226,
+     "ratio": 0.7838040500648579,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": true
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.commit": 0.557291,
+     "cycle_count.compute": 3.032735,
+     "cycle_count.count": 0.976169,
+     "cycle_count.count_minus": 1.20288,
+     "cycle_count.count_plus": 0.386753,
+     "cycle_count.enact_fused": 2.274426,
+     "cycle_count.finalize": 0.007733,
+     "cycle_count.identify_affected": 0.000424,
+     "cycle_count.normalize": 3.5813330000000003,
+     "cycle_count.reset": 0.883118,
+     "cycle_count.update": 5.865645,
+     "graph.apply": 0.545776,
+     "graph.build": 8.453894,
+     "graph.upload": 1.993399
+    },
+    "resident": {
+     "cycle_count.commit": 0.560469,
+     "cycle_count.compute": 2.927874,
+     "cycle_count.count": 0.976688,
+     "cycle_count.count_minus": 0.33872,
+     "cycle_count.count_plus": 0.396101,
+     "cycle_count.enact_fused": 2.237686,
+     "cycle_count.finalize": 0.007535999999999999,
+     "cycle_count.identify_affected": 0.000421,
+     "cycle_count.normalize": 4.030186,
+     "cycle_count.reset": 0.844251,
+     "cycle_count.update": 5.453305,
+     "graph.apply": 0.548688,
+     "graph.build": 8.718478,
+     "graph.upload": 1.048777
+    }
+   },
+   "extra_processes": [
+    "chain[resident]",
+    "events[original]",
+    "events[resident]"
+   ],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 66,
+      "rounds_with_busy_samples": 8
+     },
+     "port[original]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 69,
+      "rounds_with_busy_samples": 8
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 83,
+      "rounds_with_busy_samples": 11
+     }
+    }
+   },
+   "chain_ms_by_round": [
+    [
+     5.41444,
+     3.21143,
+     3.08716,
+     3.10942
+    ],
+    [
+     5.45635,
+     3.19232,
+     3.12152,
+     3.19397
+    ],
+    [
+     5.62124,
+     3.14476,
+     3.10346,
+     3.21919
+    ],
+    [
+     5.55417,
+     3.0943,
+     3.15199,
+     3.14388
+    ],
+    [
+     5.48712,
+     3.14946,
+     3.09287,
+     3.18892
+    ],
+    [
+     5.44452,
+     3.18664,
+     3.18496,
+     3.14517
+    ],
+    [
+     5.60025,
+     3.06065,
+     3.07859,
+     3.10833
+    ],
+    [
+     5.52668,
+     3.1429,
+     3.19012,
+     3.12996
+    ],
+    [
+     5.425,
+     3.08013,
+     3.05973,
+     3.11831
+    ],
+    [
+     5.42524,
+     3.09512,
+     3.14646,
+     3.1101
+    ],
+    [
+     5.44311,
+     3.1938,
+     3.11906,
+     3.14558
+    ]
+   ]
+  },
+  "update/DD_k4_100000_100000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 10.6287,
+     "original_samples": [
+      10.5551,
+      10.7479,
+      10.5528,
+      10.819199999999999,
+      10.5578,
+      10.529,
+      10.5815,
+      10.7042,
+      10.7352,
+      10.8186,
+      10.6287
+     ],
+     "original_spread": 0.027303433157394478,
+     "port_ms": 9.91335,
+     "port_samples": [
+      10.1072,
+      9.66029,
+      9.81062,
+      9.79732,
+      10.1434,
+      9.89706,
+      9.97151,
+      9.91335,
+      10.0183,
+      9.88968,
+      10.2221
+     ],
+     "port_spread": 0.056672063429617586,
+     "port_stage_ms": 9.910194,
+     "ratio": 0.9326963786728386,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 597.5896464660764,
+     "original_samples": [
+      611.9611077010632,
+      597.5896464660764,
+      606.5239170566201,
+      602.9163273051381,
+      615.0676496326923,
+      595.9109291434288,
+      613.7577630579472,
+      595.0858807191253,
+      591.2279840558767,
+      595.8952233195305,
+      587.28710655123
+     ],
+     "original_spread": 0.046487657953490684,
+     "port_ms": 574.5526421815157,
+     "port_samples": [
+      571.7388922348619,
+      567.5709415227175,
+      581.8891962990165,
+      578.3808622509241,
+      574.5526421815157,
+      568.4579247608781,
+      572.8700961917639,
+      583.871335722506,
+      581.4496455714107,
+      566.5969485417008,
+      582.4811775237322
+     ],
+     "port_spread": 0.030065804092756727,
+     "ratio": 0.9614501281593599,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.6287,
+     "original_samples": [
+      10.5551,
+      10.7479,
+      10.5528,
+      10.819199999999999,
+      10.5578,
+      10.529,
+      10.5815,
+      10.7042,
+      10.7352,
+      10.8186,
+      10.6287
+     ],
+     "original_spread": 0.027303433157394478,
+     "port_ms": 9.36788,
+     "port_samples": [
+      9.36788,
+      9.16745,
+      9.35141,
+      9.37675,
+      9.45125,
+      9.35432,
+      9.39052,
+      9.72439,
+      9.4641,
+      9.3121,
+      9.20067
+     ],
+     "port_spread": 0.0594520852103143,
+     "port_stage_ms": 9.361593,
+     "ratio": 0.8813758973345752,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.6287,
+     "original_samples": [
+      10.5551,
+      10.7479,
+      10.5528,
+      10.819199999999999,
+      10.5578,
+      10.529,
+      10.5815,
+      10.7042,
+      10.7352,
+      10.8186,
+      10.6287
+     ],
+     "original_spread": 0.027303433157394478,
+     "port_ms": 5.99731,
+     "port_samples": [
+      6.03148,
+      6.01783,
+      5.99731,
+      5.96456,
+      6.03331,
+      5.88047,
+      5.8971,
+      5.97853,
+      5.98482,
+      6.07314,
+      6.00668
+     ],
+     "port_spread": 0.0321260698546516,
+     "ratio": 0.5642562119544252,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 10.6287,
+     "original_samples": [
+      10.5551,
+      10.7479,
+      10.5528,
+      10.819199999999999,
+      10.5578,
+      10.529,
+      10.5815,
+      10.7042,
+      10.7352,
+      10.8186,
+      10.6287
+     ],
+     "original_spread": 0.027303433157394478,
+     "port_ms": 9.4628,
+     "port_samples": [
+      9.53317,
+      9.55358,
+      9.48429,
+      9.45246,
+      9.53308,
+      9.37736,
+      9.31885,
+      9.43512,
+      9.45981,
+      9.60789,
+      9.4628
+     ],
+     "port_spread": 0.030544870440038886,
+     "ratio": 0.8903064344651744,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.commit": 0.754317,
+     "cycle_count.compute": 3.000385,
+     "cycle_count.count": 0.977485,
+     "cycle_count.count_minus": 1.368283,
+     "cycle_count.count_plus": 0.740089,
+     "cycle_count.enact_fused": 2.615652,
+     "cycle_count.finalize": 0.007381,
+     "cycle_count.identify_affected": 0.000438,
+     "cycle_count.normalize": 6.805524,
+     "cycle_count.reset": 0.869906,
+     "cycle_count.update": 9.910194,
+     "graph.apply": 0.741156,
+     "graph.build": 8.53286,
+     "graph.upload": 1.976842
+    },
+    "resident": {
+     "cycle_count.commit": 0.758152,
+     "cycle_count.compute": 2.988303,
+     "cycle_count.count": 0.973501,
+     "cycle_count.count_minus": 0.572027,
+     "cycle_count.count_plus": 0.743726,
+     "cycle_count.enact_fused": 2.623465,
+     "cycle_count.finalize": 0.007315,
+     "cycle_count.identify_affected": 0.000536,
+     "cycle_count.normalize": 7.072253,
+     "cycle_count.reset": 0.88519,
+     "cycle_count.update": 9.361593,
+     "graph.apply": 0.745935,
+     "graph.build": 8.555347,
+     "graph.upload": 1.05061
+    }
+   },
+   "extra_processes": [
+    "chain[resident]"
+   ],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 55,
+      "rounds_with_busy_samples": 6
+     },
+     "port[original]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 60,
+      "rounds_with_busy_samples": 8
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1695,
+      "busy_samples": 105,
+      "rounds_with_busy_samples": 11
+     }
+    }
+   },
+   "chain_ms_by_round": [
+    [
+     9.53317,
+     5.98075,
+     6.03487,
+     6.03148
+    ],
+    [
+     9.55358,
+     6.01783,
+     6.01083,
+     6.03285
+    ],
+    [
+     9.48429,
+     5.99731,
+     5.9915,
+     6.09484
+    ],
+    [
+     9.45246,
+     5.96456,
+     5.92606,
+     5.99963
+    ],
+    [
+     9.53308,
+     5.95217,
+     6.03331,
+     6.08066
+    ],
+    [
+     9.37736,
+     5.80543,
+     5.88047,
+     6.16897
+    ],
+    [
+     9.31885,
+     5.84316,
+     5.8971,
+     6.13279
+    ],
+    [
+     9.43512,
+     5.85954,
+     5.97853,
+     6.06687
+    ],
+    [
+     9.45981,
+     5.89378,
+     5.98482,
+     6.08884
+    ],
+    [
+     9.60789,
+     6.02142,
+     6.07314,
+     6.0746
+    ],
+    [
+     9.4628,
+     5.92671,
+     6.00668,
+     6.08338
+    ]
+   ]
+  },
+  "update/github_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 14.8541,
+     "original_samples": [
+      14.890600000000001,
+      15.0636,
+      14.6552,
+      14.8503,
+      14.919699999999999,
+      14.6119,
+      14.9061,
+      14.8541,
+      14.8988,
+      14.8076,
+      14.652099999999999
+     ],
+     "original_spread": 0.030409112635568555,
+     "port_ms": 11.9767,
+     "port_samples": [
+      12.2129,
+      11.9047,
+      11.948,
+      11.9312,
+      11.9767,
+      11.8415,
+      12.173,
+      12.1878,
+      12.2906,
+      11.7464,
+      12.1649
+     ],
+     "port_spread": 0.04543822588860037,
+     "port_stage_ms": 11.971945,
+     "ratio": 0.8062891726863289,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 1019.5828536525369,
+     "original_samples": [
+      1008.1154284998775,
+      1031.078209169209,
+      1018.4565111994743,
+      1042.4897139891982,
+      1019.5828536525369,
+      1034.3228057026863,
+      1039.7780034691095,
+      1006.9183204323053,
+      1025.3185974434018,
+      1018.5491787269711,
+      1001.9555613398552
+     ],
+     "original_spread": 0.03975562408109761,
+     "port_ms": 945.9327226504683,
+     "port_samples": [
+      968.8025694340467,
+      945.7775307819247,
+      939.3988298252225,
+      929.9333253875375,
+      959.2824885621667,
+      956.731541082263,
+      945.9327226504683,
+      948.5439490526915,
+      959.1824421659112,
+      942.1776812523603,
+      944.3281488493085
+     ],
+     "port_spread": 0.04109091811265297,
+     "ratio": 0.9277644472558306,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.8541,
+     "original_samples": [
+      14.890600000000001,
+      15.0636,
+      14.6552,
+      14.8503,
+      14.919699999999999,
+      14.6119,
+      14.9061,
+      14.8541,
+      14.8988,
+      14.8076,
+      14.652099999999999
+     ],
+     "original_spread": 0.030409112635568555,
+     "port_ms": 9.40294,
+     "port_samples": [
+      9.58465,
+      9.46959,
+      9.24174,
+      9.52984,
+      9.07956,
+      9.35741,
+      9.40101,
+      8.95072,
+      9.51595,
+      9.45993,
+      9.40294
+     ],
+     "port_spread": 0.06741827556062248,
+     "port_stage_ms": 9.397127,
+     "ratio": 0.6330198396402339,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.8541,
+     "original_samples": [
+      14.890600000000001,
+      15.0636,
+      14.6552,
+      14.8503,
+      14.919699999999999,
+      14.6119,
+      14.9061,
+      14.8541,
+      14.8988,
+      14.8076,
+      14.652099999999999
+     ],
+     "original_spread": 0.030409112635568555,
+     "port_ms": 5.63298,
+     "port_samples": [
+      5.60168,
+      5.63298,
+      5.62662,
+      5.5688,
+      5.65891,
+      5.63766,
+      5.69572,
+      5.63683,
+      5.58667,
+      5.72899,
+      5.57111
+     ],
+     "port_spread": 0.02843787835213318,
+     "ratio": 0.3792205519014952,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 14.8541,
+     "original_samples": [
+      14.890600000000001,
+      15.0636,
+      14.6552,
+      14.8503,
+      14.919699999999999,
+      14.6119,
+      14.9061,
+      14.8541,
+      14.8988,
+      14.8076,
+      14.652099999999999
+     ],
+     "original_spread": 0.030409112635568555,
+     "port_ms": 9.02111,
+     "port_samples": [
+      9.14478,
+      9.0796,
+      9.09973,
+      9.02357,
+      8.98899,
+      8.78847,
+      9.09971,
+      8.89558,
+      9.01283,
+      9.02111,
+      8.95696
+     ],
+     "port_spread": 0.039497356755432596,
+     "ratio": 0.6073144788307605,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.commit": 2.758213,
+     "cycle_count.compute": 61.881087,
+     "cycle_count.count": 57.479686,
+     "cycle_count.count_minus": 3.771412,
+     "cycle_count.count_plus": 1.86397,
+     "cycle_count.enact_fused": 60.19961300000001,
+     "cycle_count.finalize": 0.010571,
+     "cycle_count.identify_affected": 0.000442,
+     "cycle_count.normalize": 3.499724,
+     "cycle_count.reset": 0.825654,
+     "cycle_count.update": 11.971945,
+     "graph.apply": 2.745054,
+     "graph.build": 34.002853,
+     "graph.upload": 6.984927
+    },
+    "resident": {
+     "cycle_count.commit": 2.831247,
+     "cycle_count.compute": 62.722837,
+     "cycle_count.count": 58.318039,
+     "cycle_count.count_minus": 0.245636,
+     "cycle_count.count_plus": 1.867837,
+     "cycle_count.enact_fused": 61.051047,
+     "cycle_count.finalize": 0.010172,
+     "cycle_count.identify_affected": 0.000454,
+     "cycle_count.normalize": 4.411541,
+     "cycle_count.reset": 0.817725,
+     "cycle_count.update": 9.397127,
+     "graph.apply": 2.821482,
+     "graph.build": 33.746934,
+     "graph.upload": 3.396476
+    }
+   },
+   "extra_processes": [
+    "chain[resident]"
+   ],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1440,
+      "busy_samples": 80,
+      "rounds_with_busy_samples": 9
+     },
+     "port[original]": {
+      "sm_mhz_min": 1620,
+      "busy_samples": 90,
+      "rounds_with_busy_samples": 9
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1665,
+      "busy_samples": 94,
+      "rounds_with_busy_samples": 8
+     }
+    }
+   },
+   "chain_ms_by_round": [
+    [
+     9.14478,
+     5.72623,
+     5.60168,
+     5.4465
+    ],
+    [
+     9.0796,
+     5.74071,
+     5.63298,
+     5.55087
+    ],
+    [
+     9.09973,
+     5.6859,
+     5.62662,
+     5.54497
+    ],
+    [
+     9.02357,
+     5.71397,
+     5.5688,
+     5.49726
+    ],
+    [
+     8.98899,
+     5.7524,
+     5.65891,
+     5.49016
+    ],
+    [
+     8.78847,
+     5.66419,
+     5.63766,
+     5.55771
+    ],
+    [
+     9.09971,
+     5.76028,
+     5.69572,
+     5.50643
+    ],
+    [
+     8.89558,
+     5.81114,
+     5.63683,
+     5.55511
+    ],
+    [
+     9.01283,
+     5.78823,
+     5.58667,
+     5.51937
+    ],
+    [
+     9.02111,
+     5.77015,
+     5.72899,
+     5.43701
+    ],
+    [
+     8.95696,
+     5.74392,
+     5.57111,
+     5.505
+    ]
+   ]
+  },
+  "update/twitch_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 24.6587,
+     "original_samples": [
+      24.0437,
+      23.888099999999998,
+      24.2747,
+      24.6587,
+      25.0312,
+      24.659299999999998,
+      24.581100000000003,
+      24.1373,
+      25.0866,
+      25.0989,
+      24.8326
+     ],
+     "original_spread": 0.04910234521690124,
+     "port_ms": 20.6215,
+     "port_samples": [
+      20.3451,
+      19.8152,
+      20.5867,
+      21.3542,
+      21.3482,
+      21.0068,
+      20.0322,
+      19.9549,
+      21.1134,
+      20.8207,
+      20.6215
+     ],
+     "port_spread": 0.07463084644666963,
+     "port_stage_ms": 20.617475,
+     "ratio": 0.8362768515777393,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 2687.059744261205,
+     "original_samples": [
+      2673.997708596289,
+      2687.059744261205,
+      2712.1760603040457,
+      2659.5091111958027,
+      2696.7137046158314,
+      2640.655215829611,
+      2694.9373250827193,
+      2673.899964429438,
+      2689.89029340446,
+      2660.443715751171,
+      2690.6769098713994
+     ],
+     "original_spread": 0.026616767501051297,
+     "port_ms": 2471.1044868454337,
+     "port_samples": [
+      2444.8182974010706,
+      2483.4022475406528,
+      2463.9497147873044,
+      2498.087135143578,
+      2517.752860672772,
+      2491.53255764395,
+      2461.9535664096475,
+      2467.3618068918586,
+      2491.462086327374,
+      2471.1044868454337,
+      2462.6461528241634
+     ],
+     "port_spread": 0.029514965336333573,
+     "ratio": 0.9196313897087736,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 24.6587,
+     "original_samples": [
+      24.0437,
+      23.888099999999998,
+      24.2747,
+      24.6587,
+      25.0312,
+      24.659299999999998,
+      24.581100000000003,
+      24.1373,
+      25.0866,
+      25.0989,
+      24.8326
+     ],
+     "original_spread": 0.04910234521690124,
+     "port_ms": 9.01792,
+     "port_samples": [
+      9.06085,
+      9.36187,
+      8.94836,
+      9.06966,
+      9.01792,
+      8.93738,
+      8.87223,
+      8.90423,
+      9.50625,
+      8.98809,
+      9.07316
+     ],
+     "port_spread": 0.070306678258401,
+     "port_stage_ms": 9.01174,
+     "ratio": 0.3657094656247085,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 24.6587,
+     "original_samples": [
+      24.0437,
+      23.888099999999998,
+      24.2747,
+      24.6587,
+      25.0312,
+      24.659299999999998,
+      24.581100000000003,
+      24.1373,
+      25.0866,
+      25.0989,
+      24.8326
+     ],
+     "original_spread": 0.04910234521690124,
+     "port_ms": 5.57511,
+     "port_samples": [
+      5.61393,
+      5.55349,
+      5.57446,
+      5.58653,
+      5.59429,
+      5.57684,
+      5.57306,
+      5.58995,
+      5.55914,
+      5.5583,
+      5.57511
+     ],
+     "port_spread": 0.010841041701419314,
+     "ratio": 0.22609099425354945,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 24.6587,
+     "original_samples": [
+      24.0437,
+      23.888099999999998,
+      24.2747,
+      24.6587,
+      25.0312,
+      24.659299999999998,
+      24.581100000000003,
+      24.1373,
+      25.0866,
+      25.0989,
+      24.8326
+     ],
+     "original_spread": 0.04910234521690124,
+     "port_ms": 9.02288,
+     "port_samples": [
+      8.90988,
+      8.99002,
+      9.02288,
+      8.93681,
+      9.08581,
+      9.04037,
+      9.00295,
+      8.99552,
+      9.02329,
+      9.13632,
+      9.11826
+     ],
+     "port_spread": 0.02509619988296422,
+     "ratio": 0.3659106116705261,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.commit": 3.373927,
+     "cycle_count.compute": 50.980432,
+     "cycle_count.count": 38.489975,
+     "cycle_count.count_minus": 12.038225,
+     "cycle_count.count_plus": 0.922063,
+     "cycle_count.enact_fused": 40.248356,
+     "cycle_count.finalize": 0.009545,
+     "cycle_count.identify_affected": 0.000448,
+     "cycle_count.normalize": 4.221235,
+     "cycle_count.reset": 0.791491,
+     "cycle_count.update": 20.617475,
+     "graph.apply": 3.362489,
+     "graph.build": 111.640007,
+     "graph.upload": 23.435371
+    },
+    "resident": {
+     "cycle_count.commit": 3.392981,
+     "cycle_count.compute": 50.904837,
+     "cycle_count.count": 38.39929,
+     "cycle_count.count_minus": 0.352402,
+     "cycle_count.count_plus": 0.892601,
+     "cycle_count.enact_fused": 40.128329,
+     "cycle_count.finalize": 0.010392,
+     "cycle_count.identify_affected": 0.000415,
+     "cycle_count.normalize": 4.257428,
+     "cycle_count.reset": 0.821541,
+     "cycle_count.update": 9.01174,
+     "graph.apply": 3.381541,
+     "graph.build": 111.982161,
+     "graph.upload": 11.778684
+    }
+   },
+   "extra_processes": [
+    "chain[resident]"
+   ],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1425,
+      "busy_samples": 142,
+      "rounds_with_busy_samples": 11
+     },
+     "port[original]": {
+      "sm_mhz_min": 1410,
+      "busy_samples": 148,
+      "rounds_with_busy_samples": 11
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1470,
+      "busy_samples": 129,
+      "rounds_with_busy_samples": 10
+     }
+    }
+   },
+   "chain_ms_by_round": [
+    [
+     8.90988,
+     5.61393,
+     5.47194,
+     5.6168
+    ],
+    [
+     8.99002,
+     5.55349,
+     5.47529,
+     5.6045
+    ],
+    [
+     9.02288,
+     5.57446,
+     5.59573,
+     5.5544
+    ],
+    [
+     8.93681,
+     5.58653,
+     5.54382,
+     5.60073
+    ],
+    [
+     9.08581,
+     5.56827,
+     5.59429,
+     5.64405
+    ],
+    [
+     9.04037,
+     5.57684,
+     5.57119,
+     5.60518
+    ],
+    [
+     9.00295,
+     5.65121,
+     5.50714,
+     5.57306
+    ],
+    [
+     8.99552,
+     5.54845,
+     5.58995,
+     5.60432
+    ],
+    [
+     9.02329,
+     5.55914,
+     5.5421,
+     5.63349
+    ],
+    [
+     9.13632,
+     5.54178,
+     5.5583,
+     5.59197
+    ],
+    [
+     9.11826,
+     5.57511,
+     5.52516,
+     5.64551
+    ]
+   ]
+  },
+  "update/collab_k4_25000_25000_s1": {
+   "task": "update",
+   "golden_checked": true,
+   "rounds": 11,
+   "complete": true,
+   "regions": [
+    {
+     "region": "update[original]",
+     "gate_kind": "compute",
+     "original_ms": 200.34799999999998,
+     "original_samples": [
+      200.846,
+      200.34799999999998,
+      200.35500000000002,
+      197.768,
+      202.11599999999999,
+      200.462,
+      199.933,
+      198.018,
+      199.55999999999997,
+      198.655,
+      200.517
+     ],
+     "original_spread": 0.021702238105696013,
+     "port_ms": 196.962,
+     "port_samples": [
+      196.486,
+      195.057,
+      197.799,
+      198.872,
+      198.57,
+      195.258,
+      198.758,
+      196.537,
+      196.962,
+      197.887,
+      195.076
+     ],
+     "port_spread": 0.01936921842792024,
+     "port_stage_ms": 196.957412,
+     "ratio": 0.9830994070317648,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_end_to_end[original]",
+     "gate_kind": "end_to_end",
+     "original_ms": 10705.042742192745,
+     "original_samples": [
+      10590.542187914252,
+      10701.33217703551,
+      10749.490024521947,
+      10716.902564279735,
+      10705.042742192745,
+      10714.327443391085,
+      10703.376059420407,
+      10685.912178829312,
+      10690.953154116869,
+      10770.327649079263,
+      10712.506441399455
+     ],
+     "original_spread": 0.0167944645803614,
+     "port_ms": 10490.00648688525,
+     "port_samples": [
+      10397.00208697468,
+      10598.743956536055,
+      10547.098092734814,
+      10483.48863888532,
+      10498.956709168851,
+      10512.900074012578,
+      10522.92554359883,
+      10449.954659678042,
+      10490.00648688525,
+      10469.820177182555,
+      10469.564754515886
+     ],
+     "port_spread": 0.019231815520190064,
+     "ratio": 0.9799126205764733,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update[resident]",
+     "gate_kind": "compute",
+     "original_ms": 200.34799999999998,
+     "original_samples": [
+      200.846,
+      200.34799999999998,
+      200.35500000000002,
+      197.768,
+      202.11599999999999,
+      200.462,
+      199.933,
+      198.018,
+      199.55999999999997,
+      198.655,
+      200.517
+     ],
+     "original_spread": 0.021702238105696013,
+     "port_ms": 187.63,
+     "port_samples": [
+      185.762,
+      187.769,
+      188.653,
+      185.353,
+      186.413,
+      188.784,
+      188.058,
+      188.425,
+      185.309,
+      187.63,
+      186.389
+     ],
+     "port_spread": 0.018520492458562035,
+     "port_stage_ms": 187.624187,
+     "ratio": 0.9365204544093279,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_steady[resident]",
+     "gate_kind": "compute",
+     "original_ms": 200.34799999999998,
+     "original_samples": [
+      200.846,
+      200.34799999999998,
+      200.35500000000002,
+      197.768,
+      202.11599999999999,
+      200.462,
+      199.933,
+      198.018,
+      199.55999999999997,
+      198.655,
+      200.517
+     ],
+     "original_spread": 0.021702238105696013,
+     "port_ms": 189.223,
+     "port_samples": [
+      189.223,
+      189.084,
+      189.704,
+      189.29,
+      188.735,
+      188.403,
+      188.363,
+      188.746,
+      190.177,
+      189.693,
+      189.341
+     ],
+     "port_spread": 0.009586572456836605,
+     "ratio": 0.944471619382275,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "region": "update_chain_worst[resident]",
+     "gate_kind": "compute",
+     "original_ms": 200.34799999999998,
+     "original_samples": [
+      200.846,
+      200.34799999999998,
+      200.35500000000002,
+      197.768,
+      202.11599999999999,
+      200.462,
+      199.933,
+      198.018,
+      199.55999999999997,
+      198.655,
+      200.517
+     ],
+     "original_spread": 0.021702238105696013,
+     "port_ms": 194.167,
+     "port_samples": [
+      194.035,
+      194.105,
+      193.706,
+      194.407,
+      194.167,
+      194.747,
+      194.317,
+      194.864,
+      193.884,
+      194.056,
+      194.198
+     ],
+     "port_spread": 0.00596393825933354,
+     "ratio": 0.9691486812945476,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ],
+   "port_stages_median_ms": {
+    "original": {
+     "cycle_count.commit": 58.778966,
+     "cycle_count.compute": 6779.263274,
+     "cycle_count.count": 6766.693282,
+     "cycle_count.count_minus": 11.591416,
+     "cycle_count.count_plus": 121.156509,
+     "cycle_count.enact_fused": 6888.693022,
+     "cycle_count.finalize": 0.024052999999999998,
+     "cycle_count.identify_affected": 0.000416,
+     "cycle_count.normalize": 4.933284,
+     "cycle_count.reset": 0.780373,
+     "cycle_count.update": 196.957412,
+     "graph.apply": 58.768818,
+     "graph.build": 110.742438,
+     "graph.upload": 22.702368999999997
+    },
+    "resident": {
+     "cycle_count.commit": 59.585363,
+     "cycle_count.compute": 6779.999256,
+     "cycle_count.count": 6766.728687,
+     "cycle_count.count_minus": 0.378856,
+     "cycle_count.count_plus": 122.602827,
+     "cycle_count.enact_fused": 6889.102193000001,
+     "cycle_count.finalize": 0.023424999999999998,
+     "cycle_count.identify_affected": 0.000424,
+     "cycle_count.normalize": 4.981619,
+     "cycle_count.reset": 0.781988,
+     "cycle_count.update": 187.624187,
+     "graph.apply": 59.574199,
+     "graph.build": 110.236344,
+     "graph.upload": 11.586247
+    }
+   },
+   "extra_processes": [
+    "chain[resident]"
+   ],
+   "monitor": {
+    "max_foreign_cpu_cores": 2.0,
+    "rejected": [],
+    "clocks_locked_in_every_round": true,
+    "gpu_summary": {
+     "original": {
+      "sm_mhz_min": 1395,
+      "busy_samples": 1620,
+      "rounds_with_busy_samples": 11
+     },
+     "port[original]": {
+      "sm_mhz_min": 1395,
+      "busy_samples": 1586,
+      "rounds_with_busy_samples": 11
+     },
+     "port[resident]": {
+      "sm_mhz_min": 1395,
+      "busy_samples": 1594,
+      "rounds_with_busy_samples": 11
+     }
+    }
+   },
+   "chain_ms_by_round": [
+    [
+     186.357,
+     185.99,
+     189.223,
+     194.035
+    ],
+    [
+     189.89,
+     186.406,
+     189.084,
+     194.105
+    ],
+    [
+     188.057,
+     186.001,
+     189.704,
+     193.706
+    ],
+    [
+     185.977,
+     186.627,
+     189.29,
+     194.407
+    ],
+    [
+     186.893,
+     186.044,
+     188.735,
+     194.167
+    ],
+    [
+     186.228,
+     187.529,
+     188.403,
+     194.747
+    ],
+    [
+     185.514,
+     185.547,
+     188.363,
+     194.317
+    ],
+    [
+     187.867,
+     186.224,
+     188.746,
+     194.864
+    ],
+    [
+     186.299,
+     186.096,
+     190.177,
+     193.884
+    ],
+    [
+     186.598,
+     187.544,
+     189.693,
+     194.056
+    ],
+    [
+     186.034,
+     186.541,
+     189.341,
+     194.198
+    ]
+   ]
+  }
+ },
+ "compacted": "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the rejected rounds) were dropped to keep the repository small; the verdicts, samples, rejected rounds with their reasons, clock check and GPU summary are unchanged; the full record: $DYNG_SCRATCH/runs/bench/0.2.0rc1/ieee_tc_dyntrucy-cuda-default-clocks.json"
+}
