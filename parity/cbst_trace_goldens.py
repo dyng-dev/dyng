@@ -376,6 +376,17 @@ def collect(raw: Path, ref_name: str, case_names: list[str] | None) -> list[dict
     return cases
 
 
+def excluded_entry(case: dict) -> dict:
+    """The info.json record of an excluded invocation (EXCLUDED): the invocation and the reason
+    only. Its inputs differ from run to run, so anything measured from its trace (op counts,
+    per-tree summaries) would make info.json, and with it the set's manifest, irreproducible
+    (M8a acceptance, criterion 4). `cbst_trace_goldens.py once` records and replays such a run."""
+    return {
+        "invocation": " ".join(case["header"].get("argv", [])),
+        "reason": case["excluded"],
+    }
+
+
 def write_case(case: dict, out: Path, raw: Path) -> dict:
     d = out / case["case"]
     d.mkdir(parents=True)
@@ -531,15 +542,7 @@ def export_set(set_name: str, ref_dir: Path, out: Path, scratch: Path) -> dict:
         metas, excluded = [], []
         for c in cases:
             if c["excluded"]:
-                s = escher_trace.summarize(c["trace"])
-                excluded.append(
-                    {
-                        "invocation": " ".join(c["header"].get("argv", [])),
-                        "reason": c["excluded"],
-                        "ops": c["end"].get("num_ops"),
-                        "summary_ops": s["ops"],
-                    }
-                )
+                excluded.append(excluded_entry(c))
                 continue
             metas.append(write_case(c, out, raw))
         info["excluded"] = excluded

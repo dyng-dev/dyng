@@ -198,6 +198,24 @@ def test_export_and_compare_dispatch() -> None:
         assert spec["mode"] in ("full", "digest", "auto", "batches")
 
 
+def test_excluded_invocations_record_nothing_run_dependent() -> None:
+    """An excluded invocation (MOSP_ESCHER's bin/main draws its graph from std::random_device)
+    is listed in info.json by its invocation and reason only: two runs with different op counts
+    give the same record, so the set's manifest stays reproducible (M8a acceptance, criterion 4)."""
+    g = load("parity/cbst_trace_goldens.py")
+    reason = g.EXCLUDED[("MOSP_ESCHER", "main")]
+
+    def case(num_ops: int) -> dict:
+        return {
+            "header": {"argv": ["<abs>/main"]},
+            "end": {"num_ops": num_ops, "exit": "normal"},
+            "excluded": reason,
+        }
+
+    assert g.excluded_entry(case(108)) == g.excluded_entry(case(111))
+    assert g.excluded_entry(case(108)) == {"invocation": "<abs>/main", "reason": reason}
+
+
 def test_trace_sections_survive_the_goldens_writers(tmp_path: Path, monkeypatch) -> None:
     """Set names with digits (cbst_trace_escher_gpu_coauth50k) are kept by both writers."""
     g = load("parity/cycle_count_goldens.py")
