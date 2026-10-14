@@ -528,22 +528,27 @@ hyper_transaction<vertex_t, weight_t>::hyper_transaction(const resources& res, c
     }
     live.push_back(id);
   }
-  // Repeated ids: the first deletion counts, the others are skipped.
+  // Repeated ids: the first deletion counts, the others are skipped. Only a batch with a repeated
+  // id pays for more than the sort: its (id, position) pairs are sorted, and the first position
+  // of every id is kept (O(k log k) in the batch, independent of the id bound).
   std::vector<std::int64_t> sorted = live;
   std::sort(sorted.begin(), sorted.end());
   if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end()) {
-    std::vector<std::int64_t> unique_order;
-    std::vector<std::int64_t> seen;
-    unique_order.reserve(live.size());
-    for (const std::int64_t id : live) {
-      const auto it = std::lower_bound(seen.begin(), seen.end(), id);
-      if (it != seen.end() && *it == id) {
+    std::vector<std::pair<std::int64_t, std::size_t>> at(live.size());
+    for (std::size_t i = 0; i < live.size(); ++i) at[i] = {live[i], i};
+    std::sort(at.begin(), at.end());
+    std::vector<std::uint8_t> keep(live.size(), 0);
+    for (std::size_t i = 0; i < at.size(); ++i) {
+      if (i == 0 || at[i].first != at[i - 1].first) {
+        keep[at[i].second] = 1;
+      } else {
         ++ignored;
-        continue;
       }
-      seen.insert(it, id);
-      unique_order.push_back(id);
     }
+    std::vector<std::int64_t> unique_order;
+    unique_order.reserve(live.size());
+    for (std::size_t i = 0; i < live.size(); ++i)
+      if (keep[i] != 0) unique_order.push_back(live[i]);
     live = std::move(unique_order);
   }
   staged_.ignored_deletions = ignored;

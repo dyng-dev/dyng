@@ -201,6 +201,37 @@ TEST_P(HypergraphBackends, SkippedOpsCountDeadOutOfRangeRepeatedAndDuplicates) {
   }
 }
 
+// Review fix (M8b): Step 0 removed repeated deletion ids with a sorted-vector insert, quadratic
+// in the batch (one repeated id in a 400K batch cost about 20 s). The rule is unchanged: the first
+// deletion of an id counts, the later ones are skipped, the batch order is kept.
+TEST_P(HypergraphBackends, RepeatedDeletionsInALargeShuffledBatchKeepTheFirstOccurrence) {
+  constexpr std::int32_t n = 200000;
+  dyng::hyperedge_list<std::int32_t, unweighted> list;
+  list.num_vertices = n;
+  for (std::int32_t v = 0; v < n; ++v) list.add_hyperedge({v});
+  hgraph h = hgraph::from_hyperedges(res(), list.view(), props_of(id_reuse::erase_first));
+  std::vector<std::int64_t> order(static_cast<std::size_t>(n));
+  for (std::int32_t i = 0; i < n; ++i) order[static_cast<std::size_t>(i)] = i;
+  std::uint64_t x = 12345;  // a fixed LCG shuffle (std::shuffle's draws are library-specific)
+  for (std::size_t i = order.size() - 1; i > 0; --i) {
+    x = x * 6364136223846793005ULL + 1442695040888963407ULL;
+    std::swap(order[i], order[static_cast<std::size_t>((x >> 33) % (i + 1))]);
+  }
+  dyng::hyperedge_batch<std::int32_t, unweighted> b;
+  for (const std::int64_t id : order) b.delete_hyperedge(id);
+  b.delete_hyperedge(order[5]);  // repeated
+  b.delete_hyperedge(order[0]);  // repeated
+  b.delete_hyperedge(order[5]);  // repeated twice
+  b.delete_hyperedge(n + 7);     // out of range
+  const auto s = h.apply(res(), b.view());
+  EXPECT_EQ(s.deleted_hyperedges, n);
+  EXPECT_EQ(s.ignored_deletions, 4);
+  EXPECT_EQ(s.skipped_ops, 4);
+  EXPECT_EQ(s.num_hyperedges_after, 0);
+  EXPECT_EQ(dyng::detail::hypergraph_access::applied(h).deleted_ids, order);
+  h.check_integrity(res());
+}
+
 TEST_P(HypergraphBackends, ValidationErrorsLeaveTheHypergraphUnchanged) {
   const auto list = list_of<std::int32_t>(6, rows{{0, 1}, {2, 3}}, {5, 7});
   whgraph h = whgraph::from_hyperedges(res(), list.view(), props_of(id_reuse::erase_first));
