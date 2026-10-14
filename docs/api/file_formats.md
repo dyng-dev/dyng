@@ -141,7 +141,13 @@ The reader checks every size field against the rest of the file before it alloca
 count against the bytes of its record), so a file of N bytes makes it allocate O(N) at most; then
 the CRC32 and the contents. A truncated, size-lying, damaged, newer-version or unknown-flag file,
 trailing bytes and a wrong record count are `io_error`s with the path and the record's index and
-byte offset; asking for other types than the header's is an `invalid_argument_error`. With CUDA
+byte offset; so is a file of the other container kind given to `read_binary_batches` /
+`read_binary_hyperedge_batches` (the message names the right reader, as for `.dgt`), checked
+from the header before any record is read. Asking for other types than the header's is an
+`invalid_argument_error` (the whole-file readers check it from the header too). After an
+`io_error` of `next()` the `batch_reader` stops: every later `next()` and batch view throws an
+`io_error` naming the record where it failed (reopen the file to read it again), so a damaged
+record is never skipped. With CUDA
 resources `batch_reader` stages every record through pinned buffers and copies it to the device
 on the resources' stream: its views are device arrays, valid until the next `next()`.
 

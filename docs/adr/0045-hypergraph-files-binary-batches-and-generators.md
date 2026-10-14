@@ -115,7 +115,11 @@ Little-endian; the full layout is in docs/api/file_formats.md.
   range, weights >= 1, batch ids strictly increasing). Truncated, size-lying, damaged, wrong-kind,
   newer-version files, trailing bytes and a count that does not match the records are `io_error`s
   with the path and the record's index and byte offset; a request for the wrong types is an
-  `invalid_argument_error`.
+  `invalid_argument_error`. (M8b review: the whole-file readers raised `invalid_argument_error`
+  for a file of the other kind; they now raise `io_error` naming the right reader, as `.dgt`
+  does, and check kind and types from the header before reading a record. After an `io_error`
+  of `next()` the reader is fail-stop: the stream is past the damaged record, so every later
+  `next()` and view throws instead of returning the following record as valid.)
 - **`batch_reader`** streams one record at a time; its views are valid until the next `next()`.
   With CUDA resources each record is read into one of two pinned host buffers from the resources'
   staging memory resource and copied to a device buffer asynchronously on the resources' stream;

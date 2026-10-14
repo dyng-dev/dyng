@@ -254,6 +254,51 @@ TEST_F(BinaryBatches, WholeFilesRoundTripAndMatchTheTextFormat) {
   EXPECT_EQ(read_text(path("none.dgb")).size(), 64u);
 }
 
+// M8b review: after an error of next() the reader stops; a retry neither skips the damaged
+// record nor returns the next one as valid, and the accessors throw too.
+TEST_F(BinaryBatches, TheReaderStopsAtItsFirstError) {
+  std::string s = annotated_file();
+  s[80 + 50] ^= 0x10;  // a payload byte of record 0
+  const std::string p = path("crc_first.dgb");
+  write_text(p, s);
+  io::batch_reader in(p);
+  const dyng::io_error first = expect_io_error([&] { (void)in.next(); });
+  EXPECT_NE(std::string(first.what()).find("CRC32"), std::string::npos) << first.what();
+  for (int retry = 0; retry < 2; ++retry) {
+    const dyng::io_error again = expect_io_error([&] { (void)in.next(); });
+    EXPECT_NE(std::string(again.what()).find("failed at batch record 0"), std::string::npos)
+        << again.what();
+  }
+  EXPECT_THROW((void)(in.hyperedge_batch<std::int32_t, std::int32_t>()), dyng::io_error);
+  EXPECT_EQ(in.batch_id(), -1);
+}
+
+// M8b review: K above 64 is reported with the value in the file.
+TEST_F(BinaryBatches, AnOversizedKIsReportedAsWritten) {
+  ebatch a(2);
+  a.insert_edge(0, 1, {5, 6});
+  io::write_binary_batches<std::int32_t, std::int32_t>(path("k.dgb"), {a.view()});
+  const std::string good = read_text(path("k.dgb"));
+  for (const std::uint32_t k : {65U, 4294967295U}) {
+    std::string s = good;
+    set_u32(s, 20, k);
+    reseal_header(s);
+    write_text(path("k_bad.dgb"), s);
+    const dyng::io_error e = expect_io_error([&] { io::batch_reader in(path("k_bad.dgb")); });
+    EXPECT_NE(std::string(e.what()).find("K = " + std::to_string(k)), std::string::npos)
+        << e.what();
+  }
+  ebatch wide(65);
+  std::vector<std::int32_t> w(65, 1);
+  wide.insert_edge(0, 1, dyng::host_view(w));
+  try {
+    io::write_binary_batches<std::int32_t, std::int32_t>(path("wide.dgb"), {wide.view()});
+    ADD_FAILURE() << "K = 65 was written";
+  } catch (const dyng::invalid_argument_error& e) {
+    EXPECT_NE(std::string(e.what()).find("1 to 64"), std::string::npos) << e.what();
+  }
+}
+
 TEST_F(BinaryBatches, EveryTruncationIsAnIoError) {
   const std::string bytes = annotated_file();
   const std::string p = path("cut.dgb");

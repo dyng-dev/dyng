@@ -403,8 +403,13 @@ class batch_reader {
 
   /**
    * @brief Read the next batch.
+   *
+   * The reader is fail-stop: after next() threw, every later next() and batch view throws an
+   * io_error naming the record where it failed (a damaged record is never skipped); reopen the
+   * file to read it again.
    * @return False at the end of the file (after the header's batch count).
-   * @throws io_error            if the record is malformed or the file ends early.
+   * @throws io_error            if the record is malformed or the file ends early, or an
+   *                             earlier call failed.
    * @throws out_of_memory_error if host, pinned or device memory cannot be allocated.
    * @throws cuda_error          if the CUDA runtime reports an error.
    * @async With CUDA resources the copy to the device is enqueued on the resources' stream; the

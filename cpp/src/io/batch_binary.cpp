@@ -144,7 +144,8 @@ std::string header_problem(const batch_file_header& h) {
       (h.weight_type == batch_dtype::none && h.num_weights != 0) ||
       (h.weight_type != batch_dtype::none && h.num_weights == 0)) {
     return "K = " + std::to_string(h.num_weights) + " weights per insertion with weight type " +
-           std::string(to_string(h.weight_type));
+           std::string(to_string(h.weight_type)) +
+           " (a .dgb file holds 1 to 64 weights per insertion with a weight type, 0 without)";
   }
   if (h.kind == container_kind::hypergraph &&
       h.num_weights != (h.weight_type == batch_dtype::none ? 0 : 1)) {
@@ -480,6 +481,9 @@ struct batch_reader::impl {
   int turn = 0;
   buffer<std::uint64_t> device_payload;
   const unsigned char* base = nullptr;  // the current payload (host or device)
+  // Fail-stop (M8b review): after an error of next() the stream is past the damaged record while
+  // pos and records still describe it, so every later call throws.
+  bool failed = false;
 
   impl() = default;
   impl(const impl&) = delete;
@@ -551,7 +555,11 @@ struct batch_reader::impl {
     header.weight_type = static_cast<batch_dtype>(b[18]);
     const auto id_type = static_cast<batch_dtype>(b[19]);
     const std::uint32_t k = get_u32(b.data() + 20);
-    header.num_weights = k > 64 ? -1 : static_cast<int>(k);
+    if (k > 64) {
+      fail("invalid header: K = " + std::to_string(k) +
+           " weights per insertion (a .dgb file holds at most 64)");
+    }
+    header.num_weights = static_cast<int>(k);
     header.flags = get_u64(b.data() + 24);
     const std::uint64_t count = get_u64(b.data() + 32);
     const std::string problem = header_problem(header);
@@ -786,8 +794,14 @@ struct batch_reader::impl {
     return l;
   }
 
+  [[noreturn]] void fail_stopped() const {
+    fail("an earlier call of next() failed at batch record " + std::to_string(records) +
+         "; the reader stops there (reopen the file to read it again)");
+  }
+
   void require_current(container_kind kind, batch_dtype vt, batch_dtype wt, bool check_weight,
                        const char* what) const {
+    if (failed) fail_stopped();
     DYNG_EXPECTS(has_current, "batch_reader::", what, ": no current batch (call next() first)");
     DYNG_EXPECTS(header.kind == kind, "batch_reader::", what, ": the file ", path, " holds ",
                  to_string(header.kind), " batches");
@@ -835,7 +849,14 @@ const batch_file_header& batch_reader::header() const noexcept {
 
 bool batch_reader::next() try {
   DYNG_EXPECTS(impl_ != nullptr, "batch_reader::next: the reader was moved from");
-  return impl_->next();
+  if (impl_->failed) impl_->fail_stopped();
+  try {
+    return impl_->next();
+  } catch (...) {
+    impl_->failed = true;
+    impl_->has_current = false;
+    throw;
+  }
 }
 DYNG_TRANSLATE_ALLOCATION_FAILURE("io::batch_reader::next (", impl_->path, ")")
 
