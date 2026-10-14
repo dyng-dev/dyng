@@ -272,15 +272,30 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   )
   set_tests_properties(cbst_model_isolation PROPERTIES LABELS "cpu;parity;cbst")
 endif()
-# The hypergraph container (M8b, ADR 0041): the host id allocator against the CBST host model
-# and the capacity policies.
+# The hypergraph container (M8b, ADR 0041): construction, apply semantics, guarantees,
+# placement, the host id allocator against the CBST host model, random streams in lockstep with
+# the model on every backend. The shared suites run on the host backends here and on cuda in
+# dyng_hypergraph_cuda_tests.
 dyng_add_test(
   NAME dyng_hypergraph_tests
-  SOURCES hypergraph/hypergraph_store_test.cpp
+  SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
+          hypergraph/hypergraph_store_test.cpp
   LABELS cpu hypergraph
   LIBRARIES dyng_cbst_compare
 )
 list(APPEND _dyng_private_tests dyng_hypergraph_tests)
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_hypergraph_cuda_tests
+    SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
+            hypergraph/hypergraph_cuda_test.cpp
+    LABELS gpu hypergraph
+    LIBRARIES dyng_cbst_compare
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_hypergraph_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  list(APPEND _dyng_private_tests dyng_hypergraph_cuda_tests)
+endif()
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")

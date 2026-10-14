@@ -16,6 +16,7 @@ proves it is ADR 0036 / 0037 and `parity/results/M8a.md`.
 | MOSP_ESCHER@4b86159's (B) behaviours, merged one per commit (ADR 0039 lists every deviation from B's literal code): construct validation (`validate_construct`), the fill clamps (`payload.cu`), caller row counts (`set_initial_occupancy_kernel` in `build_tree.cu`), the bounded chain walk (`chain.cuh`, B's `readFlat` and `warpWalkRow`), its integrity checks (`check_subtree_avail`), the scratch growth rule, `compact()` (`compact.cu`, B's compaction kernels), B's accounting scope in `stats()` | M8a step 4 |
 | the control block (the device error word), `check_errors()`, `rows()`, `check_tree_index`, the rule for dead or absent keys (`lookup.cuh`); the staging preset `mosp_escher_staged()` (replaced by `mosp_escher()` in step 5) | dynG (M8a step 4) |
 | B's automatic compaction (`fill_impl`, the surplus check of `insert_cbst`), the presets `mosp_escher()` and `dyng_default()`, `store_policy::max_payload`, the mutation hooks `DYNG_MUTATION_CBST_*` (PLAN 8.4) | M8a step 5 (ADR 0040) |
+| `set_used_payload()`: the bump pointer of a tree restored from another backend's state | dynG (M8b, ADR 0041) |
 
 ESCHER-GPU's `include/binning.hpp` and `utils/binning.cpp` are dead code (no object of its
 Makefile builds them) and are not ported; the degree binning of the store is `degree_bins` in
@@ -33,6 +34,20 @@ Makefile builds them) and are not ported; the degree binning of the store is `de
 | `cbstRankOfPosition`, `nextMultipleOf4`, `unfillRowSerial`, `flatten2DVector` | `cbst_rank_of_position`, `next_multiple_of_4`, `unfill_row_serial`, `flatten_rows` |
 | `DegreeBinLaunches` (process-global), `degreeBinLaunches()` | `degree_bin_launches`, per store: `cbst_store::bin_launches()` |
 | `RowView`, `RowLocator` | `row_view`, `row_locator` |
+
+## The hypergraph container (M8b)
+
+`dyng::hypergraph` (`cpp/src/hypergraph/`, ADR 0041) keeps two trees on the CUDA backend
+(`escher_store.cu`): **H2V** (key = hyperedge id + 1, values = member vertices + 1, sorted; only
+inserted and erased, so every row is one segment) and **V2H** (key = vertex + 1, values = hyperedge
+ids + 1, appended and removed, so rows are chained and unsorted), and the row view of H2V
+(`row_locator::build`), rebuilt once per applied batch. The host keeps one byte per id (absent,
+live, a deleted slot still in the tree) for validation and the id bound, nothing else; the
+members of deleted ids are read back with `rows()`. On the host backends `id_allocator.cpp`
+reproduces the H2V tree's ids, slot lengths and payload accounting without a payload (written
+from this page, independently of `testing::cbst_host_model`). A container moved between backends
+keeps its keys, deleted slots, slot lengths and bump pointer: the device tree is constructed over
+those lengths, the deleted slots erased and the bump pointer set with `set_used_payload()`.
 
 ## The encoding
 
