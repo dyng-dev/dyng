@@ -7,9 +7,10 @@
   they are, no gate or measurement protocol changes, the names PLAN fixes stay (`.hg`, `.dgb`,
   the magic `DYNGBAT1`, `read_hypergraph`, `write_hypergraph`, `batch_reader`,
   `dedupe_hyperedges`, `max_cardinality`, `relabel`, `random_weights`). **Pending the author:**
-  file formats are a stable tier with their own format version (PLAN 5.9); `.hg` and `.dgb` are
-  written here at version 1, and that they are stable from 0.3.0 awaits the author's
-  confirmation at the release (the plan's default applies until then).
+  file formats are a stable tier with their own format version (PLAN 5.9); `.dgb` is written
+  here at version 1, `.hg` has no version field (amended by the M8b review: section 1), and
+  that both are stable from 0.3.0 awaits the author's confirmation at the release (the plan's
+  default applies until then).
 - **Date:** 2026-10-14
 - **Deciders:** the AI assistant, on the author's behalf (M8b, step io-generators)
 - **Builds on:** ADR 0034 (reader fuzzers), ADR 0036 (the CBST traces, whose batch records are the
@@ -70,6 +71,15 @@ its virtual target vertex, and the virtual source and target hyperedges added ar
   `1 2;5`), w in [1, max(W)]; an unweighted read rejects them, a weighted read without
   `random_weights` needs them on every line. Neither original writes weights to `.hg` files, so
   the extension cannot conflict with their files.
+- **No version field** (M8b review). This ADR said `.hg` is written at version 1, but a `.hg`
+  file holds no version and the reader reads none; PLAN 5.9 lists `.dgt`, `.dgb` and `.dgc` as
+  the formats with their own versions, not `.hg`. A version line (`%hg 1`) was considered and not
+  adopted: ESCHER-GPU and dynG skip `%` lines, but MOSP_ESCHER's `loadHypergraphFile` rejects
+  any non-numeric token, so the line would make dynG's unweighted files unreadable by one of the
+  originals. `.hg` therefore stays unversioned: the 0.3 rules of `file_formats.md` (ESCHER-GPU's
+  line format plus the `; w` extension) are its stable definition, and a later incompatible
+  change needs a new format, not a new version of this one. Whether the author wants a version
+  line instead is in the decisions for the 0.3.0 release (M8b retrospective).
 - `write_hypergraph(path, list, index_base = 1)` writes members as listed plus `index_base`, then
   ` ; w` when weighted; it rejects what would not read back (an empty hyperedge, a member outside
   [0, n), a weight below 1). The vertex count is not written.

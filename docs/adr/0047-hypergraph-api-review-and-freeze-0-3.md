@@ -8,8 +8,8 @@
   fixes (`hypergraph`, `hypergraph_storage::escher`, `line_graph_policy::sorted_merge`,
   `id_reuse`, `capacity_policy::escher_gpu()` / `mosp_escher()`, `hyper_apply_summary`) are
   untouched. **Pending the author:** that the frozen hypergraph headers are *stable* from 0.3.0
-  (and `.hg` and `.dgb` stable at format version 1, ADR 0045) is the plan's default and awaits the
-  author's confirmation at the 0.3.0 release; O16 (the `id_reuse` default `erase_first`) is the
+  (and `.hg` and `.dgb` stable, `.dgb` at format version 1, `.hg` unversioned: ADR 0045) is the
+  plan's default and awaits the author's confirmation at the 0.3.0 release; O16 (the `id_reuse` default `erase_first`) is the
   author's decision of 2026-10-07, which is also the plan's default.
 - **Date:** 2026-10-14
 - **Deciders:** the AI assistant, on the author's behalf (M8b, step python-freeze-records)
@@ -92,7 +92,8 @@ access M9 and M11 are allowed (`cpp/src`, internal-stable):
    (against the base branch) unless the pull request has the `api-change` label and a CHANGELOG
    entry. The Python names of ADR 0046 are checked by `griffe` in the same script.
 2. **Stability.** By the plan's default the frozen headers are stable from 0.3.0 (PLAN 11.3, 5.9),
-   with `.hg` and `.dgb` at format version 1; this awaits the author's confirmation at the 0.3.0
+   with `.dgb` at format version 1 and `.hg` without a version field (amended, ADR 0045 section 1);
+   this awaits the author's confirmation at the 0.3.0
    release (GOVERNANCE.md, open decisions). Until 0.3.0 is released a change is still possible as
    an api-change with a CHANGELOG entry.
 3. **O16.** The `id_reuse` default stays `erase_first`: the author's decision of 2026-10-07

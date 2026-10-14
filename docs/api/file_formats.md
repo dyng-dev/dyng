@@ -7,9 +7,12 @@ integer tokens must be complete decimal integers (optional leading `-`, no `+`, 
 digits). The edge-list reader follows CycleEnumeration-GPU instead: commas separate tokens as well,
 and a leading `+` is accepted; the `.hg` reader follows ESCHER-GPU's separators (commas too). The
 binary batch files (`.dgb`) report the record's index and byte offset instead of a line. The
-formats of dynG's own (`.dgt`, `.dgb`, `.hg`) carry their own format versions and are a stable
-tier (PLAN 5.9): version 1 of each is the format of 0.3 (that `.hg` and `.dgb` are stable from
-0.3.0 awaits the author's confirmation at the release).
+formats of dynG's own are a stable tier (PLAN 5.9): `.dgt` and `.dgb` carry their own format
+version (`%dgt 1`; the `.dgb` header's version field), version 1 being the format of 0.3. `.hg`
+carries none: it is ESCHER-GPU's line format plus dynG's documented `; w` extension, kept
+without a version line so that both originals still read dynG's unweighted files
+(MOSP_ESCHER's loader rejects any non-numeric token); its 0.3 rules below are what is stable.
+That `.hg` and `.dgb` are stable from 0.3.0 awaits the author's confirmation at the release.
 
 ## MOSP text CSR (`read_csr_triplet` / `write_csr_triplet`)
 
@@ -173,7 +176,8 @@ returns or commas, and for a weighted file ` ; w` at the end (w in [1, max]; `;`
 neighbours). A line whose **first** character is `#` or `%` is a comment; a line without ids is
 skipped. Each line's ids are sorted and deduplicated; hyperedge i of the result is the i-th kept
 line (the id `hypergraph::from_hyperedges()` gives it). Tokens are whole integers with an
-optional `-` (no `+`). Format version 1 (0.3).
+optional `-` (no `+`). The format has no version field (see the top of this page): these are its
+rules as of 0.3.
 
 The reader's options, applied in file order: `max_cardinality` drops hyperedges with more
 distinct vertices; `dedupe_hyperedges` keeps the first hyperedge of every distinct vertex set;

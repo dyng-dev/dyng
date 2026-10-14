@@ -152,7 +152,7 @@ Decisions the lead maintainer still has to take; each moves to the approvals log
 | Decision | Default until then |
 |---|---|
 | Whether a co-author wrote code of the originals outside git (docs/developer/provenance.md) | co-authors credited as research collaborators only |
-| At the 0.3.0 release: the hypergraph headers frozen at M8b (ADR 0047) are stable from 0.3.0, and the `.hg` and `.dgb` formats are stable at format version 1 (ADR 0045) | the plan's default (PLAN 11.3, 5.9): frozen and stable from 0.3.0, formats at version 1; until the release a change is an api-change with a CHANGELOG entry |
+| At the 0.3.0 release: the hypergraph headers frozen at M8b (ADR 0047) are stable from 0.3.0, and the `.hg` and `.dgb` formats are stable (`.dgb` at format version 1; `.hg` has no version field, ADR 0045 section 1, so that MOSP_ESCHER's loader still reads dynG's unweighted files; a `%hg 1` line is the alternative) | the plan's default (PLAN 11.3, 5.9): frozen and stable from 0.3.0, `.dgb` at version 1, `.hg` unversioned; until the release a change is an api-change with a CHANGELOG entry |
 
 ## License consent and IP record
 
