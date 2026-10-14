@@ -20,7 +20,10 @@
  * delete-all, re-insert (delete hyperedges and insert their member sets again), a batch larger
  * than the hypergraph, ids at the index limits (members 0 and n - 1, the largest live id,
  * INT64_MIN / INT64_MAX deletions) and skewed cardinality (a hyperedge of min(n, 1,100) members,
- * >= 1,024 on the medium shapes). The id_reuse orders and the capacity presets are the property
+ * >= 1,024 on the medium shapes). The models and the batches come from the library's public
+ * generators (generators/hypergraphs.hpp: uniform_hypergraph(), random_hyperedge_batch(), M8b
+ * step 4), seeded from the kit's engine; the kit derives what the commit must report from the
+ * model. The id_reuse orders and the capacity presets are the property
  * presets: {erase_first, insert_first} x {escher_gpu(), mosp_escher(), the default}.
  */
 #pragma once
@@ -32,6 +35,7 @@
 #include <dyng/core/registry.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
+#include <dyng/generators/hypergraphs.hpp>
 #include <dyng/hypergraph/hyper_apply_summary.hpp>
 #include <dyng/hypergraph/hyperedge_batch.hpp>
 #include <dyng/hypergraph/hyperedge_list.hpp>
@@ -108,6 +112,38 @@ inline std::vector<hyper_mix> all_hyper_mixes() {
           hyper_mix::reinsert,    hyper_mix::larger,      hyper_mix::limits, hyper_mix::skewed};
 }
 
+/// The library generator's mix of a kit mix (the same names and promises).
+inline generators::hyperedge_batch_mix generator_mix(hyper_mix mix) noexcept {
+  using g = generators::hyperedge_batch_mix;
+  switch (mix) {
+    case hyper_mix::insert_only:
+      return g::insert_only;
+    case hyper_mix::delete_only:
+      return g::delete_only;
+    case hyper_mix::mixed:
+      return g::mixed;
+    case hyper_mix::reuse:
+      return g::reuse;
+    case hyper_mix::duplicates:
+      return g::duplicates;
+    case hyper_mix::dead_ids:
+      return g::dead_ids;
+    case hyper_mix::empty:
+      return g::empty;
+    case hyper_mix::delete_all:
+      return g::delete_all;
+    case hyper_mix::reinsert:
+      return g::reinsert;
+    case hyper_mix::larger:
+      return g::larger;
+    case hyper_mix::limits:
+      return g::limits;
+    case hyper_mix::skewed:
+      return g::skewed;
+  }
+  return g::empty;
+}
+
 /// The shape of a generated hypergraph.
 struct hypergraph_shape {
   std::int64_t vertices = 0;    ///< n
@@ -169,30 +205,8 @@ struct hypergraph_model {
   }
 };
 
-/// A random member set of `cardinality` distinct vertices of [0, n), sorted.
-template <typename vertex_t>
-std::vector<vertex_t> random_members(std::int64_t n, std::int64_t cardinality,
-                                     std::mt19937_64& rng) {
-  cardinality = std::max<std::int64_t>(1, std::min(cardinality, n));
-  std::vector<vertex_t> out;
-  if (cardinality * 2 > n) {
-    std::vector<vertex_t> all(static_cast<std::size_t>(n));
-    for (std::int64_t v = 0; v < n; ++v)
-      all[static_cast<std::size_t>(v)] = static_cast<vertex_t>(v);
-    std::shuffle(all.begin(), all.end(), rng);
-    out.assign(all.begin(), all.begin() + cardinality);
-  } else {
-    std::uniform_int_distribution<std::int64_t> vertex(0, n - 1);
-    while (static_cast<std::int64_t>(out.size()) < cardinality) {
-      const auto v = static_cast<vertex_t>(vertex(rng));
-      if (std::find(out.begin(), out.end(), v) == out.end()) out.push_back(v);
-    }
-  }
-  std::sort(out.begin(), out.end());
-  return out;
-}
-
-/// A random model of `shape`: hyperedges 0..k-1 with [1, max_cardinality] distinct members.
+/// A random model of `shape` (generators::uniform_hypergraph(), seeded from `rng`): hyperedges
+/// 0..k-1 with [1, max_cardinality] distinct members and weights in [1, max_weight].
 template <typename hypergraph_t>
 hypergraph_model<hypergraph_t> random_hypergraph_model(const hypergraph_shape& shape,
                                                        std::mt19937_64& rng) {
@@ -202,12 +216,20 @@ hypergraph_model<hypergraph_t> random_hypergraph_model(const hypergraph_shape& s
   m.max_cardinality = shape.max_cardinality;
   m.max_weight = shape.max_weight;
   if (shape.vertices <= 0) return m;
-  std::uniform_int_distribution<int> cardinality(1, std::max(1, shape.max_cardinality));
-  std::uniform_int_distribution<int> weight(1, shape.max_weight);
-  for (std::int64_t id = 0; id < shape.hyperedges; ++id) {
+  generators::uniform_hypergraph_options o;
+  o.num_vertices = shape.vertices;
+  o.num_hyperedges = shape.hyperedges;
+  o.min_cardinality = 1;
+  o.max_cardinality = std::max(1, shape.max_cardinality);
+  o.min_weight = 1;
+  o.max_weight = shape.max_weight;
+  o.seed = rng();
+  const auto list = generators::uniform_hypergraph<vertex_type, std::int32_t>(o);
+  for (std::int64_t id = 0; id < list.num_hyperedges(); ++id) {
     typename hypergraph_model<hypergraph_t>::row r;
-    r.members = random_members<vertex_type>(shape.vertices, cardinality(rng), rng);
-    r.weight = weight(rng);
+    r.members.assign(list.members.begin() + list.offsets[static_cast<std::size_t>(id)],
+                     list.members.begin() + list.offsets[static_cast<std::size_t>(id) + 1]);
+    r.weight = list.weights[static_cast<std::size_t>(id)];
     m.live.emplace(id, std::move(r));
   }
   m.id_bound = shape.hyperedges;
@@ -283,138 +305,54 @@ template <typename hypergraph_t>
 generated_hyper_batch<hypergraph_t> random_hyper_batch(hypergraph_model<hypergraph_t>& m,
                                                        hyper_mix mix, std::mt19937_64& rng) {
   using vertex_type = typename hypergraph_t::vertex_type;
+  using weight_type = typename hypergraph_t::weight_type;
   namespace d = hyper_generators_detail;
   generated_hyper_batch<hypergraph_t> out;
   if (!m.pending.empty()) {
     ADD_FAILURE() << "the kit generated a batch before observing the previous one's ids";
     m.pending.clear();
   }
-  const std::int64_t n = m.num_vertices;
-  const auto live_count = static_cast<std::int64_t>(m.live.size());
-  const std::int64_t k = std::max<std::int64_t>(1, live_count / 10);
-  std::uniform_int_distribution<int> cardinality(1, std::max(1, m.max_cardinality));
-  std::uniform_int_distribution<int> weight(1, m.max_weight);
-  const auto fresh = [&](std::int64_t card) { return random_members<vertex_type>(n, card, rng); };
-  // The live ids in a random order.
-  std::vector<std::int64_t> ids;
-  ids.reserve(m.live.size());
-  for (const auto& entry : m.live) ids.push_back(entry.first);
-  std::shuffle(ids.begin(), ids.end(), rng);
-  const auto take = [&](std::int64_t count) {
-    count = std::min<std::int64_t>(count, static_cast<std::int64_t>(ids.size()));
-    std::vector<std::int64_t> chosen(ids.begin(), ids.begin() + count);
-    ids.erase(ids.begin(), ids.begin() + count);
-    return chosen;
-  };
-  if (n <= 0) {
-    return out;  // no vertex: only the empty batch
+  // The model as the generator reads a hypergraph: h2v rows by id up to the bound, weights by id.
+  std::vector<std::int64_t> row_ptr(static_cast<std::size_t>(m.id_bound) + 1, 0);
+  std::vector<vertex_type> col_ind;
+  std::vector<std::int32_t> weights(static_cast<std::size_t>(m.id_bound), 0);
+  for (std::int64_t id = 0; id < m.id_bound; ++id) {
+    const auto it = m.live.find(id);
+    if (it != m.live.end()) {
+      col_ind.insert(col_ind.end(), it->second.members.begin(), it->second.members.end());
+      weights[static_cast<std::size_t>(id)] = it->second.weight;
+    }
+    row_ptr[static_cast<std::size_t>(id) + 1] = static_cast<std::int64_t>(col_ind.size());
   }
-  switch (mix) {
-    case hyper_mix::insert_only:
-      for (std::int64_t i = 0; i < k; ++i) d::insert(out, fresh(cardinality(rng)), weight(rng));
-      break;
-    case hyper_mix::delete_only:
-      for (const std::int64_t id : take(k)) d::erase(m, out, id);
-      break;
-    case hyper_mix::mixed:
-      for (const std::int64_t id : take((k + 1) / 2)) d::erase(m, out, id);
-      for (std::int64_t i = 0; i < (k + 1) / 2; ++i) {
-        d::insert(out, fresh(cardinality(rng)), weight(rng));
-      }
-      break;
-    case hyper_mix::reuse: {
-      // The largest hyperedges go; the new ones are no larger than the smallest of them, so under
-      // erase_first they fit the freed slots (best fit) and take their ids.
-      std::sort(ids.begin(), ids.end(), [&](std::int64_t a, std::int64_t b) {
-        const auto sa = m.live.at(a).members.size();
-        const auto sb = m.live.at(b).members.size();
-        return sa != sb ? sa > sb : a < b;
-      });
-      const std::vector<std::int64_t> gone = take(k);
-      std::int64_t smallest = m.max_cardinality;
-      for (const std::int64_t id : gone) {
-        smallest = std::min<std::int64_t>(smallest,
-                                          static_cast<std::int64_t>(m.live.at(id).members.size()));
-        d::erase(m, out, id);
-      }
-      std::uniform_int_distribution<std::int64_t> small(1, std::max<std::int64_t>(1, smallest));
-      for (std::size_t i = 0; i < gone.size(); ++i) d::insert(out, fresh(small(rng)), weight(rng));
-      break;
-    }
-    case hyper_mix::duplicates: {
-      for (std::int64_t i = 0; i < k; ++i) {
-        std::vector<vertex_type> members = fresh(cardinality(rng));
-        const std::vector<vertex_type> copy = members;
-        members.insert(members.end(), copy.begin(), copy.end());  // every member twice
-        std::shuffle(members.begin(), members.end(), rng);
-        d::insert(out, members, weight(rng));
-      }
-      if (!m.live.empty()) {  // a hyperedge equal to a live one (parallel hyperedges)
-        d::insert(out, m.live.begin()->second.members, weight(rng));
-      }
-      break;
-    }
-    case hyper_mix::dead_ids: {
-      const std::vector<std::int64_t> gone = take(std::min<std::int64_t>(k, 2));
-      for (const std::int64_t id : gone) d::erase(m, out, id);
-      // The same live ids again (repeated deletions), a dead id below the bound, the bound,
-      // a negative id.
-      for (const std::int64_t id : gone) {
-        out.batch.delete_hyperedge(id);
-        ++out.expected_ignored;
-      }
-      for (std::int64_t id = 0; id < m.id_bound; ++id) {
-        if (m.live.count(id) == 0 && std::find(gone.begin(), gone.end(), id) == gone.end()) {
-          out.batch.delete_hyperedge(id);
-          ++out.expected_ignored;
-          break;
-        }
-      }
-      out.batch.delete_hyperedge(m.id_bound);
-      out.batch.delete_hyperedge(-1);
-      out.expected_ignored += 2;
-      d::insert(out, fresh(cardinality(rng)), weight(rng));
-      break;
-    }
-    case hyper_mix::empty:
-      break;
-    case hyper_mix::delete_all:
-      for (const std::int64_t id : take(live_count)) d::erase(m, out, id);
-      break;
-    case hyper_mix::reinsert:
-      for (const std::int64_t id : take(k)) {
-        d::erase(m, out, id);
-        const auto& r = out.deleted_rows.back();
-        d::insert(out, r.members, r.weight);
-      }
-      break;
-    case hyper_mix::larger: {
-      for (const std::int64_t id : take(live_count / 2)) d::erase(m, out, id);
-      const std::int64_t count = 2 * live_count + 3;
-      for (std::int64_t i = 0; i < count; ++i) {
-        d::insert(out, fresh(cardinality(rng)), weight(rng));
-      }
-      break;
-    }
-    case hyper_mix::limits: {
-      // The largest live id goes; members 0 and n - 1; deletions at the int64 limits.
-      if (!m.live.empty()) d::erase(m, out, m.live.rbegin()->first);
-      out.batch.delete_hyperedge(std::numeric_limits<std::int64_t>::min());
-      out.batch.delete_hyperedge(std::numeric_limits<std::int64_t>::max());
-      out.batch.delete_hyperedge(m.id_bound);
-      out.expected_ignored += 3;
-      d::insert(out, std::vector<vertex_type>{0, static_cast<vertex_type>(n - 1)}, weight(rng));
-      d::insert(out, std::vector<vertex_type>{static_cast<vertex_type>(n - 1)}, 1);
-      d::insert(out, std::vector<vertex_type>{0}, m.max_weight);
-      break;
-    }
-    case hyper_mix::skewed: {
-      for (const std::int64_t id : take(std::min<std::int64_t>(k, 2))) d::erase(m, out, id);
-      d::insert(out, fresh(std::min<std::int64_t>(n, 1100)), weight(rng));
-      d::insert(out, fresh(1), weight(rng));
-      break;
+  incidence_view<vertex_type> h2v;
+  h2v.row_ptr = host_view(row_ptr);
+  h2v.col_ind = host_view(col_ind);
+  generators::hyperedge_batch_options o;
+  o.mix = generator_mix(mix);
+  o.min_cardinality = 1;
+  o.max_cardinality = std::max(1, m.max_cardinality);
+  o.skewed_cardinality = 1100;
+  o.min_weight = 1;
+  o.max_weight = m.max_weight;
+  o.seed = rng();
+  const auto generated = generators::random_hyperedge_batch<vertex_type, std::int32_t>(
+      m.num_vertices, h2v, host_view(weights), o);
+  // What the commit must report: the live deletions (first occurrences) and the skipped ones,
+  // the normalized insertions and their dropped repeats.
+  for (const std::int64_t id : generated.delete_hyperedges()) {
+    if (m.live.count(id) != 0) {
+      d::erase(m, out, id);
+    } else {
+      out.batch.delete_hyperedge(id);
+      ++out.expected_ignored;
     }
   }
+  for (std::size_t i = 0; i < generated.num_insertions(); ++i) {
+    const auto first = generated.insert_members().begin() + generated.insert_offsets()[i];
+    const auto last = generated.insert_members().begin() + generated.insert_offsets()[i + 1];
+    d::insert(out, std::vector<vertex_type>(first, last), generated.insert_weights()[i]);
+  }
+  (void)sizeof(weight_type);
   m.pending = out.inserted;
   return out;
 }

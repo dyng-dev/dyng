@@ -219,6 +219,7 @@ dyng_add_module(
 
 dyng_add_module(
   NAME generators SOURCES src/generators/legacy.cpp src/generators/legacy_cycle_enum.cpp
+                          src/generators/legacy_escher.cpp src/generators/hypergraphs.cpp
 )
 
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).

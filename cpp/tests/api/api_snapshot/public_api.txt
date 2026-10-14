@@ -379,6 +379,7 @@
   #include <dyng/core/types.hpp>
   #include <dyng/cycle_count.hpp>
   #include <dyng/dynamic_bfs.hpp>
+  #include <dyng/generators/hypergraphs.hpp>
   #include <dyng/generators/legacy.hpp>
   #include <dyng/graph/apply_summary.hpp>
   #include <dyng/graph/csr.hpp>
@@ -396,6 +397,7 @@
   #include <dyng/io/batch_io.hpp>
   #include <dyng/io/csr_triplet.hpp>
   #include <dyng/io/edge_list_io.hpp>
+  #include <dyng/io/hypergraph_io.hpp>
   #include <dyng/io/matrix_market.hpp>
   #include <dyng/io/result_io.hpp>
   #include <dyng/mosp.hpp>
@@ -403,6 +405,30 @@
   #include <dyng/triangle_delta.hpp>
   #include <dyng/update.hpp>
   #include <dyng/version.hpp>
+
+[dyng/generators/hypergraphs.hpp] tracked
+  struct dyng::generators::uniform_hypergraph_options
+      std::int64_t num_vertices = 0
+      std::int64_t num_hyperedges = 0
+      std::int64_t min_cardinality = 1
+      std::int64_t max_cardinality = 4
+      std::int64_t min_weight = 1
+      std::int64_t max_weight = 100
+      std::uint64_t seed = 1
+  template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_list< vertex_t, weight_t > dyng::generators::uniform_hypergraph(const uniform_hypergraph_options &opt)
+  enum class dyng::generators::hyperedge_batch_mix : std::uint8_t { insert_only, delete_only, mixed, reuse, heavy_delete, delete_all, reinsert, larger, duplicates, dead_ids, skewed, limits, empty }
+  [[nodiscard]] std::string_view dyng::generators::to_string(hyperedge_batch_mix mix) noexcept
+  struct dyng::generators::hyperedge_batch_options
+      hyperedge_batch_mix mix = hyperedge_batch_mix::mixed
+      std::int64_t size = -1
+      std::int64_t min_cardinality = 1
+      std::int64_t max_cardinality = 4
+      std::int64_t skewed_cardinality = 1100
+      std::int64_t min_weight = 1
+      std::int64_t max_weight = 100
+      std::uint64_t seed = 1
+  template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > dyng::generators::random_hyperedge_batch(vertex_t num_vertices, const incidence_view< vertex_t > &h2v, array_view< const weight_t > weights, const hyperedge_batch_options &opt)
+  template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > dyng::generators::random_hyperedge_batch(const resources &res, const hypergraph< vertex_t, weight_t > &h, const hyperedge_batch_options &opt)
 
 [dyng/generators/legacy.hpp] tracked
   enum class dyng::generators::legacy::mosp_change_mode : std::uint8_t { uniform, targeted, reweight, increase }
@@ -434,6 +460,24 @@
       std::uint64_t seed = 0
       std::int64_t locality_window = -1
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] edge_batch< vertex_t, weight_t > dyng::generators::legacy::cycle_enum_batch(const csr_view< vertex_t, edge_t, weight_t > &graph, const cycle_enum_batch_options &opt)
+  [[nodiscard]] bool dyng::generators::legacy::standard_library_matches_legacy_streams()
+  struct dyng::generators::legacy::escher_hypergraph_options
+      std::int64_t num_hyperedges = 0
+      std::int32_t max_cardinality = 1
+      std::int32_t min_vertex = 0
+      std::int32_t max_vertex = 0
+  enum class dyng::generators::legacy::escher_insert_mode : std::uint8_t { random, sample }
+  [[nodiscard]] std::string_view dyng::generators::legacy::to_string(escher_insert_mode mode) noexcept
+  struct dyng::generators::legacy::escher_batch_options
+      std::int64_t num_deletions = -1
+      std::int64_t num_insertions = -1
+      escher_insert_mode insert_mode = escher_insert_mode::random
+      escher_hypergraph_options graph
+      [[nodiscard]] static escher_batch_options batch_size(std::int64_t size, escher_insert_mode mode, const escher_hypergraph_options &graph)
+  template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_list< vertex_t, weight_t > dyng::generators::legacy::escher_hypergraph(std::mt19937_64 &rng, const escher_hypergraph_options &opt)
+  class dyng::generators::legacy::escher_batch_generator
+      escher_batch_generator(std::mt19937_64 &rng, const escher_batch_options &opt)
+      template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const resources &res, const hypergraph< vertex_t, weight_t > &h)
 
 [dyng/graph/apply_summary.hpp] frozen
   struct dyng::apply_summary
@@ -755,6 +799,62 @@
       std::int64_t num_vertices = -1
   template <typename vertex_t, typename weight_t> [[nodiscard]] std::vector< edge_batch< vertex_t, weight_t > > dyng::io::read_batches(const std::string &path, const batch_file_options &options={})
   template <typename vertex_t, typename weight_t> void dyng::io::write_batches(const std::string &path, const std::vector< edge_batch_view< vertex_t, weight_t > > &batches)
+  struct dyng::io::hyperedge_batch_file_options
+      std::int64_t num_vertices = -1
+  template <typename vertex_t, typename weight_t> [[nodiscard]] std::vector< hyperedge_batch< vertex_t, weight_t > > dyng::io::read_hyperedge_batches(const std::string &path, const hyperedge_batch_file_options &options={})
+  template <typename vertex_t, typename weight_t> void dyng::io::write_hyperedge_batches(const std::string &path, const std::vector< hyperedge_batch_view< vertex_t, weight_t > > &batches)
+  enum class dyng::io::batch_dtype : std::uint8_t { none = 0, int32 = 1, int64 = 2 }
+  [[nodiscard]] std::string_view dyng::io::to_string(batch_dtype dtype) noexcept
+  struct dyng::io::batch_file_flags
+      static constexpr std::uint64_t deleted_members = 1U
+      static constexpr std::uint64_t expected_ids = 2U
+      static constexpr std::uint64_t insert_first = 4U
+      static constexpr std::uint64_t known = deleted_members | expected_ids | insert_first
+  struct dyng::io::batch_file_header
+      std::uint32_t format_version = 1
+      container_kind kind = container_kind::graph
+      batch_dtype vertex_type = batch_dtype::int32
+      batch_dtype weight_type = batch_dtype::none
+      int num_weights = 0
+      std::uint64_t flags = 0
+      std::int64_t num_batches = 0
+  template <typename vertex_t, typename weight_t> [[nodiscard]] batch_file_header dyng::io::edge_batch_file_header(int num_weights)
+  template <typename vertex_t, typename weight_t> [[nodiscard]] batch_file_header dyng::io::hyperedge_batch_file_header(std::uint64_t flags=0)
+  template <typename vertex_t> struct dyng::io::hyperedge_batch_annotations
+      array_view< const std::int64_t > deleted_offsets
+      array_view< const vertex_t > deleted_members
+      array_view< const std::int64_t > expected_ids
+  class dyng::io::batch_writer
+      batch_writer(const std::string &path, const batch_file_header &header)
+      ~batch_writer()
+      batch_writer(const batch_writer &)=delete
+      batch_writer & operator=(const batch_writer &)=delete
+      batch_writer(batch_writer &&other) noexcept
+      batch_writer & operator=(batch_writer &&other) noexcept
+      template <typename vertex_t, typename weight_t> void write(const edge_batch_view< vertex_t, weight_t > &batch)
+      template <typename vertex_t, typename weight_t> void write(const hyperedge_batch_view< vertex_t, weight_t > &batch, const hyperedge_batch_annotations< vertex_t > &annotations={})
+      void close()
+      [[nodiscard]] std::int64_t num_batches() const noexcept
+  struct dyng::io::batch_reader_options
+      std::int64_t num_vertices = -1
+  class dyng::io::batch_reader
+      explicit batch_reader(const std::string &path, const batch_reader_options &options={})
+      batch_reader(const resources &res, const std::string &path, const batch_reader_options &options={})
+      ~batch_reader()
+      batch_reader(const batch_reader &)=delete
+      batch_reader & operator=(const batch_reader &)=delete
+      batch_reader(batch_reader &&other) noexcept
+      batch_reader & operator=(batch_reader &&other) noexcept
+      [[nodiscard]] const batch_file_header & header() const noexcept
+      bool next()
+      [[nodiscard]] std::int64_t batch_id() const noexcept
+      template <typename vertex_t, typename weight_t> [[nodiscard]] edge_batch_view< vertex_t, weight_t > edge_batch() const
+      template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch_view< vertex_t, weight_t > hyperedge_batch() const
+      template <typename vertex_t> [[nodiscard]] hyperedge_batch_annotations< vertex_t > annotations() const
+  template <typename vertex_t, typename weight_t> void dyng::io::write_binary_batches(const std::string &path, const std::vector< edge_batch_view< vertex_t, weight_t > > &batches)
+  template <typename vertex_t, typename weight_t> [[nodiscard]] std::vector< edge_batch< vertex_t, weight_t > > dyng::io::read_binary_batches(const std::string &path, const batch_reader_options &options={})
+  template <typename vertex_t, typename weight_t> void dyng::io::write_binary_hyperedge_batches(const std::string &path, const std::vector< hyperedge_batch_view< vertex_t, weight_t > > &batches)
+  template <typename vertex_t, typename weight_t> [[nodiscard]] std::vector< hyperedge_batch< vertex_t, weight_t > > dyng::io::read_binary_hyperedge_batches(const std::string &path, const batch_reader_options &options={})
   struct dyng::io::legacy_batch_options
       int num_weights = 1
       std::int64_t num_vertices = -1
@@ -786,6 +886,32 @@
       bool symmetric = false
   template <typename vertex_t, typename weight_t> [[nodiscard]] edge_list< vertex_t, weight_t > dyng::io::read_edge_list(const std::string &path, const edge_list_options &options={}, edge_list_info *info=nullptr)
   template <typename vertex_t, typename weight_t> void dyng::io::write_edge_list(const std::string &path, const edge_list_view< vertex_t, weight_t > &edges)
+
+[dyng/io/hypergraph_io.hpp] tracked
+  enum class dyng::io::vertex_relabel : std::uint8_t { none, dense_sorted, first_appearance }
+  [[nodiscard]] std::string_view dyng::io::to_string(vertex_relabel relabel) noexcept
+  struct dyng::io::weight_spec
+      std::int64_t lo = 1
+      std::int64_t hi = 100
+      std::uint64_t seed = 1
+      bool hsosp_target_draw = false
+  struct dyng::io::hypergraph_read_options
+      std::int64_t index_base = 1
+      bool dedupe_hyperedges = false
+      std::int64_t max_cardinality = -1
+      vertex_relabel relabel = vertex_relabel::none
+      std::optional< weight_spec > random_weights
+      std::int64_t num_vertices = -1
+      [[nodiscard]] static hypergraph_read_options escher_gpu() noexcept
+      [[nodiscard]] static hypergraph_read_options hsosp(std::uint64_t seed=20260725U, std::int64_t max_cardinality=25) noexcept
+  struct dyng::io::hypergraph_file_info
+      std::vector< std::int64_t > external_ids
+      std::int64_t lines = 0
+      std::int64_t repeated_members = 0
+      std::int64_t over_cardinality = 0
+      std::int64_t repeated_hyperedges = 0
+  template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_list< vertex_t, weight_t > dyng::io::read_hypergraph(const std::string &path, const hypergraph_read_options &options={}, hypergraph_file_info *info=nullptr)
+  template <typename vertex_t, typename weight_t> void dyng::io::write_hypergraph(const std::string &path, const hyperedge_list_view< vertex_t, weight_t > &hyperedges, std::int64_t index_base=1)
 
 [dyng/io/matrix_market.hpp] tracked
   enum class dyng::io::matrix_market_weights : std::uint8_t { automatic, none, from_file, random }

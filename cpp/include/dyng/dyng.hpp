@@ -35,6 +35,7 @@
 #include <dyng/core/types.hpp>
 #include <dyng/cycle_count.hpp>
 #include <dyng/dynamic_bfs.hpp>
+#include <dyng/generators/hypergraphs.hpp>
 #include <dyng/generators/legacy.hpp>
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/csr.hpp>

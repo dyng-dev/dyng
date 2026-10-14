@@ -82,6 +82,7 @@ endif()
 dyng_add_test(
   NAME dyng_generators_tests
   SOURCES generators/legacy_test.cpp generators/cycle_enum_batch_test.cpp
+          generators/hypergraph_generators_test.cpp
   LABELS cpu generators
 )
 # Parity with CycleEnumeration-GPU@0a976ad on the TUDataset graphs (outside the repository; the
