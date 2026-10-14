@@ -334,7 +334,7 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("hypergraph::h2h (", hyperedge_id_bound(), " i
 
 template <typename vertex_t, typename weight_t>
 array_view<const weight_t> hypergraph<vertex_t, weight_t>::weights() const {
-  return host_view(impl().weights);
+  return host_view(readable(impl(), "hypergraph::weights").weights);
 }
 
 template <typename vertex_t, typename weight_t>

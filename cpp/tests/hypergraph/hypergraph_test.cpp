@@ -343,6 +343,7 @@ TEST_P(HypergraphBackends, CapacityErrorPoisons) {
   EXPECT_THROW(h.check_integrity(res()), dyng::invalid_argument_error);
   EXPECT_THROW((void)h.clone(res()), dyng::invalid_argument_error);
   EXPECT_THROW((void)h.to_hyperedge_list(res()), dyng::invalid_argument_error);
+  EXPECT_THROW((void)h.weights(), dyng::invalid_argument_error);  // M8b review
 }
 
 TEST_P(HypergraphBackends, VersionAndStateIdentity) {

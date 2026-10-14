@@ -98,8 +98,10 @@ The ESCHER store addresses its payload with **int32 offsets**, so one relation h
 2^31 - 1 entries (`max_payload = 0` means exactly that limit; `mosp_escher()` stops at 2.0e9).
 An `apply()` that would need more raises `capacity_error`, and so does the line graph when it
 outgrows the limit. An error inside a store operation leaves the hypergraph **poisoned**: every
-later call except destruction and assignment throws, because a half-applied batch cannot be
-undone cheaply on the device. Errors found before the store changes (an out-of-range vertex, an
+later call that reads or changes its storage (the views, `weights()`, `apply()`,
+`to_hyperedge_list()`, `clone()`, `check_integrity()`) throws until it is destroyed or assigned,
+and the `noexcept` accessors (`num_hyperedges()`, `version()`, `store_stats()`, ...) return
+unspecified values, because a half-applied batch cannot be undone cheaply on the device. Errors found before the store changes (an out-of-range vertex, an
 empty hyperedge, a bad weight, an incidence edit before 0.4) change nothing.
 
 On CUDA a hypergraph's storage works on the stream of the `resources` it was built with.

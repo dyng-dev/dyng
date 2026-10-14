@@ -255,7 +255,7 @@ class hypergraph {
    * @brief The hyperedge weights by id (host memory on every backend): one per id in
    *        [0, hyperedge_id_bound()), 0 for a dead id; empty for an unweighted hypergraph.
    * @return The view, invalidated by the next apply().
-   * @throws invalid_argument_error for a moved-from hypergraph.
+   * @throws invalid_argument_error for a moved-from or poisoned hypergraph.
    */
   [[nodiscard]] array_view<const weight_t> weights() const;
 
@@ -291,7 +291,10 @@ class hypergraph {
    * @guarantee Strong for every error found before the store changes (the invalid_argument_error
    *            and not_supported_error cases above): version, state identity and contents are
    *            unchanged. Basic otherwise: an error inside a store operation poisons the
-   *            hypergraph, and every later call but destruction and assignment throws.
+   *            hypergraph; every later call that reads or changes its storage (the views,
+   *            weights(), apply(), to_hyperedge_list(), clone(), to_backend(), check_integrity())
+   *            throws, and the noexcept accessors return unspecified values, until it is
+   *            destroyed or assigned.
    */
   hyper_apply_summary apply(const resources& res, const batch_view_type& batch);
 

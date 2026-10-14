@@ -193,8 +193,12 @@ without a header change.
   policy. Then version, state identity, rows and `to_hyperedge_list()` are unchanged.
 - **Basic guarantee** for the store phase: a `capacity_error`, an `out_of_memory_error`, a
   `cuda_error` or the device error word raised by a store operation poisons the container; every
-  later call but the destructor and the move operations throws `invalid_argument_error` until it
-  is rebuilt (`from_hyperedges`). Nothing throws after the commit (version, state identity, the
+  later call that reads or changes the storage (the views, `weights()`, `apply()`,
+  `to_hyperedge_list()`, `clone()`/`to_backend()`, `check_integrity()`) throws
+  `invalid_argument_error` until it is rebuilt (`from_hyperedges`); the destructor and the move
+  operations work, and the `noexcept` accessors (counts, bound, version, `store_stats()`) return
+  unspecified values (M8b review: `weights()` did not check, and the text said "every later
+  call"). Nothing throws after the commit (version, state identity, the
   applied record and the dropped views are `noexcept` steps).
 - **Ids are read from `inserted_ids`, never predicted**: best fit decides them, and the surplus
   rule can reissue an id that was dead before the batch (or one deleted in the same batch under
