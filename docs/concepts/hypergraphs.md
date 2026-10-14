@@ -102,6 +102,11 @@ later call except destruction and assignment throws, because a half-applied batc
 undone cheaply on the device. Errors found before the store changes (an out-of-range vertex, an
 empty hyperedge, a bad weight, an incidence edit before 0.4) change nothing.
 
+On CUDA a hypergraph's storage works on the stream of the `resources` it was built with.
+`apply()` (and `dyng::update()`) with resources on another stream of the same device is ordered
+after the work already queued on that stream and before the work queued there later, so the
+views of G_t may be read on either stream until the call.
+
 The public offsets (`incidence_view::row_ptr`, the batch's `insert_offsets`) are `int64`
 regardless, so the API does not change when a later storage lifts the limit.
 

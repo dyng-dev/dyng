@@ -267,6 +267,10 @@ class hypergraph {
    * (hyper_apply_summary::ignored_deletions), as are repeated members of an inserted hyperedge
    * (dropped_members). The inserted hyperedges get the ids the store's best-fit reuse chooses,
    * reported in hyper_apply_summary::inserted_ids.
+   *
+   * On CUDA the storage works on the stream of the resources the hypergraph was built with;
+   * apply() orders that work after the work queued so far on the stream of `res`, and the work
+   * later queued on the stream of `res` after it, so either stream may hold readers of the views.
    * @param[in] res   Execution resources of the hypergraph's backend (and device).
    * @param[in] batch The batch (any memory space: it is validated and grouped on the host, so
    *                  arrays in device memory are copied once under res.get_copy_policy()).

@@ -147,6 +147,18 @@ class incidence_store {
     (void)threads;
   }
 
+  /// @brief Order the store's next work after the work queued so far on the stream of `res`, the
+  /// resources of an apply or update (the store works on the stream it was built with; ADR 0041
+  /// section 4). Nothing on the host stores. @param[in] res The call's resources.
+  virtual void wait_for(const resources& res) {
+    (void)res;
+  }
+  /// @brief Order the work later queued on the stream of `res` after the store's work so far.
+  /// Nothing on the host stores. @param[in] res The call's resources.
+  virtual void signal_to(const resources& res) {
+    (void)res;
+  }
+
   /// @brief The id bound (the largest key of the H2V tree). @return The bound.
   [[nodiscard]] virtual std::int64_t id_bound() const noexcept = 0;
   /// @brief Live hyperedges. @return The count.

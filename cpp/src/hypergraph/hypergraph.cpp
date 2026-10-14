@@ -611,6 +611,10 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
   try {
     const container_scope container;  // the container's own work (budgets, I9)
     store.set_host_threads(resources_access::host_threads(res));
+    // The store works on the stream it was built with: its work is ordered after the work queued
+    // so far on the stream of `res` (a reader of G_t's views there, count(-) of dyng::update),
+    // and the work later queued on that stream after the store's (ADR 0041 section 4).
+    store.wait_for(res);
     hyper::grouped_incidences groups;
     std::vector<std::int64_t> ids;
     // The members of the deleted ids, read from the store (the callers do not supply them).
@@ -706,6 +710,7 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
     }
     // One read of the device error words, then the row views of the new state.
     store.finish_apply();
+    store.signal_to(res);
     // The summary, built here: everything that allocates comes before the commit point.
     summary.inserted_hyperedges = static_cast<std::int64_t>(applied.inserted_ids.size());
     summary.deleted_hyperedges = static_cast<std::int64_t>(live_deletions.size());

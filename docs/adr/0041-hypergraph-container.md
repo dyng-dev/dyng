@@ -91,6 +91,13 @@ The host copies of a CUDA container are lazy (ADR 0020): `to_hyperedge_list()`,
 are called. `apply()` reads the device error word once, at its end (`cbst_store::check_errors`
 after the last store operation; the store's own read points inside an operation are A's).
 
+**Streams** (M8b review): a CUDA container's store works on the stream of the resources it was
+built with. `apply()` and `dyng::update()` take resources that may name another stream (of the
+same device); the store phase then waits for the work queued so far on the call's stream (an
+event) and the call's stream waits for the store's work at its end, so a reader of G_t's views
+queued on either stream, and count(-) of an update, are ordered before the store frees or reuses
+G_t's memory. Resources on the same stream cost nothing.
+
 ### 5. The host id allocator
 
 `cpp/src/hypergraph/id_allocator.{hpp,cpp}` reproduces the ids of the H2V tree of the store on

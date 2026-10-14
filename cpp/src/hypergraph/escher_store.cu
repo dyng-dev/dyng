@@ -118,6 +118,29 @@ cudaStream_t stream_of(const resources& res) {
   return static_cast<cudaStream_t>(res.stream().get());
 }
 
+// Makes the stream of `waiter` wait for the work queued so far on the stream of `signaller` (an
+// event; nothing when both name the same stream on the same device). A hypergraph's store works
+// on the stream of the resources it was built with; apply() and dyng::update() join the stream of
+// their own resources at the start and the end of the store phase (M8b review).
+void order_streams(const resources& signaller, const resources& waiter) {
+  if (signaller.stream().get() == waiter.stream().get() && signaller.device() == waiter.device())
+    return;
+  cudaEvent_t event = nullptr;
+  {
+    const scoped_device guard(signaller.device());
+    DYNG_CUDA_TRY(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+    const cudaError_t recorded = cudaEventRecord(event, stream_of(signaller));
+    if (recorded != cudaSuccess) {
+      (void)cudaEventDestroy(event);
+      DYNG_CUDA_TRY(recorded);
+    }
+  }
+  const scoped_device guard(waiter.device());
+  const cudaError_t waited = cudaStreamWaitEvent(stream_of(waiter), event, 0);
+  (void)cudaEventDestroy(event);
+  DYNG_CUDA_TRY(waited);
+}
+
 int blocks_for(std::int64_t n) {
   return static_cast<int>((n + block_size - 1) / block_size);
 }
@@ -515,6 +538,14 @@ class escher_device_store final : public incidence_store {
     }
     escher::update_line_graph(*h2h_, h2h_rows_.view(), v2h_->context(), batch,
                               static_cast<int>(max_bound_), payload_limit(capacity_));
+  }
+
+  void wait_for(const resources& res) override {
+    order_streams(res, res_);
+  }
+
+  void signal_to(const resources& res) override {
+    order_streams(res_, res);
   }
 
   void finish_apply() override {

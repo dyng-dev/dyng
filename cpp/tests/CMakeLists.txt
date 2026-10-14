@@ -317,6 +317,7 @@ if(DYNG_ENABLE_CUDA)
     SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
             hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
             hypergraph/hypergraph_update_test.cpp framework/fake_hyper_kernels.cu
+            hypergraph/stream_probe_kernels.cu
     LABELS gpu hypergraph
     LIBRARIES dyng_cbst_compare
     TEST_PREFIX cuda.
