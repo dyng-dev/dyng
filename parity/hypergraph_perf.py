@@ -43,6 +43,7 @@ Every reading takes the EXCLUSIVE perf lock ($DYNG_SCRATCH/perf.lock).
 from __future__ import annotations
 
 import argparse
+import bisect
 import datetime
 import json
 import os
@@ -55,7 +56,6 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "parity"))
 
-import cycle_count_perf  # noqa: E402
 import perf_ab  # noqa: E402
 
 REFERENCE = "ESCHER-GPU"
@@ -156,6 +156,106 @@ def run(cmd: list[str], env: dict) -> str:
 # --- memory ----------------------------------------------------------------------------------
 
 
+# The live device bytes over time, attributed to NVTX ranges (M8b review: where the nsys peaks lie
+# and what the stream-ordered pool keeps reserved between batches).
+BATCH_RANGES = {"original": "update", "port": "hypergraph.apply"}
+
+
+def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -> dict:
+    """One process under `nsys profile -t cuda,nvtx --cuda-memory-usage=true`: the peak of its
+    live device allocations, the NVTX ranges containing the peak (outermost first), the peak
+    inside every named range, and at the start and end of every range named `batch_range` (one
+    per batch) the live bytes and the size of the stream-ordered pool (reserved bytes; the pool
+    keeps what it reached, ADR 0016: reserved minus live is its slack)."""
+    import sqlite3
+
+    nsys = os.environ.get("NSYS", "/usr/local/cuda-13.1/bin/nsys")
+    subprocess.run(
+        [
+            nsys,
+            "profile",
+            "-t",
+            "cuda,nvtx",
+            "--cuda-memory-usage=true",
+            "-o",
+            str(report),
+            "-f",
+            "true",
+            "--export=sqlite",
+            *map(str, cmd),
+        ],
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=True,
+    )
+    database = Path(str(report) + ".sqlite")
+    try:
+        db = sqlite3.connect(str(database))
+        rows = db.execute(
+            "select start, bytes, memoryOperationType, address, localMemoryPoolSize "
+            "from CUDA_GPU_MEMORY_USAGE_EVENTS where memKind = 2"
+        ).fetchall()
+        strings = dict(db.execute("select id, value from StringIds").fetchall())
+        ranges = []
+        for start, end, text, text_id in db.execute(
+            "select start, end, text, textId from NVTX_EVENTS where end is not null"
+        ):
+            ranges.append((start, end, text if text is not None else strings.get(text_id, "")))
+        db.close()
+    finally:
+        for f in [database, Path(str(report) + ".nsys-rep")]:
+            f.unlink(missing_ok=True)
+    # The timeline: (time, live bytes, pool bytes) after every event.
+    timeline: list[tuple[int, int, int]] = []
+    live = pool = 0
+    sizes: dict = {}
+    for start, nbytes, op, address, pool_size in sorted(rows):
+        if op == 0:
+            sizes[address] = nbytes
+            live += nbytes
+        else:
+            live -= sizes.pop(address, nbytes)
+        if pool_size is not None:
+            pool = pool_size
+        timeline.append((start, live, pool))
+    mib = 2**20
+    peak_t, peak_live, _ = max(timeline, key=lambda e: e[1], default=(0, 0, 0))
+    containing = sorted((r for r in ranges if r[0] <= peak_t <= r[1]), key=lambda r: (r[0], -r[1]))
+    times = [e[0] for e in timeline]
+    range_peaks: dict[str, float] = {}
+    for start, end, name in ranges:
+        lo, hi = bisect.bisect_left(times, start), bisect.bisect_right(times, end)
+        if lo < hi:
+            top = max(e[1] for e in timeline[lo:hi])
+            range_peaks[name] = max(range_peaks.get(name, 0.0), round(top / mib, 1))
+
+    def at(t: int) -> tuple[int, int]:
+        i = bisect.bisect_right(times, t)
+        return (timeline[i - 1][1], timeline[i - 1][2]) if i > 0 else (0, 0)
+
+    batches = []
+    for start, end, _ in sorted(r for r in ranges if r[2] == batch_range):
+        live_start, _ = at(start)
+        live_end, pool_end = at(end)
+        batches.append(
+            {
+                "live_mib_start": round(live_start / mib, 1),
+                "live_mib_end": round(live_end / mib, 1),
+                "pool_mib_end": round(pool_end / mib, 1),
+                "slack_mib_end": round((pool_end - live_end) / mib, 1),
+            }
+        )
+    return {
+        "peak_live_mib": round(peak_live / mib, 1),
+        "pool_mib": round(max((e[2] for e in timeline), default=0) / mib, 1),
+        "peak_in": [name for _, _, name in containing],
+        "range_peaks_mib": dict(sorted(range_peaks.items())),
+        "batch_range": batch_range,
+        "batches": batches,
+    }
+
+
 def memory(args: argparse.Namespace) -> int:
     tool = find_tool(args.build).resolve()
     case_dir, argv = golden_case("coauth50k")
@@ -173,8 +273,10 @@ def memory(args: argparse.Namespace) -> int:
             # The accounting (and the ids) of the replay, then A's own print points.
             run(port, env)
             printed = run(cmd, env)
-            original = cycle_count_perf.device_memory(cmd, env, work / "a")
-            port_peak = cycle_count_perf.device_memory(port, env, work / "b")
+            # The peaks by NVTX range and the pool's slack between batches (M8b review): A's
+            # ranges are its ScopedTimers', the port's its profiler stages (--nvtx).
+            original = memory_by_range(cmd, env, work / "a", BATCH_RANGES["original"])
+            port_peak = memory_by_range([*port, "--nvtx"], env, work / "b", BATCH_RANGES["port"])
         rep = json.loads(report_json.read_text())[0]
     finally:
         subprocess.run(["rm", "-rf", str(work)], check=False)
@@ -211,9 +313,17 @@ def memory(args: argparse.Namespace) -> int:
     )
     print(
         f"  nsys peak of live device allocations: original {original['peak_live_mib']} MiB "
-        f"(store, row views and motif counting), port {port_peak['peak_live_mib']} MiB (pool "
+        f"in {' > '.join(original['peak_in']) or '-'} (pool {original['pool_mib']} MiB), port "
+        f"{port_peak['peak_live_mib']} MiB in {' > '.join(port_peak['peak_in']) or '-'} (pool "
         f"{port_peak['pool_mib']} MiB)"
     )
+    for side, nsys_doc in (("original", original), ("port", port_peak)):
+        for i, b in enumerate(nsys_doc["batches"], 1):
+            print(
+                f"  {side} {nsys_doc['batch_range']} {i}: live {b['live_mib_start']} -> "
+                f"{b['live_mib_end']} MiB, pool {b['pool_mib_end']} MiB, slack "
+                f"{b['slack_mib_end']} MiB"
+            )
     loaded = rep.get("hg_hyperedges", 0)
     print(f"  loaded through read_hypergraph({hg.name}, escher_gpu()): {loaded} hyperedges")
     passed = (
