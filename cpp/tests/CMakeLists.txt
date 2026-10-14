@@ -292,6 +292,7 @@ dyng_add_test(
   NAME dyng_hypergraph_tests
   SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
           hypergraph/hypergraph_store_test.cpp hypergraph/hypergraph_line_graph_test.cpp
+          hypergraph/hypergraph_update_test.cpp
   LABELS cpu hypergraph
   LIBRARIES dyng_cbst_compare
 )
@@ -301,6 +302,7 @@ if(DYNG_ENABLE_CUDA)
     NAME dyng_hypergraph_cuda_tests
     SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
             hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
+            hypergraph/hypergraph_update_test.cpp framework/fake_hyper_kernels.cu
     LABELS gpu hypergraph
     LIBRARIES dyng_cbst_compare
     TEST_PREFIX cuda.
@@ -480,6 +482,39 @@ foreach(
     set_tests_properties(
       update.static_assert.${_name} PROPERTIES LABELS "cpu;core" PASS_REGULAR_EXPRESSION
                                                "${_message}"
+    )
+  endif()
+endforeach()
+
+# Compile-failure tests of dyng::update() over hypergraphs (ADR 0043): the owning batch, a batch
+# view of the other container, a hypergraph algorithm's result with a graph (the plain-English
+# static_assert of its update_traits, detail::is_hypergraph_v) and a graph algorithm's result with
+# a hypergraph (sssp's update_traits needs the graph's edge type). The control case must compile.
+foreach(
+  _case
+  "control||"
+  "owning_batch|-DDYNG_CF_HYPER_OWNING_BATCH|the batch must be the container's batch view"
+  "edge_batch_with_hypergraph|-DDYNG_CF_HYPER_EDGE_BATCH|the batch must be the container's batch view"
+  "hyperedge_batch_with_graph|-DDYNG_CF_GRAPH_HYPER_BATCH|the batch must be the container's batch view"
+  "hypergraph_result_with_graph|-DDYNG_CF_HYPER_RESULT_ON_GRAPH|a hypergraph algorithm.*takes a dyng::hypergraph"
+  "graph_result_with_hypergraph|-DDYNG_CF_GRAPH_RESULT_ON_HYPER|edge_type"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME hypergraph.update.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/hypergraph_update_arguments.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(hypergraph.update.static_assert.${_name} PROPERTIES LABELS
+                                                                     "cpu;hypergraph")
+  else()
+    set_tests_properties(
+      hypergraph.update.static_assert.${_name} PROPERTIES LABELS "cpu;hypergraph"
+                                                          PASS_REGULAR_EXPRESSION "${_message}"
     )
   endif()
 endforeach()
