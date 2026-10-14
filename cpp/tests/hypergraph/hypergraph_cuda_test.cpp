@@ -20,7 +20,10 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <exception>
+#include <functional>
 #include <random>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -91,10 +94,21 @@ TEST(HypergraphCuda, TwoContainersOnTwoNonBlockingStreams) {
   const dyng::resources rb = dyng::resources::cuda(0, dyng::stream_ref(b));
   stream_result got[2];
   for (const auto reuse : {dyng::id_reuse::erase_first, dyng::id_reuse::insert_first}) {
-    std::thread ta([&] { got[0] = stream_ids(ra, 21, reuse); });
-    std::thread tb([&] { got[1] = stream_ids(rb, 22, reuse); });
+    // An exception of a thread (a failed check_integrity) is reported, not left to terminate.
+    std::string errors[2];
+    const auto drive = [&](int i, const dyng::resources& r, std::uint64_t seed) {
+      try {
+        got[i] = stream_ids(r, seed, reuse);
+      } catch (const std::exception& e) {
+        errors[i] = e.what();
+      }
+    };
+    std::thread ta(drive, 0, std::cref(ra), 21);
+    std::thread tb(drive, 1, std::cref(rb), 22);
     ta.join();
     tb.join();
+    ASSERT_EQ(errors[0], "");
+    ASSERT_EQ(errors[1], "");
     EXPECT_EQ(got[0], stream_ids(dyng::resources::cuda(0), 21, reuse));
     EXPECT_EQ(got[1], stream_ids(dyng::resources::cuda(0), 22, reuse));
   }
