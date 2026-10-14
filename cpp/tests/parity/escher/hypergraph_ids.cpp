@@ -10,10 +10,13 @@
 
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/hypergraph_support.hpp"
+#include "parity/escher/escher_dump.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
+#include <dyng/generators/legacy.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
+#include <dyng/io/hypergraph_io.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -21,6 +24,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <random>
 #include <set>
 #include <sstream>
 #include <string>
@@ -30,6 +34,7 @@
 namespace dyng::test::hypergraph_ids {
 
 namespace tr = dyng::test::cbst_trace;
+namespace ed = dyng::test::escher_dump;
 namespace hs = dyng::test::hyper;
 using rows = hs::rows;
 
@@ -50,19 +55,7 @@ std::string json_string(const std::string& s) {
   return out + "\"";
 }
 
-// The rows of a batch record's `name.values` / `name.prefix` (inclusive ends), minus `shift`.
-rows read_rows(tr::reader& in, const tr::record& rec, const std::string& name, int shift) {
-  const std::vector<std::int32_t> values = in.ints(rec.array(name + ".values"));
-  const std::vector<std::int64_t> prefix = in.longs(rec.array(name + ".prefix"));
-  rows out(prefix.size());
-  std::int64_t begin = 0;
-  for (std::size_t i = 0; i < prefix.size(); ++i) {
-    for (std::int64_t k = begin; k < prefix[i]; ++k)
-      out[i].push_back(values[static_cast<std::size_t>(k)] - shift);
-    begin = prefix[i];
-  }
-  return out;
-}
+using ed::read_rows;
 
 std::vector<std::int32_t> sorted_unique(std::vector<std::int32_t> r) {
   std::sort(r.begin(), r.end());
@@ -167,31 +160,39 @@ class escher_gpu_replay {
       if (opt_.line_graph && has_h2h_tree_ && tree == h2h_tree_) on_h2h_op(rec);
       return;
     }
+    if (rec.kind == tr::record_kind::header) {
+      (void)decoder_.feed(rec, in_);
+      if (opt_.legacy_generator) {
+        try {
+          argv_options_ = ed::escher_options::parse(decoder_.argv());
+          argv_ok_ = true;
+        } catch (const tr::trace_error& e) {
+          out_.mismatch(std::string("the legacy generator: ") + e.what());
+        }
+      }
+      return;
+    }
     if (rec.kind != tr::record_kind::batch) return;
-    const std::string hook = rec.text("hook"), phase = rec.text("phase");
-    if (rec.has("exception.type")) {
+    const ed::decoder::event ev = decoder_.feed(rec, in_);
+    if (ev == ed::decoder::event::exception) {
       ++rep_.original_exceptions;
-      out_.mismatch(hook + " " + phase + ": the original threw " + rec.text("exception.type") +
-                    " (not replayed)");
+      out_.mismatch(rec.text("hook") + " " + rec.text("phase") + ": the original threw " +
+                    decoder_.exception() + " (not replayed)");
       stopped_ = true;
       return;
     }
     if (stopped_) return;
-    if (hook == "escher_gpu.build" && phase == "exit") build(rec);
-    if (hook == "escher_gpu.update" && phase == "enter") {
-      pending_deleted_keys_ = in_.ints(rec.array("deleted_keys"));
-      pending_deleted_rows_ = read_rows(in_, rec, "deleted_rows", 1);
-      pending_inserted_rows_ = read_rows(in_, rec, "inserted_rows", 1);
-      batch_index_ = rec.integer("batch");
-    }
-    if (hook == "escher_gpu.update" && phase == "exit") update(rec);
+    if (ev == ed::decoder::event::build) build(rec);
+    if (ev == ed::decoder::event::batch) update(rec);
   }
 
  private:
   void build(const tr::record& rec) {
     ++rep_.sessions;
-    model_ = read_rows(in_, rec, "loaded_rows", 1);
-    n_ = static_cast<std::int32_t>(rec.integer("max_vertex_id"));
+    model_ = decoder_.build().loaded;
+    n_ = decoder_.build().num_vertices;
+    if (!opt_.hg_file.empty()) check_hg_file();
+    if (opt_.legacy_generator && argv_ok_) start_generator();
     // ESCHER-GPU's payloadCapacity: max(requested, size + size / 8 + 1024) for H2V and V2H; the
     // requested capacity (--payload-capacity) is recovered from the trace's H2V tree.
     const std::int64_t h2v_size = flat_size(model_);
@@ -221,9 +222,84 @@ class escher_gpu_replay {
     }
     if (opt_.mode != "by_id" && opt_.compare) {
       by_content_ = std::make_unique<hgraph>(hgraph::from_hyperedges(res_, list.view(), props_));
-      for (std::size_t id = 0; id < model_.size(); ++id)
-        index_[model_[id]].insert(static_cast<std::int64_t>(id));
+      resolver_.reset(model_);
       content_ids_in_sync_ = true;
+    }
+  }
+
+  // The .hg file of the run read with ESCHER-GPU's option set: A's loaded rows (criterion 13).
+  void check_hg_file() {
+    const auto list = io::read_hypergraph<std::int32_t, unweighted>(
+        opt_.hg_file, io::hypergraph_read_options::escher_gpu());
+    rep_.hg_hyperedges += list.num_hyperedges();
+    if (static_cast<std::int32_t>(list.num_vertices) != n_)
+      out_.mismatch("the .hg file: " + std::to_string(list.num_vertices) + " vertices, A " +
+                    std::to_string(n_));
+    if (hs::rows_of_list(list) != model_)
+      out_.mismatch("the .hg file: the rows read with escher_gpu() differ from A's loaded rows (" +
+                    std::to_string(list.num_hyperedges()) + " vs " + std::to_string(model_.size()) +
+                    " hyperedges)");
+  }
+
+  // The legacy generators (criterion 16): the synthetic hypergraph from one
+  // std::mt19937_64(--seed), and the generator that draws every batch from it.
+  void start_generator() {
+    const ed::escher_options& a = argv_options_;
+    rng_ = std::mt19937_64(a.seed);
+    namespace lg = generators::legacy;
+    lg::escher_hypergraph_options g;
+    if (!a.from_file) {
+      g.num_hyperedges = a.num_hyperedges;
+      g.max_cardinality = a.max_vertices_per_edge;
+      g.min_vertex = a.min_vertex_id - 1;
+      g.max_vertex = a.max_vertex_id - 1;
+      const auto list = lg::escher_hypergraph<std::int32_t, unweighted>(rng_, g);
+      ++rep_.generated_graphs;
+      if (hs::rows_of_list(list) != model_ || static_cast<std::int32_t>(list.num_vertices) != n_)
+        out_.mismatch("the legacy generator: escher_hypergraph differs from A's loaded rows");
+    } else {
+      // A's driver fills its graph parameters from the loaded file.
+      g.max_cardinality = 1;
+      for (const auto& r : model_)
+        g.max_cardinality =
+            std::max<std::int32_t>(g.max_cardinality, static_cast<std::int32_t>(r.size()));
+      g.min_vertex = 0;
+      g.max_vertex = n_ - 1;
+    }
+    g.num_hyperedges = 0;
+    lg::escher_batch_options b;
+    b.num_deletions = a.composition_set ? a.deletions : -1;
+    b.num_insertions = a.composition_set ? a.insertions : -1;
+    b.insert_mode =
+        a.sample_inserts ? lg::escher_insert_mode::sample : lg::escher_insert_mode::random;
+    b.graph = g;
+    generator_ = std::make_unique<lg::escher_batch_generator>(rng_, b);
+  }
+
+  // The batch the legacy generator draws from the by-id container before A's batch is applied.
+  void check_generated(const ed::batch_record& b, const std::string& where) {
+    if (!generator_ || !by_id_) return;
+    const auto gen = generator_->next(res_, *by_id_);
+    ++rep_.generated_batches;
+    rows inserted;
+    for (std::size_t i = 0; i < gen.num_insertions(); ++i)
+      inserted.emplace_back(gen.insert_members().begin() + gen.insert_offsets()[i],
+                            gen.insert_members().begin() + gen.insert_offsets()[i + 1]);
+    const rows got_rows = hs::h2v_rows(*by_id_);
+    rows deleted_rows;
+    for (const std::int64_t id : gen.delete_hyperedges())
+      deleted_rows.push_back(static_cast<std::size_t>(id) < got_rows.size()
+                                 ? got_rows[static_cast<std::size_t>(id)]
+                                 : std::vector<std::int32_t>{});
+    if (gen.delete_hyperedges() != b.deleted_ids || deleted_rows != b.deleted_rows ||
+        inserted != b.inserted_rows) {
+      out_.mismatch(where + ": the legacy generator's batch differs from A's (" +
+                    std::to_string(gen.num_deletions()) + "/" +
+                    std::to_string(gen.num_insertions()) + " vs " +
+                    std::to_string(b.deleted_ids.size()) + "/" +
+                    std::to_string(b.inserted_rows.size()) + ")");
+    } else {
+      ++rep_.generated_batches_equal;
     }
   }
 
@@ -389,28 +465,28 @@ class escher_gpu_replay {
 
   void update(const tr::record& rec) {
     ++rep_.batches;
-    const std::string where = "batch " + std::to_string(batch_index_);
-    const std::vector<std::int32_t> keys = in_.ints(rec.array("inserted_keys"));
-    std::vector<std::int64_t> want_ids;
-    for (const std::int32_t k : keys) want_ids.push_back(static_cast<std::int64_t>(k) - 1);
+    const ed::batch_record& b = decoder_.batch();
+    const std::string where = "batch " + std::to_string(b.index);
+    const std::vector<std::int64_t>& want_ids = b.inserted_ids;
     hs::test_batch tb;
-    for (const std::int32_t k : pending_deleted_keys_) tb.deletions.push_back(k - 1);
-    tb.insertions = pending_inserted_rows_;
+    tb.deletions = b.deleted_ids;
+    tb.insertions = b.inserted_rows;
     // A's model (its host vector h2v_): deleted keys cleared, inserted rows at their keys.
-    for (const std::int32_t k : pending_deleted_keys_)
-      if (k >= 1 && static_cast<std::size_t>(k) <= model_.size())
-        model_[static_cast<std::size_t>(k) - 1].clear();
-    for (std::size_t i = 0; i < keys.size(); ++i) {
-      if (keys[i] < 1) continue;
-      if (static_cast<std::size_t>(keys[i]) > model_.size())
-        model_.resize(static_cast<std::size_t>(keys[i]));
-      model_[static_cast<std::size_t>(keys[i]) - 1] = sorted_unique(pending_inserted_rows_[i]);
+    for (const std::int64_t id : b.deleted_ids)
+      if (id >= 0 && static_cast<std::size_t>(id) < model_.size())
+        model_[static_cast<std::size_t>(id)].clear();
+    for (std::size_t i = 0; i < want_ids.size(); ++i) {
+      if (want_ids[i] < 0) continue;
+      const auto id = static_cast<std::size_t>(want_ids[i]);
+      if (id >= model_.size()) model_.resize(id + 1);
+      model_[id] = sorted_unique(b.inserted_rows[i]);
     }
     if (by_id_) {
+      if (generator_) check_generated(b, where);
       const auto batch = hs::batch_of(tb);
       const std::size_t mark = profiled_samples();
       const auto s = by_id_->apply(res_, batch.view());
-      record_stages(mark, batch_index_);
+      record_stages(mark, b.index);
       rep_.ids_compared += static_cast<std::int64_t>(want_ids.size());
       if (s.inserted_ids != want_ids)
         out_.mismatch(where + ": inserted_ids differ from insertedKeys - 1");
@@ -425,66 +501,48 @@ class escher_gpu_replay {
       if (opt_.compare) check(*by_id_, where);
       if (opt_.line_graph) compare_h2h(*by_id_, where);
     }
-    if (by_content_) content_update(tb, want_ids, where);
+    if (by_content_) content_update(b, where);
     if (by_id_) record_paths(by_id_->store_stats(), rep_);
   }
 
-  // Deletion by content: every recorded deleted row resolved to the smallest live id with that
-  // member set that the batch has not taken yet.
-  void content_update(const hs::test_batch& by_key, const std::vector<std::int64_t>& want_ids,
-                      const std::string& where) {
+  // Deletion by content (escher_dump::by_content_resolver): every recorded deleted row resolved
+  // to the smallest live id with that member set that the batch has not taken yet.
+  void content_update(const ed::batch_record& b, const std::string& where) {
     hs::test_batch tb;
-    tb.insertions = by_key.insertions;
-    std::set<std::int64_t> taken;
+    tb.insertions = b.inserted_rows;
+    std::vector<bool> ambiguous;
+    const std::vector<std::int64_t> resolved = resolver_.resolve(b.deleted_rows, &ambiguous);
     bool ambiguous_here = false;
-    for (std::size_t i = 0; i < pending_deleted_rows_.size(); ++i) {
-      const std::vector<std::int32_t> content = sorted_unique(pending_deleted_rows_[i]);
-      const auto it = index_.find(content);
-      std::int64_t chosen = -1;
-      if (it != index_.end()) {
-        for (const std::int64_t id : it->second) {
-          if (taken.count(id) == 0) {
-            chosen = id;
-            break;
-          }
-        }
-      }
-      if (chosen < 0) {
+    for (std::size_t i = 0; i < resolved.size(); ++i) {
+      if (resolved[i] < 0) {
         out_.mismatch(where + ": by content: deleted row " + std::to_string(i) +
                       " has no live hyperedge");
         continue;
       }
-      taken.insert(chosen);
-      if (it->second.size() > 1 && chosen != by_key.deletions[i]) {
+      if (ambiguous[i] && resolved[i] != b.deleted_ids[i]) {
         ++rep_.ambiguous;
         ambiguous_here = true;
       }
-      tb.deletions.push_back(chosen);
+      tb.deletions.push_back(resolved[i]);
     }
     const auto batch = hs::batch_of(tb);
     const auto s = by_content_->apply(res_, batch.view());
-    // The index follows the by-content container's state.
-    for (std::size_t i = 0; i < tb.deletions.size(); ++i) {
-      const std::vector<std::int32_t> content = sorted_unique(pending_deleted_rows_[i]);
-      auto it = index_.find(content);
-      if (it != index_.end()) {
-        it->second.erase(tb.deletions[i]);
-        if (it->second.empty()) index_.erase(it);
-      }
-    }
-    for (std::size_t i = 0; i < s.inserted_ids.size(); ++i)
-      index_[sorted_unique(tb.insertions[i])].insert(s.inserted_ids[i]);
-    if (content_ids_in_sync_ && (ambiguous_here || s.inserted_ids != want_ids)) {
+    resolver_.commit(tb.deletions, tb.insertions, s.inserted_ids);
+    if (content_ids_in_sync_ && (ambiguous_here || s.inserted_ids != b.inserted_ids)) {
       content_ids_in_sync_ = false;
-      rep_.content_diverged_at = batch_index_;
+      rep_.content_diverged_at = b.index;
     }
     // Both modes give the same state: the same member sets, and while no ambiguous resolution
     // has happened, the same ids.
     const rows got = hs::h2v_rows(*by_content_);
-    if (content_multiset(got) != content_multiset(model_))
+    ++rep_.content_states;
+    if (content_multiset(got) != content_multiset(model_)) {
       out_.mismatch(where + ": by content: the live member sets differ from the original's");
+    } else {
+      ++rep_.content_states_equal;
+    }
     if (content_ids_in_sync_) {
-      if (s.inserted_ids != want_ids) out_.mismatch(where + ": by content: the ids differ");
+      if (s.inserted_ids != b.inserted_ids) out_.mismatch(where + ": by content: the ids differ");
       compare_state(*by_content_, model_, n_, where + " (by content)", rep_, out_);
     }
     if (opt_.integrity) {
@@ -521,12 +579,14 @@ class escher_gpu_replay {
   rows model_;
   std::unique_ptr<hypergraph<std::int32_t, unweighted>> by_id_, by_content_;
   std::unique_ptr<hs::lockstep> model_lockstep_;
-  std::map<std::vector<std::int32_t>, std::set<std::int64_t>> index_;
+  ed::decoder decoder_;
+  ed::by_content_resolver resolver_;
+  ed::escher_options argv_options_;
+  bool argv_ok_ = false;
+  std::mt19937_64 rng_;
+  std::unique_ptr<generators::legacy::escher_batch_generator> generator_;
   bool content_ids_in_sync_ = true;
   bool stopped_ = false;
-  std::vector<std::int32_t> pending_deleted_keys_;
-  rows pending_deleted_rows_, pending_inserted_rows_;
-  std::int64_t batch_index_ = 0;
 };
 
 // ---- MOSP_ESCHER --------------------------------------------------------------------------
@@ -539,6 +599,11 @@ class mosp_escher_replay {
       : in_(in), res_(res), opt_(opt), rep_(rep), out_(rep, opt.max_mismatches) {}
 
   void on(const tr::record& rec) {
+    if (rec.kind == tr::record_kind::header) {
+      const tr::field* f = rec.find("argv");
+      if (f != nullptr) argv_ = f->texts;
+      return;
+    }
     if (rec.kind == tr::record_kind::tree) {
       tree_name_[static_cast<std::uint32_t>(rec.integer("tree"))] = rec.text("dataset_name");
       tree_capacity_[static_cast<std::uint32_t>(rec.integer("tree"))] =
@@ -646,6 +711,7 @@ class mosp_escher_replay {
     // factors subtract exactly).
     props_.capacity.initial_headroom = factor == 1.3 ? 0.3 : factor - 1.0;
     const auto list = hs::list_of<std::int32_t>(num_vertices_, model_, w);
+    if (!opt_.hg_file.empty() && !hg_checked_) check_hg_file();
     session_ = std::make_unique<whgraph>(whgraph::from_hyperedges(res_, list.view(), props_));
     if (opt_.model)
       model_lockstep_ =
@@ -657,6 +723,43 @@ class mosp_escher_replay {
                     std::to_string(rep_.h2v_capacity_dyng) + " is not the trace's " +
                     std::to_string(h2v_capacity_));
     check("session " + std::to_string(rep_.sessions) + " load");
+  }
+
+  // The .hg file of an hsospBench --hg run read with H-SOSP's option set (criterion 13): B's
+  // loaded rows without its virtual source (first) and target (last) hyperedges, in B's member
+  // order, its first-appearance numbering, its vertex count and its weights, bit for bit.
+  void check_hg_file() {
+    hg_checked_ = true;
+    std::uint64_t seed = 20260725U;  // hsospBench's defaults
+    std::int64_t maxcard = 25;
+    bool hg_run = false;
+    for (std::size_t i = 1; i + 1 < argv_.size(); ++i) {
+      if (argv_[i] == "--seed") seed = std::stoull(argv_[i + 1]);
+      if (argv_[i] == "--maxcard") maxcard = std::stoll(argv_[i + 1]);
+      if (argv_[i] == "--hg") hg_run = true;
+    }
+    if (!hg_run) {
+      out_.mismatch("--hg: the trace's run did not load a .hg file");
+      return;
+    }
+    const auto list = io::read_hypergraph<std::int32_t, std::int32_t>(
+        opt_.hg_file, io::hypergraph_read_options::hsosp(seed, maxcard));
+    rep_.hg_hyperedges += list.num_hyperedges();
+    if (rows_.size() < 2) {
+      out_.mismatch("--hg: the bulk load has no virtual hyperedges");
+      return;
+    }
+    const rows want(rows_.begin() + 1, rows_.end() - 1);
+    const std::vector<std::int64_t> want_w(weights_.begin() + 1, weights_.end() - 1);
+    if (hs::rows_of_list(list) != want)
+      out_.mismatch("--hg: the rows read with hsosp() differ from B's loaded rows (" +
+                    std::to_string(list.num_hyperedges()) + " vs " + std::to_string(want.size()) +
+                    " hyperedges)");
+    if (static_cast<std::int32_t>(list.num_vertices) != num_vertices_)
+      out_.mismatch("--hg: " + std::to_string(list.num_vertices) + " vertices, B " +
+                    std::to_string(num_vertices_));
+    if (std::vector<std::int64_t>(list.weights.begin(), list.weights.end()) != want_w)
+      out_.mismatch("--hg: the weights drawn by hsosp() differ from B's");
   }
 
   void begin_enter(const tr::record& rec) {
@@ -784,6 +887,8 @@ class mosp_escher_replay {
   hypergraph_properties props_;
   std::unique_ptr<whgraph> session_;
   std::unique_ptr<hs::lockstep> model_lockstep_;
+  std::vector<std::string> argv_;
+  bool hg_checked_ = false;
 };
 
 }  // namespace
@@ -799,6 +904,11 @@ std::string report::to_json() const {
      << ", \"skipped_compared\": " << skipped_compared << ", \"skipped_ops\": " << skipped_ops
      << ", \"dropped_members\": " << dropped_members << ", \"ambiguous\": " << ambiguous
      << ", \"content_diverged_at\": " << content_diverged_at
+     << ", \"generated_graphs\": " << generated_graphs
+     << ", \"generated_batches\": " << generated_batches
+     << ", \"generated_batches_equal\": " << generated_batches_equal
+     << ", \"hg_hyperedges\": " << hg_hyperedges << ", \"content_states\": " << content_states
+     << ", \"content_states_equal\": " << content_states_equal
      << ", \"original_exceptions\": " << original_exceptions
      << ", \"h2v_capacity_trace\": " << h2v_capacity_trace
      << ", \"h2v_capacity_dyng\": " << h2v_capacity_dyng << ", \"h2h_states\": " << h2h_states
@@ -836,12 +946,16 @@ report replay(tr::reader& in, const resources& res, const options& opt, const st
   while (in.next(rec)) {
     if (rec.kind == tr::record_kind::header) {
       rep.repo = rec.text("repo");
-      if (rep.repo == "ESCHER-GPU") a = std::make_unique<escher_gpu_replay>(in, res, opt, rep);
+      if (rep.repo == "ESCHER-GPU") {
+        a = std::make_unique<escher_gpu_replay>(in, res, opt, rep);
+        a->on(rec);  // the command line (the generator check, the .hg check)
+      }
       if (rep.repo == "MOSP_ESCHER") {
         options b_opt = opt;
         b_opt.mode = "by_id";  // B deletes by id (its own replay rule)
         rep.mode = "by_id";
         b = std::make_unique<mosp_escher_replay>(in, res, b_opt, rep);
+        b->on(rec);  // the command line (the .hg check)
       }
       continue;
     }

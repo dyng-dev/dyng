@@ -46,6 +46,16 @@ struct options {
   /// The device bytes are then in the whole scope of A's DynamicHypergraph::deviceBytes() and
   /// must be within 1.05x of A's at every point (criterion 8).
   bool line_graph = false;
+  /// A (M8b criterion 16): before every batch, generators::legacy::escher_batch_generator draws
+  /// the batch from the by-id container's live state with A's options (its command line) and
+  /// one std::mt19937_64(--seed), and the batch must equal A's (deleted ids and rows, inserted
+  /// rows); a synthetic hypergraph is drawn with generators::legacy::escher_hypergraph and must
+  /// equal A's loaded rows.
+  bool legacy_generator = false;
+  /// M8b criterion 13: the `.hg` file the trace's run loaded (A: --input, B: --hg), read with the
+  /// original's option set (io::hypergraph_read_options::escher_gpu(); hsosp(--seed, --maxcard)),
+  /// must give the original's loaded rows (B: and vertex count and weights).
+  std::string hg_file;
   std::size_t max_mismatches = 20;  ///< mismatches recorded in full
 };
 
@@ -63,7 +73,13 @@ struct report {
   std::int64_t skipped_ops = 0;       ///< the sum of B's skippedOps over those batches
   std::int64_t dropped_members = 0;   ///< repeated members dropped (dynG) = B's deduplicated ones
   std::int64_t ambiguous = 0;         ///< by-content resolutions not of the id A deleted
-  std::int64_t content_diverged_at = -1;  ///< first batch whose by-content ids differ (-1: none)
+  std::int64_t content_diverged_at = -1;     ///< first batch whose by-content ids differ (-1: none)
+  std::int64_t generated_graphs = 0;         ///< synthetic hypergraphs drawn and compared (legacy)
+  std::int64_t generated_batches = 0;        ///< batches drawn and compared (legacy)
+  std::int64_t generated_batches_equal = 0;  ///< ... equal to A's
+  std::int64_t hg_hyperedges = 0;   ///< hyperedges of the .hg file compared with the original's
+  std::int64_t content_states = 0;  ///< by-content states compared with A's (live sets)
+  std::int64_t content_states_equal = 0;  ///< ... equal (the same live member sets)
   std::int64_t original_exceptions = 0;   ///< batches the original rejected (compared as errors)
   std::int64_t mismatch_count = 0;
   std::vector<std::string> mismatches;

@@ -68,7 +68,9 @@
 #              synccheck on its GPU test executables (dyng_hypergraph_cuda_tests: the container's
 #              suites on cuda, the line graph, two containers on two non-blocking streams;
 #              dyng_hypergraph_ids_cuda_tests: the committed batch records and A's skewed and
-#              medium traces) at their reduced sizes (DYNG_CBST_REDUCED=1; memcheck covers them in
+#              medium traces; dyng_io_cuda_tests, M8b step 4: the .dgb batch_reader staging
+#              through pinned buffers to the device) at their reduced sizes (DYNG_CBST_REDUCED=1;
+#              memcheck covers them in
 #              the memcheck step), without the long random streams (HypergraphRandom.*,
 #              HypergraphCuda.RepeatedRunsGiveIdenticalIds: under racecheck they take hours, and
 #              their kernels are the ones of the other tests and of the cbst step), the kit's
@@ -76,8 +78,9 @@
 #              over the row views; C1, C11 and C12 under the sanitizers, every check under
 #              memcheck), and the container-level replays of the small golden sets on
 #              cuda (parity/compare.py hypergraph_ids: escher_gpu_test and mosp_escher_test, the ids
-#              and rows; escher_gpu_test again with --line-graph, A's H2H after every batch;
-#              skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
+#              and rows; escher_gpu_test again with --line-graph, A's H2H after every batch, and
+#              with --legacy-generator, A's batches drawn again by generators::legacy from the
+#              CUDA container; skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
 #              build/<preset>/hypergraph-records)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
@@ -377,7 +380,7 @@ if ! skipped hypergraph; then
   step "the hypergraph container: sanitizers and the replays (GPU ${gpu})"
   hg_ok=1
   hg_exes=()
-  for t in dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests; do
+  for t in dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_io_cuda_tests; do
     if [ -x "${build_dir}/cpp/tests/${t}" ]; then
       hg_exes+=("${build_dir}/cpp/tests/${t}")
     else
@@ -427,10 +430,13 @@ if ! skipped hypergraph; then
     --set cbst_trace_mosp_escher_test &&
     heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
       --exe "${hg_tool}" --record "${hg_records}" --line-graph --mode by_id \
+      --set cbst_trace_escher_gpu_test &&
+    heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
+      --exe "${hg_tool}" --record "${hg_records}" --legacy-generator --mode by_id \
       --set cbst_trace_escher_gpu_test; then
-    record "hypergraph replays (cuda, small sets; ids, rows, line graph)" passed
+    record "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)" passed
   else
-    record "hypergraph replays (cuda, small sets; ids, rows, line graph)" FAILED
+    record "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)" FAILED
   fi
 fi
 

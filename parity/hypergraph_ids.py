@@ -23,6 +23,12 @@ hashes), every key's row hash must equal the state digest's where the trace has 
 too where the digest records them), and its device bytes must be within 1.05x of A's
 DynamicHypergraph::deviceBytes(). The record is then M8b-h2h-<set>-<backend>[-t<N>].json.
 
+--legacy-generator (M8b step 4, criterion 16; ESCHER-GPU's sets): generators::legacy draws A's
+synthetic hypergraph and, before every batch, the batch from the by-id container's live state with
+one std::mt19937_64(--seed of the run); each must equal A's. The record is then
+M8b-legacy-<set>-<backend>[-t<N>].json. --hg FILE (criterion 13): the .hg file the runs loaded is
+read with the original's option set and must give its loaded rows (record M8b-hg-<set>-...).
+
 --record writes M8b-hypergraph-ids-<set>-<backend>[-t<N>].json (the totals, every case's report
 and the tool's commit). Exit status: 0 every case matched, 1 a mismatch, 2 a usage error, 77 no
 goldens.
@@ -70,6 +76,12 @@ TOTALS = (
     "skipped_ops",
     "dropped_members",
     "ambiguous",
+    "content_states",
+    "content_states_equal",
+    "generated_graphs",
+    "generated_batches",
+    "generated_batches_equal",
+    "hg_hyperedges",
     "original_exceptions",
     "h2h_states",
     "h2h_layouts_equal",
@@ -131,6 +143,10 @@ def run_case(exe: Path, trace: Path, args, tmp: Path) -> dict:
         cmd.append("--no-model")
     if args.line_graph:
         cmd.append("--line-graph")
+    if args.legacy_generator:
+        cmd.append("--legacy-generator")
+    if args.hg:
+        cmd += ["--hg", str(args.hg)]
     cmd.append(str(trace))
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode not in (0, 1) or not out.is_file():
@@ -161,6 +177,12 @@ def compare_main(argv: list[str]) -> int:
         action="store_true",
         help="keep the line graph and compare it (and the device bytes) with ESCHER-GPU's",
     )
+    p.add_argument(
+        "--legacy-generator",
+        action="store_true",
+        help="draw A's hypergraph and batches with generators::legacy and compare them",
+    )
+    p.add_argument("--hg", type=Path, help="the .hg file the runs loaded (read and compared)")
     p.add_argument("--scratch", type=Path, default=cbst_trace_goldens.scratch_default())
     p.add_argument("--exe", type=Path, help="dyng_hypergraph_ids (default: find it in build/)")
     p.add_argument("--jobs", type=int, default=1, help="cases replayed at once")
@@ -214,6 +236,17 @@ def compare_main(argv: list[str]) -> int:
                     f"h2h: {totals['h2h_layouts_equal']} of {totals['h2h_states']} states equal "
                     "ESCHER-GPU's H2H"
                 )
+        if args.legacy_generator and SETS[n] == "ESCHER-GPU":
+            if totals["generated_batches_equal"] != totals["generated_batches"] or (
+                totals["generated_batches"] != totals["batches"]
+            ):
+                problems.append(
+                    f"legacy generator: {totals['generated_batches_equal']} of "
+                    f"{totals['generated_batches']} drawn batches equal A's "
+                    f"({totals['batches']} batches)"
+                )
+        if args.hg and totals["hg_hyperedges"] == 0:
+            problems.append(f"--hg {args.hg}: no hyperedge was compared")
         for r in reports:
             if not r.get("ok", False):
                 first = r.get("error") or (r.get("mismatches") or ["?"])[0]
@@ -226,6 +259,8 @@ def compare_main(argv: list[str]) -> int:
             "mode": args.mode,
             "model": not args.no_model,
             "line_graph": args.line_graph,
+            "legacy_generator": args.legacy_generator,
+            "hg": cbst_trace_goldens.portable(args.hg) if args.hg else None,
             "commit": git_head(),
             "tool": cbst_trace_goldens.portable(exe),
             "passed": not problems,
@@ -250,6 +285,19 @@ def compare_main(argv: list[str]) -> int:
                 if args.line_graph
                 else ""
             )
+            + (
+                f"generator: {totals['generated_graphs']} hypergraphs, "
+                f"{totals['generated_batches_equal']}/{totals['generated_batches']} batches equal, "
+                if args.legacy_generator
+                else ""
+            )
+            + (f"{totals['hg_hyperedges']} .hg hyperedges compared, " if args.hg else "")
+            + (
+                f"by content {totals['content_states_equal']}/{totals['content_states']} states "
+                "with A's live sets, "
+                if args.mode != "by_id"
+                else ""
+            )
             + f"{totals['mismatch_count']} mismatches: "
             + ("OK" if not problems else "FAILED")
         )
@@ -258,7 +306,16 @@ def compare_main(argv: list[str]) -> int:
         if args.record:
             args.record.mkdir(parents=True, exist_ok=True)
             short = n[len("cbst_trace_") :] if n.startswith("cbst_trace_") else n
-            name = f"M8b-{'h2h' if args.line_graph else 'hypergraph-ids'}-{short}-{args.backend}"
+            kind = (
+                "h2h"
+                if args.line_graph
+                else "legacy"
+                if args.legacy_generator
+                else "hg"
+                if args.hg
+                else "hypergraph-ids"
+            )
+            name = f"M8b-{kind}-{short}-{args.backend}"
             if args.threads:
                 name += f"-t{args.threads}"
             (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")

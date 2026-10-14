@@ -81,6 +81,15 @@ hyperedge_list<std::int32_t, weight_t> list_of(std::int32_t n, const rows& r,
   return out;
 }
 
+/// The rows of a host hyperedge list (members in list order).
+template <typename weight_t>
+rows rows_of_list(const hyperedge_list<std::int32_t, weight_t>& l) {
+  rows out(l.offsets.empty() ? 0 : l.offsets.size() - 1);
+  for (std::size_t i = 0; i < out.size(); ++i)
+    out[i].assign(l.members.begin() + l.offsets[i], l.members.begin() + l.offsets[i + 1]);
+  return out;
+}
+
 /// The h2v rows of a hypergraph by id (host copies).
 template <typename weight_t>
 rows h2v_rows(const hypergraph<std::int32_t, weight_t>& h) {

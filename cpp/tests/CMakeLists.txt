@@ -101,14 +101,14 @@ endif()
 # The CBST traces of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (M8a, ADR 0036): the host-only
 # trace reader and state tracker that the store replays build on, and its test on the committed
 # traces (cpp/tests/data/goldens/cbst_trace).
-add_library(dyng_cbst_trace STATIC parity/escher/cbst_trace.cpp)
+add_library(dyng_cbst_trace STATIC parity/escher/cbst_trace.cpp parity/escher/escher_dump.cpp)
 target_include_directories(dyng_cbst_trace PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(dyng_cbst_trace PUBLIC cxx_std_17)
 dyng_set_warnings(dyng_cbst_trace)
 dyng_enable_sanitizers(dyng_cbst_trace)
 dyng_add_test(
   NAME dyng_cbst_trace_tests
-  SOURCES parity/escher/cbst_trace_test.cpp
+  SOURCES parity/escher/cbst_trace_test.cpp parity/escher/escher_dump_test.cpp
   LABELS cpu parity cbst
   LIBRARIES dyng_cbst_trace
 )
@@ -747,6 +747,7 @@ if(DYNG_CBST_MUTATION_TESTS AND DYNG_ENABLE_CUDA AND TARGET dyng_hypergraph)
       parity/escher/cbst_policy_test.cpp
       parity/escher/cbst_graph_test.cpp
       parity/escher/cbst_trace.cpp
+      parity/escher/escher_dump.cpp
       parity/escher/cbst_compare.cpp
       parity/escher/cbst_device_adapter.cpp
       $<TARGET_OBJECTS:dyng_testing_cbst_model>
@@ -838,6 +839,7 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       parity/escher/hypergraph_ids_test.cpp
       parity/escher/hypergraph_ids.cpp
       parity/escher/cbst_trace.cpp
+      parity/escher/escher_dump.cpp
       parity/escher/cbst_compare.cpp
       $<TARGET_OBJECTS:dyng_testing_cbst_model>
       $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>

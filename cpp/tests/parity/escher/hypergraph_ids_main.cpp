@@ -9,7 +9,7 @@
  *     dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N]
  *                         [--mode by_id|by_content|both] [--no-model] [--no-integrity]
  *                         [--line-graph] [--apply-only] [--timing FILE] [--sync-stages] [--nvtx]
- *                         [--json OUT] [--tmp DIR] <trace>...
+ *                         [--legacy-generator] [--hg FILE] [--json OUT] [--tmp DIR] <trace>...
  *
  * --line-graph (ESCHER-GPU's traces): the by-id container keeps the line graph
  * (line_graph_policy::sorted_merge), its H2H is compared with ESCHER-GPU's after the build and
@@ -20,6 +20,13 @@
  * ESCHER-GPU's --timing format ({"meta", "stages": [{"stage", "batch", "ms"}]}; batch 0 is the
  * build); --sync-stages synchronizes the stream at the stage boundaries (as A's ScopedTimer does),
  * --nvtx emits an NVTX range per stage (Nsight Systems).
+ *
+ * --legacy-generator (ESCHER-GPU's traces, M8b criterion 16): generators::legacy draws A's
+ * synthetic hypergraph and every batch from the by-id container's live state with one
+ * std::mt19937_64(--seed of the trace's command line); each must equal A's. --hg FILE (criterion
+ * 13): FILE, the hypergraph the run loaded, is read with the original's option set
+ * (io::hypergraph_read_options::escher_gpu(), hsosp(--seed, --maxcard)) and must give its loaded
+ * rows (and, for MOSP_ESCHER, its vertex count and weights).
  *
  * A trace is a `.cbt` file or a `.cbt.zst` (as dyng_cbst_replay reads them). Prints one line per
  * trace; --json writes a JSON array of the reports. Exit status: 0 every trace matched, 1 a
@@ -45,7 +52,8 @@ int usage() {
   std::fprintf(stderr,
                "usage: dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N] "
                "[--mode by_id|by_content|both] [--no-model] [--no-integrity] [--line-graph] "
-               "[--apply-only] [--timing FILE] [--sync-stages] [--nvtx] [--json OUT] [--tmp DIR] "
+               "[--apply-only] [--timing FILE] [--sync-stages] [--nvtx] [--legacy-generator] "
+               "[--hg FILE] [--json OUT] [--tmp DIR] "
                "<trace>...\n");
   return 2;
 }
@@ -84,6 +92,10 @@ int main(int argc, char** argv) {
       opt.compare = false;
       opt.model = false;
       opt.integrity = false;
+    } else if (a == "--legacy-generator") {
+      opt.legacy_generator = true;
+    } else if (a == "--hg") {
+      opt.hg_file = value();
     } else if (a == "--timing") {
       timing_path = value();
     } else if (a == "--sync-stages") {

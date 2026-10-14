@@ -4,8 +4,9 @@
  * @file hypergraph_ids_test.cpp
  * @brief Container-level id parity on the committed traces and batch extracts (M8b, criteria 4
  *        and 5): every backend gives ESCHER-GPU's and MOSP_ESCHER's ids, rows and skipped counts,
- *        in lockstep with the host model; on CUDA, the kernel paths of A's skewed and medium
- *        traces (criterion 12; from $DYNG_SCRATCH, skipped without it).
+ *        in lockstep with the host model; ESCHER-GPU's hypergraph and batches drawn again by
+ *        generators::legacy from the containers' state (criterion 16); on CUDA, the kernel paths
+ *        of A's skewed and medium traces (criterion 12; from $DYNG_SCRATCH, skipped without it).
  */
 #include "parity/escher/hypergraph_ids.hpp"
 
@@ -58,7 +59,9 @@ std::vector<dyng::resources> backends() {
 
 ids::report run(const fs::path& path, const dyng::resources& res) {
   dyng::test::cbst_compare::trace_source source(path.string(), fs::temp_directory_path().string());
-  return ids::replay(source.reader(), res, ids::options{}, path.string());
+  ids::options opt;
+  opt.legacy_generator = true;  // ESCHER-GPU's traces: the legacy generators draw every batch
+  return ids::replay(source.reader(), res, opt, path.string());
 }
 
 TEST(HypergraphIds, CommittedTracesGiveTheOriginalsIds) {
@@ -76,6 +79,10 @@ TEST(HypergraphIds, CommittedTracesGiveTheOriginalsIds) {
       EXPECT_TRUE(r.ok()) << r.to_json();
       EXPECT_GT(r.batches, 0);
       EXPECT_GT(r.ids_compared, 0);
+      if (r.repo == "ESCHER-GPU") {
+        EXPECT_EQ(r.generated_batches, r.batches);
+        EXPECT_EQ(r.generated_batches_equal, r.batches);
+      }
       if (r.repo == "MOSP_ESCHER") {
         EXPECT_EQ(r.skipped_compared, r.batches);
         EXPECT_GT(r.vertex_batches, 0);  // the vertex-kind batches stop their sessions (M11)
