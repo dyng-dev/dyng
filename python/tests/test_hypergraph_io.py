@@ -189,3 +189,25 @@ def test_malformed_dgb_raises_before_reading(tmp_path: Path) -> None:
         f.write_bytes(bad)
         with pytest.raises(dyng.FileFormatError):
             list(dyng.io.BatchReader(f))
+
+
+# -- the M8b review ------------------------------------------------------------------------------
+
+
+def test_a_directory_is_a_file_format_error(tmp_path: Path) -> None:
+    with pytest.raises(dyng.FileFormatError, match="directory"):
+        dyng.io.read_hypergraph(tmp_path)
+    with pytest.raises(dyng.FileFormatError):
+        dyng.io.BatchReader(tmp_path)
+
+
+@pytest.mark.parametrize("value", [2**63, 2**64, 2**70, -(2**63) - 1])
+def test_reader_options_beyond_int64_are_invalid_arguments(tmp_path: Path, value: int) -> None:
+    path = tmp_path / "h.hg"
+    path.write_text("1 2\n")
+    with pytest.raises(dyng.InvalidArgumentError, match="outside"):
+        dyng.io.read_hypergraph(path, index_base=value)
+    with pytest.raises(dyng.InvalidArgumentError, match="outside"):
+        dyng.io.read_hypergraph(path, num_vertices=value)
+    with pytest.raises(dyng.InvalidArgumentError, match="outside"):
+        dyng.io.BatchReader(path, num_vertices=value)

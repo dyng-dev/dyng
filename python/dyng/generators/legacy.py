@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from .._backend import native
-from .._convert import as_bool, as_int, copy_fields, enum_member
+from .._convert import as_bool, as_int, as_seed, copy_fields, enum_member
 from ..batch import EdgeBatch
 from ..errors import NotSupportedError
 from ..graph import Graph
@@ -122,7 +122,7 @@ def mosp_changes(
     opt.mode = enum_member(native.MospChangeMode, mode, "mosp_changes: mode")
     opt.weight_min = as_int(weight_min, "mosp_changes: weight_min")
     opt.weight_max = as_int(weight_max, "mosp_changes: weight_max")
-    opt.seed = as_int(seed, "mosp_changes: seed")
+    opt.seed = as_seed(seed, "mosp_changes: seed")
     opt.local_hops = as_int(local_hops, "mosp_changes: local_hops")
     opt.safe_deletions = as_bool(safe_deletions, "mosp_changes: safe_deletions")
     opt.source = as_int(source, "mosp_changes: source")
@@ -169,7 +169,7 @@ def cycle_enum_batch(
     opt = native.CycleEnumBatchOptions()
     opt.num_deletions = as_int(num_deletions, "cycle_enum_batch: num_deletions")
     opt.num_insertions = as_int(num_insertions, "cycle_enum_batch: num_insertions")
-    opt.seed = as_int(seed, "cycle_enum_batch: seed")
+    opt.seed = as_seed(seed, "cycle_enum_batch: seed")
     opt.locality_window = (
         -1
         if locality_window is None
@@ -191,7 +191,7 @@ class EscherEngine:
     __slots__ = ("_native",)
 
     def __init__(self, seed: int) -> None:
-        self._native = native.Mt19937_64(as_int(seed, "EscherEngine: seed"))
+        self._native = native.Mt19937_64(as_seed(seed, "EscherEngine: seed"))
 
     def __call__(self) -> int:
         """The engine's next 64-bit draw (advances it)."""

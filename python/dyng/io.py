@@ -28,7 +28,7 @@ import numpy as np
 
 from . import _dtypes
 from ._backend import native
-from ._convert import as_bool, as_int, enum_member
+from ._convert import as_bool, as_int, as_seed, enum_member
 from .array import Array
 from .batch import EdgeBatch
 from .errors import InvalidArgumentError, NotSupportedError
@@ -355,7 +355,7 @@ def read_matrix_market_arrays(
         as_int(num_weights, f"{what}: num_weights"),
         as_int(lo, f"{what}: random_weights[0]"),
         as_int(hi, f"{what}: random_weights[1]"),
-        as_int(seed, f"{what}: random_weights[2]"),
+        as_seed(seed, f"{what}: random_weights[2]"),
     )
     opt.drop_self_loops = as_bool(drop_self_loops, f"{what}: drop_self_loops")
     opt.sort_and_dedupe = as_bool(sort_and_dedupe, f"{what}: sort_and_dedupe")
@@ -725,7 +725,7 @@ class WeightSpec:
         w = native.WeightSpec()
         w.lo = as_int(self.lo, "WeightSpec.lo")
         w.hi = as_int(self.hi, "WeightSpec.hi")
-        w.seed = as_int(self.seed, "WeightSpec.seed")
+        w.seed = as_seed(self.seed, "WeightSpec.seed")
         w.hsosp_target_draw = as_bool(self.hsosp_target_draw, "WeightSpec.hsosp_target_draw")
         return w
 
@@ -771,7 +771,7 @@ class HypergraphReadOptions:
         ``std::mt19937_64(seed)`` after its target draw."""
         return cls._from_native(
             native.HypergraphReadOptions.hsosp(
-                as_int(seed, "hsosp: seed"), as_int(max_cardinality, "hsosp: max_cardinality")
+                as_seed(seed, "hsosp: seed"), as_int(max_cardinality, "hsosp: max_cardinality")
             )
         )
 
@@ -827,7 +827,7 @@ def _weight_spec(value: Any) -> WeightSpec:
         return WeightSpec(
             as_int(value[0], "random_weights: lo"),
             as_int(value[1], "random_weights: hi"),
-            as_int(value[2], "random_weights: seed"),
+            as_seed(value[2], "random_weights: seed"),
         )
     raise InvalidArgumentError("random_weights must be (lo, hi, seed) or a dyng.io.WeightSpec")
 

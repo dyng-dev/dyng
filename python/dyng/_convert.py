@@ -15,20 +15,35 @@ import numpy as np
 from .errors import InvalidArgumentError
 
 
-def as_int(value: Any, what: str) -> int:
+INT64_MIN = -(2**63)
+INT64_MAX = 2**63 - 1
+UINT64_MAX = 2**64 - 1
+
+
+def as_int(value: Any, what: str, *, lo: int = INT64_MIN, hi: int = INT64_MAX) -> int:
     """An integer argument or option field: ``int`` or a NumPy integer, nothing else.
 
     ``operator.index`` semantics: floats (``1.9``), strings (``"1"``) and booleans are rejected
-    with :class:`~dyng.InvalidArgumentError` instead of being truncated or parsed.
+    with :class:`~dyng.InvalidArgumentError` instead of being truncated or parsed. So is a value
+    outside ``[lo, hi]`` (by default the int64 range of the native fields; seeds pass the uint64
+    range), which the native call would otherwise reject with a ``TypeError``.
     """
     if isinstance(value, bool | np.bool_):
         raise InvalidArgumentError(f"{what}: expected an integer, got the bool {value!r}")
     try:
-        return operator.index(value)
+        out = operator.index(value)
     except TypeError:
         raise InvalidArgumentError(
             f"{what}: expected an integer, got {type(value).__name__} {value!r}"
         ) from None
+    if not lo <= out <= hi:
+        raise InvalidArgumentError(f"{what}: {out} is outside [{lo}, {hi}]")
+    return out
+
+
+def as_seed(value: Any, what: str) -> int:
+    """A seed (a uint64 field): an integer in ``[0, 2**64 - 1]``."""
+    return as_int(value, what, lo=0, hi=UINT64_MAX)
 
 
 def as_bool(value: Any, what: str) -> bool:

@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Literal
 
 from .._backend import native
-from .._convert import as_bool, as_int, enum_member
+from .._convert import as_bool, as_int, as_seed, enum_member
 from ..hypergraph import (
     CapacityPolicy,
     HyperedgeBatch,
@@ -86,7 +86,7 @@ def uniform_hypergraph_arrays(
     opt.max_cardinality = as_int(max_cardinality, "uniform_hypergraph: max_cardinality")
     opt.min_weight = as_int(min_weight, "uniform_hypergraph: min_weight")
     opt.max_weight = as_int(max_weight, "uniform_hypergraph: max_weight")
-    opt.seed = as_int(seed, "uniform_hypergraph: seed")
+    opt.seed = as_seed(seed, "uniform_hypergraph: seed")
     gen = (
         native.uniform_hypergraph_i32_i32
         if as_bool(weighted, "uniform_hypergraph: weighted")
@@ -189,7 +189,7 @@ def random_hyperedge_batch(
     )
     opt.min_weight = as_int(min_weight, "random_hyperedge_batch: min_weight")
     opt.max_weight = as_int(max_weight, "random_hyperedge_batch: max_weight")
-    opt.seed = as_int(seed, "random_hyperedge_batch: seed")
+    opt.seed = as_seed(seed, "random_hyperedge_batch: seed")
     res = resolve(resources, hypergraph.resources)
     parts = native.random_hyperedge_batch(res._native, hypergraph._native, opt)
     return HyperedgeBatch._from_arrays(parts)
