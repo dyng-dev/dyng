@@ -499,7 +499,8 @@ class escher_device_store final : public incidence_store {
   void update_line_graph(const std::vector<std::int64_t>& deleted,
                          const std::vector<std::int64_t>& inserted,
                          const member_rows& inserted_rows) override {
-    if (!line_graph_.load(std::memory_order_acquire)) return;
+    // A hypergraph that never had a hyperedge has no key to merge (and no kernel to launch).
+    if (!line_graph_.load(std::memory_order_acquire) || max_bound_ == 0) return;
     const scoped_device guard(res_.device());
     // ESCHER-GPU's Batch in the store's encoding: keys = ids + 1, vertices + 1.
     escher::line_graph_batch batch;
@@ -512,8 +513,6 @@ class escher_device_store final : public incidence_store {
            k < inserted_rows.offsets[static_cast<std::size_t>(i) + 1]; ++k)
         row.push_back(inserted_rows.members[static_cast<std::size_t>(k)] + 1);
     }
-    // The transplant runs on the legacy default stream: the store's work comes first.
-    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
     escher::update_line_graph(*h2h_, h2h_rows_.view(), v2h_->context(), batch,
                               static_cast<int>(max_bound_), payload_limit(capacity_));
   }

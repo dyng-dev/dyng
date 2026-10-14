@@ -16,16 +16,19 @@
 //
 // Pairs are packed as (row key << 32) | value, so a sorted pair array groups
 // the entries of each row in ascending value order.
+#include "core/budget_counters.hpp"
 #include "hypergraph/escher/chain.cuh"
 #include "hypergraph/line_graph/device_frontier.cuh"
 #include "hypergraph/line_graph/sorted_merge.cuh"
 #include "util/cuda_check.hpp"
 #include "util/device_error_flags.cuh"
+#include "util/thrust_allocator.cuh"
 
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/error.hpp>
 
 #include <thrust/device_ptr.h>
+#include <thrust/execution_policy.h>
 #include <thrust/functional.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
@@ -229,6 +232,11 @@ namespace {
 
 constexpr int block_size = 256;
 
+// The stream of the store's resources: every kernel, copy and Thrust call of the merge.
+cudaStream_t stream_of(const resources& res) {
+  return static_cast<cudaStream_t>(res.stream().get());
+}
+
 int blocks_for(long long n) {
   return static_cast<int>((n + block_size - 1) / block_size);
 }
@@ -248,10 +256,14 @@ class device_array {
   mutable buffer<T> storage_;
 };
 
+// A read point of the original (a size the host needs), counted.
 template <class T>
-T read_back(const T* device_ptr) {
+T read_back(const resources& res, const T* device_ptr) {
   T value;
-  DYNG_CUDA_TRY(cudaMemcpy(&value, device_ptr, sizeof(T), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(
+      cudaMemcpyAsync(&value, device_ptr, sizeof(T), cudaMemcpyDeviceToHost, stream_of(res)));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res)));
+  note_host_sync();
   return value;
 }
 
@@ -269,11 +281,12 @@ struct device_rows {
       flat.insert(flat.end(), rows[i].begin(), rows[i].end());
       off[i + 1] = static_cast<int>(flat.size());
     }
-    DYNG_CUDA_TRY(
-        cudaMemcpy(offsets.get(), off.data(), sizeof(int) * off.size(), cudaMemcpyHostToDevice));
+    // Pageable sources: the copies have read them when they return.
+    DYNG_CUDA_TRY(cudaMemcpyAsync(offsets.get(), off.data(), sizeof(int) * off.size(),
+                                  cudaMemcpyHostToDevice, stream_of(res)));
     if (!flat.empty())
-      DYNG_CUDA_TRY(cudaMemcpy(vertices.get(), flat.data(), sizeof(int) * flat.size(),
-                               cudaMemcpyHostToDevice));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(vertices.get(), flat.data(), sizeof(int) * flat.size(),
+                                    cudaMemcpyHostToDevice, stream_of(res)));
   }
   static long long total(const std::vector<std::vector<int>>& rows) {
     long long n = 0;
@@ -290,20 +303,22 @@ struct pair_list {
 template <class Count, class Gather>
 pair_list collect_pairs(const resources& res, int num_items, Count count, Gather gather) {
   device_array<long long> offsets(res, num_items + 1);
-  DYNG_CUDA_TRY(cudaMemset(offsets.get() + num_items, 0, sizeof(long long)));
+  DYNG_CUDA_TRY(cudaMemsetAsync(offsets.get() + num_items, 0, sizeof(long long), stream_of(res)));
   if (num_items > 0) count(offsets.get());
   thrust::device_ptr<long long> o(offsets.get());
-  thrust::exclusive_scan(o, o + num_items + 1, o);
-  long long n = read_back(offsets.get() + num_items);
+  thrust_allocator alloc(res);
+  thrust::exclusive_scan(thrust_policy(res, alloc), o, o + num_items + 1, o);
+  long long n = read_back(res, offsets.get() + num_items);
   pair_list pairs{device_array<unsigned long long>(res, n), n};
   if (n > 0) gather(offsets.get(), pairs.data.get());
   return pairs;
 }
 
-void sort_pairs(pair_list& pairs, bool unique) {
+void sort_pairs(const resources& res, pair_list& pairs, bool unique) {
   thrust::device_ptr<unsigned long long> p(pairs.data.get());
-  thrust::sort(p, p + pairs.size);
-  if (unique) pairs.size = thrust::unique(p, p + pairs.size) - p;
+  thrust_allocator alloc(res);
+  thrust::sort(thrust_policy(res, alloc), p, p + pairs.size);
+  if (unique) pairs.size = thrust::unique(thrust_policy(res, alloc), p, p + pairs.size) - p;
 }
 
 // Per-key counts and offsets of a sorted pair array.
@@ -312,12 +327,16 @@ struct pair_ranges {
   device_array<long long> offset;
   pair_ranges(const resources& res, const pair_list& pairs, int num_keys)
       : count(res, num_keys + 1), offset(res, num_keys + 1) {
-    DYNG_CUDA_TRY(cudaMemset(count.get(), 0, sizeof(int) * (num_keys + 1)));
-    if (pairs.size > 0)
-      pair_histogram_kernel<<<blocks_for(pairs.size), block_size>>>(pairs.data.get(), pairs.size,
-                                                                    count.get());
+    DYNG_CUDA_TRY(cudaMemsetAsync(count.get(), 0, sizeof(int) * (num_keys + 1), stream_of(res)));
+    if (pairs.size > 0) {
+      pair_histogram_kernel<<<blocks_for(pairs.size), block_size, 0, stream_of(res)>>>(
+          pairs.data.get(), pairs.size, count.get());
+      DYNG_CHECK_KERNEL(stream_of(res));
+    }
     thrust::device_ptr<int> c(count.get());
-    thrust::exclusive_scan(c, c + num_keys + 1, thrust::device_ptr<long long>(offset.get()), 0LL);
+    thrust_allocator alloc(res);
+    thrust::exclusive_scan(thrust_policy(res, alloc), c, c + num_keys + 1,
+                           thrust::device_ptr<long long>(offset.get()), 0LL);
   }
 };
 
@@ -334,12 +353,14 @@ void merge_and_rebuild(cbst_store& tree, const row_view& old, const row_delta& d
   const resources& res = tree.context().res;
   device_array<int> len(res, num_keys + 1);
   device_array<long long> start(res, num_keys + 2);
-  DYNG_CUDA_TRY(cudaMemset(start.get() + num_keys + 1, 0, sizeof(long long)));
-  merged_row_slots_kernel<<<blocks_for(num_keys + 1), block_size>>>(old, delta, num_keys, len.get(),
-                                                                    start.get());
+  DYNG_CUDA_TRY(cudaMemsetAsync(start.get() + num_keys + 1, 0, sizeof(long long), stream_of(res)));
+  merged_row_slots_kernel<<<blocks_for(num_keys + 1), block_size, 0, stream_of(res)>>>(
+      old, delta, num_keys, len.get(), start.get());
+  DYNG_CHECK_KERNEL(stream_of(res));
   thrust::device_ptr<long long> s(start.get());
-  thrust::exclusive_scan(s, s + num_keys + 2, s);
-  long long total = read_back(start.get() + num_keys + 1);
+  thrust_allocator alloc(res);
+  thrust::exclusive_scan(thrust_policy(res, alloc), s, s + num_keys + 2, s);
+  long long total = read_back(res, start.get() + num_keys + 1);
   if (total > std::min<long long>(max_payload, INT_MAX)) {
     throw capacity_error("dyng: CBST " + tree.context().dataset_name +
                          ": the merged line graph needs " + std::to_string(total) +
@@ -352,17 +373,13 @@ void merge_and_rebuild(cbst_store& tree, const row_view& old, const row_delta& d
   buffer<int> flat(res, static_cast<size_t>(std::max(1LL, total)));
   int grid =
       static_cast<int>(std::min<long long>((num_keys * 32LL + block_size - 1) / block_size, 65535));
-  DYNG_CUDA_TRY(
-      cudaDeviceSynchronize());  // dynG (transplant hunk): the buffers' stream-ordered allocation
-  write_merged_rows_kernel<<<grid, block_size>>>(old, delta, num_keys, start.get(), len.get(),
-                                                 flat.data(), control);
+  write_merged_rows_kernel<<<grid, block_size, 0, stream_of(res)>>>(
+      old, delta, num_keys, start.get(), len.get(), flat.data(), control);
+  DYNG_CHECK_KERNEL(stream_of(res));
   buffer<int> starts(res, static_cast<size_t>(std::max(1, num_keys)));
-  DYNG_CUDA_TRY(cudaDeviceSynchronize());
-  narrow_starts_kernel<<<blocks_for(num_keys), block_size>>>(start.get(), num_keys, starts.data());
-  DYNG_CUDA_TRY(cudaGetLastError());
-  // dynG (transplant hunk): the kernels above run on the legacy default stream, the tree on its
-  // resources' stream.
-  DYNG_CUDA_TRY(cudaDeviceSynchronize());
+  narrow_starts_kernel<<<blocks_for(num_keys), block_size, 0, stream_of(res)>>>(
+      start.get(), num_keys, starts.data());
+  DYNG_CHECK_KERNEL(stream_of(res));
   tree.rebuild_from_device(std::move(starts), num_keys, std::move(flat), static_cast<int>(total),
                            static_cast<int>(total));
 }
@@ -387,53 +404,65 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
   // First payload segment of every V2H row (V2H rows may be chained).
   const int numVertices = v2h.num_records;
   device_array<int> head(res, numVertices + 1);
-  DYNG_CUDA_TRY(cudaMemset(head.get(), 0xff, sizeof(int) * (numVertices + 1)));  // -1: absent
-  row_heads_kernel<<<blocks_for(v2h.num_records), block_size>>>(
-      v2h.d_nodes, v2h.d_avail, v2h.num_records, numVertices, head.get());
+  DYNG_CUDA_TRY(cudaMemsetAsync(head.get(), 0xff, sizeof(int) * (numVertices + 1),
+                                stream_of(res)));  // -1: absent
+  if (v2h.num_records > 0) {
+    row_heads_kernel<<<blocks_for(v2h.num_records), block_size, 0, stream_of(res)>>>(
+        v2h.d_nodes, v2h.d_avail, v2h.num_records, numVertices, head.get());
+    DYNG_CHECK_KERNEL(stream_of(res));
+  }
 
   // Rows of the inserted hyperedges: union of their vertices' V2H rows.
   pair_list rows = collect_pairs(
       res, num_inserted,
       [&](long long* count) {
-        neighbourhood_count_kernel<<<blocks_for(num_inserted), block_size>>>(
+        neighbourhood_count_kernel<<<blocks_for(num_inserted), block_size, 0, stream_of(res)>>>(
             inserted.ids(), inserted_rows.offsets.get(), inserted_rows.vertices.get(), num_inserted,
             head.get(), v2h.d_flat_payload, v2h.initial_payload_size, v2h.d_control, count);
+        DYNG_CHECK_KERNEL(stream_of(res));
       },
       [&](const long long* offsets, unsigned long long* out) {
-        neighbourhood_gather_kernel<<<blocks_for(num_inserted), block_size>>>(
+        neighbourhood_gather_kernel<<<blocks_for(num_inserted), block_size, 0, stream_of(res)>>>(
             inserted.ids(), inserted_rows.offsets.get(), inserted_rows.vertices.get(), num_inserted,
             head.get(), v2h.d_flat_payload, v2h.initial_payload_size, v2h.d_control, offsets, out);
+        DYNG_CHECK_KERNEL(stream_of(res));
       });
-  sort_pairs(rows, true);
+  sort_pairs(res, rows, true);
 
   // Deleted hyperedges leave the rows of their surviving neighbours.
   pair_list removals = collect_pairs(
       res, num_deleted,
       [&](long long* count) {
-        removal_count_kernel<<<blocks_for(num_deleted), block_size>>>(
+        removal_count_kernel<<<blocks_for(num_deleted), block_size, 0, stream_of(res)>>>(
             old_rows, deleted.ids(), num_deleted, deleted.flags(), count);
+        DYNG_CHECK_KERNEL(stream_of(res));
       },
       [&](const long long* offsets, unsigned long long* out) {
-        removal_gather_kernel<<<blocks_for(num_deleted), block_size>>>(
+        removal_gather_kernel<<<blocks_for(num_deleted), block_size, 0, stream_of(res)>>>(
             old_rows, deleted.ids(), num_deleted, deleted.flags(), offsets, out);
+        DYNG_CHECK_KERNEL(stream_of(res));
       });
-  sort_pairs(removals, false);
+  sort_pairs(res, removals, false);
 
   // Inserted hyperedges join the rows of their non-inserted neighbours.
   pair_list additions{device_array<unsigned long long>(res, rows.size), 0};
   {
     device_array<unsigned long long> count(res, 1);
-    DYNG_CUDA_TRY(cudaMemset(count.get(), 0, sizeof(unsigned long long)));
-    if (rows.size > 0)
-      mirror_additions_kernel<<<blocks_for(rows.size), block_size>>>(
+    DYNG_CUDA_TRY(cudaMemsetAsync(count.get(), 0, sizeof(unsigned long long), stream_of(res)));
+    if (rows.size > 0) {
+      mirror_additions_kernel<<<blocks_for(rows.size), block_size, 0, stream_of(res)>>>(
           rows.data.get(), rows.size, inserted.flags(), additions.data.get(), count.get());
-    additions.size = static_cast<long long>(read_back(count.get()));
+      DYNG_CHECK_KERNEL(stream_of(res));
+    }
+    additions.size = static_cast<long long>(read_back(res, count.get()));
   }
-  sort_pairs(additions, false);
+  sort_pairs(res, additions, false);
 
   // Deleted and inserted keys get a replacement row (empty if not reinserted).
   device_array<unsigned char> replaced(res, num_keys + 1);
-  thrust::transform(thrust::device_ptr<const unsigned char>(deleted.flags()),
+  thrust_allocator alloc(res);
+  thrust::transform(thrust_policy(res, alloc),
+                    thrust::device_ptr<const unsigned char>(deleted.flags()),
                     thrust::device_ptr<const unsigned char>(deleted.flags() + num_keys + 1),
                     thrust::device_ptr<const unsigned char>(inserted.flags()),
                     thrust::device_ptr<unsigned char>(replaced.get()), or_bytes());

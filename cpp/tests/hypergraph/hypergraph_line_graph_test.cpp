@@ -196,6 +196,27 @@ TEST_P(HypergraphLineGraph, SpecialBatches) {
   h.check_integrity(res());
 }
 
+// A hypergraph without hyperedges (and one without vertices): empty batches, then insertions.
+TEST_P(HypergraphLineGraph, EmptyHypergraphs) {
+  dyng::hyperedge_list<std::int32_t> none;
+  none.num_vertices = 5;
+  hgraph h = hgraph::from_hyperedges(res(), none.view(), merged());
+  EXPECT_EQ(h.h2h().num_rows(), 0);
+  (void)h.apply(res(), batch().view());
+  EXPECT_EQ(check_line_graph(h), "");
+  batch b;
+  b.insert_hyperedge({0, 1});
+  b.insert_hyperedge({1, 2});
+  (void)h.apply(res(), b.view());
+  EXPECT_EQ(h2h_rows(h), (id_rows{{1}, {0}}));
+  h.check_integrity(res());
+  dyng::hyperedge_list<std::int32_t> nothing;
+  hgraph z = hgraph::from_hyperedges(res(), nothing.view(), merged());
+  (void)z.apply(res(), batch().view());
+  EXPECT_EQ(z.h2h().num_rows(), 0);
+  z.check_integrity(res());
+}
+
 // The internal row views (what M9's kernels read): A's encoding (keys = ids + 1, values + 1),
 // rebuilt once per commit; the public h2v, v2h and h2h views built at most once per version and
 // never by apply().

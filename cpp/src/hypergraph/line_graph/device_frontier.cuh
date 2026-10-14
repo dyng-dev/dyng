@@ -41,10 +41,13 @@ class device_frontier {
     std::vector<unsigned char> flags(static_cast<size_t>(max_id) + 1, 0);
     for (int id : ids)
       if (id >= 0 && id <= max_id) flags[id] = 1;
+    // On the stream of `res`; pageable sources: the copies have read them when they return.
+    const auto stream = static_cast<cudaStream_t>(res.stream().get());
     if (!ids.empty())
-      DYNG_CUDA_TRY(
-          cudaMemcpy(ids_.data(), ids.data(), sizeof(int) * ids.size(), cudaMemcpyHostToDevice));
-    DYNG_CUDA_TRY(cudaMemcpy(flags_.data(), flags.data(), flags.size(), cudaMemcpyHostToDevice));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(ids_.data(), ids.data(), sizeof(int) * ids.size(),
+                                    cudaMemcpyHostToDevice, stream));
+    DYNG_CUDA_TRY(
+        cudaMemcpyAsync(flags_.data(), flags.data(), flags.size(), cudaMemcpyHostToDevice, stream));
   }
   device_frontier(const device_frontier&) = delete;
   device_frontier& operator=(const device_frontier&) = delete;
