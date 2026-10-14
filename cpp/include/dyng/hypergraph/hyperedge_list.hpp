@@ -79,7 +79,6 @@ struct hyperedge_list {
    * @guarantee Strong: after an exception the list is unchanged.
    */
   void add_hyperedge(array_view<const vertex_t> hyperedge_members, weight_t w = {}) {
-    if (offsets.empty()) offsets.push_back(0);
     const std::size_t n_offsets = offsets.size();
     const std::size_t n_members = members.size();
     const std::size_t n_weights = weights.size();
@@ -89,6 +88,7 @@ struct hyperedge_list {
       weights.erase(weights.begin() + static_cast<std::ptrdiff_t>(n_weights), weights.end());
     };
     try {
+      if (offsets.empty()) offsets.push_back(0);
       members.insert(members.end(), hyperedge_members.begin(), hyperedge_members.end());
       offsets.push_back(static_cast<std::int64_t>(members.size()));
       if constexpr (!is_unweighted_v<weight_t>) {
