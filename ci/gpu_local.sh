@@ -64,8 +64,8 @@
 #              lockstep with the host model over the small sets (dyng_cbst_compact_large_tests:
 #              compact() after every op, and every preset's layout without compactions).
 #              The CBST mutation tests cbst.mutation.* run in the ctest -L gpu step.
-#   hypergraph the hypergraph container (M8b, ADRs 0041-0042): compute-sanitizer racecheck and
-#              synccheck on its GPU test executables (dyng_hypergraph_cuda_tests: the container's
+#   hypergraph the hypergraph container (M8b, ADRs 0041-0042): compute-sanitizer racecheck,
+#              synccheck and initcheck on its GPU test executables (dyng_hypergraph_cuda_tests: the container's
 #              suites on cuda, the line graph, two containers on two non-blocking streams;
 #              dyng_hypergraph_ids_cuda_tests: the committed batch records and A's skewed and
 #              medium traces; dyng_io_cuda_tests, M8b step 4: the .dgb batch_reader staging
@@ -82,7 +82,8 @@
 #              over the row views; C1, C11 and C12 under the sanitizers, every check under
 #              memcheck), and the container-level replays of the small golden sets on
 #              cuda (parity/compare.py hypergraph_ids: escher_gpu_test and mosp_escher_test, the ids
-#              and rows; escher_gpu_test again with --line-graph, A's H2H after every batch, and
+#              and rows; escher_gpu_test and mosp_escher_test again with --line-graph, A's H2H
+#              and testing::rebuild_line_graph after every batch (B's sessions: the oracle), and
 #              with --legacy-generator, A's batches drawn again by generators::legacy from the
 #              CUDA container; skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
 #              build/<preset>/hypergraph-records), the id and line-graph replays also as the
@@ -400,7 +401,7 @@ if ! skipped hypergraph; then
     echo "compute-sanitizer missing"
     hg_ok=0
   else
-    for tool in racecheck synccheck; do
+    for tool in racecheck synccheck initcheck; do
       extra=()
       hg_filter='-HypergraphRandom.*:HypergraphCuda.RepeatedRunsGiveIdenticalIds'
       if [ "${tool}" = racecheck ]; then
@@ -428,9 +429,9 @@ if ! skipped hypergraph; then
     done
   fi
   if [ "${hg_ok}" = 1 ]; then
-    record "hypergraph sanitizers (racecheck, synccheck)" passed
+    record "hypergraph sanitizers (racecheck, synccheck, initcheck)" passed
   else
-    record "hypergraph sanitizers (racecheck, synccheck)" FAILED
+    record "hypergraph sanitizers (racecheck, synccheck, initcheck)" FAILED
   fi
   hg_tool="${build_dir}/cpp/tests/dyng_hypergraph_ids"
   hg_records="${DYNG_GPU_RESULTS:-${build_dir}/hypergraph-records}"
@@ -443,7 +444,7 @@ if ! skipped hypergraph; then
     --set cbst_trace_escher_gpu_test --set cbst_trace_mosp_escher_test &&
     heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
       --exe "${hg_tool}" --record "${hg_records}" --certificate "${hg_records}" --line-graph \
-      --mode by_id --set cbst_trace_escher_gpu_test &&
+      --mode by_id --set cbst_trace_escher_gpu_test --set cbst_trace_mosp_escher_test &&
     heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
       --exe "${hg_tool}" --record "${hg_records}" --legacy-generator --mode by_id \
       --set cbst_trace_escher_gpu_test; then
