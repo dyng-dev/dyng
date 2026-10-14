@@ -16,10 +16,14 @@
 //
 // Pairs are packed as (row key << 32) | value, so a sorted pair array groups
 // the entries of each row in ascending value order.
+#include "hypergraph/escher/chain.cuh"
 #include "hypergraph/line_graph/device_frontier.cuh"
 #include "hypergraph/line_graph/sorted_merge.cuh"
+#include "util/cuda_check.hpp"
+#include "util/device_error_flags.cuh"
 
 #include <dyng/core/buffer.hpp>
+#include <dyng/core/error.hpp>
 
 #include <thrust/device_ptr.h>
 #include <thrust/functional.h>
@@ -30,8 +34,8 @@
 
 #include <algorithm>
 #include <climits>
-#include <cstdlib>
-#include <iostream>
+#include <cstdint>
+#include <string>
 #include <utility>
 
 namespace dyng::detail::escher {
@@ -72,45 +76,47 @@ __device__ __forceinline__ int values_below(const int* row, int n, int x) {
   return lo;
 }
 
-// Calls f(value) for every entry of a (possibly chained) CBST row.
+// Calls f(value) for every entry of a (possibly chained) CBST row, with the bounded walk of
+// chain.cuh (M8a, ADR 0039): a broken chain raises the V2H tree's device error word (read once at
+// the end of the apply) instead of hanging.
 template <class F>
-__device__ __forceinline__ void for_each_chained_entry(const int* flat, int loc, F&& f) {
+__device__ __forceinline__ void for_each_chained_entry(const int* flat, long long used, int loc,
+                                                       std::uint32_t* control, F&& f) {
   if (loc < 0) return;
-  while (true) {
-    int v = flat[loc];
-    if (v < 0 && v != INT_MIN) {
-      loc = -v;
-      continue;
-    }
-    if (v == 0 || v == INT_MIN) return;
-    f(v);
-    ++loc;
+  if (walk_chain(flat, used, loc, [&](long long, int v) { f(v); }) == chain_end::overrun) {
+    raise_device_error(control + control_errors, device_error::internal);
+    atomicAdd(reinterpret_cast<unsigned int*>(control + control_overruns), 1U);
   }
 }
 }  // namespace
 __global__ void neighbourhood_count_kernel(const int* keys, const int* row_offsets,
                                            const int* vertices, int num_rows, const int* v2h_head,
-                                           const int* v2h_flat, long long* count) {
+                                           const int* v2h_flat, long long v2h_used,
+                                           std::uint32_t* v2h_control, long long* count) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= num_rows) return;
   int e = keys[i];
   long long n = 0;
   for (int p = row_offsets[i]; p < row_offsets[i + 1]; ++p)
-    for_each_chained_entry(v2h_flat, v2h_head[vertices[p]], [&](int h) { n += (h != e); });
+    for_each_chained_entry(v2h_flat, v2h_used, v2h_head[vertices[p]], v2h_control,
+                           [&](int h) { n += (h != e); });
   count[i] = n;
 }
 
 __global__ void neighbourhood_gather_kernel(const int* keys, const int* row_offsets,
                                             const int* vertices, int num_rows, const int* v2h_head,
-                                            const int* v2h_flat, const long long* offsets,
+                                            const int* v2h_flat, long long v2h_used,
+                                            std::uint32_t* v2h_control, const long long* offsets,
                                             unsigned long long* out) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= num_rows) return;
   int e = keys[i];
   long long o = offsets[i];
+  const long long end = offsets[i + 1];
   for (int p = row_offsets[i]; p < row_offsets[i + 1]; ++p)
-    for_each_chained_entry(v2h_flat, v2h_head[vertices[p]], [&](int h) {
-      if (h != e) out[o++] = pack_pair(e, h);
+    for_each_chained_entry(v2h_flat, v2h_used, v2h_head[vertices[p]], v2h_control, [&](int h) {
+      // The count pass walked the same rows: a gather beyond its count is a broken invariant.
+      if (h != e && o < end) out[o++] = pack_pair(e, h);
     });
 }
 
@@ -172,9 +178,11 @@ __global__ void merged_row_slots_kernel(row_view old, row_delta d, int num_keys,
 // in parallel: a kept old entry x lands at (its rank among the kept
 // entries) + #additions < x, an addition y at its index + #kept entries < y.
 // Requires: removals of a row are entries of its old row, additions are
-// disjoint from the kept entries.
+// disjoint from the kept entries. (dynG: a position outside the row, which a delta breaking
+// these requirements would give, is not written; it raises the device error word `control`.)
 __global__ void write_merged_rows_kernel(row_view old, row_delta d, int num_keys,
-                                         const long long* start, const int* len, int* out) {
+                                         const long long* start, const int* len, int* out,
+                                         std::uint32_t* control) {
   const int lane = threadIdx.x & 31;
   const int warp = (blockIdx.x * blockDim.x + threadIdx.x) >> 5;
   const int num_warps = (gridDim.x * blockDim.x) >> 5;
@@ -197,11 +205,19 @@ __global__ void write_merged_rows_kernel(row_view old, row_delta d, int num_keys
           int x = src[i];
           int r = pairs_below(rem, rc, x);
           if (r < rc && pair_value(rem[r]) == x) continue;  // removed
-          row[i - r + pairs_below(add, ac, x)] = x;
+          const int at = i - r + pairs_below(add, ac, x);
+          if (at >= 0 && at < n)
+            row[at] = x;
+          else
+            raise_device_error(control + control_errors, device_error::internal);
         }
         for (int k = lane; k < ac; k += 32) {
           int y = pair_value(add[k]);
-          row[k + values_below(src, old_len, y) - pairs_below(rem, rc, y)] = y;
+          const int at = k + values_below(src, old_len, y) - pairs_below(rem, rc, y);
+          if (at >= 0 && at < n)
+            row[at] = y;
+          else
+            raise_device_error(control + control_errors, device_error::internal);
         }
       }
     }
@@ -213,13 +229,6 @@ namespace {
 
 constexpr int block_size = 256;
 
-void check(cudaError_t result) {
-  if (result != cudaSuccess) {
-    std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
-    std::exit(-1);
-  }
-}
-
 int blocks_for(long long n) {
   return static_cast<int>((n + block_size - 1) / block_size);
 }
@@ -228,7 +237,7 @@ template <class T>
 class device_array {
  public:
   explicit device_array(long long n) {
-    check(cudaMalloc(&ptr_, sizeof(T) * std::max(1LL, n)));
+    DYNG_CUDA_TRY(cudaMalloc(&ptr_, sizeof(T) * std::max(1LL, n)));
   }
   ~device_array() {
     cudaFree(ptr_);
@@ -254,7 +263,7 @@ class device_array {
 template <class T>
 T read_back(const T* device_ptr) {
   T value;
-  check(cudaMemcpy(&value, device_ptr, sizeof(T), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaMemcpy(&value, device_ptr, sizeof(T), cudaMemcpyDeviceToHost));
   return value;
 }
 
@@ -270,10 +279,11 @@ struct device_rows {
       flat.insert(flat.end(), rows[i].begin(), rows[i].end());
       off[i + 1] = static_cast<int>(flat.size());
     }
-    check(cudaMemcpy(offsets.get(), off.data(), sizeof(int) * off.size(), cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(
+        cudaMemcpy(offsets.get(), off.data(), sizeof(int) * off.size(), cudaMemcpyHostToDevice));
     if (!flat.empty())
-      check(cudaMemcpy(vertices.get(), flat.data(), sizeof(int) * flat.size(),
-                       cudaMemcpyHostToDevice));
+      DYNG_CUDA_TRY(cudaMemcpy(vertices.get(), flat.data(), sizeof(int) * flat.size(),
+                               cudaMemcpyHostToDevice));
   }
   static long long total(const std::vector<std::vector<int>>& rows) {
     long long n = 0;
@@ -290,7 +300,7 @@ struct pair_list {
 template <class Count, class Gather>
 pair_list collect_pairs(int num_items, Count count, Gather gather) {
   device_array<long long> offsets(num_items + 1);
-  check(cudaMemset(offsets.get() + num_items, 0, sizeof(long long)));
+  DYNG_CUDA_TRY(cudaMemset(offsets.get() + num_items, 0, sizeof(long long)));
   if (num_items > 0) count(offsets.get());
   thrust::device_ptr<long long> o(offsets.get());
   thrust::exclusive_scan(o, o + num_items + 1, o);
@@ -311,7 +321,7 @@ struct pair_ranges {
   device_array<int> count;
   device_array<long long> offset;
   pair_ranges(const pair_list& pairs, int num_keys) : count(num_keys + 1), offset(num_keys + 1) {
-    check(cudaMemset(count.get(), 0, sizeof(int) * (num_keys + 1)));
+    DYNG_CUDA_TRY(cudaMemset(count.get(), 0, sizeof(int) * (num_keys + 1)));
     if (pairs.size > 0)
       pair_histogram_kernel<<<blocks_for(pairs.size), block_size>>>(pairs.data.get(), pairs.size,
                                                                     count.get());
@@ -325,37 +335,42 @@ __global__ void narrow_starts_kernel(const long long* start, int num_keys, int* 
   if (k <= num_keys) out[k - 1] = static_cast<int>(start[k]);
 }
 
-// Writes the merged rows into a new payload and rebuilds the tree over it.
-void merge_and_rebuild(cbst_store& tree, const row_view& old, const row_delta& delta,
-                       int num_keys) {
+// Writes the merged rows into a new payload and rebuilds the tree over it. The merged size is
+// summed in 64 bits and checked against the policy's payload limit before the payload is
+// allocated (ESCHER-GPU ended the process above the int32 offsets).
+void merge_and_rebuild(cbst_store& tree, const row_view& old, const row_delta& delta, int num_keys,
+                       long long max_payload, std::uint32_t* control) {
   device_array<int> len(num_keys + 1);
   device_array<long long> start(num_keys + 2);
-  check(cudaMemset(start.get() + num_keys + 1, 0, sizeof(long long)));
+  DYNG_CUDA_TRY(cudaMemset(start.get() + num_keys + 1, 0, sizeof(long long)));
   merged_row_slots_kernel<<<blocks_for(num_keys + 1), block_size>>>(old, delta, num_keys, len.get(),
                                                                     start.get());
   thrust::device_ptr<long long> s(start.get());
   thrust::exclusive_scan(s, s + num_keys + 2, s);
   long long total = read_back(start.get() + num_keys + 1);
-  if (total > INT_MAX) {
-    std::cerr << "[" << tree.context().dataset_name << "] ERROR: " << total
-              << " payload entries exceed the int32 offsets of the CBST" << std::endl;
-    std::exit(2);
+  if (total > std::min<long long>(max_payload, INT_MAX)) {
+    throw capacity_error("dyng: CBST " + tree.context().dataset_name +
+                         ": the merged line graph needs " + std::to_string(total) +
+                         " payload entries, more than its capacity policy allows (" +
+                         std::to_string(std::min<long long>(max_payload, INT_MAX)) +
+                         "; the store's offsets are int32)");
   }
   // dynG (transplant hunk): the merged payload and the row offsets are the store's buffers (the
   // tree takes them over in rebuild_from_device), allocated from the tree's resources.
   buffer<int> flat(tree.context().res, static_cast<size_t>(std::max(1LL, total)));
   int grid =
       static_cast<int>(std::min<long long>((num_keys * 32LL + block_size - 1) / block_size, 65535));
-  check(cudaDeviceSynchronize());  // dynG (transplant hunk): the buffers' stream-ordered allocation
+  DYNG_CUDA_TRY(
+      cudaDeviceSynchronize());  // dynG (transplant hunk): the buffers' stream-ordered allocation
   write_merged_rows_kernel<<<grid, block_size>>>(old, delta, num_keys, start.get(), len.get(),
-                                                 flat.data());
+                                                 flat.data(), control);
   buffer<int> starts(tree.context().res, static_cast<size_t>(std::max(1, num_keys)));
-  check(cudaDeviceSynchronize());
+  DYNG_CUDA_TRY(cudaDeviceSynchronize());
   narrow_starts_kernel<<<blocks_for(num_keys), block_size>>>(start.get(), num_keys, starts.data());
-  check(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaGetLastError());
   // dynG (transplant hunk): the kernels above run on the legacy default stream, the tree on its
   // resources' stream.
-  check(cudaDeviceSynchronize());
+  DYNG_CUDA_TRY(cudaDeviceSynchronize());
   tree.rebuild_from_device(std::move(starts), num_keys, std::move(flat), static_cast<int>(total),
                            static_cast<int>(total));
 }
@@ -369,7 +384,7 @@ struct or_bytes {
 }  // namespace
 
 void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_context& v2h,
-                       const line_graph_batch& batch, int num_keys) {
+                       const line_graph_batch& batch, int num_keys, long long max_payload) {
   const int num_deleted = static_cast<int>(batch.deleted_keys.size());
   const int num_inserted = static_cast<int>(batch.inserted_keys.size());
   device_frontier deleted(batch.deleted_keys, num_keys);
@@ -379,7 +394,7 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
   // First payload segment of every V2H row (V2H rows may be chained).
   const int numVertices = v2h.num_records;
   device_array<int> head(numVertices + 1);
-  check(cudaMemset(head.get(), 0xff, sizeof(int) * (numVertices + 1)));  // -1: absent
+  DYNG_CUDA_TRY(cudaMemset(head.get(), 0xff, sizeof(int) * (numVertices + 1)));  // -1: absent
   row_heads_kernel<<<blocks_for(v2h.num_records), block_size>>>(
       v2h.d_nodes, v2h.d_avail, v2h.num_records, numVertices, head.get());
 
@@ -389,12 +404,12 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
       [&](long long* count) {
         neighbourhood_count_kernel<<<blocks_for(num_inserted), block_size>>>(
             inserted.ids(), inserted_rows.offsets.get(), inserted_rows.vertices.get(), num_inserted,
-            head.get(), v2h.d_flat_payload, count);
+            head.get(), v2h.d_flat_payload, v2h.initial_payload_size, v2h.d_control, count);
       },
       [&](const long long* offsets, unsigned long long* out) {
         neighbourhood_gather_kernel<<<blocks_for(num_inserted), block_size>>>(
             inserted.ids(), inserted_rows.offsets.get(), inserted_rows.vertices.get(), num_inserted,
-            head.get(), v2h.d_flat_payload, offsets, out);
+            head.get(), v2h.d_flat_payload, v2h.initial_payload_size, v2h.d_control, offsets, out);
       });
   sort_pairs(rows, true);
 
@@ -415,7 +430,7 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
   pair_list additions{device_array<unsigned long long>(rows.size), 0};
   {
     device_array<unsigned long long> count(1);
-    check(cudaMemset(count.get(), 0, sizeof(unsigned long long)));
+    DYNG_CUDA_TRY(cudaMemset(count.get(), 0, sizeof(unsigned long long)));
     if (rows.size > 0)
       mirror_additions_kernel<<<blocks_for(rows.size), block_size>>>(
           rows.data.get(), rows.size, inserted.flags(), additions.data.get(), count.get());
@@ -436,7 +451,9 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
                   rows.data.get(),     removal_ranges.count.get(),  removal_ranges.offset.get(),
                   removals.data.get(), addition_ranges.count.get(), addition_ranges.offset.get(),
                   additions.data.get()};
-  merge_and_rebuild(h2h, old_rows, delta, num_keys);
+  // The merge's broken invariants raise the V2H tree's error word: the merge reads V2H, and the
+  // H2H tree's own word is reset by its rebuild.
+  merge_and_rebuild(h2h, old_rows, delta, num_keys, max_payload, v2h.d_control);
 }
 
 }  // namespace dyng::detail::escher

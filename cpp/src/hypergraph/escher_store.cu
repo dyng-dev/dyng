@@ -515,7 +515,7 @@ class escher_device_store final : public incidence_store {
     // The transplant runs on the legacy default stream: the store's work comes first.
     DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
     escher::update_line_graph(*h2h_, h2h_rows_.view(), v2h_->context(), batch,
-                              static_cast<int>(max_bound_));
+                              static_cast<int>(max_bound_), payload_limit(capacity_));
   }
 
   void finish_apply() override {

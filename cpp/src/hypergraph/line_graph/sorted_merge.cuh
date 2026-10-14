@@ -17,6 +17,9 @@
 #include "hypergraph/escher/cbst_store.hpp"
 #include "hypergraph/escher/row_view.cuh"
 
+#include <cstdint>
+#include <vector>
+
 namespace dyng::detail::escher {
 
 // Delta of a set of sorted rows (keys 1..num_keys), as sorted pair arrays
@@ -49,12 +52,16 @@ __global__ void row_heads_kernel(const cbst_node* nodes, const int* avail, int n
                                  int max_key, int* head);
 // New H2H rows: (e, h) for every hyperedge h != e sharing a vertex with the
 // inserted hyperedge e (rows[i] = vertices of keys[i]).
+// The V2H rows are walked with chain.cuh's bounded walk over its `v2h_used` slots; a broken
+// chain raises `v2h_control`, the V2H tree's device error word.
 __global__ void neighbourhood_count_kernel(const int* keys, const int* row_offsets,
                                            const int* vertices, int num_rows, const int* v2h_head,
-                                           const int* v2h_flat, long long* count);
+                                           const int* v2h_flat, long long v2h_used,
+                                           std::uint32_t* v2h_control, long long* count);
 __global__ void neighbourhood_gather_kernel(const int* keys, const int* row_offsets,
                                             const int* vertices, int num_rows, const int* v2h_head,
-                                            const int* v2h_flat, const long long* offsets,
+                                            const int* v2h_flat, long long v2h_used,
+                                            std::uint32_t* v2h_control, const long long* offsets,
                                             unsigned long long* out);
 // H2H removals: (u, d) for every surviving neighbour u of a deleted d.
 __global__ void removal_count_kernel(row_view old, const int* deleted, int num_deleted,
@@ -70,7 +77,8 @@ __global__ void pair_histogram_kernel(const unsigned long long* pairs, long long
 __global__ void merged_row_slots_kernel(row_view old, row_delta d, int num_keys, int* len,
                                         long long* slot);
 __global__ void write_merged_rows_kernel(row_view old, row_delta d, int num_keys,
-                                         const long long* start, const int* len, int* out);
+                                         const long long* start, const int* len, int* out,
+                                         std::uint32_t* control);
 // GPU maintenance of the derived adjacency trees after the ESCHER
 // operations of a batch have updated H2V and V2H. Each tree
 // is updated with an exact, out-of-place sorted delta merge: the delta
@@ -82,7 +90,11 @@ __global__ void write_merged_rows_kernel(row_view old, row_delta d, int num_keys
 
 // Line graph H2H (keys 1..num_keys after the batch). `old_rows` is the view of
 // the current H2H tree, `v2h` the updated V2H tree.
+// dynG: the merged payload must fit `max_payload` entries (capacity_error before it is allocated;
+// the tree is unchanged then); a broken chain of V2H or a delta that breaks the merge's
+// requirements raises V2H's device error word, which the caller reads (cbst_store::check_errors).
+// Throws cuda_error for an error of the CUDA runtime.
 void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_context& v2h,
-                       const line_graph_batch& batch, int num_keys);
+                       const line_graph_batch& batch, int num_keys, long long max_payload);
 
 }  // namespace dyng::detail::escher

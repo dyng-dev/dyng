@@ -308,9 +308,6 @@ TEST_P(HypergraphLineGraph, CapacityLimit) {
   batch b;
   b.insert_hyperedge({0, 10});
   b.insert_hyperedge({0, 11});
-  // TRANSPLANT: ESCHER-GPU's merge checks only the int32 offsets (it ended the process above them);
-  // the policy's limit on CUDA comes with the commit of the errors.
-  if (GetParam() == backend::cuda) return;
   EXPECT_THROW((void)h.apply(res(), b.view()), dyng::capacity_error);
   EXPECT_THROW((void)h.h2h(), dyng::invalid_argument_error);  // poisoned
 }
