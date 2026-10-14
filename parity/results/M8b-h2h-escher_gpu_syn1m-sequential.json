@@ -1,0 +1,237 @@
+{
+ "set": "cbst_trace_escher_gpu_syn1m",
+ "reference": "ESCHER-GPU",
+ "backend": "sequential",
+ "threads": 0,
+ "mode": "by_id",
+ "model": false,
+ "line_graph": true,
+ "commit": "16898f4e63498b91d634c8cee0c429cd7c5b18ea",
+ "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+ "passed": true,
+ "totals": {
+  "sessions": 3,
+  "batches": 9,
+  "vertex_batches": 0,
+  "ids_compared": 225000,
+  "rows_compared": 12001327,
+  "filtered_virtual": 0,
+  "skipped_compared": 0,
+  "skipped_ops": 0,
+  "dropped_members": 0,
+  "ambiguous": 0,
+  "original_exceptions": 0,
+  "h2h_states": 12,
+  "h2h_layouts_equal": 12,
+  "h2h_unrecorded": 0,
+  "h2h_payload_entries": 1118210756,
+  "h2h_key_hashes": 0,
+  "h2h_full_rows": 0,
+  "mismatch_count": 0,
+  "memory_ratio_max": 0.0
+ },
+ "cases": [
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_syn1m/syn1m_b50k_s1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "sequential",
+   "threads": 1,
+   "mode": "by_id",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 75000,
+   "rows_compared": 4000698,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 8991479,
+   "h2v_capacity_dyng": 8991479,
+   "h2h_states": 4,
+   "h2h_layouts_equal": 4,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 372017672,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 25.5324,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     0,
+     703051032
+    ],
+    [
+     0,
+     703183432
+    ],
+    [
+     0,
+     703130968
+    ],
+    [
+     0,
+     703185928
+    ]
+   ],
+   "original_store_bytes": [
+    215103404,
+    215105636,
+    215105636,
+    215107316
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_syn1m/syn1m_b50k_s2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "sequential",
+   "threads": 1,
+   "mode": "by_id",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 75000,
+   "rows_compared": 4000370,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 9001663,
+   "h2v_capacity_dyng": 9001663,
+   "h2h_states": 4,
+   "h2h_layouts_equal": 4,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 373168568,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 26.441,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     0,
+     704359712
+    ],
+    [
+     0,
+     704314400
+    ],
+    [
+     0,
+     704398736
+    ],
+    [
+     0,
+     704378000
+    ]
+   ],
+   "original_store_bytes": [
+    215185252,
+    215185300,
+    215187448,
+    215187448
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_syn1m/syn1m_b50k_s3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "sequential",
+   "threads": 1,
+   "mode": "by_id",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 75000,
+   "rows_compared": 4000259,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 9003620,
+   "h2v_capacity_dyng": 9003620,
+   "h2h_states": 4,
+   "h2h_layouts_equal": 4,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 373024516,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 25.971,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     0,
+     704184388
+    ],
+    [
+     0,
+     704139796
+    ],
+    [
+     0,
+     704236420
+    ],
+    [
+     0,
+     704300708
+    ]
+   ],
+   "original_store_bytes": [
+    215184584,
+    215184584,
+    215185448,
+    215186828
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  }
+ ],
+ "problems": []
+}

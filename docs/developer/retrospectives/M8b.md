@@ -130,6 +130,111 @@ the author's confirmation at the release.
 - The id replay tool already reads the update records' `device_bytes` (A's whole scope) into its
   report.
 
+## Step 2: the line graph, the views, the memory gate (line-graph-views-memory)
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `208350a` | ADR 0042 (before any code): the policies, the staged port, the line graph's key count, the internal and public views, the order of an apply, the oracle, the parity method |
+| `3b73335` | the transplant of ESCHER-GPU's H2H merge (`line_graph/sorted_merge.{cuh,cu}`, `device_frontier.cuh`; `parity/escher_port/rename_map_line_graph.toml`, `manual_hunks_line_graph.patch`, `transplant.py --map`), wired into the CUDA store; the host form of the merge and the port of `flatHyperedgeAdjacency`; the internal row views (`row_views.hpp`) and the decoded `h2h()` view; `automatic` and `sorted_merge`; `testing::rebuild_line_graph` and its isolation test; `hypergraph_line_graph_test`; the random streams keep the line graph; `compare.py hypergraph_ids --line-graph` |
+| `fbfa931`, `8823491`, `0d9d97f`, `cdae5c6` | the mechanical classes of the port: errors, buffers, streams, registration (the last removes the source rules' staged exemption) |
+| `42983d1`, `a9c59c3` | `parity/perf_ab.py hypergraph memory` and `maintain` (`parity/hypergraph_perf.py`); `dyng_hypergraph_ids --timing / --sync-stages / --nvtx` |
+| `9c66eee`, `cd9cc9e` | `HypergraphCuda.TwoContainersOnTwoNonBlockingStreams` (C12), the step `hypergraph` of `ci/gpu_local.sh` |
+| `f561043` | the mutation `hypergraph.mutation.mirror_additions_dropped` / `hypergraph_mirror_additions_dropped` |
+| `dac2a72` | the API page, the store README, the CHANGELOG |
+| (the records commit) | `parity/results/M8b.md` section 2 and its records, this section |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **The transplant commit also carries the infrastructure.** The step asks to compare the line
+   graph with A's after every commit of the port, which needs the container wired from the first
+   one; so `3b73335` holds the transplant together with the host stores, the views, the oracle and
+   the replay's comparison. The transplanted files themselves are only the generated transplant
+   (`transplant.py --map ... --check --rev 3b73335`: identical), and the mechanical classes are one
+   commit each. Until the last of them the source rules of `cpp/src/hypergraph` skipped the two
+   transplanted files (a staged exemption, removed in `cdae5c6`).
+2. **The line graph's key count is the largest bound so far, not the bound.** A's H2H has
+   `numHyperedgeKeys` keys (its host vector never shrinks), dynG's bound can go down after a
+   surplus rebuild (ADR 0041, section 2). Keeping A's count (`max_bound`) gives A's layout, A's
+   memory and frontier flags that cover the deleted ids; the rows above the bound are empty and the
+   public view stops at the bound (ADR 0042, section 3).
+3. **syn1m is compared by its layout hashes only.** The step asks for per-key hashes and the full
+   rows of touched keys after every batch of make-test, coauth50k and syn1m. M8a's syn1m set is a
+   `batches` trace (no state digests), so it is compared by the hashes of A's H2H rebuild inputs
+   (the whole payload and the row offsets), which is stronger than per-key hashes but does not
+   localize a difference; coauth50k gives per-key row hashes (its H2H rows are recorded as hashes
+   only), make-test the full rows. No new golden set was exported.
+4. **The merge's errors raise the V2H tree's device error word.** The H2H tree's own word is reset
+   by its rebuild; the merge reads V2H and its errors (a broken V2H chain, a merged position outside
+   its row) are read with V2H's word, once at the end of the apply.
+5. **The H2H tree is sized exactly under every preset** (A's rule for merged trees, also under
+   `mosp_escher()` and the default); its limit is the policy's payload limit.
+6. **The `larger_than` mix of the random streams is capped.** It tripled the hypergraph every
+   batch (43K hyperedges on 1,200 vertices after 6 batches); with the line graph checked against
+   the oracle and in `check_integrity()` after every batch the two random tests took 92 s each in
+   Debug. A batch inserts more hyperedges than the hypergraph has while it has fewer than 2,000
+   (`m / 4` after): 11 s. The test `SpecialBatches` has 1,100 rows on one hub (rows above 1,024
+   entries).
+7. **`h2h().weights` is host memory on every backend** (the weights by id are a host array; an
+   `array_view` carries its own memory space), as `weights()`.
+8. **An empty batch still rewrites the line graph** (A's merge copies every row); kept for
+   parity of the timing and memory, a hypergraph that never had a hyperedge skips the merge (no
+   zero-block launch; tested).
+9. **The CTest entry of the new mutant came one commit early.** `9c66eee` added the CMake entry of
+   `hypergraph.mutation.mirror_additions_dropped` (the file was staged with the C12 test), its hook
+   came with `f561043`; at `9c66eee` alone that CTest fails (the mutant equals the control).
+10. **parity/mutate.py did not count the new mutation at first**: the C12 test let an exception
+    of a driving thread terminate the executable, and mutate.py counts only failed tests, never a
+    crash; `cd9cc9e` reports the exception as a failure. 3 / 3 hypergraph mutations detected
+    after it.
+
+### Measurements
+
+- **H2H parity** (results, section 2.2): every state of A's make-test (255), coauth50k (4) and
+  syn1m seeds 1-3 (12) equal to A's on cuda after every commit of the port, and on sequential and
+  openmp.
+- **Memory gate: GO** (results, section 2.3): byte for byte A's `DynamicHypergraph::deviceBytes()`
+  after the build and every batch of coauth50k; nsys peaks 3,018.9 MiB (A, with counting) and
+  3,019.1 MiB (dynG), recorded.
+- **Maintain reading** (results, section 2.4; reported, not gated; at the base clock lock, ADR
+  0021, because A's process runs under the power cap at boost): `hypergraph.apply` 0.854x of A's
+  `update.maintain` on coauth50k and 0.859x on syn1m (sums of the 3 batches; worst batch 1.026x);
+  insert 0.68x / 0.87x, line graph 0.83x / 0.81x, views 0.30x / 0.22x; delete 1.72x / 2.96x (the
+  host grouping of the deleted incidences is timed in dynG's delete stage, in A's
+  `maintain.prepare`); host syncs per batch 21 (A: 76). A CPU profile of the first reading found
+  the applied record's sort of the touched vertices (about 16 ms per syn1m batch); `16898f4`
+  makes it linear (the first reading: 0.893x and 1.120x).
+- **Sanitizers**: memcheck (leak check) clean on `dyng_hypergraph_cuda_tests` and
+  `dyng_hypergraph_ids_cuda_tests`; racecheck and synccheck clean without the long random streams
+  (results, section 2.6).
+- **Mutations**: `parity/mutate.py run --suites hypergraph`: control passes, 3 / 3 detected
+  (the new `hypergraph_mirror_additions_dropped` by 10 host and 8 CUDA tests).
+
+### M9 risks
+
+- **The delete stage's host grouping.** `hypergraph.apply.delete` is 1.7-3.0x A's delete timers
+  because it times the single-threaded grouping of the deleted incidences by vertex (A times it in
+  `maintain.prepare`); `maintain` as a whole is 0.85x. If M9's `update` reading needs room, the
+  grouping (and the insert's) can run in parallel or on the device.
+- **The Nsight Systems peak** of the container (3,019.1 MiB on coauth50k) is the merge's: the new
+  H2H payload exists next to the old one until the rebuild, as in A (3,018.9 MiB with its
+  counting); M9 gates the peak with the counting included, where dynG's counting temporaries add
+  to it.
+- **The boost clock lock does not hold** for A's process on coauth-DBLP (power cap during its full
+  count); M9's `update` gate is read at the base lock (ADR 0021) unless that changes.
+
+### Notes for M9 (triad_count)
+
+- `detail::hypergraph_access::require_line_graph(h)` then `views(h)`: A's `RowView`s of H2V and
+  H2H (`out` set) in the store's memory space, keys = ids + 1, values + 1; the H2H view covers keys
+  `1..max_bound` (empty rows above the bound). Count(-) must read them before `apply()` (the merge
+  replaces the H2H payload, the H2V insert reuses dead slots); count(+) after.
+- The frontier of A (`device_frontier.cuh`, flags over `num_keys + 1`) is ported in
+  `line_graph/`; the inserted ids are on the device in the applied record.
+- `hypergraph.apply` has the stages of the toml; A's `update` region adds subtract and add around
+  it.
+
 ### Open items
 
-- Steps 2-5 of M8b.
+- Steps 3-5 of M8b.

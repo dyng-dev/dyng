@@ -146,3 +146,161 @@ container, `store_stats()` counts fill thread 5 / warp 3 / block 2, reuse 5 / 3 
 | header self-containment, `DYNG_INDEX_TYPES=minimal` | built and passed (the cpu-only tree) |
 | portability: Clang 18 `-fsyntax-only` over the dev database; cpu-only with `-D_FORTIFY_SOURCE=3` | 0 failures over 286 files; built, `dyng_hypergraph_tests` passed |
 | every commit of the step built (cpu-only, a temporary worktree) | `07e00d8`, `f995b78`, `5b64c23`, `6d8a773`: built, their hypergraph tests passed |
+
+## 2. Step line-graph-views-memory: the line graph, the views, the memory gate
+
+### 2.1 What was built (ADR 0042)
+
+- `line_graph_policy::sorted_merge` and `automatic` (built by the first `h2h()` or
+  `hypergraph_access::require_line_graph()`, then kept); `none` throws, `slack_csr` raises
+  `not_supported_error` naming 0.4. The stage `hypergraph.apply.line_graph` (A's
+  `maintain.h2h_merge`) is emitted when the line graph is kept.
+- The port of ESCHER-GPU's sorted delta merge (`cpp/src/hypergraph/line_graph/sorted_merge.cu`,
+  `sorted_merge.cuh`, `device_frontier.cuh`), staged: the transplant (`3b73335`, reproducible with
+  `parity/escher_port/transplant.py --map parity/escher_port/rename_map_line_graph.toml --check
+  --rev 3b73335`: 3 files identical), then errors (`fbfa931`), buffers (`8823491`), streams
+  (`0d9d97f`) and registration (`cdae5c6`). The initial line graph is the port of
+  `flatHyperedgeAdjacency` (`line_graph/flat_adjacency.cpp`); the CPU backends keep the line graph
+  with the host form of the merge (`line_graph/sorted_merge_host.cpp`), in A's layout.
+- The internal row views (`cpp/src/hypergraph/row_views.hpp`: A's `RowView` of H2V and of H2H with
+  `out`) rebuilt once per commit on every backend; the decoded public views per version.
+- `dyng::testing::rebuild_line_graph` (`dyng/testing/line_graph_oracle.hpp`; MOSP_ESCHER's
+  `rebuildLineGraph`), isolated (CTest `line_graph_oracle_isolation`: no project include but its
+  header, no undefined dynG symbol).
+
+### 2.2 The line graph against ESCHER-GPU (criterion 7)
+
+`parity/compare.py hypergraph_ids --line-graph --mode by_id` replays A's batch records with the
+line graph kept and compares, after the build and every batch, the container's H2H layout (row
+offsets and padded payload, ESCHER-GPU's construct layout) with the input of A's H2H construct or
+rebuild at the same point, by the FNV-1a hashes the trace records (every set records them); where
+the trace has state digests, every key's row hash (coauth: the rows are recorded as hashes only)
+and the rows the digests record in full (`make test`). Equal layouts are equal rows by id,
+`out` offsets and padding included.
+
+Replayed after every commit of the port (`3b73335` ... `cdae5c6`; the Release tool of
+`build/parity-cuda`, GPU 1), each time with the same result:
+
+| set | states (build + batches) | layouts equal | payload entries compared | key hashes | full rows | mismatches |
+|---|---:|---:|---:|---:|---:|---:|
+| `escher_gpu_test` (75 traces) | 255 | 255 | 274,227,060 | 3,095,365 | 3,095,365 | 0 |
+| `escher_gpu_coauth50k` | 4 | 4 | 1,032,222,412 | 9,869,850 | 0 (hash-only rows) | 0 |
+| `escher_gpu_syn1m` (seeds 1-3) | 12 | 12 | 1,118,210,756 | 0 (`batches` set: no digests) | 0 | 0 |
+
+The same three sets on `sequential` and `openmp` (8 threads) give the same result (the host form of
+the merge; during the port and again at `16898f4`). Records:
+`parity/results/M8b-h2h-<set>-<backend>[-t8].json` (the final runs, section 2.7).
+
+### 2.3 The memory gate (criterion 8): GO
+
+`parity/perf_ab.py hypergraph memory --gpu 0` (exclusive perf lock; record
+`parity/results/M8b-memory.json`): the container under `{erase_first, escher_gpu(),
+sorted_merge}` loaded from the construct rows of `escher_gpu_coauth50k` and replaying its 3 x 50K
+batches (seed 1); `store_stats().device_bytes` (A's `DynamicHypergraph::deviceBytes()` scope: the
+H2V, V2H and H2H trees and the H2V and H2H row views) against A's recorded value at each point:
+
+| point | ESCHER-GPU `deviceBytes()` | dynG `device_bytes` | ratio (gate <= 1.05) |
+|---|---:|---:|---:|
+| after the build | 1,922,784,204 | 1,922,784,204 | 1.0000 |
+| after batch 1 | 1,923,300,764 | 1,923,300,764 | 1.0000 |
+| after batch 2 | 1,923,713,052 | 1,923,713,052 | 1.0000 |
+| after batch 3 | 1,924,170,844 | 1,924,170,844 | 1.0000 |
+
+Byte for byte equal at every point (the same trees, sized the same way, and the same row
+views; the line graph's key count is A's `numHyperedgeKeys`, ADR 0042 section 3). The unpatched
+copy's own print points (`src/driver.cu:196` / `:239`) print `[memory] ESCHER device allocations:
+1833.7 MB after init, 1835.0 MB after the last batch`, which are the recorded first and last values
+(1,922,784,204 and 1,924,170,844 bytes in MiB). The replays of section 2.2 check the same ratio at
+every point of `escher_gpu_test` and `syn1m` (255 + 12 points): all 1.0000.
+
+**Nsight Systems peaks** (recorded, not gated in M8; the author's decision of 2026-10-07): the
+peak of live device allocations is **3,018.9 MiB** for A's whole `build/main --input coauth.hg
+--batches 3 --batch-size 50000 --seed 1 --check` (the store, its row views and the motif counting)
+and **3,019.1 MiB** for the container's replay (the stores and views, 1,834 MiB, plus the merge's
+temporaries: the new H2H payload and row offsets exist next to the old ones until the rebuild takes
+them over, as in A; the stream-ordered pool reached 3,104 MiB). M9 gates this peak with the
+counting included.
+
+### 2.4 The maintain reading (criterion 9; reported, not gated)
+
+`parity/perf_ab.py hypergraph maintain --gpu 0 --runs 5 --lock-clocks base` (record
+`parity/results/M8b-maintain-base.json`): A/B/A/B, 5 accepted rounds per side and dataset, the
+exclusive perf lock, GPU 0, one heap layout (a fixed `--timing` file name), the contamination
+monitor on every round. A side is the UNPATCHED `build/main` of the golden case (coauth-DBLP 50K
+seed 1; synthetic 1M `1000000 10 1 333333`, seed 1; without `--check`), timed by its ScopedTimers
+(device-synchronized at both ends); the other is `dyng_hypergraph_ids --apply-only --line-graph
+--sync-stages --timing` replaying the same run's batch records (the stream synchronized at the
+stage boundaries). Regions from `parity/timed_regions/hypergraph.toml`.
+
+**The clock lock.** The first reading at `--lock-clocks boost` (SM 1695 MHz) rejected 11 rounds in
+a row on coauth: A's process (the full motif count of 5 s precedes the batches) runs under the
+power cap at 1455-1680 MHz, and in some rounds dynG's as well. As ADR 0021 decides for such a
+case, the reading is taken at the base lock (SM 1170 MHz, memory 7601 MHz), applied to both
+programs and checked in every busy sample; no round was rejected there.
+
+Medians of 5 rounds (ms; the sum of the 3 batches and the worst batch):
+
+| region (A's timers -> dynG's stages) | coauth50k A | coauth50k dynG | ratio | syn1m A | syn1m dynG | ratio | worst batch |
+|---|---:|---:|---:|---:|---:|---:|---|
+| maintain (`update.maintain` -> `hypergraph.apply`) | 207.78 | 177.37 | **0.854** | 165.83 | 142.37 | **0.859** | syn1m batch 2: 1.026 |
+| maintain.delete (`h2v_delete + v2h_unfill` -> `.apply.delete`) | 11.11 | 19.07 | 1.716 | 9.77 | 28.88 | 2.957 | syn1m batch 2: 4.006 |
+| maintain.insert (`h2v_insert + v2h_fill` -> `.apply.insert`) | 57.72 | 39.28 | 0.681 | 43.53 | 37.95 | 0.872 | syn1m batch 2: 1.003 |
+| maintain.line_graph (`h2h_merge` -> `.apply.line_graph`) | 96.77 | 80.27 | 0.829 | 59.83 | 48.50 | 0.811 | coauth batch 3: 0.840 |
+| maintain.views (`row_views` -> `.apply.views`) | 22.65 | 6.77 | 0.299 | 15.26 | 3.38 | 0.221 | syn1m batch 2: 0.981 |
+
+**Host synchronizations per batch** (one Nsight Systems CUDA API trace per side, the blocking
+calls inside each batch's maintain region: A's NVTX range `update.maintain`, dynG's
+`hypergraph.apply` without stage synchronization): A 76 (13 `cudaDeviceSynchronize` of its
+ScopedTimers, 18 `cudaMemcpy`, 23 `cudaStreamSynchronize`, 22 `cudaMemset`; 70 in syn1m's batch
+2), dynG 21 `cudaStreamSynchronize` (18 in syn1m's batch 2), on both datasets.
+
+**Stages above 1.05x and their profile.** One region is above 1.05x: `maintain.delete`. A CPU-
+sampled Nsight Systems profile of the port on syn1m (`nsys profile -t cuda,nvtx -s cpu`, NVTX
+stage ranges; about 1 sample per 0.85 ms) puts 31 of the delete stage's 36 samples in
+`group_by_vertex` of the deleted rows (the host sort of their incidences by vertex). A does the
+same grouping in `maintain.prepare` (host, outside its delete timers, inside `update.maintain`);
+its delete timers hold only the erase and unfill kernels. The difference is where the grouping is
+timed, not more work: `maintain` as a whole is 0.85x on both datasets. The same profile found the
+largest host cost of dynG's apply outside the stages in the applied record (the sort of the
+touched vertices, about 16 ms per syn1m batch), fixed in `16898f4` before this reading (the
+reading before it: maintain 0.893x on coauth50k and 1.120x on syn1m). **M9 risk** (recorded in
+the retrospective): `update` = subtract + maintain + add is gated in M9; maintain itself is below
+A, and the delete stage's host grouping (about 9 ms per syn1m batch, single-threaded) is the
+first candidate if the M9 reading needs room (a parallel or device grouping).
+
+### 2.5 Views, profiler stages, C12 and sanitizers (criteria 7, 19, 11 C12)
+
+- Views: `HypergraphLineGraph.ViewsAndHowOftenTheyAreBuilt` (every backend): the row views
+  rebuilt once per commit (two applies, two rebuilds), no public view built by `apply()`, `v2h()`
+  and `h2h()` built at most once per version; the internal views decoded equal the public ones,
+  `out` the first entry above the key; views in the hypergraph's memory space.
+- Profiler stages (criterion 19): `hypergraph.build`, `.upload`, `.apply`, `.apply.delete`,
+  `.apply.insert`, `.apply.line_graph`, `.apply.views` (tests `ProfilerStages` and
+  `HypergraphLineGraph.ProfilerStage`), the names of `parity/timed_regions/hypergraph.toml`.
+- C12: `HypergraphCuda.TwoContainersOnTwoNonBlockingStreams`: two containers with the line graph
+  on two non-blocking streams, driven by two host threads, equal the sequential runs (ids and the
+  line graph's layout), both `id_reuse` orders.
+
+### 2.6 Checks of the step
+
+| Check | Result |
+|---|---|
+| `ci/check.sh` (format, the cpu-only and dev presets with `ctest -L cpu`, consumer, tidy, reuse, provenance, regen, harness, python, docs, api, scaffold, pre-commit) | OK after `3f5a272` (the first run found a missing provenance line of `host_line_graph.hpp` and three spellings codespell reads as typos); `format provenance precommit` re-run: OK |
+| `ctest -L hypergraph -LE slow` on `dev-cuda` (GPU 1) | 110 passed (at `16898f4`); `ctest -L 'hypergraph\|cbst\|api' -LE slow`: all passed at `3b73335` (272 tests) |
+| `dyng_hypergraph_tests` / `dyng_hypergraph_cuda_tests` | 66 / 35 tests (step 1: 47 / 24; the line-graph suite on every backend, C12) |
+| compute-sanitizer memcheck (`--leak-check full`, `DYNG_CBST_REDUCED=1`) | `dyng_hypergraph_cuda_tests` (35 tests), `dyng_hypergraph_ids_cuda_tests`: 0 errors, 0 leaks |
+| compute-sanitizer racecheck and synccheck (`DYNG_CBST_REDUCED=1`, without the long random streams, as `ci/gpu_local.sh` runs them) | `dyng_hypergraph_cuda_tests` (31 tests: the line graph on cuda, C12, the container suites) and `dyng_hypergraph_ids_cuda_tests`: 0 hazards, 0 errors. A full racecheck of the random streams was stopped after 42 minutes (it takes hours) |
+| mutations (`parity/mutate.py run --suites hypergraph`, at `cd9cc9e`) | control passes; `hypergraph_h2v_not_deduplicated`, `hypergraph_allocator_ties_reversed` and `hypergraph_mirror_additions_dropped` detected (the last by 10 host and 8 CUDA tests); the CTest `hypergraph.mutation.mirror_additions_dropped` passes (the mutant fails) |
+| the id replays (no line graph) on cuda at `16898f4` | `escher_gpu_test`, `mosp_escher_test`, `committed`: OK, 0 mismatches (as in section 1) |
+| M8a's small store replays | not affected (no change in `cpp/src/hypergraph/escher` but the move of `struct row_view`); `ctest -L cbst` passed at `3b73335` |
+| portability: Clang 18 `-fsyntax-only` over the dev database; cpu-only with `-D_FORTIFY_SOURCE=3` | 0 failures over 335 files; built, `ctest -L hypergraph` passed (73 tests) |
+| `transplant.py --map parity/escher_port/rename_map_line_graph.toml --check --rev 3b73335` | 3 files identical; M8a's `transplant.py --check --rev 477d592` still identical |
+
+### 2.7 Records
+
+- `M8b-h2h-<set>-<backend>[-t8].json`: `escher_gpu_test`, `escher_gpu_coauth50k`, `escher_gpu_syn1m` on
+  cuda, openmp (8 threads) and sequential, at `16898f4` (the Release tool of `build/parity-cuda`):
+  every case passed, every H2H state equal to A's, `memory_ratio_max` exactly 1 on cuda.
+- `M8b-memory.json` (criterion 8; at `16898f4`, the working tree differing only in these records
+  and the retrospective): passed.
+- `M8b-maintain-base.json` (criterion 9; at `16898f4`): the reading of section 2.4.
