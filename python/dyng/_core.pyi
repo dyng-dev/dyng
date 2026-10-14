@@ -628,6 +628,328 @@ class GraphI32I64U:
 
     def check_integrity(self, resources: Resources) -> None: ...
 
+class HypergraphStorage(enum.Enum):
+    """How the incidences are stored."""
+
+    escher = 0
+
+    slack_csr = 1
+
+class LineGraphPolicy(enum.Enum):
+    """How the line graph is kept."""
+
+    none = 0
+
+    automatic = 1
+
+    sorted_merge = 2
+
+    slack_csr = 3
+
+class IdReuse(enum.Enum):
+    """The order of a batch's deletions and insertions."""
+
+    erase_first = 0
+
+    insert_first = 1
+
+class CapacityPolicy:
+    """How a hypergraph's storage is sized and grows."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def initial_headroom(self) -> float: ...
+
+    @initial_headroom.setter
+    def initial_headroom(self, arg: float, /) -> None: ...
+
+    @property
+    def initial_slack(self) -> int: ...
+
+    @initial_slack.setter
+    def initial_slack(self, arg: int, /) -> None: ...
+
+    @property
+    def min_initial_payload(self) -> int: ...
+
+    @min_initial_payload.setter
+    def min_initial_payload(self, arg: int, /) -> None: ...
+
+    @property
+    def grow_factor(self) -> float: ...
+
+    @grow_factor.setter
+    def grow_factor(self, arg: float, /) -> None: ...
+
+    @property
+    def compact_before_grow(self) -> bool: ...
+
+    @compact_before_grow.setter
+    def compact_before_grow(self, arg: bool, /) -> None: ...
+
+    @property
+    def max_payload(self) -> int: ...
+
+    @max_payload.setter
+    def max_payload(self, arg: int, /) -> None: ...
+
+    @property
+    def row_alignment(self) -> int: ...
+
+    @row_alignment.setter
+    def row_alignment(self, arg: int, /) -> None: ...
+
+    @property
+    def compaction_headroom(self) -> int: ...
+
+    @compaction_headroom.setter
+    def compaction_headroom(self, arg: int, /) -> None: ...
+
+    @property
+    def exact_scratch(self) -> bool: ...
+
+    @exact_scratch.setter
+    def exact_scratch(self, arg: bool, /) -> None: ...
+
+    @staticmethod
+    def escher_gpu(min_initial_payload: int = 0) -> CapacityPolicy: ...
+
+    @staticmethod
+    def mosp_escher(extra: int = 1048576) -> CapacityPolicy: ...
+
+class HypergraphProperties:
+    """The properties of a hypergraph."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def storage(self) -> HypergraphStorage: ...
+
+    @storage.setter
+    def storage(self, arg: HypergraphStorage, /) -> None: ...
+
+    @property
+    def line_graph(self) -> LineGraphPolicy: ...
+
+    @line_graph.setter
+    def line_graph(self, arg: LineGraphPolicy, /) -> None: ...
+
+    @property
+    def reuse(self) -> IdReuse: ...
+
+    @reuse.setter
+    def reuse(self, arg: IdReuse, /) -> None: ...
+
+    @property
+    def capacity(self) -> CapacityPolicy: ...
+
+    @capacity.setter
+    def capacity(self, arg: CapacityPolicy, /) -> None: ...
+
+    @property
+    def store_v2h(self) -> bool: ...
+
+    @store_v2h.setter
+    def store_v2h(self, arg: bool, /) -> None: ...
+
+class HyperApplySummary:
+    """What applying a batch did."""
+
+    @property
+    def inserted_hyperedges(self) -> int: ...
+
+    @property
+    def deleted_hyperedges(self) -> int: ...
+
+    @property
+    def inserted_incidences(self) -> int: ...
+
+    @property
+    def deleted_incidences(self) -> int: ...
+
+    @property
+    def skipped_ops(self) -> int: ...
+
+    @property
+    def ignored_deletions(self) -> int: ...
+
+    @property
+    def dropped_members(self) -> int: ...
+
+    @property
+    def num_hyperedges_after(self) -> int: ...
+
+    @property
+    def id_bound_after(self) -> int: ...
+
+    @property
+    def inserted_ids(self) -> Annotated[NDArray[numpy.int64], dict(shape=(None,))]:
+        """The id of every inserted hyperedge (an int64 copy)."""
+
+class StoragePathCounters:
+    """Kernel paths of an op family."""
+
+    @property
+    def thread(self) -> int: ...
+
+    @property
+    def warp(self) -> int: ...
+
+    @property
+    def block(self) -> int: ...
+
+class StorageStats:
+    """The storage counters of a hypergraph."""
+
+    @property
+    def device_bytes(self) -> int: ...
+
+    @property
+    def view_bytes(self) -> int: ...
+
+    @property
+    def host_bytes(self) -> int: ...
+
+    @property
+    def payload_capacity(self) -> int: ...
+
+    @property
+    def payload_used(self) -> int: ...
+
+    @property
+    def growths(self) -> int: ...
+
+    @property
+    def compactions(self) -> int: ...
+
+    @property
+    def fill(self) -> StoragePathCounters: ...
+
+    @property
+    def reuse(self) -> StoragePathCounters: ...
+
+    @property
+    def unfill(self) -> StoragePathCounters: ...
+
+class HypergraphI32U:
+    """A dyng::hypergraph instantiation (private)."""
+
+    @staticmethod
+    def from_hyperedges(resources: Resources, num_vertices: int, offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, properties: HypergraphProperties) -> HypergraphI32U:
+        """Build a hypergraph from a CSR of member lists."""
+
+    @property
+    def num_vertices(self) -> int: ...
+
+    @property
+    def num_hyperedges(self) -> int: ...
+
+    @property
+    def hyperedge_id_bound(self) -> int: ...
+
+    @property
+    def version(self) -> int: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    @property
+    def properties(self) -> HypergraphProperties: ...
+
+    def h2v(self, resources: Resources) -> tuple:
+        """(row_ptr, col_ind, version): a host copy of hyperedge -> members."""
+
+    def v2h(self, resources: Resources) -> tuple:
+        """(row_ptr, col_ind, version): a host copy of vertex -> hyperedges."""
+
+    def h2h(self, resources: Resources) -> tuple:
+        """
+        (row_ptr, col_ind, out, version): a host copy of the line graph (hyperedge -> overlapping hyperedges).
+        """
+
+    def weights(self) -> object:
+        """
+        The weights by id (a host copy; 0 for a dead id), or None for an unweighted hypergraph.
+        """
+
+    def apply(self, resources: Resources, batch: HyperedgeBatchI32U) -> HyperApplySummary:
+        """Apply a batch to the hypergraph."""
+
+    def to_hyperedge_list(self, resources: Resources) -> tuple:
+        """
+        (num_vertices, offsets, members, weights or None): the live hyperedges in id order.
+        """
+
+    def clone(self, resources: Resources) -> HypergraphI32U:
+        """A deep copy for `resources`."""
+
+    def to_backend(self, resources: Resources) -> HypergraphI32U:
+        """The hypergraph for the backend of `resources`."""
+
+    def store_stats(self) -> StorageStats: ...
+
+    def check_integrity(self, resources: Resources) -> None: ...
+
+class HypergraphI32I32:
+    """A dyng::hypergraph instantiation (private)."""
+
+    @staticmethod
+    def from_hyperedges(resources: Resources, num_vertices: int, offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, properties: HypergraphProperties) -> HypergraphI32I32:
+        """Build a hypergraph from a CSR of member lists."""
+
+    @property
+    def num_vertices(self) -> int: ...
+
+    @property
+    def num_hyperedges(self) -> int: ...
+
+    @property
+    def hyperedge_id_bound(self) -> int: ...
+
+    @property
+    def version(self) -> int: ...
+
+    @property
+    def space(self) -> MemorySpace: ...
+
+    @property
+    def properties(self) -> HypergraphProperties: ...
+
+    def h2v(self, resources: Resources) -> tuple:
+        """(row_ptr, col_ind, version): a host copy of hyperedge -> members."""
+
+    def v2h(self, resources: Resources) -> tuple:
+        """(row_ptr, col_ind, version): a host copy of vertex -> hyperedges."""
+
+    def h2h(self, resources: Resources) -> tuple:
+        """
+        (row_ptr, col_ind, out, version): a host copy of the line graph (hyperedge -> overlapping hyperedges).
+        """
+
+    def weights(self) -> object:
+        """
+        The weights by id (a host copy; 0 for a dead id), or None for an unweighted hypergraph.
+        """
+
+    def apply(self, resources: Resources, batch: HyperedgeBatchI32I32) -> HyperApplySummary:
+        """Apply a batch to the hypergraph."""
+
+    def to_hyperedge_list(self, resources: Resources) -> tuple:
+        """
+        (num_vertices, offsets, members, weights or None): the live hyperedges in id order.
+        """
+
+    def clone(self, resources: Resources) -> HypergraphI32I32:
+        """A deep copy for `resources`."""
+
+    def to_backend(self, resources: Resources) -> HypergraphI32I32:
+        """The hypergraph for the backend of `resources`."""
+
+    def store_stats(self) -> StorageStats: ...
+
+    def check_integrity(self, resources: Resources) -> None: ...
+
 class EdgeBatchI32I32:
     """A batch of edge changes over arrays (private)."""
 
@@ -669,6 +991,28 @@ class EdgeBatchI32U:
 
     @property
     def num_weights(self) -> int: ...
+
+class HyperedgeBatchI32U:
+    """A batch of hypergraph changes over arrays (private)."""
+
+    def __init__(self, delete_hyperedges: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_incidence_hyperedge: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_incidence_vertex: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, insert_incidence_hyperedge: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, insert_incidence_vertex: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None) -> None: ...
+
+    @property
+    def num_insertions(self) -> int: ...
+
+    @property
+    def num_deletions(self) -> int: ...
+
+class HyperedgeBatchI32I32:
+    """A batch of hypergraph changes over arrays (private)."""
+
+    def __init__(self, delete_hyperedges: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], insert_weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_incidence_hyperedge: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, delete_incidence_vertex: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, insert_incidence_hyperedge: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, insert_incidence_vertex: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None) -> None: ...
+
+    @property
+    def num_insertions(self) -> int: ...
+
+    @property
+    def num_deletions(self) -> int: ...
 
 class SsspOptions:
     """sssp::options."""
@@ -1498,6 +1842,155 @@ class MatrixMarketOptions:
 
     def set_random(self, num_weights: int, min: int, max: int, seed: int) -> None: ...
 
+class VertexRelabel(enum.Enum):
+    """io::vertex_relabel."""
+
+    none = 0
+
+    dense_sorted = 1
+
+    first_appearance = 2
+
+class WeightSpec:
+    """io::weight_spec."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def lo(self) -> int: ...
+
+    @lo.setter
+    def lo(self, arg: int, /) -> None: ...
+
+    @property
+    def hi(self) -> int: ...
+
+    @hi.setter
+    def hi(self, arg: int, /) -> None: ...
+
+    @property
+    def seed(self) -> int: ...
+
+    @seed.setter
+    def seed(self, arg: int, /) -> None: ...
+
+    @property
+    def hsosp_target_draw(self) -> bool: ...
+
+    @hsosp_target_draw.setter
+    def hsosp_target_draw(self, arg: bool, /) -> None: ...
+
+class HypergraphReadOptions:
+    """io::hypergraph_read_options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def index_base(self) -> int: ...
+
+    @index_base.setter
+    def index_base(self, arg: int, /) -> None: ...
+
+    @property
+    def dedupe_hyperedges(self) -> bool: ...
+
+    @dedupe_hyperedges.setter
+    def dedupe_hyperedges(self, arg: bool, /) -> None: ...
+
+    @property
+    def max_cardinality(self) -> int: ...
+
+    @max_cardinality.setter
+    def max_cardinality(self, arg: int, /) -> None: ...
+
+    @property
+    def relabel(self) -> VertexRelabel: ...
+
+    @relabel.setter
+    def relabel(self, arg: VertexRelabel, /) -> None: ...
+
+    @property
+    def random_weights(self) -> WeightSpec | None: ...
+
+    @random_weights.setter
+    def random_weights(self, arg: WeightSpec | None, /) -> None: ...
+
+    @property
+    def num_vertices(self) -> int: ...
+
+    @num_vertices.setter
+    def num_vertices(self, arg: int, /) -> None: ...
+
+    @staticmethod
+    def escher_gpu() -> HypergraphReadOptions: ...
+
+    @staticmethod
+    def hsosp(seed: int = 20260725, max_cardinality: int = 25) -> HypergraphReadOptions: ...
+
+BATCH_FLAG_DELETED_MEMBERS: int = 1
+
+BATCH_FLAG_EXPECTED_IDS: int = 2
+
+BATCH_FLAG_INSERT_FIRST: int = 4
+
+def read_hypergraph_i32_u(path: str, options: HypergraphReadOptions) -> tuple:
+    """
+    ((num_vertices, offsets, members, weights or None), info) of a .hg file.
+    """
+
+def write_hypergraph_i32_u(path: str, num_vertices: int, offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, index_base: int) -> None: ...
+
+def read_hyperedge_batches_i32_u(path: str, num_vertices: int) -> list:
+    """
+    The hypergraph batches of a .dgt file, each as the tuple of hyper_batch_to_numpy().
+    """
+
+def write_hyperedge_batches_i32_u(path: str, batches: list) -> None:
+    """Write native hyperedge batches as a .dgt file."""
+
+def write_binary_hyperedge_batches_i32_u(path: str, batches: list, flags: int, deleted_offsets: list, deleted_members: list, expected_ids: list) -> None:
+    """Write native hyperedge batches (and their annotations) as a .dgb file."""
+
+def read_hypergraph_i32_i32(path: str, options: HypergraphReadOptions) -> tuple:
+    """
+    ((num_vertices, offsets, members, weights or None), info) of a .hg file.
+    """
+
+def write_hypergraph_i32_i32(path: str, num_vertices: int, offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, index_base: int) -> None: ...
+
+def read_hyperedge_batches_i32_i32(path: str, num_vertices: int) -> list:
+    """
+    The hypergraph batches of a .dgt file, each as the tuple of hyper_batch_to_numpy().
+    """
+
+def write_hyperedge_batches_i32_i32(path: str, batches: list) -> None:
+    """Write native hyperedge batches as a .dgt file."""
+
+def write_binary_hyperedge_batches_i32_i32(path: str, batches: list, flags: int, deleted_offsets: list, deleted_members: list, expected_ids: list) -> None:
+    """Write native hyperedge batches (and their annotations) as a .dgb file."""
+
+class BatchReader:
+    """io::batch_reader over a .dgb file (private)."""
+
+    def __init__(self, path: str, num_vertices: int) -> None: ...
+
+    @property
+    def header(self) -> dict: ...
+
+    def next(self) -> object:
+        """
+        The next record as (batch_id, batch tuple, deleted members or None, expected ids or None), or None at the end of the file.
+        """
+
+def write_binary_batches_i32_i32(path: str, num_weights: int, batches: list) -> None:
+    """Write native edge batches as a .dgb file."""
+
+def write_binary_batches_i64_i32(path: str, num_weights: int, batches: list) -> None:
+    """Write native edge batches as a .dgb file."""
+
+def write_binary_batches_i32_u(path: str, num_weights: int, batches: list) -> None:
+    """Write native edge batches as a .dgb file."""
+
 def read_edge_list_i32_i32(path: str, options: EdgeListOptions) -> tuple: ...
 
 def write_edge_list_i32_i32(path: str, num_vertices: int, src: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], dst: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], weights: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)] | None, num_weights: int) -> None: ...
@@ -1712,6 +2205,242 @@ def legacy_mosp_weights(count: int, min: int, max: int, seed: int) -> Annotated[
     MOSP's weight stream: `count` draws in [min, max] from std::mt19937(seed).
     """
 
+class HyperedgeBatchMix(enum.Enum):
+    """generators::hyperedge_batch_mix."""
+
+    insert_only = 0
+
+    delete_only = 1
+
+    mixed = 2
+
+    reuse = 3
+
+    heavy_delete = 4
+
+    delete_all = 5
+
+    reinsert = 6
+
+    larger = 7
+
+    duplicates = 8
+
+    dead_ids = 9
+
+    skewed = 10
+
+    limits = 11
+
+    empty = 12
+
+class UniformHypergraphOptions:
+    """generators::uniform_hypergraph_options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def num_vertices(self) -> int: ...
+
+    @num_vertices.setter
+    def num_vertices(self, arg: int, /) -> None: ...
+
+    @property
+    def num_hyperedges(self) -> int: ...
+
+    @num_hyperedges.setter
+    def num_hyperedges(self, arg: int, /) -> None: ...
+
+    @property
+    def min_cardinality(self) -> int: ...
+
+    @min_cardinality.setter
+    def min_cardinality(self, arg: int, /) -> None: ...
+
+    @property
+    def max_cardinality(self) -> int: ...
+
+    @max_cardinality.setter
+    def max_cardinality(self, arg: int, /) -> None: ...
+
+    @property
+    def min_weight(self) -> int: ...
+
+    @min_weight.setter
+    def min_weight(self, arg: int, /) -> None: ...
+
+    @property
+    def max_weight(self) -> int: ...
+
+    @max_weight.setter
+    def max_weight(self, arg: int, /) -> None: ...
+
+    @property
+    def seed(self) -> int: ...
+
+    @seed.setter
+    def seed(self, arg: int, /) -> None: ...
+
+class HyperedgeBatchOptions:
+    """generators::hyperedge_batch_options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def mix(self) -> HyperedgeBatchMix: ...
+
+    @mix.setter
+    def mix(self, arg: HyperedgeBatchMix, /) -> None: ...
+
+    @property
+    def size(self) -> int: ...
+
+    @size.setter
+    def size(self, arg: int, /) -> None: ...
+
+    @property
+    def min_cardinality(self) -> int: ...
+
+    @min_cardinality.setter
+    def min_cardinality(self, arg: int, /) -> None: ...
+
+    @property
+    def max_cardinality(self) -> int: ...
+
+    @max_cardinality.setter
+    def max_cardinality(self, arg: int, /) -> None: ...
+
+    @property
+    def skewed_cardinality(self) -> int: ...
+
+    @skewed_cardinality.setter
+    def skewed_cardinality(self, arg: int, /) -> None: ...
+
+    @property
+    def min_weight(self) -> int: ...
+
+    @min_weight.setter
+    def min_weight(self, arg: int, /) -> None: ...
+
+    @property
+    def max_weight(self) -> int: ...
+
+    @max_weight.setter
+    def max_weight(self, arg: int, /) -> None: ...
+
+    @property
+    def seed(self) -> int: ...
+
+    @seed.setter
+    def seed(self, arg: int, /) -> None: ...
+
+class Mt19937_64:
+    """std::mt19937_64 (the shared engine of ESCHER-GPU)."""
+
+    def __init__(self, seed: int) -> None: ...
+
+    def __call__(self) -> int: ...
+
+class EscherInsertMode(enum.Enum):
+    """generators::legacy::escher_insert_mode."""
+
+    random = 0
+
+    sample = 1
+
+class EscherHypergraphOptions:
+    """generators::legacy::escher_hypergraph_options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def num_hyperedges(self) -> int: ...
+
+    @num_hyperedges.setter
+    def num_hyperedges(self, arg: int, /) -> None: ...
+
+    @property
+    def max_cardinality(self) -> int: ...
+
+    @max_cardinality.setter
+    def max_cardinality(self, arg: int, /) -> None: ...
+
+    @property
+    def min_vertex(self) -> int: ...
+
+    @min_vertex.setter
+    def min_vertex(self, arg: int, /) -> None: ...
+
+    @property
+    def max_vertex(self) -> int: ...
+
+    @max_vertex.setter
+    def max_vertex(self, arg: int, /) -> None: ...
+
+class EscherBatchOptions:
+    """generators::legacy::escher_batch_options."""
+
+    def __init__(self) -> None: ...
+
+    @property
+    def num_deletions(self) -> int: ...
+
+    @num_deletions.setter
+    def num_deletions(self, arg: int, /) -> None: ...
+
+    @property
+    def num_insertions(self) -> int: ...
+
+    @num_insertions.setter
+    def num_insertions(self, arg: int, /) -> None: ...
+
+    @property
+    def insert_mode(self) -> EscherInsertMode: ...
+
+    @insert_mode.setter
+    def insert_mode(self, arg: EscherInsertMode, /) -> None: ...
+
+    @property
+    def graph(self) -> EscherHypergraphOptions: ...
+
+    @graph.setter
+    def graph(self, arg: EscherHypergraphOptions, /) -> None: ...
+
+    @staticmethod
+    def batch_size(size: int, mode: EscherInsertMode, graph: EscherHypergraphOptions) -> EscherBatchOptions: ...
+
+class EscherBatchGenerator:
+    """generators::legacy::escher_batch_generator (private)."""
+
+    def __init__(self, engine: Mt19937_64, options: EscherBatchOptions) -> None: ...
+
+    @overload
+    def next(self, resources: Resources, hypergraph: HypergraphI32U) -> tuple: ...
+
+    @overload
+    def next(self, resources: Resources, hypergraph: HypergraphI32I32) -> tuple: ...
+
+def standard_library_matches_legacy_streams() -> bool: ...
+
+def uniform_hypergraph_i32_u(options: UniformHypergraphOptions) -> tuple:
+    """(num_vertices, offsets, members, weights or None)."""
+
+@overload
+def random_hyperedge_batch(resources: Resources, hypergraph: HypergraphI32U, options: HyperedgeBatchOptions) -> tuple: ...
+
+@overload
+def random_hyperedge_batch(resources: Resources, hypergraph: HypergraphI32I32, options: HyperedgeBatchOptions) -> tuple:
+    """
+    (delete_hyperedges, insert_offsets, insert_members, insert_weights or None).
+    """
+
+def escher_hypergraph_i32_u(engine: Mt19937_64, options: EscherHypergraphOptions) -> tuple: ...
+
+def uniform_hypergraph_i32_i32(options: UniformHypergraphOptions) -> tuple:
+    """(num_vertices, offsets, members, weights or None)."""
+
+def escher_hypergraph_i32_i32(engine: Mt19937_64, options: EscherHypergraphOptions) -> tuple: ...
+
 @overload
 def mosp_changes(graph: GraphI32I32I32, options: MospChangeOptions) -> tuple: ...
 
@@ -1744,6 +2473,9 @@ def citation(what: str) -> str:
 
 def citation_keys(what: str) -> list[str]:
     """The references.bib keys citation(what) returns."""
+
+def testing_rebuild_line_graph(offsets: Annotated[NDArray[numpy.int64], dict(shape=(None,), order='C', device='cpu', writable=False)], members: Annotated[NDArray[numpy.int32], dict(shape=(None,), order='C', device='cpu', writable=False)], num_vertices: int) -> tuple:
+    """MOSP_ESCHER's rebuildLineGraph over h2v rows: (offsets, neighbours)."""
 
 class SsspTreeCheck:
     """testing::sssp_tree_check."""

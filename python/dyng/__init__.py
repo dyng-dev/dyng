@@ -3,8 +3,9 @@
 """dynG: dynamic graph and hypergraph algorithms that update their results under batches.
 
 A graph (:class:`Graph`) changes by batches of edge insertions and deletions
-(:class:`EdgeBatch`); each algorithm computes a result once (``compute``) and keeps it current
-batch by batch (``update``), faster than recomputing and with the same answer.
+(:class:`EdgeBatch`), a hypergraph (:class:`Hypergraph`) by batches of hyperedge deletions and
+insertions (:class:`HyperedgeBatch`); each algorithm computes a result once (``compute``) and
+keeps it current batch by batch (``update``), faster than recomputing and with the same answer.
 
 Quick start::
 
@@ -57,6 +58,18 @@ from .errors import (
     StaleResultError,
 )
 from .graph import CSR, ApplySummary, BatchSemantics, Graph, GraphProperties
+from .hypergraph import (
+    CapacityPolicy,
+    HyperApplySummary,
+    HyperedgeBatch,
+    HyperedgeList,
+    Hypergraph,
+    HypergraphProperties,
+    Incidence,
+    LineGraph,
+    StoragePathCounters,
+    StorageStats,
+)
 from .profiler import Profiler, StageRecord, StageSample, profile
 from .resources import Resources, get_default_resources, set_default_resources
 
@@ -88,6 +101,16 @@ __all__ = [
     "ApplySummary",
     "CSR",
     "EdgeBatch",
+    "Hypergraph",
+    "HypergraphProperties",
+    "CapacityPolicy",
+    "HyperedgeBatch",
+    "HyperApplySummary",
+    "HyperedgeList",
+    "Incidence",
+    "LineGraph",
+    "StorageStats",
+    "StoragePathCounters",
     "update",
     # algorithms
     "sssp",

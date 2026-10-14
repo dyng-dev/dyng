@@ -1,12 +1,15 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
-"""dyng.io: readers and writers of the 0.1 file formats (C++ ``dyng::io``).
+"""dyng.io: readers and writers of the file formats (C++ ``dyng::io``).
 
 Graphs: edge lists (``src dst [w1..wK] [ts]``, TUDataset ``*_A.txt``, SNAP), Matrix Market
-coordinate files, and MOSP's text CSR (``<prefix>{RowPtr,ColInd,Values}.txt``). Batches: MOSP's
-``insert.txt`` / ``delete.txt``. Results: MOSP's distance, tree and path-cost files and
-CycleEnumeration-GPU's histogram CSV. The writers produce the originals' bytes. Every reader
-validates its input and raises :class:`~dyng.FileFormatError` with ``.path`` and ``.line``.
+coordinate files, and MOSP's text CSR (``<prefix>{RowPtr,ColInd,Values}.txt``). Hypergraphs:
+``.hg`` files (one hyperedge per line), with the preprocessing of ESCHER-GPU and of H-SOSP as
+option sets. Batches: the text format ``.dgt`` (graph and hypergraph batches), the binary format
+``.dgb`` (with a streaming :class:`BatchReader`), and MOSP's ``insert.txt`` / ``delete.txt``.
+Results: MOSP's distance, tree and path-cost files and CycleEnumeration-GPU's histogram CSV.
+The writers produce the originals' bytes. Every reader validates its input and raises
+:class:`~dyng.FileFormatError` with ``.path`` and ``.line`` (and ``.column`` where known).
 The formats are specified in the documentation, "File formats".
 
 Readers of graphs return a :class:`dyng.Graph` (the ``*_arrays`` variants return the arrays);
@@ -15,8 +18,9 @@ the vertex id type is int32 unless ``vertex_dtype="int64"`` is given.
 
 from __future__ import annotations
 
+import dataclasses
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import IO, Any, Literal
 
@@ -27,8 +31,17 @@ from ._backend import native
 from ._convert import as_bool, as_int, enum_member
 from .array import Array
 from .batch import EdgeBatch
-from .errors import InvalidArgumentError
+from .errors import InvalidArgumentError, NotSupportedError
 from .graph import BatchSemantics, Graph, GraphProperties, make_properties
+from .hypergraph import (
+    CapacityPolicy,
+    HyperedgeBatch,
+    HyperedgeList,
+    Hypergraph,
+    HypergraphProperties,
+    _csr_of_lists,
+    make_hypergraph_properties,
+)
 from .resources import Resources, resolve
 
 __all__ = [
@@ -53,6 +66,21 @@ __all__ = [
     "write_path_costs",
     "histogram_csv",
     "write_histogram_csv",
+    # hypergraphs (0.3)
+    "WeightSpec",
+    "HypergraphReadOptions",
+    "HypergraphFileInfo",
+    "read_hypergraph",
+    "read_hypergraph_arrays",
+    "write_hypergraph",
+    "read_hyperedge_batches",
+    "write_hyperedge_batches",
+    # binary batches (.dgb, 0.3)
+    "BatchFileHeader",
+    "BinaryBatchRecord",
+    "BatchReader",
+    "read_binary_batches",
+    "write_binary_batches",
 ]
 
 PathLike = str | os.PathLike[str]
@@ -663,3 +691,652 @@ def write_histogram_csv(
         os.makedirs(parent, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(text)
+
+
+# -------------------------------------------------------------------------------------------------
+# Hypergraphs (.hg) and hypergraph batches (.dgt)
+# -------------------------------------------------------------------------------------------------
+
+
+@dataclass
+class WeightSpec:
+    """Seeded random hyperedge weights (C++ ``io::weight_spec``): one weight per kept hyperedge,
+    in file order, uniform in [lo, hi], from one ``std::mt19937_64(seed)`` with libstdc++'s
+    uniform-integer algorithm (reproduced by the library, so the same with any standard library).
+
+    Attributes:
+        lo: Smallest weight (>= 1).
+        hi: Largest weight (>= lo, <= 2^31 - 1).
+        seed: The engine's seed.
+        hsosp_target_draw: Draw (and discard) one vertex before the weights, as MOSP_ESCHER's
+            loader does for the target vertex of its virtual target hyperedge.
+    """
+
+    lo: int = 1
+    hi: int = 100
+    seed: int = 1
+    hsosp_target_draw: bool = False
+
+    @classmethod
+    def _from_native(cls, w: Any) -> WeightSpec:
+        return cls(int(w.lo), int(w.hi), int(w.seed), bool(w.hsosp_target_draw))
+
+    def _to_native(self) -> Any:
+        w = native.WeightSpec()
+        w.lo = as_int(self.lo, "WeightSpec.lo")
+        w.hi = as_int(self.hi, "WeightSpec.hi")
+        w.seed = as_int(self.seed, "WeightSpec.seed")
+        w.hsosp_target_draw = as_bool(self.hsosp_target_draw, "WeightSpec.hsosp_target_draw")
+        return w
+
+
+@dataclass
+class HypergraphReadOptions:
+    """Options of :func:`read_hypergraph` (C++ ``io::hypergraph_read_options``).
+
+    Every line's ids are sorted and repeated ids dropped; then, in file order, hyperedges above
+    ``max_cardinality`` are dropped, repeated hyperedges are dropped if ``dedupe_hyperedges``,
+    and the ids of the kept ones are relabelled. :meth:`escher_gpu` and :meth:`hsosp` are the
+    two originals' option sets.
+
+    Attributes:
+        index_base: ``relabel="none"`` only: subtracted from every id (1: ids 1..n, the
+            originals' convention; 0: ids 0..n-1).
+        dedupe_hyperedges: Keep only the first hyperedge of every distinct member set.
+        max_cardinality: Drop hyperedges with more distinct members; -1: no limit.
+        relabel: ``"none"`` (the id minus ``index_base``), ``"dense_sorted"`` (the distinct ids
+            numbered in ascending order) or ``"first_appearance"`` (in order of first appearance,
+            H-SOSP's).
+        random_weights: Draw the weights (a weighted read) instead of reading ``; w``.
+        num_vertices: ``relabel="none"`` only: the vertex count; -1: the largest id + 1.
+    """
+
+    index_base: int = 1
+    dedupe_hyperedges: bool = False
+    max_cardinality: int = -1
+    relabel: Literal["none", "dense_sorted", "first_appearance"] = "none"
+    random_weights: WeightSpec | None = None
+    num_vertices: int = -1
+
+    @classmethod
+    def escher_gpu(cls) -> HypergraphReadOptions:
+        """ESCHER-GPU@abcf9b2's loader: ids 1..n kept (vertex v becomes v - 1), every line a
+        hyperedge, no cardinality limit, no weights."""
+        return cls._from_native(native.HypergraphReadOptions.escher_gpu())
+
+    @classmethod
+    def hsosp(cls, seed: int = 20260725, max_cardinality: int = 25) -> HypergraphReadOptions:
+        """MOSP_ESCHER@4b86159's H-SOSP loader (``hsospBench --hg``): hyperedges of at most
+        ``max_cardinality`` vertices, vertices by first appearance, weights U[1, 100] from
+        ``std::mt19937_64(seed)`` after its target draw."""
+        return cls._from_native(
+            native.HypergraphReadOptions.hsosp(
+                as_int(seed, "hsosp: seed"), as_int(max_cardinality, "hsosp: max_cardinality")
+            )
+        )
+
+    @classmethod
+    def _from_native(cls, o: Any) -> HypergraphReadOptions:
+        w = o.random_weights
+        return cls(
+            index_base=int(o.index_base),
+            dedupe_hyperedges=bool(o.dedupe_hyperedges),
+            max_cardinality=int(o.max_cardinality),
+            relabel=o.relabel.name,
+            random_weights=None if w is None else WeightSpec._from_native(w),
+            num_vertices=int(o.num_vertices),
+        )
+
+    def _to_native(self) -> Any:
+        o = native.HypergraphReadOptions()
+        o.index_base = as_int(self.index_base, "HypergraphReadOptions.index_base")
+        o.dedupe_hyperedges = as_bool(
+            self.dedupe_hyperedges, "HypergraphReadOptions.dedupe_hyperedges"
+        )
+        o.max_cardinality = as_int(self.max_cardinality, "HypergraphReadOptions.max_cardinality")
+        o.relabel = enum_member(native.VertexRelabel, self.relabel, "relabel")
+        o.random_weights = None if self.random_weights is None else self.random_weights._to_native()
+        o.num_vertices = as_int(self.num_vertices, "HypergraphReadOptions.num_vertices")
+        return o
+
+
+@dataclass(frozen=True)
+class HypergraphFileInfo:
+    """What :func:`read_hypergraph_arrays` found besides the hyperedges.
+
+    Attributes:
+        external_ids: ``relabel="dense_sorted"`` / ``"first_appearance"``: the id in the file of
+            vertex i (empty for ``"none"``).
+        lines: Hyperedge lines of the file.
+        repeated_members: Ids dropped because they repeat within a line.
+        over_cardinality: Hyperedges dropped by ``max_cardinality``.
+        repeated_hyperedges: Hyperedges dropped by ``dedupe_hyperedges``.
+    """
+
+    external_ids: np.ndarray
+    lines: int
+    repeated_members: int
+    over_cardinality: int
+    repeated_hyperedges: int
+
+
+def _weight_spec(value: Any) -> WeightSpec:
+    if isinstance(value, WeightSpec):
+        return value
+    if isinstance(value, (tuple, list)) and len(value) == 3:
+        return WeightSpec(
+            as_int(value[0], "random_weights: lo"),
+            as_int(value[1], "random_weights: hi"),
+            as_int(value[2], "random_weights: seed"),
+        )
+    raise InvalidArgumentError("random_weights must be (lo, hi, seed) or a dyng.io.WeightSpec")
+
+
+def _read_options(
+    options: HypergraphReadOptions | Literal["escher_gpu", "hsosp"] | None,
+    *,
+    index_base: int | None,
+    dedupe_hyperedges: bool | None,
+    max_cardinality: int | None,
+    relabel: str | None,
+    random_weights: Any,
+    num_vertices: int | None,
+) -> HypergraphReadOptions:
+    if options is None:
+        opt = HypergraphReadOptions()
+    elif options == "escher_gpu":
+        opt = HypergraphReadOptions.escher_gpu()
+    elif options == "hsosp":
+        opt = HypergraphReadOptions.hsosp()
+    elif isinstance(options, HypergraphReadOptions):
+        opt = dataclasses.replace(options)
+    else:
+        raise InvalidArgumentError(
+            f"options: {options!r} is not 'escher_gpu', 'hsosp' or a dyng.io.HypergraphReadOptions"
+        )
+    if index_base is not None:
+        opt.index_base = as_int(index_base, "index_base")
+    if dedupe_hyperedges is not None:
+        opt.dedupe_hyperedges = as_bool(dedupe_hyperedges, "dedupe_hyperedges")
+    if max_cardinality is not None:
+        opt.max_cardinality = as_int(max_cardinality, "max_cardinality")
+    if relabel is not None:
+        opt.relabel = relabel  # type: ignore[assignment]
+    if random_weights is not None:
+        opt.random_weights = _weight_spec(random_weights)
+    if num_vertices is not None:
+        opt.num_vertices = as_int(num_vertices, "num_vertices")
+    return opt
+
+
+def read_hypergraph_arrays(
+    path: PathLike,
+    *,
+    options: HypergraphReadOptions | Literal["escher_gpu", "hsosp"] | None = None,
+    index_base: int | None = None,
+    dedupe_hyperedges: bool | None = None,
+    max_cardinality: int | None = None,
+    relabel: Literal["none", "dense_sorted", "first_appearance"] | None = None,
+    random_weights: tuple[int, int, int] | WeightSpec | None = None,
+    num_vertices: int | None = None,
+    weighted: bool | None = None,
+) -> tuple[HyperedgeList, HypergraphFileInfo]:
+    """Read a ``.hg`` file into arrays (see :func:`read_hypergraph` for the arguments).
+
+    Returns:
+        The hyperedges (int32 members) and what the reader found besides them.
+    """
+    opt = _read_options(
+        options,
+        index_base=index_base,
+        dedupe_hyperedges=dedupe_hyperedges,
+        max_cardinality=max_cardinality,
+        relabel=relabel,
+        random_weights=random_weights,
+        num_vertices=num_vertices,
+    )
+    if weighted is None:
+        weighted = opt.random_weights is not None
+    weighted = as_bool(weighted, "read_hypergraph: weighted")
+    reader = native.read_hypergraph_i32_i32 if weighted else native.read_hypergraph_i32_u
+    (n, offsets, members, weights), info = reader(_path(path), opt._to_native())
+    return HyperedgeList(int(n), offsets, members, weights), HypergraphFileInfo(
+        external_ids=info["external_ids"],
+        lines=int(info["lines"]),
+        repeated_members=int(info["repeated_members"]),
+        over_cardinality=int(info["over_cardinality"]),
+        repeated_hyperedges=int(info["repeated_hyperedges"]),
+    )
+
+
+def read_hypergraph(
+    path: PathLike,
+    *,
+    options: HypergraphReadOptions | Literal["escher_gpu", "hsosp"] | None = None,
+    index_base: int | None = None,
+    dedupe_hyperedges: bool | None = None,
+    max_cardinality: int | None = None,
+    relabel: Literal["none", "dense_sorted", "first_appearance"] | None = None,
+    random_weights: tuple[int, int, int] | WeightSpec | None = None,
+    num_vertices: int | None = None,
+    weighted: bool | None = None,
+    properties: HypergraphProperties | None = None,
+    storage: Literal["escher", "slack_csr"] | None = None,
+    line_graph: Literal["none", "automatic", "sorted_merge", "slack_csr"] | None = None,
+    id_reuse: Literal["erase_first", "insert_first"] | None = None,
+    capacity: CapacityPolicy | Literal["default", "escher_gpu", "mosp_escher"] | None = None,
+    store_v2h: bool | None = None,
+    resources: Resources | None = None,
+) -> Hypergraph:
+    """Read a ``.hg`` hypergraph file (one hyperedge per line) into a :class:`dyng.Hypergraph`.
+
+    A line lists the hyperedge's vertex ids (decimal integers separated by spaces, tabs or
+    commas); a weighted file ends every line with ``; w``. Blank lines are skipped, a line
+    starting with ``#`` or ``%`` is a comment. The format is specified in
+    :doc:`/api/file_formats`. Hyperedge i of the hypergraph is the i-th kept line.
+
+    Args:
+        path: The file.
+        options: ``"escher_gpu"`` (ESCHER-GPU's loader), ``"hsosp"`` (H-SOSP's, with its default
+            seed and limit) or a :class:`HypergraphReadOptions`; the keywords below override
+            its fields. Default: :class:`HypergraphReadOptions` (``escher_gpu``'s settings).
+        index_base: See :class:`HypergraphReadOptions`.
+        dedupe_hyperedges: See :class:`HypergraphReadOptions`.
+        max_cardinality: See :class:`HypergraphReadOptions`.
+        relabel: See :class:`HypergraphReadOptions`.
+        random_weights: ``(lo, hi, seed)`` or a :class:`WeightSpec`: draw one weight per
+            hyperedge (a weighted hypergraph).
+        num_vertices: See :class:`HypergraphReadOptions`.
+        weighted: Read ``; w`` from every line (default: weighted when ``random_weights`` is
+            given).
+        properties: The hypergraph's properties; the keywords below override its fields.
+        storage: :attr:`dyng.HypergraphProperties.storage`.
+        line_graph: :attr:`dyng.HypergraphProperties.line_graph`.
+        id_reuse: :attr:`dyng.HypergraphProperties.reuse`.
+        capacity: A :class:`dyng.CapacityPolicy` or a preset name.
+        store_v2h: :attr:`dyng.HypergraphProperties.store_v2h`.
+        resources: The resources the hypergraph belongs to.
+
+    Raises:
+        FileFormatError: the file is missing or malformed (with ``.path``, ``.line`` and
+            ``.column``).
+
+    Example:
+        >>> import dyng, tempfile, os
+        >>> path = os.path.join(tempfile.mkdtemp(), "h.hg")
+        >>> with open(path, "w") as f:
+        ...     _ = f.write("1 2 3\\n2 4\\n")
+        >>> h = dyng.io.read_hypergraph(path, line_graph="sorted_merge")
+        >>> h.num_hyperedges, h.num_vertices
+        (2, 4)
+    """
+    lst, _info = read_hypergraph_arrays(
+        path,
+        options=options,
+        index_base=index_base,
+        dedupe_hyperedges=dedupe_hyperedges,
+        max_cardinality=max_cardinality,
+        relabel=relabel,
+        random_weights=random_weights,
+        num_vertices=num_vertices,
+        weighted=weighted,
+    )
+    props = make_hypergraph_properties(
+        properties,
+        storage=storage,
+        line_graph=line_graph,
+        id_reuse=id_reuse,
+        capacity=capacity,
+        store_v2h=store_v2h,
+    )
+    return Hypergraph._from_list(tuple(lst), props, resolve(resources))
+
+
+def write_hypergraph(
+    path: PathLike, hyperedges: Hypergraph | HyperedgeList, *, index_base: int = 1
+) -> None:
+    """Write hyperedges as a ``.hg`` file (read back by :func:`read_hypergraph` with the same
+    ``index_base``): one line per hyperedge, its members plus ``index_base``, then ``; w`` for a
+    weighted list. A :class:`dyng.Hypergraph` writes its live hyperedges in id order."""
+    if isinstance(hyperedges, Hypergraph):
+        hyperedges = hyperedges.to_hyperedge_list()
+    if not isinstance(hyperedges, HyperedgeList):
+        raise TypeError("write_hypergraph: give a dyng.Hypergraph or a dyng.HyperedgeList")
+    members = _dtypes.checked_cast(
+        _dtypes.to_numpy(hyperedges.members, "write_hypergraph: members"),
+        _dtypes.INT32,
+        "write_hypergraph: members",
+    )
+    offsets = _dtypes.checked_cast(
+        _dtypes.to_numpy(hyperedges.offsets, "write_hypergraph: offsets"),
+        _dtypes.INT64,
+        "write_hypergraph: offsets",
+    )
+    w = hyperedges.weights
+    writer = native.write_hypergraph_i32_u
+    if w is not None:
+        w = _dtypes.checked_cast(_dtypes.to_numpy(w, "weights"), _dtypes.INT32, "weights")
+        writer = native.write_hypergraph_i32_i32
+    writer(
+        _path(path),
+        as_int(hyperedges.num_vertices, "num_vertices"),
+        offsets,
+        members,
+        w,
+        as_int(index_base, "write_hypergraph: index_base"),
+    )
+
+
+def read_hyperedge_batches(
+    path: PathLike, *, num_vertices: int = -1, weighted: bool = False
+) -> list[HyperedgeBatch]:
+    """Read the hypergraph batches of a ``.dgt`` batch text file, in file order.
+
+    Hyperedge operations: ``+h v1 v2 .. [; w]`` (insert a hyperedge; ``; w`` for a weighted
+    read) and ``-h id`` (delete the hyperedge with that id). ``%batch <id>`` starts a batch,
+    ``%dgt 1 hypergraph`` may name the kind; graph operations (``+e``, ``-e``) are an error here,
+    and the incidence edits ``+i`` / ``-i`` are planned for 0.4.
+
+    Args:
+        path: The file.
+        num_vertices: Members must be < num_vertices (-1: only ids >= 0 are checked).
+        weighted: Every insertion carries ``; w``.
+
+    Raises:
+        FileFormatError: the file is missing or malformed.
+    """
+    reader = (
+        native.read_hyperedge_batches_i32_i32
+        if as_bool(weighted, "read_hyperedge_batches: weighted")
+        else native.read_hyperedge_batches_i32_u
+    )
+    parts = reader(_path(path), as_int(num_vertices, "read_hyperedge_batches: num_vertices"))
+    return [HyperedgeBatch._from_arrays(p) for p in parts]
+
+
+def _hyper_batches(batches: Iterable[HyperedgeBatch], what: str) -> tuple[list[Any], bool]:
+    """The native batches of ``batches`` (all weighted, or all unweighted)."""
+    items = list(batches)
+    for i, b in enumerate(items):
+        if not isinstance(b, HyperedgeBatch):
+            raise TypeError(f"{what}: item {i} is not a dyng.HyperedgeBatch")
+    weighted = {b.insert_weights is not None for b in items if b.num_insertions > 0}
+    if len(weighted) > 1:
+        raise InvalidArgumentError(f"{what}: some batches carry weights and others do not")
+    w = bool(weighted and weighted.pop())
+    return [b._native_for(w) for b in items], w
+
+
+def write_hyperedge_batches(path: PathLike, batches: Iterable[HyperedgeBatch]) -> None:
+    """Write hypergraph batches as a ``.dgt`` batch text file (read back by
+    :func:`read_hyperedge_batches`): ``%dgt 1 hypergraph``, then per batch ``%batch <i>``, its
+    deletions (``-h id``) and its insertions (``+h v1 .. vk`` and `` ; w`` if weighted)."""
+    natives, weighted = _hyper_batches(batches, "write_hyperedge_batches")
+    writer = (
+        native.write_hyperedge_batches_i32_i32 if weighted else native.write_hyperedge_batches_i32_u
+    )
+    writer(_path(path), natives)
+
+
+# -------------------------------------------------------------------------------------------------
+# Binary batches (.dgb)
+# -------------------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BatchFileHeader:
+    """The header of a ``.dgb`` file (C++ ``io::batch_file_header``).
+
+    Attributes:
+        format_version: The ``.dgb`` format version (1).
+        kind: ``"graph"`` or ``"hypergraph"``.
+        vertex_type: ``"int32"`` or ``"int64"``.
+        weight_type: ``"none"``, ``"int32"`` or ``"int64"``.
+        num_weights: Weights per insertion (K for graphs, 0 or 1 for hypergraphs).
+        flags: The flags (``deleted_members`` 1, ``expected_ids`` 2, ``insert_first`` 4).
+        num_batches: Batch records in the file.
+    """
+
+    format_version: int
+    kind: str
+    vertex_type: str
+    weight_type: str
+    num_weights: int
+    flags: int
+    num_batches: int
+
+    @property
+    def deleted_members(self) -> bool:
+        """Every deletion carries the member set it deleted (replay by content)."""
+        return bool(self.flags & int(native.BATCH_FLAG_DELETED_MEMBERS))
+
+    @property
+    def expected_ids(self) -> bool:
+        """Every insertion carries the id the generating run gave it (replay by key)."""
+        return bool(self.flags & int(native.BATCH_FLAG_EXPECTED_IDS))
+
+    @property
+    def insert_first(self) -> bool:
+        """The batches were generated under ``id_reuse="insert_first"``."""
+        return bool(self.flags & int(native.BATCH_FLAG_INSERT_FIRST))
+
+
+@dataclass(frozen=True)
+class BinaryBatchRecord:
+    """One batch of a ``.dgb`` file with its annotations.
+
+    Attributes:
+        batch_id: The record's batch id (0, 1, ... from the library's writers).
+        batch: A :class:`dyng.EdgeBatch` (graph files) or :class:`dyng.HyperedgeBatch`.
+        deleted_members: Hypergraph files with the flag ``deleted_members``: the member set of
+            every deleted hyperedge, as ``(offsets, members)`` (int64, int32); else None.
+        expected_ids: Hypergraph files with the flag ``expected_ids``: the id the generating
+            run gave every insertion (int64); else None.
+    """
+
+    batch_id: int
+    batch: EdgeBatch | HyperedgeBatch
+    deleted_members: tuple[np.ndarray, np.ndarray] | None
+    expected_ids: np.ndarray | None
+
+
+class BatchReader:
+    """Reads a ``.dgb`` binary batch file one batch at a time, in bounded memory.
+
+    Iterating yields :class:`BinaryBatchRecord` objects. Every record is checked (its length
+    against the rest of the file before anything is allocated, its CRC32, its contents) and a
+    malformed file raises :class:`~dyng.FileFormatError` with the byte offset of the record.
+    The batches are host objects (the C++ reader can also stage them to the device for CUDA
+    callers).
+
+    Args:
+        path: The file.
+        num_vertices: Vertex ids must be < num_vertices (-1: only ids >= 0 are checked).
+
+    Example:
+        >>> import dyng, tempfile, os
+        >>> path = os.path.join(tempfile.mkdtemp(), "b.dgb")
+        >>> dyng.io.write_binary_batches(path, [dyng.HyperedgeBatch(insert_hyperedges=[[0, 1]])])
+        >>> [(r.batch_id, r.batch.num_insertions) for r in dyng.io.BatchReader(path)]
+        [(0, 1)]
+    """
+
+    __slots__ = ("_native", "_header")
+
+    def __init__(self, path: PathLike, *, num_vertices: int = -1) -> None:
+        self._native = native.BatchReader(
+            _path(path), as_int(num_vertices, "BatchReader: num_vertices")
+        )
+        h = self._native.header
+        self._header = BatchFileHeader(
+            format_version=int(h["format_version"]),
+            kind=str(h["kind"]),
+            vertex_type=str(h["vertex_type"]),
+            weight_type=str(h["weight_type"]),
+            num_weights=int(h["num_weights"]),
+            flags=int(h["flags"]),
+            num_batches=int(h["num_batches"]),
+        )
+
+    @property
+    def header(self) -> BatchFileHeader:
+        """The file's header."""
+        return self._header
+
+    def __iter__(self) -> BatchReader:
+        return self
+
+    def __next__(self) -> BinaryBatchRecord:
+        rec = self._native.next()
+        if rec is None:
+            raise StopIteration
+        batch_id, parts, members, ids = rec
+        batch: EdgeBatch | HyperedgeBatch
+        if self._header.kind == "hypergraph":
+            batch = HyperedgeBatch._from_arrays(parts)
+        else:
+            ins_src, ins_dst, w, del_src, del_dst, k = parts
+            batch = EdgeBatch._from_arrays(
+                (ins_src, ins_dst, None if k == 0 else w, del_src, del_dst, k)
+            )
+        return BinaryBatchRecord(
+            batch_id=int(batch_id),
+            batch=batch,
+            deleted_members=None if members is None else (members[0], members[1]),
+            expected_ids=ids,
+        )
+
+    def __enter__(self) -> BatchReader:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._native = None
+
+
+def read_binary_batches(
+    path: PathLike, *, num_vertices: int = -1
+) -> list[EdgeBatch] | list[HyperedgeBatch]:
+    """Read every batch of a ``.dgb`` file (graph or hypergraph batches, by its header).
+
+    Use :class:`BatchReader` to stream a large file or to read the annotations.
+
+    Raises:
+        FileFormatError: the file is missing or malformed.
+    """
+    return [r.batch for r in BatchReader(path, num_vertices=num_vertices)]  # type: ignore[return-value]
+
+
+def write_binary_batches(
+    path: PathLike,
+    batches: Iterable[EdgeBatch] | Iterable[HyperedgeBatch],
+    *,
+    deleted_members: Sequence[Sequence[Any]] | None = None,
+    expected_ids: Sequence[Any] | None = None,
+    insert_first: bool = False,
+    vertex_dtype: Any = None,
+) -> None:
+    """Write graph or hypergraph batches as a ``.dgb`` binary batch file (format version 1:
+    magic ``DYNGBAT1``, a versioned header, length-prefixed records with CRC32; specified in
+    :doc:`/api/file_formats`).
+
+    Args:
+        path: The file (parent directories are created).
+        batches: :class:`dyng.EdgeBatch` objects (one K for all) or :class:`dyng.HyperedgeBatch`
+            objects (all weighted or all unweighted), not mixed.
+        deleted_members: Hypergraph batches: per batch, the member set (a list of vertex ids) of
+            every deleted hyperedge; sets the flag ``deleted_members``.
+        expected_ids: Hypergraph batches: per batch, the id of every insertion in the generating
+            run; sets the flag ``expected_ids``.
+        insert_first: Hypergraph batches: the flag ``insert_first`` (the expected ids hold under
+            ``id_reuse="insert_first"``).
+        vertex_dtype: Graph batches: ``"int32"`` or ``"int64"`` (default: int32 when every id
+            fits).
+    """
+    items = list(batches)
+    if items and all(isinstance(b, HyperedgeBatch) for b in items):
+        _write_binary_hyperedge_batches(path, items, deleted_members, expected_ids, insert_first)
+        return
+    if deleted_members is not None or expected_ids is not None or insert_first:
+        raise InvalidArgumentError(
+            "write_binary_batches: deleted_members, expected_ids and insert_first are for "
+            "hypergraph batches"
+        )
+    for i, b in enumerate(items):
+        if not isinstance(b, EdgeBatch):
+            raise TypeError(
+                f"write_binary_batches: item {i} is not a dyng.EdgeBatch (batches of one kind)"
+            )
+    edge_batches: list[EdgeBatch] = items  # type: ignore[assignment]
+    if vertex_dtype is not None:
+        vertex = _dtypes.id_dtype(vertex_dtype, "write_binary_batches: vertex_dtype")
+    else:  # the file's id type: int32 when every id fits (the batches' arrays may be int64)
+        ids = [
+            a
+            for b in edge_batches
+            for a in (b.insert_src, b.insert_dst, b.delete_src, b.delete_dst)
+            if a.size
+        ]
+        fits = all(int(a.max()) <= 2**31 - 1 and int(a.min()) >= -(2**31) for a in ids)
+        vertex = _dtypes.INT32 if fits else _dtypes.INT64
+    ks = {b.num_weights for b in edge_batches if b.num_insertions > 0}
+    if len(ks) > 1:
+        raise InvalidArgumentError(
+            f"write_binary_batches: the batches have different K {sorted(ks)}"
+        )
+    k = ks.pop() if ks else 0
+    weighted = k > 0
+    if vertex == _dtypes.INT64 and not weighted:
+        raise NotSupportedError(
+            "write_binary_batches: unweighted graph batches with int64 ids are not bound "
+            "(int32 ids, or weighted batches)"
+        )
+    gtype = _dtypes.GraphType(
+        vertex, vertex if vertex == _dtypes.INT64 else _dtypes.INT32, weighted
+    )
+    natives = [b._native_for_type(gtype, k) for b in edge_batches]
+    writer = getattr(
+        native,
+        f"write_binary_batches_{'i32' if vertex == _dtypes.INT32 else 'i64'}_"
+        f"{'i32' if weighted else 'u'}",
+    )
+    writer(_path(path), k, natives)
+
+
+def _write_binary_hyperedge_batches(
+    path: PathLike,
+    items: list[Any],
+    deleted_members: Sequence[Sequence[Any]] | None,
+    expected_ids: Sequence[Any] | None,
+    insert_first: bool,
+) -> None:
+    natives, weighted = _hyper_batches(items, "write_binary_batches")
+    flags = 0
+    offsets_list: list[np.ndarray] = []
+    members_list: list[np.ndarray] = []
+    ids_list: list[np.ndarray] = []
+    if deleted_members is not None:
+        flags |= int(native.BATCH_FLAG_DELETED_MEMBERS)
+        if len(deleted_members) != len(items):
+            raise InvalidArgumentError("write_binary_batches: one deleted_members list per batch")
+        for i, sets in enumerate(deleted_members):
+            o, m = _csr_of_lists(sets, f"write_binary_batches: deleted_members[{i}]")
+            offsets_list.append(o)
+            members_list.append(_dtypes.checked_cast(m, _dtypes.INT32, "deleted_members"))
+    if expected_ids is not None:
+        flags |= int(native.BATCH_FLAG_EXPECTED_IDS)
+        if len(expected_ids) != len(items):
+            raise InvalidArgumentError("write_binary_batches: one expected_ids array per batch")
+        for ids in expected_ids:
+            ids_list.append(
+                _dtypes.checked_cast(
+                    _dtypes.to_numpy(ids, "expected_ids"), _dtypes.INT64, "expected_ids"
+                )
+            )
+    if as_bool(insert_first, "write_binary_batches: insert_first"):
+        flags |= int(native.BATCH_FLAG_INSERT_FIRST)
+    writer = (
+        native.write_binary_hyperedge_batches_i32_i32
+        if weighted
+        else native.write_binary_hyperedge_batches_i32_u
+    )
+    writer(_path(path), natives, flags, offsets_list, members_list, ids_list)

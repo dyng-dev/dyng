@@ -3,7 +3,8 @@
 """dyng.testing: oracles to check results (C++ ``dyng::testing``) and Hypothesis strategies.
 
 The native oracles (:func:`dijkstra`, :func:`check_sssp_tree`, :func:`simple_cycles`,
-:func:`combined_graph`, :func:`mosp_path_costs`) share no code with the algorithms they check.
+:func:`combined_graph`, :func:`mosp_path_costs`, :func:`rebuild_line_graph`) share no code with
+the algorithms and containers they check.
 :mod:`dyng.testing.oracles` holds small pure-Python oracles (Dijkstra with lowest-id ties, a
 brute-force cycle count and a model of batch semantics), and
 :mod:`dyng.testing.strategies` Hypothesis strategies for random graphs and batches (it needs the
@@ -28,6 +29,7 @@ from .. import _dtypes
 from .._backend import native
 from .._convert import as_bool, as_int
 from ..graph import CSR, Graph
+from ..hypergraph import Hypergraph, LineGraph
 from ..sssp import Result as SsspResult
 from ..sssp import _check_graph
 
@@ -38,6 +40,7 @@ __all__ = [
     "simple_cycles",
     "combined_graph",
     "mosp_path_costs",
+    "rebuild_line_graph",
 ]
 
 
@@ -166,3 +169,27 @@ def mosp_path_costs(
         as_int(num_objectives, "mosp_path_costs: num_objectives"),
     )
     return out
+
+
+def rebuild_line_graph(hypergraph: Hypergraph) -> LineGraph:
+    """The line graph of a hypergraph rebuilt from its h2v rows by MOSP_ESCHER@4b86159's
+    HypergraphOracle algorithm (C++ ``testing::rebuild_line_graph``): the oracle of
+    :meth:`dyng.Hypergraph.h2h`. It shares no code with the container.
+
+    Returns:
+        The rows by id (``out`` is computed here: the first neighbour above the row's id).
+    """
+    if not isinstance(hypergraph, Hypergraph):
+        raise TypeError("rebuild_line_graph: hypergraph must be a dyng.Hypergraph")
+    h2v = hypergraph.h2v()
+    offsets, neighbours = native.testing_rebuild_line_graph(
+        np.ascontiguousarray(h2v.row_ptr, dtype=np.int64),
+        np.ascontiguousarray(h2v.col_ind, dtype=np.int32),
+        hypergraph.num_vertices,
+    )
+    rows = np.arange(offsets.size - 1, dtype=np.int64)
+    out = np.empty(rows.size, dtype=np.int64)
+    for r in rows:
+        lo, hi = int(offsets[r]), int(offsets[r + 1])
+        out[r] = lo + int(np.searchsorted(neighbours[lo:hi], r, side="right"))
+    return LineGraph(offsets, neighbours, out, h2v.version)

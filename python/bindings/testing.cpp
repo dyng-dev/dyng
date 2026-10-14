@@ -3,14 +3,15 @@
 /**
  * @file testing.cpp
  * @brief dyng::testing: the host oracles (Dijkstra with lowest-id ties, the sssp tree check, the
- *        simple-cycle oracles and the mosp references), which share no code with the algorithms
- *        they check.
+ *        simple-cycle oracles, the mosp references and the line-graph oracle of hypergraphs), which
+ *        share no code with the algorithms they check.
  */
 #include "types.hpp"
 
 #include <dyng/testing/check_sssp.hpp>
 #include <dyng/testing/cycle_oracle.hpp>
 #include <dyng/testing/dijkstra.hpp>
+#include <dyng/testing/line_graph_oracle.hpp>
 #include <dyng/testing/mosp_oracle.hpp>
 
 #include <nanobind/stl/string.h>
@@ -115,6 +116,22 @@ void bind_combined_graph(nb::module_& m) {
 }  // namespace
 
 void bind_testing(nb::module_& m) {
+  m.def(
+      "testing_rebuild_line_graph",
+      [](const in_array<std::int64_t>& offsets, const in_array<std::int32_t>& members,
+         std::int64_t num_vertices) {
+        DYNG_EXPECTS(num_vertices >= 0 && num_vertices <= std::numeric_limits<std::int32_t>::max(),
+                     "rebuild_line_graph: num_vertices ", num_vertices, " does not fit int32");
+        std::vector<std::int64_t> o(offsets.data(), offsets.data() + offsets.shape(0));
+        std::vector<std::int32_t> mem(members.data(), members.data() + members.shape(0));
+        auto rows = without_gil([&] {
+          return testing::rebuild_line_graph(o, mem, static_cast<std::int32_t>(num_vertices));
+        });
+        return nb::make_tuple(to_numpy(std::move(rows.offsets)),
+                              to_numpy(std::move(rows.neighbours)));
+      },
+      nb::arg("offsets").noconvert(), nb::arg("members").noconvert(), nb::arg("num_vertices"),
+      "MOSP_ESCHER's rebuildLineGraph over h2v rows: (offsets, neighbours).");
   nb::class_<testing::sssp_tree_check>(m, "SsspTreeCheck", "testing::sssp_tree_check.")
       .def_ro("distance_mismatches", &testing::sssp_tree_check::distance_mismatches)
       .def_ro("inconsistent_parents", &testing::sssp_tree_check::inconsistent_parents)
