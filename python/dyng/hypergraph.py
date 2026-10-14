@@ -827,8 +827,11 @@ class Hypergraph:
 
     @property
     def hyperedge_id_bound(self) -> int:
-        """Live ids lie in [0, bound); dead ids may exist below it. The bound can go down: an
-        insert that appends new rows drops the deleted slots it did not reuse."""
+        """The bound of the hyperedge ids.
+
+        Live ids lie in [0, bound) and dead ids may exist below it. The bound can go down after a
+        batch whose insertions append new rows, which drops the deleted slots it did not reuse.
+        """
         return int(self._native.hyperedge_id_bound)
 
     @property
@@ -838,7 +841,7 @@ class Hypergraph:
 
     @property
     def space(self) -> str:
-        """Where the storage lives: ``"host"`` or ``"device"``."""
+        """The memory space of the storage, ``"host"`` or ``"device"``."""
         return enum_name(self._native.space)
 
     @property

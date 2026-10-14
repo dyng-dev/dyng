@@ -195,9 +195,7 @@ def frozen_group_rules(compounds: dict[str, ET.Element], problems: list[str]) ->
             if m.get("kind") != "function":
                 continue
             args = text_of(m.find("argsstring"))
-            if args.replace(" ", "").endswith("=delete") or text_of(m.find("name")).startswith(
-                "~"
-            ):
+            if args.replace(" ", "").endswith("=delete") or text_of(m.find("name")).startswith("~"):
                 continue
             throws = [
                 text_of(n)
@@ -209,7 +207,9 @@ def frozen_group_rules(compounds: dict[str, ET.Element], problems: list[str]) ->
                 problems.append(f"{where[1]}: {mname} documents no @throws (and is not noexcept)")
             titles = {text_of(t) for t in m.iter("title")}
             if any("cuda_error" in t for t in throws) and "Synchronization:" not in titles:
-                problems.append(f"{where[1]}: {mname} may run device work but has no @sync / @async")
+                problems.append(
+                    f"{where[1]}: {mname} may run device work but has no @sync / @async"
+                )
 
 
 def main(argv: list[str]) -> int:

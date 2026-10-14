@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from . import legacy
 from .hypergraphs import (
-    HyperedgeBatchMix,
+    HyperedgeBatchMixName,
     random_hyperedge_batch,
     uniform_hypergraph,
     uniform_hypergraph_arrays,
@@ -20,7 +20,7 @@ from .hypergraphs import (
 
 __all__ = [
     "legacy",
-    "HyperedgeBatchMix",
+    "HyperedgeBatchMixName",
     "uniform_hypergraph",
     "uniform_hypergraph_arrays",
     "random_hyperedge_batch",

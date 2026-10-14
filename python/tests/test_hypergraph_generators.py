@@ -10,7 +10,7 @@ import dyng
 import numpy as np
 import pytest
 from conftest import host_backends  # noqa: E402
-from dyng.generators.hypergraphs import HyperedgeBatchMix
+from dyng.generators.hypergraphs import HyperedgeBatchMixName
 
 hypothesis = pytest.importorskip("hypothesis")
 st = hypothesis.strategies
@@ -37,7 +37,7 @@ def test_uniform_hypergraph_is_seeded() -> None:
     assert w.weights is not None and set(w.weights.tolist()) <= {3, 4}
 
 
-@pytest.mark.parametrize("mix", list(typing.get_args(HyperedgeBatchMix)))
+@pytest.mark.parametrize("mix", list(typing.get_args(HyperedgeBatchMixName)))
 def test_every_mix_applies(mix: str) -> None:
     h = dyng.generators.uniform_hypergraph(
         num_vertices=1200, num_hyperedges=30, max_cardinality=4, seed=3, line_graph="sorted_merge"

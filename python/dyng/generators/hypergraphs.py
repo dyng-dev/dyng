@@ -25,13 +25,13 @@ from ..hypergraph import (
 from ..resources import Resources, resolve
 
 __all__ = [
-    "HyperedgeBatchMix",
+    "HyperedgeBatchMixName",
     "uniform_hypergraph",
     "uniform_hypergraph_arrays",
     "random_hyperedge_batch",
 ]
 
-HyperedgeBatchMix = Literal[
+HyperedgeBatchMixName = Literal[
     "insert_only",
     "delete_only",
     "mixed",
@@ -149,7 +149,7 @@ def uniform_hypergraph(
 def random_hyperedge_batch(
     hypergraph: Hypergraph,
     *,
-    mix: HyperedgeBatchMix = "mixed",
+    mix: HyperedgeBatchMixName = "mixed",
     size: int = -1,
     min_cardinality: int = 1,
     max_cardinality: int = 4,
@@ -167,7 +167,7 @@ def random_hyperedge_batch(
 
     Args:
         hypergraph: The hypergraph.
-        mix: The kind of batch (:data:`HyperedgeBatchMix`).
+        mix: The kind of batch (:data:`HyperedgeBatchMixName`).
         size: k of the mix (-1: max(1, live hyperedges / 10)).
         min_cardinality: Fresh hyperedges' smallest cardinality.
         max_cardinality: Fresh hyperedges' largest cardinality.

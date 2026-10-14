@@ -217,11 +217,7 @@ def memory(args: argparse.Namespace) -> int:
     loaded = rep.get("hg_hyperedges", 0)
     print(f"  loaded through read_hypergraph({hg.name}, escher_gpu()): {loaded} hyperedges")
     passed = (
-        bool(table)
-        and worst <= 1.05
-        and prints_agree
-        and rep["mismatch_count"] == 0
-        and loaded > 0
+        bool(table) and worst <= 1.05 and prints_agree and rep["mismatch_count"] == 0 and loaded > 0
     )
     if args.json:
         doc = {

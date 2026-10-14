@@ -13,7 +13,9 @@ Example:
 
 A hypergraph's batches name its current ids, which depend on the ids earlier batches got, so
 :func:`hyperedge_batches` draws from the state of a :class:`~dyng.testing.oracles.HypergraphModel`
-(use ``st.data()`` and draw one batch per step)::
+(use ``st.data()`` and draw one batch per step):
+
+.. code-block:: python
 
     @given(dst.hypergraphs(), st.data())
     def test_ids(h, data):
