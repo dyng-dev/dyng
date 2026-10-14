@@ -129,7 +129,7 @@ start (zero padding after an array of 4-byte values):
 | Kind | Counts | Arrays, in this order |
 |---|---|---|
 | graph | batch id, deletions d, insertions i | deletion sources [d], deletion destinations [d], insertion sources [i], insertion destinations [i] (vertex type), weights [i x K] (weight type, insertion-major; absent for K = 0) |
-| hypergraph | batch id, deletions d, insertions i, members m, deleted members q (0 without `deleted_members`) | deleted ids [d] (int64), insertion offsets [i + 1] (int64, from 0, strictly increasing, ending at m), members [m] (vertex type), weights [i] (weight type; absent for unweighted); with `deleted_members`: deleted-member offsets [d + 1] (int64) and deleted members [q] (vertex type); with `expected_ids`: expected ids [i] (int64) |
+| hypergraph | batch id, deletions d, insertions i, members m, deleted members q (0 without `deleted_members`; a reader rejects a non-zero q without the flag) | deleted ids [d] (int64), insertion offsets [i + 1] (int64, from 0, strictly increasing, ending at m), members [m] (vertex type), weights [i] (weight type; absent for unweighted); with `deleted_members`: deleted-member offsets [d + 1] (int64, from 0, strictly increasing, ending at q: every deleted member set is non-empty) and deleted members [q] (vertex type); with `expected_ids`: expected ids [i] (int64) |
 
 The payload length equals what its counts imply. The batch ids are non-negative and strictly
 increasing (the writers number 0, 1, ...); the number of records equals the header's count, and
@@ -156,7 +156,10 @@ its flags need, `close()` writes the count), `batch_reader` (`header()`, `next()
 `edge_batch<V, W>()`, `hyperedge_batch<V, W>()`, `annotations<V>()`), and
 `write_binary_batches` / `read_binary_batches` / `write_binary_hyperedge_batches` /
 `read_binary_hyperedge_batches` for whole files. `.dgt` and `.dgb` hold the same batches:
-converting either way and back gives the same batches. `tools/compat/escher`
+converting either way and back gives the same batches, with one limit: a `.dgb` file holds at
+most K = 64 weights per insertion, while `.dgt` has no limit on K, so a graph batch with more
+weights per insertion has no `.dgb` form (`write_binary_batches` raises
+`invalid_argument_error`). `tools/compat/escher`
 (`dyng-compat-escher to-dgb`) writes ESCHER-GPU's batch dumps as `.hg` + `.dgb` files with
 `deleted_members` and `expected_ids`. Python (`dyng.io`): `write_binary_batches(path, batches,
 *, deleted_members, expected_ids, insert_first)` (graph or hypergraph batches, the flags from the
