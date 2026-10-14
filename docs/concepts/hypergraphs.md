@@ -47,9 +47,10 @@ batch's deletions and insertions reach the store, a property of the hypergraph:
   were already dead before the batch can be reused.
 
 **A worked example.** Three hyperedges `{0, 1, 2, 3}` (id 0), `{4}` (id 1) and `{5, 6}` (id 2)
-under `capacity_policy::escher_gpu()`; a row of `k` members takes a slot of `k + 1` entries
-rounded up to a multiple of 4, so id 0 has a slot of 8 and ids 1 and 2 slots of 4 (room for 3
-members). One batch deletes id 1 and inserts `{7, 8}`:
+under `capacity_policy::escher_gpu()`; at construction a row of `k` members takes a slot of
+`k + 1` entries rounded up to a multiple of 4 (always; `row_alignment` does not set it), so id 0
+has a slot of 8 and ids 1 and 2 slots of 4 (room for 3 members). A surplus row inserted later by
+a batch reserves its members rounded up to a multiple of `row_alignment`, plus one slot. One batch deletes id 1 and inserts `{7, 8}`:
 
 | `id_reuse` | what the store sees | the id of `{7, 8}` |
 |---|---|---|

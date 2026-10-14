@@ -68,7 +68,8 @@ class CapacityPolicy:
         grow_factor: Growth of a full payload (1.5), or 0: never grow.
         compact_before_grow: Compact a full payload before growing it.
         max_payload: Largest payload per tree (0: 2^31 - 1, the int32 offsets of the store).
-        row_alignment: An inserted row takes a multiple of this, plus a terminator.
+        row_alignment: A surplus row inserted by a batch reserves its members rounded up to a
+            multiple of this, plus one slot (construction always pads to multiples of 4).
         compaction_headroom: After a compaction, grow while fewer than capacity /
             compaction_headroom entries are free (0: never).
         exact_scratch: Operation buffers sized exactly (ESCHER-GPU) or grown geometrically.

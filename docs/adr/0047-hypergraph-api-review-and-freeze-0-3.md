@@ -136,6 +136,12 @@ access M9 and M11 are allowed (`cpp/src`, internal-stable):
 Independent reviewers checked the frozen headers' semantics against the code before the pull
 request; each amendment below keeps the decisions above and corrects what the freeze records.
 
+- **Finding 3, `capacity_policy::row_alignment`.** The reworded comment ("its members plus one
+  slot, rounded up to a multiple of this", `ceil((n + 1) / a) * a`) contradicted the allocator
+  (`aligned(n, a) + 1`, ADR 0041 rule 2: `ceil(n / a) * a + 1`; 5 slots, not 8, for n = a = 4),
+  and the Python docstring still said "terminator". Both now say: a surplus row inserted by a
+  batch reserves its members rounded up to a multiple of this, plus one slot; the concepts page
+  says that its worked example is the construction layout, which `row_alignment` does not set.
 - **Finding 5, `skipped_ops`.** The field was documented as `ignored_deletions +
   dropped_members`, which left no room for the incidence-edit skips that M11 must count (B's
   `skippedOps` parity, check C9), so "M11 adds behaviour, not declarations" did not hold. The
