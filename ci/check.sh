@@ -184,8 +184,10 @@ if ! skipped tidy; then
     # include directory stands in for them. libstdc++ 12's get_temporary_buffer is deprecated
     # for clang (not for GCC); that diagnostic is not ours.
     gcc_include="$("${CXX:-g++}" -print-file-name=include)"
-    # cpp/src/algorithms/_template is not compiled (scripts/new_algorithm.py instantiates it).
-    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' | heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
+    # The templates cpp/src/algorithms/_template and _template_hypergraph are not compiled
+    # (scripts/new_algorithm.py instantiates them).
+    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' \
+      ':!:cpp/src/algorithms/_template_hypergraph/*' | heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
       -p "${tidy_db}" --quiet --checks='-*,readability-identifier-naming' --warnings-as-errors='*' \
       "--extra-arg=-isystem${gcc_include}" --extra-arg=-Wno-deprecated-declarations; then
       echo "clang-tidy: OK"

@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The algorithm_template manifest (PLAN Section 4.8) of a hypergraph algorithm. scripts/regen.py
+# reads it (the algorithm tables, the CODEOWNERS block and the registries; `python3
+# scripts/regen.py` after an edit); CMake does not. For a hypergraph algorithm,
+# `graph_requirements` names what it needs of the hypergraph (ADR 0043): line_graph ("required",
+# "any"), store_v2h ("required", "any"), reuse ("any", "erase_first", "insert_first") and storage
+# ("any", "escher").
+# scaffolded by scripts/new_algorithm.py: `--remove` deletes the algorithm only while this line is here
+name        = "algorithm_template"
+title       = "{{title}}"
+computes    = "{{computes}}"
+paper       = "-"
+since       = "{{since}}"
+family      = "{{family}}"
+container   = "hypergraph"
+tier        = "framework"
+maturity    = "experimental"
+backends    = [{{backends}}]
+determinism = "exact_value"
+oracle      = "compute"
+graph_requirements = { line_graph = "any", store_v2h = "any", reuse = "any", storage = "any" }
+cite        = []
+maintainers = ["{{maintainer}}"]

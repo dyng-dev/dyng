@@ -166,11 +166,50 @@ def test_a_planned_algorithm_leaves_the_planned_list(tmp_path: Path) -> None:
     assert regen.main(["--check", "--root", str(root)]) == 0
 
 
-def test_cuda_and_hypergraph_scaffolds_are_refused(tmp_path: Path) -> None:
+def test_cuda_scaffolds_are_refused(tmp_path: Path) -> None:
     root = _copy(tmp_path)
     base = ["x_algo", "--family", "aggregate_delta", "--root", str(root)]
     assert new_algorithm.main([*base, "--backends", "seq,cuda"]) == 2
-    assert new_algorithm.main([*base, "--container", "hypergraph"]) == 2
+    assert new_algorithm.main([*base, "--container", "hypergraph", "--backends", "seq,cuda"]) == 2
+
+
+@pytest.mark.parametrize("family", ["fixed_point", "aggregate_delta"])
+def test_a_hypergraph_scaffold_round_trip(tmp_path: Path, family: str) -> None:
+    root = _copy(tmp_path)
+    before = _snapshot(root)
+    args = ["hyper_probe", "--container", "hypergraph", "--family", family, "--backends", "seq,omp"]
+    assert new_algorithm.main([*args, "--root", str(root)]) == 0
+    assert regen.main(["--check", "--root", str(root)]) == 0
+    manifest = (root / "cpp/src/algorithms/hyper_probe/manifest.toml").read_text()
+    assert 'container   = "hypergraph"' in manifest
+    header = (root / "cpp/include/dyng/hyper_probe.hpp").read_text()
+    assert "hypergraph<vertex_t, weight_t>" in header and "algorithm_template" not in header
+    assert "@@" not in (root / "cpp/src/algorithms/hyper_probe/problem.hpp").read_text()
+    traits = (root / "cpp/tests/algorithms/hyper_probe/hyper_probe_traits.hpp").read_text()
+    assert "using container_types" in traits
+    registry = (root / "cpp/src/core/registry_table.inc").read_text()
+    assert "container_kind::hypergraph" in registry
+    assert new_algorithm.main(["hyper_probe", "--remove", "--root", str(root)]) == 0
+    assert _snapshot(root) == before
+
+
+def test_hypergraph_requirements_are_checked(tmp_path: Path) -> None:
+    root = _copy(tmp_path)
+    args = ["hyper_probe", "--container", "hypergraph", "--family", "aggregate_delta"]
+    assert new_algorithm.main([*args, "--root", str(root)]) == 0
+    manifest = root / "cpp/src/algorithms/hyper_probe/manifest.toml"
+    manifest.write_text(
+        manifest.read_text().replace('line_graph = "any"', 'line_graph = "sometimes"')
+        .replace('storage = "any"', 'row_order = "sorted"')
+    )
+    try:
+        regen.load(root)
+    except regen.ManifestError as e:
+        message = str(e)
+    else:
+        raise AssertionError("invalid hypergraph requirements were accepted")
+    assert "`graph_requirements.line_graph` is `sometimes`" in message
+    assert "`graph_requirements.row_order` is not a hypergraph requirement" in message
 
 
 def test_long_names_get_valid_codeowners_lines(tmp_path: Path) -> None:
