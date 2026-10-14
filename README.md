@@ -258,7 +258,7 @@ exclusive perf lock (`parity/README.md`). The committed records are the
 ## Using the library from C++
 
 ```cmake
-find_package(dyng 0.2 REQUIRED)
+find_package(dyng 0.3 REQUIRED)
 target_link_libraries(my_app PRIVATE dyng::dyng)
 ```
 
