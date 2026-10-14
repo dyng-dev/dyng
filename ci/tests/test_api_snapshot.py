@@ -276,8 +276,12 @@ def test_the_hypergraph_detail_contract_is_read_from_the_source() -> None:
         "const hyper_apply_summary& summary, const hyper_applied& applied) = 0;" in participant
     )
     assert "[[nodiscard]] virtual bool reads_prepared_graph() const noexcept;" in participant
-    assert any(line.startswith("template <typename vertex_t, typename weight_t> "
-                               "hyper_apply_summary run_update(") for line in lines)
+    assert any(
+        line.startswith(
+            "template <typename vertex_t, typename weight_t> hyper_apply_summary run_update("
+        )
+        for line in lines
+    )
     changed = source.replace(
         "const hyper_apply_summary& summary, const hyper_applied& applied) = 0;",
         "const hyper_applied& applied) = 0;",

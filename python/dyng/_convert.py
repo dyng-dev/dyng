@@ -14,7 +14,6 @@ import numpy as np
 
 from .errors import InvalidArgumentError
 
-
 INT64_MIN = -(2**63)
 INT64_MAX = 2**63 - 1
 UINT64_MAX = 2**64 - 1

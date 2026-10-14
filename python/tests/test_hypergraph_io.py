@@ -234,7 +234,11 @@ def test_one_dgb_reader_shared_by_two_threads(tmp_path: Path) -> None:
         got: list[int] = []
         errors: list[BaseException] = []
 
-        def drain(r: dyng.io.BatchReader = reader) -> None:
+        def drain(
+            r: dyng.io.BatchReader = reader,
+            got: list[int] = got,
+            errors: list[BaseException] = errors,
+        ) -> None:
             try:
                 for rec in r:
                     assert rec.batch.num_insertions == 20

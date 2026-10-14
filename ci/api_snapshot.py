@@ -287,7 +287,8 @@ def detail_contract(source: str) -> list[str]:
             head = squash(tpl.group(0)) + " " if tpl else ""
             items.append((m.start(), f"{head}struct {name} {{ {' '.join(parts)} }}"))
         traits = "|".join(DETAIL_TRAITS)
-        for m in re.finditer(rf"struct\s+({traits})\b\s*(<[^{{;]*>)?\s*:\s*([^{{;]*)\{{\s*\}}\s*;", body):
+        trait_pattern = rf"struct\s+({traits})\b\s*(<[^{{;]*>)?\s*:\s*([^{{;]*)\{{\s*\}}\s*;"
+        for m in re.finditer(trait_pattern, body):
             tpl = re.search(r"template\s*<[^;{}]*>\s*$", body[: m.start()])
             head = squash(tpl.group(0)) + " " if tpl else ""
             name = m.group(1) + (squash(m.group(2)) if m.group(2) else "")
