@@ -62,6 +62,11 @@ struct report {
   /// (dynG store_stats().device_bytes, the original's recorded device bytes) after the build and
   /// every batch (A: DynamicHypergraph::deviceBytes(), which also counts H2H; B: none).
   std::vector<std::pair<std::int64_t, std::int64_t>> device_bytes;
+  /// A's accounting of the same scope as the container's (after the build and every batch): its
+  /// H2V and V2H trees' deviceBytes() (the trees' op records) plus its H2V row view
+  /// (RowLocator::deviceBytes(), (numHyperedgeKeys + 1) x 3 ints); -1 where the trace has no
+  /// per-tree bytes. A's DynamicHypergraph::deviceBytes() adds its H2H tree and view (M8b step 2).
+  std::vector<std::int64_t> original_store_bytes;
   std::int64_t h2v_capacity_trace = 0, h2v_capacity_dyng = 0;
   /// The kernel paths of the (by-id) container at the end: fill, reuse, unfill x (thread, warp,
   /// block), from store_stats() (criterion 12).

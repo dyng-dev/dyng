@@ -12,10 +12,12 @@
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/error.hpp>
+#include <dyng/core/profiler.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -437,6 +439,33 @@ TEST_P(HypergraphBackends, StoreStats) {
   }
   (void)h.v2h();
   EXPECT_GT(h.store_stats().view_bytes, 0);
+}
+
+// The profiler stages of parity/timed_regions/hypergraph.toml (PLAN 4.7.5).
+TEST_P(HypergraphBackends, ProfilerStages) {
+  dyng::profiler prof;
+  resources r = res();
+  r.attach_profiler(&prof);
+  hgraph h = hgraph::from_hyperedges(r, list_of(5, rows{{0, 1}, {2}}).view(),
+                                     props_of(id_reuse::erase_first));
+  dyng::hyperedge_batch<std::int32_t, unweighted> b;
+  b.delete_hyperedge(0);
+  b.insert_hyperedge({3, 4});
+  (void)h.apply(r, b.view());
+  r.attach_profiler(nullptr);
+  std::vector<std::string> names;
+  for (const auto& st : prof.stages()) names.push_back(st.name);
+  const auto has = [&](const std::string& n) {
+    return std::find(names.begin(), names.end(), n) != names.end();
+  };
+  for (const char* n : {"hypergraph.build", "hypergraph.apply", "hypergraph.apply.delete",
+                        "hypergraph.apply.insert"}) {
+    EXPECT_TRUE(has(n)) << n;
+  }
+  if (GetParam() == backend::cuda) {
+    EXPECT_TRUE(has("hypergraph.upload"));
+    EXPECT_TRUE(has("hypergraph.apply.views"));
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(Backends, HypergraphBackends,

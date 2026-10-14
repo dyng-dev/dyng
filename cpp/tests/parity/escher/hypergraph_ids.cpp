@@ -150,6 +150,13 @@ class escher_gpu_replay {
   void on(const tr::record& rec) {
     if (rec.kind == tr::record_kind::tree) {
       capacity_[rec.text("dataset_name")] = rec.integer("payload_capacity");
+      tree_name_[static_cast<std::uint32_t>(rec.integer("tree"))] = rec.text("dataset_name");
+      return;
+    }
+    if (rec.kind == tr::record_kind::op) {
+      // ESCHER-GPU's deviceBytes() of the tree after the operation (its op records).
+      const std::string& name = tree_name_[static_cast<std::uint32_t>(rec.integer("tree"))];
+      if (rec.has("after.device_bytes")) tree_bytes_[name] = rec.integer("after.device_bytes");
       return;
     }
     if (rec.kind != tr::record_kind::batch) return;
@@ -198,6 +205,7 @@ class escher_gpu_replay {
                       " is not the trace's " + std::to_string(traced));
       rep_.device_bytes.emplace_back(by_id_->store_stats().device_bytes,
                                      rec.integer("device_bytes", -1));
+      rep_.original_store_bytes.push_back(original_store_bytes(rec));
       check(*by_id_, "build");
     }
     if (opt_.mode != "by_id") {
@@ -206,6 +214,15 @@ class escher_gpu_replay {
         index_[model_[id]].insert(static_cast<std::int64_t>(id));
       content_ids_in_sync_ = true;
     }
+  }
+
+  // A's bytes in the container's scope: the H2V and V2H trees and the H2V row view (its
+  // RowLocator over keys 0..numHyperedgeKeys, 3 ints per key).
+  std::int64_t original_store_bytes(const tr::record& rec) const {
+    const auto h = tree_bytes_.find("H2V"), v = tree_bytes_.find("V2H");
+    if (h == tree_bytes_.end() || v == tree_bytes_.end() || !rec.has("num_hyperedge_keys"))
+      return -1;
+    return h->second + v->second + (rec.integer("num_hyperedge_keys") + 1) * 3 * 4;
   }
 
   void check(const hypergraph<std::int32_t, unweighted>& h, const std::string& where) {
@@ -257,6 +274,7 @@ class escher_gpu_replay {
       }
       rep_.device_bytes.emplace_back(by_id_->store_stats().device_bytes,
                                      rec.integer("device_bytes", -1));
+      rep_.original_store_bytes.push_back(original_store_bytes(rec));
       check(*by_id_, where);
     }
     if (by_content_) content_update(tb, want_ids, where);
@@ -336,6 +354,8 @@ class escher_gpu_replay {
   report& rep_;
   recorder out_;
   std::map<std::string, std::int64_t> capacity_;
+  std::map<std::uint32_t, std::string> tree_name_;
+  std::map<std::string, std::int64_t> tree_bytes_;
   hypergraph_properties props_;
   std::int32_t n_ = 0;
   rows model_;
@@ -628,6 +648,9 @@ std::string report::to_json() const {
      << ", \"device_bytes\": [";
   for (std::size_t i = 0; i < device_bytes.size(); ++i)
     os << (i ? ", " : "") << "[" << device_bytes[i].first << ", " << device_bytes[i].second << "]";
+  os << "], \"original_store_bytes\": [";
+  for (std::size_t i = 0; i < original_store_bytes.size(); ++i)
+    os << (i ? ", " : "") << original_store_bytes[i];
   os << "], \"mismatch_count\": " << mismatch_count << ", \"mismatches\": [";
   for (std::size_t i = 0; i < mismatches.size(); ++i)
     os << (i ? ", " : "") << json_string(mismatches[i]);
