@@ -83,6 +83,35 @@ Before 0.1.0 anything may change.
   hypergraph: they reproduce its `make test`, coauth-DBLP and synthetic 1M hypergraphs and batches)
   and `standard_library_matches_legacy_streams()`. The conformance kit's hypergraph mixes come
   from these generators.
+- M8b (api-change): **the hypergraph headers frozen** (ADR 0047; the pull request needs the
+  `api-change` label): every declaration of `dyng/hypergraph/*.hpp` is part of the frozen API
+  baseline after the hypergraph API review (`io/hypergraph_io.hpp`, `io/batch_io.hpp`,
+  `generators/*` and `testing/*` stay tracked); a removal or change now fails `ci/docs.sh` and
+  `ci/api_check.sh` without the label. Stable from 0.3.0 by the plan's default, which awaits the
+  author's confirmation at the release. The review added `hyperedge_batch::
+  delete_incidence_hyperedge()`, `delete_incidence_vertex()`, `insert_incidence_hyperedge()` and
+  `insert_incidence_vertex()` (the owning batch reports its incidence edits) and declared
+  `hyperedge_batch`'s default constructor `noexcept`; `ci/doxygen_coverage.py` holds the frozen
+  hypergraph headers to the group, `@throws` and `@sync` / `@async` rules; compile-only fitness
+  skeletons (`cpp/tests/api/fitness`) pin what M9 and M11 need.
+- M8b: **the hypergraph in Python** (ADR 0046): `dyng.Hypergraph` (`from_hyperedges(offsets,
+  members, ...)`, `from_lists([[...], ...])`, `apply()`, `h2v()`, `v2h()`, `h2h()` as host copies,
+  `weights`, `to_hyperedge_list()`, `clone()`, `to_backend()`, `store_stats()`,
+  `check_integrity()`), `dyng.HyperedgeBatch(delete_hyperedges=..., insert_hyperedges=...)`,
+  `dyng.HypergraphProperties` and `dyng.CapacityPolicy` (the C++ names and defaults; the presets
+  `escher_gpu()` / `mosp_escher()`; `id_reuse=`, `capacity=` and the enumerations as strings),
+  `dyng.HyperApplySummary` (`inserted_ids` an int64 array), `dyng.StorageStats`;
+  `dyng.io.read_hypergraph()` (`options="escher_gpu" | "hsosp"`, `dedupe_hyperedges`,
+  `max_cardinality`, `relabel`, `random_weights=(lo, hi, seed)` and the property keywords) and
+  `write_hypergraph()`, `read_hyperedge_batches()` / `write_hyperedge_batches()` (`.dgt`),
+  `write_binary_batches()`, `read_binary_batches()` and the streaming `BatchReader` (`.dgb`, graph
+  and hypergraph batches with their annotations); `dyng.generators.uniform_hypergraph()` and
+  `random_hyperedge_batch()`, `dyng.generators.legacy.EscherEngine`, `escher_hypergraph()` and
+  `EscherBatchGenerator`; `dyng.testing.rebuild_line_graph()`,
+  `dyng.testing.oracles.HypergraphModel` and the Hypothesis strategies `hypergraphs()` /
+  `hyperedge_batches()`. int64 member arrays are never narrowed silently (`vertex_dtype="int32"`
+  converts them with a range check); every native call releases the GIL. `dyng.update()` over
+  hypergraphs arrives with `triad_count` (M9; `python_gaps.md`).
 - M8a (internal, not public API): **the ESCHER CBST store** (`cpp/src/hypergraph/escher`,
   `dyng::detail::escher::cbst_store`, ADR 0038), the port of ESCHER-GPU@abcf9b2's store in the new
   module `dyng_hypergraph`: construct, rebuild from the device, best-fit insert with surplus rows
