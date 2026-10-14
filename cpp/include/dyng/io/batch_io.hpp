@@ -479,8 +479,9 @@ void write_binary_batches(const std::string& path,
  * @param[in] path    The file.
  * @param[in] options The vertex count used for validation.
  * @return The batches in file order.
- * @throws io_error               if the file is missing or malformed.
- * @throws invalid_argument_error if the file holds hypergraph batches or other types.
+ * @throws io_error               if the file is missing or malformed, or holds hypergraph
+ *                                batches (read_binary_hyperedge_batches() reads them).
+ * @throws invalid_argument_error if the file holds other vertex or weight types.
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */
@@ -512,8 +513,9 @@ void write_binary_hyperedge_batches(
  * @param[in] path    The file.
  * @param[in] options The vertex count used for validation.
  * @return The batches in file order.
- * @throws io_error               if the file is missing or malformed.
- * @throws invalid_argument_error if the file holds graph batches or other types.
+ * @throws io_error               if the file is missing or malformed, or holds graph batches
+ *                                (read_binary_batches() reads them).
+ * @throws invalid_argument_error if the file holds other vertex or weight types.
  * @throws out_of_memory_error    if host memory cannot be allocated.
  * @ingroup io
  */

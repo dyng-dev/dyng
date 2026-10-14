@@ -920,8 +920,19 @@ std::vector<edge_batch<vertex_t, weight_t>> read_binary_batches(
     const std::string& path, const batch_reader_options& options) try {
   batch_reader in(path, options);
   const batch_file_header& h = in.header();
-  DYNG_EXPECTS(h.kind == container_kind::graph, "read_binary_batches: ", path, " holds ",
-               to_string(h.kind), " batches (read_binary_hyperedge_batches() reads them)");
+  // The header decides before any record is read (M8b review): another kind is an io_error, as
+  // in .dgt; other types are the caller's error.
+  if (h.kind != container_kind::graph) {
+    detail::throw_io_error(path, 0, 0,
+                           "this file holds " + std::string(to_string(h.kind)) +
+                               " batches (its header says so): read it with "
+                               "read_binary_hyperedge_batches()");
+  }
+  DYNG_EXPECTS(h.vertex_type == dtype_of<vertex_t>() &&
+                   (h.num_weights == 0 || h.weight_type == dtype_of<weight_t>()),
+               "read_binary_batches: the file ", path, " holds ", to_string(h.vertex_type),
+               " vertices and ", to_string(h.weight_type), " weights, not the requested types (",
+               to_string(dtype_of<vertex_t>()), ", ", to_string(dtype_of<weight_t>()), ")");
   std::vector<edge_batch<vertex_t, weight_t>> out;
   while (in.next()) {
     const auto v = in.edge_batch<vertex_t, weight_t>();
@@ -957,9 +968,17 @@ template <typename vertex_t, typename weight_t>
 std::vector<hyperedge_batch<vertex_t, weight_t>> read_binary_hyperedge_batches(
     const std::string& path, const batch_reader_options& options) try {
   batch_reader in(path, options);
-  DYNG_EXPECTS(in.header().kind == container_kind::hypergraph,
-               "read_binary_hyperedge_batches: ", path,
-               " holds graph batches (read_binary_batches() reads them)");
+  const batch_file_header& h = in.header();
+  if (h.kind != container_kind::hypergraph) {
+    detail::throw_io_error(path, 0, 0,
+                           "this file holds " + std::string(to_string(h.kind)) +
+                               " batches (its header says so): read it with read_binary_batches()");
+  }
+  DYNG_EXPECTS(h.vertex_type == dtype_of<vertex_t>() && h.weight_type == dtype_of<weight_t>(),
+               "read_binary_hyperedge_batches: the file ", path, " holds ",
+               to_string(h.vertex_type), " vertices and ", to_string(h.weight_type),
+               " weights, not the requested types (", to_string(dtype_of<vertex_t>()), ", ",
+               to_string(dtype_of<weight_t>()), ")");
   std::vector<hyperedge_batch<vertex_t, weight_t>> out;
   while (in.next()) {
     const auto v = in.hyperedge_batch<vertex_t, weight_t>();

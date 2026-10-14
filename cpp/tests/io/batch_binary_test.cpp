@@ -191,8 +191,12 @@ TEST_F(BinaryBatches, HyperedgeBatchesRoundTripWithTheirAnnotations) {
                dyng::invalid_argument_error);
   EXPECT_THROW((void)(again.edge_batch<std::int32_t, std::int32_t>()),
                dyng::invalid_argument_error);
-  EXPECT_THROW((void)(io::read_binary_batches<std::int32_t, std::int32_t>(p)),
-               dyng::invalid_argument_error);
+  // A file of the other kind is an io_error naming the right reader, as in .dgt (M8b review).
+  const dyng::io_error kind =
+      expect_io_error([&] { (void)(io::read_binary_batches<std::int32_t, std::int32_t>(p)); });
+  EXPECT_NE(std::string(kind.what()).find("read_binary_hyperedge_batches"), std::string::npos)
+      << kind.what();
+  EXPECT_EQ(kind.path(), p);
 }
 
 TEST_F(BinaryBatches, WholeFilesRoundTripAndMatchTheTextFormat) {
@@ -238,6 +242,11 @@ TEST_F(BinaryBatches, WholeFilesRoundTripAndMatchTheTextFormat) {
   EXPECT_EQ(cb[0].insert_src(), c.insert_src());
   EXPECT_THROW((void)(io::read_binary_batches<std::int32_t, dyng::unweighted>(path("c.dgb"))),
                dyng::invalid_argument_error);
+  const dyng::io_error kind = expect_io_error([&] {
+    (void)(io::read_binary_hyperedge_batches<std::int32_t, dyng::unweighted>(path("c.dgb")));
+  });
+  EXPECT_NE(std::string(kind.what()).find("read_binary_batches()"), std::string::npos)
+      << kind.what();
   // An empty file of batches.
   io::write_binary_hyperedge_batches<std::int32_t, std::int32_t>(path("none.dgb"), {});
   EXPECT_TRUE(
