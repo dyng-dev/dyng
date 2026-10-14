@@ -1,8 +1,9 @@
 # The conformance kit and the algorithm tooling
 
 Every algorithm in dynG passes the same checks, on every backend of the build and every
-instantiated graph type (PLAN Section 8.2). The checks, the registry that drives them, the
-scaffold of a new algorithm and the files generated from the manifests are described here.
+instantiated container type, graph or hypergraph (PLAN Section 8.2). The checks, the registry
+that drives them, the scaffold of a new algorithm and the files generated from the manifests are
+described here.
 
 ## The registry
 
@@ -35,8 +36,9 @@ same algorithms, and CMake refuses to configure an algorithm without a conforman
 
 ## The checks
 
-`cpp/tests/conformance/conformance.hpp` defines a typed GoogleTest suite, instantiated for one
-algorithm by the line `DYNG_CONFORMANCE_SUITE(<name>);` in
+`cpp/tests/conformance/conformance.hpp` defines a typed GoogleTest suite (one case per container
+type of the traits), instantiated for one algorithm by the line `DYNG_CONFORMANCE_SUITE(<name>);`
+in
 `cpp/tests/algorithms/<name>/<name>_conformance_test.cpp`. Each algorithm has two executables:
 `dyng_<name>_conformance_tests` (labels `cpu`, `conformance`, `<name>`: the sequential and OpenMP
 backends) and, in CUDA builds, `dyng_<name>_conformance_cuda_tests` (labels `gpu`, `conformance`,
@@ -79,6 +81,57 @@ the larger count of a pair; mosp's traits set K = 3), and `host_sync_budget(back
 C8 budget of the engine that ran (`stats::engine_used` and its counters; `run_dependent_budget`
 when it depends on counters the stats do not carry, and C8 then checks the problem's own bound).
 
+**Hypergraph algorithms** (0.3, ADR 0043). The checks reach the container through
+`container_traits<container_t>` (`cpp/tests/conformance/containers.hpp`; the hypergraph's in
+`hypergraph_generators.hpp`): its properties and presets, its host model and batch mixes, its
+batch summary, its case names. A hypergraph algorithm's traits differ from a graph algorithm's in
+these members only:
+
+```cpp
+using container_types = type_list<hypergraph<std::int32_t, unweighted>,
+                                  hypergraph<std::int32_t, std::int32_t>>;  // not graph_types
+static void require(hypergraph_properties& props);  // e.g. props.line_graph = sorted_merge
+static hypergraph_shape shape(size_class size);     // {vertices, hyperedges, max |e|, max weight}
+template <typename container_t>
+static stats update(const resources&, container_t& h,
+                    const typename container_t::batch_view_type& batch, result<container_t>& r);
+// stats has `hyper_apply_summary batch` (the inserted ids among it)
+```
+
+The manifest says `container = "hypergraph"` (C0 compares it), and its `graph_requirements` name
+the requirements on `hypergraph_properties` (ADR 0044). The kit then runs the same thirteen checks
+with:
+
+- **presets** {`erase_first`, `insert_first`} x {`capacity_policy::escher_gpu()`,
+  `mosp_escher()`, the default}, each with `require()`, plus the traits' `extra_properties()`;
+- **a host model** of the live hyperedges by id: a batch's deletions name live ids (or dead,
+  out-of-range, negative and repeated ones in the skip-rule mixes); the ids of the inserted
+  hyperedges are recorded from `hyper_apply_summary::inserted_ids` after the step, never
+  predicted (the store's best-fit reuse decides them);
+- **twelve mixes**: insertions only, deletions only, mixed, delete-then-reuse within one batch,
+  duplicate members, dead-id deletions, the empty batch, delete-all, re-insert, a batch larger
+  than the hypergraph, ids at the index limits, and skewed cardinality (a hyperedge of more than
+  1,024 members on a medium shape of more than 1,024 vertices);
+- **C5** with the inverse built from the forward batch's summary and the deleted member sets
+  (delete the inserted ids, insert the deleted hyperedges again: same hyperedges, other ids, so
+  an id-independent result returns);
+- **C7**: members below 0 or at n, an empty hyperedge, malformed offsets and bad weights are
+  rejected with `invalid_argument_error`, incidence edits with `not_supported_error`, each before
+  anything changes; dead, out-of-range and repeated deletions and repeated members are counted;
+- **C9**: applied + skipped == requested; `ignored_deletions`, `dropped_members` and `skipped_ops`;
+  the inserted ids distinct, below the bound and holding the inserted hyperedges;
+- **C10** with every other algorithm on the same hypergraph type, under `erase_first` /
+  `escher_gpu()` and `insert_first` / `mosp_escher()`;
+- **C11, C12** as for graphs.
+
+A test-only algorithm (one the library does not register) gives its registry entry in
+`static const algorithm_info* registry_entry()` and its C10 partners in `using test_partners =
+type_list<tags::...>`: the kit's own hypergraph fakes do
+(`cpp/tests/conformance/hypergraph_kit_traits.hpp`, `dyng_hypergraph_kit_tests`), so the
+hypergraph axis is checked on every backend before the first hypergraph algorithm exists. Their
+planted bug (count(+) over the ids the request would get instead of `inserted_ids`) must make the
+kit fail (`conformance.mutation.frontier_requested_ids`, `parity/mutate.py` suite `kit`).
+
 **Undirected graphs** (0.2, ADR 0033). When `require()` sets `graph_properties::directed = false`
 (`triangle_delta`), the kit generates undirected models: each edge once, as (u, v) with u < v, its
 batches name such pairs, and the graph stores both directions. The checks that count edges or
@@ -92,6 +145,8 @@ undirected graphs too.
 ```bash
 python3 scripts/new_algorithm.py dynamic_kcore --family fixed_point --backends seq,omp \
     --title "Dynamic k-core decomposition" --computes "k-core numbers"
+# a hypergraph algorithm (ADR 0044): the template cpp/src/algorithms/_template_hypergraph
+python3 scripts/new_algorithm.py my_motifs --container hypergraph --family aggregate_delta
 cmake --preset dev -DDYNG_ALGORITHMS=dynamic_kcore
 cmake --build --preset dev
 ctest --preset dev -L dynamic_kcore
@@ -115,11 +170,15 @@ the generated headers `version` and `config`. The public `compute()` and `update
 wrappers that `static_assert` the instantiated graph types with a plain-English message (the rule
 of sssp and cycle_count since the M3 review), so an unsupported graph type fails to compile at the
 call instead of failing to link; keep the trait `detail::<name>_supported_v` in step with the
-explicit instantiations. The scaffold writes graphs and the host
-backends; a CUDA backend is added by hand (the pattern of the tutorial algorithms `dynamic_bfs` and
-`triangle_delta`: the passes as functors in `engine.hpp`, run by the executors of
-`cpp/src/operators/`, one instantiation per backend file; ADR 0033), and the hypergraph container
-arrives later.
+explicit instantiations. The scaffold writes graph algorithms (`--container graph`, the default)
+and hypergraph algorithms (`--container hypergraph`: the placeholder counts incidences, or labels
+the components through hyperedges; its `update_traits` takes hypergraphs only,
+`detail::is_hypergraph_v`), on the host backends; a CUDA backend is added by hand (graphs: the
+pattern of the tutorial algorithms `dynamic_bfs` and `triangle_delta`, the passes as functors in
+`engine.hpp`, run by the executors of `cpp/src/operators/`, one instantiation per backend file,
+ADR 0033; hypergraphs: kernels over the internal row views of
+`detail::hypergraph_access::views()`, as the kit's fakes in
+`cpp/tests/framework/fake_hyper_kernels.cu`).
 
 Then, in the order of PLAN Section 9.4: write `compute()` (the sequential static solve) and the
 traits; make the update incremental in `problem.hpp` (the template card at its top names the hooks
@@ -129,8 +188,9 @@ still green; add backends; write the bindings, the CLI command and the example; 
 request with the checklist.
 
 `ci/scaffold_check.sh` (CTest `scaffold.new_algorithm`, label `scaffold`; step `scaffold` of
-`ci/check.sh`; job `scaffold` of `cpu.yml`) keeps the template honest: in a throwaway copy of the
-tree it scaffolds one algorithm of each family and the tutorial's `my_bfs` (with the files of
+`ci/check.sh`; job `scaffold` of `cpu.yml`) keeps the templates honest: in a throwaway copy of the
+tree it scaffolds one graph and one hypergraph algorithm of each family and the tutorial's `my_bfs`
+(with the files of
 `examples/tutorial_algorithms/my_bfs/` put in, as {doc}`../tutorials/your_first_dynamic_algorithm`
 has the reader write them), checks `regen.py --check`, the formatting and
 `ci/github_meta_check.py` (the generated CODEOWNERS lines), builds every target of the subset

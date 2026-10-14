@@ -20,6 +20,13 @@ container keeps per commit (ESCHER-GPU's `DynamicHypergraph::deviceBytes()` scop
 `dyng::testing::rebuild_line_graph` (`dyng/testing/line_graph_oracle.hpp`) recomputes a line
 graph from the hyperedges for tests.
 
+**Updating results** (ADR 0043). `dyng::update(res, h, batch.view(), r1, r2...)` applies a
+hyperedge batch to `h` once and brings every result of a hypergraph algorithm up to date: the
+batch is validated and normalized once, every result reads the hypergraph before the batch, the
+batch is committed once, then every result reads the hypergraph after it, with the ids the batch
+gave (`stats.batch.inserted_ids`). A result whose update fails after the commit is poisoned and
+the others are still updated; an error before the commit changes nothing.
+
 ```{doxygengroup} hypergraph
 :content-only:
 :members:

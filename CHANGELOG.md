@@ -39,6 +39,24 @@ Before 0.1.0 anything may change.
   (`dyng/testing/line_graph_oracle.hpp`, tracked): the line graph rebuilt from the hyperedges by
   MOSP_ESCHER@4b86159's HypergraphOracle algorithm. `parity/perf_ab.py hypergraph memory` and
   `maintain`: the memory gate and the maintain reading against ESCHER-GPU.
+- M8b (api-change, tracked until the hypergraph headers are frozen at the end of M8b):
+  **`dyng::update()` and `update_each()` over hypergraphs** (ADR 0043): `<dyng/hypergraph/
+  hypergraph.hpp>` specializes `detail::participant_of<hypergraph<V, W>>` with the participant
+  interface `detail::hyper_update_participant<V, W>` and the hypergraph's `detail::run_update()`
+  (one Step 0 and one commit for every result: the batch staged and normalized once, every
+  before-apply on G_t, one commit, every after-apply on G_{t+1} with the applied record, a failing
+  result poisoned while the others complete), and adds `detail::is_hypergraph_v`; `update.hpp`
+  and the graph headers are unchanged. Internally, the hypergraph's two-phase transaction
+  (begin, `before()` with the old view valid until the commit, commit, `after()`), the
+  framework's adapter for problems on hypergraphs, the conformance kit's container axis
+  (`container_traits`: the hypergraph presets {erase_first, insert_first} x {escher_gpu,
+  mosp_escher, default}, model and twelve batch mixes) with test-only aggregate-delta fakes run
+  through C0-C12 on every backend and a planted bug the kit catches.
+- M8b: **`scripts/new_algorithm.py --container hypergraph`** (ADR 0044): a hypergraph algorithm
+  of either family from `cpp/src/algorithms/_template_hypergraph`, green on the first build;
+  `graph_requirements` of a hypergraph manifest names the requirements on `hypergraph_properties`
+  (`line_graph`, `store_v2h`, `reuse`, `storage`), checked by `scripts/regen.py`;
+  `ci/scaffold_check.sh` scaffolds, builds and checks a hypergraph algorithm of each family.
 - M8a (internal, not public API): **the ESCHER CBST store** (`cpp/src/hypergraph/escher`,
   `dyng::detail::escher::cbst_store`, ADR 0038), the port of ESCHER-GPU@abcf9b2's store in the new
   module `dyng_hypergraph`: construct, rebuild from the device, best-fit insert with surplus rows
