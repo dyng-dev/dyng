@@ -697,6 +697,21 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
   endforeach()
 endif()
 
+# The mutants' copies of the hypergraph module are compiled for one architecture (the build's
+# first, real and virtual, so the PTX also runs on newer GPUs; `native` stays native): 12 copies
+# for the 7 release architectures took 49.5 of the 174 CPU-minutes of the compile-only ci-cuda12
+# preset (M8b review), and a mutant only needs to run on the machine that runs its CTest.
+function(dyng_mutant_cuda_architectures target)
+  if(NOT DYNG_ENABLE_CUDA OR NOT CMAKE_CUDA_ARCHITECTURES)
+    return()
+  endif()
+  list(GET CMAKE_CUDA_ARCHITECTURES 0 _first)
+  string(REGEX MATCH "^[0-9]+" _number "${_first}")
+  if(_number)
+    set_target_properties(${target} PROPERTIES CUDA_ARCHITECTURES "${_number}")
+  endif()
+endfunction()
+
 # CBST mutation tests (PLAN Section 8.4; M8a acceptance criterion 17): the 7 recorded mutations of
 # the ESCHER CBST store (MOSP_ESCHER@4b86159's #4 and #5 and the five rules of the store's
 # README) must make the store's suites fail. As for cycle_count, each mutant is a copy of libdyng
@@ -770,6 +785,7 @@ if(DYNG_CBST_MUTATION_TESTS AND DYNG_ENABLE_CUDA AND TARGET dyng_hypergraph)
       dyng_set_cuda_options(${_target})
     endforeach()
     set_target_properties(${_lib}_hypergraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_hypergraph)
     target_link_libraries(${_lib} INTERFACE Threads::Threads ${DYNG_CUDART_TARGET})
     if(DYNG_ENABLE_OPENMP)
       target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
@@ -862,6 +878,7 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       dyng_set_cuda_options(${_target})
     endforeach()
     set_target_properties(${_lib}_hypergraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_hypergraph)
     target_link_libraries(${_lib} INTERFACE Threads::Threads)
     if(DYNG_ENABLE_CUDA)
       target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
