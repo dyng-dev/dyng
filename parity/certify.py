@@ -1297,7 +1297,9 @@ def golden_mutations(record_path: Path, head: str, results: Path) -> list[str]:
     """What is wrong with a golden-mutation record (parity/mutate.py run --json): every mutation
     of `parity/mutate.py list` must be in it and detected, the control must have passed, the
     record's commit must have the release's library sources, and every replay must have used
-    a golden manifest of parity/goldens.toml."""
+    a golden manifest of parity/goldens.toml (but those of a GoogleTest suite, the cbst suite of
+    M8a, which replays no golden corpus: its tests read the committed CBST traces of
+    cpp/tests/data)."""
     if not record_path.is_file():
         return [f"its record {record_path.name} is not next to checks.json"]
     sys.path.insert(0, str(REPO / "parity"))
@@ -1326,8 +1328,11 @@ def golden_mutations(record_path: Path, head: str, results: Path) -> list[str]:
         for spec in tomllib.loads((REPO / "parity" / "goldens.toml").read_text())["sets"].values()
         if "manifest_sha256" in spec
     }
+    gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
     replays = [*(control or {}).get("replays", []), *rows.values()]
     for r in replays:
+        if r.get("suite") in gtest:
+            continue
         digest = (r.get("goldens") or {}).get("manifest_sha256")
         if digest not in manifests:
             out.append(

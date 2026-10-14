@@ -299,6 +299,12 @@ def _golden_mutation_record(commit: str) -> dict:
     mutate = load("parity/mutate.py")
     sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
     sssp = {"manifest_sha256": sets["sssp"]["manifest_sha256"]}
+    # The GoogleTest suites (cbst, M8a) replay no golden corpus: mutate.py records no manifest.
+    gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
+
+    def goldens(suite: str) -> dict:
+        return {} if suite in gtest else {"goldens": sssp}
+
     return {
         "schema": 2,
         "commit": commit,
@@ -306,14 +312,17 @@ def _golden_mutation_record(commit: str) -> dict:
             {
                 "name": "control",
                 "verdict": "passed",
-                "replays": [{"suite": "sssp", "config": "sequential", "goldens": sssp}],
+                "replays": [
+                    {"suite": "sssp", "config": "sequential", "goldens": sssp},
+                    *({"suite": s, "config": "cuda"} for s in sorted(gtest)),
+                ],
             },
             *(
                 {
                     "name": m["name"],
                     "suite": m["suite"],
                     "config": m["config"],
-                    "goldens": sssp,
+                    **goldens(m["suite"]),
                     "detected": True,
                     "verdict": "detected",
                 }
@@ -1554,7 +1563,7 @@ def test_the_golden_mutation_record_is_read(cert, certified) -> None:
     path = results / "mutation-goldens.json"
     full = path.read_text()
     cases = [
-        (lambda d: d["results"].pop(), "is missing"),  # the last mutation dropped (mosp)
+        (lambda d: d["results"].pop(), "is missing"),  # the last mutation dropped
         (lambda d: d["results"][1].update(detected=False, verdict="NOT DETECTED"), "NOT DETECTED"),
         (lambda d: d["results"][0].update(verdict="FAILED"), "the control did not pass"),
         (
@@ -1562,6 +1571,8 @@ def test_the_golden_mutation_record_is_read(cert, certified) -> None:
             "is not one of parity/goldens.toml",
         ),
         (lambda d: d.update(commit="0" * 40), "does not have the release's library sources"),
+        # a replay of a golden suite without its manifest (only the GoogleTest suites have none)
+        (lambda d: d["results"][2].pop("goldens"), "golden manifest None is not one of"),
     ]
     for edit, message in cases:
         doc = json.loads(full)
