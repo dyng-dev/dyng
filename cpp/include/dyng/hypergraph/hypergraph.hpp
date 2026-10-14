@@ -16,9 +16,13 @@
 #include <dyng/hypergraph/hyperedge_list.hpp>
 #include <dyng/hypergraph/hypergraph_properties.hpp>
 #include <dyng/hypergraph/hypergraph_view.hpp>
+#include <dyng/update.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string_view>
+#include <type_traits>
 
 namespace dyng {
 
@@ -26,6 +30,9 @@ namespace detail {
 template <typename vertex_t, typename weight_t>
 class hypergraph_impl;
 struct hypergraph_access;
+template <typename weight_t>
+struct hyper_staged_batch;
+struct hyper_applied;
 }  // namespace detail
 
 /**
@@ -55,6 +62,11 @@ struct hypergraph_access;
  * **Thread safety.** As graph: read-only calls (the views, the accessors, to_hyperedge_list())
  * may run concurrently with each other; apply() must not overlap any other call on the same
  * hypergraph.
+ *
+ * **Results.** dyng::update(res, h, batch, results...) applies a batch once and brings every
+ * result of a hypergraph algorithm up to date (detail::participant_of<hypergraph>, below): one
+ * validation and normalization of the batch, every result's work on the hypergraph before the
+ * batch, one commit, every result's work after it.
  *
  * Instantiated for (vertex_t, weight_t) = (int32, unweighted) and (int32, int32) on every
  * backend.
@@ -323,5 +335,172 @@ class hypergraph {
 
   std::unique_ptr<impl_type> impl_;
 };
+
+namespace detail {
+
+/**
+ * @brief Whether a type is a hypergraph<V,W> (for the plain-English static_asserts of a
+ *        hypergraph algorithm's update_traits: its result takes part in dyng::update() over a
+ *        hypergraph only).
+ * @tparam type_t The type.
+ * @ingroup hypergraph
+ */
+template <typename type_t>
+struct is_hypergraph : std::false_type {};
+
+/**
+ * @brief hypergraph<V,W> is a hypergraph.
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Hyperedge weight type.
+ * @ingroup hypergraph
+ */
+template <typename vertex_t, typename weight_t>
+struct is_hypergraph<hypergraph<vertex_t, weight_t>> : std::true_type {};
+
+/**
+ * @brief is_hypergraph<type_t>::value.
+ * @tparam type_t The type.
+ * @ingroup hypergraph
+ */
+template <typename type_t>
+inline constexpr bool is_hypergraph_v = is_hypergraph<type_t>::value;
+
+/**
+ * @brief One result taking part in an update of a hypergraph (type-erased; each hypergraph
+ *        algorithm implements it): the hypergraph's participant interface of dyng::update().
+ *
+ * run_update() opens the hypergraph's transaction (Step 0 once: the batch staged to the host,
+ * validated and normalized), hands the staged batch to every participant (use_normalized()),
+ * calls before_apply() of every participant on G_t, commits the batch once, then calls
+ * after_apply() of every participant on G_{t+1} with the applied record (invariant I1: subtract
+ * on G_t, add on G_{t+1}). The participant of an algorithm is the framework's adapter of its
+ * problem (problem_participant in the library's cpp/src/framework/composition.hpp).
+ *
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Hyperedge weight type.
+ * @ingroup hypergraph
+ */
+template <typename vertex_t, typename weight_t>
+class hyper_update_participant {
+ public:
+  using graph_type = hypergraph<vertex_t, weight_t>;                   ///< the container
+  using batch_type = hyperedge_batch_view<vertex_t, weight_t>;         ///< the batch view
+  hyper_update_participant() = default;                                ///< default
+  hyper_update_participant(const hyper_update_participant&) = delete;  ///< not copyable
+  hyper_update_participant& operator=(const hyper_update_participant&) = delete;  ///< not copyable
+  hyper_update_participant(hyper_update_participant&&) = delete;                  ///< not movable
+  hyper_update_participant& operator=(hyper_update_participant&&) = delete;       ///< not movable
+  virtual ~hyper_update_participant() = default;                                  ///< destructor
+
+  /**
+   * @brief The result object this participant updates (to reject duplicates).
+   * @return Its address.
+   */
+  [[nodiscard]] virtual const void* target() const noexcept = 0;
+
+  /**
+   * @brief Receive Step 0 (the staged batch: inserted hyperedges sorted and deduplicated, the
+   *        live deletions of G_t, the skipped counts), computed once by run_update() for every
+   *        participant and the commit; called before before_apply(). The object lives until
+   *        run_update() returns.
+   * @param[in] staged The staged batch.
+   */
+  virtual void use_normalized(const hyper_staged_batch<weight_t>* staged) noexcept {
+    (void)staged;
+  }
+
+  /**
+   * @brief Steps 0 and 1a on G_t: validate (version, batch) and read G_t; mutates nothing
+   *        visible. The views of G_t stay valid until the commit.
+   * @param[in] res   Execution resources.
+   * @param[in] h     The hypergraph before the batch.
+   * @param[in] batch The batch as requested (host memory).
+   */
+  virtual void before_apply(const resources& res, const graph_type& h, const batch_type& batch) = 0;
+
+  /**
+   * @brief Steps 1b and 2 on G_{t+1}: bring the result up to date.
+   * @param[in] res     Execution resources.
+   * @param[in] h       The hypergraph after the batch.
+   * @param[in] summary What the commit did (the inserted ids among it).
+   * @param[in] applied The applied record (inserted ids on the host and, on CUDA, the device;
+   *                    deleted ids with their members; touched hyperedges and vertices).
+   */
+  virtual void after_apply(const resources& res, const graph_type& h,
+                           const hyper_apply_summary& summary, const hyper_applied& applied) = 0;
+
+  /**
+   * @brief Mark the result unusable after after_apply() threw (later updates throw).
+   */
+  virtual void poison() noexcept = 0;
+
+  /**
+   * @brief Whether before_apply() or after_apply() read the line graph (h2h): run_update() then
+   *        makes sure it is maintained before before_apply() (line_graph_policy::automatic builds
+   *        it on G_t, and the commit keeps it).
+   * @return false (the default).
+   */
+  [[nodiscard]] virtual bool reads_prepared_graph() const noexcept {
+    return false;
+  }
+};
+
+/**
+ * @brief Run one update of a hypergraph over several participants: the transaction's begin
+ *        (Step 0 once), every before_apply() on G_t, one commit, then every after_apply() on
+ *        G_{t+1}.
+ *
+ * If the begin, a before_apply() or the commit's validation throws, nothing was changed. If an
+ * after_apply() throws, that result is poisoned, the remaining participants still run, and the
+ * first exception is rethrown.
+ *
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Hyperedge weight type.
+ * @param[in]     res          Execution resources.
+ * @param[in,out] h            The hypergraph (version + 1).
+ * @param[in]     batch        The batch.
+ * @param[in]     participants The participants (distinct targets).
+ * @param[in]     count        Number of participants.
+ * @param[in]     commit_stage Profiler stage name of the commit (e.g. "triad_count.commit").
+ * @return What the commit did.
+ * @ingroup hypergraph
+ */
+template <typename vertex_t, typename weight_t>
+hyper_apply_summary run_update(const resources& res, hypergraph<vertex_t, weight_t>& h,
+                               const hyperedge_batch_view<vertex_t, weight_t>& batch,
+                               hyper_update_participant<vertex_t, weight_t>* const* participants,
+                               std::size_t count, std::string_view commit_stage);
+
+/**
+ * @brief The participant interface, batch view and run_update() of hypergraph<V,W>: what makes
+ *        dyng::update() and update_each() work for hypergraphs.
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Hyperedge weight type.
+ * @ingroup hypergraph
+ */
+template <typename vertex_t, typename weight_t>
+struct participant_of<hypergraph<vertex_t, weight_t>> {
+  static constexpr bool supported = true;                       ///< a container of update()
+  using type = hyper_update_participant<vertex_t, weight_t>;    ///< the interface
+  using batch_type = hyperedge_batch_view<vertex_t, weight_t>;  ///< the batch view it takes
+
+  /**
+   * @brief Run one update over the participants (run_update() of hypergraphs).
+   * @param[in]     res          Execution resources.
+   * @param[in,out] h            The hypergraph.
+   * @param[in]     batch        The batch.
+   * @param[in]     participants The participants.
+   * @param[in]     count        Number of participants.
+   * @param[in]     commit_stage Profiler stage name of the commit.
+   * @return What the commit did.
+   */
+  static hyper_apply_summary run(const resources& res, hypergraph<vertex_t, weight_t>& h,
+                                 const batch_type& batch, type* const* participants,
+                                 std::size_t count, std::string_view commit_stage) {
+    return run_update(res, h, batch, participants, count, commit_stage);
+  }
+};
+
+}  // namespace detail
 
 }  // namespace dyng

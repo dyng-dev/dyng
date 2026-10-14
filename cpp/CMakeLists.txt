@@ -175,6 +175,7 @@ dyng_add_module(
     src/hypergraph/capacity.cpp
     src/hypergraph/escher/flatten.cpp
     src/hypergraph/escher/store_policy.cpp
+    src/hypergraph/hyper_update.cpp
     src/hypergraph/hypergraph.cpp
     src/hypergraph/id_allocator.cpp
     src/hypergraph/incidence_model.cpp

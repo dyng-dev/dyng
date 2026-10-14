@@ -689,6 +689,7 @@
       [[nodiscard]] list_type to_hyperedge_list(const resources &res) const
       [[nodiscard]] storage_stats store_stats() const noexcept
       void check_integrity(const resources &res) const
+  detail: template <typename vertex_t, typename weight_t> struct participant_of<hypergraph<vertex_t, weight_t>> { static constexpr bool supported = true; using type = hyper_update_participant<vertex_t, weight_t>; using batch_type = hyperedge_batch_view<vertex_t, weight_t>; static hyper_apply_summary run(const resources& res, hypergraph<vertex_t, weight_t>& h, const batch_type& batch, type* const* participants, std::size_t count, std::string_view commit_stage) }
 
 [dyng/hypergraph/hypergraph_properties.hpp] tracked
   enum class dyng::hypergraph_storage : std::uint8_t { escher, slack_csr }
