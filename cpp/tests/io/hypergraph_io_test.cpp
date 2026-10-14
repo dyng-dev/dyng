@@ -210,6 +210,15 @@ TEST_F(HypergraphFile, RejectsMalformedFilesWithTheirLocation) {
   EXPECT_THROW(
       (void)(dyng::io::read_hypergraph<std::int32_t, dyng::unweighted>(tmp_.path("missing.hg"))),
       dyng::io_error);
+  // A directory is an io_error (not out_of_memory_error from its ftell() size; M8b review), for
+  // the .hg reader and the hypergraph .dgt reader.
+  const auto dir = expect_io_error(
+      [&] { (void)(dyng::io::read_hypergraph<std::int32_t, dyng::unweighted>(tmp_.path(""))); });
+  EXPECT_NE(std::string(dir.what()).find("directory"), std::string::npos) << dir.what();
+  const auto dir_batches = expect_io_error(
+      [&] { (void)(dyng::io::read_hyperedge_batches<std::int32_t, std::int32_t>(tmp_.path(""))); });
+  EXPECT_NE(std::string(dir_batches.what()).find("directory"), std::string::npos)
+      << dir_batches.what();
   // Invalid options.
   dyng::io::hypergraph_read_options bad;
   bad.index_base = -1;
