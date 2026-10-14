@@ -52,9 +52,22 @@ again, or a smaller id bound than before.
 | `line_graph_view<weight_t>` | named only | "+ overlap sizes, sorted rows" | `row_ptr`, `col_ind`, `out` (the first neighbour above the row's own id), `overlaps` (empty under `escher`: section 7), `weights` (the hyperedge weights by id), `version`; filled from M8b step 2 |
 | `storage_stats` | named only | six counters | `device_bytes` in A's `DynamicHypergraph::deviceBytes()` scope (`dynamic_hypergraph.cu:175-180`: the trees and their row views), plus `view_bytes` (the lazily built public views, outside that scope), `host_bytes`, the H2V payload capacity and use, growths, compactions and the degree-binned kernel paths of fill, reuse and unfill (thread / warp / block) |
 | `hyperedge_batch_view` | four op groups | same | same; the two incidence-edit groups raise `not_supported_error` naming 0.4 when not empty |
-| `hyperedge_batch` (owning) | "builder" | `delete_hyperedge`, `insert_hyperedge`, incidence edits, `reserve`, `clear`, `view` | same, rolling back a failed append (`out_of_memory_error`, strong guarantee) as `edge_batch` |
+| `hyperedge_batch` (owning) | "builder"; PLAN 5.3's example constructs it from `res` and chains the builders | `explicit hyperedge_batch(bool weighted = !is_unweighted_v<weight_t>)`, `delete_hyperedge`, `insert_hyperedge`, incidence edits, `reserve`, `clear`, `view` | the sketch's builders, rolling back a failed append (`out_of_memory_error`, strong guarantee) as `edge_batch`; **differs** (M8b review, recorded here): a default constructor only (`noexcept`; weighted or not is the type's `weight_t`, decided at compile time, so the sketch's `bool weighted` argument has nothing to decide, and a host builder takes no `resources`), and the builders return `void` like `edge_batch`'s (no chaining) |
 | `hyper_apply_summary` | ids, counts, `skipped_ops` | counts spelled out | the sketch's, and `skipped_ops` broken down into `ignored_deletions` and `dropped_members` (section 8) |
 | members | `from_hyperedges`, counts, `version`, views, `apply`, `to_hyperedge_list`, `store_stats`, `check_integrity` | + `clone`, `to_backend`, `properties`, `space` | the sketch's, plus `weights()` (the id-indexed weights, section 3); the state identity is internal (`detail::next_graph_state_id()`, shared with `graph`) |
+
+PLAN 5.3's `triad_count` example therefore reads, against the frozen API (M9's docs use this
+form; `hyper_apply_summary::inserted_ids` is a host `std::vector`, section 3, so no `to_vector`):
+
+```cpp
+dyng::hyperedge_batch<std::int32_t, dyng::unweighted> b;
+b.delete_hyperedge(17);
+b.delete_hyperedge(42);
+b.insert_hyperedge({3, 9, 12});
+b.insert_hyperedge({9, 12, 40, 41});
+auto st = dyng::triad_count::update(res, hg, b.view(), triads);
+const auto& ids = st.batch.inserted_ids;  // best-fit reuse: likely {17, 42}
+```
 
 ### 2. Dead rows are empty rows (open question 1)
 
