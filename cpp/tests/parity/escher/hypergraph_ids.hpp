@@ -46,6 +46,11 @@ struct options {
   /// The device bytes are then in the whole scope of A's DynamicHypergraph::deviceBytes() and
   /// must be within 1.05x of A's at every point (criterion 8).
   bool line_graph = false;
+  /// With line_graph and compare: after the build and every batch, h2h() must also equal
+  /// testing::rebuild_line_graph of the container's h2v (MOSP_ESCHER's oracle algorithm; M8b
+  /// criterion 6), on A's traces and on B's (whose sessions then keep the line graph under
+  /// insert_first). Quadratic in the vertex degrees: --no-line-graph-oracle leaves it out.
+  bool line_graph_oracle = true;
   /// A (M8b criterion 16): before every batch, generators::legacy::escher_batch_generator draws
   /// the batch from the by-id container's live state with A's options (its command line) and
   /// one std::mt19937_64(--seed), and the batch must equal A's (deleted ids and rows, inserted
@@ -67,16 +72,21 @@ struct report {
   std::int64_t sessions = 0;          ///< bulk loads (B) or builds (A)
   std::int64_t batches = 0;           ///< batches replayed
   std::int64_t vertex_batches = 0;    ///< B batches with incidence edits (not replayed, M11)
-  std::int64_t ids_compared = 0;      ///< inserted ids compared with the original's
-  std::int64_t rows_compared = 0;     ///< h2v rows compared
-  std::int64_t filtered_virtual = 0;  ///< B ops on a virtual id, filtered by the harness
-  std::int64_t skipped_compared = 0;  ///< B batches whose skipped ops were compared
-  std::int64_t skipped_ops = 0;       ///< the sum of B's skippedOps over those batches
-  std::int64_t dropped_members = 0;   ///< repeated members dropped (dynG) = B's deduplicated ones
-  std::int64_t ambiguous = 0;         ///< by-content resolutions not of the id A deleted
-  std::int64_t content_diverged_at = -1;     ///< first batch whose by-content ids differ (-1: none)
-  std::int64_t generated_graphs = 0;         ///< synthetic hypergraphs drawn and compared (legacy)
-  std::int64_t generated_batches = 0;        ///< batches drawn and compared (legacy)
+  std::int64_t stopped_sessions = 0;  ///< B sessions stopped at their first vertex-kind batch
+  /// B hyperedge-kind batches after a session stopped (not replayed until M11) and their ids.
+  std::int64_t hyperedge_batches_after_stop = 0, ids_after_stop = 0;
+  std::int64_t line_graph_oracle_states = 0;  ///< states whose h2h was checked against the oracle
+  std::int64_t ids_compared = 0;              ///< inserted ids compared with the original's
+  std::int64_t rows_compared = 0;             ///< h2v rows compared
+  std::int64_t filtered_virtual = 0;          ///< B ops on a virtual id, filtered by the harness
+  std::int64_t skipped_compared = 0;          ///< B batches whose skipped ops were compared
+  std::int64_t skipped_ops = 0;               ///< the sum of B's skippedOps over those batches
+  std::int64_t dropped_members = 0;  ///< repeated members dropped (dynG) = B's deduplicated ones
+  std::int64_t ambiguous = 0;        ///< by-content resolutions not of the id A deleted
+  std::int64_t content_diverged_at = -1;    ///< first batch whose by-content ids differ (-1: none)
+  std::int64_t first_ambiguous_batch = -1;  ///< first batch with an ambiguous resolution (-1: none)
+  std::int64_t generated_graphs = 0;        ///< synthetic hypergraphs drawn and compared (legacy)
+  std::int64_t generated_batches = 0;       ///< batches drawn and compared (legacy)
   std::int64_t generated_batches_equal = 0;  ///< ... equal to A's
   std::int64_t hg_hyperedges = 0;   ///< hyperedges of the .hg file compared with the original's
   std::int64_t content_states = 0;  ///< by-content states compared with A's (live sets)

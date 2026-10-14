@@ -124,6 +124,16 @@ void compare_state(const hypergraph<std::int32_t, weight_t>& h, const rows& mode
     out.mismatch(where + ": v2h differs from the transpose of the original's rows");
 }
 
+// The container's h2h against testing::rebuild_line_graph of its own h2v (M8b criterion 6; the
+// oracle shares no code with the container).
+template <typename weight_t>
+void check_oracle(const hypergraph<std::int32_t, weight_t>& h, const std::string& where,
+                  report& rep, recorder& out) {
+  ++rep.line_graph_oracle_states;
+  const std::string problems = hs::check_line_graph(h);
+  if (!problems.empty()) out.mismatch(where + ": the line-graph oracle: " + problems);
+}
+
 // The kernel-path counters of a container.
 void record_paths(const storage_stats& st, report& rep) {
   const storage_path_counters* families[3] = {&st.fill, &st.reuse, &st.unfill};
@@ -456,6 +466,7 @@ class escher_gpu_replay {
 
   void check(const hypergraph<std::int32_t, unweighted>& h, const std::string& where) {
     compare_state(h, model_, n_, where, rep_, out_);
+    if (opt_.line_graph && opt_.line_graph_oracle) check_oracle(h, where, rep_, out_);
     if (opt_.integrity) {
       try {
         h.check_integrity(res_);
@@ -534,9 +545,16 @@ class escher_gpu_replay {
     const auto batch = hs::batch_of(tb);
     const auto s = by_content_->apply(res_, batch.view());
     resolver_.commit(tb.deletions, tb.insertions, s.inserted_ids);
-    if (content_ids_in_sync_ && (ambiguous_here || s.inserted_ids != b.inserted_ids)) {
-      content_ids_in_sync_ = false;
-      rep_.content_diverged_at = b.index;
+    if (ambiguous_here && rep_.first_ambiguous_batch < 0) rep_.first_ambiguous_batch = b.index;
+    if (content_ids_in_sync_) {
+      // Until the first ambiguous resolution the by-content run must give A's ids (M8b review:
+      // the check sat behind the flag it cleared, so it never fired).
+      if (!ambiguous_here && s.inserted_ids != b.inserted_ids)
+        out_.mismatch(where + ": by content: the ids differ before any ambiguous resolution");
+      if (ambiguous_here || s.inserted_ids != b.inserted_ids) {
+        content_ids_in_sync_ = false;
+        rep_.content_diverged_at = b.index;
+      }
     }
     // Both modes give the same state: the same member sets, and while no ambiguous resolution
     // has happened, the same ids.
@@ -548,7 +566,6 @@ class escher_gpu_replay {
       ++rep_.content_states_equal;
     }
     if (content_ids_in_sync_) {
-      if (s.inserted_ids != b.inserted_ids) out_.mismatch(where + ": by content: the ids differ");
       compare_state(*by_content_, model_, n_, where + " (by content)", rep_, out_);
     }
     if (opt_.integrity) {
@@ -698,11 +715,25 @@ class mosp_escher_replay {
       stopped_ = true;
       return;
     }
-    // B's virtual source and target are ordinary hyperedges here (weight 0 loaded as 1).
+    // B's virtual source and target are ordinary hyperedges here (weight 0 loaded as 1); every
+    // other weight is loaded as B's, which must lie in [1, 2^31 - 1].
     model_.clear();
     for (const auto& r : rows_) model_.push_back(sorted_unique(r));
     std::vector<std::int32_t> w;
-    for (const long long x : weights_) w.push_back(x < 1 ? 1 : static_cast<std::int32_t>(x));
+    for (std::size_t i = 0; i < weights_.size(); ++i) {
+      const long long x = weights_[i];
+      const auto b_id = static_cast<std::int64_t>(i) + 1;
+      if (b_id == source_ || b_id == target_) {
+        w.push_back(x < 1 ? 1 : static_cast<std::int32_t>(x));
+      } else if (x < 1 || x > INT_MAX) {
+        out_.mismatch("session " + std::to_string(rep_.sessions) + ": B's weight " +
+                      std::to_string(x) + " of hyperedge " + std::to_string(b_id) +
+                      " is outside [1, 2^31 - 1]");
+        w.push_back(1);
+      } else {
+        w.push_back(static_cast<std::int32_t>(x));
+      }
+    }
     double factor = 1.3;
     std::int64_t extra = 0;
     if (!derive_caps(factor, extra)) {
@@ -711,15 +742,23 @@ class mosp_escher_replay {
       stopped_ = true;
       return;
     }
-    props_.line_graph = line_graph_policy::none;
+    // --line-graph: B's sessions keep the line graph (sorted_merge under insert_first), checked
+    // against the oracle after the load and every batch (M8b criterion 6).
+    props_.line_graph = opt_.line_graph ? line_graph_policy::sorted_merge : line_graph_policy::none;
     props_.reuse = id_reuse::insert_first;
     props_.capacity = capacity_policy::mosp_escher(extra);
     // 1.3 - 1.0 is not 0.3 in binary; the preset's 0.3 is the value proven equal (the other
     // factors subtract exactly).
     props_.capacity.initial_headroom = factor == 1.3 ? 0.3 : factor - 1.0;
-    const auto list = hs::list_of<std::int32_t>(num_vertices_, model_, w);
+    // The container is built from B's raw rows (repeated members included): dynG's own
+    // normalization must give B's (sorted, deduplicated) rows, which check() compares.
+    const auto list = hs::list_of<std::int32_t>(num_vertices_, rows_, w);
     if (!opt_.hg_file.empty() && !hg_checked_) check_hg_file();
     session_ = std::make_unique<whgraph>(whgraph::from_hyperedges(res_, list.view(), props_));
+    // The loaded weights by id (B id = dynG id + 1) are B's.
+    if (hs::host_vector(session_->weights()) != w)
+      out_.mismatch("session " + std::to_string(rep_.sessions) +
+                    ": the container's weights differ from B's loaded weights");
     if (opt_.model)
       model_lockstep_ =
           std::make_unique<hs::lockstep>(num_vertices_, model_, props_, "mosp_escher");
@@ -771,11 +810,23 @@ class mosp_escher_replay {
 
   void begin_enter(const tr::record& rec) {
     pending_ = false;
-    if (!session_ || stopped_) return;
-    if (rec.array("vtx_delete.he").count != 0 || rec.array("vtx_insert.he").count != 0) {
+    counting_after_stop_ = false;
+    const bool vertex_kind =
+        rec.array("vtx_delete.he").count != 0 || rec.array("vtx_insert.he").count != 0;
+    // Every vertex-kind batch is counted, and every hyperedge-kind batch that comes after a
+    // session stopped (with its ids, at its exit): what the replay does not compare (M11).
+    if (vertex_kind) ++rep_.vertex_batches;
+    if (!session_ || stopped_) {
+      if (!vertex_kind && stopped_) {
+        ++rep_.hyperedge_batches_after_stop;
+        counting_after_stop_ = true;
+      }
+      return;
+    }
+    if (vertex_kind) {
       // A vertex-kind batch (incidence edits, M11): the session stops here.
       stopped_ = true;
-      ++rep_.vertex_batches;
+      ++rep_.stopped_sessions;
       return;
     }
     pending_ = true;
@@ -788,6 +839,12 @@ class mosp_escher_replay {
   }
 
   void begin_exit(const tr::record& rec) {
+    if (counting_after_stop_) {
+      counting_after_stop_ = false;
+      if (!rec.has("exception.type"))
+        rep_.ids_after_stop += static_cast<std::int64_t>(rec.array("final_ids").count);
+      return;
+    }
     if (!pending_) return;
     pending_ = false;
     ++rep_.batches;
@@ -850,6 +907,9 @@ class mosp_escher_replay {
     // The weights of the new ids (B's final_weights).
     const std::vector<std::int64_t> final_weights = in_.longs(rec.array("final_weights"));
     const auto weights = hs::host_vector(session_->weights());
+    if (final_weights.size() != want.size())
+      out_.mismatch(where + ": B's trace has " + std::to_string(final_weights.size()) +
+                    " final weights for " + std::to_string(want.size()) + " final ids");
     for (std::size_t i = 0; i < want.size() && i < final_weights.size(); ++i)
       if (weights[static_cast<std::size_t>(want[i])] != final_weights[i])
         out_.mismatch(where + ": the weight of id " + std::to_string(want[i]) + " differs");
@@ -862,6 +922,7 @@ class mosp_escher_replay {
 
   void check(const std::string& where) {
     compare_state(*session_, model_, num_vertices_, where, rep_, out_);
+    if (opt_.line_graph && opt_.line_graph_oracle) check_oracle(*session_, where, rep_, out_);
     if (opt_.integrity) {
       try {
         session_->check_integrity(res_);
@@ -883,6 +944,7 @@ class mosp_escher_replay {
   std::map<std::uint32_t, std::string> tree_name_;
   std::map<std::uint32_t, std::int64_t> tree_capacity_;
   bool loading_ = false, stopped_ = false, pending_ = false, awaiting_insert_ = false;
+  bool counting_after_stop_ = false;
   std::uint32_t h2v_tree_ = 0, insert_tree_ = 0;
   std::int64_t h2v_flat_ = 0, h2v_capacity_ = 0, insert_payload_ = 0;
   std::int32_t num_vertices_ = 0;
@@ -906,8 +968,13 @@ std::string report::to_json() const {
      << ", \"backend\": " << json_string(backend) << ", \"threads\": " << threads
      << ", \"mode\": " << json_string(mode) << ", \"ok\": " << (ok() ? "true" : "false")
      << ", \"sessions\": " << sessions << ", \"batches\": " << batches
-     << ", \"vertex_batches\": " << vertex_batches << ", \"ids_compared\": " << ids_compared
-     << ", \"rows_compared\": " << rows_compared << ", \"filtered_virtual\": " << filtered_virtual
+     << ", \"vertex_batches\": " << vertex_batches << ", \"stopped_sessions\": " << stopped_sessions
+     << ", \"hyperedge_batches_after_stop\": " << hyperedge_batches_after_stop
+     << ", \"ids_after_stop\": " << ids_after_stop
+     << ", \"line_graph_oracle_states\": " << line_graph_oracle_states
+     << ", \"first_ambiguous_batch\": " << first_ambiguous_batch
+     << ", \"ids_compared\": " << ids_compared << ", \"rows_compared\": " << rows_compared
+     << ", \"filtered_virtual\": " << filtered_virtual
      << ", \"skipped_compared\": " << skipped_compared << ", \"skipped_ops\": " << skipped_ops
      << ", \"dropped_members\": " << dropped_members << ", \"ambiguous\": " << ambiguous
      << ", \"content_diverged_at\": " << content_diverged_at

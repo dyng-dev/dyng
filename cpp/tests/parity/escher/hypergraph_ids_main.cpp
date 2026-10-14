@@ -8,7 +8,8 @@
  *
  *     dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N]
  *                         [--mode by_id|by_content|both] [--no-model] [--no-integrity]
- *                         [--line-graph] [--apply-only] [--timing FILE] [--sync-stages] [--nvtx]
+ *                         [--line-graph] [--no-line-graph-oracle] [--apply-only]
+ *                         [--timing FILE] [--sync-stages] [--nvtx]
  *                         [--legacy-generator] [--hg FILE] [--json OUT] [--tmp DIR] <trace>...
  *
  * --line-graph (ESCHER-GPU's traces): the by-id container keeps the line graph
@@ -52,6 +53,7 @@ int usage() {
   std::fprintf(stderr,
                "usage: dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N] "
                "[--mode by_id|by_content|both] [--no-model] [--no-integrity] [--line-graph] "
+               "[--no-line-graph-oracle] "
                "[--apply-only] [--timing FILE] [--sync-stages] [--nvtx] [--legacy-generator] "
                "[--hg FILE] [--json OUT] [--tmp DIR] "
                "<trace>...\n");
@@ -88,6 +90,8 @@ int main(int argc, char** argv) {
       opt.integrity = false;
     } else if (a == "--line-graph") {
       opt.line_graph = true;
+    } else if (a == "--no-line-graph-oracle") {
+      opt.line_graph_oracle = false;
     } else if (a == "--apply-only") {
       opt.compare = false;
       opt.model = false;

@@ -77,6 +77,10 @@ TOTALS = (
     "sessions",
     "batches",
     "vertex_batches",
+    "stopped_sessions",
+    "hyperedge_batches_after_stop",
+    "ids_after_stop",
+    "line_graph_oracle_states",
     "ids_compared",
     "rows_compared",
     "filtered_virtual",
@@ -151,6 +155,8 @@ def run_case(exe: Path, trace: Path, args, tmp: Path) -> dict:
         cmd.append("--no-model")
     if args.line_graph:
         cmd.append("--line-graph")
+    if args.no_line_graph_oracle:
+        cmd.append("--no-line-graph-oracle")
     if args.legacy_generator:
         cmd.append("--legacy-generator")
     if args.hg:
@@ -183,7 +189,13 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument(
         "--line-graph",
         action="store_true",
-        help="keep the line graph and compare it (and the device bytes) with ESCHER-GPU's",
+        help="keep the line graph and compare it (and the device bytes) with ESCHER-GPU's, and "
+        "with testing::rebuild_line_graph on both originals' sets",
+    )
+    p.add_argument(
+        "--no-line-graph-oracle",
+        action="store_true",
+        help="with --line-graph: leave out the rebuild_line_graph check (quadratic in the degrees)",
     )
     p.add_argument(
         "--legacy-generator",
@@ -249,6 +261,33 @@ def compare_main(argv: list[str]) -> int:
                     f"h2h: {totals['h2h_layouts_equal']} of {totals['h2h_states']} states equal "
                     "ESCHER-GPU's H2H"
                 )
+        if args.line_graph and not args.no_line_graph_oracle:
+            # Every compared state (A: the by-id states, B: the loads and batches) was checked
+            # against testing::rebuild_line_graph (criterion 6).
+            states = (
+                totals["h2h_states"]
+                if SETS[n] == "ESCHER-GPU"
+                else totals["sessions"] + totals["batches"] - totals["original_exceptions"]
+            )
+            if totals["line_graph_oracle_states"] < states or states == 0:
+                problems.append(
+                    f"line-graph oracle: {totals['line_graph_oracle_states']} of {states} states "
+                    "checked"
+                )
+        for r in reports:
+            # By content: A's ids hold until the first ambiguous resolution, and only an ambiguous
+            # resolution ends the comparison (M8b review).
+            if (
+                r.get("ok")
+                and r.get("mode") in ("by_content", "both")
+                and r.get("repo") == ("ESCHER-GPU")
+            ):
+                if int(r.get("content_diverged_at", -1)) != int(r.get("first_ambiguous_batch", -1)):
+                    problems.append(
+                        f"{r['trace']}: by content: the ids diverged at batch "
+                        f"{r.get('content_diverged_at')}, the first ambiguous resolution is at "
+                        f"{r.get('first_ambiguous_batch')}"
+                    )
         if args.legacy_generator and SETS[n] == "ESCHER-GPU":
             if totals["generated_batches_equal"] != totals["generated_batches"] or (
                 totals["generated_batches"] != totals["batches"]
@@ -272,6 +311,8 @@ def compare_main(argv: list[str]) -> int:
             "mode": args.mode,
             "model": not args.no_model,
             "line_graph": args.line_graph,
+            "line_graph_oracle": args.line_graph and not args.no_line_graph_oracle,
+            "verified": not args.skip_verify,
             "legacy_generator": args.legacy_generator,
             "hg": cbst_trace_goldens.portable(args.hg) if args.hg else None,
             "commit": git_head(),
@@ -286,7 +327,9 @@ def compare_main(argv: list[str]) -> int:
             + (f" ({args.threads} threads)" if args.threads else "")
             + f": {len(reports)} traces, {totals['sessions']} sessions, {totals['batches']} "
             f"batches, {totals['ids_compared']} ids, {totals['rows_compared']} rows, "
-            f"{totals['vertex_batches']} vertex-kind batches not replayed, "
+            f"{totals['vertex_batches']} vertex-kind batches ({totals['stopped_sessions']} "
+            f"sessions stopped at one; after it {totals['hyperedge_batches_after_stop']} "
+            f"hyperedge-kind batches, {totals['ids_after_stop']} ids, not replayed), "
             f"{totals['filtered_virtual']} virtual ops filtered, {totals['ambiguous']} ambiguous "
             f"by-content resolutions, "
             + (
@@ -295,6 +338,7 @@ def compare_main(argv: list[str]) -> int:
                 f"({totals['h2h_payload_entries']} entries), {totals['h2h_key_hashes']} key "
                 f"hashes, {totals['h2h_full_rows']} full rows, memory ratio <= "
                 f"{totals['memory_ratio_max']:.4f}, "
+                f"oracle {totals['line_graph_oracle_states']} states, "
                 if args.line_graph
                 else ""
             )
