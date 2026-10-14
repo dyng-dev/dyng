@@ -73,7 +73,11 @@
 #              memcheck covers them in
 #              the memcheck step), without the long random streams (HypergraphRandom.*,
 #              HypergraphCuda.RepeatedRunsGiveIdenticalIds: under racecheck they take hours, and
-#              their kernels are the ones of the other tests and of the cbst step), the kit's
+#              their kernels are the ones of the other tests and of the cbst step); racecheck also
+#              leaves out HypergraphCuda.TwoContainersOnTwoNonBlockingStreams (C12 with two host
+#              threads: under racecheck its run time is not bounded, 59 s to more than 70 min;
+#              its kernels are the single-stream tests' kernels, and synccheck and memcheck run
+#              it), the kit's
 #              hypergraph axis (dyng_hypergraph_kit_cuda_tests, M8b step 3: the fakes' device counts
 #              over the row views; C1, C11 and C12 under the sanitizers, every check under
 #              memcheck), and the container-level replays of the small golden sets on
@@ -109,7 +113,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,82p' "${BASH_SOURCE[0]}"
+      sed -n '5,100p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -398,11 +402,16 @@ if ! skipped hypergraph; then
   else
     for tool in racecheck synccheck; do
       extra=()
-      [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
+      hg_filter='-HypergraphRandom.*:HypergraphCuda.RepeatedRunsGiveIdenticalIds'
+      if [ "${tool}" = racecheck ]; then
+        extra=(--racecheck-report all)
+        # The two host threads of C12 under racecheck: 59 s in some runs, more than 400 s (and
+        # once more than 70 min) in others; synccheck and memcheck keep the test (M8b step 5).
+        hg_filter="${hg_filter}:HypergraphCuda.TwoContainersOnTwoNonBlockingStreams"
+      fi
       for exe in "${hg_exes[@]}"; do
         if ! DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
-          --error-exitcode 1 "${exe}" --gtest_brief=1 \
-          --gtest_filter='-HypergraphRandom.*:HypergraphCuda.RepeatedRunsGiveIdenticalIds'; then
+          --error-exitcode 1 "${exe}" --gtest_brief=1 --gtest_filter="${hg_filter}"; then
           echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
           hg_ok=0
         fi
