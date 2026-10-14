@@ -281,16 +281,20 @@ class hypergraph {
    *         hypergraph was moved from or is poisoned, or an array must be copied and the copy
    *         policy is copy_policy::error.
    * @throws not_supported_error    if the batch has incidence edits (planned for 0.4).
-   * @throws capacity_error         if the storage exceeds its policy (the hypergraph is then
-   *         poisoned).
-   * @throws out_of_memory_error    if host or device memory cannot be allocated (poisoned).
+   * @throws capacity_error         if the batch inserts more than INT_MAX / 3 (715,827,882)
+   *         members in all (found before the store changes: nothing changed), or the storage
+   *         exceeds its policy (the hypergraph is then poisoned).
+   * @throws out_of_memory_error    if host or device memory cannot be allocated: while the batch
+   *         is staged and checked nothing changed, in a store operation the hypergraph is
+   *         poisoned.
    * @throws cuda_error             if the CUDA runtime reports an error (poisoned).
    * @throws internal_error         if the store's device error word reports a broken invariant
    *         (poisoned).
    * @sync
    * @guarantee Strong for every error found before the store changes (the invalid_argument_error
-   *            and not_supported_error cases above): version, state identity and contents are
-   *            unchanged. Basic otherwise: an error inside a store operation poisons the
+   *            and not_supported_error cases above, the batch-size capacity_error, an allocation
+   *            failure while the batch is staged and checked): version, state identity and
+   *            contents are unchanged. Basic otherwise: an error inside a store operation poisons the
    *            hypergraph; every later call that reads or changes its storage (the views,
    *            weights(), apply(), to_hyperedge_list(), clone(), to_backend(), check_integrity())
    *            throws, and the noexcept accessors return unspecified values, until it is

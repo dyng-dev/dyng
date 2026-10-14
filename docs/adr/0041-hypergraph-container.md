@@ -190,7 +190,10 @@ without a header change.
   `invalid_argument_error` for a member out of range, an empty inserted hyperedge, malformed
   offsets, a weight outside [1, 2^31 - 1] or weights on an unweighted batch;
   `not_supported_error` for non-empty incidence edits (0.4); an input copy refused by the copy
-  policy. Then version, state identity, rows and `to_hyperedge_list()` are unchanged.
+  policy; `capacity_error` for a batch of more than `INT_MAX / 3` inserted members (the int32
+  payload of one store operation); an `out_of_memory_error` while the batch is staged and checked
+  (M8b review: the public header had listed these two as poisoning). Then version, state
+  identity, rows and `to_hyperedge_list()` are unchanged.
 - **Basic guarantee** for the store phase: a `capacity_error`, an `out_of_memory_error`, a
   `cuda_error` or the device error word raised by a store operation poisons the container; every
   later call that reads or changes the storage (the views, `weights()`, `apply()`,

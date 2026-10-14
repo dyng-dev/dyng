@@ -102,7 +102,8 @@ later call that reads or changes its storage (the views, `weights()`, `apply()`,
 `to_hyperedge_list()`, `clone()`, `check_integrity()`) throws until it is destroyed or assigned,
 and the `noexcept` accessors (`num_hyperedges()`, `version()`, `store_stats()`, ...) return
 unspecified values, because a half-applied batch cannot be undone cheaply on the device. Errors found before the store changes (an out-of-range vertex, an
-empty hyperedge, a bad weight, an incidence edit before 0.4) change nothing.
+empty hyperedge, a bad weight, an incidence edit before 0.4, a batch of more than `INT_MAX / 3`
+inserted members, host memory running out while the batch is checked) change nothing.
 
 On CUDA a hypergraph's storage works on the stream of the `resources` it was built with.
 `apply()` (and `dyng::update()`) with resources on another stream of the same device is ordered
