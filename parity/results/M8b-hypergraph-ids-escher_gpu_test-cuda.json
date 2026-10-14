@@ -1,0 +1,4303 @@
+{
+ "set": "cbst_trace_escher_gpu_test",
+ "reference": "ESCHER-GPU",
+ "backend": "cuda",
+ "threads": 0,
+ "mode": "both",
+ "model": true,
+ "commit": "9de082de5200cfbd0775e65f83f9e27f28edf996",
+ "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+ "passed": true,
+ "totals": {
+  "sessions": 75,
+  "batches": 180,
+  "vertex_batches": 0,
+  "ids_compared": 114965,
+  "rows_compared": 3196275,
+  "filtered_virtual": 0,
+  "skipped_compared": 0,
+  "skipped_ops": 0,
+  "dropped_members": 0,
+  "ambiguous": 21330,
+  "original_exceptions": 0,
+  "mismatch_count": 0
+ },
+ "cases": [
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/001-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 1,
+   "vertex_batches": 0,
+   "ids_compared": 3,
+   "rows_compared": 28,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 4096,
+   "h2v_capacity_dyng": 4096,
+   "seconds": 0.114367,
+   "paths": [
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     44108,
+     45176
+    ],
+    [
+     44204,
+     45472
+    ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/002-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 1,
+   "vertex_batches": 0,
+   "ids_compared": 3,
+   "rows_compared": 28,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 4096,
+   "h2v_capacity_dyng": 4096,
+   "seconds": 0.0979347,
+   "paths": [
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     44108,
+     45176
+    ],
+    [
+     44204,
+     45472
+    ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/003-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 1,
+   "vertex_batches": 0,
+   "ids_compared": 3,
+   "rows_compared": 28,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 4096,
+   "h2v_capacity_dyng": 4096,
+   "seconds": 0.0971818,
+   "paths": [
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     44108,
+     45176
+    ],
+    [
+     44204,
+     45472
+    ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/004-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 1,
+   "vertex_batches": 0,
+   "ids_compared": 3,
+   "rows_compared": 28,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 4096,
+   "h2v_capacity_dyng": 4096,
+   "seconds": 0.100779,
+   "paths": [
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     44108,
+     45176
+    ],
+    [
+     44204,
+     45472
+    ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/005-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 1,
+   "vertex_batches": 0,
+   "ids_compared": 3,
+   "rows_compared": 28,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 4096,
+   "h2v_capacity_dyng": 4096,
+   "seconds": 0.0976208,
+   "paths": [
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     44108,
+     59760
+    ],
+    [
+     44204,
+     60080
+    ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/006-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 3000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.124803,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ]
+   ],
+   "original_store_bytes": [
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/007-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 100000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 0.604175,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ]
+   ],
+   "original_store_bytes": [
+    21533720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/008-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 3000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.112816,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ]
+   ],
+   "original_store_bytes": [
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/009-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 100000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 0.595411,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ]
+   ],
+   "original_store_bytes": [
+    21533720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/010-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 3000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.115909,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ]
+   ],
+   "original_store_bytes": [
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/011-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 100000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 0.617838,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ]
+   ],
+   "original_store_bytes": [
+    21533720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/012-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 3000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.131287,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ]
+   ],
+   "original_store_bytes": [
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/013-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 100000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 0.610027,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ]
+   ],
+   "original_store_bytes": [
+    21533720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/014-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 3000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.120086,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ]
+   ],
+   "original_store_bytes": [
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/015-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 0,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 100000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 0.658813,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     90547764
+    ]
+   ],
+   "original_store_bytes": [
+    21533720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/016-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 30,
+   "rows_compared": 21002,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.149293,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1480856
+    ],
+    [
+     742636,
+     1479992
+    ],
+    [
+     742648,
+     1480152
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/017-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12012,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.148417,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742648,
+     1479784
+    ],
+    [
+     742684,
+     1479800
+    ],
+    [
+     742720,
+     1480008
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/018-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 1500,
+   "rows_compared": 12022,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 245,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.157165,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742708,
+     1485880
+    ],
+    [
+     742708,
+     1492072
+    ],
+    [
+     742756,
+     1501608
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/019-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 400125,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 110,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 1.86854,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ],
+    [
+     21534212,
+     70543876
+    ],
+    [
+     21534212,
+     70505444
+    ],
+    [
+     21534236,
+     70475380
+    ]
+   ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/020-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 30,
+   "rows_compared": 21002,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.153242,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1480856
+    ],
+    [
+     742636,
+     1479992
+    ],
+    [
+     742648,
+     1480152
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/021-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12012,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.17984,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742648,
+     1479784
+    ],
+    [
+     742684,
+     1479800
+    ],
+    [
+     742720,
+     1480008
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/022-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 1500,
+   "rows_compared": 12022,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 245,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.160003,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742708,
+     1485880
+    ],
+    [
+     742708,
+     1492072
+    ],
+    [
+     742756,
+     1501608
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/023-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 400125,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 110,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 1.8615,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ],
+    [
+     21534212,
+     70543876
+    ],
+    [
+     21534212,
+     70505444
+    ],
+    [
+     21534236,
+     70475380
+    ]
+   ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/024-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 30,
+   "rows_compared": 21002,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.147391,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1480856
+    ],
+    [
+     742636,
+     1479992
+    ],
+    [
+     742648,
+     1480152
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/025-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12012,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.15343,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742648,
+     1479784
+    ],
+    [
+     742684,
+     1479800
+    ],
+    [
+     742720,
+     1480008
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/026-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 1500,
+   "rows_compared": 12022,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 245,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.158853,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742708,
+     1485880
+    ],
+    [
+     742708,
+     1492072
+    ],
+    [
+     742756,
+     1501608
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/027-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 400125,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 110,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 1.85385,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ],
+    [
+     21534212,
+     70543876
+    ],
+    [
+     21534212,
+     70505444
+    ],
+    [
+     21534236,
+     70475380
+    ]
+   ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/028-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 30,
+   "rows_compared": 21002,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.154453,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1480856
+    ],
+    [
+     742636,
+     1479992
+    ],
+    [
+     742648,
+     1480152
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/029-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12012,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.163735,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742648,
+     1479784
+    ],
+    [
+     742684,
+     1479800
+    ],
+    [
+     742720,
+     1480008
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/030-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 1500,
+   "rows_compared": 12022,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 245,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.154823,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742708,
+     1485880
+    ],
+    [
+     742708,
+     1492072
+    ],
+    [
+     742756,
+     1501608
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/031-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 400125,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 110,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 1.88422,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     70526340
+    ],
+    [
+     21534212,
+     70543876
+    ],
+    [
+     21534212,
+     70505444
+    ],
+    [
+     21534236,
+     70475380
+    ]
+   ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/032-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 30,
+   "rows_compared": 21002,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.166441,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     742636,
+     2059868
+    ],
+    [
+     742636,
+     2057844
+    ],
+    [
+     742648,
+     2057264
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/033-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12012,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.157199,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     742648,
+     2051680
+    ],
+    [
+     742684,
+     2043376
+    ],
+    [
+     742720,
+     2036328
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/034-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 1500,
+   "rows_compared": 12022,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 245,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.158088,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     742708,
+     2029280
+    ],
+    [
+     742708,
+     2010700
+    ],
+    [
+     742756,
+     1997872
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/035-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 400125,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 110,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 902059,
+   "h2v_capacity_dyng": 902059,
+   "seconds": 1.97238,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     21533720,
+     90547764
+    ],
+    [
+     21534212,
+     90574536
+    ],
+    [
+     21534212,
+     90526904
+    ],
+    [
+     21534236,
+     90489448
+    ]
+   ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/036-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.140146,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1414088
+    ],
+    [
+     742636,
+     1353432
+    ],
+    [
+     742636,
+     1304136
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/037-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 900,
+   "rows_compared": 24600,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.157561,
+   "paths": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     767836,
+     1610616
+    ],
+    [
+     842476,
+     1798936
+    ],
+    [
+     911544,
+     1989716
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/038-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 62,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.16899,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1394760
+    ],
+    [
+     742636,
+     1320440
+    ],
+    [
+     742636,
+     1256552
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/039-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12042,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 5,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.153839,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742804,
+     1487864
+    ],
+    [
+     742804,
+     1487064
+    ],
+    [
+     742804,
+     1482712
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/040-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12034,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 55,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24577,
+   "h2v_capacity_dyng": 24577,
+   "seconds": 0.155456,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     741072,
+     1477916
+    ],
+    [
+     741144,
+     1481324
+    ],
+    [
+     741156,
+     1482732
+    ],
+    [
+     741324,
+     1486636
+    ]
+   ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/041-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 12014,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 2446,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.188432,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     772856,
+     1522376
+    ],
+    [
+     817000,
+     1563108
+    ],
+    [
+     817060,
+     1585380
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/042-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 2,
+   "vertex_batches": 0,
+   "ids_compared": 2800,
+   "rows_compared": 4526,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 1124,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 33307,
+   "h2v_capacity_dyng": 33307,
+   "seconds": 0.197496,
+   "paths": [
+    2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    2,
+    0,
+    2
+   ],
+   "device_bytes": [
+    [
+     631900,
+     6599064
+    ],
+    [
+     782524,
+     6654152
+    ],
+    [
+     929516,
+     6471392
+    ]
+   ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/043-main/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 960,
+   "rows_compared": 1850,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 199,
+   "content_diverged_at": 2,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 14726,
+   "h2v_capacity_dyng": 14726,
+   "seconds": 0.171088,
+   "paths": [
+    3,
+    3,
+    0,
+    3,
+    3,
+    0,
+    3,
+    3,
+    0
+   ],
+   "device_bytes": [
+    [
+     329256,
+     737540
+    ],
+    [
+     437492,
+     829292
+    ],
+    [
+     489504,
+     874100
+    ],
+    [
+     489504,
+     897860
+    ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/044-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.145843,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1414088
+    ],
+    [
+     742636,
+     1353432
+    ],
+    [
+     742636,
+     1304136
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/045-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 900,
+   "rows_compared": 24600,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.162183,
+   "paths": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     767836,
+     1610616
+    ],
+    [
+     842476,
+     1798936
+    ],
+    [
+     911544,
+     1989716
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/046-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 62,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.148306,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1394760
+    ],
+    [
+     742636,
+     1320440
+    ],
+    [
+     742636,
+     1256552
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/047-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12042,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 5,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.154102,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742804,
+     1487864
+    ],
+    [
+     742804,
+     1487064
+    ],
+    [
+     742804,
+     1482712
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/048-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12034,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 55,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24577,
+   "h2v_capacity_dyng": 24577,
+   "seconds": 0.15065,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     741072,
+     1477916
+    ],
+    [
+     741144,
+     1481324
+    ],
+    [
+     741156,
+     1482732
+    ],
+    [
+     741324,
+     1486636
+    ]
+   ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/049-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 12014,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 2446,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.186521,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     772856,
+     1522376
+    ],
+    [
+     817000,
+     1563108
+    ],
+    [
+     817060,
+     1585380
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/050-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 2,
+   "vertex_batches": 0,
+   "ids_compared": 2800,
+   "rows_compared": 4526,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 1124,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 33307,
+   "h2v_capacity_dyng": 33307,
+   "seconds": 0.196431,
+   "paths": [
+    2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    2,
+    0,
+    2
+   ],
+   "device_bytes": [
+    [
+     631900,
+     6599064
+    ],
+    [
+     782524,
+     6654152
+    ],
+    [
+     929516,
+     6471392
+    ]
+   ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/051-type1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 960,
+   "rows_compared": 1850,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 199,
+   "content_diverged_at": 2,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 14726,
+   "h2v_capacity_dyng": 14726,
+   "seconds": 0.153824,
+   "paths": [
+    3,
+    3,
+    0,
+    3,
+    3,
+    0,
+    3,
+    3,
+    0
+   ],
+   "device_bytes": [
+    [
+     329256,
+     737540
+    ],
+    [
+     437492,
+     829292
+    ],
+    [
+     489504,
+     874100
+    ],
+    [
+     489504,
+     897860
+    ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/052-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.142088,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1414088
+    ],
+    [
+     742636,
+     1353432
+    ],
+    [
+     742636,
+     1304136
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/053-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 900,
+   "rows_compared": 24600,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.164009,
+   "paths": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     767836,
+     1610616
+    ],
+    [
+     842476,
+     1798936
+    ],
+    [
+     911544,
+     1989716
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/054-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 62,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.146037,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1394760
+    ],
+    [
+     742636,
+     1320440
+    ],
+    [
+     742636,
+     1256552
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/055-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12042,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 5,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.149963,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742804,
+     1487864
+    ],
+    [
+     742804,
+     1487064
+    ],
+    [
+     742804,
+     1482712
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/056-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12034,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 55,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24577,
+   "h2v_capacity_dyng": 24577,
+   "seconds": 0.149317,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     741072,
+     1477916
+    ],
+    [
+     741144,
+     1481324
+    ],
+    [
+     741156,
+     1482732
+    ],
+    [
+     741324,
+     1486636
+    ]
+   ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/057-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 12014,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 2446,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.190875,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     772856,
+     1522376
+    ],
+    [
+     817000,
+     1563108
+    ],
+    [
+     817060,
+     1585380
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/058-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 2,
+   "vertex_batches": 0,
+   "ids_compared": 2800,
+   "rows_compared": 4526,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 1124,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 33307,
+   "h2v_capacity_dyng": 33307,
+   "seconds": 0.197344,
+   "paths": [
+    2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    2,
+    0,
+    2
+   ],
+   "device_bytes": [
+    [
+     631900,
+     6599064
+    ],
+    [
+     782524,
+     6654152
+    ],
+    [
+     929516,
+     6471392
+    ]
+   ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/059-type2/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 960,
+   "rows_compared": 1850,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 199,
+   "content_diverged_at": 2,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 14726,
+   "h2v_capacity_dyng": 14726,
+   "seconds": 0.150721,
+   "paths": [
+    3,
+    3,
+    0,
+    3,
+    3,
+    0,
+    3,
+    3,
+    0
+   ],
+   "device_bytes": [
+    [
+     329256,
+     737540
+    ],
+    [
+     437492,
+     829292
+    ],
+    [
+     489504,
+     874100
+    ],
+    [
+     489504,
+     897860
+    ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/060-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.141568,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1414088
+    ],
+    [
+     742636,
+     1353432
+    ],
+    [
+     742636,
+     1304136
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/061-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 900,
+   "rows_compared": 24600,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.171681,
+   "paths": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     767836,
+     1610616
+    ],
+    [
+     842476,
+     1798936
+    ],
+    [
+     911544,
+     1989716
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/062-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 62,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.161187,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1394760
+    ],
+    [
+     742636,
+     1320440
+    ],
+    [
+     742636,
+     1256552
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/063-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12042,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 5,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.149492,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742804,
+     1487864
+    ],
+    [
+     742804,
+     1487064
+    ],
+    [
+     742804,
+     1482712
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/064-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12034,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 55,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24577,
+   "h2v_capacity_dyng": 24577,
+   "seconds": 0.152055,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     741072,
+     1477916
+    ],
+    [
+     741144,
+     1481324
+    ],
+    [
+     741156,
+     1482732
+    ],
+    [
+     741324,
+     1486636
+    ]
+   ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/065-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 12014,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 2446,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.189819,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     772856,
+     1522376
+    ],
+    [
+     817000,
+     1563108
+    ],
+    [
+     817060,
+     1585380
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/066-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 2,
+   "vertex_batches": 0,
+   "ids_compared": 2800,
+   "rows_compared": 4526,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 1124,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 33307,
+   "h2v_capacity_dyng": 33307,
+   "seconds": 0.202568,
+   "paths": [
+    2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    2,
+    0,
+    2
+   ],
+   "device_bytes": [
+    [
+     631900,
+     6599064
+    ],
+    [
+     782524,
+     6654152
+    ],
+    [
+     929516,
+     6471392
+    ]
+   ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/067-type3/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 960,
+   "rows_compared": 1850,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 199,
+   "content_diverged_at": 2,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 14726,
+   "h2v_capacity_dyng": 14726,
+   "seconds": 0.155434,
+   "paths": [
+    3,
+    3,
+    0,
+    3,
+    3,
+    0,
+    3,
+    3,
+    0
+   ],
+   "device_bytes": [
+    [
+     329256,
+     737540
+    ],
+    [
+     437492,
+     829292
+    ],
+    [
+     489504,
+     874100
+    ],
+    [
+     489504,
+     897860
+    ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/068-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 0,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 10,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.145432,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     742636,
+     1963128
+    ],
+    [
+     742636,
+     1872776
+    ],
+    [
+     742636,
+     1794748
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/069-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 900,
+   "rows_compared": 24600,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.167114,
+   "paths": [
+    3,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     767836,
+     2195696
+    ],
+    [
+     842476,
+     2389396
+    ],
+    [
+     911544,
+     2585592
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/070-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 300,
+   "rows_compared": 12000,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 62,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.148557,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     742636,
+     1925732
+    ],
+    [
+     742636,
+     1808160
+    ],
+    [
+     742636,
+     1699716
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/071-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12042,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 5,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.166525,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     742804,
+     2070580
+    ],
+    [
+     742804,
+     2068056
+    ],
+    [
+     742804,
+     2061820
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/072-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 600,
+   "rows_compared": 12034,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 55,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24577,
+   "h2v_capacity_dyng": 24577,
+   "seconds": 0.156794,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     741072,
+     2054688
+    ],
+    [
+     741144,
+     2044276
+    ],
+    [
+     741156,
+     2031336
+    ],
+    [
+     741324,
+     2024016
+    ]
+   ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/073-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 7500,
+   "rows_compared": 12014,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 2446,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.191566,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     2060828
+    ],
+    [
+     772856,
+     2007212
+    ],
+    [
+     817000,
+     2008040
+    ],
+    [
+     817060,
+     2009368
+    ]
+   ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/074-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 2,
+   "vertex_batches": 0,
+   "ids_compared": 2800,
+   "rows_compared": 4526,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 1124,
+   "content_diverged_at": 1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 33307,
+   "h2v_capacity_dyng": 33307,
+   "seconds": 0.230309,
+   "paths": [
+    2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    2,
+    0,
+    2
+   ],
+   "device_bytes": [
+    [
+     631900,
+     11955344
+    ],
+    [
+     782524,
+     11997488
+    ],
+    [
+     929516,
+     11826488
+    ]
+   ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test/075-coarseTriangle/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 960,
+   "rows_compared": 1850,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 199,
+   "content_diverged_at": 2,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 14726,
+   "h2v_capacity_dyng": 14726,
+   "seconds": 0.173149,
+   "paths": [
+    3,
+    3,
+    0,
+    3,
+    3,
+    0,
+    3,
+    3,
+    0
+   ],
+   "device_bytes": [
+    [
+     329256,
+     2702340
+    ],
+    [
+     437492,
+     2748328
+    ],
+    [
+     489504,
+     2562084
+    ],
+    [
+     489504,
+     2582472
+    ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  }
+ ],
+ "problems": []
+}

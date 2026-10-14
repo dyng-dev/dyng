@@ -1,0 +1,165 @@
+{
+ "set": "committed",
+ "reference": "both",
+ "backend": "cuda",
+ "threads": 0,
+ "mode": "both",
+ "model": true,
+ "commit": "6d8a7735a1a35f16c3eaf917374c9b3c824a99a2",
+ "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+ "passed": true,
+ "totals": {
+  "sessions": 11,
+  "batches": 14,
+  "vertex_batches": 8,
+  "ids_compared": 291,
+  "rows_compared": 25186,
+  "filtered_virtual": 0,
+  "skipped_compared": 10,
+  "skipped_ops": 0,
+  "dropped_members": 0,
+  "ambiguous": 0,
+  "original_exceptions": 0,
+  "mismatch_count": 0
+ },
+ "cases": [
+  {
+   "trace": "cpp/tests/data/goldens/cbst_trace/escher_gpu_test/001-main.cbt",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 1,
+   "vertex_batches": 0,
+   "ids_compared": 3,
+   "rows_compared": 28,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 4096,
+   "h2v_capacity_dyng": 4096,
+   "seconds": 0.110322,
+   "paths": [
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     44108,
+     45176
+    ],
+    [
+     44204,
+     45472
+    ]
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "cpp/tests/data/goldens/hypergraph_batches/escher_gpu_016-main.cbt",
+   "repo": "ESCHER-GPU",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 30,
+   "rows_compared": 21002,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 24721,
+   "h2v_capacity_dyng": 24721,
+   "seconds": 0.143157,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    0,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     742636,
+     1481032
+    ],
+    [
+     742636,
+     1480856
+    ],
+    [
+     742636,
+     1479992
+    ],
+    [
+     742648,
+     1480152
+    ]
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  },
+  {
+   "trace": "cpp/tests/data/goldens/hypergraph_batches/mosp_escher_014-test_h2h_delta.cbt",
+   "repo": "MOSP_ESCHER",
+   "backend": "cuda",
+   "threads": 56,
+   "mode": "by_id",
+   "ok": true,
+   "sessions": 9,
+   "batches": 10,
+   "vertex_batches": 8,
+   "ids_compared": 258,
+   "rows_compared": 4156,
+   "filtered_virtual": 0,
+   "skipped_compared": 10,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 0,
+   "content_diverged_at": -1,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 1049280,
+   "h2v_capacity_dyng": 1049280,
+   "seconds": 0.125103,
+   "paths": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "device_bytes": [],
+   "mismatch_count": 0,
+   "mismatches": []
+  }
+ ],
+ "problems": []
+}

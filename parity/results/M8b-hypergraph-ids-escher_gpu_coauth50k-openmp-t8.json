@@ -1,0 +1,82 @@
+{
+ "set": "cbst_trace_escher_gpu_coauth50k",
+ "reference": "ESCHER-GPU",
+ "backend": "openmp",
+ "threads": 8,
+ "mode": "both",
+ "model": true,
+ "commit": "df9c52bd97d309bc822e5d8f9026d3b06e34e6a9",
+ "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+ "passed": true,
+ "totals": {
+  "sessions": 1,
+  "batches": 3,
+  "vertex_batches": 0,
+  "ids_compared": 75000,
+  "rows_compared": 12337324,
+  "filtered_virtual": 0,
+  "skipped_compared": 0,
+  "skipped_ops": 0,
+  "dropped_members": 0,
+  "ambiguous": 824,
+  "original_exceptions": 0,
+  "mismatch_count": 0
+ },
+ "cases": [
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_coauth50k/coauth_b50k_s1/trace.cbt.zst",
+   "repo": "ESCHER-GPU",
+   "backend": "openmp",
+   "threads": 8,
+   "mode": "both",
+   "ok": true,
+   "sessions": 1,
+   "batches": 3,
+   "vertex_batches": 0,
+   "ids_compared": 75000,
+   "rows_compared": 12337324,
+   "filtered_virtual": 0,
+   "skipped_compared": 0,
+   "skipped_ops": 0,
+   "dropped_members": 0,
+   "ambiguous": 824,
+   "content_diverged_at": 2,
+   "original_exceptions": 0,
+   "h2v_capacity_trace": 15046108,
+   "h2v_capacity_dyng": 15046108,
+   "seconds": 36.5147,
+   "paths": [
+    3,
+    0,
+    0,
+    3,
+    1,
+    0,
+    3,
+    0,
+    0
+   ],
+   "device_bytes": [
+    [
+     0,
+     1922784204
+    ],
+    [
+     0,
+     1923300764
+    ],
+    [
+     0,
+     1923713052
+    ],
+    [
+     0,
+     1924170844
+    ]
+   ],
+   "mismatch_count": 0,
+   "mismatches": []
+  }
+ ],
+ "problems": []
+}
