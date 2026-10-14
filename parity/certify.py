@@ -602,10 +602,15 @@ def replay_matrix(record: dict) -> tuple[dict, int, int]:
 
 
 def hypergraph_id_coverage(entry: dict) -> dict[str, set[str]]:
-    """{feature: backends} of the passed hypergraph-id replays of a golden-set entry."""
+    """{feature: backends} of the passed hypergraph-id replays of a golden-set entry. Only full
+    replays count (M8b review): with the host-model lockstep, on goldens re-hashed against their
+    manifest, and for the line graph with the rebuild_line_graph oracle (the record's checks)."""
     out: dict[str, set[str]] = {}
     for r in entry["replays"]:
         if not r["passed"]:
+            continue
+        checks = r.get("checks") or {}
+        if not (checks.get("model") and checks.get("verified")):
             continue
         for c in r["configs"]:
             if ":hypergraph_ids/" not in c:
@@ -613,7 +618,7 @@ def hypergraph_id_coverage(entry: dict) -> dict[str, set[str]]:
             backend = c.split(":", 1)[0].split("/")[0]
             feature = c.rsplit("/", 1)[1]
             for name, modes in HYPERGRAPH_ID_MODES.items():
-                if feature in modes:
+                if feature in modes and (name != "line_graph" or checks.get("line_graph_oracle")):
                     out.setdefault(name, set()).add(backend)
     return out
 
@@ -688,6 +693,7 @@ def golden_suites(results: Path, head: str, problems: list[str], version: str = 
                     "build": record.get("build"),
                     "reference": record.get("reference"),
                     "configs": configs,
+                    "checks": record.get("checks"),
                     "tolerance": record.get("tolerance"),
                     "compared": compared,
                     "failed": failed,

@@ -215,6 +215,15 @@ def compare_main(argv: list[str]) -> int:
         help="also write the certificate's replay record parity-<set>-hypergraph_ids-*.json",
     )
     args = p.parse_args(argv)
+    if args.certificate and (args.no_model or args.skip_verify or args.no_line_graph_oracle):
+        # A certificate counts only full replays (M8b review): the host-model lockstep (criterion
+        # 6), goldens re-hashed against their manifest, the line-graph oracle.
+        print(
+            "--certificate needs the full replay: drop --no-model, --skip-verify and "
+            "--no-line-graph-oracle",
+            file=sys.stderr,
+        )
+        return 2
     names = [full_name(n) for n in args.set]
     unknown = [n for n in names if n not in SETS]
     if unknown:
@@ -403,11 +412,9 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
     golden_suites, the hypergraph-id schema): set, goldens manifest, port commit, one config
     "<backend>[/t<N>]:hypergraph_ids/<feature>", per case "equal" (the case matched the original
     in every compared field) or "DIFFERENT", passed."""
-    dirty = subprocess.run(
-        ["git", "-C", str(REPO), "status", "--porcelain", "--", "cpp"],
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    # The whole tree, as parity/compare.py (M8b review: only cpp/ was looked at, while this
+    # harness under parity/ decides pass and fail).
+    dirty = subprocess.run(["git", "-C", str(REPO), "diff", "--quiet", "HEAD"]).returncode != 0
     backend = args.backend + (f"/t{args.threads}" if args.threads else "")
     config = f"{backend}:hypergraph_ids/{feature_of(args)}"
     manifest = cbst_trace_goldens.set_dir(args.scratch, set_name) / "MANIFEST.sha256"
@@ -427,6 +434,11 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
         "executable": record["tool"],
         "reference": SETS[set_name],
         "configs": [config],
+        "checks": {
+            "model": not args.no_model,
+            "verified": not args.skip_verify,
+            "line_graph_oracle": not args.no_line_graph_oracle,
+        },
         "totals": {
             k: record["totals"][k]
             for k in ("sessions", "batches", "ids_compared", "rows_compared", "mismatch_count")

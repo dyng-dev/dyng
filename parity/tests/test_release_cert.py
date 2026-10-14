@@ -534,7 +534,13 @@ def _replays(cert, results: Path, commit: str) -> None:
 
 
 def _hypergraph_id_record(
-    results: Path, name: str, spec: dict, commit: str, backend: str, feature: str
+    results: Path,
+    name: str,
+    spec: dict,
+    commit: str,
+    backend: str,
+    feature: str,
+    checks: dict | None = None,
 ) -> None:
     """A passed record of `compare.py hypergraph_ids --certificate` (the hypergraph-id schema)."""
     config = f"{backend}:hypergraph_ids/{feature}"
@@ -544,6 +550,9 @@ def _hypergraph_id_record(
         "port": {"commit": commit},
         "goldens": {"manifest_sha256": spec["manifest_sha256"]},
         "configs": [config],
+        "checks": checks
+        if checks is not None
+        else {"model": True, "verified": True, "line_graph_oracle": True},
         "matrix": {"case": {config: "equal"}},
         "passed": True,
     }
@@ -1256,6 +1265,18 @@ def test_hypergraph_id_replays_are_required_from_0_3(cert, tmp_path: Path) -> No
         "ids": ["cuda", "openmp", "sequential"],
         "line_graph": ["cuda"],
     }
+    # A replay without the host model, without verified goldens or (line graph) without the
+    # oracle does not count (M8b review).
+    for checks, feature, backend in (
+        ({"model": False, "verified": True, "line_graph_oracle": True}, "both", "openmp"),
+        ({"model": True, "verified": False, "line_graph_oracle": True}, "both", "openmp"),
+        ({"model": True, "verified": True, "line_graph_oracle": False}, "line_graph", "cuda"),
+    ):
+        _hypergraph_id_record(results, name, sets[name], commit, backend, feature, checks)
+        entry, problems = listed("0.3.0")
+        assert entry["passed"] is False, checks
+        assert any(f"on {backend}" in p for p in problems), (checks, problems)
+        _hypergraph_id_record(results, name, sets[name], commit, backend, feature)
     # A failed replay does not count (and fails the set).
     failed = results / f"parity-{name}-hypergraph_ids-openmp-both.json"
     doc = json.loads(failed.read_text())

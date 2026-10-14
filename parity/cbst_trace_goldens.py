@@ -746,11 +746,9 @@ def certificate_record(set_name: str, record: dict, args) -> dict:
     under escher_gpu(): every tree diverges where the host model under the preset does) or
     "DIFFERENT"."""
     head = record["head"]
-    dirty = subprocess.run(
-        ["git", "-C", str(REPO), "status", "--porcelain", "--", "cpp"],
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
+    # The whole tree, as parity/compare.py (M8b review: this harness under parity/ decides pass
+    # and fail, and only cpp/ was looked at).
+    dirty = subprocess.run(["git", "-C", str(REPO), "diff", "--quiet", "HEAD"]).returncode != 0
     config = f"device:{args.policy or original_preset(set_name)}/{args.fields}"
     matrix = {
         c["case"]: {config: "equal" if c.get("ok") and "error" not in c else "DIFFERENT"}
