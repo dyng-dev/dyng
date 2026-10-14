@@ -296,6 +296,38 @@ if(DYNG_ENABLE_CUDA)
   target_compile_definitions(dyng_hypergraph_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
   list(APPEND _dyng_private_tests dyng_hypergraph_cuda_tests)
 endif()
+# Container-level id parity against both originals' batch records (M8b, criterion 4; ADR 0041):
+# the replay library, the tool parity/compare.py hypergraph_ids drives over the golden sets, and
+# its test on the committed traces (hosted CI: the CPU backends).
+add_library(dyng_hypergraph_ids STATIC parity/escher/hypergraph_ids.cpp)
+target_link_libraries(dyng_hypergraph_ids PUBLIC dyng_cbst_compare dyng::dyng)
+target_include_directories(dyng_hypergraph_ids PUBLIC "${PROJECT_SOURCE_DIR}/cpp/src")
+target_compile_features(dyng_hypergraph_ids PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_hypergraph_ids)
+dyng_enable_sanitizers(dyng_hypergraph_ids)
+add_executable(dyng_hypergraph_ids_tool parity/escher/hypergraph_ids_main.cpp)
+set_target_properties(dyng_hypergraph_ids_tool PROPERTIES OUTPUT_NAME dyng_hypergraph_ids)
+target_link_libraries(dyng_hypergraph_ids_tool PRIVATE dyng_hypergraph_ids)
+dyng_set_warnings(dyng_hypergraph_ids_tool)
+dyng_enable_sanitizers(dyng_hypergraph_ids_tool)
+dyng_add_test(
+  NAME dyng_hypergraph_ids_tests
+  SOURCES parity/escher/hypergraph_ids_test.cpp
+  LABELS cpu parity hypergraph
+  LIBRARIES dyng_hypergraph_ids
+)
+list(APPEND _dyng_private_tests dyng_hypergraph_ids_tests)
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_hypergraph_ids_cuda_tests
+    SOURCES parity/escher/hypergraph_ids_test.cpp
+    LABELS gpu parity hypergraph
+    LIBRARIES dyng_hypergraph_ids
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_hypergraph_ids_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  list(APPEND _dyng_private_tests dyng_hypergraph_ids_cuda_tests)
+endif()
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
