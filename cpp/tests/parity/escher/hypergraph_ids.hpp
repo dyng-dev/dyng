@@ -54,7 +54,8 @@ struct options {
   bool legacy_generator = false;
   /// M8b criterion 13: the `.hg` file the trace's run loaded (A: --input, B: --hg), read with the
   /// original's option set (io::hypergraph_read_options::escher_gpu(); hsosp(--seed, --maxcard)),
-  /// must give the original's loaded rows (B: and vertex count and weights).
+  /// must give the original's loaded rows (B: and vertex count and weights). For A the by-id
+  /// container is then built from the file's list (the public reader's path; M8b step 5).
   std::string hg_file;
   std::size_t max_mismatches = 20;  ///< mismatches recorded in full
 };

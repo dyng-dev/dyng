@@ -81,7 +81,11 @@
 #              and rows; escher_gpu_test again with --line-graph, A's H2H after every batch, and
 #              with --legacy-generator, A's batches drawn again by generators::legacy from the
 #              CUDA container; skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
-#              build/<preset>/hypergraph-records)
+#              build/<preset>/hypergraph-records), the id and line-graph replays also as the
+#              release certificate's hypergraph-id records (parity-<set>-hypergraph_ids-*.json,
+#              M8b step 5; the large sets and the CPU backends are replayed by the release's
+#              parity runs, docs/developer/release.md); and the compile-only fitness skeletons of
+#              the frozen hypergraph API (dyng_api_fitness, ADR 0047) are built by the build step
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -426,11 +430,11 @@ if ! skipped hypergraph; then
     echo "the CBST trace goldens are missing (parity/export_goldens.py cbst_trace); skipped"
     record "hypergraph replays (cuda, small sets)" skipped
   elif heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
-    --exe "${hg_tool}" --record "${hg_records}" --set cbst_trace_escher_gpu_test \
-    --set cbst_trace_mosp_escher_test &&
+    --exe "${hg_tool}" --record "${hg_records}" --certificate "${hg_records}" \
+    --set cbst_trace_escher_gpu_test --set cbst_trace_mosp_escher_test &&
     heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
-      --exe "${hg_tool}" --record "${hg_records}" --line-graph --mode by_id \
-      --set cbst_trace_escher_gpu_test &&
+      --exe "${hg_tool}" --record "${hg_records}" --certificate "${hg_records}" --line-graph \
+      --mode by_id --set cbst_trace_escher_gpu_test &&
     heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
       --exe "${hg_tool}" --record "${hg_records}" --legacy-generator --mode by_id \
       --set cbst_trace_escher_gpu_test; then

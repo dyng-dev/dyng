@@ -30,13 +30,21 @@ M8b-legacy-<set>-<backend>[-t<N>].json. --hg FILE (criterion 13): the .hg file t
 read with the original's option set and must give its loaded rows (record M8b-hg-<set>-...).
 
 --record writes M8b-hypergraph-ids-<set>-<backend>[-t<N>].json (the totals, every case's report
-and the tool's commit). Exit status: 0 every case matched, 1 a mismatch, 2 a usage error, 77 no
+and the tool's commit). --certificate DIR (M8b step 5) also writes the replay record of the
+release certificate (parity/certify.py, the hypergraph-id schema): parity-<set>-hypergraph_ids-
+<backend>[-t<N>]-<feature>.json with the set's manifest digest, the port's commit, one config
+"<backend>[/t<N>]:hypergraph_ids/<feature>" (feature: the mode, or line_graph, legacy, hg) and
+per case "equal" or "DIFFERENT"; certify.py requires the id replays of every set of SETS on
+sequential, openmp and cuda, and the line-graph replays of ESCHER-GPU's sets on cuda, from the
+0.3 series. Exit status: 0 every case matched, 1 a mismatch, 2 a usage error, 77 no
 goldens.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
+import hashlib
 import json
 import os
 import subprocess
@@ -189,6 +197,11 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--gpu", type=int, default=1, help="CUDA_VISIBLE_DEVICES unless set (default 1)")
     p.add_argument("--record", type=Path, help="write M8b-hypergraph-ids-<set>-<backend>.json here")
     p.add_argument("--skip-verify", action="store_true", help="do not re-hash the goldens")
+    p.add_argument(
+        "--certificate",
+        type=Path,
+        help="also write the certificate's replay record parity-<set>-hypergraph_ids-*.json",
+    )
     args = p.parse_args(argv)
     names = [full_name(n) for n in args.set]
     unknown = [n for n in names if n not in SETS]
@@ -319,8 +332,64 @@ def compare_main(argv: list[str]) -> int:
             if args.threads:
                 name += f"-t{args.threads}"
             (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")
+        if args.certificate and n != "committed":
+            args.certificate.mkdir(parents=True, exist_ok=True)
+            doc = certificate_record(n, record, args)
+            feature = doc["configs"][0].rsplit("/", 1)[1]
+            backend = doc["configs"][0].split(":", 1)[0].replace("/", "-")
+            path = args.certificate / f"parity-{n}-hypergraph_ids-{backend}-{feature}.json"
+            path.write_text(json.dumps(doc, indent=1) + "\n")
         bad += bool(problems)
     return 1 if bad else 0
+
+
+def feature_of(args) -> str:
+    """What a replay checks besides the ids: line_graph, legacy, hg, or the id mode."""
+    if args.line_graph:
+        return "line_graph"
+    if args.legacy_generator:
+        return "legacy"
+    if args.hg:
+        return "hg"
+    return args.mode
+
+
+def certificate_record(set_name: str, record: dict, args) -> dict:
+    """The replay record of a set in the release certificate's format (parity/certify.py
+    golden_suites, the hypergraph-id schema): set, goldens manifest, port commit, one config
+    "<backend>[/t<N>]:hypergraph_ids/<feature>", per case "equal" (the case matched the original
+    in every compared field) or "DIFFERENT", passed."""
+    dirty = subprocess.run(
+        ["git", "-C", str(REPO), "status", "--porcelain", "--", "cpp"],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    backend = args.backend + (f"/t{args.threads}" if args.threads else "")
+    config = f"{backend}:hypergraph_ids/{feature_of(args)}"
+    manifest = cbst_trace_goldens.set_dir(args.scratch, set_name) / "MANIFEST.sha256"
+    digest = hashlib.sha256(manifest.read_bytes()).hexdigest() if manifest.is_file() else None
+    matrix = {
+        Path(c["trace"]).parent.name: {
+            config: "equal" if c.get("ok") and "error" not in c else "DIFFERENT"
+        }
+        for c in record["cases"]
+    }
+    return {
+        "set": set_name,
+        "kind": "hypergraph_ids",
+        "date": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
+        "goldens": {"manifest_sha256": digest},
+        "port": {"commit": record["commit"] + ("+dirty" if dirty else "")},
+        "executable": record["tool"],
+        "reference": SETS[set_name],
+        "configs": [config],
+        "totals": {
+            k: record["totals"][k]
+            for k in ("sessions", "batches", "ids_compared", "rows_compared", "mismatch_count")
+        },
+        "matrix": matrix,
+        "passed": record["passed"],
+    }
 
 
 if __name__ == "__main__":

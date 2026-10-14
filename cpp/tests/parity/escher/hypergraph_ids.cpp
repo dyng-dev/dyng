@@ -191,6 +191,7 @@ class escher_gpu_replay {
     ++rep_.sessions;
     model_ = decoder_.build().loaded;
     n_ = decoder_.build().num_vertices;
+    hg_list_.reset();
     if (!opt_.hg_file.empty()) check_hg_file();
     if (opt_.legacy_generator && argv_ok_) start_generator();
     // ESCHER-GPU's payloadCapacity: max(requested, size + size / 8 + 1024) for H2V and V2H; the
@@ -208,7 +209,11 @@ class escher_gpu_replay {
       hypergraph_properties by_id_props = props_;
       if (opt_.line_graph) by_id_props.line_graph = line_graph_policy::sorted_merge;
       const std::size_t mark = profiled_samples();
-      by_id_ = std::make_unique<hgraph>(hgraph::from_hyperedges(res_, list.view(), by_id_props));
+      // With --hg the by-id container is built from the file through the public reader (its
+      // rows equal A's loaded rows, checked above), as a user loads coauth-DBLP (M8b step 5:
+      // the memory gate through read_hypergraph).
+      const auto view = hg_list_ ? hg_list_->view() : list.view();
+      by_id_ = std::make_unique<hgraph>(hgraph::from_hyperedges(res_, view, by_id_props));
       record_stages(mark, 0);
       if (opt_.model) model_lockstep_ = std::make_unique<hs::lockstep>(n_, model_, props_);
       rep_.h2v_capacity_trace = traced;
@@ -229,7 +234,7 @@ class escher_gpu_replay {
 
   // The .hg file of the run read with ESCHER-GPU's option set: A's loaded rows (criterion 13).
   void check_hg_file() {
-    const auto list = io::read_hypergraph<std::int32_t, unweighted>(
+    auto list = io::read_hypergraph<std::int32_t, unweighted>(
         opt_.hg_file, io::hypergraph_read_options::escher_gpu());
     rep_.hg_hyperedges += list.num_hyperedges();
     if (static_cast<std::int32_t>(list.num_vertices) != n_)
@@ -239,6 +244,7 @@ class escher_gpu_replay {
       out_.mismatch("the .hg file: the rows read with escher_gpu() differ from A's loaded rows (" +
                     std::to_string(list.num_hyperedges()) + " vs " + std::to_string(model_.size()) +
                     " hyperedges)");
+    hg_list_ = std::make_unique<hyperedge_list<std::int32_t, unweighted>>(std::move(list));
   }
 
   // The legacy generators (criterion 16): the synthetic hypergraph from one
@@ -578,6 +584,7 @@ class escher_gpu_replay {
   std::int32_t n_ = 0;
   rows model_;
   std::unique_ptr<hypergraph<std::int32_t, unweighted>> by_id_, by_content_;
+  std::unique_ptr<hyperedge_list<std::int32_t, unweighted>> hg_list_;  // --hg: the file's list
   std::unique_ptr<hs::lockstep> model_lockstep_;
   ed::decoder decoder_;
   ed::by_content_resolver resolver_;

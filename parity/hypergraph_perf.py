@@ -165,7 +165,10 @@ def memory(args: argparse.Namespace) -> int:
     try:
         trace = decompress(case_dir, work)
         report_json = work / "report.json"
-        port = port_command(tool, trace, "--json", str(report_json))
+        # The hypergraph is loaded through the public reader: read_hypergraph(coauth.hg,
+        # escher_gpu()), checked against A's loaded rows and vertex count (M8b step 5).
+        hg = args.hg or perf_ab.SCRATCH / "datasets" / "hyper" / "coauth.hg"
+        port = port_command(tool, trace, "--json", str(report_json), "--hg", str(hg))
         with perf_ab.perf_lock(perf_ab.SCRATCH / "perf.lock", args.lock_timeout, args.no_lock):
             # The accounting (and the ids) of the replay, then A's own print points.
             run(port, env)
@@ -211,7 +214,15 @@ def memory(args: argparse.Namespace) -> int:
         f"(store, row views and motif counting), port {port_peak['peak_live_mib']} MiB (pool "
         f"{port_peak['pool_mib']} MiB)"
     )
-    passed = bool(table) and worst <= 1.05 and prints_agree and rep["mismatch_count"] == 0
+    loaded = rep.get("hg_hyperedges", 0)
+    print(f"  loaded through read_hypergraph({hg.name}, escher_gpu()): {loaded} hyperedges")
+    passed = (
+        bool(table)
+        and worst <= 1.05
+        and prints_agree
+        and rep["mismatch_count"] == 0
+        and loaded > 0
+    )
     if args.json:
         doc = {
             "schema": 1,
@@ -221,6 +232,9 @@ def memory(args: argparse.Namespace) -> int:
             "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "set": SETS["coauth50k"][0],
             "properties": "{erase_first, escher_gpu(), sorted_merge}",
+            "loaded_through": f"io::read_hypergraph({hg.name}, "
+            "hypergraph_read_options::escher_gpu()), equal to A's loaded rows",
+            "hg_hyperedges": loaded,
             "original": {
                 "command": [perf_ab.portable_path(c) if "/" in c else c for c in cmd],
                 "printed": line.strip(),
@@ -478,6 +492,13 @@ def main(argv: list[str] | None = None) -> int:
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--gpu", type=int, default=0)
         p.add_argument("--build", type=Path, help="the CUDA build tree of dyng_hypergraph_ids")
+        if name == "memory":
+            p.add_argument(
+                "--hg",
+                type=Path,
+                help="coauth-DBLP's .hg file (default $DYNG_SCRATCH/datasets/hyper/coauth.hg), "
+                "read with the public reader",
+            )
         p.add_argument("--json", type=Path)
         p.add_argument("--lock-timeout", type=float, default=3 * 3600.0)
         p.add_argument("--no-lock", action="store_true")

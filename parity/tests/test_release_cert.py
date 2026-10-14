@@ -526,6 +526,29 @@ def _replays(cert, results: Path, commit: str) -> None:
                 "passed": True,
             }
             (results / f"parity-{name}-device-{preset}.json").write_text(json.dumps(record))
+        # The hypergraph container's replays of the set's batch records (M8b, from 0.3).
+        for feature, backends in cert.HYPERGRAPH_ID_REPLAYS.get(name, {}).items():
+            mode = "both" if feature == "ids" else feature
+            for backend in backends:
+                _hypergraph_id_record(results, name, spec, commit, backend, mode)
+
+
+def _hypergraph_id_record(
+    results: Path, name: str, spec: dict, commit: str, backend: str, feature: str
+) -> None:
+    """A passed record of `compare.py hypergraph_ids --certificate` (the hypergraph-id schema)."""
+    config = f"{backend}:hypergraph_ids/{feature}"
+    record = {
+        "set": name,
+        "kind": "hypergraph_ids",
+        "port": {"commit": commit},
+        "goldens": {"manifest_sha256": spec["manifest_sha256"]},
+        "configs": [config],
+        "matrix": {"case": {config: "equal"}},
+        "passed": True,
+    }
+    path = results / f"parity-{name}-hypergraph_ids-{backend}-{feature}.json"
+    path.write_text(json.dumps(record))
 
 
 @pytest.fixture()
@@ -1132,7 +1155,8 @@ def test_ctest_progress_lines(cert) -> None:
 def test_cbst_trace_sets_are_gated(cert, tmp_path: Path) -> None:
     """The CBST trace goldens of M8a are gated (M8a review): a set without a replay of the dynG
     store under its original's preset and under dynG's default fails the certificate; with both
-    records it passes; a record of one is checked like any other."""
+    records it passes; a record of one is checked like any other. (Read as a 0.2 certificate:
+    from 0.3 the hypergraph-id replays are required too, the next test.)"""
     import tomllib
 
     sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
@@ -1141,7 +1165,7 @@ def test_cbst_trace_sets_are_gated(cert, tmp_path: Path) -> None:
     results = tmp_path / "results"
     results.mkdir()
     problems: list[str] = []
-    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.2.0")}
     for n in traces:
         assert listed[n]["kind"] == "cbst_trace" and listed[n]["passed"] is False
         assert any(n in p and "no replay of the CBST store" in p for p in problems)
@@ -1163,20 +1187,83 @@ def test_cbst_trace_sets_are_gated(cert, tmp_path: Path) -> None:
     # Only the original's preset: the default's replay is missing.
     write(original, sets[name]["manifest_sha256"])
     problems = []
-    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.2.0")}
     assert listed[name]["passed"] is False
     assert any("dyng_default" in p for p in problems if name in p)
     # Both presets: the set passes.
     write("dyng_default", sets[name]["manifest_sha256"])
     problems = []
-    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.2.0")}
     assert listed[name]["passed"] is True, [p for p in problems if name in p]
     # A record of another manifest fails like any other.
     write("dyng_default", "0" * 64)
     problems = []
-    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.2.0")}
     assert listed[name]["passed"] is False
     assert any("replayed manifest" in p for p in problems)
+
+
+def test_hypergraph_id_replays_are_required_from_0_3(cert, tmp_path: Path) -> None:
+    """M8b: a 0.3 certificate needs the hypergraph container's replays of the CBST trace sets'
+    batch records (the hypergraph-id schema) on every backend, and the line graph of
+    ESCHER-GPU's sets on cuda; a 0.2 certificate does not; a failed replay does not count."""
+    import tomllib
+
+    sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
+    assert set(cert.HYPERGRAPH_ID_REPLAYS) <= set(sets)
+    results = tmp_path / "results"
+    results.mkdir()
+    commit = head()
+    # Every CBST set has its store replays (M8a), none has a hypergraph-id replay yet.
+    for name, spec in sets.items():
+        if spec.get("kind") != "cbst_trace":
+            continue
+        for preset in (cert.CBST_ORIGINAL_PRESET[spec["reference"]], "dyng_default"):
+            config = f"device:{preset}/exact"
+            (results / f"parity-{name}-device-{preset}.json").write_text(
+                json.dumps(
+                    {
+                        "set": name,
+                        "port": {"commit": commit},
+                        "goldens": {"manifest_sha256": spec["manifest_sha256"]},
+                        "configs": [config],
+                        "matrix": {"c": {config: "equal"}},
+                        "passed": True,
+                    }
+                )
+            )
+    name = "cbst_trace_escher_gpu_test"
+
+    def listed(version: str) -> tuple[dict, list[str]]:
+        problems: list[str] = []
+        out = {g["set"]: g for g in cert.golden_suites(results, commit, problems, version)}
+        return out[name], [p for p in problems if name in p]
+
+    entry, problems = listed("0.2.0")
+    assert entry["passed"] is True and problems == []  # not required before 0.3
+    entry, problems = listed("0.3.0")
+    assert entry["passed"] is False
+    assert any("hypergraph-id replay (ids) on sequential, openmp, cuda" in p for p in problems)
+    assert any("(line_graph) on cuda" in p for p in problems)
+    for backend in ("sequential", "openmp", "cuda"):
+        _hypergraph_id_record(results, name, sets[name], commit, backend, "both")
+    entry, problems = listed("0.3.0")
+    assert entry["passed"] is False and len(problems) == 1 and "line_graph" in problems[0]
+    _hypergraph_id_record(results, name, sets[name], commit, "cuda", "line_graph")
+    entry, problems = listed("0.3.0rc1")
+    assert entry["passed"] is True, problems
+    assert entry["hypergraph_ids"] == {
+        "ids": ["cuda", "openmp", "sequential"],
+        "line_graph": ["cuda"],
+    }
+    # A failed replay does not count (and fails the set).
+    failed = results / f"parity-{name}-hypergraph_ids-openmp-both.json"
+    doc = json.loads(failed.read_text())
+    doc["passed"] = False
+    failed.write_text(json.dumps(doc))
+    entry, problems = listed("0.3.0")
+    assert entry["passed"] is False
+    assert any("(ids) on openmp" in p for p in problems)
 
 
 # --- R020: the mosp suite (ipdps25_dynamosp_mosp) and its gates in the certificate ----------------

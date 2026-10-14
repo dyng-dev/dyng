@@ -31,6 +31,8 @@ $DYNG_SCRATCH/
 | `cycle_count_goldens.py` | the `cycle_count` corpus of CycleEnumeration-GPU@0a976ad: `export` (histograms of the original `cycle-enum`, OpenMP 56 threads, DD k = 3..7, GitHub and Twitch k = 3, 4, COLLAB k = 3; the seed-1 updates 1K/25K/50K on DD, GitHub, Twitch with prior, delta and the generated batch; a DD locality and bound sweep; cross-checked against the original's sequential backend, the exporter's counts and the plan's totals) and `compare` (replay through `dyng-compat-cycle-enum`); reached as `export_goldens.py cycle_count` and `compare.py cycle_count` |
 | `cbst_trace_goldens.py` | the CBST trace goldens of M8a (ADR 0036): `export` (`export_goldens.py cbst_trace <set>|all [--twice]`) records the originals' suites (`make test` of ESCHER-GPU and MOSP_ESCHER), coauth-DBLP 3 x 50K seed 1 (ESCHER-GPU, digest mode), the synthetic-1M batch dumps (seeds 1-3), the DBLP 50K hyperedge and vertex runs of H-SOSP and the targeted scenarios with the recording twins into `$DYNG_SCRATCH/goldens/cbst_trace/<set>` and `[sets.cbst_trace_<set>]` of `goldens.toml`; `compare.py cbst_trace` verifies them; `datasets` re-derives the coauth-DBLP variants (`datasets/registry.toml`); `subset` writes the committed subset `cpp/tests/data/goldens/cbst_trace` |
 | `escher_trace.py` | reader of the CBST traces (format 1): `summary` (what a trace covers), `dump`, `verify` (rebuild every state, check every hash); the C++ reader is `cpp/tests/parity/escher/cbst_trace.hpp` |
+| `hypergraph_ids.py` | the container-level replay of M8b (`compare.py hypergraph_ids`, ADRs 0041, 0042, 0045): the batch records of the CBST trace sets through `dyng::hypergraph` with the tool `dyng_hypergraph_ids` (ids, h2v and v2h rows, skipped ops against both originals; `--line-graph` A's H2H after every batch and the memory ratio; `--legacy-generator` A's batches drawn again; `--hg` the `.hg` readers), `--record` (`results/M8b-*.json`) and `--certificate` (the release certificate's hypergraph-id records, required from 0.3) |
+| `hypergraph_perf.py` | the memory gate and the maintain reading of the hypergraph against ESCHER-GPU (`perf_ab.py hypergraph memory|maintain`, `timed_regions/hypergraph.toml`; M8b step 2) |
 | `escher_crosscheck.py` | the cross-check of the two ESCHER cores (PLAN 6.3 step 2): `run --set <set> --store <original>` replays every trace of a set through the other original's unchanged store and reports the first divergence of every tree with its cause |
 | `cycle_count_perf.py` | the OpenMP A/B of `cycle_count` against the unpatched CycleEnumeration-GPU (`perf_ab.py cycle_count run`; regions from `timed_regions/cycle_count.toml`) |
 | `export_goldens.py` | writes the `sssp` golden set from MOSP-OpenMP@c352151 (495 cases, including 107 with non-canonical initial trees) after cross-checking the original implementations; `--twice` re-exports from a fresh copy and compares |
@@ -39,7 +41,7 @@ $DYNG_SCRATCH/
 | `timed_regions/<algo>.toml` | the original's timers -> dynG profiler stages (written before each port); `perf_ab.py` loads it |
 | `perf_ab.py` | `prepare` the benchmark inputs with the original's own tool; `run` the A/B/A/B comparison under the perf lock (`--backend openmp` against MOSP-OpenMP, `--backend cuda` against MOSP-CUDA; `--baseline-exe` against an earlier dynG build instead, for refactors: reported, not gated; with `--layouts N` the rounds cycle through N heap layouts, ADR 0024) |
 | `bench_suite.py` | the benchmark suites of `benchmarks/paper/` (PLAN 8.5): `validate` a suite against this harness, `plan` and `run` it through `perf_ab.py` (`run` / `memory` for sssp, `mosp` / `memory --mosp` for mosp) or `cycle_count_perf.py` (every reading of the suite, gated or recorded), and `summarize` the records into `benchmarks/results/<version>/` with every gate re-derived; `benchmarks/README.md` |
-| `mutate.py` | the mutation checks of PLAN 8.4 against the golden suites, each on the sequential, OpenMP and CUDA backends: sssp (the skipped subtree invalidation), cycle_count (CycleEnumeration-GPU's double-counted 5-cycles and weakened ownership rule, host and device) and mosp (a combined-edge weight from one tree only; path costs from one objective's weights). Each mutation is applied to a `git archive` copy, built (`parity-cuda`) and replayed through `compare.py`; the control must pass and every mutation must fail (`mutate.py list`; [robustness checks](../docs/developer/robustness.md)). The CTests `*.mutation.*` check the cycle_count mutations against the unit suites as well |
+| `mutate.py` | the mutation checks of PLAN 8.4 against the golden suites, each on the sequential, OpenMP and CUDA backends: sssp (the skipped subtree invalidation), cycle_count (CycleEnumeration-GPU's double-counted 5-cycles and weakened ownership rule, host and device) and mosp (a combined-edge weight from one tree only; path costs from one objective's weights); and the GoogleTest suites of the ESCHER store (cbst, M8a: 7 mutations), the hypergraph container (hypergraph, M8b: the h2v insert payload not deduplicated, the host allocator's tie rule reversed, the line-graph mirror additions dropped) and the conformance kit's hypergraph axis (kit, M8b: the frontier from requested ids). Each mutation is applied to a `git archive` copy, built (`parity-cuda`) and replayed through `compare.py`; the control must pass and every mutation must fail (`mutate.py list`; [robustness checks](../docs/developer/robustness.md)). The CTests `*.mutation.*` check the cycle_count mutations against the unit suites as well |
 | `certify.py` | the release certificate (PLAN 8.3): `check` records a release check (sanitizers, mutation CTests, `ci/gpu_local.sh`, `ci/check.sh`, the distributions) in `checks.json` with its scope and evidence; `equivalence` compares the builds of a measured commit and of the release when they differ only in generated metadata; `write` assembles `benchmarks/results/<version>/parity.json` from the golden replays, the committed fixtures (`fixtures/fixtures.toml`), the suite summaries (the suites each release series requires: sssp and cycle_count from 0.1, mosp from 0.2) and the checks; `benchmarks/README.md` |
 | `ab_modes.py` | reads the records of a dynG-against-dynG A/B by ADR 0024: every gated region's ratio of medians with its bootstrap interval, and a bimodal region by its within-mode ratios and the Fisher test of equal mode fractions; exit 1 if a region is outside the bar |
 | `experiments/` | one-off diagnostics, not gates: `sssp_stage_ab.py` and `cycle_count_stage_ab.py` (two builds stage by stage), `sssp_layout_scan.py` (two builds over heap layouts), the cycle_count variants of M2 |
@@ -89,7 +91,36 @@ parity/cbst_trace_goldens.py datasets                 # coauth-DBLP variants (da
 parity/export_goldens.py cbst_trace all --twice
 parity/escher_trace.py summary <trace.cbt>
 parity/escher_crosscheck.py run --set cbst_trace_escher_gpu_test --store MOSP_ESCHER --capacity-floor 67108864
+# the hypergraph container (M8b): id, row and line-graph parity, memory gate, maintain reading
+cmake --preset parity-cuda && cmake --build --preset parity-cuda --target dyng_hypergraph_ids_tool
+parity/compare.py hypergraph_ids --backend cuda --set escher_gpu_test --set mosp_escher_test \
+    --exe build/parity-cuda/cpp/tests/dyng_hypergraph_ids --jobs 8 --certificate out/
+parity/compare.py hypergraph_ids --backend openmp --threads 8 --set escher_gpu_coauth50k
+parity/compare.py hypergraph_ids --backend cuda --line-graph --mode by_id --set escher_gpu_syn1m
+flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py hypergraph memory --gpu 0
+flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py hypergraph maintain --gpu 0 --runs 5
 ```
+
+### Re-exporting the hypergraph sets
+
+The container-level replays read the CBST trace goldens of M8a (`$DYNG_SCRATCH/goldens/
+cbst_trace/<set>`, pinned by `[sets.cbst_trace_<set>]` of `goldens.toml`); nothing of M8b is
+exported on its own. To re-create them on a new machine:
+
+1. `parity/build_reference.sh --fresh ESCHER-GPU MOSP_ESCHER` (the committed trees `abcf9b2` and
+   `4b86159` only; MOSP_ESCHER's uncommitted working tree is never read) and
+   `parity/exporters/escher/relink_twins.sh` (the recording twins, ADR 0036);
+2. `parity/cbst_trace_goldens.py datasets` (the coauth-DBLP variants of `datasets/registry.toml`,
+   re-derived and checked by SHA-256; `datasets/preprocess/benson_to_hg.py` writes both);
+3. `parity/export_goldens.py cbst_trace all --twice`: every set exported twice from two fresh
+   copies, compared, and written to `goldens.toml` (a set whose manifest digest changes is a new
+   golden set: review the diff before committing it);
+4. `parity/cbst_trace_goldens.py subset` and `parity/escher_trace.py extract-batches <trace>
+   <file> [--sessions N]` re-write the committed subsets (`cpp/tests/data/goldens/cbst_trace`,
+   `.../hypergraph_batches`, whose `SUBSET.txt` lists the commands and SHA-256);
+5. replay: `parity/compare.py cbst_trace --store device` (the store) and `parity/compare.py
+   hypergraph_ids` (the container) on every backend; `dyng-compat-escher to-dgb` turns an
+   ESCHER-GPU trace into `.hg` + `.dgb` files for M9's replays.
 
 `perf_ab.py run` takes `$DYNG_SCRATCH/perf.lock` itself; under the machine's convention
 `flock "$DYNG_SCRATCH/perf.lock" <command>` it sees in `/proc/locks` that its `flock(1)` ancestor
