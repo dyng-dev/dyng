@@ -272,6 +272,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   )
   set_tests_properties(cbst_model_isolation PROPERTIES LABELS "cpu;parity;cbst")
 endif()
+# The hypergraph container (M8b, ADR 0041): the host id allocator against the CBST host model
+# and the capacity policies.
+dyng_add_test(
+  NAME dyng_hypergraph_tests
+  SOURCES hypergraph/hypergraph_store_test.cpp
+  LABELS cpu hypergraph
+  LIBRARIES dyng_cbst_compare
+)
+list(APPEND _dyng_private_tests dyng_hypergraph_tests)
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")

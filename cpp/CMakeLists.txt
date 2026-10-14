@@ -172,9 +172,12 @@ dyng_add_module(
 dyng_add_module(
   NAME hypergraph
   SOURCES
+    src/hypergraph/capacity.cpp
     src/hypergraph/escher/flatten.cpp
     src/hypergraph/escher/store_policy.cpp
+    src/hypergraph/id_allocator.cpp
     src/hypergraph/names.cpp
+    src/hypergraph/store.cpp
   CUDA_SOURCES
     src/hypergraph/escher/build_tree.cu
     src/hypergraph/escher/cbst_store.cu
