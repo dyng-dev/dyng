@@ -30,6 +30,8 @@ namespace dyng::detail::hyper {
  * @param[in] rows         The rows.
  * @param[in] capacity     The capacity policy.
  * @param[in] has_v2h      Whether v2h is kept.
+ * @param[in] line_graph   Whether the line graph is built and maintained from the start
+ *                         (line_graph_policy::sorted_merge).
  * @return The store.
  * @throws not_supported_error in a build without CUDA.
  */
@@ -37,7 +39,7 @@ namespace dyng::detail::hyper {
                                                                  std::int32_t num_vertices,
                                                                  const member_rows& rows,
                                                                  const capacity_policy& capacity,
-                                                                 bool has_v2h);
+                                                                 bool has_v2h, bool line_graph);
 
 /**
  * @brief A device store from the state of another backend's store (the same ids, deleted slots,

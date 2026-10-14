@@ -13,24 +13,14 @@
 #pragma once
 
 #include "hypergraph/escher/cbst_store.hpp"
+#include "hypergraph/row_views.hpp"
 
 #include <cstddef>
 
 namespace dyng::detail::escher {
 
-// Contiguous, key-indexed view of the rows of a CBST ("locator"). The
-// counting kernels read rows through this offset table instead of walking
-// the BST for every lookup; the CBST stays the structure that is maintained
-// (delete / insert / fill / unfill) and the view is rebuilt from its nodes
-// whenever the tree changes (one pass over the nodes).
-struct row_view {
-  const int* flat = nullptr;  // payload of the tree
-  const int* loc = nullptr;   // key -> offset of the row in flat
-  const int* len = nullptr;   // key -> number of entries (0 for absent keys)
-  const int* out = nullptr;   // key -> offset of the first entry greater than key
-                              //        (sorted adjacency rows only)
-  int max_key = 0;            // arrays cover keys 0..max_key
-};
+// The row view itself (struct row_view) is in hypergraph/row_views.hpp (host-only: the host
+// stores of M8b give the same view of their rows; ADR 0042).
 
 // Owns the arrays behind a row_view.
 class row_locator {

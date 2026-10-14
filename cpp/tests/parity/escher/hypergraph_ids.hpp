@@ -35,9 +35,17 @@ namespace dyng::test::hypergraph_ids {
 
 /// What a replay does.
 struct options {
-  std::string mode = "both";        ///< "by_id", "by_content" (A only) or "both"
-  bool model = true;                ///< the lockstep with the host model
-  bool integrity = true;            ///< check_integrity() after every batch
+  std::string mode = "both";  ///< "by_id", "by_content" (A only) or "both"
+  bool model = true;          ///< the lockstep with the host model
+  bool integrity = true;      ///< check_integrity() after every batch
+  bool compare = true;        ///< compare the rows with the original's (off: apply only)
+  /// A: the by-id container keeps the line graph (line_graph_policy::sorted_merge) and its H2H
+  /// is compared with A's after the build and every batch (M8b step 2, criterion 7): the layout
+  /// (row offsets and payload) against the hashes of A's H2H construct and rebuild inputs, and,
+  /// where the trace has state digests, every key's row hash and the rows the digests record.
+  /// The device bytes are then in the whole scope of A's DynamicHypergraph::deviceBytes() and
+  /// must be within 1.05x of A's at every point (criterion 8).
+  bool line_graph = false;
   std::size_t max_mismatches = 20;  ///< mismatches recorded in full
 };
 
@@ -68,6 +76,16 @@ struct report {
   /// per-tree bytes. A's DynamicHypergraph::deviceBytes() adds its H2H tree and view (M8b step 2).
   std::vector<std::int64_t> original_store_bytes;
   std::int64_t h2v_capacity_trace = 0, h2v_capacity_dyng = 0;
+  /// The line graph (options::line_graph): states compared (the build and every batch), their
+  /// layouts equal to A's construct / rebuild inputs (offsets and payload hashes), the payload
+  /// entries compared that way, the keys whose row hash was compared with a state digest and the
+  /// rows compared in full (digest rows).
+  std::int64_t h2h_states = 0, h2h_layouts_equal = 0, h2h_payload_entries = 0;
+  std::int64_t h2h_unrecorded = 0;  ///< states whose A input the trace does not keep (extracts)
+  std::int64_t h2h_key_hashes = 0, h2h_full_rows = 0;
+  /// The largest ratio of the container's device bytes to A's DynamicHypergraph::deviceBytes()
+  /// (options::line_graph; 0 when the trace records none).
+  double memory_ratio_max = 0;
   /// The kernel paths of the (by-id) container at the end: fill, reuse, unfill x (thread, warp,
   /// block), from store_stats() (criterion 12).
   std::int64_t paths[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};

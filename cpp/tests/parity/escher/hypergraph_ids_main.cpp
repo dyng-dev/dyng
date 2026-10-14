@@ -8,7 +8,13 @@
  *
  *     dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N]
  *                         [--mode by_id|by_content|both] [--no-model] [--no-integrity]
- *                         [--json OUT] [--tmp DIR] <trace>...
+ *                         [--line-graph] [--apply-only] [--json OUT] [--tmp DIR] <trace>...
+ *
+ * --line-graph (ESCHER-GPU's traces): the by-id container keeps the line graph
+ * (line_graph_policy::sorted_merge), its H2H is compared with ESCHER-GPU's after the build and
+ * every batch (M8b criterion 7), and its device bytes with A's DynamicHypergraph::deviceBytes()
+ * (the memory gate, criterion 8). --apply-only applies the batches and records the counters
+ * without comparing rows (the memory and timing runs; implies --no-model --no-integrity).
  *
  * A trace is a `.cbt` file or a `.cbt.zst` (as dyng_cbst_replay reads them). Prints one line per
  * trace; --json writes a JSON array of the reports. Exit status: 0 every trace matched, 1 a
@@ -32,8 +38,8 @@ namespace {
 int usage() {
   std::fprintf(stderr,
                "usage: dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N] "
-               "[--mode by_id|by_content|both] [--no-model] [--no-integrity] [--json OUT] "
-               "[--tmp DIR] <trace>...\n");
+               "[--mode by_id|by_content|both] [--no-model] [--no-integrity] [--line-graph] "
+               "[--apply-only] [--json OUT] [--tmp DIR] <trace>...\n");
   return 2;
 }
 
@@ -63,6 +69,12 @@ int main(int argc, char** argv) {
     } else if (a == "--no-model") {
       opt.model = false;
     } else if (a == "--no-integrity") {
+      opt.integrity = false;
+    } else if (a == "--line-graph") {
+      opt.line_graph = true;
+    } else if (a == "--apply-only") {
+      opt.compare = false;
+      opt.model = false;
       opt.integrity = false;
     } else if (a == "--json") {
       json_path = value();

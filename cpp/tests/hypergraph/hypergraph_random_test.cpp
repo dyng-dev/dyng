@@ -4,13 +4,15 @@
  * @file hypergraph_random_test.cpp
  * @brief Random batch streams on every backend, in lockstep with the host model of the ESCHER
  *        store (M8b, criteria 5 and 6): after every batch the inserted ids, h2v rows by id and
- *        v2h rows equal the model's, check_integrity passes, and every backend gives the same ids,
+ *        v2h rows equal the model's, h2h equals dyng::testing::rebuild_line_graph (line_graph_policy::
+ *        sorted_merge), check_integrity passes, and every backend gives the same ids, line graphs,
  *        rows and summaries (C3). The mixes: sparse, dense, skewed (cardinality >= 1,024), many
  *        equal sizes, delete and re-insert in one batch, delete-all and re-insert, a batch larger
  *        than the hypergraph, deletions of ids at the limits; under ESCHER-GPU's and
  *        MOSP_ESCHER's presets and dynG's default (with a small slack, so that it compacts and
  *        grows), and both id_reuse orders.
  */
+#include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/hypergraph_support.hpp"
 #include "support/gtest_helpers.hpp"
 
@@ -68,6 +70,8 @@ struct stream_record {
   std::vector<std::vector<std::int64_t>> ids;
   std::vector<std::vector<std::int64_t>> counts;
   std::vector<rows> h2v;
+  std::vector<dyng::test::hyper::id_rows> h2h;
+  std::vector<std::vector<std::int32_t>> h2h_payload;  // the line graph's layout (ESCHER-GPU's)
   bool failed = false;
 };
 
@@ -82,7 +86,8 @@ stream_record run_stream(backend b, const preset_case& pc, id_reuse reuse, strea
   std::vector<std::int32_t> w;
   for (std::size_t i = 0; i < initial.size(); ++i) w.push_back(static_cast<std::int32_t>(i + 1));
   dyng::hypergraph_properties props;
-  props.line_graph = dyng::line_graph_policy::none;
+  // The line graph is maintained by every batch and checked against the oracle (criterion 6).
+  props.line_graph = dyng::line_graph_policy::sorted_merge;
   props.reuse = reuse;
   props.capacity = pc.capacity;
   std::vector<weight_t> ww;
@@ -115,8 +120,11 @@ stream_record run_stream(backend b, const preset_case& pc, id_reuse reuse, strea
     EXPECT_EQ(s.ignored_deletions, expected.ignored);
     EXPECT_EQ(s.dropped_members, expected.dropped);
     EXPECT_EQ(model.compare(h), "");
+    EXPECT_EQ(dyng::test::hyper::check_line_graph(h), "");
     h.check_integrity(res);
     rec.ids.push_back(s.inserted_ids);
+    rec.h2h.push_back(dyng::test::hyper::h2h_rows(h));
+    rec.h2h_payload.push_back(dyng::detail::hypergraph_access::store(h).line_graph().payload);
     rec.counts.push_back({s.inserted_hyperedges, s.deleted_hyperedges, s.skipped_ops,
                           s.ignored_deletions, s.dropped_members, s.num_hyperedges_after,
                           s.id_bound_after});
@@ -157,6 +165,8 @@ void run_all(std::uint64_t seed_base) {
             EXPECT_EQ(r.ids, reference.ids);
             EXPECT_EQ(r.counts, reference.counts);
             EXPECT_EQ(r.h2v, reference.h2v);
+            EXPECT_EQ(r.h2h, reference.h2h);
+            EXPECT_EQ(r.h2h_payload, reference.h2h_payload);
           }
           if (::testing::Test::HasFailure()) return;
         }

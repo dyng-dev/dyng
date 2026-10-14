@@ -118,8 +118,9 @@ TEST_P(HypergraphBackends, ConstructionRejectsInvalidInput) {
                dyng::not_supported_error);
   auto merged = p;
   merged.line_graph = dyng::line_graph_policy::sorted_merge;
+  merged.store_v2h = false;  // the merge reads v2h
   EXPECT_THROW((void)hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), merged),
-               dyng::not_supported_error);
+               dyng::invalid_argument_error);
   auto slack_h2h = p;
   slack_h2h.line_graph = dyng::line_graph_policy::slack_csr;
   EXPECT_THROW((void)hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), slack_h2h),
@@ -360,7 +361,7 @@ TEST_P(HypergraphBackends, LineGraphPolicies) {
   EXPECT_THROW((void)none.h2h(), dyng::invalid_argument_error);
   p.line_graph = dyng::line_graph_policy::automatic;
   const hgraph automatic = hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), p);
-  EXPECT_THROW((void)automatic.h2h(), dyng::not_supported_error);
+  EXPECT_EQ(automatic.h2h().num_rows(), 1);  // built on first read (hypergraph_line_graph_test)
   p.store_v2h = false;
   p.line_graph = dyng::line_graph_policy::none;
   const hgraph no_v2h = hgraph::from_hyperedges(res(), list_of(3, rows{{0}}).view(), p);

@@ -1,0 +1,136 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The rename map of the line-graph port (M8b step 2, the transplant commit; ADR 0042): ESCHER-GPU's
+# sorted delta merge of the line graph (kernel/delta_merge.{cu,cuh}, structure/graph_maintenance.cu,
+# include/graph_maintenance.hpp, include/frontier.hpp and the Batch record of include/batch.hpp),
+# H2H only: the V2V merge (updateVertexGraph, PairTest, vertexPairCount / vertexPairGather,
+# sortedIntersect) belongs to the coarse triangles of 0.4 and is not ported; rowHeadsKernel,
+# chainedRowLengths, gatherChainedRows and pairValues are already in escher/locator.cu (M8a).
+#
+#   python3 parity/escher_port/transplant.py --map parity/escher_port/rename_map_line_graph.toml \
+#       --check --rev <transplant commit>
+#
+# regenerates the transplant (the same steps as rename_map.toml: assemble the parts, rewrite the
+# includes, rename whole tokens, #pragma once, the namespace, the SPDX and provenance header,
+# clang-format, then the manual hunks of manual_hunks_line_graph.patch).
+
+schema = 1
+origin = "ESCHER-GPU"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+namespace = "dyng::detail::escher"
+target_dir = "cpp/src/hypergraph/line_graph"
+hunks = "manual_hunks_line_graph.patch"
+note = "parity/escher_port/rename_map_line_graph.toml (M8b, ADR 0042; the store's encoding is described in cpp/src/hypergraph/escher/README.md)."
+
+[[file]]
+target = "sorted_merge.cuh"
+brief = "The sorted delta merge of the line graph (H2H): the row delta, the batch it reads, the kernels and updateLineGraph (ESCHER-GPU's delta_merge.cuh and graph_maintenance.hpp, H2H part)."
+parts = [
+  { path = "kernel/delta_merge.cuh", lines = [1, 21] },
+  { path = "include/batch.hpp", lines = [8, 16] },
+  { path = "kernel/delta_merge.cuh", lines = [31, 33] },
+  { path = "kernel/delta_merge.cuh", lines = [40, 57] },
+  { path = "kernel/delta_merge.cuh", lines = [65, 68] },
+  { path = "include/graph_maintenance.hpp", lines = [8, 20] },
+]
+
+[[file]]
+target = "device_frontier.cuh"
+brief = "The frontier of one delta phase on the device: the changed ids and a membership flag per id (ESCHER-GPU's DeviceFrontier)."
+parts = [{ path = "include/frontier.hpp" }]
+
+[[file]]
+target = "sorted_merge.cu"
+brief = "The sorted delta merge of the line graph on the device: the rows of the inserted hyperedges, the removals and mirrored additions, the per-key ranges, the merged rows and the rebuild of the H2H tree over them (ESCHER-GPU's updateLineGraph)."
+parts = [
+  { path = "kernel/delta_merge.cu", lines = [1, 8] },
+  { path = "structure/graph_maintenance.cu", lines = [1, 16] },
+  { path = "kernel/delta_merge.cu", lines = [10, 60] },
+  { path = "kernel/delta_merge.cu", lines = [74, 74] },
+  { path = "kernel/delta_merge.cu", lines = [105, 162] },
+  { path = "kernel/delta_merge.cu", lines = [199, 259] },
+  { path = "structure/graph_maintenance.cu", lines = [18, 231] },
+]
+
+[includes]
+'"../include/row_view.hpp"' = '"hypergraph/escher/row_view.cuh"'
+'"../include/structure.hpp"' = '"hypergraph/escher/cbst_store.hpp"'
+'"../include/graph_maintenance.hpp"' = '"hypergraph/line_graph/sorted_merge.cuh"'
+'"../include/frontier.hpp"' = '"hypergraph/line_graph/device_frontier.cuh"'
+'"../kernel/delta_merge.cuh"' = '"hypergraph/line_graph/sorted_merge.cuh"'
+'"delta_merge.cuh"' = '"hypergraph/line_graph/sorted_merge.cuh"'
+
+[names]
+# types (PLAN 4.4.1: snake_case, no _t)
+Batch = "line_graph_batch"
+CBSTContext = "cbst_context"
+CBSTNode = "cbst_node"
+CBSTOperations = "cbst_store"
+DeviceArray = "device_array"
+DeviceFrontier = "device_frontier"
+DeviceRows = "device_rows"
+OrBytes = "or_bytes"
+PairRanges = "pair_ranges"
+Pairs = "pair_list"
+RowDelta = "row_delta"
+RowView = "row_view"
+# kernels (<verb>_<object>_kernel)
+mergedRowSlots = "merged_row_slots_kernel"
+mirrorAdditions = "mirror_additions_kernel"
+narrowStarts = "narrow_starts_kernel"
+neighbourhoodCount = "neighbourhood_count_kernel"
+neighbourhoodGather = "neighbourhood_gather_kernel"
+pairHistogram = "pair_histogram_kernel"
+removalCount = "removal_count_kernel"
+removalGather = "removal_gather_kernel"
+rowHeadsKernel = "row_heads_kernel"
+writeMergedRows = "write_merged_rows_kernel"
+# functions and variables (camelCase -> snake_case)
+addCount = "add_count"
+addOff = "add_off"
+additionRanges = "addition_ranges"
+blocksFor = "blocks_for"
+collectPairs = "collect_pairs"
+datasetName = "dataset_name"
+d_flatPayload = "d_flat_payload"
+deletedKeys = "deleted_keys"
+deletedRows = "deleted_rows"
+devicePtr = "device_ptr"
+forEachChainedEntry = "for_each_chained_entry"
+insertedKeys = "inserted_keys"
+insertedRows = "inserted_rows"
+isDeleted = "is_deleted"
+isInserted = "is_inserted"
+kBlock = "block_size"
+makePair = "pack_pair"
+maxId = "max_id"
+maxKey = "max_key"
+mergeAndRebuild = "merge_and_rebuild"
+numDeleted = "num_deleted"
+numInserted = "num_inserted"
+numItems = "num_items"
+numKeys = "num_keys"
+numNodes = "num_nodes"
+numOut = "num_out"
+numRecords = "num_records"
+numRows = "num_rows"
+numWarps = "num_warps"
+oldLen = "old_len"
+oldRows = "old_rows"
+pairValue = "pair_value"
+pairsBelow = "pairs_below"
+readBack = "read_back"
+rebuildFromDevice = "rebuild_from_device"
+remCount = "rem_count"
+remOff = "rem_off"
+removalRanges = "removal_ranges"
+repCount = "rep_count"
+repOff = "rep_off"
+rowOffsets = "row_offsets"
+rowRanges = "row_ranges"
+sortPairs = "sort_pairs"
+updateLineGraph = "update_line_graph"
+v2hFlat = "v2h_flat"
+v2hHead = "v2h_head"
+valuesBelow = "values_below"

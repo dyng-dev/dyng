@@ -151,12 +151,19 @@ class escher_gpu_replay {
     if (rec.kind == tr::record_kind::tree) {
       capacity_[rec.text("dataset_name")] = rec.integer("payload_capacity");
       tree_name_[static_cast<std::uint32_t>(rec.integer("tree"))] = rec.text("dataset_name");
+      if (opt_.line_graph && rec.text("dataset_name") == "H2H") {
+        h2h_tree_ = static_cast<std::uint32_t>(rec.integer("tree"));
+        has_h2h_tree_ = true;
+        (void)tracker_.apply(rec, in_);
+      }
       return;
     }
     if (rec.kind == tr::record_kind::op) {
       // ESCHER-GPU's deviceBytes() of the tree after the operation (its op records).
-      const std::string& name = tree_name_[static_cast<std::uint32_t>(rec.integer("tree"))];
+      const auto tree = static_cast<std::uint32_t>(rec.integer("tree"));
+      const std::string& name = tree_name_[tree];
       if (rec.has("after.device_bytes")) tree_bytes_[name] = rec.integer("after.device_bytes");
+      if (opt_.line_graph && has_h2h_tree_ && tree == h2h_tree_) on_h2h_op(rec);
       return;
     }
     if (rec.kind != tr::record_kind::batch) return;
@@ -196,23 +203,143 @@ class escher_gpu_replay {
     const auto list = hs::list_of(n_, model_);
     using hgraph = hypergraph<std::int32_t, unweighted>;
     if (opt_.mode != "by_content") {
-      by_id_ = std::make_unique<hgraph>(hgraph::from_hyperedges(res_, list.view(), props_));
+      hypergraph_properties by_id_props = props_;
+      if (opt_.line_graph) by_id_props.line_graph = line_graph_policy::sorted_merge;
+      by_id_ = std::make_unique<hgraph>(hgraph::from_hyperedges(res_, list.view(), by_id_props));
       if (opt_.model) model_lockstep_ = std::make_unique<hs::lockstep>(n_, model_, props_);
       rep_.h2v_capacity_trace = traced;
       rep_.h2v_capacity_dyng = by_id_->store_stats().payload_capacity;
       if (rep_.h2v_capacity_dyng != traced)
         out_.mismatch("build: the H2V payload capacity " + std::to_string(rep_.h2v_capacity_dyng) +
                       " is not the trace's " + std::to_string(traced));
-      rep_.device_bytes.emplace_back(by_id_->store_stats().device_bytes,
-                                     rec.integer("device_bytes", -1));
-      rep_.original_store_bytes.push_back(original_store_bytes(rec));
-      check(*by_id_, "build");
+      record_bytes(rec, "build");
+      if (opt_.compare) check(*by_id_, "build");
+      if (opt_.line_graph) compare_h2h(*by_id_, "build");
     }
-    if (opt_.mode != "by_id") {
+    if (opt_.mode != "by_id" && opt_.compare) {
       by_content_ = std::make_unique<hgraph>(hgraph::from_hyperedges(res_, list.view(), props_));
       for (std::size_t id = 0; id < model_.size(); ++id)
         index_[model_[id]].insert(static_cast<std::int64_t>(id));
       content_ids_in_sync_ = true;
+    }
+  }
+
+  // The container's device bytes next to A's DynamicHypergraph::deviceBytes() at the same point;
+  // with the line graph both are in A's whole scope, and the ratio is the memory gate (<= 1.05x,
+  // PLAN 8.6; criterion 8).
+  void record_bytes(const tr::record& rec, const std::string& where) {
+    const std::int64_t mine = by_id_->store_stats().device_bytes;
+    const std::int64_t theirs = rec.integer("device_bytes", -1);
+    rep_.device_bytes.emplace_back(mine, theirs);
+    rep_.original_store_bytes.push_back(original_store_bytes(rec));
+    if (opt_.line_graph && theirs > 0) {
+      const double ratio = static_cast<double>(mine) / static_cast<double>(theirs);
+      rep_.memory_ratio_max = std::max(rep_.memory_ratio_max, ratio);
+      if (ratio > 1.05) {
+        out_.mismatch(where + ": device bytes " + std::to_string(mine) + " are " +
+                      std::to_string(ratio) + "x ESCHER-GPU's " + std::to_string(theirs) +
+                      " (the memory gate is 1.05x)");
+      }
+    }
+  }
+
+  // An operation of A's H2H tree: the hashes of the layout its construct or rebuild received (A's
+  // flatHyperedgeAdjacency or its delta merge), and its state digest.
+  void on_h2h_op(const tr::record& rec) {
+    const std::string op = rec.text("op");
+    if (op == "construct" || op == "rebuild") {
+      pending_ = layout_hashes{};
+      pending_.valid = true;
+      if (!rec.has("in.start_offsets") || !rec.has("in.flat_payload")) {
+        // A batch extract (parity/escher_trace.py extract-batches) keeps no operation inputs.
+        pending_.unrecorded = true;
+        inputs_missing_ = true;
+        return;
+      }
+      pending_.op = op;
+      pending_.starts_count = static_cast<std::int64_t>(rec.array("in.start_offsets").count);
+      pending_.starts_hash = array_hash(rec.array("in.start_offsets"));
+      pending_.payload_count = static_cast<std::int64_t>(rec.array("in.flat_payload").count);
+      pending_.payload_hash = array_hash(rec.array("in.flat_payload"));
+    }
+    if (rec.has("digest.mode")) {
+      digest_fresh_ = true;
+      for (const auto& problem : tracker_.apply(rec, in_))
+        out_.mismatch("ESCHER-GPU's H2H digest after its " + op + ": " + problem);
+    }
+  }
+
+  // The FNV-1a 64 hash of an int32 array field (inline values are hashed here; side-file and
+  // hash-only arrays carry the recorded hash).
+  static std::uint64_t array_hash(const tr::array_field& a) {
+    if (a.kind == tr::array_field::storage::inline_data)
+      return tr::fnv1a64(a.i32.data(), a.i32.size() * sizeof(std::int32_t));
+    return a.hash;
+  }
+
+  // The container's line graph against A's after the same point: the layout (row offsets and
+  // padded payload, ESCHER-GPU's construct layout) against the hashes of A's last H2H construct
+  // or rebuild input, then, with a state digest, every key's row hash and the digest's rows.
+  void compare_h2h(const hypergraph<std::int32_t, unweighted>& h, const std::string& where) {
+    ++rep_.h2h_states;
+    const detail::hyper::line_graph_layout layout =
+        detail::hypergraph_access::store(h).line_graph();
+    if (!pending_.valid && !inputs_missing_) {
+      out_.mismatch(where + ": h2h: ESCHER-GPU built or rebuilt no H2H before this point");
+      return;
+    }
+    if (!pending_.valid || pending_.unrecorded) {
+      // An extract keeps neither the H2H inputs nor (some of) its operations.
+      ++rep_.h2h_unrecorded;
+      pending_.valid = false;
+      return;
+    }
+    std::vector<std::int32_t> starts = layout.starts, counts = layout.counts,
+                              payload = layout.payload;
+    // A key count below A's (not expected: both are the largest id bound so far) would be empty
+    // rows of 4 slots at the end.
+    while (static_cast<std::int64_t>(starts.size()) < pending_.starts_count) {
+      starts.push_back(static_cast<std::int32_t>(payload.size()));
+      counts.push_back(0);
+      payload.insert(payload.end(), {0, 0, 0, INT_MIN});
+    }
+    const bool equal = static_cast<std::int64_t>(starts.size()) == pending_.starts_count &&
+                       static_cast<std::int64_t>(payload.size()) == pending_.payload_count &&
+                       tr::fnv1a64(starts.data(), starts.size() * 4) == pending_.starts_hash &&
+                       tr::fnv1a64(payload.data(), payload.size() * 4) == pending_.payload_hash;
+    if (equal) {
+      ++rep_.h2h_layouts_equal;
+      rep_.h2h_payload_entries += static_cast<std::int64_t>(payload.size());
+    } else {
+      out_.mismatch(where + ": h2h: the layout differs from ESCHER-GPU's H2H " + pending_.op +
+                    " input (" + std::to_string(starts.size()) + " keys and " +
+                    std::to_string(payload.size()) +
+                    " payload entries; A: " + std::to_string(pending_.starts_count) + " and " +
+                    std::to_string(pending_.payload_count) + ")");
+    }
+    pending_.valid = false;
+    const tr::tree_state* t = tracker_.tree(h2h_tree_);
+    if (!digest_fresh_ || t == nullptr) return;
+    digest_fresh_ = false;
+    bool reported = false;
+    for (const auto& [key, ks] : t->by_key) {
+      std::vector<std::int32_t> row;
+      if (key >= 1 && static_cast<std::size_t>(key) <= starts.size()) {
+        const auto k = static_cast<std::size_t>(key) - 1;
+        row.assign(payload.begin() + starts[k], payload.begin() + starts[k] + counts[k]);
+      }
+      ++rep_.h2h_key_hashes;
+      bool same = tr::fnv1a64(row.data(), row.size() * 4) == ks.row_hash;
+      if (ks.row_known) {
+        ++rep_.h2h_full_rows;
+        same = same && row == ks.row;
+      }
+      if (!same && !reported) {
+        out_.mismatch(where + ": h2h: the row of id " + std::to_string(key - 1) + " differs (" +
+                      std::to_string(row.size()) + " vs " + std::to_string(ks.row_len) +
+                      " neighbours)");
+        reported = true;
+      }
     }
   }
 
@@ -272,10 +399,9 @@ class escher_gpu_replay {
         if (expected.ids != s.inserted_ids)
           out_.mismatch(where + ": the host model gives other ids");
       }
-      rep_.device_bytes.emplace_back(by_id_->store_stats().device_bytes,
-                                     rec.integer("device_bytes", -1));
-      rep_.original_store_bytes.push_back(original_store_bytes(rec));
-      check(*by_id_, where);
+      record_bytes(rec, where);
+      if (opt_.compare) check(*by_id_, where);
+      if (opt_.line_graph) compare_h2h(*by_id_, where);
     }
     if (by_content_) content_update(tb, want_ids, where);
     if (by_id_) record_paths(by_id_->store_stats(), rep_);
@@ -356,6 +482,18 @@ class escher_gpu_replay {
   std::map<std::string, std::int64_t> capacity_;
   std::map<std::uint32_t, std::string> tree_name_;
   std::map<std::string, std::int64_t> tree_bytes_;
+  // The line graph's comparison: A's H2H tree, its digests and its last construct / rebuild input.
+  struct layout_hashes {
+    bool valid = false;
+    bool unrecorded = false;  // the trace keeps no inputs of the operation
+    std::string op;
+    std::int64_t starts_count = 0, payload_count = 0;
+    std::uint64_t starts_hash = 0, payload_hash = 0;
+  };
+  std::uint32_t h2h_tree_ = 0;
+  bool has_h2h_tree_ = false, digest_fresh_ = false, inputs_missing_ = false;
+  layout_hashes pending_;
+  tr::state_tracker tracker_;
   hypergraph_properties props_;
   std::int32_t n_ = 0;
   rows model_;
@@ -641,7 +779,12 @@ std::string report::to_json() const {
      << ", \"content_diverged_at\": " << content_diverged_at
      << ", \"original_exceptions\": " << original_exceptions
      << ", \"h2v_capacity_trace\": " << h2v_capacity_trace
-     << ", \"h2v_capacity_dyng\": " << h2v_capacity_dyng << ", \"seconds\": " << seconds
+     << ", \"h2v_capacity_dyng\": " << h2v_capacity_dyng << ", \"h2h_states\": " << h2h_states
+     << ", \"h2h_layouts_equal\": " << h2h_layouts_equal
+     << ", \"h2h_unrecorded\": " << h2h_unrecorded
+     << ", \"h2h_payload_entries\": " << h2h_payload_entries
+     << ", \"h2h_key_hashes\": " << h2h_key_hashes << ", \"h2h_full_rows\": " << h2h_full_rows
+     << ", \"memory_ratio_max\": " << memory_ratio_max << ", \"seconds\": " << seconds
      << ", \"paths\": [" << paths[0] << ", " << paths[1] << ", " << paths[2] << ", " << paths[3]
      << ", " << paths[4] << ", " << paths[5] << ", " << paths[6] << ", " << paths[7] << ", "
      << paths[8] << "]"

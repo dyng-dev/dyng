@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The include-graph and link check of dyng::testing::cbst_host_model (M8a, ADR 0037; PLAN 5.8:
-# an oracle shares no code with what it checks). Run by CTest (cbst_model_isolation):
+# an oracle shares no code with what it checks), and of dyng::testing::rebuild_line_graph (M8b,
+# ADR 0042). Run by CTest (cbst_model_isolation, line_graph_oracle_isolation):
 #
 #   cmake -DCXX=<compiler> -DNM=<nm> -DREPO=<source dir> -DSOURCE=<cbst_host_model.cpp>
-#         -DOBJECT=<its object file> -P check_model_isolation.cmake
+#         -DOBJECT=<its object file> [-DHEADER=<its public header>] -P check_model_isolation.cmake
 #
+# HEADER defaults to cpp/include/dyng/testing/cbst_host_model.hpp.
 # 1. The preprocessor's dependency list of the model's source (-MM) names no project file but
 #    the model's own header, so nothing of cpp/src (cpp/src/hypergraph in particular) or of any
 #    other dynG header is included.
@@ -30,7 +32,11 @@ endif()
 string(REPLACE "\\\n" " " _deps "${_deps}")
 string(REGEX REPLACE "^[^:]*:" "" _deps "${_deps}")
 separate_arguments(_deps UNIX_COMMAND "${_deps}")
-set(_allowed "${REPO}/cpp/include/dyng/testing/cbst_host_model.hpp")
+if(NOT DEFINED HEADER OR "${HEADER}" STREQUAL "")
+  set(HEADER "${REPO}/cpp/include/dyng/testing/cbst_host_model.hpp")
+endif()
+get_filename_component(_name "${HEADER}" NAME_WE)
+set(_allowed "${HEADER}")
 set(_bad "")
 foreach(_dep IN LISTS _deps)
   file(REAL_PATH "${_dep}" _real BASE_DIRECTORY "${REPO}")
@@ -43,7 +49,7 @@ foreach(_dep IN LISTS _deps)
   endif()
 endforeach()
 if(_bad)
-  message(FATAL_ERROR "check_model_isolation: the host model includes project files other than "
+  message(FATAL_ERROR "check_model_isolation: ${_name} includes project files other than "
                       "its header: ${_bad}")
 endif()
 
@@ -64,9 +70,9 @@ foreach(_sym IN LISTS _syms)
   endif()
 endforeach()
 if(_bad)
-  message(FATAL_ERROR "check_model_isolation: the host model's object references dynG symbols: "
+  message(FATAL_ERROR "check_model_isolation: the object of ${_name} references dynG symbols: "
                       "${_bad}")
 endif()
 list(LENGTH _deps _num_deps)
-message(STATUS "cbst_host_model: ${_num_deps} dependencies, no project file but its header; "
+message(STATUS "${_name}: ${_num_deps} dependencies, no project file but its header; "
                "no undefined dyng symbol")

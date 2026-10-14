@@ -85,14 +85,14 @@ class hypergraph {
    * @return The hypergraph at version 0.
    * @throws invalid_argument_error if a member is out of [0, num_vertices), a hyperedge is empty,
    *         the offsets are malformed, a weight is outside [1, 2^31 - 1] (or weights are given
-   *         for an unweighted list, or missing for a weighted one), the line-graph policy needs
-   *         v2h and store_v2h is false, or an array must be copied and the copy policy is
-   *         copy_policy::error.
+   *         for an unweighted list, or missing for a weighted one), line_graph_policy::
+   *         sorted_merge is asked for without v2h (store_v2h is false), or an array must be copied
+   *         and the copy policy is copy_policy::error.
    * @throws not_supported_error    for hypergraph_storage::slack_csr or line_graph_policy::
-   *         slack_csr (planned for 0.4), line_graph_policy::sorted_merge (not yet available), a
-   *         grow_factor other than 1.5 or 0, or the cuda backend in a build without CUDA.
-   * @throws capacity_error         if the storage exceeds the policy's max_payload (by default
-   *         the int32 offsets of the store).
+   *         slack_csr (planned for 0.4), a grow_factor other than 1.5 or 0, or the cuda backend in
+   *         a build without CUDA.
+   * @throws capacity_error         if the storage (the line graph of sorted_merge included)
+   *         exceeds the policy's max_payload (by default the int32 offsets of the store).
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync
@@ -219,12 +219,22 @@ class hypergraph {
   [[nodiscard]] v2h_view_type v2h() const;
 
   /**
-   * @brief The line graph: every live hyperedge to the hyperedges it overlaps.
+   * @brief The line graph: every live hyperedge to the hyperedges it overlaps (one sorted row per
+   *        id in [0, hyperedge_id_bound()), empty for a dead id; `out` the first neighbour above
+   *        the row's id).
+   *
+   * Under line_graph_policy::sorted_merge the line graph is built with the hypergraph and kept
+   * by every apply() (ESCHER-GPU's sorted delta merge); under automatic the first call builds it,
+   * and apply() keeps it from then on. The view itself (decoded: 0-based ids, int64 offsets, in
+   * the hypergraph's memory space; the weights by id in host memory) is built from the line graph
+   * on first use per version and kept until the next apply().
    * @return The view, invalidated by the next apply().
-   * @throws invalid_argument_error for a moved-from or poisoned hypergraph, or one built with
-   *         line_graph_policy::none.
-   * @throws not_supported_error    while the line graph is not yet available (line_graph_policy::
-   *         automatic in this build).
+   * @throws invalid_argument_error for a moved-from or poisoned hypergraph, one built with
+   *         line_graph_policy::none, or one built with store_v2h = false.
+   * @throws capacity_error         if the line graph exceeds the capacity policy's max_payload
+   *         (by default the int32 offsets of the store).
+   * @throws out_of_memory_error    if the line graph or the view cannot be allocated.
+   * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync
    */
   [[nodiscard]] line_graph_type h2h() const;

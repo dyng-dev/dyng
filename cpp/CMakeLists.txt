@@ -178,6 +178,8 @@ dyng_add_module(
     src/hypergraph/hypergraph.cpp
     src/hypergraph/id_allocator.cpp
     src/hypergraph/incidence_model.cpp
+    src/hypergraph/line_graph/flat_adjacency.cpp
+    src/hypergraph/line_graph/sorted_merge_host.cpp
     src/hypergraph/names.cpp
     src/hypergraph/store.cpp
   CUDA_SOURCES
@@ -192,6 +194,7 @@ dyng_add_module(
     src/hypergraph/escher/locator.cu
     src/hypergraph/escher/payload.cu
     src/hypergraph/escher/unfill.cu
+    src/hypergraph/line_graph/sorted_merge.cu
 )
 
 dyng_add_module(
@@ -253,9 +256,22 @@ target_compile_features(dyng_testing_cbst_model PRIVATE cxx_std_17)
 set_target_properties(dyng_testing_cbst_model PROPERTIES POSITION_INDEPENDENT_CODE ON)
 dyng_set_warnings(dyng_testing_cbst_model)
 dyng_enable_sanitizers(dyng_testing_cbst_model)
+# The line-graph oracle (M8b, ADR 0042) likewise: MOSP_ESCHER's HypergraphOracle algorithm in the
+# standard library only, checked to share nothing with the container (line_graph_oracle_isolation).
+add_library(dyng_testing_line_graph_oracle OBJECT src/testing/line_graph_oracle.cpp)
+target_include_directories(dyng_testing_line_graph_oracle PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_compile_features(dyng_testing_line_graph_oracle PRIVATE cxx_std_17)
+set_target_properties(dyng_testing_line_graph_oracle PROPERTIES POSITION_INDEPENDENT_CODE ON)
+dyng_set_warnings(dyng_testing_line_graph_oracle)
+dyng_enable_sanitizers(dyng_testing_line_graph_oracle)
 add_library(
-  dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp src/testing/cycle_oracle.cpp
-               src/testing/mosp_oracle.cpp $<TARGET_OBJECTS:dyng_testing_cbst_model>
+  dyng_testing
+  src/testing/dijkstra.cpp
+  src/testing/check_sssp.cpp
+  src/testing/cycle_oracle.cpp
+  src/testing/mosp_oracle.cpp
+  $<TARGET_OBJECTS:dyng_testing_cbst_model>
+  $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(

@@ -16,6 +16,13 @@ compared with the original's, with check_integrity() and the CBST host model in 
 every batch. The set `committed` is the committed traces and batch extracts of
 cpp/tests/data/goldens (no $DYNG_SCRATCH needed).
 
+--line-graph (M8b step 2, criteria 7 and 8; ESCHER-GPU's sets): the by-id container keeps the
+line graph (line_graph_policy::sorted_merge); after the build and every batch its H2H layout must
+equal the input of ESCHER-GPU's H2H construct or rebuild (offsets and payload, by their recorded
+hashes), every key's row hash must equal the state digest's where the trace has one (the full rows
+too where the digest records them), and its device bytes must be within 1.05x of A's
+DynamicHypergraph::deviceBytes(). The record is then M8b-h2h-<set>-<backend>[-t<N>].json.
+
 --record writes M8b-hypergraph-ids-<set>-<backend>[-t<N>].json (the totals, every case's report
 and the tool's commit). Exit status: 0 every case matched, 1 a mismatch, 2 a usage error, 77 no
 goldens.
@@ -64,6 +71,12 @@ TOTALS = (
     "dropped_members",
     "ambiguous",
     "original_exceptions",
+    "h2h_states",
+    "h2h_layouts_equal",
+    "h2h_unrecorded",
+    "h2h_payload_entries",
+    "h2h_key_hashes",
+    "h2h_full_rows",
     "mismatch_count",
 )
 
@@ -116,6 +129,8 @@ def run_case(exe: Path, trace: Path, args, tmp: Path) -> dict:
         cmd += ["--threads", str(args.threads)]
     if args.no_model:
         cmd.append("--no-model")
+    if args.line_graph:
+        cmd.append("--line-graph")
     cmd.append(str(trace))
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode not in (0, 1) or not out.is_file():
@@ -141,6 +156,11 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--threads", type=int, default=0, help="openmp threads (0: the default)")
     p.add_argument("--mode", choices=["by_id", "by_content", "both"], default="both")
     p.add_argument("--no-model", action="store_true", help="without the host-model lockstep")
+    p.add_argument(
+        "--line-graph",
+        action="store_true",
+        help="keep the line graph and compare it (and the device bytes) with ESCHER-GPU's",
+    )
     p.add_argument("--scratch", type=Path, default=cbst_trace_goldens.scratch_default())
     p.add_argument("--exe", type=Path, help="dyng_hypergraph_ids (default: find it in build/)")
     p.add_argument("--jobs", type=int, default=1, help="cases replayed at once")
@@ -184,6 +204,16 @@ def compare_main(argv: list[str]) -> int:
             with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
                 reports = list(pool.map(lambda c: run_case(exe, c, args, Path(t)), cases))
         totals = {k: sum(int(r.get(k, 0)) for r in reports) for k in TOTALS}
+        totals["memory_ratio_max"] = max(
+            (float(r.get("memory_ratio_max", 0)) for r in reports), default=0.0
+        )
+        if args.line_graph and SETS[n] == "ESCHER-GPU":
+            compared = totals["h2h_states"] - totals["h2h_unrecorded"]
+            if totals["h2h_states"] == 0 or totals["h2h_layouts_equal"] != compared:
+                problems.append(
+                    f"h2h: {totals['h2h_layouts_equal']} of {totals['h2h_states']} states equal "
+                    "ESCHER-GPU's H2H"
+                )
         for r in reports:
             if not r.get("ok", False):
                 first = r.get("error") or (r.get("mismatches") or ["?"])[0]
@@ -195,6 +225,7 @@ def compare_main(argv: list[str]) -> int:
             "threads": args.threads,
             "mode": args.mode,
             "model": not args.no_model,
+            "line_graph": args.line_graph,
             "commit": git_head(),
             "tool": cbst_trace_goldens.portable(exe),
             "passed": not problems,
@@ -209,7 +240,17 @@ def compare_main(argv: list[str]) -> int:
             f"batches, {totals['ids_compared']} ids, {totals['rows_compared']} rows, "
             f"{totals['vertex_batches']} vertex-kind batches not replayed, "
             f"{totals['filtered_virtual']} virtual ops filtered, {totals['ambiguous']} ambiguous "
-            f"by-content resolutions, {totals['mismatch_count']} mismatches: "
+            f"by-content resolutions, "
+            + (
+                f"h2h {totals['h2h_layouts_equal']}/{totals['h2h_states']} layouts "
+                f"({totals['h2h_unrecorded']} without A's input) "
+                f"({totals['h2h_payload_entries']} entries), {totals['h2h_key_hashes']} key "
+                f"hashes, {totals['h2h_full_rows']} full rows, memory ratio <= "
+                f"{totals['memory_ratio_max']:.4f}, "
+                if args.line_graph
+                else ""
+            )
+            + f"{totals['mismatch_count']} mismatches: "
             + ("OK" if not problems else "FAILED")
         )
         for pr in problems[:20]:
@@ -217,7 +258,7 @@ def compare_main(argv: list[str]) -> int:
         if args.record:
             args.record.mkdir(parents=True, exist_ok=True)
             short = n[len("cbst_trace_") :] if n.startswith("cbst_trace_") else n
-            name = f"M8b-hypergraph-ids-{short}-{args.backend}"
+            name = f"M8b-{'h2h' if args.line_graph else 'hypergraph-ids'}-{short}-{args.backend}"
             if args.threads:
                 name += f"-t{args.threads}"
             (args.record / f"{name}.json").write_text(json.dumps(record, indent=1) + "\n")

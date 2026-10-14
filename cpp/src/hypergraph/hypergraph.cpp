@@ -216,11 +216,16 @@ hypergraph<vertex_t, weight_t> hypergraph<vertex_t, weight_t>::from_hyperedges(
           props.store_v2h);
     }
   }
+  const bool line_graph = props.line_graph == line_graph_policy::sorted_merge;
   if (res.get_backend() == backend::cuda) {
     const detail::container_scope container;  // the container's own work (budgets, I9)
     impl->store =
         detail::hyper::make_escher_store(res, static_cast<std::int32_t>(hyperedges.num_vertices),
-                                         rows, props.capacity, props.store_v2h);
+                                         rows, props.capacity, props.store_v2h, line_graph);
+  } else if (line_graph) {
+    // The line graph of sorted_merge from the start (ESCHER-GPU's init.h2h_build).
+    const scoped_stage stage(res, "hypergraph.build");
+    impl->store->enable_line_graph();
   }
   return hypergraph(std::move(impl));
 }
@@ -314,15 +319,17 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("hypergraph::v2h (", static_cast<std::int64_t>
                                   " vertices)")
 
 template <typename vertex_t, typename weight_t>
-typename hypergraph<vertex_t, weight_t>::line_graph_type hypergraph<vertex_t, weight_t>::h2h()
-    const {
+typename hypergraph<vertex_t, weight_t>::line_graph_type hypergraph<vertex_t, weight_t>::h2h() const
+    try {
   const auto& self = readable(impl(), "hypergraph::h2h");
-  DYNG_EXPECTS(self.props.line_graph != line_graph_policy::none,
-               "hypergraph::h2h: the hypergraph was built with line_graph_policy::none");
-  throw not_supported_error(
-      "dyng: hypergraph::h2h: the line graph (line_graph_policy::automatic) is not available in "
-      "this build yet");
+  detail::hypergraph_access::require_line_graph(*this, "hypergraph::h2h");
+  line_graph_type out;
+  self.store->h2h_view(out.row_ptr, out.col_ind, out.out);
+  if constexpr (!is_unweighted_v<weight_t>) out.weights = host_view(self.weights);
+  out.version = self.version;
+  return out;
 }
+DYNG_TRANSLATE_ALLOCATION_FAILURE("hypergraph::h2h (", hyperedge_id_bound(), " ids)")
 
 template <typename vertex_t, typename weight_t>
 array_view<const weight_t> hypergraph<vertex_t, weight_t>::weights() const {
@@ -400,7 +407,7 @@ std::unique_ptr<incidence_store> make_escher_store(const resources& /*res*/,
                                                    std::int32_t /*num_vertices*/,
                                                    const member_rows& /*rows*/,
                                                    const capacity_policy& /*capacity*/,
-                                                   bool /*has_v2h*/) {
+                                                   bool /*has_v2h*/, bool /*line_graph*/) {
   throw not_supported_error(
       "dyng: the cuda backend is not built (configure with "
       "DYNG_ENABLE_CUDA=ON)");
@@ -433,6 +440,22 @@ void hypergraph_access::expect_placement(const resources& res,
                  state.home_device, " but the resources are ", to_string(b),
                  "; move it with h.to_backend(res)");
   }
+}
+
+template <typename vertex_t, typename weight_t>
+void hypergraph_access::require_line_graph(const hypergraph<vertex_t, weight_t>& h,
+                                           const char* what) {
+  const auto& state = h.impl();
+  DYNG_EXPECTS(!state.poisoned, what,
+               ": the hypergraph was poisoned by a failed apply(); rebuild it with "
+               "from_hyperedges()");
+  DYNG_EXPECTS(state.props.line_graph != line_graph_policy::none, what,
+               ": the hypergraph was built with line_graph_policy::none (no line graph); build it "
+               "with line_graph_policy::automatic or sorted_merge");
+  DYNG_EXPECTS(state.props.store_v2h, what,
+               ": the line graph needs v2h; build the hypergraph with store_v2h = true");
+  // line_graph_policy::automatic builds it here, once, and maintains it from then on.
+  state.store->enable_line_graph();
 }
 
 template <typename vertex_t, typename weight_t>
@@ -544,6 +567,11 @@ hyper_apply_summary hypergraph_access::apply(const resources& res,
         store.v2h_append(groups);
       }
     }
+    if (store.line_graph_enabled()) {
+      // ESCHER-GPU's maintain.h2h_merge: the sorted delta merge of the line graph.
+      const scoped_stage line_graph_stage(res, "hypergraph.apply.line_graph");
+      store.update_line_graph(live_deletions, ids, rows);
+    }
     // The applied record.
     applied.inserted_ids = ids;
     if (state.home == backend::cuda && !ids.empty()) {
@@ -623,12 +651,14 @@ DYNG_TRANSLATE_ALLOCATION_FAILURE("hypergraph::apply (", h.hyperedge_id_bound(),
 
 }  // namespace detail
 
-#define DYNG_INSTANTIATE_HYPERGRAPH(V, W)                                            \
-  template class hypergraph<V, W>;                                                   \
-  template hyper_apply_summary detail::hypergraph_access::apply<V, W>(               \
-      const resources&, hypergraph<V, W>&, const hyperedge_batch_view<V, W>&, bool); \
-  template void detail::hypergraph_access::expect_placement<V, W>(                   \
-      const resources&, const hypergraph<V, W>&, const char*);
+#define DYNG_INSTANTIATE_HYPERGRAPH(V, W)                                                    \
+  template class hypergraph<V, W>;                                                           \
+  template hyper_apply_summary detail::hypergraph_access::apply<V, W>(                       \
+      const resources&, hypergraph<V, W>&, const hyperedge_batch_view<V, W>&, bool);         \
+  template void detail::hypergraph_access::expect_placement<V, W>(                           \
+      const resources&, const hypergraph<V, W>&, const char*);                               \
+  template void detail::hypergraph_access::require_line_graph<V, W>(const hypergraph<V, W>&, \
+                                                                    const char*);
 DYNG_FOR_EACH_HYPERGRAPH_TYPE(DYNG_INSTANTIATE_HYPERGRAPH)
 #undef DYNG_INSTANTIATE_HYPERGRAPH
 

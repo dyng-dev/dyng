@@ -23,6 +23,10 @@ port against the original instead of reading it:
     python3 parity/escher_port/transplant.py --check --rev <c1>   # compare with the c1 commit
     python3 parity/escher_port/transplant.py --mechanical DIR     # steps 1-4 only (no hunks)
 
+--map selects another rename map (default rename_map.toml, M8a's store): rename_map_line_graph.toml
+is the line-graph port of M8b (ADR 0042). A map may name its manual hunks (`hunks`, a file next to
+it; default manual_hunks.patch) and the note of its generated headers (`note`).
+
 The original's clone defaults to $DYNG_ORIGINALS/ESCHER-GPU or ~/Projects/ESCHER-GPU
 (--original). Exit status: 0 identical (--check) or written, 1 different, 2 usage or input error.
 """
@@ -165,11 +169,21 @@ def header(cfg: dict, entry: dict) -> str:
             entry["brief"], width=100, initial_indent=" * @brief ", subsequent_indent=" *        "
         ),
         " *",
-        f" * Ported from {cfg['origin']}@{short} with the renames of",
-        " * parity/escher_port/rename_map.toml (M8a, ADR 0038; the encoding is described in",
-        " * cpp/src/hypergraph/escher/README.md).",
-        " */",
     ]
+    if "note" in cfg:
+        lines += textwrap.wrap(
+            f"Ported from {cfg['origin']}@{short} with the renames of {cfg['note']}",
+            width=100,
+            initial_indent=" * ",
+            subsequent_indent=" * ",
+        )
+    else:
+        lines += [
+            f" * Ported from {cfg['origin']}@{short} with the renames of",
+            " * parity/escher_port/rename_map.toml (M8a, ADR 0038; the encoding is described in",
+            " * cpp/src/hypergraph/escher/README.md).",
+        ]
+    lines += [" */"]
     return "\n".join(lines) + "\n"
 
 
@@ -195,10 +209,10 @@ def mechanical(cfg: dict, original: Path, out: Path) -> list[str]:
     return targets
 
 
-def apply_hunks(out: Path) -> None:
-    if HUNKS.exists() and HUNKS.stat().st_size > 0:
+def apply_hunks(out: Path, hunks: Path = HUNKS) -> None:
+    if hunks.exists() and hunks.stat().st_size > 0:
         subprocess.check_call(
-            ["patch", "-p1", "--quiet", "--no-backup-if-mismatch", "-i", str(HUNKS)], cwd=out
+            ["patch", "-p1", "--quiet", "--no-backup-if-mismatch", "-i", str(hunks)], cwd=out
         )
 
 
@@ -240,20 +254,22 @@ def main() -> int:
     ap.add_argument("--mechanical", type=Path, help="write the mechanical part only here")
     ap.add_argument("--check", action="store_true", help="compare with --rev")
     ap.add_argument("--rev", default="HEAD", help="the commit of the transplant (c1)")
+    ap.add_argument("--map", type=Path, default=MAP, help="the rename map (default: M8a's store)")
     args = ap.parse_args()
-    cfg = load_map()
+    cfg = load_map(args.map)
+    hunks = args.map.resolve().parent / cfg.get("hunks", HUNKS.name)
     if args.mechanical:
         mechanical(cfg, args.original, args.mechanical)
         return 0
     if args.out:
         mechanical(cfg, args.original, args.out)
-        apply_hunks(args.out)
+        apply_hunks(args.out, hunks)
         return 0
     if args.check:
         with tempfile.TemporaryDirectory(prefix="dyng-transplant-") as tmp:
             out = Path(tmp)
             mechanical(cfg, args.original, out)
-            apply_hunks(out)
+            apply_hunks(out, hunks)
             return check(cfg, out, args.rev)
     ap.print_usage()
     return 2

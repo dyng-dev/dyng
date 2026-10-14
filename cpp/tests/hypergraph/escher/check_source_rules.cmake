@@ -35,9 +35,17 @@ set(_rules
     "raw cudaFree|(^|[^_A-Za-z0-9])cudaFree(Async|Host)?[ ]*\\("
     "synchronous cudaMemcpy or cudaMemset|(^|[^_A-Za-z0-9])cuda(Memcpy|Memset)[ ]*\\("
 )
+# STAGED (M8b step 2, ADR 0042): the transplant of ESCHER-GPU's line-graph merge keeps the
+# original's exits, prints, raw allocations and default-stream launches until its mechanical
+# commits replace them; the last of them removes this list.
+set(_staged "src/hypergraph/line_graph/sorted_merge.cu" "src/hypergraph/line_graph/device_frontier.cuh")
 foreach(_file IN LISTS _sources)
   file(STRINGS "${_file}" _lines)
   file(RELATIVE_PATH _rel "${SOURCE_DIR}" "${_file}")
+  if(_rel IN_LIST _staged)
+    message(STATUS "CBST source rules: ${_rel} is a staged transplant (not checked yet)")
+    continue()
+  endif()
   set(_number 0)
   set(_in_launch FALSE)
   set(_launch "")

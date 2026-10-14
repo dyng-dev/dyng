@@ -21,6 +21,7 @@
 #include <dyng/core/resources.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/testing/cbst_host_model.hpp>
+#include <dyng/testing/line_graph_oracle.hpp>
 
 #include <algorithm>
 #include <climits>
@@ -102,6 +103,80 @@ std::vector<std::vector<std::int64_t>> v2h_rows(const hypergraph<std::int32_t, w
   for (std::size_t i = 0; i < out.size(); ++i)
     out[i].assign(cols.begin() + ptr[i], cols.begin() + ptr[i + 1]);
   return out;
+}
+
+/// Rows of int64 ids (v2h, h2h).
+using id_rows = std::vector<std::vector<std::int64_t>>;
+
+/// The h2h rows of a hypergraph by id (host copies), and a check of the view's shape: rows
+/// sorted and contiguous, out[r] the first entry above r. Problems go to `problems`.
+template <typename weight_t>
+id_rows h2h_rows(const hypergraph<std::int32_t, weight_t>& h, std::string* problems = nullptr) {
+  const auto v = h.h2h();
+  const auto ptr = host_vector(v.row_ptr);
+  const auto cols = host_vector(v.col_ind);
+  const auto out = host_vector(v.out);
+  std::ostringstream os;
+  if (v.row_ptr.space() != h.space() || v.col_ind.space() != h.space() ||
+      v.out.space() != h.space())
+    os << "the h2h view is not in the hypergraph's memory space; ";
+  if (v.version != h.version()) os << "the h2h view has version " << v.version << "; ";
+  if (static_cast<std::int64_t>(ptr.size()) != h.hyperedge_id_bound() + 1)
+    os << "h2h has " << ptr.size() << " offsets for a bound of " << h.hyperedge_id_bound() << "; ";
+  if (out.size() + 1 != ptr.size()) os << "h2h out has " << out.size() << " entries; ";
+  if (!v.overlaps.empty()) os << "h2h has overlaps under escher; ";
+  id_rows rows_out(ptr.empty() ? 0 : ptr.size() - 1);
+  for (std::size_t i = 0; i < rows_out.size(); ++i) {
+    rows_out[i].assign(cols.begin() + ptr[i], cols.begin() + ptr[i + 1]);
+    if (!std::is_sorted(rows_out[i].begin(), rows_out[i].end()) ||
+        std::adjacent_find(rows_out[i].begin(), rows_out[i].end()) != rows_out[i].end())
+      os << "h2h row " << i << " is not sorted and distinct; ";
+    if (i < out.size()) {
+      const auto first_above =
+          std::upper_bound(rows_out[i].begin(), rows_out[i].end(), static_cast<std::int64_t>(i));
+      if (out[i] != ptr[i] + (first_above - rows_out[i].begin()))
+        os << "h2h out of row " << i << " is " << out[i] << "; ";
+    }
+  }
+  if (problems != nullptr) *problems = os.str();
+  return rows_out;
+}
+
+/// The line graph of a hypergraph's current h2v rebuilt by the oracle
+/// (dyng::testing::rebuild_line_graph), as rows by id.
+template <typename weight_t>
+id_rows oracle_h2h(const hypergraph<std::int32_t, weight_t>& h) {
+  const auto v = h.h2v();
+  const auto ptr = host_vector(v.row_ptr);
+  const auto cols = host_vector(v.col_ind);
+  const auto lg = dyng::testing::rebuild_line_graph(
+      ptr.empty() ? std::vector<std::int64_t>{0} : ptr, cols, h.num_vertices());
+  id_rows out(static_cast<std::size_t>(lg.num_ids()));
+  for (std::int64_t i = 0; i < lg.num_ids(); ++i) out[static_cast<std::size_t>(i)] = lg.row(i);
+  return out;
+}
+
+/// Compares the line graph of a hypergraph with the oracle and checks the view; returns the
+/// differences (empty: none).
+template <typename weight_t>
+std::string check_line_graph(const hypergraph<std::int32_t, weight_t>& h) {
+  std::string problems;
+  const id_rows got = h2h_rows(h, &problems);
+  const id_rows want = oracle_h2h(h);
+  if (got != want) {
+    std::ostringstream os;
+    os << "h2h differs from rebuild_line_graph";
+    for (std::size_t i = 0; i < std::min(got.size(), want.size()); ++i) {
+      if (got[i] != want[i]) {
+        os << " (first at id " << i << ": " << got[i].size() << " vs " << want[i].size()
+           << " neighbours)";
+        break;
+      }
+    }
+    if (got.size() != want.size()) os << " (" << got.size() << " vs " << want.size() << " rows)";
+    problems += os.str() + "; ";
+  }
+  return problems;
 }
 
 /// One batch of the tests: raw deletions and raw inserted rows (repeated members allowed).
@@ -479,8 +554,10 @@ inline test_batch next_batch(std::mt19937_64& rng, stream_mix mix, std::int32_t 
         b.insertions.push_back(current[static_cast<std::size_t>(pool[i])]);
       break;
     case stream_mix::larger_than:
+      // More insertions than the hypergraph has hyperedges, while it is small (the stream would
+      // otherwise triple the hypergraph every batch; its line graph is checked after each).
       take(m / 5);
-      for (std::size_t i = 0; i < 2 * m + 3; ++i)
+      for (std::size_t i = 0; i < (m < 2000 ? 2 * m + 3 : m / 4); ++i)
         b.insertions.push_back(random_row(rng, n, small(rng), false));
       break;
     case stream_mix::reissue:

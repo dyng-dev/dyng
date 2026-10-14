@@ -165,6 +165,32 @@ struct hypergraph_access {
                                const char* what);
 
   /**
+   * @brief The internal row views of the current state (h2v, and h2h when the line graph is
+   *        maintained): what the kernels of the algorithms read (ADR 0042).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in] h The hypergraph.
+   * @return The views, valid until the next apply().
+   */
+  template <typename vertex_t, typename weight_t>
+  static hyper::row_views views(const hypergraph<vertex_t, weight_t>& h) {
+    return h.impl().store->views();
+  }
+
+  /**
+   * @brief Make sure the line graph is maintained: an algorithm that reads h2h calls this before
+   *        views() (line_graph_policy::automatic builds it here, once).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in] h    The hypergraph.
+   * @param[in] what The calling function, for the messages.
+   * @throws invalid_argument_error for line_graph_policy::none, a hypergraph without v2h or a
+   *         poisoned one.
+   */
+  template <typename vertex_t, typename weight_t>
+  static void require_line_graph(const hypergraph<vertex_t, weight_t>& h, const char* what);
+
+  /**
    * @brief Poison a hypergraph (the tests' forced store failure).
    * @tparam vertex_t Vertex id type.
    * @tparam weight_t Weight type.

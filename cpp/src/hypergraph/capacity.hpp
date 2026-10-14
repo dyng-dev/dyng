@@ -27,9 +27,9 @@ void validate_capacity(const capacity_policy& c);
 /**
  * @brief Check the properties of a new hypergraph (storage, line graph, capacity).
  * @param[in] props The properties.
- * @throws invalid_argument_error for an invalid capacity policy, or a line graph without v2h.
- * @throws not_supported_error    for slack_csr storage or line graph (0.4), sorted_merge (not yet
- *         available), an unsupported grow_factor.
+ * @throws invalid_argument_error for an invalid capacity policy, or sorted_merge without v2h.
+ * @throws not_supported_error    for slack_csr storage or line graph (0.4), an unsupported
+ *         grow_factor.
  */
 void validate_properties(const hypergraph_properties& props);
 

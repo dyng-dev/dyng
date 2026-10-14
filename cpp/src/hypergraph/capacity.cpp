@@ -50,9 +50,10 @@ void validate_properties(const hypergraph_properties& props) {
     case line_graph_policy::automatic:
       break;
     case line_graph_policy::sorted_merge:
-      throw not_supported_error(
-          "dyng: line_graph_policy::sorted_merge is not available in this build yet; use "
-          "line_graph_policy::none or automatic");
+      DYNG_EXPECTS(props.store_v2h,
+                   "hypergraph_properties: line_graph_policy::sorted_merge needs v2h (the merge "
+                   "reads the vertices' hyperedges); set store_v2h = true");
+      break;
     case line_graph_policy::slack_csr:
       throw not_supported_error(
           "dyng: line_graph_policy::slack_csr is planned for 0.4; use line_graph_policy::none "

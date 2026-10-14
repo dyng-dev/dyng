@@ -271,6 +271,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(cbst_model_isolation PROPERTIES LABELS "cpu;parity;cbst")
+  # The line-graph oracle (M8b, ADR 0042): MOSP_ESCHER's algorithm, sharing no code with the
+  # container's line graph (criterion 6).
+  add_test(
+    NAME line_graph_oracle_isolation
+    COMMAND
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/line_graph_oracle.cpp
+      -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/line_graph_oracle.hpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_line_graph_oracle>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(line_graph_oracle_isolation PROPERTIES LABELS "cpu;hypergraph")
 endif()
 # The hypergraph container (M8b, ADR 0041): construction, apply semantics, guarantees,
 # placement, the host id allocator against the CBST host model, random streams in lockstep with
@@ -279,7 +291,7 @@ endif()
 dyng_add_test(
   NAME dyng_hypergraph_tests
   SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
-          hypergraph/hypergraph_store_test.cpp
+          hypergraph/hypergraph_store_test.cpp hypergraph/hypergraph_line_graph_test.cpp
   LABELS cpu hypergraph
   LIBRARIES dyng_cbst_compare
 )
@@ -288,7 +300,7 @@ if(DYNG_ENABLE_CUDA)
   dyng_add_test(
     NAME dyng_hypergraph_cuda_tests
     SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
-            hypergraph/hypergraph_cuda_test.cpp
+            hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
     LABELS gpu hypergraph
     LIBRARIES dyng_cbst_compare
     TEST_PREFIX cuda.
@@ -770,11 +782,13 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       hypergraph/hypergraph_test.cpp
       hypergraph/hypergraph_random_test.cpp
       hypergraph/hypergraph_store_test.cpp
+      hypergraph/hypergraph_line_graph_test.cpp
       parity/escher/hypergraph_ids_test.cpp
       parity/escher/hypergraph_ids.cpp
       parity/escher/cbst_trace.cpp
       parity/escher/cbst_compare.cpp
       $<TARGET_OBJECTS:dyng_testing_cbst_model>
+      $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
     )
     foreach(_target ${_lib}_hypergraph ${_lib} ${_exe})
       target_compile_features(${_target} PRIVATE cxx_std_17)

@@ -1012,6 +1012,14 @@
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const csr_view< vertex_t, edge_t, weight_t > &out, vertex_t source, int objective=0)
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] sssp_tree< vertex_t > dyng::testing::dijkstra(const graph< vertex_t, edge_t, weight_t > &g, vertex_t source, int objective=0)
 
+[dyng/testing/line_graph_oracle.hpp] tracked
+  struct dyng::testing::line_graph_rows
+      std::vector< std::int64_t > offsets {0}
+      std::vector< std::int64_t > neighbours
+      [[nodiscard]] std::int64_t num_ids() const noexcept
+      [[nodiscard]] std::vector< std::int64_t > row(std::int64_t id) const
+  [[nodiscard]] line_graph_rows dyng::testing::rebuild_line_graph(const std::vector< std::int64_t > &h2v_offsets, const std::vector< std::int32_t > &h2v_members, std::int32_t num_vertices)
+
 [dyng/testing/mosp_oracle.hpp] tracked
   template <typename vertex_t> [[nodiscard]] csr< vertex_t, std::int64_t, std::int32_t > dyng::testing::combined_graph_reference(const std::vector< std::vector< vertex_t > > &parents, vertex_t source, const std::vector< std::int32_t > &preferences={})
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] std::vector< std::int64_t > dyng::testing::mosp_path_costs_reference(const csr_view< vertex_t, edge_t, weight_t > &out, const std::vector< vertex_t > &parent, vertex_t source, int num_objectives=0)

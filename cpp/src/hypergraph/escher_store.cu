@@ -3,8 +3,9 @@
 // Derived from ESCHER-GPU@abcf9b2:structure/dynamic_hypergraph.cu (build, update)
 /**
  * @file escher_store.cu
- * @brief The device store of the hypergraph container: the H2V and V2H CBSTs of M8a and the row
- *        view of H2V (ESCHER-GPU's DynamicHypergraph without its host model; ADR 0041).
+ * @brief The device store of the hypergraph container: the H2V and V2H CBSTs of M8a, the line
+ *        graph H2H maintained by ESCHER-GPU's sorted delta merge, and the row views of H2V and H2H
+ *        (ESCHER-GPU's DynamicHypergraph without its host model; ADR 0041, ADR 0042).
  *
  * The device trees are authoritative. The host keeps only what validation and the id bound need:
  * one byte per id (absent, live, or a deleted slot still in the tree) and the live count. The
@@ -13,11 +14,14 @@
  */
 #include "core/budget_counters.hpp"
 #include "core/cuda_runtime.hpp"
+#include "core/resources_access.hpp"
 #include "hypergraph/capacity.hpp"
 #include "hypergraph/escher/cbst_store.hpp"
 #include "hypergraph/escher/integrity.hpp"
 #include "hypergraph/escher/row_view.cuh"
 #include "hypergraph/escher_store.hpp"
+#include "hypergraph/line_graph/host_line_graph.hpp"
+#include "hypergraph/line_graph/sorted_merge.cuh"
 #include "util/cuda_check.hpp"
 #include "util/kernel_registry.hpp"
 #include "util/thrust_allocator.cuh"
@@ -34,6 +38,7 @@
 #include <atomic>
 #include <climits>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -78,7 +83,29 @@ __global__ void gather_v2h_kernel(const int* flat, const int* loc, const int* le
   for (int i = 0; i < count; ++i) col_ind[out + i] = static_cast<std::int64_t>(flat[base + i]) - 1;
 }
 
+// The h2h view (rows by id 0..bound - 1 = keys 1..bound of the H2H row view): one row length per id.
+__global__ void h2h_row_lengths_kernel(const int* len, std::int64_t bound, std::int64_t* row_ptr) {
+  const std::int64_t id = blockIdx.x * static_cast<std::int64_t>(blockDim.x) + threadIdx.x;
+  if (id < bound) row_ptr[id + 1] = len[id + 1];
+}
+
+// The neighbours of every row, 0-based (the stored values are keys = id + 1), and the offset of
+// the first neighbour above the row's id.
+__global__ void gather_h2h_kernel(const int* flat, const int* loc, const int* len, const int* out,
+                                  std::int64_t bound, const std::int64_t* row_ptr,
+                                  std::int64_t* col_ind, std::int64_t* first_above) {
+  const std::int64_t id = blockIdx.x * static_cast<std::int64_t>(blockDim.x) + threadIdx.x;
+  if (id >= bound) return;
+  const int n = len[id + 1];
+  const int base = loc[id + 1];
+  const std::int64_t at = row_ptr[id];
+  for (int i = 0; i < n; ++i) col_ind[at + i] = static_cast<std::int64_t>(flat[base + i]) - 1;
+  first_above[id] = at + (out[id + 1] - base);
+}
+
 DYNG_REGISTER_KERNEL(h2v_row_lengths_kernel);
+DYNG_REGISTER_KERNEL(h2h_row_lengths_kernel);
+DYNG_REGISTER_KERNEL(gather_h2h_kernel);
 DYNG_REGISTER_KERNEL(gather_h2v_kernel);
 DYNG_REGISTER_KERNEL(v2h_row_lengths_kernel);
 DYNG_REGISTER_KERNEL(gather_v2h_kernel);
@@ -158,9 +185,10 @@ class escher_device_store final : public incidence_store {
   // The trees over the rows (ESCHER-GPU's DynamicHypergraph::build: H2V keys = ids + 1, V2H keys
   // = vertices + 1, both with the construct layout; the caller's row counts as the tails'
   // occupancy, the scan's result).
-  void build(const member_rows& rows) {
+  void build(const member_rows& rows, bool line_graph) {
     const std::int64_t n = rows.size();
     flat_layout h2v, v2h;
+    line_graph_layout h2h;
     {
       scoped_stage stage(res_, "hypergraph.build");
       const auto row_of = [&](std::int64_t r) {
@@ -187,6 +215,13 @@ class escher_device_store final : public incidence_store {
         };
         v2h = flatten(num_vertices_, vertex_row, "V2H", payload_limit(capacity_));
       }
+      // ESCHER-GPU's init.h2h_build: the line graph on the host, in the construct layout.
+      if (line_graph) {
+        DYNG_EXPECTS(has_v2h_, "hypergraph: the line graph needs v2h");
+        h2h = flat_hyperedge_adjacency(rows.offsets, rows.members, num_vertices_, n,
+                                       resources_access::host_threads(res_),
+                                       payload_limit(capacity_));
+      }
     }
     scoped_stage stage(res_, "hypergraph.upload");
     h2v_ = make_tree("H2V", static_cast<std::int64_t>(h2v.values.size()));
@@ -198,6 +233,8 @@ class escher_device_store final : public incidence_store {
     state_.assign(static_cast<std::size_t>(n), live_slot);
     live_ = n;
     bound_ = n;
+    max_bound_ = n;
+    if (line_graph) construct_line_graph(h2h);
     build_row_view();
   }
 
@@ -237,6 +274,7 @@ class escher_device_store final : public incidence_store {
     h2v_->erase(dead_keys);
     h2v_->set_used_payload(a.bump);
     bound_ = a.keys.empty() ? 0 : a.keys.back();
+    max_bound_ = std::max<std::int64_t>(s.max_bound, bound_);
     state_.assign(static_cast<std::size_t>(bound_), absent_slot);
     live_ = 0;
     for (std::size_t i = 0; i < a.keys.size(); ++i) {
@@ -274,6 +312,26 @@ class escher_device_store final : public incidence_store {
       v2h_ = make_tree("V2H", static_cast<std::int64_t>(v2h.values.size()));
       construct(*v2h_, v2h);
     }
+    if (s.line_graph) {
+      // The line graph from the rows (the same layout as the source's: a function of the rows
+      // and the key count).
+      std::vector<std::int64_t> ptr(static_cast<std::size_t>(bound_) + 1, 0);
+      for (std::size_t i = 0; i < a.keys.size(); ++i) {
+        if (a.dead[i] == 0)
+          ptr[static_cast<std::size_t>(a.keys[i])] = s.rows.offsets[i + 1] - s.rows.offsets[i];
+      }
+      for (std::size_t id = 0; id < static_cast<std::size_t>(bound_); ++id) ptr[id + 1] += ptr[id];
+      std::vector<std::int32_t> cols(static_cast<std::size_t>(ptr.back()));
+      for (std::size_t i = 0; i < a.keys.size(); ++i) {
+        if (a.dead[i] != 0) continue;
+        std::copy(s.rows.members.begin() + s.rows.offsets[i],
+                  s.rows.members.begin() + s.rows.offsets[i + 1],
+                  cols.begin() + ptr[static_cast<std::size_t>(a.keys[i]) - 1]);
+      }
+      construct_line_graph(flat_hyperedge_adjacency(ptr, cols, num_vertices_, max_bound_,
+                                                    resources_access::host_threads(res_),
+                                                    payload_limit(capacity_)));
+    }
     build_row_view();
   }
 
@@ -285,6 +343,14 @@ class escher_device_store final : public incidence_store {
     copy->state_ = state_;
     copy->live_ = live_;
     copy->bound_ = bound_;
+    copy->max_bound_ = max_bound_;
+    {
+      const std::lock_guard<std::mutex> lock(view_mutex_);
+      if (line_graph_.load(std::memory_order_acquire)) {
+        copy->h2h_ = std::make_unique<escher::cbst_store>(h2h_->clone(res));
+        copy->line_graph_.store(true, std::memory_order_release);
+      }
+    }
     copy->build_row_view();
     return copy;
   }
@@ -294,6 +360,8 @@ class escher_device_store final : public incidence_store {
     store_snapshot out;
     out.num_vertices = num_vertices_;
     out.has_v2h = has_v2h_;
+    out.max_bound = max_bound_;
+    out.line_graph = line_graph_enabled();
     const escher::cbst_host_state st = h2v_->download();
     // Nodes by key (the download gives them by heap position, with their avail).
     std::vector<std::size_t> by_key(st.nodes.size());
@@ -403,6 +471,7 @@ class escher_device_store final : public incidence_store {
       bound_ = top;
       state_.resize(static_cast<std::size_t>(bound_), absent_slot);
     }
+    max_bound_ = std::max(max_bound_, bound_);
     for (std::int64_t i = 0; i < n; ++i) {
       const std::int64_t id = mapping.item_to_key[static_cast<std::size_t>(i)] - 1;
       state_[static_cast<std::size_t>(id)] = live_slot;
@@ -427,14 +496,169 @@ class escher_device_store final : public incidence_store {
     v2h_->append(keys, values, g.prefix);
   }
 
+  void update_line_graph(const std::vector<std::int64_t>& deleted,
+                         const std::vector<std::int64_t>& inserted,
+                         const member_rows& inserted_rows) override {
+    if (!line_graph_.load(std::memory_order_acquire)) return;
+    const scoped_device guard(res_.device());
+    // ESCHER-GPU's Batch in the store's encoding: keys = ids + 1, vertices + 1.
+    escher::line_graph_batch batch;
+    batch.deleted_keys = to_keys(deleted);
+    batch.inserted_keys = to_keys(inserted);
+    batch.inserted_rows.resize(static_cast<std::size_t>(inserted_rows.size()));
+    for (std::int64_t i = 0; i < inserted_rows.size(); ++i) {
+      auto& row = batch.inserted_rows[static_cast<std::size_t>(i)];
+      for (std::int64_t k = inserted_rows.offsets[static_cast<std::size_t>(i)];
+           k < inserted_rows.offsets[static_cast<std::size_t>(i) + 1]; ++k)
+        row.push_back(inserted_rows.members[static_cast<std::size_t>(k)] + 1);
+    }
+    // The transplant runs on the legacy default stream: the store's work comes first.
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
+    escher::update_line_graph(*h2h_, h2h_rows_.view(), v2h_->context(), batch,
+                              static_cast<int>(max_bound_));
+  }
+
   void finish_apply() override {
     const scoped_device guard(res_.device());
     // The read of the device error words (the stores' read points of an apply without one).
     h2v_->check_errors();
     if (v2h_) v2h_->check_errors();
+    if (h2h_) h2h_->check_errors();
     drop_views();
     scoped_stage stage(res_, "hypergraph.apply.views");
     build_row_view();
+  }
+
+  [[nodiscard]] bool line_graph_enabled() const noexcept override {
+    return line_graph_.load(std::memory_order_acquire);
+  }
+
+  void enable_line_graph() const override {
+    if (line_graph_.load(std::memory_order_acquire)) return;
+    DYNG_EXPECTS(has_v2h_, "hypergraph: the line graph needs v2h");
+    // The rows from the device (a host copy of the h2v view), then ESCHER-GPU's build.
+    array_view<const std::int64_t> row_ptr;
+    array_view<const std::int32_t> col_ind;
+    h2v_view(row_ptr, col_ind);
+    const std::lock_guard<std::mutex> lock(view_mutex_);
+    if (line_graph_.load(std::memory_order_relaxed)) return;
+    const scoped_device guard(res_.device());
+    const container_scope container;
+    std::vector<std::int64_t> ptr(row_ptr.size());
+    std::vector<std::int32_t> cols(col_ind.size());
+    if (!ptr.empty())
+      DYNG_CUDA_TRY(cudaMemcpyAsync(ptr.data(), row_ptr.data(), ptr.size() * sizeof(ptr[0]),
+                                    cudaMemcpyDeviceToHost, stream_of(res_)));
+    if (!cols.empty())
+      DYNG_CUDA_TRY(cudaMemcpyAsync(cols.data(), col_ind.data(), cols.size() * sizeof(cols[0]),
+                                    cudaMemcpyDeviceToHost, stream_of(res_)));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
+    note_host_sync();
+    if (ptr.empty()) ptr.assign(1, 0);
+    line_graph_layout h2h;
+    {
+      scoped_stage stage(res_, "hypergraph.build");
+      h2h =
+          flat_hyperedge_adjacency(ptr, cols, num_vertices_, max_bound_,
+                                   resources_access::host_threads(res_), payload_limit(capacity_));
+    }
+    scoped_stage stage(res_, "hypergraph.upload");
+    construct_line_graph(h2h);
+    h2h_rows_.build(h2h_->context(), static_cast<int>(max_bound_), true);
+    ++builds_.line_graph_builds;
+  }
+
+  [[nodiscard]] row_views views() const override {
+    const std::lock_guard<std::mutex> lock(view_mutex_);
+    row_views v;
+    v.space = memory_space::device;
+    v.device = res_.device();
+    v.id_bound = bound_;
+    v.num_vertices = num_vertices_;
+    v.h2v = h2v_rows_.view();
+    if (line_graph_.load(std::memory_order_acquire)) {
+      v.has_h2h = true;
+      v.h2h = h2h_rows_.view();
+    }
+    return v;
+  }
+
+  void h2h_view(array_view<const std::int64_t>& row_ptr, array_view<const std::int64_t>& col_ind,
+                array_view<const std::int64_t>& out) const override {
+    DYNG_EXPECTS(line_graph_.load(std::memory_order_acquire),
+                 "hypergraph::h2h: the line graph is not maintained");
+    if (!h2h_built_.load(std::memory_order_acquire)) {
+      const std::lock_guard<std::mutex> lock(view_mutex_);
+      if (!h2h_built_.load(std::memory_order_relaxed)) {
+        const scoped_device guard(res_.device());
+        const container_scope container;
+        const escher::row_view& rv = h2h_rows_.view();
+        buffer<std::int64_t> ptr(res_, static_cast<std::size_t>(bound_) + 1);
+        buffer<std::int64_t> outs(res_,
+                                  static_cast<std::size_t>(std::max<std::int64_t>(bound_, 1)));
+        DYNG_CUDA_TRY(cudaMemsetAsync(ptr.data(), 0, sizeof(std::int64_t), stream_of(res_)));
+        std::int64_t total = 0;
+        if (bound_ > 0) {
+          h2h_row_lengths_kernel<<<blocks_for(bound_), block_size, 0, stream_of(res_)>>>(
+              rv.len, bound_, ptr.data());
+          DYNG_CHECK_KERNEL(stream_of(res_));
+          thrust_allocator alloc(res_);
+          thrust::inclusive_scan(thrust_policy(res_, alloc),
+                                 thrust::device_ptr<std::int64_t>(ptr.data()) + 1,
+                                 thrust::device_ptr<std::int64_t>(ptr.data()) + bound_ + 1,
+                                 thrust::device_ptr<std::int64_t>(ptr.data()) + 1);
+          total = read_value(res_, ptr.data() + bound_);
+        }
+        buffer<std::int64_t> cols(res_, static_cast<std::size_t>(std::max<std::int64_t>(total, 0)));
+        if (bound_ > 0) {
+          gather_h2h_kernel<<<blocks_for(bound_), block_size, 0, stream_of(res_)>>>(
+              rv.flat, rv.loc, rv.len, rv.out, bound_, ptr.data(), cols.data(), outs.data());
+          DYNG_CHECK_KERNEL(stream_of(res_));
+        }
+        DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
+        note_host_sync();
+        h2h_row_ptr_ = std::move(ptr);
+        h2h_col_ind_ = std::move(cols);
+        h2h_out_ = std::move(outs);
+        ++builds_.h2h;
+        h2h_built_.store(true, std::memory_order_release);
+      }
+    }
+    row_ptr = array_view<const std::int64_t>(h2h_row_ptr_.data(), h2h_row_ptr_.size(),
+                                             memory_space::device, res_.device());
+    col_ind = array_view<const std::int64_t>(h2h_col_ind_.data(), h2h_col_ind_.size(),
+                                             memory_space::device, res_.device());
+    out = array_view<const std::int64_t>(h2h_out_.data(), static_cast<std::size_t>(bound_),
+                                         memory_space::device, res_.device());
+  }
+
+  [[nodiscard]] line_graph_layout line_graph() const override {
+    const std::lock_guard<std::mutex> lock(view_mutex_);
+    line_graph_layout g;
+    if (!line_graph_.load(std::memory_order_acquire)) return g;
+    const scoped_device guard(res_.device());
+    const escher::cbst_context& ctx = h2h_->context();
+    const auto n = static_cast<std::size_t>(ctx.num_records);
+    g.starts.resize(n);
+    g.counts.resize(n);
+    g.payload.resize(static_cast<std::size_t>(ctx.initial_payload_size));
+    if (n > 0) {
+      DYNG_CUDA_TRY(cudaMemcpyAsync(g.starts.data(), ctx.d_start_offsets, n * sizeof(int),
+                                    cudaMemcpyDeviceToHost, stream_of(res_)));
+      DYNG_CUDA_TRY(cudaMemcpyAsync(g.counts.data(), h2h_rows_.view().len + 1, n * sizeof(int),
+                                    cudaMemcpyDeviceToHost, stream_of(res_)));
+    }
+    if (!g.payload.empty())
+      DYNG_CUDA_TRY(cudaMemcpyAsync(g.payload.data(), ctx.d_flat_payload,
+                                    g.payload.size() * sizeof(int), cudaMemcpyDeviceToHost,
+                                    stream_of(res_)));
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
+    note_host_sync();
+    return g;
+  }
+
+  [[nodiscard]] view_builds builds() const noexcept override {
+    return builds_;
   }
 
   void check_integrity() const override {
@@ -514,6 +738,62 @@ class escher_device_store final : public incidence_store {
       errors += escher::check_subtree_avail(v2h_->context(), "V2H", log);
       errors += escher::check_tree_index(v2h_->context(), "V2H", log);
     }
+    if (max_bound_ < bound_) {
+      log << "[check] H2H: the line graph's key count " << max_bound_ << " is below the bound "
+          << bound_ << "\n";
+      ++errors;
+    }
+    if (line_graph_.load(std::memory_order_acquire)) {
+      // The line graph against its rebuild from H2V (ESCHER-GPU's checkIntegrity compares H2H with
+      // the reference line graph of its host model): the rows by search from the root, the tree,
+      // the layout entry by entry, and the row view.
+      std::vector<std::int64_t> ptr(static_cast<std::size_t>(bound_) + 1, 0);
+      std::vector<std::int32_t> cols;
+      for (std::int64_t id = 0; id < bound_; ++id) {
+        for (const int v : h2v_rows[static_cast<std::size_t>(id)]) cols.push_back(v - 1);
+        ptr[static_cast<std::size_t>(id) + 1] = static_cast<std::int64_t>(cols.size());
+      }
+      const line_graph_layout want = flat_hyperedge_adjacency(
+          ptr, cols, num_vertices_, max_bound_, resources_access::host_threads(res_),
+          std::numeric_limits<std::int64_t>::max());
+      std::vector<std::vector<int>> expected(static_cast<std::size_t>(want.num_keys()));
+      for (std::size_t k = 0; k < expected.size(); ++k) {
+        expected[k].assign(want.payload.begin() + want.starts[k],
+                           want.payload.begin() + want.starts[k] + want.counts[k]);
+      }
+      errors += escher::check_tree_rows(h2h_->context(), expected, false, "H2H", log);
+      errors += escher::check_subtree_avail(h2h_->context(), "H2H", log);
+      errors += escher::check_tree_index(h2h_->context(), "H2H", log);
+      const line_graph_layout got = line_graph();
+      if (got.starts != want.starts || got.counts != want.counts || got.payload != want.payload) {
+        log << "[check] H2H: the layout differs from the rebuild of the line graph ("
+            << got.num_keys() << " and " << want.num_keys() << " keys, " << got.payload.size()
+            << " and " << want.payload.size() << " payload entries)\n";
+        ++errors;
+      }
+      std::vector<int> loc, len, out;
+      line_graph_locator(want, loc, len, out);
+      const escher::row_view& rv = h2h_rows_.view();
+      std::vector<int> dloc(loc.size()), dlen(len.size()), dout(out.size());
+      if (rv.max_key + 1 != static_cast<int>(loc.size())) {
+        log << "[check] H2H: the row view covers keys up to " << rv.max_key << ", not "
+            << want.num_keys() << "\n";
+        ++errors;
+      } else {
+        DYNG_CUDA_TRY(cudaMemcpyAsync(dloc.data(), rv.loc, loc.size() * sizeof(int),
+                                      cudaMemcpyDeviceToHost, stream_of(res_)));
+        DYNG_CUDA_TRY(cudaMemcpyAsync(dlen.data(), rv.len, len.size() * sizeof(int),
+                                      cudaMemcpyDeviceToHost, stream_of(res_)));
+        DYNG_CUDA_TRY(cudaMemcpyAsync(dout.data(), rv.out, out.size() * sizeof(int),
+                                      cudaMemcpyDeviceToHost, stream_of(res_)));
+        DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
+        note_host_sync();
+        if (dloc != loc || dlen != len || dout != out) {
+          log << "[check] H2H: the row view is not the locator of the line graph\n";
+          ++errors;
+        }
+      }
+    }
     if (errors != 0)
       DYNG_FAIL("hypergraph integrity (device store): ", errors, " violations\n", log.str());
   }
@@ -541,6 +821,16 @@ class escher_device_store final : public incidence_store {
       st.unfill.warp += v.bin_launches.unfill[1];
       st.unfill.block += v.bin_launches.unfill[2];
     }
+    if (line_graph_.load(std::memory_order_acquire)) {
+      // A's DynamicHypergraph::deviceBytes() also counts the H2H tree and its row view.
+      const escher::cbst_store_stats l = h2h_->stats();
+      st.device_bytes += l.device_bytes + static_cast<std::int64_t>(h2h_rows_.device_bytes());
+      st.growths += l.growths;
+      st.compactions += l.compactions;
+    }
+    if (h2h_built_.load(std::memory_order_acquire))
+      st.view_bytes += static_cast<std::int64_t>(
+          (h2h_row_ptr_.size() + h2h_col_ind_.size() + h2h_out_.size()) * sizeof(std::int64_t));
     if (h2v_built_.load(std::memory_order_acquire))
       st.view_bytes += static_cast<std::int64_t>(h2v_row_ptr_.size() * sizeof(std::int64_t) +
                                                  h2v_col_ind_.size() * sizeof(std::int32_t));
@@ -583,6 +873,7 @@ class escher_device_store final : public incidence_store {
         note_host_sync();
         h2v_row_ptr_ = std::move(ptr);
         h2v_col_ind_ = std::move(cols);
+        ++builds_.h2v;
         h2v_built_.store(true, std::memory_order_release);
       }
     }
@@ -629,6 +920,7 @@ class escher_device_store final : public incidence_store {
         note_host_sync();
         v2h_row_ptr_ = std::move(ptr);
         v2h_col_ind_ = std::move(cols);
+        ++builds_.v2h;
         v2h_built_.store(true, std::memory_order_release);
       }
     }
@@ -653,17 +945,43 @@ class escher_device_store final : public incidence_store {
   }
 
   // The row view of H2V for the keys 1..bound (A's locator: one pass over the nodes).
+  // The row views of H2V (keys 1..bound) and H2H (keys 1..max_bound, with out): A's locator,
+  // one pass over each tree's nodes (ESCHER-GPU's buildRowViews).
   void build_row_view() {
     h2v_rows_.build(h2v_->context(), static_cast<int>(bound_), false);
+    if (line_graph_.load(std::memory_order_acquire))
+      h2h_rows_.build(h2h_->context(), static_cast<int>(max_bound_), true);
+    ++builds_.row_views;
+  }
+
+  // The H2H tree over a line graph in the construct layout, its payload sized exactly
+  // (ESCHER-GPU's payloadCapacity of a tree rebuilt by the delta merge).
+  void construct_line_graph(const line_graph_layout& h2h) const {
+    const auto n = static_cast<int>(h2h.num_keys());
+    auto tree = std::make_unique<escher::cbst_store>(
+        res_, "H2H", static_cast<int>(h2h.payload.size()), policy_.alignment, policy_);
+    std::vector<int> keys(static_cast<std::size_t>(n)),
+        starts(h2h.starts.begin(), h2h.starts.end());
+    for (int k = 0; k < n; ++k) keys[static_cast<std::size_t>(k)] = k + 1;
+    std::vector<int> values(h2h.payload.begin(), h2h.payload.end());
+    std::vector<int> counts(h2h.counts.begin(), h2h.counts.end());
+    tree->construct(keys.data(), starts.data(), n, values.data(), static_cast<int>(values.size()),
+                    counts.data());
+    h2h_ = std::move(tree);
+    line_graph_.store(true, std::memory_order_release);
   }
 
   void drop_views() noexcept {
     h2v_built_.store(false, std::memory_order_release);
     v2h_built_.store(false, std::memory_order_release);
+    h2h_built_.store(false, std::memory_order_release);
     h2v_row_ptr_ = buffer<std::int64_t>();
     h2v_col_ind_ = buffer<std::int32_t>();
     v2h_row_ptr_ = buffer<std::int64_t>();
     v2h_col_ind_ = buffer<std::int64_t>();
+    h2h_row_ptr_ = buffer<std::int64_t>();
+    h2h_col_ind_ = buffer<std::int64_t>();
+    h2h_out_ = buffer<std::int64_t>();
   }
 
   static std::vector<int> to_keys(const std::vector<std::int64_t>& ids) {
@@ -687,24 +1005,33 @@ class escher_device_store final : public incidence_store {
   bool has_v2h_ = true;
   std::unique_ptr<escher::cbst_store> h2v_, v2h_;
   escher::row_locator h2v_rows_;
+  // The line graph (H2H) and its row view; enabled at construction (sorted_merge) or by a
+  // read-only call (automatic), under view_mutex_.
+  mutable std::atomic<bool> line_graph_{false};
+  mutable std::unique_ptr<escher::cbst_store> h2h_;
+  mutable escher::row_locator h2h_rows_;
   std::vector<std::uint8_t> state_;  // by id: absent, live or a deleted slot in the tree
   std::int64_t live_ = 0, bound_ = 0;
+  std::int64_t max_bound_ = 0;  // the largest id bound so far: the line graph's keys (A's numKeys)
+  mutable view_builds builds_;
 
   mutable std::mutex view_mutex_;
-  mutable std::atomic<bool> h2v_built_{false}, v2h_built_{false};
+  mutable std::atomic<bool> h2v_built_{false}, v2h_built_{false}, h2h_built_{false};
   mutable buffer<std::int64_t> h2v_row_ptr_, v2h_row_ptr_, v2h_col_ind_;
   mutable buffer<std::int32_t> h2v_col_ind_;
+  mutable buffer<std::int64_t> h2h_row_ptr_, h2h_col_ind_, h2h_out_;
 };
 
 }  // namespace
 
 std::unique_ptr<incidence_store> make_escher_store(const resources& res, std::int32_t num_vertices,
                                                    const member_rows& rows,
-                                                   const capacity_policy& capacity, bool has_v2h) {
+                                                   const capacity_policy& capacity, bool has_v2h,
+                                                   bool line_graph) {
   DYNG_EXPECTS(res.get_backend() == backend::cuda, "the ESCHER device store needs CUDA resources");
   const scoped_device guard(res.device());
   auto store = std::make_unique<escher_device_store>(res, capacity, num_vertices, has_v2h);
-  store->build(rows);
+  store->build(rows, line_graph);
   return store;
 }
 
