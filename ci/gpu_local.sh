@@ -486,8 +486,10 @@ if ! skipped tidy; then
     record clang-tidy skipped
   else
     gcc_include="$("${CXX:-g++}" -print-file-name=include)"
-    # cpp/src/algorithms/_template is not compiled (scripts/new_algorithm.py instantiates it).
-    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' |
+    # The templates cpp/src/algorithms/_template and _template_hypergraph are not compiled
+    # (scripts/new_algorithm.py instantiates them), as in ci/check.sh's tidy step.
+    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' \
+      ':!:cpp/src/algorithms/_template_hypergraph/*' |
       heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
       -p "${build_dir}" --quiet --checks='-*,readability-identifier-naming' \
       --warnings-as-errors='*' "--extra-arg=-isystem${gcc_include}" \
