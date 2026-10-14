@@ -1,0 +1,52 @@
+{
+ "set": "cbst_trace_mosp_escher_dblp50k_vertex",
+ "documented_rules": {},
+ "reference": "MOSP_ESCHER",
+ "manifest_sha256": "1068e319acbc9f9199e712f9e39a09221554e6e1af616d9d03a915f028cf0cd4",
+ "store": "device",
+ "policy": "mosp_escher",
+ "fields": "exact",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:28:11+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
+ "cases": [
+  {
+   "case": "dblp_vertex_50000",
+   "ok": true,
+   "store": "device:mosp_escher",
+   "exit": "normal",
+   "ops": 21,
+   "compared": 21,
+   "unreplayable": 0,
+   "mappings": 0,
+   "keys_compared": 48010053,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 3,
+   "unreplayable_trees": [],
+   "first_mismatches": [],
+   "documented_rules": {}
+  }
+ ],
+ "totals": {
+  "ops": 21,
+  "compared": 21,
+  "unreplayable": 0,
+  "mappings": 0,
+  "keys_compared": 48010053,
+  "hash_only_rows": 0,
+  "growths": 0,
+  "compactions": 0,
+  "exceptions": 0,
+  "mismatch_count": 0,
+  "documented": 0,
+  "twin_constructs": 3
+ },
+ "problems": [],
+ "against_model": false,
+ "passed": true
+}

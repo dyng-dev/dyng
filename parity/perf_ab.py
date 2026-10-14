@@ -159,6 +159,53 @@ REPO = Path(__file__).resolve().parent.parent
 SCRATCH = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-work"))
 REGION_MAP = REPO / "parity" / "timed_regions" / "sssp.toml"
 MOSP_REGION_MAP = REPO / "parity" / "timed_regions" / "mosp.toml"  # `perf_ab.py mosp` (M7)
+# The hypergraph container and its ESCHER store (M8a writes the map before the port; M8b and M9
+# measure it): the region maps of ESCHER-GPU@abcf9b2 (its --timing stage records) and of
+# MOSP_ESCHER@4b86159 (hsospBench's CSV columns, for M11).
+HYPERGRAPH_REGION_MAP = REPO / "parity" / "timed_regions" / "hypergraph.toml"
+HYPERGRAPH_REFERENCES = {
+    "escher_gpu": {
+        "name": "ESCHER-GPU",
+        "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+        "map": "escher_gpu",
+    },
+    "mosp_escher": {
+        "name": "MOSP_ESCHER",
+        "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+        "map": "mosp_escher",
+    },
+}
+# The timers of ESCHER-GPU@abcf9b2 (ScopedTimer / recordTiming stage names of src/driver.cu and
+# structure/dynamic_hypergraph.cu, written by build/main --timing) and the time columns of
+# MOSP_ESCHER@4b86159's hsospBench CSV, as a region map names them (timing:<stage>, csv:<column>).
+ESCHER_TIMING_STAGES = {
+    "init.load",
+    "init.full_count",
+    "init.v2h_build",
+    "init.h2h_build",
+    "init.v2v_build",
+    "init.flatten",
+    "init.construct",
+    "init.row_views",
+    "batch.generate",
+    "update",
+    "update.subtract",
+    "update.maintain",
+    "update.add",
+    "maintain.prepare",
+    "maintain.h2v_delete",
+    "maintain.v2h_unfill",
+    "maintain.h2v_insert",
+    "maintain.v2h_fill",
+    "maintain.h2h_merge",
+    "maintain.v2h_view",
+    "maintain.v2v_merge",
+    "maintain.row_views",
+    "check",
+    "reference",
+    "total",
+}
+HSOSP_CSV_TIMES = {"t_escher_ms", "t_delta_ms", "t_csr_apply_ms", "t_sosp_update_ms", "t_static_ms"}
 # The original each backend of the port is compared with, and its section of sssp.toml.
 REFERENCES = {
     "openmp": {
@@ -466,8 +513,14 @@ def load_regions(
     """The regions of a region map (sssp.toml unless `path`) for a backend, checked against what
     this script can measure."""
     doc = tomllib.loads(path.read_text())
-    regions = doc["reference"][REFERENCES[backend]["map"]]["region"]
-    known = set(REPORT) | {PER_OBJECTIVE_REPORT}
+    if backend in HYPERGRAPH_REFERENCES:  # hypergraph.toml (M8a): the originals' timer names
+        regions = doc["reference"][HYPERGRAPH_REFERENCES[backend]["map"]]["region"]
+        known = {f"timing:{t}" for t in ESCHER_TIMING_STAGES} | {
+            f"csv:{c}" for c in HSOSP_CSV_TIMES
+        }
+    else:
+        regions = doc["reference"][REFERENCES[backend]["map"]]["region"]
+        known = set(REPORT) | {PER_OBJECTIVE_REPORT}
     names = [r["name"] for r in regions]
     for name in required:
         if name not in names:
@@ -2268,6 +2321,11 @@ def main() -> int:
         import cycle_count_perf
 
         return cycle_count_perf.main(sys.argv[2:])
+    if sys.argv[1:2] == ["cbst"]:  # the ESCHER CBST store against ESCHER-GPU (M8a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import cbst_perf
+
+        return cbst_perf.main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("prepare")

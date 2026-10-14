@@ -471,12 +471,12 @@ def write_toml(
     cycle_count sets are kept after the sssp set, in the order of SETS, and the later sets (e.g.
     mosp_scale, parity/mosp_scale_goldens.py) after them in their order."""
     text = path.read_text()
-    first = re.search(r"^\[sets\.(?!sssp[\].])[a-z_]+[\].]", text, re.M)
+    first = re.search(r"^\[sets\.(?!sssp[\].])[a-z0-9_]+[\].]", text, re.M)
     head, tail = (text[: first.start()], text[first.start() :]) if first else (text, "")
     blocks: dict[str, list[str]] = {}
     current = None
     for line in tail.splitlines(keepends=True):
-        m = re.match(r"^\[sets\.([a-z_]+)[\].]", line)
+        m = re.match(r"^\[sets\.([a-z0-9_]+)[\].]", line)
         if m:
             current = m.group(1)
         if current is not None:

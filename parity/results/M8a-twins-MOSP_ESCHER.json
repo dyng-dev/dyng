@@ -1,0 +1,482 @@
+{
+ "reference": "MOSP_ESCHER",
+ "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+ "patched": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/patched",
+ "unpatched": "$DYNG_SCRATCH/ref/MOSP_ESCHER@4b86159/unpatched",
+ "invocations": [
+  {
+   "invocation": "000001.inv",
+   "exe": "bin/test_cbst_smoke",
+   "args": [],
+   "cbst_calls": 33,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000002.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "scale"
+   ],
+   "cbst_calls": 1107,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000003.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "reuse"
+   ],
+   "cbst_calls": 4,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000004.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "terminator"
+   ],
+   "cbst_calls": 3,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000005.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "erase"
+   ],
+   "cbst_calls": 5,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000006.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "surplus"
+   ],
+   "cbst_calls": 4,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000007.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "bestfit"
+   ],
+   "cbst_calls": 3,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000008.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "unfill-chain"
+   ],
+   "cbst_calls": 6,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000009.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "random"
+   ],
+   "cbst_calls": 75,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000010.inv",
+   "exe": "bin/test_cbst_ops",
+   "args": [
+    "churn"
+   ],
+   "cbst_calls": 2314,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000011.inv",
+   "exe": "bin/test_dynamicgraph_roundtrip",
+   "args": [],
+   "cbst_calls": 60,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000012.inv",
+   "exe": "bin/test_snapshot_matches_updateCSR",
+   "args": [],
+   "cbst_calls": 9,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000013.inv",
+   "exe": "bin/test_h2h_construction",
+   "args": [],
+   "cbst_calls": 78,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000014.inv",
+   "exe": "bin/test_h2h_delta",
+   "args": [],
+   "cbst_calls": 656,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000015.inv",
+   "exe": "bin/test_hsosp_matches_dijkstra",
+   "args": [],
+   "cbst_calls": 2438,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000016.inv",
+   "exe": "bin/test_hsosp_scale",
+   "args": [],
+   "cbst_calls": 47,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000017.inv",
+   "exe": "bin/hsospStress",
+   "args": [
+    "--configs",
+    "50"
+   ],
+   "cbst_calls": 1160,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000018.inv",
+   "exe": "bin/hsospStress",
+   "args": [
+    "--configs",
+    "20",
+    "--seed",
+    "11",
+    "--check-escher"
+   ],
+   "cbst_calls": 478,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000019.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--suite",
+    "smoke",
+    "--reps",
+    "1",
+    "--check-escher",
+    "--out",
+    "hsospBench_smoke.csv"
+   ],
+   "cbst_calls": 224,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 43,
+   "same": true
+  },
+  {
+   "invocation": "000020.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "<abs>/random.hg",
+    "--kind",
+    "hyperedge",
+    "--batch",
+    "2000",
+    "--batches",
+    "3",
+    "--verify",
+    "all",
+    "--check-escher",
+    "--out",
+    "hsospBench_real.csv"
+   ],
+   "cbst_calls": 27,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 7,
+   "same": true
+  },
+  {
+   "invocation": "000021.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "<abs>/random.hg",
+    "--kind",
+    "vertex",
+    "--batch",
+    "2000",
+    "--batches",
+    "3",
+    "--verify",
+    "all",
+    "--check-escher",
+    "--out",
+    "hsospBench_real.csv"
+   ],
+   "cbst_calls": 21,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 7,
+   "same": true
+  },
+  {
+   "invocation": "000022.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "<abs>/random.hg",
+    "--batch",
+    "abc",
+    "--out",
+    "cli.csv"
+   ],
+   "cbst_calls": 0,
+   "logged_exit": "normal",
+   "status_unpatched": 2,
+   "status_twin": 2,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000023.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "<abs>/random.hg",
+    "--batch",
+    "12abc",
+    "--out",
+    "cli.csv"
+   ],
+   "cbst_calls": 0,
+   "logged_exit": "normal",
+   "status_unpatched": 2,
+   "status_twin": 2,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000024.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "<abs>/random.hg",
+    "--reps",
+    "99999999999",
+    "--out",
+    "cli.csv"
+   ],
+   "cbst_calls": 0,
+   "logged_exit": "normal",
+   "status_unpatched": 2,
+   "status_twin": 2,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000025.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "<abs>/random.hg",
+    "--seed",
+    "-1",
+    "--out",
+    "cli.csv"
+   ],
+   "cbst_calls": 0,
+   "logged_exit": "normal",
+   "status_unpatched": 2,
+   "status_twin": 2,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000026.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "<abs>/random.hg",
+    "--del",
+    "5x",
+    "--out",
+    "cli.csv"
+   ],
+   "cbst_calls": 0,
+   "logged_exit": "normal",
+   "status_unpatched": 2,
+   "status_twin": 2,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000027.inv",
+   "exe": "bin/hsospBench",
+   "args": [
+    "--hg",
+    "missing.hg",
+    "--out",
+    "cli.csv"
+   ],
+   "cbst_calls": 0,
+   "logged_exit": "normal",
+   "status_unpatched": 1,
+   "status_twin": 1,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000028.inv",
+   "exe": "bin/test_mosp_update",
+   "args": [],
+   "cbst_calls": 0,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000029.inv",
+   "exe": "bin/main",
+   "args": [],
+   "cbst_calls": 108,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true,
+   "nondeterministic_original": "MOSP's demo pipeline draws its graph from std::random_device (mosp/src/generateGraph.cu:89-90): two runs of the unpatched copy differ",
+   "compared": "exit status and verdict lines (PASS|FAIL|passed|failed|complete)"
+  },
+  {
+   "invocation": "000030.inv",
+   "exe": "bin/stressTest",
+   "args": [
+    "1",
+    "200"
+   ],
+   "cbst_calls": 1782,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000031.inv",
+   "exe": "bin/parallelStressTest",
+   "args": [
+    "1",
+    "200"
+   ],
+   "cbst_calls": 1782,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  },
+  {
+   "invocation": "000032.inv",
+   "exe": "bin/parallelStressTest",
+   "args": [
+    "6",
+    "200"
+   ],
+   "cbst_calls": 1788,
+   "logged_exit": "normal",
+   "status_unpatched": 0,
+   "status_twin": 0,
+   "timing_lines_dropped": 0,
+   "same": true
+  }
+ ],
+ "suite": {
+  "command": "make test NVCC=/usr/local/cuda-13.1/bin/nvcc CUDA_ARCH=sm_86",
+  "status": 0,
+  "pass": 28,
+  "fail": 0
+ },
+ "problems": [],
+ "passed": true
+}

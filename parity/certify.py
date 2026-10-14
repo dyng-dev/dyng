@@ -209,6 +209,13 @@ REQUIRED_REPLAYS = {
     "cycle_count_cuda": ["cuda"],
     "mosp_scale": ["sequential", "openmp", "cuda"],
 }
+# The CBST trace goldens of M8a (kind "cbst_trace"): every certificate must replay each set
+# through the dynG store under its original's preset and under dynG's default preset (the
+# records `compare.py cbst_trace --store device --certificate <dir>` writes, as ci/gpu_local.sh
+# does; config "device:<preset>/<fields>"). A set without them fails the certificate (M8a review:
+# they were listed without entering the verdict).
+CBST_ORIGINAL_PRESET = {"ESCHER-GPU": "escher_gpu", "MOSP_ESCHER": "mosp_escher"}
+CBST_REQUIRED_PRESETS = ("<original>", "dyng_default")
 # The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
 # series on which its algorithm's gates became part of the release (PLAN 8.6, Appendix F): sssp and
 # cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
@@ -579,6 +586,9 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
         cases = spec.get("cases", {})
         entry = {
             "set": name,
+            # "cbst_trace" (the CBST trace goldens of M8a, parity/cbst_trace_goldens.py; replayed
+            # by `compare.py cbst_trace`) or the golden corpora of the algorithms
+            "kind": spec.get("kind", "golden"),
             "reference": spec["reference"],
             "commit": spec["commit"],
             "generated_by": spec.get("generated_by"),
@@ -649,6 +659,25 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
         entry["passed"] = (
             bool(entry["replays"]) and not missing and all(r["passed"] for r in entry["replays"])
         )
+        if entry["kind"] == "cbst_trace":
+            # The CBST trace goldens (M8a): replays of the dynG store under the original's preset
+            # and dynG's default are required (CBST_REQUIRED_PRESETS).
+            presets = {
+                c.split(":", 1)[1].split("/")[0]
+                for r in entry["replays"]
+                for c in r["configs"]
+                if c.startswith("device:")
+            }
+            original = CBST_ORIGINAL_PRESET.get(spec["reference"], "")
+            wanted = [original if p == "<original>" else p for p in CBST_REQUIRED_PRESETS]
+            absent = [p for p in wanted if p and p not in presets]
+            entry["required_presets"] = wanted
+            if absent:
+                problems.append(
+                    f"golden set {name}: no replay of the CBST store under {', '.join(absent)} "
+                    "(compare.py cbst_trace --store device --certificate <results>)"
+                )
+                entry["passed"] = False
         out.append(entry)
     return out
 
@@ -682,7 +711,10 @@ def committed_fixtures(checklist: list[dict], problems: list[str]) -> list[dict]
         if len(Path(f).parts) > 4
     }
     for name in sorted(tracked):
-        if f"cpp/tests/data/{name}" not in listed:
+        # A set may live one level deeper (cpp/tests/data/goldens/cbst_trace, M8a).
+        if not any(
+            d == f"cpp/tests/data/{name}" or d.startswith(f"cpp/tests/data/{name}/") for d in listed
+        ):
             problems.append(f"cpp/tests/data/{name}: a fixture set fixtures.toml does not list")
     out = []
     for name, spec in doc["sets"].items():
@@ -1265,7 +1297,9 @@ def golden_mutations(record_path: Path, head: str, results: Path) -> list[str]:
     """What is wrong with a golden-mutation record (parity/mutate.py run --json): every mutation
     of `parity/mutate.py list` must be in it and detected, the control must have passed, the
     record's commit must have the release's library sources, and every replay must have used
-    a golden manifest of parity/goldens.toml."""
+    a golden manifest of parity/goldens.toml (but those of a GoogleTest suite, the cbst suite of
+    M8a, which replays no golden corpus: its tests read the committed CBST traces of
+    cpp/tests/data)."""
     if not record_path.is_file():
         return [f"its record {record_path.name} is not next to checks.json"]
     sys.path.insert(0, str(REPO / "parity"))
@@ -1294,8 +1328,11 @@ def golden_mutations(record_path: Path, head: str, results: Path) -> list[str]:
         for spec in tomllib.loads((REPO / "parity" / "goldens.toml").read_text())["sets"].values()
         if "manifest_sha256" in spec
     }
+    gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
     replays = [*(control or {}).get("replays", []), *rows.values()]
     for r in replays:
+        if r.get("suite") in gtest:
+            continue
         digest = (r.get("goldens") or {}).get("manifest_sha256")
         if digest not in manifests:
             out.append(
@@ -1601,7 +1638,7 @@ def readme_block(cert: dict) -> str:
         )
         lines.append(
             f"| `{g['set']}` | {g['reference']}@{g['commit'][:7]} | {g['cases']} | {reps} "
-            f"| {'passed' if g['passed'] else 'FAILED'} |"
+            f"| {'listed' if g['passed'] is None else 'passed' if g['passed'] else 'FAILED'} |"
         )
     lines += [
         "",
@@ -1768,7 +1805,8 @@ def cmd_write(args: argparse.Namespace) -> int:
         "checks": checklist,
     }
     cert["verdict"] = {
-        "golden_parity": bool(goldens) and all(g["passed"] for g in goldens),
+        "golden_parity": bool(goldens)
+        and all(g["passed"] for g in goldens if g["passed"] is not None),
         "committed_fixtures": bool(fixtures) and all(f["passed"] for f in fixtures),
         "performance_gates": bool(perf) and all(s["passed"] for s in perf),
         "checks": bool(checklist) and all(c.get("result") == "passed" for c in checklist),

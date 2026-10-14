@@ -1215,3 +1215,240 @@ invalidated = [1651121, 1105632, 1022434]
 "obj1/distancesUpdated.txt" = "828f5719f4ecbf0c57a63e6983bce9fe138d3109232177bbaf11b6f8c0cb1f97"
 "obj2/SSSPTreeUpdated.txt" = "ed4d62b39afb1a9da0bda7a9b911384a922f4b1f2701ab25a65f8d4d16a82c32"
 "obj2/distancesUpdated.txt" = "e5122e8a26fb93a2545dc0f6580b68d940ff07ff03ba0bc9d12d24f66e6b50dd"
+
+[sets.cbst_trace_escher_gpu_test]
+reference = "ESCHER-GPU"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+kind = "cbst_trace"
+what = "every CBST-calling invocation of tests/run_tests.sh (make test)"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_test"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "auto"
+hash_only = []
+num_cases = 75
+num_files = 276
+num_bytes = 775368835
+manifest_sha256 = "3b978a38514b6e2586894b15dd2a711b5baf4faaa1c61198f802649eaa22bc42"
+
+[sets.cbst_trace_escher_gpu_test.cases]
+"001-main" = { ops = 8, files = 2, trace_bytes = 39215, sha256 = "0324578f3561a3c57a62dab4af6c3cc19d1d611500f13404bc650aef4283a759" }
+"002-type1" = { ops = 8, files = 2, trace_bytes = 39216, sha256 = "952c47202f231dec2e8e0898e46d5a0a72706a630e99bcc3110a6f75069b0620" }
+"003-type2" = { ops = 8, files = 2, trace_bytes = 39216, sha256 = "e22193f2aebfcdbf4d0f3c3ec79cdd5a657da947cae56a14d0c4cbdf71a592e2" }
+"004-type3" = { ops = 8, files = 2, trace_bytes = 39216, sha256 = "126d713bc5aedfda8fa9324a66356145a632a047d7298e0bcaf0a3ceca9e5e61" }
+"005-coarseTriangle" = { ops = 10, files = 2, trace_bytes = 59710, sha256 = "94853423aede098077f0972d8a0be08333691c87345575fe824ae440ae34044e" }
+"006-main" = { ops = 3, files = 4, trace_bytes = 1592145, sha256 = "9b2b9bdafd97fbfd20ff80bded99578854e04972f83dd70d26ccaa7820645056" }
+"007-main" = { ops = 3, files = 3, trace_bytes = 99805839, sha256 = "ce9186ac861213382c5a9571bdc543dd68a8fa6de7664b84763b222573673cf4" }
+"008-type1" = { ops = 3, files = 4, trace_bytes = 1592146, sha256 = "95124b7faa3664fca4292bfb47cfea4e569db7e877a4cbb6a1d1ed4ae91c6dd5" }
+"009-type1" = { ops = 3, files = 3, trace_bytes = 99805840, sha256 = "1db580d659befd0d1e9eafc38e88f7f89f9d21dbbd5b93b5f686171908f893c0" }
+"010-type2" = { ops = 3, files = 4, trace_bytes = 1592146, sha256 = "95e68467c984372590e361989e18a0af08fb22f95013dd255454d15e5ea04c5a" }
+"011-type2" = { ops = 3, files = 3, trace_bytes = 99805840, sha256 = "64d80eb722c547cd80f3dc74258f6e1a251165c8099910f84374b42238cdf0f8" }
+"012-type3" = { ops = 3, files = 4, trace_bytes = 1592146, sha256 = "095db5841ec04585bf5c8ed8e2b148ebbfd429bb2d25d4f210855b759f567567" }
+"013-type3" = { ops = 3, files = 3, trace_bytes = 99805840, sha256 = "e5a15fc8d0b7ba54bfc9bddf95584fe12ff99416107ce08c68a1d7f3d6e37908" }
+"014-coarseTriangle" = { ops = 4, files = 4, trace_bytes = 2249698, sha256 = "8ba5e5a3bc1b80757c89acb3347e318a09a6f0faac7757c46f20184cd11751ce" }
+"015-coarseTriangle" = { ops = 4, files = 3, trace_bytes = 128842676, sha256 = "1a2bf9fb0f562433328964b2fb568320e99ed50b4f833d63364252d2b405d823" }
+"016-main" = { ops = 18, files = 4, trace_bytes = 4819199, sha256 = "481ceb0dfbbe8574d2b963abb3a6558a22a58e54b93bfbb74670c201c70ca6ae" }
+"017-main" = { ops = 18, files = 4, trace_bytes = 5154498, sha256 = "e2a819dee551520eb5032338a2f83b10599c522607dab503d2dbb9d08766973d" }
+"018-main" = { ops = 18, files = 4, trace_bytes = 5989156, sha256 = "0a5bb72c8986f5d4dd1375a470d4c99df7911e4353374b6e7bd966a048df28be" }
+"019-main" = { ops = 18, files = 3, trace_bytes = 248643119, sha256 = "11d838f1d168c5fc95dd47cd1b7d391d53c7a0e59ebfefe8c9a0ab0d232d9070" }
+"020-type1" = { ops = 18, files = 4, trace_bytes = 4819200, sha256 = "f79e132a2e5ceb184ceb45a5f2e3309c1cdc0ab3590d1b1dd8254310698a3b03" }
+"021-type1" = { ops = 18, files = 4, trace_bytes = 5154499, sha256 = "a9d281676c02ebfe67dcde1bd84a64a80cbf58c767ec32591593eea030341b37" }
+"022-type1" = { ops = 18, files = 4, trace_bytes = 5989157, sha256 = "7a64cd4a0427aabb8fd1af6f7ffc72a42850cf48e0192551a087bca196bbd083" }
+"023-type1" = { ops = 18, files = 3, trace_bytes = 248643120, sha256 = "34511735e72b669df0022e2e76a66f573aa1eb090a6d7cc1de235d354886f7ee" }
+"024-type2" = { ops = 18, files = 4, trace_bytes = 4819200, sha256 = "c63f1f5acbfef03335177c7db75755b9c1d59a1cbfae03341ce3624cb89491a8" }
+"025-type2" = { ops = 18, files = 4, trace_bytes = 5154499, sha256 = "e98e4fc6bcf22ce7bcd59e42c6535a5de4db906c0e9eff58ed72462ce4cced43" }
+"026-type2" = { ops = 18, files = 4, trace_bytes = 5989157, sha256 = "04576280481f1f457c4deac8fd46b9b8946e60ae14df5702fcb82191e110ef89" }
+"027-type2" = { ops = 18, files = 3, trace_bytes = 248643120, sha256 = "de799fa24ef1f50a95d2e9e7ebcd7974197839e826885a0a1c90f5d009fbfb68" }
+"028-type3" = { ops = 18, files = 4, trace_bytes = 4819200, sha256 = "dfdeed36a8fc8a1e3c4c2c2b715ce776efc87f082b8f23030b5d1f7bc31f5f0e" }
+"029-type3" = { ops = 18, files = 4, trace_bytes = 5154499, sha256 = "1b96edc1fc9f45629f1522515d5287e5fbf6900b66501ba0bfc8e0666f78998e" }
+"030-type3" = { ops = 18, files = 4, trace_bytes = 5989157, sha256 = "7798843fe3b5642cb1aa903a94e0d69470e0f2fa849e638cfdf468af3f4d8f3b" }
+"031-type3" = { ops = 18, files = 3, trace_bytes = 248643120, sha256 = "8cabc922a946ba3dfcf7e685b93c3a6177565e11328ed5342d2fa48caa222a31" }
+"032-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 7413699, sha256 = "7073cf3359d9cbedaaa6bd882348fc2778ce9d29986745e5026897777fd900be" }
+"033-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 7665342, sha256 = "a9025140e91ab4359c59bdc728965183fb13ab45eb73d1b8686e0fccb474384d" }
+"034-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 8232176, sha256 = "f07a84c69d47d6a8a8bbe7d318ba583c5dbf739e7ad9aea62390a1dc23b1b8dd" }
+"035-coarseTriangle" = { ops = 22, files = 3, trace_bytes = 323342219, sha256 = "a6e286b88710caf280cb20e0d6b089767690a9400fac4475e96fa408c6c9cb84" }
+"036-main" = { ops = 18, files = 4, trace_bytes = 4315107, sha256 = "b437715f5a2ec903ed9ae6eb414853ee0f5593c9d5ff472018ed5e40312e8a8f" }
+"037-main" = { ops = 18, files = 4, trace_bytes = 6408104, sha256 = "7cc2699da2428cf75695e2291bc34ff80aa87fa3733b79b4f739c1977c923db8" }
+"038-main" = { ops = 18, files = 4, trace_bytes = 4447476, sha256 = "43a1a3a974eeecc10f37c4a15fde43c4b35160451c3aa97dbfeae311a0800919" }
+"039-main" = { ops = 18, files = 4, trace_bytes = 5373736, sha256 = "17fbf0d0c5177449fe531f4bd58ce997d426deaee0f2cc9dc05cbf67b431d156" }
+"040-main" = { ops = 18, files = 3, trace_bytes = 5430309, sha256 = "7f3d52c78ad32e910cb5aef1aed62c44f329da9cae02e23cab5c35da52b334a9" }
+"041-main" = { ops = 18, files = 4, trace_bytes = 7596971, sha256 = "18e4e41a613c866b7eeab10f09588465b09afd71913b8dbc2f207ec6a255ee9b" }
+"042-main" = { ops = 13, files = 4, trace_bytes = 36798518, sha256 = "72d7b7955ee1e3736718c5ffc8a346d852bfd7f0b35fe01d92fb295be8225c6b" }
+"043-main" = { ops = 18, files = 4, trace_bytes = 4868370, sha256 = "3578bb12d76b000c894deda0b9d768ae8edec0050173e77624165984d092ba5a" }
+"044-type1" = { ops = 18, files = 4, trace_bytes = 4315108, sha256 = "ab4c4f80f4da8b9567d42dc4ff35e5c04fe8be05d851fc38d1022b6a4a6b3bae" }
+"045-type1" = { ops = 18, files = 4, trace_bytes = 6408105, sha256 = "f2d0e24a5c3e8917737a2d6ac086d59c75d7e1a63ddee91c6edac94e57b47b53" }
+"046-type1" = { ops = 18, files = 4, trace_bytes = 4447477, sha256 = "3756aeb38263422f785a3854e7a2fa9a92ddbb12108e2bc522397d51b9852dd8" }
+"047-type1" = { ops = 18, files = 4, trace_bytes = 5373737, sha256 = "0807d56291f4a3bbc9ee1653bb8c32e6cd2ea683b5996eff1b1049ac9d46ac4d" }
+"048-type1" = { ops = 18, files = 3, trace_bytes = 5430310, sha256 = "3c4fb90993689bf741ab4b2bfc30610198f8fc11b0cd9957c5cdb370c525bebf" }
+"049-type1" = { ops = 18, files = 4, trace_bytes = 7596972, sha256 = "41f3fb86c277733f15710c4db4484e537843cccad6f4632713443556a56a8ce7" }
+"050-type1" = { ops = 13, files = 4, trace_bytes = 36798519, sha256 = "b0876e5be7ff4a916ce1d41f8f61160f63993993f3eecc4f4f0ee23e5e3bf16b" }
+"051-type1" = { ops = 18, files = 4, trace_bytes = 4868371, sha256 = "8499799791a71bc1d84b4991f7f8bbc9d390170054bff4f37e3c339f26937d1d" }
+"052-type2" = { ops = 18, files = 4, trace_bytes = 4315108, sha256 = "cc276558e86bee3ef25d993eb8bc0d2f2530237b48fad8d06f892c5a9cc09a75" }
+"053-type2" = { ops = 18, files = 4, trace_bytes = 6408105, sha256 = "a125f4dad289f4c3c3967bf0e094f0471362b77b6568425cbd344244bf6fb655" }
+"054-type2" = { ops = 18, files = 4, trace_bytes = 4447477, sha256 = "096e3cf6b06417515d23d9fc1400704a5dd0b35a99555787fecaeb9f382a30be" }
+"055-type2" = { ops = 18, files = 4, trace_bytes = 5373737, sha256 = "74aef5e01e9729e97ef06ca78f7945ccf10f090705a0d427f7604093ed1df9b7" }
+"056-type2" = { ops = 18, files = 3, trace_bytes = 5430310, sha256 = "13761e2c8db0ef5385d7251ad1c9a1658c380f7865511e6ef54564f92ac7e463" }
+"057-type2" = { ops = 18, files = 4, trace_bytes = 7596972, sha256 = "ccf57001dfd0b4802717720723f39729d1c693a329101328dee06eb5307b06e6" }
+"058-type2" = { ops = 13, files = 4, trace_bytes = 36798519, sha256 = "c3211a54d7124e9b02d3bc2c66fdcbb94378898645d7ed7ce61a2a1f295dceed" }
+"059-type2" = { ops = 18, files = 4, trace_bytes = 4868371, sha256 = "b57f78dc970ffdf90c05a1d166624cba392cd55108c1929c588c55b596d60c74" }
+"060-type3" = { ops = 18, files = 4, trace_bytes = 4315108, sha256 = "e0330bb1ae4bea84d8c663bbf912c5fe3f78d011876db582cdb541bc7d5b6df2" }
+"061-type3" = { ops = 18, files = 4, trace_bytes = 6408105, sha256 = "8b72b5817346f0d472aa28251ccce2cf1be31be78880445915e66f584d940d3e" }
+"062-type3" = { ops = 18, files = 4, trace_bytes = 4447477, sha256 = "33423b6d69dd771a008fb82bb8cef93c46c0e71eae68630d37802c2512f0d23d" }
+"063-type3" = { ops = 18, files = 4, trace_bytes = 5373737, sha256 = "7fa61b045d41d918c39f4cf62482e00fc2c7e2e8a37071d685fc54f8b5019a34" }
+"064-type3" = { ops = 18, files = 3, trace_bytes = 5430310, sha256 = "dab18933c155f0d3f469d7de679deb8fadcb637adfe0ac6b76f64ef8a88b95bd" }
+"065-type3" = { ops = 18, files = 4, trace_bytes = 7596972, sha256 = "186e37305fcfbc3209db7232ac3ee3d2786f826eedfb848d20de2b13a1a50799" }
+"066-type3" = { ops = 13, files = 4, trace_bytes = 36798519, sha256 = "43e46838863d7f450c07d140eaa6a3b291f53658d2c996693041c22b86752ff8" }
+"067-type3" = { ops = 18, files = 4, trace_bytes = 4868371, sha256 = "09b6e6d98d0f76c01e362b6ded993e2f83aa449358b6945d5ae0b021f84a5836" }
+"068-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 6623895, sha256 = "c48d8ff70f3df40167a4edc250abde6d9ffca6a285474adb641ffff400a86cc1" }
+"069-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 7951668, sha256 = "43c42445177fd05044f9c279d94cd960b031b10ef0a65b2a831dfbf83b129157" }
+"070-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 6584320, sha256 = "84b54aee5be7006ca23a19bcce4848f11db780523b05fbf10952da1a7e2b38c7" }
+"071-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 7983940, sha256 = "d899ff3bcfc8ffdf3ccea4811ad74cf410eaf4ef29b03d47a1c435752f1bc24c" }
+"072-coarseTriangle" = { ops = 22, files = 3, trace_bytes = 7849809, sha256 = "6438f021d1e30d6b24d4df38e63f604fe0d6496851e5e057d9cf0f18eefcce72" }
+"073-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 9432967, sha256 = "3a697896d0fb56f172237fed398d94364ccd7dcf2a5c16004c2d264a22681c10" }
+"074-coarseTriangle" = { ops = 16, files = 4, trace_bytes = 67251945, sha256 = "8f91aa56bedcd9d7100c4c82dfe66bf04862cf3d1f6c52da5467f6b49a237430" }
+"075-coarseTriangle" = { ops = 22, files = 4, trace_bytes = 17783874, sha256 = "2454bac1b75ecacfb0348f064ac0aeca5b616c7488d8e881da4cb83381619d05" }
+
+[sets.cbst_trace_escher_gpu_targeted]
+reference = "ESCHER-GPU"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+kind = "cbst_trace"
+what = "the targeted scenarios of parity/exporters/escher/cbst_targeted.cpp"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_targeted"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "full"
+hash_only = []
+num_cases = 2
+num_files = 5
+num_bytes = 24283
+manifest_sha256 = "6f4c9428ac5e93b9182a11c6934937832cacf1b590eb5fd2e98363f071a9c260"
+
+[sets.cbst_trace_escher_gpu_targeted.cases]
+"targeted_large" = { ops = 11, files = 2, trace_bytes = 135718, sha256 = "eae6041e761749309bd682bba590a7823262c14ec37e13bd994d762bd6b0730e" }
+"targeted_small" = { ops = 41, files = 2, trace_bytes = 101583, sha256 = "b3fa919f62c3d08bcec7b1821d9eb04c130a7d96a2769b02e164f0f4e04f5361" }
+
+[sets.cbst_trace_mosp_escher_targeted]
+reference = "MOSP_ESCHER"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+kind = "cbst_trace"
+what = "the targeted scenarios of parity/exporters/escher/cbst_targeted.cpp"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/mosp_escher_targeted"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "full"
+hash_only = []
+num_cases = 2
+num_files = 5
+num_bytes = 24927
+manifest_sha256 = "280d185aaa4f4321c96810cb41bf336e67a5a82fff0c340565b222a80072e353"
+
+[sets.cbst_trace_mosp_escher_targeted.cases]
+"targeted_large" = { ops = 11, files = 2, trace_bytes = 134656, sha256 = "d4ec8a228f721f7145301c963071c1ae9ef13319fbaa1ca64b2de6f22ecf47e6" }
+"targeted_small" = { ops = 42, files = 2, trace_bytes = 99636, sha256 = "401103965faa0ba140055b651331fd487367e4b1732279abae7f7c9b052bd0c0" }
+
+[sets.cbst_trace_escher_gpu_coauth50k]
+reference = "ESCHER-GPU"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+kind = "cbst_trace"
+what = "coauth-DBLP (ESCHER variant), 3 x 50K batches, seed 1, --check"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_coauth50k"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "digest"
+hash_only = ["H2H:rebuild", "H2H:rows"]
+num_cases = 1
+num_files = 4
+num_bytes = 888063848
+manifest_sha256 = "7ddec4438292cdf25cbbcd028e26f87e04bd518ee50b6ef856c3e5ea8635ae57"
+
+[sets.cbst_trace_escher_gpu_coauth50k.cases]
+"coauth_b50k_s1" = { ops = 18, files = 3, trace_bytes = 1355433448, sha256 = "9422dcee3a5b427165517a701ede12e8cdc5400805718df105c03409bd67d201" }
+
+[sets.cbst_trace_mosp_escher_dblp50k_hyperedge]
+reference = "MOSP_ESCHER"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+kind = "cbst_trace"
+what = "hsospBench --hg coauth-DBLP (H-SOSP variant) --kind hyperedge --batch 50000"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/mosp_escher_dblp50k_hyperedge"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "digest"
+hash_only = []
+num_cases = 1
+num_files = 4
+num_bytes = 2753814104
+manifest_sha256 = "3b26a7697d1875373b1577ca3731e8ccbbbd888b29c31b4787f5fd5224f13e80"
+
+[sets.cbst_trace_mosp_escher_dblp50k_hyperedge.cases]
+"dblp_hyperedge_50000" = { ops = 27, files = 3, trace_bytes = 7415302266, sha256 = "8624b2f230372bd3147480fbe0059500d6469974a13429d67ab508d29cb5b1c3" }
+
+[sets.cbst_trace_mosp_escher_dblp50k_vertex]
+reference = "MOSP_ESCHER"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+kind = "cbst_trace"
+what = "hsospBench --hg coauth-DBLP (H-SOSP variant) --kind vertex --batch 50000"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/mosp_escher_dblp50k_vertex"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "digest"
+hash_only = []
+num_cases = 1
+num_files = 4
+num_bytes = 2008307005
+manifest_sha256 = "1068e319acbc9f9199e712f9e39a09221554e6e1af616d9d03a915f028cf0cd4"
+
+[sets.cbst_trace_mosp_escher_dblp50k_vertex.cases]
+"dblp_vertex_50000" = { ops = 21, files = 3, trace_bytes = 4808845536, sha256 = "095602fd40b51d03ce7c6370128b131835ffdfb65be67b2296771a704f5b72c2" }
+
+[sets.cbst_trace_escher_gpu_syn1m]
+reference = "ESCHER-GPU"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+kind = "cbst_trace"
+what = "batch dumps of synthetic 1M, 3 x 50K batches, seeds 1-3 (results/README.md)"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_syn1m"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "batches"
+hash_only = []
+num_cases = 3
+num_files = 10
+num_bytes = 55732435
+manifest_sha256 = "d73a368586dd3145cc93d60484032d76f171d8612310c6bc3ec8aef7ffd659d8"
+
+[sets.cbst_trace_escher_gpu_syn1m.cases]
+"syn1m_b50k_s1" = { ops = 18, files = 3, trace_bytes = 317898, sha256 = "4e440726997a583d2cd984e01d0750266aa0f6e5c9355fc16807e0490459a6a2" }
+"syn1m_b50k_s2" = { ops = 18, files = 3, trace_bytes = 317898, sha256 = "cc2b27cd350c92652f4adc0191111260eabf6aa0fa2bd298e9af7088ddf1e157" }
+"syn1m_b50k_s3" = { ops = 18, files = 3, trace_bytes = 317898, sha256 = "cf58a29a5629df37b6975d43443fb0aa9e6accc26e987015b41f93ee061e2467" }
+
+[sets.cbst_trace_mosp_escher_test]
+reference = "MOSP_ESCHER"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+kind = "cbst_trace"
+what = "every CBST-calling invocation of tests/run_tests.sh (make test) but bin/main"
+location = "$DYNG_SCRATCH/goldens/cbst_trace/mosp_escher_test"
+generated_by = "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)"
+mode = "auto"
+hash_only = []
+num_cases = 24
+num_files = 58
+num_bytes = 265455682
+manifest_sha256 = "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60"
+
+[sets.cbst_trace_mosp_escher_test.cases]
+"001-test_cbst_smoke" = { ops = 33, files = 2, trace_bytes = 339633, sha256 = "7838ff4c3b4066d37c635a40ba0f6eeb0ee8c12ea17ef0831f68b61b0cea80f9" }
+"002-test_cbst_ops" = { ops = 1107, files = 2, trace_bytes = 218273103, sha256 = "f2e0d0eb42bc174e7c1b71e671a2984f80d424a140b250a89a7d54e66fd84e01" }
+"003-test_cbst_ops" = { ops = 4, files = 2, trace_bytes = 329995, sha256 = "8a10d359f7660558e1ad100b27d674559b66a0c29d59705dfe095d5e77eb88d9" }
+"004-test_cbst_ops" = { ops = 3, files = 2, trace_bytes = 6379, sha256 = "ca2cbe18e1fb8de71d045de486bf1fc288325f65f360486163728ac34afbac6c" }
+"005-test_cbst_ops" = { ops = 5, files = 2, trace_bytes = 13115, sha256 = "457f0985274adf936d0abd1ecc1c21a5db18530eabf5aed955bdd41721835175" }
+"006-test_cbst_ops" = { ops = 4, files = 2, trace_bytes = 7821, sha256 = "5d8644e6bd56c8bf1706a9b721d591740615eb435929d53b92bf7919f0fa749b" }
+"007-test_cbst_ops" = { ops = 3, files = 2, trace_bytes = 6779, sha256 = "c55148046efa4ce5aca75babb1a587b492e9574291f5f338a1a075fe6e9c73b0" }
+"008-test_cbst_ops" = { ops = 6, files = 2, trace_bytes = 10323, sha256 = "451c117c0a8335ab3534f00b0b93bcdd815160be314f2cfa653c36cfadc8e897" }
+"009-test_cbst_ops" = { ops = 75, files = 2, trace_bytes = 102751555, sha256 = "54c9842cf12c264ce08022d8e7e593e23d7263a24c158eb97c38369e0a269efa" }
+"010-test_cbst_ops" = { ops = 2314, files = 2, trace_bytes = 50752479, sha256 = "fe81b7b95b90a26940d561fac1861ff71a8bdeba9294190edd3d2d6ec77a63a7" }
+"011-test_dynamicgraph_roundtrip" = { ops = 60, files = 2, trace_bytes = 754801, sha256 = "c2415eff846266759470706bcef25f9555cfb41748e1c883eb4443f76d998be0" }
+"012-test_snapshot_matches_updateCSR" = { ops = 9, files = 2, trace_bytes = 51649, sha256 = "7ebdc50293a1aec36c96846c74137b34b3000b5aa3c11e586a16295dfb35e2da" }
+"013-test_h2h_construction" = { ops = 78, files = 2, trace_bytes = 6930201, sha256 = "1295ad65917c2a7be7c167a998fa631933db130dfa8755d521d7a000092d523f" }
+"014-test_h2h_delta" = { ops = 656, files = 2, trace_bytes = 15558082, sha256 = "ff705495dda27bde4a2d025501f52ef88892d286c177bfb7aa3ae32aae3eba2e" }
+"015-test_hsosp_matches_dijkstra" = { ops = 2438, files = 3, trace_bytes = 199523434, sha256 = "e2b5442d4bf4e2be0251639d7e941177a7fd6860fe9da5766543750edfe3c85b" }
+"016-test_hsosp_scale" = { ops = 47, files = 3, trace_bytes = 121578466, sha256 = "f617ac5ea5276dfa4cce7e810f6237a687c1818b811beb7e5f2751eda157fbb3" }
+"017-hsospStress" = { ops = 1160, files = 3, trace_bytes = 78137632, sha256 = "4d638cd673bce58a4666743bbed71d981f6423a745f217107a8533803599733f" }
+"018-hsospStress" = { ops = 478, files = 3, trace_bytes = 25006117, sha256 = "6bc118e792ef183e6582c4241a5a33b6cccd84bc8a533e1d644be80456c1432f" }
+"019-hsospBench" = { ops = 224, files = 3, trace_bytes = 491710964, sha256 = "31843aa7b7079743a0a56fe1c74e50a5ee72d46c19f42f6ab90f16c822b2313d" }
+"020-hsospBench" = { ops = 27, files = 4, trace_bytes = 35048569, sha256 = "b0e2f6785235afb273561f9bc67b30b8ecb2a7e4a5f06689844a9084c2bb0ac1" }
+"021-hsospBench" = { ops = 21, files = 4, trace_bytes = 21895682, sha256 = "fce66948d1d7184f9bf4fd5369f75b391dfd88c952f8f1826a704ed5a6bf09f0" }
+"023-stressTest" = { ops = 1782, files = 2, trace_bytes = 6088450, sha256 = "a536e10e8b84571551ecff74acf14443aa12fdf17c4fcbee8418e80b33a68134" }
+"024-parallelStressTest" = { ops = 1782, files = 2, trace_bytes = 6088458, sha256 = "c6025085f9722abcc2e9c9afd026ca00b5a3d09b02c9f5b960d46cd91263a4b6" }
+"025-parallelStressTest" = { ops = 1788, files = 2, trace_bytes = 6250992, sha256 = "5f3f293f0f3008b2c37c48abe1d3ebadf014c076f0e8363ca588840b034d6997" }

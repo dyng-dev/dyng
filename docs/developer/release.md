@@ -56,6 +56,15 @@ release candidate the banner says that it is on TestPyPI only).
 | 13 | conda-forge: merge the bot's feedstock pull request (from 0.4) | the `dyng-feedstock` repository | author |
 | 14 | Announce (Discussions); curate the next "good first issue" backlog; write the milestone retrospective; bump `VERSION` to the next `.dev0` | a pull request | maintainer |
 
+**The CBST trace goldens (from 0.3.0, M8a).** `parity/certify.py` requires, for every CBST trace
+set of `parity/goldens.toml` (kind `cbst_trace`), a replay of the dynG store under the set's
+original preset and under `dyng_default`; a set without them fails the certificate. Step 1 writes
+them: `DYNG_GPU_RESULTS=benchmarks/results/<version> ci/gpu_local.sh` (the `cbst` step) writes
+`parity-cbst_trace_<set>-device-<preset>.json` for the small sets, and the large sets are replayed
+with `parity/compare.py cbst_trace --store device [--policy dyng_default] --set <set>
+--certificate benchmarks/results/<version>` (each checks its documented divergences against
+`parity/cbst_documented.toml`).
+
 ## The release workflow
 
 `release.yml` runs on a tag `v*` (the `release tags` ruleset lets only repository administrators

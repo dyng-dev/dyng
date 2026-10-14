@@ -91,6 +91,8 @@ sdist.exclude = [
   "dist/",
   "parity/",
   "benchmarks/",
+  # the parity harness's dataset registry (M8a); the datasets live outside the repository
+  "datasets/",
   "docs/",
   "examples/",
   "tools/",

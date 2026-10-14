@@ -111,3 +111,67 @@ io::read_edge_list and generators::legacy::cycle_enum_batch. Its driver is build
 The export patch adds parity_export/bin/export_cycle_enum (parity/exporters/cycle_enum), compiled
 against the unchanged sources; no original file is modified.
 """
+
+[[reference]]
+name = "ESCHER-GPU"
+origin = "$DYNG_ORIGINALS_DIR/ESCHER-GPU"
+upstream = "git@github.com:SMShovan/ESCHER-GPU.git"
+commit = "abcf9b2bd42f896ec3103a6835edf713ed5e416c"
+baseline_tag = "baseline-2026-09"
+baseline_commit = "6a44c1cf5f1639721d35b418f99b420c5c45674e"
+build = "make -j{jobs} all-types build/cbst_test NVCC=/usr/local/cuda-13.1/bin/nvcc ARCH=sm_86"
+build_env = []
+cxx = "/usr/bin/g++"
+run_env = ["CUDA_MODULE_LOADING=EAGER"]
+export_patch = "ESCHER-GPU"
+smoke_test = "make test NVCC=/usr/local/cuda-13.1/bin/nvcc ARCH=sm_86"
+gitlinks = [
+  "Irregular Optimizations (gitlink 2591f3ed42508266e50678fa680d041052a8d9af; empty, no .gitmodules)",
+  "Irregular-Graph-Optimizations-for-GPU (gitlink a1b334f2120c3078409a544d075d6036abad6ccd; empty, no .gitmodules)",
+]
+external_inputs = [
+  "coauth-DBLP-full.tar.gz (Benson et al.; SHA-256 feb4bed6d3c79a9ba16142e71405b7eff1515504741281b8edfe13dc0f960433, pinned by bench/datasets/get_coauth.sh) under $DYNG_SCRATCH/datasets/hyper; the ESCHER variant coauth.hg is produced by the copy's bench/datasets/convert_coauth.py (datasets/registry.toml)",
+  "bench/baseline/{setup,build,run}.sh archive the tag baseline-2026-09 from the ORIGINAL repository; they are not used by the parity harness",
+  "tests/run_tests.sh writes its inputs (small.hg, skewed.hg, medium.hg) with awk (gawk 5.2.1 here) into a temporary directory; the CBST trace export captures them",
+]
+toolchain = "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo -Xcompiler -fopenmp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); C++ objects: the Makefile's hard-coded CXX = g++ (-std=c++17 -O3 -Wall -fopenmp)"
+notes = """
+The M8a reference of the ESCHER CBST store (ESCHER-GPU's CBSTOperations, PLAN 6.4.5) and the
+M9 reference of triad_count. Executables: build/main (30-bin h-motif counts), build/type1..3,
+build/coarseTriangle (all link the same CBST objects) and build/cbst_test (the layout test; it
+links only build_tree.o and insert_reuse.o and calls no CBSTOperations function). The export
+patch relinks the unchanged objects of every executable with the CBST trace recorder
+(parity/exporters/escher) through -Xlinker --wrap; no original file is modified. The two gitlinks
+are empty directories in the commit (no .gitmodules); git archive leaves them out and the build
+never names them (archive-check.txt).
+"""
+
+[[reference]]
+name = "MOSP_ESCHER"
+origin = "$DYNG_ORIGINALS_DIR/MOSP_ESCHER"
+upstream = "git@github.com:SMShovan/MOSP_ESCHER.git"
+commit = "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5"
+baseline_tag = "baseline-2026-09"
+baseline_commit = "80cee6284aae8836e5319eabf5e8bd127c0dca82"
+build = "make -j{jobs} all NVCC=/usr/local/cuda-13.1/bin/nvcc CUDA_ARCH=sm_86"
+build_env = []
+cxx = "/usr/bin/g++"
+run_env = ["CUDA_MODULE_LOADING=EAGER"]
+export_patch = "MOSP_ESCHER"
+smoke_test = "make test NVCC=/usr/local/cuda-13.1/bin/nvcc CUDA_ARCH=sm_86"
+gitlinks = []
+external_inputs = [
+  "coauth-DBLP-full.tar.gz (the same archive as ESCHER-GPU's); the H-SOSP variant coauth.hg is produced by the copy's scripts/benson_to_hg.py (datasets/registry.toml); hsospBench --maxcard 25 (its default) keeps 2,466,792 hyperedges",
+  "tests/run_tests.sh writes random.hg with awk (gawk 5.2.1 here) into a temporary directory and builds tests/local with the host g++; the CBST trace export captures random.hg",
+]
+toolchain = "CUDA 13.1 nvcc, sm_86, -std=c++17 -O3 -lineinfo --extended-lambda -Xcompiler -fopenmp for .cu and .cpp (nvcc host compiler: /usr/bin/g++ 12.2 on PATH); tests/local: g++ -O2 -Wall -Wextra -std=c++17 -fopenmp"
+notes = """
+The M8a reference of the CBST store's second copy (MOSP_ESCHER's escher/, with compaction,
+validation and the caller's row counts; PLAN 6.4.5) and the M11 reference of hyper_sssp. Only the
+COMMITTED tree at 4b86159 is used: the clone's working tree has uncommitted changes (Makefile,
+README.md, tests/run_tests.sh and untracked snapshot-experiment files) that build_reference.sh
+never reads; its before/after check requires the clone's HEAD and `git status` to be unchanged,
+not clean. The Makefile builds build/lib/libescher_core.a; the export patch relinks every
+executable's unchanged objects and that archive with the CBST trace recorder
+(parity/exporters/escher) through -Xlinker --wrap; no original file is modified.
+"""

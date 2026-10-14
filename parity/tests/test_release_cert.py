@@ -299,6 +299,12 @@ def _golden_mutation_record(commit: str) -> dict:
     mutate = load("parity/mutate.py")
     sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
     sssp = {"manifest_sha256": sets["sssp"]["manifest_sha256"]}
+    # The GoogleTest suites (cbst, M8a) replay no golden corpus: mutate.py records no manifest.
+    gtest = {name for name, spec in mutate.SUITES.items() if spec.get("runner") == "gtest"}
+
+    def goldens(suite: str) -> dict:
+        return {} if suite in gtest else {"goldens": sssp}
+
     return {
         "schema": 2,
         "commit": commit,
@@ -306,14 +312,17 @@ def _golden_mutation_record(commit: str) -> dict:
             {
                 "name": "control",
                 "verdict": "passed",
-                "replays": [{"suite": "sssp", "config": "sequential", "goldens": sssp}],
+                "replays": [
+                    {"suite": "sssp", "config": "sequential", "goldens": sssp},
+                    *({"suite": s, "config": "cuda"} for s in sorted(gtest)),
+                ],
             },
             *(
                 {
                     "name": m["name"],
                     "suite": m["suite"],
                     "config": m["config"],
-                    "goldens": sssp,
+                    **goldens(m["suite"]),
                     "detected": True,
                     "verdict": "detected",
                 }
@@ -501,6 +510,22 @@ def _replays(cert, results: Path, commit: str) -> None:
             "passed": True,
         }
         (results / f"parity-mosp_scale-{i}.json").write_text(json.dumps(record))
+    # The CBST trace goldens (M8a): every set replayed through the dynG store under its original's
+    # preset and dyng_default (parity/certify.py, CBST_REQUIRED_PRESETS).
+    for name, spec in sets.items():
+        if spec.get("kind") != "cbst_trace":
+            continue
+        for preset in (cert.CBST_ORIGINAL_PRESET[spec["reference"]], "dyng_default"):
+            config = f"device:{preset}/exact"
+            record = {
+                "set": name,
+                "port": {"commit": commit},
+                "goldens": {"manifest_sha256": spec["manifest_sha256"]},
+                "configs": [config],
+                "matrix": {"case": {config: "equal"}},
+                "passed": True,
+            }
+            (results / f"parity-{name}-device-{preset}.json").write_text(json.dumps(record))
 
 
 @pytest.fixture()
@@ -563,6 +588,7 @@ def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> 
         "mosp_sssp",
         "mosp_combined",
         "cycle_enum",
+        "cbst_trace",
     }
     assert doc["environment"]["driver"]["nvidia"] == DRIVER["nvidia"]
     assert "named by" in doc["environment"]["driver"]["source"]
@@ -744,6 +770,26 @@ def test_mutation_points_match_the_code_once() -> None:
     hooks = "\n".join(
         p.read_text() for p in sorted((REPO / "cpp/src/algorithms/cycle_count").iterdir())
     )
+    # The CBST mutation hooks (M8a): the store's sources and the graph-on-CBST test.
+    hooks += "\n".join(
+        p.read_text() for p in sorted((REPO / "cpp/src/hypergraph/escher").iterdir())
+    )
+    hooks += (REPO / "cpp/tests/parity/escher/cbst_graph_test.cpp").read_text()
+    assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "cbst"} == {
+        "cbst_unfill_drops_last",
+        "cbst_graph_own_ids",
+        "cbst_reversed_ties",
+        "cbst_surplus_rule1",
+        "cbst_keep_dead_slots",
+        "cbst_compaction_padding",
+        "cbst_requested_keys",
+    }
+    assert mutate.suite_targets("cbst") == [
+        "dyng_cbst_device_tests",
+        "dyng_cbst_policy_tests",
+        "dyng_cbst_graph_tests",
+    ]
+    assert mutate.suite_targets("sssp") == ["dyng-compat-mosp"]
     for m in mutate.MUTATIONS:
         assert m["suite"] in mutate.SUITES, m["name"]
         if "defines" in m:
@@ -1061,6 +1107,56 @@ def test_ctest_progress_lines(cert) -> None:
         "L.R<(anonymous namespace)::t<int,int>>": "Failed",
         "A.B": "Passed",
     }
+
+
+def test_cbst_trace_sets_are_gated(cert, tmp_path: Path) -> None:
+    """The CBST trace goldens of M8a are gated (M8a review): a set without a replay of the dynG
+    store under its original's preset and under dynG's default fails the certificate; with both
+    records it passes; a record of one is checked like any other."""
+    import tomllib
+
+    sets = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"]
+    traces = [n for n, s in sets.items() if s.get("kind") == "cbst_trace"]
+    assert traces
+    results = tmp_path / "results"
+    results.mkdir()
+    problems: list[str] = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    for n in traces:
+        assert listed[n]["kind"] == "cbst_trace" and listed[n]["passed"] is False
+        assert any(n in p and "no replay of the CBST store" in p for p in problems)
+    assert listed["sssp"]["passed"] is False  # an algorithm set without replays still fails
+    name = traces[0]
+    original = cert.CBST_ORIGINAL_PRESET[sets[name]["reference"]]
+
+    def write(preset: str, manifest: str) -> None:
+        record = {
+            "set": name,
+            "port": {"commit": head()},
+            "goldens": {"manifest_sha256": manifest},
+            "configs": [f"device:{preset}/exact"],
+            "matrix": {"g": {f"device:{preset}/exact": "equal"}},
+            "passed": True,
+        }
+        (results / f"parity-{name}-device-{preset}.json").write_text(json.dumps(record))
+
+    # Only the original's preset: the default's replay is missing.
+    write(original, sets[name]["manifest_sha256"])
+    problems = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    assert listed[name]["passed"] is False
+    assert any("dyng_default" in p for p in problems if name in p)
+    # Both presets: the set passes.
+    write("dyng_default", sets[name]["manifest_sha256"])
+    problems = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    assert listed[name]["passed"] is True, [p for p in problems if name in p]
+    # A record of another manifest fails like any other.
+    write("dyng_default", "0" * 64)
+    problems = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems)}
+    assert listed[name]["passed"] is False
+    assert any("replayed manifest" in p for p in problems)
 
 
 # --- R020: the mosp suite (ipdps25_dynamosp_mosp) and its gates in the certificate ----------------
@@ -1467,7 +1563,7 @@ def test_the_golden_mutation_record_is_read(cert, certified) -> None:
     path = results / "mutation-goldens.json"
     full = path.read_text()
     cases = [
-        (lambda d: d["results"].pop(), "is missing"),  # the last mutation dropped (mosp)
+        (lambda d: d["results"].pop(), "is missing"),  # the last mutation dropped
         (lambda d: d["results"][1].update(detected=False, verdict="NOT DETECTED"), "NOT DETECTED"),
         (lambda d: d["results"][0].update(verdict="FAILED"), "the control did not pass"),
         (
@@ -1475,6 +1571,8 @@ def test_the_golden_mutation_record_is_read(cert, certified) -> None:
             "is not one of parity/goldens.toml",
         ),
         (lambda d: d.update(commit="0" * 40), "does not have the release's library sources"),
+        # a replay of a golden suite without its manifest (only the GoogleTest suites have none)
+        (lambda d: d["results"][2].pop("goldens"), "golden manifest None is not one of"),
     ]
     for edit, message in cases:
         doc = json.loads(full)

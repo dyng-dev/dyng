@@ -1,0 +1,116 @@
+{
+ "set": "cbst_trace_mosp_escher_targeted",
+ "documented_rules": {
+  "construct_below_payload": 1
+ },
+ "reference": "MOSP_ESCHER",
+ "manifest_sha256": "280d185aaa4f4321c96810cb41bf336e67a5a82fff0c340565b222a80072e353",
+ "store": "device",
+ "policy": "escher_gpu",
+ "fields": "exact",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:09:30+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
+ "cases": [
+  {
+   "case": "targeted_large",
+   "ok": true,
+   "store": "device:escher_gpu",
+   "exit": "normal",
+   "ops": 11,
+   "compared": 4,
+   "unreplayable": 0,
+   "mappings": 0,
+   "keys_compared": 18,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 2,
+   "documented": [],
+   "twin_constructs": 2,
+   "first_divergences": {
+    "1": [
+     1,
+     "after.scratch_payload"
+    ],
+    "2": [
+     1,
+     "after.scratch_payload"
+    ]
+   },
+   "documented_rules": {}
+  },
+  {
+   "case": "targeted_small",
+   "ok": true,
+   "store": "device:escher_gpu",
+   "exit": "normal",
+   "ops": 42,
+   "compared": 39,
+   "unreplayable": 0,
+   "mappings": 6,
+   "keys_compared": 389,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 1,
+   "exceptions": 2,
+   "mismatch_count": 39,
+   "documented": [
+    {
+     "seq": 74,
+     "op_index": 41,
+     "tree_op": 0,
+     "tree": 11,
+     "dataset": "targeted-small_capacity",
+     "op": "construct",
+     "rule": "construct_below_payload",
+     "detail": "trace: exception escher::EscherError; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:314)"
+    }
+   ],
+   "twin_constructs": 10,
+   "first_divergences": {
+    "7": [
+     3,
+     "after.scratch_payload"
+    ],
+    "8": [
+     3,
+     "after.fixed_size"
+    ],
+    "9": [
+     1,
+     "status"
+    ],
+    "10": [
+     1,
+     "after.scratch_payload"
+    ],
+    "11": [
+     0,
+     "construct validation"
+    ]
+   },
+   "documented_rules": {
+    "construct_below_payload": 1
+   }
+  }
+ ],
+ "totals": {
+  "ops": 53,
+  "compared": 43,
+  "unreplayable": 0,
+  "mappings": 6,
+  "keys_compared": 407,
+  "hash_only_rows": 0,
+  "growths": 0,
+  "compactions": 1,
+  "exceptions": 2,
+  "mismatch_count": 41,
+  "documented": 1,
+  "twin_constructs": 12
+ },
+ "problems": [],
+ "against_model": true,
+ "passed": true
+}

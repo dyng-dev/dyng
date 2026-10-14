@@ -84,6 +84,194 @@ if(TARGET dyng_cycle_count)
   )
   list(APPEND _dyng_private_tests dyng_cycle_enum_parity_tests)
 endif()
+# The CBST traces of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (M8a, ADR 0036): the host-only
+# trace reader and state tracker that the store replays build on, and its test on the committed
+# traces (cpp/tests/data/goldens/cbst_trace).
+add_library(dyng_cbst_trace STATIC parity/escher/cbst_trace.cpp)
+target_include_directories(dyng_cbst_trace PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_features(dyng_cbst_trace PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_cbst_trace)
+dyng_enable_sanitizers(dyng_cbst_trace)
+dyng_add_test(
+  NAME dyng_cbst_trace_tests
+  SOURCES parity/escher/cbst_trace_test.cpp
+  LABELS cpu parity cbst
+  LIBRARIES dyng_cbst_trace
+)
+list(APPEND _dyng_private_tests dyng_cbst_trace_tests)
+# The CBST host model (dyng::testing::cbst_host_model) and the trace replay comparator (M8a step
+# 2, ADR 0037): the comparator library, the replay tool that parity/compare.py cbst_trace drives
+# over the golden sets, the model's tests (the cbst_test layout sizes, the perturbed traces, the
+# replay of the committed subset), the replay of the large sets in $DYNG_SCRATCH (skipped when
+# they are absent) and the include-graph / link check of the model.
+add_library(dyng_cbst_compare STATIC parity/escher/cbst_compare.cpp)
+target_link_libraries(dyng_cbst_compare PUBLIC dyng_cbst_trace dyng::testing)
+target_compile_features(dyng_cbst_compare PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_cbst_compare)
+dyng_enable_sanitizers(dyng_cbst_compare)
+add_executable(dyng_cbst_replay parity/escher/cbst_replay_main.cpp)
+target_link_libraries(dyng_cbst_replay PRIVATE dyng_cbst_compare)
+dyng_set_warnings(dyng_cbst_replay)
+dyng_enable_sanitizers(dyng_cbst_replay)
+dyng_add_test(
+  NAME dyng_cbst_model_tests
+  SOURCES parity/escher/cbst_host_model_test.cpp parity/escher/cbst_replay_test.cpp
+  LABELS cpu parity cbst
+  LIBRARIES dyng_cbst_compare
+)
+list(APPEND _dyng_private_tests dyng_cbst_model_tests)
+dyng_add_test(
+  NAME dyng_cbst_model_large_tests
+  SOURCES parity/escher/cbst_replay_large_test.cpp
+  LABELS parity cbst slow
+  LIBRARIES dyng_cbst_compare
+)
+list(APPEND _dyng_private_tests dyng_cbst_model_large_tests)
+# The source rules of the CBST store (M8a criterion 9): no process exit, print, verbose(),
+# cudaDeviceSynchronize, raw cudaMalloc, Thrust without the resources' policy or default-stream
+# launch in cpp/src/hypergraph, and no public header that exposes the store.
+add_test(NAME cbst_source_rules
+         COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/cpp -P
+                 "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
+)
+set_tests_properties(cbst_source_rules PROPERTIES LABELS "cpu;cbst")
+# The launch rule itself: a launch on a literal default stream is reported (M8a review).
+set(_cbst_rules_fixture "${CMAKE_CURRENT_BINARY_DIR}/cbst_source_rules_fixture")
+file(MAKE_DIRECTORY "${_cbst_rules_fixture}/src/hypergraph" "${_cbst_rules_fixture}/include/dyng")
+file(WRITE "${_cbst_rules_fixture}/src/hypergraph/launch.cu"
+     "void f(cudaStream_t s) {\n"
+     "  k<<<1, 32, 0, 0>>>();\n"
+     "  k<<<1, 32, 0, nullptr>>>();\n"
+     "  k<<<1, 32, 0, cudaStreamLegacy>>>();\n"
+     "  k<<<1, 32>>>();\n"
+     "  k<<<1, 32, 0, s>>>();\n"
+     "}\n"
+)
+add_test(NAME cbst_source_rules_default_stream
+         COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${_cbst_rules_fixture} -P
+                 "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
+)
+set_tests_properties(
+  cbst_source_rules_default_stream
+  PROPERTIES LABELS "cpu;cbst" PASS_REGULAR_EXPRESSION
+             "launch.cu:2: launch on the default stream: 1, 32, 0, 0.*launch.cu:3: .*launch.cu:4: .*launch.cu:5: "
+             FAIL_REGULAR_EXPRESSION "launch.cu:6: "
+)
+# The host parts of the store (its payload policy, flatten_rows), on every build.
+dyng_add_test(
+  NAME dyng_cbst_host_tests
+  SOURCES hypergraph/escher/cbst_host_test.cpp
+  LABELS cpu cbst
+)
+list(APPEND _dyng_private_tests dyng_cbst_host_tests)
+# The dynG CBST store (cpp/src/hypergraph/escher, M8a step 3, ADR 0038) as a store of the replay:
+# the device adapter, the replays of the committed traces on the device (labels gpu, parity, cbst)
+# and dyng_cbst_replay --store device.
+if(DYNG_ENABLE_CUDA)
+  add_library(dyng_cbst_device STATIC parity/escher/cbst_device_adapter.cpp)
+  target_link_libraries(dyng_cbst_device PUBLIC dyng_cbst_compare)
+  target_include_directories(dyng_cbst_device PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_warnings(dyng_cbst_device)
+  dyng_enable_sanitizers(dyng_cbst_device)
+  dyng_set_cuda_options(dyng_cbst_device)
+  target_link_libraries(dyng_cbst_replay PRIVATE dyng_cbst_device)
+  target_compile_definitions(dyng_cbst_replay PRIVATE DYNG_CBST_DEVICE_STORE=1)
+  dyng_add_test(
+    NAME dyng_cbst_device_tests
+    SOURCES parity/escher/cbst_device_replay_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  list(APPEND _dyng_private_tests dyng_cbst_device_tests)
+  # The store's own tests: ESCHER-GPU's cbst_test layout sizes on the construction kernels, the
+  # dynG additions, the error policy, the streams, MOSP_ESCHER's merged behaviours (M8a step 4).
+  dyng_add_test(
+    NAME dyng_cbst_store_tests
+    SOURCES hypergraph/escher/cbst_store_test.cpp hypergraph/escher/cbst_layout_test.cu
+            hypergraph/escher/cbst_merge_test.cpp hypergraph/escher/cbst_contract_test.cpp
+    LABELS gpu cbst
+    LIBRARIES dyng::testing
+  )
+  dyng_set_cuda_options(dyng_cbst_store_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_store_tests)
+  # The explicit compact() after every operation of both originals' traces, in lockstep with the
+  # host model (M8a step 4): the committed traces, and the small golden sets of $DYNG_SCRATCH
+  # (slow; skipped without them).
+  dyng_add_test(
+    NAME dyng_cbst_compact_tests
+    SOURCES parity/escher/cbst_compact_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  list(APPEND _dyng_private_tests dyng_cbst_compact_tests)
+  dyng_add_test(
+    NAME dyng_cbst_compact_large_tests
+    SOURCES parity/escher/cbst_compact_test.cpp
+    LABELS gpu parity cbst slow
+    LIBRARIES dyng_cbst_device
+  )
+  target_compile_definitions(dyng_cbst_compact_large_tests PRIVATE DYNG_CBST_COMPACT_LARGE=1)
+  list(APPEND _dyng_private_tests dyng_cbst_compact_large_tests)
+  # MOSP_ESCHER's 9 CBST scenarios and its smoke test under every preset, in lockstep with the
+  # host model (M8a step 5).
+  dyng_add_test(
+    NAME dyng_cbst_scenario_tests
+    SOURCES parity/escher/cbst_scenarios_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_scenario_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_scenario_tests)
+  # The internal graph-on-CBST test (PLAN 6.1 D8, M8a step 5): a graph on two stores against
+  # dyng::graph's apply, under every preset, and MOSP_ESCHER's test_dynamicgraph_roundtrip trace.
+  dyng_add_test(
+    NAME dyng_cbst_graph_tests
+    SOURCES parity/escher/cbst_graph_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_graph_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_graph_tests)
+  # The presets of M8a step 5 (ADR 0039): random operation sequences, requested keys and best-fit
+  # ties under every preset, in lockstep with the host model.
+  dyng_add_test(
+    NAME dyng_cbst_policy_tests
+    SOURCES parity/escher/cbst_policy_test.cpp
+    LABELS gpu parity cbst
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_policy_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_policy_tests)
+  # Kernel-path coverage on ESCHER-GPU's skewed and medium traces (in $DYNG_SCRATCH; skipped
+  # without them).
+  dyng_add_test(
+    NAME dyng_cbst_coverage_tests
+    SOURCES parity/escher/cbst_device_coverage_test.cpp
+    LABELS gpu parity cbst slow
+    LIBRARIES dyng_cbst_device
+  )
+  list(APPEND _dyng_private_tests dyng_cbst_coverage_tests)
+  # The early store-memory reading on escher_gpu_coauth50k (M8a criterion 15; in $DYNG_SCRATCH).
+  dyng_add_test(
+    NAME dyng_cbst_memory_tests
+    SOURCES parity/escher/cbst_device_memory_test.cpp
+    LABELS gpu parity cbst slow
+    LIBRARIES dyng_cbst_device
+  )
+  dyng_set_cuda_options(dyng_cbst_memory_tests)
+  list(APPEND _dyng_private_tests dyng_cbst_memory_tests)
+endif()
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
+  add_test(
+    NAME cbst_model_isolation
+    COMMAND
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/cbst_host_model.cpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_cbst_model>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(cbst_model_isolation PROPERTIES LABELS "cpu;parity;cbst")
+endif()
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
@@ -387,6 +575,96 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
         PROPERTIES LABELS "gpu;mutation;cycle_count" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
       )
     endif()
+  endforeach()
+endif()
+
+# CBST mutation tests (PLAN Section 8.4; M8a acceptance criterion 17): the 7 recorded mutations of
+# the ESCHER CBST store (MOSP_ESCHER@4b86159's #4 and #5 and the five rules of the store's
+# README) must make the store's suites fail. As for cycle_count, each mutant is a copy of libdyng
+# whose hypergraph module is rebuilt with DYNG_MUTATION_CBST_<NAME> (the hooks are in
+# cpp/src/hypergraph/escher; the graph-on-CBST hook is in its test), linked with the replays of
+# the committed traces of both originals, the lockstep tests of the presets against the host
+# model and the graph-on-CBST test; the CTest cbst.mutation.<name> passes when that suite fails,
+# and the control copy must pass. Labels gpu;mutation;cbst (CUDA builds).
+option(DYNG_CBST_MUTATION_TESTS "Build the mutation tests of the CBST store" ${DYNG_MUTATION_TESTS})
+if(DYNG_CBST_MUTATION_TESTS AND DYNG_ENABLE_CUDA AND TARGET dyng_hypergraph)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_property(_dyng_hg_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_dyng_hypergraph)
+  set(_dyng_hg_sources)
+  foreach(_source IN LISTS _dyng_hg_relative)  # dyng_add_module's paths are relative to cpp/
+    if(NOT IS_ABSOLUTE "${_source}")
+      set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+    endif()
+    list(APPEND _dyng_hg_sources "${_source}")
+  endforeach()
+  set(_dyng_hg_other_objects)
+  foreach(_module IN LISTS _dyng_modules)
+    if(NOT _module STREQUAL "dyng_hypergraph")
+      list(APPEND _dyng_hg_other_objects $<TARGET_OBJECTS:${_module}>)
+    endif()
+  endforeach()
+  # name|define|expected verdict
+  set(_dyng_cbst_mutants
+      "control||pass"
+      "unfill_drops_last|DYNG_MUTATION_CBST_UNFILL_DROPS_LAST|fail"
+      "graph_own_ids|DYNG_MUTATION_CBST_GRAPH_OWN_IDS|fail"
+      "reversed_ties|DYNG_MUTATION_CBST_REVERSED_TIES|fail"
+      "surplus_rule1|DYNG_MUTATION_CBST_SURPLUS_RULE1|fail"
+      "keep_dead_slots|DYNG_MUTATION_CBST_KEEP_DEAD_SLOTS|fail"
+      "compaction_padding|DYNG_MUTATION_CBST_COMPACTION_PADDING|fail"
+      "requested_keys|DYNG_MUTATION_CBST_REQUESTED_KEYS|fail"
+  )
+  foreach(_entry IN LISTS _dyng_cbst_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _expect)
+    set(_lib dyng_cbst_mutant_${_name})
+    add_library(${_lib}_hypergraph OBJECT ${_dyng_hg_sources})
+    add_library(${_lib} STATIC ${_dyng_hg_other_objects} $<TARGET_OBJECTS:${_lib}_hypergraph>)
+    set(_exe dyng_cbst_mutant_${_name}_tests)
+    add_executable(
+      ${_exe}
+      parity/escher/cbst_device_replay_test.cpp
+      parity/escher/cbst_policy_test.cpp
+      parity/escher/cbst_graph_test.cpp
+      parity/escher/cbst_trace.cpp
+      parity/escher/cbst_compare.cpp
+      parity/escher/cbst_device_adapter.cpp
+      $<TARGET_OBJECTS:dyng_testing_cbst_model>
+    )
+    foreach(_target ${_lib}_hypergraph ${_lib} ${_exe})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_hypergraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads ${DYNG_CUDART_TARGET})
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    target_include_directories(${_exe} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_compile_definitions(${_exe} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+    target_link_libraries(${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gtest_main)
+    add_test(NAME cbst.mutation.${_name}
+             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                     -DNAME=cbst.${_name} -P "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+    )
+    set_tests_properties(
+      cbst.mutation.${_name} PROPERTIES LABELS "gpu;mutation;cbst" ENVIRONMENT
+                                        "${DYNG_TEST_ENVIRONMENT}"
+    )
   endforeach()
 endif()
 

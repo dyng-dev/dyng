@@ -1,0 +1,425 @@
+{
+ "reference": "ESCHER-GPU",
+ "copy": "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/patched",
+ "twins": [
+  {
+   "twin": "coarseTriangle",
+   "objects": 24,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/patched/build/operations.o"
+   ],
+   "api_symbols": 23,
+   "references": [
+    {
+     "object": "driver.o",
+     "symbol": "degreeBinLaunches()",
+     "kind": "accessor"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::build()",
+     "kind": "hook"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::update(Batch&, int)",
+     "kind": "hook"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::unfill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::deviceBytes() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::rebuildFromDevice(int*, int, int*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "main",
+   "objects": 24,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/patched/build/operations.o"
+   ],
+   "api_symbols": 23,
+   "references": [
+    {
+     "object": "driver.o",
+     "symbol": "degreeBinLaunches()",
+     "kind": "accessor"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::build()",
+     "kind": "hook"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::update(Batch&, int)",
+     "kind": "hook"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::unfill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::deviceBytes() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::rebuildFromDevice(int*, int, int*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "type1",
+   "objects": 24,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/patched/build/operations.o"
+   ],
+   "api_symbols": 23,
+   "references": [
+    {
+     "object": "driver.o",
+     "symbol": "degreeBinLaunches()",
+     "kind": "accessor"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::build()",
+     "kind": "hook"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::update(Batch&, int)",
+     "kind": "hook"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::unfill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::deviceBytes() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::rebuildFromDevice(int*, int, int*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "type2",
+   "objects": 24,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/patched/build/operations.o"
+   ],
+   "api_symbols": 23,
+   "references": [
+    {
+     "object": "driver.o",
+     "symbol": "degreeBinLaunches()",
+     "kind": "accessor"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::build()",
+     "kind": "hook"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::update(Batch&, int)",
+     "kind": "hook"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::unfill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::deviceBytes() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::rebuildFromDevice(int*, int, int*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  },
+  {
+   "twin": "type3",
+   "objects": 24,
+   "api_defined_in": [
+    "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/patched/build/operations.o"
+   ],
+   "api_symbols": 23,
+   "references": [
+    {
+     "object": "driver.o",
+     "symbol": "degreeBinLaunches()",
+     "kind": "accessor"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::build()",
+     "kind": "hook"
+    },
+    {
+     "object": "driver.o",
+     "symbol": "DynamicHypergraph::update(Batch&, int)",
+     "kind": "hook"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::fill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::erase(std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::insert(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::unfill(std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&, std::vector<int, std::allocator<int> > const&)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::construct(int*, int*, int, int*, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::CBSTOperations(char const*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::~CBSTOperations()",
+     "kind": "wrapped"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::deviceBytes() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "dynamic_hypergraph.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::rebuildFromDevice(int*, int, int*, int, int)",
+     "kind": "wrapped"
+    },
+    {
+     "object": "graph_maintenance.o",
+     "symbol": "CBSTOperations::context() const",
+     "kind": "accessor"
+    }
+   ],
+   "unwrapped": [],
+   "missing_wrappers": []
+  }
+ ],
+ "problems": [],
+ "not_twins": [
+  {
+   "executable": "build/cbst_test",
+   "present": true,
+   "cbst_symbols": []
+  }
+ ],
+ "passed": true
+}

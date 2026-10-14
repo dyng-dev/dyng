@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The batch-hook symbols of MOSP_ESCHER@4b86159 that the recording twins wrap (-Xlinker --wrap=<symbol>);
+# parity/exporters/escher/recorder_mosp_escher_hooks.cpp defines __wrap_<symbol> for each. They are
+# wrapped (and the hooks object linked) only in twins whose link command has the object that
+# defines them.
+# batch hooks (hsospBench.cu, hsospStress.cu, hsospDelta.cu, the unit tests): the HgBatch dumps
+_ZN11escher_mosp17DynamicHypergraph8bulkLoadEOSt6vectorIS1_IiSaIiEESaIS3_EEOS1_IxSaIxEEii
+_ZN11escher_mosp17DynamicHypergraph10beginBatchERKNS_7HgBatchE
+_ZN11escher_mosp17DynamicHypergraph11finishBatchERNS0_11BatchResultEPKmm

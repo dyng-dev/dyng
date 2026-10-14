@@ -1,0 +1,240 @@
+{
+ "schema": 1,
+ "what": "M8a criterion 15: the store accounting (gated, <= 1.05x per tree and point) and the Nsight Systems peak of live device allocations of both processes (recorded, not gated in M8; the author's decision of 2026-10-07)",
+ "date": "2026-10-08T16:26:51Z",
+ "set": "escher_gpu_coauth50k",
+ "preset": "dyng_default",
+ "original": {
+  "command": [
+   "$DYNG_SCRATCH/ref/ESCHER-GPU@abcf9b2/unpatched/build/main",
+   "--input",
+   "$DYNG_SCRATCH/datasets/hyper/coauth.hg",
+   "--batches",
+   "3",
+   "--batch-size",
+   "50000",
+   "--seed",
+   "1",
+   "--check"
+  ],
+  "nsys": {
+   "peak_live_mib": 3018.9,
+   "pool_mib": 288.0
+  }
+ },
+ "port": {
+  "commit": "a6d3a034b9fff45d262b5171ccddd544d62bd071+dirty",
+  "binary": "build/parity-cuda/cpp/tests/dyng_cbst_memory_tests",
+  "nsys": {
+   "peak_live_mib": 2772.6,
+   "pool_mib": 2912.0
+  }
+ },
+ "gpu": 0,
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "accounting": [
+  {
+   "seq": 4,
+   "tree": "H2V",
+   "op": "construct",
+   "point": "after construct",
+   "escher_gpu_device_bytes": 316792888,
+   "dyng_device_bytes": 316792888,
+   "dyng_allocated_bytes": 316792888,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 7,
+   "tree": "V2H",
+   "op": "construct",
+   "point": "after construct",
+   "escher_gpu_device_bytes": 258644044,
+   "dyng_device_bytes": 258644044,
+   "dyng_allocated_bytes": 258644044,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 10,
+   "tree": "H2H",
+   "op": "construct",
+   "point": "after construct",
+   "escher_gpu_device_bytes": 1288129912,
+   "dyng_device_bytes": 1288129912,
+   "dyng_allocated_bytes": 1288129912,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 13,
+   "tree": "H2V",
+   "op": "erase",
+   "point": "batch 1",
+   "escher_gpu_device_bytes": 316792888,
+   "dyng_device_bytes": 316792888,
+   "dyng_allocated_bytes": 316792888,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 14,
+   "tree": "V2H",
+   "op": "unfill",
+   "point": "batch 1",
+   "escher_gpu_device_bytes": 258644044,
+   "dyng_device_bytes": 258644044,
+   "dyng_allocated_bytes": 258644044,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 15,
+   "tree": "H2V",
+   "op": "insert",
+   "point": "batch 1",
+   "escher_gpu_device_bytes": 316792888,
+   "dyng_device_bytes": 316792888,
+   "dyng_allocated_bytes": 316792888,
+   "host_syncs": 5,
+   "ratio": 1
+  },
+  {
+   "seq": 16,
+   "tree": "V2H",
+   "op": "fill",
+   "point": "batch 1",
+   "escher_gpu_device_bytes": 258644044,
+   "dyng_device_bytes": 258644044,
+   "dyng_allocated_bytes": 258644044,
+   "host_syncs": 1,
+   "ratio": 1
+  },
+  {
+   "seq": 17,
+   "tree": "H2H",
+   "op": "rebuild (hash-only inputs: sizes replayed)",
+   "point": "batch 1",
+   "escher_gpu_device_bytes": 1288644432,
+   "dyng_device_bytes": 1288644432,
+   "dyng_allocated_bytes": 1288644432,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 20,
+   "tree": "H2V",
+   "op": "erase",
+   "point": "batch 2",
+   "escher_gpu_device_bytes": 316792888,
+   "dyng_device_bytes": 316792888,
+   "dyng_allocated_bytes": 316792888,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 21,
+   "tree": "V2H",
+   "op": "unfill",
+   "point": "batch 2",
+   "escher_gpu_device_bytes": 258644044,
+   "dyng_device_bytes": 258644044,
+   "dyng_allocated_bytes": 258644044,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 22,
+   "tree": "H2V",
+   "op": "insert",
+   "point": "batch 2",
+   "escher_gpu_device_bytes": 316792888,
+   "dyng_device_bytes": 316792888,
+   "dyng_allocated_bytes": 316792888,
+   "host_syncs": 5,
+   "ratio": 1
+  },
+  {
+   "seq": 23,
+   "tree": "V2H",
+   "op": "fill",
+   "point": "batch 2",
+   "escher_gpu_device_bytes": 258644044,
+   "dyng_device_bytes": 258644044,
+   "dyng_allocated_bytes": 258644044,
+   "host_syncs": 1,
+   "ratio": 1
+  },
+  {
+   "seq": 24,
+   "tree": "H2H",
+   "op": "rebuild (hash-only inputs: sizes replayed)",
+   "point": "batch 2",
+   "escher_gpu_device_bytes": 1289056696,
+   "dyng_device_bytes": 1289056696,
+   "dyng_allocated_bytes": 1289056696,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 27,
+   "tree": "H2V",
+   "op": "erase",
+   "point": "batch 3",
+   "escher_gpu_device_bytes": 316792888,
+   "dyng_device_bytes": 316792888,
+   "dyng_allocated_bytes": 316792888,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 28,
+   "tree": "V2H",
+   "op": "unfill",
+   "point": "batch 3",
+   "escher_gpu_device_bytes": 258644044,
+   "dyng_device_bytes": 258644044,
+   "dyng_allocated_bytes": 258644044,
+   "host_syncs": 0,
+   "ratio": 1
+  },
+  {
+   "seq": 29,
+   "tree": "H2V",
+   "op": "insert",
+   "point": "batch 3",
+   "escher_gpu_device_bytes": 316792888,
+   "dyng_device_bytes": 316792888,
+   "dyng_allocated_bytes": 316792888,
+   "host_syncs": 5,
+   "ratio": 1
+  },
+  {
+   "seq": 30,
+   "tree": "V2H",
+   "op": "fill",
+   "point": "batch 3",
+   "escher_gpu_device_bytes": 258644044,
+   "dyng_device_bytes": 258644044,
+   "dyng_allocated_bytes": 258644044,
+   "host_syncs": 1,
+   "ratio": 1
+  },
+  {
+   "seq": 31,
+   "tree": "H2H",
+   "op": "rebuild (hash-only inputs: sizes replayed)",
+   "point": "batch 3",
+   "escher_gpu_device_bytes": 1289513600,
+   "dyng_device_bytes": 1289513600,
+   "dyng_allocated_bytes": 1289513600,
+   "host_syncs": 0,
+   "ratio": 1
+  }
+ ],
+ "worst_ratio": 1,
+ "passed": true
+}

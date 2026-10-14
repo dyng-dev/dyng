@@ -1,0 +1,103 @@
+{
+ "set": "cbst_trace_mosp_escher_targeted",
+ "documented_rules": {
+  "construct_below_payload": 1
+ },
+ "reference": "MOSP_ESCHER",
+ "manifest_sha256": "280d185aaa4f4321c96810cb41bf336e67a5a82fff0c340565b222a80072e353",
+ "store": "device",
+ "policy": "mosp_escher_staged",
+ "fields": "exact",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T20:47:30+00:00",
+ "head": "f0eb0ca1820f524da55b4c0d119a655c8da6f48a",
+ "cases": [
+  {
+   "case": "targeted_large",
+   "ok": true,
+   "store": "device:mosp_escher_staged",
+   "exit": "normal",
+   "ops": 11,
+   "compared": 11,
+   "unreplayable": 0,
+   "mappings": 1,
+   "keys_compared": 48,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 2,
+   "first_divergences": {},
+   "documented_rules": {}
+  },
+  {
+   "case": "targeted_small",
+   "ok": true,
+   "store": "device:mosp_escher_staged",
+   "exit": "normal",
+   "ops": 42,
+   "compared": 42,
+   "unreplayable": 0,
+   "mappings": 6,
+   "keys_compared": 383,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 3,
+   "exceptions": 2,
+   "mismatch_count": 20,
+   "documented": [
+    {
+     "seq": 74,
+     "op_index": 41,
+     "tree_op": 0,
+     "tree": 11,
+     "dataset": "targeted-small_capacity",
+     "op": "construct",
+     "rule": "construct_below_payload",
+     "detail": "trace: exception escher::EscherError; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:278)"
+    }
+   ],
+   "twin_constructs": 10,
+   "first_divergences": {
+    "7": [
+     4,
+     "status"
+    ],
+    "8": [
+     3,
+     "status"
+    ],
+    "9": [
+     1,
+     "exception.type"
+    ],
+    "11": [
+     0,
+     "construct validation"
+    ]
+   },
+   "documented_rules": {
+    "construct_below_payload": 1
+   }
+  }
+ ],
+ "totals": {
+  "ops": 53,
+  "compared": 53,
+  "unreplayable": 0,
+  "mappings": 7,
+  "keys_compared": 431,
+  "hash_only_rows": 0,
+  "growths": 0,
+  "compactions": 3,
+  "exceptions": 2,
+  "mismatch_count": 20,
+  "documented": 1,
+  "twin_constructs": 12
+ },
+ "problems": [],
+ "against_model": true,
+ "passed": true
+}

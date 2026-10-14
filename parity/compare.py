@@ -359,6 +359,11 @@ def git_head() -> str:
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["cbst_trace"]:  # the CBST traces of ESCHER-GPU and MOSP_ESCHER (M8a)
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import cbst_trace_goldens
+
+        return cbst_trace_goldens.compare_main(sys.argv[2:])
     if sys.argv[1:2] == ["cycle_count"]:  # the cycle_count corpus (CycleEnumeration-GPU)
         sys.path.insert(0, str(REPO / "parity"))
         import cycle_count_goldens

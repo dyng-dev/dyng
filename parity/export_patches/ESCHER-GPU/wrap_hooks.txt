@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The batch-hook symbols of ESCHER-GPU@abcf9b2 that the recording twins wrap (-Xlinker --wrap=<symbol>);
+# parity/exporters/escher/recorder_escher_gpu_hooks.cpp defines __wrap_<symbol> for each. They are
+# wrapped (and the hooks object linked) only in twins whose link command has the object that
+# defines them.
+# batch hooks (called from driver.o): the batch dumps
+_ZN17DynamicHypergraph5buildEv
+_ZN17DynamicHypergraph6updateER5Batchi

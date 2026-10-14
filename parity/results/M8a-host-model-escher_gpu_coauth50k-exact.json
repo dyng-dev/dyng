@@ -1,0 +1,52 @@
+{
+ "set": "cbst_trace_escher_gpu_coauth50k",
+ "reference": "ESCHER-GPU",
+ "manifest_sha256": "7ddec4438292cdf25cbbcd028e26f87e04bd518ee50b6ef856c3e5ea8635ae57",
+ "store": "host_model",
+ "policy": "the original's preset",
+ "fields": "exact",
+ "exe": "/home/sskg8/Projects/dyng/build/cpu-only/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-07T18:35:07+00:00",
+ "head": "5d2fcee8154e59e8744d17ace4af26be639ef28b",
+ "cases": [
+  {
+   "case": "coauth_b50k_s1",
+   "ok": true,
+   "store": "host_model:escher_gpu",
+   "exit": "normal",
+   "ops": 18,
+   "compared": 15,
+   "unreplayable": 3,
+   "mappings": 3,
+   "keys_compared": 33251758,
+   "hash_only_rows": 2467389,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "unreplayable_trees": [
+    {
+     "tree": 3,
+     "dataset": "H2H",
+     "unreplayable": 3,
+     "unreplayable_reason": "op 1 (rebuild) has hash-only inputs: in.start_offsets, in.flat_payload"
+    }
+   ],
+   "first_mismatches": []
+  }
+ ],
+ "totals": {
+  "ops": 18,
+  "compared": 15,
+  "unreplayable": 3,
+  "mappings": 3,
+  "keys_compared": 33251758,
+  "hash_only_rows": 2467389,
+  "growths": 0,
+  "compactions": 0,
+  "exceptions": 0,
+  "mismatch_count": 0
+ },
+ "problems": [],
+ "passed": true
+}

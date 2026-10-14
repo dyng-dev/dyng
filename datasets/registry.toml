@@ -1,0 +1,66 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The datasets of the parity harness and the benchmarks (PLAN Sections 4.2 and 5.7): name ->
+# source -> SHA-256 -> how it is produced. No dataset is in the repository: the files live in the
+# persistent work area ($DYNG_SCRATCH/datasets, default ~/Projects/dyng-work/datasets), and every
+# derived file is produced by the ORIGINAL's own converter in a scratch copy of the pinned commit
+# (parity/build_reference.sh) and checked against the SHA-256 below
+# (`parity/cbst_trace_goldens.py datasets` re-derives and checks the coauth-DBLP variants).
+#
+# Keys of a [[dataset]]:
+#   name         the dataset's name in the harness
+#   kind         "archive" (as downloaded) or "derived" (produced from another entry)
+#   file         its path under $DYNG_SCRATCH
+#   sha256       the SHA-256 of the file
+#   source       where the archive comes from (kind = "archive"), or the entry it is derived from
+#   reference    the original whose converter produces it (references.toml), and `converter`
+#                its script in the original's tree, run as `python3 <converter> <args>`
+#   cite         the reference to cite when the data is used
+#   + the counts the original reports for the file
+schema = 1
+
+[[dataset]]
+name = "coauth-DBLP-full"
+kind = "archive"
+file = "datasets/hyper/coauth-DBLP-full.tar.gz"
+sha256 = "feb4bed6d3c79a9ba16142e71405b7eff1515504741281b8edfe13dc0f960433"
+source = "the coauth-DBLP-full archive ('timestamped simplices and node labels') of Austin R. Benson's hypergraph data collection, https://www.cs.cornell.edu/~arb/data/coauth-DBLP/ (the Google Drive download named by ESCHER-GPU@abcf9b2:bench/datasets/get_coauth.sh, which pins this SHA-256); derived from the DBLP bibliography (September 3, 2017 release)"
+cite = "Austin R. Benson, Rediet Abebe, Michael T. Schaub, Ali Jadbabaie and Jon Kleinberg. Simplicial closure and higher-order link prediction. PNAS, 2018. doi:10.1073/pnas.1800683115"
+simplices = 3700681
+
+# ESCHER-GPU's input (results/README.md, get_coauth.sh): one hyperedge per distinct author set
+# (first occurrence kept), vertices relabeled densely 1..|V| in id order, sorted within a line.
+[[dataset]]
+name = "coauth-DBLP-escher"
+kind = "derived"
+file = "datasets/hyper/coauth.hg"
+sha256 = "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+source = "coauth-DBLP-full"
+reference = "ESCHER-GPU"
+converter = "bench/datasets/convert_coauth.py"
+arguments = "coauth-DBLP-full/coauth-DBLP-full <out>.hg"
+hyperedges = 2467389
+vertices = 1930378
+pins = 7748737
+max_cardinality = 280
+note = "the SHA-256 equals the hg_sha of get_coauth.sh; re-derived on 2026-10-07 from the archive above"
+
+# H-SOSP's input (MOSP_ESCHER results/README.md): scripts/benson_to_hg.py writes the SAME bytes as
+# ESCHER-GPU's converter (both keep the first occurrence of every distinct vertex set and
+# renumber the vertices 1..V in id order); the variants differ in how the originals LOAD the
+# file: hsospBench's loader keeps hyperedges of at most --maxcard 25 vertices (its default) and
+# adds the virtual source and target hyperedges.
+[[dataset]]
+name = "coauth-DBLP-hsosp"
+kind = "derived"
+file = "datasets/hyper/coauth.hg"
+sha256 = "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+source = "coauth-DBLP-full"
+reference = "MOSP_ESCHER"
+converter = "scripts/benson_to_hg.py"
+arguments = "coauth-DBLP-full/coauth-DBLP-full <out>.hg"
+lines = 2467389
+vertices = 1930378
+loaded_hyperedges = 2466792
+loaded_by = "bin/hsospBench --hg <file> (--maxcard 25, the default): 2,466,792 hyperedges kept, the count of MOSP_ESCHER's results/README.md; the bulk load recorded in the dblp50k batch dumps holds 2,466,794 rows (the virtual source, id 1, and target, id 2,466,794, added) and builds a line graph of 250,891,568 entries (125,445,784 pairs; parity/results/M8a.md)"

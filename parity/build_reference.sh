@@ -154,6 +154,32 @@ origin_state() { # <origin>: HEAD + status, to prove the original was not touche
   git -C "$1" status --porcelain=v1 --untracked-files=all
 }
 
+# Whether the build needed a gitlink (a submodule entry that `git archive` leaves out): for every
+# gitlink of the commit, its directory in the copy (absent or empty when unused) and whether a
+# make dependency file (*.d) or the build log names it. A name found there is reported as USED,
+# and build_copy then fails.
+gitlink_use() { # <origin> <commit> <copy> <build log>
+  local origin="$1" commit="$2" dir="$3" log="$4" mode type sha path hits found=0
+  while IFS= read -r -d '' line; do
+    read -r mode type sha <<<"${line%%$'\t'*}"
+    path="${line#*$'\t'}"
+    [ "${type}" = commit ] || continue
+    found=1
+    hits="$( (find "${dir}" -name '*.d' -type f -print0 | xargs -0 -r grep -lF -- "${path}"
+      grep -lF -- "${path}" "${log}") 2>/dev/null | sed "s#^${dir}/##" | sort -u | tr '\n' ' ' ||
+      true)"
+    if [ -n "${hits}" ]; then
+      echo "  USED: ${path} (${sha}) is named by: ${hits}"
+    elif [ -e "${dir}/${path}" ] && [ -n "$(ls -A "${dir}/${path}" 2>/dev/null)" ]; then
+      echo "  USED: ${path} (${sha}) is not empty in the copy"
+    else
+      echo "  unused: ${path} (${sha}): $([ -e "${dir}/${path}" ] && echo "an empty directory" ||
+        echo "absent") in the copy, named by no dependency file (*.d) and not by the build log"
+    fi
+  done < <(git -C "${origin}" ls-tree -r -z "${commit}")
+  [ "${found}" -eq 1 ] || echo "  (none)"
+}
+
 build_copy() { # <name> <variant>
   local name="$1" var="$2"
   local origin commit short base dir log patch
@@ -179,6 +205,8 @@ build_copy() { # <name> <variant>
     { echo "${origin} has no commit ${commit}" >&2; return 1; }
   local before after
   before="$(origin_state "${origin}")"
+  mkdir -p "${base}"
+  printf '%s\n' "${before}" >"${base}/origin-state.before.txt"
 
   # 1. Export.
   local archive_sha
@@ -246,7 +274,8 @@ build_copy() { # <name> <variant>
   # 4. Additive export patch (patched copy only).
   patch="$(field "${name}" export_patch)"
   if [ "${var}" = patched ] && [ -n "${patch}" ]; then
-    if ! env CXX="${cxx}" "${repo_root}/parity/export_patches/${patch}/build.sh" "${dir}" \
+    if ! env CXX="${cxx}" DYNG_REFERENCE_BUILD="${build}" \
+      "${repo_root}/parity/export_patches/${patch}/build.sh" "${dir}" \
       >>"${log}" 2>&1; then
       tail -n 30 "${log}" >&2
       echo "export patch failed: ${log}" >&2
@@ -265,7 +294,8 @@ build_copy() { # <name> <variant>
     echo "copy: ${base}/{unpatched,patched}; builds with: ${build}"
     echo
     echo "## gitlinks / submodules left out by git archive"
-    git -C "${origin}" ls-tree -r "${commit}" | awk '$2 == "commit" { print "  " $4 " -> " $3 }'
+    git -C "${origin}" ls-tree -r "${commit}" |
+      awk -F'\t' '{ split($1, f, " "); if (f[2] == "commit") print "  " $2 " -> " f[3] }'
     git -C "${origin}" cat-file -e "${commit}:.gitmodules" 2>/dev/null &&
       echo "  .gitmodules present" || true
     echo "  (end)"
@@ -283,11 +313,24 @@ build_copy() { # <name> <variant>
     echo
     echo "## external inputs (references.toml)"
     field "${name}" external_inputs | sed 's/^/  - /'
+    echo
+    echo "## gitlinks used by the build"
+    gitlink_use "${origin}" "${commit}" "${dir}" "${log}"
+    echo
+    echo "## the original repository's HEAD and git status --porcelain (before the export = after)"
+    sed 's/^/  /' "${base}/origin-state.before.txt"
+    echo "  (end)"
   } >"${report}"
+  if grep -q '^  USED: ' "${report}"; then
+    echo "the build of ${dir} needs a gitlink that git archive leaves out (${report})" >&2
+    return 1
+  fi
 
   after="$(origin_state "${origin}")"
+  printf '%s\n' "${after}" >"${base}/origin-state.after.txt"
   if [ "${before}" != "${after}" ]; then
     echo "the original repository ${origin} changed during the build" >&2
+    diff "${base}/origin-state.before.txt" "${base}/origin-state.after.txt" >&2 || true
     return 1
   fi
   echo "    ok (log ${log}; archive check ${report})"
@@ -301,6 +344,9 @@ run_smoke_test() { # <name>
   log="${scratch}/ref/${name}@${short}/unpatched.test.log"
   cmd="$(field "${name}" smoke_test)"
   mapfile -t env_args < <(field "${name}" run_env | sed "/^$/d")
+  local origin before
+  origin="$(field "${name}" origin)"
+  before="$(origin_state "${origin}")"
   echo "==> ${name}@${short}: ${cmd} (log ${log})"
   if (cd "${dir}" && env CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}" \
     ${env_args[@]+"${env_args[@]}"} bash -c "${cmd}") >"${log}" 2>&1; then
@@ -308,6 +354,10 @@ run_smoke_test() { # <name>
   else
     tail -n 30 "${log}" >&2
     echo "smoke test failed: ${log}" >&2
+    return 1
+  fi
+  if [ "$(origin_state "${origin}")" != "${before}" ]; then
+    echo "the original repository ${origin} changed during the test" >&2
     return 1
   fi
 }

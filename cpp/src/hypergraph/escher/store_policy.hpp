@@ -1,0 +1,152 @@
+// SPDX-FileCopyrightText: 2026 The dynG Authors
+// SPDX-License-Identifier: Apache-2.0
+// Derived from ESCHER-GPU@abcf9b2:structure/operations.cu (ensurePayloadCapacity)
+// Derived from ESCHER-GPU@abcf9b2:structure/dynamic_hypergraph.cu (payloadCapacity)
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (ensureScratchCapacity, the
+// compaction trigger points of fillImpl and insertCBST)
+// Derived from MOSP_ESCHER@4b86159:hypergraph/src/DynamicHypergraph.cpp (constructFromRows)
+/**
+ * @file store_policy.hpp
+ * @brief How a CBST store sizes and grows its payload, and when it compacts (M8a, ADR 0038,
+ *        0039): the internal store_policy and its presets: escher_gpu(), which reproduces
+ *        ESCHER-GPU@abcf9b2, mosp_escher(), which reproduces MOSP_ESCHER@4b86159, and
+ *        dyng_default(), the target policy of PLAN 6.4.5 (compact first, then grow).
+ *
+ * Host-only (no CUDA): the hypergraph container (M8b) sizes its trees with initial_capacity()
+ * before it creates them; the store grows its payload with grown_capacity().
+ */
+#pragma once
+
+#include <climits>
+#include <cstdint>
+#include <string>
+
+namespace dyng::detail::escher {
+
+/// The payload policy of a CBST store.
+struct store_policy {
+  /// How a payload that does not fit grows.
+  enum class growth_rule : std::uint8_t {
+    none,        ///< it does not: capacity_error
+    escher_gpu,  ///< to max(needed * 1.25, capacity * 1.5) in integers, at most INT_MAX
+  };
+  /// When a store compacts its payload (M8a step 5, ADR 0039).
+  enum class compaction_rule : std::uint8_t {
+    never,        ///< ESCHER-GPU: a full payload grows by the growth rule
+    mosp_escher,  ///< MOSP_ESCHER's trigger points: a fill whose overflow segments do not fit
+                  ///< compacts, then appends the values that did not fit their tails once more;
+                  ///< an insert whose surplus rows do not fit compacts before appending them;
+                  ///< what still does not fit grows by the growth rule (none: capacity_error)
+  };
+
+  /// How the operation scratch (the per-operation input buffers) grows (M8a step 4, ADR 0039).
+  enum class scratch_rule : std::uint8_t {
+    exact,      ///< to the operation's size (ESCHER-GPU's reserveScratch; the memory gate's)
+    geometric,  ///< in steps of +n/2+1 from the current size, until it fits (MOSP_ESCHER's
+                ///< ensureScratchCapacity, escher/structure/operations.cu@4b86159:139-165)
+  };
+
+  std::string name = "escher_gpu";                      ///< the preset's name
+  growth_rule growth = growth_rule::escher_gpu;         ///< growth of a full payload
+  compaction_rule compaction = compaction_rule::never;  ///< compaction
+  scratch_rule scratch = scratch_rule::exact;           ///< growth of the operation scratch
+  int alignment = 4;  ///< the padding of a surplus row (rows of `alignment` slots + terminator)
+  /// The initial capacity of MOSP_ESCHER's trees: flat * headroom + extra, at most 2.0e9
+  /// (0: ESCHER-GPU's sizing, initial_capacity()).
+  double headroom = 0.0;
+  long long extra = 0;  ///< see headroom
+  /// The largest payload capacity in entries (INT_MAX: the int32 offsets of the CBST); a payload
+  /// that needs more is a capacity_error. Tests lower it to reach the limit (M8a step 5).
+  long long max_payload = INT_MAX;
+  /// The hysteresis of an automatic compaction (dyng_default(); M8a review, ADR 0040): after an
+  /// operation that compacted at a trigger point, the payload also grows by the growth rule when
+  /// fewer than capacity / compaction_headroom slots are free, to the capacity that leaves that
+  /// many free (at most max_payload). Without it, live data that grows slowly toward the capacity
+  /// compacts the whole payload more and more often before it ever grows. 0: never (the
+  /// originals' presets).
+  long long compaction_headroom = 0;
+
+  /**
+   * @brief ESCHER-GPU@abcf9b2's policy: in-place trees (H2V, V2H) start at max(requested,
+   *        size + size/8 + 1024), trees rebuilt by the delta merge (H2H, V2V) at their exact
+   *        size; a full payload grows to max(needed + needed/4, 3 * capacity / 2) entries, at
+   *        most INT_MAX; alignment 4; never compacts; the operation scratch grows to the size of
+   *        an operation (exact).
+   * @return The preset.
+   */
+  static store_policy escher_gpu();
+
+  /**
+   * @brief MOSP_ESCHER@4b86159's policy (M8a step 5, ADR 0039): every tree starts at
+   *        flat * 1.3 + extra entries, at most 2.0e9 (DynamicHypergraph's constructFromRows); a
+   *        fixed capacity; compaction at MOSP_ESCHER's trigger points (compaction_rule::
+   *        mosp_escher), then capacity_error where MOSP_ESCHER threw escher::EscherError;
+   *        alignment 4; the operation scratch grows geometrically (its ensureScratchCapacity).
+   * @param[in] extra The extra entries of every tree (MOSP_ESCHER's Caps::extraPayloadInts;
+   *            its default 2^20).
+   * @return The preset.
+   */
+  static store_policy mosp_escher(long long extra = 1LL << 20);
+
+  /**
+   * @brief dynG's default, the target policy of PLAN 6.4.5 (M8a step 5, ADR 0039): ESCHER-GPU's
+   *        initial sizing; a payload that does not fit is compacted first, at MOSP_ESCHER's
+   *        trigger points (compaction_rule::mosp_escher), and grows by ESCHER-GPU's rule when
+   *        the compacted rows still do not fit, or when the operation leaves fewer than 1/8 of
+   *        the slots free (compaction_headroom 8, the slack of ESCHER-GPU's initial sizing);
+   *        capacity_error only beyond max_payload (the int32 offsets) and out_of_memory_error on
+   *        an allocation failure; alignment 4; the operation scratch grows geometrically.
+   * @param[in] max_payload The largest payload capacity (INT_MAX; lower only in tests).
+   * @return The preset.
+   */
+  static store_policy dyng_default(long long max_payload = INT_MAX);
+
+  /**
+   * @brief The preset of a name ("escher_gpu", "mosp_escher", "dyng_default").
+   * @param[in] name The name.
+   * @param[out] out The preset.
+   * @return false if the name is unknown.
+   */
+  [[nodiscard]] static bool from_name(const std::string& name, store_policy& out);
+
+  /**
+   * @brief The initial payload capacity of a tree: ESCHER-GPU's payloadCapacity, or with a
+   *        headroom MOSP_ESCHER's constructFromRows (floor(size * headroom) + extra, at most
+   *        2.0e9; `requested` and `in_place` are not used).
+   * @param[in] requested The caller's lower bound (A's --payload-capacity; 0 for none).
+   * @param[in] size      The payload entries of the tree's construct layout.
+   * @param[in] in_place  The tree is updated in place (H2V, V2H), not rebuilt by a merge.
+   * @return The capacity.
+   * @throws capacity_error if it exceeds max_payload (the int32 offsets, INT_MAX), or
+   *         MOSP_ESCHER's cap is below the size.
+   */
+  [[nodiscard]] long long initial_capacity(long long requested, long long size,
+                                           bool in_place) const;
+
+  /**
+   * @brief The capacity a full payload grows to (ESCHER-GPU's ensurePayloadCapacity).
+   * @param[in] needed   The entries that must fit (> capacity).
+   * @param[in] capacity The current capacity.
+   * @param[in] name     The tree's name, for the message.
+   * @return The new capacity (>= needed), at most max_payload.
+   * @throws capacity_error if the policy does not grow or `needed` exceeds max_payload.
+   */
+  [[nodiscard]] long long grown_capacity(long long needed, long long capacity,
+                                         const std::string& name) const;
+
+  /**
+   * @brief The capacity of one operation scratch array after an operation that needs `needed`
+   *        entries (scratch_rule): exact, max(capacity, needed); geometric, `capacity` (1 for
+   *        the item arrays and 4 for the payload array when it is 0) grown by +capacity/2+1
+   *        until it holds `needed`, unchanged when it already does.
+   * @param[in] needed   The entries the operation needs.
+   * @param[in] capacity The current capacity.
+   * @param[in] empty    The start of a geometric growth from 0 (1 items, 4 payload values).
+   * @param[in] limit    The largest capacity (INT_MAX for the item arrays).
+   * @return The new capacity.
+   */
+  [[nodiscard]] long long scratch_capacity(long long needed, long long capacity, long long empty,
+                                           long long limit) const;
+};
+
+}  // namespace dyng::detail::escher

@@ -8,12 +8,78 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+### Added
+
+- M8a (internal, not public API): **the ESCHER CBST store** (`cpp/src/hypergraph/escher`,
+  `dyng::detail::escher::cbst_store`, ADR 0038), the port of ESCHER-GPU@abcf9b2's store in the new
+  module `dyng_hypergraph`: construct, rebuild from the device, best-fit insert with surplus rows
+  and the rebuild, append (fill) with overflow segments and payload growth, erase, remove_values
+  (unfill), the row locator and the integrity checker, on the resources' stream and memory
+  resource, with exceptions instead of process exits; dynG additions: the empty tree, `clone()`,
+  `download()`, `allocated_bytes()`, poisoning after a failed operation, the payload policy
+  `store_policy::escher_gpu()`. It replays ESCHER-GPU's CBST traces in every recorded field
+  but one documented divergence (`construct_below_payload`: the targeted construct whose capacity
+  is below its payload throws instead of keeping a tree without nodes) and the 57 operations that
+  cannot be replayed (the 3 H2H rebuilds of coauth50k, whose inputs are recorded as hashes only,
+  and the 54 operations of the batches-mode set syn1m) (`parity/compare.py cbst_trace --store
+  device`); `parity/escher_port/transplant.py` regenerates its first commit from the original.
+- M8a (internal): **MOSP_ESCHER@4b86159's CBST behaviours merged into the store** (ADR 0039):
+  construct validation, the fill clamps, caller row counts as a fast path of construct, one
+  bounded chain walk for every reader and the unfill writer (bounded by the used payload; a
+  broken chain raises the store's device error word, `internal_error` at the next read point), its
+  integrity checks and dynG's checks of the index arrays, `rows()`, the scratch growth rule, an
+  explicit `compact()`, storage counters (`stats()`), `check_errors()`, and a defined rule for
+  appends and removals on dead or absent keys; the staging preset `mosp_escher_staged()` of the
+  merge steps.
+- M8a (internal): **MOSP_ESCHER's automatic compaction and the store presets** (ADR 0040):
+  `store_policy::mosp_escher()` (compaction at MOSP_ESCHER's fill and insert trigger points, then
+  `capacity_error`; flat * 1.3 + extra, at most 2.0e9) replaces the staging preset, and dynG's
+  default `store_policy::dyng_default()` compacts first and then grows (`capacity_error` only
+  beyond `max_payload`, the int32 offsets; `out_of_memory_error` on an allocation failure).
+  MOSP_ESCHER's CBST traces replay in every recorded field under `mosp_escher()` but the
+  documented divergences `construct_without_row_counts` (31 constructs of make test without row
+  counts, whose occupancy 0 the store does not take over; ADR 0039 (c)) and
+  `construct_below_payload` (one targeted construct); every set replays under the default with
+  the field set `policy`, its documented divergences pinned per set and rule
+  (`parity/cbst_documented.toml`), and the store's layout under every preset is checked in
+  lockstep with the host model on the traces' operations. Tests: MOSP_ESCHER's 9 CBST scenarios and
+  its smoke test under every preset in lockstep with the host model, random operation sequences,
+  the graph-on-CBST test (PLAN 6.1 D8), the partial-failure rule, and the 7 CBST mutations
+  (`ctest -L mutation`, `parity/mutate.py run --suites cbst`); `parity/perf_ab.py cbst early`, the
+  early-warning table of the store against ESCHER-GPU.
+- M8a: `dyng::testing::cbst_host_policy::max_payload`, the largest payload a growth reaches
+  (tests lower it), and `cbst_host_policy::dyng_default()` no longer provisional.
+- M8a review: `dyng::testing::cbst_host_policy::compaction_headroom`, the hysteresis of an
+  automatic compaction (`dyng_default()`: 8, also the store's default preset: after a compaction
+  at a trigger point the payload grows when fewer than 1/8 of its slots are free).
+- M8a: **`dyng::testing::cbst_host_model`** (`dyng/testing/cbst_host_model.hpp`, ADR 0037), a
+  sequential host model of the ESCHER CBST store of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159
+  (best-fit reuse, surplus keys and the rebuild, fill overflow segments, unfill, A's growth, B's
+  compaction and exceptions) with the policy presets `cbst_host_policy::escher_gpu()`,
+  `mosp_escher()` and the provisional `dyng_default()`, and the layout helpers
+  `cbst_rank_of_position` and `check_cbst_layout` (ESCHER-GPU's `cbst_test` sizes). It replays
+  every replayable operation of both originals' CBST traces with 100% agreement; the oracle of the
+  store port. Parity harness: the trace replay comparator (`cpp/tests/parity/escher/cbst_compare`),
+  the tool `dyng_cbst_replay` and `parity/compare.py cbst_trace --store host_model`.
+- M8a (parity harness, not part of the library): the **CBST trace recorders** of ESCHER-GPU@abcf9b2
+  and MOSP_ESCHER@4b86159 (ADR 0036): the originals' unchanged objects relinked into recording
+  twins with `-Xlinker --wrap` (`parity/exporters/escher`), the trace format 1 and its readers
+  (`parity/escher_trace.py`, the host-only `cpp/tests/parity/escher/cbst_trace.hpp`), the trace
+  goldens of both originals' suites, coauth-DBLP, DBLP and targeted scenarios
+  (`parity/export_goldens.py cbst_trace`), `datasets/registry.toml` with the coauth-DBLP pins,
+  the cross-check of the two ESCHER cores (`parity/escher_crosscheck.py`) and the timed-region
+  map `parity/timed_regions/hypergraph.toml`.
+
 ### Changed
 
 - `VERSION` is 0.3.0.dev0, the development version after the 0.2.0 release.
 - The documented `find_package(dyng 0.3 REQUIRED)` (README.md, docs/getting_started/install.md)
   follows the development version, which `ci/cmake_consumer.sh` requires; a build of 0.2.0
   asks for 0.2.
+- Merging 0.2.0 into M8a: `datasets/` (the parity harness's dataset registry) is excluded from
+  the sdist, whose members stay those of 0.2.0; and `parity/certify.py` reads the replays of a
+  GoogleTest mutation suite (the CBST mutations of `parity/mutate.py`) without a golden manifest,
+  while every golden-suite replay still needs one.
 
 ## [0.2.0] - 2026-10-14
 

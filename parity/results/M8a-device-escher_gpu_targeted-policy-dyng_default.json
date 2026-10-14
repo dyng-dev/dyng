@@ -1,0 +1,110 @@
+{
+ "set": "cbst_trace_escher_gpu_targeted",
+ "documented_rules": {
+  "construct_below_payload": 1,
+  "policy_difference": 2
+ },
+ "reference": "ESCHER-GPU",
+ "manifest_sha256": "6f4c9428ac5e93b9182a11c6934937832cacf1b590eb5fd2e98363f071a9c260",
+ "store": "device",
+ "policy": "dyng_default",
+ "fields": "policy",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:07:51+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
+ "cases": [
+  {
+   "case": "targeted_large",
+   "ok": true,
+   "store": "device:dyng_default",
+   "exit": "normal",
+   "ops": 11,
+   "compared": 11,
+   "unreplayable": 0,
+   "mappings": 1,
+   "keys_compared": 48,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 2,
+   "unreplayable_trees": [],
+   "first_mismatches": [],
+   "documented_rules": {}
+  },
+  {
+   "case": "targeted_small",
+   "ok": true,
+   "store": "device:dyng_default",
+   "exit": "normal",
+   "ops": 41,
+   "compared": 41,
+   "unreplayable": 0,
+   "mappings": 6,
+   "keys_compared": 395,
+   "hash_only_rows": 0,
+   "growths": 3,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [
+    {
+     "seq": 51,
+     "op_index": 30,
+     "tree_op": 4,
+     "tree": 7,
+     "dataset": "targeted-fill_compact",
+     "op": "fill",
+     "rule": "policy_difference",
+     "detail": "after.fixed_size, after.initial_payload_size, event.growth, event.compaction"
+    },
+    {
+     "seq": 58,
+     "op_index": 34,
+     "tree_op": 3,
+     "tree": 8,
+     "dataset": "targeted-insert_compact",
+     "op": "insert",
+     "rule": "policy_difference",
+     "detail": "after.fixed_size, after.initial_payload_size, event.growth, event.compaction"
+    },
+    {
+     "seq": 73,
+     "op_index": 40,
+     "tree_op": 0,
+     "tree": 11,
+     "dataset": "targeted-small_capacity",
+     "op": "construct",
+     "rule": "construct_below_payload",
+     "detail": "trace: no exception; store: dyng::invalid_argument_error: dyng: CBST targeted-small_capacity: payload capacity 8 is below the payload size 32 [expected: payload_capacity >= flat_payload_size] (cbst_store.cu:314)"
+    }
+   ],
+   "twin_constructs": 10,
+   "unreplayable_trees": [],
+   "first_mismatches": [],
+   "documented_rules": {
+    "construct_below_payload": 1,
+    "policy_difference": 2
+   }
+  }
+ ],
+ "totals": {
+  "ops": 52,
+  "compared": 52,
+  "unreplayable": 0,
+  "mappings": 7,
+  "keys_compared": 443,
+  "hash_only_rows": 0,
+  "growths": 3,
+  "compactions": 0,
+  "exceptions": 0,
+  "mismatch_count": 0,
+  "documented": 3,
+  "twin_constructs": 12
+ },
+ "problems": [],
+ "against_model": false,
+ "passed": true
+}

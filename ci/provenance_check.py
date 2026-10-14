@@ -92,7 +92,115 @@ SYMBOLS = [
     "circuit_bounded",
     "extend_prefix",
     "update_histogram",
+    # ESCHER-GPU@abcf9b2 / MOSP_ESCHER@4b86159, the CBST store (M8a)
+    "CBSTOperations",
+    "CBSTContext",
+    "CBSTNode",
+    "constructCBST",
+    "rebuildCBSTFromDevice",
+    "insertCBST",
+    "fillCBST",
+    "deleteCBST",
+    "unfillCBST",
+    "compactCBST",
+    "cbstRankOfPosition",
+    "initTailMetadata",
+    "ensurePayloadCapacity",
+    "InsertMapping",
+    "DegreeBinLaunches",
+    # ESCHER-GPU@abcf9b2, the store port (M8a step 3; parity/escher_port/rename_map.toml)
+    "applyReuse",
+    "applyReuse_warp",
+    "applyReuse_block",
+    "insertNode_thread",
+    "insertNode_warp",
+    "insertNode_block",
+    "unfillRowSerial",
+    "unfill_thread",
+    "unfill_warp",
+    "unfill_block",
+    "locateReusableSlots",
+    "locateDeleteTargets",
+    "applyDeletes",
+    "reduceAvailLevel",
+    "extractSlotCapacities",
+    "extractKeysFromPositions",
+    "lowerBoundKernel",
+    "pairMatches",
+    "buildEmptyBinaryTree",
+    "storeItemsIntoNodes",
+    "placeNodeRecords",
+    "rankOrderNodes",
+    "recordKeysAndStarts",
+    "allocateSpace",
+    "fixupOverflowMetadata",
+    "computeNextMultipleOf4",
+    "updatePartialSolution",
+    "reserveScratch",
+    "recomputeSubtreeAvail",
+    "checkTreeRows",
+    "flatten2DVector",
+    "RowLocator",
+    "RowView",
+    "buildRowLocatorKernel",
+    "TempBuffer",
+    "DegreeBins",
+    # MOSP_ESCHER@4b86159, its behaviours merged into the store (M8a step 4)
+    "readFlat",
+    "setInitialOccupancy",
+    "warpWalkRow",
+    "compactSizesKernel",
+    "compactCopyKernel",
+    "ensureScratchCapacity",
+    "checkSubtreeAvail",
+    "EscherError",
 ]
+
+RENAME_MAP = REPO / "parity" / "escher_port" / "rename_map.toml"
+
+
+def rename_map_symbols(text: str | None = None) -> tuple[list[str], list[str]]:
+    """The ESCHER-GPU identifiers the store port renamed explicitly, and the distinctive dynG names
+    they became (the `# explicit` block of parity/escher_port/rename_map.toml's [names]).
+
+    The original names are symbols of an original like every other in SYMBOLS. Of the dynG names,
+    the kernels (`*_kernel`) and the store's internal free functions are listed too, so that port
+    code moved out of cpp/src/hypergraph/escher under its dynG names still needs its header; the
+    types the store's users name (cbst_store, cbst_context, cbst_node, insert_mapping, ...) are
+    not (a caller of the store does not copy it).
+    """
+    if text is None:
+        text = RENAME_MAP.read_text(encoding="utf-8")
+    block = re.search(r"^\[names\]\s*\n# explicit\n(.*?)^# camelCase", text, re.M | re.S)
+    if not block:
+        raise SystemExit(f"{RENAME_MAP}: no '# explicit' block in [names]")
+    originals, ported = [], []
+    entry = re.compile(r'^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"([^"]+)"', re.M)
+    for key, value in entry.findall(block.group(1)):
+        originals.append(key)
+        if value.endswith("_kernel") or value in PORT_FUNCTIONS:
+            ported.append(value)
+    return originals, ported
+
+
+# The store port's internal free functions (dynG names; M8a review): distinctive, and called only by
+# the port itself and its tests.
+PORT_FUNCTIONS = {
+    "construct_cbst",
+    "rebuild_cbst_from_device",
+    "insert_cbst",
+    "fill_cbst",
+    "delete_cbst",
+    "unfill_cbst",
+    "flatten_rows",
+    "for_each_chained_entry",
+}
+# dynG names of MOSP_ESCHER's merged behaviours (M8a step 4) that the rename map does not list.
+PORT_EXTRA = ["compact_cbst", "walk_chain", "compact_sizes_kernel", "compact_copy_kernel"]
+
+_ORIGINAL_NAMES, _PORT_NAMES = rename_map_symbols()
+SYMBOLS = sorted(set(SYMBOLS) | set(_ORIGINAL_NAMES) | set(_PORT_NAMES) | set(PORT_EXTRA))
+
 PINNED = re.compile(
     r"\b(MOSP-OpenMP|MOSP-CUDA|MOSP_ESCHER|ESCHER-GPU|LabelPropagation-CUDA|"
     r"CycleEnumeration-GPU)@[0-9a-f]{7,40}"
@@ -117,6 +225,8 @@ NOT_DERIVED = {
     "cpp/src/framework/workspace.hpp": "new pool; names MOSP's shared SospWorkspace it mirrors",
     "cpp/include/dyng/mosp.hpp": "public API; documents the semantics the port reproduces",
     "cpp/include/dyng/testing/mosp_oracle.hpp": "public API of mosp_oracle.cpp (header there)",
+    "cpp/include/dyng/testing/cbst_host_model.hpp": "public API of cbst_host_model.cpp (header "
+    "there)",
 }
 
 
@@ -125,19 +235,26 @@ def tracked() -> list[str]:
     return [p for p in out.splitlines() if p.startswith(SCOPES) and p.endswith(SUFFIXES)]
 
 
+def check_text(path: str, text: str) -> tuple[str, str]:
+    """The verdict on one file: ("ok", ""), ("missing", the name it uses) or ("stale", "")."""
+    names_original = SYMBOL.search(text) or PINNED.search(text)
+    if not names_original:
+        return ("stale", "") if path in NOT_DERIVED else ("ok", "")
+    if HEADER.search(text) or path in NOT_DERIVED:
+        return ("ok", "")
+    return ("missing", names_original.group(0))
+
+
 def main() -> int:
     missing = []
     stale = []
     for path in tracked():
         text = (REPO / path).read_text(encoding="utf-8", errors="replace")
-        names_original = SYMBOL.search(text) or PINNED.search(text)
-        if not names_original:
-            if path in NOT_DERIVED:
-                stale.append(path)
-            continue
-        if HEADER.search(text) or path in NOT_DERIVED:
-            continue
-        missing.append((path, names_original.group(0)))
+        verdict, what = check_text(path, text)
+        if verdict == "stale":
+            stale.append(path)
+        elif verdict == "missing":
+            missing.append((path, what))
     for path, what in missing:
         print(
             f"{path}: names '{what}' of an original but has no '// Derived from <repo>@<sha>:"

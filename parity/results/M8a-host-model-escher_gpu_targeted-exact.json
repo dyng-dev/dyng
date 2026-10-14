@@ -1,0 +1,63 @@
+{
+ "set": "cbst_trace_escher_gpu_targeted",
+ "reference": "ESCHER-GPU",
+ "manifest_sha256": "6f4c9428ac5e93b9182a11c6934937832cacf1b590eb5fd2e98363f071a9c260",
+ "store": "host_model",
+ "policy": "the original's preset",
+ "fields": "exact",
+ "exe": "/home/sskg8/Projects/dyng/build/cpu-only/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-07T18:35:07+00:00",
+ "head": "5d2fcee8154e59e8744d17ace4af26be639ef28b",
+ "cases": [
+  {
+   "case": "targeted_large",
+   "ok": true,
+   "store": "host_model:escher_gpu",
+   "exit": "normal",
+   "ops": 11,
+   "compared": 11,
+   "unreplayable": 0,
+   "mappings": 1,
+   "keys_compared": 48,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "unreplayable_trees": [],
+   "first_mismatches": []
+  },
+  {
+   "case": "targeted_small",
+   "ok": true,
+   "store": "host_model:escher_gpu",
+   "exit": "normal",
+   "ops": 41,
+   "compared": 41,
+   "unreplayable": 0,
+   "mappings": 6,
+   "keys_compared": 395,
+   "hash_only_rows": 0,
+   "growths": 3,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "unreplayable_trees": [],
+   "first_mismatches": []
+  }
+ ],
+ "totals": {
+  "ops": 52,
+  "compared": 52,
+  "unreplayable": 0,
+  "mappings": 7,
+  "keys_compared": 443,
+  "hash_only_rows": 0,
+  "growths": 3,
+  "compactions": 0,
+  "exceptions": 0,
+  "mismatch_count": 0
+ },
+ "problems": [],
+ "passed": true
+}

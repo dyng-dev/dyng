@@ -1,0 +1,11 @@
+# The committed subset of the CBST trace goldens (parity/cbst_trace_goldens.py subset):
+# <sha256>  <file>  <command of the original>  # what it covers. Each file is the
+# decompressed trace.cbt.zst of the case in $DYNG_SCRATCH/goldens/cbst_trace.
+8945351f4573ad0e7e3d02b899d13f59d5c2179e3a60bdedd9d2c44371d9c9ea  escher_gpu_test/001-main.cbt  build/main 8 5 1 100 4096  # A: the demo run (reuse, surplus with rebuild)
+2ecb1289851acd04e77914f9cecdb4eff894dfdaf57bb8f9cf0d9e62eeb36e58  escher_gpu_targeted/targeted_small.cbt  <abs>/cbst_targeted small  # A: K = 0, D = 0, reuse only, reuse with surplus and rebuild, the reissued maximal key, fill overflow with growth, construct below the payload size
+b4715f5ad42bafd932d45284b70f207b15b8387e794d75758da130fe9268023b  mosp_escher_test/004-test_cbst_ops.cbt  <abs>/test_cbst_ops terminator  # B: test_cbst_ops terminator
+fdcf0ca7e4425013299ff013197b2c916afa1f259d154f37b7715becd54906ae  mosp_escher_test/005-test_cbst_ops.cbt  <abs>/test_cbst_ops erase  # B: test_cbst_ops erase
+73eaec1e504e9e31b291eeab3f7a7d1c7afd8d523eff0bc0d97859226698d42b  mosp_escher_test/006-test_cbst_ops.cbt  <abs>/test_cbst_ops surplus  # B: test_cbst_ops surplus (fill overflow, surplus with rebuild)
+0ed155c066794ed0a0f547e5e16476c5870c983dfb19df1ab81b70b3fd90f1de  mosp_escher_test/007-test_cbst_ops.cbt  <abs>/test_cbst_ops bestfit  # B: test_cbst_ops bestfit (reuse)
+50188273d40e600c084b1aa4ea6af7cdb10b94f2cb1c3b0a377ba0aea3b84e86  mosp_escher_test/008-test_cbst_ops.cbt  <abs>/test_cbst_ops unfill-chain  # B: test_cbst_ops unfill-chain (unfill on chained rows)
+6d350034bd2882d3d0ad819757fcbdb06a98787028a3aa880e130b2a1237e7b8  mosp_escher_targeted/targeted_small.cbt  <abs>/cbst_targeted small  # B: compaction inside fill and inside insert, the capacity throw, an explicit compact(), construct validation

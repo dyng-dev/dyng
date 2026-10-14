@@ -1,0 +1,22 @@
+{
+ "capacity_floor": 0,
+ "cases": 1,
+ "counts": "scan",
+ "divergences": [],
+ "set": "cbst_trace_mosp_escher_dblp50k_hyperedge",
+ "source": "MOSP_ESCHER",
+ "store": "ESCHER-GPU",
+ "trees": "",
+ "trees_by_name": {
+  "h2h": {
+   "identical": 1
+  },
+  "h2v": {
+   "identical": 1
+  },
+  "v2h": {
+   "identical": 1
+  }
+ },
+ "unexplained": 0
+}

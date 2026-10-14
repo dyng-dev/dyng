@@ -1,0 +1,151 @@
+{
+ "set": "cbst_trace_escher_gpu_syn1m",
+ "documented_rules": {},
+ "reference": "ESCHER-GPU",
+ "manifest_sha256": "d73a368586dd3145cc93d60484032d76f171d8612310c6bc3ec8aef7ffd659d8",
+ "store": "device",
+ "policy": "the original's preset",
+ "fields": "exact",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/run-review2-head/wt-9acb3b5/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T21:11:36+00:00",
+ "head": "9acb3b5822c2b8ea3d5dc0224d10955789c1e8bc",
+ "cases": [
+  {
+   "case": "syn1m_b50k_s1",
+   "ok": true,
+   "store": "device:escher_gpu",
+   "exit": "normal",
+   "ops": 18,
+   "compared": 0,
+   "unreplayable": 18,
+   "mappings": 0,
+   "keys_compared": 0,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 0,
+   "unreplayable_trees": [
+    {
+     "tree": 1,
+     "dataset": "H2V",
+     "unreplayable": 7,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    },
+    {
+     "tree": 2,
+     "dataset": "V2H",
+     "unreplayable": 7,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    },
+    {
+     "tree": 3,
+     "dataset": "H2H",
+     "unreplayable": 4,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    }
+   ],
+   "first_mismatches": [],
+   "documented_rules": {}
+  },
+  {
+   "case": "syn1m_b50k_s2",
+   "ok": true,
+   "store": "device:escher_gpu",
+   "exit": "normal",
+   "ops": 18,
+   "compared": 0,
+   "unreplayable": 18,
+   "mappings": 0,
+   "keys_compared": 0,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 0,
+   "unreplayable_trees": [
+    {
+     "tree": 1,
+     "dataset": "H2V",
+     "unreplayable": 7,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    },
+    {
+     "tree": 2,
+     "dataset": "V2H",
+     "unreplayable": 7,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    },
+    {
+     "tree": 3,
+     "dataset": "H2H",
+     "unreplayable": 4,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    }
+   ],
+   "first_mismatches": [],
+   "documented_rules": {}
+  },
+  {
+   "case": "syn1m_b50k_s3",
+   "ok": true,
+   "store": "device:escher_gpu",
+   "exit": "normal",
+   "ops": 18,
+   "compared": 0,
+   "unreplayable": 18,
+   "mappings": 0,
+   "keys_compared": 0,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 0,
+   "unreplayable_trees": [
+    {
+     "tree": 1,
+     "dataset": "H2V",
+     "unreplayable": 7,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    },
+    {
+     "tree": 2,
+     "dataset": "V2H",
+     "unreplayable": 7,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    },
+    {
+     "tree": 3,
+     "dataset": "H2H",
+     "unreplayable": 4,
+     "unreplayable_reason": "the trace has no state digests (batches mode)"
+    }
+   ],
+   "first_mismatches": [],
+   "documented_rules": {}
+  }
+ ],
+ "totals": {
+  "ops": 54,
+  "compared": 0,
+  "unreplayable": 54,
+  "mappings": 0,
+  "keys_compared": 0,
+  "hash_only_rows": 0,
+  "growths": 0,
+  "compactions": 0,
+  "exceptions": 0,
+  "mismatch_count": 0,
+  "documented": 0,
+  "twin_constructs": 0
+ },
+ "problems": [],
+ "against_model": false,
+ "passed": true
+}

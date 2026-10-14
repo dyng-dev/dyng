@@ -166,6 +166,24 @@ dyng_add_module(
   CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu
 )
 
+# The hypergraph module (M8a): the ESCHER CBST store (internal; cpp/src/hypergraph/escher,
+# ADR 0038). The device store is CUDA-only; the host flatten is always built.
+dyng_add_module(
+  NAME hypergraph
+  SOURCES src/hypergraph/escher/flatten.cpp src/hypergraph/escher/store_policy.cpp
+  CUDA_SOURCES
+    src/hypergraph/escher/build_tree.cu
+    src/hypergraph/escher/cbst_store.cu
+    src/hypergraph/escher/compact.cu
+    src/hypergraph/escher/delete_avail.cu
+    src/hypergraph/escher/find.cu
+    src/hypergraph/escher/insert_reuse.cu
+    src/hypergraph/escher/integrity.cu
+    src/hypergraph/escher/locator.cu
+    src/hypergraph/escher/payload.cu
+    src/hypergraph/escher/unfill.cu
+)
+
 dyng_add_module(
   NAME io
   SOURCES
@@ -217,9 +235,17 @@ endforeach()
 
 # dyng::testing: host-only oracles for users and the test suites (PLAN Section 5.8). It shares no
 # code with the algorithms it checks.
+# The CBST host model (M8a, ADR 0037) is its own object library: it uses the C++ standard library
+# only, so its object file can be checked to reference nothing of dynG (cbst_model_isolation).
+add_library(dyng_testing_cbst_model OBJECT src/testing/cbst_host_model.cpp)
+target_include_directories(dyng_testing_cbst_model PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_compile_features(dyng_testing_cbst_model PRIVATE cxx_std_17)
+set_target_properties(dyng_testing_cbst_model PROPERTIES POSITION_INDEPENDENT_CODE ON)
+dyng_set_warnings(dyng_testing_cbst_model)
+dyng_enable_sanitizers(dyng_testing_cbst_model)
 add_library(
   dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp src/testing/cycle_oracle.cpp
-               src/testing/mosp_oracle.cpp
+               src/testing/mosp_oracle.cpp $<TARGET_OBJECTS:dyng_testing_cbst_model>
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(

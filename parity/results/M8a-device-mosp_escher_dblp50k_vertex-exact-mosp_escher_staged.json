@@ -1,0 +1,49 @@
+{
+ "set": "cbst_trace_mosp_escher_dblp50k_vertex",
+ "reference": "MOSP_ESCHER",
+ "manifest_sha256": "1068e319acbc9f9199e712f9e39a09221554e6e1af616d9d03a915f028cf0cd4",
+ "store": "device",
+ "policy": "mosp_escher_staged",
+ "fields": "exact",
+ "exe": "$DYNG_SCRATCH/m8a/merge-steps/wt-be449b6/build/cpp/tests/dyng_cbst_replay",
+ "date": "2026-10-08T02:39:03+00:00",
+ "head": "be449b65a021e230da5337276f5c87515179452d",
+ "cases": [
+  {
+   "case": "dblp_vertex_50000",
+   "ok": true,
+   "store": "device:mosp_escher_staged",
+   "exit": "normal",
+   "ops": 21,
+   "compared": 21,
+   "unreplayable": 0,
+   "mappings": 0,
+   "keys_compared": 48010053,
+   "hash_only_rows": 0,
+   "growths": 0,
+   "compactions": 0,
+   "exceptions": 0,
+   "mismatch_count": 0,
+   "documented": [],
+   "twin_constructs": 3,
+   "first_divergences": {}
+  }
+ ],
+ "totals": {
+  "ops": 21,
+  "compared": 21,
+  "unreplayable": 0,
+  "mappings": 0,
+  "keys_compared": 48010053,
+  "hash_only_rows": 0,
+  "growths": 0,
+  "compactions": 0,
+  "exceptions": 0,
+  "mismatch_count": 0,
+  "documented": 0,
+  "twin_constructs": 3
+ },
+ "problems": [],
+ "against_model": true,
+ "passed": true
+}

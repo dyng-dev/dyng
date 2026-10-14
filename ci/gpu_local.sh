@@ -47,6 +47,23 @@
 #              there. Set DYNG_GPU_PLUGIN_WHEELS=<dir> to test wheels built before (that
 #              directory's dist/ and core/dist/; no build). Skipped when the wheel toolchain is
 #              missing.
+#   cbst       the ESCHER CBST store (M8a, ADR 0038): compute-sanitizer racecheck, synccheck and
+#              initcheck on the store's GPU test executables (dyng_cbst_store_tests,
+#              dyng_cbst_device_tests: the committed traces of both originals,
+#              dyng_cbst_coverage_tests: A's skewed and medium traces, dyng_cbst_compact_tests:
+#              compact() after every op of the committed traces, and from M8a step 5
+#              dyng_cbst_scenario_tests, dyng_cbst_policy_tests and dyng_cbst_graph_tests at their
+#              reduced sizes, DYNG_CBST_REDUCED=1; memcheck covers them in the memcheck step), the
+#              device replay of the small trace golden sets under each original's preset
+#              (parity/compare.py cbst_trace --store device: escher_gpu_test, escher_gpu_targeted,
+#              mosp_escher_test, mosp_escher_targeted; skipped without the goldens), the same sets
+#              under dynG's default preset (field set "policy", M8a criterion 10(c)), each
+#              writing its certificate record parity-<set>-device-<preset>.json to
+#              $DYNG_GPU_RESULTS (default build/<preset>/cbst-records), MOSP_ESCHER's bin/main
+#              recorded and replayed once (parity/cbst_trace_goldens.py once main), and the
+#              lockstep with the host model over the small sets (dyng_cbst_compact_large_tests:
+#              compact() after every op, and every preset's layout without compactions).
+#              The CBST mutation tests cbst.mutation.* run in the ctest -L gpu step.
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -70,7 +87,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,57p' "${BASH_SOURCE[0]}"
+      sed -n '5,69p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -186,8 +203,9 @@ if ! skipped memcheck; then
     for exe in "${executables[@]}"; do
       [ -n "${exe}" ] || continue
       echo "--- $(basename "${exe}")"
-      if ! DYNG_TEST_SEEDS=2 heavy "${sanitizer}" --tool memcheck --leak-check full \
-        --error-exitcode 1 "${exe}" --gtest_filter='-CudaApiErrors.*' --gtest_brief=1; then
+      if ! DYNG_TEST_SEEDS=2 DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool memcheck \
+        --leak-check full --error-exitcode 1 "${exe}" --gtest_filter='-CudaApiErrors.*' \
+        --gtest_brief=1; then
         memcheck_ok=0
       fi
       # The second pass only where there are such tests: an executable that runs no test makes
@@ -254,6 +272,89 @@ if ! skipped racecheck; then
     record racecheck passed
   else
     record racecheck FAILED
+  fi
+fi
+
+if ! skipped cbst; then
+  step "the CBST store: sanitizers and the trace replays (GPU ${gpu})"
+  cbst_ok=1
+  cbst_exes=()
+  for t in dyng_cbst_store_tests dyng_cbst_device_tests dyng_cbst_coverage_tests \
+    dyng_cbst_compact_tests dyng_cbst_scenario_tests dyng_cbst_policy_tests \
+    dyng_cbst_graph_tests; do
+    if [ -x "${build_dir}/cpp/tests/${t}" ]; then
+      cbst_exes+=("${build_dir}/cpp/tests/${t}")
+    else
+      echo "${build_dir}/cpp/tests/${t} missing"
+      cbst_ok=0
+    fi
+  done
+  if [ -z "${sanitizer}" ]; then
+    echo "compute-sanitizer missing"
+    cbst_ok=0
+  else
+    for tool in racecheck synccheck initcheck; do
+      extra=()
+      [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
+      for exe in "${cbst_exes[@]}"; do
+        if ! DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+          --error-exitcode 1 "${exe}" --gtest_brief=1; then
+          echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
+          cbst_ok=0
+        fi
+      done
+    done
+  fi
+  if [ "${cbst_ok}" = 1 ]; then
+    record "cbst sanitizers (racecheck, synccheck, initcheck)" passed
+  else
+    record "cbst sanitizers (racecheck, synccheck, initcheck)" FAILED
+  fi
+  replay="${build_dir}/cpp/tests/dyng_cbst_replay"
+  # The replay records of the release certificate (parity/certify.py requires every CBST set
+  # under its original's preset and dyng_default; M8a review): parity-<set>-device-<preset>.json
+  # in $DYNG_GPU_RESULTS (the release's benchmarks/results/<version>), else in the build tree.
+  cbst_records="${DYNG_GPU_RESULTS:-${build_dir}/cbst-records}"
+  if [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/escher_gpu_test/MANIFEST.sha256" ]; then
+    echo "the CBST trace goldens are missing (parity/export_goldens.py cbst_trace); skipped"
+    record "cbst replays (device, small sets)" skipped
+  elif heavy python3 parity/compare.py cbst_trace --store device --replay-exe "${replay}" \
+    --gpu "${gpu}" --certificate "${cbst_records}" --set cbst_trace_escher_gpu_test \
+    --set cbst_trace_escher_gpu_targeted --set cbst_trace_mosp_escher_test \
+    --set cbst_trace_mosp_escher_targeted; then
+    record "cbst replays (device, small sets)" passed
+  else
+    record "cbst replays (device, small sets)" FAILED
+  fi
+  # The small sets under dynG's default preset (M8a step 5, criterion 10(c); field set "policy":
+  # rows, avail and subtree_avail identical, the policy differences documented).
+  if [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/mosp_escher_test/MANIFEST.sha256" ]; then
+    record "cbst replays (device, default preset)" skipped
+  elif heavy python3 parity/compare.py cbst_trace --store device --replay-exe "${replay}" \
+    --gpu "${gpu}" --certificate "${cbst_records}" --policy dyng_default \
+    --set cbst_trace_escher_gpu_test --set cbst_trace_escher_gpu_targeted \
+    --set cbst_trace_mosp_escher_test --set cbst_trace_mosp_escher_targeted; then
+    record "cbst replays (device, default preset)" passed
+  else
+    record "cbst replays (device, default preset)" FAILED
+  fi
+  # MOSP_ESCHER's bin/main (no golden set: its graph comes from std::random_device), recorded
+  # once and replayed right away under mosp_escher() (M8a review).
+  if [ ! -d "${DYNG_SCRATCH}/ref/MOSP_ESCHER@4b86159/patched" ]; then
+    record "cbst bin/main recorded and replayed once" skipped
+  elif heavy python3 parity/cbst_trace_goldens.py once main --replay-exe "${replay}" \
+    --gpu "${gpu}"; then
+    record "cbst bin/main recorded and replayed once" passed
+  else
+    record "cbst bin/main recorded and replayed once" FAILED
+  fi
+  # compact() after every op of the small sets, and every preset without compactions, in
+  # lockstep with the host model (M8a step 4; the policy lockstep of the M8a review).
+  if [ -x "${build_dir}/cpp/tests/dyng_cbst_compact_large_tests" ] &&
+    heavy "${build_dir}/cpp/tests/dyng_cbst_compact_large_tests"; then
+    record "cbst lockstep with the host model (compact after every op; every preset)" passed
+  else
+    record "cbst lockstep with the host model (compact after every op; every preset)" FAILED
   fi
 fi
 
