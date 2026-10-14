@@ -154,6 +154,10 @@ __global__ void mirror_additions_kernel(const unsigned long long* rows, long lon
                                         unsigned long long* num_out) {
   long long i = blockIdx.x * static_cast<long long>(blockDim.x) + threadIdx.x;
   if (i >= n) return;
+#if defined(DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED)
+  // MUTATION (PLAN 8.4, M8b criterion 20): the mirrored additions dropped.
+  return;
+#endif
   int e = static_cast<int>(rows[i] >> 32), h = pair_value(rows[i]);
   if (!is_inserted[h]) out[atomicAdd(num_out, 1ULL)] = pack_pair(h, e);
 }

@@ -95,10 +95,14 @@ void merge_line_graph(line_graph_layout& g, std::int64_t num_keys,
   // Inserted hyperedges join the rows of their non-inserted neighbours: (h, e) for every entry
   // (e, h) of a new row with h not inserted.
   std::vector<std::uint64_t> additions;
+#if !defined(DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED)
   for (const std::uint64_t p : rows) {
     const int h = pair_value(p);
     if (!is_inserted[static_cast<std::size_t>(h)]) additions.push_back(pack_pair(h, pair_key(p)));
   }
+#endif
+  // (MUTATION, PLAN 8.4, M8b criterion 20: DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED drops
+  // the mirrored additions: the neighbours of an inserted hyperedge do not gain it.)
   std::sort(additions.begin(), additions.end());
 
   const std::vector<std::int64_t> row_off = pair_ranges(rows, num_keys);

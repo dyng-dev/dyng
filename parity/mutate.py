@@ -273,6 +273,14 @@ MUTATIONS = [
         "defines": ["DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES"],
         "config": "sequential",  # the host backends' allocator
     },
+    {
+        "name": "hypergraph_mirror_additions_dropped",
+        "suite": "hypergraph",
+        "plan": "M8b 20: the line graph's mirrored additions dropped (the sorted merge, host and "
+        "device)",
+        "defines": ["DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED"],
+        "config": "sequential",  # a label: the suite runs on every backend
+    },
 ]
 
 
