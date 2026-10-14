@@ -1,9 +1,10 @@
 # Retrospective: M8b (the hypergraph container)
 
-Status: **in progress** on the branch `m8b-hypergraph`, created by the orchestrator from the head
-of the accepted M8a branch `m8a-escher-store` at `b45e685` (M8a's pull request #14 is open and the
-author merges it; `origin/main` `30c3eef`, 0.2.0 released and 0.3.0.dev0, is merged into M8a at
-`889953a`, so nothing was merged at the start of M8b). M8b is the second half of PLAN 11.3's M8
+Status: **done** (all five steps), pending the hosted CI and the author's merge of its pull
+request, on the branch `m8b-hypergraph`, created by the orchestrator from the head of the accepted
+M8a branch `m8a-escher-store` at `b45e685` (`origin/main` `30c3eef`, 0.2.0 released and 0.3.0.dev0,
+was merged into M8a at `889953a`; the author merged M8a as #14, `2de6ebe`, which step 5 merged
+into this branch, `8278b89`). M8b is the second half of PLAN 11.3's M8
 row: the public `hypergraph` on the ESCHER store of M8a, its line graph, update path, I/O,
 generators and Python, and the freeze of the hypergraph headers; it runs in five steps, and each
 step adds its section here. Release 0.3.0 = M8a + M8b + M9 (PLAN Appendix F).
@@ -448,3 +449,171 @@ the author's confirmation at the release.
   the legacy generators, Hypothesis strategies): step 5.
 - The author's confirmations at the 0.3.0 release (the frozen hypergraph headers, `.hg` and
   `.dgb` stable at version 1) are still pending; the plan's default applies until then.
+
+## Step 5: Python, the API review and freeze, the parity tooling, the records (python-freeze-records)
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `8278b89` | `main` merged (M8a merged as #14 at `2de6ebe`, byte-identical to `b45e685`; strategy `ours`, no file changes) |
+| `d170ecc` | ADR 0046 (the hypergraph in Python), before the code; GOVERNANCE and index rows |
+| `1ed4671` | the bindings (`hypergraph.cpp`; the hyperedge batch in `batch.cpp`; `.hg`, `.dgt` hyperedge batches, `.dgb` and `BatchReader` in `io.cpp`; the hypergraph and ESCHER generators in `generators.cpp`; `rebuild_line_graph` in `testing.cpp`), the typed layer (`dyng/hypergraph.py`, `dyng.io`, `dyng.generators`, `dyng.testing`), the stubs, `python_gaps.md` |
+| `995d5ea` | the Python tests (container, io, generators and Hypothesis properties, the dump replays, CUDA) |
+| `aa7b679` | the review's additions (`hyperedge_batch`'s incidence accessors, its `noexcept` constructor, the `row_alignment` comment) and the compile-only fitness skeletons for M9 and M11 (`cpp/tests/api/fitness`) |
+| `753449e` | the freeze: `dyng/hypergraph/*` frozen in `ci/api_snapshot.py` and the baseline, the freeze's Doxygen rules, the snapshot test |
+| `2b89333` | ADR 0047 (the review and the freeze, with the demonstration), GOVERNANCE rows (ADR 0047, O16 at the freeze, the open decision of the release), CHANGELOG |
+| `bdedf89` | the certificate's hypergraph-id schema (`compare.py hypergraph_ids --certificate`, `certify.py` from 0.3), the memory reading through `read_hypergraph`, `gpu_local.sh`, `parity/README.md`, `release.md` |
+| `4cb2488`, `2949ddb` | `HyperedgeBatchMixName`; the docs (concepts page, Python how-to, the frozen API page, file formats, the Python API page, the sketch's status, the stale label) |
+| `1f05995`, `fa7324e` | `plan.md` and `roadmap.md` rows, the CHANGELOG's certificate entry; clang-format of the bindings |
+| `d0a81ec` | every replay of steps 1-4 again at the step's code, the memory and maintain readings |
+| `7294720` | the author's merge-method decision of 2026-10-14 (merge commits only; ADR 0019 amended; GOVERNANCE, `repository_settings.md`, CONTRIBUTING, the pull request template) and where M8a's cited commits live (`parity/results/M8a.md`, the M8a retrospective) |
+| `d077ccb`, `bc4e955`, `3281f10` | `ci/gpu_local.sh`: C12's two host threads under synccheck and memcheck, not racecheck (deviation 13); ADR 0019's end of file; the tidy step without the hypergraph template (deviation 15) |
+| (the records commit) | `parity/results/M8b.md` section 5, the mutation record, the dry-run certificate, this section |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **`main` was merged with the strategy `ours`.** The author merged M8a as the squash commit
+   `2de6ebe`, whose tree is byte-identical to `b45e685`, the M8a head this branch started from; a
+   three-way merge from the old base `30c3eef` reports conflicts only where M8b changed M8a's files.
+   The merge (`8278b89`) keeps this branch's tree, which is the correct result; `git diff HEAD
+   main` shows M8b's changes only.
+2. **The Python replay of the dumps reads the committed extracts with the repository's trace
+   reader** (`parity/escher_trace.py`) and reproduces the C++ replay's decoding rules in the test,
+   instead of committing `.hg` / `.dgb` exports of them: the repository's test data was at its
+   1 MB budget (998,934 bytes in `cpp/tests/data`), and the exports would have added 110 KB. The
+   test skips where the parity harness is absent (an sdist).
+3. **The views are host copies in Python** (`Incidence`, `LineGraph`), and `BatchReader` gives host
+   batches: a zero-copy device view of a container needs the staleness rule `dyng.Array` has for
+   results (`python_gaps.md`, ADR 0046).
+4. **int64 member arrays raise `NotSupportedError`** without `vertex_dtype="int32"` (PLAN 5.4
+   rule 2: only int32 hypergraphs are compiled, and an int64 array never selects a narrower type
+   on its own). Python lists take int32 when they fit.
+5. **`dyng.update()` over hypergraphs is not bound** before M9 (no hypergraph result exists to
+   update); listed in `python_gaps.md`.
+6. **The review ADR (0047) follows the freeze commit**, because it records the demonstration made
+   on that commit; `aa7b679` (the review's additions) alone does not match the API baseline, which
+   `753449e` updates.
+7. **O16 is recorded as the author's decision**, not as "pending the author's confirmation" as the
+   acceptance text says: the GOVERNANCE approvals log has the author's O16 decision of 2026-10-07
+   (`erase_first`, the plan's default). What awaits the author at the 0.3.0 release is that the
+   frozen headers (and `.hg` / `.dgb` at version 1) are stable (a new open decision).
+8. **The pull request is not opened by this step**: the implementer must not push, and a pull
+   request needs the branch on GitHub. The description is prepared for the orchestrator in
+   `$DYNG_SCRATCH/orchestration/M8b-pr-body.md` (it says the pull request needs the `api-change`
+   label).
+9. **The certificate is a dry run**: the hypergraph-id records of every set, and the small CBST
+   sets' store records; the large CBST sets' store replays, the performance suites and the release
+   checks belong to the release (the dry run reports them missing).
+10. **`dyng_hypergraph_ids --hg` builds A's by-id container from the file** (after checking its
+    rows and vertex count against A's) instead of only comparing it, so the memory gate loads
+    coauth-DBLP through the public reader; the replays without `--hg` are unchanged.
+11. **The maintain reading is at the base clock lock** (ADR 0021), as step 2's.
+12. **Wheel sizes were measured once, before the freeze commit** (`ci/plugin_wheels.sh` with cu12
+    and cu13 and both Pythons); the later commits change headers by four inline accessors and
+    comments. `ci/gpu_local.sh`'s plugin step rebuilt the cu13 wheel at the final code.
+13. **`ci/gpu_local.sh` runs `HypergraphCuda.TwoContainersOnTwoNonBlockingStreams` (C12, two host
+    threads on two non-blocking streams) under synccheck and memcheck, not racecheck** (`d077ccb`).
+    The step's first `gpu_local.sh` run died with the interrupted session after more than 70
+    minutes in racecheck of `dyng_hypergraph_cuda_tests`, whose list already left out the long
+    random streams. Probing each test: the other 44 tests take 51 s under racecheck and
+    `SpecialBatches` (rows over 1,024 entries) 10 s, but the two-thread test took 59 s in two
+    runs and more than 400 s in four others (two timed out at 400 s, two were stopped after 10
+    and 22 minutes, one of them with `OMP_NUM_THREADS=8 OMP_WAIT_POLICY=passive`). Without a sanitizer it is stable (50 repetitions, 9.2 s each at full
+    size) and synccheck runs it in 3 s with 0 errors. Racecheck checks shared-memory hazards inside
+    a kernel, and this test's kernels are the ones the single-stream tests run under racecheck, so
+    leaving it out of racecheck loses no kernel; the kit's C12 (one host thread, two streams) stays
+    under racecheck (43 s). The racecheck list is therefore bounded like the other suites'
+    sanitizer steps (the cbst step's reduced sizes, the kit's C1/C11/C12).
+14. **The author's merge-method decision of 2026-10-14 is recorded here** (`7294720`): M8a reached
+    `main` as the squash commit `2de6ebe`, squash merging is off since, and ADR 0019 is amended
+    (merge commits only). The M8b pull request is merged with a merge commit, which brings M8a's
+    cited commits back into `main`'s history.
+15. **`ci/gpu_local.sh`'s `clang-tidy` step ran over `cpp/src/algorithms/_template_hypergraph`**,
+    which is not compiled (step 3 added the template and its exclusion to `ci/check.sh`'s tidy step
+    only), so it failed on the template's includes; `3281f10` excludes it as `ci/check.sh` does. No
+    library source had a finding.
+
+### Measurements
+
+- **Python**: 71 hypergraph tests (65 on the CPU: container, io, generators and Hypothesis
+  properties, the dump replays; 6 CUDA tests with a plugin), the whole suite 626 passed, 72 skipped (CPU); with the cu13 plugin
+  `pytest -m gpu` 61 passed (both Pythons), the suite with `DYNG_CPU_ONLY=1` 624 passed.
+- **Wheels** (`ci/plugin_wheels.sh`, `DYNG_PLUGINS="cu12 cu13"`, local toolkits CUDA 12.9 and
+  13.1): `dyng` 1.99 MB (sdist 1.42 MB), `dyng-cu12` 8.27 MB, `dyng-cu13` 8.19 MB, all far below the
+  90 MB budget; growth since the local 0.2.0rc1 builds (R020: 1.70 MB, 0.99 MB, 6.0 MB and 6.2 MB
+  with CUDA 12.9 and 13.4): +0.29 MB (CPU), +2.3 MB (cu12), +2.0 MB (cu13), the hypergraph
+  container, its line graph and the store.
+- **Replays** (results, section 5.3): every set on every backend, 0 mismatches.
+- **Memory gate** (5.4): 1.0000 at every point, through the public reader. **Maintain** (5.5):
+  0.893x (coauth50k), 0.859x (syn1m); delete 1.72x / 2.91x as in step 2.
+- **Mutations** (5.6): 11 / 11 detected, control passing.
+- **Effort**: M8b's five steps ran from 2026-10-13 22:22 to 2026-10-14 about 14:30 (CDT; step 5
+  was interrupted by a usage limit at about 10:15 and resumed), under one day of wall-clock time
+  for the whole milestone, against the plan's re-baselined "M8b and M9
+  about 1-1.5 weeks"; the plan now expects M9 in 3-5 days plus the review and fix steps.
+
+### Checks of the step
+
+| Check | Result |
+|---|---|
+| `ci/check.sh` | the first run passed every step but `format` (clang-format of the bindings), `precommit` (the same) and `scaffold` (its "--remove leaves the tree unchanged" check saw `parity/results` rewritten by the replays running at the same time); after `fa7324e` and `d0a81ec`, `DYNG_CHECK_ONLY="format scaffold precommit"`: all passed. cpu-only 1,062 and dev 1,095 tests, harness 261, Python 626 passed / 72 skipped, scaffold 80 + 3 + 54 + 41, docs, API |
+| `ci/check.sh` after the resume | `DYNG_CHECK_ONLY="format reuse provenance docs precommit"` over the merge-method records and this record: passed (the first run's `end-of-file-fixer` finding in ADR 0019 fixed in `bc4e955`); no C++, Python or build file changed after `d0a81ec` but `ci/gpu_local.sh` |
+| `ci/api_check.sh main` | no breaking change of the frozen C++ API or of the Python API; 152 lines added to the frozen API (the six hypergraph sections, newly frozen) |
+| the freeze demonstration (ADR 0047, Decision 4) | a removed default of `hypergraph::from_hyperedges()` fails `ci/docs.sh` and `ci/api_check.sh 753449e`; a renamed Python parameter fails `ci/api_check.sh`; reverted, both pass |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | the resumed run (11:30-14:05, records in `$DYNG_SCRATCH/runs/m8b-step5r`): 18 of 19 steps passed at `bc4e955` (build; `ctest -L gpu` 674 / 674; `ctest -L cpu` 1,095 / 1,095; the cuda goldens; memcheck; synccheck (sssp, mosp, cycle_count); racecheck (cycle_count); the cbst sanitizers, replays and lockstep; the hypergraph sanitizers (racecheck and synccheck of the three hypergraph executables and the kit's C1 / C11 / C12: 0 hazards, 0 errors) and replays; the cu13 plugin wheel, `pytest -m gpu` 61 passed, the suite 626 passed / 72 skipped, `dyng-cu13` 8.19 MB); `clang-tidy` failed on the uncompiled hypergraph template (deviation 15), fixed in `3281f10`, then build and `clang-tidy` re-run: passed. The first run of the step died with the interrupted session in racecheck (deviation 13) |
+| wheels | `ci/plugin_wheels.sh` with cu12 and cu13: `twine check --strict`, `ci/wheel_check.py` (90 MB budget, contents, code objects) clean; install tests on Python 3.12 and 3.13 (`pytest -m gpu` 61 passed, the suite with `DYNG_CPU_ONLY=1` 624 passed) |
+| every replay on every backend | results, section 5.3: 0 mismatches |
+| mutations | 11 / 11 detected (results, 5.6) |
+| fresh clone at `d0a81ec` | cpu-only built, `ctest -L cpu` 1,062 / 1,062 passed; dev-cuda built |
+| portability | Clang 18 `-fsyntax-only`: 0 failures over 379 files (dev with the Python bindings) and 752 (dev-cuda); cpu-only with `-D_FORTIFY_SOURCE=3` and the Python bindings: built without warnings |
+| Python | `ruff`, `mypy --strict`, `regen.py --stubs --check`, the doc snippets (9) |
+
+### Notes for M9 (triad_count): the handoff
+
+- **What triad_count reads, and how** (the fitness skeleton `cpp/tests/api/fitness/
+  m9_triad_count_fitness.cpp` compiles all of it): a hypergraph problem whose participant
+  (`detail::hyper_update_participant<V, W>`) returns `reads_prepared_graph() = true`, so
+  `run_update()` makes sure the line graph exists on G_t; `use_normalized()` gives Step 0's live
+  deleted ids (the frontier of count(-)); in `before_apply()` count(-) reads the internal row
+  views (`hypergraph_access::views(h)` after `require_line_graph(h)`: ESCHER-GPU's `RowView`s of
+  H2V and H2H, keys = id + 1, values + 1, `out` set; device memory on CUDA, the same layout on
+  the host backends) or the public views (0-based, `int64` offsets, `out`); in `after_apply()`
+  count(+) reads the new views with `inserted_ids` (host) and `hyper_applied::
+  inserted_ids_device` (CUDA), plus `deleted_members` and the touched sets.
+  `framework/fake_hyper_problems.hpp` (step 3) is the worked example; `scripts/new_algorithm.py
+  triad_count --container hypergraph --family aggregate_delta` gives the green start.
+- **Parity inputs**: `dyng-compat-escher to-dgb` writes A's runs as `.hg` + `.dgb` (expected ids,
+  deleted member sets); replay by key and by content through `io::batch_reader` (the skeleton shows
+  both with public API only); `generators::legacy` redraws A's synthetic runs without traces.
+- **The maintain-stage risks**: `hypergraph.apply.delete` is 1.7-2.9x A's delete timers (the host
+  grouping, timed there; `maintain` whole 0.86-0.89x); coauth's `hypergraph.apply` grew by 8 ms
+  outside its sub-stages since step 2 (5.5), to profile in M9 first; host syncs 21 per batch
+  against A's 76.
+- **The memory peak**: the nsys peak (dynG 3,019.1 MiB, A 3,018.9 MiB with its counting) is gated
+  in M9 with the counting included; dynG's counting temporaries add to the merge's peak.
+- **The layout-control decision**: the maintain reading ran with one heap layout (ADR 0024's
+  protocol); the author's decision of 2026-10-08 on layout control for the 0.2 gates (GOVERNANCE
+  approvals log) applies to M9's gated `update` reading too; no new decision is needed unless the
+  M9 reading shows layout-dependent modes.
+- **Clocks**: the boost lock does not hold for A's process on coauth-DBLP (power cap); M9's gate
+  is read at the base lock (ADR 0021) unless that changes.
+
+### Decisions for the author (collected for the 0.3.0 release)
+
+1. **Stable from 0.3.0**: the hypergraph headers frozen at M8b (ADR 0047) and the `.hg` / `.dgb`
+   formats at version 1 (ADR 0045); the plan's default applies until the author confirms or
+   changes it at the release (GOVERNANCE.md, open decisions).
+2. **O16** (`id_reuse` default `erase_first`): decided by the author on 2026-10-07; a change before
+   0.3.0 would be an api-change.
+3. **The M8 memory gate reading** (store accounting; the nsys peak gated in M9): decided by the
+   author on 2026-10-07; the readings above follow it.
+4. **Merging the M8b pull request** (with the `api-change` label), after the hosted CI.
+
+### Open items
+
+- **Hosted CI has not run on this branch** (nothing is pushed); the pull request is the
+  orchestrator's (deviation 8).
+- The coauth `hypergraph.apply` drift of 5.5 is unprofiled (M9 note).
+- The long random streams and C12's two-host-thread test are not run under racecheck (deviation
+  13; memcheck covers all of them, synccheck the two-thread test).

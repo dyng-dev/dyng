@@ -6,7 +6,7 @@ the level of the container (PLAN 6.4.5, 8.3, 11.3; ADR 0041). Each step adds its
 
 | Item | Value |
 |---|---|
-| Branch | `m8b-hypergraph`, created by the orchestrator from the head of the accepted M8a branch `m8a-escher-store` at `b45e685` (M8a's pull request #14 is open: `git merge-base --is-ancestor m8a-escher-store origin/main` fails, so the base is M8a's head, not `origin/main`; `origin/main` `30c3eef` (0.2.0 released, 0.3.0.dev0) is already merged into it at `889953a`). `origin/main` is merged again once the author merges M8a. |
+| Branch | `m8b-hypergraph`, created by the orchestrator from the head of the accepted M8a branch `m8a-escher-store` at `b45e685` (M8a's pull request #14 is open: `git merge-base --is-ancestor m8a-escher-store origin/main` fails, so the base is M8a's head, not `origin/main`; `origin/main` `30c3eef` (0.2.0 released, 0.3.0.dev0) is already merged into it at `889953a`). `origin/main` is merged again once the author merges M8a: done in step 5 (`2de6ebe`, M8a merged as #14, byte-identical to `b45e685`; merge `8278b89`). |
 | References | ESCHER-GPU `abcf9b2bd42f896ec3103a6835edf713ed5e416c` (A), MOSP_ESCHER `4b86159ec0b3bfe6e18c718ff4bef1494d7276a5` (B, the committed tree only) |
 | Inputs | M8a's CBST trace sets (`parity/goldens.toml`, `[sets.cbst_trace_*]`, files under `$DYNG_SCRATCH/goldens/cbst_trace`): their batch records (A: `escher_gpu.build` / `escher_gpu.update`; B: `mosp_escher.bulk_load` / `begin_batch` / `finish_batch`) are the dumps of the container-level replay |
 | Toolchain | GCC 12.2.0, CUDA 13.1 (`/usr/local/cuda-13.1/bin/nvcc`), sm_86 |
@@ -498,3 +498,139 @@ self-tests, which report the broken round trip for `hg` and `batch_binary` too) 
 `M8b-legacy-escher_gpu_syn1m-cuda.json`, `M8b-legacy-escher_gpu_coauth50k-openmp-t16.json` (also
 the `.hg` check and the by-content replay), `M8b-hg-mosp_escher_dblp50k_hyperedge-openmp-t16.json`,
 `M8b-dgb-replay.json`, `M8b-fuzz.json`.
+
+## 5. Step python-freeze-records: Python, the API review and freeze, the parity tooling, the final gates
+
+### 5.1 What was built (ADRs 0046, 0047)
+
+- **Python** (criterion 17; ADR 0046): `dyng.Hypergraph` (`from_hyperedges`, `from_lists`),
+  `dyng.HyperedgeBatch`, `dyng.HypergraphProperties`, `dyng.CapacityPolicy` with its presets,
+  `dyng.HyperApplySummary` (`inserted_ids` an int64 array), `dyng.StorageStats`; `dyng.io`
+  (`read_hypergraph` / `write_hypergraph` with the option sets and the property keywords, the
+  `.dgt` hyperedge batches, `.dgb` with `BatchReader`); the generators (library-owned and
+  ESCHER-GPU's legacy ones with `EscherEngine`); `dyng.testing.rebuild_line_graph`, a pure-Python
+  `HypergraphModel`, the Hypothesis strategies `hypergraphs()` / `hyperedge_batches()`. Native
+  holders `HypergraphI32U` / `HypergraphI32I32`; every native call releases the GIL (tested);
+  int64 members are refused without `vertex_dtype="int32"`. Stubs regenerated (`regen.py --stubs
+  --check` passes), `test_api_surface` and `test_python_defaults_equal_the_cpp_defaults` extended
+  (`HypergraphProperties`, `CapacityPolicy`, `HypergraphReadOptions`, `WeightSpec`),
+  `python_gaps.md` lists every unbound hypergraph symbol (`dyng.update()` over hypergraphs: M9).
+- **The API review and the freeze** (criterion 18; ADR 0047): 17 findings, two additions
+  (`hyperedge_batch`'s incidence accessors, its `noexcept` constructor), the freeze's Doxygen
+  rules for `dyng/hypergraph/` (group, `@throws`, `@sync` / `@async`), compile-only fitness
+  skeletons for M9 and M11 (`cpp/tests/api/fitness`, built in every preset), `dyng/hypergraph/*`
+  frozen in the baseline (io, generators, testing tracked).
+- **Parity tooling** (criterion 20): `compare.py hypergraph_ids --certificate` (the hypergraph-id
+  record schema), `certify.py` requiring those replays from the 0.3 series, `ci/gpu_local.sh`
+  writing the CUDA records of the small sets, `perf_ab.py hypergraph memory` loading coauth-DBLP
+  through `read_hypergraph`, `parity/README.md` (the hypergraph tools; re-exporting the sets).
+
+### 5.2 Python replays of both originals' dumps (criterion 17)
+
+`python/tests/test_hypergraph_parity.py` decodes the committed batch extracts
+(`cpp/tests/data/goldens/hypergraph_batches`, read with `parity/escher_trace.py`) by the C++
+replay's rules and drives `dyng.Hypergraph` from Python:
+
+| dump | properties | result (sequential, openmp; cuda in `test_hypergraph_cuda.py`) |
+|---|---|---|
+| A, `016-main` (`main --input small.hg --batches 3 --batch-size 20 --seed 3`) | `erase_first`, `CapacityPolicy.escher_gpu(capacity)` | 3 batches, 30 `inserted_ids` = A's `insertedKeys - 1`, h2v rows by id = A's model, `check_integrity()` after every batch; `EscherBatchGenerator(EscherEngine(3), batch_size=20, insert_mode="sample")` draws A's 3 batches again from the container |
+| B, `014-test_h2h_delta` (9 sessions) | `insert_first`, `CapacityPolicy.mosp_escher(extra)` with B's factor | 9 sessions, 10 hyperedge-kind batches, 258 ids = B's `finalIds - 1`, their weights = B's `final_weights` |
+
+### 5.3 The final replays at the step's code (criteria 4-7, 16)
+
+Every replay of steps 1-4 again (`compare.py hypergraph_ids`, `build/parity-cuda`, records in
+`parity/results/M8b-{hypergraph-ids,h2h,legacy}-*.json`, refreshed): **0 mismatches** in every
+row.
+
+| replay | sets | backends | result |
+|---|---|---|---|
+| ids, rows, skipped ops, by id and by content | A: `escher_gpu_test` (114,965 ids), `coauth50k` (75,000), `syn1m` (225,000); B: `mosp_escher_test` (34,597), `dblp50k_hyperedge` (75,000) | cuda, sequential, openmp 1 and 8 threads | OK on all 20; by content: A's live sets after 180 / 3 / 9 of 180 / 3 / 9 batches (21,330 / 824 / 3,159 ambiguous resolutions) |
+| the committed traces and extracts | `committed` (291 ids) | the same four | OK |
+| the line graph (A's H2H after every batch; memory ratio) | A's three sets | cuda, sequential, openmp 8 | OK; every state's layout equal to A's H2H input, memory ratio 1.0000 at every point |
+| the legacy generators | `escher_gpu_test`, `syn1m` | cuda, openmp 8 | OK; every batch drawn again equals A's |
+| the CBST store (M8a), small sets under both presets | `escher_gpu_test`, `escher_gpu_targeted`, `mosp_escher_test`, `mosp_escher_targeted` | device | OK |
+
+### 5.4 The memory gate at HEAD (criterion 8): GO, through the public reader
+
+`parity/perf_ab.py hypergraph memory --gpu 0` (exclusive perf lock; record
+`M8b-memory-step5.json`), now loading the hypergraph through `io::read_hypergraph(coauth.hg,
+hypergraph_read_options::escher_gpu())` (2,467,389 hyperedges, checked equal to A's loaded rows and
+vertex count before the container is built from them):
+
+| point | ESCHER-GPU `deviceBytes()` | dynG `device_bytes` | ratio (gate <= 1.05) |
+|---|---:|---:|---:|
+| after the build | 1,922,784,204 | 1,922,784,204 | 1.0000 |
+| after batch 1 | 1,923,300,764 | 1,923,300,764 | 1.0000 |
+| after batch 2 | 1,923,713,052 | 1,923,713,052 | 1.0000 |
+| after batch 3 | 1,924,170,844 | 1,924,170,844 | 1.0000 |
+
+The unpatched copy prints `1833.7 MB after init, 1835.0 MB after the last batch` (agrees with the
+trace). Nsight Systems peaks (recorded, gated in M9): A 3,018.9 MiB (with its counting), dynG
+3,019.1 MiB (pool 3,104.0 MiB): unchanged from step 2.
+
+### 5.5 The maintain reading at HEAD (criterion 9; reported, not gated)
+
+`parity/perf_ab.py hypergraph maintain --gpu 0 --runs 5 --lock-clocks base` (record
+`M8b-maintain-step5.json`; the protocol of section 2.4: A/B/A/B, 5 rounds per side, exclusive perf
+lock, GPU 0, one layout, host syncs counted per batch; the base lock of ADR 0021 because A's
+process runs under the power cap at boost, section 2.4). Medians of 5 rounds, the sums of the 3
+batches (ms):
+
+| region | coauth50k A | dynG | ratio | syn1m A | dynG | ratio | step 2 (coauth / syn1m) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| maintain | 207.82 | 185.57 | **0.893** | 165.58 | 142.18 | **0.859** | 0.854 / 0.859 |
+| maintain.delete | 11.07 | 18.98 | 1.715 | 9.83 | 28.64 | 2.913 | 1.716 / 2.957 |
+| maintain.insert | 57.73 | 39.41 | 0.683 | 43.62 | 37.93 | 0.870 | 0.681 / 0.872 |
+| maintain.line_graph | 96.81 | 79.82 | 0.825 | 59.81 | 47.35 | 0.792 | 0.829 / 0.811 |
+| maintain.views | 22.62 | 6.80 | 0.301 | 15.15 | 3.40 | 0.225 | 0.299 / 0.221 |
+
+Worst batch: syn1m batch 2, maintain 1.024 (step 2: 1.026). Host synchronizations per batch: A 76
+(70 in syn1m's batch 2), dynG 21 (18). **Above 1.05x:** `maintain.delete` only, as in step 2: its
+profile is section 2.4's (the host grouping of the deleted incidences, timed in dynG's delete
+stage and in A's `maintain.prepare`), its M9 risk is in the retrospective. **New since step 2:**
+coauth's `maintain` is 8.2 ms (4.6%) slower than step 2's reading (177.37 -> 185.57) while its
+four sub-stages are unchanged (145.0 vs 145.4 ms) and syn1m is unchanged: the difference lies in
+`hypergraph.apply` outside the four sub-stages (validation, the transaction's Step 0 staging of
+step 3, the applied record). Not profiled in
+this step; recorded as an M9 note (the `update` gate of M9 times `hypergraph.apply` whole).
+
+### 5.6 Mutations (criterion 20)
+
+`parity/mutate.py run --suites cbst,hypergraph,kit` (record `M8b-mutate.json`; `git archive` of
+the step's code, `parity-cuda`, every suite on every backend): control passed; **11 / 11
+mutations detected**: the 7 CBST mutations of M8a (`cbst_unfill_drops_last`,
+`cbst_graph_own_ids`, `cbst_reversed_ties`, `cbst_surplus_rule1`, `cbst_keep_dead_slots`,
+`cbst_compaction_padding`, `cbst_requested_keys`; the M8a suites still fail on CUDA), M8b's
+`hypergraph_h2v_not_deduplicated` (MOSP_ESCHER #6), `hypergraph_allocator_ties_reversed`,
+`hypergraph_mirror_additions_dropped` and the kit's `kit_frontier_requested_ids`.
+
+### 5.7 The certificate's hypergraph-id schema (criterion 20)
+
+`certify.py` accepts the records of `compare.py hypergraph_ids --certificate` and, from the 0.3
+series, requires them (`HYPERGRAPH_ID_REPLAYS`: the ids of A's three and B's two sets on
+sequential, openmp and cuda; A's line graph on cuda); a 0.3 certificate without them fails, a 0.2
+one does not (`parity/tests/test_release_cert.py::test_hypergraph_id_replays_are_required_from_0_3`).
+**Dry run** (record `M8b-certificate-dryrun.json`): `certify.py write --version 0.3.0.dev0` over
+the records of this step's code: the hypergraph-id requirement holds for all 5 sets; the small CBST
+sets pass whole; the 4 large CBST sets fail only M8a's requirement of the store's replays under
+both presets, which this dry run did not run (they are release step 1, `release.md`). The rest of
+a certificate (performance suites, release checks) was not run: a dry run, not a certificate.
+
+### 5.8 Checks of the step
+
+The table is in the retrospective (step 5, "Checks of the step"): `ci/check.sh`, `ci/api_check.sh
+main`, the freeze demonstration, `ci/gpu_local.sh`, the wheels, a fresh clone's cpu-only and
+dev-cuda builds, the Clang 18 syntax pass and the fortified build. `ci/gpu_local.sh` (dev-cuda,
+GPU 1) passed every step at the final code: the hypergraph sanitizers (racecheck and synccheck of
+`dyng_hypergraph_cuda_tests`, `dyng_hypergraph_ids_cuda_tests`, `dyng_io_cuda_tests` and the kit's
+C1 / C11 / C12; the two-host-thread C12 test under synccheck and memcheck only, retrospective
+step 5 deviation 13) and the small sets' replays on cuda (the ids, rows, line graph and legacy
+generator records above, written again), after `3281f10` fixed its `clang-tidy` step.
+
+### 5.9 Records
+
+`M8b-memory-step5.json`, `M8b-maintain-step5.json`, `M8b-mutate.json`,
+`M8b-certificate-dryrun.json`; the replay records of steps 1-4 refreshed at the step's code
+(`M8b-hypergraph-ids-*.json`, `M8b-h2h-*.json`, `M8b-legacy-*.json`, the new
+`M8b-legacy-escher_gpu_test-cuda.json`). The records of step 2's readings (`M8b-memory.json`,
+`M8b-maintain-base.json`) stay as they were.

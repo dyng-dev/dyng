@@ -194,6 +194,10 @@ Before 0.1.0 anything may change.
   the small sets). The memory reading of the hypergraph (`perf_ab.py hypergraph memory`) loads
   coauth-DBLP through `io::read_hypergraph(..., escher_gpu())`. The vertex-operation fields of
   the Python bindings' batch and the `good-first-issue:op` label name 0.4 and 0.3.
+- Merge policy: **every pull request is merged with a merge commit**; squash merging is off since
+  2026-10-14 (the author's decision after M8a was squash-merged as `2de6ebe`; ADR 0019 amended,
+  `GOVERNANCE.md`, CONTRIBUTING.md, the pull request template). `ci/gpu_local.sh` runs the
+  hypergraph container's two-host-thread C12 test under synccheck and memcheck, not racecheck.
 
 ## [0.2.0] - 2026-10-14
 
