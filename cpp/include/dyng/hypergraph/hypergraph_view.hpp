@@ -53,8 +53,10 @@ struct incidence_view {
  *        hyperedge to the other hyperedges it shares at least one vertex with.
  *
  * Rows are indexed by hyperedge id, sorted and contiguous; a dead id has an empty row. `out[r]`
- * is the offset of the first neighbour of row r with an id greater than r. The arrays live in the
- * container's memory space and are invalidated by the next hypergraph::apply().
+ * is the offset of the first neighbour of row r with an id greater than r. `row_ptr`, `col_ind`,
+ * `out` and `overlaps` live in the container's memory space; `weights` is host memory on every
+ * backend (each array_view carries its space). All are invalidated by the next
+ * hypergraph::apply().
  * @tparam weight_t The hyperedge weight type (unweighted: no weights).
  * @ingroup hypergraph
  */
@@ -64,7 +66,7 @@ struct line_graph_view {
   array_view<const std::int64_t> col_ind;   ///< the neighbour ids of every row, sorted
   array_view<const std::int64_t> out;       ///< per row: the first neighbour above the row's id
   array_view<const std::int32_t> overlaps;  ///< shared vertices per entry; empty under escher
-  array_view<const weight_t> weights;       ///< the hyperedge weights by id; empty if unweighted
+  array_view<const weight_t> weights;       ///< weights by id (host memory); empty if unweighted
   std::uint64_t version = 0;                ///< the hypergraph version this view describes
 
   /**

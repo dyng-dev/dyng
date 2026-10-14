@@ -142,6 +142,11 @@ request; each amendment below keeps the decisions above and corrects what the fr
   and the Python docstring still said "terminator". Both now say: a surplus row inserted by a
   batch reserves its members rounded up to a multiple of this, plus one slot; the concepts page
   says that its worked example is the construction layout, which `row_alignment` does not set.
+- **Finding 12, `line_graph_view::weights`.** The finding said the host memory of `weights` was
+  documented in the header, but only `hypergraph::h2h()` and `weights()` said so; the frozen
+  struct's own comment said "the arrays live in the container's memory space". The struct and
+  the field now say that `weights` is host memory on every backend (the decision stands; M11's
+  device weights for `hyper_sssp` are a separate device copy, ADR 0041 section 3).
 - **Finding 5, `skipped_ops`.** The field was documented as `ignored_deletions +
   dropped_members`, which left no room for the incidence-edit skips that M11 must count (B's
   `skippedOps` parity, check C9), so "M11 adds behaviour, not declarations" did not hold. The
