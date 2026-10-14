@@ -8,6 +8,13 @@ Before 0.1.0 anything may change.
 
 ## [Unreleased]
 
+### Changed
+
+- `VERSION` is 0.3.0.dev0, the development version after the 0.2.0 release.
+- The documented `find_package(dyng 0.3 REQUIRED)` (README.md, docs/getting_started/install.md)
+  follows the development version, which `ci/cmake_consumer.sh` requires; a build of 0.2.0
+  asks for 0.2.
+
 ## [0.2.0] - 2026-10-14
 
 ### Summary
