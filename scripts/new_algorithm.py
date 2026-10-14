@@ -382,8 +382,7 @@ def create(args: argparse.Namespace, root: Path) -> int:
     if status != 0:
         return status
     print(
-        f"new_algorithm.py: created {name} ({args.container}, {args.family}; "
-        f"{', '.join(backends)})"
+        f"new_algorithm.py: created {name} ({args.container}, {args.family}; {', '.join(backends)})"
     )
     if planned:
         print("  removed its entry from cpp/src/algorithms/planned.toml")

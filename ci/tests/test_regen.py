@@ -199,7 +199,8 @@ def test_hypergraph_requirements_are_checked(tmp_path: Path) -> None:
     assert new_algorithm.main([*args, "--root", str(root)]) == 0
     manifest = root / "cpp/src/algorithms/hyper_probe/manifest.toml"
     manifest.write_text(
-        manifest.read_text().replace('line_graph = "any"', 'line_graph = "sometimes"')
+        manifest.read_text()
+        .replace('line_graph = "any"', 'line_graph = "sometimes"')
         .replace('storage = "any"', 'row_order = "sorted"')
     )
     try:
