@@ -21,6 +21,55 @@ target_compile_features(dyng-compat-cycle-enum PRIVATE cxx_std_17)
 dyng_set_warnings(dyng-compat-cycle-enum)
 dyng_enable_sanitizers(dyng-compat-cycle-enum)
 
+# ESCHER-GPU@abcf9b2's batch dumps (the batch records of M8a's CBST traces) as .hg / .dgb files,
+# and their replay through dyng::hypergraph (M8b; the triad_count parity of M9 replays them). The
+# trace reader is the parity side's (cpp/tests/parity/escher), which uses the standard library only.
+add_executable(
+  dyng-compat-escher escher/escher_compat.cpp "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/cbst_trace.cpp"
+                     "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/escher_dump.cpp"
+)
+target_include_directories(dyng-compat-escher PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests")
+target_link_libraries(dyng-compat-escher PRIVATE dyng::dyng)
+target_compile_features(dyng-compat-escher PRIVATE cxx_std_17)
+dyng_set_warnings(dyng-compat-escher)
+dyng_enable_sanitizers(dyng-compat-escher)
+
+if(DYNG_BUILD_TESTS)
+  # The committed ESCHER-GPU traces converted to .hg / .dgb and replayed on every backend.
+  set(_escher_backends sequential)
+  if(DYNG_ENABLE_OPENMP)
+    list(APPEND _escher_backends openmp)
+  endif()
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _escher_backends cuda)
+  endif()
+  foreach(_trace "cbst_trace/escher_gpu_test/001-main.cbt"
+                 "hypergraph_batches/escher_gpu_016-main.cbt"
+  )
+    get_filename_component(_tname "${_trace}" NAME_WE)
+    foreach(_backend IN LISTS _escher_backends)
+      set(_test compat_escher.dgb.${_tname}.${_backend})
+      add_test(
+        NAME ${_test}
+        COMMAND
+          ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng-compat-escher>
+          -DTRACE=${PROJECT_SOURCE_DIR}/cpp/tests/data/goldens/${_trace} -DBACKEND=${_backend}
+          -DOUT=${CMAKE_CURRENT_BINARY_DIR}/out/${_test} -P
+          ${CMAKE_CURRENT_SOURCE_DIR}/escher/convert_and_replay.cmake
+      )
+      if(_backend STREQUAL "cuda")
+        set(_labels "gpu;hypergraph;io;compat")
+      else()
+        set(_labels "cpu;hypergraph;io;compat")
+      endif()
+      set_tests_properties(
+        ${_test} PROPERTIES LABELS "${_labels}" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+                            SKIP_RETURN_CODE 77
+      )
+    endforeach()
+  endforeach()
+endif()
+
 if(DYNG_BUILD_TESTS)
   # The cycle-enum clone reproduces the original CLI's standard output and exit status on the
   # committed cases (cpp/tests/data/cycle_enum/cli, from CycleEnumeration-GPU@0a976ad).

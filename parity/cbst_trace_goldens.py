@@ -1309,7 +1309,8 @@ def compare_main(argv: list[str]) -> int:
 
 def datasets_main(argv: list[str]) -> int:
     """Re-derives both coauth-DBLP variants with the originals' own converters in the scratch
-    copies and checks them against datasets/registry.toml."""
+    copies, and with dynG's own converter (datasets/preprocess/benson_to_hg.py, M8b), and checks
+    them against datasets/registry.toml."""
     p = argparse.ArgumentParser(prog="cbst_trace_goldens.py datasets")
     p.add_argument("--scratch", type=Path, default=scratch_default())
     args = p.parse_args(argv)
@@ -1336,6 +1337,17 @@ def datasets_main(argv: list[str]) -> int:
             )
             ok &= got == d["sha256"]
             out.unlink()
+            if "dyng_converter" in d:
+                dyng_script, *dyng_args = d["dyng_converter"].split()
+                cmd = [sys.executable, str(REPO / dyng_script), str(prefix), str(out), *dyng_args]
+                subprocess.run(cmd, check=True)
+                got = sha256_file(out)
+                print(
+                    f"{name}: {d['dyng_converter']} (dynG) -> {got}"
+                    f" ({'OK' if got == d['sha256'] else 'DIFFERS from ' + d['sha256']})"
+                )
+                ok &= got == d["sha256"]
+                out.unlink()
     installed = args.scratch / COAUTH
     got = sha256_file(installed)
     print(f"{installed}: {got} ({'OK' if got == COAUTH_SHA256 else 'DIFFERS'})")

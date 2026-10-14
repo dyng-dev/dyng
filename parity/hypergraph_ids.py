@@ -295,7 +295,7 @@ def compare_main(argv: list[str]) -> int:
             + (
                 f"by content {totals['content_states_equal']}/{totals['content_states']} states "
                 "with A's live sets, "
-                if args.mode != "by_id"
+                if totals["content_states"]
                 else ""
             )
             + f"{totals['mismatch_count']} mismatches: "
