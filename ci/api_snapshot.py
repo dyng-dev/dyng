@@ -25,7 +25,10 @@ Two more parts are read from the header sources, because Doxygen does not show t
     update_traits / participant_of / stats_of specializations (their stats_type, type,
     batch_type and static run(), which decide the return type of dyng::update() and the
     containers it accepts) and the *_supported_v traits (which graph types compute() and
-    update() accept). They are listed as `detail: <statement>` lines, normalized to one line.
+    update() accept); for the hypergraph (frozen with its headers, ADR 0047), also the
+    is_hypergraph trait and is_hypergraph_v, the virtual members and aliases of the participant
+    interface hyper_update_participant, and the declaration of its run_update(). They are listed
+    as `detail: <statement>` lines, normalized to one line.
 
 The baseline is cpp/tests/api/api_snapshot/public_api.txt (committed). ci/docs.sh runs the check
 after Doxygen, so the docs job of CI and the local gate (ci/check.sh, step docs) fail when the
@@ -223,6 +226,13 @@ def render_member(member: ET.Element, in_class: bool) -> str:
 
 # dyng::detail entities whose definition is part of the public contract (see the module docstring).
 DETAIL_STRUCTS = ("update_traits", "participant_of", "stats_of")
+# The hypergraph's detail contract (ADR 0047, amended by the M8b review): its trait, the virtual
+# interface its algorithms implement, and the run_update() its participant_of calls. (The graph's
+# update_participant in update.hpp is internal-stable, ADR 0023, and stays out of the listing.)
+DETAIL_TRAITS = ("is_hypergraph",)
+DETAIL_VARIABLES = ("is_hypergraph_v",)
+DETAIL_CLASSES = ("hyper_update_participant",)
+DETAIL_FUNCTIONS = (r"hyper_apply_summary\s+run_update",)
 UMBRELLA = "dyng/dyng.hpp"
 
 
@@ -252,7 +262,8 @@ def detail_contract(source: str) -> list[str]:
         start = block.end() - 1
         body = text[start + 1 : matching_brace(text, start)]
         items: list[tuple[int, str]] = []
-        for m in re.finditer(r"inline\s+constexpr\s+bool\s+\w+_supported_v\s*=[^;]*;", body):
+        variables = "|".join((r"\w+_supported_v",) + DETAIL_VARIABLES)
+        for m in re.finditer(rf"inline\s+constexpr\s+bool\s+(?:{variables})\s*=[^;]*;", body):
             tpl = re.search(r"template\s*<[^;{}]*>\s*$", body[: m.start()])
             head = squash(tpl.group(0)) + " " if tpl else ""
             items.append((m.start(), head + squash(m.group(0))))
@@ -275,6 +286,29 @@ def detail_contract(source: str) -> list[str]:
             ]
             head = squash(tpl.group(0)) + " " if tpl else ""
             items.append((m.start(), f"{head}struct {name} {{ {' '.join(parts)} }}"))
+        traits = "|".join(DETAIL_TRAITS)
+        for m in re.finditer(rf"struct\s+({traits})\b\s*(<[^{{;]*>)?\s*:\s*([^{{;]*)\{{\s*\}}\s*;", body):
+            tpl = re.search(r"template\s*<[^;{}]*>\s*$", body[: m.start()])
+            head = squash(tpl.group(0)) + " " if tpl else ""
+            name = m.group(1) + (squash(m.group(2)) if m.group(2) else "")
+            items.append((m.start(), f"{head}struct {name} : {squash(m.group(3))} {{}}"))
+        classes = "|".join(DETAIL_CLASSES)
+        for m in re.finditer(rf"class\s+({classes})\b\s*\{{", body):
+            brace = m.end() - 1
+            inner = body[brace + 1 : matching_brace(body, brace)]
+            tpl = re.search(r"template\s*<[^;{}]*>\s*$", body[: m.start()])
+            parts = [squash(u.group(0)) for u in re.finditer(r"using\s+\w+\s*=[^;]*;", inner)]
+            parts += [
+                squash(v.group(0)).rstrip("{").strip().rstrip(";") + ";"
+                for v in re.finditer(r"(?:\[\[\w+\]\]\s*)?virtual\s[^;{}]*[;{]", inner)
+            ]
+            head = squash(tpl.group(0)) + " " if tpl else ""
+            items.append((m.start(), f"{head}class {m.group(1)} {{ {' '.join(parts)} }}"))
+        for pattern in DETAIL_FUNCTIONS:
+            for m in re.finditer(rf"{pattern}\s*\([^;{{}}]*\)\s*;", body):
+                tpl = re.search(r"template\s*<[^;{}]*>\s*$", body[: m.start()])
+                head = squash(tpl.group(0)) + " " if tpl else ""
+                items.append((m.start(), head + squash(m.group(0))))
         out += [text for _, text in sorted(items)]
     return out
 

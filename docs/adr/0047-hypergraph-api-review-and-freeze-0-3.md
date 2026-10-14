@@ -153,3 +153,19 @@ request; each amendment below keeps the decisions above and corrects what the fr
   field is now documented as *every skipped operation* (in 0.3 that sum), and ADR 0041 section 8
   records the 0.4 rule: incidence edits that B skips are skipped and counted, an out-of-range
   vertex in an incidence edit included.
+- **Decision 1, the `detail` contract.** The decision freezes the `detail` contract of
+  `hypergraph.hpp` (`participant_of`, `hyper_update_participant`, `run_update`, `is_hypergraph_v`),
+  but `ci/api_snapshot.py` read only `participant_of` / `update_traits` / `stats_of` and the
+  `*_supported_v` traits from `detail`, and Doxygen excludes `dyng::detail`: a changed virtual
+  signature of `hyper_update_participant` passed both checks. The snapshot now also lists the
+  `is_hypergraph` trait, `is_hypergraph_v`, the aliases and virtual members of
+  `hyper_update_participant` and the declaration of `run_update()` (five `detail:` lines in the
+  frozen `hypergraph.hpp` section; `ci/tests/test_api_snapshot.py` checks the extraction). The
+  graph's `update_participant` (`update.hpp`) stays out of the listing: it is internal-stable
+  (ADR 0023), and `update.hpp` is unchanged by M8b. The types the interface names
+  (`hyper_staged_batch`, `hyper_applied`) are internal-stable records, not part of the freeze.
+  The deliberate change was shown again (2026-10-14, this branch, reverted; logs in
+  `$DYNG_SCRATCH/runs/m8b-review/demo-detail-*.log`): `after_apply()` without its `summary`
+  parameter fails `ci/docs.sh --doxygen-only` (the listing differs from the baseline), and with
+  the baseline regenerated `ci/api_check.sh` against the commit that added the lines reports a
+  breaking change of `[dyng/hypergraph/hypergraph.hpp]`.
