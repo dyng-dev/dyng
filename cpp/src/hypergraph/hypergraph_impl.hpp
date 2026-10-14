@@ -64,6 +64,26 @@ struct hyper_applied {
 };
 
 /**
+ * @brief Step 0 of a hypergraph batch (ADR 0043): the batch staged to the host, validated and
+ *        normalized once against G_t by the transaction's begin (transaction.hpp), and read by
+ *        every participant of dyng::update() and by the commit.
+ * @tparam weight_t Weight type.
+ */
+template <typename weight_t>
+struct hyper_staged_batch {
+  /// The inserted hyperedges in batch order: members sorted, repeated members dropped.
+  hyper::member_rows rows;
+  std::vector<weight_t> weights;          ///< their weights (empty for unweighted)
+  std::vector<std::int64_t> deletions;    ///< the live ids deleted: distinct, in batch order
+  std::int64_t ignored_deletions = 0;     ///< deletions of dead, out-of-range or repeated ids
+  std::int64_t dropped_members = 0;       ///< repeated members dropped from the insertions
+  std::int64_t requested_insertions = 0;  ///< hyperedge insertions as requested
+  std::int64_t requested_deletions = 0;   ///< hyperedge deletions as requested
+  std::uint64_t version = 0;              ///< the hypergraph version it was validated against
+  std::int64_t id_bound = 0;              ///< hyperedge_id_bound() of G_t
+};
+
+/**
  * @brief The state behind hypergraph<V,W>: properties, version, state identity, placement, the
  *        store, the id-indexed weights and the applied record.
  * @tparam vertex_t Vertex id type.
@@ -96,6 +116,18 @@ struct hypergraph_access {
    */
   template <typename vertex_t, typename weight_t>
   static const hypergraph_impl<vertex_t, weight_t>& impl(const hypergraph<vertex_t, weight_t>& h) {
+    return h.impl();
+  }
+
+  /**
+   * @brief The mutable state of a hypergraph (its transaction's commit).
+   * @tparam vertex_t Vertex id type.
+   * @tparam weight_t Weight type.
+   * @param[in,out] h The hypergraph.
+   * @return Its implementation object.
+   */
+  template <typename vertex_t, typename weight_t>
+  static hypergraph_impl<vertex_t, weight_t>& state(hypergraph<vertex_t, weight_t>& h) {
     return h.impl();
   }
 

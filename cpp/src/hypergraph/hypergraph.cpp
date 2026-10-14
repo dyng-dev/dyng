@@ -17,6 +17,7 @@
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/incidence_model.hpp"
 #include "hypergraph/instantiate.hpp"
+#include "hypergraph/transaction.hpp"
 #include "util/allocation.hpp"
 
 #include <dyng/config.hpp>
@@ -462,67 +463,142 @@ template <typename vertex_t, typename weight_t>
 hyper_apply_summary hypergraph_access::apply(const resources& res,
                                              hypergraph<vertex_t, weight_t>& h,
                                              const hyperedge_batch_view<vertex_t, weight_t>& batch,
-                                             bool record_incidence_delta) try {
-  auto& state = h.impl();
-  expect_placement(res, h, "hypergraph::apply");
-  DYNG_EXPECTS(!state.poisoned,
-               "hypergraph::apply: the hypergraph was poisoned by a failed apply(); rebuild it "
-               "with from_hyperedges()");
+                                             bool record_incidence_delta) {
+  // A transaction without participants (ADR 0043): begin (Step 0), then the commit.
   const scoped_stage stage(res, "hypergraph.apply");
-  // ---- Validation: everything that can fail before the store changes (strong guarantee).
+  hyper_transaction<vertex_t, weight_t> txn(res, h, batch, "hypergraph::apply");
+  return txn.commit(record_incidence_delta);
+}
+
+namespace {
+
+/// begin's checks before the batch is staged: placement, a live hypergraph, no incidence edits.
+template <typename vertex_t, typename weight_t>
+const char* begin_checks(const resources& res, hypergraph<vertex_t, weight_t>& h,
+                         const hyperedge_batch_view<vertex_t, weight_t>& batch,
+                         const char* function) {
+  hypergraph_access::expect_placement(res, h, function);
+  DYNG_EXPECTS(!hypergraph_access::impl(h).poisoned, function,
+               ": the hypergraph was poisoned by a failed apply(); rebuild it with "
+               "from_hyperedges()");
   if (!batch.delete_incidence_hyperedge.empty() || !batch.delete_incidence_vertex.empty() ||
       !batch.insert_incidence_hyperedge.empty() || !batch.insert_incidence_vertex.empty()) {
-    throw not_supported_error(
-        "dyng: hypergraph::apply: incidence edits (delete_incidence / insert_incidence) are "
-        "planned for 0.4; delete the hyperedge and insert it with its new members instead");
+    throw not_supported_error(concat_message(
+        "dyng: ", function,
+        ": incidence edits (delete_incidence / insert_incidence) are planned for 0.4; delete the "
+        "hyperedge and insert it with its new members instead"));
   }
-  const host_input<std::int64_t> deletions(res, batch.delete_hyperedges,
-                                           "hypergraph::apply: delete_hyperedges");
-  const host_input<std::int64_t> offsets(res, batch.insert_offsets,
-                                         "hypergraph::apply: insert_offsets");
-  const host_input<vertex_t> members(res, batch.insert_members,
-                                     "hypergraph::apply: insert_members");
-  const host_input<weight_t> weights(res, batch.insert_weights,
-                                     "hypergraph::apply: insert_weights");
-  hyper::incidence_store& store = *state.store;
-  hyper::member_rows rows;
-  std::int64_t dropped = 0;
-  normalize_rows(offsets.view(), members.view(), static_cast<vertex_t>(store.num_vertices()),
-                 "hypergraph::apply", rows, dropped, /*batch_payload=*/true);
-  const std::vector<weight_t> inserted_weights =
-      checked_weights(weights.view(), rows.size(), "hypergraph::apply");
-  // Deletions are checked against the state before the batch (MOSP_ESCHER's applyBatch, phase
-  // 1): a negative, out-of-range, dead or repeated id is skipped and counted.
-  std::vector<std::int64_t> live_deletions;
+  return function;
+}
+
+}  // namespace
+
+template <typename vertex_t, typename weight_t>
+hyper_transaction<vertex_t, weight_t>::hyper_transaction(const resources& res, container_type& h,
+                                                         const batch_view_type& batch,
+                                                         const char* function) try
+    : res_(res),
+      h_(h),
+      function_(begin_checks(res, h, batch, function)),
+      deletions_(res, batch.delete_hyperedges, concat_message(function, ": delete_hyperedges")),
+      offsets_(res, batch.insert_offsets, concat_message(function, ": insert_offsets")),
+      members_(res, batch.insert_members, concat_message(function, ": insert_members")),
+      weights_(res, batch.insert_weights, concat_message(function, ": insert_weights")) {
+  // ---- Step 0, once: everything that can fail before the store changes (strong guarantee).
+  host_.delete_hyperedges = deletions_.view();
+  host_.insert_offsets = offsets_.view();
+  host_.insert_members = members_.view();
+  host_.insert_weights = weights_.view();
+  const hyper::incidence_store& store = *hypergraph_access::impl(h).store;
+  staged_.version = h.version();
+  staged_.id_bound = store.id_bound();
+  staged_.requested_insertions = static_cast<std::int64_t>(host_.num_insertions());
+  staged_.requested_deletions = static_cast<std::int64_t>(host_.num_deletions());
+  normalize_rows(offsets_.view(), members_.view(), static_cast<vertex_t>(store.num_vertices()),
+                 function, staged_.rows, staged_.dropped_members, /*batch_payload=*/true);
+  staged_.weights = checked_weights(weights_.view(), staged_.rows.size(), function);
+  // Deletions are checked against G_t (MOSP_ESCHER's applyBatch, phase 1): a negative,
+  // out-of-range, dead or repeated id is skipped and counted.
+  std::vector<std::int64_t>& live = staged_.deletions;
   std::int64_t ignored = 0;
-  {
-    std::vector<std::int64_t> sorted;
-    for (const std::int64_t id : deletions.view()) {
-      if (id < 0 || id >= store.id_bound() || !store.is_live(id)) {
+  for (const std::int64_t id : deletions_.view()) {
+    if (id < 0 || id >= store.id_bound() || !store.is_live(id)) {
+      ++ignored;
+      continue;
+    }
+    live.push_back(id);
+  }
+  // Repeated ids: the first deletion counts, the others are skipped.
+  std::vector<std::int64_t> sorted = live;
+  std::sort(sorted.begin(), sorted.end());
+  if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end()) {
+    std::vector<std::int64_t> unique_order;
+    std::vector<std::int64_t> seen;
+    unique_order.reserve(live.size());
+    for (const std::int64_t id : live) {
+      const auto it = std::lower_bound(seen.begin(), seen.end(), id);
+      if (it != seen.end() && *it == id) {
         ++ignored;
         continue;
       }
-      live_deletions.push_back(id);
+      seen.insert(it, id);
+      unique_order.push_back(id);
     }
-    // Repeated ids: the first deletion counts, the others are skipped.
-    sorted = live_deletions;
-    std::sort(sorted.begin(), sorted.end());
-    if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end()) {
-      std::vector<std::int64_t> unique_order;
-      std::vector<std::int64_t> seen;
-      unique_order.reserve(live_deletions.size());
-      for (const std::int64_t id : live_deletions) {
-        const auto it = std::lower_bound(seen.begin(), seen.end(), id);
-        if (it != seen.end() && *it == id) {
-          ++ignored;
-          continue;
-        }
-        seen.insert(it, id);
-        unique_order.push_back(id);
-      }
-      live_deletions = std::move(unique_order);
-    }
+    live = std::move(unique_order);
   }
+  staged_.ignored_deletions = ignored;
+}
+DYNG_TRANSLATE_ALLOCATION_FAILURE(function, " (", h.hyperedge_id_bound(), " ids; batch of ",
+                                  batch.num_insertions(), " insertions, ", batch.num_deletions(),
+                                  " deletions)")
+
+template <typename vertex_t, typename weight_t>
+hyper_transaction<vertex_t, weight_t>::~hyper_transaction() = default;
+
+template <typename vertex_t, typename weight_t>
+framework::old_view<hypergraph<vertex_t, weight_t>> hyper_transaction<vertex_t, weight_t>::before()
+    const {
+  if (committed_) {
+    DYNG_FAIL(function_, ": the transaction's G_t was asked for after its commit (invariant I1)");
+  }
+  return framework::old_view<container_type>(h_);
+}
+
+template <typename vertex_t, typename weight_t>
+framework::new_view<hypergraph<vertex_t, weight_t>> hyper_transaction<vertex_t, weight_t>::after()
+    const {
+  if (!committed_) {
+    DYNG_FAIL(function_, ": the transaction's G_{t+1} was asked for before its commit");
+  }
+  return framework::new_view<container_type>(h_);
+}
+
+template <typename vertex_t, typename weight_t>
+const hyper_applied& hyper_transaction<vertex_t, weight_t>::applied() const {
+  if (!committed_) {
+    DYNG_FAIL(function_, ": the transaction's applied record was asked for before its commit");
+  }
+  return hypergraph_access::applied(h_);
+}
+
+template <typename vertex_t, typename weight_t>
+hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_incidence_delta) try {
+  if (committed_) {
+    DYNG_FAIL(function_, ": a transaction commits once");
+  }
+  auto& state = hypergraph_access::state(h_);
+  DYNG_EXPECTS(!state.poisoned, function_,
+               ": the hypergraph was poisoned by a failed apply(); rebuild it with "
+               "from_hyperedges()");
+  DYNG_EXPECTS(state.version == staged_.version, function_, ": the hypergraph changed (version ",
+               staged_.version, " -> ", state.version,
+               ") between the transaction's begin and its commit");
+  const resources& res = res_;
+  const hyper::member_rows& rows = staged_.rows;
+  const std::vector<std::int64_t>& live_deletions = staged_.deletions;
+  const std::int64_t ignored = staged_.ignored_deletions;
+  const std::int64_t dropped = staged_.dropped_members;
+  hyper::incidence_store& store = *state.store;
   // ---- The store phase (basic guarantee: a failure poisons the hypergraph).
   hyper_applied applied;
   std::vector<weight_t> next_weights;
@@ -623,7 +699,7 @@ hyper_apply_summary hypergraph_access::apply(const resources& res,
       for (const std::int64_t id : live_deletions) next_weights[static_cast<std::size_t>(id)] = 0;
       next_weights.resize(static_cast<std::size_t>(store.id_bound()), weight_t{0});
       for (std::size_t i = 0; i < ids.size(); ++i) {
-        next_weights[static_cast<std::size_t>(ids[i])] = inserted_weights[i];
+        next_weights[static_cast<std::size_t>(ids[i])] = staged_.weights[i];
       }
     }
     // One read of the device error words, then the row views of the new state.
@@ -650,16 +726,18 @@ hyper_apply_summary hypergraph_access::apply(const resources& res,
   summary.id_bound_after = store.id_bound();
   summary.inserted_ids = applied.inserted_ids;
   state.applied = std::move(applied);
+  committed_ = true;
   return summary;
 }
-DYNG_TRANSLATE_ALLOCATION_FAILURE("hypergraph::apply (", h.hyperedge_id_bound(), " ids; batch of ",
-                                  batch.num_insertions(), " insertions, ", batch.num_deletions(),
-                                  " deletions)")
+DYNG_TRANSLATE_ALLOCATION_FAILURE(function_, " (", h_.hyperedge_id_bound(), " ids; batch of ",
+                                  staged_.requested_insertions, " insertions, ",
+                                  staged_.requested_deletions, " deletions)")
 
 }  // namespace detail
 
 #define DYNG_INSTANTIATE_HYPERGRAPH(V, W)                                                    \
   template class hypergraph<V, W>;                                                           \
+  template class detail::hyper_transaction<V, W>;                                            \
   template hyper_apply_summary detail::hypergraph_access::apply<V, W>(                       \
       const resources&, hypergraph<V, W>&, const hyperedge_batch_view<V, W>&, bool);         \
   template void detail::hypergraph_access::expect_placement<V, W>(                           \
