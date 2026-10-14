@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <random>
 #include <set>
@@ -37,6 +38,13 @@
 namespace dyng::test::hyper {
 
 using rows = std::vector<std::vector<std::int32_t>>;
+
+/// Whether the tests run their reduced sizes ($DYNG_CBST_REDUCED: the compute-sanitizer runs of
+/// ci/gpu_local.sh; the sizes are named in each test).
+inline bool reduced_sizes() {
+  const char* v = std::getenv("DYNG_CBST_REDUCED");
+  return v != nullptr && *v != '\0' && std::string(v) != "0";
+}
 
 /// Resources of a backend (8 threads for openmp, the tests' default).
 inline resources resources_of(backend b, int threads = 8) {

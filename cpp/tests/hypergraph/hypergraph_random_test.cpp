@@ -93,7 +93,9 @@ stream_record run_stream(backend b, const preset_case& pc, id_reuse reuse, strea
   EXPECT_TRUE(model.problems().empty());
   EXPECT_EQ(model.compare(h), "");
   stream_record rec;
-  for (int batch = 0; batch < 6; ++batch) {
+  // 6 batches per stream (3 under compute-sanitizer, DYNG_CBST_REDUCED).
+  const int batches = dyng::test::hyper::reduced_sizes() ? 3 : 6;
+  for (int batch = 0; batch < batches; ++batch) {
     SCOPED_TRACE("batch " + std::to_string(batch));
     rows current;
     const auto live = dyng::test::hyper::live_ids(h, current);

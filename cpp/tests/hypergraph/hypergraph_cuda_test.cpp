@@ -26,7 +26,9 @@ std::vector<std::vector<std::int64_t>> stream_ids(const dyng::resources& res, st
                                                   dyng::id_reuse reuse) {
   std::mt19937_64 rng(seed);
   const std::int32_t n = 5000;
-  const rows initial = dyng::test::hyper::random_rows(rng, n, 6000, 10);
+  // Reduced sizes under compute-sanitizer (DYNG_CBST_REDUCED): 1,000 hyperedges.
+  const rows initial =
+      dyng::test::hyper::random_rows(rng, n, dyng::test::hyper::reduced_sizes() ? 1000 : 6000, 10);
   dyng::hypergraph_properties props;
   props.line_graph = dyng::line_graph_policy::none;
   props.reuse = reuse;
@@ -49,7 +51,9 @@ TEST(HypergraphCuda, RepeatedRunsGiveIdenticalIds) {
   if (!dyng::backend_available(dyng::backend::cuda)) GTEST_SKIP() << "no CUDA device";
   for (const auto reuse : {dyng::id_reuse::erase_first, dyng::id_reuse::insert_first}) {
     const auto reference = stream_ids(dyng::resources::cuda(0), 11, reuse);
-    for (int run = 1; run < 10; ++run) {
+    // 10 runs (3 under compute-sanitizer, DYNG_CBST_REDUCED).
+    const int runs = dyng::test::hyper::reduced_sizes() ? 3 : 10;
+    for (int run = 1; run < runs; ++run) {
       EXPECT_EQ(stream_ids(dyng::resources::cuda(0), 11, reuse), reference) << "run " << run;
     }
     EXPECT_EQ(stream_ids(dyng::resources::sequential(), 11, reuse), reference);
