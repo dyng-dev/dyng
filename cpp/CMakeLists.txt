@@ -152,6 +152,7 @@ endif()
 dyng_add_module(
   NAME util
   SOURCES
+    src/util/crc32.cpp
     src/util/device_error_flags.cpp
     src/util/kernel_registry.cpp
     src/util/parser.cpp
@@ -201,10 +202,12 @@ dyng_add_module(
 dyng_add_module(
   NAME io
   SOURCES
+    src/io/batch_binary.cpp
     src/io/batch_io.cpp
     src/io/batch_text.cpp
     src/io/csr_triplet.cpp
     src/io/edge_list_io.cpp
+    src/io/hypergraph_io.cpp
     src/io/matrix_market.cpp
     src/io/result_io.cpp
 )

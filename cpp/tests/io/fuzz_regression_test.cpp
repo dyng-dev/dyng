@@ -14,12 +14,19 @@
  * (one per test below: matrix_market/oom_announced_entries, csr_triplet/oom_announced_edges and
  * csr_triplet/oom_weight_columns, the last with 10,000 x 10,000 weights) with a single-allocation
  * limit of 256 MB (-malloc_limit_mb=256), which each of them exceeded before its fix.
+ *
+ * The `.dgb` reader (M8b) was written against this class of finding: its size fields are checked
+ * against the rest of the file before anything is allocated. Its reproducers
+ * (cpp/fuzz/regressions/batch_binary, written by cpp/fuzz/make_dgb_seeds.py) pin that, as does the
+ * `.hg` reproducer of a vertex count beyond the vertex type (cpp/fuzz/regressions/hg).
  */
 #include "support/data_paths.hpp"
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/error.hpp>
+#include <dyng/io/batch_io.hpp>
 #include <dyng/io/csr_triplet.hpp>
+#include <dyng/io/hypergraph_io.hpp>
 #include <dyng/io/matrix_market.hpp>
 
 #include <gtest/gtest.h>
@@ -131,6 +138,50 @@ TEST(FuzzRegression, CsrTripletWeightColumnsAreSizedByTheLinesTheFileHolds) {
   expect_bounded_io_error(
       [&] { (void)dyng::io::read_csr_triplet<std::int32_t, std::int64_t, std::int32_t>(prefix); },
       "1 weight lines, but the graph has 20000 edges");
+}
+
+/// The bytes of a reproducer of cpp/fuzz/regressions/<target>/<name> without its option line.
+std::string reproducer(const std::string& target, const std::string& name) {
+  const std::string bytes = dyng::test::read_text(std::string(DYNG_TEST_DATA_DIR) +
+                                                  "/../../fuzz/regressions/" + target + "/" + name);
+  return bytes.substr(bytes.find('\n') + 1);
+}
+
+// fuzz_batch_binary (M8b, written with the reader): a record length of 2^40 bytes, a batch count
+// of 2^50 and an insertion count of 2^60 (in a record whose CRC32 matches) are rejected before any
+// allocation they announce.
+TEST(FuzzRegression, BinaryBatchSizeFieldsAreCheckedAgainstTheFile) {
+  temp_dir tmp;
+  const struct {
+    const char* name;
+    const char* message;
+  } cases[] = {
+      {"size_lying_record", "exceeds the rest of the file"},
+      {"size_lying_count", "announces"},
+      {"size_lying_insertions", "does not fit the record"},
+  };
+  for (const auto& c : cases) {
+    SCOPED_TRACE(c.name);
+    const std::string path = tmp.path(std::string(c.name) + ".dgb");
+    write_text(path, reproducer("batch_binary", c.name));
+    expect_bounded_io_error(
+        [&] {
+          dyng::io::batch_reader in(path);
+          while (in.next()) {
+          }
+        },
+        c.message);
+  }
+}
+
+// fuzz_hg (M8b): an id whose vertex count (largest id + 1) does not fit the vertex type.
+TEST(FuzzRegression, HypergraphVertexCountMustFitTheVertexType) {
+  temp_dir tmp;
+  const std::string path = tmp.path("overflow.hg");
+  write_text(path, reproducer("hg", "vertex_count_overflow"));
+  expect_bounded_io_error(
+      [&] { (void)dyng::io::read_hypergraph<std::int32_t, dyng::unweighted>(path); },
+      "out of range");
 }
 
 }  // namespace

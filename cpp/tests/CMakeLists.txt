@@ -48,8 +48,21 @@ dyng_add_test(
   LABELS cpu graph
 )
 dyng_add_test(
-  NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp LABELS cpu io
+  NAME dyng_io_tests
+  SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp io/hypergraph_io_test.cpp
+          io/batch_binary_test.cpp
+  LABELS cpu io
 )
+if(DYNG_ENABLE_CUDA)
+  # batch_reader with CUDA resources: the pinned staging and the device views (M8b).
+  dyng_add_test(
+    NAME dyng_io_cuda_tests
+    SOURCES io/batch_binary_cuda_test.cpp
+    LABELS gpu io
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_io_cuda_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+endif()
 # The reader fuzzers' findings (its own executable: it replaces operator new to bound the
 # allocations; cpp/fuzz/README.md).
 dyng_add_test(

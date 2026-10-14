@@ -52,6 +52,7 @@
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/csr_triplet.hpp>
 #include <dyng/io/edge_list_io.hpp>
+#include <dyng/io/hypergraph_io.hpp>
 #include <dyng/io/matrix_market.hpp>
 #include <dyng/io/result_io.hpp>
 #include <dyng/mosp.hpp>

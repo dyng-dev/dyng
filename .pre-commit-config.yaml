@@ -10,15 +10,17 @@ repos:
     rev: v6.0.0
     hooks:
       # Test fixtures are byte-exact outputs of the original tools (and some inputs have
-      # trailing blanks on purpose); the text fixers must not touch them. Unified diffs
-      # (parity/experiments) start every blank context line with a space.
+      # trailing blanks on purpose); the text fixers must not touch them, nor the fuzzers' seeds
+      # and reproducers (raw reader inputs: carriage returns, blanks and missing final newlines
+      # are what some of them test). Unified diffs (parity/experiments) start every blank context
+      # line with a space.
       - id: trailing-whitespace
-        exclude: ^cpp/tests/data/|\.patch$
+        exclude: ^cpp/tests/data/|^cpp/fuzz/(corpus|regressions)/|\.patch$
       - id: end-of-file-fixer
-        exclude: ^cpp/tests/data/
+        exclude: ^cpp/tests/data/|^cpp/fuzz/(corpus|regressions)/
       - id: mixed-line-ending
         args: [--fix=lf]
-        exclude: ^cpp/tests/data/
+        exclude: ^cpp/tests/data/|^cpp/fuzz/(corpus|regressions)/
       - id: check-yaml
       - id: check-toml
         exclude: ^cpp/src/algorithms/_template(_hypergraph)?/manifest\.toml$  # {{placeholders}} until generated
