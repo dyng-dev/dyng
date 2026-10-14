@@ -57,6 +57,32 @@ Before 0.1.0 anything may change.
   `graph_requirements` of a hypergraph manifest names the requirements on `hypergraph_properties`
   (`line_graph`, `store_v2h`, `reuse`, `storage`), checked by `scripts/regen.py`;
   `ci/scaffold_check.sh` scaffolds, builds and checks a hypergraph algorithm of each family.
+- M8b (api-change, tracked): **hypergraph files and batch files** (ADR 0045):
+  `<dyng/io/hypergraph_io.hpp>` with `read_hypergraph()` / `write_hypergraph()` for `.hg` files
+  (one hyperedge per line; `dedupe_hyperedges`, `max_cardinality`, `relabel` = `none`,
+  `dense_sorted`, `first_appearance`, `random_weights`, and the originals' preprocessing as the
+  option sets `hypergraph_read_options::escher_gpu()` and `hsosp()`, which reproduce
+  ESCHER-GPU@abcf9b2's and MOSP_ESCHER@4b86159's loaded hypergraphs of coauth-DBLP bit for bit);
+  hypergraph batches in `.dgt` files (`+h v1 .. [; w]`, `-h id`; `read_hyperedge_batches()`,
+  `write_hyperedge_batches()`; the first line may name the container kind, `%dgt 1 graph` or
+  `%dgt 1 hypergraph`, and a file holds the batches of one kind); **the binary batch format `.dgb`**
+  (version 1: magic `DYNGBAT1`, a CRC32-checked header with the container kind, dtypes, K and
+  flags, length-prefixed records with CRC32; `batch_writer`, the streaming `batch_reader`, which
+  stages records through pinned buffers to the device with CUDA resources, and whole-file
+  helpers), whose reader checks every size field against the file before allocating; fuzz targets
+  `fuzz_hg` and `fuzz_batch_binary`; `datasets/preprocess/benson_to_hg.py`, which writes the
+  originals' coauth-DBLP `.hg` byte for byte; `dyng-compat-escher` (ESCHER-GPU's batch dumps as
+  `.hg` + `.dgb`, and their replay by id and by content).
+- M8b (api-change, tracked): **hypergraph generators** (ADR 0045): `<dyng/generators/
+  hypergraphs.hpp>` with `uniform_hypergraph()` and `random_hyperedge_batch()` (thirteen mixes:
+  insertions, deletions, delete-then-reuse, heavy deletion, delete-all, re-insert, larger than the
+  hypergraph, duplicate members, dead ids, a skewed hyperedge of 1,100 members, ids at the index
+  limits, empty), with distributions owned by the library (bit-exact per seed and major version
+  on every platform; golden hashes); `generators::legacy::escher_hypergraph()` and
+  `escher_batch_generator` (ESCHER-GPU@abcf9b2's generators, reading the live state of a dynG
+  hypergraph: they reproduce its `make test`, coauth-DBLP and synthetic 1M hypergraphs and batches)
+  and `standard_library_matches_legacy_streams()`. The conformance kit's hypergraph mixes come
+  from these generators.
 - M8a (internal, not public API): **the ESCHER CBST store** (`cpp/src/hypergraph/escher`,
   `dyng::detail::escher::cbst_store`, ADR 0038), the port of ESCHER-GPU@abcf9b2's store in the new
   module `dyng_hypergraph`: construct, rebuild from the device, best-fit insert with surplus rows
@@ -127,6 +153,10 @@ Before 0.1.0 anything may change.
   the sdist, whose members stay those of 0.2.0; and `parity/certify.py` reads the replays of a
   GoogleTest mutation suite (the CBST mutations of `parity/mutate.py`) without a golden manifest,
   while every golden-suite replay still needs one.
+- M8b: `io::write_batches()` rejects a negative vertex id with `invalid_argument_error` (such a
+  `.dgt` file did not read back); `io::read_batches()` names `read_hyperedge_batches()` when it
+  meets a hyperedge operation or a `%dgt 1 hypergraph` line, and reports the incidence edits
+  `+i` / `-i` and the vertex operations as reserved for 0.4.
 
 ## [0.2.0] - 2026-10-14
 

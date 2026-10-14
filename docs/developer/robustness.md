@@ -67,9 +67,10 @@ needs an ADR.
 
 Every reader of `dyng::io` has a libFuzzer target in `cpp/fuzz` (its README lists them): Matrix
 Market, edge lists (and their Matrix Market path), the MOSP CSR triplet, MOSP batches
-(`insert.txt` / `delete.txt`), `.dgt` batch files and the result files (distances, parents). The
-binary batch files (`.dgb`) and the hypergraph files (`.hg`) come with M8 (0.3.0); each reader
-added later gets a target in the same pull request.
+(`insert.txt` / `delete.txt`), `.dgt` batch files (graph and hypergraph batches), the result files
+(distances, parents), and since M8b the hypergraph files (`fuzz_hg`, `.hg`) and the binary batch
+files (`fuzz_batch_binary`, `.dgb`). Each reader added later gets a target in the same pull
+request.
 
 A target splits its input into reader options (the first line: byte i selects option i) and the
 file contents (lines `@@` separate the files of a reader that opens several), writes the files and
