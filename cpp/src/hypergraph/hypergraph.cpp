@@ -58,7 +58,8 @@ void check_weight(weight_t w, std::int64_t index, const char* what) {
 template <typename vertex_t>
 void normalize_rows(array_view<const std::int64_t> offsets, array_view<const vertex_t> members,
                     vertex_t num_vertices, const char* what, detail::hyper::member_rows& out,
-                    std::int64_t& dropped) {
+                    std::int64_t& dropped, bool batch_payload = false) {
+  (void)batch_payload;  // only a mutation reads it
   out.clear();
   dropped = 0;
   if (offsets.empty()) {
@@ -94,7 +95,13 @@ void normalize_rows(array_view<const std::int64_t> offsets, array_view<const ver
       row.push_back(static_cast<std::int32_t>(v));
     }
     std::sort(row.begin(), row.end());
+#if defined(DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED)
+    // MUTATION (PLAN 8.4, MOSP_ESCHER #6; M8b criterion 20): the h2v insert payload of a batch is
+    // not deduplicated (repeated members stored).
+    const auto last = batch_payload ? row.end() : std::unique(row.begin(), row.end());
+#else
     const auto last = std::unique(row.begin(), row.end());
+#endif
     dropped += static_cast<std::int64_t>(row.end() - last);
     out.members.insert(out.members.end(), row.begin(), last);
     out.offsets.push_back(static_cast<std::int64_t>(out.members.size()));
@@ -458,7 +465,7 @@ hyper_apply_summary hypergraph_access::apply(const resources& res,
   hyper::member_rows rows;
   std::int64_t dropped = 0;
   normalize_rows(offsets.view(), members.view(), static_cast<vertex_t>(store.num_vertices()),
-                 "hypergraph::apply", rows, dropped);
+                 "hypergraph::apply", rows, dropped, /*batch_payload=*/true);
   const std::vector<weight_t> inserted_weights =
       checked_weights(weights.view(), rows.size(), "hypergraph::apply");
   // Deletions are checked against the state before the batch (MOSP_ESCHER's applyBatch, phase

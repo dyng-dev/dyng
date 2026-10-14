@@ -29,6 +29,10 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                dyng-compat-cycle-enum (`compare.py cycle_count`): histograms and generated
                batches; the `cuda` configuration replays the set `cycle_count_cuda` (the
                original's CUDA backend)
+  hypergraph   the hypergraph container (M8b, criterion 20): the GoogleTest suites of the
+               container on every backend (lockstep with the CBST host model, random streams,
+               the host id allocator against the model, the container-level id parity of the
+               committed traces); also the CTests `hypergraph.mutation.<name>` of every build
   cbst         the ESCHER CBST store (M8a, acceptance criterion 17): the GoogleTest suites
                dyng_cbst_device_tests (the committed traces of ESCHER-GPU@abcf9b2 and
                MOSP_ESCHER@4b86159 replayed in the exact field set), dyng_cbst_policy_tests (random
@@ -70,6 +74,19 @@ SUITES = {
     # GoogleTest suites (run directly, not through compare.py; M8a).
     "cbst": {
         "targets": ["dyng_cbst_device_tests", "dyng_cbst_policy_tests", "dyng_cbst_graph_tests"],
+        "runner": "gtest",
+        "compare": [],
+    },
+    # The hypergraph container (M8b, criterion 20): its suites on every backend (the lockstep with
+    # the CBST host model, the random streams, the allocator against the model, the container-level
+    # id parity on the committed traces and batch extracts).
+    "hypergraph": {
+        "targets": [
+            "dyng_hypergraph_tests",
+            "dyng_hypergraph_ids_tests",
+            "dyng_hypergraph_cuda_tests",
+            "dyng_hypergraph_ids_cuda_tests",
+        ],
         "runner": "gtest",
         "compare": [],
     },
@@ -240,6 +257,21 @@ MUTATIONS = [
         "plan": "M8a 17: requested keys honoured",
         "defines": ["DYNG_MUTATION_CBST_REQUESTED_KEYS"],
         "config": "cuda",
+    },
+    # hypergraph (M8b, criterion 20): the hooks DYNG_MUTATION_HYPERGRAPH_* in cpp/src/hypergraph.
+    {
+        "name": "hypergraph_h2v_not_deduplicated",
+        "suite": "hypergraph",
+        "plan": "M8b 20: the h2v insert payload is not deduplicated (MOSP_ESCHER #6)",
+        "defines": ["DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED"],
+        "config": "all",
+    },
+    {
+        "name": "hypergraph_allocator_ties_reversed",
+        "suite": "hypergraph",
+        "plan": "M8b 20: the host id allocator's best-fit tie rule reversed",
+        "defines": ["DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES"],
+        "config": "host",
     },
 ]
 
@@ -464,6 +496,8 @@ def run(args: argparse.Namespace) -> int:
             "parity/goldens.toml",
             "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the "
             "lockstep and graph-on-CBST tests (no golden corpus)",
+            "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/"
+            "{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
         },
         "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst "
         "test executables, from git archive HEAD",

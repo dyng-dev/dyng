@@ -235,6 +235,11 @@ std::vector<std::int32_t> id_allocator::insert(const std::vector<std::int32_t>& 
     // input order (the tie rule).
     std::vector<std::size_t> slot_order(d);
     std::iota(slot_order.begin(), slot_order.end(), std::size_t{0});
+#if defined(DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES)
+    // MUTATION (PLAN 8.4; M8b criterion 20): the host allocator's tie rule reversed (slots of
+    // equal capacity in descending key order).
+    std::reverse(slot_order.begin(), slot_order.end());
+#endif
     std::stable_sort(slot_order.begin(), slot_order.end(), [&](std::size_t a, std::size_t b) {
       return slot_capacity[a] < slot_capacity[b];
     });
