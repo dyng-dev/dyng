@@ -10,12 +10,12 @@ update model, the template of {doc}`concepts/update_model`, and has the same two
 pinned original research code by a parity harness.
 
 :::{warning}
-**Alpha.** The latest release is **0.1.0**, the first (`pip install dyng`): `sssp` and
-`cycle_count`, stable (SemVer applies from 0.1.0). These pages are built from the main branch,
-which is heading for 0.2.0 ({doc}`roadmap`): the table below also lists `mosp` (experimental) and
-the teaching algorithms `dynamic_bfs` and `triangle_delta` (maturity `tutorial`, written for
-{doc}`tutorials/your_first_dynamic_algorithm`), which are not released yet, and the CUDA plugin
-wheels come with 0.2.0 too.
+**Alpha: 0.2.0.** The latest release is **0.2.0** (`pip install dyng`; see the {doc}`roadmap`):
+`sssp`, `cycle_count` and `mosp` are stable (SemVer applies from 0.1.0; to `mosp` from 0.2.0),
+the teaching algorithms `dynamic_bfs` and `triangle_delta` have the maturity `tutorial` (written
+for {doc}`tutorials/your_first_dynamic_algorithm`), and the CUDA plugin wheels are on PyPI too
+(`pip install "dyng[cu13]"` / `"dyng[cu12]"`, {doc}`getting_started/install`). The other
+algorithms of the table are planned for later releases.
 :::
 
 ## Algorithms
@@ -25,7 +25,7 @@ wheels come with 0.2.0 too.
 |---|---|---|---|---|---|---|
 | {doc}`sssp <algorithms/sssp>` | dynamic single-source shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | {doc}`cycle_count <algorithms/cycle_count>` | k-bounded directed simple-cycle histograms | graph | aggregate delta | sequential, OpenMP, CUDA | stable | TruCy / DynTruCy |
-| {doc}`mosp <algorithms/mosp>` | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | experimental | DynaMOSP (IPDPS 2025, TPDS 2025) |
+| {doc}`mosp <algorithms/mosp>` | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | DynaMOSP (IPDPS 2025, TPDS 2025) |
 | {doc}`dynamic_bfs <algorithms/dynamic_bfs>` | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | {doc}`triangle_delta <algorithms/triangle_delta>` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | - (tutorial) |
 | `triad_count` | hypergraph h-motif triad counts | hypergraph (ESCHER store) | aggregate delta | sequential, OpenMP, CUDA | planned (0.3) | ESCHER / ESCHER+ |
@@ -40,6 +40,8 @@ release will contain.
 
 ```bash
 pip install dyng                       # the Python package (CPU backends), from PyPI
+pip install "dyng[cu13]"               # with the CUDA plugin (cu12 for CUDA 12 drivers)
+pip install -U "dyng[cu13]"            # upgrading from 0.1.0 (without -U pip keeps 0.1.0)
 ```
 
 or build from source (the C++ library, the CUDA backend, the development tools):

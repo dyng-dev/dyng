@@ -2,16 +2,20 @@
 
 ## Supported versions
 
-dynG is alpha: 0.1.0, the first release, is on PyPI. The PyPI package `dyng` 0.0.1 was only a
-name reservation and contains no library code; the release candidate 0.1.0rc1 was published on
-TestPyPI only. Security fixes go into the **latest minor release** (as a new patch release) and
-into `main`; older minor releases are not patched.
+dynG is alpha: 0.2.0, the latest release, is on PyPI (`dyng` with the CUDA plugin wheels
+`dyng-cu12` / `dyng-cu13`), as is 0.1.0, the first. The PyPI package `dyng` 0.0.1 was only a
+name reservation and contains no library code; the release candidates 0.1.0rc1 and 0.2.0rc1
+were published on TestPyPI only. Security fixes go into the **latest minor
+release** (as a new patch release) and into `main`; older minor releases are not patched.
+Problems found in a release candidate are fixed in `main` before the release.
 
 | Version | Supported |
 |---|---|
 | `main` | yes |
-| latest minor release (today 0.1.x) | yes |
-| 0.1.0rc1 (release candidate, TestPyPI only) | no; please upgrade to 0.1.0 |
+| latest minor release (today 0.2.x) | yes |
+| 0.2.0rc1 (release candidate, TestPyPI only) | no; please upgrade to 0.2.0 |
+| 0.1.x | no; please upgrade to 0.2.0 |
+| 0.1.0rc1 (release candidate, TestPyPI only) | no; please upgrade to 0.2.0 |
 | 0.0.1 (name reservation, no library code) | no code to fix |
 | older minor releases | no; please upgrade |
 

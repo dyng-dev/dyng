@@ -17,6 +17,7 @@
 #include <limits>
 #include <random>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -73,6 +74,66 @@ TEST(TextScanner, StrictIntegers) {
     EXPECT_EQ(e.column(), 3);
     EXPECT_NE(std::string(e.what()).find("in.txt:1:3"), std::string::npos) << e.what();
   }
+}
+
+// next_number() / next_number_in_line() + integer_value() give exactly the tokens, values and
+// errors of next_token() / next_in_line() + parse_integer() (the large readers' fast path).
+TEST(TextScanner, NumbersMatchTheGeneralPath) {
+  const std::string text =
+      "0 007 42\t9\r\n\n  123456789012345678 1234567890123456789 -5 -0 +1 1.5 12abc x\n"
+      "99999999999999999999 9223372036854775807 9223372036854775808 \n  \n7";
+  dyng::detail::text_scanner general(text, "f.txt");
+  dyng::detail::text_scanner fast(text, "f.txt");
+  dyng::detail::token a;
+  dyng::detail::token b;
+  int numbers = 0;
+  int others = 0;
+  while (general.next_token(a)) {
+    std::int64_t parsed = -1;
+    const dyng::detail::scanned kind = fast.next_number(b, parsed);
+    ASSERT_NE(kind, dyng::detail::scanned::end) << a.text;
+    EXPECT_EQ(a.text, b.text);
+    EXPECT_EQ(a.line, b.line);
+    EXPECT_EQ(a.column, b.column);
+    (kind == dyng::detail::scanned::number ? numbers : others) += 1;
+    for (const auto& [lo, hi] :
+         {std::pair<std::int64_t, std::int64_t>{0, INT64_MAX}, {1, 100}, {INT64_MIN, INT64_MAX}}) {
+      std::string expected;
+      std::string got;
+      std::int64_t want = 0;
+      std::int64_t have = 0;
+      try {
+        want = dyng::detail::parse_integer<std::int64_t>(general, a, lo, hi, "value");
+      } catch (const dyng::io_error& e) {
+        expected = e.what();
+      }
+      try {
+        have = dyng::detail::integer_value<std::int64_t>(fast, b, kind, parsed, lo, hi, "value");
+      } catch (const dyng::io_error& e) {
+        got = e.what();
+      }
+      EXPECT_EQ(expected, got) << a.text;
+      EXPECT_EQ(want, have) << a.text;
+    }
+  }
+  std::int64_t parsed = 0;
+  EXPECT_EQ(fast.next_number(b, parsed), dyng::detail::scanned::end);
+  EXPECT_EQ(numbers, 6);  // 0, 007, 42, 9, the 18-digit one and 7
+  EXPECT_EQ(others, 10);  // signs, 19 or more digits, non-digits (parse_integer decides)
+
+  // Line by line: the same tokens per line as next_in_line().
+  dyng::detail::text_scanner by_line(text, "f.txt");
+  dyng::detail::text_scanner fast_lines(text, "f.txt");
+  while (by_line.next_line()) {
+    ASSERT_TRUE(fast_lines.next_line());
+    while (by_line.next_in_line(a)) {
+      ASSERT_NE(fast_lines.next_number_in_line(b, parsed), dyng::detail::scanned::end);
+      EXPECT_EQ(a.text, b.text);
+      EXPECT_EQ(a.column, b.column);
+    }
+    EXPECT_EQ(fast_lines.next_number_in_line(b, parsed), dyng::detail::scanned::end);
+  }
+  EXPECT_FALSE(fast_lines.next_line());
 }
 
 TEST(TextWriter, WritesAndReportsErrors) {

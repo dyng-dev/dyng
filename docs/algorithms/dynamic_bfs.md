@@ -1,7 +1,7 @@
 # dynamic_bfs: BFS levels under edge batches (tutorial)
 
-Maturity: **tutorial** (teaching material, not a research algorithm; new in 0.2.0, not
-released yet). Header: `<dyng/dynamic_bfs.hpp>`. Python: `dyng.dynamic_bfs`. Oracle: `compute`.
+Maturity: **tutorial** (teaching material, not a research algorithm; new in 0.2.0).
+Header: `<dyng/dynamic_bfs.hpp>`. Python: `dyng.dynamic_bfs`. Oracle: `compute`.
 Determinism: `exact_value`. Backends: sequential, openmp, cuda. Family: fixed point, Tier A (the framework's
 operators).
 

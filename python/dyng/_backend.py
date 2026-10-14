@@ -250,9 +250,17 @@ def _select(
         if driver_major is not None and r.cuda_major == driver_major:
             why = f"it matches the driver's CUDA major ({_driver_text(r.driver_version)})"
         elif r.cuda_major is not None:
+            same_major = any(other.cuda_major == driver_major for _, other in probed)
+            missing = (
+                f"the CUDA {driver_major} plugin cannot be used"
+                if same_major
+                else f"no CUDA {driver_major} plugin is installed"
+                if driver_major is not None
+                else "no plugin of that major is installed"
+            )
             why = (
-                f"the driver supports {_driver_text(r.driver_version)}; no plugin of that major "
-                f"is usable, and CUDA {r.cuda_major} runs on it"
+                f"the driver supports {_driver_text(r.driver_version)}; {missing}, and CUDA "
+                f"{r.cuda_major} runs on it"
             )
         else:
             why = "it is available"

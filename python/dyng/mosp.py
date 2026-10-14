@@ -9,7 +9,11 @@ trees i containing it (``Pref`` the preference vector, a lower value a higher pr
 ``L = lcm(Pref)``), its canonical shortest-path tree (the **MOSP tree**) and the **path costs**:
 the K objective values of the MOSP path to every vertex. :func:`update` applies a batch once,
 updates the K trees incrementally and rebuilds the combined graph, the MOSP tree and the costs.
-Every backend returns the same bytes.
+Every backend returns the same bytes, except for trees imported without canonicalization
+(:meth:`Result.from_arrays` with ``canonicalize=False``, as ``dyng mosp update --init`` without
+``--canonicalize`` does) inside sssp's packing window, where the host backends and cuda each
+match their own original (the K trees, and so the combined arrays and the path costs, differ;
+ADR 0029).
 
 The names mirror the C++ API (``dyng::mosp``): :class:`Options`, :class:`Result`, :class:`Stats`,
 :func:`compute`, :func:`update`. Supported graphs: those of :mod:`dyng.sssp` (int32 weights,
@@ -98,8 +102,11 @@ class Options:
             schedule, never the result.
         cuda_engine: The CUDA engine of the K updates and the combined solve (``"automatic"``,
             ``"fused"``, ``"operators"``); ignored by the host backends.
-        compute_path_costs: Compute the path costs in :func:`compute` and :func:`update`; while
-            false, :attr:`Result.path_costs` raises.
+        compute_path_costs: Compute the path costs in :func:`compute` and :func:`update`.
+            :attr:`Result.path_costs` raises if it was false at the last :func:`compute` or
+            :func:`update`; :meth:`Result.set_options` changes it for the next :func:`update`
+            (costs computed before stay readable until then). Unlike ``delta`` and
+            ``cuda_engine`` it decides what the result holds, not only the schedule.
         validate_inputs: O(K n) checks of trees imported with :meth:`Result.from_arrays`.
         num_objectives: The objectives are the first num_objectives weight columns; 0 = every
             column (MOSP's -k). Fixed at :func:`compute`.
@@ -132,17 +139,21 @@ class Options:
 class Stats:
     """Counters of one :func:`update` (C++ ``dyng::mosp::stats``).
 
-    ``affected``, ``batch``, ``combined_edges``, ``preference_scale`` and the objectives'
-    deterministic counters are identical on every backend; ``iterations``, ``frontier_visits``
-    and the objectives' schedule counters depend on the schedule.
+    ``affected``, ``converged``, ``fallback_used``, ``batch``, ``combined_edges``,
+    ``preference_scale`` and the objectives' deterministic counters are identical on every
+    backend, and ``engine_used`` on every run of one backend; ``iterations``,
+    ``frontier_visits`` and the objectives' schedule counters depend on the schedule.
 
     Attributes:
         affected: Vertices whose combined distance or MOSP parent changed.
-        iterations: Rounds of the update (summed over the stages that report them).
-        frontier_visits: Frontier entries processed.
-        fallback_used: A fallback path ran.
-        converged: The iteration converged.
-        engine_used: The engine of the update (``"fused"`` or ``"operators"``).
+        iterations: Rounds of the update, summed over the K sssp updates and the combined
+            solve.
+        frontier_visits: Frontier entries processed, summed over the same stages.
+        fallback_used: An objective's sssp update used a fallback (the combined graph is
+            always solved from scratch, which is the algorithm, not a fallback).
+        converged: True unless an objective's update reported otherwise.
+        engine_used: The engine of the K updates (the first objective's; all K run the same
+            engine): ``"fused"`` or ``"operators"``.
         batch: What applying the batch did to the graph.
         objectives: The K sssp updates, in objective order (:class:`dyng.sssp.Stats`).
         combined_edges: Edges of the combined graph.
@@ -277,8 +288,10 @@ class Result:
         return Options._from_native(self._native.options)
 
     def set_options(self, options: Options | None = None, **kwargs: Any) -> None:
-        """Change the tunables (``delta``, ``cuda_engine``, ``compute_path_costs``,
-        ``validate_inputs``); ``preferences`` and ``num_objectives`` must stay the same."""
+        """Change the changeable options (``delta``, ``cuda_engine``, ``compute_path_costs``,
+        ``validate_inputs``); ``preferences`` and ``num_objectives`` must stay the same. They take
+        effect at the next :func:`update` (``compute_path_costs`` too: :attr:`path_costs` keeps
+        what the last :func:`compute` or :func:`update` computed)."""
         opt = with_options(Options, options or self.options, kwargs, "mosp.Result.set_options")
         self._native.set_options(opt._to_native())
 

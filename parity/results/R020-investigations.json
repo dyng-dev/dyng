@@ -1,0 +1,849 @@
+{
+ "what": "R020 investigations (informational, no gate applies; docs/developer/retrospectives/R020.md)",
+ "host": "Xeon Gold 6258R, 2x RTX A5000 (GPU 0), driver 590.48.01",
+ "library_commit": "1474a92 (library sources identical to the release-changes commits)",
+ "a_cuda134_cycle_count_update": {
+  "protocol": "GPU 0, exclusive perf lock, clocks locked at boost (SM 1695 / memory 7601 MHz); DD k = 4, 25K + 25K (numpy seed 1); 8 processes per side, 15 rounds each after one warm-up, the side order rotating per process",
+  "window": [
+   "2026-10-07T17:41:27Z",
+   "2026-10-07T17:42:38Z"
+  ],
+  "stages": {
+   "parity-13.1": {
+    "cycle_count.normalize": {
+     "median_device_ms": 2.2086,
+     "min": 2.1652,
+     "max": 2.2368
+    },
+    "cycle_count.count_minus": {
+     "median_device_ms": 0.2792,
+     "min": 0.2775,
+     "max": 0.2827
+    },
+    "graph.apply": {
+     "median_device_ms": 0.2888,
+     "min": 0.2878,
+     "max": 0.2919
+    },
+    "cycle_count.commit": {
+     "median_device_ms": 0.2994,
+     "min": 0.2977,
+     "max": 0.3021
+    },
+    "cycle_count.identify_affected": {
+     "median_device_ms": 0.0015,
+     "min": 0.0015,
+     "max": 0.0016
+    },
+    "cycle_count.count_plus": {
+     "median_device_ms": 0.2146,
+     "min": 0.2125,
+     "max": 0.216
+    },
+    "cycle_count.finalize": {
+     "median_device_ms": 0.0016,
+     "min": 0.0016,
+     "max": 0.0016
+    },
+    "cycle_count.enact_fused": {
+     "median_device_ms": 0.2399,
+     "min": 0.237,
+     "max": 0.2411
+    },
+    "cycle_count.update": {
+     "median_device_ms": 3.118,
+     "min": 3.0854,
+     "max": 3.1557
+    }
+   },
+   "parity-13.4": {
+    "cycle_count.normalize": {
+     "median_device_ms": 2.1035,
+     "min": 2.0724,
+     "max": 2.125
+    },
+    "cycle_count.count_minus": {
+     "median_device_ms": 0.2775,
+     "min": 0.2768,
+     "max": 0.2805
+    },
+    "graph.apply": {
+     "median_device_ms": 0.2892,
+     "min": 0.2878,
+     "max": 0.2922
+    },
+    "cycle_count.commit": {
+     "median_device_ms": 0.2997,
+     "min": 0.2977,
+     "max": 0.3024
+    },
+    "cycle_count.identify_affected": {
+     "median_device_ms": 0.0015,
+     "min": 0.0015,
+     "max": 0.0016
+    },
+    "cycle_count.count_plus": {
+     "median_device_ms": 0.2128,
+     "min": 0.2101,
+     "max": 0.214
+    },
+    "cycle_count.finalize": {
+     "median_device_ms": 0.0016,
+     "min": 0.0016,
+     "max": 0.0016
+    },
+    "cycle_count.enact_fused": {
+     "median_device_ms": 0.2366,
+     "min": 0.2349,
+     "max": 0.2383
+    },
+    "cycle_count.update": {
+     "median_device_ms": 3.0096,
+     "min": 2.9655,
+     "max": 3.0368
+    }
+   },
+   "wheel-13.1": {
+    "cycle_count.normalize": {
+     "median_device_ms": 2.1508,
+     "min": 2.0999,
+     "max": 2.189
+    },
+    "cycle_count.count_minus": {
+     "median_device_ms": 0.2812,
+     "min": 0.278,
+     "max": 0.2843
+    },
+    "graph.apply": {
+     "median_device_ms": 0.2871,
+     "min": 0.2863,
+     "max": 0.2894
+    },
+    "cycle_count.commit": {
+     "median_device_ms": 0.2973,
+     "min": 0.2964,
+     "max": 0.3001
+    },
+    "cycle_count.identify_affected": {
+     "median_device_ms": 0.0015,
+     "min": 0.0015,
+     "max": 0.0015
+    },
+    "cycle_count.count_plus": {
+     "median_device_ms": 0.2142,
+     "min": 0.2101,
+     "max": 0.215
+    },
+    "cycle_count.finalize": {
+     "median_device_ms": 0.0016,
+     "min": 0.0016,
+     "max": 0.0016
+    },
+    "cycle_count.enact_fused": {
+     "median_device_ms": 0.2379,
+     "min": 0.2336,
+     "max": 0.2387
+    },
+    "cycle_count.update": {
+     "median_device_ms": 3.0246,
+     "min": 2.9614,
+     "max": 3.0548
+    }
+   },
+   "wheel-13.4": {
+    "cycle_count.normalize": {
+     "median_device_ms": 2.1258,
+     "min": 2.1164,
+     "max": 2.1548
+    },
+    "cycle_count.count_minus": {
+     "median_device_ms": 0.2792,
+     "min": 0.279,
+     "max": 0.2807
+    },
+    "graph.apply": {
+     "median_device_ms": 0.2866,
+     "min": 0.2857,
+     "max": 0.288
+    },
+    "cycle_count.commit": {
+     "median_device_ms": 0.2963,
+     "min": 0.2955,
+     "max": 0.2984
+    },
+    "cycle_count.identify_affected": {
+     "median_device_ms": 0.0015,
+     "min": 0.0015,
+     "max": 0.0015
+    },
+    "cycle_count.count_plus": {
+     "median_device_ms": 0.2096,
+     "min": 0.2083,
+     "max": 0.2116
+    },
+    "cycle_count.finalize": {
+     "median_device_ms": 0.0016,
+     "min": 0.0016,
+     "max": 0.0016
+    },
+    "cycle_count.enact_fused": {
+     "median_device_ms": 0.2335,
+     "min": 0.2318,
+     "max": 0.2359
+    },
+    "cycle_count.update": {
+     "median_device_ms": 2.9837,
+     "min": 2.9595,
+     "max": 3.0159
+    }
+   }
+  },
+  "ncu": {
+   "protocol": "Nsight Compute 2025.4.1 (CUDA 13.1), --clock-control base, GPU 0, the kernels inside the NVTX range cycle_count.update, 6 updates",
+   "sides": {
+    "parity-13.1": {
+     "kernel_us_per_update": 689.2,
+     "kernels": {
+      "void dyng::<unnamed>::mark_owners_kernel<unsigned int>": {
+       "us": 7.74,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 55704.0
+      },
+      "void dyng::<unnamed>::item_counts_kernel<unsigned int>": {
+       "us": 4.56,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 23472.0
+      },
+      "d cub::DeviceScanInitKernel<cub::ScanTileState<unsigned long long, 1>>": {
+       "us": 2.54,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 68.0
+      },
+      "ong *>, unsigned long long, unsigned long long, 0, unsigned long long>": {
+       "us": 6.32,
+       "launches_per_update": 2.0,
+       "regs": 48.0,
+       "inst": 24341.0
+      },
+      "void dyng::<unnamed>::count_owned_cycles_kernel<4, unsigned int>": {
+       "us": 181.52,
+       "launches_per_update": 2.0,
+       "regs": 22.0,
+       "inst": 5730704.5
+      },
+      "dyng::<unnamed>::change_rows_kernel": {
+       "us": 22.56,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 1784251.0
+      },
+      "void dyng::<unnamed>::next_degree_kernel<unsigned int>": {
+       "us": 8.86,
+       "launches_per_update": 1.0,
+       "regs": 18.0,
+       "inst": 345417.0
+      },
+      "void cub::DeviceScanInitKernel<cub::ScanTileState<unsigned int, 1>>": {
+       "us": 2.58,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 124.0
+      },
+      "t, unsigned int *>, unsigned long long, unsigned int, 0, unsigned int>": {
+       "us": 11.2,
+       "launches_per_update": 1.0,
+       "regs": 48.0,
+       "inst": 162251.5
+      },
+      "void dyng::<unnamed>::build_next_rows_kernel<unsigned int>": {
+       "us": 223.84,
+       "launches_per_update": 1.0,
+       "regs": 22.0,
+       "inst": 27532670.0
+      }
+     }
+    },
+    "parity-13.4": {
+     "kernel_us_per_update": 687.0,
+     "kernels": {
+      "void dyng::<unnamed>::mark_owners_kernel<unsigned int>": {
+       "us": 7.71,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 55704.0
+      },
+      "void dyng::<unnamed>::item_counts_kernel<unsigned int>": {
+       "us": 4.59,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 23472.0
+      },
+      "long *, cub::ScanTileState<unsigned long long, 1>, unsigned long long>": {
+       "us": 2.53,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 68.0
+      },
+      "ong *>, unsigned long long, unsigned long long, 0, unsigned long long>": {
+       "us": 6.21,
+       "launches_per_update": 2.0,
+       "regs": 50.0,
+       "inst": 24019.0
+      },
+      "void dyng::<unnamed>::count_owned_cycles_kernel<4, unsigned int>": {
+       "us": 180.58,
+       "launches_per_update": 2.0,
+       "regs": 20.0,
+       "inst": 5709449.5
+      },
+      "dyng::<unnamed>::change_rows_kernel": {
+       "us": 22.53,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 1784251.0
+      },
+      "void dyng::<unnamed>::next_degree_kernel<unsigned int>": {
+       "us": 8.83,
+       "launches_per_update": 1.0,
+       "regs": 18.0,
+       "inst": 345417.0
+      },
+      " *, unsigned int *, cub::ScanTileState<unsigned int, 1>, unsigned int>": {
+       "us": 2.58,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 124.0
+      },
+      "t, unsigned int *>, unsigned long long, unsigned int, 0, unsigned int>": {
+       "us": 11.14,
+       "launches_per_update": 1.0,
+       "regs": 58.0,
+       "inst": 162086.5
+      },
+      "void dyng::<unnamed>::build_next_rows_kernel<unsigned int>": {
+       "us": 223.9,
+       "launches_per_update": 1.0,
+       "regs": 22.0,
+       "inst": 27532670.0
+      }
+     }
+    },
+    "wheel-13.1": {
+     "kernel_us_per_update": 691.7,
+     "kernels": {
+      "void dyng::<unnamed>::mark_owners_kernel<unsigned int>": {
+       "us": 7.71,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 55704.0
+      },
+      "void dyng::<unnamed>::item_counts_kernel<unsigned int>": {
+       "us": 4.59,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 23472.0
+      },
+      "d cub::DeviceScanInitKernel<cub::ScanTileState<unsigned long long, 1>>": {
+       "us": 2.53,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 68.0
+      },
+      "ong *>, unsigned long long, unsigned long long, 0, unsigned long long>": {
+       "us": 6.32,
+       "launches_per_update": 2.0,
+       "regs": 48.0,
+       "inst": 24341.0
+      },
+      "void dyng::<unnamed>::count_owned_cycles_kernel<4, unsigned int>": {
+       "us": 182.93,
+       "launches_per_update": 2.0,
+       "regs": 22.0,
+       "inst": 5730704.5
+      },
+      "dyng::<unnamed>::change_rows_kernel": {
+       "us": 22.46,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 1784251.0
+      },
+      "void dyng::<unnamed>::next_degree_kernel<unsigned int>": {
+       "us": 8.86,
+       "launches_per_update": 1.0,
+       "regs": 18.0,
+       "inst": 345417.0
+      },
+      "void cub::DeviceScanInitKernel<cub::ScanTileState<unsigned int, 1>>": {
+       "us": 2.54,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 124.0
+      },
+      "t, unsigned int *>, unsigned long long, unsigned int, 0, unsigned int>": {
+       "us": 11.01,
+       "launches_per_update": 1.0,
+       "regs": 48.0,
+       "inst": 163030.0
+      },
+      "void dyng::<unnamed>::build_next_rows_kernel<unsigned int>": {
+       "us": 223.89,
+       "launches_per_update": 1.0,
+       "regs": 22.0,
+       "inst": 27532670.0
+      }
+     }
+    },
+    "wheel-13.4": {
+     "kernel_us_per_update": 686.2,
+     "kernels": {
+      "void dyng::<unnamed>::mark_owners_kernel<unsigned int>": {
+       "us": 7.73,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 55704.0
+      },
+      "void dyng::<unnamed>::item_counts_kernel<unsigned int>": {
+       "us": 4.58,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 23472.0
+      },
+      "long *, cub::ScanTileState<unsigned long long, 1>, unsigned long long>": {
+       "us": 2.53,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 68.0
+      },
+      "ong *>, unsigned long long, unsigned long long, 0, unsigned long long>": {
+       "us": 6.26,
+       "launches_per_update": 2.0,
+       "regs": 50.0,
+       "inst": 24019.0
+      },
+      "void dyng::<unnamed>::count_owned_cycles_kernel<4, unsigned int>": {
+       "us": 180.18,
+       "launches_per_update": 2.0,
+       "regs": 20.0,
+       "inst": 5709449.5
+      },
+      "dyng::<unnamed>::change_rows_kernel": {
+       "us": 22.51,
+       "launches_per_update": 2.0,
+       "regs": 16.0,
+       "inst": 1784251.0
+      },
+      "void dyng::<unnamed>::next_degree_kernel<unsigned int>": {
+       "us": 8.9,
+       "launches_per_update": 1.0,
+       "regs": 18.0,
+       "inst": 345417.0
+      },
+      " *, unsigned int *, cub::ScanTileState<unsigned int, 1>, unsigned int>": {
+       "us": 2.54,
+       "launches_per_update": 1.0,
+       "regs": 16.0,
+       "inst": 124.0
+      },
+      "t, unsigned int *>, unsigned long long, unsigned int, 0, unsigned int>": {
+       "us": 11.06,
+       "launches_per_update": 1.0,
+       "regs": 58.0,
+       "inst": 161578.0
+      },
+      "void dyng::<unnamed>::build_next_rows_kernel<unsigned int>": {
+       "us": 223.84,
+       "launches_per_update": 1.0,
+       "regs": 22.0,
+       "inst": 27532670.0
+      }
+     }
+    }
+   }
+  }
+ },
+ "b_layout_control": {
+  "protocol": "perf_ab.py run (sssp OpenMP, 21 rounds) and perf_ab.py cycle_count run (CUDA DD 21 rounds at the boost lock; OpenMP github 11 rounds), GPU 0 / the Xeon, the exclusive perf lock, the contamination monitor; L0 = no flag, F = -falign-functions=64, FB = F + -falign-loops=32 + -Wa,-mbranches-within-32B-boundaries; A = the original (A0 unpatched as built by the harness, AF / AFB the unpatched original rebuilt with the same flags in a separate work area), B = dynG parity preset; B0-B* = dynG against dynG (sssp over 5 heap layouts, ADR 0024)",
+  "records": {
+   "cc-cuda-A0-B0": {
+    "date": "2026-10-07T18:10:00Z",
+    "backend": "cuda",
+    "port_cxx_flags": "",
+    "ratios": {
+     "update/DD_k4_25000_25000_s1 | update[original] | ": 0.683,
+     "update/DD_k4_25000_25000_s1 | update_end_to_end[original] | ": 0.966,
+     "update/DD_k4_25000_25000_s1 | update_device[original] | ": 0.72,
+     "update/DD_k4_25000_25000_s1 | update[resident] | ": 0.621,
+     "update/DD_k4_25000_25000_s1 | update_device[resident] | ": 0.652,
+     "update/DD_k4_25000_25000_s1 | update_chain_steady[resident] | ": 0.321,
+     "update/DD_k4_25000_25000_s1 | update_chain_worst[resident] | ": 0.621
+    }
+   },
+   "cc-cuda-A0-BF": {
+    "date": "2026-10-07T18:11:21Z",
+    "backend": "cuda",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "update/DD_k4_25000_25000_s1 | update[original] | ": 0.681,
+     "update/DD_k4_25000_25000_s1 | update_end_to_end[original] | ": 0.969,
+     "update/DD_k4_25000_25000_s1 | update_device[original] | ": 0.716,
+     "update/DD_k4_25000_25000_s1 | update[resident] | ": 0.613,
+     "update/DD_k4_25000_25000_s1 | update_device[resident] | ": 0.648,
+     "update/DD_k4_25000_25000_s1 | update_chain_steady[resident] | ": 0.32,
+     "update/DD_k4_25000_25000_s1 | update_chain_worst[resident] | ": 0.614
+    }
+   },
+   "cc-cuda-A0-BFB": {
+    "date": "2026-10-07T18:12:41Z",
+    "backend": "cuda",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "update/DD_k4_25000_25000_s1 | update[original] | ": 0.662,
+     "update/DD_k4_25000_25000_s1 | update_end_to_end[original] | ": 0.958,
+     "update/DD_k4_25000_25000_s1 | update_device[original] | ": 0.697,
+     "update/DD_k4_25000_25000_s1 | update[resident] | ": 0.601,
+     "update/DD_k4_25000_25000_s1 | update_device[resident] | ": 0.635,
+     "update/DD_k4_25000_25000_s1 | update_chain_steady[resident] | ": 0.316,
+     "update/DD_k4_25000_25000_s1 | update_chain_worst[resident] | ": 0.602
+    }
+   },
+   "cc-cuda-AF-BF": {
+    "date": "2026-10-07T18:14:03Z",
+    "backend": "cuda",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "update/DD_k4_25000_25000_s1 | update[original] | ": 0.673,
+     "update/DD_k4_25000_25000_s1 | update_end_to_end[original] | ": 0.949,
+     "update/DD_k4_25000_25000_s1 | update_device[original] | ": 0.715,
+     "update/DD_k4_25000_25000_s1 | update[resident] | ": 0.614,
+     "update/DD_k4_25000_25000_s1 | update_device[resident] | ": 0.651,
+     "update/DD_k4_25000_25000_s1 | update_chain_steady[resident] | ": 0.32,
+     "update/DD_k4_25000_25000_s1 | update_chain_worst[resident] | ": 0.616
+    }
+   },
+   "cc-cuda-AFB-BFB": {
+    "date": "2026-10-07T18:15:24Z",
+    "backend": "cuda",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "update/DD_k4_25000_25000_s1 | update[original] | ": 0.669,
+     "update/DD_k4_25000_25000_s1 | update_end_to_end[original] | ": 0.966,
+     "update/DD_k4_25000_25000_s1 | update_device[original] | ": 0.706,
+     "update/DD_k4_25000_25000_s1 | update[resident] | ": 0.604,
+     "update/DD_k4_25000_25000_s1 | update_device[resident] | ": 0.643,
+     "update/DD_k4_25000_25000_s1 | update_chain_steady[resident] | ": 0.318,
+     "update/DD_k4_25000_25000_s1 | update_chain_worst[resident] | ": 0.606
+    }
+   },
+   "cc-cuda-B0-BF": {
+    "date": "2026-10-07T18:16:21Z",
+    "backend": "cuda",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "update/DD_k4_25000_25000_s1 | update[original] | ": 0.993,
+     "update/DD_k4_25000_25000_s1 | update_end_to_end[original] | ": 1.0,
+     "update/DD_k4_25000_25000_s1 | update[resident] | ": 1.011
+    }
+   },
+   "cc-cuda-B0-BFB": {
+    "date": "2026-10-07T18:17:17Z",
+    "backend": "cuda",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "update/DD_k4_25000_25000_s1 | update[original] | ": 0.981,
+     "update/DD_k4_25000_25000_s1 | update_end_to_end[original] | ": 1.001,
+     "update/DD_k4_25000_25000_s1 | update[resident] | ": 0.963
+    }
+   },
+   "cc-openmp-A0-B0": {
+    "date": "2026-10-07T18:18:23Z",
+    "backend": "openmp",
+    "port_cxx_flags": "",
+    "ratios": {
+     "update/github_k4_25000_25000_s1 | update | ": 0.447,
+     "update/github_k4_25000_25000_s1 | update_end_to_end | ": 0.573
+    }
+   },
+   "cc-openmp-A0-BF": {
+    "date": "2026-10-07T18:19:30Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "update/github_k4_25000_25000_s1 | update | ": 0.441,
+     "update/github_k4_25000_25000_s1 | update_end_to_end | ": 0.568
+    }
+   },
+   "cc-openmp-A0-BFB": {
+    "date": "2026-10-07T18:20:36Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "update/github_k4_25000_25000_s1 | update | ": 0.404,
+     "update/github_k4_25000_25000_s1 | update_end_to_end | ": 0.558
+    }
+   },
+   "cc-openmp-AF-BF": {
+    "date": "2026-10-07T18:21:46Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "update/github_k4_25000_25000_s1 | update | ": 0.443,
+     "update/github_k4_25000_25000_s1 | update_end_to_end | ": 0.531
+    }
+   },
+   "cc-openmp-AFB-BFB": {
+    "date": "2026-10-07T18:22:48Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "update/github_k4_25000_25000_s1 | update | ": 0.398,
+     "update/github_k4_25000_25000_s1 | update_end_to_end | ": 0.626
+    }
+   },
+   "cc-openmp-B0-BF": {
+    "date": "2026-10-07T18:23:37Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "update/github_k4_25000_25000_s1 | update | ": 0.999,
+     "update/github_k4_25000_25000_s1 | update_end_to_end | ": 1.002
+    }
+   },
+   "cc-openmp-B0-BFB": {
+    "date": "2026-10-07T18:24:27Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "update/github_k4_25000_25000_s1 | update | ": 0.899,
+     "update/github_k4_25000_25000_s1 | update_end_to_end | ": 0.982
+    }
+   },
+   "sssp-rgg-A0-B0": {
+    "date": "2026-10-07T18:00:11Z",
+    "backend": "openmp",
+    "port_cxx_flags": "",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.756,
+     "local10k | sosp_update obj1 | as measured": 0.733,
+     "local10k | sosp_update obj2 | as measured": 0.763,
+     "local10k | sosp_total | as measured": 0.751,
+     "local10k | apply | as measured": 0.768,
+     "local10k | end_to_end | as measured": 0.893
+    }
+   },
+   "sssp-rgg-A0-BF": {
+    "date": "2026-10-07T18:01:56Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.707,
+     "local10k | sosp_update obj1 | as measured": 0.671,
+     "local10k | sosp_update obj2 | as measured": 0.71,
+     "local10k | sosp_total | as measured": 0.701,
+     "local10k | apply | as measured": 0.789,
+     "local10k | end_to_end | as measured": 0.91
+    }
+   },
+   "sssp-rgg-A0-BFB": {
+    "date": "2026-10-07T18:02:45Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.717,
+     "local10k | sosp_update obj1 | as measured": 0.684,
+     "local10k | sosp_update obj2 | as measured": 0.72,
+     "local10k | sosp_total | as measured": 0.705,
+     "local10k | apply | as measured": 0.783,
+     "local10k | end_to_end | as measured": 0.705
+    }
+   },
+   "sssp-rgg-AF-BF": {
+    "date": "2026-10-07T18:07:52Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.753,
+     "local10k | sosp_update obj1 | as measured": 0.736,
+     "local10k | sosp_update obj2 | as measured": 0.751,
+     "local10k | sosp_total | as measured": 0.747,
+     "local10k | apply | as measured": 0.797,
+     "local10k | end_to_end | as measured": 0.831
+    }
+   },
+   "sssp-rgg-AFB-BFB": {
+    "date": "2026-10-07T18:08:39Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.713,
+     "local10k | sosp_update obj1 | as measured": 0.685,
+     "local10k | sosp_update obj2 | as measured": 0.715,
+     "local10k | sosp_total | as measured": 0.701,
+     "local10k | apply | as measured": 0.786,
+     "local10k | end_to_end | as measured": 0.744
+    }
+   },
+   "sssp-rgg-B0-BF-layouts": {
+    "date": "2026-10-07T18:03:38Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 1.01,
+     "local10k | sosp_update obj1 | as measured": 1.004,
+     "local10k | sosp_update obj2 | as measured": 1.005,
+     "local10k | sosp_total | as measured": 1.007,
+     "local10k | apply | as measured": 0.986,
+     "local10k | end_to_end | as measured": 0.998
+    }
+   },
+   "sssp-rgg-B0-BFB-layouts": {
+    "date": "2026-10-07T18:04:23Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 1.006,
+     "local10k | sosp_update obj1 | as measured": 0.994,
+     "local10k | sosp_update obj2 | as measured": 1.0,
+     "local10k | sosp_total | as measured": 1.006,
+     "local10k | apply | as measured": 1.024,
+     "local10k | end_to_end | as measured": 0.791
+    }
+   },
+   "sssp-roadNet-CA-A0-B0": {
+    "date": "2026-10-07T17:54:43Z",
+    "backend": "openmp",
+    "port_cxx_flags": "",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.741,
+     "local10k | sosp_update obj1 | as measured": 0.73,
+     "local10k | sosp_update obj2 | as measured": 0.854,
+     "local10k | sosp_total | as measured": 0.77,
+     "local10k | apply | as measured": 0.888,
+     "local10k | end_to_end | as measured": 0.88,
+     "safe50k | sosp_update obj0 | as measured": 0.819,
+     "safe50k | sosp_update obj1 | as measured": 0.915,
+     "safe50k | sosp_update obj2 | as measured": 0.926,
+     "safe50k | sosp_total | as measured": 0.861,
+     "safe50k | apply | as measured": 0.865,
+     "safe50k | end_to_end | as measured": 0.887
+    }
+   },
+   "sssp-roadNet-CA-A0-BF": {
+    "date": "2026-10-07T17:55:38Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.755,
+     "local10k | sosp_update obj1 | as measured": 0.748,
+     "local10k | sosp_update obj2 | as measured": 0.855,
+     "local10k | sosp_total | as measured": 0.782,
+     "local10k | apply | as measured": 0.872,
+     "local10k | end_to_end | as measured": 0.907,
+     "safe50k | sosp_update obj0 | as measured": 0.787,
+     "safe50k | sosp_update obj1 | as measured": 0.918,
+     "safe50k | sosp_update obj2 | as measured": 0.933,
+     "safe50k | sosp_total | as measured": 0.857,
+     "safe50k | apply | as measured": 0.911,
+     "safe50k | end_to_end | as measured": 0.855
+    }
+   },
+   "sssp-roadNet-CA-A0-BFB": {
+    "date": "2026-10-07T17:56:29Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.733,
+     "local10k | sosp_update obj1 | as measured": 0.7,
+     "local10k | sosp_update obj2 | as measured": 0.796,
+     "local10k | sosp_total | as measured": 0.721,
+     "local10k | apply | as measured": 0.86,
+     "local10k | end_to_end | as measured": 0.668,
+     "safe50k | sosp_update obj0 | as measured": 0.819,
+     "safe50k | sosp_update obj1 | as measured": 0.904,
+     "safe50k | sosp_update obj2 | as measured": 0.917,
+     "safe50k | sosp_total | as measured": 0.856,
+     "safe50k | apply | as measured": 0.851,
+     "safe50k | end_to_end | as measured": 0.727
+    }
+   },
+   "sssp-roadNet-CA-AF-BF": {
+    "date": "2026-10-07T18:06:08Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.64,
+     "local10k | sosp_update obj1 | as measured": 0.611,
+     "local10k | sosp_update obj2 | as measured": 0.659,
+     "local10k | sosp_total | as measured": 0.632,
+     "local10k | apply | as measured": 0.869,
+     "local10k | end_to_end | as measured": 0.88,
+     "safe50k | sosp_update obj0 | as measured": 0.834,
+     "safe50k | sosp_update obj1 | as measured": 0.898,
+     "safe50k | sosp_update obj2 | as measured": 0.901,
+     "safe50k | sosp_total | as measured": 0.877,
+     "safe50k | apply | as measured": 0.892,
+     "safe50k | end_to_end | as measured": 0.812
+    }
+   },
+   "sssp-roadNet-CA-AFB-BFB": {
+    "date": "2026-10-07T18:06:57Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.716,
+     "local10k | sosp_update obj1 | as measured": 0.677,
+     "local10k | sosp_update obj2 | as measured": 0.73,
+     "local10k | sosp_total | as measured": 0.705,
+     "local10k | apply | as measured": 0.842,
+     "local10k | end_to_end | as measured": 0.734,
+     "safe50k | sosp_update obj0 | as measured": 0.798,
+     "safe50k | sosp_update obj1 | as measured": 0.896,
+     "safe50k | sosp_update obj2 | as measured": 0.897,
+     "safe50k | sosp_total | as measured": 0.857,
+     "safe50k | apply | as measured": 0.861,
+     "safe50k | end_to_end | as measured": 0.738
+    }
+   },
+   "sssp-roadNet-CA-B0-BF-layouts": {
+    "date": "2026-10-07T17:58:10Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.992,
+     "local10k | sosp_update obj1 | as measured": 1.01,
+     "local10k | sosp_update obj2 | as measured": 1.006,
+     "local10k | sosp_total | as measured": 1.008,
+     "local10k | apply | as measured": 0.974,
+     "local10k | end_to_end | as measured": 0.983,
+     "safe50k | sosp_update obj0 | as measured": 1.015,
+     "safe50k | sosp_update obj1 | as measured": 1.003,
+     "safe50k | sosp_update obj2 | as measured": 0.999,
+     "safe50k | sosp_total | as measured": 1.007,
+     "safe50k | apply | as measured": 1.019,
+     "safe50k | end_to_end | as measured": 0.992
+    }
+   },
+   "sssp-roadNet-CA-B0-BFB-layouts": {
+    "date": "2026-10-07T17:59:02Z",
+    "backend": "openmp",
+    "port_cxx_flags": "-falign-functions=64 -falign-loops=32 -Wa,-mbranches-within-32B-boundaries",
+    "ratios": {
+     "local10k | sosp_update obj0 | as measured": 0.976,
+     "local10k | sosp_update obj1 | as measured": 0.983,
+     "local10k | sosp_update obj2 | as measured": 0.992,
+     "local10k | sosp_total | as measured": 0.978,
+     "local10k | apply | as measured": 0.948,
+     "local10k | end_to_end | as measured": 0.789,
+     "safe50k | sosp_update obj0 | as measured": 0.986,
+     "safe50k | sosp_update obj1 | as measured": 0.989,
+     "safe50k | sosp_update obj2 | as measured": 0.993,
+     "safe50k | sosp_total | as measured": 0.988,
+     "safe50k | apply | as measured": 0.997,
+     "safe50k | end_to_end | as measured": 0.809
+    }
+   }
+  }
+ }
+}

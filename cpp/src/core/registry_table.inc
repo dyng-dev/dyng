@@ -35,7 +35,7 @@ table.push_back(algorithm_info{
     "Dynamic multi-objective shortest paths",
     algorithm_family::fixed_point,
     container_kind::graph,
-    maturity_level::experimental,
+    maturity_level::stable,
     determinism::bitwise,
     oracle_kind::compute,
     {backend::sequential, backend::openmp, backend::cuda},

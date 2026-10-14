@@ -1,0 +1,204 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Benchmark-suite record (PLAN Section 8.5) of dynG's `mosp`: the MOSP update of DynaMOSP (IPDPS
+# 2025), the K = 3 per-objective SOSP updates plus the combined graph and its SOSP (Steps 2-3) and
+# the MOSP path costs, which is what `mosp::update` computes. The suite reads the gates of M7
+# (parity/results/M7.md sections 6 and 8; PLAN Sections 6.4.4 and 8.6): "(a) compute" and
+# "(b) end to end" against the unpatched `bin/mosp` of MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2,
+# and the device memory against MOSP-CUDA's, on the four graphs and three batches of the papers.
+# The per-objective update alone is the sssp suite's (ipdps25_dynamosp_sosp.yaml); the K sweep of
+# the TPDS extension is listed under `deferred`.
+#
+# Machine-readable: parity/bench_suite.py validates this file, checks the inputs against the
+# SHA-256 digests below, and runs every reading through the A/B harness (parity/perf_ab.py mosp,
+# parity/perf_ab.py memory --mosp) under the exclusive perf lock; the results JSON goes to
+# benchmarks/results/<version>/. docs/developer/benchmarks.md describes the format. From 0.2.0 on
+# parity/certify.py requires this suite's summary, with every gated region below, in a release
+# certificate.
+schema: 1
+suite: ipdps25_dynamosp_mosp
+title: "DynaMOSP: the MOSP update, K = 3 objectives and the combined graph (dynG mosp)"
+algorithm: mosp
+paper:
+  short: DynaMOSP
+  venue: IPDPS 2025
+  scope: >-
+    the papers' "(a) compute" (the K = 3 per-objective SOSP updates plus Steps 2-3, the combined
+    graph and its SOSP from scratch) and "(b) end to end" (from reading the text inputs to writing
+    every output file, the MOSP path costs included) of one batch per process, as the originals'
+    bench/run.sh runs them; and the peak device memory of the CUDA update. The K sweep (K = 2..4 on
+    roadNet-CA widened to four objectives) of the TPDS 2025 extension is reported, not gated
+    (parity/results/M7.md section 5), and is not part of this suite (`deferred`).
+harness:
+  tool: perf_ab.mosp               # parity/perf_ab.py mosp | parity/perf_ab.py memory --mosp
+  prepare: parity/perf_ab.py prepare --graph {dataset}
+  inputs: $DYNG_SCRATCH/bench/mosp/{dataset}
+  executable: tools/compat/dyng-compat-mosp
+  presets: {openmp: parity, cuda: parity-cuda}
+  region_map: parity/timed_regions/mosp.toml
+  outputs: written by both sides (bench/run.sh), into a directory deleted after each run; before the timed rounds of every batch every output file of both is compared byte for byte
+graph:
+  num_weights: 3                   # K: every column of the prepared CSR (`mosp` without -k)
+  random_weights: [1, 100, 12345]  # U[1, 100] per objective, seed 12345 (mospPrep mtx2csr)
+  source: 0
+  preferences: default             # all 1 (`mosp` without --pref)
+  index_types: [int32, int32, int32]
+datasets:
+  - name: roadNet-PA
+    source: {collection: SuiteSparse, id: SNAP/roadNet-PA, url: "https://sparse.tamu.edu/SNAP/roadNet-PA"}
+    recipe: &mosp_recipe >-
+      the Matrix Market file of the collection, converted by the original's own tool
+      (MOSP-OpenMP@c352151 bin/mospPrep mtx2csr <mtx> csr/graphCsr 3 1 100 12345), the initial
+      trees by mospPrep init (Dijkstra from vertex 0 per objective); parity/perf_ab.py prepare
+      makes the batches with mospPrep changes, as the original's bench/prepare.sh does
+    hops: 110
+    sha256:   # relative to $DYNG_SCRATCH/bench/mosp/roadNet-PA (its INPUTS.sha256)
+      changes_50000_50/delete.txt: 5aef12870ed6154b6f575f03dd524869acf6c599a86ed6d6a03abc69a84c8eda
+      changes_50000_50/insert.txt: 9e98640ac9a042c1092b55d9acff9bef479db46448d891699db0edc9b556382f
+      changes_50000_50_safe/delete.txt: a8acdc4b16319695a32631978b768e40b23db77008566c3c598f7662a16f562f
+      changes_50000_50_safe/insert.txt: 9e98640ac9a042c1092b55d9acff9bef479db46448d891699db0edc9b556382f
+      changes_local_10000_50_safe/delete.txt: 6399007247bc11b25fb0e094751e9278efb07641e6a498f006f05aede93a7259
+      changes_local_10000_50_safe/insert.txt: 45ec199277d9f0bae7b589199c629d79f185a20d291647cf31afceb525d1fd90
+      csr/graphCsrColInd.txt: 24a413079495935508bfc790409b4bc7eb592cd3127ef5647593043bafef48ff
+      csr/graphCsrRowPtr.txt: cfc9d21c2a758144c5d50b29d34dfe69a6b019ce595a95548497d4d81bb71ea0
+      csr/graphCsrValues.txt: 69cb03c30c36ae1c5ffe5107b7d3b1ccdfc7eba47b5b07b8324348393717bb78
+      init/obj0/SSSPTreeOriginal.txt: c954b2fa1513af1216e73ca04a3a25af339eeb4d4a96135b377ca709148683cd
+      init/obj0/distancesOriginal.txt: 7560e9773d1af9d5a21708738bb9d24567dfb1f0251fc9f52d2876ecfa9f34f7
+      init/obj1/SSSPTreeOriginal.txt: bcb500f7f237b749cd7ab7589120840b60ba63cd4284a6cbc67e8a951eda6a6d
+      init/obj1/distancesOriginal.txt: 6e400d7d49291f06c4795aa252cc72b1324572b8004080a99e29222e6d3901f4
+      init/obj2/SSSPTreeOriginal.txt: 1d7c6f3718d5aea9eba4f5914e556fb854018e87a4f42ea7ece5f7daee32f40b
+      init/obj2/distancesOriginal.txt: 41fa68dec3c25ee999aefb0669312c944200dc78c1fcf0cee5d54bfd92738903
+  - name: roadNet-CA
+    source: {collection: SuiteSparse, id: SNAP/roadNet-CA, url: "https://sparse.tamu.edu/SNAP/roadNet-CA"}
+    recipe: *mosp_recipe
+    hops: 160
+    sha256:
+      changes_50000_50/delete.txt: 966eb2f0e570784119cca02c40d451dba1228c444b0c6148385f7c0489f8fe78
+      changes_50000_50/insert.txt: aa83613347d1c6febeb06a06552b21b010dbfafc27a4a1a18b20abcad13cf273
+      changes_50000_50_safe/delete.txt: b76c87ff03ead5d3883246cae64db3bbdb2ffd62059d7a18b2aa0423f7cbe7fc
+      changes_50000_50_safe/insert.txt: aa83613347d1c6febeb06a06552b21b010dbfafc27a4a1a18b20abcad13cf273
+      changes_local_10000_50_safe/delete.txt: 0a01bd4d6440f792c8c2682e8eb5fcf56740c05ffda999900e1c523d8b423e2b
+      changes_local_10000_50_safe/insert.txt: 177e8036a996189285d4e52da482b169d36ccdc486cefbce2b87f5aa2ed25844
+      csr/graphCsrColInd.txt: 40b48ba4fe165708321064ecc792de2d7de92f154313249c387d53b8b5f002d7
+      csr/graphCsrRowPtr.txt: d72d6af99511677c43f368c9a0c34439c67a6f338bd0e4235e4ecf05ca2e7b1d
+      csr/graphCsrValues.txt: 1766cacfd7e467135d94653363d18df22b4756ab0fbd28ff03eb86431400d892
+      init/obj0/SSSPTreeOriginal.txt: 2b6c21443e555d7c115cb666f4dd9d6164fb863e236f3968ae7076878e8b2bbc
+      init/obj0/distancesOriginal.txt: 0962f5f303b60fd9bdac23532c3f0853ead7dc951c041ac3bd350e01dd1a11c0
+      init/obj1/SSSPTreeOriginal.txt: d8a5dc5227b5a0856767c7d5df6046ea9fdfe959b237950c4f3a7e729265998c
+      init/obj1/distancesOriginal.txt: f0991b9d18ac5acb5f5128ad3d21a16979d93c8dbaba1b953bba14ca45cf67a9
+      init/obj2/SSSPTreeOriginal.txt: 98a53310608fec31900742ee99caaaba2636efd65e2cacb92890c5bac10dc687
+      init/obj2/distancesOriginal.txt: 6958d05a2a4d71196cea3a0e1b246ee7a82468e349223b800d8f7f8eb5d6ca8d
+  # rgg's unsafe50k batch is byte-identical to its safe50k batch (the same delete.txt and
+  # insert.txt digests below): mospPrep's --safe filter (filterUnsafeDeletions of
+  # MOSP-CUDA@e220ee2 src/changeGenerator.cu) drops only deletions that make a vertex reachable
+  # from the source unreachable, and none of the 25,000 seed-777 deletions on rgg_n_2_20_s0
+  # (average degree about 13) does. The rgg unsafe50k readings therefore repeat the safe50k ones
+  # and are not independent coverage of disconnecting deletions (R020); the other three graphs'
+  # safe batches keep 21,884-23,319 of the 25,000 deletions.
+  - name: rgg
+    source: {collection: SuiteSparse, id: DIMACS10/rgg_n_2_20_s0, url: "https://sparse.tamu.edu/DIMACS10/rgg_n_2_20_s0"}
+    recipe: *mosp_recipe
+    hops: 110
+    sha256:
+      changes_50000_50/delete.txt: e98ac4459098ff48d0cf17a16d681fb7b5e2c6eaf2f965f508c3bc78b1d0cc41
+      changes_50000_50/insert.txt: 32a15dc8729d58dc80f5f3d00d6efda3ebda4572b18a9906c1cee9c7c2b55a5c
+      changes_50000_50_safe/delete.txt: e98ac4459098ff48d0cf17a16d681fb7b5e2c6eaf2f965f508c3bc78b1d0cc41
+      changes_50000_50_safe/insert.txt: 32a15dc8729d58dc80f5f3d00d6efda3ebda4572b18a9906c1cee9c7c2b55a5c
+      changes_local_10000_50_safe/delete.txt: 6bb248d91d49e1a75c99c5c204dbb02e56947189df6d9ce2508e0685ae09111d
+      changes_local_10000_50_safe/insert.txt: 0a074d87444792d1f4c7bfacd4de3c55cde586e2e29a100e2fc0f531cfd0c261
+      csr/graphCsrColInd.txt: 090365d37462dc5f8fed99960e018136c3c2d0f4636faed9c6443559a6e6bcb0
+      csr/graphCsrRowPtr.txt: 3e7e4506241eae2474979edbba085fb4017e413e8c969bc70a62bbb92d7652ed
+      csr/graphCsrValues.txt: 0ce8c616089b2bea8c63000149b2287d17a6b1c9cb51270f94d8605c2fdf7dfe
+      init/obj0/SSSPTreeOriginal.txt: 57e5387cb72300b7f9907ee9cc4d97d7a8a1f460f912d00614b60a872a1bea70
+      init/obj0/distancesOriginal.txt: 5ebba76434a062f5af9dea9745f051cbfebbb6fb03d709838aae2b0856a709ce
+      init/obj1/SSSPTreeOriginal.txt: 88012a21336995757c93eb886414a2c5ca7fa6b0b59e3aa881650e4abe76c200
+      init/obj1/distancesOriginal.txt: 2017db7dfd4344faf099c482eb6440c0dac7972d1078e2bf1a7c3528043b0c42
+      init/obj2/SSSPTreeOriginal.txt: 044f3024f7b46ace6ec5ccd2ca957d61437d2dd01d1e0f7dfd9467da8bfd6ec5
+      init/obj2/distancesOriginal.txt: b3110eb5769b45883eb7ba7b8a828f27f807796153b9f2eb3ab8a1bcbb46fc25
+  - name: road_usa_g
+    source: {collection: SuiteSparse, id: DIMACS10/road_usa, url: "https://sparse.tamu.edu/DIMACS10/road_usa"}
+    recipe: *mosp_recipe
+    hops: 200
+    sha256:
+      changes_50000_50/delete.txt: 9cfb42a6e2d0db7989542909fceb1209d1272084377de661684e72c7d7fb7954
+      changes_50000_50/insert.txt: 8b1a7e13b761a21f639d0e54a4741ef3f0903819cb4774982d06a82ebc5cd188
+      changes_50000_50_safe/delete.txt: d6ed3bc9409789ea40c1a0fe2355093a65ddb148a256279cbab2dfd82e346364
+      changes_50000_50_safe/insert.txt: 8b1a7e13b761a21f639d0e54a4741ef3f0903819cb4774982d06a82ebc5cd188
+      changes_local_10000_50_safe/delete.txt: 10d20b83290012e4bbcfdfe5a66d0c8429a3bc740e27e7630e839150360b7f04
+      changes_local_10000_50_safe/insert.txt: 6dea3fecc967be495fa4c778b9b2fcc3e942d872466561983df853ec88ebe36c
+      csr/graphCsrColInd.txt: 658fc3bcb75dda9e73b23645dd3af7cf48483ce1b4300b56c8cb60af2c2b488b
+      csr/graphCsrRowPtr.txt: 4397575ecc0c2379a7fd927c20bd4320760e2fa2739600ee76838cfa751ce042
+      csr/graphCsrValues.txt: 21d763c05f72d12bf54dcd4536ff53c44302ce02e9076cb57a18438ed612d998
+      init/obj0/SSSPTreeOriginal.txt: 173f8e5c37f198d8eb18a8555aa236a330020186e58ab025c25770dcf269c0af
+      init/obj0/distancesOriginal.txt: f5923c32ebc7f333a977f14d65a4363da57051e87ace9e2ed59cd28ec1b90e85
+      init/obj1/SSSPTreeOriginal.txt: 9f524e10ed6dceaa3b40e0fa8a6f0277143e73f4e4fc65f8f72840e6087d14e7
+      init/obj1/distancesOriginal.txt: 148c958ec7d862d14cb64eb0204d7395be0be91e7af72d72a0e644583af07ed6
+      init/obj2/SSSPTreeOriginal.txt: 40748cbf3466c261596ddeeda1544d59e386030f471e0cbae67f072cefd10ea5
+      init/obj2/distancesOriginal.txt: 013f17d8d6c444edc5df78513bd53a42cf48d41d94c56488d2ea793707b4f626
+deferred:      # in the papers, not in this suite
+  - {name: ksweep, dataset: roadNet-CA-K4, objectives: [2, 3, 4], source: "parity/perf_ab.py prepare --graph roadNet-CA-K4 --widen roadNet-CA:4", reason: "the K sweep of the TPDS 2025 extension (tpds25_dynamosp): reported, not gated (parity/results/M7.md section 5)"}
+batches:   # mospPrep changes <csr> 3 <n> <size> <insert %> 777 [--local <hops>] [--safe]
+  - {name: safe50k, generator: legacy.change_batch, size: 50000, insert_fraction: 0.5, safe: true, seed: 777, directory: changes_50000_50_safe}
+  - {name: unsafe50k, generator: legacy.change_batch, size: 50000, insert_fraction: 0.5, safe: false, seed: 777, directory: changes_50000_50}
+  - {name: local10k, generator: legacy.change_batch, size: 10000, insert_fraction: 0.5, safe: true, mode: local, hops: dataset, seed: 777, directory: changes_local_10000_50_safe}
+backends:
+  openmp:
+    threads: 28
+    environment: OMP_PROC_BIND=close OMP_PLACES=cores (28 threads pinned to the physical cores)
+    baseline: MOSP-OpenMP
+  cuda:
+    gpu: 0
+    engine: automatic   # dyng-compat-mosp --cuda-engine (the default; the fused engine on the RTX A5000)
+    environment: CUDA_MODULE_LOADING=EAGER (the original's own default); resources::warm_up() (dynG)
+    baseline: MOSP-CUDA
+runs:          # alternating original / port rounds (A/B/A/B), medians compared
+  default: 21
+  road_usa_g: 11
+metrics:       # region (parity/timed_regions/mosp.toml) -> the dynG profiler stages it sums
+  compute:
+    gate: compute
+    openmp: {original: "compute_ms (obj<k>/sosp_update_compute + combined_graph_compute)", port: [sssp.engine, mosp.combine, mosp.combined_sssp, mosp.finalize]}
+    cuda: {original: "gpu_compute_ms (obj<k>/sosp_update_gpu + combined_graph_gpu)", port: [sssp.engine, mosp.combine, mosp.combined_sssp, mosp.finalize]}
+  sosp_update:
+    per_objective: true
+    gate: none
+    openmp: {original: "obj<k> SOSP update", port: [sssp.engine]}
+    cuda: {original: "obj<k> SOSP update", port: [sssp.engine]}
+  combined:
+    gate: none   # PLAN 6.4.4 "watch: the combined step"
+    openmp: {original: "comb combined graph + SOSP", port: [mosp.combine, mosp.combined_sssp, mosp.finalize]}
+    cuda: {original: "comb combined graph + SOSP", port: [mosp.combine, mosp.combined_sssp, mosp.finalize]}
+  end_to_end:
+    gate: end_to_end
+    openmp: {original: "end_to_end_ms (TOTAL_end_to_end)", port: [total.end_to_end]}
+    cuda: {original: "end_to_end_ms (TOTAL_end_to_end)", port: [total.end_to_end]}
+  path_costs:
+    gate: none   # the port's side only (the originals compute them while writing mospCosts.txt)
+    openmp: {original: "none", port: [mosp.path_costs]}
+    cuda: {original: "none", port: [mosp.path_costs]}
+  device_memory:
+    gate: memory
+    cuda: {original: "peak live device allocations of bin/mosp (nsys)", port: "peak live device allocations of dyng-compat-mosp --mosp --no-output (nsys)"}
+baselines:     # the pinned originals, built from the UNPATCHED scratch copy (parity/build_reference.sh)
+  MOSP-OpenMP: {commit: c35215135341d5b5d1553458afe4b2226edc38fb, variant: unpatched, backend: openmp}
+  MOSP-CUDA: {commit: e220ee20d1b0948ece3df135a02d1b898264c22f, variant: unpatched, backend: cuda}
+tolerance:     # PLAN 8.6: port / original median
+  compute: 1.05
+  compute_short: 1.10   # regions whose original median is below short_region_ms (>= 20 runs)
+  short_region_ms: 10.0
+  end_to_end: 1.10
+  memory: 1.05
+readings:      # what one execution of the suite runs (every reading x every dataset)
+  - {name: openmp, kind: run, backend: openmp, gated: true}
+  - {name: cuda, kind: run, backend: cuda, clocks: boost, gated: true}         # ADR 0018
+  - {name: cuda-default-clocks, kind: run, backend: cuda, clocks: none, gated: false}  # ADR 0018: recorded, not gated
+  - {name: cuda-memory, kind: memory, backend: cuda, gpu: 1, gated: true}
+paper_reference:   # informational: the originals' published numbers on the 50K safe batch (PLAN 6.4.4, 8.5)
+  hardware: RTX A5000 (sm_86), Xeon Gold 6258R
+  compute_a_ms:
+    cuda: {roadNet-PA: 18.5, roadNet-CA: 33.7, rgg: 83.0, road_usa_g: 377}
+    openmp: {roadNet-PA: 63.2, roadNet-CA: 110, rgg: 166, road_usa_g: 1320}
+  end_to_end_b_ms:
+    cuda: {roadNet-PA: 794, roadNet-CA: 1250, rgg: 1630, road_usa_g: 12200}
+    openmp: {roadNet-PA: 645, roadNet-CA: 1170, rgg: 1300, road_usa_g: 12900}

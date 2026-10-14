@@ -1,0 +1,101 @@
+{
+ "schema": 1,
+ "algorithm": "mosp",
+ "set": "mosp_scale",
+ "label": "",
+ "date": "2026-10-08T19:34:30Z",
+ "reference": {
+  "name": "MOSP-OpenMP",
+  "commit": "c35215135341d5b5d1553458afe4b2226edc38fb",
+  "cross_checked_with": "MOSP-CUDA e220ee20d1b0948ece3df135a02d1b898264c22f"
+ },
+ "port": {
+  "repository": "dyng",
+  "commit": "b1a4869a936868b572213f66f089d7587d0f1972"
+ },
+ "executable": "build/parity-cuda/tools/compat/dyng-compat-mosp",
+ "build": {
+  "CMAKE_BUILD_TYPE": "Release",
+  "CMAKE_CUDA_FLAGS_RELEASE": "-O3 -lineinfo -fmad=true",
+  "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+  "CMAKE_CXX_FLAGS": "",
+  "CMAKE_CXX_FLAGS_RELEASE": "-O3",
+  "DYNG_CUDA_ARCHITECTURES": "86",
+  "DYNG_ENABLE_CUDA": "ON",
+  "DYNG_ENABLE_OPENMP": "ON",
+  "build_dir": "build/parity-cuda",
+  "compiler": "c++ (Debian 12.2.0-14+deb12u1) 12.2.0"
+ },
+ "host": {
+  "cpu": "Intel(R) Xeon(R) Gold 6258R CPU @ 2.70GHz",
+  "logical_cpus": 56,
+  "kernel": "6.1.0-52-amd64",
+  "python": "3.12.14"
+ },
+ "tolerance": "none: SHA-256 of every output file and the invalidated counters equal",
+ "configs": [
+  "cuda",
+  "cuda-operators"
+ ],
+ "cases": [
+  "gate/rgg_local10k",
+  "gate/rgg_safe50k",
+  "gate/rgg_unsafe50k",
+  "gate/roadNet-CA_local10k",
+  "gate/roadNet-CA_safe50k",
+  "gate/roadNet-CA_unsafe50k",
+  "gate/roadNet-PA_local10k",
+  "gate/roadNet-PA_safe50k",
+  "gate/roadNet-PA_unsafe50k",
+  "gate/road_usa_g_local10k",
+  "gate/road_usa_g_safe50k",
+  "gate/road_usa_g_unsafe50k",
+  "ksweep/roadNet-CA-K4_safe50k_k1",
+  "ksweep/roadNet-CA-K4_safe50k_k2",
+  "ksweep/roadNet-CA-K4_safe50k_k2_pref1-3",
+  "ksweep/roadNet-CA-K4_safe50k_k3",
+  "ksweep/roadNet-CA-K4_safe50k_k4",
+  "ksweep/roadNet-CA-K4_safe50k_k4_pref4-1-4-2",
+  "pref/roadNet-CA_local10k_pref4-1-4",
+  "pref/roadNet-CA_safe50k_pref4-1-4"
+ ],
+ "matrix": {
+  "gate": {
+   "cuda": {
+    "cases": 12,
+    "pass": 12,
+    "fail": []
+   },
+   "cuda-operators": {
+    "cases": 12,
+    "pass": 12,
+    "fail": []
+   }
+  },
+  "pref": {
+   "cuda": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   },
+   "cuda-operators": {
+    "cases": 2,
+    "pass": 2,
+    "fail": []
+   }
+  },
+  "ksweep": {
+   "cuda": {
+    "cases": 6,
+    "pass": 6,
+    "fail": []
+   },
+   "cuda-operators": {
+    "cases": 6,
+    "pass": 6,
+    "fail": []
+   }
+  }
+ },
+ "passed": true
+}

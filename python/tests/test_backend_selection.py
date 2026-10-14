@@ -142,7 +142,15 @@ def test_a_newer_driver_chooses_the_newest_older_major() -> None:
     cu12, cu13 = FakePlugin(12, driver=14000), FakePlugin(13, driver=14000)
     module, chosen = select(EntryPoint("cu12", cu12), EntryPoint("cu13", cu13))
     assert module is cu13.module
-    assert "no plugin of that major is usable, and CUDA 13 runs on it" in chosen.reason
+    assert "no CUDA 14 plugin is installed, and CUDA 13 runs on it" in chosen.reason
+
+
+def test_a_newer_drivers_plugin_that_cannot_be_used_is_named() -> None:
+    cu13 = FakePlugin(13, driver=14000)
+    cu14 = FakePlugin(14, version="9.8.6", driver=14000)
+    module, chosen = select(EntryPoint("cu13", cu13), EntryPoint("cu14", cu14))
+    assert module is cu13.module
+    assert "the CUDA 14 plugin cannot be used, and CUDA 13 runs on it" in chosen.reason
 
 
 def test_a_version_mismatch_falls_back_with_a_warning() -> None:
@@ -386,6 +394,9 @@ def test_an_unusable_plugin_warns_once_and_runs_on_the_cpu_module() -> None:
     assert "cuda: True" in out
     assert "chosen because    : no installed CUDA plugin can be used" in out
     assert "CUDA plugin       : dyng_cu13" in out and "unusable (no CUDA driver" in out
+    # The plugin is installed: show_config() points at its line, not at `pip install`.
+    assert "the installed CUDA plugins are not used (see the plugin lines below)" in out
+    assert "pip install" not in out
 
 
 @pytest.mark.parametrize(

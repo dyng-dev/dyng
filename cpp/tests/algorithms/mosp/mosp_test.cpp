@@ -409,6 +409,26 @@ TEST_P(MospBackend, ComputePathCostsCanBeSwitchedOff) {
   EXPECT_TRUE(take(r) == reference(res_, g, 0, 3, {}));
 }
 
+// set_options() changes compute_path_costs for the next update(): what path_costs() returns or
+// throws follows the option of the last compute() or update(), not the current one (the frozen
+// header documents it; ADR 0035, the amendments of R020's review).
+TEST_P(MospBackend, ComputePathCostsTakesEffectAtTheNextUpdate) {
+  graph_t g = thesis_graph(res_);
+  dyng::mosp::options opt;
+  result_t r = dyng::mosp::compute(res_, g, 0, opt);
+  const std::vector<std::int64_t> before = costs_of(r, 6);
+  opt.compute_path_costs = false;
+  r.set_options(opt);
+  EXPECT_EQ(costs_of(r, 6), before);  // computed at compute(): still readable
+  (void)dyng::mosp::update(res_, g, thesis_batch().view(), r);
+  EXPECT_THROW((void)r.path_costs(), dyng::invalid_argument_error);
+  opt.compute_path_costs = true;
+  r.set_options(opt);
+  EXPECT_THROW((void)r.path_costs(), dyng::invalid_argument_error);  // not computed yet
+  (void)dyng::mosp::update(res_, g, batch_t(3).view(), r);
+  EXPECT_TRUE(take(r) == reference(res_, g, 0, 3, {}));
+}
+
 TEST_P(MospBackend, StatsAndProfilerStages) {
   graph_t g = thesis_graph(res_);
   result_t r = dyng::mosp::compute(res_, g, 0);

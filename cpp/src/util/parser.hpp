@@ -57,10 +57,23 @@ struct token {
 };
 
 /**
+ * @brief What text_scanner::next_number() and text_scanner::next_number_in_line() found.
+ */
+enum class scanned {
+  end,     ///< no further token (of the text, or of the line)
+  number,  ///< a token of 1 to 18 decimal digits, already parsed
+  other,   ///< any other token: the caller parses it with parse_integer() (value or error)
+};
+
+/**
  * @brief Tokenizer over an in-memory text with line tracking.
  *
  * Two modes: next_token() returns the next token anywhere (newlines are separators), and
- * next_line() + next_in_line() walk the text line by line.
+ * next_line() + next_in_line() walk the text line by line. next_number() and
+ * next_number_in_line() are the same walks with the common case of the large readers parsed on
+ * the way (a token of decimal digits only), so its characters are read once; every other token is
+ * returned as it is for parse_integer(), so values and errors are exactly those of next_token() /
+ * next_in_line() followed by parse_integer() (see integer_value()).
  */
 class text_scanner {
  public:
@@ -83,6 +96,32 @@ class text_scanner {
       skip_blanks();
     }
     return read_token(out);
+  }
+
+  /**
+   * @brief The next token, crossing line breaks, parsed if it is a plain decimal number.
+   * @param[out] out   The token (for scanned::number and scanned::other).
+   * @param[out] value Its value (for scanned::number only).
+   * @return scanned::end at the end of the text, otherwise what the token is.
+   */
+  scanned next_number(token& out, std::int64_t& value) noexcept {
+    skip_blanks();
+    while (pos_ < text_.size() && text_[pos_] == '\n') {
+      new_line();
+      skip_blanks();
+    }
+    return read_number(out, value);
+  }
+
+  /**
+   * @brief The next token of the current line, parsed if it is a plain decimal number.
+   * @param[out] out   The token (for scanned::number and scanned::other).
+   * @param[out] value Its value (for scanned::number only).
+   * @return scanned::end at the end of the line, otherwise what the token is.
+   */
+  scanned next_number_in_line(token& out, std::int64_t& value) noexcept {
+    skip_blanks();
+    return read_number(out, value);
   }
 
   /**
@@ -162,6 +201,9 @@ class text_scanner {
   }
 
  private:
+  static constexpr bool is_separator(char c) noexcept {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+  }
   void skip_blanks() noexcept {
     while (pos_ < text_.size() &&
            (text_[pos_] == ' ' || text_[pos_] == '\t' || text_[pos_] == '\r')) {
@@ -178,17 +220,44 @@ class text_scanner {
       return false;
     }
     const std::size_t begin = pos_;
-    while (pos_ < text_.size()) {
-      const char c = text_[pos_];
-      if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
-        break;
-      }
+    while (pos_ < text_.size() && !is_separator(text_[pos_])) {
       ++pos_;
     }
     out.text = text_.substr(begin, pos_ - begin);
     out.line = line_;
     out.column = static_cast<std::int64_t>(begin - line_start_) + 1;
     return true;
+  }
+  // read_token(), and the value of a token of 1 to 18 digits (at most 999...9 < 2^63: no
+  // overflow, and std::from_chars would give the same value, leading zeros included).
+  scanned read_number(token& out, std::int64_t& value) noexcept {
+    if (pos_ >= text_.size() || text_[pos_] == '\n') {
+      return scanned::end;
+    }
+    const std::size_t begin = pos_;
+    std::uint64_t digits_value = 0;
+    while (pos_ < text_.size()) {
+      const auto digit = static_cast<unsigned char>(text_[pos_] - '0');
+      if (digit > 9) {
+        break;
+      }
+      digits_value = digits_value * 10 + digit;  // wraps harmlessly past 18 digits (not used)
+      ++pos_;
+    }
+    const std::size_t digits = pos_ - begin;
+    const bool number =
+        digits > 0 && digits <= 18 && (pos_ == text_.size() || is_separator(text_[pos_]));
+    while (pos_ < text_.size() && !is_separator(text_[pos_])) {  // the rest of another token
+      ++pos_;
+    }
+    out.text = text_.substr(begin, pos_ - begin);
+    out.line = line_;
+    out.column = static_cast<std::int64_t>(begin - line_start_) + 1;
+    if (!number) {
+      return scanned::other;
+    }
+    value = static_cast<std::int64_t>(digits_value);
+    return scanned::number;
   }
 
   std::string_view text_;
@@ -240,6 +309,29 @@ int_t parse_integer(const text_scanner& scanner, const token& at, std::int64_t m
                          std::to_string(minimum) + ", " + std::to_string(maximum) + "]");
   }
   return static_cast<int_t>(value);
+}
+
+/**
+ * @brief The value of a token from text_scanner::next_number() / next_number_in_line() in
+ *        [minimum, maximum]: exactly parse_integer()'s value or error.
+ * @tparam int_t   The integer type of the result.
+ * @param[in] scanner The scanner (for the error location).
+ * @param[in] at      The token.
+ * @param[in] kind    What the scanner found (scanned::number or scanned::other).
+ * @param[in] value   The value the scanner parsed (read for scanned::number only).
+ * @param[in] minimum Smallest accepted value.
+ * @param[in] maximum Largest accepted value.
+ * @param[in] what    What the value is, for the message.
+ * @return The value.
+ * @throws io_error if the token is not an integer or is out of range (parse_integer()'s errors).
+ */
+template <typename int_t>
+int_t integer_value(const text_scanner& scanner, const token& at, scanned kind, std::int64_t value,
+                    std::int64_t minimum, std::int64_t maximum, const char* what) {
+  if (kind == scanned::number && value >= minimum && value <= maximum) {
+    return static_cast<int_t>(value);
+  }
+  return parse_integer<int_t>(scanner, at, minimum, maximum, what);  // the general path
 }
 
 /**

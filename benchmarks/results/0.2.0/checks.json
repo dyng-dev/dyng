@@ -1,0 +1,480 @@
+{
+ "schema": 1,
+ "checks": [
+  {
+   "name": "mutation-goldens",
+   "command": "parity/mutate.py run (every mutation of sssp, cycle_count and mosp; parity-cuda copies, CUDA on GPU 1), from a clean clone",
+   "commit": "b1a4869",
+   "scope": "library",
+   "date": "2026-10-08T20:00:51Z",
+   "record": "mutation-goldens.json",
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r020-cert3-phase-a.log",
+     "sha256": "aa7fbd604cbb431ca92104f9a1a841370e1c1bbf7ed7a82e6430d3683fc37d35",
+     "bytes": 377831,
+     "excerpt": "checks/mutation-goldens.txt"
+    }
+   ],
+   "result": "passed"
+  },
+  {
+   "name": "sanitizers-hosted",
+   "command": "the hosted sanitizers.yml jobs of pull request #11 (the release candidate's), run 37870378099 (event pull_request, head d553b79, tested as its merge 5694faa into 8b9067e, the same tree): asan / gcc-13, tsan / gcc-13, tsan-openmp / clang-18; the job logs read with gh run view --log (read-only). Scope library: README.md, a path of the tests scope, changed since d553b79 (the status texts only); the tests scope is covered by the local presets run again on the final tree (docs/developer/release.md step 3)",
+   "commit": "d553b794987ee5d5d171315c746491395013e677",
+   "scope": "library",
+   "date": "2026-10-09T01:42:49Z",
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/sanitizers-hosted/asan-gcc-13.log",
+     "sha256": "4c80907378772d4e73417ccb3db55449d30f1309f9d916a71644f38a0b45890b",
+     "bytes": 471072,
+     "excerpt": "checks/sanitizers-hosted.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/sanitizers-hosted/tsan-gcc-13.log",
+     "sha256": "4a5a98aede3894af3dbc30a998b59fe043ba61733c7d8066ee3d0c25a9f6ccd0",
+     "bytes": 436969,
+     "excerpt": "checks/sanitizers-hosted-1.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/sanitizers-hosted/tsan-openmp-clang-18.log",
+     "sha256": "1212b77b401095df3d7f5352ad59021e37c7189b96228e9c5890822a4694016a",
+     "bytes": 498894,
+     "excerpt": "checks/sanitizers-hosted-2.txt"
+    }
+   ],
+   "details": "all three jobs succeeded: asan / gcc-13 839 of 839 tests passed, tsan / gcc-13 745 of 745, tsan-openmp / clang-18 839 of 839 (https://github.com/dyng-dev/dyng/actions/runs/37870378099)",
+   "result": "passed"
+  },
+  {
+   "name": "asan",
+   "command": "ci/sanitizers.sh asan (ctest -L cpu of the asan preset), from a clean clone",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "tests",
+   "date": "2026-10-13T21:41:43Z",
+   "ctest": {
+    "tests": 839,
+    "failed": 0,
+    "skipped": 50,
+    "percent_passed": 100
+   },
+   "fixture_tests": {
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
+    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
+    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
+    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
+    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
+    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
+    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed",
+    "example.mosp_update.openmp": "Passed",
+    "example.mosp_update.sequential": "Passed"
+   },
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/asan.log",
+     "sha256": "30b0c5fcd0bd829051b6ef183600519609c3a474ec5e7526c9e8c309b32cf546",
+     "bytes": 319084,
+     "excerpt": "checks/asan.txt"
+    }
+   ],
+   "result": "passed"
+  },
+  {
+   "name": "tsan",
+   "command": "ci/sanitizers.sh tsan (ctest -L cpu of the tsan preset), from a clean clone",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "tests",
+   "date": "2026-10-13T21:44:00Z",
+   "ctest": {
+    "tests": 745,
+    "failed": 0,
+    "skipped": 85,
+    "percent_passed": 100
+   },
+   "fixture_tests": {
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
+    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
+    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
+    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
+    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
+    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
+    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed",
+    "example.mosp_update.sequential": "Passed"
+   },
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/tsan.log",
+     "sha256": "ccd67ee413fb630dbe42c7718d75850b93200b58e217aa7f6361b4cd2f202796",
+     "bytes": 293574,
+     "excerpt": "checks/tsan.txt"
+    }
+   ],
+   "result": "passed"
+  },
+  {
+   "name": "tsan-openmp",
+   "command": "ci/sanitizers.sh tsan-openmp (Clang 18.1.8 of the conda env dyng-clang through a local wrapper: --gcc-install-dir GCC 12, --sysroot=/, -Wno-deprecated-declarations; Archer DYNG_ARCHER_LIBRARY; ctest -L cpu), from a clean clone",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "tests",
+   "date": "2026-10-13T21:45:57Z",
+   "ctest": {
+    "tests": 839,
+    "failed": 0,
+    "skipped": 50,
+    "percent_passed": 100
+   },
+   "fixture_tests": {
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
+    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
+    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
+    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
+    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
+    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
+    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed",
+    "example.mosp_update.openmp": "Passed",
+    "example.mosp_update.sequential": "Passed"
+   },
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/tsan-openmp.log",
+     "sha256": "d52e22765d1ca0cd634b9246ed39ab338543251b8f89c6a5569b508dd2d44588",
+     "bytes": 319371,
+     "excerpt": "checks/tsan-openmp.txt"
+    }
+   ],
+   "result": "passed"
+  },
+  {
+   "name": "mutation-ctests",
+   "command": "ctest --preset dev-cuda -L mutation (GPU 1), from a clean clone",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "tests",
+   "date": "2026-10-13T21:52:03Z",
+   "ctest": {
+    "tests": 7,
+    "failed": 0,
+    "skipped": 0,
+    "percent_passed": 100
+   },
+   "fixture_tests": {},
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/mutation-ctests.log",
+     "sha256": "26f97e79b1d34c8a338c1456247e0328519b72f28ae3ab23353f5e192b169d35",
+     "bytes": 1330,
+     "excerpt": "checks/mutation-ctests.txt"
+    }
+   ],
+   "result": "passed"
+  },
+  {
+   "name": "distributions",
+   "command": "release.yml's select step for GITHUB_REF_NAME=v0.2.0 (a final release: prerelease=false, plugins=true; v0.2.0rc1, v0.2.0-rc.1 and v0.2.1 refused); ci/wheel_check.py --release-metadata (and --release-date 2026-10-14, the planned tag day); ci/wheels.sh; ci/plugin_wheels.sh with DYNG_PLUGINS='cu12 cu13' and the CI toolkits of ci/cuda_toolkits.toml (CUDA 12.9 and 13.4, still the newest 12.x and 13.x of NVIDIA's RHEL 8 repository on 2026-10-13); twine check --strict; ci/wheel_check.py on each file and --release-set --split; fresh Python 3.12 and 3.13 venvs: the core wheel alone, core + dyng-cu12, core + dyng-cu13, dyng[cu12]==0.2.0 and dyng[cu13]==0.2.0 from a local simple index with the three distributions (--extra-index-url PyPI): the wheel's test subset, the README quickstart, dyng --version, ci/plugin_smoke.py --expect cuda and pytest -m gpu on GPU 1; and the final release's documented lines without a version (pip install dyng, \"dyng[cu13]\", \"dyng[cu12]\" from that index with PyPI as the extra index): 0.2.0 and the plugin of the same version installed, dyng --version, the README quickstart, ci/plugin_smoke.py --expect cuda; from a clean clone, the whole run under the shared lock",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "packaging",
+   "date": "2026-10-13T21:58:13Z",
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/distributions.log",
+     "sha256": "bf4af4f5e0fb17bd364de4f78ef6f3f9e9dc8b5dc2657a1d67fd76944305b885",
+     "bytes": 48196,
+     "excerpt": "checks/distributions.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/toolkits-check.log",
+     "sha256": "01e9a922177ce00c7b1b9f41b76972cc0e3c0cae276fe00326587c925d6c8bdc",
+     "bytes": 454,
+     "excerpt": "checks/distributions-1.txt"
+    }
+   ],
+   "details": "select: kind=package version=0.2.0 prerelease=false plugins=true, the three distributions (v0.2.0rc1, v0.2.0-rc.1 and v0.2.1 refused); --release-metadata and --release-date 2026-10-14 passed (--release-date today warns until the tag day); 4 files (sdist, abi3 CPU wheel, dyng_cu12, dyng_cu13 wheels), twine and every wheel_check passed; ci/plugin_wheels.sh: smoke, both fallbacks, pytest -m gpu 55 passed and the DYNG_CPU_ONLY=1 suite 546 passed per plugin and Python version; 10 venvs with the test subset passed (core, core+cu12, core+cu13, dyng[cu12]==0.2.0 and dyng[cu13]==0.2.0 x 3.12/3.13: 295 or 294 passed, 2 or 3 skipped; pytest -m gpu 55 passed with each plugin); 6 venvs of the documented lines without a version (dyng, dyng[cu13], dyng[cu12] x 3.12/3.13) installed 0.2.0 and the plugin of the same version, README quickstart, dyng --version and plugin_smoke --expect cuda passed; 4 venvs of the upgrade from dyng 0.1.0 (PyPI; cu13, cu12 x 3.12/3.13): pip install \"dyng[cuN]\" keeps 0.1.0 (pip warns that 0.1.0 does not provide the extra), the documented pip install -U \"dyng[cuN]\" installs 0.2.0 and dyng-cuN 0.2.0, plugin_smoke --expect cuda passed",
+   "result": "passed"
+  },
+  {
+   "name": "check-parity",
+   "command": "ci/check.sh --parity, from a clean clone (origin/main set to 406c3a6, main as pushed)",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "repo",
+   "date": "2026-10-13T22:04:02Z",
+   "fixture_tests": {
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
+    "CycleCountDatasets.HistogramsEqualTheOriginal": "Passed",
+    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
+    "CycleEnumDatasets.DigestsEqualTheOriginal": "Passed",
+    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
+    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
+    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
+    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
+    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed",
+    "compat_cycle_enum.cli": "Passed",
+    "compat_mosp.c2i_0.openmp": "Passed",
+    "compat_mosp.c2i_0.openmp.int64": "Passed",
+    "compat_mosp.c2i_0.sequential": "Passed",
+    "compat_mosp.c2i_0.sequential.int64": "Passed",
+    "compat_mosp.combined.c2i_0_31.openmp": "Passed",
+    "compat_mosp.combined.c2i_0_31.sequential": "Passed",
+    "compat_mosp.combined.h0_25.openmp": "Passed",
+    "compat_mosp.combined.h0_25.sequential": "Passed",
+    "compat_mosp.combined.r04_1234.openmp": "Passed",
+    "compat_mosp.combined.r04_1234.sequential": "Passed",
+    "compat_mosp.combined.r04_k2.openmp": "Passed",
+    "compat_mosp.combined.r04_k2.sequential": "Passed",
+    "compat_mosp.combined.testCase9_123.openmp": "Passed",
+    "compat_mosp.combined.testCase9_123.sequential": "Passed",
+    "compat_mosp.combined.thesis_414.openmp": "Passed",
+    "compat_mosp.combined.thesis_414.sequential": "Passed",
+    "compat_mosp.combined.thesis_441.openmp": "Passed",
+    "compat_mosp.combined.thesis_441.sequential": "Passed",
+    "compat_mosp.combined.ties_k2_77.openmp": "Passed",
+    "compat_mosp.combined.ties_k2_77.sequential": "Passed",
+    "compat_mosp.h0.openmp": "Passed",
+    "compat_mosp.h0.openmp.int64": "Passed",
+    "compat_mosp.h0.sequential": "Passed",
+    "compat_mosp.h0.sequential.int64": "Passed",
+    "compat_mosp.testCase9.openmp": "Passed",
+    "compat_mosp.testCase9.openmp.int64": "Passed",
+    "compat_mosp.testCase9.sequential": "Passed",
+    "compat_mosp.testCase9.sequential.int64": "Passed",
+    "example.mosp_update.openmp": "Passed",
+    "example.mosp_update.sequential": "Passed"
+   },
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/check-parity.log",
+     "sha256": "decfd79e9b19596bb3771c19d9385a6fc87340a09eb87697a85a5357e843443c",
+     "bytes": 770986,
+     "excerpt": "checks/check-parity.txt"
+    }
+   ],
+   "details": "all checks passed: cpu-only 839/839, dev 868/868, the consumer build with the documented find_package(), the harness and CI-script tests (226), ci/python.sh (547 passed, 66 skipped), ci/api_check.sh (the frozen C++ API and griffe), the scaffold and tutorial check, ci/docs.sh (Doxygen, the API baseline, Sphinx -W, links), pre-commit, the parity preset 4/4",
+   "result": "passed"
+  },
+  {
+   "name": "api-check",
+   "command": "ci/api_check.sh 406c3a6 (the frozen C++ API with ci/api_snapshot.py --against and the Python API with griffe, against main as pushed, the merge of 0.2.0rc1), from a clean clone",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "repo",
+   "date": "2026-10-13T22:04:03Z",
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/api-check.log",
+     "sha256": "1cf374d160221a972d9e79d559df59b6e44e68b739547e41909e130cba250ca8",
+     "bytes": 390,
+     "excerpt": "checks/api-check.txt"
+    }
+   ],
+   "details": "no breaking change of the frozen C++ API or of the Python API against 406c3a6",
+   "result": "passed"
+  },
+  {
+   "name": "gpu_local",
+   "command": "ci/gpu_local.sh (dev-cuda, GPU 1, every step), from a clean clone",
+   "commit": "649f7569468d5a470ebdbbc80259c88c24422630",
+   "scope": "repo",
+   "date": "2026-10-13T22:42:06Z",
+   "steps": {
+    "build": "passed",
+    "ctest -L gpu": "passed",
+    "ctest -L cpu": "passed",
+    "parity (cuda goldens)": "passed",
+    "parity (cycle_count cuda goldens)": "passed",
+    "memcheck": "passed",
+    "synccheck": "passed",
+    "synccheck (mosp)": "passed",
+    "synccheck (cycle_count)": "passed",
+    "racecheck": "passed",
+    "plugin wheel (pytest -m gpu)": "passed",
+    "clang-tidy": "passed"
+   },
+   "required_steps": [
+    "build",
+    "ctest -L gpu",
+    "ctest -L cpu",
+    "parity (cuda goldens)",
+    "parity (cycle_count cuda goldens)",
+    "memcheck",
+    "synccheck",
+    "synccheck (mosp)",
+    "synccheck (cycle_count)",
+    "racecheck",
+    "plugin wheel (pytest -m gpu)",
+    "clang-tidy"
+   ],
+   "fixture_tests": {
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/sequential": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/openmp": "Passed",
+    "Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/sequential": "Passed",
+    "CycleEnumBatch.FixturesMatchGenerateBatch": "Passed",
+    "CycleOracle.FixturesMatchTheOriginalOracles": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,int>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<int,long>>": "Passed",
+    "LegacyMospChanges.ReproducesMospPrepChangesByteForByte<(anonymous namespace)::index_types<long,long>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.TestCasesMatchUpdateGraphCsrAsEdgeSets<dyng::graph<long,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,int,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<int,long,int>>": "Passed",
+    "MospApplyFixture.UpdatedCsrIsByteEqualToApplyChangeBatch<dyng::graph<long,long,int>>": "Passed",
+    "MospPrepFixture.Mtx2CsrWeightsAreBitExact": "Passed",
+    "ReadEdgeList.CsrEqualsBuildDirectedGraph": "Passed",
+    "ReadEdgeList.MalformedFilesAsTheOriginal": "Passed",
+    "ReadEdgeList.ParserOutputEqualsTheOriginal": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,int,int>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<int,long,dyng::unweighted>>": "Passed",
+    "SetApply.FixturesMatchPrepareAndApplyBatch<dyng::graph<long,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "StructuralChange.EqualsPrepareBatchOnTheFixtures": "Passed",
+    "compat_cycle_enum.cli": "Passed",
+    "compat_cycle_enum.cli.cuda": "Passed",
+    "compat_mosp.c2i_0.cuda": "Passed",
+    "compat_mosp.c2i_0.cuda.int64": "Passed",
+    "compat_mosp.c2i_0.openmp": "Passed",
+    "compat_mosp.c2i_0.openmp.int64": "Passed",
+    "compat_mosp.c2i_0.sequential": "Passed",
+    "compat_mosp.c2i_0.sequential.int64": "Passed",
+    "compat_mosp.combined.c2i_0_31.cuda": "Passed",
+    "compat_mosp.combined.c2i_0_31.openmp": "Passed",
+    "compat_mosp.combined.c2i_0_31.sequential": "Passed",
+    "compat_mosp.combined.h0_25.cuda": "Passed",
+    "compat_mosp.combined.h0_25.openmp": "Passed",
+    "compat_mosp.combined.h0_25.sequential": "Passed",
+    "compat_mosp.combined.r04_1234.cuda": "Passed",
+    "compat_mosp.combined.r04_1234.openmp": "Passed",
+    "compat_mosp.combined.r04_1234.sequential": "Passed",
+    "compat_mosp.combined.r04_k2.cuda": "Passed",
+    "compat_mosp.combined.r04_k2.openmp": "Passed",
+    "compat_mosp.combined.r04_k2.sequential": "Passed",
+    "compat_mosp.combined.testCase9_123.cuda": "Passed",
+    "compat_mosp.combined.testCase9_123.openmp": "Passed",
+    "compat_mosp.combined.testCase9_123.sequential": "Passed",
+    "compat_mosp.combined.thesis_414.cuda": "Passed",
+    "compat_mosp.combined.thesis_414.openmp": "Passed",
+    "compat_mosp.combined.thesis_414.sequential": "Passed",
+    "compat_mosp.combined.thesis_441.cuda": "Passed",
+    "compat_mosp.combined.thesis_441.openmp": "Passed",
+    "compat_mosp.combined.thesis_441.sequential": "Passed",
+    "compat_mosp.combined.ties_k2_77.cuda": "Passed",
+    "compat_mosp.combined.ties_k2_77.openmp": "Passed",
+    "compat_mosp.combined.ties_k2_77.sequential": "Passed",
+    "compat_mosp.h0.cuda": "Passed",
+    "compat_mosp.h0.cuda.int64": "Passed",
+    "compat_mosp.h0.openmp": "Passed",
+    "compat_mosp.h0.openmp.int64": "Passed",
+    "compat_mosp.h0.sequential": "Passed",
+    "compat_mosp.h0.sequential.int64": "Passed",
+    "compat_mosp.testCase9.cuda": "Passed",
+    "compat_mosp.testCase9.cuda.int64": "Passed",
+    "compat_mosp.testCase9.openmp": "Passed",
+    "compat_mosp.testCase9.openmp.int64": "Passed",
+    "compat_mosp.testCase9.sequential": "Passed",
+    "compat_mosp.testCase9.sequential.int64": "Passed",
+    "cuda.Backends/CycleCountFixtures.FixtureGraphsEqualTheOriginal/cuda": "Passed",
+    "cuda.Backends/CycleCountFixtures.RandomCasesEqualTheOriginal/cuda": "Passed",
+    "cuda.SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,int,int>>": "Passed",
+    "cuda.SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<int,long,int>>": "Passed",
+    "cuda.SsspMospFixture.ComputeAndUpdateAreByteEqualToTheOriginal<dyng::graph<long,long,int>>": "Passed",
+    "example.mosp_update.cuda": "Passed",
+    "example.mosp_update.openmp": "Passed",
+    "example.mosp_update.sequential": "Passed"
+   },
+   "evidence": [
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/gpu_local.log",
+     "sha256": "f627df8719281c978f2911368131090f677a07a2f6e04b345a83e28d2cf3e9ce",
+     "bytes": 540920,
+     "excerpt": "checks/gpu_local.txt"
+    },
+    {
+     "file": "$DYNG_SCRATCH/runs/r021/cert/gpu_local_summary.md",
+     "sha256": "4d7470f549931d161422c49fb1e3495e771f6618f51ab32c8548ff4cce26379c",
+     "bytes": 476,
+     "excerpt": "checks/gpu_local-1.txt"
+    }
+   ],
+   "result": "passed"
+  }
+ ]
+}

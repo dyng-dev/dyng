@@ -220,6 +220,25 @@ def test_update_matches_compute_and_arrays_go_stale(res: dyng.Resources) -> None
         dyng.mosp.update(dyng.Graph.from_edges([0], [1], [[1, 1]]), b, paths)
 
 
+def test_compute_path_costs_takes_effect_at_the_next_update() -> None:
+    # Result.path_costs follows the option of the last compute() / update(), not the current
+    # one: set_options() changes it for the next update() (the documented rule, ADR 0035).
+    g = two_objectives()
+    paths = dyng.mosp.compute(g, 0)
+    before = paths.path_costs.tolist()
+    paths.set_options(compute_path_costs=False)
+    assert paths.path_costs.tolist() == before  # still readable until the next update
+    dyng.mosp.update(g, dyng.EdgeBatch(delete=([0], [1])), paths)
+    with pytest.raises(dyng.InvalidArgumentError, match="compute_path_costs"):
+        paths.path_costs.tolist()
+    paths.set_options(compute_path_costs=True)
+    with pytest.raises(dyng.InvalidArgumentError, match="compute_path_costs"):
+        paths.path_costs.tolist()  # not computed before the next update
+    grow = dyng.EdgeBatch(insert=([0], [3], np.array([[9, 9]], dtype=np.int32)))
+    dyng.mosp.update(g, grow, paths)
+    assert paths.path_costs.tolist() == dyng.mosp.compute(g, 0).path_costs.tolist()
+
+
 def test_options_and_their_checks() -> None:
     g = two_objectives()
     paths = dyng.mosp.compute(g, 0, preferences=[2, 3], delta=4, num_objectives=2)

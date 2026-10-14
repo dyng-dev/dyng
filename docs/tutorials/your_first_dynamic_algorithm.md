@@ -7,7 +7,8 @@ source, kept up to date while edges are inserted and deleted. You generate it wi
 every batch), and then make its update incremental by filling in the hooks of the framework's
 fixed-point template. The conformance kit checks your work at every step.
 
-The tutorial is new in 0.2.0 and follows the main branch: clone it, not the 0.1.0 release. It
+The tutorial is new in 0.2.0 and works on the `v0.2.0` tag and on `main` (the clone below
+takes `main`; `git checkout v0.2.0` pins the release; 0.1.0 does not have it). It
 takes about an hour and needs no GPU. You should be comfortable with C++17 and with
 breadth-first search; you do not need to know dynG's internals.
 

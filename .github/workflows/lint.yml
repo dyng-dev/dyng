@@ -103,8 +103,12 @@ jobs:
       - name: The files generated from the algorithm manifests are up to date
         run: python scripts/regen.py --check
       - name: Smoke tests of the parity harness and tests of the CI scripts
+        env:
+          # ci/tests/test_api_check.py (the Python half of the mosp freeze, ADR 0035) needs
+          # griffe; here a missing griffe fails instead of skipping the module.
+          DYNG_REQUIRE_GRIFFE: "1"
         run: |
-          python -m pip install pytest pyyaml==6.0.3
+          python -m pip install pytest pyyaml==6.0.3 griffe==2.3.0
           python -m pytest -q parity/tests ci/tests
 
   name-reservation:

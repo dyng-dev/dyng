@@ -2,11 +2,17 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# The Python API check (PLAN Section 5.9, "Enforcement"): griffe compares the public API of the
-# typed layer python/dyng (and the committed stubs of dyng._core) with a base revision and reports
-# every breaking change: a removed or renamed public name, a removed or reordered parameter, a
-# changed default. The C++ half of the check is the public-API baseline of ci/docs.sh
-# (ci/api_snapshot.py), which the docs workflow runs.
+# The API check (PLAN Section 5.9, "Enforcement") against a base revision, both halves:
+#   - Python: griffe compares the public API of the typed layer python/dyng (and the committed
+#     stubs of dyng._core) with the base and reports every breaking change: a removed or renamed
+#     public name, a removed or reordered parameter, a changed default;
+#   - C++: ci/api_snapshot.py --against compares the frozen sections of the committed API
+#     baseline (cpp/tests/api/api_snapshot/public_api.txt) with the base's: a removed or changed
+#     declaration of the frozen API is breaking. That the baseline matches the headers is checked
+#     by ci/docs.sh (docs.yml); this half makes updating the baseline in the same pull request
+#     need the label as well (R020).
+# Either half's breaking change fails unless the pull request has the `api-change` label and a
+# CHANGELOG.md entry.
 #
 #   ci/api_check.sh                    # against origin/main (or main without a remote)
 #   ci/api_check.sh v0.1.0             # against a tag or any revision
@@ -41,9 +47,14 @@ if ! git rev-parse --verify --quiet "${base}^{commit}" >/dev/null; then
   echo "ci/api_check.sh: unknown base revision '${base}' (fetch it first)" >&2
   exit 1
 fi
+
+echo "==> the frozen C++ API against ${base} (ci/api_snapshot.py --against)"
+cpp_rc=0
+"${PYTHON:-python3}" ci/api_snapshot.py --against "${base}" || cpp_rc=$?
+
 if ! git cat-file -e "${base}:python/dyng/__init__.py" 2>/dev/null; then
   echo "api-check: ${base} has no Python package (python/dyng): nothing to compare yet"
-  exit 0
+  exit "${cpp_rc}"
 fi
 
 echo "==> griffe check dyng against ${base} ($(griffe --version))"
@@ -53,7 +64,7 @@ rc=$?
 set -e
 if [ "${rc}" -eq 0 ]; then
   echo "api-check: no breaking change of the Python API against ${base}"
-  exit 0
+  exit "${cpp_rc}"
 fi
 
 if [ "${DYNG_API_CHANGE:-0}" = "1" ]; then
@@ -63,7 +74,7 @@ if [ "${DYNG_API_CHANGE:-0}" = "1" ]; then
     exit 1
   fi
   echo "api-check: breaking changes accepted (api-change label, CHANGELOG.md updated)"
-  exit 0
+  exit "${cpp_rc}"
 fi
 echo "api-check: the Python API has breaking changes against ${base}. If they are intended, add" \
   "the label api-change and a CHANGELOG 'Changed' or 'Removed' entry with a migration note" \

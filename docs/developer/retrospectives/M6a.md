@@ -374,6 +374,8 @@ gap into an immediate, named failure.
 4. **The cycle_count update in the CUDA 13.4 wheel** was 8.8 % slower than the parity build
    (13.1) in the informational row, while the 13.1 wheel was 1.2 % faster: worth a look (an
    Nsight comparison of the update kernels under 13.1 and 13.4) before 0.2.0; no gate applies.
+   *Answered in R020 (investigation (a)): no 13.4 slowdown; the difference was the process mode of
+   the host stage `cycle_count.normalize`; the wheel keeps CUDA 13.4.*
 5. **Re-pinning the CUDA toolkits** is manual (`ci/cuda_toolkit.py lock`): check for a newer
    12.x / 13.x before each release.
 6. **Disk in the work area** (not in the repository): kept are the pinned toolkits unpacked

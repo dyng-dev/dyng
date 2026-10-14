@@ -190,7 +190,17 @@ html_theme_options = {
     "footer_start": ["copyright"],
     "footer_end": ["sphinx-version", "theme-version"],
 }
-if is_development_version:
+if re.fullmatch(r"\d+\.\d+\.\d+(a|b|rc)\d+", release):
+    # A release candidate (docs/developer/release.md, steps 5-8): on TestPyPI only.
+    html_theme_options["announcement"] = (
+        f"These pages document the release candidate {release}, built from the main branch; it "
+        f"is published on TestPyPI only. The latest release on PyPI is {latest_release} "
+        "(<code>pip install dyng</code>): what the "
+        '<a href="https://dyng-dev.github.io/dyng/changelog.html">changelog</a> lists under '
+        f"{release} and Unreleased, and every page or section marked as new in {version}, is "
+        "not in it."
+    )
+elif is_development_version:
     html_theme_options["announcement"] = (
         f"These pages document the development version {release}, built from the main branch. "
         f"The latest release is {latest_release} (<code>pip install dyng</code>): what the "

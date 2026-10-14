@@ -57,12 +57,17 @@ namespace dyng::mosp {
 
 /**
  * @brief The largest number of objectives (weight columns used); MOSP's originals allow 32.
+ *
+ * A later release may raise the limit (a relaxation: every call accepted before is still
+ * accepted); it never lowers it.
  * @ingroup mosp
  */
 inline constexpr int max_objectives = 64;
 
 /**
  * @brief The largest preference scale L = lcm(Pref) (MOSP's preferenceScale limit, 2^20).
+ *
+ * As for max_objectives, a later release may raise the limit but never lowers it.
  * @ingroup mosp
  */
 inline constexpr std::int64_t max_preference_scale = std::int64_t{1} << 20;
@@ -82,8 +87,11 @@ struct options {
   /// Engine of the CUDA backend for the K sssp updates and the combined solve (see
   /// sssp::options::cuda_engine); ignored by the host backends. A tunable.
   engine cuda_engine = engine::automatic;
-  /// Compute the path costs (Step 3's last line) in compute() and update(). A tunable; while it is
-  /// false, path_costs() throws.
+  /// Compute the path costs (Step 3's last line) in compute() and update(). Changeable with
+  /// result::set_options(), but not a tunable in sssp's sense: it decides what the result holds.
+  /// path_costs() throws if it was false at the last compute() or update(); set_options() takes
+  /// effect at the next update() (costs computed before stay readable until then, and costs are
+  /// not readable before an update() recomputes them).
   bool compute_path_costs = true;
   /// O(K n) checks on imported trees in result::from_arrays() (sssp's checks, per objective).
   bool validate_inputs = true;
@@ -94,12 +102,21 @@ struct options {
 
 /**
  * @brief Counters of one update() (fields are only ever appended).
+ *
+ * The common counters of update_stats mean, for mosp: `affected` (deterministic) the vertices
+ * whose combined distance or MOSP parent changed; `iterations` and `frontier_visits`
+ * (schedule-dependent) the sums over the K sssp updates and the combined solve; `converged`
+ * (deterministic) true unless an objective's update reported otherwise; `fallback_used`
+ * (deterministic) true if an objective's update used a fallback (the combined graph is always
+ * solved from scratch, which is the algorithm, not a fallback); `engine_used` (deterministic per
+ * backend) the engine of the K updates (the first objective's; all K run the same engine).
  * @ingroup mosp
  */
 struct stats : update_stats {
   /// Deterministic: what applying the batch did to the graph.
   apply_summary batch;
-  /// The K sssp updates, in objective order (their deterministic counters as in sssp).
+  /// The K sssp updates, in objective order (each counter deterministic or schedule-dependent as
+  /// sssp::stats documents it).
   std::vector<sssp::stats> objectives;
   /// Deterministic: edges of the combined graph.
   std::int64_t combined_edges = 0;
@@ -213,7 +230,9 @@ class result {
    *        mospPathCosts: the weights of the tree edge (p, v) are those of the first edge from p
    *        to v in the graph's row order).
    * @return n * K values, vertex-major (costs[v * K + k]); infinite_distance<distance_t>() for
-   *         unreachable vertices. Host memory on every backend. Valid until the next update().
+   *         unreachable vertices. Host memory on every backend (a later release that computes
+   *         the costs on the device makes that an appended option, so this accessor keeps
+   *         returning host memory by default). Valid until the next update().
    * @throws invalid_argument_error if options::compute_path_costs was false at the last
    *         compute() or update() (the costs were not computed), or for a moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
@@ -235,12 +254,17 @@ class result {
   [[nodiscard]] const options& get_options() const;
 
   /**
-   * @brief Change the tunables (delta, cuda_engine, compute_path_costs, validate_inputs).
+   * @brief Change the changeable options (the tunables delta and cuda_engine, and
+   *        compute_path_costs and validate_inputs).
+   *
+   * The new options take effect at the next update(); in particular compute_path_costs does not
+   * change what path_costs() returns or throws until then.
    * @param[in] opt The new options; preferences and num_objectives must stay the same.
    * @throws invalid_argument_error if a fixed option differs or `opt.delta` is negative, or for a
    *         moved-from result.
    * @throws stale_result_error     if a failed update left the result unusable (poisoned).
-   * @guarantee Strong: every check runs before the options change.
+   * @guarantee Strong: every check runs before the options change, and nothing after the checks
+   *            allocates.
    */
   void set_options(const options& opt);
 
@@ -259,6 +283,9 @@ class result {
 
   /**
    * @brief A deep copy (every array, the options, the version) for the resources `res`.
+   *
+   * As sssp::result::clone(): the copy belongs to the backend of `res`, and the K trees' clones
+   * size the pooled sssp workspace of `res` for the graph.
    * @param[in] res Execution resources of the copy (any backend of mosp: the arrays are copied
    *                between host and device memory as needed).
    * @return The copy.
@@ -290,10 +317,12 @@ class result {
    * @param[in] opt          Options; K = the number of views, which must equal the objectives the
    *                         options select (opt.num_objectives, or every weight column).
    * @return The result, matching `g.version()`.
-   * @throws invalid_argument_error if a check fails (the sssp checks of a tree, K, the options), or
-   *         `g` belongs to another backend than `res`.
-   * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
-   *         of opt.cuda_engine cannot run.
+   * @throws invalid_argument_error if a check fails (the sssp checks of a tree, K, the options), the
+   *         lists are not in host memory, `g` belongs to another backend than `res`, or an array
+   *         in device memory must be copied and the copy policy is copy_policy::error (as
+   *         sssp::result::from_arrays()).
+   * @throws not_supported_error    if the backend of `res` is not built, an array is in device
+   *         memory and CUDA is not built, or on cuda if the engine of opt.cuda_engine cannot run.
    * @throws out_of_memory_error    if host or device memory cannot be allocated.
    * @throws cuda_error             if the CUDA runtime reports an error.
    * @sync
@@ -442,8 +471,10 @@ template <typename vertex_t, typename edge_t, typename weight_t>
  *         graph, or `r` was left unusable by a failed update.
  * @throws invalid_argument_error if a batch id or weight is invalid or the batch has insertions
  *         with another number of weights than the graph (a batch without insertions is accepted
- *         whatever its number of weights; nothing is changed); or, for trees imported without
- *         validation, as sssp::update() (then the graph was updated and `r` is left unusable).
+ *         whatever its number of weights), `g` or `r` belongs to another backend than `res`, or a
+ *         batch array must be copied and the copy policy is copy_policy::error (nothing is
+ *         changed); or, for trees imported without validation, as sssp::update() (then the graph
+ *         was updated and `r` is left unusable).
  * @throws not_supported_error    if the backend of `res` is not built, or on cuda if the engine
  *         cannot run (nothing is changed).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.

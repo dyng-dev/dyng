@@ -931,3 +931,24 @@ def test_every_flag_is_documented() -> None:
 
     missing = sorted(f for f in walk(build_parser()) if not documented(f))
     assert not missing, f"flags missing from docs/api/cli.md: {missing}"
+
+
+def test_a_backend_warning_is_shown_in_the_command_lines_form() -> None:
+    # The console script (or `python -m`-style call of main()) prints the BackendWarning as
+    # `dyng: warning: ...`, not with the path and line of the pip-generated wrapper.
+    script = Path(sys.executable).parent / "dyng"
+    argv = (
+        [str(script), "config"]
+        if script.is_file()
+        else [
+            sys.executable,
+            "-c",
+            "import sys; from dyng.cli import main; sys.exit(main())",
+            "config",
+        ]
+    )
+    env = {**os.environ, "DYNG_CPU_ONLY": "maybe"}
+    out = subprocess.run(argv, capture_output=True, text=True, env=env, cwd=Path(__file__).parent)
+    assert out.returncode == 0, out.stderr
+    assert "dyng: warning: DYNG_CPU_ONLY='maybe' is ignored" in out.stderr, out.stderr
+    assert "BackendWarning" not in out.stderr and "sys.exit(main())" not in out.stderr

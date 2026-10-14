@@ -154,11 +154,12 @@ manylinux-x86_64-image = "manylinux_2_28"
 build-frontend = "build"
 build-verbosity = 1
 # A small subset of python/tests in the installed wheel (the full suite runs in python.yml and in
-# the install-test job of wheels.yml): the API, both algorithms, the CLI and the parity subset.
+# the install-test job of wheels.yml): the API, the stable algorithms (sssp, cycle_count and,
+# from 0.2, mosp), the CLI and the parity subset.
 test-requires = ["pytest>=8", "hypothesis==6.167.1"]
 test-sources = ["pyproject.toml", "python/tests", "cpp/tests/data"]
 test-environment = { OMP_NUM_THREADS = "2", DYNG_HYPOTHESIS_PROFILE = "dev" }
-test-command = "python -m pytest -q -p no:cacheprovider python/tests/test_api_surface.py python/tests/test_sssp.py python/tests/test_cycle_count.py python/tests/test_cli.py python/tests/test_parity.py"
+test-command = "python -m pytest -q -p no:cacheprovider python/tests/test_api_surface.py python/tests/test_sssp.py python/tests/test_cycle_count.py python/tests/test_mosp.py python/tests/test_cli.py python/tests/test_parity.py"
 
 [tool.mypy]
 # The typed layer is checked strictly (ci/python.sh, .github/workflows/python.yml; PLAN 8.7), and

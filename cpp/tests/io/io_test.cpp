@@ -251,6 +251,27 @@ TEST_F(CsrTriplet, RejectsStructuralErrors) {
                dyng::invalid_argument_error);
 }
 
+// The reader's fast path (digits parsed while scanning, the weights written straight into their
+// columns) keeps the general format: blank lines, tabs, CR LF, leading zeros, 19-digit tokens of
+// 64-bit offsets and a last line without a line break.
+TEST_F(CsrTriplet, ReadsEveryLayoutOfTheTextFormat) {
+  const auto prefix = write_graph("0\r\n\n 01\t\n0000000000000000002\n2",
+                                  "\n4 5 6\n\n\t2\t7  8\r\n\n", "  1\n\n002");
+  const auto c = dyng::io::read_csr_triplet<std::int32_t, std::int64_t, std::int32_t>(prefix);
+  EXPECT_EQ(c.row_ptr, (std::vector<std::int64_t>{0, 1, 2, 2}));
+  EXPECT_EQ(c.col_ind, (std::vector<std::int32_t>{1, 2}));
+  EXPECT_EQ(c.num_weights, 3);
+  EXPECT_EQ(c.weights, (std::vector<std::int32_t>{4, 2, 5, 7, 6, 8}));  // objective-major
+  // A short line after the first one is still the error at that line.
+  const auto e = expect_io_error([&] {
+    (void)dyng::io::read_csr_triplet<std::int32_t, std::int32_t, std::int32_t>(
+        write_graph("0\n1\n2\n2\n", "4 5 6\n2 7\n"));
+  });
+  EXPECT_EQ(e.line(), 2);
+  EXPECT_NE(std::string(e.what()).find("2 weights on the line, expected 3"), std::string::npos)
+      << e.what();
+}
+
 // The three files are parsed concurrently; the reported error must still be the first one in
 // file order (RowPtr, ColInd, Values) with the exact location, as if read one after the other.
 TEST_F(CsrTriplet, ReportsTheFirstErrorInFileOrder) {

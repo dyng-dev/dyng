@@ -101,8 +101,10 @@ baseline ({doc}`../developer/api_review_checklist`, "Updating the API baseline")
 
 ## 9. Benchmark it
 
-Register a micro-benchmark; a published algorithm also gets a paper suite and its timed regions
-(`parity/timed_regions/<name>.toml`) *(the benchmark suites from 0.2)*.
+A published algorithm gets a paper suite (`benchmarks/paper/<suite>.yaml`, run by
+`parity/bench_suite.py`) and its timed regions (`parity/timed_regions/<name>.toml`).
+Micro-benchmarks (nvbench / Google Benchmark) are planned for a later release; there is nothing
+to register yet.
 
 ## 10. Credit
 

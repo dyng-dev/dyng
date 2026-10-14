@@ -39,8 +39,9 @@ std::vector<edge_t> read_row_ptr(const std::string& path) {
   const std::string text = detail::read_file(path);
   detail::text_scanner scanner(text, path);
   detail::token tok;
-  while (scanner.next_token(tok)) {
-    const auto value = detail::parse_integer<edge_t>(scanner, tok, 0,
+  std::int64_t parsed = 0;
+  for (detail::scanned kind; (kind = scanner.next_number(tok, parsed)) != detail::scanned::end;) {
+    const auto value = detail::integer_value<edge_t>(scanner, tok, kind, parsed, 0,
                                                      detail::max_as_int64<edge_t>(), "row offset");
     if (row_ptr.empty() && value != 0) {
       scanner.fail(tok, "the first row offset must be 0");
@@ -70,12 +71,14 @@ std::vector<vertex_t> read_col_ind(const std::string& path, std::int64_t n, std:
   // At most one index per two bytes: a RowPtr that announces more edges than ColInd can hold must
   // not make the reader reserve memory for them (found by fuzz_csr_triplet).
   col_ind.reserve(std::min(m, text.size() / 2 + 1));
-  while (scanner.next_token(tok)) {
+  std::int64_t parsed = 0;
+  for (detail::scanned kind; (kind = scanner.next_number(tok, parsed)) != detail::scanned::end;) {
     if (col_ind.size() == m) {
       scanner.fail(tok, "more column indices than the " + std::to_string(m) +
                             " edges announced by the row offsets");
     }
-    col_ind.push_back(detail::parse_integer<vertex_t>(scanner, tok, 0, n - 1, "column index"));
+    col_ind.push_back(
+        detail::integer_value<vertex_t>(scanner, tok, kind, parsed, 0, n - 1, "column index"));
   }
   if (col_ind.size() != m) {
     detail::throw_io_error(path, 0, 0,
@@ -110,17 +113,30 @@ value_lines<weight_t> read_values(const std::string& path, std::size_t m, int nu
   detail::token tok;
   int k_count = num_weights;
   const auto weight_max = detail::max_as_int64<weight_t>();
-  std::size_t stride = 0;      // column stride of out.weights (0: not allocated yet)
-  std::vector<weight_t> line;  // the weights of the current line
+  std::size_t stride = 0;  // column stride of out.weights (0: not allocated yet)
+  // The weights of a line go straight into their columns once the columns exist (every line but
+  // the first); otherwise, and for a line beyond the columns (which fails below), into `line`.
+  std::vector<weight_t> line;
+  std::int64_t parsed = 0;
   while (scanner.next_line()) {
+    const std::size_t row = out.lines;  // the line's row if it is not blank
+    const bool direct = stride != 0 && row < stride;
     line.clear();
-    while (scanner.next_in_line(tok)) {
-      if (k_count > 0 && static_cast<int>(line.size()) == k_count) {
+    int on_line = 0;
+    for (detail::scanned kind;
+         (kind = scanner.next_number_in_line(tok, parsed)) != detail::scanned::end;) {
+      if (k_count > 0 && on_line == k_count) {
         scanner.fail(tok, "more than " + std::to_string(k_count) + " weights on the line");
       }
-      line.push_back(detail::parse_integer<weight_t>(scanner, tok, 1, weight_max, "weight"));
+      const auto weight =
+          detail::integer_value<weight_t>(scanner, tok, kind, parsed, 1, weight_max, "weight");
+      if (direct) {
+        out.weights[static_cast<std::size_t>(on_line) * stride + row] = weight;
+      } else {
+        line.push_back(weight);
+      }
+      ++on_line;
     }
-    const auto on_line = static_cast<int>(line.size());
     if (on_line == 0) {
       continue;
     }
@@ -144,11 +160,10 @@ value_lines<weight_t> read_values(const std::string& path, std::size_t m, int nu
       stride = std::min(m, line_bound);
       out.weights.resize(stride * static_cast<std::size_t>(k_count));
     }
-    const std::size_t row = out.lines - 1;
     if (row >= stride) {
       DYNG_FAIL("read_csr_triplet: more weight lines than line breaks in ", path);
     }
-    for (std::size_t c = 0; c < line.size(); ++c) {
+    for (std::size_t c = 0; c < line.size(); ++c) {  // the first line
       out.weights[c * stride + row] = line[c];
     }
   }
@@ -207,9 +222,11 @@ csr<vertex_t, edge_t, weight_t> read_csr_triplet(const std::string& prefix,
           detail::text_scanner scanner(text, cols_path);
           detail::token tok;
           cols.reserve(static_cast<std::size_t>(std::count(text.begin(), text.end(), '\n') + 1));
-          while (scanner.next_token(tok)) {
-            const vertex_t v = detail::parse_integer<vertex_t>(
-                scanner, tok, 0, detail::max_as_int64<vertex_t>(), "column index");
+          std::int64_t parsed = 0;
+          for (detail::scanned kind;
+               (kind = scanner.next_number(tok, parsed)) != detail::scanned::end;) {
+            const vertex_t v = detail::integer_value<vertex_t>(
+                scanner, tok, kind, parsed, 0, detail::max_as_int64<vertex_t>(), "column index");
             max_col = std::max<std::int64_t>(max_col, v);
             cols.push_back(v);
           }

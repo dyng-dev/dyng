@@ -1,0 +1,189 @@
+{
+ "schema": 1,
+ "algorithm": "cycle_count",
+ "what": "device memory (PLAN 8.6): the peak of live device allocations per process (nsys --cuda-memory-usage, memory kind Device: cudaMalloc and cudaMallocAsync), and the largest stream-ordered pool size nsys reported for the port",
+ "date": "2026-10-08T18:49:24Z",
+ "reference": {
+  "name": "CycleEnumeration-GPU",
+  "commit": "0a976adfa801a712135bf1adb51a228f353a0751",
+  "binary": "$DYNG_SCRATCH/ref/CycleEnumeration-GPU@0a976ad/unpatched/build/cycle-enum"
+ },
+ "port": {
+  "commit": "b1a4869a936868b572213f66f089d7587d0f1972",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-cycle-enum"
+ },
+ "gpu": 1,
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "datasets_sha256": {
+  "DD": "e538ec13a262b84a0664db2f22e6ff720fb5bb74965536c37f4b8e962d156e4a",
+  "github": "a5a43e92b9a22054882017a2b5dea267535c8d94705ac4987d967e517448c9d4",
+  "twitch": "c2270e018af70321c8f6d1517abc097204105ec7bafe71527555b4f954fbea82",
+  "collab": "043c465d207992054d2567a277bfba9fad24d994040241987e61f9e9daa12ae4"
+ },
+ "datasets_hashed": "after the measurements, by the measuring process",
+ "results": {
+  "count/DD_k4": {
+   "original": {
+    "peak_live_mib": 18.0,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 18.0,
+    "pool_mib": 32.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 18.0,
+    "pool_mib": 32.0,
+    "ratio": 1.0
+   }
+  },
+  "count/github_k4": {
+   "original": {
+    "peak_live_mib": 67.7,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 67.7,
+    "pool_mib": 96.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 67.7,
+    "pool_mib": 96.0,
+    "ratio": 1.0
+   }
+  },
+  "count/twitch_k4": {
+   "original": {
+    "peak_live_mib": 225.5,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 225.5,
+    "pool_mib": 256.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 225.5,
+    "pool_mib": 256.0,
+    "ratio": 1.0
+   }
+  },
+  "count/collab_k3": {
+   "original": {
+    "peak_live_mib": 193.2,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 193.2,
+    "pool_mib": 224.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 193.2,
+    "pool_mib": 224.0,
+    "ratio": 1.0
+   }
+  },
+  "update/DD_k4_25000_25000_s1": {
+   "original": {
+    "peak_live_mib": 32.9,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 32.9,
+    "pool_mib": 64.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 32.9,
+    "pool_mib": 64.0,
+    "ratio": 1.0
+   }
+  },
+  "update/DD_k4_50000_50000_s1": {
+   "original": {
+    "peak_live_mib": 33.6,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 33.6,
+    "pool_mib": 64.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 33.6,
+    "pool_mib": 64.0,
+    "ratio": 1.0
+   }
+  },
+  "update/DD_k4_100000_100000_s1": {
+   "original": {
+    "peak_live_mib": 35.2,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 35.2,
+    "pool_mib": 64.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 35.2,
+    "pool_mib": 64.0,
+    "ratio": 1.0
+   }
+  },
+  "update/github_k4_25000_25000_s1": {
+   "original": {
+    "peak_live_mib": 119.5,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 119.5,
+    "pool_mib": 128.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 119.5,
+    "pool_mib": 128.0,
+    "ratio": 1.0
+   }
+  },
+  "update/twitch_k4_25000_25000_s1": {
+   "original": {
+    "peak_live_mib": 408.6,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 408.6,
+    "pool_mib": 448.0,
+    "ratio": 1.0
+   },
+   "port[resident]": {
+    "peak_live_mib": 408.6,
+    "pool_mib": 448.0,
+    "ratio": 1.0
+   }
+  },
+  "update/collab_k4_25000_25000_s1": {
+   "original": {
+    "peak_live_mib": 382.8,
+    "pool_mib": 0.0
+   },
+   "port[original]": {
+    "peak_live_mib": 383.0,
+    "pool_mib": 448.0,
+    "ratio": 1.0005224660397074
+   },
+   "port[resident]": {
+    "peak_live_mib": 383.0,
+    "pool_mib": 448.0,
+    "ratio": 1.0005224660397074
+   }
+  }
+ }
+}
