@@ -21,6 +21,7 @@
 #include <nanobind/stl/string.h>
 
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -322,9 +323,13 @@ void bind_hypergraph_io(nb::module_& m) {
       "Write native hyperedge batches (and their annotations) as a .dgb file.");
 }
 
-/// The batch_reader of a .dgb file, its current batch copied into NumPy arrays on request.
+/// The batch_reader of a .dgb file, its current batch copied into NumPy arrays on request. The
+/// mutex serializes next() and the copy of its batch: the GIL is released while a record is read,
+/// so two Python threads sharing one reader would otherwise race on the stream and the staging
+/// buffer (M8b review).
 struct binary_reader {
   std::unique_ptr<io::batch_reader> reader;
+  std::mutex mutex;
 };
 
 /// (kind, vertex dtype, weight dtype, K, flags, batches, format version) of a .dgb header.
@@ -411,14 +416,20 @@ void bind_binary_batches(nb::module_& m) {
             io::batch_reader_options opt;
             opt.num_vertices = num_vertices;
             auto r = without_gil([&] { return std::make_unique<io::batch_reader>(path, opt); });
-            new (self) binary_reader{std::move(r)};
+            new (self) binary_reader{std::move(r), {}};
           },
           nb::arg("path"), nb::arg("num_vertices"))
       .def_prop_ro("header", [](const binary_reader& r) { return header_dict(r.reader->header()); })
       .def(
           "next",
           [](binary_reader& r) -> nb::object {
-            const bool more = without_gil([&] { return r.reader->next(); });
+            // The lock is taken without the GIL (a thread waiting for it holds no GIL) and kept
+            // while the batch is copied.
+            std::unique_lock<std::mutex> lock(r.mutex, std::defer_lock);
+            const bool more = without_gil([&] {
+              lock.lock();
+              return r.reader->next();
+            });
             if (!more) {
               return nb::none();
             }

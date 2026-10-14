@@ -1147,7 +1147,10 @@ class BatchReader:
     against the rest of the file before anything is allocated, its CRC32, its contents) and a
     malformed file raises :class:`~dyng.FileFormatError` with the byte offset of the record.
     The batches are host objects (the C++ reader can also stage them to the device for CUDA
-    callers).
+    callers). After an error the reader stops: every later ``next()`` raises
+    :class:`~dyng.FileFormatError` again (a damaged record is never skipped). One reader may be
+    shared between threads (each record goes to one of them; the reads are serialized); after its
+    ``with`` block the reader is closed and ``next()`` raises :class:`~dyng.InvalidArgumentError`.
 
     Args:
         path: The file.
@@ -1187,6 +1190,8 @@ class BatchReader:
         return self
 
     def __next__(self) -> BinaryBatchRecord:
+        if self._native is None:
+            raise InvalidArgumentError("BatchReader: the reader is closed (its with block ended)")
         rec = self._native.next()
         if rec is None:
             raise StopIteration

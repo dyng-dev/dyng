@@ -194,6 +194,63 @@ def test_malformed_dgb_raises_before_reading(tmp_path: Path) -> None:
 # -- the M8b review ------------------------------------------------------------------------------
 
 
+def test_dgb_reader_stops_at_its_first_error(tmp_path: Path) -> None:
+    # A damaged first record of three: a retry raises again instead of returning record 1.
+    path = tmp_path / "b.dgb"
+    dyng.io.write_binary_batches(
+        path, [dyng.HyperedgeBatch([0], [[1, 2]]), dyng.HyperedgeBatch([1], [[3]])] * 2
+    )
+    data = bytearray(path.read_bytes())
+    data[64 + 16 + 4] ^= 0x10  # a payload byte of record 0
+    path.write_bytes(bytes(data))
+    reader = dyng.io.BatchReader(path)
+    with pytest.raises(dyng.FileFormatError, match="CRC32"):
+        next(reader)
+    for _ in range(2):
+        with pytest.raises(dyng.FileFormatError, match="failed at batch record 0"):
+            next(reader)
+
+
+def test_a_closed_dgb_reader_raises(tmp_path: Path) -> None:
+    path = tmp_path / "b.dgb"
+    dyng.io.write_binary_batches(path, [dyng.HyperedgeBatch([0], [[1, 2]])])
+    reader = dyng.io.BatchReader(path)
+    with reader:
+        pass
+    with pytest.raises(dyng.InvalidArgumentError, match="closed"):
+        next(reader)
+
+
+def test_one_dgb_reader_shared_by_two_threads(tmp_path: Path) -> None:
+    # The native reader serializes next() and the copy of its batch (the GIL is released while a
+    # record is read): every batch is read once, intact.
+    import threading
+
+    path = tmp_path / "many.dgb"
+    batches = [dyng.HyperedgeBatch([i], [[i % 50, i % 50 + 1]] * 20) for i in range(300)]
+    dyng.io.write_binary_batches(path, batches)
+    for _ in range(5):
+        reader = dyng.io.BatchReader(path)
+        got: list[int] = []
+        errors: list[BaseException] = []
+
+        def drain(r: dyng.io.BatchReader = reader) -> None:
+            try:
+                for rec in r:
+                    assert rec.batch.num_insertions == 20
+                    got.append(rec.batch_id)
+            except BaseException as e:  # noqa: BLE001 - reported below
+                errors.append(e)
+
+        threads = [threading.Thread(target=drain) for _ in range(2)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert errors == []
+        assert sorted(got) == list(range(300))
+
+
 def test_a_directory_is_a_file_format_error(tmp_path: Path) -> None:
     with pytest.raises(dyng.FileFormatError, match="directory"):
         dyng.io.read_hypergraph(tmp_path)
