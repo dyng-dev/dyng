@@ -452,7 +452,9 @@ TEST_P(HypergraphUpdate, AFailingProblemIsPoisonedWhileItsPartnerCompletes) {
   fakes::hyper_pairs_result pairs = fakes::compute_pairs(res(), h);
   fakes::hyper_squares_result squares = fakes::compute_squares(res(), h);
   // The pairs participant fails in count(+); dyng::update has no misbehaviour switch, so run the
-  // two participants through run_update() by hand.
+  // two participants through run_update() by hand. The resources outlive the participants (as in
+  // dyng::update, which owns them): a participant's workspace lease returns to their pool.
+  const resources r = res();
   namespace fw = ::dyng::detail::framework;
   fakes::hyper_count_stats sp;
   fakes::hyper_count_stats ss;
@@ -461,9 +463,8 @@ TEST_P(HypergraphUpdate, AFailingProblemIsPoisonedWhileItsPartnerCompletes) {
   fw::problem_participant<fakes::hyper_pairs_problem<hgraph>> p(sp, pairs, bad);
   fw::problem_participant<fakes::hyper_squares_problem<hgraph>> q(ss, squares);
   dyng::detail::hyper_update_participant<std::int32_t, unweighted>* list[] = {&p, &q};
-  EXPECT_THROW(
-      (void)dyng::detail::run_update(res(), h, reuse_batch().view(), list, 2, "update.commit"),
-      dyng::internal_error);
+  EXPECT_THROW((void)dyng::detail::run_update(r, h, reuse_batch().view(), list, 2, "update.commit"),
+               dyng::internal_error);
   EXPECT_TRUE(pairs.poisoned);
   EXPECT_FALSE(squares.poisoned);
   EXPECT_EQ(squares.value, fakes::compute_squares(res(), h).value);
