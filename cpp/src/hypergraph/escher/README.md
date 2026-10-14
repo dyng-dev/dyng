@@ -17,6 +17,7 @@ proves it is ADR 0036 / 0037 and `parity/results/M8a.md`.
 | the control block (the device error word), `check_errors()`, `rows()`, `check_tree_index`, the rule for dead or absent keys (`lookup.cuh`); the staging preset `mosp_escher_staged()` (replaced by `mosp_escher()` in step 5) | dynG (M8a step 4) |
 | B's automatic compaction (`fill_impl`, the surplus check of `insert_cbst`), the presets `mosp_escher()` and `dyng_default()`, `store_policy::max_payload`, the mutation hooks `DYNG_MUTATION_CBST_*` (PLAN 8.4) | M8a step 5 (ADR 0040) |
 | `set_used_payload()`: the bump pointer of a tree restored from another backend's state | dynG (M8b, ADR 0041) |
+| `struct row_view` moved to the host-only `cpp/src/hypergraph/row_views.hpp` (the host stores give the same view) | dynG (M8b, ADR 0042) |
 
 ESCHER-GPU's `include/binning.hpp` and `utils/binning.cpp` are dead code (no object of its
 Makefile builds them) and are not ported; the degree binning of the store is `degree_bins` in
@@ -48,6 +49,21 @@ reproduces the H2V tree's ids, slot lengths and payload accounting without a pay
 from this page, independently of `testing::cbst_host_model`). A container moved between backends
 keeps its keys, deleted slots, slot lengths and bump pointer: the device tree is constructed over
 those lengths, the deleted slots erased and the bump pointer set with `set_used_payload()`.
+
+**The line graph** (M8b step 2, ADR 0042) is a third tree, **H2H** (key = id + 1, values = the
+keys of the overlapping hyperedges, sorted, one segment per row), over the keys `1..max_bound`
+(the largest id bound so far: ESCHER-GPU's `numHyperedgeKeys`, so the rows above the current bound
+are empty). It is built on the host (`line_graph/flat_adjacency.cpp`, A's
+`flatHyperedgeAdjacency`) and constructed with its payload sized exactly, then rebuilt by every
+batch with A's out-of-place sorted delta merge (`line_graph/sorted_merge.cu`, transplanted with
+`parity/escher_port/rename_map_line_graph.toml` and changed by one mechanical class per commit:
+errors, buffers, streams, registration): the merge reads the old H2H row view and the updated V2H
+(its chains with `chain.cuh`; a broken chain or a merge that would write outside a row raises the
+V2H tree's error word, read once at the end of the apply), checks the 64-bit merged size against
+the policy's payload limit (`capacity_error`) and hands the new payload to `rebuild_from_device`.
+The row view of H2H (`row_locator::build` with `out`) is rebuilt once per commit next to H2V's.
+The host stores keep the same layout (`line_graph/sorted_merge_host.cpp`), so every backend holds
+the line graph entry by entry; `row_views.hpp` is the view type all of them give the algorithms.
 
 ## The encoding
 

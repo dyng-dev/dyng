@@ -34,8 +34,10 @@ enum class hypergraph_storage : std::uint8_t {
  */
 enum class line_graph_policy : std::uint8_t {
   none,          ///< no line graph: hypergraph::h2h() throws
-  automatic,     ///< built when it is first read (hypergraph::h2h()), then maintained
-  sorted_merge,  ///< maintained by every batch with ESCHER-GPU's sorted delta merge
+  automatic,     ///< built when it is first read (hypergraph::h2h(), or an algorithm that
+                 ///< reads it), then maintained as sorted_merge
+  sorted_merge,  ///< built with the hypergraph and maintained by every batch with ESCHER-GPU's
+                 ///< sorted delta merge (needs v2h)
   slack_csr,     ///< H-SOSP's slack h2h CSR; planned for 0.4, not_supported_error now
 };
 

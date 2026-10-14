@@ -26,6 +26,19 @@ Before 0.1.0 anything may change.
   backend gives the same ids; the batch records of ESCHER-GPU@abcf9b2's and MOSP_ESCHER@4b86159's
   CBST traces replay through the container with the originals' ids (`parity/compare.py
   hypergraph_ids`).
+- M8b: **the line graph of the hypergraph** (ADR 0042): `line_graph_policy::sorted_merge` (built
+  with the hypergraph, kept by every `apply()` with ESCHER-GPU@abcf9b2's sorted delta merge, ported
+  in stages; a host form of the same merge on the CPU backends, with the same layout) and
+  `automatic` (built by the first `h2h()`, then kept); `hypergraph::h2h()` (sorted rows by id, `out`
+  the first neighbour above the row's id, the weights by id), the stage
+  `hypergraph.apply.line_graph`; `store_stats().device_bytes` in ESCHER-GPU's
+  `DynamicHypergraph::deviceBytes()` scope (the trees and the row views kept per commit), equal to
+  ESCHER-GPU's on coauth-DBLP after the build and every batch; the line graph equals ESCHER-GPU's
+  after every batch of its `make test`, coauth-DBLP 50K and synthetic 1M runs
+  (`parity/compare.py hypergraph_ids --line-graph`). `dyng::testing::rebuild_line_graph`
+  (`dyng/testing/line_graph_oracle.hpp`, tracked): the line graph rebuilt from the hyperedges by
+  MOSP_ESCHER@4b86159's HypergraphOracle algorithm. `parity/perf_ab.py hypergraph memory` and
+  `maintain`: the memory gate and the maintain reading against ESCHER-GPU.
 - M8a (internal, not public API): **the ESCHER CBST store** (`cpp/src/hypergraph/escher`,
   `dyng::detail::escher::cbst_store`, ADR 0038), the port of ESCHER-GPU@abcf9b2's store in the new
   module `dyng_hypergraph`: construct, rebuild from the device, best-fit insert with surplus rows
