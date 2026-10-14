@@ -165,8 +165,9 @@ def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -
     """One process under `nsys profile -t cuda,nvtx --cuda-memory-usage=true`: the peak of its
     live device allocations, the NVTX ranges containing the peak (outermost first), the peak
     inside every named range, and at the start and end of every range named `batch_range` (one
-    per batch) the live bytes and the size of the stream-ordered pool (reserved bytes; the pool
-    keeps what it reached, ADR 0016: reserved minus live is its slack)."""
+    per batch) the live bytes, the size of the stream-ordered pool (it keeps what it reached,
+    ADR 0016), its slack (reserved minus allocated from it) and what the process holds (its
+    cudaMalloc allocations plus the pool)."""
     import sqlite3
 
     nsys = os.environ.get("NSYS", "/usr/local/cuda-13.1/bin/nsys")
@@ -193,8 +194,8 @@ def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -
     try:
         db = sqlite3.connect(str(database))
         rows = db.execute(
-            "select start, bytes, memoryOperationType, address, localMemoryPoolSize "
-            "from CUDA_GPU_MEMORY_USAGE_EVENTS where memKind = 2"
+            "select start, bytes, memoryOperationType, address, localMemoryPoolSize, "
+            "localMemoryPoolAddress from CUDA_GPU_MEMORY_USAGE_EVENTS where memKind = 2"
         ).fetchall()
         strings = dict(db.execute("select id, value from StringIds").fetchall())
         ranges = []
@@ -206,21 +207,27 @@ def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -
     finally:
         for f in [database, Path(str(report) + ".nsys-rep")]:
             f.unlink(missing_ok=True)
-    # The timeline: (time, live bytes, pool bytes) after every event.
-    timeline: list[tuple[int, int, int]] = []
-    live = pool = 0
+    # The timeline after every event: (time, live bytes, pool size, live bytes outside the
+    # pool). An allocation of the stream-ordered pool names its pool (localMemoryPoolAddress);
+    # cudaMalloc's do not.
+    timeline: list[tuple[int, int, int, int]] = []
+    live = pool = outside = 0
     sizes: dict = {}
-    for start, nbytes, op, address, pool_size in sorted(rows):
+    for start, nbytes, op, address, pool_size, pool_address in sorted(rows):
+        in_pool = bool(pool_address)
         if op == 0:
-            sizes[address] = nbytes
+            sizes[address] = (nbytes, in_pool)
             live += nbytes
+            outside += 0 if in_pool else nbytes
         else:
-            live -= sizes.pop(address, nbytes)
+            freed, was_in_pool = sizes.pop(address, (nbytes, in_pool))
+            live -= freed
+            outside -= 0 if was_in_pool else freed
         if pool_size is not None:
             pool = pool_size
-        timeline.append((start, live, pool))
+        timeline.append((start, live, pool, outside))
     mib = 2**20
-    peak_t, peak_live, _ = max(timeline, key=lambda e: e[1], default=(0, 0, 0))
+    peak_t, peak_live, _, _ = max(timeline, key=lambda e: e[1], default=(0, 0, 0, 0))
     containing = sorted((r for r in ranges if r[0] <= peak_t <= r[1]), key=lambda r: (r[0], -r[1]))
     times = [e[0] for e in timeline]
     range_peaks: dict[str, float] = {}
@@ -230,20 +237,23 @@ def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -
             top = max(e[1] for e in timeline[lo:hi])
             range_peaks[name] = max(range_peaks.get(name, 0.0), round(top / mib, 1))
 
-    def at(t: int) -> tuple[int, int]:
+    def at(t: int) -> tuple[int, int, int]:
         i = bisect.bisect_right(times, t)
-        return (timeline[i - 1][1], timeline[i - 1][2]) if i > 0 else (0, 0)
+        return timeline[i - 1][1:] if i > 0 else (0, 0, 0)
 
     batches = []
     for start, end, _ in sorted(r for r in ranges if r[2] == batch_range):
-        live_start, _ = at(start)
-        live_end, pool_end = at(end)
+        live_start, _, _ = at(start)
+        live_end, pool_end, outside_end = at(end)
         batches.append(
             {
                 "live_mib_start": round(live_start / mib, 1),
                 "live_mib_end": round(live_end / mib, 1),
                 "pool_mib_end": round(pool_end / mib, 1),
-                "slack_mib_end": round((pool_end - live_end) / mib, 1),
+                # Reserved by the pool but not allocated from it, and what the process holds:
+                # its cudaMalloc allocations plus the pool.
+                "slack_mib_end": round((pool_end - (live_end - outside_end)) / mib, 1),
+                "held_mib_end": round((outside_end + pool_end) / mib, 1),
             }
         )
     return {
@@ -321,8 +331,8 @@ def memory(args: argparse.Namespace) -> int:
         for i, b in enumerate(nsys_doc["batches"], 1):
             print(
                 f"  {side} {nsys_doc['batch_range']} {i}: live {b['live_mib_start']} -> "
-                f"{b['live_mib_end']} MiB, pool {b['pool_mib_end']} MiB, slack "
-                f"{b['slack_mib_end']} MiB"
+                f"{b['live_mib_end']} MiB, pool {b['pool_mib_end']} MiB (slack "
+                f"{b['slack_mib_end']} MiB), held {b['held_mib_end']} MiB"
             )
     loaded = rep.get("hg_hyperedges", 0)
     print(f"  loaded through read_hypergraph({hg.name}, escher_gpu()): {loaded} hyperedges")
