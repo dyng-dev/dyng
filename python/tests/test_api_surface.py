@@ -22,6 +22,13 @@ PUBLIC = [
     "BatchSemantics",
     "ApplySummary",
     "EdgeBatch",
+    "Hypergraph",
+    "HypergraphProperties",
+    "CapacityPolicy",
+    "HyperedgeBatch",
+    "HyperApplySummary",
+    "HyperedgeList",
+    "StorageStats",
     "Array",
     "update",
     "sssp",
@@ -149,6 +156,7 @@ def test_stubs_are_committed() -> None:
     assert stub.is_file()
     text = stub.read_text(encoding="utf-8")
     assert "def sssp_compute" in text and "class GraphI32I32I32" in text
+    assert "class HypergraphI32U" in text and "class HypergraphI32I32" in text
     assert (importlib.resources.files(pkg) / "py.typed").is_file()
 
 
@@ -162,6 +170,10 @@ def test_stubs_are_committed() -> None:
         (dyng.triangle_delta.Options, "TriangleDeltaOptions"),
         (dyng.GraphProperties, "GraphProperties"),
         (dyng.BatchSemantics, "BatchSemantics"),
+        (dyng.HypergraphProperties, "HypergraphProperties"),
+        (dyng.CapacityPolicy, "CapacityPolicy"),
+        (dyng.io.HypergraphReadOptions, "HypergraphReadOptions"),
+        (dyng.io.WeightSpec, "WeightSpec"),
     ],
 )
 def test_python_defaults_equal_the_cpp_defaults(cls: type, native_name: str) -> None:
@@ -170,3 +182,28 @@ def test_python_defaults_equal_the_cpp_defaults(cls: type, native_name: str) -> 
     from dyng._backend import native
 
     assert cls() == cls._from_native(getattr(native, native_name)())
+
+
+def test_hypergraph_names_and_the_cpp_presets() -> None:
+    # The Python presets are the C++ ones (capacity_policy, hypergraph_read_options).
+    from dyng._backend import native
+
+    assert dyng.CapacityPolicy.escher_gpu(7) == dyng.CapacityPolicy._from_native(
+        native.CapacityPolicy.escher_gpu(7)
+    )
+    assert dyng.CapacityPolicy.mosp_escher() == dyng.CapacityPolicy._from_native(
+        native.CapacityPolicy.mosp_escher()
+    )
+    assert dyng.io.HypergraphReadOptions.escher_gpu() == dyng.io.HypergraphReadOptions()
+    hsosp = dyng.io.HypergraphReadOptions.hsosp()
+    assert (hsosp.max_cardinality, hsosp.relabel) == (25, "first_appearance")
+    assert hsosp.random_weights == dyng.io.WeightSpec(1, 100, 20260725, True)
+    for name in ("Hypergraph", "HyperedgeBatch", "HypergraphProperties", "CapacityPolicy"):
+        assert name in dyng.__all__
+    for name in ("read_hypergraph", "write_hypergraph", "BatchReader", "write_binary_batches"):
+        assert name in dyng.io.__all__
+    for name in ("uniform_hypergraph", "random_hyperedge_batch"):
+        assert name in dyng.generators.__all__
+    for name in ("escher_hypergraph", "EscherBatchGenerator", "EscherEngine"):
+        assert name in dyng.generators.legacy.__all__
+    assert "rebuild_line_graph" in dyng.testing.__all__
