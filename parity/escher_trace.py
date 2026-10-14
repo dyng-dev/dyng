@@ -578,8 +578,16 @@ def cmd_verify(args) -> int:
 
 # The scalar fields of an op record that an extract keeps (the container-level replay reads the
 # construct sizes and capacities, and the size of an insert's payload).
-EXTRACT_OP_FIELDS = ("seq", "tree", "op", "status", "in.num_records", "in.flat_payload_size",
-                     "in.capacity", "in.alignment")
+EXTRACT_OP_FIELDS = (
+    "seq",
+    "tree",
+    "op",
+    "status",
+    "in.num_records",
+    "in.flat_payload_size",
+    "in.capacity",
+    "in.alignment",
+)
 
 
 def _encode_fields(fields: dict, trace: Trace) -> bytes:
@@ -626,9 +634,14 @@ def extract_batches(src: Path, dst: Path, sessions: int = 0) -> dict:
     for kind, rec in trace.records():
         if kind in ("event", "note"):
             continue
-        if kind == "batch" and rec.get("phase") == "enter" and rec.get("hook") in (
-            "mosp_escher.bulk_load",
-            "escher_gpu.build",
+        if (
+            kind == "batch"
+            and rec.get("phase") == "enter"
+            and rec.get("hook")
+            in (
+                "mosp_escher.bulk_load",
+                "escher_gpu.build",
+            )
         ):
             loads += 1
             if sessions and loads > sessions:
@@ -638,8 +651,8 @@ def extract_batches(src: Path, dst: Path, sessions: int = 0) -> dict:
                 continue
             fields = {k: rec[k] for k in EXTRACT_OP_FIELDS if k in rec}
             if rec.get("op") == "insert" and isinstance(rec.get("in.payload"), Array):
-                payload = rec["in.payload"]
-                fields["in.payload"] = Array("hash", payload.elem, payload.count, hash=payload.hash or 0)
+                p = rec["in.payload"]
+                fields["in.payload"] = Array("hash", p.elem, p.count, hash=p.hash or 0)
             rec = fields
         payload = _encode_fields(rec, trace)
         out += struct.pack("<IQ", tag_of[kind], len(payload)) + payload
