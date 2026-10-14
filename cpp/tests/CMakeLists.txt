@@ -306,6 +306,7 @@ if(DYNG_ENABLE_CUDA)
     TEST_PREFIX cuda.
   )
   target_compile_definitions(dyng_hypergraph_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  dyng_set_cuda_options(dyng_hypergraph_cuda_tests)  # the non-blocking streams of the C12 test
   list(APPEND _dyng_private_tests dyng_hypergraph_cuda_tests)
 endif()
 # Container-level id parity against both originals' batch records (M8b, criterion 4; ADR 0041):
@@ -738,7 +739,8 @@ endif()
 
 # The hypergraph container's mutations (M8b criterion 20; PLAN 8.4): a copy of libdyng whose
 # hypergraph module is rebuilt with DYNG_MUTATION_HYPERGRAPH_<NAME> (MOSP_ESCHER's mutation #6,
-# the h2v insert payload not deduplicated; the host allocator's best-fit tie rule reversed),
+# the h2v insert payload not deduplicated; the host allocator's best-fit tie rule reversed; the
+# line graph's mirrored additions dropped, M8b step 2),
 # linked with the container's suites on the host backends (the lockstep with the CBST host model,
 # the random streams, the allocator against the model, the replays of the committed batch
 # extracts); the CTest hypergraph.mutation.<name> passes when that suite fails, the control
@@ -767,6 +769,7 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
       "control||pass"
       "h2v_not_deduplicated|DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED|fail"
       "allocator_ties_reversed|DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES|fail"
+      "mirror_additions_dropped|DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED|fail"
   )
   foreach(_entry IN LISTS _dyng_hypergraph_mutants)
     string(REPLACE "|" ";" _mutant "${_entry}")

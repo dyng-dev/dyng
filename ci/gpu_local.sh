@@ -64,6 +64,16 @@
 #              lockstep with the host model over the small sets (dyng_cbst_compact_large_tests:
 #              compact() after every op, and every preset's layout without compactions).
 #              The CBST mutation tests cbst.mutation.* run in the ctest -L gpu step.
+#   hypergraph the hypergraph container (M8b, ADRs 0041-0042): compute-sanitizer racecheck and
+#              synccheck on its GPU test executables (dyng_hypergraph_cuda_tests: the container's
+#              suites on cuda, the line graph, two containers on two non-blocking streams;
+#              dyng_hypergraph_ids_cuda_tests: the committed batch records and A's skewed and
+#              medium traces) at their reduced sizes (DYNG_CBST_REDUCED=1; memcheck covers them in
+#              the memcheck step), and the container-level replays of the small golden sets on
+#              cuda (parity/compare.py hypergraph_ids: escher_gpu_test and mosp_escher_test, the ids
+#              and rows; escher_gpu_test again with --line-graph, A's H2H after every batch;
+#              skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
+#              build/<preset>/hypergraph-records)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -87,7 +97,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,69p' "${BASH_SOURCE[0]}"
+      sed -n '5,79p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -355,6 +365,57 @@ if ! skipped cbst; then
     record "cbst lockstep with the host model (compact after every op; every preset)" passed
   else
     record "cbst lockstep with the host model (compact after every op; every preset)" FAILED
+  fi
+fi
+
+if ! skipped hypergraph; then
+  step "the hypergraph container: sanitizers and the replays (GPU ${gpu})"
+  hg_ok=1
+  hg_exes=()
+  for t in dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests; do
+    if [ -x "${build_dir}/cpp/tests/${t}" ]; then
+      hg_exes+=("${build_dir}/cpp/tests/${t}")
+    else
+      echo "${build_dir}/cpp/tests/${t} missing"
+      hg_ok=0
+    fi
+  done
+  if [ -z "${sanitizer}" ]; then
+    echo "compute-sanitizer missing"
+    hg_ok=0
+  else
+    for tool in racecheck synccheck; do
+      extra=()
+      [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
+      for exe in "${hg_exes[@]}"; do
+        if ! DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+          --error-exitcode 1 "${exe}" --gtest_brief=1; then
+          echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
+          hg_ok=0
+        fi
+      done
+    done
+  fi
+  if [ "${hg_ok}" = 1 ]; then
+    record "hypergraph sanitizers (racecheck, synccheck)" passed
+  else
+    record "hypergraph sanitizers (racecheck, synccheck)" FAILED
+  fi
+  hg_tool="${build_dir}/cpp/tests/dyng_hypergraph_ids"
+  hg_records="${DYNG_GPU_RESULTS:-${build_dir}/hypergraph-records}"
+  if [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/escher_gpu_test/MANIFEST.sha256" ] ||
+    [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/mosp_escher_test/MANIFEST.sha256" ]; then
+    echo "the CBST trace goldens are missing (parity/export_goldens.py cbst_trace); skipped"
+    record "hypergraph replays (cuda, small sets)" skipped
+  elif heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
+    --exe "${hg_tool}" --record "${hg_records}" --set cbst_trace_escher_gpu_test \
+    --set cbst_trace_mosp_escher_test &&
+    heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
+      --exe "${hg_tool}" --record "${hg_records}" --line-graph --mode by_id \
+      --set cbst_trace_escher_gpu_test; then
+    record "hypergraph replays (cuda, small sets; ids, rows, line graph)" passed
+  else
+    record "hypergraph replays (cuda, small sets; ids, rows, line graph)" FAILED
   fi
 fi
 
