@@ -22,6 +22,7 @@
 #include "hypergraph/line_graph/sorted_merge.cuh"
 #include "util/cuda_check.hpp"
 #include "util/device_error_flags.cuh"
+#include "util/kernel_registry.hpp"
 #include "util/thrust_allocator.cuh"
 
 #include <dyng/core/buffer.hpp>
@@ -402,13 +403,13 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
   device_rows inserted_rows(res, batch.inserted_rows);
 
   // First payload segment of every V2H row (V2H rows may be chained).
-  const int numVertices = v2h.num_records;
-  device_array<int> head(res, numVertices + 1);
-  DYNG_CUDA_TRY(cudaMemsetAsync(head.get(), 0xff, sizeof(int) * (numVertices + 1),
+  const int num_vertices = v2h.num_records;
+  device_array<int> head(res, num_vertices + 1);
+  DYNG_CUDA_TRY(cudaMemsetAsync(head.get(), 0xff, sizeof(int) * (num_vertices + 1),
                                 stream_of(res)));  // -1: absent
   if (v2h.num_records > 0) {
     row_heads_kernel<<<blocks_for(v2h.num_records), block_size, 0, stream_of(res)>>>(
-        v2h.d_nodes, v2h.d_avail, v2h.num_records, numVertices, head.get());
+        v2h.d_nodes, v2h.d_avail, v2h.num_records, num_vertices, head.get());
     DYNG_CHECK_KERNEL(stream_of(res));
   }
 
@@ -477,5 +478,16 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
   // H2H tree's own word is reset by its rebuild.
   merge_and_rebuild(h2h, old_rows, delta, num_keys, max_payload, v2h.d_control);
 }
+
+// Every kernel of this file is loaded by resources::warm_up().
+DYNG_REGISTER_KERNEL(neighbourhood_count_kernel);
+DYNG_REGISTER_KERNEL(neighbourhood_gather_kernel);
+DYNG_REGISTER_KERNEL(removal_count_kernel);
+DYNG_REGISTER_KERNEL(removal_gather_kernel);
+DYNG_REGISTER_KERNEL(mirror_additions_kernel);
+DYNG_REGISTER_KERNEL(pair_histogram_kernel);
+DYNG_REGISTER_KERNEL(merged_row_slots_kernel);
+DYNG_REGISTER_KERNEL(write_merged_rows_kernel);
+DYNG_REGISTER_KERNEL(narrow_starts_kernel);
 
 }  // namespace dyng::detail::escher
