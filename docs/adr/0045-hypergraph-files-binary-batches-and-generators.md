@@ -135,6 +135,29 @@ Little-endian; the full layout is in docs/api/file_formats.md.
   does, and check kind and types from the header before reading a record. After an `io_error`
   of `next()` the reader is fail-stop: the stream is past the damaged record, so every later
   `next()` and view throws instead of returning the following record as valid.)
+- **`batch_reader` differs from PLAN 5.3's sketch** (M8b review: the step had not recorded it).
+  The sketch (the sssp example) is a template `batch_reader<V, W>` that reads `.dgt`, `.dgb` and
+  the legacy `insert.txt` / `delete.txt` and returns an owning batch from `next(res)`. The
+  implemented reader is not a template, reads `.dgb` only, takes its resources (and the vertex
+  count) at construction, and has `bool next()` with typed views (`edge_batch<V, W>()`,
+  `hyperedge_batch<V, W>()`, `annotations<V>()`). Why: one file holds one container kind and
+  one set of types, which the header states, so the types are checked per view instead of
+  fixing them for the reader's lifetime (a hypergraph file and a graph file read with one reader
+  type); a view over the staged record avoids copying each batch into an owning one (and, with
+  CUDA resources, the view is the device copy); and only `.dgb` is a record stream with known
+  sizes: `.dgt` and the legacy files are text, read whole by `read_batches` /
+  `read_hyperedge_batches` / `read_legacy_batch` with line and column errors (streaming them
+  would need a second text parser). The sketch's loop maps to
+
+  ```cpp
+  dyng::io::batch_reader reader(res, argv[2]);  // a .dgb file
+  while (reader.next()) {
+    const auto batch = reader.edge_batch<std::int32_t, std::int32_t>();
+    dyng::sssp::stats st = dyng::sssp::update(res, g, batch, tree);
+  }
+  // .dgt: for (const auto& b : dyng::io::read_batches<std::int32_t, std::int32_t>(path)) ...
+  // legacy: dyng::io::read_legacy_batch<std::int32_t, std::int32_t>(insert_path, delete_path)
+  ```
 - **`batch_reader`** streams one record at a time; its views are valid until the next `next()`.
   With CUDA resources each record is read into one of two pinned host buffers from the resources'
   staging memory resource and copied to a device buffer asynchronously on the resources' stream;
