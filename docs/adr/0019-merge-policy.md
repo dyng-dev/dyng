@@ -66,4 +66,3 @@ author then decided (2026-10-14, `GOVERNANCE.md` approvals log) to **turn squash
   (docs/developer/repository_settings.md, steps 4 and 9);
 - a contribution's pull request title still follows Conventional Commits: it becomes the title
   of the merge commit, which is what `git log --first-parent main` and the release notes show.
-
