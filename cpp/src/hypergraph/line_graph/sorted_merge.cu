@@ -233,31 +233,19 @@ int blocks_for(long long n) {
   return static_cast<int>((n + block_size - 1) / block_size);
 }
 
+// A device array of the merge, allocated from the memory resource of the store's resources
+// (stream-ordered; released into the pool when it goes out of scope).
 template <class T>
 class device_array {
  public:
-  explicit device_array(long long n) {
-    DYNG_CUDA_TRY(cudaMalloc(&ptr_, sizeof(T) * std::max(1LL, n)));
-  }
-  ~device_array() {
-    cudaFree(ptr_);
-  }
-  device_array(const device_array&) = delete;
-  device_array& operator=(const device_array&) = delete;
-  device_array(device_array&& o) noexcept : ptr_(o.ptr_) {
-    o.ptr_ = nullptr;
-  }
+  device_array(const resources& res, long long n)
+      : storage_(res, static_cast<std::size_t>(std::max(1LL, n))) {}
   T* get() const {
-    return ptr_;
-  }
-  T* release() {
-    T* p = ptr_;
-    ptr_ = nullptr;
-    return p;
+    return storage_.data();
   }
 
  private:
-  T* ptr_ = nullptr;
+  mutable buffer<T> storage_;
 };
 
 template <class T>
@@ -271,8 +259,10 @@ T read_back(const T* device_ptr) {
 struct device_rows {
   int num_rows;
   device_array<int> offsets, vertices;
-  explicit device_rows(const std::vector<std::vector<int>>& rows)
-      : num_rows(static_cast<int>(rows.size())), offsets(rows.size() + 1), vertices(total(rows)) {
+  device_rows(const resources& res, const std::vector<std::vector<int>>& rows)
+      : num_rows(static_cast<int>(rows.size())),
+        offsets(res, static_cast<long long>(rows.size()) + 1),
+        vertices(res, total(rows)) {
     std::vector<int> off(rows.size() + 1, 0), flat;
     flat.reserve(total(rows));
     for (size_t i = 0; i < rows.size(); ++i) {
@@ -298,14 +288,14 @@ struct pair_list {
   long long size;
 };
 template <class Count, class Gather>
-pair_list collect_pairs(int num_items, Count count, Gather gather) {
-  device_array<long long> offsets(num_items + 1);
+pair_list collect_pairs(const resources& res, int num_items, Count count, Gather gather) {
+  device_array<long long> offsets(res, num_items + 1);
   DYNG_CUDA_TRY(cudaMemset(offsets.get() + num_items, 0, sizeof(long long)));
   if (num_items > 0) count(offsets.get());
   thrust::device_ptr<long long> o(offsets.get());
   thrust::exclusive_scan(o, o + num_items + 1, o);
   long long n = read_back(offsets.get() + num_items);
-  pair_list pairs{device_array<unsigned long long>(n), n};
+  pair_list pairs{device_array<unsigned long long>(res, n), n};
   if (n > 0) gather(offsets.get(), pairs.data.get());
   return pairs;
 }
@@ -320,7 +310,8 @@ void sort_pairs(pair_list& pairs, bool unique) {
 struct pair_ranges {
   device_array<int> count;
   device_array<long long> offset;
-  pair_ranges(const pair_list& pairs, int num_keys) : count(num_keys + 1), offset(num_keys + 1) {
+  pair_ranges(const resources& res, const pair_list& pairs, int num_keys)
+      : count(res, num_keys + 1), offset(res, num_keys + 1) {
     DYNG_CUDA_TRY(cudaMemset(count.get(), 0, sizeof(int) * (num_keys + 1)));
     if (pairs.size > 0)
       pair_histogram_kernel<<<blocks_for(pairs.size), block_size>>>(pairs.data.get(), pairs.size,
@@ -340,8 +331,9 @@ __global__ void narrow_starts_kernel(const long long* start, int num_keys, int* 
 // allocated (ESCHER-GPU ended the process above the int32 offsets).
 void merge_and_rebuild(cbst_store& tree, const row_view& old, const row_delta& delta, int num_keys,
                        long long max_payload, std::uint32_t* control) {
-  device_array<int> len(num_keys + 1);
-  device_array<long long> start(num_keys + 2);
+  const resources& res = tree.context().res;
+  device_array<int> len(res, num_keys + 1);
+  device_array<long long> start(res, num_keys + 2);
   DYNG_CUDA_TRY(cudaMemset(start.get() + num_keys + 1, 0, sizeof(long long)));
   merged_row_slots_kernel<<<blocks_for(num_keys + 1), block_size>>>(old, delta, num_keys, len.get(),
                                                                     start.get());
@@ -355,16 +347,16 @@ void merge_and_rebuild(cbst_store& tree, const row_view& old, const row_delta& d
                          std::to_string(std::min<long long>(max_payload, INT_MAX)) +
                          "; the store's offsets are int32)");
   }
-  // dynG (transplant hunk): the merged payload and the row offsets are the store's buffers (the
-  // tree takes them over in rebuild_from_device), allocated from the tree's resources.
-  buffer<int> flat(tree.context().res, static_cast<size_t>(std::max(1LL, total)));
+  // The merged payload and the row offsets are the store's buffers (the tree takes them over in
+  // rebuild_from_device).
+  buffer<int> flat(res, static_cast<size_t>(std::max(1LL, total)));
   int grid =
       static_cast<int>(std::min<long long>((num_keys * 32LL + block_size - 1) / block_size, 65535));
   DYNG_CUDA_TRY(
       cudaDeviceSynchronize());  // dynG (transplant hunk): the buffers' stream-ordered allocation
   write_merged_rows_kernel<<<grid, block_size>>>(old, delta, num_keys, start.get(), len.get(),
                                                  flat.data(), control);
-  buffer<int> starts(tree.context().res, static_cast<size_t>(std::max(1, num_keys)));
+  buffer<int> starts(res, static_cast<size_t>(std::max(1, num_keys)));
   DYNG_CUDA_TRY(cudaDeviceSynchronize());
   narrow_starts_kernel<<<blocks_for(num_keys), block_size>>>(start.get(), num_keys, starts.data());
   DYNG_CUDA_TRY(cudaGetLastError());
@@ -387,20 +379,21 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
                        const line_graph_batch& batch, int num_keys, long long max_payload) {
   const int num_deleted = static_cast<int>(batch.deleted_keys.size());
   const int num_inserted = static_cast<int>(batch.inserted_keys.size());
-  device_frontier deleted(batch.deleted_keys, num_keys);
-  device_frontier inserted(batch.inserted_keys, num_keys);  // same order as inserted_rows
-  device_rows inserted_rows(batch.inserted_rows);
+  const resources& res = h2h.context().res;
+  device_frontier deleted(res, batch.deleted_keys, num_keys);
+  device_frontier inserted(res, batch.inserted_keys, num_keys);  // same order as inserted_rows
+  device_rows inserted_rows(res, batch.inserted_rows);
 
   // First payload segment of every V2H row (V2H rows may be chained).
   const int numVertices = v2h.num_records;
-  device_array<int> head(numVertices + 1);
+  device_array<int> head(res, numVertices + 1);
   DYNG_CUDA_TRY(cudaMemset(head.get(), 0xff, sizeof(int) * (numVertices + 1)));  // -1: absent
   row_heads_kernel<<<blocks_for(v2h.num_records), block_size>>>(
       v2h.d_nodes, v2h.d_avail, v2h.num_records, numVertices, head.get());
 
   // Rows of the inserted hyperedges: union of their vertices' V2H rows.
   pair_list rows = collect_pairs(
-      num_inserted,
+      res, num_inserted,
       [&](long long* count) {
         neighbourhood_count_kernel<<<blocks_for(num_inserted), block_size>>>(
             inserted.ids(), inserted_rows.offsets.get(), inserted_rows.vertices.get(), num_inserted,
@@ -415,7 +408,7 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
 
   // Deleted hyperedges leave the rows of their surviving neighbours.
   pair_list removals = collect_pairs(
-      num_deleted,
+      res, num_deleted,
       [&](long long* count) {
         removal_count_kernel<<<blocks_for(num_deleted), block_size>>>(
             old_rows, deleted.ids(), num_deleted, deleted.flags(), count);
@@ -427,9 +420,9 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
   sort_pairs(removals, false);
 
   // Inserted hyperedges join the rows of their non-inserted neighbours.
-  pair_list additions{device_array<unsigned long long>(rows.size), 0};
+  pair_list additions{device_array<unsigned long long>(res, rows.size), 0};
   {
-    device_array<unsigned long long> count(1);
+    device_array<unsigned long long> count(res, 1);
     DYNG_CUDA_TRY(cudaMemset(count.get(), 0, sizeof(unsigned long long)));
     if (rows.size > 0)
       mirror_additions_kernel<<<blocks_for(rows.size), block_size>>>(
@@ -439,14 +432,14 @@ void update_line_graph(cbst_store& h2h, const row_view& old_rows, const cbst_con
   sort_pairs(additions, false);
 
   // Deleted and inserted keys get a replacement row (empty if not reinserted).
-  device_array<unsigned char> replaced(num_keys + 1);
+  device_array<unsigned char> replaced(res, num_keys + 1);
   thrust::transform(thrust::device_ptr<const unsigned char>(deleted.flags()),
                     thrust::device_ptr<const unsigned char>(deleted.flags() + num_keys + 1),
                     thrust::device_ptr<const unsigned char>(inserted.flags()),
                     thrust::device_ptr<unsigned char>(replaced.get()), or_bytes());
 
-  pair_ranges row_ranges(rows, num_keys), removal_ranges(removals, num_keys),
-      addition_ranges(additions, num_keys);
+  pair_ranges row_ranges(res, rows, num_keys), removal_ranges(res, removals, num_keys),
+      addition_ranges(res, additions, num_keys);
   row_delta delta{replaced.get(),      row_ranges.count.get(),      row_ranges.offset.get(),
                   rows.data.get(),     removal_ranges.count.get(),  removal_ranges.offset.get(),
                   removals.data.get(), addition_ranges.count.get(), addition_ranges.offset.get(),

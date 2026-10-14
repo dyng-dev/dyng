@@ -13,6 +13,9 @@
 
 #include "util/cuda_check.hpp"
 
+#include <dyng/core/buffer.hpp>
+#include <dyng/core/resources.hpp>
+
 #include <cuda_runtime.h>
 
 #include <vector>
@@ -30,36 +33,35 @@ namespace dyng::detail::escher {
 // kernels skip every other frontier member smaller than f.
 class device_frontier {
  public:
-  device_frontier(const std::vector<int>& ids, int max_id) : size_(static_cast<int>(ids.size())) {
+  // The arrays from the memory resource of `res` (dynG: buffers instead of cudaMalloc).
+  device_frontier(const resources& res, const std::vector<int>& ids, int max_id)
+      : ids_(res, ids.empty() ? 1 : ids.size()),
+        flags_(res, static_cast<size_t>(max_id) + 1),
+        size_(static_cast<int>(ids.size())) {
     std::vector<unsigned char> flags(static_cast<size_t>(max_id) + 1, 0);
     for (int id : ids)
       if (id >= 0 && id <= max_id) flags[id] = 1;
-    DYNG_CUDA_TRY(cudaMalloc(&ids_, sizeof(int) * (ids.empty() ? 1 : ids.size())));
-    DYNG_CUDA_TRY(cudaMalloc(&flags_, flags.size()));
     if (!ids.empty())
-      DYNG_CUDA_TRY(cudaMemcpy(ids_, ids.data(), sizeof(int) * ids.size(), cudaMemcpyHostToDevice));
-    DYNG_CUDA_TRY(cudaMemcpy(flags_, flags.data(), flags.size(), cudaMemcpyHostToDevice));
-  }
-  ~device_frontier() {
-    cudaFree(ids_);
-    cudaFree(flags_);
+      DYNG_CUDA_TRY(
+          cudaMemcpy(ids_.data(), ids.data(), sizeof(int) * ids.size(), cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(cudaMemcpy(flags_.data(), flags.data(), flags.size(), cudaMemcpyHostToDevice));
   }
   device_frontier(const device_frontier&) = delete;
   device_frontier& operator=(const device_frontier&) = delete;
 
   const int* ids() const {
-    return ids_;
+    return ids_.data();
   }
   const unsigned char* flags() const {
-    return flags_;
+    return flags_.data();
   }
   int size() const {
     return size_;
   }
 
  private:
-  int* ids_ = nullptr;
-  unsigned char* flags_ = nullptr;
+  buffer<int> ids_;
+  buffer<unsigned char> flags_;
   int size_;
 };
 
