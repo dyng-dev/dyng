@@ -291,8 +291,8 @@ class hypergraph {
 
   /**
    * @brief Check the storage invariants: the rows of every tree by search from the root, their
-   *        reachability, segments and tail metadata (ESCHER's checkTreeRows), the deleted-slot
-   *        counters (subtree_avail, MOSP_ESCHER's checkEscher) against the live ids, and that
+   *        reachability, segments and tail metadata (ESCHER's row check), the deleted-slot
+   *        counters (subtree_avail, MOSP_ESCHER's store check) against the live ids, and that
    *        v2h is the transpose of h2v.
    * @param[in] res Execution resources (the hypergraph's backend).
    * @throws internal_error         if an invariant is broken.

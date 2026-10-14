@@ -13,6 +13,7 @@ Link against the CMake target `dyng::dyng` (`find_package(dyng)`).
 
 core
 graph
+hypergraph
 batch
 io
 sssp

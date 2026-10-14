@@ -775,6 +775,12 @@ def test_mutation_points_match_the_code_once() -> None:
         p.read_text() for p in sorted((REPO / "cpp/src/hypergraph/escher").iterdir())
     )
     hooks += (REPO / "cpp/tests/parity/escher/cbst_graph_test.cpp").read_text()
+    # The hypergraph container's hooks (M8b): its sources outside the store.
+    hooks += "\n".join(p.read_text() for p in sorted((REPO / "cpp/src/hypergraph").glob("*.cpp")))
+    assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "hypergraph"} == {
+        "hypergraph_h2v_not_deduplicated",
+        "hypergraph_allocator_ties_reversed",
+    }
     assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "cbst"} == {
         "cbst_unfill_drops_last",
         "cbst_graph_own_ids",

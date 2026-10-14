@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from ESCHER-GPU@abcf9b2:structure/operations.cu (insertCBST: best fit, surplus rows)
+// Derived from ESCHER-GPU@abcf9b2:utils/flatten.cpp (flatten2DVector: padding rule 1)
+// Derived from MOSP_ESCHER@4b86159:escher/structure/operations.cu (compactCBST, the trigger
+// points of fillImpl and insertCBST)
 /**
  * @file id_allocator.cpp
  * @brief The host best-fit id allocator (ADR 0041, section 5).

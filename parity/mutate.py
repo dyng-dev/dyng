@@ -264,14 +264,14 @@ MUTATIONS = [
         "suite": "hypergraph",
         "plan": "M8b 20: the h2v insert payload is not deduplicated (MOSP_ESCHER #6)",
         "defines": ["DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED"],
-        "config": "all",
+        "config": "sequential",  # a label: the suite runs on every backend
     },
     {
         "name": "hypergraph_allocator_ties_reversed",
         "suite": "hypergraph",
         "plan": "M8b 20: the host id allocator's best-fit tie rule reversed",
         "defines": ["DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES"],
-        "config": "host",
+        "config": "sequential",  # the host backends' allocator
     },
 ]
 
