@@ -186,6 +186,14 @@ Before 0.1.0 anything may change.
   `.dgt` file did not read back); `io::read_batches()` names `read_hyperedge_batches()` when it
   meets a hyperedge operation or a `%dgt 1 hypergraph` line, and reports the incidence edits
   `+i` / `-i` and the vertex operations as reserved for 0.4.
+- M8b: **the release certificate needs the hypergraph container's replays from 0.3**
+  (`parity/certify.py`): the batch records of every CBST trace set with hypergraph batches
+  replayed through `dyng::hypergraph` with the originals' ids and rows on sequential, openmp and
+  cuda, and ESCHER-GPU's sets with the line graph on cuda (`parity/compare.py hypergraph_ids
+  --certificate`, the hypergraph-id record schema; `ci/gpu_local.sh` writes the CUDA records of
+  the small sets). The memory reading of the hypergraph (`perf_ab.py hypergraph memory`) loads
+  coauth-DBLP through `io::read_hypergraph(..., escher_gpu())`. The vertex-operation fields of
+  the Python bindings' batch and the `good-first-issue:op` label name 0.4 and 0.3.
 
 ## [0.2.0] - 2026-10-14
 
