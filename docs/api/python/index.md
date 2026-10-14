@@ -1,9 +1,11 @@
 # Python API
 
-`import dyng` gives the whole public Python API: the names of the `dyng` package and the
-modules `dyng.sssp`, `dyng.cycle_count`, `dyng.mosp` (0.2), the tutorial algorithms
-`dyng.dynamic_bfs` and `dyng.triangle_delta` (0.2), `dyng.io`, `dyng.generators` and
-`dyng.testing`. The
+`import dyng` gives the whole public Python API: the names of the `dyng` package (the graph,
+and from 0.3 the hypergraph: `dyng.Hypergraph`, `dyng.HyperedgeBatch`,
+`dyng.HypergraphProperties`, `dyng.CapacityPolicy`, `dyng.HyperApplySummary`;
+{doc}`../../how_to/use_hypergraphs_from_python`) and the modules `dyng.sssp`,
+`dyng.cycle_count`, `dyng.mosp` (0.2), the tutorial algorithms `dyng.dynamic_bfs` and
+`dyng.triangle_delta` (0.2), `dyng.io`, `dyng.generators` and `dyng.testing`. The
 names mirror the C++ API ({doc}`../cpp/index`): `dyng::sssp::compute` is `dyng.sssp.compute`,
 `dyng::sssp::options` is `dyng.sssp.Options`, and option keywords are the C++ field names
 (`max_length=`, `delta=`). Names with a leading underscore (`dyng._core`, the native module) are
@@ -74,6 +76,10 @@ inputs:
 - Weights are int32 integers (range-checked); floating-point and boolean weights are rejected.
 - An unsupported combination raises {py:class}`dyng.NotSupportedError` listing the supported
   ones.
+- Hypergraphs (0.3) have int32 vertex ids, with or without int32 weights: member arrays that
+  declare int64 raise {py:class}`dyng.NotSupportedError` unless `vertex_dtype="int32"` is given
+  (then every value is checked). Hyperedge ids, offsets and `inserted_ids` are int64 and never
+  narrowed.
 - Inputs in CUDA device memory (CuPy, PyTorch, JAX, a `dyng.Array` of the CUDA backend) need a
   CUDA plugin's module and are copied to the host once (graphs and batches are built from host
   arrays in this release), after the producer's stream (`__dlpack__(stream=...)`).

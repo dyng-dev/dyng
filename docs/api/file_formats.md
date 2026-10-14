@@ -152,7 +152,10 @@ its flags need, `close()` writes the count), `batch_reader` (`header()`, `next()
 `read_binary_hyperedge_batches` for whole files. `.dgt` and `.dgb` hold the same batches:
 converting either way and back gives the same batches. `tools/compat/escher`
 (`dyng-compat-escher to-dgb`) writes ESCHER-GPU's batch dumps as `.hg` + `.dgb` files with
-`deleted_members` and `expected_ids`.
+`deleted_members` and `expected_ids`. Python (`dyng.io`): `write_binary_batches(path, batches,
+*, deleted_members, expected_ids, insert_first)` (graph or hypergraph batches, the flags from the
+arguments), `read_binary_batches(path)` and the streaming `BatchReader(path)` (records with
+`batch_id`, `batch`, `deleted_members` and `expected_ids`; host batches).
 
 ## Hypergraphs (`.hg`: `read_hypergraph` / `write_hypergraph`)
 
@@ -187,7 +190,9 @@ type holds). The writer writes every hyperedge's members in list order plus `ind
 members outside [0, n) and weights below 1. `datasets/preprocess/benson_to_hg.py` converts the
 timestamped simplicial datasets of Benson's collection (coauth-DBLP, ...) to `.hg` with either
 original's preprocessing (`--variant escher` or `hsosp`; on coauth-DBLP-full both write the bytes
-`datasets/registry.toml` pins).
+`datasets/registry.toml` pins). Python: `dyng.io.read_hypergraph(path, options="escher_gpu" |
+"hsosp", ...)` (a `dyng.Hypergraph`; the option keywords and the hypergraph's property keywords),
+`read_hypergraph_arrays()` (the arrays and what the reader dropped) and `write_hypergraph()`.
 
 ```text
 % three hyperedges on vertices 1..6 (1-based)

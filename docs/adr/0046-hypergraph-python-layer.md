@@ -77,7 +77,7 @@ dedupe_hyperedges=True, line_graph="sorted_merge")` and `dyng.HyperedgeBatch(del
    deleted member sets and the expected ids). Python batches are host objects, so `BatchReader`
    reads host views; the C++ reader's pinned staging serves CUDA callers (`python_gaps.md`).
 7. **Generators.** `dyng.generators.uniform_hypergraph()` / `uniform_hypergraph_arrays()` and
-   `random_hyperedge_batch(hypergraph, *, mix, size, ...)`, with `HyperedgeBatchMix` the 13
+   `random_hyperedge_batch(hypergraph, *, mix, size, ...)`, with `HyperedgeBatchMixName` the 13
    mixes as strings; `dyng.generators.legacy.EscherEngine(seed)` (the single
    `std::mt19937_64` of an ESCHER-GPU run, shared like the C++ engine),
    `escher_hypergraph[_arrays](engine, ...)`, `EscherBatchGenerator(engine, ..., batch_size)` and
