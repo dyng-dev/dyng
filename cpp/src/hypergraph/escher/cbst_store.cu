@@ -1539,6 +1539,16 @@ size_t cbst_store::device_bytes() const {
          static_cast<size_t>(ctx_.scratch_payload_capacity) * sizeof(int);
 }
 
+void cbst_store::set_used_payload(long long used) {
+  check_not_poisoned("set_used_payload");
+  DYNG_EXPECTS(constructed_, "CBST ", ctx_.dataset_name,
+               ": set_used_payload on a tree that is not constructed");
+  DYNG_EXPECTS(used >= ctx_.initial_payload_size && used <= ctx_.fixed_size, "CBST ",
+               ctx_.dataset_name, ": set_used_payload(", used, ") is outside [",
+               ctx_.initial_payload_size, ", ", ctx_.fixed_size, "]");
+  ctx_.initial_payload_size = static_cast<int>(used);
+}
+
 int compact_cbst(cbst_context& ctx) {
   const int n = ctx.num_records;
   if (n <= 0 || ctx.d_nodes == nullptr) return ctx.initial_payload_size;

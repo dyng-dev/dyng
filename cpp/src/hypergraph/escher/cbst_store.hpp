@@ -242,6 +242,13 @@ struct cbst_store {
   void remove_values(const std::vector<int>& keys_to_unfill,
                      const std::vector<int>& values_to_remove,
                      const std::vector<int>& remove_prefix_sizes);
+  // Moves the bump pointer of a constructed tree to `used` (dynG addition, M8b, ADR 0041): at
+  // least the payload the tree uses now, at most the capacity; the slots between stay unused (they
+  // are zero after a construct). A hypergraph restored from another backend's state (to_backend)
+  // keeps its payload accounting, so later batches compact and grow, and give the same ids, as on
+  // the backend it came from. Throws invalid_argument_error for a poisoned or unconstructed store
+  // or a value out of range; nothing changes then.
+  void set_used_payload(long long used);
   // Compacts the payload (MOSP_ESCHER's compact(); M8a step 4): live rows become single segments
   // of (count + 4) / 4 * 4 slots, deleted rows keep their first segment of `length` slots, emptied,
   // and drop their chains; keys, node positions and avail do not change, the bump pointer moves to
