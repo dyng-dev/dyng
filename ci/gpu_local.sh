@@ -69,7 +69,10 @@
 #              suites on cuda, the line graph, two containers on two non-blocking streams;
 #              dyng_hypergraph_ids_cuda_tests: the committed batch records and A's skewed and
 #              medium traces) at their reduced sizes (DYNG_CBST_REDUCED=1; memcheck covers them in
-#              the memcheck step), and the container-level replays of the small golden sets on
+#              the memcheck step), without the long random streams (HypergraphRandom.*,
+#              HypergraphCuda.RepeatedRunsGiveIdenticalIds: under racecheck they take hours, and
+#              their kernels are the ones of the other tests and of the cbst step), and the
+#              container-level replays of the small golden sets on
 #              cuda (parity/compare.py hypergraph_ids: escher_gpu_test and mosp_escher_test, the ids
 #              and rows; escher_gpu_test again with --line-graph, A's H2H after every batch;
 #              skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
@@ -97,7 +100,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,79p' "${BASH_SOURCE[0]}"
+      sed -n '5,82p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -389,7 +392,8 @@ if ! skipped hypergraph; then
       [ "${tool}" = racecheck ] && extra=(--racecheck-report all)
       for exe in "${hg_exes[@]}"; do
         if ! DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
-          --error-exitcode 1 "${exe}" --gtest_brief=1; then
+          --error-exitcode 1 "${exe}" --gtest_brief=1 \
+          --gtest_filter='-HypergraphRandom.*:HypergraphCuda.RepeatedRunsGiveIdenticalIds'; then
           echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
           hg_ok=0
         fi

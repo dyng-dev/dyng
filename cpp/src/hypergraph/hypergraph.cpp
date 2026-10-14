@@ -579,19 +579,26 @@ hyper_apply_summary hypergraph_access::apply(const resources& res,
       copy<std::int64_t>(res, host_view(applied.inserted_ids), applied.inserted_ids_device.view());
     }
     applied.deleted_ids = live_deletions;
-    applied.touched_hyperedges = live_deletions;
-    applied.touched_hyperedges.insert(applied.touched_hyperedges.end(), ids.begin(), ids.end());
-    std::sort(applied.touched_hyperedges.begin(), applied.touched_hyperedges.end());
-    applied.touched_hyperedges.erase(
-        std::unique(applied.touched_hyperedges.begin(), applied.touched_hyperedges.end()),
-        applied.touched_hyperedges.end());
-    applied.touched_vertices = applied.deleted_members.members;
-    applied.touched_vertices.insert(applied.touched_vertices.end(), rows.members.begin(),
-                                    rows.members.end());
-    std::sort(applied.touched_vertices.begin(), applied.touched_vertices.end());
-    applied.touched_vertices.erase(
-        std::unique(applied.touched_vertices.begin(), applied.touched_vertices.end()),
-        applied.touched_vertices.end());
+    // The touched hyperedges and vertices, sorted and unique: marked in a flag per id / vertex
+    // and collected in order (linear; sorting the incidences took about 16 ms of a 50K batch on
+    // synthetic 1M, parity/results/M8b.md section 2.4).
+    {
+      std::int64_t id_end = store.id_bound();
+      for (const std::int64_t id : live_deletions) id_end = std::max(id_end, id + 1);
+      std::vector<std::uint8_t> marked(static_cast<std::size_t>(id_end), 0);
+      for (const std::int64_t id : live_deletions) marked[static_cast<std::size_t>(id)] = 1;
+      for (const std::int64_t id : ids) marked[static_cast<std::size_t>(id)] = 1;
+      applied.touched_hyperedges.clear();
+      for (std::int64_t id = 0; id < id_end; ++id)
+        if (marked[static_cast<std::size_t>(id)] != 0) applied.touched_hyperedges.push_back(id);
+      std::vector<std::uint8_t> touched(static_cast<std::size_t>(store.num_vertices()), 0);
+      for (const std::int32_t v : applied.deleted_members.members)
+        touched[static_cast<std::size_t>(v)] = 1;
+      for (const std::int32_t v : rows.members) touched[static_cast<std::size_t>(v)] = 1;
+      applied.touched_vertices.clear();
+      for (std::int32_t v = 0; v < store.num_vertices(); ++v)
+        if (touched[static_cast<std::size_t>(v)] != 0) applied.touched_vertices.push_back(v);
+    }
     applied.ignored_deletions = ignored;
     applied.dropped_members = dropped;
     if (record_incidence_delta) {
