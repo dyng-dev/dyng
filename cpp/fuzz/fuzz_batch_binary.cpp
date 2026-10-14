@@ -12,6 +12,11 @@
  * accepted file must give consistent batches (sizes, ids in range, offsets from 0 to the member
  * count, the annotations of the flags), and batch_writer followed by batch_reader must give the
  * same batches and annotations.
+ *
+ * The libFuzzer build (DYNG_FUZZ_LIBFUZZER) has a custom mutator: libFuzzer's mutation, then,
+ * for three mutants of four, the header's and every record's CRC32 recomputed, so that a mutated
+ * payload reaches the content checks behind the CRC checks (M8b review: without it almost every
+ * mutant stopped at a CRC mismatch); the fourth keeps its CRCs as mutated.
  */
 #include "fuzz_input.hpp"
 
@@ -212,6 +217,67 @@ void run_hyperedges(const std::string& path, const io::batch_reader_options& opt
 }
 
 }  // namespace
+
+#if defined(DYNG_FUZZ_LIBFUZZER) && DYNG_FUZZ_LIBFUZZER
+namespace {
+
+/// CRC-32 (IEEE, zlib's crc32), table-driven, independent of the library's.
+std::uint32_t crc32_ieee(const std::uint8_t* p, std::size_t n) {
+  static const auto table = [] {
+    std::vector<std::uint32_t> t(256);
+    for (std::uint32_t i = 0; i < 256; ++i) {
+      std::uint32_t c = i;
+      for (int k = 0; k < 8; ++k) c = (c & 1U) != 0 ? 0xEDB88320U ^ (c >> 1U) : c >> 1U;
+      t[i] = c;
+    }
+    return t;
+  }();
+  std::uint32_t c = 0xFFFFFFFFU;
+  for (std::size_t i = 0; i < n; ++i) c = table[(c ^ p[i]) & 0xFFU] ^ (c >> 8U);
+  return c ^ 0xFFFFFFFFU;
+}
+
+void put_u32(std::uint8_t* p, std::uint32_t v) {
+  for (int i = 0; i < 4; ++i)
+    p[i] = static_cast<std::uint8_t>(v >> (8U * static_cast<unsigned>(i)));
+}
+
+std::uint64_t get_u64(const std::uint8_t* p) {
+  std::uint64_t v = 0;
+  for (int i = 7; i >= 0; --i) v = (v << 8U) | p[i];
+  return v;
+}
+
+/// Recompute the CRC32s of the .dgb file after the option line: the header's (bytes 60-63 over
+/// 0-59) and each record's while its length field fits the file.
+void reseal(std::uint8_t* data, std::size_t size) {
+  std::size_t start = 0;
+  while (start < size && data[start] != '\n') ++start;
+  if (start == size) return;
+  std::uint8_t* f = data + start + 1;
+  const std::size_t n = size - start - 1;
+  if (n < 64) return;
+  put_u32(f + 60, crc32_ieee(f, 60));
+  std::size_t pos = 64;
+  while (n - pos >= 16) {
+    const std::uint64_t length = get_u64(f + pos);
+    if (length > n - pos - 16) break;
+    put_u32(f + pos + 8, crc32_ieee(f + pos + 16, static_cast<std::size_t>(length)));
+    pos += 16 + static_cast<std::size_t>(length);
+  }
+}
+
+}  // namespace
+
+extern "C" std::size_t LLVMFuzzerMutate(std::uint8_t* data, std::size_t size, std::size_t max_size);
+
+extern "C" std::size_t LLVMFuzzerCustomMutator(std::uint8_t* data, std::size_t size,
+                                               std::size_t max_size, unsigned int seed) {
+  size = LLVMFuzzerMutate(data, size, max_size);
+  if ((seed & 3U) != 0) reseal(data, size);
+  return size;
+}
+#endif
 
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size) {
   const dyng::fuzz::fuzz_input in(data, size, 1);
