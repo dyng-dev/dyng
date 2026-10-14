@@ -7,12 +7,15 @@
  *        long stream, and two containers on two non-blocking streams, driven from two threads,
  *        equal a sequential run (compute-sanitizer synccheck and memcheck run it in
  *        ci/gpu_local.sh); apply() on another stream than the hypergraph's is ordered after the
- *        work queued there (M8b review).
+ *        work queued there, and an allocation failure while h2h() builds the line graph leaves
+ *        it disabled and buildable (M8b review).
  */
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/hypergraph_support.hpp"
 #include "support/gtest_helpers.hpp"
 
+#include <dyng/core/error.hpp>
+#include <dyng/core/memory.hpp>
 #include <dyng/core/stream.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 
@@ -179,6 +182,82 @@ TEST(HypergraphCuda, ApplyOnAnotherStreamIsOrderedAfterThatStreamsWork) {
   ASSERT_EQ(cudaStreamSynchronize(a), cudaSuccess);
   EXPECT_EQ(cudaStreamDestroy(a), cudaSuccess);
   EXPECT_EQ(cudaStreamDestroy(b), cudaSuccess);
+}
+
+// A device memory resource that fails every allocation after the next n (n < 0: never).
+class failing_resource {
+ public:
+  explicit failing_resource(int device) : upstream_(dyng::default_device_memory_resource(device)) {}
+  void* allocate(dyng::stream_ref s, std::size_t bytes, std::size_t alignment) {
+    if (left_ == 0) throw dyng::out_of_memory_error("failing_resource: injected failure");
+    if (left_ > 0) --left_;
+    ++allocations_;
+    return upstream_.allocate(s, bytes, alignment);
+  }
+  void deallocate(dyng::stream_ref s, void* p, std::size_t bytes, std::size_t alignment) noexcept {
+    upstream_.deallocate(s, p, bytes, alignment);
+  }
+  void* allocate_sync(std::size_t bytes, std::size_t alignment) {
+    return allocate(dyng::stream_ref(), bytes, alignment);
+  }
+  void deallocate_sync(void* p, std::size_t bytes, std::size_t alignment) noexcept {
+    deallocate(dyng::stream_ref(), p, bytes, alignment);
+  }
+  [[nodiscard]] dyng::memory_space space() const noexcept {
+    return dyng::memory_space::device;
+  }
+  void fail_after(long long n) {
+    left_ = n;
+  }
+  [[nodiscard]] long long allocations() const {
+    return allocations_;
+  }
+
+ private:
+  dyng::memory_resource_ref upstream_;
+  long long left_ = -1, allocations_ = 0;
+};
+
+// M8b review: under line_graph_policy::automatic the first h2h() builds the line graph; an
+// allocation failure at any point of that build (the tree, its row view, the decoded view) is an
+// out_of_memory_error that leaves the hypergraph usable: the next h2h() builds the line graph,
+// and apply() maintains it (the row view used to be read unbuilt: cudaErrorIllegalAddress).
+TEST(HypergraphCuda, AllocationFailureWhileH2hBuildsTheLineGraphIsRecoverable) {
+  if (!dyng::backend_available(dyng::backend::cuda)) GTEST_SKIP() << "no CUDA device";
+  std::mt19937_64 rng(5);
+  const std::int32_t n = 300;
+  const rows initial = dyng::test::hyper::random_rows(rng, n, 400, 6);
+  dyng::hypergraph_properties props;
+  props.line_graph = dyng::line_graph_policy::automatic;
+  int failures = 0;
+  for (long long k = 0;; ++k) {
+    SCOPED_TRACE("failing allocation " + std::to_string(k));
+    dyng::resources res = dyng::resources::cuda(0);
+    failing_resource mr(res.device());
+    res.set_memory_resource(mr);
+    hgraph h = hgraph::from_hyperedges(res, dyng::test::hyper::list_of(n, initial).view(), props);
+    mr.fail_after(k);
+    bool threw = false;
+    try {
+      (void)h.h2h();
+    } catch (const dyng::out_of_memory_error&) {
+      threw = true;
+    }
+    mr.fail_after(-1);
+    if (threw) ++failures;
+    (void)h.h2h();
+    EXPECT_EQ(dyng::test::hyper::check_line_graph(h), "");
+    rows current;
+    const auto live = dyng::test::hyper::live_ids(h, current);
+    const auto tb = dyng::test::hyper::next_batch(rng, stream_mix::dense, n, live,
+                                                  h.hyperedge_id_bound(), current);
+    (void)h.apply(res, dyng::test::hyper::batch_of(tb).view());
+    EXPECT_EQ(dyng::test::hyper::check_line_graph(h), "");
+    h.check_integrity(res);
+    ASSERT_EQ(cudaStreamSynchronize(static_cast<cudaStream_t>(res.stream().get())), cudaSuccess);
+    if (!threw) break;  // every allocation of the build has been failed once
+  }
+  EXPECT_GT(failures, 3);
 }
 
 }  // namespace

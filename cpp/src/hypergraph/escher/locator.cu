@@ -140,21 +140,35 @@ static int* allocate(const cbst_context& tree, buffer<int>& storage, size_t coun
   return storage.data();
 }
 
+// dynG addition (M8b review): an allocation failure leaves the locator empty (no capacity, no
+// arrays, an empty view) instead of a capacity whose arrays were freed, so the next build
+// allocates them again.
 static void reserve_keys(const cbst_context& tree, int max_key, int& capacity, buffer<int>& loc_s,
-                         buffer<int>& len_s, buffer<int>& out_s, int*& loc, int*& len, int*& out) {
+                         buffer<int>& len_s, buffer<int>& out_s, int*& loc, int*& len, int*& out,
+                         row_view& view) {
   if (max_key + 1 <= capacity) return;
+  try {
+    loc = allocate(tree, loc_s, max_key + 1);
+    len = allocate(tree, len_s, max_key + 1);
+    out = allocate(tree, out_s, max_key + 1);
+  } catch (...) {
+    loc_s = buffer<int>();
+    len_s = buffer<int>();
+    out_s = buffer<int>();
+    loc = len = out = nullptr;
+    capacity = 0;
+    view = row_view{};
+    throw;
+  }
   capacity = max_key + 1;
-  loc = allocate(tree, loc_s, capacity);
-  len = allocate(tree, len_s, capacity);
-  out = allocate(tree, out_s, capacity);
 }
 
 void row_locator::build_sorted_copy(const cbst_context& tree, int max_key) {
   DYNG_EXPECTS(max_key >= 0, "CBST ", tree.dataset_name, ": row locator: max_key ", max_key,
                " is negative");
   const scoped_device guard(tree.res.device());
-  reserve_keys(tree, max_key, capacity_, loc_storage_, len_storage_, out_storage_, loc_, len_,
-               out_);
+  reserve_keys(tree, max_key, capacity_, loc_storage_, len_storage_, out_storage_, loc_, len_, out_,
+               view_);
   if (max_key == 0) {
     // No keys (an empty V2H tree, a hypergraph without vertices): an empty view, nothing to
     // launch (dynG addition, M8a review: the row kernels were launched with 0 blocks).
@@ -223,8 +237,8 @@ void row_locator::build(const cbst_context& tree, int max_key, bool with_out) {
   DYNG_EXPECTS(max_key >= 0, "CBST ", tree.dataset_name, ": row locator: max_key ", max_key,
                " is negative");
   const scoped_device guard(tree.res.device());
-  reserve_keys(tree, max_key, capacity_, loc_storage_, len_storage_, out_storage_, loc_, len_,
-               out_);
+  reserve_keys(tree, max_key, capacity_, loc_storage_, len_storage_, out_storage_, loc_, len_, out_,
+               view_);
   size_t bytes = (max_key + 1) * sizeof(int);
   DYNG_CUDA_TRY(cudaMemsetAsync(loc_, 0, bytes, stream_of(tree)));
   DYNG_CUDA_TRY(cudaMemsetAsync(len_, 0, bytes, stream_of(tree)));

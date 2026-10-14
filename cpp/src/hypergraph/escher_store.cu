@@ -257,7 +257,10 @@ class escher_device_store final : public incidence_store {
     live_ = n;
     bound_ = n;
     max_bound_ = n;
-    if (line_graph) construct_line_graph(h2h);
+    if (line_graph) {
+      construct_line_graph(h2h);
+      line_graph_.store(true, std::memory_order_release);
+    }
     build_row_view();
   }
 
@@ -354,6 +357,7 @@ class escher_device_store final : public incidence_store {
       construct_line_graph(flat_hyperedge_adjacency(ptr, cols, num_vertices_, max_bound_,
                                                     resources_access::host_threads(res_),
                                                     payload_limit(capacity_)));
+      line_graph_.store(true, std::memory_order_release);
     }
     build_row_view();
   }
@@ -593,8 +597,17 @@ class escher_device_store final : public incidence_store {
                                    resources_access::host_threads(res_), payload_limit(capacity_));
     }
     scoped_stage stage(res_, "hypergraph.upload");
-    construct_line_graph(h2h);
-    h2h_rows_.build(h2h_->context(), static_cast<int>(max_bound_), true);
+    // The tree and its row view first, the flag last: an error (an out_of_memory_error of the
+    // row view, say) leaves the line graph disabled, and the next call builds it again (M8b
+    // review: a half-enabled line graph read an unbuilt row view).
+    try {
+      construct_line_graph(h2h);
+      h2h_rows_.build(h2h_->context(), static_cast<int>(max_bound_), true);
+    } catch (...) {
+      h2h_.reset();
+      throw;
+    }
+    line_graph_.store(true, std::memory_order_release);
     ++builds_.line_graph_builds;
   }
 
@@ -998,7 +1011,6 @@ class escher_device_store final : public incidence_store {
     tree->construct(keys.data(), starts.data(), n, values.data(), static_cast<int>(values.size()),
                     counts.data());
     h2h_ = std::move(tree);
-    line_graph_.store(true, std::memory_order_release);
   }
 
   void drop_views() noexcept {
