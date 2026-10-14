@@ -550,10 +550,10 @@ class escher_device_store final : public incidence_store {
 
   void finish_apply() override {
     const scoped_device guard(res_.device());
-    // The read of the device error words (the stores' read points of an apply without one).
-    h2v_->check_errors();
-    if (v2h_) v2h_->check_errors();
-    if (h2h_) h2h_->check_errors();
+    // The read of the device error words (the stores' read points of an apply without one):
+    // the three trees share the store's stream, so one synchronization reads all three
+    // (PLAN 4.7.3: once per apply).
+    escher::cbst_store::check_errors({h2v_.get(), v2h_.get(), h2h_.get()});
     drop_views();
     scoped_stage stage(res_, "hypergraph.apply.views");
     build_row_view();

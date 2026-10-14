@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -277,6 +278,12 @@ struct cbst_store {
   // the container's update. An error poisons the store, and a poisoned store throws
   // invalid_argument_error here (its state is undefined). One host synchronization.
   void check_errors();
+  // check_errors() of several stores on one stream (null entries skipped) with one host
+  // synchronization: every store's control block is queued, the stream is waited for once, and
+  // each store throws (and is poisoned) as check_errors() would, in the order given (dynG
+  // addition, M8b review: the container reads its three trees' words once per apply). Stores on
+  // different streams or devices are checked one by one.
+  static void check_errors(std::initializer_list<cbst_store*> stores);
   // The heap position of the node of every key (-1: absent). Throws invalid_argument_error for a
   // poisoned store.
   std::vector<int> find(const std::vector<int>& ids) const;

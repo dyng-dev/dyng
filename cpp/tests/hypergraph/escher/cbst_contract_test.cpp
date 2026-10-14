@@ -315,6 +315,31 @@ TEST(CbstContractPoison, EveryReadButDownloadThrows) {
   s.check_errors();
 }
 
+// check_errors() of several stores on one stream (dynG addition, M8b review): one host
+// synchronization reads every store's error word; the store that raised one throws and is
+// poisoned, the others are not.
+TEST(CbstContractErrors, SeveralStoresOnOneStreamAreReadWithOneSynchronization) {
+  DYNG_SKIP_IF_NO_CUDA();
+  const resources res = resources::cuda();
+  cbst_store a(res, "a", 64), b(res, "b", 64), c(res, "c", 64);
+  construct_rows(a, {{1, 2}, {3}});
+  construct_rows(b, {{1}, {2, 3}});
+  construct_rows(c, {{4}});
+  const long long sa = a.host_syncs(), sb = b.host_syncs(), sc = c.host_syncs();
+  cbst_store::check_errors({&a, nullptr, &b, &c});
+  EXPECT_EQ(a.host_syncs() - sa, 1);
+  EXPECT_EQ(b.host_syncs() - sb, 0);
+  EXPECT_EQ(c.host_syncs() - sc, 0);
+  const batch absent = make_batch({9}, {{1}});
+  b.remove_values(absent.keys, absent.payload, absent.prefix);  // raises b's word, no read point
+  EXPECT_THROW(cbst_store::check_errors({&a, &b, &c}), internal_error);
+  EXPECT_FALSE(a.poisoned());
+  EXPECT_TRUE(b.poisoned());
+  EXPECT_FALSE(c.poisoned());
+  EXPECT_THROW(cbst_store::check_errors({&a, &b}), invalid_argument_error);  // b is poisoned
+  cbst_store::check_errors({&a, &c});
+}
+
 // --- Clone --------------------------------------------------------------------------------------
 
 // An error the source raised but has not read (remove_values has no read point) is the copy's
