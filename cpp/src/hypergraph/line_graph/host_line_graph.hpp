@@ -1,5 +1,8 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from ESCHER-GPU@abcf9b2:utils/utils.cpp (flatHyperedgeAdjacency)
+// Derived from ESCHER-GPU@abcf9b2:structure/graph_maintenance.cu (updateLineGraph)
+// Derived from ESCHER-GPU@abcf9b2:kernel/locator.cu (RowLocator::build)
 /**
  * @file host_line_graph.hpp
  * @brief The line graph (h2h) of a hypergraph on the host, in ESCHER-GPU's layout: the initial

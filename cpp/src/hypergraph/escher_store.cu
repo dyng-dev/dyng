@@ -773,21 +773,21 @@ class escher_device_store final : public incidence_store {
       std::vector<int> loc, len, out;
       line_graph_locator(want, loc, len, out);
       const escher::row_view& rv = h2h_rows_.view();
-      std::vector<int> dloc(loc.size()), dlen(len.size()), dout(out.size());
+      std::vector<int> device_loc(loc.size()), device_len(len.size()), device_out(out.size());
       if (rv.max_key + 1 != static_cast<int>(loc.size())) {
         log << "[check] H2H: the row view covers keys up to " << rv.max_key << ", not "
             << want.num_keys() << "\n";
         ++errors;
       } else {
-        DYNG_CUDA_TRY(cudaMemcpyAsync(dloc.data(), rv.loc, loc.size() * sizeof(int),
+        DYNG_CUDA_TRY(cudaMemcpyAsync(device_loc.data(), rv.loc, loc.size() * sizeof(int),
                                       cudaMemcpyDeviceToHost, stream_of(res_)));
-        DYNG_CUDA_TRY(cudaMemcpyAsync(dlen.data(), rv.len, len.size() * sizeof(int),
+        DYNG_CUDA_TRY(cudaMemcpyAsync(device_len.data(), rv.len, len.size() * sizeof(int),
                                       cudaMemcpyDeviceToHost, stream_of(res_)));
-        DYNG_CUDA_TRY(cudaMemcpyAsync(dout.data(), rv.out, out.size() * sizeof(int),
+        DYNG_CUDA_TRY(cudaMemcpyAsync(device_out.data(), rv.out, out.size() * sizeof(int),
                                       cudaMemcpyDeviceToHost, stream_of(res_)));
         DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(res_)));
         note_host_sync();
-        if (dloc != loc || dlen != len || dout != out) {
+        if (device_loc != loc || device_len != len || device_out != out) {
           log << "[check] H2H: the row view is not the locator of the line graph\n";
           ++errors;
         }
