@@ -130,3 +130,15 @@ access M9 and M11 are allowed (`cpp/src`, internal-stable):
   failed; a removal or change needs the label.
 - The pull request of M8b needs the `api-change` label (the hypergraph headers change from
   tracked to frozen and gain four accessors); its CHANGELOG entry says so.
+
+## Amendments of the M8b review (2026-10-14)
+
+Independent reviewers checked the frozen headers' semantics against the code before the pull
+request; each amendment below keeps the decisions above and corrects what the freeze records.
+
+- **Finding 5, `skipped_ops`.** The field was documented as `ignored_deletions +
+  dropped_members`, which left no room for the incidence-edit skips that M11 must count (B's
+  `skippedOps` parity, check C9), so "M11 adds behaviour, not declarations" did not hold. The
+  field is now documented as *every skipped operation* (in 0.3 that sum), and ADR 0041 section 8
+  records the 0.4 rule: incidence edits that B skips are skipped and counted, an out-of-range
+  vertex in an incidence edit included.

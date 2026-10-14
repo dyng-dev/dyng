@@ -229,7 +229,8 @@ class HyperApplySummary:
         deleted_hyperedges: Live hyperedges deleted.
         inserted_incidences: Incidences added by incidence edits (0.4).
         deleted_incidences: Incidences removed by incidence edits (0.4).
-        skipped_ops: ``ignored_deletions + dropped_members``.
+        skipped_ops: Every skipped operation: in 0.3 ``ignored_deletions + dropped_members``;
+            incidence edits (0.4) add the edits they skip.
         ignored_deletions: Deletions of dead, out-of-range or repeated ids.
         dropped_members: Repeated members of inserted hyperedges dropped.
         num_hyperedges_after: Live hyperedges after the batch.

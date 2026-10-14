@@ -33,7 +33,8 @@ disappear), why a dead id below the bound may never be reused, and why an id tha
 a batch can be given out again.
 
 Repeated members of an inserted hyperedge are dropped (`dropped_members`), and deletions of dead,
-out-of-range or repeated ids are skipped (`ignored_deletions`); `skipped_ops` is their sum.
+out-of-range or repeated ids are skipped (`ignored_deletions`); `skipped_ops` counts every
+skipped operation, in 0.3 their sum (the incidence edits of 0.4 add the edits they skip).
 
 ## `id_reuse`: the order of a batch
 

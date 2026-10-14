@@ -185,7 +185,19 @@ without a header change.
   `HostHypergraph.cpp:178-195`): an id that is negative, at or above the bound, dead, or deleted
   earlier in the same batch is skipped and counted in `ignored_deletions`. A member that repeats
   in an inserted hyperedge is dropped and counted in `dropped_members` (B deduplicates silently,
-  `DynamicHypergraph.cpp:323-326`). `skipped_ops = ignored_deletions + dropped_members`.
+  `DynamicHypergraph.cpp:323-326`). `skipped_ops` counts every skipped operation; in 0.3 it is
+  `ignored_deletions + dropped_members` (M8b review: the frozen field is defined as the total, not
+  as that sum, so the incidence edits of 0.4 count their skips in it, as B's `skippedOps` does;
+  see "Incidence edits in 0.4" below).
+- **Incidence edits in 0.4** (the rule M11 implements; recorded at the freeze, M8b review):
+  B's `HostHypergraph.cpp:197-235` skips and counts an incidence removal or addition on a dead,
+  out-of-range or virtual hyperedge, of an out-of-range vertex, of a vertex that is not a member
+  (removal), one that would empty its hyperedge, and an addition of an existing member. dynG
+  follows B: each is skipped and counted in `skipped_ops` (B's `skippedOps` parity and the
+  conformance check C9, applied + skipped = requested). An out-of-range vertex in an incidence
+  edit is therefore **skipped**, unlike an out-of-range member of an inserted hyperedge, which
+  stays an `invalid_argument_error` (an inserted hyperedge has no G_t state to be checked
+  against). A per-kind counter, if M11 wants one, is an additive field.
 - **Strong guarantee** for everything checked before the first store operation:
   `invalid_argument_error` for a member out of range, an empty inserted hyperedge, malformed
   offsets, a weight outside [1, 2^31 - 1] or weights on an unweighted batch;

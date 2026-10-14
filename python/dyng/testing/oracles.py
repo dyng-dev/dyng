@@ -207,7 +207,7 @@ class HypergraphModel:
             "deleted_hyperedges": len(deleted),
             "ignored_deletions": ignored,
             "dropped_members": dropped,
-            "skipped_ops": ignored + dropped,
+            "skipped_ops": ignored + dropped,  # 0.3: no incidence edits to skip
             "num_hyperedges_after": len(self.rows),
         }
 
