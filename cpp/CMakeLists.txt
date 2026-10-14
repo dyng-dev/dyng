@@ -166,11 +166,15 @@ dyng_add_module(
   CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu
 )
 
-# The hypergraph module (M8a): the ESCHER CBST store (internal; cpp/src/hypergraph/escher,
-# ADR 0038). The device store is CUDA-only; the host flatten is always built.
+# The hypergraph module: the ESCHER CBST store (M8a; internal, cpp/src/hypergraph/escher, ADR
+# 0038) and the hypergraph container on it (M8b, ADR 0041): the host store and its id allocator on
+# every build, the device store with CUDA.
 dyng_add_module(
   NAME hypergraph
-  SOURCES src/hypergraph/escher/flatten.cpp src/hypergraph/escher/store_policy.cpp
+  SOURCES
+    src/hypergraph/escher/flatten.cpp
+    src/hypergraph/escher/store_policy.cpp
+    src/hypergraph/names.cpp
   CUDA_SOURCES
     src/hypergraph/escher/build_tree.cu
     src/hypergraph/escher/cbst_store.cu

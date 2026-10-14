@@ -46,6 +46,9 @@ GUARANTEE_CLASSES = {
     "dyng::graph",
     "dyng::edge_batch",
     "dyng::edge_list",
+    "dyng::hypergraph",
+    "dyng::hyperedge_batch",
+    "dyng::hyperedge_list",
     "dyng::sssp::result",
     "dyng::cycle_count::result",
 }

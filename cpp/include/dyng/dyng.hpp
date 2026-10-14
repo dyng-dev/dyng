@@ -6,7 +6,8 @@
  *
  * That is the frozen 0.1 API (core, graph, update, the algorithms, citation, config, version) and
  * the headers of io/ and generators/, which are public but not frozen before the command-line
- * tools and the Python layer (0.1 API review, ADR 0023: they may still change in a minor release).
+ * tools and the Python layer (0.1 API review, ADR 0023: they may still change in a minor release),
+ * and the hypergraph headers (hypergraph/, ADR 0041), tracked until they are frozen for 0.3.
  * The list of includes is part of the API baseline.
  * @ingroup core
  */
@@ -42,6 +43,12 @@
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
 #include <dyng/graph/graph_view.hpp>
+#include <dyng/hypergraph/hyper_apply_summary.hpp>
+#include <dyng/hypergraph/hyperedge_batch.hpp>
+#include <dyng/hypergraph/hyperedge_list.hpp>
+#include <dyng/hypergraph/hypergraph.hpp>
+#include <dyng/hypergraph/hypergraph_properties.hpp>
+#include <dyng/hypergraph/hypergraph_view.hpp>
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/csr_triplet.hpp>
 #include <dyng/io/edge_list_io.hpp>

@@ -10,6 +10,22 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- M8b (api-change, tracked until the hypergraph headers are frozen at the end of M8b): **the
+  hypergraph container** `dyng::hypergraph<vertex_t, weight_t>` (`dyng/hypergraph/*.hpp`, ADR
+  0041) on the ESCHER CBST store, for (int32, unweighted) and (int32, int32) on the sequential,
+  openmp and cuda backends: `from_hyperedges()`, `apply()` of a `hyperedge_batch` (deletions by id
+  and insertions; the ids of the inserted hyperedges from the store's best-fit reuse in
+  `hyper_apply_summary::inserted_ids`), the views `h2v()` and `v2h()` (sorted CSR, built once per
+  version), `clone()` / `to_backend()` that keep ids, deleted slots and payload accounting,
+  `store_stats()`, `check_integrity()`, weights by id; `hypergraph_properties` with
+  `hypergraph_storage`, `line_graph_policy`, `id_reuse` (`erase_first`, ESCHER's order, the
+  default; `insert_first`, H-SOSP's) and `capacity_policy` with the presets `escher_gpu()` and
+  `mosp_escher(extra)`; `hyperedge_list`, `hyperedge_batch` (incidence edits raise
+  `not_supported_error` until 0.4), `incidence_view`, `line_graph_view`, `storage_stats`. The host
+  backends use a best-fit id allocator written independently of the CBST host model, so every
+  backend gives the same ids; the batch records of ESCHER-GPU@abcf9b2's and MOSP_ESCHER@4b86159's
+  CBST traces replay through the container with the originals' ids (`parity/compare.py
+  hypergraph_ids`).
 - M8a (internal, not public API): **the ESCHER CBST store** (`cpp/src/hypergraph/escher`,
   `dyng::detail::escher::cbst_store`, ADR 0038), the port of ESCHER-GPU@abcf9b2's store in the new
   module `dyng_hypergraph`: construct, rebuild from the device, best-fit insert with surplus rows
