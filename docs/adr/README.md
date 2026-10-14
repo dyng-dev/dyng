@@ -21,7 +21,7 @@ rewritten after it is accepted; a later ADR marks it "Superseded by NNNN".
 | [0016](0016-cuda-execution-resources.md) | CUDA execution resources (streams, memory, errors, warm-up) | Proposed (M1b) |
 | [0017](0017-cuda-sssp-engine-and-placement.md) | The CUDA sssp engine, engine selection, placement and the resident device graph | Proposed (M1b); item 2 superseded by 0026 |
 | [0018](0018-gpu-clock-state-in-the-cuda-gate.md) | The GPU clock state in the CUDA performance gate | Accepted (2026-09-28: option B, the gate is read at locked clocks; default-clock readings are reported, not gated) |
-| [0019](0019-merge-policy.md) | Merge policy (merge commits for milestone and integration work, squash for contributions, no rebase) | Accepted (INT1) |
+| [0019](0019-merge-policy.md) | Merge policy (merge commits for milestone and integration work, squash for contributions, no rebase) | Accepted (INT1); amended 2026-10-14 (merge commits only) |
 | [0020](0020-resident-device-graph-and-one-step-0.md) | The resident device graph under set semantics (device set apply, lazily downloaded host copy), and Step 0 once per update | Accepted (2026-09-29, by the author; written in M2b, amended by the M2b review) |
 | [0021](0021-power-cap-and-base-lock-in-the-cycle-count-gate.md) | The power cap and the base clock lock in the cycle_count CUDA gate (a case whose GPU cannot hold the boost lock is read at the base lock) | Accepted (2026-09-29, by the author) |
 | [0022](0022-conformance-kit-registry-and-scaffold.md) | The conformance kit, the algorithm registry and the scaffold (registry-driven kit, C8's reservations and container work, the scope of new_algorithm.py) | Accepted under delegation (2026-09-29) |

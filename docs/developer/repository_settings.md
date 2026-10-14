@@ -28,7 +28,7 @@ author or the orchestrator and is recorded in the approvals log of `GOVERNANCE.m
 | 1 | Organization: two-factor authentication, base permissions | now | **done** (2FA required, base permission Read; the optional restriction of repository creation, 1.3, is not set) |
 | 2 | About: description, website, topics | now | **done** (description and the 14 topics); the website `https://dyng-dev.github.io/dyng/` is set (2026-10-07, with step 13) |
 | 3 | Features: Issues, Discussions, no wiki | now | **done** (Issues and Discussions on; wiki and projects off) |
-| 4 | Pull requests: merge commits and squash merges, no rebase (ADR 0019) | now | **done** |
+| 4 | Pull requests: merge commits only (ADR 0019, amended 2026-10-14) | now | **done**; squash merging turned off by the author's decision of 2026-10-14 (applied through the API) |
 | 5 | Actions: permissions, SHA pinning, fork approval | now | **done** (allow-list, `pypa/cibuildwheel@*` included since 2026-09-30; SHA pinning required, approval for all external contributors, read-only workflow token) |
 | 6 | Security: private vulnerability reporting, Dependabot, secret scanning | now | **done** (private vulnerability reporting; Dependabot alerts and security updates; secret scanning with push protection; CodeQL, optional, not set up) |
 | 7 | The DCO app and web sign-off | now | **done** (DCO app installed on `dyng-dev/dyng` by the author, integration id 1861; web sign-off required); `DCO` is a **required check** of the `main` ruleset since 2026-09-30. The author's membership of `dyng-dev` is public and the maintainer's commits are SSH-signed (the signing key "dynG commit signing", registered on the author's account on 2026-09-29), so the app exempts them as signed commits of an organization member |
@@ -90,7 +90,17 @@ Settings → **General** → section **Features**:
 
 Docs: <https://docs.github.com/en/discussions/quickstart>.
 
-## 4. Pull requests: merge commits and squash merges, no rebase
+## 4. Pull requests: merge commits only
+
+**Since 2026-10-14** (the author's decision, `GOVERNANCE.md` approvals log; ADR 0019's
+amendment): every pull request is merged with a **merge commit**; **Allow squash merging** and
+**Allow rebase merging** are off (`allow_squash_merge` and `allow_rebase_merge` false in
+`gh api repos/dyng-dev/dyng`), and the `main` ruleset allows the merge method **Merge** alone
+(step 9). The decision followed the squash merge of M8a (pull request #14, `2de6ebe`). Until
+then, the settings below applied, with squash merging on for external contributions; to apply
+today's settings, untick **Allow squash merging** in item 2.
+
+Until 2026-10-14:
 
 The merge policy (ADR 0019, `GOVERNANCE.md`): pull requests of **milestone and integration
 work** are merged with a **merge commit**, so the commit SHAs that parity certificates,
@@ -206,7 +216,7 @@ interface: the next run resets listed labels to the file.
 
 PLAN Section 8.9: everything goes through a pull request and the required checks must be green;
 the merge methods follow ADR 0019 (merge commits for milestone and integration work, squash
-merges for contributions). While the lead maintainer is the only maintainer, **zero approvals**
+merges for contributions; since 2026-10-14, merge commits only, ADR 0019's amendment). While the lead maintainer is the only maintainer, **zero approvals**
 are required (the author merges their own pull request once the checks pass); from the day a
 second maintainer exists, raise it to one.
 
@@ -240,7 +250,8 @@ ruleset had to wait for the first pull request. The steps below record how it wa
      - **Require approval of the most recent reviewable push:** untick now; tick with the
        second maintainer.
      - **Require conversation resolution before merging:** tick.
-     - **Allowed merge methods:** **Merge** and **Squash** (not **Rebase**).
+     - **Allowed merge methods:** **Merge** and **Squash** (not **Rebase**); since 2026-10-14
+       **Merge** alone (the author's decision; `allowed_merge_methods` `["merge"]`).
    - **Require status checks to pass**, and open its options:
      - **Require branches to be up to date before merging:** tick.
      - **Add checks** → type each name below and pick the entry whose source is

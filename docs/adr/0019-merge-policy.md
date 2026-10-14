@@ -1,6 +1,7 @@
 # ADR 0019: Merge policy (merge commits for milestone work, squash for contributions)
 
-- **Status:** Accepted (INT1)
+- **Status:** Accepted (INT1); amended by the author on 2026-10-14 (merge commits only; see
+  "Amendment (2026-10-14)")
 - **Date:** 2026-09-28 (the repository settings were applied on 2026-09-27)
 - **Deciders:** S M Shovan (lead maintainer)
 
@@ -50,3 +51,19 @@ CONTRIBUTING.md tell contributors that their pull request is squash-merged.
 - Milestone branches must keep clean, reviewed commits (they are published as they are): the
   commit rules of CONTRIBUTING.md apply to every commit, not only to the pull request title.
 - The plan's "squash merges only" (Sections 8.9 and 10.1) is superseded by this ADR.
+
+## Amendment (2026-10-14): merge commits only
+
+The author merged M8a (pull request #14) with **Squash and merge** (`main` `2de6ebe`, whose tree
+equals the branch head `b45e685`); M8a's cited commits stayed reachable only through
+`refs/pull/14/head` and the M8b branch, which is the problem this ADR was written to avoid. The
+author then decided (2026-10-14, `GOVERNANCE.md` approvals log) to **turn squash merging off**:
+
+- every pull request, external contributions and small maintainer fixes included, is merged with
+  a **merge commit**; Decision 2 (squash for contributions) no longer applies;
+- the repository allows merge commits only (**Allow squash merging** and **Allow rebase
+  merging** off), and the `main` ruleset's allowed merge methods are **Merge** alone
+  (docs/developer/repository_settings.md, steps 4 and 9);
+- a contribution's pull request title still follows Conventional Commits: it becomes the title
+  of the merge commit, which is what `git log --first-parent main` and the release notes show.
+

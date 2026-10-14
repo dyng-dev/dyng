@@ -11,6 +11,14 @@ originals (PLAN 6.4.5). Each step adds its section; step 1 (refs-traces) writes 
 | Toolchain | GCC 12.2.0, CUDA 13.1 (`/usr/local/cuda-13.1/bin/nvcc`), sm_86 |
 | Host | Xeon Gold 6258R (28 cores, 56 threads), 124 GB, 2x RTX A5000 (sm_86); Debian 12, Linux 6.1; GPU 1 for every run of this step (none is timed) |
 
+**How M8a reached `main` (2026-10-14).** The author merged pull request #14 with **Squash and
+merge**: `main`'s M8a is the squash commit `2de6ebe` (one parent, `30c3eef`; its tree equals
+`b45e685`, the head of `m8a-escher-store`). The M8a commits this record cites are not ancestors of
+`main` through `2de6ebe`; they live in `refs/pull/14/head` (= `b45e685`; `git fetch origin
+pull/14/head` brings them into a clone) and in the ancestry of `m8b-hypergraph`, whose merge commit
+brings them back into `main`'s history. Squash merging is off since then (the author's decision,
+`GOVERNANCE.md`; ADR 0019's amendment).
+
 ## 1. Step refs-traces: the references and their builds
 
 **The pins** (`parity/references.toml`):

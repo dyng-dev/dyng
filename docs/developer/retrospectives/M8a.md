@@ -7,6 +7,14 @@ proven against both originals by CBST trace replay. M8b (the hypergraph containe
 Python, the header freeze) follows on the accepted store; both are in 0.3.0 with M9. Each step
 adds its section; the milestone's acceptance table and the open items close the record.
 
+**How M8a reached `main` (2026-10-14).** The author merged pull request #14 with **Squash and
+merge**: `main`'s M8a is the squash commit `2de6ebe` (one parent, `30c3eef`; its tree equals
+`b45e685`, the head of `m8a-escher-store`). The M8a commits this record cites are not ancestors of
+`main` through `2de6ebe`; they live in `refs/pull/14/head` (= `b45e685`; `git fetch origin
+pull/14/head` brings them into a clone) and in the ancestry of `m8b-hypergraph`, whose merge commit
+brings them back into `main`'s history. Squash merging is off since then (the author's decision,
+`GOVERNANCE.md`; ADR 0019's amendment).
+
 **Planning change (not an author decision; reported to the author on 2026-10-07).** M8 runs as
 M8a then M8b, both in 0.3.0 (0.3.0 = M8a + M8b + M9; PLAN Appendix F unchanged in content), as
 M1a/M1b, M2a/M2b and M6a/M6b did: the store port and the staged merge are internal and fully

@@ -24,12 +24,14 @@ dynG follows a **lead-maintainer** model while it has fewer than three active ma
   "Pull requests and review"). While the lead maintainer is the only maintainer, they may merge
   their own pull requests once the checks pass; from the day a second maintainer exists, one
   approving review by someone other than the author is required.
-- **Merge policy** (ADR 0019; the repository settings allow exactly these methods):
-  - pull requests of **milestone and integration work** are merged with a **merge commit**
-    (`git merge --no-ff`), so that the commit SHAs cited by parity certificates, milestone
-    retrospectives and ADRs stay reachable from `main`;
-  - **external contributions** (and small maintainer fixes) are **squash-merged**; the pull
-    request title (Conventional Commits) becomes the commit subject;
+- **Merge policy** (ADR 0019 as amended by the author on 2026-10-14; the repository settings
+  allow exactly this method):
+  - every pull request is merged with a **merge commit** (`git merge --no-ff`), so that the
+    commit SHAs cited by parity certificates, milestone retrospectives and ADRs stay reachable
+    from `main`;
+  - **squash merging** is off since 2026-10-14 (the author's decision, after M8a, pull request
+    #14, was squash-merged as `2de6ebe`); until then external contributions and small
+    maintainer fixes were squash-merged;
   - **rebase merging** is disabled.
 - **Since the `main` ruleset exists** (created after pull request #1, INT1, merged with the
   merge commit `eda8b8b`; docs/developer/repository_settings.md, step 9), every change reaches
@@ -141,6 +143,7 @@ One line per decision: date, checkpoint or decision, what was approved, by whom.
 | 2026-10-14 | ADR 0046 | Accepted under delegation (M8b, step python-freeze-records): the hypergraph in Python: `dyng.Hypergraph` (`from_hyperedges`, `from_lists`), `HyperedgeBatch`, `HypergraphProperties` and `CapacityPolicy` with the C++ names and defaults, `HyperApplySummary` with int64 `inserted_ids`; native holders `HypergraphI32U` / `HypergraphI32I32`; `id_reuse=` and string enumerations; int64 members refused without `vertex_dtype="int32"` (PLAN 5.4 rule 2); the views as host copies; `.hg`, `.dgt` hyperedge batches, `.dgb` and `BatchReader`; the generators (legacy included) and the Hypothesis strategies; `dyng.update()` over hypergraphs listed in `python_gaps.md` until M9. No approved rule changes. | AI assistant (delegated) |
 | 2026-10-14 | ADR 0047 | Accepted under delegation (M8b, step python-freeze-records): the hypergraph API review (ADR 0023's method and the checklist; 17 findings; additions: `hyperedge_batch`'s four incidence accessors and its `noexcept` default constructor; the freeze's Doxygen rules for `dyng/hypergraph/`), compile-only fitness skeletons for M9 (`triad_count`) and M11 (`hyper_sssp`, `slack_csr`), and the freeze: `dyng/hypergraph/*` frozen in the API baseline (io, generators and testing stay tracked); a deliberate change shown failing `ci/docs.sh` and `ci/api_check.sh`. No approved rule changes. | AI assistant (delegated) |
 | 2026-10-14 | O16 at the hypergraph freeze | The frozen default `hypergraph_properties::reuse = id_reuse::erase_first` is the author's O16 decision of 2026-10-07 above, which is also the plan's default (PLAN 12.2); the H-SOSP parity runs set `insert_first`. A change before 0.3.0 would be an api-change (a changed default of a frozen declaration). The M8b acceptance text asks to record O16 as "taken on the plan's default, pending the author's confirmation": recorded here as the author's decision, coinciding with the plan's default; what still awaits the author at the release is the stability of the frozen headers (open decisions). | AI assistant (recording) |
+| 2026-10-14 | Merge method: merge commits only | The author merged M8a (pull request #14) with **Squash and merge**: `main` has the squash commit `2de6ebe` (one parent; its tree equals `b45e685`, the head of `m8a-escher-store`), and GitHub deleted the branch. M8a's individual commits, which `parity/results/M8a.md` and the M8a retrospective cite, stay reachable through `refs/pull/14/head` (= `b45e685`) and are ancestors of `m8b-hypergraph`, so the merge commit of M8b brings them back into `main`'s history. The author then **turned squash merging off** (2026-10-14): the repository allows merge commits only (`allow_squash_merge` false; rebase merging was already off) and the `main` ruleset's allowed merge methods are `merge` alone; applied by the orchestrator through the API. ADR 0019 is amended accordingly (every pull request, contributions included, is merged with a merge commit); docs/developer/repository_settings.md (steps 4 and 9), CONTRIBUTING.md and the pull request template follow. Recorded in M8b. | S M Shovan |
 
 ## Open decisions
 

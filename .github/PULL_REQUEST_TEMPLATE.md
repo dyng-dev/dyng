@@ -1,8 +1,8 @@
 <!--
 Thank you for contributing to dynG! Please read CONTRIBUTING.md first.
 - Title in Conventional-Commits style: feat(sssp): ..., fix(io): ..., perf(cycle_count): ..., docs: ...
-  (contributions are squash-merged: the title becomes the commit subject on main; milestone
-  work is merged with a merge commit, ADR 0019).
+  (every pull request is merged with a merge commit, ADR 0019: the title becomes the merge
+  commit's title on main, and your commits are kept as they are).
 - Aim for at most about 500 changed lines, excluding generated files and goldens.
 - Tick what applies; strike through (~~text~~) or delete what does not apply, and say why.
 -->
