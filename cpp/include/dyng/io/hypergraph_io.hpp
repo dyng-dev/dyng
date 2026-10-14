@@ -98,6 +98,10 @@ struct hypergraph_read_options {
    * @brief ESCHER-GPU's loader (loadHypergraph of ESCHER-GPU\@abcf9b2): ids 1..n kept as they
    *        are (vertex v becomes v - 1, the vertex count is the largest id), every line a
    *        hyperedge (repeated hyperedges kept), no cardinality limit, no weights.
+   *
+   * Two differences, both on input ESCHER-GPU rejects: the largest id is 2^31 - 1 (the largest
+   * that keeps the vertex count in int32; ESCHER-GPU stops at 2^31 - 2), and a file without
+   * hyperedges gives an empty list (ESCHER-GPU fails).
    * @return The option set.
    */
   [[nodiscard]] static hypergraph_read_options escher_gpu() noexcept {

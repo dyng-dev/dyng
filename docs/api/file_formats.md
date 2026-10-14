@@ -189,7 +189,7 @@ The originals' preprocessing are two option sets:
 
 | Option set | Original | What it gives |
 |---|---|---|
-| `hypergraph_read_options::escher_gpu()` | ESCHER-GPU@abcf9b2 `loadHypergraph` | every line a hyperedge, ids kept (vertex v of the file is v - 1; the vertex count is the largest id), no weights: on coauth-DBLP, ESCHER-GPU's 2,467,389 hyperedges, hyperedge i is its key i + 1 |
+| `hypergraph_read_options::escher_gpu()` | ESCHER-GPU@abcf9b2 `loadHypergraph` | every line a hyperedge, ids kept (vertex v of the file is v - 1; the vertex count is the largest id), no weights: on coauth-DBLP, ESCHER-GPU's 2,467,389 hyperedges, hyperedge i is its key i + 1. Two inputs the original rejects are accepted: the id 2^31 - 1 (its limit is 2^31 - 2) and a file without hyperedges (an empty list) |
 | `hypergraph_read_options::hsosp(seed = 20260725, max_cardinality = 25)` | MOSP_ESCHER@4b86159 `loadHypergraphFile` (`hsospBench --hg`) | hyperedges of at most 25 vertices, vertices numbered by first appearance, weights U[1, 100] drawn after the original's draw of its virtual target vertex: on coauth-DBLP, H-SOSP's 2,466,792 hyperedges with its numbering and weights bit for bit. The virtual source and target hyperedges are not in the result: `hyper_sssp` adds them (0.4) |
 
 Errors are `io_error` with the path, line and column (a token that is not an integer, an id

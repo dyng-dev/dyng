@@ -58,7 +58,12 @@ its virtual target vertex, and the virtual source and target hyperedges added ar
   `hypergraph_read_options::escher_gpu()` (relabel none, base 1, nothing dropped, no weights:
   vertex v of the file is v - 1, the vertex count is the largest id, A's key k is id k - 1) and
   `hsosp(seed = 20260725, max_cardinality = 25)` (first appearance, U[1, 100] after the target
-  draw). The virtual source and target hyperedges of H-SOSP are not part of the file's
+  draw). `escher_gpu()` accepts two inputs A's loader rejects (M8b review, recorded as
+  deliberate): the id 2^31 - 1 (A's `kMaxVertexId` is 2^31 - 2 because its CBST keys are ids
+  + 1; dynG's limit is the vertex type's: vertex 2^31 - 2, a vertex count of 2^31 - 1), and a
+  file without hyperedges (A fails with "no hyperedges"; dynG returns an empty list, from which
+  `from_hyperedges()` builds a hypergraph of 0 hyperedges, criterion 3). Neither occurs in A's
+  datasets; both are tested. The virtual source and target hyperedges of H-SOSP are not part of the file's
   hypergraph: `hyper_sssp` adds them (M11); `weight_spec::hsosp_target_draw` reproduces only the
   engine draw the original makes for its target, so the weights stay bit-exact.
 - **Weights in a file**: a weighted `.hg` line ends with `; w` (a token of its own or attached,

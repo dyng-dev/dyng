@@ -98,6 +98,20 @@ TEST_F(HypergraphFile, EscherGpuOptionsKeepIdsAndRepeatedHyperedges) {
   z.num_vertices = 20;
   EXPECT_EQ(rows_of(read("0 3\n", z)), (rows{{0, 3}}));
   EXPECT_EQ(read("0 3\n", z).num_vertices, 20);
+  // The two deliberate differences from ESCHER-GPU's loader (M8b review; ADR 0045 section 1):
+  // its largest id is 2^31 - 2 (kMaxVertexId, its keys are ids + 1), dynG's the largest that
+  // leaves the vertex count in int32, 2^31 - 1; and an empty file is a hypergraph of no
+  // hyperedges (A fails: "no hyperedges").
+  const auto top = read("2147483646\n", o);
+  EXPECT_EQ(rows_of(top), (rows{{2147483645}}));
+  EXPECT_EQ(read("2147483647\n", o).num_vertices, 2147483647);
+  const auto beyond = expect_io_error([&] { (void)read("2147483648\n", o); });
+  EXPECT_NE(std::string(beyond.what()).find("[1, 2147483647]"), std::string::npos) << beyond.what();
+  for (const char* empty : {"", "% only a comment\n", "\n\n"}) {
+    const auto none = read(empty, o);
+    EXPECT_EQ(none.num_hyperedges(), 0);
+    EXPECT_EQ(none.num_vertices, 0);
+  }
 }
 
 TEST_F(HypergraphFile, RelabelsDenselyOrByFirstAppearance) {
