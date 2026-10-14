@@ -568,6 +568,15 @@ TEST(HyperedgeBatch, BuilderAndView) {
   b.clear();
   EXPECT_TRUE(b.empty());
   EXPECT_TRUE(b.view().empty());
+  // M8b review: a view with only an incidence vertex array (unpaired, rejected by apply()) is not
+  // empty.
+  const std::vector<std::int32_t> vertex{3};
+  dyng::hyperedge_batch_view<std::int32_t, std::int32_t> only_vertex;
+  only_vertex.delete_incidence_vertex = dyng::host_view(vertex);
+  EXPECT_FALSE(only_vertex.empty());
+  only_vertex = {};
+  only_vertex.insert_incidence_vertex = dyng::host_view(vertex);
+  EXPECT_FALSE(only_vertex.empty());
   dyng::hyperedge_list<std::int32_t> list;
   list.add_hyperedge({1, 2, 3});
   EXPECT_EQ(list.num_hyperedges(), 1);

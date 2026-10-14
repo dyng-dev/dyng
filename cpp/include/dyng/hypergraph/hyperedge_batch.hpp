@@ -68,7 +68,8 @@ struct hyperedge_batch_view {
    */
   [[nodiscard]] bool empty() const noexcept {
     return num_insertions() == 0 && delete_hyperedges.empty() &&
-           delete_incidence_hyperedge.empty() && insert_incidence_hyperedge.empty();
+           delete_incidence_hyperedge.empty() && delete_incidence_vertex.empty() &&
+           insert_incidence_hyperedge.empty() && insert_incidence_vertex.empty();
   }
 };
 
@@ -230,7 +231,8 @@ class hyperedge_batch {
    */
   [[nodiscard]] bool empty() const noexcept {
     return num_insertions() == 0 && delete_hyperedges_.empty() &&
-           delete_incidence_hyperedge_.empty() && insert_incidence_hyperedge_.empty();
+           delete_incidence_hyperedge_.empty() && delete_incidence_vertex_.empty() &&
+           insert_incidence_hyperedge_.empty() && insert_incidence_vertex_.empty();
   }
 
   /**
