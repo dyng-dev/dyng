@@ -76,6 +76,10 @@ Before 0.1.0 anything may change.
 - The documented `find_package(dyng 0.3 REQUIRED)` (README.md, docs/getting_started/install.md)
   follows the development version, which `ci/cmake_consumer.sh` requires; a build of 0.2.0
   asks for 0.2.
+- Merging 0.2.0 into M8a: `datasets/` (the parity harness's dataset registry) is excluded from
+  the sdist, whose members stay those of 0.2.0; and `parity/certify.py` reads the replays of a
+  GoogleTest mutation suite (the CBST mutations of `parity/mutate.py`) without a golden manifest,
+  while every golden-suite replay still needs one.
 
 ## [0.2.0] - 2026-10-14
 
