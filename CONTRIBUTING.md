@@ -5,7 +5,7 @@ request. Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 to [GitHub Discussions](https://github.com/dyng-dev/dyng/discussions) ([SUPPORT.md](SUPPORT.md));
 security problems are reported privately ([SECURITY.md](SECURITY.md)).
 
-dynG is **alpha** (0.1.0, the first release; 0.2.0rc1, the release candidate of 0.2.0): the stable
+dynG is **alpha** (0.2.0, the latest release; 0.1.0 was the first): the stable
 algorithms follow SemVer from the release that made them stable (0.1.0 or 0.2.0), but
 the framework, file formats and build options still change. For anything larger
 than a small fix, please open an issue (or a discussion) first, so that we can agree on the
@@ -195,8 +195,9 @@ Changes to kernels or hot paths must not make dynG slower than the gates of the 
 algorithms stay within a stated tolerance of the original). Performance is measured on the lab
 GPU machine with the A/B/A/B runner `parity/perf_ab.py` (see [parity/README.md](parity/README.md));
 a maintainer adds the `ci:bench` label to request a comparison table on a pull request.
-Micro-benchmarks (nvbench / Google Benchmark) arrive with the 0.1 series. Please describe in the
-pull request how you measured any performance claim.
+There are no micro-benchmark suites (nvbench / Google Benchmark) yet: they are planned for a
+later release, and the release gates run the paper suites with `parity/bench_suite.py`. Please
+describe in the pull request how you measured any performance claim.
 
 ## Style
 

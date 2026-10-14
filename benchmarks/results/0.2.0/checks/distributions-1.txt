@@ -1,0 +1,17 @@
+# Copy of $DYNG_SCRATCH/runs/r021/toolkits-check.log (sha256 01e9a922177ce00c7b1b9f41b76972cc0e3c0cae276fe00326587c925d6c8bdc, 454 bytes), written by parity/certify.py check.
+2026-10-13T19:50:03Z https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/
+packages in the repository: 13205
+cuda-nvcc-12-0 12.0.140
+cuda-nvcc-12-1 12.1.105
+cuda-nvcc-12-2 12.2.140
+cuda-nvcc-12-3 12.3.107
+cuda-nvcc-12-4 12.4.131
+cuda-nvcc-12-5 12.5.82
+cuda-nvcc-12-6 12.6.85
+cuda-nvcc-12-8 12.8.93
+cuda-nvcc-12-9 12.9.86
+cuda-nvcc-13-0 13.0.88
+cuda-nvcc-13-1 13.1.115
+cuda-nvcc-13-2 13.2.86
+cuda-nvcc-13-3 13.3.73
+cuda-nvcc-13-4 13.4.92

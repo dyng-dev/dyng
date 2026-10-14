@@ -4,8 +4,7 @@ Maturity: **stable** from 0.2.0 (SemVer applies, as for `sssp` and `cycle_count`
 author's decision of 2026-10-07, after the API review and freeze of
 {doc}`ADR 0035 <../adr/0035-mosp-api-review-and-freeze-0-2>`; the sequential,
 OpenMP and CUDA backends, the Python binding `dyng.mosp`, the command line `dyng mosp` and the
-benchmark-suite record `benchmarks/paper/ipdps25_dynamosp_mosp.yaml`, new in 0.2.0, not released
-yet).
+benchmark-suite record `benchmarks/paper/ipdps25_dynamosp_mosp.yaml`, new in 0.2.0).
 Header: `<dyng/mosp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 on the MOSP golden corpus, combined graph included
 ([M7 record](https://github.com/dyng-dev/dyng/blob/main/parity/results/M7.md)).

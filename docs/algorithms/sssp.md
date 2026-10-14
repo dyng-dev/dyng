@@ -2,8 +2,8 @@
 
 Maturity: **stable** from 0.1.0 (SemVer applies; the sequential, OpenMP and CUDA backends with
 the fused engine, the Python binding, the `dyng sssp` command line and the benchmark-suite record
-`benchmarks/paper/ipdps25_dynamosp_sosp.yaml` since 0.1.0; the CUDA operators engine in 0.2.0,
-not released yet).
+`benchmarks/paper/ipdps25_dynamosp_sosp.yaml` since 0.1.0; the CUDA operators engine since
+0.2.0).
 Header: `<dyng/sssp.hpp>`. Oracle: `compute`. Determinism: `bitwise`. Parity: byte-identical to
 MOSP-OpenMP@c352151 and MOSP-CUDA@e220ee2 ([M1b certificate](https://github.com/dyng-dev/dyng/blob/main/parity/results/M1b.md)).
 

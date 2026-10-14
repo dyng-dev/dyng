@@ -15,7 +15,7 @@ author merges the release pull requests):
 
 | Step | 0.1.0 (`v0.1.0rc1`, `v0.1.0`) | 0.2.0 (`v0.2.0rc1`, `v0.2.0`) | later releases |
 |---|---|---|---|
-| the checks, the certificate, the version bump, the CHANGELOG, `CITATION.cff` (steps 1-6, 9) | the AI assistant, in the release branch and its pull request | the AI assistant, in the release branch (`release-0.2.0`) and its pull requests | a maintainer or the AI assistant |
+| the checks, the certificate, the version bump, the CHANGELOG, `CITATION.cff` (steps 1-6, 9) | the AI assistant, in the release branch and its pull request | the AI assistant, in the release branches (`release-0.2.0` for 0.2.0rc1, `release-0.2.0-final` for 0.2.0) and their pull requests | a maintainer or the AI assistant |
 | merging the release pull request into `main` (merge commit, ADR 0019) | the AI assistant, through the pull request (the `main` ruleset) | the **author**, personally; the AI assistant reports when each pull request is green and ready to merge (2026-10-07) | the author |
 | pushing the signed tag (steps 7, 10), which uploads to TestPyPI | the **AI assistant**, on the author's behalf | the **AI assistant**, on the author's behalf (2026-10-06) | the **author** |
 | the approval of the PyPI deployments (step 10), which upload to PyPI: `pypi` for `dyng`; from 0.2.0 also `pypi-cu12` and `pypi-cu13` for the CUDA plugins, three approvals | the **author** (never delegated) | the **author** (never delegated): `pypi-cu12` and `pypi-cu13` together, then `pypi` once both plugins are on PyPI | the **author** |
@@ -43,7 +43,7 @@ release candidate the banner says that it is on TestPyPI only).
 |---|---|---|---|
 | 1 | Full parity on the GPU machine: the golden corpora of every ported algorithm on every backend, each replay written to `benchmarks/results/<version>/parity-<set>-<backend>.json` | `ci/check.sh --parity` (CPU backends), `ci/gpu_local.sh` (CUDA: the corpora, the sanitizers); the largest corpora with `parity/compare.py ... --json` ({doc}`benchmarks`) | maintainer |
 | 2 | The performance gates against the originals (manual, under the exclusive lock; CUDA at locked clocks, the default-clock readings recorded, ADRs 0018 and 0021): every benchmark suite of the release's algorithms, run from a clean checkout of the release commit | `parity/bench_suite.py run benchmarks/paper/<suite>.yaml --version <version>` ({doc}`benchmarks`): the suite summaries and the compacted records in `benchmarks/results/<version>/` | maintainer |
-| 3 | Sanitizers and mutation checks green, each recorded; then the parity certificate written and committed | the `asan` / `tsan` / `tsan-openmp` presets (`ci/sanitizers.sh`; from 0.2.0 also the hosted `sanitizers.yml` jobs of the release pull request's head, which exist only once the pull request is open: recorded with `parity/certify.py check --name sanitizers-hosted --scope tests --commit <the head> --result passed --evidence <the job logs>` in a later commit of that pull request or in the tag-day pull request, {ref}`release-late-tag-day`), `compute-sanitizer` in `ci/gpu_local.sh`, the CTests `*.mutation.*` and `parity/mutate.py run` (the mutations that need the golden corpus), each recorded with `parity/certify.py check` (`certify.py` requires the local ones by release series, `REQUIRED_CHECKS`, {doc}`benchmarks`); then `parity/certify.py write --version <version>` writes `benchmarks/results/<version>/parity.json` and the tables of its `README.md`. It fails if any part failed or is missing (from 0.2.0 the summaries of the sssp, cycle_count and mosp suites are required, each with a gated reading of every gated metric; a suite summary must cover its whole suite, with verified inputs; every committed fixture set of `cpp/tests/data` needs its tests passed in a check), or if a part was measured on other code than the release commit's in the paths of its scope; the one exception is a library difference confined to the generated algorithm metadata, accepted for the gates, the replays and the golden mutations (never for a test-suite check) with a passed `parity/certify.py equivalence` record ({doc}`benchmarks`, "The release certificate") | maintainer |
+| 3 | Sanitizers and mutation checks green, each recorded; then the parity certificate written and committed | the `asan` / `tsan` / `tsan-openmp` presets (`ci/sanitizers.sh`; from 0.2.0 also the hosted `sanitizers.yml` jobs of the release pull request's head, which exist only once the pull request is open: recorded with `parity/certify.py check --name sanitizers-hosted --scope tests --commit <the head> --result passed --evidence <the job logs>` in a later commit of that pull request or in the tag-day pull request, {ref}`release-late-tag-day`; a final-release pull request whose certificate is carried over records the release candidate's hosted jobs with `--scope library` when `README.md` or a test path changed since that head, because their library is still the release's while the `tests` scope is not, and the local presets of the `tests` scope run again on the final tree), `compute-sanitizer` in `ci/gpu_local.sh`, the CTests `*.mutation.*` and `parity/mutate.py run` (the mutations that need the golden corpus), each recorded with `parity/certify.py check` (`certify.py` requires the local ones by release series, `REQUIRED_CHECKS`, {doc}`benchmarks`); then `parity/certify.py write --version <version>` writes `benchmarks/results/<version>/parity.json` and the tables of its `README.md`. It fails if any part failed or is missing (from 0.2.0 the summaries of the sssp, cycle_count and mosp suites are required, each with a gated reading of every gated metric; a suite summary must cover its whole suite, with verified inputs; every committed fixture set of `cpp/tests/data` needs its tests passed in a check), or if a part was measured on other code than the release commit's in the paths of its scope; the one exception is a library difference confined to the generated algorithm metadata, accepted for the gates, the replays and the golden mutations (never for a test-suite check) with a passed `parity/certify.py equivalence` record ({doc}`benchmarks`, "The release certificate") | maintainer |
 | 4 | The distributions build and install | `ci/check.sh --wheels` locally; from 0.2.0 also the CUDA plugins on the GPU machine, `ci/plugin_wheels.sh` with `DYNG_PLUGINS="cu12 cu13"` (the GPU tests on GPU 1; {doc}`wheels`); `wheels.yml` (manual run, with the plugins) on hosted runners, green on the release pull request's head commit **before the author merges it** (it is not a required check, and it is the only build of the published setup: manylinux_2_28, gcc-toolset, the pinned toolkits; the run is linked in the pull request). Before that, the CUDA toolkits of `ci/cuda_toolkits.toml` are the latest 12.x and 13.x (re-pin with `ci/cuda_toolkit.py lock`, {doc}`wheels`) | maintainer |
 | 5 | The release-candidate pull request: set `VERSION` to `X.Y.ZrcN` (for example `0.1.0rc1`; `release.yml` requires the tag to equal `VERSION`); move the CHANGELOG's `Unreleased` entries under `## [X.Y.ZrcN] - <date>` (the draft summary of the release is kept at the top while it is prepared) | a pull request | maintainer |
 | 6 | `version: X.Y.ZrcN` and `date-released` in `CITATION.cff` | the same pull request | maintainer |
@@ -98,7 +98,20 @@ unpublished on that index, and a plugin without its `dyng` is harmless (it requi
 
 **If a publish job fails.** Re-run the failed jobs of the same `release.yml` run (**Re-run failed
 jobs**: only the failed legs run again, with the same artifact; the TestPyPI uploads skip
-the files already there); their approvals are asked again. Do not push the tag again. If a plugin
+the files already there); their approvals are asked again. Do not push the tag again.
+
+The release candidate 0.2.0rc1 showed how a plugin's first upload fails (run 37871452302,
+{doc}`repository_settings`, section 11): a project that does not exist yet is created only by a
+**pending publisher with the project name `dyng-cu<N>` and the plugin's own environment**
+(`testpypi-cu<N>` on TestPyPI, `pypi-cu<N>` on PyPI), workflow `release.yml`, repository
+`dyng-dev/dyng`. A publisher whose environment differs fails with `invalid-publisher` (no
+publisher matches the token's claims); a publisher added to the existing project `dyng` (or a
+pending one with another project name) cannot create `dyng-cu<N>` and fails with "400 Non-user
+identities cannot create new projects". Fix the publisher on the index (the author's account),
+then **Re-run failed jobs** of the same run: attempt 3 of 0.2.0rc1's run uploaded exactly the
+files the first attempt built (the builds did not run again; the hashes on TestPyPI equal the
+run's `dist` artifact, {doc}`retrospectives/R021`). Before the final release's tag, check the
+pending publishers on PyPI against the environments of `release.yml` in the same way. If a plugin
 can never be uploaded for this version (for example a file the index refuses), `dyng X.Y.Z` stays
 unpublished: fix the cause and release the next patch version. Should `dyng X.Y.Z` ever be on
 PyPI without a plugin of the same version (an upload by hand), yank it on PyPI until the plugin
@@ -144,8 +157,22 @@ release's state:
   `SECURITY.md` (the status paragraph and the supported-versions row of the release
   candidates), `CONTRIBUTING.md` and `SUPPORT.md` (the "X.Y.ZrcN, the release candidate"
   wording), `docs/citing.md` (the DOI sentence: which releases have a DOI, step 12),
-  `docs/roadmap.md` ("Where we are") and `docs/developer/plan.md` (the status line); a `grep
-  -rn "X.Y.ZrcN\|release candidate"` over the user-facing files finds what is left;
+  `docs/roadmap.md` ("Where we are": it opens with the release, the earlier releases after it)
+  and `docs/developer/plan.md` (the status line);
+- the pages that describe the release's new content as unreleased (`documentation.md`: "new in
+  X.Y" or "not released yet" on a page newer than the latest release): the maturity lines of the
+  algorithm pages (`docs/algorithms/*.md`), the tutorials (`docs/tutorials/`, for 0.2.0 the
+  sentence that sent readers to `main` instead of the previous release), and any other
+  user-facing page; "not released yet" goes, "new in X.Y" (or "since X.Y.Z") stays;
+- the upgrade line wherever the docs install the package (`README.md`, `install.md`, the
+  CHANGELOG summary, which becomes the GitHub Release's text) when the release adds extras or
+  something an earlier release lacks: `pip install "dyng[cu13]"` without `-U` keeps an installed
+  older `dyng` that has no such extra, and pip only warns;
+- what is left: `grep -rn "X.Y.ZrcN\|release candidate\|not released\|new in X.Y"`, and a
+  grep for the previous release's version (wording such as "not the 0.1.0 release"), over the
+  user-facing files (`README.md`, the top-level `*.md` files, `python/README.md` and `docs/`
+  outside `docs/developer/`, `docs/adr/`, `docs/design/` and `docs/history/`); every hit left
+  must be history that stays true after the release;
 - the certificate (`benchmarks/results/X.Y.Z/`), one of:
   - **carried over**, when the library did not change since the release candidate's measured
     commits (`git diff <measured> HEAD` over the library paths is empty, which `certify.py
@@ -249,24 +276,28 @@ machine with the steps of `release.yml` (no tag is created; for 0.1.0rc1 this wa
 
 ```bash
 source scripts/dev_env.sh
-# the select job, for the tag about to be pushed: its run block, extracted from release.yml
+v=$(cat VERSION)  # the tag about to be pushed is v$v
+# the select job, for that tag: its run block, extracted from release.yml
 python -c 'import yaml; wf = yaml.safe_load(open(".github/workflows/release.yml")); print(next(
     s["run"] for s in wf["jobs"]["select"]["steps"] if s.get("id") == "select"))' > /tmp/select.sh
-GITHUB_REF_NAME=v0.2.0rc1 GITHUB_OUTPUT=/tmp/select.out bash /tmp/select.sh && cat /tmp/select.out
+GITHUB_REF_NAME="v$v" GITHUB_OUTPUT=/tmp/select.out bash /tmp/select.sh && cat /tmp/select.out
 # the package job (wheels.yml): the sdist, the wheel from the sdist, wheel_check, fresh venvs
+# (into $DYNG_SCRATCH/wheels/$v)
 flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/wheels.sh
 # from 0.2.0: the plugins from that sdist (CI's toolkits: docs/developer/wheels.md), GPU tests
-DYNG_PLUGINS="cu12 cu13" DYNG_CORE_DIST="$DYNG_SCRATCH"/wheels/0.2.0rc1/dist \
+# (into $DYNG_SCRATCH/wheels/$v-plugins)
+DYNG_PLUGINS="cu12 cu13" DYNG_CORE_DIST="$DYNG_SCRATCH/wheels/$v/dist" \
     flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 ci/plugin_wheels.sh
-# the collect job (for 0.2.0rc1: the core files and the plugin wheels together)
-twine check --strict "$DYNG_SCRATCH"/wheels/0.2.0rc1/dist/*
-python ci/wheel_check.py "$DYNG_SCRATCH"/wheels/0.2.0rc1/dist/* \
-    "$DYNG_SCRATCH"/wheels/0.2.0rc1-plugins/dist/* \
+# the collect job (from 0.2.0: the core files and the plugin wheels together)
+twine check --strict "$DYNG_SCRATCH/wheels/$v"/dist/* "$DYNG_SCRATCH/wheels/$v-plugins"/dist/*
+python ci/wheel_check.py "$DYNG_SCRATCH/wheels/$v"/dist/* \
+    "$DYNG_SCRATCH/wheels/$v-plugins"/dist/* \
     --platform manylinux_2_28_x86_64 --require-libgomp --release-set
 ```
 
-`select` must print `kind=package`, `version=0.2.0rc1`, `prerelease=true`, `plugins=true`,
-the three distributions `dyng`, `dyng-cu12` and `dyng-cu13` with their environment suffixes, and
+`select` must print `kind=package`, `version=$v` and `plugins=true` (from 0.2.0), with
+`prerelease=true` for a release candidate (`v0.2.0rc1`) and `prerelease=false` for a final
+release (`v0.2.0`), the three distributions `dyng`, `dyng-cu12` and `dyng-cu13` with their environment suffixes, and
 the plugins' matrix `plugin_distributions` (for a 0.1.x tag: `plugins=false`, `dyng` alone and an
 empty plugin matrix; `ci/tests/test_release_select.py` checks every kind of tag), and fail for a tag
 that differs from `VERSION` or when `VERSION`, `CHANGELOG.md` and `CITATION.cff` disagree
@@ -277,4 +308,6 @@ and run the wheel's test subset and the README quickstart from an empty director
 The readiness list of 0.1.0, with what is done and what waits for the author, is in the M5
 retrospective ({doc}`retrospectives/M5`), the R010 retrospective ({doc}`retrospectives/R010`)
 and the R011 retrospective, the final-release record ({doc}`retrospectives/R011`), and the R012
-retrospective, the tag day ({doc}`retrospectives/R012`).
+retrospective, the tag day ({doc}`retrospectives/R012`). Those of 0.2.0 are in the R020
+retrospective, the release candidate ({doc}`retrospectives/R020`), and the R021 retrospective,
+its smoke test from TestPyPI and the final-release pull request ({doc}`retrospectives/R021`).

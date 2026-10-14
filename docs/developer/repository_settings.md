@@ -18,8 +18,9 @@ against the read-only API on 2026-09-28 (`gh api repos/dyng-dev/dyng`, its `acti
 `rulesets`, `environments` and security endpoints, and `gh api orgs/dyng-dev`). The state of
 2026-09-30 (the `DCO` check required, the signing key) and of 2026-10-01 (M5 merged, the 24
 required checks, `pypa/cibuildwheel` on the Actions allow-list), of 2026-10-02 (the environments
-and pending publishers of the CUDA plugins), of 2026-10-06 (GitHub Pages) and of 2026-10-07 (M6b
-merged, the first Pages deployment, the website, the 27 required checks) was reported by the
+and pending publishers of the CUDA plugins), of 2026-10-06 (GitHub Pages), of 2026-10-07 (M6b
+merged, the first Pages deployment, the website, the 27 required checks) and of 2026-10-09 (the
+plugins' trusted publishers re-created on TestPyPI and checked on PyPI) was reported by the
 author or the orchestrator and is recorded in the approvals log of `GOVERNANCE.md`.
 
 | # | Setting | When | Status |
@@ -35,7 +36,7 @@ author or the orchestrator and is recorded in the approvals log of `GOVERNANCE.m
 | 9 | Ruleset for `main`: pull requests and required checks | after every required workflow has run once on a pull request | **done** after pull request #1 (INT1, merged with the merge commit `eda8b8b`): ruleset `main` (id 24131378), strict; 17 required checks, **18** with `DCO` from 2026-09-30, and **24** after pull request #4 (M5, merge commit `8842acf`): `scaffold`, the four checks of `python.yml` and `Python API (griffe)` added (2026-10-01); **27** after pull request #10 (M6b, merge commit `8b9067e`): the three checks of `sanitizers.yml` added (the author's decision of 2026-10-07) |
 | 10 | Ruleset for release tags | now | **done** (`release tags`: `v*`, creation, update, deletion and force pushes restricted; repository admins bypass; the tags `v0.1.0rc1` and `v0.1.0` (GOVERNANCE.md 2026-09-30) and `v0.2.0rc1` and `v0.2.0` (2026-10-06) may be pushed by the AI assistant on the author's behalf) |
 | 11 | Environments `pypi` and `testpypi`: protection rules | now | **done** (`pypi`: required reviewer SMShovan, tags `v*` only, no administrator bypass; `testpypi`: tags `v*` only) |
-| 11b | Environments of the CUDA plugins `testpypi-cu12`, `pypi-cu12`, `testpypi-cu13`, `pypi-cu13`: protection rules (release 0.2.0; ADR 0032) | before the first `v0.2.0*` tag | **done**: the pending trusted publishers of `dyng-cu12` / `dyng-cu13` exist (set up by the author for 0.2.0, PLAN Appendix F; workflow `release.yml`, one environment pair per project); the four environments were created on 2026-10-02 with the rules of section 11 (deployments only from tags `v*`; `pypi-cu12` / `pypi-cu13`: the author as required reviewer, no administrator bypass) and checked through the API on 2026-10-06 (GOVERNANCE.md, approvals log) |
+| 11b | Environments of the CUDA plugins `testpypi-cu12`, `pypi-cu12`, `testpypi-cu13`, `pypi-cu13`: protection rules (release 0.2.0; ADR 0032) | before the first `v0.2.0*` tag | **done**: the pending trusted publishers of `dyng-cu12` / `dyng-cu13` exist (set up by the author for 0.2.0, PLAN Appendix F; workflow `release.yml`, one environment pair per project); the four environments were created on 2026-10-02 with the rules of section 11 (deployments only from tags `v*`; `pypi-cu12` / `pypi-cu13`: the author as required reviewer, no administrator bypass) and checked through the API on 2026-10-06 (GOVERNANCE.md, approvals log). The publishers' state of 2026-10-09: on TestPyPI the author re-created the pending publishers of `dyng-cu12` / `dyng-cu13` after the release run of `v0.2.0rc1` failed twice in their publish jobs, and the run's third attempt created both projects there (0.2.0rc1); on PyPI the pending publishers `dyng-cu12` -> `pypi-cu12` and `dyng-cu13` -> `pypi-cu13` (workflow `release.yml`, repository `dyng-dev/dyng`) were checked by the author and match `release.yml`; they create the two projects with the upload of 0.2.0 (section 11) |
 | 12 | Discussions: categories and the pinned roadmap | after step 3 | open (the default categories, Polls included; no pinned roadmap yet) |
 | 13 | GitHub Pages: the documentation site (the plan's fallback to Read the Docs, chosen by the author on 2026-10-02) | before the M6b pull request (`docs.yml` with the `deploy` job) is merged, so that its first push to `main` deploys | **done** by the author on 2026-10-06 (source **GitHub Actions**, <https://dyng-dev.github.io/dyng/>, HTTPS enforced; GitHub created the environment `github-pages`, deployable from `main` only); the first deployment followed the merge of M6b on 2026-10-07 (`docs.yml` run 37628205848) and the website field (step 2) is set |
 | 14 | Zenodo | later: checkpoint A4, milestone M6 (PLAN 11.2); **not connected for 0.1.0**, so 0.1.0 has no DOI (the author, 2026-10-01; section 14) | later |
@@ -323,7 +324,21 @@ author registered the pending publishers on PyPI and TestPyPI on 2026-10-02 (pro
 `dyng-cu12` with `pypi-cu12` / `testpypi-cu12`, project `dyng-cu13` with `pypi-cu13` /
 `testpypi-cu13`, repository `dyng-dev/dyng`, workflow `release.yml`); the maintainer created
 the four environments through the API the same day with the rules of `pypi` / `testpypi`,
-checked on 2026-10-06 (item 11b). To recreate them:
+checked on 2026-10-06 (item 11b).
+
+**The publishers' state (2026-10-09).** The release run of `v0.2.0rc1` (37871452302) failed twice
+in the TestPyPI publish jobs of the plugins: attempt 1 with `invalid-publisher` (no TestPyPI
+publisher matched the environments `testpypi-cu12` / `testpypi-cu13`), attempt 2 with "400
+Non-user identities cannot create new projects" (a publisher matched, but not one for the project
+name `dyng-cu12` / `dyng-cu13`). The author re-created both TestPyPI pending publishers (project
+`dyng-cu12` with environment `testpypi-cu12`, project `dyng-cu13` with `testpypi-cu13`, workflow
+`release.yml`, repository `dyng-dev/dyng`), and attempt 3 created the two projects on TestPyPI
+with 0.2.0rc1, so their publishers are now ordinary (no longer pending) publishers. On PyPI the
+author checked the pending publishers the same day (`dyng-cu12` -> `pypi-cu12`, `dyng-cu13` ->
+`pypi-cu13`, workflow `release.yml`, repository `dyng-dev/dyng`): they match `release.yml`, and
+the names stay unreserved until 0.2.0's upload creates the projects (the author's decision of
+2026-10-09, `GOVERNANCE.md`). How such a failure is avoided and repaired: {doc}`release`, "If a
+publish job fails". To recreate the environments:
 
 6. **Environments** → **New environment** (if GitHub has not created it at the first run) →
    `pypi-cu12` → steps 2 to 4 (required reviewer **SMShovan**, tag rule `v*`, no administrator
