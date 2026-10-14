@@ -108,7 +108,7 @@ def golden_case(name: str) -> tuple[Path, list[str]]:
 def decompress(case_dir: Path, work: Path) -> Path:
     """The case's trace (and side file) decompressed into `work` once."""
     out = work / f"{case_dir.name}.cbt"
-    for src, dst in [("trace.cbt.zst", out), ("trace.blob.zst", Path(str(out) + ".blob"))]:
+    for src, dst in [("trace.cbt.zst", out), ("trace.blob.zst", out.with_suffix(".blob"))]:
         if (case_dir / src).is_file() and not dst.is_file():
             subprocess.run(
                 ["zstd", "-q", "-d", "--long=31", "-f", str(case_dir / src), "-o", str(dst)],
