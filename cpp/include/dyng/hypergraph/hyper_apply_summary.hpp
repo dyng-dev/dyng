@@ -26,8 +26,10 @@ struct hyper_apply_summary {
   std::int64_t deleted_hyperedges = 0;   ///< live hyperedges deleted
   std::int64_t inserted_incidences = 0;  ///< (hyperedge, vertex) incidences added by edits (0.4)
   std::int64_t deleted_incidences = 0;   ///< (hyperedge, vertex) incidences removed by edits (0.4)
-  /// Every skipped operation: in 0.3 ignored_deletions + dropped_members; incidence edits (0.4)
-  /// add the edits they skip (on a dead hyperedge, of a non-member, ...).
+  /**
+   * @brief Every skipped operation: in 0.3 ignored_deletions + dropped_members; incidence edits
+   *        (0.4) add the edits they skip (on a dead hyperedge, of a non-member, ...).
+   */
   std::int64_t skipped_ops = 0;
   std::int64_t ignored_deletions = 0;      ///< deletions of dead, out-of-range or repeated ids
   std::int64_t dropped_members = 0;        ///< repeated members of inserted hyperedges dropped
