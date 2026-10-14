@@ -606,6 +606,7 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
   hyper::incidence_store& store = *state.store;
   // ---- The store phase (basic guarantee: a failure poisons the hypergraph).
   hyper_applied applied;
+  hyper_apply_summary summary;
   std::vector<weight_t> next_weights;
   try {
     const container_scope container;  // the container's own work (budgets, I9)
@@ -709,11 +710,20 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
     }
     // One read of the device error words, then the row views of the new state.
     store.finish_apply();
+    // The summary, built here: everything that allocates comes before the commit point.
+    summary.inserted_hyperedges = static_cast<std::int64_t>(applied.inserted_ids.size());
+    summary.deleted_hyperedges = static_cast<std::int64_t>(live_deletions.size());
+    summary.ignored_deletions = ignored;
+    summary.dropped_members = dropped;
+    summary.skipped_ops = ignored + dropped;
+    summary.num_hyperedges_after = store.num_live();
+    summary.id_bound_after = store.id_bound();
+    summary.inserted_ids = applied.inserted_ids;
   } catch (...) {
     state.poisoned = true;
     throw;
   }
-  // ---- The commit (no-throw).
+  // ---- The commit (no-throw: integer assignments, a swap and moves only).
   applied.version_before = state.version;
   applied.state_before = state.state_id;
   ++state.version;
@@ -721,15 +731,8 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
   applied.version_after = state.version;
   applied.state_after = state.state_id;
   if constexpr (!is_unweighted_v<weight_t>) state.weights.swap(next_weights);
-  hyper_apply_summary summary;
-  summary.inserted_hyperedges = static_cast<std::int64_t>(applied.inserted_ids.size());
-  summary.deleted_hyperedges = static_cast<std::int64_t>(live_deletions.size());
-  summary.ignored_deletions = ignored;
-  summary.dropped_members = dropped;
-  summary.skipped_ops = ignored + dropped;
-  summary.num_hyperedges_after = store.num_live();
-  summary.id_bound_after = store.id_bound();
-  summary.inserted_ids = applied.inserted_ids;
+  static_assert(std::is_nothrow_move_assignable_v<hyper_applied>,
+                "the commit moves the applied record after the commit point");
   state.applied = std::move(applied);
   committed_ = true;
   return summary;
