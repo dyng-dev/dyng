@@ -394,3 +394,107 @@ was.
 ### 3.6 Records
 
 - `M8b-mutate-kit.json`: the `parity/mutate.py run --suites kit` record at `22a09ab`.
+
+## 4. Step io-generators: hypergraph files, batch files, generators
+
+### 4.1 What was built (ADR 0045)
+
+- `.hg` files (`read_hypergraph`, `write_hypergraph`; the option sets
+  `hypergraph_read_options::escher_gpu()` and `hsosp(seed, max_cardinality)`), hyperedge
+  operations in `.dgt` (`read_hyperedge_batches`, `write_hyperedge_batches`; one container kind per
+  file), the binary batch format `.dgb` version 1 (`batch_writer`, the streaming `batch_reader`
+  with pinned staging on CUDA), the fuzz targets `fuzz_hg` and `fuzz_batch_binary`.
+- `generators/hypergraphs.hpp` (library-owned draws, golden hashes) and `generators::legacy`'s
+  `escher_hypergraph` / `escher_batch_generator`; the kit's hypergraph mixes from them.
+- The parity side: `escher_dump` (A's batch records, A's command line, the by-content resolver),
+  `dyng_hypergraph_ids --legacy-generator` and `--hg FILE`; `dyng-compat-escher` (dumps to `.hg` +
+  `.dgb`, and their replay); `datasets/preprocess/benson_to_hg.py`.
+
+Every record below is of `b7b6a38` (the tools of `build/parity-cuda`, Release), GPU 1 for cuda.
+
+### 4.2 `.hg` against both originals' loaded hypergraphs (criterion 13)
+
+| Check | Result | Record |
+|---|---|---|
+| `read_hypergraph(coauth.hg, escher_gpu())` against the rows A loaded (`escher_gpu.build` of `escher_gpu_coauth50k`), in id order, and A's vertex count | 2,467,389 hyperedges equal, 1,930,378 vertices | `M8b-legacy-escher_gpu_coauth50k-openmp-t16.json` (`hg_hyperedges`) |
+| `read_hypergraph(coauth.hg, hsosp(20260725, 25))` against B's bulk load of `mosp_escher_dblp50k_hyperedge` without its virtual source and target: rows in B's member order (its first-appearance numbering), vertex count, weights | 2,466,792 hyperedges equal, numbering and weights bit for bit | `M8b-hg-mosp_escher_dblp50k_hyperedge-openmp-t16.json` |
+| `datasets/preprocess/benson_to_hg.py --variant escher` and `--variant hsosp` on coauth-DBLP-full | both write `65fc83b2...7b7cb6`, the SHA-256 the registry pins for both variants (`parity/cbst_trace_goldens.py datasets`, which also re-derives them with the originals' converters: OK) | (this table) |
+| `write_hypergraph` of A's loaded coauth hypergraph (`dyng-compat-escher to-dgb`) | the same 53,443,709 bytes (`65fc83b2...7b7cb6`) | `M8b-dgb-replay.json` |
+| malformed input, locations, round trips, the relabellings, the weights | `HypergraphFile.*` (8 tests), `fuzz_hg` | `dyng_io_tests` |
+
+### 4.3 Batch files (criterion 14)
+
+- `.dgt`: `+h` / `-h` read and written (`HyperedgeBatchText.*`); `+i` / `-i` rejected naming 0.4;
+  the kind rule (`%dgt 1 graph|hypergraph`; mixed files rejected; `BatchText.RejectsMalformedFiles`
+  extended); the `batch_text` fuzz corpus has hypergraph files.
+- `.dgb`: `BinaryBatches.*` (7 tests): the header and record layout byte by byte, round trips of
+  graph and hypergraph batches with both annotations, `.dgt` -> `.dgb` -> `.dgt` identical, every
+  truncation of a file an `io_error`, damaged / size-lying / future-version / unknown-flag /
+  trailing-byte / wrong-count files `io_error`s, wrong types `invalid_argument_error`; the files
+  `make_dgb_seeds.py` writes from the specification read as written. `FuzzRegression.
+  BinaryBatchSizeFieldsAreCheckedAgainstTheFile`: a record length of 2^40, a batch count of 2^50
+  and an insertion count of 2^60 are rejected with no allocation above 64 MB.
+- `batch_reader` with CUDA resources (`dyng_io_cuda_tests`, GPU 1): device views equal to the host
+  reader's over seven records of growing and shrinking sizes; a CUDA hypergraph applies the device
+  views and gives the sequential hypergraph's ids. memcheck (0 errors, 0 leaks), racecheck (0
+  hazards) and synccheck (0 errors).
+- The dump decoder and the by-content resolver (`EscherDump.*`); **by key and by content on
+  coauth50k** give the same live member sets after every batch (`--mode both`: 3/3 states, 824
+  ambiguous resolutions; A's ids until the first one) (`M8b-legacy-escher_gpu_coauth50k-openmp-t16.json`).
+- **`dyng-compat-escher`** converts coauth50k and syn1M seed 1 to `.hg` + `.dgb` (4.3 MB and
+  5.7 MB of batches) and replays them on openmp (16 threads) and cuda: 75,000 ids as expected by
+  id each, the by-content member sets equal after every batch (824 and 1,048 ambiguous
+  resolutions) (`M8b-dgb-replay.json`); CTests `compat_escher.dgb.*` do the same on the committed
+  traces on every backend.
+
+### 4.4 Fuzzers (criterion 15)
+
+| Target | Run | Executions | Peak RSS | Findings |
+|---|---|---|---|---|
+| `fuzz_hg` | 1,861 s | 5,898,695 | 126 MB | 0 |
+| `fuzz_batch_binary` | 1,861 s | 15,550,704 | 450 MB | 0 |
+| `fuzz_batch_text` (with hypergraph batches) | 1,861 s | 11,210,126 | 124 MB | 0 |
+
+ci/fuzz.sh's flags (`-malloc_limit_mb=2048 -timeout=10 -max_len=4096`), Clang 18.1.8, preset
+`fuzz` (record `M8b-fuzz.json`). `ctest --preset fuzz` (8 targets, the corpora and reproducers
+under `-malloc_limit_mb=256`) and `ctest -L fuzz` (18 tests: every replay and the planted-writer
+self-tests, which report the broken round trip for `hg` and `batch_binary` too) pass.
+
+### 4.5 Generators (criterion 16)
+
+- `generators/hypergraphs.hpp`: golden hashes of `uniform_hypergraph` (3 seeds, weighted and
+  unweighted) and of every mix of `random_hyperedge_batch` (13); each mix's promise checked and the
+  batch applied (`UniformHypergraph.*`, `HyperedgeBatches.*`); the skewed mix has a 1,100-member
+  hyperedge.
+- **`generators::legacy` against A's dumps**, driven against the replaying container under
+  {erase_first, escher_gpu()}; before every batch the generator reads the container's live state:
+
+| Set | Backend | Synthetic hypergraphs equal | Batches equal | Record |
+|---|---|---|---|---|
+| escher_gpu_test (`make test`: random and sample modes, file and synthetic inputs, demo batches, deletions only, insertions only, batches larger than the graph, skewed and medium) | openmp (8) | 20 / 20 | 180 / 180 | `M8b-legacy-escher_gpu_test-openmp-t8.json` |
+| syn1M seeds 1-3 (1M hyperedges each) | openmp (8) | 3 / 3 | 9 / 9 | `M8b-legacy-escher_gpu_syn1m-openmp-t8.json` |
+| syn1M seeds 1-3 | cuda | 3 / 3 | 9 / 9 | `M8b-legacy-escher_gpu_syn1m-cuda.json` |
+| coauth50k (sample mode) | openmp (16) | (file input) | 3 / 3 | `M8b-legacy-escher_gpu_coauth50k-openmp-t16.json` |
+
+  Batches 2 and 3 of every run draw from the state the earlier batches left, so they also prove
+  the ids end to end. Hosted CI replays the committed `001-main` and `016-main` with the generator
+  (`HypergraphIds.CommittedTracesGiveTheOriginalsIds`). `standard_library_matches_legacy_streams()`
+  is true with this toolchain's libstdc++ (GCC 12.2).
+
+### 4.6 Checks of the step
+
+| Check | Result |
+|---|---|
+| `ci/check.sh` (format, cpu-only and dev with `ctest -L cpu`, consumer, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, pre-commit) | all checks passed on the working tree before the commits (cpu-only 1,062 and dev 1,095 tests; scaffold 80 + 54 + 41); the frozen API against `origin/main`: added lines only (the umbrella header's two includes). The provenance check reads tracked files only, so it first saw `dyng-compat-escher` after the commit: listed as not derived in the follow-up commit (`pre-commit run` and `ci/provenance_check.py` then clean) |
+| `ctest -L gpu -R 'io\|hypergraph\|kit\|compat_escher'` on `dev-cuda` (GPU 1) | 153 / 153 passed |
+| the kit's hypergraph axis and the hypergraph suites (dev, after the switch to the public generators) | 416 / 416 passed (`ctest -R 'kit\|conformance\|hypergraph'`), the planted bug `conformance.mutation.frontier_requested_ids` still caught, test counts unchanged |
+| compute-sanitizer | `dyng_io_cuda_tests`: memcheck, racecheck, synccheck clean; `dyng_hypergraph_ids_cuda_tests` (legacy generator on cuda): memcheck clean |
+| portability: Clang 18 `-fsyntax-only` over the dev and dev-cuda databases; cpu-only with `-D_FORTIFY_SOURCE=3` | 0 failures over 355 + 746 files; built without warnings, `ctest -L 'io\|fuzz\|generators\|hypergraph'`: 250 passed |
+| intermediate commit `12b0358` in a worktree (dev preset) | built; `ctest -L 'io\|fuzz\|generators\|hypergraph'`: 250 passed |
+
+### 4.7 Records
+
+`M8b-legacy-escher_gpu_test-openmp-t8.json`, `M8b-legacy-escher_gpu_syn1m-openmp-t8.json`,
+`M8b-legacy-escher_gpu_syn1m-cuda.json`, `M8b-legacy-escher_gpu_coauth50k-openmp-t16.json` (also
+the `.hg` check and the by-content replay), `M8b-hg-mosp_escher_dblp50k_hyperedge-openmp-t16.json`,
+`M8b-dgb-replay.json`, `M8b-fuzz.json`.

@@ -341,3 +341,110 @@ the author's confirmation at the release.
   a kit-local generator; step 4 may switch them to the public hypergraph generators.
 - The author's confirmations at the 0.3.0 release (the frozen hypergraph headers, the stable
   `.hg` / `.dgb` formats) are still pending; the plan's default applies until then.
+
+## Step 4: hypergraph files, batch files and generators (io-generators)
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `b4e5c09` | ADR 0045 (`.hg`, the hypergraph batches of `.dgt`, `.dgb` version 1, the dump decoder and resolver, the generators), before any code; GOVERNANCE and index rows |
+| `055fb18` | `io/hypergraph_io.hpp` (`read_hypergraph`, `write_hypergraph`, `hypergraph_read_options::escher_gpu()` / `hsosp()`); `read_hyperedge_batches` / `write_hyperedge_batches` (`+h`, `-h`; one container kind per file); the `.dgb` format (`batch_writer`, `batch_reader` with pinned staging on CUDA, the whole-file helpers, CRC32 in `util/crc32`), the shared writer checks (`io/batch_checks.hpp`); the fuzz targets `fuzz_hg` and `fuzz_batch_binary`, hypergraph batches in `fuzz_batch_text`, their corpora and reproducers (`make_dgb_seeds.py`), `fuzz_regression_test`'s allocation bounds; the io tests (host and CUDA) |
+| `12b0358` | `generators/hypergraphs.hpp` (`uniform_hypergraph`, `random_hyperedge_batch`, thirteen mixes, library-owned draws, golden hashes); `generators::legacy::escher_hypergraph`, `escher_batch_generator`, `standard_library_matches_legacy_streams`; the kit's hypergraph models and mixes from the public generators; the API baseline |
+| `129bea6` | the parity side: `escher_dump` (A's batch records, A's command line, the by-content resolver), `cbst_trace::trace_source` moved into the dynG-free trace library, `dyng_hypergraph_ids --legacy-generator` and `--hg FILE`, `compare.py hypergraph_ids` with both; the committed traces replayed with the legacy generator in hosted CI; `ci/gpu_local.sh` |
+| `581dc5c` | `tools/compat/escher` (`dyng-compat-escher to-dgb` / `replay`, CTests on the committed traces), `datasets/preprocess/benson_to_hg.py` (both variants), the registry's `dyng_converter` and its check in `cbst_trace_goldens.py datasets` |
+| `b7b6a38` | `file_formats.md` (`.hg`, `.dgt` hyperedge operations and the kind rule, `.dgb` with its format version), the io and generators API pages, `robustness.md`, the CHANGELOG |
+| (the records commit) | `parity/results/M8b.md` section 4 and the records; this section |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **The originals' preprocessing are option sets** (`hypergraph_read_options::escher_gpu()`,
+   `hsosp(seed, max_cardinality)`), static factories like the capacity presets, on top of PLAN
+   5.7's options. Two options were added: `index_base` (both originals' files are 1-based; ids
+   must not be guessed) and `num_vertices` (ESCHER-GPU's synthetic runs have isolated vertices
+   above the largest id that a `.hg` file cannot show; the converter records the count in its
+   `.txt`). PLAN 5.7 names `relabel = dense_sorted` for ESCHER: ESCHER-GPU's **loader** keeps the
+   ids (`none`); `dense_sorted` is its **converter's** numbering, so `escher_gpu()` uses `none`,
+   which gives the same rows on coauth-DBLP (whose ids are already 1..V) and the right vertex count
+   everywhere.
+2. **`weight_spec::hsosp_target_draw`.** H-SOSP's weights are drawn after one draw for its virtual
+   target vertex; the virtual hyperedges are M11's (`hyper_sssp` adds them), but the draw changes
+   every weight, so the option set reproduces the draw (and discards it). Documented in the
+   header and file_formats.md.
+3. **Weighted `.hg` files** end their lines with `; w` (as `.dgt`'s `+h`), an extension neither
+   original writes; without it `write_hypergraph` could not write a weighted list.
+4. **Tokens.** The `.hg` reader takes ESCHER-GPU's line rules (comments at the first character
+   only; commas separate) and dynG's tokens: MOSP_ESCHER's loader also accepts a `+` sign and reads
+   `1-2` as two ids; dynG rejects both (ADR 0010's strict readers). No registered file has them.
+5. **`.dgb` carries annotations.** The flags `deleted_members` and `expected_ids` (and
+   `insert_first`) are the "semantics flags" of PLAN 5.7, chosen so that M9 replays A's batches
+   from `.dgb` files by content and checks the ids by key without the traces.
+6. **The "ESCHER dump reader"** is a decoder of the batch records of M8a's CBST traces (the dumps
+   of ADR 0036), on the parity side as the step allows (no public API; step 5's review decides
+   whether a resolver belongs in `dyng::testing`). `dyng_hypergraph_ids` now uses it and its
+   resolver for the by-content replay (a refactor: the replays of steps 1-3 give the same
+   records); `trace_source` moved from `cbst_compare` into the trace library, which uses the
+   standard library only, so that `dyng-compat-escher` can open traces without the test
+   libraries. The converter compiles the two parity sources into the tool.
+7. **"Test that by-content and by-key replay of coauth50k give the same rows"** is the
+   `--mode both` replay of `compare.py hypergraph_ids` (A's live member sets after every batch in
+   both containers; A's ids until the first ambiguous resolution, 824 on coauth50k) and
+   `dyng-compat-escher replay` of the converted files (the live member sets of the by-id and the
+   by-content containers equal after every batch).
+8. **The kit's generator switch changes the kit's batches** (the same twelve mixes and their
+   promises, other draws). `heavy_delete` is a mix of the public generator that the kit does
+   not use (no kit check names it); the kit's twelve mixes map one to one. Test counts are
+   unchanged.
+9. **`write_batches()` now rejects negative ids** (shared writer checks; such files did not read
+   back): a behaviour change of a tracked function, in the CHANGELOG's "Changed".
+10. **The fuzz workflow's dispatch limit** went from 1,000 to 750 s per target: eight targets
+    must fit the job's 120 minutes.
+11. **Reproducers without findings.** The fuzzers found nothing in 30 minutes each; the
+    `regressions/` of the two new targets hold hand-made inputs of the class M6b found (size
+    fields that lie), so that the class is replayed by every test build and bounded by
+    `fuzz_regression_test`.
+12. **`hyperedge_batch_mix::limits` deletes `INT64_MIN`**, which no batch file can hold (the
+    writers reject negative ids): batches of that mix are applied, not written.
+
+### Measurements
+
+- **Parity** (`parity/results/M8b.md` section 4): `.hg` with `escher_gpu()` equals A's 2,467,389
+  loaded hyperedges, with `hsosp()` B's 2,466,792 (numbering and weights bit for bit);
+  `benson_to_hg.py` writes the pinned bytes in both variants, and `write_hypergraph` of A's loaded
+  hypergraph writes them too; the legacy generators give 20/20 synthetic hypergraphs and 180/180
+  batches of `make test`, 3/3 and 9/9 of syn1M (openmp and cuda), 3/3 coauth50k batches; by key
+  and by content give the same member sets on coauth50k (824 ambiguous resolutions);
+  `dyng-compat-escher` replays its `.dgb` files of coauth50k and syn1M on openmp and cuda with the
+  expected ids.
+- **Fuzzing:** `fuzz_hg` 5.9 M, `fuzz_batch_binary` 15.6 M and `fuzz_batch_text` 11.2 M
+  executions in 31 minutes each, no finding; peak RSS 126 / 450 / 124 MB.
+- **`.dgb` size:** A's coauth50k batches (3 x 50K operations, with the deleted member sets and the
+  expected ids) take 4.3 MB; the reader allocates the largest record twice (pinned, CUDA) plus its
+  device copy.
+- **Gates:** `ci/check.sh` passed (cpu-only 1,062 and dev 1,095 tests); `ctest -L gpu` of the
+  step's executables on dev-cuda 153/153; the Clang 18 syntax pass over 355 + 746 files and the
+  fortified cpu-only build (250 tests of the step's labels) clean; the intermediate commit
+  `12b0358` built and passed in a worktree; compute-sanitizer memcheck, racecheck and synccheck of
+  `dyng_io_cuda_tests` clean.
+
+### Notes for M9 (triad_count)
+
+- **Replaying A's batches.** `dyng-compat-escher to-dgb <trace> <prefix>` writes `<prefix>.hg`,
+  `.dgb` and `.txt` (A's command line, vertex count, H2V payload capacity); `replay` shows the two
+  ways: by id (the file's deletions; `expected_ids` must equal `inserted_ids`) and by content
+  (`deleted_members` through `escher_dump::by_content_resolver`). M9's parity reads the `.dgb`
+  with `io::batch_reader(res, path)` (device views on CUDA) and the counts need no ids.
+- **Regenerating A's runs** without the traces: `generators::legacy::escher_hypergraph` and
+  `escher_batch_generator` with one `std::mt19937_64(seed)`, the hypergraph under {erase_first,
+  escher_gpu(capacity)}; `escher_options::parse()` turns A's command line into the options.
+- **Datasets:** `read_hypergraph(coauth.hg, escher_gpu())` is A's coauth-DBLP;
+  `benson_to_hg.py --variant escher` re-derives the file.
+
+### Open items
+
+- **Hosted CI has not run on this branch** (nothing is pushed); the fuzz workflow's 60 s runs and
+  the new CTests (`fuzz.*.hg`, `fuzz.*.batch_binary`, `compat_escher.*`) run there first.
+- Python bindings of the step's functions (`dyng.io.read_hypergraph`, `.dgb`, the generators and
+  the legacy generators, Hypothesis strategies): step 5.
+- The author's confirmations at the 0.3.0 release (the frozen hypergraph headers, `.hg` and
+  `.dgb` stable at version 1) are still pending; the plan's default applies until then.
