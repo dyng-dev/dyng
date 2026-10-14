@@ -21,6 +21,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <random>
 #include <string>
@@ -122,6 +123,23 @@ stream_record run_stream(backend b, const preset_case& pc, id_reuse reuse, strea
     EXPECT_EQ(model.compare(h), "");
     EXPECT_EQ(dyng::test::hyper::check_line_graph(h), "");
     h.check_integrity(res);
+    {  // The applied record's touched sets, by brute force (they are built from the batch).
+      const auto& a = dyng::detail::hypergraph_access::applied(h);
+      std::vector<std::int64_t> touched_ids = a.deleted_ids;
+      touched_ids.insert(touched_ids.end(), s.inserted_ids.begin(), s.inserted_ids.end());
+      std::sort(touched_ids.begin(), touched_ids.end());
+      touched_ids.erase(std::unique(touched_ids.begin(), touched_ids.end()), touched_ids.end());
+      EXPECT_EQ(a.touched_hyperedges, touched_ids);
+      std::vector<std::int32_t> touched = a.deleted_members.members;
+      const rows now = dyng::test::hyper::h2v_rows(h);
+      for (const std::int64_t id : s.inserted_ids) {
+        const auto& r = now[static_cast<std::size_t>(id)];
+        touched.insert(touched.end(), r.begin(), r.end());
+      }
+      std::sort(touched.begin(), touched.end());
+      touched.erase(std::unique(touched.begin(), touched.end()), touched.end());
+      EXPECT_EQ(a.touched_vertices, touched);
+    }
     rec.ids.push_back(s.inserted_ids);
     rec.h2h.push_back(dyng::test::hyper::h2h_rows(h));
     rec.h2h_payload.push_back(dyng::detail::hypergraph_access::store(h).line_graph().payload);

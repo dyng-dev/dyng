@@ -19,6 +19,8 @@
 #include <dyng/core/resources.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -83,6 +85,70 @@ struct hyper_staged_batch {
   std::int64_t id_bound = 0;              ///< hyperedge_id_bound() of G_t
 };
 
+namespace hyper {
+
+/**
+ * @brief Reusable marks over [0, n) that give the marked values sorted and unique (the applied
+ *        record's touched sets).
+ *
+ * The flags persist between batches and only the marked entries are cleared again, so a batch
+ * costs O(k log k) in its k marked values when they are few, and a scan of n when they cover a
+ * large part of the range; no array of n is allocated or zeroed per batch (M8b review: the fixed
+ * O(|E| + |V|) host cost of every apply).
+ * @tparam value_t Value type (an id or a vertex).
+ */
+template <typename value_t>
+class touched_marks {
+ public:
+  /**
+   * @brief Start a set over [0, n) (clears what a failed batch left marked).
+   * @param[in] n The range.
+   */
+  void begin(std::size_t n) {
+    for (const value_t v : list_) flags_[static_cast<std::size_t>(v)] = 0;
+    list_.clear();
+    if (flags_.size() < n) flags_.resize(n, 0);
+    n_ = n;
+  }
+
+  /**
+   * @brief Mark a value in [0, n).
+   * @param[in] v The value.
+   */
+  void mark(value_t v) {
+    std::uint8_t& f = flags_[static_cast<std::size_t>(v)];
+    if (f == 0) {
+      f = 1;
+      list_.push_back(v);
+    }
+  }
+
+  /**
+   * @brief The marked values, sorted and unique; the marks are cleared.
+   * @param[out] out The values.
+   */
+  void take_sorted(std::vector<value_t>& out) {
+    out.clear();
+    if (list_.size() * 32 < n_) {
+      out.assign(list_.begin(), list_.end());
+      std::sort(out.begin(), out.end());
+    } else {
+      out.reserve(list_.size());
+      for (std::size_t i = 0; i < n_; ++i)
+        if (flags_[i] != 0) out.push_back(static_cast<value_t>(i));
+    }
+    for (const value_t v : list_) flags_[static_cast<std::size_t>(v)] = 0;
+    list_.clear();
+  }
+
+ private:
+  std::vector<std::uint8_t> flags_;
+  std::vector<value_t> list_;
+  std::size_t n_ = 0;
+};
+
+}  // namespace hyper
+
 /**
  * @brief The state behind hypergraph<V,W>: properties, version, state identity, placement, the
  *        store, the id-indexed weights and the applied record.
@@ -101,6 +167,8 @@ class hypergraph_impl {
   std::unique_ptr<hyper::incidence_store> store;   ///< the storage
   std::vector<weight_t> weights;                   ///< by id (weighted: 0 for a dead id)
   hyper_applied applied;                           ///< the last applied batch
+  hyper::touched_marks<std::int64_t> touched_ids;  ///< scratch of the applied record (not cloned)
+  hyper::touched_marks<std::int32_t> touched_vertices;  ///< the same for the vertices
 };
 
 /**

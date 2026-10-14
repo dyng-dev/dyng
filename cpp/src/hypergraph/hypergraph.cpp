@@ -661,25 +661,21 @@ hyper_apply_summary hyper_transaction<vertex_t, weight_t>::commit(bool record_in
       copy<std::int64_t>(res, host_view(applied.inserted_ids), applied.inserted_ids_device.view());
     }
     applied.deleted_ids = live_deletions;
-    // The touched hyperedges and vertices, sorted and unique: marked in a flag per id / vertex
-    // and collected in order (linear; sorting the incidences took about 16 ms of a 50K batch on
-    // synthetic 1M, parity/results/M8b.md section 2.4).
+    // The touched hyperedges and vertices, sorted and unique, from the batch alone (reusable
+    // marks: no O(|E| + |V|) pass per batch; sorting all incidences took about 16 ms of a 50K
+    // batch on synthetic 1M, parity/results/M8b.md section 2.4, and a scan of every id and vertex
+    // about 9 ms of every coauth batch, the M8b review).
     {
       std::int64_t id_end = store.id_bound();
       for (const std::int64_t id : live_deletions) id_end = std::max(id_end, id + 1);
-      std::vector<std::uint8_t> marked(static_cast<std::size_t>(id_end), 0);
-      for (const std::int64_t id : live_deletions) marked[static_cast<std::size_t>(id)] = 1;
-      for (const std::int64_t id : ids) marked[static_cast<std::size_t>(id)] = 1;
-      applied.touched_hyperedges.clear();
-      for (std::int64_t id = 0; id < id_end; ++id)
-        if (marked[static_cast<std::size_t>(id)] != 0) applied.touched_hyperedges.push_back(id);
-      std::vector<std::uint8_t> touched(static_cast<std::size_t>(store.num_vertices()), 0);
-      for (const std::int32_t v : applied.deleted_members.members)
-        touched[static_cast<std::size_t>(v)] = 1;
-      for (const std::int32_t v : rows.members) touched[static_cast<std::size_t>(v)] = 1;
-      applied.touched_vertices.clear();
-      for (std::int32_t v = 0; v < store.num_vertices(); ++v)
-        if (touched[static_cast<std::size_t>(v)] != 0) applied.touched_vertices.push_back(v);
+      state.touched_ids.begin(static_cast<std::size_t>(id_end));
+      for (const std::int64_t id : live_deletions) state.touched_ids.mark(id);
+      for (const std::int64_t id : ids) state.touched_ids.mark(id);
+      state.touched_ids.take_sorted(applied.touched_hyperedges);
+      state.touched_vertices.begin(static_cast<std::size_t>(store.num_vertices()));
+      for (const std::int32_t v : applied.deleted_members.members) state.touched_vertices.mark(v);
+      for (const std::int32_t v : rows.members) state.touched_vertices.mark(v);
+      state.touched_vertices.take_sorted(applied.touched_vertices);
     }
     applied.ignored_deletions = ignored;
     applied.dropped_members = dropped;

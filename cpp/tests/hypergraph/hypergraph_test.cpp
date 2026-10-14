@@ -232,6 +232,23 @@ TEST_P(HypergraphBackends, RepeatedDeletionsInALargeShuffledBatchKeepTheFirstOcc
   h.check_integrity(res());
 }
 
+TEST(HypergraphTouchedMarks, GiveSortedUniqueValuesOnBothPathsAndClearTheMarks) {
+  dyng::detail::hyper::touched_marks<std::int32_t> marks;
+  std::vector<std::int32_t> out;
+  marks.begin(1000);  // few values: sorted
+  for (const std::int32_t v : {7, 3, 7, 999, 0, 3}) marks.mark(v);
+  marks.take_sorted(out);
+  EXPECT_EQ(out, (std::vector<std::int32_t>{0, 3, 7, 999}));
+  marks.begin(10);  // most of the range: scanned
+  for (const std::int32_t v : {9, 1, 4, 1, 0, 2, 5, 9}) marks.mark(v);
+  marks.take_sorted(out);
+  EXPECT_EQ(out, (std::vector<std::int32_t>{0, 1, 2, 4, 5, 9}));
+  marks.begin(1000);  // the marks were cleared
+  marks.mark(5);
+  marks.take_sorted(out);
+  EXPECT_EQ(out, (std::vector<std::int32_t>{5}));
+}
+
 TEST_P(HypergraphBackends, ValidationErrorsLeaveTheHypergraphUnchanged) {
   const auto list = list_of<std::int32_t>(6, rows{{0, 1}, {2, 3}}, {5, 7});
   whgraph h = whgraph::from_hyperedges(res(), list.view(), props_of(id_reuse::erase_first));
