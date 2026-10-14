@@ -12,6 +12,7 @@
 #include "hypergraph/hypergraph_support.hpp"
 
 #include <dyng/core/error.hpp>
+#include <dyng/core/profiler.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
 
 #include <algorithm>
@@ -205,7 +206,9 @@ class escher_gpu_replay {
     if (opt_.mode != "by_content") {
       hypergraph_properties by_id_props = props_;
       if (opt_.line_graph) by_id_props.line_graph = line_graph_policy::sorted_merge;
+      const std::size_t mark = profiled_samples();
       by_id_ = std::make_unique<hgraph>(hgraph::from_hyperedges(res_, list.view(), by_id_props));
+      record_stages(mark, 0);
       if (opt_.model) model_lockstep_ = std::make_unique<hs::lockstep>(n_, model_, props_);
       rep_.h2v_capacity_trace = traced;
       rep_.h2v_capacity_dyng = by_id_->store_stats().payload_capacity;
@@ -221,6 +224,23 @@ class escher_gpu_replay {
       for (std::size_t id = 0; id < model_.size(); ++id)
         index_[model_[id]].insert(static_cast<std::int64_t>(id));
       content_ids_in_sync_ = true;
+    }
+  }
+
+  // The profiler's samples so far (0 without a profiler).
+  std::size_t profiled_samples() const {
+    const profiler* prof = res_.get_profiler();
+    return prof != nullptr ? prof->samples().size() : 0;
+  }
+
+  // The stages completed since `mark`, as the samples of `batch` (the timing file of the maintain
+  // reading: the same records as ESCHER-GPU's --timing).
+  void record_stages(std::size_t mark, std::int64_t batch) {
+    const profiler* prof = res_.get_profiler();
+    if (prof == nullptr) return;
+    for (std::size_t i = mark; i < prof->samples().size(); ++i) {
+      const stage_sample& sample = prof->samples()[i];
+      rep_.stage_times.push_back({sample.name, batch, sample.host_ms});
     }
   }
 
@@ -388,7 +408,9 @@ class escher_gpu_replay {
     }
     if (by_id_) {
       const auto batch = hs::batch_of(tb);
+      const std::size_t mark = profiled_samples();
       const auto s = by_id_->apply(res_, batch.view());
+      record_stages(mark, batch_index_);
       rep_.ids_compared += static_cast<std::int64_t>(want_ids.size());
       if (s.inserted_ids != want_ids)
         out_.mismatch(where + ": inserted_ids differ from insertedKeys - 1");

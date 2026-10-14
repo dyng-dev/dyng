@@ -86,6 +86,14 @@ struct report {
   /// The largest ratio of the container's device bytes to A's DynamicHypergraph::deviceBytes()
   /// (options::line_graph; 0 when the trace records none).
   double memory_ratio_max = 0;
+  /// The profiler stages of the (by-id) container per batch (0: the build), when the resources
+  /// carry a profiler: (stage, batch, host milliseconds), in completion order.
+  struct stage_time {
+    std::string stage;
+    std::int64_t batch = 0;
+    double ms = 0;
+  };
+  std::vector<stage_time> stage_times;
   /// The kernel paths of the (by-id) container at the end: fill, reuse, unfill x (thread, warp,
   /// block), from store_stats() (criterion 12).
   std::int64_t paths[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};

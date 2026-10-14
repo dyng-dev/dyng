@@ -2326,6 +2326,11 @@ def main() -> int:
         import cbst_perf
 
         return cbst_perf.main(sys.argv[2:])
+    if sys.argv[1:2] == ["hypergraph"]:  # the hypergraph container against ESCHER-GPU (M8b)
+        sys.path.insert(0, str(REPO / "parity"))
+        import hypergraph_perf
+
+        return hypergraph_perf.main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("prepare")

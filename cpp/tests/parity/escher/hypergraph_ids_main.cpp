@@ -8,13 +8,18 @@
  *
  *     dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N]
  *                         [--mode by_id|by_content|both] [--no-model] [--no-integrity]
- *                         [--line-graph] [--apply-only] [--json OUT] [--tmp DIR] <trace>...
+ *                         [--line-graph] [--apply-only] [--timing FILE] [--sync-stages] [--nvtx]
+ *                         [--json OUT] [--tmp DIR] <trace>...
  *
  * --line-graph (ESCHER-GPU's traces): the by-id container keeps the line graph
  * (line_graph_policy::sorted_merge), its H2H is compared with ESCHER-GPU's after the build and
  * every batch (M8b criterion 7), and its device bytes with A's DynamicHypergraph::deviceBytes()
  * (the memory gate, criterion 8). --apply-only applies the batches and records the counters
  * without comparing rows (the memory and timing runs; implies --no-model --no-integrity).
+ * --timing FILE (one trace) attaches a profiler and writes the container's stages per batch in
+ * ESCHER-GPU's --timing format ({"meta", "stages": [{"stage", "batch", "ms"}]}; batch 0 is the
+ * build); --sync-stages synchronizes the stream at the stage boundaries (as A's ScopedTimer does),
+ * --nvtx emits an NVTX range per stage (Nsight Systems).
  *
  * A trace is a `.cbt` file or a `.cbt.zst` (as dyng_cbst_replay reads them). Prints one line per
  * trace; --json writes a JSON array of the reports. Exit status: 0 every trace matched, 1 a
@@ -24,6 +29,7 @@
 #include "parity/escher/hypergraph_ids.hpp"
 
 #include <dyng/core/error.hpp>
+#include <dyng/core/profiler.hpp>
 #include <dyng/core/resources.hpp>
 
 #include <cstdio>
@@ -39,14 +45,16 @@ int usage() {
   std::fprintf(stderr,
                "usage: dyng_hypergraph_ids [--backend sequential|openmp|cuda] [--threads N] "
                "[--mode by_id|by_content|both] [--no-model] [--no-integrity] [--line-graph] "
-               "[--apply-only] [--json OUT] [--tmp DIR] <trace>...\n");
+               "[--apply-only] [--timing FILE] [--sync-stages] [--nvtx] [--json OUT] [--tmp DIR] "
+               "<trace>...\n");
   return 2;
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  std::string backend = "sequential", json_path, tmp_dir;
+  std::string backend = "sequential", json_path, tmp_dir, timing_path;
+  dyng::profiler_options prof_options;
   int threads = 0;
   dyng::test::hypergraph_ids::options opt;
   std::vector<std::string> traces;
@@ -76,6 +84,12 @@ int main(int argc, char** argv) {
       opt.compare = false;
       opt.model = false;
       opt.integrity = false;
+    } else if (a == "--timing") {
+      timing_path = value();
+    } else if (a == "--sync-stages") {
+      prof_options.sync_stages = true;
+    } else if (a == "--nvtx") {
+      prof_options.nvtx = true;
     } else if (a == "--json") {
       json_path = value();
     } else if (a == "--tmp") {
@@ -86,7 +100,7 @@ int main(int argc, char** argv) {
       traces.push_back(a);
     }
   }
-  if (traces.empty()) return usage();
+  if (traces.empty() || (!timing_path.empty() && traces.size() != 1)) return usage();
   dyng::resources res;
   try {
     if (backend == "sequential") {
@@ -102,6 +116,8 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "dyng_hypergraph_ids: %s\n", e.what());
     return 2;
   }
+  dyng::profiler prof(prof_options);
+  if (!timing_path.empty() || prof_options.nvtx) res.attach_profiler(&prof);
   bool all_ok = true;
   std::string json = "[";
   for (std::size_t t = 0; t < traces.size(); ++t) {
@@ -117,6 +133,23 @@ int main(int argc, char** argv) {
           rep.mismatches.empty() ? "" : (" (first: " + rep.mismatches[0] + ")").c_str());
       all_ok = all_ok && rep.ok();
       json += (t ? ",\n" : "\n") + rep.to_json();
+      if (!timing_path.empty()) {
+        std::ofstream out(timing_path);
+        out << "{\n  \"meta\": {\"trace\": \"" << traces[t] << "\", \"backend\": \"" << backend
+            << "\"},\n  \"stages\": [\n";
+        for (std::size_t i = 0; i < rep.stage_times.size(); ++i) {
+          const auto& st = rep.stage_times[i];
+          char ms[64];
+          std::snprintf(ms, sizeof ms, "%.3f", st.ms);
+          out << "    {\"stage\": \"" << st.stage << "\", \"batch\": " << st.batch
+              << ", \"ms\": " << ms << "}" << (i + 1 < rep.stage_times.size() ? "," : "") << "\n";
+        }
+        out << "  ]\n}\n";
+        if (!out) {
+          std::fprintf(stderr, "dyng_hypergraph_ids: cannot write %s\n", timing_path.c_str());
+          return 2;
+        }
+      }
     } catch (const std::exception& e) {
       std::fprintf(stderr, "dyng_hypergraph_ids: %s: %s\n", traces[t].c_str(), e.what());
       return 2;
