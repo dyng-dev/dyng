@@ -4,10 +4,10 @@
  * @file dyng.hpp
  * @brief Umbrella header: includes every public header of dynG outside dyng/testing/.
  *
- * That is the frozen 0.1 API (core, graph, update, the algorithms, citation, config, version) and
- * the headers of io/ and generators/, which are public but not frozen before the command-line
- * tools and the Python layer (0.1 API review, ADR 0023: they may still change in a minor release),
- * and the hypergraph headers (hypergraph/, ADR 0041), tracked until they are frozen for 0.3.
+ * That is the frozen API (core, graph, update, the stable algorithms, citation, config, version:
+ * the 0.1 review, ADR 0023; the hypergraph container's headers hypergraph/, frozen at M8b for
+ * 0.3, ADR 0047), the tutorial algorithms, and the headers of io/ and generators/, which are
+ * public and tracked but not frozen (they may still change in a minor release).
  * The list of includes is part of the API baseline.
  * @ingroup core
  */

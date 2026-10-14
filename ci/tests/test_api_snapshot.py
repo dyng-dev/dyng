@@ -294,6 +294,34 @@ def test_a_changed_mosp_declaration_is_a_breaking_change() -> None:
     assert any("compute_path_costs = false" in b for b in breaking)
 
 
+def test_the_hypergraph_headers_are_frozen_and_a_change_is_breaking() -> None:
+    # The M8b freeze (ADR 0047): every header of dyng/hypergraph/ is frozen, io/hypergraph_io,
+    # generators/hypergraphs and testing/* stay tracked; a changed default of a frozen
+    # hypergraph declaration is a breaking change.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    hyper = [h for h in secs if h.startswith("dyng/hypergraph/")]
+    assert len(hyper) == 6 and all(secs[h][0] == "frozen" for h in hyper)
+    for tracked in (
+        "dyng/io/hypergraph_io.hpp",
+        "dyng/io/batch_io.hpp",
+        "dyng/generators/hypergraphs.hpp",
+        "dyng/testing/line_graph_oracle.hpp",
+        "dyng/testing/cbst_host_model.hpp",
+    ):
+        assert secs[tracked][0] == "tracked", tracked
+    assert api_snapshot.status("dyng/hypergraph/hypergraph.hpp") == "frozen"
+    changed = _edit(
+        BASELINE_TEXT,
+        "id_reuse reuse = id_reuse::erase_first",
+        "id_reuse reuse = id_reuse::insert_first",
+    )
+    breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, changed)
+    assert breaking[0] == (
+        "[dyng/hypergraph/hypergraph_properties.hpp] - id_reuse reuse = id_reuse::erase_first"
+    )
+    assert all(b.startswith("[dyng/hypergraph/hypergraph_properties.hpp]") for b in breaking)
+
+
 def test_appended_lines_and_tracked_sections_are_not_breaking() -> None:
     lines = BASELINE_TEXT.splitlines(keepends=True)
     at = next(i for i, line in enumerate(lines) if line.startswith("[dyng/mosp.hpp]"))
