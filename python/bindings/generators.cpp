@@ -201,7 +201,8 @@ void bind_generators(nb::module_& m) {
   nb::class_<std::mt19937_64>(m, "Mt19937_64", "std::mt19937_64 (the shared engine of ESCHER-GPU).")
       .def(nb::init<std::uint64_t>(), nb::arg("seed"))
       .def("__call__", [](std::mt19937_64& e) { return static_cast<std::uint64_t>(e()); });
-  nb::enum_<legacy::escher_insert_mode>(m, "EscherInsertMode", "generators::legacy::escher_insert_mode.")
+  nb::enum_<legacy::escher_insert_mode>(m, "EscherInsertMode",
+                                        "generators::legacy::escher_insert_mode.")
       .value("random", legacy::escher_insert_mode::random)
       .value("sample", legacy::escher_insert_mode::sample);
   nb::class_<legacy::escher_hypergraph_options>(m, "EscherHypergraphOptions",

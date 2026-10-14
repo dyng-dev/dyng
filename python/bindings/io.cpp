@@ -229,8 +229,8 @@ void bind_hypergraph_io(nb::module_& m) {
       suffixed("read_hypergraph", {v, w}, "_").c_str(),
       [](const std::string& path, const io::hypergraph_read_options& opt) {
         io::hypergraph_file_info info;
-        auto list = without_gil(
-            [&] { return io::read_hypergraph<vertex_t, weight_t>(path, opt, &info); });
+        auto list =
+            without_gil([&] { return io::read_hypergraph<vertex_t, weight_t>(path, opt, &info); });
         nb::dict d;
         d["external_ids"] = to_numpy(std::move(info.external_ids));
         d["lines"] = info.lines;
@@ -250,15 +250,14 @@ void bind_hypergraph_io(nb::module_& m) {
         without_gil([&] { io::write_hypergraph<vertex_t, weight_t>(path, view, index_base); });
       },
       nb::arg("path"), nb::arg("num_vertices"), nb::arg("offsets").noconvert(),
-      nb::arg("members").noconvert(), nb::arg("weights").noconvert().none(),
-      nb::arg("index_base"));
+      nb::arg("members").noconvert(), nb::arg("weights").noconvert().none(), nb::arg("index_base"));
   m.def(
       suffixed("read_hyperedge_batches", {v, w}, "_").c_str(),
       [](const std::string& path, std::int64_t num_vertices) {
         io::hyperedge_batch_file_options opt;
         opt.num_vertices = num_vertices;
-        auto batches = without_gil(
-            [&] { return io::read_hyperedge_batches<vertex_t, weight_t>(path, opt); });
+        auto batches =
+            without_gil([&] { return io::read_hyperedge_batches<vertex_t, weight_t>(path, opt); });
         nb::list out;
         for (const auto& b : batches) {
           out.append(hyper_batch_to_numpy(b));
@@ -286,8 +285,9 @@ void bind_hypergraph_io(nb::module_& m) {
         const std::size_t n = nb::len(batches);
         const bool with_members = (flags & io::batch_file_flags::deleted_members) != 0;
         const bool with_ids = (flags & io::batch_file_flags::expected_ids) != 0;
-        DYNG_EXPECTS(!with_members || (nb::len(deleted_offsets) == n && nb::len(deleted_members) == n),
-                     "write_binary_hyperedge_batches: one deleted member set list per batch");
+        DYNG_EXPECTS(
+            !with_members || (nb::len(deleted_offsets) == n && nb::len(deleted_members) == n),
+            "write_binary_hyperedge_batches: one deleted member set list per batch");
         DYNG_EXPECTS(!with_ids || nb::len(expected_ids) == n,
                      "write_binary_hyperedge_batches: one expected id array per batch");
         std::vector<hyperedge_batch_view<vertex_t, weight_t>> views;
@@ -382,21 +382,20 @@ nb::tuple current_batch(const io::batch_reader& r) {
     nb::object weights = nb::none();
     if constexpr (!is_unweighted_v<weight_t>) {
       const std::size_t n = b.insert_src.size();
-      weights = nb::cast(to_numpy_2d(std::vector<weight_t>(b.insert_weights.begin(),
-                                                           b.insert_weights.end()),
-                                     n, static_cast<std::size_t>(b.num_weights)));
+      weights = nb::cast(
+          to_numpy_2d(std::vector<weight_t>(b.insert_weights.begin(), b.insert_weights.end()), n,
+                      static_cast<std::size_t>(b.num_weights)));
     }
-    return nb::make_tuple(copied(b.insert_src), copied(b.insert_dst), weights,
-                          copied(b.delete_src), copied(b.delete_dst),
-                          is_unweighted_v<weight_t> ? 0 : b.num_weights);
+    return nb::make_tuple(copied(b.insert_src), copied(b.insert_dst), weights, copied(b.delete_src),
+                          copied(b.delete_dst), is_unweighted_v<weight_t> ? 0 : b.num_weights);
   };
   DYNG_EXPECTS(h.weight_type != io::batch_dtype::int64,
                "the Python package reads graph .dgb files with int32 weights or none");
   nb::object batch;
   const bool v32 = h.vertex_type == io::batch_dtype::int32;
   if (h.weight_type == io::batch_dtype::none) {
-    batch = v32 ? graph_batch(std::int32_t{}, unweighted{})
-                : graph_batch(std::int64_t{}, unweighted{});
+    batch =
+        v32 ? graph_batch(std::int32_t{}, unweighted{}) : graph_batch(std::int64_t{}, unweighted{});
   } else {
     batch = v32 ? graph_batch(std::int32_t{}, std::int32_t{})
                 : graph_batch(std::int64_t{}, std::int32_t{});
@@ -415,8 +414,7 @@ void bind_binary_batches(nb::module_& m) {
             new (self) binary_reader{std::move(r)};
           },
           nb::arg("path"), nb::arg("num_vertices"))
-      .def_prop_ro("header",
-                   [](const binary_reader& r) { return header_dict(r.reader->header()); })
+      .def_prop_ro("header", [](const binary_reader& r) { return header_dict(r.reader->header()); })
       .def(
           "next",
           [](binary_reader& r) -> nb::object {
@@ -433,8 +431,8 @@ void bind_binary_batches(nb::module_& m) {
     using vertex_t = decltype(vtag);
     using weight_t = decltype(wtag);
     m.def(
-        suffixed("write_binary_batches",
-                 {type_code<vertex_t>::lower, type_code<weight_t>::lower}, "_")
+        suffixed("write_binary_batches", {type_code<vertex_t>::lower, type_code<weight_t>::lower},
+                 "_")
             .c_str(),
         [](const std::string& path, int num_weights, const nb::list& batches) {
           std::vector<edge_batch_view<vertex_t, weight_t>> views;

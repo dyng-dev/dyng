@@ -70,10 +70,14 @@ void bind_hyper_batch_type(nb::module_& m) {
               DYNG_EXPECTS(!insert_weights,
                            "a batch of an unweighted hypergraph carries no weights");
             }
-            new (self) batch_t{delete_hyperedges,          insert_offsets,
-                               insert_members,             insert_weights,
-                               delete_incidence_hyperedge, delete_incidence_vertex,
-                               insert_incidence_hyperedge, insert_incidence_vertex};
+            new (self) batch_t{delete_hyperedges,
+                               insert_offsets,
+                               insert_members,
+                               insert_weights,
+                               delete_incidence_hyperedge,
+                               delete_incidence_vertex,
+                               insert_incidence_hyperedge,
+                               insert_incidence_vertex};
           },
           nb::arg("delete_hyperedges").noconvert(), nb::arg("insert_offsets").noconvert(),
           nb::arg("insert_members").noconvert(), nb::arg("insert_weights").noconvert().none(),
@@ -81,11 +85,12 @@ void bind_hyper_batch_type(nb::module_& m) {
           nb::arg("delete_incidence_vertex").noconvert().none(),
           nb::arg("insert_incidence_hyperedge").noconvert().none(),
           nb::arg("insert_incidence_vertex").noconvert().none())
-      .def_prop_ro("num_insertions",
-                   [](const batch_t& b) { return static_cast<std::int64_t>(b.view().num_insertions()); })
-      .def_prop_ro("num_deletions",
-                   [](const batch_t& b) { return static_cast<std::int64_t>(b.view().num_deletions()); });
-
+      .def_prop_ro(
+          "num_insertions",
+          [](const batch_t& b) { return static_cast<std::int64_t>(b.view().num_insertions()); })
+      .def_prop_ro("num_deletions", [](const batch_t& b) {
+        return static_cast<std::int64_t>(b.view().num_deletions());
+      });
 }
 
 }  // namespace
