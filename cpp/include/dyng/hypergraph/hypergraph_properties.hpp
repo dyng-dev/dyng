@@ -70,7 +70,8 @@ struct capacity_policy {
   double grow_factor = 1.5;              ///< growth of a full payload (1.5), or 0: never grow
   bool compact_before_grow = true;       ///< compact a full payload before growing it
   std::int64_t max_payload = 0;          ///< largest payload per tree (0: 2^31 - 1, int32 offsets)
-  std::int32_t row_alignment = 4;  ///< an inserted row takes a multiple of this, plus a terminator
+  std::int32_t row_alignment = 4;  ///< an inserted row reserves its members plus one slot,
+                                   ///< rounded up to a multiple of this
   std::int32_t compaction_headroom = 8;  ///< after a compaction, grow while fewer than
                                          ///< capacity / compaction_headroom entries are free
                                          ///< (0: never)

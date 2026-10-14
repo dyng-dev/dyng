@@ -87,7 +87,7 @@ class hyperedge_batch {
   /**
    * @brief An empty batch.
    */
-  hyperedge_batch() = default;
+  hyperedge_batch() noexcept = default;
 
   /**
    * @brief Add the deletion of a hyperedge.
@@ -263,6 +263,38 @@ class hyperedge_batch {
    */
   [[nodiscard]] const std::vector<weight_t>& insert_weights() const noexcept {
     return insert_weights_;
+  }
+
+  /**
+   * @brief The hyperedges of the incidence removals (planned for 0.4).
+   * @return One per removal, in the order they were added.
+   */
+  [[nodiscard]] const std::vector<std::int64_t>& delete_incidence_hyperedge() const noexcept {
+    return delete_incidence_hyperedge_;
+  }
+
+  /**
+   * @brief The vertices of the incidence removals (planned for 0.4).
+   * @return One per removal, in the order they were added.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& delete_incidence_vertex() const noexcept {
+    return delete_incidence_vertex_;
+  }
+
+  /**
+   * @brief The hyperedges of the incidence additions (planned for 0.4).
+   * @return One per addition, in the order they were added.
+   */
+  [[nodiscard]] const std::vector<std::int64_t>& insert_incidence_hyperedge() const noexcept {
+    return insert_incidence_hyperedge_;
+  }
+
+  /**
+   * @brief The vertices of the incidence additions (planned for 0.4).
+   * @return One per addition, in the order they were added.
+   */
+  [[nodiscard]] const std::vector<vertex_t>& insert_incidence_vertex() const noexcept {
+    return insert_incidence_vertex_;
   }
 
   /**

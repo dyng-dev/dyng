@@ -259,6 +259,13 @@ TEST_P(HypergraphBackends, ValidationErrorsLeaveTheHypergraphUnchanged) {
     c.delete_incidence(0, 0);
     EXPECT_THROW((void)h.apply(res(), c.view()), dyng::not_supported_error);
     expect_unchanged();
+    // The owning batch reports its edits as the view does (the four-op batch of 0.4).
+    EXPECT_EQ(b.insert_incidence_hyperedge(), (std::vector<std::int64_t>{0}));
+    EXPECT_EQ(b.insert_incidence_vertex(), (std::vector<std::int32_t>{4}));
+    EXPECT_EQ(c.delete_incidence_hyperedge(), (std::vector<std::int64_t>{0}));
+    EXPECT_EQ(c.delete_incidence_vertex(), (std::vector<std::int32_t>{0}));
+    EXPECT_TRUE(b.delete_incidence_hyperedge().empty() && c.insert_incidence_vertex().empty());
+    EXPECT_EQ(c.view().delete_incidence_vertex.size(), 1U);
   }
   {  // malformed offsets
     std::vector<std::int64_t> offsets{0, 2, 1};

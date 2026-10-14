@@ -44,3 +44,14 @@ add_library(dyng_header_self_contained OBJECT ${_dyng_header_tus})
 target_link_libraries(dyng_header_self_contained PRIVATE dyng::dyng)
 target_compile_features(dyng_header_self_contained PRIVATE cxx_std_17)
 dyng_set_warnings(dyng_header_self_contained)
+
+# Fitness skeletons of the frozen hypergraph API (the M8b API review, ADR 0047): what M9
+# (triad_count) and M11 (hyper_sssp, slack_csr) need, compiled in every build and never run, so a
+# change that removes it fails here.
+add_library(
+  dyng_api_fitness OBJECT fitness/m9_triad_count_fitness.cpp fitness/m11_hyper_sssp_fitness.cpp
+)
+target_link_libraries(dyng_api_fitness PRIVATE dyng::dyng)
+target_include_directories(dyng_api_fitness PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+target_compile_features(dyng_api_fitness PRIVATE cxx_std_17)
+dyng_set_warnings(dyng_api_fitness)
