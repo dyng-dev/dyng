@@ -5,7 +5,10 @@
  "threads": 1,
  "mode": "both",
  "model": true,
- "commit": "6d8a7735a1a35f16c3eaf917374c9b3c824a99a2",
+ "line_graph": false,
+ "legacy_generator": false,
+ "hg": null,
+ "commit": "1f05995e718008b3ebdd5d0a580753b0caa98e76",
  "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
  "passed": true,
  "totals": {
@@ -19,8 +22,21 @@
   "skipped_ops": 0,
   "dropped_members": 0,
   "ambiguous": 0,
+  "content_states": 4,
+  "content_states_equal": 4,
+  "generated_graphs": 0,
+  "generated_batches": 0,
+  "generated_batches_equal": 0,
+  "hg_hyperedges": 0,
   "original_exceptions": 0,
-  "mismatch_count": 0
+  "h2h_states": 0,
+  "h2h_layouts_equal": 0,
+  "h2h_unrecorded": 0,
+  "h2h_payload_entries": 0,
+  "h2h_key_hashes": 0,
+  "h2h_full_rows": 0,
+  "mismatch_count": 0,
+  "memory_ratio_max": 0.0
  },
  "cases": [
   {
@@ -41,10 +57,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 1,
+   "content_states_equal": 1,
    "original_exceptions": 0,
    "h2v_capacity_trace": 4096,
    "h2v_capacity_dyng": 4096,
-   "seconds": 0.000316233,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.000411118,
    "paths": [
     1,
     0,
@@ -65,6 +94,10 @@
      0,
      45472
     ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -87,10 +120,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0260462,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.032329,
    "paths": [
     3,
     0,
@@ -120,6 +166,12 @@
      1480152
     ]
    ],
+   "original_store_bytes": [
+    -1,
+    -1,
+    -1,
+    -1
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -141,10 +193,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 1049280,
    "h2v_capacity_dyng": 1049280,
-   "seconds": 0.00757963,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0135631,
    "paths": [
     0,
     0,
@@ -157,6 +222,7 @@
     0
    ],
    "device_bytes": [],
+   "original_store_bytes": [],
    "mismatch_count": 0,
    "mismatches": []
   }

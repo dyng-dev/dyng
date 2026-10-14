@@ -8,7 +8,7 @@
  "line_graph": false,
  "legacy_generator": true,
  "hg": null,
- "commit": "b7b6a38844170a793ccdb94bca5ad09dfc9e3d70",
+ "commit": "1f05995e718008b3ebdd5d0a580753b0caa98e76",
  "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
  "passed": true,
  "totals": {
@@ -73,7 +73,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.00145483,
+   "seconds": 0.00107776,
    "paths": [
     1,
     0,
@@ -136,7 +136,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.00103167,
+   "seconds": 0.000552149,
    "paths": [
     1,
     0,
@@ -199,7 +199,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.000579896,
+   "seconds": 0.000384863,
    "paths": [
     1,
     0,
@@ -262,7 +262,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.00103278,
+   "seconds": 0.00052225,
    "paths": [
     1,
     0,
@@ -325,7 +325,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0011164,
+   "seconds": 0.000409963,
    "paths": [
     1,
     0,
@@ -388,7 +388,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.023505,
+   "seconds": 0.0272153,
    "paths": [
     0,
     0,
@@ -446,7 +446,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.87186,
+   "seconds": 0.507143,
    "paths": [
     0,
     0,
@@ -504,7 +504,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0171909,
+   "seconds": 0.0186561,
    "paths": [
     0,
     0,
@@ -562,7 +562,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.848593,
+   "seconds": 0.561022,
    "paths": [
     0,
     0,
@@ -620,7 +620,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0221523,
+   "seconds": 0.0279364,
    "paths": [
     0,
     0,
@@ -678,7 +678,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.889021,
+   "seconds": 0.592602,
    "paths": [
     0,
     0,
@@ -736,7 +736,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0258774,
+   "seconds": 0.022836,
    "paths": [
     0,
     0,
@@ -794,7 +794,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.898098,
+   "seconds": 0.562292,
    "paths": [
     0,
     0,
@@ -852,7 +852,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0171772,
+   "seconds": 0.0234283,
    "paths": [
     0,
     0,
@@ -910,7 +910,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.939612,
+   "seconds": 0.611845,
    "paths": [
     0,
     0,
@@ -968,7 +968,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0429674,
+   "seconds": 0.0526938,
    "paths": [
     3,
     0,
@@ -1041,7 +1041,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0454407,
+   "seconds": 0.0560358,
    "paths": [
     3,
     0,
@@ -1114,7 +1114,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0547813,
+   "seconds": 0.0437463,
    "paths": [
     3,
     0,
@@ -1187,7 +1187,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 1.96748,
+   "seconds": 1.41416,
    "paths": [
     3,
     0,
@@ -1260,7 +1260,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0445311,
+   "seconds": 0.0462769,
    "paths": [
     3,
     0,
@@ -1333,7 +1333,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.050506,
+   "seconds": 0.0436582,
    "paths": [
     3,
     0,
@@ -1406,7 +1406,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0516665,
+   "seconds": 0.04626,
    "paths": [
     3,
     0,
@@ -1479,7 +1479,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 2.2499,
+   "seconds": 1.42966,
    "paths": [
     3,
     0,
@@ -1552,7 +1552,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0508767,
+   "seconds": 0.0382166,
    "paths": [
     3,
     0,
@@ -1625,7 +1625,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0446399,
+   "seconds": 0.0355363,
    "paths": [
     3,
     0,
@@ -1698,7 +1698,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0553997,
+   "seconds": 0.0526984,
    "paths": [
     3,
     0,
@@ -1771,7 +1771,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 2.20315,
+   "seconds": 1.40697,
    "paths": [
     3,
     0,
@@ -1844,7 +1844,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0427622,
+   "seconds": 0.049505,
    "paths": [
     3,
     0,
@@ -1917,7 +1917,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0494847,
+   "seconds": 0.0509229,
    "paths": [
     3,
     0,
@@ -1990,7 +1990,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0551791,
+   "seconds": 0.0470385,
    "paths": [
     3,
     0,
@@ -2063,7 +2063,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 1.73745,
+   "seconds": 1.44898,
    "paths": [
     3,
     0,
@@ -2136,7 +2136,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.045735,
+   "seconds": 0.0514401,
    "paths": [
     3,
     0,
@@ -2209,7 +2209,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0372841,
+   "seconds": 0.047619,
    "paths": [
     3,
     0,
@@ -2282,7 +2282,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0570437,
+   "seconds": 0.0432173,
    "paths": [
     3,
     0,
@@ -2355,7 +2355,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 2.12068,
+   "seconds": 1.4828,
    "paths": [
     3,
     0,
@@ -2428,7 +2428,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0432809,
+   "seconds": 0.0304296,
    "paths": [
     0,
     0,
@@ -2501,7 +2501,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.054942,
+   "seconds": 0.0555292,
    "paths": [
     3,
     0,
@@ -2574,7 +2574,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0475103,
+   "seconds": 0.0334246,
    "paths": [
     3,
     0,
@@ -2647,7 +2647,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0486322,
+   "seconds": 0.046555,
    "paths": [
     3,
     0,
@@ -2720,7 +2720,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0509644,
+   "seconds": 0.0394031,
    "paths": [
     3,
     0,
@@ -2793,7 +2793,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.082035,
+   "seconds": 0.0588435,
    "paths": [
     3,
     0,
@@ -2866,7 +2866,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0959182,
+   "seconds": 0.082148,
    "paths": [
     2,
     0,
@@ -2934,7 +2934,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0456105,
+   "seconds": 0.0408351,
    "paths": [
     3,
     3,
@@ -3007,7 +3007,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0443633,
+   "seconds": 0.0331745,
    "paths": [
     0,
     0,
@@ -3080,7 +3080,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0515954,
+   "seconds": 0.038216,
    "paths": [
     3,
     0,
@@ -3153,7 +3153,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.037027,
+   "seconds": 0.03476,
    "paths": [
     3,
     0,
@@ -3226,7 +3226,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0484551,
+   "seconds": 0.0510712,
    "paths": [
     3,
     0,
@@ -3299,7 +3299,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0528973,
+   "seconds": 0.0547264,
    "paths": [
     3,
     0,
@@ -3372,7 +3372,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0973994,
+   "seconds": 0.0938504,
    "paths": [
     3,
     0,
@@ -3445,7 +3445,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.111276,
+   "seconds": 0.0966396,
    "paths": [
     2,
     0,
@@ -3513,7 +3513,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0455356,
+   "seconds": 0.048911,
    "paths": [
     3,
     3,
@@ -3586,7 +3586,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0298208,
+   "seconds": 0.0293173,
    "paths": [
     0,
     0,
@@ -3659,7 +3659,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0535141,
+   "seconds": 0.0512076,
    "paths": [
     3,
     0,
@@ -3732,7 +3732,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0443944,
+   "seconds": 0.0534339,
    "paths": [
     3,
     0,
@@ -3805,7 +3805,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0461724,
+   "seconds": 0.0526682,
    "paths": [
     3,
     0,
@@ -3878,7 +3878,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0381522,
+   "seconds": 0.053689,
    "paths": [
     3,
     0,
@@ -3951,7 +3951,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0656417,
+   "seconds": 0.071037,
    "paths": [
     3,
     0,
@@ -4024,7 +4024,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0932339,
+   "seconds": 0.0814191,
    "paths": [
     2,
     0,
@@ -4092,7 +4092,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0489092,
+   "seconds": 0.0567252,
    "paths": [
     3,
     3,
@@ -4165,7 +4165,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0470075,
+   "seconds": 0.0625926,
    "paths": [
     0,
     0,
@@ -4238,7 +4238,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0526875,
+   "seconds": 0.0424058,
    "paths": [
     3,
     0,
@@ -4311,7 +4311,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.04375,
+   "seconds": 0.0563566,
    "paths": [
     3,
     0,
@@ -4384,7 +4384,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0456426,
+   "seconds": 0.0515755,
    "paths": [
     3,
     0,
@@ -4457,7 +4457,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0509791,
+   "seconds": 0.0399022,
    "paths": [
     3,
     0,
@@ -4530,7 +4530,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0627631,
+   "seconds": 0.062373,
    "paths": [
     3,
     0,
@@ -4603,7 +4603,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0877059,
+   "seconds": 0.0828074,
    "paths": [
     2,
     0,
@@ -4671,7 +4671,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0417206,
+   "seconds": 0.0426942,
    "paths": [
     3,
     3,
@@ -4744,7 +4744,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0452976,
+   "seconds": 0.0439973,
    "paths": [
     0,
     0,
@@ -4817,7 +4817,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0517576,
+   "seconds": 0.0556049,
    "paths": [
     3,
     0,
@@ -4890,7 +4890,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0513735,
+   "seconds": 0.0421809,
    "paths": [
     3,
     0,
@@ -4963,7 +4963,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.046157,
+   "seconds": 0.0435477,
    "paths": [
     3,
     0,
@@ -5036,7 +5036,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0534789,
+   "seconds": 0.0535421,
    "paths": [
     3,
     0,
@@ -5109,7 +5109,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0834838,
+   "seconds": 0.0620912,
    "paths": [
     3,
     0,
@@ -5182,7 +5182,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.11288,
+   "seconds": 0.105131,
    "paths": [
     2,
     0,
@@ -5250,7 +5250,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 0.0641114,
+   "seconds": 0.0692907,
    "paths": [
     3,
     3,

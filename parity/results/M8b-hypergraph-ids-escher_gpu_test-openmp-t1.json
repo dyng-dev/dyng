@@ -5,7 +5,10 @@
  "threads": 1,
  "mode": "both",
  "model": true,
- "commit": "c730e8d9dc13db7c7957848507e7dbe8b0adbc99",
+ "line_graph": false,
+ "legacy_generator": false,
+ "hg": null,
+ "commit": "1f05995e718008b3ebdd5d0a580753b0caa98e76",
  "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
  "passed": true,
  "totals": {
@@ -19,8 +22,21 @@
   "skipped_ops": 0,
   "dropped_members": 0,
   "ambiguous": 21330,
+  "content_states": 180,
+  "content_states_equal": 180,
+  "generated_graphs": 0,
+  "generated_batches": 0,
+  "generated_batches_equal": 0,
+  "hg_hyperedges": 0,
   "original_exceptions": 0,
-  "mismatch_count": 0
+  "h2h_states": 0,
+  "h2h_layouts_equal": 0,
+  "h2h_unrecorded": 0,
+  "h2h_payload_entries": 0,
+  "h2h_key_hashes": 0,
+  "h2h_full_rows": 0,
+  "mismatch_count": 0,
+  "memory_ratio_max": 0.0
  },
  "cases": [
   {
@@ -41,10 +57,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 1,
+   "content_states_equal": 1,
    "original_exceptions": 0,
    "h2v_capacity_trace": 4096,
    "h2v_capacity_dyng": 4096,
-   "seconds": 0.000382076,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.00112865,
    "paths": [
     1,
     0,
@@ -65,6 +94,10 @@
      0,
      45472
     ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -87,10 +120,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 1,
+   "content_states_equal": 1,
    "original_exceptions": 0,
    "h2v_capacity_trace": 4096,
    "h2v_capacity_dyng": 4096,
-   "seconds": 0.000357033,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.000931863,
    "paths": [
     1,
     0,
@@ -111,6 +157,10 @@
      0,
      45472
     ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -133,10 +183,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 1,
+   "content_states_equal": 1,
    "original_exceptions": 0,
    "h2v_capacity_trace": 4096,
    "h2v_capacity_dyng": 4096,
-   "seconds": 0.000380842,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.000759138,
    "paths": [
     1,
     0,
@@ -157,6 +220,10 @@
      0,
      45472
     ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -179,10 +246,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 1,
+   "content_states_equal": 1,
    "original_exceptions": 0,
    "h2v_capacity_trace": 4096,
    "h2v_capacity_dyng": 4096,
-   "seconds": 0.000345747,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.00111117,
    "paths": [
     1,
     0,
@@ -203,6 +283,10 @@
      0,
      45472
     ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -225,10 +309,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 1,
+   "content_states_equal": 1,
    "original_exceptions": 0,
    "h2v_capacity_trace": 4096,
    "h2v_capacity_dyng": 4096,
-   "seconds": 0.00035418,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.000629447,
    "paths": [
     1,
     0,
@@ -249,6 +346,10 @@
      0,
      60080
     ]
+   ],
+   "original_store_bytes": [
+    44108,
+    44204
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -271,10 +372,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0200152,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0365157,
    "paths": [
     0,
     0,
@@ -291,6 +405,9 @@
      0,
      1481032
     ]
+   ],
+   "original_store_bytes": [
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -313,10 +430,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 0.529331,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.668464,
    "paths": [
     0,
     0,
@@ -333,6 +463,9 @@
      0,
      70526340
     ]
+   ],
+   "original_store_bytes": [
+    21533720
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -355,10 +488,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0178023,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0206271,
    "paths": [
     0,
     0,
@@ -375,6 +521,9 @@
      0,
      1481032
     ]
+   ],
+   "original_store_bytes": [
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -397,10 +546,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 0.530481,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.662426,
    "paths": [
     0,
     0,
@@ -417,6 +579,9 @@
      0,
      70526340
     ]
+   ],
+   "original_store_bytes": [
+    21533720
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -439,10 +604,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0174288,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0269044,
    "paths": [
     0,
     0,
@@ -459,6 +637,9 @@
      0,
      1481032
     ]
+   ],
+   "original_store_bytes": [
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -481,10 +662,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 0.521438,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.700167,
    "paths": [
     0,
     0,
@@ -501,6 +695,9 @@
      0,
      70526340
     ]
+   ],
+   "original_store_bytes": [
+    21533720
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -523,10 +720,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0308746,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0268028,
    "paths": [
     0,
     0,
@@ -543,6 +753,9 @@
      0,
      1481032
     ]
+   ],
+   "original_store_bytes": [
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -565,10 +778,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 0.515064,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.648436,
    "paths": [
     0,
     0,
@@ -585,6 +811,9 @@
      0,
      70526340
     ]
+   ],
+   "original_store_bytes": [
+    21533720
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -607,10 +836,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0146114,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0134108,
    "paths": [
     0,
     0,
@@ -627,6 +869,9 @@
      0,
      2060828
     ]
+   ],
+   "original_store_bytes": [
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -649,10 +894,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 0,
+   "content_states_equal": 0,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 0.573662,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.744866,
    "paths": [
     0,
     0,
@@ -669,6 +927,9 @@
      0,
      90547764
     ]
+   ],
+   "original_store_bytes": [
+    21533720
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -691,10 +952,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0374535,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.04789,
    "paths": [
     3,
     0,
@@ -723,6 +997,12 @@
      0,
      1480152
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -745,10 +1025,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0518854,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0786078,
    "paths": [
     3,
     0,
@@ -777,6 +1070,12 @@
      0,
      1480008
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -799,10 +1098,23 @@
    "dropped_members": 0,
    "ambiguous": 245,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.048152,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0629866,
    "paths": [
     3,
     0,
@@ -831,6 +1143,12 @@
      0,
      1501608
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -853,10 +1171,23 @@
    "dropped_members": 0,
    "ambiguous": 110,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 1.49857,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 3.05104,
    "paths": [
     3,
     0,
@@ -885,6 +1216,12 @@
      0,
      70475380
     ]
+   ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -907,10 +1244,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0378955,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0442438,
    "paths": [
     3,
     0,
@@ -939,6 +1289,12 @@
      0,
      1480152
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -961,10 +1317,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0499593,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0594989,
    "paths": [
     3,
     0,
@@ -993,6 +1362,12 @@
      0,
      1480008
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1015,10 +1390,23 @@
    "dropped_members": 0,
    "ambiguous": 245,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0464195,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0580857,
    "paths": [
     3,
     0,
@@ -1047,6 +1435,12 @@
      0,
      1501608
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1069,10 +1463,23 @@
    "dropped_members": 0,
    "ambiguous": 110,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 1.49752,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 2.85534,
    "paths": [
     3,
     0,
@@ -1101,6 +1508,12 @@
      0,
      70475380
     ]
+   ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1123,10 +1536,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0377221,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.060225,
    "paths": [
     3,
     0,
@@ -1155,6 +1581,12 @@
      0,
      1480152
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1177,10 +1609,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0379104,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0535487,
    "paths": [
     3,
     0,
@@ -1210,6 +1655,12 @@
      1480008
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1231,10 +1682,23 @@
    "dropped_members": 0,
    "ambiguous": 245,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0462446,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0852642,
    "paths": [
     3,
     0,
@@ -1264,6 +1728,12 @@
      1501608
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1285,10 +1755,23 @@
    "dropped_members": 0,
    "ambiguous": 110,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 1.48105,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 2.86916,
    "paths": [
     3,
     0,
@@ -1318,6 +1801,12 @@
      70475380
     ]
    ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1339,10 +1828,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0384926,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0646422,
    "paths": [
     3,
     0,
@@ -1372,6 +1874,12 @@
      1480152
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1393,10 +1901,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0506547,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0539868,
    "paths": [
     3,
     0,
@@ -1426,6 +1947,12 @@
      1480008
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1447,10 +1974,23 @@
    "dropped_members": 0,
    "ambiguous": 245,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0464776,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0709323,
    "paths": [
     3,
     0,
@@ -1480,6 +2020,12 @@
      1501608
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1501,10 +2047,23 @@
    "dropped_members": 0,
    "ambiguous": 110,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 1.49913,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 3.09582,
    "paths": [
     3,
     0,
@@ -1534,6 +2093,12 @@
      70475380
     ]
    ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1555,10 +2120,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0415944,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0628919,
    "paths": [
     3,
     0,
@@ -1588,6 +2166,12 @@
      2057264
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742648
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1609,10 +2193,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0409276,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0674339,
    "paths": [
     3,
     0,
@@ -1642,6 +2239,12 @@
      2036328
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742648,
+    742684,
+    742720
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1663,10 +2266,23 @@
    "dropped_members": 0,
    "ambiguous": 245,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.049328,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0708314,
    "paths": [
     3,
     0,
@@ -1696,6 +2312,12 @@
      1997872
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742708,
+    742708,
+    742756
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1717,10 +2339,23 @@
    "dropped_members": 0,
    "ambiguous": 110,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 902059,
    "h2v_capacity_dyng": 902059,
-   "seconds": 1.54963,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 3.3114,
    "paths": [
     3,
     0,
@@ -1750,6 +2385,12 @@
      90489448
     ]
    ],
+   "original_store_bytes": [
+    21533720,
+    21534212,
+    21534212,
+    21534236
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -1771,10 +2412,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0346457,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.05587,
    "paths": [
     0,
     0,
@@ -1803,6 +2457,12 @@
      0,
      1304136
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1825,10 +2485,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0518496,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0549314,
    "paths": [
     3,
     0,
@@ -1857,6 +2530,12 @@
      0,
      1989716
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1879,10 +2558,23 @@
    "dropped_members": 0,
    "ambiguous": 62,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0385483,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0629218,
    "paths": [
     3,
     0,
@@ -1911,6 +2603,12 @@
      0,
      1256552
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1933,10 +2631,23 @@
    "dropped_members": 0,
    "ambiguous": 5,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0382842,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0603379,
    "paths": [
     3,
     0,
@@ -1965,6 +2676,12 @@
      0,
      1482712
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -1987,10 +2704,23 @@
    "dropped_members": 0,
    "ambiguous": 55,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24577,
    "h2v_capacity_dyng": 24577,
-   "seconds": 0.0416279,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.068666,
    "paths": [
     3,
     0,
@@ -2019,6 +2749,12 @@
      0,
      1486636
     ]
+   ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2041,10 +2777,23 @@
    "dropped_members": 0,
    "ambiguous": 2446,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.095125,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.106035,
    "paths": [
     3,
     0,
@@ -2073,6 +2822,12 @@
      0,
      1585380
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2095,10 +2850,23 @@
    "dropped_members": 0,
    "ambiguous": 1124,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 2,
+   "content_states_equal": 2,
    "original_exceptions": 0,
    "h2v_capacity_trace": 33307,
    "h2v_capacity_dyng": 33307,
-   "seconds": 0.0888367,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.121326,
    "paths": [
     2,
     0,
@@ -2123,6 +2891,11 @@
      0,
      6471392
     ]
+   ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2145,10 +2918,23 @@
    "dropped_members": 0,
    "ambiguous": 199,
    "content_diverged_at": 2,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 14726,
    "h2v_capacity_dyng": 14726,
-   "seconds": 0.0437567,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0485982,
    "paths": [
     3,
     3,
@@ -2177,6 +2963,12 @@
      0,
      897860
     ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2199,10 +2991,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0345941,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0525894,
    "paths": [
     0,
     0,
@@ -2231,6 +3036,12 @@
      0,
      1304136
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2253,10 +3064,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0458616,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0849979,
    "paths": [
     3,
     0,
@@ -2285,6 +3109,12 @@
      0,
      1989716
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2307,10 +3137,23 @@
    "dropped_members": 0,
    "ambiguous": 62,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0375871,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.058182,
    "paths": [
     3,
     0,
@@ -2339,6 +3182,12 @@
      0,
      1256552
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2361,10 +3210,23 @@
    "dropped_members": 0,
    "ambiguous": 5,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.040392,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0452541,
    "paths": [
     3,
     0,
@@ -2393,6 +3255,12 @@
      0,
      1482712
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2415,10 +3283,23 @@
    "dropped_members": 0,
    "ambiguous": 55,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24577,
    "h2v_capacity_dyng": 24577,
-   "seconds": 0.0395808,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0685198,
    "paths": [
     3,
     0,
@@ -2447,6 +3328,12 @@
      0,
      1486636
     ]
+   ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2469,10 +3356,23 @@
    "dropped_members": 0,
    "ambiguous": 2446,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0788095,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.211298,
    "paths": [
     3,
     0,
@@ -2501,6 +3401,12 @@
      0,
      1585380
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2523,10 +3429,23 @@
    "dropped_members": 0,
    "ambiguous": 1124,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 2,
+   "content_states_equal": 2,
    "original_exceptions": 0,
    "h2v_capacity_trace": 33307,
    "h2v_capacity_dyng": 33307,
-   "seconds": 0.0876529,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.173982,
    "paths": [
     2,
     0,
@@ -2551,6 +3470,11 @@
      0,
      6471392
     ]
+   ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2573,10 +3497,23 @@
    "dropped_members": 0,
    "ambiguous": 199,
    "content_diverged_at": 2,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 14726,
    "h2v_capacity_dyng": 14726,
-   "seconds": 0.0427865,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.098105,
    "paths": [
     3,
     3,
@@ -2605,6 +3542,12 @@
      0,
      897860
     ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2627,10 +3570,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0363851,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.156284,
    "paths": [
     0,
     0,
@@ -2659,6 +3615,12 @@
      0,
      1304136
     ]
+   ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
    ],
    "mismatch_count": 0,
    "mismatches": []
@@ -2681,10 +3643,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0441752,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.13804,
    "paths": [
     3,
     0,
@@ -2714,6 +3689,12 @@
      1989716
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -2735,10 +3716,23 @@
    "dropped_members": 0,
    "ambiguous": 62,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0396304,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.128473,
    "paths": [
     3,
     0,
@@ -2768,6 +3762,12 @@
      1256552
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -2789,10 +3789,23 @@
    "dropped_members": 0,
    "ambiguous": 5,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0391404,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.120141,
    "paths": [
     3,
     0,
@@ -2822,6 +3835,12 @@
      1482712
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -2843,10 +3862,23 @@
    "dropped_members": 0,
    "ambiguous": 55,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24577,
    "h2v_capacity_dyng": 24577,
-   "seconds": 0.0393569,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.150334,
    "paths": [
     3,
     0,
@@ -2876,6 +3908,12 @@
      1486636
     ]
    ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -2897,10 +3935,23 @@
    "dropped_members": 0,
    "ambiguous": 2446,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0790917,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.30441,
    "paths": [
     3,
     0,
@@ -2930,6 +3981,12 @@
      1585380
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -2951,10 +4008,23 @@
    "dropped_members": 0,
    "ambiguous": 1124,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 2,
+   "content_states_equal": 2,
    "original_exceptions": 0,
    "h2v_capacity_trace": 33307,
    "h2v_capacity_dyng": 33307,
-   "seconds": 0.0994658,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.266203,
    "paths": [
     2,
     0,
@@ -2980,6 +4050,11 @@
      6471392
     ]
    ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3001,10 +4076,23 @@
    "dropped_members": 0,
    "ambiguous": 199,
    "content_diverged_at": 2,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 14726,
    "h2v_capacity_dyng": 14726,
-   "seconds": 0.0417353,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.138438,
    "paths": [
     3,
     3,
@@ -3034,6 +4122,12 @@
      897860
     ]
    ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3055,10 +4149,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0475198,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.128579,
    "paths": [
     0,
     0,
@@ -3088,6 +4195,12 @@
      1304136
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3109,10 +4222,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0464454,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.153294,
    "paths": [
     3,
     0,
@@ -3142,6 +4268,12 @@
      1989716
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3163,10 +4295,23 @@
    "dropped_members": 0,
    "ambiguous": 62,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0513617,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.16551,
    "paths": [
     3,
     0,
@@ -3196,6 +4341,12 @@
      1256552
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3217,10 +4368,23 @@
    "dropped_members": 0,
    "ambiguous": 5,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0566367,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.141433,
    "paths": [
     3,
     0,
@@ -3250,6 +4414,12 @@
      1482712
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3271,10 +4441,23 @@
    "dropped_members": 0,
    "ambiguous": 55,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24577,
    "h2v_capacity_dyng": 24577,
-   "seconds": 0.0394763,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0865923,
    "paths": [
     3,
     0,
@@ -3304,6 +4487,12 @@
      1486636
     ]
    ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3325,10 +4514,23 @@
    "dropped_members": 0,
    "ambiguous": 2446,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0791117,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.234231,
    "paths": [
     3,
     0,
@@ -3358,6 +4560,12 @@
      1585380
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3379,10 +4587,23 @@
    "dropped_members": 0,
    "ambiguous": 1124,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 2,
+   "content_states_equal": 2,
    "original_exceptions": 0,
    "h2v_capacity_trace": 33307,
    "h2v_capacity_dyng": 33307,
-   "seconds": 0.0868895,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.176496,
    "paths": [
     2,
     0,
@@ -3408,6 +4629,11 @@
      6471392
     ]
    ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3429,10 +4655,23 @@
    "dropped_members": 0,
    "ambiguous": 199,
    "content_diverged_at": 2,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 14726,
    "h2v_capacity_dyng": 14726,
-   "seconds": 0.0591107,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0967961,
    "paths": [
     3,
     3,
@@ -3462,6 +4701,12 @@
      897860
     ]
    ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3483,10 +4728,23 @@
    "dropped_members": 0,
    "ambiguous": 10,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0514461,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.0794951,
    "paths": [
     0,
     0,
@@ -3516,6 +4774,12 @@
      1794748
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3537,10 +4801,23 @@
    "dropped_members": 0,
    "ambiguous": 0,
    "content_diverged_at": -1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0473576,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.211404,
    "paths": [
     3,
     0,
@@ -3570,6 +4847,12 @@
      2585592
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    767836,
+    842476,
+    911544
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3591,10 +4874,23 @@
    "dropped_members": 0,
    "ambiguous": 62,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0414191,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.173458,
    "paths": [
     3,
     0,
@@ -3624,6 +4920,12 @@
      1699716
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742636,
+    742636,
+    742636
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3645,10 +4947,23 @@
    "dropped_members": 0,
    "ambiguous": 5,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0404432,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.169933,
    "paths": [
     3,
     0,
@@ -3678,6 +4993,12 @@
      2061820
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    742804,
+    742804,
+    742804
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3699,10 +5020,23 @@
    "dropped_members": 0,
    "ambiguous": 55,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24577,
    "h2v_capacity_dyng": 24577,
-   "seconds": 0.0433347,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.226168,
    "paths": [
     3,
     0,
@@ -3732,6 +5066,12 @@
      2024016
     ]
    ],
+   "original_store_bytes": [
+    741072,
+    741144,
+    741156,
+    741324
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3753,10 +5093,23 @@
    "dropped_members": 0,
    "ambiguous": 2446,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 24721,
    "h2v_capacity_dyng": 24721,
-   "seconds": 0.0984235,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.221689,
    "paths": [
     3,
     0,
@@ -3786,6 +5139,12 @@
      2009368
     ]
    ],
+   "original_store_bytes": [
+    742636,
+    772856,
+    817000,
+    817060
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3807,10 +5166,23 @@
    "dropped_members": 0,
    "ambiguous": 1124,
    "content_diverged_at": 1,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 2,
+   "content_states_equal": 2,
    "original_exceptions": 0,
    "h2v_capacity_trace": 33307,
    "h2v_capacity_dyng": 33307,
-   "seconds": 0.112398,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.463985,
    "paths": [
     2,
     0,
@@ -3836,6 +5208,11 @@
      11826488
     ]
    ],
+   "original_store_bytes": [
+    631900,
+    782524,
+    929516
+   ],
    "mismatch_count": 0,
    "mismatches": []
   },
@@ -3857,10 +5234,23 @@
    "dropped_members": 0,
    "ambiguous": 199,
    "content_diverged_at": 2,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 14726,
    "h2v_capacity_dyng": 14726,
-   "seconds": 0.0698618,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 0.516456,
    "paths": [
     3,
     3,
@@ -3889,6 +5279,12 @@
      0,
      2582472
     ]
+   ],
+   "original_store_bytes": [
+    329256,
+    437492,
+    489504,
+    489504
    ],
    "mismatch_count": 0,
    "mismatches": []

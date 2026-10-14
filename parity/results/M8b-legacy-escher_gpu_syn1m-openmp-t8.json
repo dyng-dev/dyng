@@ -8,7 +8,7 @@
  "line_graph": false,
  "legacy_generator": true,
  "hg": null,
- "commit": "b7b6a38844170a793ccdb94bca5ad09dfc9e3d70",
+ "commit": "1f05995e718008b3ebdd5d0a580753b0caa98e76",
  "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
  "passed": true,
  "totals": {
@@ -73,7 +73,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 16.3591,
+   "seconds": 11.7374,
    "paths": [
     3,
     0,
@@ -146,7 +146,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 14.9527,
+   "seconds": 11.8554,
    "paths": [
     3,
     0,
@@ -219,7 +219,7 @@
    "h2h_key_hashes": 0,
    "h2h_full_rows": 0,
    "memory_ratio_max": 0,
-   "seconds": 17.2016,
+   "seconds": 11.8459,
    "paths": [
     3,
     0,

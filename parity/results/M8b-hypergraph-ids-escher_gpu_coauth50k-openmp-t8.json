@@ -5,7 +5,10 @@
  "threads": 8,
  "mode": "both",
  "model": true,
- "commit": "df9c52bd97d309bc822e5d8f9026d3b06e34e6a9",
+ "line_graph": false,
+ "legacy_generator": false,
+ "hg": null,
+ "commit": "1f05995e718008b3ebdd5d0a580753b0caa98e76",
  "tool": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
  "passed": true,
  "totals": {
@@ -19,8 +22,21 @@
   "skipped_ops": 0,
   "dropped_members": 0,
   "ambiguous": 824,
+  "content_states": 3,
+  "content_states_equal": 3,
+  "generated_graphs": 0,
+  "generated_batches": 0,
+  "generated_batches_equal": 0,
+  "hg_hyperedges": 0,
   "original_exceptions": 0,
-  "mismatch_count": 0
+  "h2h_states": 0,
+  "h2h_layouts_equal": 0,
+  "h2h_unrecorded": 0,
+  "h2h_payload_entries": 0,
+  "h2h_key_hashes": 0,
+  "h2h_full_rows": 0,
+  "mismatch_count": 0,
+  "memory_ratio_max": 0.0
  },
  "cases": [
   {
@@ -41,10 +57,23 @@
    "dropped_members": 0,
    "ambiguous": 824,
    "content_diverged_at": 2,
+   "generated_graphs": 0,
+   "generated_batches": 0,
+   "generated_batches_equal": 0,
+   "hg_hyperedges": 0,
+   "content_states": 3,
+   "content_states_equal": 3,
    "original_exceptions": 0,
    "h2v_capacity_trace": 15046108,
    "h2v_capacity_dyng": 15046108,
-   "seconds": 36.5147,
+   "h2h_states": 0,
+   "h2h_layouts_equal": 0,
+   "h2h_unrecorded": 0,
+   "h2h_payload_entries": 0,
+   "h2h_key_hashes": 0,
+   "h2h_full_rows": 0,
+   "memory_ratio_max": 0,
+   "seconds": 41.7738,
    "paths": [
     3,
     0,
@@ -73,6 +102,12 @@
      0,
      1924170844
     ]
+   ],
+   "original_store_bytes": [
+    605045612,
+    605046632,
+    605046644,
+    605047088
    ],
    "mismatch_count": 0,
    "mismatches": []
