@@ -281,6 +281,22 @@ TEST(CapacityPolicy, Validation) {
   c.max_payload = 100;
   EXPECT_THROW((void)dyng::detail::hyper::initial_payload(c, 101), dyng::capacity_error);
   EXPECT_EQ(dyng::detail::hyper::initial_payload(c, 50), 100);
+  // M8b review: a huge slack or headroom saturates at the payload limit (no int64 overflow, no
+  // out-of-range double conversion, no false capacity_error).
+  c = capacity_policy{};
+  c.initial_slack = INT64_MAX;
+  EXPECT_EQ(dyng::detail::hyper::initial_payload(c, 8), INT_MAX);
+  c = capacity_policy{};
+  c.initial_headroom = 1e300;
+  EXPECT_EQ(dyng::detail::hyper::initial_payload(c, 8), INT_MAX);
+  c.max_payload = 1000;
+  EXPECT_EQ(dyng::detail::hyper::initial_payload(c, 8), 1000);
+  c = capacity_policy{};
+  c.initial_slack = INT64_MAX;
+  c.initial_headroom = 1e300;
+  c.max_payload = 64;
+  EXPECT_EQ(dyng::detail::hyper::initial_payload(c, 0), 64);
+  EXPECT_THROW((void)dyng::detail::hyper::initial_payload(c, 65), dyng::capacity_error);
 }
 
 TEST(GroupByVertex, IsEscherGpusLayout) {

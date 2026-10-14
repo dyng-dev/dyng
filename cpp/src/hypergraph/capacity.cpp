@@ -109,10 +109,16 @@ escher::store_policy to_store_policy(const capacity_policy& c) {
 std::int64_t initial_payload(const capacity_policy& c, std::int64_t size) {
   // size + floor(size * h) equals ESCHER-GPU's size + size / 8 for h = 0.125 and MOSP_ESCHER's
   // floor(size * 1.3) for h = 0.3 for every size below 2^31 (CapacityPolicy tests).
-  const auto slack = static_cast<std::int64_t>(static_cast<double>(size) * c.initial_headroom);
-  std::int64_t capacity = size + slack + c.initial_slack;
+  // Each term saturates at the payload limit (at most 2^31 - 1), so a huge initial_headroom or
+  // initial_slack clamps to max_payload as documented instead of overflowing (M8b review: the
+  // double-to-int64 conversion and the sum were undefined beyond int64).
+  const std::int64_t limit = payload_limit(c);
+  const double scaled = static_cast<double>(size) * c.initial_headroom;
+  const std::int64_t slack =
+      scaled < static_cast<double>(limit) ? static_cast<std::int64_t>(scaled) : limit;
+  std::int64_t capacity = size + slack + std::min(c.initial_slack, limit);
   capacity = std::max(capacity, c.min_initial_payload);
-  capacity = std::min(capacity, payload_limit(c));
+  capacity = std::min(capacity, limit);
   if (capacity < size) {
     throw capacity_error("dyng: hypergraph: a tree of " + std::to_string(size) +
                          " payload entries exceeds the largest payload of its capacity policy (" +

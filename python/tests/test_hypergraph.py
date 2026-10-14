@@ -141,6 +141,16 @@ def test_capacity_presets_equal_the_cpp_presets() -> None:
     assert dyng.CapacityPolicy.preset("default") == dyng.CapacityPolicy()
 
 
+@pytest.mark.parametrize(
+    "policy",
+    [dyng.CapacityPolicy(initial_slack=2**63 - 1), dyng.CapacityPolicy(initial_headroom=1e300)],
+)
+def test_a_huge_slack_or_headroom_saturates(policy: dyng.CapacityPolicy) -> None:
+    # M8b review: the initial sizing overflowed int64 and raised a false CapacityError.
+    h = dyng.Hypergraph.from_lists([[0, 1], [1, 2]], capacity=policy)
+    assert h.num_hyperedges == 2
+
+
 @pytest.mark.parametrize("value", ["slack_csr"])
 def test_slack_csr_is_planned_for_0_4(value: str) -> None:
     with pytest.raises(dyng.NotSupportedError, match="0.4"):
