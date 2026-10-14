@@ -7,6 +7,7 @@
  */
 #include "hypergraph/incidence_model.hpp"
 
+#include "core/budget_counters.hpp"
 #include "core/resources_access.hpp"
 #include "hypergraph/capacity.hpp"
 #include "hypergraph/line_graph/host_line_graph.hpp"
@@ -314,6 +315,9 @@ void incidence_model::enable_line_graph() const {
   if (line_graph_.load(std::memory_order_relaxed)) return;
   DYNG_EXPECTS(has_v2h_,
                "hypergraph: the line graph needs v2h; build the hypergraph with store_v2h = true");
+  // The container's own work (budgets, I9), as on the device store: an algorithm that asks for
+  // the line graph in its algorithm phase is not charged for it.
+  const container_scope container;
   std::vector<std::int64_t> ptr;
   std::vector<std::int32_t> cols;
   h2v_csr(ptr, cols);
@@ -355,6 +359,7 @@ void incidence_model::h2h_view(array_view<const std::int64_t>& row_ptr,
   if (!h2h_built_.load(std::memory_order_acquire)) {
     const std::lock_guard<std::mutex> lock(view_mutex_);
     if (!h2h_built_.load(std::memory_order_relaxed)) {
+      const container_scope container;  // the container's own work (budgets, I9)
       // Rows by id 0..bound - 1 (key id + 1), decoded: 0-based ids, out as an offset of col_ind.
       const std::size_t bound = rows_.size();
       std::vector<std::int64_t> ptr(bound + 1, 0), outs(bound, 0);
@@ -491,6 +496,7 @@ void incidence_model::h2v_view(array_view<const std::int64_t>& row_ptr,
   if (!h2v_built_.load(std::memory_order_acquire)) {
     const std::lock_guard<std::mutex> lock(view_mutex_);
     if (!h2v_built_.load(std::memory_order_relaxed)) {
+      const container_scope container;  // the container's own work (budgets, I9)
       std::vector<std::int64_t> ptr(rows_.size() + 1, 0);
       for (std::size_t id = 0; id < rows_.size(); ++id) {
         ptr[id + 1] = ptr[id] + static_cast<std::int64_t>(rows_[id].size());
@@ -516,6 +522,7 @@ void incidence_model::v2h_view(array_view<const std::int64_t>& row_ptr,
   if (!v2h_built_.load(std::memory_order_acquire)) {
     const std::lock_guard<std::mutex> lock(view_mutex_);
     if (!v2h_built_.load(std::memory_order_relaxed)) {
+      const container_scope container;  // the container's own work (budgets, I9)
       std::vector<std::int64_t> ptr(v2h_.size() + 1, 0);
       for (std::size_t v = 0; v < v2h_.size(); ++v) {
         ptr[v + 1] = ptr[v] + static_cast<std::int64_t>(v2h_[v].size());
