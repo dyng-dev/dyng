@@ -33,6 +33,11 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                container on every backend (lockstep with the CBST host model, random streams,
                the host id allocator against the model, the container-level id parity of the
                committed traces); also the CTests `hypergraph.mutation.<name>` of every build
+  kit          the conformance kit's hypergraph axis (M8b, criterion 11; ADR 0043): the kit C0-C12
+               over the test-only aggregate-delta fake test_hyper_pairs on every backend
+               (dyng_hypergraph_kit_tests, dyng_hypergraph_kit_cuda_tests); its planted bug (the
+               fake's count(+) reads the requested ids instead of inserted_ids) must make the kit
+               fail; also the CTest `conformance.mutation.frontier_requested_ids` of every build
   cbst         the ESCHER CBST store (M8a, acceptance criterion 17): the GoogleTest suites
                dyng_cbst_device_tests (the committed traces of ESCHER-GPU@abcf9b2 and
                MOSP_ESCHER@4b86159 replayed in the exact field set), dyng_cbst_policy_tests (random
@@ -87,6 +92,13 @@ SUITES = {
             "dyng_hypergraph_cuda_tests",
             "dyng_hypergraph_ids_cuda_tests",
         ],
+        "runner": "gtest",
+        "compare": [],
+    },
+    # The conformance kit's hypergraph axis (M8b, criterion 11): the kit over the test-only fake on
+    # every backend.
+    "kit": {
+        "targets": ["dyng_hypergraph_kit_tests", "dyng_hypergraph_kit_cuda_tests"],
         "runner": "gtest",
         "compare": [],
     },
@@ -279,6 +291,16 @@ MUTATIONS = [
         "plan": "M8b 20: the line graph's mirrored additions dropped (the sorted merge, host and "
         "device)",
         "defines": ["DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED"],
+        "config": "sequential",  # a label: the suite runs on every backend
+    },
+    # kit (M8b, criterion 11): the planted bug of the kit's hypergraph axis, in the test-only fake
+    # (cpp/tests/framework/fake_hyper_problems.hpp): the frontier of count(+) is the ids the request
+    # would get without reuse (id_bound(G_t) + i) instead of hyper_apply_summary::inserted_ids.
+    {
+        "name": "kit_frontier_requested_ids",
+        "suite": "kit",
+        "plan": "M8b 11: the kit's planted bug: frontier = requested ids instead of inserted_ids",
+        "defines": ["DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS"],
         "config": "sequential",  # a label: the suite runs on every backend
     },
 ]

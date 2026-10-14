@@ -994,6 +994,62 @@ dyng_add_test(
 target_compile_definitions(dyng_conformance_registry_tests PRIVATE ${_dyng_algorithm_defines})
 target_include_directories(dyng_conformance_registry_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 
+# The kit's hypergraph axis (ADR 0043; M8b criterion 11): the kit C0-C12 over the test-only
+# aggregate-delta fake test_hyper_pairs (cpp/tests/framework/fake_hyper_problems.hpp; its partner
+# of C10 is test_hyper_squares) on the host backends (labels cpu, conformance, hypergraph) and, in
+# CUDA builds, on cuda (gpu, ...; the fakes count on the device: fake_hyper_kernels.cu).
+dyng_add_test(
+  NAME dyng_hypergraph_kit_tests
+  SOURCES conformance/hypergraph_kit_test.cpp conformance/allocation_counter.cpp
+  LABELS cpu conformance hypergraph
+  LIBRARIES dyng::testing
+)
+target_include_directories(dyng_hypergraph_kit_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_hypergraph_kit_cuda_tests
+    SOURCES conformance/hypergraph_kit_test.cpp conformance/allocation_counter.cpp
+            framework/fake_hyper_kernels.cu
+    LABELS gpu conformance hypergraph
+    LIBRARIES dyng::testing
+    TEST_PREFIX "cuda."
+  )
+  target_compile_definitions(dyng_hypergraph_kit_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  target_include_directories(dyng_hypergraph_kit_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_hypergraph_kit_cuda_tests)  # the streams of C12
+endif()
+# The planted bug of the kit (M8b criterion 11; parity/mutate.py, suite `kit`): the fake's count(+)
+# reads the ids the request would get without reuse instead of inserted_ids; the kit must fail
+# (conformance.mutation.frontier_requested_ids passes when the suite fails; the control is
+# dyng_hypergraph_kit_tests). Labels cpu;mutation;conformance;hypergraph.
+if(DYNG_MUTATION_TESTS)
+  add_executable(dyng_hypergraph_kit_mutant_tests conformance/hypergraph_kit_test.cpp
+                                                  conformance/allocation_counter.cpp)
+  target_link_libraries(
+    dyng_hypergraph_kit_mutant_tests PRIVATE dyng::dyng dyng::testing dyng_test_support GTest::gtest
+                                             GTest::gmock GTest::gtest_main
+  )
+  target_compile_features(dyng_hypergraph_kit_mutant_tests PRIVATE cxx_std_17)
+  target_compile_definitions(
+    dyng_hypergraph_kit_mutant_tests PRIVATE DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS=1
+  )
+  target_include_directories(
+    dyng_hypergraph_kit_mutant_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src"
+                                             "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+  dyng_set_warnings(dyng_hypergraph_kit_mutant_tests)
+  dyng_enable_sanitizers(dyng_hypergraph_kit_mutant_tests)
+  add_test(NAME conformance.mutation.frontier_requested_ids
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng_hypergraph_kit_mutant_tests>
+                   -DEXPECT=fail -DNAME=kit.frontier_requested_ids -P
+                   "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+  )
+  set_tests_properties(
+    conformance.mutation.frontier_requested_ids
+    PROPERTIES LABELS "cpu;mutation;conformance;hypergraph" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+  )
+endif()
+
 # The scaffold check (PLAN Section 4.8): scripts/new_algorithm.py generates a throwaway algorithm of
 # each family in a copy of the source tree, which is configured, built and must pass its
 # conformance kit (ci/scaffold_check.sh; a nested build of a few minutes). Label scaffold only (not

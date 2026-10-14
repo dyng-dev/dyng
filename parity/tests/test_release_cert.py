@@ -781,6 +781,15 @@ def test_mutation_points_match_the_code_once() -> None:
     hooks += "\n".join(
         p.read_text() for p in sorted((REPO / "cpp/src/hypergraph/line_graph").glob("*.c*"))
     )
+    # The kit's planted bug (M8b, criterion 11): in the test-only hypergraph fake.
+    hooks += (REPO / "cpp/tests/framework/fake_hyper_problems.hpp").read_text()
+    assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "kit"} == {
+        "kit_frontier_requested_ids"
+    }
+    assert mutate.suite_targets("kit") == [
+        "dyng_hypergraph_kit_tests",
+        "dyng_hypergraph_kit_cuda_tests",
+    ]
     assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "hypergraph"} == {
         "hypergraph_h2v_not_deduplicated",
         "hypergraph_allocator_ties_reversed",
