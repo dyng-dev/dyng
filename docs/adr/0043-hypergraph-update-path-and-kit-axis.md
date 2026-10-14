@@ -136,9 +136,10 @@ deleted ids (Step 0's, in `before_apply`), count(+) on the NEW row views with fr
 (`dyng_hypergraph_kit_tests`, `..._cuda_tests`) runs every applicable check on sequential, openmp
 and cuda: C5 with the inverse from the summary, C10 with the two fakes on one container, C11, C12
 on two non-blocking streams, C8 with 0 synchronizations on the host and 2 on CUDA. C4 is skipped
-(one engine). The planted bug `DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS` (frontier = id_bound(G_t)
-+ i, the ids the request would get without reuse) fails C2, C5, C7 and C8; it is the CTest
-`conformance.mutation.frontier_requested_ids` and the suite `kit` of `parity/mutate.py`.
+(one engine). The planted bug `DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS` (frontier =
+`id_bound(G_t) + i`, the ids the request would get without reuse) fails C2, C5 and C7 (and C8 in
+budgets builds) on every backend; it is the CTest `conformance.mutation.frontier_requested_ids`
+and the suite `kit` of `parity/mutate.py`.
 
 ### 6. Gaps the kit exposed, fixed or recorded before the freeze
 

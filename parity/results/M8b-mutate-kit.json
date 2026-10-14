@@ -1,0 +1,91 @@
+{
+ "schema": 2,
+ "what": "mutation checks of the golden parity (PLAN 8.4): kit",
+ "date": "2026-10-14T08:34:18Z",
+ "commit": "22a09abe64eeb598cb7cf70f3c0fecc154b8a3f4",
+ "goldens": {
+  "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
+  "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml",
+  "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the lockstep and graph-on-CBST tests (no golden corpus)",
+  "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/{cbst_trace,hypergraph_batches}) and the container's lockstep tests"
+ },
+ "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst test executables, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "suite": "kit",
+   "config": "sequential",
+   "build": "ok",
+   "replays": [
+    {
+     "suite": "kit",
+     "config": "sequential",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "sequential": 0
+     },
+     "tests": {
+      "dyng_hypergraph_kit_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_kit_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    }
+   ],
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "kit_frontier_requested_ids",
+   "suite": "kit",
+   "plan": "M8b 11: the kit's planted bug: frontier = requested ids instead of inserted_ids",
+   "defines": [
+    "DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 12
+   },
+   "tests": {
+    "dyng_hypergraph_kit_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "test_hyper_pairs/conformance/hv32_unweighted.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_unweighted.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_unweighted.C7_InvalidInputIsRejectedOrCounted",
+      "test_hyper_pairs/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_kit_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "test_hyper_pairs/conformance/hv32_unweighted.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_unweighted.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_unweighted.C7_InvalidInputIsRejectedOrCounted",
+      "test_hyper_pairs/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}

@@ -238,3 +238,106 @@ the author's confirmation at the release.
 ### Open items
 
 - Steps 3-5 of M8b.
+
+## Step 3: the update path, the kit's hypergraph axis, the scaffold (update-kit-scaffold)
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `09c9158` | ADR 0043 (the update path and the kit's container axis) and ADR 0044 (the hypergraph scaffold and the requirements of a hypergraph manifest), before any code; GOVERNANCE and index rows |
+| `a8305e9` | the host store's lazy views and `automatic` line graph counted as the container's work, as on the device store (a gap the kit's C8 exposes; ADR 0043 finding 1) |
+| `a01f0eb` | `detail::hyper_transaction` (`transaction.hpp`): begin with Step 0 once (`hyper_staged_batch`), `before()`, `commit()`, `after()`, `applied()`; `hypergraph::apply()` is a transaction without participants (behaviour, messages and stages unchanged) |
+| `5aed474` | `participant_of<hypergraph<V, W>>`, `hyper_update_participant`, the hypergraph's `run_update()` (`hyper_update.cpp`), `is_hypergraph_v`; the framework's composition for both containers (`hyper_requested_batch`, `hyper_applied_batch`, `has_batch_summary`, `state_identity`); the API baseline |
+| `672d3bc` | the aggregate-delta fakes on the hypergraph (`fake_hyper_problems.hpp`, the device counts in `fake_hyper_kernels.cu`), `hypergraph_update_test.cpp` on every backend, the compile-fail tests `hypergraph.update.static_assert.*` |
+| `7cf3d5b` | the kit's container axis: `containers.hpp` (`container_traits`, the graph's moved verbatim), `hypergraph_generators.hpp` (the hypergraph's presets, model, twelve mixes), `container_checks` (C7, C9) |
+| `f60aadd` | `dyng_hypergraph_kit_tests` / `..._cuda_tests` (the fakes through C0-C12), the planted bug (CTest `conformance.mutation.frontier_requested_ids`, suite `kit` of `parity/mutate.py`) |
+| `e0b4025`, `22a09ab` | `new_algorithm.py --container hypergraph` (`_template_hypergraph`), `regen.py`'s hypergraph requirements, the scaffold check's hypergraph probes |
+| `e80900f` | `conformance.md`, `framework.md`, the API page, the CHANGELOG |
+| `524d6c9` | a test fix found by memcheck (a hand-run participant's workspace outlived its resources handle) |
+| (the records commit) | `ci/gpu_local.sh`: the kit's CUDA executable under racecheck and synccheck; `parity/results/M8b.md` section 3 and `M8b-mutate-kit.json`; this section |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **The applied record stays container state** (ADR 0041 deviation 12 said `dyng::update` would
+   move it into its transaction). The transaction exposes the record of its commit through
+   `applied()`, which is the hypergraph's last record; moving it out would take it from
+   `hypergraph_access::applied()`, which the parity tools and M11's incidence-delta hook read
+   after a plain `apply()` (ADR 0043, section 1).
+2. **"Prepares the row views and h2h for participants that read them"** is the line graph only:
+   the internal row views are rebuilt by every commit already (ADR 0042), and the public views
+   must not be built on the apply path. `reads_prepared_graph()` of a hypergraph participant means
+   "reads the line graph" (default false); `run_update()` makes sure of the line graph before the
+   before-apply phase (on G_t, so count(-) reads it), not inside the commit.
+3. **The planted bug's "requested ids"** are the ids a batch would get without reuse,
+   `id_bound(G_t) + i` (an inserted hyperedge has no requested id; these are the ids a caller who
+   predicts ids would use). The kit catches it in C2, C5 and C7 (and C8 in budgets builds) on
+   every backend.
+4. **The test-only fakes are not registered algorithms.** The kit gained two optional traits
+   members, `registry_entry()` (C0 and the backends read the entry the traits give) and
+   `test_partners` (C10's partners besides the registered algorithms), so the hypergraph axis runs
+   on every backend before the first hypergraph algorithm (M9's `triad_count`) exists. The fakes'
+   own suite is one test executable per backend kind (`dyng_hypergraph_kit_tests`,
+   `..._cuda_tests`), not a `<name>_conformance_tests` of the registry.
+5. **The kit's graph axis keeps `graph_types`**; a hypergraph algorithm's traits may say
+   `container_types` instead (both are read). The graph suites' test lists are unchanged
+   (compared with the binaries built before the change, every graph conformance executable, host
+   and CUDA, and the registry test).
+6. **Two template folders** instead of `//@@ graph` / `//@@ hypergraph` blocks in one (ADR 0044):
+   the two versions differ in almost every line.
+7. **`graph_requirements` keeps its name** in a hypergraph manifest and names the requirements on
+   `hypergraph_properties` (ADR 0044); a graph manifest's table is unchanged.
+8. **Recorded, not fixable in this step:** the frozen `update.hpp`'s static_assert text for a wrong
+   batch names the graph's `edge_batch_view` also for a hypergraph, and a graph result passed with
+   a hypergraph stops in sssp.hpp's frozen `update_traits` (`no type named 'edge_type'`); both
+   headers must stay byte-identical (ADR 0043 findings 3 and 4). Compile-fail tests pin both.
+9. **Two stale strings of criterion 21 fixed early:** `update_dispatch_test`'s "(the hypergraph of
+   0.2)" and `new_algorithm.py`'s refusal message (gone with the refusal).
+10. **The hypergraph stages of an update:** Step 0 runs under `update.normalize` (or
+    `<algo>.normalize`) and the commit under `update.commit` around `hypergraph.apply`, so inside
+    `dyng::update()` the `hypergraph.apply` stage covers the commit only; a plain `apply()` keeps
+    `hypergraph.apply` around validation and commit (the stages of `parity/timed_regions/
+    hypergraph.toml` are unchanged).
+
+### Measurements
+
+- **The kit's hypergraph axis:** `dyng_hypergraph_kit_tests` 28 tests (26 checks over the two
+  hypergraph types, C4 and C12 skipped on the host: one engine, no CUDA) and the generator checks,
+  53 s in Debug; `dyng_hypergraph_kit_cuda_tests` 28 tests (C4 skipped), 29 s on GPU 1. C8 holds
+  with no allocation in the steady state and 0 (host) / 2 (CUDA) host synchronizations.
+- **The planted bug:** in the budgets build (dev) the mutant fails 8 tests (C2, C5, C7, C8 of
+  both types; the first C2 failure is the `mixed` mix under erase_first, where reuse makes the
+  predicted ids wrong); `parity/mutate.py run --suites kit` (parity-cuda, Release: no C8) detects
+  it by 6 host and 6 CUDA tests (C2, C5, C7), control passing.
+- **Sanitizers:** memcheck clean on the kit's CUDA executable and the hypergraph CUDA tests after
+  a test fix (`524d6c9`: a hand-run participant's workspace outlived its resources handle);
+  racecheck and synccheck clean on the kit's C1, C3, C11 and C12 and the update tests. The kit's
+  racecheck took 760 s, so `ci/gpu_local.sh` runs C1, C11 and C12 under racecheck and synccheck
+  (memcheck covers every check).
+- **The CPU and GPU gates:** `ci/check.sh` (after the ruff fix), `ctest -L gpu` (670) and
+  `ctest -L cpu` (1,055) on dev-cuda, the Clang 18 syntax pass (328 + 710 files) and the fortified
+  cpu-only build: clean.
+- **The scaffold check:** 54 tests of the two hypergraph probes (13 checks x 2 types x 2 probes,
+  two hand cases) passed, next to the graph probes (80) and `my_bfs` (41).
+
+### Notes for M9 (triad_count)
+
+- A hypergraph algorithm is a problem with `container_type = hypergraph<V, W>`; its `requested`
+  is `framework::hyper_requested_batch` (`normalized->deletions`: the live deleted ids of G_t) and
+  its `applied` is `framework::hyper_applied_batch` (`summary.inserted_ids`;
+  `record.inserted_ids_device` on CUDA; `record.deleted_members`). `framework/fake_hyper_problems.hpp`
+  is the worked example of count(-) on the old row views and count(+) on the new ones, on every
+  backend.
+- `reads_prepared_graph()` returning true keeps the line graph (`automatic` builds it on G_t).
+- The traits: `container_types`, `hypergraph_shape`, `require(hypergraph_properties&)`; the
+  kit's presets add both `id_reuse` orders and the three capacity presets. `scripts/new_algorithm.py
+  triad_count --container hypergraph --family aggregate_delta` gives the green start (its
+  `planned.toml` entry is removed by the scaffold).
+
+### Open items
+
+- **Hosted CI has not run on this branch** (nothing is pushed).
+- Steps 4 and 5 of M8b (I/O, generators, Python; the freeze). The kit's hypergraph mixes come from
+  a kit-local generator; step 4 may switch them to the public hypergraph generators.
+- The author's confirmations at the 0.3.0 release (the frozen hypergraph headers, the stable
+  `.hg` / `.dgb` formats) are still pending; the plan's default applies until then.

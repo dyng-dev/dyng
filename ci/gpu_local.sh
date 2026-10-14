@@ -71,8 +71,10 @@
 #              medium traces) at their reduced sizes (DYNG_CBST_REDUCED=1; memcheck covers them in
 #              the memcheck step), without the long random streams (HypergraphRandom.*,
 #              HypergraphCuda.RepeatedRunsGiveIdenticalIds: under racecheck they take hours, and
-#              their kernels are the ones of the other tests and of the cbst step), and the
-#              container-level replays of the small golden sets on
+#              their kernels are the ones of the other tests and of the cbst step), the kit's
+#              hypergraph axis (dyng_hypergraph_kit_cuda_tests, M8b step 3: the fakes' device counts
+#              over the row views; C1, C11 and C12 under the sanitizers, every check under
+#              memcheck), and the container-level replays of the small golden sets on
 #              cuda (parity/compare.py hypergraph_ids: escher_gpu_test and mosp_escher_test, the ids
 #              and rows; escher_gpu_test again with --line-graph, A's H2H after every batch;
 #              skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
@@ -398,6 +400,15 @@ if ! skipped hypergraph; then
           hg_ok=0
         fi
       done
+      kit="${build_dir}/cpp/tests/dyng_hypergraph_kit_cuda_tests"
+      if [ ! -x "${kit}" ]; then
+        echo "${kit} missing"
+        hg_ok=0
+      elif ! heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 "${kit}" \
+        --gtest_brief=1 --gtest_filter='*.C1_*:*.C11_*:*.C12_*'; then
+        echo "compute-sanitizer --tool ${tool} ${kit}: FAILED"
+        hg_ok=0
+      fi
     done
   fi
   if [ "${hg_ok}" = 1 ]; then

@@ -304,3 +304,93 @@ first candidate if the M9 reading needs room (a parallel or device grouping).
 - `M8b-memory.json` (criterion 8; at `16898f4`, the working tree differing only in these records
   and the retrospective): passed.
 - `M8b-maintain-base.json` (criterion 9; at `16898f4`): the reading of section 2.4.
+
+## 3. Step update-kit-scaffold: the update path, the kit's hypergraph axis, the scaffold
+
+### 3.1 What was built (ADRs 0043, 0044)
+
+- The hypergraph's two-phase transaction (`cpp/src/hypergraph/transaction.hpp`: begin with Step 0
+  once, `before()` with the old view valid until the commit, `commit()`, `after()` with the
+  applied record); `hypergraph::apply()` is a transaction without participants.
+- `dyng::update()` / `update_each()` over hypergraphs: `detail::participant_of<hypergraph<V,
+  W>>`, `hyper_update_participant`, the hypergraph's `run_update()` (one Step 0, one commit, every
+  before-apply on G_t, every after-apply on G_{t+1}, poisoning of a failing result while the
+  others complete); `update.hpp` and `cpp/include/dyng/graph/*` are byte-identical to `main`
+  (`git diff main HEAD -- cpp/include/dyng/update.hpp cpp/include/dyng/graph/`: empty).
+- The framework's adapter for problems on hypergraphs; the conformance kit's container axis
+  (`container_traits`, `container_checks`); the test-only aggregate-delta fakes
+  (`test_hyper_pairs`, `test_hyper_squares`) through C0-C12 on every backend; the planted bug.
+- `scripts/new_algorithm.py --container hypergraph` and `regen.py`'s hypergraph requirements.
+
+Nothing in this step changes what the container computes: the id replays, the line graph and the
+memory accounting of sections 1-2 are untouched (the transaction runs the same store phase in the
+same order; `hypergraph_test`, `hypergraph_line_graph_test`, the random streams and the committed
+id replays pass on every backend).
+
+### 3.2 The update path (criterion 10)
+
+| Property | Test |
+|---|---|
+| begin, `before()`, commit, `after()`, `applied()`; `before()` after the commit and a second commit throw | `HypergraphUpdate.TheTransactionRunsBeginBeforeCommitAfter` (every backend) |
+| an old view used after the commit throws (Debug builds; I1) | `HypergraphUpdate.AnOldViewUsedAfterTheCommitThrowsInDebugBuilds`, `...AProblemThatKeepsItsOldViewPastTheCommitFailsInDebugBuilds` (the result is poisoned, the hypergraph at version + 1); skipped with NDEBUG |
+| begin rejects before anything changes (version, state, rows); a commit after another apply is refused | `...TheBeginRejectsAnInvalidBatchBeforeAnythingChanges`, `...ACommitAfterAnotherApplyIsRefused` |
+| one Step 0 (the same staged object for every participant) and one commit; the order use_normalized, before@t, after@t+1; the applied record's host and device inserted ids | `...OneStepZeroAndOneCommitForEveryResult` (update and update_each) |
+| duplicate targets; a before-apply rejection changes nothing; an invalid batch is rejected before any participant runs | `...AResultPassedTwiceIsRejectedBeforeAnythingChanges`, `...ARejectionBeforeTheCommitChangesNothing` |
+| a failing participant poisoned, the others complete, the first error rethrown | `...AFailingResultIsPoisonedAndTheOthersComplete`, `...AFailingProblemIsPoisonedWhileItsPartnerCompletes` |
+| the line graph prepared for its readers (built on G_t under `automatic`; refused under `none`) | `...TheLineGraphIsPreparedForItsReaders` |
+| stale results by version and state identity (another hypergraph, a clone that diverged) | `...AStaleResultIsDetected` |
+| stages `update.normalize`, `update.commit`, `hypergraph.apply` and sub-stages | `...TheStagesOfAnUpdate` |
+| aggregate-delta fakes through `dyng::update()` equal to compute() under both orders | `...TheFakesStayEqualToComputeThroughDyngUpdate`, `...WeightedHypergraphsTakePartToo` |
+| misuse does not compile | `hypergraph.update.static_assert.{control, owning_batch, edge_batch_with_hypergraph, hyperedge_batch_with_graph, hypergraph_result_with_graph, graph_result_with_hypergraph}` |
+
+### 3.3 The kit's hypergraph axis (criterion 11)
+
+- `dyng_hypergraph_kit_tests` (sequential, openmp; 28 tests: C0-C12 over (int32, unweighted) and
+  (int32, int32), the generator checks) and `dyng_hypergraph_kit_cuda_tests` (cuda; C3 compares
+  it with both host backends; C12 on two non-blocking streams): every applicable check passes; C4
+  is skipped (one engine). C8 in the budgets builds: no allocation in the steady state, 0 (host) and
+  2 (CUDA) host synchronizations, the problem's declared budget.
+- Presets {erase_first, insert_first} x {escher_gpu(), mosp_escher(), default} plus
+  `sorted_merge` as the traits' extra; twelve mixes; `HypergraphKitGenerators.*` checks that each
+  makes what its name promises (reuse under erase_first takes the freed ids and insert_first does
+  not; a hyperedge of more than 1,024 members on the medium shape; INT64_MIN / INT64_MAX and the
+  bound deleted; members 0 and n - 1; ...).
+- **The planted bug** (`kit_frontier_requested_ids`, frontier = id_bound(G_t) + i instead of
+  `inserted_ids`): `parity/mutate.py run --suites kit` at `22a09ab` (parity-cuda preset, Release):
+  control passed; the mutation detected by 6 tests of `dyng_hypergraph_kit_tests` and 6 of
+  `dyng_hypergraph_kit_cuda_tests` (C2, C5 and C7 of both types; record
+  `M8b-mutate-kit.json`). In the budgets build (`dev`) the CTest
+  `conformance.mutation.frontier_requested_ids` passes (the mutant fails C2, C5, C7 and C8).
+- **The graph suites are unchanged:** the `--gtest_list_tests` output of every graph conformance
+  executable (sssp, cycle_count, mosp, dynamic_bfs, triangle_delta; host and CUDA) and of the
+  registry test equals that of the binaries built before the change; all pass.
+
+### 3.4 The scaffold (criterion 11)
+
+`ci/scaffold_check.sh` scaffolds `scaffold_probe_hg_ad` (aggregate delta, sequential and OpenMP)
+and `scaffold_probe_hg_fp` (fixed point, sequential) with `--container hypergraph`, builds the
+subset with warnings as errors and budgets, and runs their kits and hand cases: 54 tests passed
+(next to 80 of the graph probes and 41 of `my_bfs`); Doxygen, the coverage check, the API baseline
+(only the probes' headers added) and Sphinx pass on the result; `--remove` leaves the tree as it
+was.
+
+### 3.5 Checks of the step
+
+| Check | Result |
+|---|---|
+| `ci/check.sh` (format, cpu-only and dev with `ctest -L cpu`, consumer, tidy, reuse, provenance, regen, harness, python, api, scaffold, docs, pre-commit) | every step passed at `e80900f` but `precommit` (ruff format of two Python files; fixed in `22a09ab`, `pre-commit run` then clean); cpu-only 1,026 and dev 1,055 tests passed; `api_snapshot --against origin/main`: no breaking change of the frozen API; griffe green |
+| `ctest -L gpu` on `dev-cuda` (GPU 1) | 670 / 670 passed (the hypergraph kit on cuda among them) |
+| `ctest -L cpu` on `dev-cuda` | 1,055 / 1,055 passed |
+| the compile-fail tests | `hypergraph.update.static_assert.*` (6), `update.static_assert.*`, `framework.conformance.*`, `conformance.registration.*`: passed (in `ctest -L cpu`) |
+| `ci/scaffold_check.sh` | passed inside `ci/check.sh` (section 3.4) |
+| `ci/python.sh`, `ci/docs.sh` | passed inside `ci/check.sh` (the regen outputs unchanged: no new manifest) |
+| compute-sanitizer memcheck (`--leak-check full`) | `dyng_hypergraph_kit_cuda_tests` (28 tests) and `dyng_hypergraph_cuda_tests` (50 tests, `DYNG_CBST_REDUCED=1`): 0 errors, 0 leaks, after `524d6c9` (the first run found the device buffers of a hand-run participant's workspace that outlived its resources handle in one test reported as leaked; a test fix) |
+| compute-sanitizer racecheck and synccheck | `dyng_hypergraph_kit_cuda_tests` C1, C3, C11, C12 (8 tests): 0 hazards, 0 errors (racecheck 760 s, so `ci/gpu_local.sh` runs C1, C11 and C12); the update tests of `dyng_hypergraph_cuda_tests`: 0 hazards, 0 errors |
+| `parity/mutate.py run --suites kit` (at `22a09ab`) | control passed; `kit_frontier_requested_ids` detected (6 + 6 tests) |
+| portability: Clang 18 `-fsyntax-only` over the dev and dev-cuda databases; cpu-only with `-D_FORTIFY_SOURCE=3` | 0 failures over 328 + 710 files; built, `ctest -L 'hypergraph\|conformance\|core\|framework'`: 543 passed |
+| intermediate commit `672d3bc` in a worktree (dev preset) | built; `ctest -L hypergraph`: 105 passed |
+| `git diff main HEAD -- cpp/include/dyng/update.hpp cpp/include/dyng/graph/` | empty |
+
+### 3.6 Records
+
+- `M8b-mutate-kit.json`: the `parity/mutate.py run --suites kit` record at `22a09ab`.
