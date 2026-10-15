@@ -27,7 +27,8 @@ pending the author's confirmation at the 0.3.0 release.
 | `23d0c03` | the author's M9 decisions in GOVERNANCE.md; `plan.md` (the M9 row split into M9a / M9b) and the roadmap (D3: the 0.5 OpenMP item becomes tuning) |
 | `903b3aa` | `parity/triad_goldens.py` (export, verify, crosscheck, list), registered in `export_goldens.py` and `compare.py`; `parity/tests/test_triad_goldens.py` |
 | `f91b226` | the set `triad_count_escher_gpu` in `parity/goldens.toml` (with the inputs and the coverage table), named in `references.toml` |
-| (the records commit) | `parity/results/M9a.md` section 1, `parity/results/M9a-crosscheck-escher_gpu.json`, this section, ADR 0048's figures, plan.md, CHANGELOG |
+| `7eb7e61` | `certify.py` lists a `triad_count` set without replays without a verdict (deviation 13) |
+| `07ee804` | `parity/results/M9a.md` section 1, `parity/results/M9a-crosscheck-escher_gpu.json`, this section, ADR 0048's figures, plan.md, CHANGELOG |
 
 Results: the set exported twice from two fresh patched copies with byte-identical manifests
 (300 cases, 367.7 MB); every case's `--check` run agrees; `generators::legacy` reproduces all 12
