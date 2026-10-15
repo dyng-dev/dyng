@@ -1,6 +1,6 @@
 # Retrospective: M8b (the hypergraph container)
 
-Status: **done** (all five steps), pending the hosted CI and the author's merge of its pull
+Status: **done** (all five steps and the review fixes), pending the hosted CI and the author's merge of its pull
 request, on the branch `m8b-hypergraph`, created by the orchestrator from the head of the accepted
 M8a branch `m8a-escher-store` at `b45e685` (`origin/main` `30c3eef`, 0.2.0 released and 0.3.0.dev0,
 was merged into M8a at `889953a`; the author merged M8a as #14, `2de6ebe`, which step 5 merged
@@ -70,8 +70,13 @@ the author's confirmation at the release.
    streams) instead.
 5. **A B session stops at its first vertex-kind batch.** B's tests interleave hyperedge-kind and
    vertex-kind batches on one hypergraph; once a vertex-kind batch (incidence edits, 0.4) has run,
-   B's state cannot be reproduced. Each session is replayed up to that batch, and the batches not
-   replayed are counted (`vertex_batches`).
+   B's state cannot be reproduced. Each session is replayed up to that batch. (Corrected by the
+   review: `vertex_batches` counted the stopped sessions, and the hyperedge-kind batches after a
+   stop were counted nowhere. In B's `make test` set 498 vertex-kind batches stop 96 sessions,
+   and 97 of its 226 hyperedge-kind batches, holding 40,386 ids, about 43 %, come after a stop
+   and are not compared until M11 replays the sessions whole; the report now counts
+   `vertex_batches`, `stopped_sessions`, `hyperedge_batches_after_stop` and `ids_after_stop`,
+   results 6.1.)
 6. **The batch extracts are a new committed artifact.** Hosted CI needs B's batch records and
    M8a's committed subset has none (its B traces are `test_cbst_ops` runs); a whole trace with
    batches is several MB. `parity/escher_trace.py extract-batches` writes a format-1 trace without
@@ -219,9 +224,10 @@ the author's confirmation at the release.
   `maintain.prepare`); `maintain` as a whole is 0.85x. If M9's `update` reading needs room, the
   grouping (and the insert's) can run in parallel or on the device.
 - **The Nsight Systems peak** of the container (3,019.1 MiB on coauth50k) is the merge's: the new
-  H2H payload exists next to the old one until the rebuild, as in A (3,018.9 MiB with its
-  counting); M9 gates the peak with the counting included, where dynG's counting temporaries add
-  to it.
+  H2H payload exists next to the old one until the rebuild, as in A, whose peak (3,018.9 MiB)
+  also lies in its H2H merge, not in its counting (corrected by the review; results 6.2). M9
+  gates the peak with the counting included; the counting adds to it only with workspace still
+  allocated during the merge (headroom about 150 MiB under 1.05x).
 - **The boost clock lock does not hold** for A's process on coauth-DBLP (power cap during its full
   count); M9's `update` gate is read at the base lock (ADR 0021) unless that changes.
 
@@ -587,11 +593,15 @@ the author's confirmation at the release.
   deleted member sets); replay by key and by content through `io::batch_reader` (the skeleton shows
   both with public API only); `generators::legacy` redraws A's synthetic runs without traces.
 - **The maintain-stage risks**: `hypergraph.apply.delete` is 1.7-2.9x A's delete timers (the host
-  grouping, timed there; `maintain` whole 0.86-0.89x); coauth's `hypergraph.apply` grew by 8 ms
-  outside its sub-stages since step 2 (5.5), to profile in M9 first; host syncs 21 per batch
-  against A's 76.
-- **The memory peak**: the nsys peak (dynG 3,019.1 MiB, A 3,018.9 MiB with its counting) is gated
-  in M9 with the counting included; dynG's counting temporaries add to the merge's peak.
+  grouping, timed there); `maintain` whole is 0.79x (coauth50k) and 0.83x (syn1m) after the
+  review (results 6.3: the 8 ms coauth drift of step 5 was the applied record's touched sets,
+  fixed); host syncs 19 per batch against A's 76.
+- **The memory peak**: both nsys peaks (dynG 3,019.1 MiB, A 3,018.9 MiB) lie in the H2H merge
+  (results 6.2: A's counting ranges peak at 1,837-1,853 MiB). M9 gates the peak with the counting
+  included: the counting's workspace must not stay allocated during the merge, or must fit the
+  roughly 150 MiB of headroom that 1.05x of A's peak leaves. The stream-ordered pool keeps about
+  1.27 GB of slack after the merge (3,104 MiB held against A's 1,867 MiB between batches): M9's
+  memory reading should report the footprint too.
 - **The layout-control decision**: the maintain reading ran with one heap layout (ADR 0024's
   protocol); the author's decision of 2026-10-08 on layout control for the 0.2 gates (GOVERNANCE
   approvals log) applies to M9's gated `update` reading too; no new decision is needed unless the
@@ -601,8 +611,10 @@ the author's confirmation at the release.
 
 ### Decisions for the author (collected for the 0.3.0 release)
 
-1. **Stable from 0.3.0**: the hypergraph headers frozen at M8b (ADR 0047) and the `.hg` / `.dgb`
-   formats at version 1 (ADR 0045); the plan's default applies until the author confirms or
+1. **Stable from 0.3.0**: the hypergraph headers frozen at M8b (ADR 0047), `.dgb` at format
+   version 1 and `.hg` without a version field (ADR 0045 section 1, amended by the review: a
+   `%hg 1` line would make dynG's unweighted files unreadable by MOSP_ESCHER's loader; the author
+   may prefer the line); the plan's default applies until the author confirms or
    changes it at the release (GOVERNANCE.md, open decisions).
 2. **O16** (`id_reuse` default `erase_first`): decided by the author on 2026-10-07; a change before
    0.3.0 would be an api-change.
@@ -614,6 +626,121 @@ the author's confirmation at the release.
 
 - **Hosted CI has not run on this branch** (nothing is pushed); the pull request is the
   orchestrator's (deviation 8).
-- The coauth `hypergraph.apply` drift of 5.5 is unprofiled (M9 note).
 - The long random streams and C12's two-host-thread test are not run under racecheck (deviation
   13; memcheck covers all of them, synccheck the two-thread test).
+
+## The review fixes (2026-10-14)
+
+Independent reviewers checked M8b at `6abdc7f` through four lenses (the API freeze's semantics,
+the parity oracles, I/O robustness, GPU integration and memory); 39 confirmed findings (two of
+them the same defect, the commit's allocation after the version bump) were fixed on this branch
+in small commits, each with its tests, and the affected parity and performance readings were run
+again (results, section 6). None changes an author-approved rule; two change frozen-header text
+(documentation only) and one adds lines to the API baseline's frozen `hypergraph.hpp` section.
+
+### What was fixed
+
+| Finding | Fix | Commit |
+|---|---|---|
+| Step 0's repeated-id removal was quadratic (one repeated id in a 400K batch: about 20 s) | the (id, position) pairs sorted, the first position kept: O(k log k); a 200K shuffled batch with repeats on every backend | `6edc7c8` |
+| the "no-throw" commit copied `inserted_ids` after `++version` (twice reported) | the summary is built inside the store phase; after the commit point only integer assignments, a swap and `noexcept` moves (`static_assert`) | `607178d` |
+| every apply paid a fixed O(\|E\| + \|V\|) host cost (about 9 ms per coauth batch) for the touched sets | reusable marks in the container state: O(k log k) for few values, one scan for many; the random streams check both sets by brute force | `e8f6455` |
+| `apply()` / `dyng::update()` ignored the stream of their resources (high) | the store phase waits for the call's stream (an event) and the call's stream for the store's work; ADR 0041 section 4, `apply()`'s doc, the concepts page; a CUDA test with a delayed reader of G_t on another stream (fails without the ordering) | `bcfaa16` |
+| three back-to-back synchronizations read the three error words | `cbst_store::check_errors({...})`: one synchronization, the failing store poisoned (tested); 2 host syncs fewer per batch | `4159cf2` |
+| an OOM during the first `h2h()` under `automatic` left a half-enabled line graph (high) | the flag is set after the row view; the locator is left empty when its allocation fails (it freed first, as A); a fault-injection test fails every allocation of the build in turn | `dc237ae` |
+| `weights()` of a poisoned hypergraph did not throw; the guarantee said "every later call" | `weights()` checks; the guarantee names the calls that throw and says the `noexcept` accessors return unspecified values | `1795d61` |
+| the batch-size `capacity_error` and staging OOM of Step 0 were documented as poisoning | documented as strong (nothing changed) | `b6a2354` |
+| `skipped_ops` frozen as `ignored_deletions + dropped_members`, no room for 0.4's incidence skips | documented as every skipped operation (in 0.3 that sum); ADR 0041 section 8 records the 0.4 rule (B's skips counted, an out-of-range incidence vertex skipped); ADR 0047 amendment | `0364eb8`, `7e3bcec` |
+| `row_alignment`'s reworded comment contradicted the allocator; Python said "terminator" | "a surplus row inserted by a batch reserves its members rounded up to a multiple of this, plus one slot" | `0bcae71` |
+| a huge `initial_slack` / `initial_headroom` overflowed int64 (undefined) and raised a false `capacity_error` | each term saturates at the payload limit; C++ and Python tests | `885e273` |
+| `empty()` ignored the incidence vertex arrays | all six arrays | `9089d3f` |
+| `add_hyperedge` leaked `std::bad_alloc` for an emptied list | the first offset is pushed inside the try; the allocation-failure executable tests it | `7eb0520` |
+| `line_graph_view`'s comment said every array is in the container's space | `weights` is host memory on every backend, said on the struct and the field | `20fa7d5` |
+| ADR 0047 froze the `detail` contract, but the API checks did not see it | the snapshot lists `is_hypergraph(_v)`, `hyper_update_participant`'s aliases and virtual members and `run_update()`; the deliberate change (`after_apply` without `summary`) fails `ci/docs.sh` and `ci/api_check.sh` (shown, reverted; `$DYNG_SCRATCH/runs/m8b-review/demo-detail-*.log`) | `54fac8b` |
+| ADR 0041's table said the owning batch is "same" as the sketch; PLAN 5.3's example does not compile | the row records the default-only constructor and the `void` builders; the example in its frozen form | `c29c951` |
+| the README listed the hypergraph container as planned | its own row, working (M8a/M8b) | `f207bef` |
+| by content, the id check could never fire (high) | ids compared first (a mismatch unless the batch is ambiguous), `first_ambiguous_batch` reported, `content_diverged_at == first_ambiguous_batch` required; the reviewer's planted resolver bug now fails `escher_gpu_test` with 85 mismatches (`$DYNG_SCRATCH/runs/m8b-review/planted-ambiguous-escher_gpu_test.log`) | `0e96f27` |
+| no replay checked h2h against `rebuild_line_graph`; B's line graph never checked | with `--line-graph` the oracle runs after every state on both originals' sets (B's sessions keep the line graph under `insert_first`); `compare.py` requires every state checked | `0e96f27` |
+| "vertex-kind (not replayed)" counted stopped sessions; 97 hyperedge-kind batches uncounted | `vertex_batches`, `stopped_sessions`, `hyperedge_batches_after_stop`, `ids_after_stop` (deviation 5 and results 1.2 corrected) | `0e96f27` |
+| B's weight check shortened silently; the loaded weights unchecked | sizes must agree, the loaded weights compared, the container built from B's raw rows | `0e96f27` |
+| `certify.py` accepted `--no-model` / `--skip-verify` records; the dirty check saw `cpp/` only | `--certificate` refuses them, the record states its checks, `certify.py` counts only full replays (tested); the whole tree is checked (also M8a's writer) | `5982efd` |
+| `batch_reader` silently skipped a damaged record on retry (high) | fail-stop: every later `next()` and view throws naming the record (C++ and Python tests) | `7a2964c` |
+| Python `BatchReader` raced when shared by threads | a mutex across `next()` and the copy (taken without the GIL); a two-thread test | `6f9e2d9` |
+| a `.dgb` of the wrong kind raised `invalid_argument_error` | `io_error` naming the right reader, checked from the header with the types before any record | `02e75f6` |
+| `.hg` / `.dgt` readers trusted `ftell()` (a directory: `out_of_memory_error`; `/dev/zero`: endless) | `read_file` checks the file type: a directory or device is an `io_error`; a regular file is sized by `std::filesystem`; C++ and Python tests | `9b6067b` |
+| `file_formats.md` said `.hg` carries a format version | `.hg` is unversioned (a `%hg 1` line would make dynG's unweighted files unreadable by MOSP_ESCHER's loader); the open decision updated | `55a04a4` |
+| `batch_reader`'s difference from PLAN 5.3's sketch unrecorded | ADR 0045 records the shape, the reasons and the mapping of the sketch's loop | `abf30da` |
+| `escher_gpu()` accepts id 2^31 - 1 and empty files, which A rejects | recorded as deliberate (header, ADR 0045, file_formats.md) with tests at the boundaries | `017733d` |
+| `fuzz_batch_binary` rarely got past the CRC32 checks | a custom mutator reseals the CRCs of 3 mutants in 4; a 31-minute run, results 6.4 | `7eb1b62` |
+| K > 64 reported as "K = -1"; `.dgt`'s K unlimited | the value as written; the round-trip sentence names the limit | `7a2964c`, `f070089` |
+| Python options beyond int64 escaped as `TypeError` | `as_int()` range-checks (int64; seeds uint64) | `306bb91` |
+| `file_formats.md` omitted two `.dgb` rules | the deleted-member offsets' rule and the flag rule | `f070089` |
+| `BatchReader` after its `with` block: `AttributeError` | `InvalidArgumentError` ("the reader is closed") | `6f9e2d9` |
+| no initcheck on the hypergraph executables; C12's comment claimed racecheck | initcheck added (`gpu_local.sh`); the comments corrected | `21d5079`, `bcfaa16` |
+| M8b's compile-time growth unrecorded | recorded below; the mutants' module copies take one architecture | `5ef3f4f` |
+| the records said A's peak included its counting; the pool slack was not reported | `perf_ab.py hypergraph memory` attributes the peaks to NVTX ranges and reports the pool per batch; both peaks lie in the H2H merge (results 6.2; 2.3, 5.4 and the M9 handoff corrected) | `6b9e198`, `805d9eb`, the records commit |
+
+### Deviations and choices of the review fixes (each with the same intent)
+
+1. **Stream ordering by events, not by refusing a mismatch.** The reviewer offered both; refusing
+   resources on another stream would have made the documented contract ("the CUDA backend orders
+   work on the resources' stream") false for hypergraphs. The join costs nothing when the streams
+   are the same; the views returned by `h2v()` / `v2h()` / `h2h()` (which take no resources)
+   stay on the hypergraph's own stream, as documented (`@sync`).
+2. **`skipped_ops` is reworded, not split.** An `ignored_incidence_edits` field would have been
+   an addition to a frozen aggregate now for a feature of 0.4; the total is what C9 and B's
+   `skippedOps` need, and a per-kind field stays an additive change for M11.
+3. **`.hg` stays unversioned** (ADR 0045 section 1): a version line breaks MOSP_ESCHER's loader
+   on dynG's unweighted files. The author's decision list names the alternative.
+4. **`escher_gpu()`'s two extra inputs are recorded, not removed**: the id 2^31 - 1 and an empty
+   file are valid in dynG (the vertex type's limit; 0 hyperedges is a valid hypergraph), and no
+   dataset of A has either.
+5. **The line-graph oracle runs on every set and backend of the line-graph replays**, the large
+   ones included: it took 142 s for coauth50k on cuda (62 s without), so no separate pass was
+   needed. `--no-line-graph-oracle` exists for runs that only want A's comparison; a certificate
+   refuses it.
+6. **The graph's `update_participant` stays out of the API snapshot**: ADR 0023 treats it as
+   internal-stable and M8b leaves `update.hpp` byte-identical; only the hypergraph's contract,
+   which ADR 0047 froze, is listed.
+7. **No test injects an allocation failure into the commit's summary copy** (the commit fix): the
+   copy uses `std::allocator`, and the structure (the summary built before the commit point, a
+   `static_assert` that the applied record's move is `noexcept`) is what keeps the guarantee.
+8. **The touched sets keep persistent host marks in the container state** (one byte per id and per
+   vertex, not counted in `device_bytes`, not cloned): building the sets from the batch alone by
+   sorting was the 16 ms of step 2.
+9. **The mutants' copies of the hypergraph module take one CUDA architecture** (the build's first,
+   with PTX); `native` builds are unchanged.
+10. **The two-stream test was fixed after `ci/gpu_local.sh`'s memcheck** (`8bd6713`): it copied
+    G_t's view on the legacy default stream, which memcheck rightly reports as unordered with the
+    store's stream-ordered frees on a non-blocking stream, and destroyed its streams before the
+    hypergraph. The library was not at fault; the memcheck step of that run is therefore red for
+    `dyng_hypergraph_cuda_tests`, and memcheck of the fixed executable, run as the step runs it,
+    is clean (54 tests, 0 errors, 0 leaks; `memcheck-hypergraph-rerun.log`).
+
+### Compile time (recorded; the review's reading)
+
+On the compile-only `ci-cuda12` preset (7 release architectures, CUDA 12.9) the reviewer measured
+main `2de6ebe` at 2 min 54 s wall and 103 CPU-minutes, M8b at 3 min 58 s and 174 CPU-minutes
+(libdyng 34,552 -> 38,404 KiB stripped, +11 %); 49.5 of the CPU-minutes were the 12 mutant copies
+of the hypergraph module (8 CBST and 4 hypergraph mutants), against 3.9 for the library's own
+copy. After `5ef3f4f` (one architecture per mutant copy), `ci-cuda13` (CUDA 13.1) at HEAD:
+197 s wall and 151 CPU-minutes for the whole preset (883 steps;
+measured while the mutation suites ran on the same machine, so the times are upper bounds), libdyng
+40.2 MB unstripped. The 12 mutant copies of the hypergraph module took 46 CPU-minutes in all; the
+two units the reviewer counted, `escher_store.cu` and `sorted_merge.cu`, 13.7 (49.5 before); one
+copy's `cbst_store.cu` takes about 55 s against 164 s for the library's seven-architecture one.
+A unit's time is mostly its host front end, so one architecture saves about two thirds of each
+CUDA unit; the mutants stay in the compile-only presets (that they compile is checked there), and
+the hosted `cuda-build` keeps its margin under `timeout-minutes: 120` The wheels stay far below the 90 MB budget (step 5: `dyng` 1.99 MB,
+`dyng-cu12` 8.27 MB, `dyng-cu13` 8.19 MB).
+
+### Checks of the review fixes
+
+| Check | Result |
+|---|---|
+| `ci/check.sh` (at `bc8b20e`; the later `8bd6713` changes a CUDA-only test) | every step passed: cpu-only 1,069 and dev 1,102 tests, harness 262, Python 636 passed / 72 skipped, scaffold 80 + 3 + 54 + 41, clang-format, clang-tidy, REUSE, provenance, docs (Doxygen with warnings as errors, the API snapshot equal to the baseline), pre-commit |
+| `ci/api_check.sh main` | no breaking change of the frozen C++ API or of the Python API |
+| the detail-contract demonstration | `after_apply()` without `summary` fails `ci/docs.sh --doxygen-only` and `ci/api_check.sh 54fac8b`; reverted, both pass (`demo-detail-*.log`) |
+| portability | Clang 18 `-fsyntax-only`: 0 failures over 357 files (dev), 749 (dev-cuda) and 375 (dev with the Python bindings); cpu-only with `-D_FORTIFY_SOURCE=3` and the Python bindings: built without warnings |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | the full run at `8bd6713`'s code (`gpu_local.log`): 18 of 19 steps passed (build; `ctest -L gpu` 679 / 679; `ctest -L cpu`; the cuda goldens; synccheck; racecheck; the cbst sanitizers, replays and lockstep; the hypergraph sanitizers, now racecheck, synccheck and initcheck: 0 hazards, 0 errors; the hypergraph replays, B's line graph with the oracle included; the cu13 plugin wheel, `pytest -m gpu`, `dyng-cu13` 8.20 MB; clang-tidy). memcheck failed on the new two-stream test (deviation 10); after its fix the build and memcheck steps again: passed, every executable 0 errors (`gpu_local-memcheck.log`) |
+| the replays, the memory and maintain readings, the fuzzer, the mutations, the dry-run certificate | results, section 6 |
