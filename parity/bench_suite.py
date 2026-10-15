@@ -28,7 +28,10 @@ plan       prints the harness commands one execution of the suite runs (nothing 
 run        verifies the inputs against the suite's digests (SHA-256 of every file; skip with
            --no-verify-inputs), then runs every planned command: parity/perf_ab.py run|memory for
            sssp, parity/perf_ab.py mosp and memory --mosp for mosp, parity/perf_ab.py cycle_count
-           run|memory for cycle_count. Each timing command
+           run|memory for cycle_count, parity/perf_ab.py triad_count run|memory for triad_count
+           (cases <dataset>_b<size>_s<seed> of the golden set triad_count_escher_gpu; a
+           synthetic dataset is pinned by its generator parameters and the SHA-256 of its rows
+           per seed). Each timing command
            takes the exclusive perf lock $DYNG_SCRATCH/perf.lock itself and runs only on a
            parity-preset build (--build-root/<preset>/tools/compat/...); the CUDA readings lock
            the GPU clocks for the whole A/B (--lock-clocks of the reading: boost, base, or none
@@ -118,6 +121,13 @@ HEX40 = re.compile(r"^[0-9a-f]{40}$")
 CASE_NAME = re.compile(
     r"^(?P<dataset>[A-Za-z0-9-]+)_k(?P<k>\d+)(?:_(?P<d>\d+)_(?P<i>\d+)_s(?P<s>\d+))?$"
 )
+# triad_count's cases (M9a): a group of the golden set triad_count_escher_gpu,
+# <dataset>_b<size label>_s<seed> (coauth_b50k_s1); a record keys them <case>/<pattern>.
+TRIAD_CASE = re.compile(r"^(?P<dataset>[A-Za-z0-9]+)_b(?P<size>\d+k?)_s(?P<seed>\d+)$")
+TRIAD_PATTERNS = ("main", "type1", "type2", "type3")
+# The memory metrics of an algorithm's suites (the gate "memory"): the Nsight Systems peak, and
+# for triad_count also the store accounting (the author's decision of 2026-10-07).
+MEMORY_METRICS = {"triad_count": ("device_memory", "store_memory")}
 COMPACTED = (
     "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the "
     "rejected rounds) were dropped to keep the repository small; the verdicts, samples, rejected "
@@ -169,6 +179,105 @@ def region_map(algorithm: str, backend: str) -> dict[str, dict]:
 def metric_gate(metric: dict, backend: str) -> str:
     gate = metric.get("gate")
     return gate.get(backend) if isinstance(gate, dict) else gate
+
+
+def triad_goldens():
+    import triad_goldens
+
+    return triad_goldens
+
+
+def triad_case_dataset(key: str) -> str | None:
+    """The dataset of a triad_count case or record key (coauth_b50k_s1[/main])."""
+    m = TRIAD_CASE.match(key.split("/", 1)[0])
+    return m["dataset"] if m else None
+
+
+def triad_digest(suite: dict, case: str) -> str | None:
+    """The suite's SHA-256 of a triad_count case's input: the dataset file's, or a synthetic
+    dataset's rows of the case's seed."""
+    m = TRIAD_CASE.match(case)
+    if not m:
+        return None
+    d = next((x for x in suite["datasets"] if x["name"] == m["dataset"]), None)
+    if d is None:
+        return None
+    digest = d.get("sha256")
+    return digest.get(f"s{m['seed']}") if isinstance(digest, dict) else digest
+
+
+def validate_triad(suite: dict, datasets: dict, batches: dict, need) -> None:
+    """triad_count's suites: the datasets pinned (coauth-DBLP by its file's SHA-256; a synthetic
+    dataset by A's generator parameters and the SHA-256 of its rows per seed, both those of the
+    golden set), and every reading's cases groups of the golden set."""
+    tg = triad_goldens()
+    pinned = {
+        name: spec["loaded_rows_sha256"]
+        for name, spec in tomllib.loads((REPO / "parity" / "goldens.toml").read_text())["sets"][
+            tg.SET
+        ]
+        .get("inputs", {})
+        .items()
+    }
+    for dname, d in datasets.items():
+        if dname == "coauth":
+            need(
+                d.get("sha256") == tg.COAUTH_SHA256,
+                f"dataset {dname}: sha256 must be the pinned file's",
+            )
+            need(d.get("file") == tg.COAUTH, f"dataset {dname}: file must be {tg.COAUTH}")
+        elif need(
+            dname in tg.SYNTHETIC, f"dataset {dname}: coauth or one of {sorted(tg.SYNTHETIC)}"
+        ):
+            gen = d.get("generator") or {}
+            need(
+                gen.get("parameters") == list(tg.SYNTHETIC[dname]),
+                f"dataset {dname}: generator.parameters must be {list(tg.SYNTHETIC[dname])}",
+            )
+            digest = d.get("sha256")
+            if need(isinstance(digest, dict), f"dataset {dname}: sha256 per seed (s1, s2, ...)"):
+                for seed_label, sha in digest.items():
+                    want = pinned.get(f"{dname}_{seed_label}")
+                    need(
+                        sha == want,
+                        f"dataset {dname}: sha256 {seed_label} is not the golden set's {want}",
+                    )
+    groups = {g.name for g in tg.all_groups()}
+    for r in suite["readings"]:
+        rname = r.get("name")
+        listed = r.get("cases") or []
+        need(bool(listed), f"reading {rname}: needs cases")
+        patterns = r.get("patterns", ["main"])
+        need(
+            bool(patterns) and set(patterns) <= set(TRIAD_PATTERNS),
+            f"reading {rname}: patterns must be among {TRIAD_PATTERNS}",
+        )
+        for c in listed:
+            m = TRIAD_CASE.match(c)
+            if not need(m is not None and c in groups, f"reading {rname}: case {c} is not a case "
+                        f"of the golden set {tg.SET}"):  # fmt: skip
+                continue
+            need(m["dataset"] in datasets, f"reading {rname}: case {c}: unknown dataset")
+            need(
+                f"b{m['size']}" in batches, f"reading {rname}: case {c}: unknown batch b{m['size']}"
+            )
+            need(
+                triad_digest(suite, c) is not None,
+                f"reading {rname}: case {c}: no digest of its input",
+            )
+            if r.get("kind") == "run" and r.get("gated") and m["dataset"] == "coauth":
+                need(
+                    r.get("clocks") == "base",
+                    f"reading {rname}: coauth-DBLP is read at the base lock (ADR 0021)",
+                )
+        if r.get("kind") == "run":
+            need(isinstance(r.get("runs"), int), f"reading {rname}: needs runs")
+            if r.get("gated"):
+                need(patterns == ["main"], f"reading {rname}: the gated readings are h_motif's")
+                need(
+                    r.get("clocks") in ("base", "boost"),
+                    f"reading {rname}: a gated reading is at a clock lock (ADRs 0018, 0021)",
+                )
 
 
 def harness_cases(backend: str) -> set[str]:
@@ -252,7 +361,14 @@ def validate(suite: dict) -> list[str]:
             f"batch name {bname!r} missing or repeated",
         ):
             batches[bname] = b
-            need(isinstance(b.get("seed"), int), f"batch {bname}: needs an integer seed")
+            if algorithm == "triad_count":  # the seed is the case's (--seed s<N>)
+                seeds = b.get("seeds")
+                need(
+                    isinstance(seeds, list) and all(isinstance(x, int) for x in seeds),
+                    f"batch {bname}: needs the integer seeds of its cases",
+                )
+            else:
+                need(isinstance(b.get("seed"), int), f"batch {bname}: needs an integer seed")
             need(isinstance(b.get("generator"), str), f"batch {bname}: needs a generator")
 
     # Backends and baselines: the pinned originals of references.toml.
@@ -304,9 +420,10 @@ def validate(suite: dict) -> list[str]:
             if backend not in metric:
                 continue
             if metric_gate(metric, backend) == "memory":
+                allowed = MEMORY_METRICS.get(algorithm, ("device_memory",))
                 need(
-                    mname == "device_memory",
-                    f"metric {mname}: only device_memory has the memory gate",
+                    mname in allowed,
+                    f"metric {mname}: only {' and '.join(allowed)} have the memory gate",
                 )
                 continue
             regions = region_map(algorithm, backend)
@@ -328,9 +445,15 @@ def validate(suite: dict) -> list[str]:
                 f"!= region map {stages}",
             )
 
-    # Every gated region of the map is a metric of the suite.
+    # Every gated region of the map is a metric of the suite that times it (a gated run reading
+    # on the backend; tkde26_escher_plus gates memory only).
     for backend in backends:
         if backend not in PRESETS:
+            continue
+        if not any(
+            r.get("kind") == "run" and r.get("gated") and r.get("backend") == backend
+            for r in suite["readings"]
+        ):
             continue
         for rname, region in region_map(algorithm, backend).items():
             if region["gate"] != "none":
@@ -377,6 +500,8 @@ def validate(suite: dict) -> list[str]:
                 engine in CUDA_ENGINES,
                 f"backends.cuda.engine must be one of {CUDA_ENGINES} (perf_ab.py --cuda-engine)",
             )
+    elif algorithm == "triad_count":
+        validate_triad(suite, datasets, batches, need)
     else:
         cases = {
             case_name(c, batches)
@@ -556,6 +681,42 @@ def plan(
                         "lock": "exclusive (the harness)",
                     }
                 )
+        elif algorithm == "triad_count":
+            cases = list(r["cases"])
+            if datasets:
+                cases = [c for c in cases if triad_case_dataset(c) in datasets]
+                if not cases:
+                    continue
+            patterns = list(r.get("patterns", ["main"]))
+            out = records / record_name(suite, r, None)
+            build = build_root / PRESETS[backend]
+            common = ["--cases", ",".join(cases), "--patterns", ",".join(patterns)]
+            common += ["--build", str(build)]
+            n = runs_for(suite, r, None, runs)
+            if r["kind"] == "run":
+                gpu = r.get("gpu", suite["backends"]["cuda"].get("gpu", 0))
+                argv = [py, harness, "triad_count", "run", *common, "--rounds", str(n)]
+                argv += ["--gpu", str(gpu), "--lock-clocks", r["clocks"]]
+                argv += ["--lock-timeout", str(int(lock_timeout)), "--json", str(out)]
+                lock = "exclusive (the harness)"
+            else:
+                argv = [py, harness, "triad_count", "memory", *common]
+                argv += ["--gpu", str(r.get("gpu", 1)), "--json", str(out)]
+                lock = "shared"
+            jobs.append(
+                {
+                    "reading": r["name"],
+                    "dataset": None,
+                    "kind": r["kind"],
+                    "gated": r["gated"],
+                    "record": out,
+                    "argv": argv,
+                    "lock": lock,
+                    "cases": cases,
+                    "patterns": patterns,
+                    "runs": n if r["kind"] == "run" else None,
+                }
+            )
         else:
             cases = list(r["cases"])
             if datasets:
@@ -638,6 +799,22 @@ def verify_inputs(suite: dict, datasets: list[str] | None = None) -> dict:
     for d in suite["datasets"]:
         if datasets and d["name"] not in datasets:
             continue
+        if suite["algorithm"] == "triad_count" and isinstance(d.get("sha256"), dict):
+            # A synthetic input of ESCHER-GPU: both sides generate it in-process; the golden
+            # set stores its rows per seed (M9a step 1), which must have the suite's digests.
+            tg = triad_goldens()
+            for seed_label, want in d["sha256"].items():
+                stored = tg.set_dir(SCRATCH) / "inputs" / f"{d['name']}_{seed_label}.hg.zst"
+                if not stored.is_file():
+                    raise SuiteError(f"{d['name']}: missing {stored} (the golden set's rows)")
+                got = hashlib.sha256(tg.zstd_read(stored)).hexdigest()
+                if got != want:
+                    raise SuiteError(
+                        f"{d['name']}: the rows of {seed_label} have SHA-256 {got}, the suite "
+                        f"says {want}"
+                    )
+            report[d["name"]] = "the golden set's stored rows of every seed have the digests"
+            continue
         root = input_root(suite, d)
         for rel, want in expected_inputs(suite, d).items():
             path = root / rel
@@ -654,6 +831,8 @@ def record_datasets(suite: dict, job: dict, record: dict) -> list[str]:
     """The suite datasets a record measured: the job's (sssp, mosp), or those its cases read."""
     if suite["algorithm"] in PER_DATASET:
         return [job["dataset"]]
+    if suite["algorithm"] == "triad_count":
+        return sorted({d for k in record.get("results", {}) if (d := triad_case_dataset(k))})
     names = set()
     for key in record.get("results", {}):
         m = CASE_NAME.match(key.split("/", 1)[-1])
@@ -723,6 +902,25 @@ def check_record_inputs(
         if names and all(n in digests for n in names):
             ok = all(digests[n] == by_name[n]["sha256"] for n in names)
             return {**out, "verified": ok, "how": "hashed by the measuring process"}
+    if suite["algorithm"] == "triad_count":
+        # Every case's input digest, taken by the measuring process (triad_perf.input_digest),
+        # must be the suite's: the dataset file's, or a synthetic dataset's rows of its seed.
+        results = record.get("results") or {}
+        problems = [
+            f"{key}: input SHA-256 {(r.get('input') or {}).get('sha256')} is not the suite's "
+            f"{triad_digest(suite, key.split('/', 1)[0])}"
+            for key, r in results.items()
+            if (r.get("input") or {}).get("sha256") != triad_digest(suite, key.split("/", 1)[0])
+        ]
+        out |= {
+            "verified": bool(results) and not problems,
+            "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows "
+            "as the golden set stores them, which both sides generate from the suite's "
+            "parameters, the per-round guard requiring the golden's counts)",
+        }
+        if problems:
+            out["problems"] = problems
+        return out
     # A record without digests taken while measuring (sssp records before 0.1.0rc1's review:
     # their digests are the ones `prepare` wrote; memory records): hash the files again.
     start = started or parse_stamp(record.get("date", ""))
@@ -898,6 +1096,8 @@ def read_record(
                         f"{where}: CUDA engine {record.get('cuda_engine')!r}, the suite's is "
                         f"{engine!r}"
                     )
+    if algorithm == "triad_count":
+        check_triad_record(suite, job, record, where, problems)
     port = record.get("port", {})
     build = port.get("build") or {}
     if job["kind"] == "run" and build.get("parity_preset") is False:
@@ -975,9 +1175,7 @@ def read_record(
                 )
             for reg in result.get("regions", []):
                 row = {
-                    "case": case
-                    if suite["algorithm"] == "cycle_count"
-                    else f"{job['dataset']}/{case}",
+                    "case": case if job.get("dataset") is None else f"{job['dataset']}/{case}",
                     "region": reg["region"],
                     "gate_kind": reg.get("gate_kind", "none"),
                     "original_ms": reg.get("original_ms"),
@@ -1012,7 +1210,7 @@ def read_record(
                 port_mib = value.get("peak_live_mib") if isinstance(value, dict) else None
                 if ratio is None and original and port_mib is not None:
                     ratio = port_mib / original
-                label = case if suite["algorithm"] == "cycle_count" else f"{job['dataset']}/{case}"
+                label = case if job.get("dataset") is None else f"{job['dataset']}/{case}"
                 regions.append(
                     {
                         "case": label,
@@ -1023,6 +1221,26 @@ def read_record(
                         "ratio": ratio,
                         "gate": tol["memory"],
                         "within_gate": ratio is not None and ratio <= tol["memory"],
+                        "provisional": False,
+                        "noisy": False,
+                    }
+                )
+            # triad_count's store accounting (bytes per point; the gated points only).
+            for point in result.get("store_accounting") or []:
+                mine, theirs = point.get("dyng_device_bytes"), point.get("escher_gpu_device_bytes")
+                if not point.get("gated") or not mine or not theirs:
+                    continue
+                ratio = mine / theirs
+                regions.append(
+                    {
+                        "case": case,
+                        "region": point["row"],
+                        "gate_kind": "memory",
+                        "original_bytes": theirs,
+                        "port_bytes": mine,
+                        "ratio": ratio,
+                        "gate": tol["memory"],
+                        "within_gate": ratio <= tol["memory"],
                         "provisional": False,
                         "noisy": False,
                     }
@@ -1055,6 +1273,80 @@ def read_record(
         "regions": regions,
         "_raw": record,
     }
+
+
+def check_triad_record(suite: dict, job: dict, record: dict, where: str, problems: list) -> None:
+    """triad_count's record checks: the reading's cases and patterns exactly; per timed case at
+    least the reading's rounds, the per-round guard passed in every round, no contaminated round
+    kept, the contamination audit clean (a gated reading), and every gated row (update of every
+    batch, full_count, end_to_end); per memory case no foreign GPU process and every gated point
+    of the store accounting."""
+    want = sorted(f"{c}/{p}" for c in job.get("cases") or [] for p in job.get("patterns") or [])
+    got = sorted(record.get("results", {}))
+    if want and got != want:
+        problems.append(f"{where}: cases {got}, the reading's are {want}")
+    sizes = {b["name"]: b for b in suite.get("batches", [])}
+    for key, result in record.get("results", {}).items():
+        case = key.split("/", 1)[0]
+        m = TRIAD_CASE.match(case)
+        spec = sizes.get(f"b{m['size']}") if m else None
+        nb = result.get("batches")
+        if spec is None or nb != spec.get("batches"):
+            problems.append(
+                f"{where}: {key}: {nb} batches, the suite's batch "
+                f"{'b' + m['size'] if m else '?'} has {spec and spec.get('batches')}"
+            )
+            nb = nb or 0
+        if job["kind"] == "run":
+            n = result.get("rounds", 0)
+            if job.get("runs") and n < job["runs"]:
+                problems.append(f"{where}: {key}: {n} rounds, the reading needs {job['runs']}")
+            g = result.get("guard") or {}
+            if g.get("passed") is not True or g.get("rounds_checked", 0) < n:
+                problems.append(f"{where}: {key}: the per-round guard did not pass in every round")
+            monitor = result.get("monitor") if isinstance(result.get("monitor"), dict) else {}
+            kept = int(result.get("contaminated_rounds_kept", 0)) + sum(
+                1
+                for rnd in monitor.get("rounds", []) or []
+                for side in ("original", "port")
+                if isinstance(rnd, dict) and (rnd.get(side) or {}).get("reasons")
+            )
+            if kept:
+                problems.append(
+                    f"{where}: {key}: {kept} contaminated rounds were kept, not repeated: not a "
+                    "reading"
+                )
+            audit = result.get("audit") or {}
+            if job.get("gated") and (audit.get("flagged") or "flagged" not in audit):
+                problems.append(
+                    f"{where}: {key}: the contamination audit flags rounds "
+                    f"{audit.get('flagged_rounds')}: take the reading again"
+                )
+            rows = {reg.get("region") for reg in result.get("regions", [])}
+            need = [f"update[b{k}]" for k in range(1, nb + 1)] + ["full_count", "end_to_end"]
+            missing = [r for r in need if r not in rows]
+            if missing:
+                problems.append(f"{where}: {key}: no row {', '.join(missing)}")
+        else:
+            foreign = result.get("foreign_gpu_processes") or {}
+            if foreign.get("before") or foreign.get("after") or "before" not in foreign:
+                problems.append(f"{where}: {key}: a foreign process on the GPU (or not checked)")
+            every = triad_case_dataset(key) == "coauth"
+            need = ["store_memory[build]"] + (
+                [f"store_memory[b{k}]" for k in range(1, nb + 1)]
+                if every
+                else [f"store_memory[b{nb}]"]
+            )
+            have = {
+                p.get("row")
+                for p in result.get("store_accounting") or []
+                if p.get("gated")
+                and p.get("dyng_device_bytes")
+                and p.get("escher_gpu_device_bytes")
+            }
+            missing = [r for r in need if r not in have]
+            if missing:
+                problems.append(f"{where}: {key}: no store accounting at {', '.join(missing)}")
 
 
 def summary_name(suite: dict, partial: dict | None) -> str:

@@ -1,0 +1,170 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# Benchmark-suite record (PLAN Section 8.5) of dynG's `triad_count`: the dynamic h-motif
+# (triad) counts of ESCHER (IPDPS 2026), as ESCHER-GPU@abcf9b2 computes them (`build/main`, the
+# 30 bins) and as its results/README.md reports them. The suite reads the timing gates of M9a
+# (parity/results/M9a.md, the gates; PLAN Sections 6.4.6 and 8.6; ADR 0048 section 1, ADR 0056):
+# the `update` region of each of three consecutive batches, the full count and the end-to-end
+# time against the UNPATCHED build/main, re-measured in the same session. The memory gates and
+# the StatHyper types are in tkde26_escher_plus.yaml.
+#
+# Machine-readable: parity/bench_suite.py validates this file, checks the inputs against the
+# digests below (coauth-DBLP's file; the synthetic hypergraphs' rows per seed, as the golden set
+# triad_count_escher_gpu stores them) and runs every reading through the A/B harness
+# (parity/perf_ab.py triad_count run) under the exclusive perf lock; the results JSON goes to
+# benchmarks/results/<version>/. docs/developer/benchmarks.md describes the format. From 0.3.0 on
+# parity/certify.py requires this suite's summary, with every gated row below, in a release
+# certificate (decision D8 of 2026-10-15, taken on the plan's default pending the author).
+schema: 1
+suite: ipdps26_escher
+title: "ESCHER: dynamic h-motif counts under hyperedge batches (dynG triad_count)"
+algorithm: triad_count
+paper:
+  short: ESCHER
+  venue: IPDPS 2026
+  scope: >-
+    the paper-timed GPU region per batch (processing the updates, maintaining the hypergraph and
+    updating the counts: ESCHER-GPU's `update` = subtract + maintain + add, three consecutive
+    batches per process), the full count at start-up (`init.full_count`) and the end-to-end time
+    from the start of main to the end of the last batch (`total`), as ESCHER-GPU@abcf9b2's
+    results/README.md defines them; one process per case, A's argv (`--input coauth.hg` or
+    `n m r1 r2`, `--batches 3 --batch-size B --seed S`).
+harness:
+  tool: perf_ab.triad_count        # parity/perf_ab.py triad_count run|memory (parity/triad_perf.py)
+  inputs: $DYNG_SCRATCH
+  executable: tools/compat/dyng-compat-escher
+  presets: {openmp: parity, cuda: parity-cuda}
+  region_map: parity/timed_regions/triad_count.toml
+  goldens: triad_count_escher_gpu   # every round's counts are compared with the golden case's
+datasets:
+  - name: coauth
+    file: datasets/hyper/coauth.hg
+    source: {collection: "A. R. Benson's hypergraph collection", id: coauth-DBLP-full, url: "https://www.cs.cornell.edu/~arb/data/coauth-DBLP/"}
+    recipe: >-
+      ESCHER-GPU@abcf9b2's bench/datasets/get_coauth.sh (repeated author sets dropped, vertex
+      ids relabeled to 1..|V|; 2,467,389 hyperedges, 1,930,378 vertices, 7,748,737 pins);
+      datasets/registry.toml pins the file
+    sha256: 65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6
+  - name: syn1m
+    source: {collection: ESCHER-GPU, id: "the synthetic generator (n m r1 r2)"}
+    generator: {name: generators::legacy::escher_hypergraph, parameters: [1000000, 10, 1, 333333]}
+    recipe: >-
+      generated in-process by both sides from A's arguments `1000000 10 1 333333 --seed S`
+      (1M hyperedges, cardinality uniform in 1..10, vertex ids 1..333,333); dynG's
+      generators::legacy reproduces A's rows byte for byte (M9a step 1). sha256: the rows of
+      each seed, as the golden set triad_count_escher_gpu stores them (inputs/syn1m_s<S>.hg.zst)
+    sha256:
+      s1: 664dc7069914126f24a150d4f924a9ee9a7b77e78adfb3a7b95b32740808d4c6
+      s2: 6103d6fafb4f7112bec6e45402cb69592a2158d7150731227f1312a61dc7c8b3
+      s3: 101ba09f136d3883f9b254d1cea6d359a35626513a140c4364db90a34af2e972
+  - name: syn2m
+    source: {collection: ESCHER-GPU, id: "the synthetic generator (n m r1 r2)"}
+    generator: {name: generators::legacy::escher_hypergraph, parameters: [2000000, 10, 1, 666666]}
+    recipe: >-
+      generated in-process by both sides from A's arguments `2000000 10 1 666666 --seed S`
+      (2M hyperedges, cardinality uniform in 1..10, vertex ids 1..666,666); as syn1m
+    sha256:
+      s1: c7a7ad18289f82a33b8ca9642f640c4c4a55d5b798d6a20065c24d324980c01f
+      s2: 05c223c0f152afc4359a01fea42a39fde186057fdfdac1e8098cdfba5c2bacbc
+      s3: 10abbf5f47da65f3ba1080ef25dc9ece069aca2a5ef86298ce968935543156eb
+batches:       # A's generator (--batches 3 --batch-size B --seed S; generators::legacy::escher_batch_generator)
+  - {name: b50k, generator: legacy.escher_batch, size: 50000, batches: 3, seeds: [1, 2, 3], inserts: "coauth: sample (copies of live hyperedges); synthetic: random"}
+  - {name: b100k, generator: legacy.escher_batch, size: 100000, batches: 3, seeds: [1], inserts: "sample (coauth)"}
+  - {name: b200k, generator: legacy.escher_batch, size: 200000, batches: 3, seeds: [1], inserts: "sample (coauth)"}
+backends:
+  cuda:
+    gpu: 0
+    environment: CUDA_MODULE_LOADING=EAGER on both sides, no OMP_* variables; resources::warm_up() (dynG)
+    port: dyng-compat-escher run --pattern h_motif --backend cuda --sync-stages
+    baseline: ESCHER-GPU
+metrics:       # region (parity/timed_regions/triad_count.toml) -> the dynG profiler stages it sums
+  update[b1]:    # one gate row per batch (ADR 0048 section 1): the sum of the three is reported
+    gate: compute
+    cuda: {original: "timing:update of batch 1 (subtract + maintain + add)", port: [triad_count.update]}
+  update[b2]:
+    gate: compute
+    cuda: {original: "timing:update of batch 2", port: [triad_count.update]}
+  update[b3]:
+    gate: compute
+    cuda: {original: "timing:update of batch 3", port: [triad_count.update]}
+  full_count:
+    gate: compute
+    cuda: {original: "timing:init.full_count", port: [triad_count.compute]}
+  end_to_end:
+    gate: end_to_end
+    cuda: {original: "timing:total", port: [driver.total]}
+  # Reported, not gated: the sub-stages, which add up to update on both sides.
+  update.subtract[b1]:
+    gate: none
+    cuda: {original: "timing:update.subtract of batch 1", port: [triad_count.normalize, triad_count.count_minus]}
+  update.maintain[b1]:
+    gate: none
+    cuda: {original: "timing:update.maintain of batch 1", port: [triad_count.commit]}
+  update.add[b1]:
+    gate: none
+    cuda: {original: "timing:update.add of batch 1", port: [triad_count.identify_affected, triad_count.count_plus, triad_count.finalize]}
+  update.subtract[b2]:
+    gate: none
+    cuda: {original: "timing:update.subtract of batch 2", port: [triad_count.normalize, triad_count.count_minus]}
+  update.maintain[b2]:
+    gate: none
+    cuda: {original: "timing:update.maintain of batch 2", port: [triad_count.commit]}
+  update.add[b2]:
+    gate: none
+    cuda: {original: "timing:update.add of batch 2", port: [triad_count.identify_affected, triad_count.count_plus, triad_count.finalize]}
+  update.subtract[b3]:
+    gate: none
+    cuda: {original: "timing:update.subtract of batch 3", port: [triad_count.normalize, triad_count.count_minus]}
+  update.maintain[b3]:
+    gate: none
+    cuda: {original: "timing:update.maintain of batch 3", port: [triad_count.commit]}
+  update.add[b3]:
+    gate: none
+    cuda: {original: "timing:update.add of batch 3", port: [triad_count.identify_affected, triad_count.count_plus, triad_count.finalize]}
+baselines:     # the pinned original, built from the UNPATCHED scratch copy by its own Makefile
+  ESCHER-GPU: {commit: abcf9b2bd42f896ec3103a6835edf713ed5e416c, variant: unpatched, backend: cuda}
+tolerance:     # PLAN 8.6: port / original median
+  compute: 1.05
+  compute_short: 1.10
+  short_region_ms: 10.0
+  end_to_end: 1.10
+  memory: 1.05
+readings:      # what one execution of the suite runs; cases by name (<dataset>_b<size>_s<seed>)
+  - name: cuda-coauth
+    kind: run
+    backend: cuda
+    clocks: base     # ADR 0021: A's process does not hold the boost lock on coauth-DBLP (M8b)
+    runs: 11
+    gated: true
+    cases: [coauth_b50k_s1, coauth_b50k_s2, coauth_b50k_s3]
+  - name: cuda
+    kind: run
+    backend: cuda
+    clocks: base     # ADR 0021: the recorded 3-round boost probe did not hold (M9a step 2)
+    runs: 21
+    gated: true
+    cases: [syn1m_b50k_s1, syn1m_b50k_s2, syn1m_b50k_s3, syn2m_b50k_s1, syn2m_b50k_s2, syn2m_b50k_s3]
+  - name: cuda-default-clocks
+    kind: run
+    backend: cuda
+    clocks: none     # ADR 0018: recorded, not gated
+    runs: 11
+    gated: false
+    cases: [coauth_b50k_s1, syn1m_b50k_s1, syn2m_b50k_s1]
+  - name: cuda-batch-sizes
+    kind: run
+    backend: cuda
+    clocks: base
+    runs: 5
+    gated: false     # the 100K and 200K columns of A's results/README.md: recorded
+    cases: [coauth_b100k_s1, coauth_b200k_s1]
+paper_reference:   # informational: ESCHER-GPU@abcf9b2 results/README.md ("this branch", RTX A5000, medians of 3 runs, seeds 1-3)
+  hardware: RTX A5000 (sm_86), 56 host threads, CUDA 13.1
+  update_per_batch_s: {coauth_b50k: 0.546, coauth_b100k: 1.033, coauth_b200k: 1.936, syn1m_b50k: 0.127, syn2m_b50k: 0.151}
+  full_count_s: {coauth: 5.22, syn1m: 0.47, syn2m: 0.95}
+  end_to_end_s: {coauth_b50k: 9.1, coauth_b100k: 10.6, coauth_b200k: 13.4, syn1m_b50k: 2.2, syn2m_b50k: 4.1}
+  note: >-
+    A's figures were taken at default clocks without a clock lock, 3 runs with different seeds,
+    and a timer of its own; the gates compare against A re-measured in the same session under
+    the protocol above (PLAN 8.6), never against these figures.

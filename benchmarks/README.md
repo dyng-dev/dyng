@@ -20,14 +20,20 @@ benchmarks/
 | `paper/ipdps25_dynamosp_sosp.yaml` | `sssp` | DynaMOSP (IPDPS 2025, TPDS 2025): the per-objective SOSP update | roadNet-PA, roadNet-CA, rgg_n_2_20_s0, road_usa; K = 3, U[1, 100] seed 12345, source 0; 50K safe / 50K unsafe / 10K local batches (seed 777); OpenMP (28 threads pinned) and CUDA (boost clock lock) gated; CUDA at default clocks recorded; device memory |
 | `paper/ieee_tc_dyntrucy.yaml` | `cycle_count` | TruCy / DynTruCy (IEEE TC) | DD, GitHub, Twitch, COLLAB; static k = 3..7, updates 25K+25K (DD also 50K and 100K), seed 1; OpenMP (56 threads) and CUDA (boost lock; the COLLAB update at the base lock, ADR 0021) gated; CUDA at default clocks recorded; device memory |
 | `paper/ipdps25_dynamosp_mosp.yaml` (0.2) | `mosp` | DynaMOSP (IPDPS 2025): the MOSP update, the K per-objective updates plus the combined graph and its SOSP | the same four graphs, inputs and batches as the sssp suite (K = 3, default preferences); "(a) compute" (<= 1.05x) and "(b) end to end" (<= 1.10x, every output file written by both sides, as the originals' `bench/run.sh`) against the unpatched `bin/mosp` of MOSP-OpenMP@c352151 (28 threads pinned) and MOSP-CUDA@e220ee2 (boost clock lock); CUDA at default clocks recorded; device memory (`perf_ab.py memory --mosp`, <= 1.05x); the per-objective updates, the combined step and the path costs reported |
+| `paper/ipdps26_escher.yaml` (0.3) | `triad_count` | ESCHER (IPDPS 2026): the dynamic h-motif counts of ESCHER-GPU@abcf9b2's `build/main` | coauth-DBLP (SHA-256 pinned) and syn1M / syn2M (A's generator parameters, the rows' SHA-256 per seed); 3 consecutive 50K batches, seeds 1-3; `update` of each batch and the full count (<= 1.05x) and end to end (<= 1.10x) against the unpatched `build/main`, all at the base clock lock (ADR 0021; the boost probe did not hold), 11 rounds on coauth-DBLP, 21 on syn1M / syn2M; default clocks and the 100K / 200K coauth batches recorded; the sub-stages and host syncs reported |
+| `paper/tkde26_escher_plus.yaml` (0.3) | `triad_count` | ESCHER+ (TKDE 2026): the memory of the dynamic hypergraph and its counter; StatHyper's triad types | the same inputs; `store_memory` (dynG's store bytes against A's `deviceBytes()` after the build and every batch on coauth-DBLP, at A's two print points on syn1M / syn2M) and `device_memory` (the Nsight Systems peak of live allocations of both whole processes, decision D1), each <= 1.05x; the footprint, the peak's NVTX range and the triad bytes during `hypergraph.apply` recorded; types 1-3 on coauth_b50k_s1 and the memory at 100K / 200K batches recorded |
 
 The mosp suite reads the gates M7 took (`parity/results/M7.md` sections 6 and 8) and is required
 in every certificate from 0.2.0 on; the per-objective update alone stays in the sssp suite. The K
 sweep of the TPDS 2025 extension (roadNet-CA widened to four objectives, `tpds25_dynamosp`) is
 reported, not gated (M7.md section 5), and listed under `deferred` in the mosp suite; the temporal
 datasets of DynTruCy (CollegeMsg, email-Eu-core, time-window mode) come with the temporal modes in
-0.4 (listed under `deferred` in the suite). The ESCHER, DynLP and H-SOSP suites follow their
-ports.
+0.4 (listed under `deferred` in the suite). The two ESCHER suites read M9a's gates
+(`parity/results/M9a.md`, the gates; ADR 0056) and are required in every certificate from 0.3.0
+on, with the triad replays of every backend of the golden set's coverage table; ESCHER-GPU's
+repository does not say which of its readings are ESCHER's and which ESCHER+'s, so the split
+(timing gates in `ipdps26_escher`, memory gates and the recorded type and batch-size readings in
+`tkde26_escher_plus`) is ours (ADR 0056). The DynLP and H-SOSP suites follow their ports.
 
 **rgg's unsafe50k batch equals its safe50k batch.** The original's `--safe` filter
 (`filterUnsafeDeletions` of MOSP-CUDA@e220ee2) drops only the deletions that make a vertex
@@ -49,9 +55,9 @@ what is measured.
 | `suite`, `title`, `algorithm`, `paper` | the name (equal to the file name), what is measured, the paper and its scope |
 | `harness` | the harness entry (`perf_ab.sssp`: `parity/perf_ab.py run` or `memory`; `perf_ab.mosp`: `parity/perf_ab.py mosp` or `memory --mosp`; `perf_ab.cycle_count`: `parity/perf_ab.py cycle_count run` or `memory`), the input root, the compat executable, the build presets (`parity`, `parity-cuda`), the region map |
 | `graph` | sssp, mosp: K (`num_weights`), the weights' distribution and seed, the source; mosp: the preferences (`default`, all 1, the only ones the harness runs) |
-| `datasets` | name, `source` (collection, id, URL), `recipe` (how the inputs are made from the source), `sha256` (one digest, or a map file -> digest relative to the input root) |
-| `batches` | name, generator, sizes, `seed` (and the harness's directory for sssp and mosp) |
-| `cases` | cycle_count: task, dataset, k, batch; the harness names a case `<dataset>_k<k>[_<D>_<I>_s<seed>]` |
+| `datasets` | name, `source` (collection, id, URL), `recipe` (how the inputs are made from the source), `sha256` (one digest, or a map file -> digest relative to the input root); triad_count's synthetic datasets: `generator.parameters` (A's `n m r1 r2`) and `sha256` per seed (`s1`, ...: the rows as the golden set stores them) |
+| `batches` | name, generator, sizes, `seed` (and the harness's directory for sssp and mosp); triad_count: `seeds` (the seed is the case's) and `batches` per process |
+| `cases` | cycle_count: task, dataset, k, batch; the harness names a case `<dataset>_k<k>[_<D>_<I>_s<seed>]`; triad_count: a reading's `cases` are groups of the golden set `triad_count_escher_gpu`, `<dataset>_b<size>_s<seed>`, and its `patterns` A's executables (`main` = h_motif, `type1`..`type3`) |
 | `backends` | threads, GPU, scopes, environment, and the baseline each backend is compared with; mosp: the CUDA engine (`engine`, `perf_ab.py mosp --cuda-engine`; `automatic` is the fused engine on the RTX A5000) |
 | `runs` | sssp, mosp: alternating rounds per dataset (`default`, or per dataset); cycle_count: per reading |
 | `metrics` | each gated region of `parity/timed_regions/<algorithm>.toml`, per backend: the original's timer and the dynG profiler stages it sums, and its gate kind (`compute`, `end_to_end`, `memory`, `none`) |
@@ -135,14 +141,30 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
 1. **The golden replays** (`parity/compare.py ... --json benchmarks/results/<version>/parity-<set>-<backend>.json`):
    every golden set of `parity/goldens.toml` on every backend it covers (sssp: sequential, OpenMP
    and CUDA; the cycle_count CPU corpus `--full`: sequential and OpenMP; the cycle_count CUDA
-   corpus: cuda, cuda:resident, cuda:int64).
+   corpus: cuda, cuda:resident, cuda:int64). From 0.3 also ESCHER-GPU's triad goldens
+   (`triad_count_escher_gpu`): `parity/compare.py triad_count --backend <b> --counter algorithm
+   --mode both --certificate benchmarks/results/<version>` for every backend of the set's
+   coverage table (`goldens.toml`, decision D6: cuda every case, sequential make-test and the
+   syn100k grid, openmp also the syn1m seed-1 grid and coauth_b50k_s1 for type1 and type2), by
+   key and by content, covering every case the table lists (all four patterns); a replay with the
+   oracle counter, a planted defect or `--no-coverage` does not count. A 0.1 or 0.2 certificate
+   lists the set without requiring it.
 2. **The performance gates**: `parity/bench_suite.py run` for every suite of the release's
    algorithms. `certify.py` requires the suites of `REQUIRED_SUITES` by release series:
    `ipdps25_dynamosp_sosp` (sssp) and `ieee_tc_dyntrucy` (cycle_count) from 0.1,
    `ipdps25_dynamosp_mosp` (mosp) from 0.2 (a 0.2.0rc1 or 0.2.0 certificate without the mosp
-   gates fails); each summary must hold a gated reading of every gated metric of its suite file
-   on every backend it is gated on (mosp: "(a) compute" and "(b) end to end" on OpenMP and CUDA,
-   the device memory on CUDA).
+   gates fails), `ipdps26_escher` and `tkde26_escher_plus` (triad_count) from 0.3; each summary
+   must hold a gated reading of every gated metric of its suite file on every backend it is
+   gated on (mosp: "(a) compute" and "(b) end to end" on OpenMP and CUDA, the device memory on
+   CUDA; triad_count: `update[b1]`, `update[b2]`, `update[b3]` (a metric named as a row is read
+   by that row only), `full_count`, `end_to_end`, `store_memory` and `device_memory`). A
+   triad_count record is also refused if its cases or patterns are not the reading's, a case has
+   fewer rounds than the reading's runs, a batch row is missing, the per-round guard (the counts
+   both sides print equal the golden's) did not pass in every round, a contaminated round was
+   kept, the contamination audit flags a gated reading (a round's load average above 16 or
+   procs_blocked above 4, or a foreign GPU process), a memory case saw a foreign GPU process, or
+   the store accounting misses a gated point; `recheck_gates` recomputes the `store_memory` rows
+   (bytes per point) from the record like every other row.
 3. **The checks**: the `asan` and `tsan` presets' test suites, `ci/gpu_local.sh` (the CUDA
    tests, the CUDA goldens and compute-sanitizer memcheck, synccheck and racecheck), the mutation
    CTests (`ctest -L mutation`) and the golden mutations (`parity/mutate.py run --json
@@ -181,6 +203,11 @@ PLAN 10.3 steps 1-3 (`docs/developer/release.md`) end in `benchmarks/results/<ve
    recorded with `--result` alone must give its log with `--evidence`. A `--gpu-summary` check
    records the steps it required (`--require-steps`; a skipped step passes only if it was not
    required).
+
+`parity/certify.py write --dry-run <algorithm> --results <a directory outside
+benchmarks/results/>` writes a dry run of one algorithm's parts (its suites and golden sets,
+judged as in a release; every other required part listed as outside it), as M9a did for
+triad_count before 0.3.0; it is never a release's certificate.
 
 Then, on the committed release tree, `parity/certify.py write --version <version>` writes
 `parity.json` and the generated part of `README.md` (between the `certify` markers; the text
