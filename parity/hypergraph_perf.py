@@ -256,8 +256,23 @@ def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -
                 "held_mib_end": round((outside_end + pool_end) / mib, 1),
             }
         )
+    # What the process holds (its cudaMalloc allocations plus the pool's reservation; M9a, the
+    # footprint reported beside the gated peak): its largest value and its value at the live peak.
+    held = [(e[0], e[3] + e[2]) for e in timeline]
+    held_peak_t, held_peak = max(held, key=lambda e: e[1], default=(0, 0))
+    peak_index = max(range(len(timeline)), key=lambda i: timeline[i][1], default=None)
+    held_at_peak = held[peak_index][1] if peak_index is not None else 0
     return {
         "peak_live_mib": round(peak_live / mib, 1),
+        "peak_live_bytes": peak_live,
+        "footprint_peak_mib": round(held_peak / mib, 1),
+        "footprint_at_live_peak_mib": round(held_at_peak / mib, 1),
+        "footprint_peak_in": [
+            n
+            for _, _, n in sorted(
+                (r for r in ranges if r[0] <= held_peak_t <= r[1]), key=lambda r: (r[0], -r[1])
+            )
+        ],
         "pool_mib": round(max((e[2] for e in timeline), default=0) / mib, 1),
         "peak_in": [name for _, _, name in containing],
         "range_peaks_mib": dict(sorted(range_peaks.items())),

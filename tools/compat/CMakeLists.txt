@@ -25,7 +25,8 @@ dyng_enable_sanitizers(dyng-compat-cycle-enum)
 # and their replay through dyng::hypergraph (M8b; the triad_count parity of M9 replays them). The
 # trace reader is the parity side's (cpp/tests/parity/escher), which uses the standard library only.
 add_executable(
-  dyng-compat-escher escher/escher_compat.cpp "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/cbst_trace.cpp"
+  dyng-compat-escher escher/escher_compat.cpp escher/escher_run.cpp
+                     "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/cbst_trace.cpp"
                      "${PROJECT_SOURCE_DIR}/cpp/tests/parity/escher/escher_dump.cpp"
 )
 target_include_directories(dyng-compat-escher PRIVATE "${PROJECT_SOURCE_DIR}/cpp/tests")

@@ -8,6 +8,10 @@
  *
  *     dyng-compat-escher to-dgb <trace.cbt[.zst]> <out-prefix> [--tmp DIR]
  *     dyng-compat-escher replay <prefix> [--backend sequential|openmp|cuda] [--threads N]
+ *     dyng-compat-escher run <ESCHER-GPU's arguments> [--pattern P] [--backend B] ...
+ *
+ * run is ESCHER-GPU's triad-counting driver on dynG (escher_run.cpp; M9a, the port side of the
+ * triad_count gates).
  *
  * to-dgb writes <prefix>.hg (A's loaded hypergraph in A's ids, read back by
  * io::read_hypergraph() with hypergraph_read_options::escher_gpu(): hyperedge i is A's key i + 1),
@@ -60,7 +64,9 @@ int usage() {
   std::fprintf(stderr,
                "usage: dyng-compat-escher to-dgb <trace.cbt[.zst]> <out-prefix> [--tmp DIR]\n"
                "       dyng-compat-escher replay <prefix> [--backend sequential|openmp|cuda] "
-               "[--threads N]\n");
+               "[--threads N]\n"
+               "       dyng-compat-escher run <ESCHER-GPU's arguments> [--pattern P] "
+               "[--backend B] [--threads N] [--sync-stages] [--nvtx] [--no-count]\n");
   return 2;
 }
 
@@ -285,7 +291,12 @@ int replay(const std::string& prefix, const std::string& backend, int threads) {
 
 }  // namespace
 
+namespace dyng::compat::escher {
+int run_main(int argc, char** argv);  // escher_run.cpp
+}  // namespace dyng::compat::escher
+
 int main(int argc, char** argv) {
+  if (argc >= 2 && std::string(argv[1]) == "run") return dyng::compat::escher::run_main(argc, argv);
   if (argc < 3) return usage();
   const std::string command = argv[1];
   std::string tmp = std::filesystem::temp_directory_path().string();

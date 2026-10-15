@@ -79,7 +79,12 @@ SCRATCH = Path(os.environ.get("DYNG_SCRATCH", Path.home() / "Projects" / "dyng-w
 sys.path.insert(0, str(REPO / "parity"))
 
 SCHEMA = 1
-TOOLS = {"sssp": "perf_ab.sssp", "mosp": "perf_ab.mosp", "cycle_count": "perf_ab.cycle_count"}
+TOOLS = {
+    "sssp": "perf_ab.sssp",
+    "mosp": "perf_ab.mosp",
+    "cycle_count": "perf_ab.cycle_count",
+    "triad_count": "perf_ab.triad_count",  # parity/triad_perf.py (M9a step 2)
+}
 REGION_MAPS = {
     "sssp": "parity/timed_regions/sssp.toml",
     "mosp": "parity/timed_regions/mosp.toml",
@@ -97,6 +102,7 @@ EXECUTABLES = {
     "sssp": "dyng-compat-mosp",
     "mosp": "dyng-compat-mosp",
     "cycle_count": "dyng-compat-cycle-enum",
+    "triad_count": "dyng-compat-escher",  # `dyng-compat-escher run` (M9a step 2)
 }
 # The algorithms whose harness runs one command per dataset over the MOSP bench inputs
 # ($DYNG_SCRATCH/bench/mosp/<graph>, parity/perf_ab.py prepare): sssp (`perf_ab.py run|memory`)

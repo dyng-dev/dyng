@@ -4,7 +4,9 @@
 """Performance A/B of the sssp port against the original (PLAN Sections 6.3 step 7, 8.5, 8.6).
 
 `parity/perf_ab.py cycle_count run ...` runs the cycle_count A/B against
-CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py).
+CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_perf.py); `parity/perf_ab.py cbst ...`,
+`hypergraph ...` and `triad_count run|memory ...` the ESCHER store, the hypergraph container and
+triad_count against ESCHER-GPU@abcf9b2 (parity/cbst_perf.py, hypergraph_perf.py, triad_perf.py).
 
     parity/perf_ab.py prepare [--graph roadNet-CA] [--hops 160]
     parity/perf_ab.py run --exe build/parity/tools/compat/dyng-compat-mosp [--runs 21]
@@ -2400,6 +2402,11 @@ def main() -> int:
         import hypergraph_perf
 
         return hypergraph_perf.main(sys.argv[2:])
+    if sys.argv[1:2] == ["triad_count"]:  # triad_count against ESCHER-GPU (M9a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import triad_perf
+
+        return triad_perf.main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("prepare")
