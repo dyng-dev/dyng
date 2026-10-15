@@ -297,6 +297,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(line_graph_oracle_isolation PROPERTIES LABELS "cpu;hypergraph")
+  # The triad oracle (M9a criterion 4, ADR 0049): ESCHER-GPU's CPU reference algorithm with its own
+  # class map, sharing no code with triad_count, its engines or the container.
+  add_test(
+    NAME triad_reference_isolation
+    COMMAND
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/triad_reference.cpp
+      -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/triad_reference.hpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_triad_reference>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(triad_reference_isolation PROPERTIES LABELS "cpu;testing;triad_count")
 endif()
 # The hypergraph container (M8b, ADR 0041): construction, apply semantics, guarantees,
 # placement, the host id allocator against the CBST host model, random streams in lockstep with
@@ -910,6 +922,47 @@ dyng_add_test(
   LIBRARIES dyng::testing
 )
 target_compile_definitions(dyng_testing_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+# The triad oracle (M9a criterion 4): its class map against ESCHER-GPU's table (a test-only
+# fixture), one triple per reachable bin, hand cases, a brute force over all triples.
+dyng_add_test(
+  NAME dyng_triad_reference_tests
+  SOURCES testing/triad_reference_test.cpp
+  LABELS cpu testing triad_count
+  LIBRARIES dyng::testing
+)
+# The oracle's planted mutation (parity/mutate.py, triad_reference_class_map): two classes of its
+# representative list swapped; its tests must fail (testing.mutation.triad_reference_class_map
+# passes when the suite fails; the control is dyng_triad_reference_tests). Labels
+# cpu;mutation;testing;triad_count.
+if(DYNG_MUTATION_TESTS)
+  add_executable(
+    dyng_triad_reference_mutant_tests testing/triad_reference_test.cpp
+                                      "${PROJECT_SOURCE_DIR}/cpp/src/testing/triad_reference.cpp"
+  )
+  target_link_libraries(
+    dyng_triad_reference_mutant_tests PRIVATE dyng_test_support GTest::gtest GTest::gmock
+                                              GTest::gtest_main
+  )
+  target_include_directories(dyng_triad_reference_mutant_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+  target_compile_features(dyng_triad_reference_mutant_tests PRIVATE cxx_std_17)
+  target_compile_definitions(
+    dyng_triad_reference_mutant_tests PRIVATE DYNG_MUTATION_TRIAD_REFERENCE_CLASS_MAP=1
+  )
+  if(DYNG_ENABLE_OPENMP)
+    target_link_libraries(dyng_triad_reference_mutant_tests PRIVATE OpenMP::OpenMP_CXX)
+  endif()
+  dyng_set_warnings(dyng_triad_reference_mutant_tests)
+  dyng_enable_sanitizers(dyng_triad_reference_mutant_tests)
+  add_test(NAME testing.mutation.triad_reference_class_map
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng_triad_reference_mutant_tests>
+                   -DEXPECT=fail -DNAME=testing.triad_reference_class_map -P
+                   "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+  )
+  set_tests_properties(
+    testing.mutation.triad_reference_class_map
+    PROPERTIES LABELS "cpu;mutation;testing;triad_count" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+  )
+endif()
 
 # CUDA core (label gpu; each test skips when no device is visible). ci/gpu_local.sh runs them on
 # GPU 1 and under compute-sanitizer memcheck.

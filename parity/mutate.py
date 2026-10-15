@@ -33,6 +33,10 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                container on every backend (lockstep with the CBST host model, random streams,
                the host id allocator against the model, the container-level id parity of the
                committed traces); also the CTests `hypergraph.mutation.<name>` of every build
+  triad_reference  the triad oracle dyng::testing::triad_reference (M9a, criterion 4): its
+               GoogleTest suite dyng_triad_reference_tests (the class map against ESCHER-GPU's
+               table, one triple per reachable bin, the brute force over all triples); also the
+               CTest `testing.mutation.triad_reference_class_map` of every build
   kit          the conformance kit's hypergraph axis (M8b, criterion 11; ADR 0043): the kit C0-C12
                over the test-only aggregate-delta fake test_hyper_pairs on every backend
                (dyng_hypergraph_kit_tests, dyng_hypergraph_kit_cuda_tests); its planted bug (the
@@ -76,6 +80,13 @@ SUITES = {
     "sssp": {"target": "dyng-compat-mosp", "compare": [], "goldens": "sssp"},
     "mosp": {"target": "dyng-compat-mosp", "compare": [], "goldens": "sssp"},
     "cycle_count": {"target": "dyng-compat-cycle-enum", "compare": ["cycle_count"]},
+    # The triad oracle (M9a step 2, ADR 0049): its tests (the class map against ESCHER-GPU's table,
+    # one triple per bin, the brute force) run on the host.
+    "triad_reference": {
+        "targets": ["dyng_triad_reference_tests"],
+        "runner": "gtest",
+        "compare": [],
+    },
     # GoogleTest suites (run directly, not through compare.py; M8a).
     "cbst": {
         "targets": ["dyng_cbst_device_tests", "dyng_cbst_policy_tests", "dyng_cbst_graph_tests"],
@@ -302,6 +313,16 @@ MUTATIONS = [
         "plan": "M8b 11: the kit's planted bug: frontier = requested ids instead of inserted_ids",
         "defines": ["DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS"],
         "config": "sequential",  # a label: the suite runs on every backend
+    },
+    # triad_reference (M9a criterion 4): the oracle's planted mutation, two classes of its
+    # representative list swapped (cpp/src/testing/triad_reference.cpp); its tests must fail (the
+    # CTest testing.mutation.triad_reference_class_map of every build checks the same).
+    {
+        "name": "triad_reference_class_map",
+        "suite": "triad_reference",
+        "plan": "M9a 4: the oracle's class map with two classes swapped",
+        "defines": ["DYNG_MUTATION_TRIAD_REFERENCE_CLASS_MAP"],
+        "config": "sequential",  # a label: the oracle is host code
     },
 ]
 

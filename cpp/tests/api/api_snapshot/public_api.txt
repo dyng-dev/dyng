@@ -1161,6 +1161,31 @@
   template <typename vertex_t> [[nodiscard]] csr< vertex_t, std::int64_t, std::int32_t > dyng::testing::combined_graph_reference(const std::vector< std::vector< vertex_t > > &parents, vertex_t source, const std::vector< std::int32_t > &preferences={})
   template <typename vertex_t, typename edge_t, typename weight_t> [[nodiscard]] std::vector< std::int64_t > dyng::testing::mosp_path_costs_reference(const csr_view< vertex_t, edge_t, weight_t > &out, const std::vector< vertex_t > &parent, vertex_t source, int num_objectives=0)
 
+[dyng/testing/triad_reference.hpp] tracked
+  enum class dyng::testing::triad_pattern : std::uint8_t { h_motif, stathyper_type1, stathyper_type2, stathyper_type3 }
+  constexpr int dyng::testing::triad_num_classes = 30
+  constexpr int dyng::testing::triad_num_venn_ids = 128
+  [[nodiscard]] const char * dyng::testing::triad_pattern_name(triad_pattern pattern) noexcept
+  [[nodiscard]] int dyng::testing::triad_num_bins(triad_pattern pattern) noexcept
+  [[nodiscard]] const std::array< std::uint8_t, triad_num_classes > & dyng::testing::triad_class_representatives() noexcept
+  [[nodiscard]] int dyng::testing::triad_venn_permuted(int venn_id, const std::array< int, 3 > &image)
+  [[nodiscard]] int dyng::testing::triad_venn_canonical(int venn_id)
+  [[nodiscard]] int dyng::testing::triad_motif_class(int venn_id)
+  [[nodiscard]] std::array< std::int8_t, triad_num_venn_ids > dyng::testing::triad_motif_class_map()
+  [[nodiscard]] int dyng::testing::triad_venn_id(const std::vector< std::int32_t > &a, const std::vector< std::int32_t > &b, const std::vector< std::int32_t > &c)
+  struct dyng::testing::triad_reference_options
+      int threads = 0
+  struct dyng::testing::triad_reference_counts
+      std::array< std::uint64_t, triad_num_classes > h_motif {}
+      std::uint64_t type1 = 0
+      std::uint64_t type2 = 0
+      std::uint64_t type3 = 0
+      [[nodiscard]] std::vector< std::uint64_t > of(triad_pattern pattern) const
+  [[nodiscard]] triad_reference_counts dyng::testing::triad_reference_all(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< triad_pattern > &patterns, const triad_reference_options &options={})
+  [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, triad_pattern pattern, const triad_reference_options &options={})
+  [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_removed(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
+  [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_added(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
+
 [dyng/triangle_delta.hpp] tracked
   struct dyng::triangle_delta::options
   struct dyng::triangle_delta::stats : public dyng::update_stats
