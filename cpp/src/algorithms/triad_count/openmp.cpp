@@ -33,17 +33,20 @@ void triad_count_openmp(const resources& res, triad_count::pattern kind,
   // Each thread counts into bins on its stack (nothing is allocated) and adds them to `counts`
   // once. An exception must not leave a parallel region: the first one is rethrown after it.
   std::exception_ptr failure;
+  // Chunks of 64 source keys (the dynamic schedule's unit), one operation each.
+  constexpr int chunk = 64;
+  const int chunks = (n + chunk - 1) / chunk;
 #pragma omp parallel num_threads(threads)
   {
     triad_bins mine{};
     bool ok = true;
-#pragma omp for schedule(dynamic, 64) nowait
-    for (int a = 1; a <= n; ++a) {
+#pragma omp for schedule(dynamic) nowait
+    for (int c = 0; c < chunks; ++c) {
       if (!ok) {
         continue;
       }
       try {
-        triad_host::count_source(kind, views, a, mine);
+        triad_host::count_sources(kind, views, 1 + c * chunk, std::min(n, (c + 1) * chunk), mine);
       } catch (...) {
         ok = false;
 #pragma omp critical(dyng_triad_count_openmp)

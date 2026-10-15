@@ -14,8 +14,8 @@ void triad_count_sequential(triad_count::pattern kind, const hyper::row_views& v
                             triad_bins& counts) {
   counts.fill(0);
   const int n = triad_host::num_sources(kind, views);
-  for (int a = 1; a <= n; ++a) {
-    triad_host::count_source(kind, views, a, counts);
+  if (n > 0) {
+    triad_host::count_sources(kind, views, 1, n, counts);
   }
 }
 
