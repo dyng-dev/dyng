@@ -53,7 +53,9 @@ which the author may connect later (checkpoint A4); it is not part of 0.2.0, and
 
 Built in three milestones: M8a (the ESCHER store, internal: one store that reproduces both
 ESCHER-GPU's and MOSP_ESCHER's CBST, proven by trace replay against both), M8b (the hypergraph
-container on it, its I/O and Python, the header freeze) and M9 (`triad_count`). M8a is done
+container on it, its I/O and Python, the header freeze) and M9 (`triad_count`, run as M9a,
+the counting exact against ESCHER-GPU on every backend with its gates, and M9b, the
+experimental `count_local_patterns`, Python, the command line and the freeze). M8a is done
 (pending the hosted CI and the author's merge): the store replays both originals' CBST traces in
 every recorded field under their presets `escher_gpu()` and `mosp_escher()`, except two
 documented divergences (`construct_below_payload` and, for MOSP_ESCHER's constructs without row
@@ -66,7 +68,8 @@ the line graph equal to ESCHER-GPU's after every batch at the same device memory
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
   views, hypergraph generators, and binary batch files (`.dgb`), from C++ and Python (done in
   M8b).
-- `triad_count` (hypergraph h-motif triads, ESCHER / ESCHER+).
+- `triad_count` (hypergraph h-motif triads, ESCHER / ESCHER+), incremental on the sequential,
+  OpenMP and CUDA backends.
 - Experimental: counting your own local hypergraph patterns (`count_local_patterns`).
 
 ## 0.4.0
@@ -77,8 +80,10 @@ the line graph equal to ESCHER-GPU's after every batch at the same device memory
 
 ## Towards 1.0
 
-- **0.5:** an OpenMP backend for incremental `triad_count`; more cycle modes (Read-Tarjan,
-  time windows, temporal); 64-bit hypergraph offsets.
+- **0.5:** performance tuning of `triad_count`'s OpenMP backend (0.3.0 ships incremental host
+  engines on sequential and OpenMP, an untuned transliteration of the CUDA wedge engine: the
+  author's decision of 2026-10-15); more cycle modes (Read-Tarjan, time windows, temporal);
+  64-bit hypergraph offsets.
 - **0.6:** the framework for writing update algorithms becomes public (experimental).
 - **1.0:** the API of the core and the stable algorithms is frozen. The release criterion: an
   outside contributor has added an algorithm using only the documentation.
