@@ -1,0 +1,30 @@
+{
+ "step": "M8b review: fuzz_batch_binary with the CRC-resealing custom mutator (7eb1b62), criterion 15 again",
+ "date": "2026-10-14",
+ "build": "build/fuzz (preset fuzz: Clang 18.1.8 of the dyng-clang environment, -fsanitize=fuzzer,address,undefined, libdyng instrumented) at 7eb1b62 (the reader's fail-stop and kind fixes, 7a2964c / 02e75f6, included)",
+ "flags": "ci/fuzz.sh --time 1860 batch_binary: -max_total_time=1860 -rss_limit_mb=2048 -malloc_limit_mb=2048 -timeout=10 -max_len=4096, seeded with cpp/fuzz/corpus/batch_binary and cpp/fuzz/regressions/batch_binary",
+ "log": "$DYNG_SCRATCH/runs/m8b-review/fuzz/batch_binary.log",
+ "targets": {
+  "batch_binary": {
+   "seconds": 1861,
+   "executions": 15236228,
+   "new_units_added": 798,
+   "peak_rss_mb": 418,
+   "findings": 0
+  }
+ },
+ "coverage": {
+  "how": "fuzz_batch_binary -runs=0 <corpus> (the INITED line: edges and features of the corpus, same binary)",
+  "final_corpus_of_this_run": {"files": 162, "cov": 1320, "ft": 2345},
+  "committed_seed_corpus": {"files": 9, "cov": 909, "ft": 1376},
+  "earlier_runs_without_the_mutator": "step 4's 31-minute run ended at cov 1100 ft 2005 (its log, $DYNG_SCRATCH/runs/m8b-fuzz/batch_binary.log); the review's 21-minute run stayed at cov 1063 ft 1952 from its second minute"
+ },
+ "where_the_corpus_stops": {
+  "how": "each corpus input read with dyng.io.BatchReader (vertex count -1); the first error's kind",
+  "accepted": 30,
+  "content_checks_behind_the_crc": {"vertex id out of range": 7, "insertion offsets": 7, "deleted-member offsets": 7, "negative hyperedge id": 2, "negative expected id": 1, "hyperedge weight out of range": 1, "deleted members without the flag": 2, "batch ids not increasing": 5, "bytes beyond the arrays": 3, "counts that do not fit the record": 19},
+  "record_crc_mismatch": 4,
+  "header_and_size_checks": "the rest (version, reserved bytes, K, flags, kinds and types, truncation, trailing bytes, announced counts, record lengths)"
+ },
+ "passed": true
+}
