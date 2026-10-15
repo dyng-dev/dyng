@@ -26,6 +26,7 @@
 #pragma once
 
 #include "algorithms/triad_count/engine/wedge.cuh"
+#include "framework/policies.hpp"
 #include "hypergraph/row_views.hpp"
 
 #include <dyng/triad_count.hpp>
@@ -50,10 +51,12 @@ wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& view
 
 // One frontier phase of a pattern (ESCHER-GPU's runFrontierPhase and the counters' phase()):
 // sign x the triads (pairs, keys) through the frontier keys d_keys[0..num_keys), each counted at
-// its smallest frontier member (flags d_flags over the line graph's keys), added to d_bins.
+// its smallest frontier member (the rule `rule`, ownership.hpp; flags d_flags over the line
+// graph's keys), added to d_bins.
 wedge::launch count_phase(triad_count::pattern kind, const hyper::row_views& views,
                           const int* d_keys, int num_keys, const unsigned char* d_flags,
-                          long long sign, unsigned long long* d_bins, unsigned long long* d_error,
+                          framework::ownership::min_member rule, long long sign,
+                          unsigned long long* d_bins, unsigned long long* d_error,
                           const wedge::scratch& s);
 
 }  // namespace dyng::detail::triad

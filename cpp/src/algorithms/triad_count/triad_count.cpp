@@ -214,7 +214,8 @@ void triad_cuda_compute(const resources& /*res*/, triad_cuda_engine& /*e*/,
 void triad_cuda_count_minus(const resources& /*res*/, triad_cuda_engine& /*e*/,
                             const hyper::row_views& /*views*/,
                             const std::vector<std::int64_t>& /*deletions*/,
-                            std::int64_t /*insertions*/) {
+                            std::int64_t /*insertions*/,
+                            framework::ownership::min_member /*rule*/) {
   no_cuda();
 }
 void triad_cuda_identify_affected(const resources& /*res*/, triad_cuda_engine& /*e*/,
@@ -223,7 +224,8 @@ void triad_cuda_identify_affected(const resources& /*res*/, triad_cuda_engine& /
   no_cuda();
 }
 void triad_cuda_count_plus(const resources& /*res*/, triad_cuda_engine& /*e*/,
-                           const hyper::row_views& /*views*/) {
+                           const hyper::row_views& /*views*/,
+                           framework::ownership::min_member /*rule*/) {
   no_cuda();
 }
 void triad_cuda_finalize(const resources& /*res*/, triad_cuda_engine& /*e*/,
@@ -309,7 +311,7 @@ framework::budget triad_count_problem<vertex_t, weight_t>::algorithm_budget(
 template <typename vertex_t, typename weight_t>
 void triad_count_problem<vertex_t, weight_t>::count(framework::context& ctx, old_graph g,
                                                     frontier_type& /*f*/, framework::sign s,
-                                                    ownership_type /*rule*/) {
+                                                    ownership_type rule) {
   (void)s;  // sign::minus: the engine subtracts on G_t
   if (ctx.chosen_engine() != engine::fused) {
     return;  // the host backends recount G_{t+1} in count(+) (M9a step 4: incremental)
@@ -317,7 +319,7 @@ void triad_count_problem<vertex_t, weight_t>::count(framework::context& ctx, old
   const resources& res = ctx.res();
   cuda_ = triad_cuda_open(res, state_->opt.kind);
   triad_cuda_count_minus(res, *cuda_, hypergraph_access::views(g.get()), normalized_->deletions,
-                         inserted_);
+                         inserted_, rule);
 }
 
 /// update(): count(+), the recount of G_{t+1} on the host backends; compute(): the full count.
@@ -419,7 +421,7 @@ void triad_count_problem<vertex_t, weight_t>::enact_fused(framework::context& ct
   }
   {
     scoped_stage stage(res, names.count_plus);
-    triad_cuda_count_plus(res, *cuda_, views);
+    triad_cuda_count_plus(res, *cuda_, views, ownership_type{});
   }
   scoped_stage stage(res, names.finalize);
   triad_signed_bins minus{};

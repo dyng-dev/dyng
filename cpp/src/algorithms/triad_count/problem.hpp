@@ -193,10 +193,12 @@ void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper:
  * @param[in]     views      G_t's internal row views.
  * @param[in]     deletions  Step 0's live distinct deletions (ids, host memory).
  * @param[in]     insertions The number of hyperedges the batch inserts.
+ * @param[in]     rule       The exactly-once rule of the phase (invariant I2).
  */
 void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
                             const hyper::row_views& views,
-                            const std::vector<std::int64_t>& deletions, std::int64_t insertions);
+                            const std::vector<std::int64_t>& deletions, std::int64_t insertions,
+                            framework::ownership::min_member rule);
 
 /**
  * @brief update() on cuda, identify_affected: the frontier of the add phase, the ids the commit
@@ -214,9 +216,10 @@ void triad_cuda_identify_affected(const resources& res, triad_cuda_engine& e,
  * @param[in]     res   Resources of the CUDA backend.
  * @param[in,out] e     The engine.
  * @param[in]     views G_{t+1}'s internal row views.
+ * @param[in]     rule  The exactly-once rule of the phase (invariant I2).
  */
 void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
-                           const hyper::row_views& views);
+                           const hyper::row_views& views, framework::ownership::min_member rule);
 
 /**
  * @brief update() on cuda, finalize: the bins of both phases on the host.

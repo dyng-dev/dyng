@@ -232,7 +232,8 @@ void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper:
 
 void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
                             const hyper::row_views& views,
-                            const std::vector<std::int64_t>& deletions, std::int64_t insertions) {
+                            const std::vector<std::int64_t>& deletions, std::int64_t insertions,
+                            framework::ownership::min_member rule) {
   const scoped_device guard(res.device());
   triad_cuda_workspace& ws = e.ws->get();
   const auto deleted = static_cast<int>(deletions.size());
@@ -262,7 +263,7 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
   build_frontier(res, e, ws.ids.data(), deleted, views);
   record(
       e, 1,
-      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), -1,
+      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), rule, -1,
                          ws.bins.data(), ws.bins.data() + triad::error_slot, scratch_of(res, e)));
 }
 
@@ -274,11 +275,11 @@ void triad_cuda_identify_affected(const resources& res, triad_cuda_engine& e,
 }
 
 void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
-                           const hyper::row_views& views) {
+                           const hyper::row_views& views, framework::ownership::min_member rule) {
   const scoped_device guard(res.device());
   triad_cuda_workspace& ws = e.ws->get();
   record(e, 1,
-         triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), 1,
+         triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), rule, 1,
                             ws.bins.data() + triad::phase_bins, ws.bins.data() + triad::error_slot,
                             scratch_of(res, e)));
 }
