@@ -148,37 +148,43 @@ TEST(HypergraphCuda, ApplyOnAnotherStreamIsOrderedAfterThatStreamsWork) {
   for (std::int32_t v = 0; v < n; ++v)
     initial[static_cast<std::size_t>(v)] = {v, (v + 1) % n, (v + 7) % n};
   for (auto& r : initial) std::sort(r.begin(), r.end());
-  dyng::hypergraph_properties props;
-  props.line_graph = dyng::line_graph_policy::none;
-  hgraph h = hgraph::from_hyperedges(ra, dyng::test::hyper::list_of(n, initial).view(), props);
-  const auto view = h.h2v();
-  const std::size_t count = view.col_ind.size();
-  std::vector<std::int32_t> want(count), got(count, -1);
-  ASSERT_EQ(cudaMemcpy(want.data(), view.col_ind.data(), count * sizeof(std::int32_t),
-                       cudaMemcpyDeviceToHost),
-            cudaSuccess);
-  std::int32_t* copy = nullptr;
-  ASSERT_EQ(cudaMalloc(&copy, count * sizeof(std::int32_t)), cudaSuccess);
-  // About half a second of spinning on b, then the copy of G_t's view.
-  ASSERT_EQ(
-      dyng::test::hyper::queue_delayed_copy(view.col_ind.data(), copy, count, 1000000000LL, b),
-      cudaSuccess);
-  dyng::hyperedge_batch<std::int32_t, dyng::unweighted> batch;
-  for (std::int64_t id = 0; id < n; id += 2) batch.delete_hyperedge(id);
-  (void)h.apply(rb, batch.view());
-  // apply() is synchronous and its store work waited for b's reader: the reader has finished
-  // (without the ordering, apply() returns while b still spins).
-  EXPECT_EQ(cudaStreamQuery(b), cudaSuccess) << "apply() returned before the earlier work of b";
-  const auto next = h.h2v();  // a new view (the pool may reuse G_t's view memory)
-  EXPECT_EQ(next.col_ind.size(), count - static_cast<std::size_t>((n + 1) / 2) * 3);
-  ASSERT_EQ(cudaStreamSynchronize(b), cudaSuccess);
-  ASSERT_EQ(cudaMemcpy(got.data(), copy, count * sizeof(std::int32_t), cudaMemcpyDeviceToHost),
-            cudaSuccess);
-  std::size_t differ = 0;
-  for (std::size_t i = 0; i < count; ++i) differ += got[i] != want[i] ? 1 : 0;
-  EXPECT_EQ(differ, 0U) << "entries of G_t's view read differently by the earlier work of b";
-  h.check_integrity(ra);
-  EXPECT_EQ(cudaFree(copy), cudaSuccess);
+  {  // the hypergraph is destroyed (its stream-ordered frees on a) before the streams
+    dyng::hypergraph_properties props;
+    props.line_graph = dyng::line_graph_policy::none;
+    hgraph h = hgraph::from_hyperedges(ra, dyng::test::hyper::list_of(n, initial).view(), props);
+    const auto view = h.h2v();
+    const std::size_t count = view.col_ind.size();
+    std::vector<std::int32_t> want(count), got(count, -1);
+    // Copied on the hypergraph's stream: a copy on the legacy default stream is not ordered with
+    // the store's stream-ordered frees on a non-blocking stream (compute-sanitizer memcheck reports
+    // it as a potential use after free).
+    ASSERT_EQ(cudaMemcpyAsync(want.data(), view.col_ind.data(), count * sizeof(std::int32_t),
+                              cudaMemcpyDeviceToHost, a),
+              cudaSuccess);
+    ASSERT_EQ(cudaStreamSynchronize(a), cudaSuccess);
+    std::int32_t* copy = nullptr;
+    ASSERT_EQ(cudaMalloc(&copy, count * sizeof(std::int32_t)), cudaSuccess);
+    // About half a second of spinning on b, then the copy of G_t's view.
+    ASSERT_EQ(
+        dyng::test::hyper::queue_delayed_copy(view.col_ind.data(), copy, count, 1000000000LL, b),
+        cudaSuccess);
+    dyng::hyperedge_batch<std::int32_t, dyng::unweighted> batch;
+    for (std::int64_t id = 0; id < n; id += 2) batch.delete_hyperedge(id);
+    (void)h.apply(rb, batch.view());
+    // apply() is synchronous and its store work waited for b's reader: the reader has finished
+    // (without the ordering, apply() returns while b still spins).
+    EXPECT_EQ(cudaStreamQuery(b), cudaSuccess) << "apply() returned before the earlier work of b";
+    const auto next = h.h2v();  // a new view (the pool may reuse G_t's view memory)
+    EXPECT_EQ(next.col_ind.size(), count - static_cast<std::size_t>((n + 1) / 2) * 3);
+    ASSERT_EQ(cudaStreamSynchronize(b), cudaSuccess);
+    ASSERT_EQ(cudaMemcpy(got.data(), copy, count * sizeof(std::int32_t), cudaMemcpyDeviceToHost),
+              cudaSuccess);
+    std::size_t differ = 0;
+    for (std::size_t i = 0; i < count; ++i) differ += got[i] != want[i] ? 1 : 0;
+    EXPECT_EQ(differ, 0U) << "entries of G_t's view read differently by the earlier work of b";
+    h.check_integrity(ra);
+    EXPECT_EQ(cudaFree(copy), cudaSuccess);
+  }
   ASSERT_EQ(cudaStreamSynchronize(a), cudaSuccess);
   EXPECT_EQ(cudaStreamDestroy(a), cudaSuccess);
   EXPECT_EQ(cudaStreamDestroy(b), cudaSuccess);
