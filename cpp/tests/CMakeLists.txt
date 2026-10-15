@@ -506,6 +506,58 @@ foreach(
   endif()
 endforeach()
 
+# Compile-failure tests of invariant I2 (PLAN 4.5.5: count_delta requires an ownership rule, with no
+# default; ADR 0055): operators::count_delta and count_owned without a rule, and with a value that
+# is not one. The control case must compile.
+foreach(
+  _case
+  "control||"
+  "count_delta_without_ownership|-DDYNG_CF_DELTA_NO_OWNERSHIP|count_delta needs an ownership rule"
+  "count_owned_without_ownership|-DDYNG_CF_OWNED_NO_OWNERSHIP|count_delta needs an ownership rule"
+  "not_an_ownership_rule|-DDYNG_CF_NOT_AN_OWNERSHIP|must be an ownership rule"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME operators.count_delta.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   ${_dyng_framework_cf_includes}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/count_delta_ownership.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(operators.count_delta.static_assert.${_name} PROPERTIES LABELS
+                                                                         "cpu;operators")
+  else()
+    set_tests_properties(
+      operators.count_delta.static_assert.${_name}
+      PROPERTIES LABELS "cpu;operators" PASS_REGULAR_EXPRESSION "${_message}"
+    )
+  endif()
+endforeach()
+
+# The operators (cpp/src/operators): count_delta on the host executors and, in CUDA builds, on
+# cuda_exec (ADR 0055).
+dyng_add_test(
+  NAME dyng_operators_tests
+  SOURCES operators/count_delta_test.cpp
+  LABELS cpu operators
+)
+target_include_directories(dyng_operators_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_OPENMP)
+  target_link_libraries(dyng_operators_tests PRIVATE OpenMP::OpenMP_CXX)
+endif()
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_operators_cuda_tests
+    SOURCES operators/count_delta_cuda_test.cu
+    LABELS gpu operators
+    TEST_PREFIX cuda.
+  )
+  target_include_directories(dyng_operators_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_operators_cuda_tests)
+endif()
+
 # Compile-failure tests: sssp on an unsupported graph type stops at the static_assert that names the
 # supported types (as cycle_count's), not at a link error; so does another distance type.
 foreach(_case "compute;;dyng::sssp supports graph<" "update;-DDYNG_COMPILE_FAIL_UPDATE;dyng::sssp supports graph<"

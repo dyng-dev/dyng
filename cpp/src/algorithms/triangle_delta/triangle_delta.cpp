@@ -171,25 +171,28 @@ void triangle_delta_problem<vertex_t, edge_t, weight_t>::normalize(framework::co
 template <typename vertex_t, typename edge_t, typename weight_t>
 void triangle_delta_problem<vertex_t, edge_t, weight_t>::count(framework::context& ctx, old_graph g,
                                                                frontier_type& /*f*/,
-                                                               framework::sign /*s*/,
+                                                               framework::sign s,
                                                                ownership_type /*rule*/) {
   // count(-) on G_t: the triangles the deleted edges destroy (before the commit, invariant I1).
   const auto [engine, view] = bind(ctx, g.get());
-  removed_ = engine->count_owned(ctx.res(), view, ws_->get().deletions, ws_->get());
+  const std::int64_t minus =
+      engine->count_delta(ctx.res(), view, ws_->get().deletions, s, ws_->get());
+  removed_ = static_cast<std::uint64_t>(-minus);  // s is sign::minus: minus <= 0
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
 void triangle_delta_problem<vertex_t, edge_t, weight_t>::count(framework::context& ctx, new_graph g,
                                                                frontier_type& /*f*/,
-                                                               framework::sign /*s*/,
+                                                               framework::sign s,
                                                                ownership_type /*rule*/) {
   const auto [engine, view] = bind(ctx, g.get());
   if (computing_) {
     added_ = engine->count_all(ctx.res(), view, ws_->get());  // compute(): every triangle
     return;
   }
-  // count(+) on G_{t+1}: the triangles the inserted edges create.
-  added_ = engine->count_owned(ctx.res(), view, ws_->get().insertions, ws_->get());
+  // count(+) on G_{t+1}: the triangles the inserted edges create (s is sign::plus).
+  added_ = static_cast<std::uint64_t>(
+      engine->count_delta(ctx.res(), view, ws_->get().insertions, s, ws_->get()));
 }
 
 template <typename vertex_t, typename edge_t, typename weight_t>
