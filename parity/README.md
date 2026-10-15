@@ -31,6 +31,7 @@ $DYNG_SCRATCH/
 | `cycle_count_goldens.py` | the `cycle_count` corpus of CycleEnumeration-GPU@0a976ad: `export` (histograms of the original `cycle-enum`, OpenMP 56 threads, DD k = 3..7, GitHub and Twitch k = 3, 4, COLLAB k = 3; the seed-1 updates 1K/25K/50K on DD, GitHub, Twitch with prior, delta and the generated batch; a DD locality and bound sweep; cross-checked against the original's sequential backend, the exporter's counts and the plan's totals) and `compare` (replay through `dyng-compat-cycle-enum`); reached as `export_goldens.py cycle_count` and `compare.py cycle_count` |
 | `cbst_trace_goldens.py` | the CBST trace goldens of M8a (ADR 0036): `export` (`export_goldens.py cbst_trace <set>|all [--twice]`) records the originals' suites (`make test` of ESCHER-GPU and MOSP_ESCHER), coauth-DBLP 3 x 50K seed 1 (ESCHER-GPU, digest mode), the synthetic-1M batch dumps (seeds 1-3), the DBLP 50K hyperedge and vertex runs of H-SOSP and the targeted scenarios with the recording twins into `$DYNG_SCRATCH/goldens/cbst_trace/<set>` and `[sets.cbst_trace_<set>]` of `goldens.toml`; `compare.py cbst_trace` verifies them; `datasets` re-derives the coauth-DBLP variants (`datasets/registry.toml`); `subset` writes the committed subset `cpp/tests/data/goldens/cbst_trace` |
 | `escher_trace.py` | reader of the CBST traces (format 1): `summary` (what a trace covers), `dump`, `verify` (rebuild every state, check every hash); the C++ reader is `cpp/tests/parity/escher/cbst_trace.hpp` |
+| `triad_goldens.py` | the triad_count goldens of M9a (ADR 0048): `export --twice` (`export_goldens.py triad_count`) counts with ESCHER-GPU@abcf9b2's unpatched `build/{main,type1,type2,type3}` (and a `--check` twin run per case) and records the batches with the recording twin of `build/main`, on make-test's 15 counting groups and PLAN 6.4.6's grid (240 cases), from two fresh patched copies with identical manifests, into `$DYNG_SCRATCH/goldens/triad_count/escher_gpu` and `[sets.triad_count_escher_gpu]` of `goldens.toml` (with the coverage table); `verify` (`compare.py triad_count --verify`); `crosscheck` runs A against its own CPU reference (PLAN 6.3 step 2); `list --backend` the cases a backend replays |
 | `hypergraph_ids.py` | the container-level replay of M8b (`compare.py hypergraph_ids`, ADRs 0041, 0042, 0045): the batch records of the CBST trace sets through `dyng::hypergraph` with the tool `dyng_hypergraph_ids` (ids, h2v and v2h rows, skipped ops against both originals; `--line-graph` A's H2H after every batch and the memory ratio; `--legacy-generator` A's batches drawn again; `--hg` the `.hg` readers), `--record` (`results/M8b-*.json`) and `--certificate` (the release certificate's hypergraph-id records, required from 0.3) |
 | `hypergraph_perf.py` | the memory gate and the maintain reading of the hypergraph against ESCHER-GPU (`perf_ab.py hypergraph memory|maintain`, `timed_regions/hypergraph.toml`; M8b step 2) |
 | `escher_crosscheck.py` | the cross-check of the two ESCHER cores (PLAN 6.3 step 2): `run --set <set> --store <original>` replays every trace of a set through the other original's unchanged store and reports the first divergence of every tree with its cause |
@@ -99,6 +100,12 @@ parity/compare.py hypergraph_ids --backend openmp --threads 8 --set escher_gpu_c
 parity/compare.py hypergraph_ids --backend cuda --line-graph --mode by_id --set escher_gpu_syn1m
 flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py hypergraph memory --gpu 0
 flock "$DYNG_SCRATCH/perf.lock" parity/perf_ab.py hypergraph maintain --gpu 0 --runs 5
+
+# triad_count (M9a): the goldens from two fresh patched copies, A against its CPU reference
+cmake --build build/parity --target dyng-compat-escher       # the converter (to-dgb)
+flock -s "$DYNG_SCRATCH/perf.lock" nice -n 10 parity/triad_goldens.py export --twice
+parity/triad_goldens.py verify
+flock -s "$DYNG_SCRATCH/perf.lock" parity/triad_goldens.py crosscheck --record out.json
 ```
 
 ### Re-exporting the hypergraph sets

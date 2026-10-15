@@ -7,7 +7,8 @@
 CycleEnumeration-GPU@0a976ad instead (parity/cycle_count_goldens.py); `parity/export_goldens.py
 mosp_scale ...` the paper-scale mosp goldens (SHA-256 of the outputs of MOSP-OpenMP@c352151's
 `mosp` on the benchmark inputs, cross-checked with MOSP-CUDA@e220ee2; parity/mosp_scale_goldens.py,
-M7).
+M7); `parity/export_goldens.py triad_count ...` ESCHER-GPU@abcf9b2's triad counts and batches
+(parity/triad_goldens.py, M9a).
 
 PLAN Sections 6.3 (steps 1-2) and 8.3. The goldens are written OUTSIDE the repository, to
 $DYNG_SCRATCH/goldens/sssp (default ~/Projects/dyng-work); the repository keeps only
@@ -814,6 +815,11 @@ def main() -> int:
         import cycle_count_goldens
 
         return cycle_count_goldens.export_main(sys.argv[2:])
+    if sys.argv[1:2] == ["triad_count"]:  # ESCHER-GPU's triad counts and batches (M9a)
+        sys.path.insert(0, str(REPO / "parity"))
+        import triad_goldens
+
+        return triad_goldens.export_main(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument(
         "--scratch",
