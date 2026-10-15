@@ -208,6 +208,19 @@ def test_each_planted_defect_fails_the_replay(defect: str, mode: str, expect: st
 
 @needs_goldens
 @needs_tool
-def test_the_algorithm_counter_is_not_available_before_triad_count():
+def test_the_algorithm_counter_replays_exactly():
     p = _compare("--counter", "algorithm")
-    assert p.returncode == 2, p.stdout + p.stderr
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert "2/2 cases passed" in p.stdout, p.stdout
+
+
+@needs_goldens
+@needs_tool
+@pytest.mark.parametrize(
+    ("defect", "mode", "expect"),
+    [("bin", "both", "full count"), ("swap", "both", "SHA-256"), ("id", "by_key", "inserted ids")],
+)
+def test_planted_defects_fail_the_algorithm_counter_too(defect: str, mode: str, expect: str):
+    p = _compare("--counter", "algorithm", "--plant", defect, "--mode", mode)
+    assert p.returncode == 1, p.stdout + p.stderr
+    assert "FAILED" in p.stdout and expect in p.stdout, p.stdout

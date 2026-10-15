@@ -176,8 +176,11 @@ def main() -> int:
         same_code = x["digest"] == y["digest"]
         same_res = x["resources"] == y["resources"]
         same_loops = x["loops"] == y["loops"] and x["instructions"] == y["instructions"]
-        verdict = "identical" if same_code and same_res else (
-            "same loops and resources" if same_loops and same_res else "DIFFERENT")
+        verdict = (
+            "identical"
+            if same_code and same_res
+            else ("same loops and resources" if same_loops and same_res else "DIFFERENT")
+        )
         if verdict == "DIFFERENT":
             status = 1
         print(
