@@ -1,0 +1,351 @@
+{
+ "schema": 2,
+ "what": "mutation checks of the golden parity (PLAN 8.4): triad_count",
+ "date": "2026-10-15T21:43:06Z",
+ "commit": "c8b6e68b803408f56a8fa95980c42f7e7024f8e1",
+ "goldens": {
+  "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
+  "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml",
+  "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the lockstep and graph-on-CBST tests (no golden corpus)",
+  "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
+  "triad_count": "triad_count's tests against the independent oracle (dyng::testing::triad_reference) on every backend (no golden corpus)"
+ },
+ "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst test executables, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "suite": "triad_count",
+   "config": "cuda",
+   "build": "ok",
+   "replays": [
+    {
+     "suite": "triad_count",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "tests": {
+      "dyng_triad_count_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_triad_count_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    }
+   ],
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "triad_wrong_bin_sign",
+   "suite": "triad_count",
+   "plan": "M9a 11: count(-) adds (engine/phases.hpp phase_sign)",
+   "defines": [
+    "DYNG_MUTATION_TRIAD_WRONG_BIN_SIGN"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 32
+   },
+   "tests": {
+    "dyng_triad_count_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/openmp",
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/sequential",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/openmp",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/sequential",
+      "Backends/TriadCount.KernelPathsAndEarlyOuts/openmp",
+      "Backends/TriadCount.KernelPathsAndEarlyOuts/sequential",
+      "Backends/TriadCount.OpenMPThreadCountsGiveIdenticalCounts/openmp",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/openmp",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/sequential",
+      "Backends/TriadCount.RequirementsAreCheckedPerPattern/openmp",
+      "Backends/TriadCount.RequirementsAreCheckedPerPattern/sequential",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/openmp",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/sequential",
+      "Backends/TriadCount.SpecialBatches/openmp",
+      "Backends/TriadCount.SpecialBatches/sequential",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/openmp",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/sequential",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/openmp",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/sequential",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/openmp",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/sequential"
+     ]
+    },
+    "dyng_triad_count_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/cuda",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/cuda",
+      "Backends/TriadCount.KernelPathsAndEarlyOuts/cuda",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/cuda",
+      "Backends/TriadCount.RepeatedRunsAreIdentical/cuda",
+      "Backends/TriadCount.RequirementsAreCheckedPerPattern/cuda",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/cuda",
+      "Backends/TriadCount.SpecialBatches/cuda",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/cuda",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/cuda",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/cuda"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "triad_skip_frontier_filter_b",
+   "suite": "triad_count",
+   "plan": "M9a 11: the wedge filter skipped (ESCHER-GPU wedge.cuh:101; engine/ownership.hpp)",
+   "defines": [
+    "DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_B"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 24
+   },
+   "tests": {
+    "dyng_triad_count_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/openmp",
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/sequential",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/openmp",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/sequential",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/openmp",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/sequential",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/openmp",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/sequential",
+      "Backends/TriadCount.SpecialBatches/openmp",
+      "Backends/TriadCount.SpecialBatches/sequential",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/openmp",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/sequential",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/openmp",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/sequential",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/openmp",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/sequential"
+     ]
+    },
+    "dyng_triad_count_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/cuda",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/cuda",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/cuda",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/cuda",
+      "Backends/TriadCount.SpecialBatches/cuda",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/cuda",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/cuda",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/cuda"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "triad_skip_frontier_filter_k",
+   "suite": "triad_count",
+   "plan": "M9a 11: the closing filter skipped (ESCHER-GPU wedge.cuh:129; engine/ownership.hpp)",
+   "defines": [
+    "DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_K"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 18
+   },
+   "tests": {
+    "dyng_triad_count_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/openmp",
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/sequential",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/openmp",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/sequential",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/openmp",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/sequential",
+      "Backends/TriadCount.SpecialBatches/openmp",
+      "Backends/TriadCount.SpecialBatches/sequential",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/openmp",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/sequential",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/openmp",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/sequential"
+     ]
+    },
+    "dyng_triad_count_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/cuda",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/cuda",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/cuda",
+      "Backends/TriadCount.SpecialBatches/cuda",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/cuda",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/cuda"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "triad_inserted_requested_ids",
+   "suite": "triad_count",
+   "plan": "M9a 11: count(+)'s frontier from the requested ids, not the assigned ones",
+   "defines": [
+    "DYNG_MUTATION_TRIAD_INSERTED_REQUESTED_IDS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 31
+   },
+   "tests": {
+    "dyng_triad_count_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/openmp",
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/sequential",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/openmp",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/sequential",
+      "Backends/TriadCount.OpenMPThreadCountsGiveIdenticalCounts/openmp",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/openmp",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/sequential",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/openmp",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/sequential",
+      "Backends/TriadCount.SpecialBatches/openmp",
+      "Backends/TriadCount.SpecialBatches/sequential",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/openmp",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/sequential",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/openmp",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/sequential",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/openmp",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/sequential"
+     ]
+    },
+    "dyng_triad_count_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.ABinThatWouldGoNegativePoisonsTheResult/cuda",
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/cuda",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/cuda",
+      "Backends/TriadCount.KernelPathsAndEarlyOuts/cuda",
+      "Backends/TriadCount.OptionsAndTheResult/cuda",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/cuda",
+      "Backends/TriadCount.RepeatedRunsAreIdentical/cuda",
+      "Backends/TriadCount.RequirementsAreCheckedPerPattern/cuda",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/cuda",
+      "Backends/TriadCount.SpecialBatches/cuda",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/cuda",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/cuda",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/cuda",
+      "Backends/TriadCount.VertexIdsAtTheInt32LimitAreRefusedWhereTheMergeCannotCountThem/cuda"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "triad_type1_unbounded_keys",
+   "suite": "triad_count",
+   "plan": "M9a 11: type 1's full count bounded by the largest bound so far, not h2v's",
+   "defines": [
+    "DYNG_MUTATION_TRIAD_TYPE1_UNBOUNDED_KEYS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 3
+   },
+   "tests": {
+    "dyng_triad_count_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/openmp",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/sequential"
+     ]
+    },
+    "dyng_triad_count_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/cuda"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_unfill_drops_last_triad",
+   "suite": "triad_count",
+   "plan": "M9a 11: cbst_unfill_drops_last (MOSP_ESCHER #4) against the triad suite",
+   "defines": [
+    "DYNG_MUTATION_CBST_UNFILL_DROPS_LAST"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 9
+   },
+   "tests": {
+    "dyng_triad_count_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_triad_count_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/TriadCount.DuplicatesSingleMembersAndWideHyperedges/cuda",
+      "Backends/TriadCount.EveryClassIsAddedAndRemovedByUpdates/cuda",
+      "Backends/TriadCount.RandomMultiBatchSequencesMatchTheOracle/cuda",
+      "Backends/TriadCount.RepeatedRunsAreIdentical/cuda",
+      "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/cuda",
+      "Backends/TriadCount.SpecialBatches/cuda",
+      "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/cuda",
+      "Backends/TriadCount.TwoPatternsAndAFakePartnerShareOneCommit/cuda",
+      "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/cuda"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}

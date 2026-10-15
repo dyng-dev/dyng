@@ -113,3 +113,12 @@ a fresh `compute()` and, on the golden set, with A.
 - CPU parity against A (criterion 8, host): `parity/results/M9a.md` section 4.
 - A phase of an update on the host is limited to 2^63 - 1 triads per bin (signed bins); compute()
   keeps the unsigned 2^64 - 1 limit (`count_owned`).
+
+## Outcome (M9a step 4)
+
+Exact against ESCHER-GPU@abcf9b2 on the host coverage table, by key and by content, with
+integrity and a fresh `compute()` after every batch: sequential 120/120 (make-test and the syn100k
+grid), OpenMP 142/142 at 8 threads and 142/142 at 1 thread (also the syn1m s1 grid and
+coauth_b50k_s1 types 1 and 2), the two OpenMP records identical case by case. The kit passes on
+the three backends; the five triad mutations and `cbst_unfill_drops_last` are detected on both
+engines; the CUDA kernels' machine code is unchanged (`parity/results/M9a.md` section 4).

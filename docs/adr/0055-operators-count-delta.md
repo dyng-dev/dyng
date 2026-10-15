@@ -100,3 +100,9 @@ allocation and an upload, against I9). So it is **not promoted**; the two stay w
   empty phase, an invalid bin); the compile-failure CTests of I2.
 - The micro-benchmark of PLAN 8.5 (`count_delta`) has its operator; the benchmark itself is not
   part of M9a.
+
+## Outcome (M9a step 4)
+
+triangle_delta's tests and kit pass on the three backends through the operator; triad_count's
+host engine is exact against ESCHER-GPU through it (ADR 0054); the operator's tests pass under
+ASan/UBSan, TSan and TSan with OpenMP (Archer), and its CUDA test under compute-sanitizer memcheck.

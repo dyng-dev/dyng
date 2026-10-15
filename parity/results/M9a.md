@@ -438,3 +438,130 @@ as in step 2): reported, flagged above 1.05, not gated (D1).
   step exists; the mutations act on `ownership.hpp`'s predicates, the bins' sign
   (`cuda.cu` / `triad_count.cpp` `apply_delta`), the frontier of the inserted ids
   (`triad_cuda_identify_affected`) and type 1's key bound (`count_full`).
+
+## 4. Step host-engine-kit-mutations: the incremental host engines, the kit, the mutations
+
+The sequential and OpenMP backends run the incremental host engine (`host_engine.hpp`; ADR 0054,
+the author's decision D3), `operators::count_delta` enters `cpp/src/operators` with triangle_delta
+and triad_count as its users (ADR 0055), ESCHER-GPU's make test runs in hosted CI under the
+1.25 MB data budget (D5, ADR 0013 amended), and the triad mutations of PLAN 8.4 are recorded on
+both engines. Commits: `164bfa5` (count_delta), `779dcfd` (the host engine and its tests),
+`93ef4a1` (the mutations), `f20f5b3` (make test in hosted CI, D5), `c8b6e68` (mutate.py finds an
+algorithm's test executables), and the records commit.
+
+### 4.1 CPU parity (criterion 8, host; `M9a-parity-{sequential,openmp8,openmp1}-escher_gpu.json`)
+
+`parity/compare.py triad_count --backend B --counter algorithm --mode both` against the golden set
+`triad_count_escher_gpu` (manifest `2d8e49b5...`), from the parity-cuda build at `c8b6e68`: by key
+(the exported ids deleted, `inserted_ids == expected_ids` per batch) and by content (each exported
+deleted row resolved to a live hyperedge with those members), `check_integrity()` and a fresh
+`compute()` ("baseline + deltas == recount") after every batch, full counts, net deltas and counts
+after compared with A:
+
+| Backend | Cases (the coverage table, D6 pending) | Result | Wall (group time) |
+|---|---|---|---|
+| sequential | make-test (60) + the syn100k grid (60) | **120/120 exact**, both modes | 914 s (4,021 s; 6 jobs) |
+| openmp, 8 threads | make-test + the syn100k grid + the syn1m s1 grid (20) + coauth_b50k_s1 types 1 and 2 | **142/142 exact**, both modes | 612 s (1,754 s; 3 jobs) |
+| openmp, 1 thread | the same | **142/142 exact**, both modes | 1,901 s (12,575 s; 10 jobs) |
+
+The full records of 1 and 8 threads are identical case by case (counts, batches, launch counters;
+only the times differ). An earlier run of all three from the uncommitted tree that became
+`779dcfd` (the same code before clang-format) gave the same verdicts (120/120 sequential, 142/142
+openmp 8); the records are the reruns at `c8b6e68`.
+
+### 4.2 The host engine against the oracle and the kit (criteria 6 and 10)
+
+| Executable | Build | Result |
+|---|---|---|
+| `dyng_triad_count_tests` (sequential, openmp) | dev | 33 tests: all pass (the thread-count test is skipped on sequential) |
+| `dyng_triad_count_make_test_tests` (hosted CI; the synthetic make-test groups exact against A's committed counts, the file-input shapes against the oracle) | dev / cpu-only | 4/4 (68 s in Debug on the loaded machine) |
+| `dyng_triad_count_make_test_large_tests` (labels parity, slow; the triangle patterns on syn100k, skewed, medium) | parity-cuda (Release) | 4/4 (293 s) |
+| `dyng_triad_count_conformance_tests` (four patterns, both instantiations, every preset, mix and shape; openmp at 8 threads) | dev (budgets) | 104: 88 passed, 16 skipped (C4: one engine per backend; C12: cuda only); 8.2 min |
+| `dyng_triad_count_cuda_tests`, `dyng_triad_count_conformance_cuda_tests` | dev-cuda | 19 passed, 1 skipped (the OpenMP thread test); kit 104: 96 passed, 8 skipped (C4), C8 strict, C12 on cuda |
+| `dyng_operators_tests`, `dyng_operators_cuda_tests` | dev, dev-cuda | 6/6, 2/2 |
+| compile-failure CTests `operators.count_delta.static_assert.*` | every build | 5/5 (the control compiles; no rule, a value that is not a rule, the triad phase without a rule fail with the message) |
+
+What the host tests show (criterion 6 and 10): on every backend the counts equal the oracle and a
+fresh `compute()` after every batch; `triads_removed` / `triads_added` equal the oracle's
+`removed(G_t, deleted)` / `added(G_{t+1}, inserted)` and `delta` the per-bin difference (so the
+frontier sizes are the batch's and the phases are exactly-once); `fallback_used` is false; a bin
+that would go negative raises `internal_error` and poisons the result; every closed class (bins
+0-19, 26-29) moves by one through an update and the open bins 20-25 stay 0; reused ids (an
+inserted id equal to a deleted one under erase_first, none under insert_first), duplicates,
+single-member hyperedges and hyperedges of 1,030-1,100 members; the bound going down (also in the
+batch that deletes the top ids); type 1 on `line_graph_policy::none`; requirement errors naming
+the property; random multi-batch sequences under both id_reuse orders; OpenMP identical at 1, 8
+and 56 threads; the kernel paths (both early outs, every (mode, shape)) on every backend; the 128
+Venn ids through the host bins handle (96 classified, 32 reported and never written). The kit's
+deterministic counters now include `triads_removed` / `triads_added` (C3, C9), C4 is skipped (one
+engine per backend), C8 holds in the budget build on the host (no allocation once reserved, no
+host synchronization), C10 runs two triad results and the fake partner, the planted bug of the
+kit (`conformance.mutation.frontier_requested_ids`) is still detected.
+
+### 4.3 Mutations (criterion 11; `M9a-mutate-triad_count.json`)
+
+`parity/mutate.py run --suites triad_count` (git archive of `c8b6e68`, one parity-cuda copy per
+mutation, built for sm_86 only; the suite: `dyng_triad_count_tests` on the host backends and
+`dyng_triad_count_cuda_tests` on GPU 1): **the control passed; 6 / 6 mutations detected**:
+
+| Mutation | Where (shared by both engines) | Failed tests |
+|---|---|---:|
+| `triad_wrong_bin_sign` | `engine/phases.hpp` `phase_sign` (count(-) adds) | 32 |
+| `triad_skip_frontier_filter_b` | `engine/ownership.hpp` `min_member_skips_wedge` (A's wedge.cuh:101) | 24 |
+| `triad_skip_frontier_filter_k` | `engine/ownership.hpp` `min_member_skips_closing` (A's wedge.cuh:129) | 18 |
+| `triad_inserted_requested_ids` | `triad_count.cpp` `triad_inserted_ids` (the requested ids) | 31 |
+| `triad_type1_unbounded_keys` | `engine/phases.hpp` `full_count_keys` (the largest bound so far) | 3 |
+| `cbst_unfill_drops_last_triad` | the CBST store (M8a's mutation) against the triad suite | 9 |
+
+The same mutations are CTests of every build: `ctest -L mutation -R triad_count` passed 6/6 in the
+dev build (each mutant killed on the host backends; the control passes) and 13/13 in dev-cuda (the
+host and CUDA suites, `cbst_unfill_drops_last` on the CUDA suite). `triad_type1_unbounded_keys` is
+caught by the test whose bound goes down in the batch that deletes the top ids (the rows past the
+new bound still hold the deleted three-member rows); with the bound going down in a later batch
+the stale rows are already empty and the mutation was invisible (found by the first mutant run,
+which added that case). `triad_inserted_requested_ids` first crashed the host suite (rows read
+past the view's bound); the frontier now refuses an id outside the view (`internal_error`).
+
+### 4.4 The rule of two (ADR 0055)
+
+- `operators::count_delta` / `count_owned` (`cpp/src/operators/count_delta.hpp`): users
+  triangle_delta (sequential, OpenMP, CUDA; its tests and kit unchanged in result) and
+  triad_count's host engine. The required ownership argument is shown by the compile-failure
+  CTests `operators.count_delta.static_assert.*` (no rule, a value that is not a rule, the triad
+  host engine's phase without a rule; the control compiles).
+- **cycle_count is not moved**: the move needs an ADR 0024 timing bar of 1.02 and this step takes
+  no timed readings; deferred (ADR 0055 section 3).
+- **device_frontier is not promoted**: sharing it would change the line-graph merge's code
+  (`cpp/src/hypergraph/line_graph/device_frontier.cuh`) or add a per-call allocation and an upload
+  to triad_count's CUDA frontier (ADR 0055 section 4). `cpp/src/hypergraph` is unchanged in this
+  step.
+- The CUDA engine's counting kernels are machine-code identical to c6 (`parity/triad_sass.py
+  compare`, `M9a-sass-step4-escher_gpu.json`, built at `c8b6e68`: instructions 48 / 152 / 456 /
+  552 / 512, registers 14 / 16 / 38 / 39 / 39, no stack, no local memory).
+
+### 4.5 The checks of the step
+
+| Check | Tree | Result |
+|---|---|---|
+| `ci/check.sh` (format, cpu-only and dev with `ctest -L cpu`, consumer, tidy, reuse, provenance, testdata, regen, harness, python, api, scaffold, docs, precommit) | `c8b6e68` + the draft records | **all checks passed** (cpu-only 1,244/1,244, dev 1,277/1,277) |
+| the records' own checks (`DYNG_CHECK_ONLY="reuse provenance testdata harness docs precommit"`) | the records commit | passed |
+| Clang 18 syntax (`clang_syntax.py`, the dev database incl. the mutants) | the step's tree | 401 files, 0 failures |
+| cpu-only with `-D_FORTIFY_SOURCE=3` (GCC 12, `-Werror`), configured without the CUDA toolkit on PATH; `ctest -L 'triad_count|operators|triangle_delta|testing'` | the step's tree | built; 241/241 |
+| ASan/UBSan, TSan (OpenMP off), TSan with OpenMP (Clang 18 and Archer, R020's local wrapper): `ctest -L 'triad_count|operators|triangle_delta'` | `c8b6e68` | 235/235, 219/219, 235/235 |
+| `ci/gpu_local.sh` steps `build` and `triad` (dev-cuda, GPU 1): synccheck and initcheck on `dyng_triad_count_cuda_tests`; memcheck, synccheck, initcheck on one coauth_b50k_s1 batch; racecheck on the kit's C1, C11, C12 and on the make-test replays (60/60 in both modes) | `c8b6e68` | all passed |
+| compute-sanitizer memcheck (`--leak-check full`) on `dyng_triad_count_cuda_tests` and `dyng_operators_cuda_tests` | `c8b6e68` | 0 errors |
+| `ctest -L 'operators|triad_count|triangle_delta'` | dev-cuda (GPU 1), the tree of `93ef4a1` | 441/441 (the triad and triangle kits, the mutation CTests) |
+| `parity/triad_sass.py compare` (c6 against `c8b6e68`) | parity-cuda | the five counting kernels identical |
+| frozen headers: `git diff 65a62c9 -- cpp/include/dyng/{hypergraph,update.hpp,core,graph}` | head | empty |
+| `ci/test_data_budget.py` | head | 1,002,671 bytes of 1,250,000 |
+
+### 4.6 For step 5
+
+- The host backends are exact on the coverage table (D6 pending); step 5's certificate requires
+  the triad replays of every backend per that table, both modes (`certify.py`'s interim rule of
+  step 1 to be replaced).
+- The host engine is untuned (no gate): the sequential replays of the syn100k grid take 90-260 s
+  per group with a recount after every batch; the OpenMP syn1m s1 grid 3-4.5 min per group at 8
+  threads.
+- `parity/mutate.py run --suites triad_count` builds one parity-cuda copy per mutation (about 8
+  min each on the shared machine).
