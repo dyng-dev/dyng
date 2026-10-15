@@ -404,6 +404,11 @@ dyng_add_test(
   LABELS cpu parity triad_count
   LIBRARIES dyng_triad_replay_lib
 )
+if(TARGET dyng_triad_count)
+  target_compile_definitions(dyng_triad_replay_tests PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=1)
+else()
+  target_compile_definitions(dyng_triad_replay_tests PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
+endif()
 list(APPEND _dyng_private_tests dyng_triad_replay_tests)
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")

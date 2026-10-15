@@ -205,13 +205,29 @@ TEST(TriadReplay, APerturbedDeletedRowIsUnresolvedByContent) {
   std::filesystem::remove_all(dir);
 }
 
-TEST(TriadReplay, TheAlgorithmCounterIsNotAvailableYetAndBadOptionsAreRefused) {
-  const auto dir = temp_dir("na");
+TEST(TriadReplay, TheAlgorithmCounterMatchesTheOracleAndBadOptionsAreRefused) {
+  const auto dir = temp_dir("algo");
   const case_files c = write_case(dir, 14);
   trp::options opt;
+  opt.num_vertices = 40;
+  const trp::report oracle = trp::replay(dyng::resources::sequential(), c.hg, c.batches, opt);
   opt.counter = "algorithm";
+#if DYNG_TRIAD_REPLAY_ALGORITHM
+  // triad_count, every pattern, both modes, with the recount after every batch.
+  const trp::report algo = trp::replay(dyng::resources::sequential(), c.hg, c.batches, opt);
+  ASSERT_EQ(algo.modes.size(), oracle.modes.size());
+  for (std::size_t m = 0; m < algo.modes.size(); ++m) {
+    EXPECT_EQ(algo.modes[m].full, oracle.modes[m].full) << algo.modes[m].mode;
+    ASSERT_EQ(algo.modes[m].batches.size(), oracle.modes[m].batches.size());
+    for (std::size_t b = 0; b < algo.modes[m].batches.size(); ++b) {
+      EXPECT_EQ(algo.modes[m].batches[b].counts_after, oracle.modes[m].batches[b].counts_after);
+      EXPECT_EQ(algo.modes[m].batches[b].delta, oracle.modes[m].batches[b].delta);
+    }
+  }
+#else
   EXPECT_THROW((void)trp::replay(dyng::resources::sequential(), c.hg, c.batches, opt),
                trp::not_available);
+#endif
   opt.counter = "oracle";
   opt.mode = "by_id";
   EXPECT_THROW((void)trp::replay(dyng::resources::sequential(), c.hg, c.batches, opt),
