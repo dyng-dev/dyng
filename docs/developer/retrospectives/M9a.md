@@ -146,7 +146,7 @@ hold on the synthetic cases, so their gates run at base (`parity/results/M9a.md`
 | `282f3c7` | `dyng_triad_replay` (`triad_replay.{hpp,cpp}`, `triad_replay_main.cpp`, `dyng_triad_replay_tests`), `parity/triad_replay.py` (`compare.py triad_count` replays, `--plant`, `singles`, `draws`), `parity/tests/test_triad_replay.py`, ADR 0050 |
 | `1e6e933` | `dyng-compat-escher run` (`tools/compat/escher/escher_run.cpp`), `parity/triad_perf.py` (`perf_ab.py triad_count run`, `memory`, `--probe`), the footprint figures of `hypergraph_perf.memory_by_range`, `bench_suite` knows the tool, ADR 0051 |
 | `729bb79` | two template parameter names for clang-tidy's naming rules; the mutation-point test reads the oracle's hook |
-| (records) | `parity/results/M9a.md` section 2 and its JSON records, this section, ADRs 0049-0051 in GOVERNANCE.md and the ADR index, plan.md, CHANGELOG |
+| `eeb03ec` | `parity/results/M9a.md` section 2 and its JSON records, this section, ADRs 0049-0051 in GOVERNANCE.md and the ADR index, plan.md, CHANGELOG |
 
 ### Deviations from the plan and the step's text (each with the same intent)
 
