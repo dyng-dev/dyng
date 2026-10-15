@@ -75,8 +75,9 @@
  * capacity policy is accepted.
  *
  * Backends: cuda (ESCHER-GPU's wedge engine: one thread per oriented wedge of the line graph, the
- * frontier phases of its exact delta), sequential and openmp (in this release they recount the
- * whole hypergraph in update(), stats::fallback_used). The counts are host arrays on every backend.
+ * frontier phases of its exact delta), sequential and openmp (the same engine as loops over the
+ * sources: the same full count and the same frontier phases, with the same results on every
+ * thread count). The counts are host arrays on every backend.
  *
  * Types: int32_t vertex ids, unweighted or int32_t weights (other hypergraph types fail to compile
  * with a static_assert naming these).
@@ -134,8 +135,7 @@ struct options {
  *   - `affected`: the number of bins whose count changed;
  *   - `iterations`: always 0 (no Step 2 loop; one signed count per phase);
  *   - `frontier_visits`: deleted_frontier + inserted_frontier;
- *   - `fallback_used`: true on the backends that recount the whole hypergraph (sequential and
- *     openmp in this release), false on cuda;
+ *   - `fallback_used`: always false (every backend updates the counts incrementally);
  *   - `converged`: always true;
  *   - `engine_used`: engine::fused on cuda (the wedge engine), engine::operators on the host
  *     backends (deterministic per backend).
@@ -149,11 +149,10 @@ struct stats : update_stats {
   /// The hyperedges of the add phase: the hyperedges the batch inserted.
   std::int64_t inserted_frontier = 0;
   /// The triads the batch destroyed, summed over the bins (for the weighted types 1-3: the sum of
-  /// the destroyed triads' weights). On a backend that recounts (fallback_used), every triad of the
-  /// hypergraph before the batch: a recount removes them all.
+  /// the destroyed triads' weights): the count of the subtract phase.
   std::uint64_t triads_removed = 0;
-  /// The triads the batch created, summed over the bins (types 1-3: their weights). On a backend
-  /// that recounts, every triad of the hypergraph after the batch.
+  /// The triads the batch created, summed over the bins (types 1-3: their weights): the count of
+  /// the add phase.
   std::uint64_t triads_added = 0;
   /// The change of every bin: counts() after the update minus counts() before it (bins at and
   /// above result::num_bins() are 0). A fixed-size array, so the stats allocate nothing.

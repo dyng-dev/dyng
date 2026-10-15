@@ -507,14 +507,15 @@ foreach(
 endforeach()
 
 # Compile-failure tests of invariant I2 (PLAN 4.5.5: count_delta requires an ownership rule, with no
-# default; ADR 0055): operators::count_delta and count_owned without a rule, and with a value that
-# is not one. The control case must compile.
+# default; ADR 0055): operators::count_delta and count_owned without a rule, with a value that is
+# not one, and the triad host engine's phase without one. The control case must compile.
 foreach(
   _case
   "control||"
   "count_delta_without_ownership|-DDYNG_CF_DELTA_NO_OWNERSHIP|count_delta needs an ownership rule"
   "count_owned_without_ownership|-DDYNG_CF_OWNED_NO_OWNERSHIP|count_delta needs an ownership rule"
   "not_an_ownership_rule|-DDYNG_CF_NOT_AN_OWNERSHIP|must be an ownership rule"
+  "triad_phase_without_ownership|-DDYNG_CF_TRIAD_NO_OWNERSHIP|count_phase"
 )
   string(REPLACE "|" ";" _parts "${_case}")
   list(GET _parts 0 _name)

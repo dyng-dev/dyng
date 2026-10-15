@@ -41,6 +41,7 @@
 // frontier filters (ownership.hpp) stay inside the engine.
 
 #include "algorithms/triad_count/engine/ownership.hpp"
+#include "algorithms/triad_count/engine/phases.hpp"
 #include "algorithms/triad_count/engine/sets.hpp"
 #include "core/budget_counters.hpp"
 #include "hypergraph/row_views.hpp"
@@ -234,9 +235,9 @@ __global__ void key_kernel(hyperedge_rows rows, const int* sources, int num_sour
 
 enum class wedge_shape { triangles, pairs };
 
-// dynG: what one count call did (the launch counters per mode and shape, M9a criterion 9): no
-// sources (the first early out), no wedges (the second), or a counting kernel launched.
-enum class launch { no_sources, no_wedges, kernel };
+// dynG: what one count call did (wedge::launch, phases.hpp: the launch counters per mode and
+// shape, M9a criterion 9): no sources (the first early out), no wedges (the second), or a
+// counting kernel launched.
 
 // dynG: the scratch of count_wedge_shape from the caller's workspace (ESCHER-GPU allocated the
 // offsets with cudaMalloc and Thrust's scan storage per call): the wedge offsets of the sources

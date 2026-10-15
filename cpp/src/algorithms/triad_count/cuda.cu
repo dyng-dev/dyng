@@ -61,6 +61,11 @@ cudaStream_t native(const resources& res) noexcept {
   return static_cast<cudaStream_t>(res.stream().get());
 }
 
+/// The engine's sign of a phase (-1: subtract, +1: add).
+long long sign_of(framework::sign s) noexcept {
+  return s == framework::sign::minus ? -1 : 1;
+}
+
 /// The pinned slot of the wedge count, after the bins.
 constexpr int wedge_slot = triad::bin_slots;
 
@@ -200,7 +205,7 @@ void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper:
 void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
                             const hyper::row_views& views,
                             const std::vector<std::int64_t>& deletions, std::int64_t insertions,
-                            framework::ownership::min_member rule) {
+                            framework::sign s, framework::ownership::min_member rule) {
   const scoped_device guard(res.device());
   triad_cuda_workspace& ws = e.ws->get();
   const auto deleted = static_cast<int>(deletions.size());
@@ -230,25 +235,36 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
   build_frontier(res, e, ws.ids.data(), deleted, views);
   record(
       e, 1,
-      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), rule, -1,
+      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), rule, sign_of(s),
                          ws.bins.data(), ws.bins.data() + triad::error_slot, scratch_of(res, e)));
 }
 
 void triad_cuda_identify_affected(const resources& res, triad_cuda_engine& e,
-                                  const hyper::row_views& views, const hyper_applied& record) {
+                                  const hyper::row_views& views,
+                                  const triad_inserted_frontier& ids) {
   const scoped_device guard(res.device());
-  build_frontier(res, e, record.inserted_ids_device.data(),
-                 static_cast<int>(record.inserted_ids.size()), views);
+  const std::int64_t* d_ids = ids.device;
+  if (d_ids == nullptr && ids.size > 0) {
+    // Ids without a device copy (only the recorded mutation triad_inserted_requested_ids makes
+    // them): one upload.
+    triad_cuda_workspace& ws = e.ws->get();
+    ws.ids.reserve(res, static_cast<std::size_t>(ids.size));
+    DYNG_CUDA_TRY(cudaMemcpyAsync(ws.ids.data(), ids.host, sizeof(std::int64_t) * ids.size,
+                                  cudaMemcpyHostToDevice, native(res)));
+    d_ids = ws.ids.data();
+  }
+  build_frontier(res, e, d_ids, ids.size, views);
 }
 
 void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
-                           const hyper::row_views& views, framework::ownership::min_member rule) {
+                           const hyper::row_views& views, framework::sign s,
+                           framework::ownership::min_member rule) {
   const scoped_device guard(res.device());
   triad_cuda_workspace& ws = e.ws->get();
   record(e, 1,
-         triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), rule, 1,
-                            ws.bins.data() + triad::phase_bins, ws.bins.data() + triad::error_slot,
-                            scratch_of(res, e)));
+         triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), rule,
+                            sign_of(s), ws.bins.data() + triad::phase_bins,
+                            ws.bins.data() + triad::error_slot, scratch_of(res, e)));
 }
 
 void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_signed_bins& minus,

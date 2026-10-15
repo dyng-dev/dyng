@@ -13,7 +13,8 @@
  * snapshot after it): count(-) on G_t's internal row views with the deleted ids as the frontier,
  * one commit, count(+) on G_{t+1}'s with the ASSIGNED inserted ids, each triad owned by its
  * smallest frontier member (ownership::min_member). The CUDA backend runs ESCHER-GPU's wedge
- * engine (cuda.cu, engine/), Tier B; the host backends recount in this release (fallback_used).
+ * engine (cuda.cu, engine/), Tier B; the host backends run the same engine as loops (the host
+ * engine, host_engine.hpp, through the Tier A hooks; ADR 0054).
  */
 #include "algorithms/triad_count/problem.hpp"
 #include "core/budget_counters.hpp"
@@ -40,6 +41,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace dyng::triad_count {
 
@@ -219,17 +221,17 @@ void triad_cuda_compute(const resources& /*res*/, triad_cuda_engine& /*e*/,
 void triad_cuda_count_minus(const resources& /*res*/, triad_cuda_engine& /*e*/,
                             const hyper::row_views& /*views*/,
                             const std::vector<std::int64_t>& /*deletions*/,
-                            std::int64_t /*insertions*/,
+                            std::int64_t /*insertions*/, framework::sign /*s*/,
                             framework::ownership::min_member /*rule*/) {
   no_cuda();
 }
 void triad_cuda_identify_affected(const resources& /*res*/, triad_cuda_engine& /*e*/,
                                   const hyper::row_views& /*views*/,
-                                  const hyper_applied& /*record*/) {
+                                  const triad_inserted_frontier& /*ids*/) {
   no_cuda();
 }
 void triad_cuda_count_plus(const resources& /*res*/, triad_cuda_engine& /*e*/,
-                           const hyper::row_views& /*views*/,
+                           const hyper::row_views& /*views*/, framework::sign /*s*/,
                            framework::ownership::min_member /*rule*/) {
   no_cuda();
 }
@@ -243,6 +245,36 @@ std::int64_t triad_cuda_host_syncs(triad_count::pattern /*kind*/) noexcept {
   return 0;
 }
 #endif
+
+// ------------------------------------------------------------------------------------------------
+// What both engines share
+// ------------------------------------------------------------------------------------------------
+
+triad_inserted_frontier triad_inserted_ids(const hyper_applied& record,
+                                           std::int64_t id_bound_before,
+                                           std::vector<std::int64_t>& scratch) {
+  triad_inserted_frontier f;
+  f.size = static_cast<int>(record.inserted_ids.size());
+#if defined(DYNG_MUTATION_TRIAD_INSERTED_REQUESTED_IDS)
+  // MUTATION (M9a criterion 11, triad_inserted_requested_ids): the frontier of count(+) is the
+  // ids the request would get without reuse (after the bound of G_t), not the ids the commit
+  // assigned.
+  scratch.clear();
+  for (int i = 0; i < f.size; ++i) {
+    scratch.push_back(id_bound_before + i);
+  }
+  f.host = scratch.data();
+  f.device = nullptr;
+#else
+  (void)id_bound_before;
+  (void)scratch;
+  f.host = record.inserted_ids.data();
+  f.device = record.inserted_ids_device.size() == record.inserted_ids.size() && f.size > 0
+                 ? record.inserted_ids_device.data()
+                 : nullptr;
+#endif
+  return f;
+}
 
 // ------------------------------------------------------------------------------------------------
 // The problem
@@ -273,7 +305,6 @@ void triad_count_problem<vertex_t, weight_t>::begin_update(framework::context& c
   normalized_ = batch.normalized;
   deleted_ = static_cast<std::int64_t>(normalized_->deletions.size());
   inserted_ = normalized_->rows.size();
-  before_ = state_->counts;
 }
 
 template <typename vertex_t, typename weight_t>
@@ -287,6 +318,7 @@ void triad_count_problem<vertex_t, weight_t>::end_update(framework::context& /*c
                                                          const stats_type& /*stats*/) {
   framework::stamp_result(state_->version, state_->graph_state, g.get());
   cuda_.reset();
+  host_.reset();
 }
 
 template <typename vertex_t, typename weight_t>
@@ -311,35 +343,169 @@ framework::budget triad_count_problem<vertex_t, weight_t>::algorithm_budget(
   return framework::budget::steady_state(triad_cuda_host_syncs(state_->opt.kind));
 }
 
-/// count(-) on G_t: cuda, the subtract phase with the frontier of Step 0's deletions (ESCHER-GPU's
-/// subtract() on the snapshot before graph.update()); host, nothing (count(+) recounts).
+namespace {
+
+/// Record one count's outcome (mode 0: the full count, 1: a frontier phase) in `c`.
+void note_launch(triad_launch_counters& c, triad_count::pattern kind, int mode,
+                 triad::wedge::launch outcome) noexcept {
+  const int shape = kind == triad_count::pattern::stathyper_type1   ? 2
+                    : kind == triad_count::pattern::stathyper_type2 ? 1
+                                                                    : 0;
+  switch (outcome) {
+    case triad::wedge::launch::kernel:
+      ++c.kernels[mode][shape];
+      break;
+    case triad::wedge::launch::no_sources:
+      ++c.no_sources[mode][shape];
+      break;
+    case triad::wedge::launch::no_wedges:
+      ++c.no_wedges[mode][shape];
+      break;
+  }
+}
+
+/// Add the counters `from` to `into`.
+void add_launches(const triad_launch_counters& from, triad_launch_counters& into) noexcept {
+  for (int m = 0; m < 2; ++m) {
+    for (int k = 0; k < 3; ++k) {
+      into.kernels[m][k] += from.kernels[m][k];
+      into.no_sources[m][k] += from.no_sources[m][k];
+      into.no_wedges[m][k] += from.no_wedges[m][k];
+    }
+  }
+}
+
+/// One frontier phase of the host engine on the backend of `res`.
+triad::wedge::launch host_phase(const resources& res, triad_count::pattern kind,
+                                const hyper::row_views& views, const int* keys, int n,
+                                const unsigned char* flags, framework::sign s,
+                                framework::ownership::min_member rule, std::uint64_t* scratch,
+                                triad_signed_bins& out) {
+  if (res.get_backend() == backend::openmp) {
+    return triad_openmp_phase(res, kind, views, keys, n, flags, s, rule, scratch, out);
+  }
+  return triad_sequential_phase(res, kind, views, keys, n, flags, s, rule, scratch, out);
+}
+
+}  // namespace
+
+template <typename vertex_t, typename weight_t>
+void triad_count_problem<vertex_t, weight_t>::open_host(framework::context& ctx) {
+  const resources& res = ctx.res();
+  triad_host_engine& e = host_.emplace();
+  e.kind = state_->opt.kind;
+  e.ws.emplace(ctx.lease_workspace<triad_host_workspace>());
+  e.ws->get().bins.reserve(res, triad_host_scratch_words(res));
+}
+
+template <typename vertex_t, typename weight_t>
+void triad_count_problem<vertex_t, weight_t>::host_frontier(const hyper::row_views& views,
+                                                            const std::int64_t* ids, int n) {
+  triad_host_engine& e = *host_;
+  triad_host_workspace& ws = e.ws->get();
+  if (n > e.max_keys) {
+    DYNG_FAIL("triad_count: a frontier of ", n, " keys exceeds the ", e.max_keys,
+              " the workspace reserved before the commit");
+  }
+  e.num_keys = n;
+  int* keys = ws.keys.data();
+  for (int i = 0; i < n; ++i) {
+    // A frontier holds ids of the phase's hypergraph state: below its h2v view's bound (every
+    // loop of the engine indexes the rows by these keys).
+    if (ids[i] < 0 || ids[i] >= views.h2v.max_key) {
+      DYNG_FAIL("triad_count: the frontier id ", ids[i], " is outside the hypergraph's ids [0, ",
+                views.h2v.max_key, ")");
+    }
+    keys[i] = static_cast<int>(ids[i] + 1);
+  }
+  if (!triad_reads_line_graph(e.kind)) {
+    return;  // type 1 counts keys: no flags
+  }
+  const int max_key = views.h2h.max_key;
+  if (static_cast<std::int64_t>(max_key) + 1 > e.max_flags) {
+    DYNG_FAIL("triad_count: the frontier flags of ", max_key,
+              " line-graph keys exceed the workspace reserved before the commit (", e.max_flags,
+              " flags)");
+  }
+  unsigned char* flags = ws.flags.data();
+  std::fill(flags, flags + max_key + 1, static_cast<unsigned char>(0));
+  for (int i = 0; i < n; ++i) {
+    if (keys[i] >= 0 && keys[i] <= max_key) {
+      flags[keys[i]] = 1;
+    }
+  }
+}
+
+/// count(-) on G_t: the subtract phase with the frontier of Step 0's deletions (ESCHER-GPU's
+/// subtract() on the snapshot before graph.update()), on cuda by the wedge engine, on the host
+/// backends by the host engine; before it, everything both phases need is reserved (I9).
 template <typename vertex_t, typename weight_t>
 void triad_count_problem<vertex_t, weight_t>::count(framework::context& ctx, old_graph g,
                                                     frontier_type& /*f*/, framework::sign s,
                                                     ownership_type rule) {
-  (void)s;  // sign::minus: the engine subtracts on G_t
-  if (ctx.chosen_engine() != engine::fused) {
-    return;  // the host backends recount G_{t+1} in count(+) (M9a step 4: incremental)
-  }
   const resources& res = ctx.res();
-  triad_cuda_open(res, state_->opt.kind, cuda_.emplace());
-  triad_cuda_count_minus(res, *cuda_, hypergraph_access::views(g.get()), normalized_->deletions,
-                         inserted_, rule);
+  const hyper::row_views views = hypergraph_access::views(g.get());
+  if (ctx.chosen_engine() == engine::fused) {
+    triad_cuda_open(res, state_->opt.kind, cuda_.emplace());
+    triad_cuda_count_minus(res, *cuda_, views, normalized_->deletions, inserted_,
+                           triad::phase_sign(s), rule);
+    return;
+  }
+  open_host(ctx);
+  triad_host_engine& e = *host_;
+  triad_host_workspace& ws = e.ws->get();
+  const auto deleted = static_cast<int>(deleted_);
+  const auto inserted = static_cast<int>(inserted_);
+  // The frontier of the larger phase, and flags for every key the line graph can have after the
+  // batch (its keys never shrink and grow by at most the insertions).
+  e.max_keys = std::max(deleted, inserted);
+  ws.keys.reserve(res, static_cast<std::size_t>(std::max(e.max_keys, 1)));
+  if (triad_reads_line_graph(e.kind)) {
+    e.max_flags = static_cast<std::int64_t>(views.h2h.max_key) + inserted_ + 1;
+    ws.flags.reserve(res, static_cast<std::size_t>(e.max_flags));
+  }
+  host_frontier(views, normalized_->deletions.data(), deleted);
+  note_launch(e.launches, e.kind, 1,
+              host_phase(res, e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(),
+                         triad::phase_sign(s), rule, ws.bins.data(), e.minus));
 }
 
-/// update(): count(+), the recount of G_{t+1} on the host backends; compute(): the full count.
+/// identify_affected (host backends): the add phase's frontier, the ids the commit ASSIGNED
+/// (ESCHER-GPU's add() reads the keys the CBST insert chose).
+template <typename vertex_t, typename weight_t>
+void triad_count_problem<vertex_t, weight_t>::identify_affected(framework::context& /*ctx*/,
+                                                                new_graph g, const applied& applied,
+                                                                frontier_type& /*f*/) {
+  const triad_inserted_frontier ids =
+      triad_inserted_ids(applied.record, normalized_->id_bound, requested_);
+  host_frontier(hypergraph_access::views(g.get()), ids.host, ids.size);
+}
+
+/// update(): count(+), the add phase on G_{t+1} (host backends); compute(): the full count.
 template <typename vertex_t, typename weight_t>
 void triad_count_problem<vertex_t, weight_t>::count(framework::context& ctx, new_graph g,
                                                     frontier_type& /*f*/, framework::sign s,
-                                                    ownership_type /*rule*/) {
-  (void)s;  // sign::plus
+                                                    ownership_type rule) {
+  const resources& res = ctx.res();
   graph_ = &g.get();
   const hyper::row_views views = hypergraph_access::views(g.get());
-  if (ctx.get_backend() == backend::openmp) {
-    triad_count_openmp(ctx.res(), state_->opt.kind, views, state_->counts);
-  } else {
-    triad_count_sequential(state_->opt.kind, views, state_->counts);
+  if (computing_) {
+    open_host(ctx);
+    triad_host_engine& e = *host_;
+    std::uint64_t* scratch = e.ws->get().bins.data();
+    const triad::wedge::launch outcome =
+        ctx.get_backend() == backend::openmp
+            ? triad_openmp_full(res, e.kind, views, rule, scratch, state_->counts)
+            : triad_sequential_full(res, e.kind, views, rule, scratch, state_->counts);
+    note_launch(state_->launches, e.kind, 0, outcome);
+    host_.reset();
+    return;
   }
+  triad_host_engine& e = *host_;
+  triad_host_workspace& ws = e.ws->get();
+  note_launch(e.launches, e.kind, 1,
+              host_phase(res, e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(),
+                         triad::phase_sign(s), rule, ws.bins.data(), e.plus));
 }
 
 template <typename vertex_t, typename weight_t>
@@ -349,21 +515,9 @@ void triad_count_problem<vertex_t, weight_t>::finalize(framework::context& /*ctx
     framework::stamp_result(state_->version, state_->graph_state, *graph_);
     return;
   }
-  // The host backends recounted: the update removed every triad of G_t and added every triad of
-  // G_{t+1} (stats::triads_removed / triads_added), and changed each bin by the difference.
-  constexpr const char* what = "triad_count::update";
-  const int n = state_->num_bins;
-  stats.triads_removed = checked_total(before_, n, what);
-  stats.triads_added = checked_total(state_->counts, n, what);
-  std::int64_t affected = 0;
-  for (int k = 0; k < n; ++k) {
-    const auto i = static_cast<std::size_t>(k);
-    stats.delta[i] = static_cast<std::int64_t>(state_->counts[i] - before_[i]);
-    affected += state_->counts[i] != before_[i] ? 1 : 0;
-  }
-  stats.affected = affected;
-  stats.fallback_used = true;  // a recount (PLAN Section 4.8, "start green"; M9a step 4)
-  fill_counts(stats);
+  // As on cuda: the subtract and add phases' signed bins, applied once.
+  add_launches(host_->launches, state_->launches);
+  apply_delta(host_->minus, host_->plus, stats);
 }
 
 template <typename vertex_t, typename weight_t>
@@ -422,11 +576,13 @@ void triad_count_problem<vertex_t, weight_t>::enact_fused(framework::context& ct
   const hyper::row_views views = hypergraph_access::views(g.get());
   {
     scoped_stage stage(res, names.identify_affected);
-    triad_cuda_identify_affected(res, *cuda_, views, applied.record);
+    triad_cuda_identify_affected(
+        res, *cuda_, views, triad_inserted_ids(applied.record, normalized_->id_bound, requested_));
   }
   {
     scoped_stage stage(res, names.count_plus);
-    triad_cuda_count_plus(res, *cuda_, views, ownership_type{});
+    triad_cuda_count_plus(res, *cuda_, views, triad::phase_sign(framework::sign::plus),
+                          ownership_type{});
   }
   scoped_stage stage(res, names.finalize);
   triad_signed_bins minus{};

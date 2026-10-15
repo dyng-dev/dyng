@@ -25,6 +25,7 @@
 #include "algorithms/triad_count/engine/count_ops.hpp"
 #include "algorithms/triad_count/engine/counters.cuh"
 #include "algorithms/triad_count/engine/motif_ops.hpp"
+#include "algorithms/triad_count/engine/phases.hpp"
 #include "algorithms/triad_count/engine/stathyper_ops.hpp"
 #include "util/kernel_registry.hpp"
 
@@ -45,19 +46,20 @@ wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& view
                          unsigned long long* d_bins, unsigned long long* d_error,
                          const wedge::scratch& s) {
   const hyperedge_rows rows = rows_of(views);
+  // dynG: the source keys of phases.hpp (shared with the host engine).
+  const int keys = full_count_keys(kind, views);
   switch (kind) {
     case triad_count::pattern::h_motif:  // computeMotifCounts
-      return wedge::count_triangles(views.h2h, rows, nullptr, views.h2h.max_key, nullptr,
-                                    motif_op{}, 1, d_bins, d_error, s);
+      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, motif_op{}, 1, d_bins,
+                                    d_error, s);
     case triad_count::pattern::stathyper_type1:  // Type1Counter::count
-      return wedge::count_keys(rows, nullptr, views.h2v.max_key, choose3_op{}, 1, d_bins, d_error,
-                               s);
+      return wedge::count_keys(rows, nullptr, keys, choose3_op{}, 1, d_bins, d_error, s);
     case triad_count::pattern::stathyper_type2:  // Type2Counter::count
-      return wedge::count_pairs(views.h2h, rows, nullptr, views.h2h.max_key, nullptr, type2_op{}, 1,
-                                d_bins, d_error, s);
+      return wedge::count_pairs(views.h2h, rows, nullptr, keys, nullptr, type2_op{}, 1, d_bins,
+                                d_error, s);
     case triad_count::pattern::stathyper_type3:  // Type3Counter::count
-      return wedge::count_triangles(views.h2h, rows, nullptr, views.h2h.max_key, nullptr,
-                                    type3_op{}, 1, d_bins, d_error, s);
+      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, type3_op{}, 1, d_bins,
+                                    d_error, s);
   }
   return wedge::launch::no_sources;
 }

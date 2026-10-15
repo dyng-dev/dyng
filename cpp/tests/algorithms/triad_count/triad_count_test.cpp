@@ -8,17 +8,21 @@
  *
  * Every pattern is checked after compute() and after every batch: the counts equal the oracle's,
  * equal a fresh compute() ("baseline + deltas == recount"), and the stats agree: delta is the
- * counts after minus before, the frontier sizes are the batch's, and on cuda (the incremental
- * engine) triads_removed / triads_added are the oracle's removed() / added() of the deleted and
- * the ASSIGNED inserted ids (on the host backends, which recount in M9a step 3, every triad
- * before and after). The batches have duplicates, copies of live hyperedges, single-member
- * hyperedges and hyperedges of more than 1,024 members; the hyperedge id bound goes down in one
- * case. On cuda the launch counters show every (mode, shape) and both early outs.
+ * counts after minus before, the frontier sizes are the batch's, and triads_removed /
+ * triads_added are the oracle's removed() / added() of the deleted and the ASSIGNED inserted ids
+ * (every backend runs an incremental engine: the wedge engine on cuda, the host engine on the
+ * host backends, M9a step 4). The batches have duplicates, copies of live hyperedges,
+ * single-member hyperedges and hyperedges of more than 1,024 members, reused ids and ids deleted
+ * and reinserted in one batch; the hyperedge id bound goes down in one case; random multi-batch
+ * sequences run under both id_reuse orders. The launch counters show every (mode, shape) and
+ * both early outs on every backend; OpenMP gives the same counts on 1, 8 and 56 threads.
  */
+#include "algorithms/triad_count/engine/motif_ops.hpp"
 #include "algorithms/triad_count/problem.hpp"
 #include "core/budget_counters.hpp"
 #include "framework/budgets.hpp"
 #include "framework/fake_hyper_problems.hpp"
+#include "operators/count_delta.hpp"
 #include "support/gtest_helpers.hpp"
 
 #include <dyng/core/copy.hpp>
@@ -137,9 +141,6 @@ class TriadCount : public ::testing::TestWithParam<backend> {
   [[nodiscard]] resources res() const {
     return dyng::test::make_resources(GetParam(), 4);
   }
-  [[nodiscard]] bool incremental() const {
-    return GetParam() == backend::cuda;  // the host backends recount in M9a step 3
-  }
 
   /// Every result equals the oracle and a fresh compute() of h.
   template <typename graph_t>
@@ -196,25 +197,26 @@ class TriadCount : public ::testing::TestWithParam<backend> {
         affected += want != 0 ? 1 : 0;
       }
       EXPECT_EQ(s.affected, affected);
-      EXPECT_EQ(s.fallback_used, !incremental());
-      EXPECT_EQ(s.engine_used, incremental() ? dyng::engine::fused : dyng::engine::operators);
-      if (incremental()) {
-        // The exactly-once phases: the oracle's removed(G_t, deleted) and added(G_{t+1}, inserted).
-        const counts removed = tr::triad_reference_removed(
-            before.offsets, before.members, before.num_vertices, deleted, oracle_pattern(p));
-        const counts added = tr::triad_reference_added(
-            after.offsets, after.members, after.num_vertices, inserted, oracle_pattern(p));
-        EXPECT_EQ(s.triads_removed, sum(removed));
-        EXPECT_EQ(s.triads_added, sum(added));
-        for (std::size_t k = 0; k < removed.size(); ++k) {
-          EXPECT_EQ(s.delta[k], static_cast<std::int64_t>(added[k] - removed[k])) << "bin " << k;
-        }
-      } else {
-        EXPECT_EQ(s.triads_removed, sum(old[i]));
-        EXPECT_EQ(s.triads_added, sum(now));
+      EXPECT_FALSE(s.fallback_used) << "every backend is incremental";
+      EXPECT_EQ(s.engine_used,
+                GetParam() == backend::cuda ? dyng::engine::fused : dyng::engine::operators);
+      // The exactly-once phases: the oracle's removed(G_t, deleted) and added(G_{t+1}, inserted).
+      const counts removed = tr::triad_reference_removed(
+          before.offsets, before.members, before.num_vertices, deleted, oracle_pattern(p));
+      const counts added = tr::triad_reference_added(
+          after.offsets, after.members, after.num_vertices, inserted, oracle_pattern(p));
+      EXPECT_EQ(s.triads_removed, sum(removed));
+      EXPECT_EQ(s.triads_added, sum(added));
+      for (std::size_t k = 0; k < removed.size(); ++k) {
+        EXPECT_EQ(s.delta[k], static_cast<std::int64_t>(added[k] - removed[k])) << "bin " << k;
       }
     }
+    last_inserted = inserted;
+    last_deleted = deleted;
   }
+
+  std::vector<std::int64_t> last_inserted;  ///< the ASSIGNED ids of the last step()
+  std::vector<std::int64_t> last_deleted;   ///< the live ids the last step() deleted
 };
 
 std::string backend_name(const ::testing::TestParamInfo<backend>& info) {
@@ -358,6 +360,18 @@ TEST_P(TriadCount, TheIdBoundGoingDownKeepsTheCountsExact) {
   third.insert_hyperedge({0, 3});
   step(h, rs, third.view());
   h.check_integrity(res());
+  // The bound goes down in the batch that deletes the top ids: the rows above the new bound held
+  // live hyperedges of three members until this batch (a type-1 count past the h2v view's bound
+  // would find them).
+  hgraph g = make(res(), 40, initial);
+  std::vector<tc::result> gs = compute_all(res(), g);
+  batch_t at_once;
+  at_once.delete_hyperedge(4);
+  at_once.delete_hyperedge(5);
+  at_once.insert_hyperedge({0, 1, 2, 3, 4, 10, 11, 12, 13, 14});
+  step(g, gs, at_once.view());
+  EXPECT_LT(g.hyperedge_id_bound(), 6) << "the bound went down in the same batch";
+  g.check_integrity(res());
 }
 
 TEST_P(TriadCount, SpecialBatches) {
@@ -513,21 +527,16 @@ TEST_P(TriadCount, OptionsAndTheResult) {
 TEST_P(TriadCount, ABinThatWouldGoNegativePoisonsTheResult) {
   hgraph h = make(res(), 13, hand_rows);
   tc::result r = tc::compute(res(), h);
-  // A corrupted result (no triad) cannot lose the triads the batch destroys.
+  // A corrupted result (no triad) cannot lose the triads the batch destroys: the signed delta of
+  // the subtract phase would take a bin below zero (every backend is incremental).
   dyng::detail::triad_count_access::state(r).counts.fill(0);
   batch_t b;
   b.delete_hyperedge(0);
   b.delete_hyperedge(1);
   const std::uint64_t version = h.version();
-  if (GetParam() == backend::cuda) {
-    EXPECT_THROW((void)tc::update(res(), h, b.view(), r), dyng::internal_error);
-    EXPECT_EQ(h.version(), version + 1) << "the batch was applied";
-    EXPECT_THROW((void)r.counts(), dyng::stale_result_error) << "the result is poisoned";
-  } else {
-    // The host backends recount (M9a step 4 makes them incremental): the recount repairs it.
-    (void)tc::update(res(), h, b.view(), r);
-    EXPECT_EQ(counts_of(r), oracle(rows_by_id(h), tc::pattern::h_motif));
-  }
+  EXPECT_THROW((void)tc::update(res(), h, b.view(), r), dyng::internal_error);
+  EXPECT_EQ(h.version(), version + 1) << "the batch was applied";
+  EXPECT_THROW((void)r.counts(), dyng::stale_result_error) << "the result is poisoned";
 }
 
 TEST_P(TriadCount, TwoPatternsAndAFakePartnerShareOneCommit) {
@@ -568,7 +577,288 @@ TEST_P(TriadCount, TwoPatternsAndAFakePartnerShareOneCommit) {
   expect_exact(joint, both);
 }
 
-#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
+/// The three member rows of one triple of a Venn id (one vertex per region of the id); empty when
+/// a member would be empty (the id needs every hyperedge in some region).
+rows triple_of(int id, std::int32_t& vertices) {
+  rows triple(3);
+  std::int32_t v = 0;
+  const std::array<std::array<int, 3>, 7> in = {
+      {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 1, 0}, {0, 1, 1}, {1, 0, 1}, {1, 1, 1}}};
+  for (int region = 0; region < 7; ++region) {
+    if (((id >> region) & 1) == 0) continue;
+    for (int e = 0; e < 3; ++e) {
+      if (in[static_cast<std::size_t>(region)][static_cast<std::size_t>(e)] != 0) {
+        triple[static_cast<std::size_t>(e)].push_back(v);
+      }
+    }
+    ++v;
+  }
+  vertices = v;
+  if (std::any_of(triple.begin(), triple.end(), [](const auto& r) { return r.empty(); })) {
+    return {};
+  }
+  return triple;
+}
+
+TEST_P(TriadCount, EveryClassIsAddedAndRemovedByUpdates) {
+  // For each reachable class: from an empty hypergraph, insert its triple in one batch (one
+  // frontier of three: the triad is counted once, at its smallest member), delete one member,
+  // reinsert it, then insert the three again as three batches of one; the closed classes (bins
+  // 0-19 and 26-29) move by one in their bin, the open ones (20-25) never move.
+  const auto reps = tr::triad_class_representatives();
+  for (std::size_t cls = 0; cls < reps.size(); ++cls) {
+    std::int32_t v = 0;
+    const rows triple = triple_of(reps[cls], v);
+    if (triple.empty()) continue;
+    SCOPED_TRACE("class " + std::to_string(cls + 1));
+    hgraph h = make(res(), 7, {});
+    std::vector<tc::result> rs = compute_all(res(), h);
+    const bool closed = cls < 20 || cls >= 26;
+    batch_t all;
+    for (const auto& r : triple) all.insert_hyperedge(dyng::host_view(r));
+    {
+      step(h, rs, all.view());
+      const counts c = counts_of(rs[0]);
+      for (std::size_t k = 0; k < c.size(); ++k) {
+        EXPECT_EQ(c[k], closed && k == cls ? 1U : 0U) << "bin " << k;
+      }
+    }
+    batch_t one;
+    one.delete_hyperedge(last_inserted.empty() ? 0 : last_inserted[1]);
+    step(h, rs, one.view());
+    EXPECT_EQ(rs[0].total(), 0U);
+    batch_t back;
+    back.insert_hyperedge(dyng::host_view(triple[1]));
+    step(h, rs, back.view());
+    EXPECT_EQ(rs[0].total(), closed ? 1U : 0U);
+    batch_t none;
+    for (std::int64_t id = 0; id < h.hyperedge_id_bound(); ++id) none.delete_hyperedge(id);
+    step(h, rs, none.view());
+    for (const auto& r : triple) {
+      batch_t b;
+      b.insert_hyperedge(dyng::host_view(r));
+      step(h, rs, b.view());
+    }
+    EXPECT_EQ(rs[0].total(), closed ? 1U : 0U);
+    const counts c = counts_of(rs[0]);
+    for (int k = 20; k <= 25; ++k) EXPECT_EQ(c[static_cast<std::size_t>(k)], 0U) << "open triad";
+    h.check_integrity(res());
+  }
+}
+
+TEST_P(TriadCount, ReusedIdsAndAnInsertedIdEqualToADeletedId) {
+  // Under erase_first a slot freed by the batch is reused in the same batch: the add phase's
+  // frontier holds an id the subtract phase's frontier held too (with another row). Under
+  // insert_first the new ids are never the batch's deleted ones.
+  for (const dyng::id_reuse reuse : {dyng::id_reuse::erase_first, dyng::id_reuse::insert_first}) {
+    SCOPED_TRACE(std::string(dyng::to_string(reuse)));
+    dyng::hyperedge_list<std::int32_t, dyng::unweighted> list;
+    list.num_vertices = 13;
+    for (const auto& r : hand_rows) list.add_hyperedge(dyng::host_view(r));
+    dyng::hypergraph_properties props;
+    props.line_graph = dyng::line_graph_policy::sorted_merge;
+    props.reuse = reuse;
+    hgraph h = hgraph::from_hyperedges(res(), list.view(), props);
+    std::vector<tc::result> rs = compute_all(res(), h);
+    for (int round = 0; round < 3; ++round) {
+      batch_t b;
+      b.delete_hyperedge(2 + round);
+      b.delete_hyperedge(7);
+      b.insert_hyperedge({2, 3, 4});  // the same members as the deleted id 2 (round 0)
+      b.insert_hyperedge({0, 1, 2, 5, 9});
+      b.insert_hyperedge({4, 5, 6, 7});
+      step(h, rs, b.view());
+      bool reused = false;
+      for (const std::int64_t id : last_inserted) {
+        reused =
+            reused || std::find(last_deleted.begin(), last_deleted.end(), id) != last_deleted.end();
+      }
+      if (reuse == dyng::id_reuse::insert_first) {
+        EXPECT_FALSE(reused) << "insert_first never reuses a slot of the batch";
+      } else if (round == 0) {
+        EXPECT_TRUE(reused) << "erase_first reuses the freed slots";
+      }
+      h.check_integrity(res());
+    }
+  }
+}
+
+TEST_P(TriadCount, DuplicatesSingleMembersAndWideHyperedges) {
+  hgraph h = make(res(), 1200, hand_rows);
+  std::vector<tc::result> rs = compute_all(res(), h);
+  std::vector<std::int32_t> wide(1100);
+  std::iota(wide.begin(), wide.end(), 0);
+  std::vector<std::int32_t> wide2(1030);
+  std::iota(wide2.begin(), wide2.end(), 50);
+  {
+    SCOPED_TRACE("duplicates of each other and of live rows, single members, two wide rows");
+    batch_t b;
+    b.insert_hyperedge({0, 1, 2});  // a third copy of hand_rows[0]
+    b.insert_hyperedge({0, 1, 2});
+    b.insert_hyperedge({5});
+    b.insert_hyperedge({5});
+    b.insert_hyperedge({11});
+    b.insert_hyperedge(dyng::host_view(wide));
+    b.insert_hyperedge(dyng::host_view(wide2));
+    b.insert_hyperedge(dyng::host_view(wide2));
+    step(h, rs, b.view());
+    h.check_integrity(res());
+  }
+  {
+    SCOPED_TRACE("delete one copy of each duplicate and one wide row, repeated deletions");
+    batch_t b;
+    b.delete_hyperedge(0);
+    b.delete_hyperedge(0);
+    b.delete_hyperedge(last_inserted[0]);
+    b.delete_hyperedge(last_inserted[2]);
+    b.delete_hyperedge(last_inserted[6]);
+    b.insert_hyperedge({1, 2, 3, 4, 5, 6});
+    step(h, rs, b.view());
+    h.check_integrity(res());
+  }
+}
+
+TEST_P(TriadCount, RandomMultiBatchSequencesMatchTheOracle) {
+  // The property test: random hypergraphs and 4 consecutive random batches (deletions of random
+  // live, dead and repeated ids; insertions of random rows, copies of live rows, single members
+  // and now and then a hyperedge of more than 1,024 members) under both id_reuse orders; after
+  // every batch the counts and stats of all four patterns equal the oracle's (step()).
+  for (const dyng::id_reuse reuse : {dyng::id_reuse::erase_first, dyng::id_reuse::insert_first}) {
+    for (std::uint64_t seed = 1; seed <= 3; ++seed) {
+      SCOPED_TRACE(std::string(dyng::to_string(reuse)) + " seed " + std::to_string(seed));
+      std::mt19937_64 rng(seed * 7919 + (reuse == dyng::id_reuse::erase_first ? 0 : 1));
+      std::uniform_int_distribution<std::int32_t> vertex(0, 39);
+      std::uniform_int_distribution<int> card(1, 6);
+      auto random_row = [&] {
+        std::set<std::int32_t> m;
+        const int k = card(rng);
+        while (static_cast<int>(m.size()) < k) m.insert(vertex(rng));
+        return std::vector<std::int32_t>(m.begin(), m.end());
+      };
+      dyng::hyperedge_list<std::int32_t, dyng::unweighted> list;
+      list.num_vertices = 1100;
+      for (int i = 0; i < 30; ++i) list.add_hyperedge(dyng::host_view(random_row()));
+      dyng::hypergraph_properties props;
+      props.line_graph = dyng::line_graph_policy::sorted_merge;
+      props.reuse = reuse;
+      hgraph h = hgraph::from_hyperedges(res(), list.view(), props);
+      std::vector<tc::result> rs = compute_all(res(), h);
+      for (int b = 0; b < 4; ++b) {
+        SCOPED_TRACE("batch " + std::to_string(b));
+        const id_rows g = rows_by_id(h);
+        std::vector<std::int64_t> live;
+        for (std::size_t i = 0; i + 1 < g.offsets.size(); ++i)
+          if (g.offsets[i + 1] > g.offsets[i]) live.push_back(static_cast<std::int64_t>(i));
+        std::shuffle(live.begin(), live.end(), rng);
+        batch_t batch;
+        const std::size_t deletions = std::min<std::size_t>(live.size(), rng() % 9);
+        for (std::size_t i = 0; i < deletions; ++i) batch.delete_hyperedge(live[i]);
+        if (deletions > 0) batch.delete_hyperedge(live[0]);
+        batch.delete_hyperedge(h.hyperedge_id_bound() + 3);
+        const int insertions = static_cast<int>(rng() % 9);
+        for (int i = 0; i < insertions; ++i) batch.insert_hyperedge(dyng::host_view(random_row()));
+        if (deletions < live.size()) {
+          const auto id = static_cast<std::size_t>(live[deletions]);
+          batch.insert_hyperedge(dyng::host_view(std::vector<std::int32_t>(
+              g.members.begin() + g.offsets[id], g.members.begin() + g.offsets[id + 1])));
+        }
+        batch.insert_hyperedge({vertex(rng)});
+        if (b == 1) {
+          std::vector<std::int32_t> wide(1050);
+          std::iota(wide.begin(), wide.end(), static_cast<std::int32_t>(seed));
+          batch.insert_hyperedge(dyng::host_view(wide));
+        }
+        step(h, rs, batch.view());
+        h.check_integrity(res());
+      }
+    }
+  }
+}
+
+TEST_P(TriadCount, OpenMPThreadCountsGiveIdenticalCounts) {
+  if (GetParam() != backend::openmp) {
+    GTEST_SKIP() << "the OpenMP backend's thread counts";
+  }
+  // The host engine's static partition and per-thread bins added in thread order: 1, 8 and 56
+  // threads give the same counts and stats on the same batches.
+  std::vector<std::vector<counts>> runs;
+  std::vector<std::vector<std::array<std::int64_t, 30>>> deltas;
+  for (const int threads : {1, 8, 56}) {
+    const resources r = resources::openmp(threads);
+    std::mt19937_64 rng(99);
+    std::uniform_int_distribution<std::int32_t> vertex(0, 299);
+    dyng::hyperedge_list<std::int32_t, dyng::unweighted> list;
+    list.num_vertices = 300;
+    for (int i = 0; i < 1500; ++i) {
+      std::set<std::int32_t> m;
+      const int k = 1 + static_cast<int>(rng() % 6);
+      while (static_cast<int>(m.size()) < k) m.insert(vertex(rng));
+      list.add_hyperedge(dyng::host_view(std::vector<std::int32_t>(m.begin(), m.end())));
+    }
+    dyng::hypergraph_properties props;
+    props.line_graph = dyng::line_graph_policy::sorted_merge;
+    hgraph h = hgraph::from_hyperedges(r, list.view(), props);
+    std::vector<tc::result> rs = compute_all(r, h);
+    std::vector<counts> got;
+    std::vector<std::array<std::int64_t, 30>> d;
+    for (const auto& x : rs) got.push_back(counts_of(x));
+    for (int b = 0; b < 3; ++b) {
+      batch_t batch;
+      for (int i = 0; i < 200; ++i) batch.delete_hyperedge(static_cast<std::int64_t>(rng() % 1500));
+      for (int i = 0; i < 200; ++i) {
+        batch.insert_hyperedge({vertex(rng), vertex(rng) / 2 + 150, vertex(rng) / 3});
+      }
+      const auto st = dyng::update(r, h, batch.view(), rs[0], rs[1], rs[2], rs[3]);
+      d.push_back(std::get<0>(st).delta);
+      d.push_back(std::get<1>(st).delta);
+      d.push_back(std::get<2>(st).delta);
+      d.push_back(std::get<3>(st).delta);
+      for (const auto& x : rs) got.push_back(counts_of(x));
+    }
+    runs.push_back(got);
+    deltas.push_back(d);
+  }
+  EXPECT_EQ(runs[1], runs[0]) << "8 threads";
+  EXPECT_EQ(runs[2], runs[0]) << "56 threads";
+  EXPECT_EQ(deltas[1], deltas[0]) << "8 threads";
+  EXPECT_EQ(deltas[2], deltas[0]) << "56 threads";
+}
+
+TEST(TriadCountHostEngine, EveryVennPatternGetsItsClassOrIsReportedAndNotWritten) {
+  // The host engine's bins handle (operators::count_delta's): motif_op's class of each of the 128
+  // Venn-region patterns lands in its bin; a pattern of no class (bin -1) sets count_invalid_bin
+  // and writes nothing (the device engine's error word, triad_count_kernels_test.cu).
+  namespace ops = dyng::detail::operators;
+  namespace triad = dyng::detail::triad;
+  const std::array<std::int8_t, 128> map = tr::triad_motif_class_map();
+  int classified = 0;
+  for (int id = 0; id < 128; ++id) {
+    SCOPED_TRACE("Venn id " + std::to_string(id));
+    const int a = (id >> 0) & 1, b = (id >> 1) & 1, c = (id >> 2) & 1;
+    const int d = (id >> 3) & 1, e = (id >> 4) & 1, f = (id >> 5) & 1, g = (id >> 6) & 1;
+    std::array<std::uint64_t, 32> guarded{};  // bins[-1], the 30 bins, bins[30]
+    std::uint32_t status = 0;
+    ops::host_count_bins<30> bins{guarded.data() + 1, &status};
+    bins.add(triad::compute_motif_index(a + d + f + g, b + d + e + g, c + e + f + g, d + g, e + g,
+                                        f + g, g),
+             1);
+    EXPECT_EQ(guarded[0], 0U) << "bins[-1] was written";
+    EXPECT_EQ(guarded[31], 0U) << "bins[30] was written";
+    const int expected = map[static_cast<std::size_t>(id)] - 1;
+    if (expected < 0) {
+      EXPECT_EQ(status, ops::count_invalid_bin);
+      for (int k = 1; k <= 30; ++k) EXPECT_EQ(guarded[static_cast<std::size_t>(k)], 0U);
+    } else {
+      ++classified;
+      EXPECT_EQ(status, 0U);
+      for (int k = 1; k <= 30; ++k) {
+        EXPECT_EQ(guarded[static_cast<std::size_t>(k)], k - 1 == expected ? 1U : 0U) << k - 1;
+      }
+    }
+  }
+  EXPECT_EQ(classified, 96);
+}
+
 /// The launch counters of a result (internal).
 const dyng::detail::triad_launch_counters& launches(const tc::result& r) {
   return dyng::detail::triad_count_access::find(r)->launches;
@@ -605,13 +895,15 @@ TEST_P(TriadCount, KernelPathsAndEarlyOuts) {
       EXPECT_EQ(launches(rs[i]).no_sources[1][shape[i]], 2);  // and nothing inserted
     }
   }
-  // Every (mode, shape) ran a kernel.
+  // Every (mode, shape) ran a kernel (a pass of the host engine).
   for (int m = 0; m < 2; ++m) {
     for (std::size_t i = 0; i < rs.size(); ++i) {
       EXPECT_GE(launches(rs[i]).kernels[m][shape[i]], 1) << "mode " << m << " pattern " << i;
     }
   }
 }
+
+#if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
 
 TEST_P(TriadCount, AnUpdateSynchronizesAtTheEnginesReadPointsOnly) {
   if (!dyng::detail::budgets_enabled()) {

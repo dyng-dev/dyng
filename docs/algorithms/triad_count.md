@@ -5,12 +5,6 @@ Maturity: **experimental** (until M9b's review and freeze for 0.3.0). Header:
 Backends: sequential, openmp, cuda. Ported from ESCHER-GPU@abcf9b2 (ESCHER, IPDPS 2026; ESCHER+,
 TKDE 2026).
 
-:::{note}
-In this release the sequential and OpenMP backends **recount** the hypergraph in `update()`
-(`stats.fallback_used` is true); the CUDA backend runs ESCHER-GPU's incremental wedge engine. The
-incremental host engines follow in M9a step 4.
-:::
-
 ## 1. Problem
 
 A triad is a set of three live hyperedges every two of which share a vertex (a triangle of the
@@ -58,9 +52,13 @@ vertex-to-hyperedge rows (`line_graph != none`, `store_v2h`); type 1 needs neith
 cuda: ESCHER-GPU's wedge engine (Tier B, `engine::fused`; `options::cuda_engine =
 engine::operators` throws `not_supported_error`): one thread per oriented wedge, block bins in
 shared memory flushed once with the phase's sign, a pooled workspace reserved before the commit,
-at most 3 host synchronizations per update (1 for type 1). sequential and openmp: the full count
-as a loop over the source keys with the same operations (a recount in this release). The counts
-are identical on every backend and run.
+at most 3 host synchronizations per update (1 for type 1). sequential and openmp: the same engine
+as loops (the host engine, `host_engine.hpp`; ADR 0054): the same full count and the same frontier
+phases with the same operations and the same exactly-once filters, run by `operators::count_delta`
+(a static partition of the sources, private bins per thread added in thread order). It is an
+untuned transliteration (no performance gate; tuning is roadmap 0.5's OpenMP item), and
+`testing::triad_reference` stays the independent oracle. The counts and every counter are
+identical on every backend, thread count and run.
 
 ## 5. Performance notes
 
@@ -70,10 +68,11 @@ gates are PLAN 8.6's (1.05, end to end 1.10, device memory 1.05).
 
 ## 6. Limitations
 
-The host backends recount in `update()` (M9a step 4 makes them incremental). `h_motif` and type 3
-refuse a hypergraph with 2,147,483,647 vertices (the classifying merge supports vertex ids up to
-2^31 - 3). The counts are 64-bit (a count past 2^64 - 1 is a `capacity_error` on the host; the
-device sums of a phase wrap as ESCHER-GPU's do).
+`h_motif` and type 3 refuse a hypergraph with 2,147,483,647 vertices (the classifying merge
+supports vertex ids up to 2^31 - 3). The counts are 64-bit (a count past 2^64 - 1 is a
+`capacity_error` on the host, as is a phase of an update past 2^63 - 1 triads: the host engine's
+phases are signed 64-bit bins; the device sums of a phase wrap as ESCHER-GPU's do). The host
+backends are not tuned (the OpenMP backend partitions the sources statically).
 
 ## 7. Differences from the paper
 
@@ -85,7 +84,7 @@ delta of commit 6a44c1c). A triangle of no h-motif class raises the device error
 
 | ESCHER-GPU@abcf9b2 | dynG |
 |---|---|
-| `kernel/wedge.cuh` (countWedgeShape, forEachWedge, TriangleBody) | `cpp/src/algorithms/triad_count/engine/wedge.cuh`, `ownership.hpp`, `sets.hpp` |
+| `kernel/wedge.cuh` (countWedgeShape, forEachWedge, TriangleBody) | `cpp/src/algorithms/triad_count/engine/wedge.cuh`, `ownership.hpp`, `phases.hpp`, `sets.hpp`; on the host `host_engine.hpp` |
 | `kernel/motif_utils.cuh` (MotifOp), `include/motif_table.hpp` | `engine/motif_ops.hpp`, `engine/motif_table.hpp` |
 | `kernel/count_ops.cuh` (Choose3Op), `src/type2.cu`, `src/type3.cu` (Type2Op, Type3Op) | `engine/count_ops.hpp`, `engine/stathyper_ops.hpp` |
 | `src/HMotifCount.cu`, `src/HMotifCountUpdate.cu`, the counters of `src/main.cu`, `src/type1-3.cu` | `engine/counters.{cuh,cu}` (`count_full`, `count_phase`), `cuda.cu` |

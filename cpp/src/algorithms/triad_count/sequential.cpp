@@ -2,21 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file sequential.cpp
- * @brief triad_count: the sequential backend's full count (host_count.hpp), the recount of
- *        compute() and, in this release, of update() (PLAN Section 4.8, file 6).
+ * @brief triad_count: the sequential backend (PLAN Section 4.8, file 6), the host engine
+ *        (host_engine.hpp) on operators::sequential_exec: the full count of compute() and the
+ *        frontier phases of update(), one thread, in source order (ADR 0054).
  */
-#include "algorithms/triad_count/host_count.hpp"
+#include "algorithms/triad_count/host_engine.hpp"
 #include "algorithms/triad_count/problem.hpp"
+#include "operators/execution.hpp"
+
+#include <cstddef>
+#include <cstdint>
 
 namespace dyng::detail {
 
-void triad_count_sequential(triad_count::pattern kind, const hyper::row_views& views,
-                            triad_bins& counts) {
-  counts.fill(0);
-  const int n = triad_host::num_sources(kind, views);
-  if (n > 0) {
-    triad_host::count_sources(kind, views, 1, n, counts);
-  }
+triad::wedge::launch triad_sequential_full(const resources& res, triad_count::pattern kind,
+                                           const hyper::row_views& views,
+                                           framework::ownership::min_member rule,
+                                           std::uint64_t* scratch, triad_bins& counts) {
+  return triad_host::count_full(operators::sequential_exec(res), kind, views, rule, scratch,
+                                counts);
+}
+
+triad::wedge::launch triad_sequential_phase(const resources& res, triad_count::pattern kind,
+                                            const hyper::row_views& views, const int* keys, int n,
+                                            const unsigned char* flags, framework::sign s,
+                                            framework::ownership::min_member rule,
+                                            std::uint64_t* scratch, triad_signed_bins& out) {
+  return triad_host::count_phase(operators::sequential_exec(res), kind, views, keys, n, flags, s,
+                                 rule, scratch, out);
 }
 
 }  // namespace dyng::detail

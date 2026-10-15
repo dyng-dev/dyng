@@ -69,6 +69,7 @@ struct traits_of {
   static constexpr oracle_kind oracle = oracle_kind::compute;     ///< update chain == compute
   static constexpr determinism level = determinism::exact_value;  ///< identical values
   static constexpr bool history_independent = true;               ///< counts of the hypergraph
+  static constexpr int kit_openmp_threads = 8;                    ///< openmp(8) (M9a 10)
   /// The instantiated hypergraph types (DYNG_FOR_EACH_HYPERGRAPH_TYPE).
   using container_types =
       type_list<hypergraph<std::int32_t, unweighted>, hypergraph<std::int32_t, std::int32_t>>;
@@ -136,10 +137,12 @@ struct traits_of {
     return testing::triad_reference(list.offsets, list.members, list.num_vertices,
                                     oracle_pattern(kind));
   }
-  /// The counters equal across runs and backends: the frontier sizes and the per-bin delta
-  /// (triads_removed / triads_added are the recount's on the host backends in M9a step 3).
+  /// The counters equal across runs and backends: the frontier sizes, the triads each phase
+  /// counted (every backend is incremental from M9a step 4) and the per-bin delta.
   static std::vector<std::int64_t> deterministic(const stats& s) {
-    std::vector<std::int64_t> out{s.deleted_frontier, s.inserted_frontier};
+    std::vector<std::int64_t> out{s.deleted_frontier, s.inserted_frontier,
+                                  static_cast<std::int64_t>(s.triads_removed),
+                                  static_cast<std::int64_t>(s.triads_added)};
     out.insert(out.end(), s.delta.begin(), s.delta.end());
     return out;
   }
