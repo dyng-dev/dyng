@@ -9,7 +9,8 @@
     parity/triad_goldens.py crosscheck [--groups LIST] [--record FILE] [--jobs N]
     parity/triad_goldens.py list [--backend sequential|openmp|cuda]
     parity/export_goldens.py triad_count ...      (= export)
-    parity/compare.py triad_count --verify|--list  (the replays arrive in M9a step 2)
+    parity/compare.py triad_count --verify|--list
+    parity/compare.py triad_count --backend B [--mode M] [--counter C] ...  (parity/triad_replay.py)
 
 The set `triad_count_escher_gpu` ($DYNG_SCRATCH/goldens/triad_count/escher_gpu; parity/
 goldens.toml) holds, for every counting invocation of A's `make test` (tests/run_tests.sh; 15
@@ -1541,9 +1542,9 @@ def list_main(argv: list[str]) -> int:
 
 
 def compare_main(argv: list[str]) -> int:
-    """parity/compare.py triad_count: the set's verification (--verify) and the coverage table
-    (--list --backend B) until the replay tool of M9a step 2 exists."""
-    p = argparse.ArgumentParser(prog="compare.py triad_count")
+    """parity/compare.py triad_count: the set's verification (--verify), the coverage table
+    (--list --backend B), and the replays through dynG (parity/triad_replay.py, M9a step 2)."""
+    p = argparse.ArgumentParser(prog="compare.py triad_count", add_help=False)
     p.add_argument("--verify", action="store_true", help="verify the golden set")
     p.add_argument("--list", action="store_true", help="the cases a backend replays")
     p.add_argument("--backend", choices=sorted(COVERAGE))
@@ -1553,11 +1554,9 @@ def compare_main(argv: list[str]) -> int:
         return list_main(["--backend", args.backend] if args.backend else [])
     if args.verify:
         return verify_main(["--scratch", str(args.scratch), *rest])
-    print(
-        "compare.py triad_count: the replay arrives in M9a step 2; use --verify or --list",
-        file=sys.stderr,
-    )
-    return 2
+    import triad_replay
+
+    return triad_replay.compare_main(argv)
 
 
 def main() -> int:

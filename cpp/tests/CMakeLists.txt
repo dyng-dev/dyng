@@ -370,6 +370,25 @@ if(DYNG_ENABLE_CUDA)
   target_compile_definitions(dyng_hypergraph_ids_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
   list(APPEND _dyng_private_tests dyng_hypergraph_ids_cuda_tests)
 endif()
+# The triad_count replay of ESCHER-GPU's golden set (M9a step 2, ADR 0050): the replay library
+# (a case's .hg and batch files through dyng::hypergraph, by key and by content, a counter after the
+# build and every batch) and the tool parity/compare.py triad_count drives over the set.
+add_library(dyng_triad_replay_lib STATIC parity/escher/triad_replay.cpp)
+target_link_libraries(dyng_triad_replay_lib PUBLIC dyng_cbst_trace dyng::testing dyng::dyng)
+target_compile_features(dyng_triad_replay_lib PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_triad_replay_lib)
+dyng_enable_sanitizers(dyng_triad_replay_lib)
+add_executable(dyng_triad_replay parity/escher/triad_replay_main.cpp)
+target_link_libraries(dyng_triad_replay PRIVATE dyng_triad_replay_lib)
+dyng_set_warnings(dyng_triad_replay)
+dyng_enable_sanitizers(dyng_triad_replay)
+dyng_add_test(
+  NAME dyng_triad_replay_tests
+  SOURCES parity/escher/triad_replay_test.cpp
+  LABELS cpu parity triad_count
+  LIBRARIES dyng_triad_replay_lib
+)
+list(APPEND _dyng_private_tests dyng_triad_replay_tests)
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
   target_compile_definitions(${_dyng_test} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
