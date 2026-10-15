@@ -1107,9 +1107,17 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   endforeach()
 endforeach()
 
-# triad_count's kit pairs it in C10 with the kit's hypergraph fake, whose CUDA counts are kernels.
+# triad_count's kit: the suites of StatHyper's types beside the h_motif suite, and in C10 the
+# kit's hypergraph fake as a partner, whose CUDA counts are kernels.
+if(TARGET dyng_triad_count_conformance_tests)
+  target_sources(dyng_triad_count_conformance_tests
+                 PRIVATE algorithms/triad_count/triad_count_types_conformance_test.cpp)
+endif()
 if(TARGET dyng_triad_count_conformance_cuda_tests)
-  target_sources(dyng_triad_count_conformance_cuda_tests PRIVATE framework/fake_hyper_kernels.cu)
+  target_sources(
+    dyng_triad_count_conformance_cuda_tests
+    PRIVATE algorithms/triad_count/triad_count_types_conformance_test.cpp framework/fake_hyper_kernels.cu
+  )
 endif()
 
 # The registry and the kit agree: every algorithm of dyng::algorithms() has test_traits here.

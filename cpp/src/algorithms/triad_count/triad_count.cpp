@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 The dynG Authors
 // SPDX-License-Identifier: Apache-2.0
+// Derived from ESCHER-GPU@abcf9b2:src/driver.cu (run(): the subtract / maintain / add order of a
+// batch, the counts after = the counts before + the delta of both phases)
 /**
  * @file triad_count.cpp
  * @brief triad_count: argument validation, the result, compute() and update() through the
