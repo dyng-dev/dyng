@@ -84,12 +84,14 @@ REGION_MAPS = {
     "sssp": "parity/timed_regions/sssp.toml",
     "mosp": "parity/timed_regions/mosp.toml",
     "cycle_count": "parity/timed_regions/cycle_count.toml",
+    "triad_count": "parity/timed_regions/triad_count.toml",
 }
 # The region map's section per backend.
 MAP_KEYS = {
     "sssp": {"openmp": "mosp_openmp", "cuda": "mosp_cuda"},
     "mosp": {"openmp": "mosp_openmp", "cuda": "mosp_cuda"},
     "cycle_count": {"openmp": "cycle_enum_openmp", "cuda": "cycle_enum_cuda"},
+    "triad_count": {"cuda": "escher_gpu"},
 }
 EXECUTABLES = {
     "sssp": "dyng-compat-mosp",
@@ -144,8 +146,18 @@ def references() -> dict[str, dict]:
 
 
 def region_map(algorithm: str, backend: str) -> dict[str, dict]:
+    """The regions of the algorithm's map for a backend by gate row: a region read once per batch
+    (per_batch = true, triad_count.toml) contributes one entry per row ("update[b1]", ...), each
+    with the region's gate and stages, instead of its own name."""
+    import perf_ab
+
     doc = tomllib.loads((REPO / REGION_MAPS[algorithm]).read_text())
-    return {r["name"]: r for r in doc["reference"][MAP_KEYS[algorithm][backend]]["region"]}
+    out: dict[str, dict] = {}
+    for r in doc["reference"][MAP_KEYS[algorithm][backend]]["region"]:
+        perf_ab.check_batch_rows(REPO / REGION_MAPS[algorithm], r)
+        for row in perf_ab.region_rows(r):
+            out[row] = r if row == r["name"] else dict(r, name=row, row_of=r["name"])
+    return out
 
 
 def metric_gate(metric: dict, backend: str) -> str:

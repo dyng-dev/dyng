@@ -163,6 +163,9 @@ MOSP_REGION_MAP = REPO / "parity" / "timed_regions" / "mosp.toml"  # `perf_ab.py
 # measure it): the region maps of ESCHER-GPU@abcf9b2 (its --timing stage records) and of
 # MOSP_ESCHER@4b86159 (hsospBench's CSV columns, for M11).
 HYPERGRAPH_REGION_MAP = REPO / "parity" / "timed_regions" / "hypergraph.toml"
+# triad_count against ESCHER-GPU@abcf9b2 (M9a; written before the port, ADR 0048): the same
+# original timers (section [reference.escher_gpu]), with per-batch rows.
+TRIAD_REGION_MAP = REPO / "parity" / "timed_regions" / "triad_count.toml"
 HYPERGRAPH_REFERENCES = {
     "escher_gpu": {
         "name": "ESCHER-GPU",
@@ -206,6 +209,32 @@ ESCHER_TIMING_STAGES = {
     "total",
 }
 HSOSP_CSV_TIMES = {"t_escher_ms", "t_delta_ms", "t_csr_apply_ms", "t_sosp_update_ms", "t_static_ms"}
+# The harness's own clock around a whole process (the "process" rows of the ESCHER maps).
+PROCESS_WALL_TIME = "process wall time"
+# The keys a region of a map may have (a misspelt key, e.g. "per_bach", is refused instead of
+# being ignored).
+REGION_KEYS = {
+    "name",
+    "note",
+    "gate",
+    "task",
+    "scopes",
+    "process",
+    "original",
+    "original_report",
+    "original_report_optional",
+    "original_report_subtract",
+    "port",
+    "port_report",
+    "port_device",
+    "port_all_results",
+    "per_objective",
+    "per_batch",
+    "rows",
+    "report_sum",
+}
+# A per-batch row: "<region>[b<N>]" (triad_count.toml: update[b1], update[b2], update[b3]).
+BATCH_ROW = re.compile(r"^(?P<region>.+)\[b(?P<batch>[1-9][0-9]*)\]$")
 # The original each backend of the port is compared with, and its section of sssp.toml.
 REFERENCES = {
     "openmp": {
@@ -513,19 +542,26 @@ def load_regions(
     """The regions of a region map (sssp.toml unless `path`) for a backend, checked against what
     this script can measure."""
     doc = tomllib.loads(path.read_text())
-    if backend in HYPERGRAPH_REFERENCES:  # hypergraph.toml (M8a): the originals' timer names
+    if backend in HYPERGRAPH_REFERENCES:  # hypergraph.toml (M8a), triad_count.toml (M9a)
         regions = doc["reference"][HYPERGRAPH_REFERENCES[backend]["map"]]["region"]
-        known = {f"timing:{t}" for t in ESCHER_TIMING_STAGES} | {
-            f"csv:{c}" for c in HSOSP_CSV_TIMES
-        }
+        known = (
+            {f"timing:{t}" for t in ESCHER_TIMING_STAGES}
+            | {f"csv:{c}" for c in HSOSP_CSV_TIMES}
+            | {PROCESS_WALL_TIME}
+        )
     else:
         regions = doc["reference"][REFERENCES[backend]["map"]]["region"]
         known = set(REPORT) | {PER_OBJECTIVE_REPORT}
     names = [r["name"] for r in regions]
+    if len(set(names)) != len(names):
+        raise SystemExit(f"{path}: a region name is repeated")
     for name in required:
         if name not in names:
             raise SystemExit(f"{path}: region '{name}' is missing")
     for r in regions:
+        unknown = set(r) - REGION_KEYS
+        if unknown:
+            raise SystemExit(f"{path}: region {r['name']}: unknown key(s) {sorted(unknown)}")
         for key in r.get("original_report", []) + r.get("original_report_subtract", []):
             if key not in known:
                 raise SystemExit(
@@ -534,9 +570,42 @@ def load_regions(
                 )
         if r["gate"] not in ("compute", "end_to_end", "none"):
             raise SystemExit(f"{path}: region {r['name']}: unknown gate '{r['gate']}'")
-        if not r.get("port"):
+        if not r.get("port") and not r.get("port_report"):
             raise SystemExit(f"{path}: region {r['name']}: no port stages")
+        check_batch_rows(path, r)
     return regions
+
+
+def check_batch_rows(path: Path, region: dict) -> None:
+    """A per-batch region (per_batch = true) lists its rows "<name>[b1]", "<name>[b2]", ...
+    (consecutive from 1); rows and report_sum belong to per-batch regions only, and a region is
+    not read per objective and per batch at once."""
+    name = region["name"]
+    if not region.get("per_batch"):
+        for key in ("rows", "report_sum"):
+            if key in region:
+                raise SystemExit(f"{path}: region {name}: '{key}' needs per_batch = true")
+        return
+    if region.get("per_objective"):
+        raise SystemExit(f"{path}: region {name}: per_objective and per_batch together")
+    rows = region.get("rows")
+    want = [f"{name}[b{i}]" for i in range(1, len(rows or []) + 1)]
+    if not rows or rows != want:
+        raise SystemExit(
+            f"{path}: region {name}: per_batch rows must be {want or [name + '[b1]', '...']} "
+            f"(got {rows})"
+        )
+
+
+def region_rows(region: dict) -> list[str]:
+    """The gate rows of a region: its name, or one "<name>[b<N>]" per batch (per_batch)."""
+    return list(region["rows"]) if region.get("per_batch") else [region["name"]]
+
+
+def batch_of_row(row: str) -> tuple[str, int | None]:
+    """("update", 2) for the row "update[b2]"; (row, None) for a row that is not per batch."""
+    m = BATCH_ROW.match(row)
+    return (m["region"], int(m["batch"])) if m else (row, None)
 
 
 # --- One run of each side ----------------------------------------------------------------------
