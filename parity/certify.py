@@ -701,6 +701,15 @@ def golden_suites(results: Path, head: str, problems: list[str], version: str = 
                     "passed": ok,
                 }
             )
+        if entry["kind"] == "triad_count" and not entry["replays"]:
+            # ESCHER-GPU's triad goldens (M9a step 1, ADR 0048): their replays through dynG
+            # arrive with the port (M9a steps 2-4), and M9a step 5 makes them required from the
+            # 0.3 series. Until then a certificate lists the set without a verdict (None, which
+            # the golden_parity verdict skips); a replay record, once there, is judged as usual.
+            entry["passed"] = None
+            entry["required"] = "not yet: the triad_count replays are required from M9a step 5"
+            out.append(entry)
+            continue
         missing = [b for b in REQUIRED_REPLAYS.get(name, []) if b not in covered]
         if missing:
             problems.append(f"golden set {name}: no replay on {', '.join(missing)}")
