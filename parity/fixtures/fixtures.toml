@@ -71,3 +71,10 @@ reference = "ESCHER-GPU"
 generated_by = "parity/cbst_trace_goldens.py"
 what = "the committed subset of the CBST trace goldens of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (SUBSET.txt lists each trace with its command; `parity/cbst_trace_goldens.py subset` writes them from the exported sets): reuse, surplus with rebuild, fill overflow, unfill on chained rows, MOSP_ESCHER's compaction inside fill and inside insert; read by the trace reader's test (and replayed by the host model from M8a step 2)"
 tests = ["CbstTrace.*"]
+
+[sets.triad_counts]
+directory = "cpp/tests/data/goldens/triad_counts"
+reference = "ESCHER-GPU"
+generated_by = "parity/triad_goldens.py"
+what = "triad_count (M9a, decision D5): ESCHER-GPU@abcf9b2's make-test counts of its synthetic groups (01, 03, 07, 12; `parity/triad_goldens.py fixture` writes them from the golden set triad_count_escher_gpu): each group's generator and batch parameters, the full count and every batch's composition and delta of build/main, type1, type2 and type3; read by the hosted-CI exact-parity test of the host backends"
+tests = ["HostBackends/TriadCountMakeTest.SyntheticGroupsEqualEscherGpusCounts*"]

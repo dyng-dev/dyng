@@ -255,6 +255,93 @@ def _write_sssp_records(bench, suite, records: Path, commit: str, ratio: float =
     return jobs
 
 
+def _triad_case_result(bench, suite: dict, key: str, kind: str, runs: int, ratio: float) -> dict:
+    case, pattern = key.split("/")
+    m = bench.TRIAD_CASE.match(case)
+    out = {
+        "case": case,
+        "pattern": pattern,
+        "dataset": m["dataset"],
+        "seed": int(m["seed"]),
+        "batches": 3,
+        "input": {"input": m["dataset"], "sha256": bench.triad_digest(suite, case)},
+    }
+    if kind == "memory":
+        every = m["dataset"] == "coauth"
+        points = []
+        for k in range(4):
+            row = "store_memory[build]" if k == 0 else f"store_memory[b{k}]"
+            points.append(
+                {
+                    "point": "build" if k == 0 else f"batch {k}",
+                    "row": row,
+                    "dyng_device_bytes": 1000 + k,
+                    "escher_gpu_device_bytes": 1000 + k,
+                    "ratio": 1.0,
+                    "gated": every or k in (0, 3),
+                }
+            )
+        return out | {
+            "original": {"peak_live_mib": 100.0},
+            "port": {"peak_live_mib": 100.0 * ratio, "ratio": ratio},
+            "ratio": ratio,
+            "store_accounting": points,
+            "foreign_gpu_processes": {"before": [], "after": []},
+        }
+    rows = [("update[b1]", "compute"), ("update[b2]", "compute"), ("update[b3]", "compute")]
+    rows += [("full_count", "compute"), ("end_to_end", "end_to_end")]
+    return out | {
+        "rounds": runs,
+        "complete": True,
+        "guard": {"rounds_checked": runs, "passed": True},
+        "contaminated_rounds_kept": 0,
+        "audit": {"flagged": False, "flagged_rounds": []},
+        "monitor": {"rounds": [{"original": {"reasons": []}, "port": {"reasons": []}}] * runs},
+        "regions": [_region(n, 500.0, 500.0 * ratio, kind) for n, kind in rows]
+        + [
+            {
+                "region": "update.subtract[b1]",
+                "gate_kind": "none",
+                "original_ms": 2.0,
+                "port_ms": 2.0,
+                "ratio": 1.0,
+            }
+        ],  # fmt: skip
+    }
+
+
+def _write_triad_records(bench, suite, records: Path, commit: str, ratio: float = 0.9):
+    """Records of parity/perf_ab.py triad_count run|memory (parity/triad_perf.py's schema 2)."""
+    records.mkdir(parents=True, exist_ok=True)
+    jobs = bench.plan(suite, records=records, build_root=Path("/b"))
+    for job in jobs:
+        reading = next(r for r in suite["readings"] if r["name"] == job["reading"])
+        rec = {
+            "schema": 2,
+            "algorithm": "triad_count",
+            "date": "2026-10-16T00:00:00Z",
+            "reference": {
+                "name": "ESCHER-GPU",
+                "commit": suite["baselines"]["ESCHER-GPU"]["commit"],
+                "variant": "unpatched",
+            },
+            "port": {"commit": commit, "build": {"parity_preset": True}},
+            "driver": DRIVER,
+            "protocol": {"rounds": job.get("runs")},
+            "results": {
+                f"{c}/{p}": _triad_case_result(
+                    bench, suite, f"{c}/{p}", job["kind"], job.get("runs") or 0, ratio
+                )
+                for c in job["cases"]
+                for p in job["patterns"]
+            },
+        }
+        if job["kind"] == "run":
+            rec["protocol"]["clocks"] = {"control": reading["clocks"]}
+        Path(job["record"]).write_text(json.dumps(rec))
+    return jobs
+
+
 def _full_results(cert, bench, tmp_path: Path, commit: str) -> Path:
     """A results directory with replays, both suites' whole summaries and a passed check that
     ran every fixture test."""
@@ -263,7 +350,10 @@ def _full_results(cert, bench, tmp_path: Path, commit: str) -> Path:
     _replays(cert, results, commit)
     for path in SUITES:
         suite = bench.load_suite(path)
-        write = _write_cc_records if suite["algorithm"] == "cycle_count" else _write_sssp_records
+        write = {
+            "cycle_count": _write_cc_records,
+            "triad_count": _write_triad_records,
+        }.get(suite["algorithm"], _write_sssp_records)
         records = tmp_path / f"rec-{suite['suite']}"
         jobs = write(bench, suite, records, commit)
         summary = bench.summarize(
@@ -531,6 +621,38 @@ def _replays(cert, results: Path, commit: str) -> None:
             mode = "both" if feature == "ids" else feature
             for backend in backends:
                 _hypergraph_id_record(results, name, spec, commit, backend, mode)
+    # ESCHER-GPU's triad goldens (M9a, from 0.3): every backend of the coverage table, both modes.
+    _triad_replays(cert, results, commit)
+
+
+TRIAD_SET = "triad_count_escher_gpu"
+
+
+def _triad_replays(cert, results: Path, commit: str, skip: tuple = ()) -> None:
+    """Passed certificate records of `compare.py triad_count --counter algorithm --mode both
+    --certificate` for every backend of the coverage table (parity/triad_replay.py's format),
+    but those in `skip`."""
+    import tomllib
+
+    replay = load("parity/triad_replay.py")
+    spec = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"][TRIAD_SET]
+    for backend, cases in cert.triad_required_cases(spec).items():
+        if backend in skip:
+            continue
+        doc = {
+            "set": TRIAD_SET,
+            "manifest_sha256": spec["manifest_sha256"],
+            "backend": backend,
+            "threads": 8 if backend == "openmp" else None,
+            "mode": "both",
+            "counter": "algorithm",
+            "plant": None,
+            "coverage": True,
+            "commit": commit,
+            "cases": {c: {"passed": True, "batches": 3} for c in sorted(cases)},
+            "passed": True,
+        }
+        replay.write_certificate(doc, results)
 
 
 def _hypergraph_id_record(
@@ -621,6 +743,7 @@ def test_certificate_from_results(cert, bench, tmp_path: Path, fixed_driver) -> 
         "mosp_combined",
         "cycle_enum",
         "cbst_trace",
+        "triad_counts",
     }
     assert doc["environment"]["driver"]["nvidia"] == DRIVER["nvidia"]
     assert "named by" in doc["environment"]["driver"]["source"]
@@ -1476,6 +1599,11 @@ def test_release_series_and_the_required_suites(cert) -> None:
     assert set(cert.required_suites("0.1.0")) == {"ipdps25_dynamosp_sosp", "ieee_tc_dyntrucy"}
     for version in ("0.2.0rc1", "0.2.0", "0.3.0", "t"):
         assert "ipdps25_dynamosp_mosp" in cert.required_suites(version), version
+    # The ESCHER suites of triad_count from 0.3 (M9a): a 0.2 certificate does not need them.
+    escher = {"ipdps26_escher", "tkde26_escher_plus"}
+    assert not escher & set(cert.required_suites("0.2.0"))
+    for version in ("0.3.0rc1", "0.3.0", "t"):
+        assert escher <= set(cert.required_suites(version)), version
     # Every required suite is a committed suite of its algorithm.
     for name, spec in cert.REQUIRED_SUITES.items():
         path = REPO / "benchmarks" / "paper" / f"{name}.yaml"
@@ -1810,3 +1938,486 @@ def test_the_packaging_scope_covers_the_sdist_and_the_plugins(cert) -> None:
         changed = cert.code_diff(parent, commit, "packaging")
         assert changed and set(changed) <= set(PLUGIN_INPUTS), changed
         assert cert.same_code(parent, commit, "packaging") is False
+
+
+# --- M9a: the ESCHER suites (triad_count) and their gates in the 0.3 certificate -----------------
+
+ESCHER_SUITE = REPO / "benchmarks/paper/ipdps26_escher.yaml"
+ESCHER_PLUS_SUITE = REPO / "benchmarks/paper/tkde26_escher_plus.yaml"
+
+
+def test_the_escher_suites_cover_the_m9_gates(bench) -> None:
+    import tomllib
+
+    timing = bench.load_suite(ESCHER_SUITE)
+    memory = bench.load_suite(ESCHER_PLUS_SUITE)
+    assert bench.validate(timing) == [] and bench.validate(memory) == []
+    for suite in (timing, memory):
+        assert (
+            suite["algorithm"] == "triad_count"
+            and suite["harness"]["tool"] == "perf_ab.triad_count"
+        )
+        assert suite["baselines"] == {
+            "ESCHER-GPU": {
+                "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+                "variant": "unpatched",
+                "backend": "cuda",
+            }
+        }
+        # coauth-DBLP by its file's SHA-256, syn1M / syn2M by A's parameters and their rows' digest
+        # per seed: those of the golden set (step 1).
+        data = {d["name"]: d for d in suite["datasets"]}
+        assert data["coauth"]["sha256"] == (
+            "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6"
+        )
+        inputs = tomllib.loads((REPO / "parity/goldens.toml").read_text())["sets"][TRIAD_SET][
+            "inputs"
+        ]
+        for name, params in (
+            ("syn1m", [1000000, 10, 1, 333333]),
+            ("syn2m", [2000000, 10, 1, 666666]),
+        ):
+            assert data[name]["generator"]["parameters"] == params
+            for s in (1, 2, 3):
+                assert data[name]["sha256"][f"s{s}"] == inputs[f"{name}_s{s}"]["loaded_rows_sha256"]
+
+    def gated(suite: dict) -> set[str]:
+        return {n for n, m in suite["metrics"].items() if bench.metric_gate(m, "cuda") != "none"}
+
+    # ipdps26: update of every batch, the full count and end to end (criterion 12).
+    assert gated(timing) == {"update[b1]", "update[b2]", "update[b3]", "full_count", "end_to_end"}
+    readings = {r["name"]: r for r in timing["readings"]}
+    assert readings["cuda-coauth"]["cases"] == [f"coauth_b50k_s{s}" for s in (1, 2, 3)]
+    assert readings["cuda-coauth"]["clocks"] == "base" and readings["cuda-coauth"]["runs"] >= 11
+    assert readings["cuda"]["cases"] == [
+        f"{d}_b50k_s{s}" for d in ("syn1m", "syn2m") for s in (1, 2, 3)
+    ]
+    assert readings["cuda"]["runs"] >= 21 and readings["cuda"]["clocks"] in ("base", "boost")
+    assert all(readings[n]["gated"] for n in ("cuda-coauth", "cuda"))
+    assert readings["cuda-default-clocks"]["clocks"] == "none"
+    assert not readings["cuda-default-clocks"]["gated"]
+    assert readings["cuda-batch-sizes"]["cases"] == ["coauth_b100k_s1", "coauth_b200k_s1"]
+    assert not readings["cuda-batch-sizes"]["gated"]
+    ref = timing["paper_reference"]
+    assert ref["update_per_batch_s"] == {
+        "coauth_b50k": 0.546,
+        "coauth_b100k": 1.033,
+        "coauth_b200k": 1.936,
+        "syn1m_b50k": 0.127,
+        "syn2m_b50k": 0.151,
+    }
+    assert ref["full_count_s"] == {"coauth": 5.22, "syn1m": 0.47, "syn2m": 0.95}
+    assert {k: ref["end_to_end_s"][k] for k in ("coauth_b50k", "syn1m_b50k", "syn2m_b50k")} == {
+        "coauth_b50k": 9.1,
+        "syn1m_b50k": 2.2,
+        "syn2m_b50k": 4.1,
+    }
+    # tkde26: the store accounting and the nsys peak (criterion 13); types and batch sizes recorded.
+    assert gated(memory) == {"store_memory", "device_memory"}
+    readings = {r["name"]: r for r in memory["readings"]}
+    assert readings["cuda-memory"]["gated"] and readings["cuda-memory"]["gpu"] == 1
+    assert readings["cuda-memory"]["cases"] == [
+        f"{d}_b50k_s1" for d in ("coauth", "syn1m", "syn2m")
+    ]
+    assert readings["cuda-types"]["patterns"] == ["type1", "type2", "type3"]
+    assert not readings["cuda-types"]["gated"] and not readings["cuda-memory-batch-sizes"]["gated"]
+    assert memory["paper_reference"]["store_gb"] == {"coauth": 1.83, "syn1m": 0.67, "syn2m": 1.34}
+
+
+@pytest.mark.parametrize(
+    ("edit", "message"),
+    [
+        (lambda s: s["datasets"][0].update(sha256="0" * 64), "pinned file's"),
+        (lambda s: s["datasets"][1]["sha256"].update(s1="0" * 64), "golden set's"),
+        (lambda s: s["datasets"][1]["generator"].update(parameters=[1, 2, 3, 4]), "parameters"),
+        (lambda s: s["readings"][0]["cases"].append("coauth_b50k_s9"), "not a case of the golden"),
+        (lambda s: s["readings"][0].update(clocks="boost"), "base lock (ADR 0021)"),
+        (lambda s: s["readings"][1].update(patterns=["type1"]), "h_motif"),
+        (lambda s: s["readings"][1].update(clocks="none"), "not gated"),
+        (lambda s: s["metrics"].pop("update[b3]"), "update[b3] (cuda) of the region map is not"),
+        (lambda s: s["metrics"]["full_count"].update(gate="none"), "region map says"),
+        (lambda s: s["metrics"]["update[b1]"]["cuda"].update(port=["update_ms"]), "port stages"),
+        (lambda s: s["batches"][0].update(seeds=None), "seeds"),
+        (lambda s: s["harness"].update(tool="perf_ab.cycle_count"), "harness.tool"),
+    ],
+)
+def test_validate_finds_what_differs_in_the_escher_suite(bench, edit, message: str) -> None:
+    suite = bench.load_suite(ESCHER_SUITE)
+    edit(suite)
+    errors = bench.validate(suite)
+    assert any(message in e for e in errors), errors
+
+
+def test_the_memory_suite_gates_memory_only(bench) -> None:
+    suite = bench.load_suite(ESCHER_PLUS_SUITE)
+    for metric in ("compute", "update[b1]"):
+        bad = copy.deepcopy(suite)
+        bad["metrics"][metric] = {"gate": "memory", "cuda": {"original": "x", "port": "y"}}
+        assert any("have the memory gate" in e for e in bench.validate(bad))
+    # A gated timing reading makes every gated region of the map a required metric.
+    bad = copy.deepcopy(suite)
+    bad["readings"][2].update(gated=True, patterns=["main"])
+    assert any("is not a metric" in e for e in bench.validate(bad))
+
+
+def test_plan_of_the_escher_suites(bench, tmp_path: Path) -> None:
+    timing = bench.load_suite(ESCHER_SUITE)
+    jobs = bench.plan(timing, records=tmp_path, build_root=Path("/b"))
+    by = {j["reading"]: j for j in jobs}
+    assert set(by) == {"cuda-coauth", "cuda", "cuda-default-clocks", "cuda-batch-sizes"}
+    coauth = by["cuda-coauth"]["argv"]
+    assert coauth[2:4] == ["triad_count", "run"] and "/b/parity-cuda" in coauth
+    assert coauth[coauth.index("--lock-clocks") + 1] == "base"
+    assert coauth[coauth.index("--rounds") + 1] == "11" and coauth[coauth.index("--gpu") + 1] == "0"
+    assert coauth[coauth.index("--patterns") + 1] == "main"
+    syn = by["cuda"]["argv"]
+    assert syn[syn.index("--rounds") + 1] == "21"
+    assert by["cuda"]["cases"] == [f"{d}_b50k_s{s}" for d in ("syn1m", "syn2m") for s in (1, 2, 3)]
+    assert all(j["lock"] == "exclusive (the harness)" for j in jobs)
+    narrowed = bench.plan(timing, records=tmp_path, build_root=Path("/b"), datasets=["syn2m"])
+    assert [j["cases"] for j in narrowed] == [
+        ["syn2m_b50k_s1", "syn2m_b50k_s2", "syn2m_b50k_s3"],
+        ["syn2m_b50k_s1"],
+    ]
+    with pytest.raises(bench.SuiteError):
+        bench.plan(timing, records=tmp_path, build_root=Path("/b"), batches=["b50k"])
+    memory = bench.load_suite(ESCHER_PLUS_SUITE)
+    jobs = {j["reading"]: j for j in bench.plan(memory, records=tmp_path, build_root=Path("/b"))}
+    mem = jobs["cuda-memory"]
+    assert mem["argv"][2:4] == ["triad_count", "memory"] and mem["lock"] == "shared"
+    assert mem["argv"][mem["argv"].index("--gpu") + 1] == "1"
+    types = jobs["cuda-types"]["argv"]
+    assert types[types.index("--patterns") + 1] == "type1,type2,type3"
+    assert types[types.index("--gpu") + 1] == "0"
+    # perf_ab.py triad_count accepts every planned command line (--help lists the options).
+    for sub, options in (
+        ("run", ["--cases", "--patterns", "--rounds", "--lock-clocks", "--gpu", "--build"]),
+        ("memory", ["--cases", "--patterns", "--gpu", "--build", "--json"]),
+        ("kernels", ["--cases", "--rounds", "--gpu", "--json"]),
+    ):
+        proc = subprocess.run(
+            [sys.executable, REPO / "parity/perf_ab.py", "triad_count", sub, "--help"],
+            capture_output=True,
+            text=True,
+        )
+        assert proc.returncode == 0, proc.stderr
+        for option in options:
+            assert option in proc.stdout, (sub, option)
+
+
+def test_summary_of_the_escher_suites(bench, tmp_path: Path) -> None:
+    """The summaries of both suites pass on good records, and a record is refused when a batch is
+    missing, it has too few rounds, a contaminated round was kept, the contamination audit flags
+    it, the guard did not pass, the clock lock is not the reading's, an input digest is not the
+    suite's, or the store accounting misses a gated point."""
+    timing = bench.load_suite(ESCHER_SUITE)
+    memory = bench.load_suite(ESCHER_PLUS_SUITE)
+    jobs = _write_triad_records(bench, timing, tmp_path / "rec", head())
+    out = tmp_path / "out"
+    summary = bench.summarize(timing, jobs, out=out, version="t", records=tmp_path, inputs=None)
+    assert summary["verdict"]["passed"], summary["verdict"]
+    rows = {
+        (r["reading"], g["case"], g["region"]) for r in summary["readings"] for g in r["regions"]
+    }
+    assert ("cuda-coauth", "coauth_b50k_s2/main", "update[b3]") in rows
+    assert summary["verdict"]["gated_regions"] == (3 + 6) * 5
+    mjobs = _write_triad_records(bench, memory, tmp_path / "mrec", head())
+    msum = bench.summarize(memory, mjobs, out=out, version="t", records=tmp_path, inputs=None)
+    assert msum["verdict"]["passed"], msum["verdict"]
+    gated = {(g["case"], g["region"]) for r in msum["readings"] if r["gated"] for g in r["regions"]}
+    assert ("coauth_b50k_s1/main", "store_memory[b2]") in gated
+    assert ("syn1m_b50k_s1/main", "store_memory[b3]") in gated
+    assert ("syn1m_b50k_s1/main", "store_memory[b2]") not in gated  # A's print points only
+    assert ("syn2m_b50k_s1/main", "device_memory") in gated
+
+    def refused(suite: dict, js: list, reading: str, edit, text: str) -> None:
+        job = next(j for j in js if j["reading"] == reading)
+        path = Path(job["record"])
+        good = path.read_text()
+        rec = json.loads(good)
+        edit(rec)
+        path.write_text(json.dumps(rec))
+        got = bench.summarize(
+            suite, js, out=tmp_path / "o", version="t", records=tmp_path, inputs=None
+        )
+        path.write_text(good)
+        problems = " ".join(got["verdict"]["problems"])
+        assert not got["verdict"]["passed"] and text in problems, problems
+
+    first = "coauth_b50k_s1/main"
+
+    def result(rec: dict, key: str = first) -> dict:
+        return rec["results"][key]
+
+    refused(timing, jobs, "cuda-coauth", lambda r: result(r)["regions"].pop(2), "no row update[b3]")
+    refused(timing, jobs, "cuda-coauth", lambda r: result(r).update(batches=2), "2 batches")
+    refused(timing, jobs, "cuda-coauth", lambda r: result(r).update(rounds=7), "7 rounds")
+    refused(
+        timing,
+        jobs,
+        "cuda-coauth",
+        lambda r: result(r)["monitor"]["rounds"].__setitem__(0, {"original": {"reasons": ["x"]}}),
+        "contaminated rounds were kept",
+    )
+    refused(
+        timing,
+        jobs,
+        "cuda-coauth",
+        lambda r: result(r).update(audit={"flagged": True, "flagged_rounds": [{"round": 3}]}),
+        "the contamination audit flags rounds",
+    )
+    refused(
+        timing,
+        jobs,
+        "cuda-coauth",
+        lambda r: result(r).update(guard={"rounds_checked": 11, "passed": False}),
+        "the per-round guard",
+    )
+    refused(
+        timing,
+        jobs,
+        "cuda-coauth",
+        lambda r: r["protocol"].update(clocks={"control": "boost"}),
+        "clocks 'boost'",
+    )
+    refused(
+        timing,
+        jobs,
+        "cuda",
+        lambda r: result(r, "syn1m_b50k_s2/main")["input"].update(sha256="0" * 64),
+        "the inputs are not verified",
+    )
+    refused(
+        timing, jobs, "cuda", lambda r: r["results"].pop("syn2m_b50k_s3/main"), "the reading's are"
+    )
+    refused(
+        memory,
+        mjobs,
+        "cuda-memory",
+        lambda r: result(r)["store_accounting"].pop(2),
+        "no store accounting at store_memory[b2]",
+    )
+    refused(
+        memory,
+        mjobs,
+        "cuda-memory",
+        lambda r: result(r, "syn2m_b50k_s1/main")["store_accounting"][3].update(gated=False),
+        "no store accounting at store_memory[b3]",
+    )
+    refused(
+        memory,
+        mjobs,
+        "cuda-memory",
+        lambda r: result(r)["foreign_gpu_processes"].update(after=["1234, x"]),
+        "a foreign process on the GPU",
+    )
+    # A store ratio above the gate is a gated row outside its gate.
+    job = next(j for j in mjobs if j["reading"] == "cuda-memory")
+    rec = json.loads(Path(job["record"]).read_text())
+    rec["results"][first]["store_accounting"][1]["dyng_device_bytes"] = 2000
+    Path(job["record"]).write_text(json.dumps(rec))
+    got = bench.summarize(
+        memory, mjobs, out=tmp_path / "o", version="t", records=tmp_path, inputs=None
+    )
+    assert not got["verdict"]["passed"]
+    assert any("store_memory[b1]" in e for e in got["verdict"]["exceeded"]), got["verdict"]
+
+
+def test_a_03_certificate_needs_the_escher_gates(cert, certified) -> None:
+    """From 0.3 on a certificate needs both ESCHER suites (every gated row rechecked, the
+    store_memory rows point by point) and the triad replays of every backend of the coverage
+    table, by key and by content; 0.1 and 0.2 certificates do not."""
+    results, write, problems = certified
+    assert write("0.3.0") == 0, problems()
+    doc = json.loads((results / "parity.json").read_text())
+    assert doc["required_suites"]["ipdps26_escher"] == {"algorithm": "triad_count", "since": "0.3"}
+    assert doc["required_suites"]["tkde26_escher_plus"] == {
+        "algorithm": "triad_count",
+        "since": "0.3",
+    }
+    plus = next(s for s in doc["performance"] if s["suite"] == "tkde26_escher_plus")
+    regions = {r["region"] for r in plus["gate_table"]}
+    assert {"device_memory", "store_memory[build]", "store_memory[b3]"} <= regions
+    triad = next(g for g in doc["golden_suites"] if g["set"] == TRIAD_SET)
+    assert triad["passed"] is True and triad["required_coverage"] == {
+        "cuda": 300,
+        "openmp": 142,
+        "sequential": 120,
+    }
+
+    # A store_memory row whose bytes differ from its record's is caught by recheck_gates.
+    path = results / "tkde26_escher_plus.json"
+    full = path.read_text()
+    cut = json.loads(full)
+    row = next(
+        g
+        for r in cut["readings"]
+        if r["gated"]
+        for g in r["regions"]
+        if g["region"] == "store_memory[b1]"
+    )
+    row["port_bytes"] += 1
+    row["ratio"] = row["port_bytes"] / row["original_bytes"]
+    path.write_text(json.dumps(cut))
+    assert write("0.3.0") == 1 and "differ from its record's" in problems()
+    path.write_text(full)
+
+    # A triad gate row removed from the summary: the gate is not read.
+    tpath = results / "ipdps26_escher.json"
+    tfull = tpath.read_text()
+    cut = json.loads(tfull)
+    for r in cut["readings"]:
+        r["regions"] = [g for g in r["regions"] if g["region"] != "update[b2]"]
+    tpath.write_text(json.dumps(cut))
+    assert write("0.3.0") == 1 and "no gated reading of update[b2] (cuda)" in problems()
+    tpath.write_text(tfull)
+
+    # A triad replay removed (one backend, or one mode): a 0.3 certificate fails, 0.2 does not.
+    for drop in ("openmp", "by_content"):
+        saved = {p: p.read_text() for p in results.glob(f"parity-{TRIAD_SET}-*.json")}
+        for p, text in saved.items():
+            rec = json.loads(text)
+            if drop == rec["backend"]:
+                p.unlink()
+            elif drop == "by_content" and rec["backend"] == "cuda":
+                rec["configs"] = [c for c in rec["configs"] if not c.endswith(drop)]
+                rec["matrix"] = {
+                    k: {c: v[c] for c in rec["configs"]} for k, v in rec["matrix"].items()
+                }
+                p.write_text(json.dumps(rec))
+        assert write("0.3.0") == 1, drop
+        want = "have no passed replay by_content" if drop == "by_content" else "gives openmp have"
+        assert want in problems(), problems()
+        assert write("0.2.0rc1") == 0, problems()
+        for p, text in saved.items():
+            p.write_text(text)
+    # A replay of the oracle (the go/no-go) is no evidence of the algorithm.
+    p = next(results.glob(f"parity-{TRIAD_SET}-sequential-*.json"))
+    good = p.read_text()
+    rec = json.loads(good)
+    rec["checks"]["counter"] = "oracle"
+    p.write_text(json.dumps(rec))
+    assert write("0.3.0") == 1 and "gives sequential have" in problems()
+    p.write_text(good)
+    # Without the ESCHER suites: 0.3 fails, 0.1 and 0.2 still pass.
+    for name in ("ipdps26_escher", "tkde26_escher_plus"):
+        (results / f"{name}.json").unlink()
+        for record in results.glob(f"{name}-*.json"):
+            record.unlink()
+    assert write("0.3.0") == 1
+    assert "no performance suite of triad_count" in problems()
+    assert write("0.2.0rc1") == 0, problems()
+    assert write("0.1.0") == 0, problems()
+
+
+def test_triad_replays_listed_before_0_3(cert, tmp_path: Path) -> None:
+    results = tmp_path / "results"
+    results.mkdir()
+    problems: list[str] = []
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.2.0")}
+    assert listed[TRIAD_SET]["passed"] is None and not any(TRIAD_SET in p for p in problems)
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.3.0rc1")}
+    assert listed[TRIAD_SET]["passed"] is False
+    assert sum(TRIAD_SET in p for p in problems) == 2 * 3  # 3 backends x 2 modes
+    problems.clear()
+    _triad_replays(cert, results, head())
+    listed = {g["set"]: g for g in cert.golden_suites(results, head(), problems, "0.3.0")}
+    assert listed[TRIAD_SET]["passed"] is True, [p for p in problems if TRIAD_SET in p]
+    assert listed[TRIAD_SET]["triad_coverage"]["openmp"] == {"by_content": 142, "by_key": 142}
+
+
+def test_the_triad_replay_certificate_records(tmp_path: Path) -> None:
+    replay = load("parity/triad_replay.py")
+    doc = {
+        "set": TRIAD_SET,
+        "manifest_sha256": "a" * 64,
+        "backend": "openmp",
+        "threads": 1,
+        "mode": "both",
+        "counter": "algorithm",
+        "plant": None,
+        "coverage": True,
+        "commit": "c" * 40,
+        "cases": {"x/main": {"passed": True}, "y/type1": {"passed": False}},
+        "passed": False,
+    }
+    rec = replay.certificate_record(doc)
+    assert rec["configs"] == ["openmp/t1:triad/by_key", "openmp/t1:triad/by_content"]
+    assert rec["matrix"]["y/type1"]["openmp/t1:triad/by_key"] == "DIFFERENT"
+    assert rec["passed"] is False and rec["goldens"]["manifest_sha256"] == "a" * 64
+    path = replay.write_certificate(doc, tmp_path)
+    assert path.name == f"parity-{TRIAD_SET}-openmp-t1-both-algorithm.json"
+    for edit in ({"plant": "bin"}, {"coverage": False}):
+        with pytest.raises(replay.ReplayError):
+            replay.certificate_record(doc | edit)
+
+
+def test_the_dry_run_certificate(cert, bench, tmp_path: Path, fixed_driver) -> None:
+    """A dry 0.3 run of triad_count: its suites and golden set judged as in a release, every
+    other part listed as outside; it fails when a triad gate row or replay is removed, and it is
+    never written into benchmarks/results/."""
+    commit = head()
+    results = tmp_path / "dry"
+    results.mkdir()
+    _triad_replays(cert, results, commit)
+    for path in (ESCHER_SUITE, ESCHER_PLUS_SUITE):
+        suite = bench.load_suite(path)
+        records = tmp_path / f"rec-{suite['suite']}"
+        jobs = _write_triad_records(bench, suite, records, commit)
+        summary = bench.summarize(
+            suite, jobs, out=results, version="t", records=records, inputs=None
+        )
+        assert summary["verdict"]["passed"], summary["verdict"]
+
+    def write() -> int:
+        argv = ["write", "--results", str(results), "--version", "0.3.0", "--allow-dirty"]
+        return cert.main([*argv, "--dry-run", "triad_count"])
+
+    def doc() -> dict:
+        return json.loads((results / "parity.json").read_text())
+
+    assert write() == 0, doc()["verdict"]
+    d = doc()
+    assert d["dry_run"]["algorithm"] == "triad_count"
+    assert "suite ipdps25_dynamosp_mosp (mosp)" in d["dry_run"]["outside"]
+    assert "golden set sssp" in d["dry_run"]["outside"]
+    assert [g["set"] for g in d["golden_suites"]] == [TRIAD_SET]
+    assert {s["suite"] for s in d["performance"]} == {"ipdps26_escher", "tkde26_escher_plus"}
+    assert "**Dry run** of `triad_count`" in (results / "README.md").read_text()
+    # A gated row removed: fails.
+    path = results / "ipdps26_escher.json"
+    full = path.read_text()
+    cut = json.loads(full)
+    for r in cut["readings"]:
+        r["regions"] = [g for g in r["regions"] if g["region"] != "full_count"]
+    path.write_text(json.dumps(cut))
+    assert write() == 1 and any("full_count" in p for p in doc()["verdict"]["problems"])
+    path.write_text(full)
+    # A replay removed: fails.
+    next(results.glob(f"parity-{TRIAD_SET}-cuda-*.json")).unlink()
+    assert write() == 1 and any("gives cuda have" in p for p in doc()["verdict"]["problems"])
+    # Never into a release's results.
+    argv = ["write", "--results", str(REPO / "benchmarks/results/0.1.0"), "--version", "0.3.0"]
+    with pytest.raises(SystemExit):
+        cert.main([*argv, "--dry-run", "triad_count"])
+
+
+def test_the_triad_mutations_reach_the_golden_mutation_record(cert, certified) -> None:
+    mutate = load("parity/mutate.py")
+    names = {m["name"] for m in mutate.MUTATIONS}
+    assert {
+        "triad_wrong_bin_sign",
+        "triad_skip_frontier_filter_b",
+        "triad_skip_frontier_filter_k",
+        "triad_inserted_requested_ids",
+        "triad_type1_unbounded_keys",
+        "cbst_unfill_drops_last_triad",
+    } <= names
+    results, write, problems = certified
+    path = results / "mutation-goldens.json"
+    full = path.read_text()
+    doc = json.loads(full)
+    doc["results"] = [r for r in doc["results"] if r.get("name") != "triad_skip_frontier_filter_k"]
+    path.write_text(json.dumps(doc))
+    assert write() == 1 and "mutation triad_skip_frontier_filter_k is missing" in problems()
+    path.write_text(full)

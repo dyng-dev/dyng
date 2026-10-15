@@ -383,10 +383,11 @@ def case_names() -> list[str]:
     return [f"{g.name}/{exe}" for g in all_groups() for exe in EXES]
 
 
-def coverage_cases(backend: str) -> list[str]:
-    """The cases a backend replays (COVERAGE; D6 pending the author)."""
+def coverage_cases(backend: str, items: list[str] | None = None) -> list[str]:
+    """The cases a backend replays (COVERAGE, or the items of a coverage table such as
+    parity/goldens.toml's; D6 pending the author)."""
     out = []
-    for item in COVERAGE[backend]:
+    for item in COVERAGE[backend] if items is None else items:
         for g in all_groups():
             for exe in EXES:
                 case = f"{g.name}/{exe}"

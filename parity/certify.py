@@ -18,7 +18,8 @@ are committed with it:
   <suite>.json      the summaries parity/bench_suite.py writes (the performance gates of
                     benchmarks/paper/<suite>.yaml against the unpatched originals) and the
                     compacted harness records next to them;
-  parity-*.json     the golden replays (parity/compare.py and compare.py cycle_count --json):
+  parity-*.json     the golden replays (parity/compare.py and compare.py cycle_count --json;
+                    compare.py triad_count --certificate, config <backend>[/t<N>]:triad/<mode>):
                     each golden set's manifest digest, the case x configuration matrix, the
                     tolerance and the verdict; for the CBST trace sets (kind cbst_trace, M8a)
                     the store's replays under the presets (config device:<preset>/<fields>) and,
@@ -46,8 +47,12 @@ rewrites the generated part of README.md (between the certify markers) from the 
 
 The performance part needs the summary of every suite of REQUIRED_SUITES whose release series has
 come (sssp's ipdps25_dynamosp_sosp and cycle_count's ieee_tc_dyntrucy from 0.1, mosp's
-ipdps25_dynamosp_mosp from 0.2: a 0.2 certificate without the mosp gates fails), and each summary
-must hold a gated reading of every gated metric of its suite file on every backend it is gated on.
+ipdps25_dynamosp_mosp from 0.2: a 0.2 certificate without the mosp gates fails; triad_count's
+ipdps26_escher and tkde26_escher_plus from 0.3), and each summary must hold a gated reading of
+every gated metric of its suite file on every backend it is gated on. From 0.3 the triad goldens
+(kind triad_count, M9a) need the replays of every backend of their coverage table by key and by
+content with the algorithm counter (TRIAD_REPLAYS_SINCE). `write --dry-run <algorithm>` judges one
+algorithm's suites and golden sets only and lists every other part as outside the dry run.
 Every gated row is recomputed from the compacted record next to its summary and the suite file's
 tolerance (recheck_gates). The checks part needs every check of REQUIRED_CHECKS of the version's
 series, each with at least its scope (and gpu_local its compute-sanitizer steps); the
@@ -240,6 +245,15 @@ HYPERGRAPH_ID_REPLAYS = {
     "cbst_trace_mosp_escher_dblp50k_hyperedge": {"ids": ["sequential", "openmp", "cuda"]},
 }
 HYPERGRAPH_ID_SINCE = (0, 3)
+# The triad_count golden replays (M9a, ADR 0056): from the 0.3 series (triad_count is part of
+# 0.3.0, Appendix F; decision D2) a certificate needs, for every backend of the set's coverage
+# table (parity/goldens.toml [sets.<set>.coverage], decision D6), passed replays with the
+# algorithm counter by key and by content (`compare.py triad_count --counter algorithm --mode
+# both --certificate <results>`: config "<backend>[/t<N>]:triad/<mode>"), covering every case
+# the table gives that backend: all four patterns, h_motif and StatHyper's types 1-3. Not part of
+# REQUIRED_REPLAYS: a 0.1 or 0.2 certificate lists the set without requiring it.
+TRIAD_REPLAYS_SINCE = (0, 3)
+TRIAD_MODES = ("by_key", "by_content")
 # The features of a hypergraph-id config that count as an id replay.
 HYPERGRAPH_ID_MODES = {"ids": ("by_id", "both"), "line_graph": ("line_graph",)}
 # The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
@@ -252,6 +266,10 @@ REQUIRED_SUITES = {
     "ipdps25_dynamosp_sosp": {"algorithm": "sssp", "since": (0, 1)},
     "ieee_tc_dyntrucy": {"algorithm": "cycle_count", "since": (0, 1)},
     "ipdps25_dynamosp_mosp": {"algorithm": "mosp", "since": (0, 2)},
+    # triad_count against ESCHER-GPU (M9a; 0.3, decision D8): the timing gates of the ESCHER paper
+    # and the memory gates (store accounting, the Nsight Systems peak, decision D1) of ESCHER+.
+    "ipdps26_escher": {"algorithm": "triad_count", "since": (0, 3)},
+    "tkde26_escher_plus": {"algorithm": "triad_count", "since": (0, 3)},
 }
 # The release checks a certificate needs (checks.json), each from the release series on which it
 # became part of the release (docs/developer/release.md, steps 1-4), with the narrowest scope its
@@ -277,7 +295,9 @@ REQUIRED_CHECKS = {
 }
 RELEASE_SERIES = re.compile(r"^v?(\d+)\.(\d+)(?:[.\-+a-z]|$)", re.I)
 # A region of a summary named after its metric: "sosp_update obj1" (per objective),
-# "update[resident]", "device_memory[original]" (cycle_count's scopes).
+# "update[resident]", "device_memory[original]" (cycle_count's scopes), "store_memory[b2]"
+# (triad_count's store accounting per point). A metric that is itself a row ("update[b1]",
+# triad_count's per-batch gate) is read by that row only (missing_gates).
 REGION_SUFFIX = re.compile(r"(?: obj\d+|\[[^\]]*\])$")
 # "100% tests passed out of 595" (CMake 4) or "95% tests passed, 1 tests failed out of 20".
 CTEST = re.compile(r"(\d+)% tests passed(?:, (\d+) tests? failed)? out of (\d+)")
@@ -623,7 +643,57 @@ def hypergraph_id_coverage(entry: dict) -> dict[str, set[str]]:
     return out
 
 
-def golden_suites(results: Path, head: str, problems: list[str], version: str = "") -> list[dict]:
+def triad_required_cases(spec: dict) -> dict[str, set[str]]:
+    """{backend: the cases the set's coverage table gives it} (goldens.toml's coverage, D6)."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import triad_goldens
+
+    coverage = spec.get("coverage") or {}
+    return {
+        backend: set(triad_goldens.coverage_cases(backend, list(items)))
+        for backend, items in coverage.items()
+        if backend in ("sequential", "openmp", "cuda")
+    }
+
+
+def triad_coverage(entry: dict) -> dict[str, dict[str, set[str]]]:
+    """{backend: {mode: cases}} of the passed triad replays of a golden-set entry with the
+    algorithm counter (the oracle's replays of the go/no-go do not count)."""
+    out: dict[str, dict[str, set[str]]] = {}
+    for r in entry["replays"]:
+        checks = r.get("checks") or {}
+        if not r["passed"] or checks.get("counter") != "algorithm" or not checks.get("coverage"):
+            continue
+        for c in r["configs"]:
+            if ":triad/" not in c:
+                continue
+            backend = c.split(":", 1)[0].split("/")[0]
+            mode = c.rsplit("/", 1)[1]
+            cases = {case for case, row in r["matrix"].items() if row.get(c) == "equal"}
+            out.setdefault(backend, {}).setdefault(mode, set()).update(cases)
+    return out
+
+
+def set_algorithm(name: str, spec: dict) -> str:
+    """The algorithm a golden set belongs to (a dry run's scope): its kind for the triad goldens,
+    "cbst" for the CBST traces, else the set's name up to its first known suffix."""
+    kind = spec.get("kind", "golden")
+    if kind == "triad_count":
+        return "triad_count"
+    if kind == "cbst_trace":
+        return "cbst"
+    return "cycle_count" if name.startswith("cycle_count") else name.removesuffix("_scale")
+
+
+def golden_suites(
+    results: Path,
+    head: str,
+    problems: list[str],
+    version: str = "",
+    only: str | None = None,
+) -> list[dict]:
+    """Every golden set of parity/goldens.toml with its replays and verdict (`only`: the sets of
+    one algorithm, a dry run's scope)."""
     doc = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
     replays: dict[str, list[dict]] = {}
     for path in sorted(results.glob("parity-*.json")):
@@ -631,6 +701,8 @@ def golden_suites(results: Path, head: str, problems: list[str], version: str = 
         replays.setdefault(replay_set(record), []).append({"file": path.name, "record": record})
     out = []
     for name, spec in doc["sets"].items():
+        if only is not None and set_algorithm(name, spec) != only:
+            continue
         cases = spec.get("cases", {})
         entry = {
             "set": name,
@@ -701,13 +773,16 @@ def golden_suites(results: Path, head: str, problems: list[str], version: str = 
                     "passed": ok,
                 }
             )
-        if entry["kind"] == "triad_count" and not entry["replays"]:
-            # ESCHER-GPU's triad goldens (M9a step 1, ADR 0048): their replays through dynG
-            # arrive with the port (M9a steps 2-4), and M9a step 5 makes them required from the
-            # 0.3 series. Until then a certificate lists the set without a verdict (None, which
-            # the golden_parity verdict skips); a replay record, once there, is judged as usual.
+        series = release_series(version)
+        triad_required = entry["kind"] == "triad_count" and (
+            series is None or series >= TRIAD_REPLAYS_SINCE
+        )
+        if entry["kind"] == "triad_count" and not triad_required and not entry["replays"]:
+            # ESCHER-GPU's triad goldens (M9a, ADR 0048): required from the 0.3 series only. A
+            # 0.1 or 0.2 certificate lists the set without a verdict (None, which the
+            # golden_parity verdict skips); a replay record, if there, is judged as usual.
             entry["passed"] = None
-            entry["required"] = "not yet: the triad_count replays are required from M9a step 5"
+            entry["required"] = "from 0.3 on (the triad_count replays of M9a)"
             out.append(entry)
             continue
         missing = [b for b in REQUIRED_REPLAYS.get(name, []) if b not in covered]
@@ -717,6 +792,28 @@ def golden_suites(results: Path, head: str, problems: list[str], version: str = 
         entry["passed"] = (
             bool(entry["replays"]) and not missing and all(r["passed"] for r in entry["replays"])
         )
+        if triad_required:
+            # Every backend of the coverage table, by key and by content, every case it lists
+            # (all four patterns), with the algorithm counter (ADR 0056).
+            wanted = triad_required_cases(spec)
+            have = triad_coverage(entry)
+            entry["required_coverage"] = {b: len(c) for b, c in sorted(wanted.items())}
+            entry["triad_coverage"] = {
+                b: {m: len(c) for m, c in sorted(modes.items())}
+                for b, modes in sorted(have.items())
+            }
+            for backend, cases in sorted(wanted.items()):
+                for mode in TRIAD_MODES:
+                    absent = cases - have.get(backend, {}).get(mode, set())
+                    if absent:
+                        problems.append(
+                            f"golden set {name}: {len(absent)} of the {len(cases)} cases the "
+                            f"coverage table gives {backend} have no passed replay {mode} with "
+                            f"the algorithm counter (first: {sorted(absent)[0]}; compare.py "
+                            f"triad_count --backend {backend} --counter algorithm --mode both "
+                            "--certificate <results>)"
+                        )
+                        entry["passed"] = False
         if entry["kind"] == "cbst_trace":
             # The CBST trace goldens (M8a): replays of the dynG store under the original's preset
             # and dynG's default are required (CBST_REQUIRED_PRESETS).
@@ -962,20 +1059,24 @@ def missing_gates(suite_file: Path, gate_table: list[dict]) -> list[str]:
 
     suite = bench_suite.load_suite(suite_file)
     read = {(row.get("backend"), REGION_SUFFIX.sub("", row["region"])) for row in gate_table}
+    exact = {(row.get("backend"), row["region"]) for row in gate_table}
     out = []
     for name, metric in (suite.get("metrics") or {}).items():
         for backend in suite.get("backends") or {}:
             if backend not in metric or bench_suite.metric_gate(metric, backend) == "none":
                 continue
-            if (backend, name) not in read:
+            # A metric named as a row ("update[b1]") is read by that row only.
+            have = exact if REGION_SUFFIX.search(name) else read
+            if (backend, name) not in have:
                 out.append(f"{name} ({backend})")
     return out
 
 
 def record_region(record: dict | None, region: dict) -> dict | None:
     """The medians of `region` (a summary row) in the compacted harness record it came from:
-    {"original": ..., "port": ...} in ms (a timed region) or MiB (device memory); None if the
-    record does not hold it."""
+    {"original": ..., "port": ...} in ms (a timed region), MiB (device memory) or bytes (the
+    store accounting of triad_count, "store_memory[<point>]"); None if the record does not hold
+    it."""
     if record is None:
         return None
     by_case = record.get("results") or {}
@@ -983,6 +1084,18 @@ def record_region(record: dict | None, region: dict) -> dict | None:
     key = case if case in by_case else case.split("/", 1)[-1]
     result = by_case.get(key)
     if not isinstance(result, dict):
+        return None
+    if region["region"].startswith("store_memory"):
+        # triad_count's store accounting (bytes per point, M9a): "store_memory[b2]".
+        for point in result.get("store_accounting") or []:
+            if point.get("row") == region["region"]:
+                original = point.get("escher_gpu_device_bytes")
+                port = point.get("dyng_device_bytes")
+                return (
+                    None
+                    if original is None or port is None
+                    else {"original": original, "port": port}
+                )
         return None
     if region.get("gate_kind") == "memory":
         side = "port" + region["region"][len("device_memory") :]
@@ -1023,7 +1136,13 @@ def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> d
                 continue
             where = f"{name}: {reading.get('reading')} {region['case']} {region['region']}"
             kind = region.get("gate_kind")
-            unit = "mib" if kind == "memory" else "ms"
+            unit = (
+                "bytes"
+                if region["region"].startswith("store_memory")
+                else "mib"
+                if kind == "memory"
+                else "ms"
+            )
             original, port = region.get(f"original_{unit}"), region.get(f"port_{unit}")
             if not original or port is None:
                 problems.append(f"{where}: no medians to recompute the ratio from")
@@ -1679,6 +1798,12 @@ def readme_block(cert: dict) -> str:
         f"**Certificate:** `parity.json` (dynG {cert['version']}, commit `{cert['commit'][:12]}`): "
         + ("**all parts passed**." if v["passed"] else "**FAILED**: " + "; ".join(v["problems"]))
     )
+    if cert.get("dry_run"):
+        lines += [
+            "",
+            f"**Dry run** of `{cert['dry_run']['algorithm']}` only (not a release's certificate); "
+            "outside it: " + "; ".join(cert["dry_run"]["outside"]) + ".",
+        ]
     lines.append("")
     env = cert["environment"]
     gpu = env["hardware"]["gpus"][0]["name"] if env["hardware"]["gpus"] else "no GPU"
@@ -1802,14 +1927,36 @@ def cmd_write(args: argparse.Namespace) -> int:
         raise SystemExit(f"{results}: no results directory")
     head, dirty = head_commit()
     problems: list[str] = []
+    dry = args.dry_run
+    outside: list[str] = []
+    if dry:
+        # A dry run of one algorithm's parts (M9a step 5): its suites and golden sets are judged
+        # as in a release; every other required part is listed as outside the dry run. Never a
+        # release's certificate.
+        if results.resolve().is_relative_to((REPO / "benchmarks" / "results").resolve()):
+            raise SystemExit("write --dry-run: give --results outside benchmarks/results/")
+        doc = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
+        outside += [
+            f"golden set {n}" for n, spec in doc["sets"].items() if set_algorithm(n, spec) != dry
+        ]
+        outside += [
+            f"suite {n} ({spec['algorithm']})"
+            for n, spec in required_suites(args.version).items()
+            if spec["algorithm"] != dry
+        ]
+        outside += ["the release checks (checks.json)", "the committed fixtures"]
     if dirty and not args.allow_dirty:
         problems.append("the release tree is dirty (commit first, or --allow-dirty for a draft)")
-    goldens = golden_suites(results, head, problems, args.version)
+    goldens = golden_suites(results, head, problems, args.version, only=dry)
     perf = performance(results, head, problems)
+    if dry:
+        perf = [s for s in perf if s["algorithm"] == dry]
     if not perf:
         problems.append("no performance-suite summary (parity/bench_suite.py run)")
     present = {s["suite"]: s for s in perf}
     for name, spec in required_suites(args.version).items():
+        if dry and spec["algorithm"] != dry:
+            continue
         if name not in present:
             since = ".".join(map(str, spec["since"]))
             problems.append(
@@ -1818,8 +1965,11 @@ def cmd_write(args: argparse.Namespace) -> int:
             )
         elif present[name]["algorithm"] != spec["algorithm"]:
             problems.append(f"{name}.json: algorithm {present[name]['algorithm']!r}")
-    checklist = checks(results, head, problems, args.version)
-    fixtures = committed_fixtures(checklist, problems)
+    if dry:
+        checklist, fixtures = [], []
+    else:
+        checklist = checks(results, head, problems, args.version)
+        fixtures = committed_fixtures(checklist, problems)
     env = environment()
     env["driver"] = measured_driver(perf, env["driver"], problems)
     # Each measured commit once, as its full SHA (records name commits short or full).
@@ -1879,6 +2029,14 @@ def cmd_write(args: argparse.Namespace) -> int:
         "performance": perf,
         "checks": checklist,
     }
+    if dry:
+        cert["dry_run"] = {
+            "algorithm": dry,
+            "what": "a dry run of one algorithm's parts of a certificate: its performance "
+            "suites (recheck_gates) and golden sets judged as in a release; not a release's "
+            "certificate",
+            "outside": outside,
+        }
     cert["verdict"] = {
         "golden_parity": bool(goldens)
         and all(g["passed"] for g in goldens if g["passed"] is not None),
@@ -1887,13 +2045,19 @@ def cmd_write(args: argparse.Namespace) -> int:
         "checks": bool(checklist) and all(c.get("result") == "passed" for c in checklist),
         "problems": problems,
     }
+    if dry:
+        cert["verdict"]["committed_fixtures"] = "outside this dry run"
+        cert["verdict"]["checks"] = "outside this dry run"
     cert["verdict"]["passed"] = not problems and all(
         cert["verdict"][k]
         for k in ("golden_parity", "committed_fixtures", "performance_gates", "checks")
     )
     (results / "parity.json").write_text(json.dumps(cert, indent=1) + "\n")
     update_readme(results / "README.md", readme_block(cert))
-    print(f"{results / 'parity.json'}: {'PASSED' if cert['verdict']['passed'] else 'FAILED'}")
+    print(
+        f"{results / 'parity.json'}: {'PASSED' if cert['verdict']['passed'] else 'FAILED'}"
+        + (f" (a dry run of {dry}; outside it: {len(outside)} parts)" if dry else "")
+    )
     for p in problems:
         print(f"  {p}")
     return 0 if cert["verdict"]["passed"] else 1
@@ -1906,6 +2070,12 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--version", default=(REPO / "VERSION").read_text().strip())
     w.add_argument("--results", type=Path, default=None)
     w.add_argument("--allow-dirty", action="store_true", help="a draft from an uncommitted tree")
+    w.add_argument(
+        "--dry-run",
+        metavar="ALGORITHM",
+        help="a dry run of one algorithm's suites and golden sets (every other required part is "
+        "listed as outside it); --results must be outside benchmarks/results/",
+    )
     e = sub.add_parser(
         "equivalence",
         help="compare the builds of a measured commit and of the release (METADATA_PATHS only)",
