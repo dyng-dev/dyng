@@ -432,10 +432,12 @@ def build(copy: Path, targets: list[str], defines: list[str], log: Path) -> dict
     if sh(heavy(argv), log, cwd=copy):
         return None
     exes = {}
-    for t in targets:  # a compatibility driver (tools/compat) or a test (cpp/tests)
+    for t in targets:  # a compatibility driver (tools/compat) or a test (cpp/tests, or the
+        # test directory of an algorithm, cpp/tests/algorithms/<algorithm>)
         found = [
             p for p in (tree / "tools" / "compat" / t, tree / "cpp" / "tests" / t) if p.is_file()
         ]
+        found += sorted(p for p in (tree / "cpp/tests/algorithms").glob(f"*/{t}") if p.is_file())
         if not found:
             return None
         exes[t] = found[0]
