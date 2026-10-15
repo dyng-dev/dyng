@@ -37,6 +37,14 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                GoogleTest suite dyng_triad_reference_tests (the class map against ESCHER-GPU's
                table, one triple per reachable bin, the brute force over all triples); also the
                CTest `testing.mutation.triad_reference_class_map` of every build
+  triad_count  triad_count (M9a, criterion 11; PLAN 8.4's triad mutations): the GoogleTest suites
+               dyng_triad_count_tests (the host backends: hand cases, property tests against the
+               oracle, the stats) and dyng_triad_count_cuda_tests (the same on cuda and the device
+               tests of the engine); the hooks DYNG_MUTATION_TRIAD_* are in the code both engines
+               share (engine/phases.hpp, engine/ownership.hpp, triad_count.cpp), and the CBST's
+               unfill that drops its last value (DYNG_MUTATION_CBST_UNFILL_DROPS_LAST) must make
+               the CUDA suite fail too; also the CTests `triad_count.mutation.<name>` (label cpu)
+               and `triad_count.mutation.cuda.<name>` (label gpu) of every build
   kit          the conformance kit's hypergraph axis (M8b, criterion 11; ADR 0043): the kit C0-C12
                over the test-only aggregate-delta fake test_hyper_pairs on every backend
                (dyng_hypergraph_kit_tests, dyng_hypergraph_kit_cuda_tests); its planted bug (the
@@ -103,6 +111,12 @@ SUITES = {
             "dyng_hypergraph_cuda_tests",
             "dyng_hypergraph_ids_cuda_tests",
         ],
+        "runner": "gtest",
+        "compare": [],
+    },
+    # triad_count (M9a, criterion 11): its tests on the host backends and on cuda.
+    "triad_count": {
+        "targets": ["dyng_triad_count_tests", "dyng_triad_count_cuda_tests"],
         "runner": "gtest",
         "compare": [],
     },
@@ -313,6 +327,52 @@ MUTATIONS = [
         "plan": "M8b 11: the kit's planted bug: frontier = requested ids instead of inserted_ids",
         "defines": ["DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS"],
         "config": "sequential",  # a label: the suite runs on every backend
+    },
+    # triad_count (M9a criterion 11; PLAN 8.4: a wrong bin sign, a skipped frontier filter, an
+    # unfill that drops its last value): the hooks are in the code the CUDA engine and the host
+    # engine share, so each mutation acts on every backend.
+    {
+        "name": "triad_wrong_bin_sign",
+        "suite": "triad_count",
+        "plan": "M9a 11: count(-) adds (engine/phases.hpp phase_sign)",
+        "defines": ["DYNG_MUTATION_TRIAD_WRONG_BIN_SIGN"],
+        "config": "cuda",  # a label: the suite runs on every backend
+    },
+    {
+        "name": "triad_skip_frontier_filter_b",
+        "suite": "triad_count",
+        "plan": "M9a 11: the wedge filter skipped (ESCHER-GPU wedge.cuh:101; engine/ownership.hpp)",
+        "defines": ["DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_B"],
+        "config": "cuda",
+    },
+    {
+        "name": "triad_skip_frontier_filter_k",
+        "suite": "triad_count",
+        "plan": "M9a 11: the closing filter skipped (ESCHER-GPU wedge.cuh:129; "
+        "engine/ownership.hpp)",
+        "defines": ["DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_K"],
+        "config": "cuda",
+    },
+    {
+        "name": "triad_inserted_requested_ids",
+        "suite": "triad_count",
+        "plan": "M9a 11: count(+)'s frontier from the requested ids, not the assigned ones",
+        "defines": ["DYNG_MUTATION_TRIAD_INSERTED_REQUESTED_IDS"],
+        "config": "cuda",
+    },
+    {
+        "name": "triad_type1_unbounded_keys",
+        "suite": "triad_count",
+        "plan": "M9a 11: type 1's full count bounded by the largest bound so far, not h2v's",
+        "defines": ["DYNG_MUTATION_TRIAD_TYPE1_UNBOUNDED_KEYS"],
+        "config": "cuda",
+    },
+    {
+        "name": "cbst_unfill_drops_last_triad",
+        "suite": "triad_count",
+        "plan": "M9a 11: cbst_unfill_drops_last (MOSP_ESCHER #4) against the triad suite",
+        "defines": ["DYNG_MUTATION_CBST_UNFILL_DROPS_LAST"],
+        "config": "cuda",
     },
     # triad_reference (M9a criterion 4): the oracle's planted mutation, two classes of its
     # representative list swapped (cpp/src/testing/triad_reference.cpp); its tests must fail (the
@@ -549,6 +609,8 @@ def run(args: argparse.Namespace) -> int:
             "lockstep and graph-on-CBST tests (no golden corpus)",
             "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/"
             "{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
+            "triad_count": "triad_count's tests against the independent oracle "
+            "(dyng::testing::triad_reference) on every backend (no golden corpus)",
         },
         "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst "
         "test executables, from git archive HEAD",

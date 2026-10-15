@@ -1008,6 +1008,130 @@ if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
   endforeach()
 endif()
 
+# triad_count's mutations (M9a criterion 11; PLAN 8.4: a wrong bin sign, a skipped frontier
+# filter, an unfill that drops its last value): a copy of libdyng whose triad_count module is
+# rebuilt with DYNG_MUTATION_TRIAD_<NAME> (the hooks are in the code both engines share:
+# engine/phases.hpp, engine/ownership.hpp and triad_count.cpp's triad_inserted_ids), linked with
+# the triad tests on the host backends (triad_count.mutation.<name>, labels
+# cpu;mutation;triad_count, every build) and, in CUDA builds, with the CUDA triad suite
+# (triad_count.mutation.cuda.<name>, labels gpu;mutation;triad_count). The CTest passes when the
+# suite fails; the control copy must pass. cbst_unfill_drops_last (M8a's CBST mutation, MOSP_ESCHER
+# #4: the store's unfill ignores the last value of each removal list) rebuilds the hypergraph
+# module instead and runs against the CUDA triad suite only. The mutants' CUDA code is compiled for
+# one architecture (dyng_mutant_cuda_architectures).
+option(DYNG_TRIAD_MUTATION_TESTS "Build the mutation tests of triad_count" ${DYNG_MUTATION_TESTS})
+if(DYNG_TRIAD_MUTATION_TESTS AND TARGET dyng_triad_count AND TARGET dyng_hypergraph)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  # name|define|module|expected verdict|host suite too
+  set(_dyng_triad_mutants
+      "control||dyng_triad_count|pass|host"
+      "wrong_bin_sign|DYNG_MUTATION_TRIAD_WRONG_BIN_SIGN|dyng_triad_count|fail|host"
+      "skip_frontier_filter_b|DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_B|dyng_triad_count|fail|host"
+      "skip_frontier_filter_k|DYNG_MUTATION_TRIAD_SKIP_FRONTIER_FILTER_K|dyng_triad_count|fail|host"
+      "inserted_requested_ids|DYNG_MUTATION_TRIAD_INSERTED_REQUESTED_IDS|dyng_triad_count|fail|host"
+      "type1_unbounded_keys|DYNG_MUTATION_TRIAD_TYPE1_UNBOUNDED_KEYS|dyng_triad_count|fail|host"
+  )
+  if(DYNG_ENABLE_CUDA)
+    list(APPEND _dyng_triad_mutants
+         "cbst_unfill_drops_last|DYNG_MUTATION_CBST_UNFILL_DROPS_LAST|dyng_hypergraph|fail|cuda"
+    )
+  endif()
+  foreach(_entry IN LISTS _dyng_triad_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _module)
+    list(GET _mutant 3 _expect)
+    list(GET _mutant 4 _suites)
+    get_property(_dyng_mutated_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_${_module})
+    set(_dyng_mutated_sources)
+    foreach(_source IN LISTS _dyng_mutated_relative)  # dyng_add_module's core paths are relative
+      if(NOT IS_ABSOLUTE "${_source}")
+        set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+      endif()
+      list(APPEND _dyng_mutated_sources "${_source}")
+    endforeach()
+    set(_dyng_unmutated_objects)
+    foreach(_other IN LISTS _dyng_modules)
+      if(NOT _other STREQUAL _module)
+        list(APPEND _dyng_unmutated_objects $<TARGET_OBJECTS:${_other}>)
+      endif()
+    endforeach()
+    set(_lib dyng_triad_mutant_${_name})
+    add_library(${_lib}_module OBJECT ${_dyng_mutated_sources})
+    add_library(
+      ${_lib} STATIC ${_dyng_unmutated_objects} $<TARGET_OBJECTS:${_lib}_module>
+                     $<TARGET_OBJECTS:dyng_testing_triad_reference>
+    )
+    set(_exes)
+    if(_suites STREQUAL "host")
+      add_executable(dyng_triad_count_mutant_${_name} algorithms/triad_count/triad_count_test.cpp)
+      list(APPEND _exes dyng_triad_count_mutant_${_name})
+    endif()
+    if(DYNG_ENABLE_CUDA)
+      add_executable(
+        dyng_triad_count_cuda_mutant_${_name}
+        algorithms/triad_count/triad_count_test.cpp
+        algorithms/triad_count/triad_count_kernels_test.cu framework/fake_hyper_kernels.cu
+      )
+      target_compile_definitions(dyng_triad_count_cuda_mutant_${_name} PRIVATE DYNG_TEST_CUDA=1)
+      list(APPEND _exes dyng_triad_count_cuda_mutant_${_name})
+    endif()
+    foreach(_target ${_lib}_module ${_lib} ${_exes})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_module PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_module)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
+    endif()
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    foreach(_exe ${_exes})
+      target_link_libraries(
+        ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+      )
+      if(_exe MATCHES "_cuda_mutant_")
+        dyng_mutant_cuda_architectures(${_exe})
+        add_test(NAME triad_count.mutation.cuda.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=triad_count.cuda.${_name} -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          triad_count.mutation.cuda.${_name}
+          PROPERTIES LABELS "gpu;mutation;triad_count" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+        )
+      else()
+        add_test(NAME triad_count.mutation.${_name}
+                 COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                         -DNAME=triad_count.${_name} -P
+                         "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+        )
+        set_tests_properties(
+          triad_count.mutation.${_name} PROPERTIES LABELS "cpu;mutation;triad_count" ENVIRONMENT
+                                                   "${DYNG_TEST_ENVIRONMENT}"
+        )
+      endif()
+    endforeach()
+  endforeach()
+endif()
+
 dyng_add_test(
   NAME dyng_testing_tests
   SOURCES testing/oracle_test.cpp testing/cycle_oracle_test.cpp

@@ -824,6 +824,22 @@ def test_mutation_points_match_the_code_once() -> None:
         "triad_reference_class_map"
     }
     assert mutate.suite_targets("triad_reference") == ["dyng_triad_reference_tests"]
+    # triad_count's mutations (M9a, criterion 11): in the code its two engines share.
+    for path in sorted((REPO / "cpp/src/algorithms/triad_count").rglob("*")):
+        if path.is_file():
+            hooks += path.read_text()
+    assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "triad_count"} == {
+        "triad_wrong_bin_sign",
+        "triad_skip_frontier_filter_b",
+        "triad_skip_frontier_filter_k",
+        "triad_inserted_requested_ids",
+        "triad_type1_unbounded_keys",
+        "cbst_unfill_drops_last_triad",
+    }
+    assert mutate.suite_targets("triad_count") == [
+        "dyng_triad_count_tests",
+        "dyng_triad_count_cuda_tests",
+    ]
     assert mutate.suite_targets("kit") == [
         "dyng_hypergraph_kit_tests",
         "dyng_hypergraph_kit_cuda_tests",
