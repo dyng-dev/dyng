@@ -264,3 +264,177 @@ otherwise base").
   H2H merge on both sides) must stay below 120.6 MiB (coauth_b50k_s1), **45.1 MiB
   (syn1m_b50k_s1)** and 88.4 MiB (syn2m_b50k_s1).
 - **Host syncs**: A's update makes 90-96 blocking calls per batch; the port's apply 16-19 so far.
+
+## 3. Step cuda-port-api-early-gate: the CUDA port, the API and the early gate reading
+
+Code: `be82dec` (the scaffold), `645d6dc` (c1, the transplant with the API, the problem, the host
+recount, the replay counter and the driver's counting), `58b0895`, `64d3b7c` (c2), `29a02ad` (c3),
+`679cec9` (c4), `84f894b` (c5), `c0793d6` (c6), `860fb1b` (the host recount on the engine's
+operations), `85efa0b` (the tests and the kit), `7c78e8b` (the driver's stdout, `triad_replay.py
+stdout`, the gpu_local step), `7c75a45`, `40efdba`, `a7a53cc`, `091e667` (the manifest's `python` flag), `a39b0bf` (its message under the line limit: pre-commit, which ran before `091e667`). ADRs 0052 (the API) and 0053 (the engine port).
+The parity records ran from `85efa0b` (the replay tool of the reduced build) and `7c78e8b` (the
+driver); the gate readings from `40efdba` (`+dirty`: only records and docs uncommitted).
+
+### 3.1 The transplant and the commit table (criterion 7; ADR 0053)
+
+`python3 parity/escher_port/transplant.py --map parity/escher_port/rename_map_triad.toml --check
+--rev 645d6dc`: **10 files, identical**. After every commit of the port, `parity/compare.py
+triad_count --backend cuda --mode by_key --counter algorithm --cases
+make-test,syn1m_b50k_s1,coauth_b50k_s1` on a reduced Release build (`cmake --preset parity-cuda
+-DDYNG_ALGORITHMS=triad_count`, GPU 1, shared lock; `M9a-transplant-replays-escher_gpu.json`):
+
+| Commit | Class | Cases | make-test / syn1m_b50k_s1 / coauth_b50k_s1 (s, group time) |
+|---|---|---:|---|
+| `645d6dc` c1 | transplant (A's counters run as A's driver runs them) | 68/68 | 9 / 18.5 / 169.8 (replayed later from a worktree, beside other GPU work) |
+| `64d3b7c` c2 | errors (`DYNG_CUDA_TRY`; the unclassified triangle raises the error word) | 68/68 | 7 / 17.0 / 69.3 |
+| `29a02ad` c3 | memory (the pooled workspace, CUB's scan, the frontier by a kernel, the phases' bins apart) | 68/68 | 8 / 16.9 / 68.8 |
+| `679cec9` c4 | streams (the resources' stream; syncs at A's read points only) | 68/68 | 8 / 16.8 / 69.1 |
+| `84f894b` c5 | registration and counters (`DYNG_REGISTER_KERNEL`, launch counters) | 68/68 | 7 / 16.9 / 68.6 |
+| `c0793d6` c6 | the Op form (host-and-device operations, rows and bins handles, `ownership::min_member`) | 68/68 | 7 / 16.9 / 68.8 |
+
+(Each group's time includes the recount after every batch that the replay makes for "baseline +
+deltas == recount".)
+
+### 3.2 SASS and resources (criterion 7; `M9a-sass-escher_gpu.json`, `parity/triad_sass.py`)
+
+The five counting kernels of A's unpatched objects and of the parity-cuda `engine/counters.cu.o`
+(`cuobjdump -res-usage`, `cuobjdump -sass`; a digest of the normalized instruction stream):
+
+| Kernel | REG A / c5 / c6 | stack, local | shared (B) | instructions A / c5 / c6 | largest loops A / c5 = c6 | machine code |
+|---|---|---|---:|---|---|---|
+| count_wedges | 14 / 14 / 14 | 0, 0 | 0 | 48 / 48 / 48 | 1 / 1 | A = c5 = c6 |
+| triangle_kernel<motif_op> | 39 / 39 / 39 | 0, 0 | 240 | 536 / 552 / 552 | 461, 438, 435 / 479, 456, 453 | c5 = c6; +16 against A: the error word of a pattern of no class (c2) |
+| triangle_kernel<type3_op> | 39 / 39 / 39 | 0, 0 | 8 | 512 / 512 / 512 | 419, 409, 406 / the same | A = c5 = c6 |
+| pair_kernel<type2_op> | 38 / 38 / 38 | 0, 0 | 8 | 456 / 456 / 456 | 364, 360, 192 / the same | A = c5 = c6 |
+| key_kernel<choose3_op> | 16 / 16 / 16 | 0, 0 | 8 | 152 / 152 / 152 | 41, 40, 17 / the same | A = c5 = c6 |
+
+**c6 go/no-go: GO** (`triad_sass.py compare`: the five kernels identical to c5's). Theoretical
+occupancy is the same everywhere (256-thread blocks; at 38-39 registers 6 blocks per SM, 1,536
+threads: 100 % on sm_86). A first c6 whose bins handle also tested the upper bound of the bin had
+one IADD3 more per triangle in MotifOp's loop (479 -> 481); the handle tests the sign only (ADR
+0053 section 1). Compile time: `engine/counters.cu` and `cuda.cu` take 30 s and 31 s of nvcc each
+for the release architectures (75-real ... 120), negligible against the hosted cuda-build's 120
+minutes.
+
+### 3.3 Exact parity on cuda (criterion 8; `M9a-parity-cuda-escher_gpu.json`)
+
+`parity/compare.py triad_count --backend cuda --mode both --counter algorithm --jobs 3` (all 300
+cases of the set: the 240 grid cases and make-test's 60; GPU 1): **300/300 cases exact**: the
+full count, every net delta and count after equal to the golden's in both modes, the expected ids
+by key in every batch, every deleted row resolved by content, `check_integrity()` after every
+batch, both modes equal, and per batch the result equal to a fresh `compute()` and its stats
+consistent (delta, frontier sizes, removed / added). 2,373 s wall (7,107 s of group time;
+coauth's groups 282-452 s each).
+
+| Backend | Cases | Modes | Counter | Result |
+|---|---|---|---|---|
+| cuda | 300 (the grid and make-test) | by key and by content | algorithm (the wedge engine) | **300/300 exact** |
+| sequential (dev build) | make-test (60) | both | algorithm (the host recount, step 3) | 60/60 |
+| openmp, 8 threads (dev build) | make-test (60) | both | algorithm (the host recount) | 60/60 |
+
+The host backends' grids (the syn100k grid, the openmp syn1m s1 grid and coauth types 1-2) are
+step 4's, with the incremental host engines.
+
+- **The driver's stdout** (`parity/triad_replay.py stdout`, `M9a-stdout-escher_gpu.json`): `dyng-compat-escher
+  run --pattern P` with A's arguments prints **A's unpatched stdout byte for byte on all 60
+  make-test cases**, and the count and batch lines of coauth_b50k_s1, syn1m_b50k_s1 and
+  syn2m_b50k_s1 for all four patterns: 72/72.
+- **10 repeated coauth_b50k_s1 runs** (the driver, each pattern, `M9a-repeat-escher_gpu.json`):
+  one stdout per pattern over its 10 runs.
+- The harness's planted defects fail the algorithm counter too (a changed bin, swapped batches, a
+  wrong expected id; `parity/tests/test_triad_replay.py`).
+
+### 3.4 Kernel paths (criterion 9)
+
+The result keeps launch counters per (mode, shape) (`triad_launch_counters`; the replay reports
+them). On every case each pattern ran its kernels in both modes: full and frontier x triangles
+(h_motif, type 3), pairs (type 2), keys (type 1). The store's kernel paths of make-test's skewed and
+medium cases (the replay's container, fill / reuse / unfill as thread, warp, block launches):
+**skewed 2, 0, 2 each; medium 3, 3, 0 each: the thread, warp and block paths all ran**.
+`dyng_triad_count_cuda_tests` (GPU 1): `KernelPathsAndEarlyOuts` (both early outs: an insert-only
+batch has no subtract sources, the deletion of an isolated hyperedge has sources without wedges;
+every (mode, shape) launched), insert-only, delete-only, delete-all, a batch larger than the
+hypergraph, the id bound going down; `EveryVennPatternGetsItsClassOrRaisesTheErrorWord`: the 128
+Venn ids through MotifOp and the bins handle on the device, 96 classified as the oracle's derived
+map says, the 32 others raise the error word and write neither `bins[-1]` nor `bins[30]`.
+
+### 3.5 Tests and the kit (criteria 5, 6, 10)
+
+| Executable | Build | Result |
+|---|---|---|
+| `dyng_triad_count_tests` (host backends) | dev | 20/20 |
+| `dyng_triad_count_conformance_tests` (h_motif and types 1-3; both instantiations; every preset, mix and shape) | dev (budgets) | 88 passed, 16 skipped (C4: one engine; C12: cuda only); C10 with another pattern and the fake |
+| `dyng_triad_count_cuda_tests` | dev-cuda | 14/14 |
+| `dyng_triad_count_conformance_cuda_tests` | dev-cuda (budgets) | 96 passed, 8 skipped (C4: one engine), C8 strict, C10 with another pattern and the fake, C12 on cuda |
+
+C8 on cuda: no allocation after the commit once reserved, 3 host synchronizations per update (1 for
+type 1), the problem's budget equal to the traits'. An update measured directly
+(`AnUpdateSynchronizesAtTheEnginesReadPointsOnly`): 3 (type 1: 1). In the gated process (Nsight
+Systems API trace, 3.6): the port's update makes 22, 19, 22 blocking calls per batch
+(`cudaStreamSynchronize`: the container's apply 19 / 16 / 19, the counting 3), A's 96, 90-96.
+
+### 3.6 The early gate reading (criteria 12 and 13, not the gates)
+
+**Timing** (`parity/perf_ab.py triad_count run --cases coauth_b50k_s1,syn1m_b50k_s1 --rounds 5
+--lock-clocks base --gpu 0`, `M9a-early-run-escher_gpu.json`): exclusive perf lock, GPU 0 at the
+base lock (SM 1170 / memory 7601 MHz), EAGER, one heap layout, A/B alternation, no round rejected;
+medians of 5 rounds (ms):
+
+| Row | coauth_b50k_s1 A / port | ratio | syn1m_b50k_s1 A / port | ratio | target |
+|---|---|---:|---|---:|---|
+| update[b1] | 510.7 / 484.8 | 0.949 | 164.6 / 143.6 | 0.872 | <= 1.03 |
+| update[b2] | 548.7 / 533.4 | 0.972 | 144.3 / 145.9 | 1.011 | <= 1.03 |
+| update[b3] | 549.5 / 538.3 | 0.980 | 155.0 / 147.2 | 0.950 | <= 1.03 |
+| full_count | 5,293.8 / 5,286.6 | 0.999 | 635.2 / 636.9 | 1.003 | <= 1.03 |
+| end_to_end | 9,393.0 / 8,850.2 | 0.942 | 2,495.6 / 2,455.9 | 0.984 | <= 1.07 |
+
+Reported sub-rows (ratios b1-b3): coauth `update.subtract` 1.002, 1.010, 0.996; `update.maintain`
+0.767, 0.879, 0.866; `update.add` 0.958, 0.964, 0.990; syn1m `update.subtract` 1.015, 1.027, 1.026;
+`update.maintain` 0.724, 1.069, 0.896; `update.add` 0.933, 0.941, 0.937. **Every target met**; no
+profiling or container fix was needed (nothing changed in `cpp/src/hypergraph`).
+
+**Memory** (`parity/perf_ab.py triad_count memory --cases coauth_b50k_s1,syn1m_b50k_s1,syn2m_b50k_s1
+--gpu 1`, `M9a-early-memory-escher_gpu.json`; both whole processes under `nsys profile -t cuda,nvtx
+--cuda-memory-usage=true`, no `--check`, no foreign process on GPU 1):
+
+| Case | A peak (MiB), range | port peak (MiB), range | port / A | target <= 1.04 | triad bytes during `hypergraph.apply` (budget of step 2) | footprint at the peak A / port | held between batches A / port (MiB) |
+|---|---|---|---:|---|---|---|---|
+| coauth_b50k_s1 | 3,018.9, `maintain.h2h_merge` | 3,021.9, `triad_count.update > triad_count.commit > hypergraph.apply > hypergraph.apply.line_graph` | 1.0010 | met | 3.0 MiB (120.6) | 3,050.9 / 3,136.0 (1.028) | 1,866 / 3,040-3,136 |
+| syn1m_b50k_s1 | 1,131.4, the same | 1,133.0, the same | 1.0014 | met | 1.6 MiB (45.1) | 1,163.4 / 1,184.0 (1.018) | 703 / 1,152-1,184 |
+| syn2m_b50k_s1 | 2,211.7, the same | 2,214.2, the same | 1.0011 | met | 2.5 MiB (88.4) | 2,243.7 / 2,240.0 (0.998) | 1,374 / 2,240 |
+
+Peaks per NVTX range of the port (coauth_b50k_s1, MiB): `triad_count.compute` 1,852.6 (A's
+`init.full_count` 1,852.6), `triad_count.count_minus` 1,837.6 (A's `update.subtract` 1,837.2),
+`triad_count.enact_fused` 1,852.6 within the batches' `triad_count.finalize` 1,833.8 - 1,838.1
+(A's `update.add` 1,837.7), `hypergraph.apply.line_graph` 3,021.9. The store accounting equals A's
+`deviceBytes()` after the build and after every batch (ratio 1.0 at every point, A's two print
+points agree). The footprint between batches is the pool's reserve (1.63-1.69 x A's held bytes,
+as in step 2): reported, flagged above 1.05, not gated (D1).
+
+### 3.7 The checks of the step
+
+| Check | Tree | Result |
+|---|---|---|
+| `transplant.py --check --rev 645d6dc` | `645d6dc` | 10 files identical |
+| reduced replays after every commit (3.1) | c1-c6 | 68/68 each |
+| builds: `parity-cuda` (all algorithms; `85efa0b`), `sanitize-cuda` (`40efdba`), `dev-cuda` (in gpu_local, `a7a53cc`) | as named | built, warnings as errors |
+| `ci/check.sh` (format, cpu-only and dev with `ctest -L cpu`, consumer, tidy, reuse, provenance, regen, harness, docs with the API baseline, api, scaffold, precommit) | `a7a53cc` | all passed except `python` (`dyng.triad_count` absent: fixed in `091e667`) |
+| `DYNG_CHECK_ONLY="python regen harness" ci/check.sh` | `091e667` | passed (python: 637 passed, 72 skipped) |
+| `DYNG_CHECK_ONLY="scaffold api" ci/check.sh` (the templates changed in `091e667`) | `091e667` | passed (scaffold_check: 80 + 54 + 41 tests; api-snapshot 1,275 declarations) |
+| `DYNG_CHECK_ONLY="reuse provenance docs regen precommit" ci/check.sh` | `091e667` + the records | all passed except ruff's line length in `scripts/regen.py` (fixed in `a39b0bf`; `pre-commit run --all-files` then passed) |
+| Clang 18 syntax (`clang_syntax.py`, the fortified tree's database) | `091e667` | 386 files, 0 failures |
+| cpu-only with `-D_FORTIFY_SOURCE=3` (GCC 12, `-Werror`), `ctest -L cpu -R triad` | `091e667` | built; 107/107 |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | `a7a53cc` (the summary names `091e667`, which changed only Python, regen and the manifests) | all 20 steps passed in about 3.5 h (RTX A5000, driver 590.48.01, CUDA 13.1): `ctest -L gpu` 797/797, `ctest -L cpu` 1,243/1,243, the sssp corpus ALL EQUAL (495 x 2), the cycle_count corpus ALL EQUAL (48), memcheck on every gpu executable, the cbst and hypergraph steps; the `triad` step: synccheck and initcheck on `dyng_triad_count_cuda_tests`, memcheck, synccheck and initcheck on one coauth_b50k_s1 batch, racecheck on the kit's C1, C11 and C12 (0 hazards) and on make-test in both modes (60/60 cases) |
+| frozen headers: `git diff 65a62c9 -- cpp/include/dyng/{hypergraph,update.hpp,core,graph}` | head | empty |
+
+### 3.8 For steps 4 and 5
+
+- **GO for step 4**: exact on cuda everywhere, the early readings inside every margin target.
+- The host backends recount in `update()` (`fallback_used`); step 4 replaces `host_count.hpp`'s full
+  mode with the incremental host engine (frontier mode over the same operations, the predicates of
+  `engine/ownership.hpp`), then `triads_removed` / `triads_added` join the kit's deterministic
+  counters (`triad_count_traits.hpp`).
+- Step 5: `cpp/src/hypergraph` did not change, so no ADR 0024 bar is needed; the gpu_local `triad`
+  step exists; the mutations act on `ownership.hpp`'s predicates, the bins' sign
+  (`cuda.cu` / `triad_count.cpp` `apply_delta`), the frontier of the inserted ids
+  (`triad_cuda_identify_affected`) and type 1's key bound (`count_full`).

@@ -1,0 +1,29 @@
+{
+ "schema": 1,
+ "what": "M9a step 3, criterion 8: 10 repeated runs of coauth_b50k_s1 (dyng-compat-escher run --input coauth-DBLP --batches 3 --batch-size 50000 --seed 1 --pattern P, parity-cuda build, GPU 1): the stdout (A's count lines) of the 10 runs of each pattern",
+ "commit": "85efa0b9e613909dcbe8e3a5dfd86c419cae048f+dirty (the driver's printHypergraphParams lines, not on this file-input path)",
+ "date": "2026-10-15T16:00:35Z",
+ "patterns": {
+  "h_motif": {
+   "runs": 10,
+   "distinct_stdout": 1,
+   "stdout_sha256": "d933fd58b4a626d457866c8752b12d26800d0c2ff30254ee95b264d8b6a1fc5c"
+  },
+  "type1": {
+   "runs": 10,
+   "distinct_stdout": 1,
+   "stdout_sha256": "143f5bc4454e3dcd90c0b3716e141f2b80ed725bc1b68a8567e6dd5cebd3318c"
+  },
+  "type2": {
+   "runs": 10,
+   "distinct_stdout": 1,
+   "stdout_sha256": "a3839c1d995bafde6840d5d94e52af34d192ca9f2cf15293eabb134cf9355fdd"
+  },
+  "type3": {
+   "runs": 10,
+   "distinct_stdout": 1,
+   "stdout_sha256": "e6f5850bd96365a3372c22b32fed174a3f795237a4bec4b4a5f3a2af91eb92c3"
+  }
+ },
+ "passed": true
+}

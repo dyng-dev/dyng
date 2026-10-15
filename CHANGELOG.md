@@ -10,7 +10,7 @@ Before 0.1.0 anything may change.
 
 ### Added
 
-- `triad_count` (experimental, aggregate delta): scaffolded with `scripts/new_algorithm.py`; its update recomputes from scratch until it is made incremental.
+- `triad_count` (experimental, aggregate delta; `<dyng/triad_count.hpp>`): the 30 h-motif counts and StatHyper's triad types 1-3 of a hypergraph, kept exact under hyperedge batches (`options::kind`; `stats::delta`, `triads_removed` / `triads_added`; several patterns in one `dyng::update()`). The cuda backend runs ESCHER-GPU@abcf9b2's wedge engine (exact against ESCHER-GPU on every golden case); the sequential and OpenMP backends recount in this pre-release (M9a step 4 makes them incremental). `dyng-compat-escher run` counts and prints ESCHER-GPU's output; `parity/compare.py triad_count --counter algorithm`.
 - M8b (api-change, tracked until the hypergraph headers are frozen at the end of M8b): **the
   hypergraph container** `dyng::hypergraph<vertex_t, weight_t>` (`dyng/hypergraph/*.hpp`, ADR
   0041) on the ESCHER CBST store, for (int32, unweighted) and (int32, int32) on the sequential,

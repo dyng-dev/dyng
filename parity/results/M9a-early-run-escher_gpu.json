@@ -1,0 +1,3100 @@
+{
+ "schema": 1,
+ "what": "triad_count against ESCHER-GPU@abcf9b2: A/B rounds (parity/timed_regions/triad_count.toml)",
+ "date": "2026-10-15T16:22:13Z",
+ "pattern": "main",
+ "protocol": {
+  "rounds": 5,
+  "order": "A/B alternation (A first in every round)",
+  "gpu": 0,
+  "clocks": {
+   "control": "base",
+   "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+   "how": "ncu --clock-control base on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+   "before": {
+    "pstate": "P8",
+    "sm_mhz": 210,
+    "memory_mhz": 405
+   },
+   "locked": {
+    "pstate": "P2",
+    "sm_mhz": 1170,
+    "memory_mhz": 7601
+   },
+   "check": "every busy GPU sample of every accepted round at the locked clocks",
+   "after_reset": {
+    "pstate": "P3",
+    "sm_mhz": 810,
+    "memory_mhz": 5001
+   }
+  },
+  "lock": "perf.lock: held exclusively by this process",
+  "layout": "one (--timing <work>/timing-ab.json on both sides)",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "original": "the UNPATCHED copy's build/main (its Makefile)",
+  "port": "dyng-compat-escher run --backend cuda --sync-stages"
+ },
+ "port": {
+  "commit": "40efdba48c280e2998ba7a6db36290511d297b41+dirty",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-escher"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "coauth_b50k_s1": {
+   "rounds": 5,
+   "regions": [
+    {
+     "row": "update[b1]",
+     "gate": "compute",
+     "original_ms": 510.74,
+     "port_ms": 484.745,
+     "ratio": 0.9491032619336649,
+     "original_runs": [
+      512.359,
+      510.249,
+      508.625,
+      511.048,
+      510.74
+     ],
+     "port_runs": [
+      483.41,
+      484.745,
+      483.9,
+      488.065,
+      486.1
+     ]
+    },
+    {
+     "row": "update[b2]",
+     "gate": "compute",
+     "original_ms": 548.711,
+     "port_ms": 533.416,
+     "ratio": 0.972125581590309,
+     "original_runs": [
+      548.157,
+      548.711,
+      548.197,
+      550.414,
+      551.035
+     ],
+     "port_runs": [
+      531.73,
+      536.068,
+      533.416,
+      535.395,
+      532.058
+     ]
+    },
+    {
+     "row": "update[b3]",
+     "gate": "compute",
+     "original_ms": 549.479,
+     "port_ms": 538.325,
+     "ratio": 0.9797007710940727,
+     "original_runs": [
+      548.557,
+      549.479,
+      549.473,
+      551.49,
+      550.57
+     ],
+     "port_runs": [
+      536.759,
+      541.425,
+      536.048,
+      538.325,
+      538.45
+     ]
+    },
+    {
+     "row": "full_count",
+     "gate": "compute",
+     "original_ms": 5293.766,
+     "port_ms": 5286.583,
+     "ratio": 0.9986431209841916,
+     "original_runs": [
+      5293.601,
+      5293.766,
+      5293.835,
+      5295.648,
+      5292.52
+     ],
+     "port_runs": [
+      5286.583,
+      5286.791,
+      5286.287,
+      5287.484,
+      5284.521
+     ]
+    },
+    {
+     "row": "end_to_end",
+     "gate": "end_to_end",
+     "original_ms": 9393.0,
+     "port_ms": 8850.168,
+     "ratio": 0.9422088789524113,
+     "original_runs": [
+      9417.819,
+      9418.288,
+      9344.295,
+      9393.0,
+      9373.144
+     ],
+     "port_runs": [
+      8885.606,
+      8850.168,
+      8838.917,
+      8877.316,
+      8831.16
+     ]
+    },
+    {
+     "row": "update.subtract[b1]",
+     "gate": "none",
+     "original_ms": 204.364,
+     "port_ms": 204.678,
+     "ratio": 1.0015364741343877,
+     "original_runs": [
+      203.393,
+      205.556,
+      204.575,
+      204.364,
+      203.231
+     ],
+     "port_runs": [
+      204.418,
+      204.678,
+      203.519,
+      206.488,
+      205.63
+     ]
+    },
+    {
+     "row": "update.subtract[b2]",
+     "gate": "none",
+     "original_ms": 233.492,
+     "port_ms": 235.8,
+     "ratio": 1.0098847069706887,
+     "original_runs": [
+      233.492,
+      233.309,
+      233.207,
+      234.437,
+      234.204
+     ],
+     "port_runs": [
+      233.016,
+      235.955,
+      235.8,
+      236.565,
+      233.79100000000003
+     ]
+    },
+    {
+     "row": "update.subtract[b3]",
+     "gate": "none",
+     "original_ms": 232.618,
+     "port_ms": 231.696,
+     "ratio": 0.996036420225434,
+     "original_runs": [
+      230.41,
+      232.618,
+      230.318,
+      233.219,
+      233.322
+     ],
+     "port_runs": [
+      230.266,
+      233.878,
+      229.82299999999998,
+      231.696,
+      232.229
+     ]
+    },
+    {
+     "row": "update.maintain[b1]",
+     "gate": "none",
+     "original_ms": 70.615,
+     "port_ms": 54.165,
+     "ratio": 0.7670466614741911,
+     "original_runs": [
+      70.664,
+      70.218,
+      70.477,
+      70.615,
+      70.828
+     ],
+     "port_runs": [
+      54.196,
+      54.017,
+      54.182,
+      54.165,
+      53.917
+     ]
+    },
+    {
+     "row": "update.maintain[b2]",
+     "gate": "none",
+     "original_ms": 68.25,
+     "port_ms": 59.958,
+     "ratio": 0.8785054945054945,
+     "original_runs": [
+      68.25,
+      67.926,
+      68.072,
+      68.286,
+      68.354
+     ],
+     "port_runs": [
+      60.548,
+      59.933,
+      59.958,
+      60.079,
+      59.687
+     ]
+    },
+    {
+     "row": "update.maintain[b3]",
+     "gate": "none",
+     "original_ms": 68.914,
+     "port_ms": 59.66,
+     "ratio": 0.8657166903677046,
+     "original_runs": [
+      68.918,
+      68.615,
+      68.89,
+      68.921,
+      68.914
+     ],
+     "port_runs": [
+      59.66,
+      59.809,
+      59.491,
+      59.803,
+      59.126
+     ]
+    },
+    {
+     "row": "update.add[b1]",
+     "gate": "none",
+     "original_ms": 236.063,
+     "port_ms": 226.124,
+     "ratio": 0.9578968326251891,
+     "original_runs": [
+      238.295,
+      234.469,
+      233.567,
+      236.063,
+      236.675
+     ],
+     "port_runs": [
+      224.722,
+      225.976,
+      226.124,
+      227.339,
+      226.481
+     ]
+    },
+    {
+     "row": "update.add[b2]",
+     "gate": "none",
+     "original_ms": 247.472,
+     "port_ms": 238.508,
+     "ratio": 0.963777720307752,
+     "original_runs": [
+      246.411,
+      247.472,
+      246.914,
+      247.688,
+      248.473
+     ],
+     "port_runs": [
+      238.086,
+      240.109,
+      237.56900000000002,
+      238.678,
+      238.508
+     ]
+    },
+    {
+     "row": "update.add[b3]",
+     "gate": "none",
+     "original_ms": 249.225,
+     "port_ms": 246.769,
+     "ratio": 0.9901454508977832,
+     "original_runs": [
+      249.225,
+      248.24,
+      250.26,
+      249.345,
+      248.329
+     ],
+     "port_runs": [
+      246.769,
+      247.659,
+      246.673,
+      246.765,
+      247.03400000000002
+     ]
+    },
+    {
+     "row": "build",
+     "gate": "none",
+     "original_ms": 1407.431,
+     "port_ms": 755.27,
+     "ratio": 0.5366302149092922,
+     "original_runs": [
+      1416.302,
+      1431.304,
+      1373.852,
+      1407.431,
+      1382.435
+     ],
+     "port_runs": [
+      775.878,
+      755.27,
+      749.92,
+      759.427,
+      746.226
+     ]
+    },
+    {
+     "row": "upload",
+     "gate": "none",
+     "original_ms": 181.822,
+     "port_ms": 464.764,
+     "ratio": 2.5561483208852613,
+     "original_runs": [
+      190.78699999999998,
+      195.37800000000001,
+      178.147,
+      181.822,
+      179.373
+     ],
+     "port_runs": [
+      485.735,
+      462.859,
+      462.824,
+      474.812,
+      464.764
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original_ms": 356.173,
+     "port_ms": 361.646,
+     "ratio": 1.0153661282578972,
+     "original_runs": [
+      356.173,
+      354.644,
+      356.355,
+      352.683,
+      371.243
+     ],
+     "port_runs": [
+      361.487,
+      364.341,
+      361.646,
+      363.089,
+      359.215
+     ]
+    },
+    {
+     "row": "batch.generate[b1]",
+     "gate": "none",
+     "original_ms": 175.55,
+     "port_ms": 16.003,
+     "ratio": 0.09115921389917402,
+     "original_runs": [
+      175.611,
+      175.354,
+      175.37,
+      178.909,
+      175.55
+     ],
+     "port_runs": [
+      16.187,
+      15.861,
+      16.003,
+      16.176,
+      15.95
+     ]
+    },
+    {
+     "row": "batch.generate[b2]",
+     "gate": "none",
+     "original_ms": 16.422,
+     "port_ms": 13.909,
+     "ratio": 0.8469735720375107,
+     "original_runs": [
+      16.387,
+      16.494,
+      16.295,
+      16.422,
+      16.456
+     ],
+     "port_runs": [
+      13.927,
+      13.733,
+      13.909,
+      13.904,
+      13.925
+     ]
+    },
+    {
+     "row": "batch.generate[b3]",
+     "gate": "none",
+     "original_ms": 15.951,
+     "port_ms": 14.559,
+     "ratio": 0.9127327440285875,
+     "original_runs": [
+      15.951,
+      16.134,
+      15.664,
+      16.216,
+      15.922
+     ],
+     "port_runs": [
+      14.989,
+      14.442,
+      14.559,
+      14.76,
+      14.553
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 9.593806982040405,
+       "program_cpu_s": 25.575007999999997,
+       "foreign_cpu_cores": 1.1170572873618494,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 10
+       },
+       "gpu": {
+        "samples": 191,
+        "busy_samples": 157,
+        "pstates_busy": {
+         "P2": 157
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 9.09978723526001,
+       "program_cpu_s": 22.973037000000005,
+       "foreign_cpu_cores": 1.0599250015954238,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 10
+       },
+       "gpu": {
+        "samples": 182,
+        "busy_samples": 152,
+        "pstates_busy": {
+         "P2": 152
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.617359399795532,
+       "program_cpu_s": 25.71670799999999,
+       "foreign_cpu_cores": 1.0404820683585756,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 8
+       },
+       "gpu": {
+        "samples": 191,
+        "busy_samples": 141,
+        "pstates_busy": {
+         "P2": 141
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 9.071819543838501,
+       "program_cpu_s": 23.027995000000004,
+       "foreign_cpu_cores": 1.0652488129255764,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 181,
+        "busy_samples": 151,
+        "pstates_busy": {
+         "P2": 151
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.546800136566162,
+       "program_cpu_s": 25.752452000000005,
+       "foreign_cpu_cores": 1.0603983383153037,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 191,
+        "busy_samples": 171,
+        "pstates_busy": {
+         "P2": 171
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 9.0563325881958,
+       "program_cpu_s": 22.62553100000001,
+       "foreign_cpu_cores": 1.0218061131667924,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 48
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 180,
+        "busy_samples": 149,
+        "pstates_busy": {
+         "P2": 149
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.56743836402893,
+       "program_cpu_s": 25.799804999999992,
+       "foreign_cpu_cores": 1.0958089932002615,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 59
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 44
+       },
+       "gpu": {
+        "samples": 191,
+        "busy_samples": 143,
+        "pstates_busy": {
+         "P2": 143
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 9.092733383178711,
+       "program_cpu_s": 22.865679999999998,
+       "foreign_cpu_cores": 1.0749176938900968,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 181,
+        "busy_samples": 161,
+        "pstates_busy": {
+         "P2": 161
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 9.572721242904663,
+       "program_cpu_s": 25.565086999999977,
+       "foreign_cpu_cores": 1.0139326899541987,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 10
+       },
+       "gpu": {
+        "samples": 191,
+        "busy_samples": 171,
+        "pstates_busy": {
+         "P2": 171
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 9.048076629638672,
+       "program_cpu_s": 22.910485000000023,
+       "foreign_cpu_cores": 1.0539296239945533,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 32
+       },
+       "gpu": {
+        "samples": 181,
+        "busy_samples": 150,
+        "pstates_busy": {
+         "P2": 150
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.1170572873618494,
+    "original_pstates_busy": {
+     "P2": 783
+    },
+    "original_sm_mhz_busy_median": 1170,
+    "port_pstates_busy": {
+     "P2": 763
+    },
+    "port_sm_mhz_busy_median": 1170,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "before_a": 8.98095703125,
+     "blocked_before_a": 0,
+     "after_a": 7.9072265625,
+     "blocked_after_a": 0,
+     "after_b": 7.07861328125,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 7.07861328125,
+     "blocked_before_a": 0,
+     "after_a": 6.29736328125,
+     "blocked_after_a": 0,
+     "after_b": 5.953125,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 5.953125,
+     "blocked_before_a": 0,
+     "after_a": 5.3447265625,
+     "blocked_after_a": 0,
+     "after_b": 8.88232421875,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 8.88232421875,
+     "blocked_before_a": 0,
+     "after_a": 7.82373046875,
+     "blocked_after_a": 0,
+     "after_b": 6.927734375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 6.927734375,
+     "blocked_before_a": 0,
+     "after_a": 6.2431640625,
+     "blocked_after_a": 0,
+     "after_b": 5.59033203125,
+     "blocked_after_b": 0
+    }
+   ],
+   "original_rounds": [
+    {
+     "init.load@0": 356.173,
+     "init.v2h_build@0": 388.96,
+     "init.h2h_build@0": 728.659,
+     "init.flatten@0": 298.683,
+     "init.construct@0": 187.902,
+     "init.row_views@0": 2.885,
+     "init.full_count@0": 5293.601,
+     "batch.generate@1": 175.611,
+     "update.subtract@1": 203.393,
+     "maintain.prepare@1": 4.884,
+     "maintain.h2v_delete@1": 2.902,
+     "maintain.v2h_unfill@1": 2.405,
+     "maintain.h2v_insert@1": 11.864,
+     "maintain.v2h_fill@1": 7.371,
+     "maintain.h2h_merge@1": 31.943,
+     "maintain.row_views@1": 7.491,
+     "update.maintain@1": 70.664,
+     "update.add@1": 238.295,
+     "update@1": 512.359,
+     "batch.generate@2": 16.387,
+     "update.subtract@2": 233.492,
+     "maintain.prepare@2": 4.802,
+     "maintain.h2v_delete@2": 0.329,
+     "maintain.v2h_unfill@2": 2.68,
+     "maintain.h2v_insert@2": 11.844,
+     "maintain.v2h_fill@2": 7.384,
+     "maintain.h2h_merge@2": 31.839,
+     "maintain.row_views@2": 7.634,
+     "update.maintain@2": 68.25,
+     "update.add@2": 246.411,
+     "update@2": 548.157,
+     "batch.generate@3": 15.951,
+     "update.subtract@3": 230.41,
+     "maintain.prepare@3": 4.829,
+     "maintain.h2v_delete@3": 0.32,
+     "maintain.v2h_unfill@3": 2.533,
+     "maintain.h2v_insert@3": 11.825,
+     "maintain.v2h_fill@3": 7.398,
+     "maintain.h2h_merge@3": 32.904,
+     "maintain.row_views@3": 7.592,
+     "update.maintain@3": 68.918,
+     "update.add@3": 249.225,
+     "update@3": 548.557,
+     "total@0": 9417.819
+    },
+    {
+     "init.load@0": 354.644,
+     "init.v2h_build@0": 392.127,
+     "init.h2h_build@0": 731.289,
+     "init.flatten@0": 307.888,
+     "init.construct@0": 192.567,
+     "init.row_views@0": 2.811,
+     "init.full_count@0": 5293.766,
+     "batch.generate@1": 175.354,
+     "update.subtract@1": 205.556,
+     "maintain.prepare@1": 4.841,
+     "maintain.h2v_delete@1": 2.84,
+     "maintain.v2h_unfill@1": 2.371,
+     "maintain.h2v_insert@1": 11.86,
+     "maintain.v2h_fill@1": 7.374,
+     "maintain.h2h_merge@1": 31.636,
+     "maintain.row_views@1": 7.49,
+     "update.maintain@1": 70.218,
+     "update.add@1": 234.469,
+     "update@1": 510.249,
+     "batch.generate@2": 16.494,
+     "update.subtract@2": 233.309,
+     "maintain.prepare@2": 4.842,
+     "maintain.h2v_delete@2": 0.329,
+     "maintain.v2h_unfill@2": 2.674,
+     "maintain.h2v_insert@2": 11.799,
+     "maintain.v2h_fill@2": 7.383,
+     "maintain.h2h_merge@2": 31.625,
+     "maintain.row_views@2": 7.593,
+     "update.maintain@2": 67.926,
+     "update.add@2": 247.472,
+     "update@2": 548.711,
+     "batch.generate@3": 16.134,
+     "update.subtract@3": 232.618,
+     "maintain.prepare@3": 4.769,
+     "maintain.h2v_delete@3": 0.316,
+     "maintain.v2h_unfill@3": 2.505,
+     "maintain.h2v_insert@3": 11.847,
+     "maintain.v2h_fill@3": 7.355,
+     "maintain.h2h_merge@3": 32.582,
+     "maintain.row_views@3": 7.625,
+     "update.maintain@3": 68.615,
+     "update.add@3": 248.24,
+     "update@3": 549.479,
+     "total@0": 9418.288
+    },
+    {
+     "init.load@0": 356.355,
+     "init.v2h_build@0": 390.473,
+     "init.h2h_build@0": 699.643,
+     "init.flatten@0": 283.736,
+     "init.construct@0": 175.327,
+     "init.row_views@0": 2.82,
+     "init.full_count@0": 5293.835,
+     "batch.generate@1": 175.37,
+     "update.subtract@1": 204.575,
+     "maintain.prepare@1": 4.68,
+     "maintain.h2v_delete@1": 2.84,
+     "maintain.v2h_unfill@1": 2.419,
+     "maintain.h2v_insert@1": 11.907,
+     "maintain.v2h_fill@1": 7.356,
+     "maintain.h2h_merge@1": 31.954,
+     "maintain.row_views@1": 7.515,
+     "update.maintain@1": 70.477,
+     "update.add@1": 233.567,
+     "update@1": 508.625,
+     "batch.generate@2": 16.295,
+     "update.subtract@2": 233.207,
+     "maintain.prepare@2": 4.741,
+     "maintain.h2v_delete@2": 0.32,
+     "maintain.v2h_unfill@2": 2.668,
+     "maintain.h2v_insert@2": 11.882,
+     "maintain.v2h_fill@2": 7.345,
+     "maintain.h2h_merge@2": 31.921,
+     "maintain.row_views@2": 7.586,
+     "update.maintain@2": 68.072,
+     "update.add@2": 246.914,
+     "update@2": 548.197,
+     "batch.generate@3": 15.664,
+     "update.subtract@3": 230.318,
+     "maintain.prepare@3": 4.714,
+     "maintain.h2v_delete@3": 0.312,
+     "maintain.v2h_unfill@3": 2.539,
+     "maintain.h2v_insert@3": 11.849,
+     "maintain.v2h_fill@3": 7.38,
+     "maintain.h2h_merge@3": 33.145,
+     "maintain.row_views@3": 7.568,
+     "update.maintain@3": 68.89,
+     "update.add@3": 250.26,
+     "update@3": 549.473,
+     "total@0": 9344.295
+    },
+    {
+     "init.load@0": 352.683,
+     "init.v2h_build@0": 387.584,
+     "init.h2h_build@0": 732.299,
+     "init.flatten@0": 287.548,
+     "init.construct@0": 179.005,
+     "init.row_views@0": 2.817,
+     "init.full_count@0": 5295.648,
+     "batch.generate@1": 178.909,
+     "update.subtract@1": 204.364,
+     "maintain.prepare@1": 4.808,
+     "maintain.h2v_delete@1": 2.902,
+     "maintain.v2h_unfill@1": 2.394,
+     "maintain.h2v_insert@1": 11.915,
+     "maintain.v2h_fill@1": 7.365,
+     "maintain.h2h_merge@1": 31.915,
+     "maintain.row_views@1": 7.505,
+     "update.maintain@1": 70.615,
+     "update.add@1": 236.063,
+     "update@1": 511.048,
+     "batch.generate@2": 16.422,
+     "update.subtract@2": 234.437,
+     "maintain.prepare@2": 4.814,
+     "maintain.h2v_delete@2": 0.329,
+     "maintain.v2h_unfill@2": 2.685,
+     "maintain.h2v_insert@2": 12.073,
+     "maintain.v2h_fill@2": 8.24,
+     "maintain.h2h_merge@2": 31.061,
+     "maintain.row_views@2": 7.601,
+     "update.maintain@2": 68.286,
+     "update.add@2": 247.688,
+     "update@2": 550.414,
+     "batch.generate@3": 16.216,
+     "update.subtract@3": 233.219,
+     "maintain.prepare@3": 4.779,
+     "maintain.h2v_delete@3": 0.321,
+     "maintain.v2h_unfill@3": 2.532,
+     "maintain.h2v_insert@3": 11.835,
+     "maintain.v2h_fill@3": 7.375,
+     "maintain.h2h_merge@3": 32.98,
+     "maintain.row_views@3": 7.558,
+     "update.maintain@3": 68.921,
+     "update.add@3": 249.345,
+     "update@3": 551.49,
+     "total@0": 9393.0
+    },
+    {
+     "init.load@0": 371.243,
+     "init.v2h_build@0": 389.538,
+     "init.h2h_build@0": 713.749,
+     "init.flatten@0": 279.148,
+     "init.construct@0": 176.534,
+     "init.row_views@0": 2.839,
+     "init.full_count@0": 5292.52,
+     "batch.generate@1": 175.55,
+     "update.subtract@1": 203.231,
+     "maintain.prepare@1": 5.021,
+     "maintain.h2v_delete@1": 2.868,
+     "maintain.v2h_unfill@1": 2.397,
+     "maintain.h2v_insert@1": 11.928,
+     "maintain.v2h_fill@1": 7.37,
+     "maintain.h2h_merge@1": 31.912,
+     "maintain.row_views@1": 7.49,
+     "update.maintain@1": 70.828,
+     "update.add@1": 236.675,
+     "update@1": 510.74,
+     "batch.generate@2": 16.456,
+     "update.subtract@2": 234.204,
+     "maintain.prepare@2": 4.992,
+     "maintain.h2v_delete@2": 0.329,
+     "maintain.v2h_unfill@2": 2.694,
+     "maintain.h2v_insert@2": 11.865,
+     "maintain.v2h_fill@2": 7.37,
+     "maintain.h2h_merge@2": 31.926,
+     "maintain.row_views@2": 7.62,
+     "update.maintain@2": 68.354,
+     "update.add@2": 248.473,
+     "update@2": 551.035,
+     "batch.generate@3": 15.922,
+     "update.subtract@3": 233.322,
+     "maintain.prepare@3": 4.788,
+     "maintain.h2v_delete@3": 0.317,
+     "maintain.v2h_unfill@3": 2.533,
+     "maintain.h2v_insert@3": 11.837,
+     "maintain.v2h_fill@3": 7.385,
+     "maintain.h2h_merge@3": 32.958,
+     "maintain.row_views@3": 7.57,
+     "update.maintain@3": 68.914,
+     "update.add@3": 248.329,
+     "update@3": 550.57,
+     "total@0": 9373.144
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 361.487,
+     "io.read_hypergraph@0": 361.471,
+     "hypergraph.build@0": 775.878,
+     "hypergraph.cbst.construct@0": 202.82500000000002,
+     "hypergraph.upload@0": 485.735,
+     "full_count_ms@0": 5286.583,
+     "triad_count.reset@0": 0.04,
+     "triad_count.count@0": 5286.442,
+     "triad_count.finalize@0": 0.03,
+     "triad_count.enact_fused@0": 5286.544,
+     "triad_count.compute@0": 5286.549,
+     "generate_ms@1": 16.187,
+     "update_ms@1": 483.41,
+     "driver.batch.generate@1": 16.185,
+     "triad_count.normalize@1": 1.269,
+     "triad_count.count_minus@1": 203.149,
+     "hypergraph.cbst.erase@1": 0.169,
+     "hypergraph.cbst.remove_values@1": 1.39,
+     "hypergraph.apply.delete@1": 6.389,
+     "hypergraph.cbst.insert@1": 5.189,
+     "hypergraph.cbst.append@1": 0.597,
+     "hypergraph.apply.insert@1": 13.741,
+     "hypergraph.cbst.rebuild@1": 7.291,
+     "hypergraph.apply.line_graph@1": 25.886,
+     "hypergraph.apply.views@1": 2.287,
+     "hypergraph.apply@1": 54.187,
+     "triad_count.commit@1": 54.196,
+     "triad_count.identify_affected@1": 0.017,
+     "triad_count.count_plus@1": 224.696,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 224.728,
+     "triad_count.update@1": 483.392,
+     "generate_ms@2": 13.927,
+     "update_ms@2": 531.73,
+     "driver.batch.generate@2": 13.91,
+     "triad_count.normalize@2": 1.26,
+     "triad_count.count_minus@2": 231.756,
+     "hypergraph.cbst.erase@2": 0.569,
+     "hypergraph.cbst.remove_values@2": 1.769,
+     "hypergraph.apply.delete@2": 7.597,
+     "hypergraph.cbst.insert@2": 4.783,
+     "hypergraph.cbst.append@2": 0.557,
+     "hypergraph.apply.insert@2": 13.175,
+     "hypergraph.cbst.rebuild@2": 7.307,
+     "hypergraph.apply.line_graph@2": 27.175,
+     "hypergraph.apply.views@2": 2.285,
+     "hypergraph.apply@2": 60.546,
+     "triad_count.commit@2": 60.548,
+     "triad_count.identify_affected@2": 0.016,
+     "triad_count.count_plus@2": 238.062,
+     "triad_count.finalize@2": 0.008,
+     "triad_count.enact_fused@2": 238.091,
+     "triad_count.update@2": 531.715,
+     "generate_ms@3": 14.989,
+     "update_ms@3": 536.759,
+     "driver.batch.generate@3": 14.971,
+     "triad_count.normalize@3": 1.361,
+     "triad_count.count_minus@3": 228.905,
+     "hypergraph.cbst.erase@3": 0.558,
+     "hypergraph.cbst.remove_values@3": 1.616,
+     "hypergraph.apply.delete@3": 7.286,
+     "hypergraph.cbst.insert@3": 4.761,
+     "hypergraph.cbst.append@3": 0.567,
+     "hypergraph.apply.insert@3": 13.258,
+     "hypergraph.cbst.rebuild@3": 7.36,
+     "hypergraph.apply.line_graph@3": 28.473,
+     "hypergraph.apply.views@3": 2.257,
+     "hypergraph.apply@3": 59.658,
+     "triad_count.commit@3": 59.66,
+     "triad_count.identify_affected@3": 0.017,
+     "triad_count.count_plus@3": 246.744,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 246.775,
+     "triad_count.update@3": 536.748,
+     "total_ms@0": 8885.606,
+     "driver.total@0": 8885.606
+    },
+    {
+     "load_ms@0": 364.341,
+     "io.read_hypergraph@0": 364.325,
+     "hypergraph.build@0": 755.27,
+     "hypergraph.cbst.construct@0": 192.91,
+     "hypergraph.upload@0": 462.859,
+     "full_count_ms@0": 5286.791,
+     "triad_count.reset@0": 0.04,
+     "triad_count.count@0": 5286.666,
+     "triad_count.finalize@0": 0.022,
+     "triad_count.enact_fused@0": 5286.752,
+     "triad_count.compute@0": 5286.757,
+     "generate_ms@1": 15.861,
+     "update_ms@1": 484.745,
+     "driver.batch.generate@1": 15.859,
+     "triad_count.normalize@1": 1.288,
+     "triad_count.count_minus@1": 203.39,
+     "hypergraph.cbst.erase@1": 0.167,
+     "hypergraph.cbst.remove_values@1": 1.403,
+     "hypergraph.apply.delete@1": 6.424,
+     "hypergraph.cbst.insert@1": 5.18,
+     "hypergraph.cbst.append@1": 0.548,
+     "hypergraph.apply.insert@1": 13.731,
+     "hypergraph.cbst.rebuild@1": 7.299,
+     "hypergraph.apply.line_graph@1": 25.891,
+     "hypergraph.apply.views@1": 2.287,
+     "hypergraph.apply@1": 54.008,
+     "triad_count.commit@1": 54.017,
+     "triad_count.identify_affected@1": 0.017,
+     "triad_count.count_plus@1": 225.949,
+     "triad_count.finalize@1": 0.01,
+     "triad_count.enact_fused@1": 225.98,
+     "triad_count.update@1": 484.726,
+     "generate_ms@2": 13.733,
+     "update_ms@2": 536.068,
+     "driver.batch.generate@2": 13.697,
+     "triad_count.normalize@2": 1.258,
+     "triad_count.count_minus@2": 234.697,
+     "hypergraph.cbst.erase@2": 0.547,
+     "hypergraph.cbst.remove_values@2": 1.765,
+     "hypergraph.apply.delete@2": 7.374,
+     "hypergraph.cbst.insert@2": 4.764,
+     "hypergraph.cbst.append@2": 0.556,
+     "hypergraph.apply.insert@2": 13.255,
+     "hypergraph.cbst.rebuild@2": 7.3,
+     "hypergraph.apply.line_graph@2": 27.091,
+     "hypergraph.apply.views@2": 2.235,
+     "hypergraph.apply@2": 59.931,
+     "triad_count.commit@2": 59.933,
+     "triad_count.identify_affected@2": 0.016,
+     "triad_count.count_plus@2": 240.085,
+     "triad_count.finalize@2": 0.008,
+     "triad_count.enact_fused@2": 240.113,
+     "triad_count.update@2": 536.052,
+     "generate_ms@3": 14.442,
+     "update_ms@3": 541.425,
+     "driver.batch.generate@3": 14.421,
+     "triad_count.normalize@3": 1.272,
+     "triad_count.count_minus@3": 232.606,
+     "hypergraph.cbst.erase@3": 0.544,
+     "hypergraph.cbst.remove_values@3": 1.579,
+     "hypergraph.apply.delete@3": 7.312,
+     "hypergraph.cbst.insert@3": 4.762,
+     "hypergraph.cbst.append@3": 0.562,
+     "hypergraph.apply.insert@3": 13.196,
+     "hypergraph.cbst.rebuild@3": 7.358,
+     "hypergraph.apply.line_graph@3": 28.356,
+     "hypergraph.apply.views@3": 2.236,
+     "hypergraph.apply@3": 59.807,
+     "triad_count.commit@3": 59.809,
+     "triad_count.identify_affected@3": 0.021,
+     "triad_count.count_plus@3": 247.63,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 247.664,
+     "triad_count.update@3": 541.414,
+     "total_ms@0": 8850.168,
+     "driver.total@0": 8850.168
+    },
+    {
+     "load_ms@0": 361.646,
+     "io.read_hypergraph@0": 361.629,
+     "hypergraph.build@0": 749.92,
+     "hypergraph.cbst.construct@0": 192.539,
+     "hypergraph.upload@0": 462.824,
+     "full_count_ms@0": 5286.287,
+     "triad_count.reset@0": 0.04,
+     "triad_count.count@0": 5286.143,
+     "triad_count.finalize@0": 0.032,
+     "triad_count.enact_fused@0": 5286.248,
+     "triad_count.compute@0": 5286.254,
+     "generate_ms@1": 16.003,
+     "update_ms@1": 483.9,
+     "driver.batch.generate@1": 16.002,
+     "triad_count.normalize@1": 1.31,
+     "triad_count.count_minus@1": 202.209,
+     "hypergraph.cbst.erase@1": 0.168,
+     "hypergraph.cbst.remove_values@1": 1.405,
+     "hypergraph.apply.delete@1": 6.366,
+     "hypergraph.cbst.insert@1": 5.187,
+     "hypergraph.cbst.append@1": 0.564,
+     "hypergraph.apply.insert@1": 13.678,
+     "hypergraph.cbst.rebuild@1": 7.289,
+     "hypergraph.apply.line_graph@1": 25.971,
+     "hypergraph.apply.views@1": 2.281,
+     "hypergraph.apply@1": 54.173,
+     "triad_count.commit@1": 54.182,
+     "triad_count.identify_affected@1": 0.018,
+     "triad_count.count_plus@1": 226.097,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 226.13,
+     "triad_count.update@1": 483.882,
+     "generate_ms@2": 13.909,
+     "update_ms@2": 533.416,
+     "driver.batch.generate@2": 13.886,
+     "triad_count.normalize@2": 1.346,
+     "triad_count.count_minus@2": 234.454,
+     "hypergraph.cbst.erase@2": 0.538,
+     "hypergraph.cbst.remove_values@2": 1.772,
+     "hypergraph.apply.delete@2": 7.535,
+     "hypergraph.cbst.insert@2": 4.758,
+     "hypergraph.cbst.append@2": 0.527,
+     "hypergraph.apply.insert@2": 12.978,
+     "hypergraph.cbst.rebuild@2": 7.295,
+     "hypergraph.apply.line_graph@2": 27.107,
+     "hypergraph.apply.views@2": 2.274,
+     "hypergraph.apply@2": 59.956,
+     "triad_count.commit@2": 59.958,
+     "triad_count.identify_affected@2": 0.016,
+     "triad_count.count_plus@2": 237.544,
+     "triad_count.finalize@2": 0.009,
+     "triad_count.enact_fused@2": 237.574,
+     "triad_count.update@2": 533.401,
+     "generate_ms@3": 14.559,
+     "update_ms@3": 536.048,
+     "driver.batch.generate@3": 14.543,
+     "triad_count.normalize@3": 1.343,
+     "triad_count.count_minus@3": 228.48,
+     "hypergraph.cbst.erase@3": 0.545,
+     "hypergraph.cbst.remove_values@3": 1.584,
+     "hypergraph.apply.delete@3": 7.271,
+     "hypergraph.cbst.insert@3": 4.772,
+     "hypergraph.cbst.append@3": 0.561,
+     "hypergraph.apply.insert@3": 13.052,
+     "hypergraph.cbst.rebuild@3": 7.359,
+     "hypergraph.apply.line_graph@3": 28.481,
+     "hypergraph.apply.views@3": 2.292,
+     "hypergraph.apply@3": 59.489,
+     "triad_count.commit@3": 59.491,
+     "triad_count.identify_affected@3": 0.018,
+     "triad_count.count_plus@3": 246.647,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 246.678,
+     "triad_count.update@3": 536.037,
+     "total_ms@0": 8838.917,
+     "driver.total@0": 8838.917
+    },
+    {
+     "load_ms@0": 363.089,
+     "io.read_hypergraph@0": 363.063,
+     "hypergraph.build@0": 759.427,
+     "hypergraph.cbst.construct@0": 197.11599999999999,
+     "hypergraph.upload@0": 474.812,
+     "full_count_ms@0": 5287.484,
+     "triad_count.reset@0": 0.043,
+     "triad_count.count@0": 5287.334,
+     "triad_count.finalize@0": 0.034,
+     "triad_count.enact_fused@0": 5287.445,
+     "triad_count.compute@0": 5287.45,
+     "generate_ms@1": 16.176,
+     "update_ms@1": 488.065,
+     "driver.batch.generate@1": 16.175,
+     "triad_count.normalize@1": 1.36,
+     "triad_count.count_minus@1": 205.128,
+     "hypergraph.cbst.erase@1": 0.17,
+     "hypergraph.cbst.remove_values@1": 1.408,
+     "hypergraph.apply.delete@1": 6.446,
+     "hypergraph.cbst.insert@1": 5.157,
+     "hypergraph.cbst.append@1": 0.555,
+     "hypergraph.apply.insert@1": 13.641,
+     "hypergraph.cbst.rebuild@1": 7.29,
+     "hypergraph.apply.line_graph@1": 25.934,
+     "hypergraph.apply.views@1": 2.28,
+     "hypergraph.apply@1": 54.156,
+     "triad_count.commit@1": 54.165,
+     "triad_count.identify_affected@1": 0.018,
+     "triad_count.count_plus@1": 227.312,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 227.343,
+     "triad_count.update@1": 488.047,
+     "generate_ms@2": 13.904,
+     "update_ms@2": 535.395,
+     "driver.batch.generate@2": 13.886,
+     "triad_count.normalize@2": 1.361,
+     "triad_count.count_minus@2": 235.204,
+     "hypergraph.cbst.erase@2": 0.558,
+     "hypergraph.cbst.remove_values@2": 1.764,
+     "hypergraph.apply.delete@2": 7.397,
+     "hypergraph.cbst.insert@2": 4.777,
+     "hypergraph.cbst.append@2": 0.532,
+     "hypergraph.apply.insert@2": 13.059,
+     "hypergraph.cbst.rebuild@2": 7.297,
+     "hypergraph.apply.line_graph@2": 27.261,
+     "hypergraph.apply.views@2": 2.234,
+     "hypergraph.apply@2": 60.077,
+     "triad_count.commit@2": 60.079,
+     "triad_count.identify_affected@2": 0.016,
+     "triad_count.count_plus@2": 238.654,
+     "triad_count.finalize@2": 0.008,
+     "triad_count.enact_fused@2": 238.682,
+     "triad_count.update@2": 535.379,
+     "generate_ms@3": 14.76,
+     "update_ms@3": 538.325,
+     "driver.batch.generate@3": 14.744,
+     "triad_count.normalize@3": 1.303,
+     "triad_count.count_minus@3": 230.393,
+     "hypergraph.cbst.erase@3": 0.568,
+     "hypergraph.cbst.remove_values@3": 1.567,
+     "hypergraph.apply.delete@3": 7.21,
+     "hypergraph.cbst.insert@3": 4.781,
+     "hypergraph.cbst.append@3": 0.587,
+     "hypergraph.apply.insert@3": 13.114,
+     "hypergraph.cbst.rebuild@3": 7.37,
+     "hypergraph.apply.line_graph@3": 28.538,
+     "hypergraph.apply.views@3": 2.283,
+     "hypergraph.apply@3": 59.801,
+     "triad_count.commit@3": 59.803,
+     "triad_count.identify_affected@3": 0.019,
+     "triad_count.count_plus@3": 246.738,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 246.771,
+     "triad_count.update@3": 538.315,
+     "total_ms@0": 8877.316,
+     "driver.total@0": 8877.316
+    },
+    {
+     "load_ms@0": 359.215,
+     "io.read_hypergraph@0": 359.197,
+     "hypergraph.build@0": 746.226,
+     "hypergraph.cbst.construct@0": 195.291,
+     "hypergraph.upload@0": 464.764,
+     "full_count_ms@0": 5284.521,
+     "triad_count.reset@0": 0.042,
+     "triad_count.count@0": 5284.384,
+     "triad_count.finalize@0": 0.028,
+     "triad_count.enact_fused@0": 5284.483,
+     "triad_count.compute@0": 5284.488,
+     "generate_ms@1": 15.95,
+     "update_ms@1": 486.1,
+     "driver.batch.generate@1": 15.948,
+     "triad_count.normalize@1": 1.286,
+     "triad_count.count_minus@1": 204.344,
+     "hypergraph.cbst.erase@1": 0.17,
+     "hypergraph.cbst.remove_values@1": 1.394,
+     "hypergraph.apply.delete@1": 6.301,
+     "hypergraph.cbst.insert@1": 5.163,
+     "hypergraph.cbst.append@1": 0.566,
+     "hypergraph.apply.insert@1": 13.696,
+     "hypergraph.cbst.rebuild@1": 7.308,
+     "hypergraph.apply.line_graph@1": 25.807,
+     "hypergraph.apply.views@1": 2.287,
+     "hypergraph.apply@1": 53.909,
+     "triad_count.commit@1": 53.917,
+     "triad_count.identify_affected@1": 0.018,
+     "triad_count.count_plus@1": 226.454,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 226.486,
+     "triad_count.update@1": 486.082,
+     "generate_ms@2": 13.925,
+     "update_ms@2": 532.058,
+     "driver.batch.generate@2": 13.892,
+     "triad_count.normalize@2": 1.306,
+     "triad_count.count_minus@2": 232.485,
+     "hypergraph.cbst.erase@2": 0.533,
+     "hypergraph.cbst.remove_values@2": 1.765,
+     "hypergraph.apply.delete@2": 7.443,
+     "hypergraph.cbst.insert@2": 4.758,
+     "hypergraph.cbst.append@2": 0.544,
+     "hypergraph.apply.insert@2": 12.967,
+     "hypergraph.cbst.rebuild@2": 7.288,
+     "hypergraph.apply.line_graph@2": 27.105,
+     "hypergraph.apply.views@2": 2.293,
+     "hypergraph.apply@2": 59.685,
+     "triad_count.commit@2": 59.687,
+     "triad_count.identify_affected@2": 0.016,
+     "triad_count.count_plus@2": 238.484,
+     "triad_count.finalize@2": 0.008,
+     "triad_count.enact_fused@2": 238.513,
+     "triad_count.update@2": 532.042,
+     "generate_ms@3": 14.553,
+     "update_ms@3": 538.45,
+     "driver.batch.generate@3": 14.534,
+     "triad_count.normalize@3": 1.328,
+     "triad_count.count_minus@3": 230.901,
+     "hypergraph.cbst.erase@3": 0.554,
+     "hypergraph.cbst.remove_values@3": 1.558,
+     "hypergraph.apply.delete@3": 7.124,
+     "hypergraph.cbst.insert@3": 4.757,
+     "hypergraph.cbst.append@3": 0.566,
+     "hypergraph.apply.insert@3": 13.113,
+     "hypergraph.cbst.rebuild@3": 7.348,
+     "hypergraph.apply.line_graph@3": 28.291,
+     "hypergraph.apply.views@3": 2.291,
+     "hypergraph.apply@3": 59.124,
+     "triad_count.commit@3": 59.126,
+     "triad_count.identify_affected@3": 0.017,
+     "triad_count.count_plus@3": 247.008,
+     "triad_count.finalize@3": 0.009,
+     "triad_count.enact_fused@3": 247.04,
+     "triad_count.update@3": 538.439,
+     "total_ms@0": 8831.16,
+     "driver.total@0": 8831.16
+    }
+   ],
+   "host_syncs": {
+    "original": [
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     },
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     },
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     }
+    ],
+    "port": [
+     {
+      "total": 22,
+      "by_name": {
+       "cudaStreamSynchronize": 22
+      }
+     },
+     {
+      "total": 22,
+      "by_name": {
+       "cudaStreamSynchronize": 22
+      }
+     },
+     {
+      "total": 22,
+      "by_name": {
+       "cudaStreamSynchronize": 22
+      }
+     }
+    ]
+   }
+  },
+  "syn1m_b50k_s1": {
+   "rounds": 5,
+   "regions": [
+    {
+     "row": "update[b1]",
+     "gate": "compute",
+     "original_ms": 164.56,
+     "port_ms": 143.575,
+     "ratio": 0.8724781234807972,
+     "original_runs": [
+      170.879,
+      164.581,
+      163.572,
+      163.59,
+      164.56
+     ],
+     "port_runs": [
+      143.575,
+      143.603,
+      143.165,
+      143.98,
+      143.567
+     ]
+    },
+    {
+     "row": "update[b2]",
+     "gate": "compute",
+     "original_ms": 144.326,
+     "port_ms": 145.894,
+     "ratio": 1.0108642933359202,
+     "original_runs": [
+      144.459,
+      144.53,
+      144.326,
+      144.108,
+      144.27
+     ],
+     "port_runs": [
+      145.308,
+      146.322,
+      147.475,
+      145.894,
+      145.428
+     ]
+    },
+    {
+     "row": "update[b3]",
+     "gate": "compute",
+     "original_ms": 154.952,
+     "port_ms": 147.232,
+     "ratio": 0.9501781196757706,
+     "original_runs": [
+      154.832,
+      154.556,
+      155.09,
+      155.19,
+      154.952
+     ],
+     "port_runs": [
+      147.232,
+      152.081,
+      147.62,
+      146.869,
+      146.696
+     ]
+    },
+    {
+     "row": "full_count",
+     "gate": "compute",
+     "original_ms": 635.204,
+     "port_ms": 636.868,
+     "ratio": 1.0026196308587478,
+     "original_runs": [
+      635.361,
+      635.058,
+      635.204,
+      635.425,
+      635.09
+     ],
+     "port_runs": [
+      636.868,
+      636.787,
+      636.63,
+      636.986,
+      636.892
+     ]
+    },
+    {
+     "row": "end_to_end",
+     "gate": "end_to_end",
+     "original_ms": 2495.564,
+     "port_ms": 2455.916,
+     "ratio": 0.9841126094141446,
+     "original_runs": [
+      2495.564,
+      2479.669,
+      2515.368,
+      2458.596,
+      2497.323
+     ],
+     "port_runs": [
+      2454.017,
+      2456.275,
+      2461.883,
+      2448.675,
+      2455.916
+     ]
+    },
+    {
+     "row": "update.subtract[b1]",
+     "gate": "none",
+     "original_ms": 48.218,
+     "port_ms": 48.931,
+     "ratio": 1.014787009000788,
+     "original_runs": [
+      48.28,
+      48.652,
+      48.07,
+      48.139,
+      48.218
+     ],
+     "port_runs": [
+      48.931,
+      48.76,
+      49.024,
+      49.019,
+      48.852999999999994
+     ]
+    },
+    {
+     "row": "update.subtract[b2]",
+     "gate": "none",
+     "original_ms": 48.411,
+     "port_ms": 49.735,
+     "ratio": 1.027349156183512,
+     "original_runs": [
+      48.423,
+      48.371,
+      48.318,
+      48.411,
+      48.507
+     ],
+     "port_runs": [
+      49.499,
+      49.735,
+      49.748000000000005,
+      49.835,
+      49.565
+     ]
+    },
+    {
+     "row": "update.subtract[b3]",
+     "gate": "none",
+     "original_ms": 48.168,
+     "port_ms": 49.415,
+     "ratio": 1.025888556718153,
+     "original_runs": [
+      48.168,
+      48.114,
+      48.198,
+      48.313,
+      48.107
+     ],
+     "port_runs": [
+      49.38999999999999,
+      49.431,
+      49.594,
+      49.214,
+      49.415
+     ]
+    },
+    {
+     "row": "update.maintain[b1]",
+     "gate": "none",
+     "original_ms": 64.431,
+     "port_ms": 46.624,
+     "ratio": 0.7236268255963745,
+     "original_runs": [
+      70.9,
+      64.431,
+      64.104,
+      64.107,
+      64.85
+     ],
+     "port_runs": [
+      46.183,
+      46.735,
+      46.149,
+      46.696,
+      46.624
+     ]
+    },
+    {
+     "row": "update.maintain[b2]",
+     "gate": "none",
+     "original_ms": 45.115,
+     "port_ms": 48.219,
+     "ratio": 1.0688019505707635,
+     "original_runs": [
+      45.241,
+      45.115,
+      45.248,
+      44.72,
+      45.08
+     ],
+     "port_runs": [
+      48.139,
+      48.723,
+      49.73,
+      48.219,
+      47.771
+     ]
+    },
+    {
+     "row": "update.maintain[b3]",
+     "gate": "none",
+     "original_ms": 55.373,
+     "port_ms": 49.624,
+     "ratio": 0.8961768370866668,
+     "original_runs": [
+      55.393,
+      55.19,
+      55.228,
+      55.373,
+      55.609
+     ],
+     "port_runs": [
+      49.751,
+      54.456,
+      49.624,
+      49.585,
+      49.249
+     ]
+    },
+    {
+     "row": "update.add[b1]",
+     "gate": "none",
+     "original_ms": 51.484,
+     "port_ms": 48.036,
+     "ratio": 0.9330277367725895,
+     "original_runs": [
+      51.687,
+      51.493,
+      51.385,
+      51.338,
+      51.484
+     ],
+     "port_runs": [
+      48.39,
+      48.036,
+      47.919000000000004,
+      48.187999999999995,
+      48.015
+     ]
+    },
+    {
+     "row": "update.add[b2]",
+     "gate": "none",
+     "original_ms": 50.792,
+     "port_ms": 47.806000000000004,
+     "ratio": 0.9412112143644669,
+     "original_runs": [
+      50.792,
+      51.041,
+      50.756,
+      50.973,
+      50.68
+     ],
+     "port_runs": [
+      47.609,
+      47.806000000000004,
+      47.93,
+      47.778000000000006,
+      48.034000000000006
+     ]
+    },
+    {
+     "row": "update.add[b3]",
+     "gate": "none",
+     "original_ms": 51.267,
+     "port_ms": 48.034000000000006,
+     "ratio": 0.9369379913004467,
+     "original_runs": [
+      51.267,
+      51.247,
+      51.658,
+      51.499,
+      51.23
+     ],
+     "port_runs": [
+      48.034000000000006,
+      48.137,
+      48.345000000000006,
+      48.013000000000005,
+      47.976000000000006
+     ]
+    },
+    {
+     "row": "build",
+     "gate": "none",
+     "original_ms": 678.786,
+     "port_ms": 456.339,
+     "ratio": 0.6722869947229319,
+     "original_runs": [
+      668.355,
+      678.786,
+      711.335,
+      662.876,
+      690.571
+     ],
+     "port_runs": [
+      456.169,
+      457.375,
+      456.339,
+      449.205,
+      468.052
+     ]
+    },
+    {
+     "row": "upload",
+     "gate": "none",
+     "original_ms": 67.137,
+     "port_ms": 176.395,
+     "ratio": 2.6273887722120444,
+     "original_runs": [
+      72.11,
+      67.73800000000001,
+      67.137,
+      66.02799999999999,
+      66.79599999999999
+     ],
+     "port_runs": [
+      176.395,
+      178.636,
+      182.948,
+      175.544,
+      173.92
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original_ms": 360.323,
+     "port_ms": 422.841,
+     "ratio": 1.173505438176303,
+     "original_runs": [
+      358.804,
+      359.132,
+      360.323,
+      360.341,
+      362.336
+     ],
+     "port_runs": [
+      427.096,
+      422.645,
+      419.886,
+      422.841,
+      423.508
+     ]
+    },
+    {
+     "row": "batch.generate[b1]",
+     "gate": "none",
+     "original_ms": 16.15,
+     "port_ms": 17.039,
+     "ratio": 1.055046439628483,
+     "original_runs": [
+      16.15,
+      16.18,
+      16.534,
+      16.096,
+      16.116
+     ],
+     "port_runs": [
+      17.09,
+      17.068,
+      16.412,
+      16.806,
+      17.039
+     ]
+    },
+    {
+     "row": "batch.generate[b2]",
+     "gate": "none",
+     "original_ms": 15.082,
+     "port_ms": 15.45,
+     "ratio": 1.024399946956637,
+     "original_runs": [
+      14.952,
+      15.082,
+      15.853,
+      14.872,
+      15.364
+     ],
+     "port_runs": [
+      15.735,
+      15.344,
+      15.45,
+      15.827,
+      15.27
+     ]
+    },
+    {
+     "row": "batch.generate[b3]",
+     "gate": "none",
+     "original_ms": 15.289,
+     "port_ms": 16.22,
+     "ratio": 1.060893452809209,
+     "original_runs": [
+      15.222,
+      15.157,
+      15.827,
+      15.289,
+      15.289
+     ],
+     "port_runs": [
+      16.035,
+      16.22,
+      16.627,
+      16.348,
+      16.02
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 2.6188321113586426,
+       "program_cpu_s": 11.739182999999997,
+       "foreign_cpu_cores": 1.1029588287972953,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 37,
+        "pstates_busy": {
+         "P2": 37
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.6317107677459717,
+       "program_cpu_s": 9.435884999999985,
+       "foreign_cpu_cores": 1.186983401988555,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 17
+       },
+       "gpu": {
+        "samples": 53,
+        "busy_samples": 23,
+        "pstates_busy": {
+         "P2": 23
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.6030917167663574,
+       "program_cpu_s": 11.878589000000034,
+       "foreign_cpu_cores": 0.9057076186234765,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 17
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 33,
+        "pstates_busy": {
+         "P2": 33
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.628336191177368,
+       "program_cpu_s": 9.427476999999953,
+       "foreign_cpu_cores": 1.1474342631161476,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 42,
+        "pstates_busy": {
+         "P2": 42
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.638697624206543,
+       "program_cpu_s": 12.00347800000003,
+       "foreign_cpu_cores": 1.05091124288438,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 42
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 53,
+        "busy_samples": 33,
+        "pstates_busy": {
+         "P2": 33
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.6322317123413086,
+       "program_cpu_s": 9.543299999999988,
+       "foreign_cpu_cores": 0.9164238810471248,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.5805957317352295,
+       "program_cpu_s": 11.783514999999966,
+       "foreign_cpu_cores": 1.0254969288379643,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 14
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.6214919090270996,
+       "program_cpu_s": 9.346109000000013,
+       "foreign_cpu_cores": 1.005052501126655,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.629976987838745,
+       "program_cpu_s": 12.134783000000027,
+       "foreign_cpu_cores": 0.9041341471953785,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 3
+       },
+       "gpu": {
+        "samples": 52,
+        "busy_samples": 32,
+        "pstates_busy": {
+         "P2": 32
+        },
+        "sm_mhz": {
+         "median": 1170.0,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      },
+      "port": {
+       "wall_s": 2.6244091987609863,
+       "program_cpu_s": 9.52917100000002,
+       "foreign_cpu_cores": 1.119425660329566,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 16
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 53,
+        "busy_samples": 43,
+        "pstates_busy": {
+         "P2": 43
+        },
+        "sm_mhz": {
+         "median": 1170,
+         "min": 1170,
+         "max": 1170
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.186983401988555,
+    "original_pstates_busy": {
+     "P2": 167
+    },
+    "original_sm_mhz_busy_median": 1170,
+    "port_pstates_busy": {
+     "P2": 172
+    },
+    "port_sm_mhz_busy_median": 1170.0,
+    "clocks_locked_in_every_round": true
+   },
+   "loads": [
+    {
+     "before_a": 4.2841796875,
+     "blocked_before_a": 0,
+     "after_a": 4.2841796875,
+     "blocked_after_a": 0,
+     "after_b": 4.18115234375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 4.18115234375,
+     "blocked_before_a": 0,
+     "after_a": 4.00634765625,
+     "blocked_after_a": 0,
+     "after_b": 4.00634765625,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 4.00634765625,
+     "blocked_before_a": 0,
+     "after_a": 3.84521484375,
+     "blocked_after_a": 0,
+     "after_b": 3.84521484375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 3.84521484375,
+     "blocked_before_a": 0,
+     "after_a": 3.697265625,
+     "blocked_after_a": 0,
+     "after_b": 3.697265625,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 3.697265625,
+     "blocked_before_a": 0,
+     "after_a": 3.64111328125,
+     "blocked_after_a": 0,
+     "after_b": 3.64111328125,
+     "blocked_after_b": 0
+    }
+   ],
+   "original_rounds": [
+    {
+     "init.load@0": 358.804,
+     "init.v2h_build@0": 225.675,
+     "init.h2h_build@0": 319.936,
+     "init.flatten@0": 122.744,
+     "init.construct@0": 70.604,
+     "init.row_views@0": 1.506,
+     "init.full_count@0": 635.361,
+     "batch.generate@1": 16.15,
+     "update.subtract@1": 48.28,
+     "maintain.prepare@1": 8.91,
+     "maintain.h2v_delete@1": 3.693,
+     "maintain.v2h_unfill@1": 2.135,
+     "maintain.h2v_insert@1": 11.719,
+     "maintain.v2h_fill@1": 9.549,
+     "maintain.h2h_merge@1": 20.192,
+     "maintain.row_views@1": 6.954,
+     "update.maintain@1": 70.9,
+     "update.add@1": 51.687,
+     "update@1": 170.879,
+     "batch.generate@2": 14.952,
+     "update.subtract@2": 48.423,
+     "maintain.prepare@2": 8.831,
+     "maintain.h2v_delete@2": 0.293,
+     "maintain.v2h_unfill@2": 2.101,
+     "maintain.h2v_insert@2": 2.033,
+     "maintain.v2h_fill@2": 9.336,
+     "maintain.h2h_merge@2": 19.952,
+     "maintain.row_views@2": 1.111,
+     "update.maintain@2": 45.241,
+     "update.add@2": 50.792,
+     "update@2": 144.459,
+     "batch.generate@3": 15.222,
+     "update.subtract@3": 48.168,
+     "maintain.prepare@3": 8.818,
+     "maintain.h2v_delete@3": 0.278,
+     "maintain.v2h_unfill@3": 2.112,
+     "maintain.h2v_insert@3": 6.636,
+     "maintain.v2h_fill@3": 9.287,
+     "maintain.h2h_merge@3": 19.688,
+     "maintain.row_views@3": 7.056,
+     "update.maintain@3": 55.393,
+     "update.add@3": 51.267,
+     "update@3": 154.832,
+     "total@0": 2495.564
+    },
+    {
+     "init.load@0": 359.132,
+     "init.v2h_build@0": 227.496,
+     "init.h2h_build@0": 334.657,
+     "init.flatten@0": 116.633,
+     "init.construct@0": 66.308,
+     "init.row_views@0": 1.43,
+     "init.full_count@0": 635.058,
+     "batch.generate@1": 16.18,
+     "update.subtract@1": 48.652,
+     "maintain.prepare@1": 8.531,
+     "maintain.h2v_delete@1": 2.81,
+     "maintain.v2h_unfill@1": 2.126,
+     "maintain.h2v_insert@1": 6.814,
+     "maintain.v2h_fill@1": 9.424,
+     "maintain.h2h_merge@1": 20.072,
+     "maintain.row_views@1": 6.945,
+     "update.maintain@1": 64.431,
+     "update.add@1": 51.493,
+     "update@1": 164.581,
+     "batch.generate@2": 15.082,
+     "update.subtract@2": 48.371,
+     "maintain.prepare@2": 8.873,
+     "maintain.h2v_delete@2": 0.295,
+     "maintain.v2h_unfill@2": 2.068,
+     "maintain.h2v_insert@2": 2.045,
+     "maintain.v2h_fill@2": 9.275,
+     "maintain.h2h_merge@2": 19.875,
+     "maintain.row_views@2": 1.119,
+     "update.maintain@2": 45.115,
+     "update.add@2": 51.041,
+     "update@2": 144.53,
+     "batch.generate@3": 15.157,
+     "update.subtract@3": 48.114,
+     "maintain.prepare@3": 8.571,
+     "maintain.h2v_delete@3": 0.285,
+     "maintain.v2h_unfill@3": 2.117,
+     "maintain.h2v_insert@3": 6.668,
+     "maintain.v2h_fill@3": 9.248,
+     "maintain.h2h_merge@3": 19.781,
+     "maintain.row_views@3": 7.028,
+     "update.maintain@3": 55.19,
+     "update.add@3": 51.247,
+     "update@3": 154.556,
+     "total@0": 2479.669
+    },
+    {
+     "init.load@0": 360.323,
+     "init.v2h_build@0": 260.763,
+     "init.h2h_build@0": 320.25,
+     "init.flatten@0": 130.322,
+     "init.construct@0": 65.713,
+     "init.row_views@0": 1.424,
+     "init.full_count@0": 635.204,
+     "batch.generate@1": 16.534,
+     "update.subtract@1": 48.07,
+     "maintain.prepare@1": 8.626,
+     "maintain.h2v_delete@1": 2.81,
+     "maintain.v2h_unfill@1": 2.154,
+     "maintain.h2v_insert@1": 6.837,
+     "maintain.v2h_fill@1": 9.13,
+     "maintain.h2h_merge@1": 19.96,
+     "maintain.row_views@1": 7.027,
+     "update.maintain@1": 64.104,
+     "update.add@1": 51.385,
+     "update@1": 163.572,
+     "batch.generate@2": 15.853,
+     "update.subtract@2": 48.318,
+     "maintain.prepare@2": 8.763,
+     "maintain.h2v_delete@2": 0.292,
+     "maintain.v2h_unfill@2": 2.148,
+     "maintain.h2v_insert@2": 2.05,
+     "maintain.v2h_fill@2": 9.274,
+     "maintain.h2h_merge@2": 19.853,
+     "maintain.row_views@2": 1.159,
+     "update.maintain@2": 45.248,
+     "update.add@2": 50.756,
+     "update@2": 144.326,
+     "batch.generate@3": 15.827,
+     "update.subtract@3": 48.198,
+     "maintain.prepare@3": 8.637,
+     "maintain.h2v_delete@3": 0.286,
+     "maintain.v2h_unfill@3": 2.103,
+     "maintain.h2v_insert@3": 6.698,
+     "maintain.v2h_fill@3": 9.15,
+     "maintain.h2h_merge@3": 19.751,
+     "maintain.row_views@3": 7.064,
+     "update.maintain@3": 55.228,
+     "update.add@3": 51.658,
+     "update@3": 155.09,
+     "total@0": 2515.368
+    },
+    {
+     "init.load@0": 360.341,
+     "init.v2h_build@0": 226.251,
+     "init.h2h_build@0": 324.425,
+     "init.flatten@0": 112.2,
+     "init.construct@0": 64.577,
+     "init.row_views@0": 1.451,
+     "init.full_count@0": 635.425,
+     "batch.generate@1": 16.096,
+     "update.subtract@1": 48.139,
+     "maintain.prepare@1": 8.688,
+     "maintain.h2v_delete@1": 2.794,
+     "maintain.v2h_unfill@1": 2.072,
+     "maintain.h2v_insert@1": 6.904,
+     "maintain.v2h_fill@1": 9.186,
+     "maintain.h2h_merge@1": 20.007,
+     "maintain.row_views@1": 7.057,
+     "update.maintain@1": 64.107,
+     "update.add@1": 51.338,
+     "update@1": 163.59,
+     "batch.generate@2": 14.872,
+     "update.subtract@2": 48.411,
+     "maintain.prepare@2": 8.742,
+     "maintain.h2v_delete@2": 0.288,
+     "maintain.v2h_unfill@2": 2.069,
+     "maintain.h2v_insert@2": 2.033,
+     "maintain.v2h_fill@2": 9.108,
+     "maintain.h2h_merge@2": 19.841,
+     "maintain.row_views@2": 1.128,
+     "update.maintain@2": 44.72,
+     "update.add@2": 50.973,
+     "update@2": 144.108,
+     "batch.generate@3": 15.289,
+     "update.subtract@3": 48.313,
+     "maintain.prepare@3": 8.722,
+     "maintain.h2v_delete@3": 0.281,
+     "maintain.v2h_unfill@3": 2.156,
+     "maintain.h2v_insert@3": 6.659,
+     "maintain.v2h_fill@3": 9.301,
+     "maintain.h2h_merge@3": 19.73,
+     "maintain.row_views@3": 7.054,
+     "update.maintain@3": 55.373,
+     "update.add@3": 51.499,
+     "update@3": 155.19,
+     "total@0": 2458.596
+    },
+    {
+     "init.load@0": 362.336,
+     "init.v2h_build@0": 227.995,
+     "init.h2h_build@0": 344.056,
+     "init.flatten@0": 118.52,
+     "init.construct@0": 65.357,
+     "init.row_views@0": 1.439,
+     "init.full_count@0": 635.09,
+     "batch.generate@1": 16.116,
+     "update.subtract@1": 48.218,
+     "maintain.prepare@1": 8.637,
+     "maintain.h2v_delete@1": 2.822,
+     "maintain.v2h_unfill@1": 2.154,
+     "maintain.h2v_insert@1": 6.966,
+     "maintain.v2h_fill@1": 9.481,
+     "maintain.h2h_merge@1": 20.072,
+     "maintain.row_views@1": 7.047,
+     "update.maintain@1": 64.85,
+     "update.add@1": 51.484,
+     "update@1": 164.56,
+     "batch.generate@2": 15.364,
+     "update.subtract@2": 48.507,
+     "maintain.prepare@2": 8.651,
+     "maintain.h2v_delete@2": 0.303,
+     "maintain.v2h_unfill@2": 2.14,
+     "maintain.h2v_insert@2": 2.065,
+     "maintain.v2h_fill@2": 9.31,
+     "maintain.h2h_merge@2": 19.86,
+     "maintain.row_views@2": 1.15,
+     "update.maintain@2": 45.08,
+     "update.add@2": 50.68,
+     "update@2": 144.27,
+     "batch.generate@3": 15.289,
+     "update.subtract@3": 48.107,
+     "maintain.prepare@3": 8.825,
+     "maintain.h2v_delete@3": 0.288,
+     "maintain.v2h_unfill@3": 2.13,
+     "maintain.h2v_insert@3": 6.736,
+     "maintain.v2h_fill@3": 9.257,
+     "maintain.h2h_merge@3": 19.808,
+     "maintain.row_views@3": 7.057,
+     "update.maintain@3": 55.609,
+     "update.add@3": 51.23,
+     "update@3": 154.952,
+     "total@0": 2497.323
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 427.096,
+     "hypergraph.build@0": 456.169,
+     "hypergraph.cbst.construct@0": 75.444,
+     "hypergraph.upload@0": 176.395,
+     "full_count_ms@0": 636.868,
+     "triad_count.reset@0": 0.04,
+     "triad_count.count@0": 636.746,
+     "triad_count.finalize@0": 0.019,
+     "triad_count.enact_fused@0": 636.828,
+     "triad_count.compute@0": 636.834,
+     "generate_ms@1": 17.09,
+     "update_ms@1": 143.575,
+     "driver.batch.generate@1": 17.087,
+     "triad_count.normalize@1": 1.318,
+     "triad_count.count_minus@1": 47.613,
+     "hypergraph.cbst.erase@1": 0.136,
+     "hypergraph.cbst.remove_values@1": 1.077,
+     "hypergraph.apply.delete@1": 9.716,
+     "hypergraph.cbst.insert@1": 2.691,
+     "hypergraph.cbst.append@1": 0.843,
+     "hypergraph.apply.insert@1": 14.191,
+     "hypergraph.cbst.rebuild@1": 4.84,
+     "hypergraph.apply.line_graph@1": 15.419,
+     "hypergraph.apply.views@1": 1.105,
+     "hypergraph.apply@1": 46.174,
+     "triad_count.commit@1": 46.183,
+     "triad_count.identify_affected@1": 0.015,
+     "triad_count.count_plus@1": 48.365,
+     "triad_count.finalize@1": 0.01,
+     "triad_count.enact_fused@1": 48.395,
+     "triad_count.update@1": 143.558,
+     "generate_ms@2": 15.735,
+     "update_ms@2": 145.308,
+     "driver.batch.generate@2": 15.721,
+     "triad_count.normalize@2": 1.566,
+     "triad_count.count_minus@2": 47.933,
+     "hypergraph.cbst.erase@2": 0.572,
+     "hypergraph.cbst.remove_values@2": 1.14,
+     "hypergraph.apply.delete@2": 10.533,
+     "hypergraph.cbst.insert@2": 0.784,
+     "hypergraph.cbst.append@2": 0.832,
+     "hypergraph.apply.insert@2": 11.644,
+     "hypergraph.cbst.rebuild@2": 4.852,
+     "hypergraph.apply.line_graph@2": 16.691,
+     "hypergraph.apply.views@2": 1.115,
+     "hypergraph.apply@2": 48.137,
+     "triad_count.commit@2": 48.139,
+     "triad_count.identify_affected@2": 0.015,
+     "triad_count.count_plus@2": 47.585,
+     "triad_count.finalize@2": 0.009,
+     "triad_count.enact_fused@2": 47.612,
+     "triad_count.update@2": 145.297,
+     "generate_ms@3": 16.035,
+     "update_ms@3": 147.232,
+     "driver.batch.generate@3": 16.029,
+     "triad_count.normalize@3": 1.538,
+     "triad_count.count_minus@3": 47.852,
+     "hypergraph.cbst.erase@3": 0.522,
+     "hypergraph.cbst.remove_values@3": 1.098,
+     "hypergraph.apply.delete@3": 10.496,
+     "hypergraph.cbst.insert@3": 2.482,
+     "hypergraph.cbst.append@3": 0.842,
+     "hypergraph.apply.insert@3": 13.693,
+     "hypergraph.cbst.rebuild@3": 4.928,
+     "hypergraph.apply.line_graph@3": 16.757,
+     "hypergraph.apply.views@3": 1.136,
+     "hypergraph.apply@3": 49.749,
+     "triad_count.commit@3": 49.751,
+     "triad_count.identify_affected@3": 0.015,
+     "triad_count.count_plus@3": 48.011,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 48.04,
+     "triad_count.update@3": 147.223,
+     "total_ms@0": 2454.017,
+     "driver.total@0": 2454.017
+    },
+    {
+     "load_ms@0": 422.645,
+     "hypergraph.build@0": 457.375,
+     "hypergraph.cbst.construct@0": 76.33,
+     "hypergraph.upload@0": 178.636,
+     "full_count_ms@0": 636.787,
+     "triad_count.reset@0": 0.04,
+     "triad_count.count@0": 636.676,
+     "triad_count.finalize@0": 0.013,
+     "triad_count.enact_fused@0": 636.748,
+     "triad_count.compute@0": 636.754,
+     "generate_ms@1": 17.068,
+     "update_ms@1": 143.603,
+     "driver.batch.generate@1": 17.066,
+     "triad_count.normalize@1": 1.229,
+     "triad_count.count_minus@1": 47.531,
+     "hypergraph.cbst.erase@1": 0.135,
+     "hypergraph.cbst.remove_values@1": 1.129,
+     "hypergraph.apply.delete@1": 9.899,
+     "hypergraph.cbst.insert@1": 2.659,
+     "hypergraph.cbst.append@1": 0.838,
+     "hypergraph.apply.insert@1": 14.241,
+     "hypergraph.cbst.rebuild@1": 4.873,
+     "hypergraph.apply.line_graph@1": 15.561,
+     "hypergraph.apply.views@1": 1.107,
+     "hypergraph.apply@1": 46.726,
+     "triad_count.commit@1": 46.735,
+     "triad_count.identify_affected@1": 0.016,
+     "triad_count.count_plus@1": 48.011,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 48.04,
+     "triad_count.update@1": 143.585,
+     "generate_ms@2": 15.344,
+     "update_ms@2": 146.322,
+     "driver.batch.generate@2": 15.335,
+     "triad_count.normalize@2": 1.632,
+     "triad_count.count_minus@2": 48.103,
+     "hypergraph.cbst.erase@2": 0.553,
+     "hypergraph.cbst.remove_values@2": 1.128,
+     "hypergraph.apply.delete@2": 10.84,
+     "hypergraph.cbst.insert@2": 0.83,
+     "hypergraph.cbst.append@2": 0.842,
+     "hypergraph.apply.insert@2": 11.841,
+     "hypergraph.cbst.rebuild@2": 4.862,
+     "hypergraph.apply.line_graph@2": 16.805,
+     "hypergraph.apply.views@2": 1.113,
+     "hypergraph.apply@2": 48.721,
+     "triad_count.commit@2": 48.723,
+     "triad_count.identify_affected@2": 0.015,
+     "triad_count.count_plus@2": 47.783,
+     "triad_count.finalize@2": 0.008,
+     "triad_count.enact_fused@2": 47.81,
+     "triad_count.update@2": 146.312,
+     "generate_ms@3": 16.22,
+     "update_ms@3": 152.081,
+     "driver.batch.generate@3": 16.216,
+     "triad_count.normalize@3": 1.531,
+     "triad_count.count_minus@3": 47.9,
+     "hypergraph.cbst.erase@3": 0.551,
+     "hypergraph.cbst.remove_values@3": 1.096,
+     "hypergraph.apply.delete@3": 10.887,
+     "hypergraph.cbst.insert@3": 2.471,
+     "hypergraph.cbst.append@3": 0.826,
+     "hypergraph.apply.insert@3": 13.776,
+     "hypergraph.cbst.rebuild@3": 4.856,
+     "hypergraph.apply.line_graph@3": 20.893,
+     "hypergraph.apply.views@3": 1.133,
+     "hypergraph.apply@3": 54.453,
+     "triad_count.commit@3": 54.456,
+     "triad_count.identify_affected@3": 0.016,
+     "triad_count.count_plus@3": 48.113,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 48.141,
+     "triad_count.update@3": 152.071,
+     "total_ms@0": 2456.275,
+     "driver.total@0": 2456.275
+    },
+    {
+     "load_ms@0": 419.886,
+     "hypergraph.build@0": 456.339,
+     "hypergraph.cbst.construct@0": 80.136,
+     "hypergraph.upload@0": 182.948,
+     "full_count_ms@0": 636.63,
+     "triad_count.reset@0": 0.042,
+     "triad_count.count@0": 636.519,
+     "triad_count.finalize@0": 0.014,
+     "triad_count.enact_fused@0": 636.593,
+     "triad_count.compute@0": 636.599,
+     "generate_ms@1": 16.412,
+     "update_ms@1": 143.165,
+     "driver.batch.generate@1": 16.409,
+     "triad_count.normalize@1": 1.29,
+     "triad_count.count_minus@1": 47.734,
+     "hypergraph.cbst.erase@1": 0.133,
+     "hypergraph.cbst.remove_values@1": 1.081,
+     "hypergraph.apply.delete@1": 9.695,
+     "hypergraph.cbst.insert@1": 2.668,
+     "hypergraph.cbst.append@1": 0.831,
+     "hypergraph.apply.insert@1": 13.914,
+     "hypergraph.cbst.rebuild@1": 4.898,
+     "hypergraph.apply.line_graph@1": 15.542,
+     "hypergraph.apply.views@1": 1.138,
+     "hypergraph.apply@1": 46.14,
+     "triad_count.commit@1": 46.149,
+     "triad_count.identify_affected@1": 0.015,
+     "triad_count.count_plus@1": 47.895,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 47.925,
+     "triad_count.update@1": 143.147,
+     "generate_ms@2": 15.45,
+     "update_ms@2": 147.475,
+     "driver.batch.generate@2": 15.44,
+     "triad_count.normalize@2": 1.612,
+     "triad_count.count_minus@2": 48.136,
+     "hypergraph.cbst.erase@2": 0.55,
+     "hypergraph.cbst.remove_values@2": 1.115,
+     "hypergraph.apply.delete@2": 10.719,
+     "hypergraph.cbst.insert@2": 0.806,
+     "hypergraph.cbst.append@2": 0.842,
+     "hypergraph.apply.insert@2": 12.073,
+     "hypergraph.cbst.rebuild@2": 4.898,
+     "hypergraph.apply.line_graph@2": 17.594,
+     "hypergraph.apply.views@2": 1.125,
+     "hypergraph.apply@2": 49.712,
+     "triad_count.commit@2": 49.73,
+     "triad_count.identify_affected@2": 0.016,
+     "triad_count.count_plus@2": 47.905,
+     "triad_count.finalize@2": 0.009,
+     "triad_count.enact_fused@2": 47.935,
+     "triad_count.update@2": 147.465,
+     "generate_ms@3": 16.627,
+     "update_ms@3": 147.62,
+     "driver.batch.generate@3": 16.612,
+     "triad_count.normalize@3": 1.626,
+     "triad_count.count_minus@3": 47.968,
+     "hypergraph.cbst.erase@3": 0.533,
+     "hypergraph.cbst.remove_values@3": 1.062,
+     "hypergraph.apply.delete@3": 10.43,
+     "hypergraph.cbst.insert@3": 2.485,
+     "hypergraph.cbst.append@3": 0.828,
+     "hypergraph.apply.insert@3": 13.622,
+     "hypergraph.cbst.rebuild@3": 4.868,
+     "hypergraph.apply.line_graph@3": 16.769,
+     "hypergraph.apply.views@3": 1.149,
+     "hypergraph.apply@3": 49.622,
+     "triad_count.commit@3": 49.624,
+     "triad_count.identify_affected@3": 0.015,
+     "triad_count.count_plus@3": 48.322,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 48.35,
+     "triad_count.update@3": 147.611,
+     "total_ms@0": 2461.883,
+     "driver.total@0": 2461.883
+    },
+    {
+     "load_ms@0": 422.841,
+     "hypergraph.build@0": 449.205,
+     "hypergraph.cbst.construct@0": 75.904,
+     "hypergraph.upload@0": 175.544,
+     "full_count_ms@0": 636.986,
+     "triad_count.reset@0": 0.039,
+     "triad_count.count@0": 636.877,
+     "triad_count.finalize@0": 0.013,
+     "triad_count.enact_fused@0": 636.948,
+     "triad_count.compute@0": 636.954,
+     "generate_ms@1": 16.806,
+     "update_ms@1": 143.98,
+     "driver.batch.generate@1": 16.803,
+     "triad_count.normalize@1": 1.29,
+     "triad_count.count_minus@1": 47.729,
+     "hypergraph.cbst.erase@1": 0.136,
+     "hypergraph.cbst.remove_values@1": 1.108,
+     "hypergraph.apply.delete@1": 10.092,
+     "hypergraph.cbst.insert@1": 2.654,
+     "hypergraph.cbst.append@1": 0.823,
+     "hypergraph.apply.insert@1": 14.059,
+     "hypergraph.cbst.rebuild@1": 4.853,
+     "hypergraph.apply.line_graph@1": 15.495,
+     "hypergraph.apply.views@1": 1.111,
+     "hypergraph.apply@1": 46.687,
+     "triad_count.commit@1": 46.696,
+     "triad_count.identify_affected@1": 0.016,
+     "triad_count.count_plus@1": 48.163,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 48.193,
+     "triad_count.update@1": 143.962,
+     "generate_ms@2": 15.827,
+     "update_ms@2": 145.894,
+     "driver.batch.generate@2": 15.809,
+     "triad_count.normalize@2": 1.653,
+     "triad_count.count_minus@2": 48.182,
+     "hypergraph.cbst.erase@2": 0.507,
+     "hypergraph.cbst.remove_values@2": 1.113,
+     "hypergraph.apply.delete@2": 10.595,
+     "hypergraph.cbst.insert@2": 0.782,
+     "hypergraph.cbst.append@2": 0.823,
+     "hypergraph.apply.insert@2": 11.745,
+     "hypergraph.cbst.rebuild@2": 4.847,
+     "hypergraph.apply.line_graph@2": 16.562,
+     "hypergraph.apply.views@2": 1.13,
+     "hypergraph.apply@2": 48.217,
+     "triad_count.commit@2": 48.219,
+     "triad_count.identify_affected@2": 0.015,
+     "triad_count.count_plus@2": 47.755,
+     "triad_count.finalize@2": 0.008,
+     "triad_count.enact_fused@2": 47.782,
+     "triad_count.update@2": 145.883,
+     "generate_ms@3": 16.348,
+     "update_ms@3": 146.869,
+     "driver.batch.generate@3": 16.344,
+     "triad_count.normalize@3": 1.596,
+     "triad_count.count_minus@3": 47.618,
+     "hypergraph.cbst.erase@3": 0.537,
+     "hypergraph.cbst.remove_values@3": 1.097,
+     "hypergraph.apply.delete@3": 10.611,
+     "hypergraph.cbst.insert@3": 2.498,
+     "hypergraph.cbst.append@3": 0.821,
+     "hypergraph.apply.insert@3": 13.546,
+     "hypergraph.cbst.rebuild@3": 4.859,
+     "hypergraph.apply.line_graph@3": 16.682,
+     "hypergraph.apply.views@3": 1.143,
+     "hypergraph.apply@3": 49.583,
+     "triad_count.commit@3": 49.585,
+     "triad_count.identify_affected@3": 0.015,
+     "triad_count.count_plus@3": 47.99,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 48.018,
+     "triad_count.update@3": 146.86,
+     "total_ms@0": 2448.675,
+     "driver.total@0": 2448.675
+    },
+    {
+     "load_ms@0": 423.508,
+     "hypergraph.build@0": 468.052,
+     "hypergraph.cbst.construct@0": 75.10499999999999,
+     "hypergraph.upload@0": 173.92,
+     "full_count_ms@0": 636.892,
+     "triad_count.reset@0": 0.038,
+     "triad_count.count@0": 636.786,
+     "triad_count.finalize@0": 0.012,
+     "triad_count.enact_fused@0": 636.855,
+     "triad_count.compute@0": 636.861,
+     "generate_ms@1": 17.039,
+     "update_ms@1": 143.567,
+     "driver.batch.generate@1": 17.036,
+     "triad_count.normalize@1": 1.315,
+     "triad_count.count_minus@1": 47.538,
+     "hypergraph.cbst.erase@1": 0.137,
+     "hypergraph.cbst.remove_values@1": 1.114,
+     "hypergraph.apply.delete@1": 10.037,
+     "hypergraph.cbst.insert@1": 2.673,
+     "hypergraph.cbst.append@1": 0.818,
+     "hypergraph.apply.insert@1": 14.121,
+     "hypergraph.cbst.rebuild@1": 4.851,
+     "hypergraph.apply.line_graph@1": 15.53,
+     "hypergraph.apply.views@1": 1.111,
+     "hypergraph.apply@1": 46.614,
+     "triad_count.commit@1": 46.624,
+     "triad_count.identify_affected@1": 0.016,
+     "triad_count.count_plus@1": 47.99,
+     "triad_count.finalize@1": 0.009,
+     "triad_count.enact_fused@1": 48.02,
+     "triad_count.update@1": 143.549,
+     "generate_ms@2": 15.27,
+     "update_ms@2": 145.428,
+     "driver.batch.generate@2": 15.262,
+     "triad_count.normalize@2": 1.608,
+     "triad_count.count_minus@2": 47.957,
+     "hypergraph.cbst.erase@2": 0.515,
+     "hypergraph.cbst.remove_values@2": 1.146,
+     "hypergraph.apply.delete@2": 10.471,
+     "hypergraph.cbst.insert@2": 0.801,
+     "hypergraph.cbst.append@2": 0.805,
+     "hypergraph.apply.insert@2": 11.942,
+     "hypergraph.cbst.rebuild@2": 4.84,
+     "hypergraph.apply.line_graph@2": 16.581,
+     "hypergraph.apply.views@2": 1.119,
+     "hypergraph.apply@2": 47.769,
+     "triad_count.commit@2": 47.771,
+     "triad_count.identify_affected@2": 0.015,
+     "triad_count.count_plus@2": 48.011,
+     "triad_count.finalize@2": 0.008,
+     "triad_count.enact_fused@2": 48.038,
+     "triad_count.update@2": 145.417,
+     "generate_ms@3": 16.02,
+     "update_ms@3": 146.696,
+     "driver.batch.generate@3": 16.016,
+     "triad_count.normalize@3": 1.635,
+     "triad_count.count_minus@3": 47.78,
+     "hypergraph.cbst.erase@3": 0.52,
+     "hypergraph.cbst.remove_values@3": 1.098,
+     "hypergraph.apply.delete@3": 10.475,
+     "hypergraph.cbst.insert@3": 2.463,
+     "hypergraph.cbst.append@3": 0.793,
+     "hypergraph.apply.insert@3": 13.358,
+     "hypergraph.cbst.rebuild@3": 4.902,
+     "hypergraph.apply.line_graph@3": 16.693,
+     "hypergraph.apply.views@3": 1.132,
+     "hypergraph.apply@3": 49.247,
+     "triad_count.commit@3": 49.249,
+     "triad_count.identify_affected@3": 0.015,
+     "triad_count.count_plus@3": 47.953,
+     "triad_count.finalize@3": 0.008,
+     "triad_count.enact_fused@3": 47.981,
+     "triad_count.update@3": 146.686,
+     "total_ms@0": 2455.916,
+     "driver.total@0": 2455.916
+    }
+   ],
+   "host_syncs": {
+    "original": [
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     },
+     {
+      "total": 90,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 22,
+       "cudaMemcpy": 24,
+       "cudaStreamSynchronize": 23
+      }
+     },
+     {
+      "total": 96,
+      "by_name": {
+       "cudaDeviceSynchronize": 21,
+       "cudaMemset": 25,
+       "cudaMemcpy": 25,
+       "cudaStreamSynchronize": 25
+      }
+     }
+    ],
+    "port": [
+     {
+      "total": 22,
+      "by_name": {
+       "cudaStreamSynchronize": 22
+      }
+     },
+     {
+      "total": 19,
+      "by_name": {
+       "cudaStreamSynchronize": 19
+      }
+     },
+     {
+      "total": 22,
+      "by_name": {
+       "cudaStreamSynchronize": 22
+      }
+     }
+    ]
+   }
+  }
+ }
+}

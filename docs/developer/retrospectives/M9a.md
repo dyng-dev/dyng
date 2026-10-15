@@ -224,3 +224,128 @@ hold on the synthetic cases, so their gates run at base (`parity/results/M9a.md`
   update with counting 90-96: the budget for the triad stages is the difference.
 - The footprint between batches is the pool's reserve (1.63-1.69 x A's held bytes; reported,
   flagged above 1.05, not gated).
+
+## Step 3: the CUDA port, the API and the early gate reading (cuda-port-api-early-gate)
+
+**GO for step 4.** ESCHER-GPU's wedge engine is ported by a reproducible transplant and six
+mechanical classes, each replayed exactly; the Op form (c6) leaves the counting kernels' machine
+code identical; `triad_count` on cuda is exact on all 300 golden cases by key and by content; the
+driver prints A's stdout byte for byte; the early gate reading meets every margin target (update
+<= 1.011, full count <= 1.003, end to end <= 0.984; the Nsight Systems peak <= 1.0015)
+(`parity/results/M9a.md` section 3). Nothing needs the author but the new public names (ADR 0052,
+D9).
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `be82dec` | `scripts/new_algorithm.py triad_count --container hypergraph --family aggregate_delta --backends seq,omp`; `ci/tests/test_regen.py` checks `hyper_sssp` as the planned algorithm |
+| `645d6dc` | c1: the transplant (`engine/`, `rename_map_triad.toml`, `manual_hunks_triad.patch`), the public header `dyng/triad_count.hpp` (in `dyng.hpp`), the problem (`problem.hpp`, `triad_count.cpp`), the host recount, the CUDA glue (`cuda.cu`), `--counter algorithm` of `dyng_triad_replay`, the counting of `dyng-compat-escher run`, the retargeted fitness file, the manifest |
+| `58b0895` | the test CMakeLists that c1 formatted by mistake, restored |
+| `64d3b7c`, `29a02ad`, `679cec9`, `84f894b`, `c0793d6` | c2 errors, c3 memory, c4 streams, c5 registration and counters, c6 the Op form (`parity/triad_sass.py`) |
+| `860fb1b` | the host recount on the engine's operations |
+| `85efa0b` | the engine's per-call state without a heap allocation; compute()'s own offsets; the tests (host and cuda) and the kit for the four patterns |
+| `7c78e8b` | the driver's `printHypergraphParams` lines; `triad_replay.py stdout`; the gpu_local step `triad`; the API baseline; the algorithm page |
+| `7c75a45`, `40efdba`, `a7a53cc`, `091e667`, `a39b0bf` | the kit's type suites in their own translation unit (a GCC 12 false positive under `_FORTIFY_SOURCE=3`); the provenance symbols; the harness and replay tests of the algorithm counter; the manifest's `python` flag and its message's line length (ruff) |
+| (the records commit) | `parity/results/M9a.md` section 3 and its records, ADRs 0052 and 0053, GOVERNANCE.md, plan.md, CHANGELOG, this section |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **The transplant commit carries the infrastructure** (as M8b's `3b73335`): the replay after c1
+   needs the API, the problem and the glue. The transplanted files are the generated transplant
+   (`transplant.py --check --rev 645d6dc`: identical). c1 also ran clang-format over the triad
+   test CMakeLists by mistake; `58b0895` restored it (no history was rewritten).
+2. **The counters stay classes in c1** (behind a shim of A's driver interface, a manual hunk) and
+   become `count_full()` / `count_phase()` in c3: their only state was device memory, which c3
+   moves to the workspace. The subtract and add bins are kept apart from c3 on; at c1-c2 the stats'
+   `triads_removed` / `triads_added` were split from the net delta (transitional; the replays
+   check counts only).
+3. **The frontier is built by a kernel from c3 on** (the deleted ids uploaded once; the inserted
+   ids from the applied record's device copy), not A's host flag vector; type 1 builds no flags
+   (its key kernel never reads them). Type 1's full count runs over the h2v view's keys, types 2
+   and 3 over the line graph's (A's `numHyperedgeKeys`); at c1-c5 the glue gave every pattern the
+   h2v view's key count (the same results: the rows above the bound are empty).
+4. **c6's bins handle tests the bin's sign only**: testing the upper bound too cost one
+   instruction per triangle in MotifOp's hot loop, against the c6 rule (machine code equal to
+   c5's). M9b's user operations may take a handle that tests both.
+5. **The host recount uses the engine's operations** (`860fb1b`), not the scaffold's placeholder
+   nor a copy of the set primitives: still a recount (`fallback_used`), as the step asks. Its
+   `triads_removed` / `triads_added` are every triad before and after (ADR 0052 section 2.3), so
+   the kit's cross-backend counters are the frontier sizes and the deltas until step 4.
+6. **`stats::delta` and `max_bins`** are in the header (the sketch's open question 1, PLAN 5.5's
+   `st.delta`); `count(bin)` throws outside `[0, num_bins())`; the vertex limit of the classifying
+   merge is refused by `compute()` (h_motif, type 3) rather than counted (ADR 0052 section 2.5).
+   The new names await the author (D9).
+7. **compute()'s offsets have scratch arrays of their own**, released when it returns: released
+   from the update's arrays, an update after a compute() reserved again and C8 failed. The
+   engine's per-call state lives in the problem (a `new` per update was a host allocation C8
+   counts).
+8. **The kit runs the four patterns as four suites**: h_motif under the registered tag, the types
+   under test-only tags with the manifest's registry entry (C0 reads the entry); their suites are in
+   a second translation unit (GCC 12 -O3 with `_FORTIFY_SOURCE=3` reported a false `-Wnonnull` in
+   `std::vector`'s assignment with all four in one).
+9. **The compat tools need `triad_count` in the build** (the root CMakeLists): `dyng-compat-escher
+   run` counts with it, so a build of a subset of the algorithms leaves the compat tools out, as
+   it already did without mosp.
+10. **The driver prints A's `printHypergraphParams` lines** for a synthetic input (A prints them
+    inside its load stage), so its whole stdout is A's.
+11. **The memory reading ran on all three gate cases** (the step names coauth_b50k_s1): the tight
+    syn1m budget of step 2 is checked too.
+12. **No container fix and no profiling were needed**: every margin target was met at the first
+    reading, so `cpp/src/hypergraph` is unchanged and no ADR 0024 bar is due.
+13. **The CBST source rules cover `cpp/src/algorithms/triad_count`** from c4 on (CTest
+    `triad_count_source_rules`; the script takes `SOURCE_SUBDIRS`).
+14. **A manifest says whether its Python module exists** (`python = false`, experimental only;
+    `091e667`): the Python registry listed `triad_count` from the scaffold on, and the
+    uniform-contract test of the Python layer imported `dyng.triad_count`, which M9b writes. The
+    scaffold templates start with `python = false`, since they generate no bindings.
+15. **`dyng_triad_replay_tests`** now checks the algorithm counter against the oracle on its own
+    case (`a7a53cc`); the case that the counter is not available stays for builds without
+    triad_count.
+
+### Machine time
+
+| What | Time |
+|---|---|
+| per-commit replays (make-test, syn1m_b50k_s1, coauth_b50k_s1; c2-c6 twice each: before the commit and recorded after it; c1 once from a worktree) | about 75 s each, 15 min in all; the c1 worktree build and replay 6 min |
+| the full cuda parity (300 cases, both modes, recount per batch; GPU 1, 3 jobs) | 40 min wall (7,107 s of group time) |
+| host make-test replays (dev build, both modes) | sequential 8 min, openmp 1.3 min |
+| the kit: host (dev) / cuda (dev-cuda) | 8.4 min / 2.4 min |
+| `triad_replay.py stdout`, 10 repeated runs x 4 patterns | 3 min, 12 min |
+| early timing reading (5 rounds x 2 cases, GPU 0 exclusive) and memory reading (3 cases under nsys, GPU 1) | 2.7 min and 1.4 min |
+| builds: parity-cuda (full), dev-cuda, sanitize-cuda, the fortified cpu-only build, Clang 18 syntax over 373 files | about 40 min in all (much of it shared with the parity run) |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1; the `triad` step's racecheck of make-test 12 min, the coauth batch under memcheck, synccheck and initcheck about 20 min) | about 3.5 h, all 20 steps passed (one earlier run stopped by me after the replay test change) |
+| `ci/check.sh` (full), then python/regen/harness and scaffold/api again after `091e667` | 28 min, 2 min, 1.5 min |
+
+### Notes for step 4 (the incremental host engines)
+
+- The operations are host-compilable (`engine/count_ops.hpp`, `motif_ops.hpp`,
+  `stathyper_ops.hpp`, `sets.hpp`); the host full mode is `host_count.hpp`. The frontier mode is the
+  same loop over the frontier keys with all neighbours from `loc[f]`, closing `k > b` through
+  `out[b]`, and the predicates of `engine/ownership.hpp` (`min_member_skips_wedge`,
+  `min_member_skips_closing`); the flags cover `views.h2h.max_key + 1` keys.
+- The deleted frontier is `normalized_->deletions` (begin_update keeps it); the inserted one
+  `applied.record.inserted_ids` (host). count(-) must run in `count(old)` (it is a no-op on the
+  host backends now) and count(+) in `count(new)` with `computing_` false; finalize then calls
+  `apply_delta(minus, plus, stats)` like cuda, and `fallback_used` becomes false.
+- Then add `triads_removed` / `triads_added` to the kit's `deterministic()` and drop the host
+  branch of `TriadCount.UpdatesMatchTheOracleAndTheirStats` (the oracle's `removed()` / `added()`
+  then apply on every backend); `ABinThatWouldGoNegativePoisonsTheResult` too.
+- The host replays of the coverage table (sequential: make-test + the syn100k grid; openmp at 1
+  and 8 threads: also the syn1m s1 grid and coauth_b50k_s1 types 1-2) take
+  `--counter algorithm`.
+
+### Notes for step 5 (gates, mutations, suites, certificate)
+
+- The early readings: coauth_b50k_s1 update 0.949-0.980, full count 0.999, end to end 0.942;
+  syn1m_b50k_s1 update 0.872-1.011, full count 1.003, end to end 0.984; nsys peak 1.0010-1.0015.
+  syn1m's `update.subtract` is 1.015-1.027 of A's (inside update, which is gated).
+- Mutation points: `engine/ownership.hpp` (the two filters: `triad_skip_frontier_filter_b` / `_k`,
+  shared with the host engine of step 4), `apply_delta` and the phases' sign
+  (`triad_wrong_bin_sign`), `triad_cuda_identify_affected` / the host's inserted frontier
+  (`triad_inserted_requested_ids`), `count_full`'s type-1 key bound and the host's `num_sources`
+  (`triad_type1_unbounded_keys`).
+- `cpp/src/hypergraph` is unchanged: no ADR 0024 bar.
+- The records of this step that a certificate could read are in `parity/results` (the cuda
+  parity record `M9a-parity-cuda-escher_gpu.json` is the replay record format of compare.py,
+  compacted).

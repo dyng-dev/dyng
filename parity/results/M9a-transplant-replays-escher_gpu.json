@@ -1,0 +1,84 @@
+{
+ "schema": 1,
+ "what": "M9a step 3, criterion 7: after every commit of the wedge-engine port, parity/compare.py triad_count --backend cuda --mode by_key --counter algorithm on make-test, syn1m_b50k_s1 and coauth_b50k_s1 (all four executables; the reduced Release build -DDYNG_ALGORITHMS=triad_count of the parity-cuda preset; GPU 1, shared lock). c1 was replayed afterwards from a worktree of its commit (concurrently with other GPU work: its coauth group time is not comparable).",
+ "commits": [
+  {
+   "class": "c1 transplant",
+   "commit": "645d6dc1327be42f2db9908df09063a5a0a2293e",
+   "date": "2026-10-15T16:09:38Z",
+   "num_cases": 68,
+   "num_passed": 68,
+   "passed": true,
+   "seconds": {
+    "make-test": 35.7,
+    "syn1m_b50k_s1": 35.2,
+    "coauth_b50k_s1": 169.8
+   }
+  },
+  {
+   "class": "c2 errors",
+   "commit": "64d3b7c6e4f5de338f4921a960eb8037958ab332",
+   "date": "2026-10-15T14:39:39Z",
+   "num_cases": 68,
+   "num_passed": 68,
+   "passed": true,
+   "seconds": {
+    "make-test": 7.4,
+    "syn1m_b50k_s1": 17.0,
+    "coauth_b50k_s1": 69.3
+   }
+  },
+  {
+   "class": "c3 memory",
+   "commit": "29a02adc69b84516efd88593a0db7e0558a7e92e",
+   "date": "2026-10-15T14:45:03Z",
+   "num_cases": 68,
+   "num_passed": 68,
+   "passed": true,
+   "seconds": {
+    "make-test": 7.9,
+    "syn1m_b50k_s1": 16.9,
+    "coauth_b50k_s1": 68.8
+   }
+  },
+  {
+   "class": "c4 streams",
+   "commit": "679cec913e29bf4b0ffa309bc85ab49dddb49ebb",
+   "date": "2026-10-15T14:49:51Z",
+   "num_cases": 68,
+   "num_passed": 68,
+   "passed": true,
+   "seconds": {
+    "make-test": 7.5,
+    "syn1m_b50k_s1": 16.8,
+    "coauth_b50k_s1": 69.1
+   }
+  },
+  {
+   "class": "c5 registration and counters",
+   "commit": "84f894b8dd2e127f9ed7b48c4f31019c27f30be1",
+   "date": "2026-10-15T14:54:46Z",
+   "num_cases": 68,
+   "num_passed": 68,
+   "passed": true,
+   "seconds": {
+    "make-test": 7.4,
+    "syn1m_b50k_s1": 16.9,
+    "coauth_b50k_s1": 68.6
+   }
+  },
+  {
+   "class": "c6 the Op form",
+   "commit": "c0793d6bfd9803c74ae03eab5fadab7114df7fec",
+   "date": "2026-10-15T15:04:21Z",
+   "num_cases": 68,
+   "num_passed": 68,
+   "passed": true,
+   "seconds": {
+    "make-test": 7.2,
+    "syn1m_b50k_s1": 16.9,
+    "coauth_b50k_s1": 68.8
+   }
+  }
+ ]
+}

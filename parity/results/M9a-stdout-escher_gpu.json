@@ -1,0 +1,371 @@
+{
+ "schema": 1,
+ "what": "M9a step 3: dyng-compat-escher run --pattern P with A's arguments prints A's stdout byte for byte (make-test: the whole stdout of A's unpatched run; grid cases: the count and batch lines rebuilt from the golden case)",
+ "backend": "cuda",
+ "driver": "build/parity-cuda/tools/compat/dyng-compat-escher",
+ "commit": "85efa0b9e613909dcbe8e3a5dfd86c419cae048f",
+ "date": "2026-10-15T15:49:37Z",
+ "cases": {
+  "coauth_b50k_s1/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "coauth_b50k_s1/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "coauth_b50k_s1/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "coauth_b50k_s1/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn1m_b50k_s1/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn1m_b50k_s1/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn1m_b50k_s1/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn1m_b50k_s1/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn2m_b50k_s1/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn2m_b50k_s1/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn2m_b50k_s1/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "syn2m_b50k_s1/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "count lines"
+  },
+  "test/01-smoke/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/01-smoke/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/01-smoke/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/01-smoke/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/02-reference_small/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/02-reference_small/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/02-reference_small/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/02-reference_small/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/03-reference_syn100k/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/03-reference_syn100k/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/03-reference_syn100k/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/03-reference_syn100k/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/04-small_b20/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/04-small_b20/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/04-small_b20/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/04-small_b20/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/05-small_b200/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/05-small_b200/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/05-small_b200/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/05-small_b200/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/06-small_b1000/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/06-small_b1000/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/06-small_b1000/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/06-small_b1000/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/07-syn100k_b5000/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/07-syn100k_b5000/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/07-syn100k_b5000/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/07-syn100k_b5000/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/08-deletions_only/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/08-deletions_only/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/08-deletions_only/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/08-deletions_only/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/09-insertions_only/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/09-insertions_only/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/09-insertions_only/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/09-insertions_only/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/10-more_deletions/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/10-more_deletions/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/10-more_deletions/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/10-more_deletions/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/11-random_inserts_file/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/11-random_inserts_file/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/11-random_inserts_file/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/11-random_inserts_file/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/12-sampled_inserts_synthetic/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/12-sampled_inserts_synthetic/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/12-sampled_inserts_synthetic/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/12-sampled_inserts_synthetic/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/13-batch_larger_than_graph/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/13-batch_larger_than_graph/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/13-batch_larger_than_graph/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/13-batch_larger_than_graph/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/14-skewed/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/14-skewed/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/14-skewed/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/14-skewed/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/15-medium/main": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/15-medium/type1": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/15-medium/type2": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  },
+  "test/15-medium/type3": {
+   "passed": true,
+   "problems": [],
+   "compared": "stdout"
+  }
+ },
+ "passed": true
+}

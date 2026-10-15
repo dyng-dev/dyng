@@ -1,0 +1,1136 @@
+{
+ "backend": "cuda",
+ "cases": {
+  "coauth_b100k_s1/main": {
+   "passed": true
+  },
+  "coauth_b100k_s1/type1": {
+   "passed": true
+  },
+  "coauth_b100k_s1/type2": {
+   "passed": true
+  },
+  "coauth_b100k_s1/type3": {
+   "passed": true
+  },
+  "coauth_b100k_s2/main": {
+   "passed": true
+  },
+  "coauth_b100k_s2/type1": {
+   "passed": true
+  },
+  "coauth_b100k_s2/type2": {
+   "passed": true
+  },
+  "coauth_b100k_s2/type3": {
+   "passed": true
+  },
+  "coauth_b100k_s3/main": {
+   "passed": true
+  },
+  "coauth_b100k_s3/type1": {
+   "passed": true
+  },
+  "coauth_b100k_s3/type2": {
+   "passed": true
+  },
+  "coauth_b100k_s3/type3": {
+   "passed": true
+  },
+  "coauth_b200k_s1/main": {
+   "passed": true
+  },
+  "coauth_b200k_s1/type1": {
+   "passed": true
+  },
+  "coauth_b200k_s1/type2": {
+   "passed": true
+  },
+  "coauth_b200k_s1/type3": {
+   "passed": true
+  },
+  "coauth_b200k_s2/main": {
+   "passed": true
+  },
+  "coauth_b200k_s2/type1": {
+   "passed": true
+  },
+  "coauth_b200k_s2/type2": {
+   "passed": true
+  },
+  "coauth_b200k_s2/type3": {
+   "passed": true
+  },
+  "coauth_b200k_s3/main": {
+   "passed": true
+  },
+  "coauth_b200k_s3/type1": {
+   "passed": true
+  },
+  "coauth_b200k_s3/type2": {
+   "passed": true
+  },
+  "coauth_b200k_s3/type3": {
+   "passed": true
+  },
+  "coauth_b20_s1/main": {
+   "passed": true
+  },
+  "coauth_b20_s1/type1": {
+   "passed": true
+  },
+  "coauth_b20_s1/type2": {
+   "passed": true
+  },
+  "coauth_b20_s1/type3": {
+   "passed": true
+  },
+  "coauth_b20_s2/main": {
+   "passed": true
+  },
+  "coauth_b20_s2/type1": {
+   "passed": true
+  },
+  "coauth_b20_s2/type2": {
+   "passed": true
+  },
+  "coauth_b20_s2/type3": {
+   "passed": true
+  },
+  "coauth_b20_s3/main": {
+   "passed": true
+  },
+  "coauth_b20_s3/type1": {
+   "passed": true
+  },
+  "coauth_b20_s3/type2": {
+   "passed": true
+  },
+  "coauth_b20_s3/type3": {
+   "passed": true
+  },
+  "coauth_b50k_s1/main": {
+   "passed": true
+  },
+  "coauth_b50k_s1/type1": {
+   "passed": true
+  },
+  "coauth_b50k_s1/type2": {
+   "passed": true
+  },
+  "coauth_b50k_s1/type3": {
+   "passed": true
+  },
+  "coauth_b50k_s2/main": {
+   "passed": true
+  },
+  "coauth_b50k_s2/type1": {
+   "passed": true
+  },
+  "coauth_b50k_s2/type2": {
+   "passed": true
+  },
+  "coauth_b50k_s2/type3": {
+   "passed": true
+  },
+  "coauth_b50k_s3/main": {
+   "passed": true
+  },
+  "coauth_b50k_s3/type1": {
+   "passed": true
+  },
+  "coauth_b50k_s3/type2": {
+   "passed": true
+  },
+  "coauth_b50k_s3/type3": {
+   "passed": true
+  },
+  "coauth_b5k_s1/main": {
+   "passed": true
+  },
+  "coauth_b5k_s1/type1": {
+   "passed": true
+  },
+  "coauth_b5k_s1/type2": {
+   "passed": true
+  },
+  "coauth_b5k_s1/type3": {
+   "passed": true
+  },
+  "coauth_b5k_s2/main": {
+   "passed": true
+  },
+  "coauth_b5k_s2/type1": {
+   "passed": true
+  },
+  "coauth_b5k_s2/type2": {
+   "passed": true
+  },
+  "coauth_b5k_s2/type3": {
+   "passed": true
+  },
+  "coauth_b5k_s3/main": {
+   "passed": true
+  },
+  "coauth_b5k_s3/type1": {
+   "passed": true
+  },
+  "coauth_b5k_s3/type2": {
+   "passed": true
+  },
+  "coauth_b5k_s3/type3": {
+   "passed": true
+  },
+  "syn100k_b100k_s1/main": {
+   "passed": true
+  },
+  "syn100k_b100k_s1/type1": {
+   "passed": true
+  },
+  "syn100k_b100k_s1/type2": {
+   "passed": true
+  },
+  "syn100k_b100k_s1/type3": {
+   "passed": true
+  },
+  "syn100k_b100k_s2/main": {
+   "passed": true
+  },
+  "syn100k_b100k_s2/type1": {
+   "passed": true
+  },
+  "syn100k_b100k_s2/type2": {
+   "passed": true
+  },
+  "syn100k_b100k_s2/type3": {
+   "passed": true
+  },
+  "syn100k_b100k_s3/main": {
+   "passed": true
+  },
+  "syn100k_b100k_s3/type1": {
+   "passed": true
+  },
+  "syn100k_b100k_s3/type2": {
+   "passed": true
+  },
+  "syn100k_b100k_s3/type3": {
+   "passed": true
+  },
+  "syn100k_b200k_s1/main": {
+   "passed": true
+  },
+  "syn100k_b200k_s1/type1": {
+   "passed": true
+  },
+  "syn100k_b200k_s1/type2": {
+   "passed": true
+  },
+  "syn100k_b200k_s1/type3": {
+   "passed": true
+  },
+  "syn100k_b200k_s2/main": {
+   "passed": true
+  },
+  "syn100k_b200k_s2/type1": {
+   "passed": true
+  },
+  "syn100k_b200k_s2/type2": {
+   "passed": true
+  },
+  "syn100k_b200k_s2/type3": {
+   "passed": true
+  },
+  "syn100k_b200k_s3/main": {
+   "passed": true
+  },
+  "syn100k_b200k_s3/type1": {
+   "passed": true
+  },
+  "syn100k_b200k_s3/type2": {
+   "passed": true
+  },
+  "syn100k_b200k_s3/type3": {
+   "passed": true
+  },
+  "syn100k_b20_s1/main": {
+   "passed": true
+  },
+  "syn100k_b20_s1/type1": {
+   "passed": true
+  },
+  "syn100k_b20_s1/type2": {
+   "passed": true
+  },
+  "syn100k_b20_s1/type3": {
+   "passed": true
+  },
+  "syn100k_b20_s2/main": {
+   "passed": true
+  },
+  "syn100k_b20_s2/type1": {
+   "passed": true
+  },
+  "syn100k_b20_s2/type2": {
+   "passed": true
+  },
+  "syn100k_b20_s2/type3": {
+   "passed": true
+  },
+  "syn100k_b20_s3/main": {
+   "passed": true
+  },
+  "syn100k_b20_s3/type1": {
+   "passed": true
+  },
+  "syn100k_b20_s3/type2": {
+   "passed": true
+  },
+  "syn100k_b20_s3/type3": {
+   "passed": true
+  },
+  "syn100k_b50k_s1/main": {
+   "passed": true
+  },
+  "syn100k_b50k_s1/type1": {
+   "passed": true
+  },
+  "syn100k_b50k_s1/type2": {
+   "passed": true
+  },
+  "syn100k_b50k_s1/type3": {
+   "passed": true
+  },
+  "syn100k_b50k_s2/main": {
+   "passed": true
+  },
+  "syn100k_b50k_s2/type1": {
+   "passed": true
+  },
+  "syn100k_b50k_s2/type2": {
+   "passed": true
+  },
+  "syn100k_b50k_s2/type3": {
+   "passed": true
+  },
+  "syn100k_b50k_s3/main": {
+   "passed": true
+  },
+  "syn100k_b50k_s3/type1": {
+   "passed": true
+  },
+  "syn100k_b50k_s3/type2": {
+   "passed": true
+  },
+  "syn100k_b50k_s3/type3": {
+   "passed": true
+  },
+  "syn100k_b5k_s1/main": {
+   "passed": true
+  },
+  "syn100k_b5k_s1/type1": {
+   "passed": true
+  },
+  "syn100k_b5k_s1/type2": {
+   "passed": true
+  },
+  "syn100k_b5k_s1/type3": {
+   "passed": true
+  },
+  "syn100k_b5k_s2/main": {
+   "passed": true
+  },
+  "syn100k_b5k_s2/type1": {
+   "passed": true
+  },
+  "syn100k_b5k_s2/type2": {
+   "passed": true
+  },
+  "syn100k_b5k_s2/type3": {
+   "passed": true
+  },
+  "syn100k_b5k_s3/main": {
+   "passed": true
+  },
+  "syn100k_b5k_s3/type1": {
+   "passed": true
+  },
+  "syn100k_b5k_s3/type2": {
+   "passed": true
+  },
+  "syn100k_b5k_s3/type3": {
+   "passed": true
+  },
+  "syn1m_b100k_s1/main": {
+   "passed": true
+  },
+  "syn1m_b100k_s1/type1": {
+   "passed": true
+  },
+  "syn1m_b100k_s1/type2": {
+   "passed": true
+  },
+  "syn1m_b100k_s1/type3": {
+   "passed": true
+  },
+  "syn1m_b100k_s2/main": {
+   "passed": true
+  },
+  "syn1m_b100k_s2/type1": {
+   "passed": true
+  },
+  "syn1m_b100k_s2/type2": {
+   "passed": true
+  },
+  "syn1m_b100k_s2/type3": {
+   "passed": true
+  },
+  "syn1m_b100k_s3/main": {
+   "passed": true
+  },
+  "syn1m_b100k_s3/type1": {
+   "passed": true
+  },
+  "syn1m_b100k_s3/type2": {
+   "passed": true
+  },
+  "syn1m_b100k_s3/type3": {
+   "passed": true
+  },
+  "syn1m_b200k_s1/main": {
+   "passed": true
+  },
+  "syn1m_b200k_s1/type1": {
+   "passed": true
+  },
+  "syn1m_b200k_s1/type2": {
+   "passed": true
+  },
+  "syn1m_b200k_s1/type3": {
+   "passed": true
+  },
+  "syn1m_b200k_s2/main": {
+   "passed": true
+  },
+  "syn1m_b200k_s2/type1": {
+   "passed": true
+  },
+  "syn1m_b200k_s2/type2": {
+   "passed": true
+  },
+  "syn1m_b200k_s2/type3": {
+   "passed": true
+  },
+  "syn1m_b200k_s3/main": {
+   "passed": true
+  },
+  "syn1m_b200k_s3/type1": {
+   "passed": true
+  },
+  "syn1m_b200k_s3/type2": {
+   "passed": true
+  },
+  "syn1m_b200k_s3/type3": {
+   "passed": true
+  },
+  "syn1m_b20_s1/main": {
+   "passed": true
+  },
+  "syn1m_b20_s1/type1": {
+   "passed": true
+  },
+  "syn1m_b20_s1/type2": {
+   "passed": true
+  },
+  "syn1m_b20_s1/type3": {
+   "passed": true
+  },
+  "syn1m_b20_s2/main": {
+   "passed": true
+  },
+  "syn1m_b20_s2/type1": {
+   "passed": true
+  },
+  "syn1m_b20_s2/type2": {
+   "passed": true
+  },
+  "syn1m_b20_s2/type3": {
+   "passed": true
+  },
+  "syn1m_b20_s3/main": {
+   "passed": true
+  },
+  "syn1m_b20_s3/type1": {
+   "passed": true
+  },
+  "syn1m_b20_s3/type2": {
+   "passed": true
+  },
+  "syn1m_b20_s3/type3": {
+   "passed": true
+  },
+  "syn1m_b50k_s1/main": {
+   "passed": true
+  },
+  "syn1m_b50k_s1/type1": {
+   "passed": true
+  },
+  "syn1m_b50k_s1/type2": {
+   "passed": true
+  },
+  "syn1m_b50k_s1/type3": {
+   "passed": true
+  },
+  "syn1m_b50k_s2/main": {
+   "passed": true
+  },
+  "syn1m_b50k_s2/type1": {
+   "passed": true
+  },
+  "syn1m_b50k_s2/type2": {
+   "passed": true
+  },
+  "syn1m_b50k_s2/type3": {
+   "passed": true
+  },
+  "syn1m_b50k_s3/main": {
+   "passed": true
+  },
+  "syn1m_b50k_s3/type1": {
+   "passed": true
+  },
+  "syn1m_b50k_s3/type2": {
+   "passed": true
+  },
+  "syn1m_b50k_s3/type3": {
+   "passed": true
+  },
+  "syn1m_b5k_s1/main": {
+   "passed": true
+  },
+  "syn1m_b5k_s1/type1": {
+   "passed": true
+  },
+  "syn1m_b5k_s1/type2": {
+   "passed": true
+  },
+  "syn1m_b5k_s1/type3": {
+   "passed": true
+  },
+  "syn1m_b5k_s2/main": {
+   "passed": true
+  },
+  "syn1m_b5k_s2/type1": {
+   "passed": true
+  },
+  "syn1m_b5k_s2/type2": {
+   "passed": true
+  },
+  "syn1m_b5k_s2/type3": {
+   "passed": true
+  },
+  "syn1m_b5k_s3/main": {
+   "passed": true
+  },
+  "syn1m_b5k_s3/type1": {
+   "passed": true
+  },
+  "syn1m_b5k_s3/type2": {
+   "passed": true
+  },
+  "syn1m_b5k_s3/type3": {
+   "passed": true
+  },
+  "syn2m_b100k_s1/main": {
+   "passed": true
+  },
+  "syn2m_b100k_s1/type1": {
+   "passed": true
+  },
+  "syn2m_b100k_s1/type2": {
+   "passed": true
+  },
+  "syn2m_b100k_s1/type3": {
+   "passed": true
+  },
+  "syn2m_b100k_s2/main": {
+   "passed": true
+  },
+  "syn2m_b100k_s2/type1": {
+   "passed": true
+  },
+  "syn2m_b100k_s2/type2": {
+   "passed": true
+  },
+  "syn2m_b100k_s2/type3": {
+   "passed": true
+  },
+  "syn2m_b100k_s3/main": {
+   "passed": true
+  },
+  "syn2m_b100k_s3/type1": {
+   "passed": true
+  },
+  "syn2m_b100k_s3/type2": {
+   "passed": true
+  },
+  "syn2m_b100k_s3/type3": {
+   "passed": true
+  },
+  "syn2m_b200k_s1/main": {
+   "passed": true
+  },
+  "syn2m_b200k_s1/type1": {
+   "passed": true
+  },
+  "syn2m_b200k_s1/type2": {
+   "passed": true
+  },
+  "syn2m_b200k_s1/type3": {
+   "passed": true
+  },
+  "syn2m_b200k_s2/main": {
+   "passed": true
+  },
+  "syn2m_b200k_s2/type1": {
+   "passed": true
+  },
+  "syn2m_b200k_s2/type2": {
+   "passed": true
+  },
+  "syn2m_b200k_s2/type3": {
+   "passed": true
+  },
+  "syn2m_b200k_s3/main": {
+   "passed": true
+  },
+  "syn2m_b200k_s3/type1": {
+   "passed": true
+  },
+  "syn2m_b200k_s3/type2": {
+   "passed": true
+  },
+  "syn2m_b200k_s3/type3": {
+   "passed": true
+  },
+  "syn2m_b20_s1/main": {
+   "passed": true
+  },
+  "syn2m_b20_s1/type1": {
+   "passed": true
+  },
+  "syn2m_b20_s1/type2": {
+   "passed": true
+  },
+  "syn2m_b20_s1/type3": {
+   "passed": true
+  },
+  "syn2m_b20_s2/main": {
+   "passed": true
+  },
+  "syn2m_b20_s2/type1": {
+   "passed": true
+  },
+  "syn2m_b20_s2/type2": {
+   "passed": true
+  },
+  "syn2m_b20_s2/type3": {
+   "passed": true
+  },
+  "syn2m_b20_s3/main": {
+   "passed": true
+  },
+  "syn2m_b20_s3/type1": {
+   "passed": true
+  },
+  "syn2m_b20_s3/type2": {
+   "passed": true
+  },
+  "syn2m_b20_s3/type3": {
+   "passed": true
+  },
+  "syn2m_b50k_s1/main": {
+   "passed": true
+  },
+  "syn2m_b50k_s1/type1": {
+   "passed": true
+  },
+  "syn2m_b50k_s1/type2": {
+   "passed": true
+  },
+  "syn2m_b50k_s1/type3": {
+   "passed": true
+  },
+  "syn2m_b50k_s2/main": {
+   "passed": true
+  },
+  "syn2m_b50k_s2/type1": {
+   "passed": true
+  },
+  "syn2m_b50k_s2/type2": {
+   "passed": true
+  },
+  "syn2m_b50k_s2/type3": {
+   "passed": true
+  },
+  "syn2m_b50k_s3/main": {
+   "passed": true
+  },
+  "syn2m_b50k_s3/type1": {
+   "passed": true
+  },
+  "syn2m_b50k_s3/type2": {
+   "passed": true
+  },
+  "syn2m_b50k_s3/type3": {
+   "passed": true
+  },
+  "syn2m_b5k_s1/main": {
+   "passed": true
+  },
+  "syn2m_b5k_s1/type1": {
+   "passed": true
+  },
+  "syn2m_b5k_s1/type2": {
+   "passed": true
+  },
+  "syn2m_b5k_s1/type3": {
+   "passed": true
+  },
+  "syn2m_b5k_s2/main": {
+   "passed": true
+  },
+  "syn2m_b5k_s2/type1": {
+   "passed": true
+  },
+  "syn2m_b5k_s2/type2": {
+   "passed": true
+  },
+  "syn2m_b5k_s2/type3": {
+   "passed": true
+  },
+  "syn2m_b5k_s3/main": {
+   "passed": true
+  },
+  "syn2m_b5k_s3/type1": {
+   "passed": true
+  },
+  "syn2m_b5k_s3/type2": {
+   "passed": true
+  },
+  "syn2m_b5k_s3/type3": {
+   "passed": true
+  },
+  "test/01-smoke/main": {
+   "passed": true
+  },
+  "test/01-smoke/type1": {
+   "passed": true
+  },
+  "test/01-smoke/type2": {
+   "passed": true
+  },
+  "test/01-smoke/type3": {
+   "passed": true
+  },
+  "test/02-reference_small/main": {
+   "passed": true
+  },
+  "test/02-reference_small/type1": {
+   "passed": true
+  },
+  "test/02-reference_small/type2": {
+   "passed": true
+  },
+  "test/02-reference_small/type3": {
+   "passed": true
+  },
+  "test/03-reference_syn100k/main": {
+   "passed": true
+  },
+  "test/03-reference_syn100k/type1": {
+   "passed": true
+  },
+  "test/03-reference_syn100k/type2": {
+   "passed": true
+  },
+  "test/03-reference_syn100k/type3": {
+   "passed": true
+  },
+  "test/04-small_b20/main": {
+   "passed": true
+  },
+  "test/04-small_b20/type1": {
+   "passed": true
+  },
+  "test/04-small_b20/type2": {
+   "passed": true
+  },
+  "test/04-small_b20/type3": {
+   "passed": true
+  },
+  "test/05-small_b200/main": {
+   "passed": true
+  },
+  "test/05-small_b200/type1": {
+   "passed": true
+  },
+  "test/05-small_b200/type2": {
+   "passed": true
+  },
+  "test/05-small_b200/type3": {
+   "passed": true
+  },
+  "test/06-small_b1000/main": {
+   "passed": true
+  },
+  "test/06-small_b1000/type1": {
+   "passed": true
+  },
+  "test/06-small_b1000/type2": {
+   "passed": true
+  },
+  "test/06-small_b1000/type3": {
+   "passed": true
+  },
+  "test/07-syn100k_b5000/main": {
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type1": {
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type2": {
+   "passed": true
+  },
+  "test/07-syn100k_b5000/type3": {
+   "passed": true
+  },
+  "test/08-deletions_only/main": {
+   "passed": true
+  },
+  "test/08-deletions_only/type1": {
+   "passed": true
+  },
+  "test/08-deletions_only/type2": {
+   "passed": true
+  },
+  "test/08-deletions_only/type3": {
+   "passed": true
+  },
+  "test/09-insertions_only/main": {
+   "passed": true
+  },
+  "test/09-insertions_only/type1": {
+   "passed": true
+  },
+  "test/09-insertions_only/type2": {
+   "passed": true
+  },
+  "test/09-insertions_only/type3": {
+   "passed": true
+  },
+  "test/10-more_deletions/main": {
+   "passed": true
+  },
+  "test/10-more_deletions/type1": {
+   "passed": true
+  },
+  "test/10-more_deletions/type2": {
+   "passed": true
+  },
+  "test/10-more_deletions/type3": {
+   "passed": true
+  },
+  "test/11-random_inserts_file/main": {
+   "passed": true
+  },
+  "test/11-random_inserts_file/type1": {
+   "passed": true
+  },
+  "test/11-random_inserts_file/type2": {
+   "passed": true
+  },
+  "test/11-random_inserts_file/type3": {
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/main": {
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type1": {
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type2": {
+   "passed": true
+  },
+  "test/12-sampled_inserts_synthetic/type3": {
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/main": {
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type1": {
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type2": {
+   "passed": true
+  },
+  "test/13-batch_larger_than_graph/type3": {
+   "passed": true
+  },
+  "test/14-skewed/main": {
+   "passed": true
+  },
+  "test/14-skewed/type1": {
+   "passed": true
+  },
+  "test/14-skewed/type2": {
+   "passed": true
+  },
+  "test/14-skewed/type3": {
+   "passed": true
+  },
+  "test/15-medium/main": {
+   "passed": true
+  },
+  "test/15-medium/type1": {
+   "passed": true
+  },
+  "test/15-medium/type2": {
+   "passed": true
+  },
+  "test/15-medium/type3": {
+   "passed": true
+  }
+ },
+ "commit": "40efdba48c280e2998ba7a6db36290511d297b41",
+ "counter": "algorithm",
+ "coverage": true,
+ "date": "2026-10-15T16:19:04Z",
+ "gpu": "1",
+ "group_seconds": {
+  "coauth_b100k_s1": 306.3,
+  "coauth_b100k_s2": 352.8,
+  "coauth_b100k_s3": 351.3,
+  "coauth_b200k_s1": 431.3,
+  "coauth_b200k_s2": 451.7,
+  "coauth_b200k_s3": 451.6,
+  "coauth_b20_s1": 328.7,
+  "coauth_b20_s2": 324.2,
+  "coauth_b20_s3": 355.0,
+  "coauth_b50k_s1": 329.6,
+  "coauth_b50k_s2": 326.6,
+  "coauth_b50k_s3": 297.3,
+  "coauth_b5k_s1": 293.2,
+  "coauth_b5k_s2": 281.6,
+  "coauth_b5k_s3": 286.3,
+  "syn100k_b100k_s1": 6.4,
+  "syn100k_b100k_s2": 7.1,
+  "syn100k_b100k_s3": 6.5,
+  "syn100k_b200k_s1": 7.8,
+  "syn100k_b200k_s2": 7.8,
+  "syn100k_b200k_s3": 7.7,
+  "syn100k_b20_s1": 3.9,
+  "syn100k_b20_s2": 4.4,
+  "syn100k_b20_s3": 4.1,
+  "syn100k_b50k_s1": 5.5,
+  "syn100k_b50k_s2": 6.2,
+  "syn100k_b50k_s3": 6.3,
+  "syn100k_b5k_s1": 3.9,
+  "syn100k_b5k_s2": 4.5,
+  "syn100k_b5k_s3": 4.3,
+  "syn1m_b100k_s1": 40.7,
+  "syn1m_b100k_s2": 42.3,
+  "syn1m_b100k_s3": 39.7,
+  "syn1m_b200k_s1": 48.6,
+  "syn1m_b200k_s2": 48.6,
+  "syn1m_b200k_s3": 43.1,
+  "syn1m_b20_s1": 37.3,
+  "syn1m_b20_s2": 32.3,
+  "syn1m_b20_s3": 33.4,
+  "syn1m_b50k_s1": 33.8,
+  "syn1m_b50k_s2": 34.3,
+  "syn1m_b50k_s3": 37.4,
+  "syn1m_b5k_s1": 35.8,
+  "syn1m_b5k_s2": 32.6,
+  "syn1m_b5k_s3": 35.2,
+  "syn2m_b100k_s1": 106.1,
+  "syn2m_b100k_s2": 96.6,
+  "syn2m_b100k_s3": 90.8,
+  "syn2m_b200k_s1": 98.2,
+  "syn2m_b200k_s2": 87.3,
+  "syn2m_b200k_s3": 90.0,
+  "syn2m_b20_s1": 83.7,
+  "syn2m_b20_s2": 70.7,
+  "syn2m_b20_s3": 70.9,
+  "syn2m_b50k_s1": 73.1,
+  "syn2m_b50k_s2": 78.3,
+  "syn2m_b50k_s3": 74.2,
+  "syn2m_b5k_s1": 82.8,
+  "syn2m_b5k_s2": 76.0,
+  "syn2m_b5k_s3": 84.5,
+  "test/01-smoke": 0.3,
+  "test/02-reference_small": 0.4,
+  "test/03-reference_syn100k": 0.9,
+  "test/04-small_b20": 0.6,
+  "test/05-small_b200": 0.9,
+  "test/06-small_b1000": 0.9,
+  "test/07-syn100k_b5000": 3.5,
+  "test/08-deletions_only": 0.8,
+  "test/09-insertions_only": 0.7,
+  "test/10-more_deletions": 0.7,
+  "test/11-random_inserts_file": 0.8,
+  "test/12-sampled_inserts_synthetic": 0.8,
+  "test/13-batch_larger_than_graph": 0.7,
+  "test/14-skewed": 1.8,
+  "test/15-medium": 1.0
+ },
+ "launches": {
+  "coauth_b50k_s1": {
+   "h_motif.frontier.triangles.kernels": 12,
+   "h_motif.full.triangles.kernels": 2,
+   "stathyper_type1.frontier.keys.kernels": 12,
+   "stathyper_type1.full.keys.kernels": 2,
+   "stathyper_type2.frontier.pairs.kernels": 12,
+   "stathyper_type2.full.pairs.kernels": 2,
+   "stathyper_type3.frontier.triangles.kernels": 12,
+   "stathyper_type3.full.triangles.kernels": 2
+  },
+  "syn1m_b50k_s1": {
+   "h_motif.frontier.triangles.kernels": 12,
+   "h_motif.full.triangles.kernels": 2,
+   "stathyper_type1.frontier.keys.kernels": 12,
+   "stathyper_type1.full.keys.kernels": 2,
+   "stathyper_type2.frontier.pairs.kernels": 12,
+   "stathyper_type2.full.pairs.kernels": 2,
+   "stathyper_type3.frontier.triangles.kernels": 12,
+   "stathyper_type3.full.triangles.kernels": 2
+  },
+  "syn2m_b50k_s1": {
+   "h_motif.frontier.triangles.kernels": 12,
+   "h_motif.full.triangles.kernels": 2,
+   "stathyper_type1.frontier.keys.kernels": 12,
+   "stathyper_type1.full.keys.kernels": 2,
+   "stathyper_type2.frontier.pairs.kernels": 12,
+   "stathyper_type2.full.pairs.kernels": 2,
+   "stathyper_type3.frontier.triangles.kernels": 12,
+   "stathyper_type3.full.triangles.kernels": 2
+  },
+  "test/14-skewed": {
+   "h_motif.frontier.triangles.kernels": 8,
+   "h_motif.full.triangles.kernels": 2,
+   "stathyper_type1.frontier.keys.kernels": 8,
+   "stathyper_type1.full.keys.kernels": 2,
+   "stathyper_type2.frontier.pairs.kernels": 8,
+   "stathyper_type2.full.pairs.kernels": 2,
+   "stathyper_type3.frontier.triangles.kernels": 8,
+   "stathyper_type3.full.triangles.kernels": 2
+  },
+  "test/15-medium": {
+   "h_motif.frontier.triangles.kernels": 12,
+   "h_motif.full.triangles.kernels": 2,
+   "stathyper_type1.frontier.keys.kernels": 12,
+   "stathyper_type1.full.keys.kernels": 2,
+   "stathyper_type2.frontier.pairs.kernels": 12,
+   "stathyper_type2.full.pairs.kernels": 2,
+   "stathyper_type3.frontier.triangles.kernels": 12,
+   "stathyper_type3.full.triangles.kernels": 2
+  }
+ },
+ "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+ "mode": "both",
+ "num_cases": 300,
+ "num_passed": 300,
+ "passed": true,
+ "paths": {
+  "coauth_b50k_s1": {
+   "fill": [
+    3,
+    0,
+    0
+   ],
+   "reuse": [
+    3,
+    1,
+    0
+   ],
+   "unfill": [
+    3,
+    0,
+    0
+   ]
+  },
+  "syn1m_b50k_s1": {
+   "fill": [
+    3,
+    0,
+    0
+   ],
+   "reuse": [
+    3,
+    0,
+    0
+   ],
+   "unfill": [
+    3,
+    0,
+    0
+   ]
+  },
+  "syn2m_b50k_s1": {
+   "fill": [
+    3,
+    0,
+    0
+   ],
+   "reuse": [
+    3,
+    0,
+    0
+   ],
+   "unfill": [
+    3,
+    0,
+    0
+   ]
+  },
+  "test/14-skewed": {
+   "fill": [
+    2,
+    0,
+    2
+   ],
+   "reuse": [
+    2,
+    0,
+    2
+   ],
+   "unfill": [
+    2,
+    0,
+    2
+   ]
+  },
+  "test/15-medium": {
+   "fill": [
+    3,
+    3,
+    0
+   ],
+   "reuse": [
+    3,
+    3,
+    0
+   ],
+   "unfill": [
+    3,
+    3,
+    0
+   ]
+  }
+ },
+ "plant": null,
+ "schema": 1,
+ "set": "triad_count_escher_gpu",
+ "tool": "dyng_triad_replay",
+ "what": "M9a step 3, criterion 8 (cuda): parity/compare.py triad_count --backend cuda --mode both --counter algorithm over every case of the set (the 240 grid cases and make-test's 60): the full count, every net delta and count after equal to the golden's in both modes, the expected ids by key, every deleted row resolved by content, check_integrity() after every batch, the two modes equal, and per batch the result equal to a fresh compute() and the stats consistent (dyng_triad_replay); the launch counters and the store's kernel paths of make-test's skewed and medium cases and of the gate cases"
+}
