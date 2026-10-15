@@ -149,6 +149,14 @@ add_test(NAME cbst_source_rules
                  "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
 )
 set_tests_properties(cbst_source_rules PROPERTIES LABELS "cpu;cbst")
+# The same rules over the triad_count port (M9a, ADR 0053): ESCHER-GPU's wedge engine after its
+# mechanical classes (errors, memory, streams).
+add_test(NAME triad_count_source_rules
+         COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/cpp
+                 -DSOURCE_SUBDIRS=algorithms/triad_count -P
+                 "${CMAKE_CURRENT_SOURCE_DIR}/hypergraph/escher/check_source_rules.cmake"
+)
+set_tests_properties(triad_count_source_rules PROPERTIES LABELS "cpu;triad_count")
 # The launch rule itself: a launch on a literal default stream is reported (M8a review).
 set(_cbst_rules_fixture "${CMAKE_CURRENT_BINARY_DIR}/cbst_source_rules_fixture")
 file(MAKE_DIRECTORY "${_cbst_rules_fixture}/src/hypergraph" "${_cbst_rules_fixture}/include/dyng")

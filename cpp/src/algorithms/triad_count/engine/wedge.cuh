@@ -35,6 +35,7 @@
 //   keys:      void key(int a, bins);
 //   void flush(bins)  -- adds register-held partial sums to the block bins.
 
+#include "core/budget_counters.hpp"
 #include "hypergraph/row_views.hpp"
 #include "util/cuda_check.hpp"
 
@@ -199,11 +200,15 @@ enum class wedge_shape { triangles, pairs };
 
 // dynG: the scratch of count_wedge_shape from the caller's workspace (ESCHER-GPU allocated the
 // offsets with cudaMalloc and Thrust's scan storage per call): the wedge offsets of the sources
-// (num_sources + 1 entries) and CUB's temporary storage of their scan.
+// (num_sources + 1 entries) and CUB's temporary storage of their scan; the stream of the call's
+// resources (ESCHER-GPU ran on the legacy default stream) and a pinned slot for the one read of
+// the wedge count.
 struct scratch {
   long long* offsets = nullptr;
   void* scan_temp = nullptr;
   std::size_t scan_temp_bytes = 0;
+  cudaStream_t stream = nullptr;
+  long long* host_wedges = nullptr;
 };
 
 // dynG: the bytes of CUB's temporary storage for the scan of n wedge counts (the workspace
@@ -226,29 +231,35 @@ void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int nu
   if (num_sources <= 0) return;
   const bool all_neighbours = d_sources != nullptr;
   long long* d_offsets = s.offsets;  // dynG: the workspace's
-  DYNG_CUDA_TRY(cudaMemset(d_offsets + num_sources, 0, sizeof(long long)));
-  count_wedges_kernel<<<(num_sources + block_size - 1) / block_size, block_size>>>(
+  DYNG_CUDA_TRY(cudaMemsetAsync(d_offsets + num_sources, 0, sizeof(long long), s.stream));
+  count_wedges_kernel<<<(num_sources + block_size - 1) / block_size, block_size, 0, s.stream>>>(
       adj, d_sources, num_sources, all_neighbours, d_offsets);
+  DYNG_CHECK_KERNEL(s.stream);
   // dynG: CUB's scan on the workspace's storage (Thrust's exclusive_scan allocated it per call).
   std::size_t temp_bytes = s.scan_temp_bytes;
   DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(s.scan_temp, temp_bytes, d_offsets, d_offsets,
-                                              num_sources + 1));
-  long long num_wedges = 0;
-  DYNG_CUDA_TRY(
-      cudaMemcpy(&num_wedges, d_offsets + num_sources, sizeof(long long), cudaMemcpyDeviceToHost));
+                                              num_sources + 1, s.stream));
+  // dynG: ESCHER-GPU's read point, on the stream: the wedge count, the one host synchronization
+  // of a call (counted, invariant I9).
+  DYNG_CUDA_TRY(cudaMemcpyAsync(s.host_wedges, d_offsets + num_sources, sizeof(long long),
+                                cudaMemcpyDeviceToHost, s.stream));
+  DYNG_CUDA_TRY(cudaStreamSynchronize(s.stream));
+  note_host_sync();
+  const long long num_wedges = *s.host_wedges;
   if (num_wedges > 0) {
     // One thread per wedge: with fewer threads looping over several wedges,
     // threads that draw heavy wedges set the tail of the kernel.
     int grid =
         static_cast<int>(std::min<long long>((num_wedges + block_size - 1) / block_size, INT_MAX));
     if constexpr (shape == wedge_shape::triangles)
-      triangle_kernel<op_t><<<grid, block_size>>>(adj, d_sources, num_sources, d_offsets,
-                                                  num_wedges, all_neighbours, d_in_frontier, op,
-                                                  sign, d_out);
-    else
-      pair_kernel<op_t><<<grid, block_size>>>(adj, d_sources, num_sources, d_offsets, num_wedges,
+      triangle_kernel<op_t>
+          <<<grid, block_size, 0, s.stream>>>(adj, d_sources, num_sources, d_offsets, num_wedges,
                                               all_neighbours, d_in_frontier, op, sign, d_out);
-    DYNG_CUDA_TRY(cudaGetLastError());
+    else
+      pair_kernel<op_t><<<grid, block_size, 0, s.stream>>>(adj, d_sources, num_sources, d_offsets,
+                                                           num_wedges, all_neighbours,
+                                                           d_in_frontier, op, sign, d_out);
+    DYNG_CHECK_KERNEL(s.stream);
   }
 }
 
@@ -271,11 +282,11 @@ void count_pairs(const escher::row_view& adj, const int* d_sources, int num_sour
 // Per-key counts over the keys in d_sources (or keys 1..num_sources).
 template <class op_t>
 void count_keys(const int* d_sources, int num_sources, const op_t& op, long long sign,
-                unsigned long long* d_out) {
+                unsigned long long* d_out, const scratch& s) {
   if (num_sources <= 0) return;
   int grid = (num_sources + block_size - 1) / block_size;
-  key_kernel<op_t><<<grid, block_size>>>(d_sources, num_sources, op, sign, d_out);
-  DYNG_CUDA_TRY(cudaGetLastError());
+  key_kernel<op_t><<<grid, block_size, 0, s.stream>>>(d_sources, num_sources, op, sign, d_out);
+  DYNG_CHECK_KERNEL(s.stream);
 }
 
 // ---- Set primitives on sorted, contiguous rows -------------------------
