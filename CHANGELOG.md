@@ -194,6 +194,28 @@ Before 0.1.0 anything may change.
   the small sets). The memory reading of the hypergraph (`perf_ab.py hypergraph memory`) loads
   coauth-DBLP through `io::read_hypergraph(..., escher_gpu())`. The vertex-operation fields of
   the Python bindings' batch and the `good-first-issue:op` label name 0.4 and 0.3.
+- M8b review (api-change; the hypergraph headers are frozen, not yet stable): the frozen headers'
+  documentation says what the code does: `hyper_apply_summary::skipped_ops` counts every skipped
+  operation (in 0.3 `ignored_deletions + dropped_members`; the incidence edits of 0.4 add theirs),
+  `capacity_policy::row_alignment` describes the allocator's reservation, `line_graph_view::weights`
+  is host memory, `apply()`'s batch-size `capacity_error` and staging `out_of_memory_error` leave
+  the hypergraph unchanged, and on CUDA `apply()` / `dyng::update()` order the store's work with
+  the stream of their resources. Behaviour fixes: `weights()` of a poisoned hypergraph throws;
+  `hyperedge_batch(_view)::empty()` sees the incidence vertex arrays; `add_hyperedge` raises
+  `out_of_memory_error`, not `std::bad_alloc`; a huge `initial_slack` / `initial_headroom`
+  saturates at the payload limit; an allocation failure while `h2h()` builds the line graph leaves
+  it buildable. The API baseline lists the hypergraph's `detail` contract
+  (`hyper_update_participant`, `run_update()`, `is_hypergraph(_v)`), frozen by ADR 0047.
+- M8b review (io, tracked): `batch_reader` stops at its first error (later calls throw instead of
+  returning the record after a damaged one); a `.dgb` file of the other kind given to
+  `read_binary_batches` / `read_binary_hyperedge_batches` is an `io_error` naming the right
+  reader; the text readers reject a directory or a device with `io_error` (a directory gave
+  `out_of_memory_error`); `.hg` is documented as unversioned. Python: `BatchReader` may be shared
+  by threads and raises `InvalidArgumentError` when closed; an integer argument outside int64 (a
+  seed: uint64) is an `InvalidArgumentError`, not a `TypeError`.
+- M8b review (parity tooling): the hypergraph-id replays compare the by-content ids up to the
+  first ambiguous resolution, check the line graph against `testing::rebuild_line_graph` on both
+  originals' sets, and count B's vertex-kind batches; certificates count only full replays.
 - Merge policy: **every pull request is merged with a merge commit**; squash merging is off since
   2026-10-14 (the author's decision after M8a was squash-merged as `2de6ebe`; ADR 0019 amended,
   `GOVERNANCE.md`, CONTRIBUTING.md, the pull request template). `ci/gpu_local.sh` runs the
