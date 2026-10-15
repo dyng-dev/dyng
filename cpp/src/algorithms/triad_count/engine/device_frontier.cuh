@@ -11,10 +11,10 @@
  */
 #pragma once
 
+#include "util/cuda_check.hpp"
+
 #include <cuda_runtime.h>
 
-#include <cstdlib>
-#include <iostream>
 #include <vector>
 
 namespace dyng::detail::triad {
@@ -34,15 +34,15 @@ class device_frontier {
     std::vector<unsigned char> flags(static_cast<size_t>(max_id) + 1, 0);
     for (int id : ids)
       if (id >= 0 && id <= max_id) flags[id] = 1;
-    check(cudaMalloc(&ids_, sizeof(int) * (ids.empty() ? 1 : ids.size())));
-    check(cudaMalloc(&flags_, flags.size()));
+    DYNG_CUDA_TRY(cudaMalloc(&ids_, sizeof(int) * (ids.empty() ? 1 : ids.size())));
+    DYNG_CUDA_TRY(cudaMalloc(&flags_, flags.size()));
     if (!ids.empty())
-      check(cudaMemcpy(ids_, ids.data(), sizeof(int) * ids.size(), cudaMemcpyHostToDevice));
-    check(cudaMemcpy(flags_, flags.data(), flags.size(), cudaMemcpyHostToDevice));
+      DYNG_CUDA_TRY(cudaMemcpy(ids_, ids.data(), sizeof(int) * ids.size(), cudaMemcpyHostToDevice));
+    DYNG_CUDA_TRY(cudaMemcpy(flags_, flags.data(), flags.size(), cudaMemcpyHostToDevice));
   }
   ~device_frontier() {
-    cudaFree(ids_);
-    cudaFree(flags_);
+    DYNG_CUDA_TRY_NO_THROW(cudaFree(ids_));
+    DYNG_CUDA_TRY_NO_THROW(cudaFree(flags_));
   }
   device_frontier(const device_frontier&) = delete;
   device_frontier& operator=(const device_frontier&) = delete;
@@ -58,12 +58,6 @@ class device_frontier {
   }
 
  private:
-  static void check(cudaError_t result) {
-    if (result != cudaSuccess) {
-      std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
-      std::exit(-1);
-    }
-  }
   int* ids_ = nullptr;
   unsigned char* flags_ = nullptr;
   int size_;

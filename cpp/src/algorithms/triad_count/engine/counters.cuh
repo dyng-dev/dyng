@@ -19,7 +19,6 @@
 
 #include <cuda_runtime.h>
 
-#include <iostream>
 #include <vector>
 // Include our utility functions
 #include "algorithms/triad_count/engine/counter_shims.hpp"

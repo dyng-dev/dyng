@@ -13,20 +13,27 @@
 #include "algorithms/triad_count/engine/counters.cuh"
 #include "algorithms/triad_count/engine/device_frontier.cuh"
 #include "algorithms/triad_count/engine/motif_ops.cuh"
+#include "util/cuda_check.hpp"
+#include "util/device_error_flags.hpp"
 
 #include <cuda_runtime.h>
 
 #include <algorithm>
-#include <iostream>
+#include <cstdint>
 #include <vector>
 
 namespace dyng::detail::triad {
 
-static inline void check_cuda_local(cudaError_t result) {
-  if (result != cudaSuccess) {
-    std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
-    std::exit(-1);
-  }
+// dynG: the 30 bins are followed by the device error word of motif_op (a triangle of no class),
+// read with them; a raised word throws internal_error (ESCHER-GPU added such a triangle to
+// bins[-1]).
+constexpr int motif_slots = 30 + 1;
+
+static void throw_if_unclassified(const std::vector<long long>& slots) {
+  const auto word = static_cast<std::uint32_t>(slots[30]);
+  if (word != 0)
+    throw_device_errors(word, "triad_count",
+                        "a triangle of the line graph has a Venn pattern of no h-motif class");
 }
 
 // Full count: every triangle i < j < k of the line graph, one thread per
@@ -34,15 +41,18 @@ static inline void check_cuda_local(cudaError_t result) {
 std::vector<long long> compute_motif_counts(const escher::row_view& h2v,
                                             const escher::row_view& h2h) {
   unsigned long long* d_counts = nullptr;
-  check_cuda_local(cudaMalloc(&d_counts, 30 * sizeof(unsigned long long)));
-  check_cuda_local(cudaMemset(d_counts, 0, 30 * sizeof(unsigned long long)));
-  wedge::count_triangles(h2h, nullptr, h2h.max_key, nullptr, make_motif_op(h2v), 1, d_counts);
-  check_cuda_local(cudaDeviceSynchronize());
+  DYNG_CUDA_TRY(cudaMalloc(&d_counts, motif_slots * sizeof(unsigned long long)));
+  DYNG_CUDA_TRY(cudaMemset(d_counts, 0, motif_slots * sizeof(unsigned long long)));
+  wedge::count_triangles(h2h, nullptr, h2h.max_key, nullptr, make_motif_op(h2v, d_counts + 30), 1,
+                         d_counts);
+  DYNG_CUDA_TRY(cudaDeviceSynchronize());
 
-  std::vector<long long> counts(30, 0);
-  check_cuda_local(
-      cudaMemcpy(counts.data(), d_counts, 30 * sizeof(long long), cudaMemcpyDeviceToHost));
-  check_cuda_local(cudaFree(d_counts));
+  std::vector<long long> counts(motif_slots, 0);
+  DYNG_CUDA_TRY(
+      cudaMemcpy(counts.data(), d_counts, motif_slots * sizeof(long long), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaFree(d_counts));
+  throw_if_unclassified(counts);
+  counts.resize(30);
   return counts;
 }
 // Exact frontier-incident delta: the triangles containing at least one
@@ -55,23 +65,26 @@ static void run_frontier_phase(long long sign, const escher::row_view& h2v,
                                unsigned long long* d_counts) {
   if (frontier.empty()) return;
   device_frontier f(frontier, h2h.max_key);
-  wedge::count_triangles(h2h, f.ids(), f.size(), f.flags(), make_motif_op(h2v), sign, d_counts);
-  check_cuda_local(cudaDeviceSynchronize());
+  wedge::count_triangles(h2h, f.ids(), f.size(), f.flags(), make_motif_op(h2v, d_counts + 30), sign,
+                         d_counts);
+  DYNG_CUDA_TRY(cudaDeviceSynchronize());
 }
 
 // motif_delta_accumulator implementation
 void motif_delta_accumulator::init() {
-  check_cuda_local(cudaMalloc(&d_counts, 30 * sizeof(unsigned long long)));
-  check_cuda_local(cudaMemset(d_counts, 0, 30 * sizeof(unsigned long long)));
+  DYNG_CUDA_TRY(cudaMalloc(&d_counts, motif_slots * sizeof(unsigned long long)));
+  DYNG_CUDA_TRY(cudaMemset(d_counts, 0, motif_slots * sizeof(unsigned long long)));
 }
 
 // Bins hold signed deltas in two's complement (subtract adds ~0ULL == -1).
 void motif_delta_accumulator::read_to(std::vector<long long>& out) {
-  out.resize(30);
-  check_cuda_local(
-      cudaMemcpy(out.data(), d_counts, 30 * sizeof(long long), cudaMemcpyDeviceToHost));
-  check_cuda_local(cudaFree(d_counts));
+  out.resize(motif_slots);
+  DYNG_CUDA_TRY(
+      cudaMemcpy(out.data(), d_counts, motif_slots * sizeof(long long), cudaMemcpyDeviceToHost));
+  DYNG_CUDA_TRY(cudaFree(d_counts));
   d_counts = nullptr;
+  throw_if_unclassified(out);
+  out.resize(30);
 }
 
 // Subtract phase: call BEFORE modifying data structures

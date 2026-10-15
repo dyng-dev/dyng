@@ -14,6 +14,7 @@
 
 #include "algorithms/triad_count/engine/motif_table.hpp"
 #include "algorithms/triad_count/engine/wedge.cuh"
+#include "util/device_error_flags.hpp"
 
 #include <climits>
 
@@ -45,7 +46,11 @@ static inline __device__ int compute_motif_index(int deg_a, int deg_b, int deg_c
 // come from a single merge over the three H2V rows.
 struct motif_op {
   static constexpr int num_bins = 30;
+  /// dynG: the bits a triangle of no class sets in the device error word.
+  static constexpr unsigned long long unclassified =
+      static_cast<unsigned long long>(bits_of(device_error::internal));
   escher::row_view h2v;
+  unsigned long long* error;  // dynG: the device error word (a triangle of no class raises it)
   const int* row_a;
   const int* row_b;
   int da, db, cab;
@@ -63,14 +68,20 @@ struct motif_op {
     int cbc, cca, g;
     wedge::venn3(row_a, da, row_b, db, row_c, dc, cbc, cca, g);
     // The class is invariant under permutations of (a, b, c)
-    atomicAdd(&bins[compute_motif_index(da, db, dc, cab, cbc, cca, g)], 1ULL);
+    const int bin = compute_motif_index(da, db, dc, cab, cbc, cca, g);
+    if (bin < 0) {  // dynG: a pattern of no class raises the error word (ESCHER-GPU: bins[-1])
+      atomicOr(error, unclassified);
+      return;
+    }
+    atomicAdd(&bins[bin], 1ULL);
   }
   __device__ void flush(unsigned long long*) {}
 };
 
-inline motif_op make_motif_op(const escher::row_view& h2v) {
+inline motif_op make_motif_op(const escher::row_view& h2v, unsigned long long* error) {
   motif_op op{};
   op.h2v = h2v;
+  op.error = error;
   return op;
 }
 

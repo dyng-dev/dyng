@@ -10,10 +10,10 @@
  */
 #pragma once
 
+#include "util/cuda_check.hpp"
+
 #include <cuda_runtime.h>
 
-#include <cstdlib>
-#include <iostream>
 #include <vector>
 
 namespace dyng::detail::triad {
@@ -23,11 +23,11 @@ namespace dyng::detail::triad {
 class device_bins {
  public:
   explicit device_bins(int n) : n_(n) {
-    check(cudaMalloc(&data_, sizeof(unsigned long long) * n_));
+    DYNG_CUDA_TRY(cudaMalloc(&data_, sizeof(unsigned long long) * n_));
     zero();
   }
   ~device_bins() {
-    cudaFree(data_);
+    DYNG_CUDA_TRY_NO_THROW(cudaFree(data_));
   }
   device_bins(const device_bins&) = delete;
   device_bins& operator=(const device_bins&) = delete;
@@ -36,21 +36,15 @@ class device_bins {
     return data_;
   }
   void zero() {
-    check(cudaMemset(data_, 0, sizeof(unsigned long long) * n_));
+    DYNG_CUDA_TRY(cudaMemset(data_, 0, sizeof(unsigned long long) * n_));
   }
   std::vector<long long> read() const {
     std::vector<long long> out(n_);
-    check(cudaMemcpy(out.data(), data_, sizeof(long long) * n_, cudaMemcpyDeviceToHost));
+    DYNG_CUDA_TRY(cudaMemcpy(out.data(), data_, sizeof(long long) * n_, cudaMemcpyDeviceToHost));
     return out;
   }
 
  private:
-  static void check(cudaError_t result) {
-    if (result != cudaSuccess) {
-      std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
-      std::exit(-1);
-    }
-  }
   int n_;
   unsigned long long* data_ = nullptr;
 };

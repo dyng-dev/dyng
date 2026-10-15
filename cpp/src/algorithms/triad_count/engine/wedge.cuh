@@ -36,6 +36,7 @@
 //   void flush(bins)  -- adds register-held partial sums to the block bins.
 
 #include "hypergraph/row_views.hpp"
+#include "util/cuda_check.hpp"
 
 #include <cuda_runtime.h>
 #include <thrust/device_ptr.h>
@@ -43,21 +44,12 @@
 
 #include <algorithm>
 #include <climits>
-#include <cstdlib>
-#include <iostream>
 
 namespace dyng::detail::triad {
 
 namespace wedge {
 
 constexpr int block_size = 256;
-
-inline void check(cudaError_t result) {
-  if (result != cudaSuccess) {
-    std::cerr << "CUDA Runtime Error: " << cudaGetErrorString(result) << std::endl;
-    std::exit(-1);
-  }
-}
 
 // Largest s in [lo, hi] with offsets[s] <= t (offsets is non-decreasing).
 __device__ __forceinline__ int find_source(const long long* offsets, int lo, int hi, long long t) {
@@ -216,15 +208,15 @@ void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int nu
   if (num_sources <= 0) return;
   const bool all_neighbours = d_sources != nullptr;
   long long* d_offsets = nullptr;
-  check(cudaMalloc(&d_offsets, (num_sources + 1) * sizeof(long long)));
-  check(cudaMemset(d_offsets + num_sources, 0, sizeof(long long)));
+  DYNG_CUDA_TRY(cudaMalloc(&d_offsets, (num_sources + 1) * sizeof(long long)));
+  DYNG_CUDA_TRY(cudaMemset(d_offsets + num_sources, 0, sizeof(long long)));
   count_wedges_kernel<<<(num_sources + block_size - 1) / block_size, block_size>>>(
       adj, d_sources, num_sources, all_neighbours, d_offsets);
   thrust::exclusive_scan(thrust::device_ptr<long long>(d_offsets),
                          thrust::device_ptr<long long>(d_offsets + num_sources + 1),
                          thrust::device_ptr<long long>(d_offsets));
   long long num_wedges = 0;
-  check(
+  DYNG_CUDA_TRY(
       cudaMemcpy(&num_wedges, d_offsets + num_sources, sizeof(long long), cudaMemcpyDeviceToHost));
   if (num_wedges > 0) {
     // One thread per wedge: with fewer threads looping over several wedges,
@@ -238,9 +230,9 @@ void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int nu
     else
       pair_kernel<op_t><<<grid, block_size>>>(adj, d_sources, num_sources, d_offsets, num_wedges,
                                               all_neighbours, d_in_frontier, op, sign, d_out);
-    check(cudaGetLastError());
+    DYNG_CUDA_TRY(cudaGetLastError());
   }
-  check(cudaFree(d_offsets));
+  DYNG_CUDA_TRY(cudaFree(d_offsets));
 }
 
 template <class op_t>
@@ -266,7 +258,7 @@ void count_keys(const int* d_sources, int num_sources, const op_t& op, long long
   if (num_sources <= 0) return;
   int grid = (num_sources + block_size - 1) / block_size;
   key_kernel<op_t><<<grid, block_size>>>(d_sources, num_sources, op, sign, d_out);
-  check(cudaGetLastError());
+  DYNG_CUDA_TRY(cudaGetLastError());
 }
 
 // ---- Set primitives on sorted, contiguous rows -------------------------
