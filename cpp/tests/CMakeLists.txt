@@ -1107,6 +1107,11 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   endforeach()
 endforeach()
 
+# triad_count's kit pairs it in C10 with the kit's hypergraph fake, whose CUDA counts are kernels.
+if(TARGET dyng_triad_count_conformance_cuda_tests)
+  target_sources(dyng_triad_count_conformance_cuda_tests PRIVATE framework/fake_hyper_kernels.cu)
+endif()
+
 # The registry and the kit agree: every algorithm of dyng::algorithms() has test_traits here.
 dyng_add_test(
   NAME dyng_conformance_registry_tests

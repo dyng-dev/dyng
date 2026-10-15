@@ -87,6 +87,14 @@ void expect_cuda_engine(const triad_count::options& opt, const char* what) {
                static_cast<int>(opt.cuda_engine));
 }
 
+/// Throws invalid_argument_error for an engine value outside the enumeration (on every backend).
+void expect_engine_value(const triad_count::options& opt, const char* what) {
+  DYNG_EXPECTS(opt.cuda_engine == engine::automatic || opt.cuda_engine == engine::fused ||
+                   opt.cuda_engine == engine::operators,
+               what, ": options::cuda_engine holds the invalid value ",
+               static_cast<int>(opt.cuda_engine));
+}
+
 /// Throws invalid_argument_error for a value outside the enumeration.
 void expect_pattern(triad_count::pattern kind, const char* what) {
   DYNG_EXPECTS(kind == triad_count::pattern::h_motif ||
@@ -192,19 +200,14 @@ triad_count::result triad_count_access::make(std::unique_ptr<triad_count_state> 
 // ------------------------------------------------------------------------------------------------
 
 #if !DYNG_HAS_CUDA
-struct triad_cuda_engine {};
-
-void triad_cuda_engine_deleter::operator()(triad_cuda_engine* e) const noexcept {
-  delete e;
-}
-
 namespace {
 [[noreturn]] void no_cuda() {
   throw not_supported_error("dyng: triad_count: the cuda backend is not built");
 }
 }  // namespace
 
-triad_cuda_handle triad_cuda_open(const resources& /*res*/, triad_count::pattern /*kind*/) {
+void triad_cuda_open(const resources& /*res*/, triad_count::pattern /*kind*/,
+                     triad_cuda_engine& /*e*/) {
   no_cuda();
 }
 void triad_cuda_compute(const resources& /*res*/, triad_cuda_engine& /*e*/,
@@ -317,7 +320,7 @@ void triad_count_problem<vertex_t, weight_t>::count(framework::context& ctx, old
     return;  // the host backends recount G_{t+1} in count(+) (M9a step 4: incremental)
   }
   const resources& res = ctx.res();
-  cuda_ = triad_cuda_open(res, state_->opt.kind);
+  triad_cuda_open(res, state_->opt.kind, cuda_.emplace());
   triad_cuda_count_minus(res, *cuda_, hypergraph_access::views(g.get()), normalized_->deletions,
                          inserted_, rule);
 }
@@ -445,7 +448,7 @@ void triad_count_problem<vertex_t, weight_t>::compute_fused(framework::context& 
   {
     scoped_stage stage(res, names.reset);
     state_->counts.fill(0);
-    cuda_ = triad_cuda_open(res, state_->opt.kind);
+    triad_cuda_open(res, state_->opt.kind, cuda_.emplace());
   }
   // triad_count.count (the full count) and triad_count.finalize (the read of the bins) inside.
   triad_cuda_compute(res, *cuda_, hypergraph_access::views(g.get()), state_->counts);
@@ -466,6 +469,7 @@ triad_count::result triad_count_compute(const resources& res,
   constexpr const char* what = "triad_count::compute";
   expect_backend(res, what);
   expect_pattern(opt.kind, what);
+  expect_engine_value(opt, what);
   if (res.get_backend() == backend::cuda) {
     expect_cuda_engine(opt, what);
   }
@@ -564,10 +568,7 @@ void result::set_options(const options& opt) {
   detail::expect_pattern(opt.kind, what);
   DYNG_EXPECTS(opt.kind == st.opt.kind, what, ": options::kind is fixed at compute() (",
                to_string(st.opt.kind), "); compute a new result for ", to_string(opt.kind));
-  DYNG_EXPECTS(opt.cuda_engine == engine::automatic || opt.cuda_engine == engine::fused ||
-                   opt.cuda_engine == engine::operators,
-               what, ": options::cuda_engine holds the invalid value ",
-               static_cast<int>(opt.cuda_engine));
+  detail::expect_engine_value(opt, what);
   impl_->opt = opt;
 }
 

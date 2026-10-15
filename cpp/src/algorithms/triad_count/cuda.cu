@@ -44,39 +44,6 @@
 
 namespace dyng::detail {
 
-/// The device memory of one compute() or update(), pooled (ADR 0015).
-struct triad_cuda_workspace final : pooled_workspace {
-  scratch_buffer<long long> offsets;        ///< the wedge offsets of a phase's sources
-  scratch_buffer<unsigned char> scan_temp;  ///< CUB's storage of their scan
-  scratch_buffer<std::int64_t> ids;         ///< the deleted ids (uploaded)
-  scratch_buffer<int> keys;                 ///< the frontier's keys (id + 1)
-  scratch_buffer<unsigned char> flags;      ///< a flag per line-graph key (the frontier)
-  scratch_buffer<unsigned long long> bins;  ///< subtract bins, add bins, the error word
-  /// Pinned: the read-back of the bins and, after them, the wedge count of a phase.
-  buffer<unsigned long long> host;
-
-  /// The memory held.
-  [[nodiscard]] std::size_t bytes() const noexcept override {
-    return offsets.bytes() + scan_temp.bytes() + ids.bytes() + keys.bytes() + flags.bytes() +
-           bins.bytes() + host.size() * sizeof(unsigned long long);
-  }
-};
-
-/// The engine of one call: the leased workspace and the sizes it was reserved for.
-struct triad_cuda_engine {
-  triad_count::pattern kind = triad_count::pattern::h_motif;
-  std::optional<workspace_pool::lease<triad_cuda_workspace>> ws;
-  std::size_t scan_bytes = 0;      ///< the reserved CUB storage
-  int num_keys = 0;                ///< the keys of the current phase's frontier
-  int max_keys = 0;                ///< the frontier keys (and wedge sources) reserved
-  std::int64_t max_flags = 0;      ///< the flags reserved
-  triad_launch_counters launches;  ///< this call's launches
-};
-
-void triad_cuda_engine_deleter::operator()(triad_cuda_engine* e) const noexcept {
-  delete e;
-}
-
 namespace {
 
 /// The frontier of one phase (ESCHER-GPU's DeviceFrontier): keys[i] = ids[i] + 1 and flags[key] = 1
@@ -125,10 +92,12 @@ void record(triad_cuda_engine& e, int mode, triad::wedge::launch outcome) noexce
   }
 }
 
-triad::wedge::scratch scratch_of(const resources& res, triad_cuda_engine& e) {
+/// The wedge scratch of an update's phase, or (full) of compute()'s full count.
+triad::wedge::scratch scratch_of(const resources& res, triad_cuda_engine& e, bool full = false) {
   triad::wedge::scratch s;
-  s.offsets = e.ws->get().offsets.data();
-  s.scan_temp = e.ws->get().scan_temp.data();
+  triad_cuda_workspace& ws = e.ws->get();
+  s.offsets = full ? ws.full_offsets.data() : ws.offsets.data();
+  s.scan_temp = full ? ws.full_scan_temp.data() : ws.scan_temp.data();
   s.scan_temp_bytes = e.scan_bytes;
   s.stream = native(res);
   s.host_wedges = reinterpret_cast<long long*>(e.ws->get().host.data() + wedge_slot);
@@ -147,12 +116,12 @@ const unsigned long long* read_bins(const resources& res, triad_cuda_engine& e) 
 }
 
 /// Size the wedge scratch for phases of up to `sources` sources.
-void reserve_wedges(const resources& res, triad_cuda_engine& e, int sources) {
+void reserve_wedges(const resources& res, triad_cuda_engine& e, int sources, bool full = false) {
   triad_cuda_workspace& ws = e.ws->get();
   if (!triad_reads_line_graph(e.kind)) return;  // type 1 launches no wedges
-  ws.offsets.reserve(res, static_cast<std::size_t>(sources) + 1);
   e.scan_bytes = std::max<std::size_t>(triad::wedge::scan_temp_bytes(sources + 1), 1);
-  ws.scan_temp.reserve(res, e.scan_bytes);
+  (full ? ws.full_offsets : ws.offsets).reserve(res, static_cast<std::size_t>(sources) + 1);
+  (full ? ws.full_scan_temp : ws.scan_temp).reserve(res, e.scan_bytes);
 }
 
 /// The frontier of a phase from device ids (keys and, for the line-graph patterns, the flags).
@@ -185,12 +154,11 @@ void build_frontier(const resources& res, triad_cuda_engine& e, const std::int64
 
 }  // namespace
 
-triad_cuda_handle triad_cuda_open(const resources& res, triad_count::pattern kind) {
+void triad_cuda_open(const resources& res, triad_count::pattern kind, triad_cuda_engine& e) {
   const scoped_device guard(res.device());
-  triad_cuda_handle e(new triad_cuda_engine);
-  e->kind = kind;
-  e->ws.emplace(resources_access::workspaces(res).acquire<triad_cuda_workspace>(res));
-  triad_cuda_workspace& ws = e->ws->get();
+  e.kind = kind;
+  e.ws.emplace(resources_access::workspaces(res).acquire<triad_cuda_workspace>(res));
+  triad_cuda_workspace& ws = e.ws->get();
   ws.bins.reserve(res, triad::bin_slots);
   if (ws.host.size() < static_cast<std::size_t>(wedge_slot) + 1) {
     note_reservation();  // a deliberate growth of a reusable array (I9)
@@ -198,7 +166,6 @@ triad_cuda_handle triad_cuda_open(const resources& res, triad_count::pattern kin
     ws.host = buffer<unsigned long long>(static_cast<std::size_t>(wedge_slot) + 1, res.stream(),
                                          resources_access::staging_memory(res), res.device());
   }
-  return e;
 }
 
 void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper::row_views& views,
@@ -207,18 +174,18 @@ void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper:
   triad_cuda_workspace& ws = e.ws->get();
   {
     scoped_stage stage(res, "triad_count.count");
-    reserve_wedges(res, e, views.has_h2h ? views.h2h.max_key : 0);
+    reserve_wedges(res, e, views.has_h2h ? views.h2h.max_key : 0, true);
     DYNG_CUDA_TRY(cudaMemsetAsync(ws.bins.data(), 0, sizeof(unsigned long long) * triad::bin_slots,
                                   native(res)));
     record(e, 0,
            triad::count_full(e.kind, views, ws.bins.data(), ws.bins.data() + triad::error_slot,
-                             scratch_of(res, e)));
+                             scratch_of(res, e, true)));
   }
   scoped_stage stage(res, "triad_count.finalize");
   const unsigned long long* values = read_bins(res, e);
   // The offsets of a full count (one per key: 20 MB on coauth-DBLP) are not kept for the updates.
-  ws.offsets.release();
-  ws.scan_temp.release();
+  ws.full_offsets.release();
+  ws.full_scan_temp.release();
   const auto word = static_cast<std::uint32_t>(values[triad::error_slot]);
   if (word != 0) {
     throw_device_errors(word, "triad_count::compute",

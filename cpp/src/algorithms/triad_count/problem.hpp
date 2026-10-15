@@ -48,10 +48,13 @@
 #include "framework/frontier.hpp"
 #include "framework/policies.hpp"
 #include "framework/problem.hpp"
+#include "framework/scratch_buffer.hpp"
 #include "framework/views.hpp"
+#include "framework/workspace.hpp"
 #include "hypergraph/hypergraph_impl.hpp"
 #include "hypergraph/row_views.hpp"
 
+#include <dyng/core/buffer.hpp>
 #include <dyng/core/resources.hpp>
 #include <dyng/core/types.hpp>
 #include <dyng/hypergraph/hypergraph.hpp>
@@ -61,6 +64,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -154,26 +158,53 @@ void triad_count_openmp(const resources& res, triad_count::pattern kind,
 // The CUDA backend (cuda.cu; ESCHER-GPU's wedge engine, engine/)
 // ------------------------------------------------------------------------------------------------
 
-/// The CUDA engine of one compute() or update() (defined in cuda.cu).
-struct triad_cuda_engine;
+/**
+ * @brief The device memory of the CUDA engine, leased from the workspace pool of the resources
+ *        handle for one compute() or update() (ADR 0015) and sized before the commit for both
+ *        phases (invariant I9).
+ */
+struct triad_cuda_workspace final : pooled_workspace {
+  scratch_buffer<long long> offsets;        ///< the wedge offsets of a phase's sources
+  scratch_buffer<unsigned char> scan_temp;  ///< CUB's storage of their scan
+  /// compute(): the offsets of every key (20 MB on coauth-DBLP) and their scan's storage,
+  /// released when compute() returns (the updates' scratch stays reserved for the next update).
+  scratch_buffer<long long> full_offsets;
+  scratch_buffer<unsigned char> full_scan_temp;  ///< compute(): CUB's storage
+  scratch_buffer<std::int64_t> ids;              ///< the deleted ids (uploaded)
+  scratch_buffer<int> keys;                      ///< the frontier's keys (id + 1)
+  scratch_buffer<unsigned char> flags;           ///< a flag per line-graph key (the frontier)
+  scratch_buffer<unsigned long long> bins;       ///< subtract bins, add bins, the error word
+  /// Pinned: the read-back of the bins and, after them, the wedge count of a phase.
+  buffer<unsigned long long> host;
 
-/// Destroys a triad_cuda_engine (cuda.cu).
-struct triad_cuda_engine_deleter {
-  /// @brief Destroy `e`.
-  /// @param[in] e The engine.
-  void operator()(triad_cuda_engine* e) const noexcept;
+  /// The memory held.
+  [[nodiscard]] std::size_t bytes() const noexcept override {
+    return offsets.bytes() + scan_temp.bytes() + full_offsets.bytes() + full_scan_temp.bytes() +
+           ids.bytes() + keys.bytes() + flags.bytes() + bins.bytes() +
+           host.size() * sizeof(unsigned long long);
+  }
 };
 
-/// The CUDA engine of one call.
-using triad_cuda_handle = std::unique_ptr<triad_cuda_engine, triad_cuda_engine_deleter>;
+/// The CUDA engine of one call: the leased workspace and the sizes it was reserved for. The
+/// problem holds it (no heap allocation per call, conformance check C8).
+struct triad_cuda_engine {
+  triad_count::pattern kind = triad_count::pattern::h_motif;      ///< the pattern
+  std::optional<workspace_pool::lease<triad_cuda_workspace>> ws;  ///< the device memory
+  std::size_t scan_bytes = 0;                                     ///< the reserved CUB storage
+  int num_keys = 0;                ///< the keys of the current phase's frontier
+  int max_keys = 0;                ///< the frontier keys (and wedge sources) reserved
+  std::int64_t max_flags = 0;      ///< the flags reserved
+  triad_launch_counters launches;  ///< this call's launches
+};
 
 /**
- * @brief The CUDA engine of one call for `kind`.
- * @param[in] res  Resources of the CUDA backend.
- * @param[in] kind The pattern.
- * @return The engine.
+ * @brief Start the CUDA engine of one call for `kind`: lease the workspace and size its bins and
+ *        pinned buffer.
+ * @param[in]  res  Resources of the CUDA backend.
+ * @param[in]  kind The pattern.
+ * @param[out] e    The engine.
  */
-[[nodiscard]] triad_cuda_handle triad_cuda_open(const resources& res, triad_count::pattern kind);
+void triad_cuda_open(const resources& res, triad_count::pattern kind, triad_cuda_engine& e);
 
 /**
  * @brief compute() on cuda: the full count of a state's row views (ESCHER-GPU's count()).
@@ -361,8 +392,8 @@ class triad_count_problem final
   const container_type* graph_ = nullptr;                     ///< G_{t+1} (compute(): G)
   std::int64_t deleted_ = 0;                                  ///< the subtract frontier's size
   std::int64_t inserted_ = 0;                                 ///< the add frontier's size
-  triad_bins before_{};  ///< host backends: the counts before the update
-  triad_cuda_handle cuda_;
+  triad_bins before_{};                    ///< host backends: the counts before the update
+  std::optional<triad_cuda_engine> cuda_;  ///< cuda: the engine of the call
 };
 
 }  // namespace dyng::detail
