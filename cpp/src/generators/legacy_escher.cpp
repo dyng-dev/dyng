@@ -170,10 +170,10 @@ namespace {
 /// BatchGenerator::next of ESCHER-GPU over a live state: `live` the live ids in increasing order,
 /// `row(id)` the members of a live id, `num_vertices` the hypergraph's vertex count. Shared by
 /// both next() overloads, so they draw the same batches from the same state.
-template <typename vertex_t, typename weight_t, typename row_fn>
+template <typename vertex_t, typename weight_t, typename row_fn_t>
 hyperedge_batch<vertex_t, weight_t> draw_batch(std::mt19937_64& rng,
                                                const escher_batch_options& opt,
-                                               std::vector<std::int64_t> live, const row_fn& row,
+                                               std::vector<std::int64_t> live, const row_fn_t& row,
                                                std::int64_t num_vertices) {
   const auto num_live = static_cast<std::int64_t>(live.size());
   std::int64_t num_del = opt.num_deletions;

@@ -818,6 +818,12 @@ def test_mutation_points_match_the_code_once() -> None:
     assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "kit"} == {
         "kit_frontier_requested_ids"
     }
+    # The triad oracle's planted mutation (M9a, criterion 4): in its source.
+    hooks += (REPO / "cpp/src/testing/triad_reference.cpp").read_text()
+    assert {m["name"] for m in mutate.MUTATIONS if m["suite"] == "triad_reference"} == {
+        "triad_reference_class_map"
+    }
+    assert mutate.suite_targets("triad_reference") == ["dyng_triad_reference_tests"]
     assert mutate.suite_targets("kit") == [
         "dyng_hypergraph_kit_tests",
         "dyng_hypergraph_kit_cuda_tests",

@@ -214,8 +214,8 @@ struct triangle_acc {
 
 // Calls f(acc, i, j, k) for every triangle i < j < k of `adj` (forEachTriangle), each thread with
 // its own accumulator; the accumulators are returned.
-template <typename F>
-std::vector<triangle_acc> for_each_triangle(const rows_t& adj, int threads, F f) {
+template <typename visit_t>
+std::vector<triangle_acc> for_each_triangle(const rows_t& adj, int threads, visit_t f) {
   std::vector<triangle_acc> parts;
   const auto n = static_cast<std::int64_t>(adj.size());
 #ifdef _OPENMP
