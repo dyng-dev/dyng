@@ -207,8 +207,9 @@ def _check_manifest(root: Path, algo: Algorithm, keys: set[str]) -> list[str]:
         problems.append("`python` must be true or false")
     if d.get("python") is False and d["maturity"] != "experimental":
         problems.append(
-            f"maturity `{d['maturity']}` needs the Python module dyng.{d['name']} (`python = false` "
-            "is for an experimental algorithm whose bindings come later; PLAN 4.8)"
+            f"maturity `{d['maturity']}` needs the Python module dyng.{d['name']} "
+            "(`python = false` is for an experimental algorithm whose bindings come later; "
+            "PLAN 4.8)"
         )
     if d["maturity"] != "experimental" and SCAFFOLD_LINE in algo.path.read_text(encoding="utf-8"):
         problems.append(
