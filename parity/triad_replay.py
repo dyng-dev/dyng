@@ -7,7 +7,9 @@ ADR 0050).
     parity/compare.py triad_count --backend sequential|openmp|cuda [--threads N]
                                   [--mode by_content|by_key|both] [--counter oracle|algorithm]
                                   [--cases LIST] [--jobs N] [--gpu G] [--oracle-threads N]
-                                  [--record FILE] [--build DIR] [--keep] [--plant DEFECT]
+                                  [--record FILE] [--certificate DIR] [--build DIR] [--keep]
+                                  [--plant DEFECT]
+    parity/triad_replay.py certificate --from RECORD [--from RECORD ...] --out DIR
     parity/triad_replay.py singles [--record FILE]     (the oracle against A, one triad per bin)
     parity/triad_replay.py draws [--backend B] [--groups LIST] [--record FILE]
     parity/triad_replay.py stdout [--backend B] [--groups LIST] [--record FILE]
@@ -29,6 +31,13 @@ batch; by key every batch's inserted ids were the exported expected ids; by cont
 exported deleted row resolved to a live hyperedge with that member set; and (--mode both) the two
 modes report the same counts. Exit status: 0 every case passed, 1 a case failed, 2 a usage error
 or the counter is not available, 77 the set is missing.
+
+--certificate DIR (M9a step 5, ADR 0056) also writes the replay in the certificate's format
+(parity/certify.py: parity-triad_count_escher_gpu-<backend>[-t<threads>]-<mode>-<counter>.json:
+the set, the golden manifest, the port's commit, one configuration per mode run
+(`<backend>[/t<threads>]:triad/<mode>`), the case x configuration matrix, the counter and the
+checks every case passed); `certificate --from RECORD --out DIR` converts a --record file. A
+planted defect or a run without the coverage table never makes a certificate record.
 
 --plant DEFECT (the harness's own test, parity/tests/test_triad_replay.py: each must FAIL):
 `bin` changes one bin of the golden full count, `row` perturbs a deleted row of batch 1 (by
@@ -394,6 +403,11 @@ def compare_main(argv: list[str]) -> int:
     p.add_argument("--gpu", default=os.environ.get("DYNG_TEST_GPU", "1"))
     p.add_argument("--oracle-threads", type=int)
     p.add_argument("--record", type=Path)
+    p.add_argument(
+        "--certificate",
+        type=Path,
+        help="also write the replay in parity/certify.py's format into this directory",
+    )
     p.add_argument("--build", type=Path)
     p.add_argument("--scratch", type=Path, default=tg.scratch_default())
     p.add_argument("--keep", action="store_true", help="keep the work directory")
@@ -466,34 +480,115 @@ def compare_main(argv: list[str]) -> int:
         f"{args.mode} {args.counter}{' plant=' + args.plant if args.plant else ''}: "
         f"{n_ok}/{len(results)} cases passed ({time.monotonic() - t0:.0f} s)"
     )
+    doc = {
+        "schema": 1,
+        "set": args.set,
+        "manifest_sha256": (tg.golden_spec() or {}).get("manifest_sha256"),
+        "backend": args.backend,
+        "threads": args.threads if args.backend == "openmp" else None,
+        "mode": args.mode,
+        "counter": args.counter,
+        "plant": args.plant,
+        "coverage": not args.no_coverage,
+        "tool": str(tool.relative_to(REPO)) if tool.is_relative_to(REPO) else tool.name,
+        "commit": subprocess.run(
+            ["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True
+        ).stdout.strip(),
+        "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "gpu": args.gpu if args.backend == "cuda" else None,
+        "cases": dict(sorted(results.items())),
+        "group_seconds": dict(sorted(timings.items())),
+        "num_cases": len(results),
+        "num_passed": n_ok,
+        "passed": passed,
+    }
     if args.record:
-        doc = {
-            "schema": 1,
-            "set": args.set,
-            "manifest_sha256": (tg.golden_spec() or {}).get("manifest_sha256"),
-            "backend": args.backend,
-            "threads": args.threads if args.backend == "openmp" else None,
-            "mode": args.mode,
-            "counter": args.counter,
-            "plant": args.plant,
-            "coverage": not args.no_coverage,
-            "tool": str(tool.relative_to(REPO)) if tool.is_relative_to(REPO) else tool.name,
-            "commit": subprocess.run(
-                ["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True
-            ).stdout.strip(),
-            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "gpu": args.gpu if args.backend == "cuda" else None,
-            "cases": dict(sorted(results.items())),
-            "group_seconds": dict(sorted(timings.items())),
-            "num_cases": len(results),
-            "num_passed": n_ok,
-            "passed": passed,
-        }
         args.record.parent.mkdir(parents=True, exist_ok=True)
         args.record.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n")
+    if args.certificate:
+        path = write_certificate(doc, args.certificate)
+        print(f"wrote {path}")
     if all(r.get("tool_exit") == 2 for r in results.values()):
         return 2  # the counter is not available (or every run was a usage error)
     return 0 if passed else 1
+
+
+# --- The certificate's record (M9a step 5; ADR 0056) -------------------------------------------
+
+
+def certificate_config(doc: dict, mode: str) -> str:
+    """`<backend>[/t<threads>]:triad/<mode>`: one configuration per mode a replay ran."""
+    threads = f"/t{doc['threads']}" if doc.get("backend") == "openmp" and doc.get("threads") else ""
+    return f"{doc['backend']}{threads}:triad/{mode}"
+
+
+def certificate_record(doc: dict) -> dict:
+    """A --record document of `compare.py triad_count` in parity/certify.py's replay format: the
+    set, the manifest, the port's commit, a configuration per mode, the case x configuration
+    matrix ("equal" or "DIFFERENT") and the checks. Refused (ReplayError) for a planted defect
+    or a replay outside the coverage table: neither is evidence of parity."""
+    if doc.get("plant"):
+        raise ReplayError(f"a replay with the planted defect {doc['plant']} is not a certificate")
+    if doc.get("coverage") is False:
+        raise ReplayError("a replay with --no-coverage is not a certificate record")
+    configs = [certificate_config(doc, m) for m in MODES[doc["mode"]]]
+    matrix = {
+        case: {c: "equal" if r.get("passed") else "DIFFERENT" for c in configs}
+        for case, r in sorted(doc["cases"].items())
+    }
+    return {
+        "schema": 1,
+        "set": doc["set"],
+        "kind": "triad_count",
+        "what": "parity/compare.py triad_count: the golden replays of ESCHER-GPU@abcf9b2's triad "
+        "counts through dyng_triad_replay (by key: the exported ids, inserted ids == expected "
+        "ids; by content: each deleted row resolved to a live hyperedge with its members; "
+        "check_integrity() and a fresh compute() after every batch; full counts, net deltas and "
+        "counts after equal to the golden's in every mode run, the modes equal)",
+        "date": doc.get("date"),
+        "port": {"commit": doc.get("commit")},
+        "goldens": {"manifest_sha256": doc.get("manifest_sha256")},
+        "executable": doc.get("tool"),
+        "backend": doc["backend"],
+        "threads": doc.get("threads"),
+        "configs": configs,
+        "cases": sorted(doc["cases"]),
+        "matrix": matrix,
+        "checks": {
+            "counter": doc.get("counter"),
+            "modes": list(MODES[doc["mode"]]),
+            "coverage": doc.get("coverage", True),
+            "integrity_after_every_batch": True,
+            "recount_after_every_batch": doc.get("counter") == "algorithm",
+        },
+        "passed": bool(doc.get("passed")) and all(r.get("passed") for r in doc["cases"].values()),
+    }
+
+
+def write_certificate(doc: dict, out: Path) -> Path:
+    rec = certificate_record(doc)
+    threads = f"-t{rec['threads']}" if rec["backend"] == "openmp" and rec["threads"] else ""
+    path = out / (
+        f"parity-{rec['set']}-{rec['backend']}{threads}-{doc['mode']}-{doc['counter']}.json"
+    )
+    out.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(rec, indent=1) + "\n")
+    return path
+
+
+def certificate_main(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="triad_replay.py certificate")
+    p.add_argument("--from", dest="records", type=Path, action="append", required=True)
+    p.add_argument("--out", type=Path, required=True)
+    args = p.parse_args(argv)
+    for record in args.records:
+        try:
+            path = write_certificate(json.loads(record.read_text()), args.out)
+        except ReplayError as e:
+            print(f"{record}: {e}", file=sys.stderr)
+            return 1
+        print(f"wrote {path}")
+    return 0
 
 
 # --- singles (criterion 4) ---------------------------------------------------------------------
@@ -898,6 +993,8 @@ def main() -> int:
         return singles_main(sys.argv[2:])
     if sys.argv[1:2] == ["compare"]:
         return compare_main(sys.argv[2:])
+    if sys.argv[1:2] == ["certificate"]:
+        return certificate_main(sys.argv[2:])
     print(__doc__, file=sys.stderr)
     return 2
 
