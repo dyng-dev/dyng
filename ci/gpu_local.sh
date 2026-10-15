@@ -65,8 +65,9 @@
 #              compact() after every op, and every preset's layout without compactions).
 #              The CBST mutation tests cbst.mutation.* run in the ctest -L gpu step.
 #   hypergraph the hypergraph container (M8b, ADRs 0041-0042): compute-sanitizer racecheck,
-#              synccheck and initcheck on its GPU test executables (dyng_hypergraph_cuda_tests: the container's
-#              suites on cuda, the line graph, two containers on two non-blocking streams;
+#              synccheck and initcheck on its GPU test executables (dyng_hypergraph_cuda_tests:
+#              the container's suites on cuda, the line graph, two containers on two
+#              non-blocking streams;
 #              dyng_hypergraph_ids_cuda_tests: the committed batch records and A's skewed and
 #              medium traces; dyng_io_cuda_tests, M8b step 4: the .dgb batch_reader staging
 #              through pinned buffers to the device) at their reduced sizes (DYNG_CBST_REDUCED=1;
