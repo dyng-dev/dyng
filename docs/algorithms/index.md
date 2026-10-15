@@ -14,7 +14,7 @@ code, how to cite).
 | {doc}`mosp` | multi-objective shortest paths | graph | fixed point | sequential, OpenMP, CUDA | stable | 0.2 |
 | {doc}`dynamic_bfs` | BFS hop levels from a source (teaching material) | graph | fixed point | sequential, OpenMP, CUDA | tutorial | 0.2 |
 | {doc}`triangle_delta` | the triangle count of an undirected graph (teaching material) | graph | aggregate delta | sequential, OpenMP, CUDA | tutorial | 0.2 |
-| {doc}`triad_count` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP | experimental | 0.3 |
+| {doc}`triad_count` | hypergraph h-motif triad counts | hypergraph | aggregate delta | sequential, OpenMP, CUDA | experimental | 0.3 |
 | `label_propagation` | binary harmonic label propagation under vertex batches | graph | fixed point | sequential, CUDA | planned | 0.4 |
 | `hyper_sssp` | shortest hyperpaths | hypergraph | fixed point | sequential, CUDA | planned | 0.4 |
 <!-- regen:algorithms end -->

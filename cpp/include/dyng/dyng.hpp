@@ -58,6 +58,7 @@
 #include <dyng/io/result_io.hpp>
 #include <dyng/mosp.hpp>
 #include <dyng/sssp.hpp>
+#include <dyng/triad_count.hpp>
 #include <dyng/triangle_delta.hpp>
 #include <dyng/update.hpp>
 #include <dyng/version.hpp>

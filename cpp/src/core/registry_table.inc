@@ -77,7 +77,7 @@ table.push_back(algorithm_info{
     maturity_level::experimental,
     determinism::exact_value,
     oracle_kind::compute,
-    {backend::sequential, backend::openmp},
-    {},
+    {backend::sequential, backend::openmp, backend::cuda},
+    {"escher2026", "escherplus2026"},
 });
 #endif

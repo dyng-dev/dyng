@@ -378,6 +378,12 @@ target_link_libraries(dyng_triad_replay_lib PUBLIC dyng_cbst_trace dyng::testing
 target_compile_features(dyng_triad_replay_lib PUBLIC cxx_std_17)
 dyng_set_warnings(dyng_triad_replay_lib)
 dyng_enable_sanitizers(dyng_triad_replay_lib)
+# --counter algorithm needs triad_count in the build (DYNG_ALGORITHMS).
+if(TARGET dyng_triad_count)
+  target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=1)
+else()
+  target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
+endif()
 add_executable(dyng_triad_replay parity/escher/triad_replay_main.cpp)
 target_link_libraries(dyng_triad_replay PRIVATE dyng_triad_replay_lib)
 dyng_set_warnings(dyng_triad_replay)

@@ -34,12 +34,13 @@
 namespace {
 
 int usage() {
-  std::fprintf(stderr,
-               "usage: dyng_triad_replay --hg FILE [--vertices N] [--capacity C] "
-               "[--backend sequential|openmp|cuda] [--threads N] "
-               "[--mode by_content|by_key|both] [--counter oracle|algorithm] "
-               "[--patterns P,...] [--oracle-threads N] [--no-integrity] [--json OUT] "
-               "[batch.dgb ...]\n");
+  std::fprintf(
+      stderr,
+      "usage: dyng_triad_replay --hg FILE [--vertices N] [--capacity C] "
+      "[--backend sequential|openmp|cuda] [--threads N] "
+      "[--mode by_content|by_key|both] [--counter oracle|algorithm] "
+      "[--patterns P,...] [--oracle-threads N] [--no-integrity] [--no-recount] [--json OUT] "
+      "[batch.dgb ...]\n");
   return 2;
 }
 
@@ -80,6 +81,8 @@ int main(int argc, char** argv) {
         opt.oracle_threads = std::stoi(value());
       } else if (a == "--no-integrity") {
         opt.integrity = false;
+      } else if (a == "--no-recount") {
+        opt.recount = false;
       } else if (a == "--json") {
         json_path = value();
       } else if (!a.empty() && a[0] == '-') {

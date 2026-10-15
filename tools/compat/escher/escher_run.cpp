@@ -26,13 +26,17 @@
  *     line_graph_policy::sorted_merge}: the line graph and the row views exist after the build
  *     (hypergraph.build, hypergraph.upload), and generators::legacy::escher_host_model, the host
  *     rows the batches are drawn from (A's DynamicHypergraph keeps the same rows);
- *  4. the full count (step 3 of M9a; `full_count_ms`);
+ *  4. the full count, triad_count::compute() of the pattern (`full_count_ms`, between device
+ *     synchronizations); A's count line ("Motif counts (30 bins): ..." for h_motif, "[GPU] TypeN
+ *     baseline motif count...: N" for the types), byte for byte;
  *  5. per batch: the batch drawn by escher_batch_generator::next(model) from the one engine
  *     (`generate_ms`, outside the update region), then the update (`update_ms` around
- *     triad_count::update(), M9a step 3) or, with --no-count, hypergraph::apply() alone
- *     (`apply_ms`), each started after and ended with a device synchronization; the model
- *     follows the summary; A's line "Batch b (D deletions, I insertions)" (when --batches > 1);
- *     with --check, check_integrity() (outside the timers);
+ *     triad_count::update()) or, with --no-count, hypergraph::apply() alone (`apply_ms`), each
+ *     started after and ended with a device synchronization; the model follows the summary; A's
+ *     lines "Batch b (D deletions, I insertions)" (when --batches > 1) and the delta ("Motif delta
+ *     counts (30 bins): ..." or "[GPU] TypeN motif delta count: N"); with --check,
+ *     check_integrity() and "baseline + deltas == full recount" (a fresh compute()), outside the
+ *     timers;
  *  6. `total_ms` after the last batch; the --timing file holds the driver timers (load_ms,
  *     full_count_ms, generate_ms, update_ms or apply_ms, total_ms; batch 0 = before the batches)
  *     and every profiler stage per batch.
@@ -43,9 +47,8 @@
  *
  * The gated process keeps no public view of the hypergraph: the generator reads the host model,
  * never hypergraph::h2v() (whose device CSR would stay live across the next apply and add to the
- * Nsight Systems peak, M9a criterion 13). In M9a step 2 the driver runs with --no-count only; the
- * counting (--pattern) arrives with triad_count. Exit status: 0 done, 1 a --check failure, 2 a
- * usage or input error.
+ * Nsight Systems peak, M9a criterion 13). Exit status: 0 done, 1 a --check failure, 2 a usage or
+ * input error.
  */
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -54,6 +57,7 @@
 #include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/hypergraph_io.hpp>
+#include <dyng/triad_count.hpp>
 
 #include <cerrno>
 #include <chrono>
@@ -292,14 +296,41 @@ double ms_since(clock_type::time_point t0) {
   return std::chrono::duration<double, std::milli>(clock_type::now() - t0).count();
 }
 
-int run(const run_options& o, clock_type::time_point start) {
-  if (o.count) {
-    std::fprintf(stderr,
-                 "dyng-compat-escher run: counting (--pattern %s) arrives with triad_count (M9a "
-                 "step 3); run with --no-count\n",
-                 o.pattern.c_str());
-    return 2;
+triad_count::pattern kind_of(const std::string& pattern) {
+  if (pattern == "type1") return triad_count::pattern::stathyper_type1;
+  if (pattern == "type2") return triad_count::pattern::stathyper_type2;
+  if (pattern == "type3") return triad_count::pattern::stathyper_type3;
+  return triad_count::pattern::h_motif;
+}
+
+/// A's count lines (src/main.cu and src/type1.cu .. type3.cu, print()).
+template <typename value_t>
+void print_values(std::ostream& out, triad_count::pattern kind, const value_t* values,
+                  bool is_delta) {
+  switch (kind) {
+    case triad_count::pattern::h_motif:
+      out << (is_delta ? "Motif delta counts (30 bins): " : "Motif counts (30 bins): ");
+      for (int i = 0; i < 30; ++i) out << values[i] << (i + 1 < 30 ? ' ' : '\n');
+      return;
+    case triad_count::pattern::stathyper_type1:
+      if (is_delta)
+        out << "[GPU] Type1 motif delta count: " << values[0] << std::endl;
+      else
+        out << "[GPU] Type1 baseline motif count (sum_e C(|e|, 3)): " << values[0] << std::endl;
+      return;
+    case triad_count::pattern::stathyper_type2:
+    case triad_count::pattern::stathyper_type3: {
+      const char* name = kind == triad_count::pattern::stathyper_type2 ? "Type2" : "Type3";
+      if (is_delta)
+        out << "[GPU] " << name << " motif delta count: " << values[0] << std::endl;
+      else
+        out << "[GPU] " << name << " baseline motif count: " << values[0] << std::endl;
+      return;
+    }
   }
+}
+
+int run(const run_options& o, clock_type::time_point start) {
   resources res = o.backend == "cuda"     ? resources::cuda(0)
                   : o.backend == "openmp" ? resources::openmp(o.threads)
                                           : resources::sequential();
@@ -356,6 +387,20 @@ int run(const run_options& o, clock_type::time_point start) {
   list = {};  // A moves its loaded rows into its host model
   res.synchronize();
   log.stages(0);
+  // 4. The full count (A's init.full_count: synchronized at both ends).
+  const triad_count::pattern kind = kind_of(o.pattern);
+  std::unique_ptr<triad_count::result> counts;
+  if (o.count) {
+    triad_count::options topt;
+    topt.kind = kind;
+    res.synchronize();
+    const auto t0 = clock_type::now();
+    counts = std::make_unique<triad_count::result>(triad_count::compute(res, h, topt));
+    res.synchronize();
+    log.timer("full_count_ms", 0, ms_since(t0));
+    log.stages(0);
+    print_values(std::cout, kind, counts->counts().data(), false);
+  }
   const std::int64_t initial_bytes = h.store_stats().device_bytes;
   int failures = 0;
   if (o.check) {
@@ -403,9 +448,16 @@ int run(const run_options& o, clock_type::time_point start) {
     }
     res.synchronize();
     const auto t0 = clock_type::now();
-    const hyper_apply_summary s = h.apply(res, batch.view());
+    hyper_apply_summary s;
+    triad_count::stats st;
+    if (counts) {
+      st = triad_count::update(res, h, batch.view(), *counts);
+      s = st.batch;
+    } else {
+      s = h.apply(res, batch.view());
+    }
     res.synchronize();
-    log.timer("apply_ms", b, ms_since(t0));
+    log.timer(counts ? "update_ms" : "apply_ms", b, ms_since(t0));
     model.apply(batch.view(), s);
     if (dump) {
       io::hyperedge_batch_annotations<std::int32_t> a;
@@ -418,6 +470,7 @@ int run(const run_options& o, clock_type::time_point start) {
     if (o.batches > 1)
       std::cout << "Batch " << b << " (" << batch.num_deletions() << " deletions, "
                 << batch.num_insertions() << " insertions)" << std::endl;
+    if (counts) print_values(std::cout, kind, st.delta.data(), true);
     std::cerr << "[memory] batch " << b << ": store device bytes " << h.store_stats().device_bytes
               << std::endl;
     if (o.check) {
@@ -427,6 +480,19 @@ int run(const run_options& o, clock_type::time_point start) {
       } catch (const std::exception& e) {
         ++failures;
         std::cerr << "[check] batch " << b << ": data-structure integrity FAILED: " << e.what()
+                  << std::endl;
+      }
+      if (counts) {
+        triad_count::options topt;
+        topt.kind = kind;
+        const triad_count::result fresh = triad_count::compute(res, h, topt);
+        const auto a = counts->counts();
+        const auto c = fresh.counts();
+        bool same = a.size() == c.size();
+        for (std::size_t i = 0; same && i < a.size(); ++i) same = a[i] == c[i];
+        failures += same ? 0 : 1;
+        std::cerr << "[check] batch " << b
+                  << ": baseline + deltas == full recount: " << (same ? "OK" : "FAILED")
                   << std::endl;
       }
     }
@@ -439,9 +505,11 @@ int run(const run_options& o, clock_type::time_point start) {
   std::cerr << std::fixed << std::setprecision(1) << "[timing] init: load " << log.sum("load_ms", 0)
             << " ms, build " << log.sum("hypergraph.build", 0) << " ms, upload "
             << log.sum("hypergraph.upload", 0) << " ms" << std::endl;
+  if (counts)
+    std::cerr << "[timing] full count " << log.sum("full_count_ms", 0) << " ms" << std::endl;
   for (std::int64_t b = 1; b <= o.batches; ++b)
-    std::cerr << "[timing] batch " << b << ": apply " << log.sum("apply_ms", b) << " ms"
-              << std::endl;
+    std::cerr << "[timing] batch " << b << ": " << (counts ? "update " : "apply ")
+              << log.sum(counts ? "update_ms" : "apply_ms", b) << " ms" << std::endl;
   std::cerr << "[timing] total " << total << " ms" << std::endl;
   std::cerr << "[memory] dynG store device bytes: " << initial_bytes << " after init, "
             << h.store_stats().device_bytes << " after the last batch" << std::endl;

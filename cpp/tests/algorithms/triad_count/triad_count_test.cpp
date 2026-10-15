@@ -44,8 +44,8 @@ TEST(TriadCount, AnUpdateEqualsCompute) {
   EXPECT_TRUE(s.fallback_used);                // the placeholder recomputes ("start green")
   EXPECT_EQ(s.batch.inserted_ids.size(), 1U);  // the ids the store chose: read them, never guess
   const auto fresh = dyng::triad_count::compute(res, h);
-  EXPECT_EQ(r.count(), fresh.count());
-  EXPECT_EQ(r.count(), 5U);  // |{0, 1}| + |{3}| + |{2, 3}|
+  EXPECT_EQ(r.total(), fresh.total());
+  EXPECT_EQ(r.total(), 0U);  // {0, 1}, {3}, {2, 3}: no triad
   EXPECT_EQ(r.graph_version(), h.version());
   // dyng::update() takes the result too (one commit for every result of the hypergraph).
   dyng::hyperedge_batch<std::int32_t, dyng::unweighted> more;

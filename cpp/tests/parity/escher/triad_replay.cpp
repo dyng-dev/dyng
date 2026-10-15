@@ -13,6 +13,10 @@
 #include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/hypergraph_io.hpp>
+#if DYNG_TRIAD_REPLAY_ALGORITHM
+#include <dyng/triad_count.hpp>
+#include <dyng/update.hpp>
+#endif
 
 #include <chrono>
 #include <cstdint>
@@ -104,12 +108,120 @@ class oracle_counter final : public counter {
   std::shared_ptr<oracle_cache> cache_;
 };
 
+#if DYNG_TRIAD_REPLAY_ALGORITHM
+/// The pattern of triad_count for an oracle pattern.
+triad_count::pattern kind_of(testing::triad_pattern p) {
+  switch (p) {
+    case testing::triad_pattern::h_motif:
+      return triad_count::pattern::h_motif;
+    case testing::triad_pattern::stathyper_type1:
+      return triad_count::pattern::stathyper_type1;
+    case testing::triad_pattern::stathyper_type2:
+      return triad_count::pattern::stathyper_type2;
+    case testing::triad_pattern::stathyper_type3:
+      return triad_count::pattern::stathyper_type3;
+  }
+  throw std::invalid_argument("unknown pattern");
+}
+
+/// triad_count: one result per requested pattern, computed after the build and kept up to date by
+/// one dyng::update() per batch (all results, one commit); after every batch the counts must equal
+/// a fresh compute() ("baseline + deltas == recount"; unless opt.recount is off).
+class algorithm_counter final : public counter {
+ public:
+  explicit algorithm_counter(const options& opt) : opt_(opt) {}
+  void build(const resources& res, hgraph& h) override {
+    results_.clear();
+    for (const auto p : opt_.patterns) {
+      triad_count::options o;
+      o.kind = kind_of(p);
+      results_.push_back(triad_count::compute(res, h, o));
+    }
+  }
+  hyper_apply_summary apply(const resources& res, hgraph& h, const batch_view& b) override {
+    std::vector<triad_count::stats> st;
+    switch (results_.size()) {
+      case 1: {
+        const auto [s0] = dyng::update(res, h, b, results_[0]);
+        st = {s0};
+        break;
+      }
+      case 2: {
+        const auto [s0, s1] = dyng::update(res, h, b, results_[0], results_[1]);
+        st = {s0, s1};
+        break;
+      }
+      case 3: {
+        const auto [s0, s1, s2] = dyng::update(res, h, b, results_[0], results_[1], results_[2]);
+        st = {s0, s1, s2};
+        break;
+      }
+      case 4: {
+        const auto [s0, s1, s2, s3] =
+            dyng::update(res, h, b, results_[0], results_[1], results_[2], results_[3]);
+        st = {s0, s1, s2, s3};
+        break;
+      }
+      default:
+        throw std::invalid_argument("the algorithm counter takes 1 to 4 patterns");
+    }
+    for (std::size_t i = 0; i < st.size(); ++i) {
+      // The stats agree with the counts: delta == counts after - counts before, the frontier sizes
+      // are the batch's, triads added - removed == the net delta.
+      std::int64_t net = 0;
+      for (const std::int64_t d : st[i].delta) net += d;
+      if (static_cast<std::uint64_t>(net) != st[i].triads_added - st[i].triads_removed ||
+          st[i].deleted_frontier != st[i].batch.deleted_hyperedges ||
+          st[i].inserted_frontier != static_cast<std::int64_t>(st[i].batch.inserted_ids.size()))
+        throw std::runtime_error("triad_count::stats disagree with the update (pattern " +
+                                 std::string(triad_count::to_string(results_[i].kind())) + ")");
+    }
+    return st.front().batch;
+  }
+  pattern_counts counts(const resources& res, const hgraph& h) override {
+    pattern_counts out;
+    for (std::size_t i = 0; i < results_.size(); ++i) {
+      const auto c = results_[i].counts();
+      std::vector<std::int64_t> v(c.size());
+      for (std::size_t k = 0; k < c.size(); ++k) v[k] = static_cast<std::int64_t>(c[k]);
+      if (opt_.recount && h.version() != results_[i].graph_version())
+        throw std::runtime_error("triad_count: the result is stale");
+      if (opt_.recount && evaluations > 0) {
+        triad_count::options o;
+        o.kind = results_[i].kind();
+        const triad_count::result recount = triad_count::compute(res, h, o);
+        const auto fresh = recount.counts();
+        for (std::size_t k = 0; k < c.size(); ++k) {
+          if (fresh[k] != c[k])
+            throw std::runtime_error("triad_count: baseline + deltas != recount (pattern " +
+                                     std::string(triad_count::to_string(o.kind)) + ", bin " +
+                                     std::to_string(k) + ": " + std::to_string(c[k]) +
+                                     " != " + std::to_string(fresh[k]) + ")");
+        }
+      }
+      out[testing::triad_pattern_name(opt_.patterns[i])] = std::move(v);
+    }
+    ++evaluations;
+    return out;
+  }
+
+ private:
+  const options& opt_;
+  std::vector<triad_count::result> results_;
+};
+#endif
+
 std::unique_ptr<counter> make_counter(const options& opt,
                                       const std::shared_ptr<oracle_cache>& cache) {
   if (opt.counter == "oracle") return std::make_unique<oracle_counter>(opt, cache);
-  if (opt.counter == "algorithm")
+  if (opt.counter == "algorithm") {
+#if DYNG_TRIAD_REPLAY_ALGORITHM
+    return std::make_unique<algorithm_counter>(opt);
+#else
     throw not_available(
-        "--counter algorithm: triad_count is not built yet (M9a steps 3-4 fill this counter in)");
+        "--counter algorithm: triad_count is not in this build (DYNG_ALGORITHMS leaves it out)");
+#endif
+  }
   throw std::invalid_argument("unknown counter " + opt.counter);
 }
 

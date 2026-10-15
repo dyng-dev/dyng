@@ -28,7 +28,7 @@
 
 namespace dyng::conformance {
 
-/// triad_count (TODO(triad_count): what the kit compares).
+/// triad_count, pattern h_motif (the kit compares the 30 counts exactly).
 template <>
 struct test_traits<tags::triad_count> {
   static constexpr std::string_view name = "triad_count";         ///< as in the manifest
@@ -39,14 +39,17 @@ struct test_traits<tags::triad_count> {
   using container_types =
       type_list<hypergraph<std::int32_t, unweighted>, hypergraph<std::int32_t, std::int32_t>>;
   template <typename container_t>
-  using result = triad_count::result;  ///< the result
-  using stats = triad_count::stats;    ///< update()'s stats
-  using snapshot = std::uint64_t;      ///< the count
+  using result = triad_count::result;           ///< the result
+  using stats = triad_count::stats;             ///< update()'s stats
+  using snapshot = std::vector<std::uint64_t>;  ///< the counts
 
   /// The hypergraph requirements (the manifest's graph_requirements; the kit's presets add the
   /// id_reuse orders and the capacity presets).
   static void require(hypergraph_properties& props) {
-    (void)props;
+    props.store_v2h = true;
+    if (props.line_graph == line_graph_policy::none) {
+      props.line_graph = line_graph_policy::automatic;
+    }
   }
   /// The generated hypergraphs (the medium one has more than 1,024 vertices, so the kit's skewed
   /// mix inserts a hyperedge of more than 1,024 members).
@@ -76,11 +79,14 @@ struct test_traits<tags::triad_count> {
   template <typename container_t>
   static snapshot take(const resources& res, const result<container_t>& r) {
     (void)res;
-    return r.count();
+    const auto c = r.counts();
+    return snapshot(c.data(), c.data() + c.size());
   }
   /// The counters that are equal across runs and backends (besides the common ones).
-  static std::vector<std::int64_t> deterministic(const stats& /*s*/) {
-    return {};
+  static std::vector<std::int64_t> deterministic(const stats& s) {
+    std::vector<std::int64_t> out{s.deleted_frontier, s.inserted_frontier};
+    out.insert(out.end(), s.delta.begin(), s.delta.end());
+    return out;
   }
   /// Options and hypergraphs compute() and set_options() reject (TODO(triad_count)).
   template <typename container_t>
@@ -88,9 +94,10 @@ struct test_traits<tags::triad_count> {
                                                             const container_t& /*h*/) {
     return {};
   }
-  /// C8: host synchronizations of the algorithm phase (none: host backends only).
-  static std::int64_t host_sync_budget(backend /*b*/) {
-    return 0;
+  /// C8: host synchronizations of the algorithm phase: on cuda the wedge count of each phase and
+  /// the read of the bins; none on the host backends.
+  static std::int64_t host_sync_budget(backend b) {
+    return b == backend::cuda ? 3 : 0;
   }
 };
 

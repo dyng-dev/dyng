@@ -24,7 +24,9 @@
  *
  * - **oracle**: dyng::testing::triad_reference on to_hyperedge_list() (the live hyperedges copied
  *   to the host), every requested pattern;
- * - **algorithm**: triad_count (M9a steps 3-4; until then not available, the tool exits 2).
+ * - **algorithm**: triad_count, one result per pattern kept up to date by one dyng::update() per
+ *   batch; after every batch its counts must equal a fresh compute() (options::recount), and its
+ *   stats agree with the update (the tool exits 2 when triad_count is not in the build).
  *
  * The report carries per mode the full count and, per batch, the counts after it and the net
  * delta per pattern, the deletions and insertions, the unresolved and ambiguous deletions
@@ -56,6 +58,7 @@ struct options {
   bool integrity = true;              ///< check_integrity() after every batch
   std::int64_t payload_capacity = 0;  ///< the H2V payload capacity of escher_gpu(capacity)
   std::int32_t num_vertices = -1;     ///< A's vertex count (-1: the file's)
+  bool recount = true;                ///< algorithm: compare with a fresh compute() per batch
 };
 
 /// Counts of every requested pattern, by pattern name.
