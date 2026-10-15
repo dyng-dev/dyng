@@ -28,6 +28,7 @@
 #include "framework/workspace.hpp"
 #include "util/cuda_check.hpp"
 #include "util/device_error_flags.hpp"
+#include "util/kernel_registry.hpp"
 
 #include <dyng/core/buffer.hpp>
 #include <dyng/core/error.hpp>
@@ -65,10 +66,11 @@ struct triad_cuda_workspace final : pooled_workspace {
 struct triad_cuda_engine {
   triad_count::pattern kind = triad_count::pattern::h_motif;
   std::optional<workspace_pool::lease<triad_cuda_workspace>> ws;
-  std::size_t scan_bytes = 0;  ///< the reserved CUB storage
-  int num_keys = 0;            ///< the keys of the current phase's frontier
-  int max_keys = 0;            ///< the frontier keys (and wedge sources) reserved
-  std::int64_t max_flags = 0;  ///< the flags reserved
+  std::size_t scan_bytes = 0;      ///< the reserved CUB storage
+  int num_keys = 0;                ///< the keys of the current phase's frontier
+  int max_keys = 0;                ///< the frontier keys (and wedge sources) reserved
+  std::int64_t max_flags = 0;      ///< the flags reserved
+  triad_launch_counters launches;  ///< this call's launches
 };
 
 void triad_cuda_engine_deleter::operator()(triad_cuda_engine* e) const noexcept {
@@ -94,6 +96,34 @@ cudaStream_t native(const resources& res) noexcept {
 
 /// The pinned slot of the wedge count, after the bins.
 constexpr int wedge_slot = triad::bin_slots;
+
+/// The shape of a pattern's kernels (triad_launch_counters: 0 triangles, 1 pairs, 2 keys).
+int shape_of(triad_count::pattern kind) noexcept {
+  switch (kind) {
+    case triad_count::pattern::stathyper_type1:
+      return 2;
+    case triad_count::pattern::stathyper_type2:
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+/// Count one call's outcome (mode 0: full count, 1: a frontier phase).
+void record(triad_cuda_engine& e, int mode, triad::wedge::launch outcome) noexcept {
+  const int shape = shape_of(e.kind);
+  switch (outcome) {
+    case triad::wedge::launch::kernel:
+      ++e.launches.kernels[mode][shape];
+      break;
+    case triad::wedge::launch::no_sources:
+      ++e.launches.no_sources[mode][shape];
+      break;
+    case triad::wedge::launch::no_wedges:
+      ++e.launches.no_wedges[mode][shape];
+      break;
+  }
+}
 
 triad::wedge::scratch scratch_of(const resources& res, triad_cuda_engine& e) {
   triad::wedge::scratch s;
@@ -180,8 +210,9 @@ void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper:
     reserve_wedges(res, e, views.has_h2h ? views.h2h.max_key : 0);
     DYNG_CUDA_TRY(cudaMemsetAsync(ws.bins.data(), 0, sizeof(unsigned long long) * triad::bin_slots,
                                   native(res)));
-    triad::count_full(e.kind, views, ws.bins.data(), ws.bins.data() + triad::error_slot,
-                      scratch_of(res, e));
+    record(e, 0,
+           triad::count_full(e.kind, views, ws.bins.data(), ws.bins.data() + triad::error_slot,
+                             scratch_of(res, e)));
   }
   scoped_stage stage(res, "triad_count.finalize");
   const unsigned long long* values = read_bins(res, e);
@@ -220,14 +251,19 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
   }
   DYNG_CUDA_TRY(cudaMemsetAsync(ws.bins.data(), 0, sizeof(unsigned long long) * triad::bin_slots,
                                 native(res)));
-  if (deleted == 0) return;
+  if (deleted == 0) {
+    record(e, 1, triad::wedge::launch::no_sources);
+    return;
+  }
   // One upload of Step 0's host ids (pageable: the copy has read them when it returns).
   DYNG_CUDA_TRY(cudaMemcpyAsync(ws.ids.data(), deletions.data(),
                                 sizeof(std::int64_t) * deletions.size(), cudaMemcpyHostToDevice,
                                 native(res)));
   build_frontier(res, e, ws.ids.data(), deleted, views);
-  triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), -1, ws.bins.data(),
-                     ws.bins.data() + triad::error_slot, scratch_of(res, e));
+  record(
+      e, 1,
+      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), -1,
+                         ws.bins.data(), ws.bins.data() + triad::error_slot, scratch_of(res, e)));
 }
 
 void triad_cuda_identify_affected(const resources& res, triad_cuda_engine& e,
@@ -241,9 +277,10 @@ void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
                            const hyper::row_views& views) {
   const scoped_device guard(res.device());
   triad_cuda_workspace& ws = e.ws->get();
-  triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), 1,
-                     ws.bins.data() + triad::phase_bins, ws.bins.data() + triad::error_slot,
-                     scratch_of(res, e));
+  record(e, 1,
+         triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), 1,
+                            ws.bins.data() + triad::phase_bins, ws.bins.data() + triad::error_slot,
+                            scratch_of(res, e)));
 }
 
 void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_signed_bins& minus,
@@ -262,9 +299,22 @@ void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_signe
   }
 }
 
+void triad_cuda_take_launches(const triad_cuda_engine& e, triad_launch_counters& into) noexcept {
+  for (int m = 0; m < 2; ++m) {
+    for (int k = 0; k < 3; ++k) {
+      into.kernels[m][k] += e.launches.kernels[m][k];
+      into.no_sources[m][k] += e.launches.no_sources[m][k];
+      into.no_wedges[m][k] += e.launches.no_wedges[m][k];
+    }
+  }
+}
+
 std::int64_t triad_cuda_host_syncs(triad_count::pattern kind) noexcept {
   // The wedge count of each phase that launches wedges and the read of the bins.
   return kind == triad_count::pattern::stathyper_type1 ? 1 : 3;
 }
+
+// The frontier kernel (resources::warm_up() loads it; the wedge kernels: engine/counters.cu).
+DYNG_REGISTER_KERNEL(frontier_kernel);
 
 }  // namespace dyng::detail

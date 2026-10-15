@@ -71,20 +71,35 @@ using triad_bins = std::array<std::uint64_t, triad_count::max_bins>;
 /// The signed bins of one phase of an update (two's complement on the device).
 using triad_signed_bins = std::array<std::int64_t, triad_count::max_bins>;
 
+/**
+ * @brief The launch counters of the CUDA engine (M9a criterion 9), per mode (0: the full count,
+ *        1: a frontier phase) and shape (0: triangles, 1: pairs, 2: keys): the counting kernels
+ *        launched and the calls that ended at one of the two early outs (no sources: an empty
+ *        frontier; no wedges: sources without a wedge). Kept by the result across its calls.
+ */
+struct triad_launch_counters {
+  std::int64_t kernels[2][3] = {};     ///< counting kernels launched
+  std::int64_t no_sources[2][3] = {};  ///< calls without sources
+  std::int64_t no_wedges[2][3] = {};   ///< calls whose sources have no wedge
+};
+
 /// The state behind a triad_count::result.
 struct triad_count_state {
-  triad_count::options opt;       ///< the options (kind fixed at compute())
-  triad_bins counts{};            ///< the counts; bins at and above num_bins are 0
-  int num_bins = 30;              ///< 30 (h_motif) or 1 (the types)
-  std::uint64_t version = 0;      ///< hypergraph version matched
-  std::uint64_t graph_state = 0;  ///< hypergraph state matched (ADR 0006, "Graph identity")
-  bool poisoned = false;          ///< a failed update left the result unusable
+  triad_count::options opt;        ///< the options (kind fixed at compute())
+  triad_bins counts{};             ///< the counts; bins at and above num_bins are 0
+  int num_bins = 30;               ///< 30 (h_motif) or 1 (the types)
+  std::uint64_t version = 0;       ///< hypergraph version matched
+  std::uint64_t graph_state = 0;   ///< hypergraph state matched (ADR 0006, "Graph identity")
+  bool poisoned = false;           ///< a failed update left the result unusable
+  triad_launch_counters launches;  ///< the CUDA engine's launches (all calls of the result)
 };
 
 /// Access to the state of a result.
 struct triad_count_access {
   /// The state of `r`, or nullptr for a moved-from result.
-  static const triad_count_state* find(const triad_count::result& r) noexcept;
+  static const triad_count_state* find(const triad_count::result& r) noexcept {
+    return r.impl_.get();
+  }
   /// The state of `r`.
   static triad_count_state& state(triad_count::result& r);
   /// The state of `r`.
@@ -213,6 +228,13 @@ void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
  */
 void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_signed_bins& minus,
                          triad_signed_bins& plus);
+
+/**
+ * @brief Add the engine's launch counters of this call to `into`.
+ * @param[in]     e    The engine.
+ * @param[in,out] into The result's counters.
+ */
+void triad_cuda_take_launches(const triad_cuda_engine& e, triad_launch_counters& into) noexcept;
 
 /**
  * @brief The host synchronizations of one update on cuda (the algorithm budget, I9 / C8).

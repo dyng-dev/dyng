@@ -44,14 +44,16 @@ constexpr int error_slot = 2 * phase_bins;
 // d_bins[0..30). The source keys are the line graph's (views.h2h.max_key; ESCHER-GPU's
 // numHyperedgeKeys) and, for type 1, the h2v view's (views.h2v.max_key: dynG's id bound can go
 // down and the h2v view covers the keys up to the bound only).
-void count_full(triad_count::pattern kind, const hyper::row_views& views,
-                unsigned long long* d_bins, unsigned long long* d_error, const wedge::scratch& s);
+wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& views,
+                         unsigned long long* d_bins, unsigned long long* d_error,
+                         const wedge::scratch& s);
 
 // One frontier phase of a pattern (ESCHER-GPU's runFrontierPhase and the counters' phase()):
 // sign x the triads (pairs, keys) through the frontier keys d_keys[0..num_keys), each counted at
 // its smallest frontier member (flags d_flags over the line graph's keys), added to d_bins.
-void count_phase(triad_count::pattern kind, const hyper::row_views& views, const int* d_keys,
-                 int num_keys, const unsigned char* d_flags, long long sign,
-                 unsigned long long* d_bins, unsigned long long* d_error, const wedge::scratch& s);
+wedge::launch count_phase(triad_count::pattern kind, const hyper::row_views& views,
+                          const int* d_keys, int num_keys, const unsigned char* d_flags,
+                          long long sign, unsigned long long* d_bins, unsigned long long* d_error,
+                          const wedge::scratch& s);
 
 }  // namespace dyng::detail::triad

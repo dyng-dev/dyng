@@ -388,7 +388,9 @@ dyng_set_warnings(dyng_triad_replay_lib)
 dyng_enable_sanitizers(dyng_triad_replay_lib)
 # --counter algorithm needs triad_count in the build (DYNG_ALGORITHMS).
 if(TARGET dyng_triad_count)
+  # The algorithm counter reads the result's launch counters (internal: cpp/src).
   target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=1)
+  target_include_directories(dyng_triad_replay_lib PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
 else()
   target_compile_definitions(dyng_triad_replay_lib PRIVATE DYNG_TRIAD_REPLAY_ALGORITHM=0)
 endif()

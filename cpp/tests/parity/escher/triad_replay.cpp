@@ -14,6 +14,8 @@
 #include <dyng/io/batch_io.hpp>
 #include <dyng/io/hypergraph_io.hpp>
 #if DYNG_TRIAD_REPLAY_ALGORITHM
+#include "algorithms/triad_count/problem.hpp"
+
 #include <dyng/triad_count.hpp>
 #include <dyng/update.hpp>
 #endif
@@ -203,6 +205,27 @@ class algorithm_counter final : public counter {
     }
     ++evaluations;
     return out;
+  }
+  /// The CUDA engine's launch counters of every result: "<pattern>.<mode>.<shape>.<outcome>"
+  /// (mode full or frontier; shape triangles, pairs or keys; outcome kernels, no_sources,
+  /// no_wedges), summed over the modes' counters.
+  void launches(std::map<std::string, std::int64_t>& out) const override {
+    static constexpr const char* modes[2] = {"full", "frontier"};
+    static constexpr const char* shapes[3] = {"triangles", "pairs", "keys"};
+    for (const auto& r : results_) {
+      const detail::triad_count_state* st = detail::triad_count_access::find(r);
+      if (st == nullptr) continue;
+      const std::string p(triad_count::to_string(r.kind()));
+      for (int m = 0; m < 2; ++m) {
+        for (int k = 0; k < 3; ++k) {
+          const std::string key = p + "." + modes[m] + "." + shapes[k] + ".";
+          const detail::triad_launch_counters& c = st->launches;
+          if (c.kernels[m][k] != 0) out[key + "kernels"] += c.kernels[m][k];
+          if (c.no_sources[m][k] != 0) out[key + "no_sources"] += c.no_sources[m][k];
+          if (c.no_wedges[m][k] != 0) out[key + "no_wedges"] += c.no_wedges[m][k];
+        }
+      }
+    }
   }
 
  private:

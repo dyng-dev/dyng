@@ -173,10 +173,6 @@ bool triad_reads_line_graph(triad_count::pattern kind) noexcept {
   return kind != triad_count::pattern::stathyper_type1;
 }
 
-const triad_count_state* triad_count_access::find(const triad_count::result& r) noexcept {
-  return r.impl_.get();
-}
-
 triad_count_state& triad_count_access::state(triad_count::result& r) {
   DYNG_EXPECTS(r.impl_ != nullptr, "triad_count: the result was moved from");
   return *r.impl_;
@@ -234,6 +230,8 @@ void triad_cuda_finalize(const resources& /*res*/, triad_cuda_engine& /*e*/,
                          triad_signed_bins& /*minus*/, triad_signed_bins& /*plus*/) {
   no_cuda();
 }
+void triad_cuda_take_launches(const triad_cuda_engine& /*e*/,
+                              triad_launch_counters& /*into*/) noexcept {}
 std::int64_t triad_cuda_host_syncs(triad_count::pattern /*kind*/) noexcept {
   return 0;
 }
@@ -427,6 +425,7 @@ void triad_count_problem<vertex_t, weight_t>::enact_fused(framework::context& ct
   triad_signed_bins minus{};
   triad_signed_bins plus{};
   triad_cuda_finalize(res, *cuda_, minus, plus);
+  triad_cuda_take_launches(*cuda_, state_->launches);
   apply_delta(minus, plus, stats);
 }
 
@@ -448,6 +447,7 @@ void triad_count_problem<vertex_t, weight_t>::compute_fused(framework::context& 
   }
   // triad_count.count (the full count) and triad_count.finalize (the read of the bins) inside.
   triad_cuda_compute(res, *cuda_, hypergraph_access::views(g.get()), state_->counts);
+  triad_cuda_take_launches(*cuda_, state_->launches);
   cuda_.reset();
   framework::stamp_result(state_->version, state_->graph_state, *graph_);
 }

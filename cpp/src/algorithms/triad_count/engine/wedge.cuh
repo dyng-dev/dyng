@@ -198,6 +198,10 @@ __global__ void key_kernel(const int* sources, int num_sources, op_t op, long lo
 
 enum class wedge_shape { triangles, pairs };
 
+// dynG: what one count call did (the launch counters per mode and shape, M9a criterion 9): no
+// sources (the first early out), no wedges (the second), or a counting kernel launched.
+enum class launch { no_sources, no_wedges, kernel };
+
 // dynG: the scratch of count_wedge_shape from the caller's workspace (ESCHER-GPU allocated the
 // offsets with cudaMalloc and Thrust's scan storage per call): the wedge offsets of the sources
 // (num_sources + 1 entries) and CUB's temporary storage of their scan; the stream of the call's
@@ -225,10 +229,10 @@ inline std::size_t scan_temp_bytes(int n) {
 // d_sources is null, keys 1..num_sources (full count: out-neighbours only).
 // Adds sign * (bins of op_t) to d_out[0..num_bins).
 template <wedge_shape shape, class op_t>
-void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int num_sources,
-                       const unsigned char* d_in_frontier, const op_t& op, long long sign,
-                       unsigned long long* d_out, const scratch& s) {
-  if (num_sources <= 0) return;
+launch count_wedge_shape(const escher::row_view& adj, const int* d_sources, int num_sources,
+                         const unsigned char* d_in_frontier, const op_t& op, long long sign,
+                         unsigned long long* d_out, const scratch& s) {
+  if (num_sources <= 0) return launch::no_sources;
   const bool all_neighbours = d_sources != nullptr;
   long long* d_offsets = s.offsets;  // dynG: the workspace's
   DYNG_CUDA_TRY(cudaMemsetAsync(d_offsets + num_sources, 0, sizeof(long long), s.stream));
@@ -246,7 +250,8 @@ void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int nu
   DYNG_CUDA_TRY(cudaStreamSynchronize(s.stream));
   note_host_sync();
   const long long num_wedges = *s.host_wedges;
-  if (num_wedges > 0) {
+  if (num_wedges <= 0) return launch::no_wedges;
+  {
     // One thread per wedge: with fewer threads looping over several wedges,
     // threads that draw heavy wedges set the tail of the kernel.
     int grid =
@@ -261,32 +266,34 @@ void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int nu
                                                            d_in_frontier, op, sign, d_out);
     DYNG_CHECK_KERNEL(s.stream);
   }
+  return launch::kernel;
 }
 
 template <class op_t>
-void count_triangles(const escher::row_view& adj, const int* d_sources, int num_sources,
-                     const unsigned char* d_in_frontier, const op_t& op, long long sign,
-                     unsigned long long* d_out, const scratch& s) {
-  count_wedge_shape<wedge_shape::triangles>(adj, d_sources, num_sources, d_in_frontier, op, sign,
-                                            d_out, s);
+launch count_triangles(const escher::row_view& adj, const int* d_sources, int num_sources,
+                       const unsigned char* d_in_frontier, const op_t& op, long long sign,
+                       unsigned long long* d_out, const scratch& s) {
+  return count_wedge_shape<wedge_shape::triangles>(adj, d_sources, num_sources, d_in_frontier, op,
+                                                   sign, d_out, s);
 }
 
 template <class op_t>
-void count_pairs(const escher::row_view& adj, const int* d_sources, int num_sources,
-                 const unsigned char* d_in_frontier, const op_t& op, long long sign,
-                 unsigned long long* d_out, const scratch& s) {
-  count_wedge_shape<wedge_shape::pairs>(adj, d_sources, num_sources, d_in_frontier, op, sign, d_out,
-                                        s);
+launch count_pairs(const escher::row_view& adj, const int* d_sources, int num_sources,
+                   const unsigned char* d_in_frontier, const op_t& op, long long sign,
+                   unsigned long long* d_out, const scratch& s) {
+  return count_wedge_shape<wedge_shape::pairs>(adj, d_sources, num_sources, d_in_frontier, op, sign,
+                                               d_out, s);
 }
 
 // Per-key counts over the keys in d_sources (or keys 1..num_sources).
 template <class op_t>
-void count_keys(const int* d_sources, int num_sources, const op_t& op, long long sign,
-                unsigned long long* d_out, const scratch& s) {
-  if (num_sources <= 0) return;
+launch count_keys(const int* d_sources, int num_sources, const op_t& op, long long sign,
+                  unsigned long long* d_out, const scratch& s) {
+  if (num_sources <= 0) return launch::no_sources;
   int grid = (num_sources + block_size - 1) / block_size;
   key_kernel<op_t><<<grid, block_size, 0, s.stream>>>(d_sources, num_sources, op, sign, d_out);
   DYNG_CHECK_KERNEL(s.stream);
+  return launch::kernel;
 }
 
 // ---- Set primitives on sorted, contiguous rows -------------------------
