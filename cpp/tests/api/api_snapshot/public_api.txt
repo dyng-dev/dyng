@@ -476,9 +476,18 @@
       escher_hypergraph_options graph
       [[nodiscard]] static escher_batch_options batch_size(std::int64_t size, escher_insert_mode mode, const escher_hypergraph_options &graph)
   template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_list< vertex_t, weight_t > dyng::generators::legacy::escher_hypergraph(std::mt19937_64 &rng, const escher_hypergraph_options &opt)
+  template <typename vertex_t> class dyng::generators::legacy::escher_host_model
+      escher_host_model()=default
+      template <typename weight_t> explicit escher_host_model(const hyperedge_list_view< vertex_t, weight_t > &list)
+      template <typename weight_t> void apply(const hyperedge_batch_view< vertex_t, weight_t > &batch, const hyper_apply_summary &summary)
+      [[nodiscard]] vertex_t num_vertices() const noexcept
+      [[nodiscard]] std::int64_t num_hyperedges() const noexcept
+      [[nodiscard]] std::int64_t num_rows() const noexcept
+      [[nodiscard]] const std::vector< vertex_t > & row(std::int64_t id) const
   class dyng::generators::legacy::escher_batch_generator
       escher_batch_generator(std::mt19937_64 &rng, const escher_batch_options &opt)
       template <typename vertex_t, typename weight_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const resources &res, const hypergraph< vertex_t, weight_t > &h)
+      template <typename weight_t = unweighted, typename vertex_t> [[nodiscard]] hyperedge_batch< vertex_t, weight_t > next(const escher_host_model< vertex_t > &model)
 
 [dyng/graph/apply_summary.hpp] frozen
   struct dyng::apply_summary

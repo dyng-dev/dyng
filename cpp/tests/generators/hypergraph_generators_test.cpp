@@ -378,4 +378,84 @@ TEST(LegacyEscher, TheBatchGeneratorReadsTheLiveState) {
   EXPECT_THROW(legacy::escher_batch_generator(rng, bad), dyng::invalid_argument_error);
 }
 
+// The host model (M9a, ADR 0051): in step with the hypergraph, next(model) draws exactly the
+// batches next(res, h) draws from the same engine state, on both reuse orders and insert modes,
+// over many batches (ids reused, the id bound going down, deletions of everything).
+TEST(LegacyEscher, TheHostModelDrawsTheHypergraphsBatches) {
+  const dyng::resources res = dyng::resources::sequential();
+  for (const auto reuse : {dyng::id_reuse::erase_first, dyng::id_reuse::insert_first}) {
+    for (const auto mode :
+         {legacy::escher_insert_mode::random, legacy::escher_insert_mode::sample}) {
+      for (const std::int64_t size : {std::int64_t{6}, std::int64_t{40}, std::int64_t{300}}) {
+        std::mt19937_64 a(11), b(11);
+        legacy::escher_hypergraph_options g;
+        g.num_hyperedges = 60;
+        g.max_cardinality = 5;
+        g.max_vertex = 39;
+        const auto list = legacy::escher_hypergraph<std::int32_t, dyng::unweighted>(a, g);
+        (void)legacy::escher_hypergraph<std::int32_t, dyng::unweighted>(b, g);
+        dyng::hypergraph_properties p;
+        p.reuse = reuse;
+        p.capacity = dyng::capacity_policy::escher_gpu();
+        ugraph h = ugraph::from_hyperedges(res, list.view(), p);
+        legacy::escher_host_model<std::int32_t> model(list.view());
+        EXPECT_EQ(model.num_hyperedges(), 60);
+        EXPECT_EQ(model.num_vertices(), 40);
+        const auto opt = legacy::escher_batch_options::batch_size(size, mode, g);
+        legacy::escher_batch_generator from_graph(a, opt), from_model(b, opt);
+        for (int k = 0; k < 6; ++k) {
+          const auto want = from_graph.next(res, h);
+          const auto got = from_model.next(model);
+          ASSERT_EQ(got.delete_hyperedges(), want.delete_hyperedges()) << k;
+          ASSERT_EQ(got.insert_offsets(), want.insert_offsets()) << k;
+          ASSERT_EQ(got.insert_members(), want.insert_members()) << k;
+          const auto s = h.apply(res, got.view());
+          model.apply(got.view(), s);
+          EXPECT_EQ(model.num_hyperedges(), h.num_hyperedges());
+          // The model's rows are the hypergraph's (by id).
+          const auto v = h.h2v();
+          for (std::int64_t id = 0; id < model.num_rows(); ++id) {
+            const bool in = id + 1 < static_cast<std::int64_t>(v.row_ptr.size());
+            const std::vector<std::int32_t> row =
+                in ? std::vector<std::int32_t>(v.col_ind.begin() + v.row_ptr[id],
+                                               v.col_ind.begin() + v.row_ptr[id + 1])
+                   : std::vector<std::int32_t>{};
+            ASSERT_EQ(model.row(id), row) << "batch " << k << " id " << id;
+          }
+        }
+        EXPECT_EQ(a(), b());  // the same number of draws
+      }
+    }
+  }
+}
+
+TEST(LegacyEscher, TheHostModelChecksWhatItFollows) {
+  dyng::hyperedge_list<std::int32_t> list;
+  list.num_vertices = 5;
+  list.add_hyperedge({0, 1});
+  list.add_hyperedge({2, 3, 3});
+  legacy::escher_host_model<std::int32_t> model(list.view());
+  EXPECT_EQ(model.row(1), (std::vector<std::int32_t>{2, 3}));  // sorted, deduplicated
+  EXPECT_THROW((void)model.row(2), dyng::invalid_argument_error);
+  dyng::hyperedge_batch<std::int32_t, dyng::unweighted> b;
+  b.delete_hyperedge(0);
+  b.insert_hyperedge({4, 1, 4});
+  dyng::hyper_apply_summary s;
+  EXPECT_THROW(model.apply(b.view(), s), dyng::invalid_argument_error);  // no inserted id
+  s.inserted_ids = {-1};
+  EXPECT_THROW(model.apply(b.view(), s), dyng::invalid_argument_error);  // a negative id
+  EXPECT_EQ(model.num_hyperedges(), 2);                                  // nothing changed
+  EXPECT_EQ(model.row(0), (std::vector<std::int32_t>{0, 1}));
+  s.inserted_ids = {4};  // beyond the rows: they grow
+  model.apply(b.view(), s);
+  EXPECT_EQ(model.num_rows(), 5);
+  EXPECT_EQ(model.num_hyperedges(), 2);
+  EXPECT_TRUE(model.row(0).empty());
+  EXPECT_EQ(model.row(4), (std::vector<std::int32_t>{1, 4}));
+  dyng::hyperedge_batch<std::int32_t, dyng::unweighted> out_of_range;
+  out_of_range.insert_hyperedge({7});
+  s.inserted_ids = {0};
+  EXPECT_THROW(model.apply(out_of_range.view(), s), dyng::invalid_argument_error);
+}
+
 }  // namespace
