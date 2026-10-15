@@ -38,12 +38,12 @@
 #include "hypergraph/row_views.hpp"
 #include "util/cuda_check.hpp"
 
+#include <cub/device/device_scan.cuh>
 #include <cuda_runtime.h>
-#include <thrust/device_ptr.h>
-#include <thrust/scan.h>
 
 #include <algorithm>
 #include <climits>
+#include <cstddef>
 
 namespace dyng::detail::triad {
 
@@ -197,6 +197,24 @@ __global__ void key_kernel(const int* sources, int num_sources, op_t op, long lo
 
 enum class wedge_shape { triangles, pairs };
 
+// dynG: the scratch of count_wedge_shape from the caller's workspace (ESCHER-GPU allocated the
+// offsets with cudaMalloc and Thrust's scan storage per call): the wedge offsets of the sources
+// (num_sources + 1 entries) and CUB's temporary storage of their scan.
+struct scratch {
+  long long* offsets = nullptr;
+  void* scan_temp = nullptr;
+  std::size_t scan_temp_bytes = 0;
+};
+
+// dynG: the bytes of CUB's temporary storage for the scan of n wedge counts (the workspace
+// reserves the largest scan of a call).
+inline std::size_t scan_temp_bytes(int n) {
+  std::size_t bytes = 0;
+  DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(nullptr, bytes, static_cast<long long*>(nullptr),
+                                              static_cast<long long*>(nullptr), n));
+  return bytes;
+}
+
 // Counts over the wedges of `num_sources` sources: the keys in d_sources
 // (frontier mode: all neighbours, frontier filter d_in_frontier) or, when
 // d_sources is null, keys 1..num_sources (full count: out-neighbours only).
@@ -204,17 +222,17 @@ enum class wedge_shape { triangles, pairs };
 template <wedge_shape shape, class op_t>
 void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int num_sources,
                        const unsigned char* d_in_frontier, const op_t& op, long long sign,
-                       unsigned long long* d_out) {
+                       unsigned long long* d_out, const scratch& s) {
   if (num_sources <= 0) return;
   const bool all_neighbours = d_sources != nullptr;
-  long long* d_offsets = nullptr;
-  DYNG_CUDA_TRY(cudaMalloc(&d_offsets, (num_sources + 1) * sizeof(long long)));
+  long long* d_offsets = s.offsets;  // dynG: the workspace's
   DYNG_CUDA_TRY(cudaMemset(d_offsets + num_sources, 0, sizeof(long long)));
   count_wedges_kernel<<<(num_sources + block_size - 1) / block_size, block_size>>>(
       adj, d_sources, num_sources, all_neighbours, d_offsets);
-  thrust::exclusive_scan(thrust::device_ptr<long long>(d_offsets),
-                         thrust::device_ptr<long long>(d_offsets + num_sources + 1),
-                         thrust::device_ptr<long long>(d_offsets));
+  // dynG: CUB's scan on the workspace's storage (Thrust's exclusive_scan allocated it per call).
+  std::size_t temp_bytes = s.scan_temp_bytes;
+  DYNG_CUDA_TRY(cub::DeviceScan::ExclusiveSum(s.scan_temp, temp_bytes, d_offsets, d_offsets,
+                                              num_sources + 1));
   long long num_wedges = 0;
   DYNG_CUDA_TRY(
       cudaMemcpy(&num_wedges, d_offsets + num_sources, sizeof(long long), cudaMemcpyDeviceToHost));
@@ -232,23 +250,22 @@ void count_wedge_shape(const escher::row_view& adj, const int* d_sources, int nu
                                               all_neighbours, d_in_frontier, op, sign, d_out);
     DYNG_CUDA_TRY(cudaGetLastError());
   }
-  DYNG_CUDA_TRY(cudaFree(d_offsets));
 }
 
 template <class op_t>
 void count_triangles(const escher::row_view& adj, const int* d_sources, int num_sources,
                      const unsigned char* d_in_frontier, const op_t& op, long long sign,
-                     unsigned long long* d_out) {
+                     unsigned long long* d_out, const scratch& s) {
   count_wedge_shape<wedge_shape::triangles>(adj, d_sources, num_sources, d_in_frontier, op, sign,
-                                            d_out);
+                                            d_out, s);
 }
 
 template <class op_t>
 void count_pairs(const escher::row_view& adj, const int* d_sources, int num_sources,
                  const unsigned char* d_in_frontier, const op_t& op, long long sign,
-                 unsigned long long* d_out) {
-  count_wedge_shape<wedge_shape::pairs>(adj, d_sources, num_sources, d_in_frontier, op, sign,
-                                        d_out);
+                 unsigned long long* d_out, const scratch& s) {
+  count_wedge_shape<wedge_shape::pairs>(adj, d_sources, num_sources, d_in_frontier, op, sign, d_out,
+                                        s);
 }
 
 // Per-key counts over the keys in d_sources (or keys 1..num_sources).
