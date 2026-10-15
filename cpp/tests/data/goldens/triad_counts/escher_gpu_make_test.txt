@@ -1,0 +1,56 @@
+# A's make-test triad counts (ESCHER-GPU@abcf9b2, UNPATCHED stdout), the groups whose
+# input generators::legacy regenerates; read by dyng_triad_count_make_test_tests (hosted
+# CI, sequential and openmp: exact parity, baseline + deltas == compute(), integrity).
+# Written by: parity/triad_goldens.py fixture (golden set triad_count_escher_gpu,
+# MANIFEST.sha256 2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1).
+# group <name> <seed> <n> <max_card> <r1> <r2> <payload_capacity> <batches> <deletions> <insertions> <insert_mode>   (-1 -1: A's default batch)
+# full <group> <exe> <bins> <count...>
+# batch <group> <exe> <index> <deletions> <insertions> <bins> <delta...>
+group 01-smoke 1 8 5 1 100 4096 1 -1 -1 random
+full 01-smoke main 30 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+batch 01-smoke main 1 2 3 30 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+full 01-smoke type1 1 16
+batch 01-smoke type1 1 2 3 1 5
+full 01-smoke type2 1 0
+batch 01-smoke type2 1 2 3 1 0
+full 01-smoke type3 1 0
+batch 01-smoke type3 1 2 3 1 0
+group 03-reference_syn100k 5 100000 10 1 33333 0 0 -1 -1 random
+full 03-reference_syn100k main 30 167 25540 1316493 23644292 0 18 0 1503 1034 79787 0 0 0 3 0 83 0 0 0 0 0 0 0 0 0 0 0 18 2854 159375
+full 03-reference_syn100k type1 1 3311441
+full 03-reference_syn100k type2 1 90913
+full 03-reference_syn100k type3 1 162496
+group 07-syn100k_b5000 5 100000 10 1 33333 0 3 2500 2500 random
+full 07-syn100k_b5000 main 30 167 25540 1316493 23644292 0 18 0 1503 1034 79787 0 0 0 3 0 83 0 0 0 0 0 0 0 0 0 0 0 18 2854 159375
+batch 07-syn100k_b5000 main 1 2500 2500 30 12 249 6200 1429 0 -1 0 -9 -9 -620 0 0 0 0 0 -4 0 0 0 0 0 0 0 0 0 0 0 0 14 343
+batch 07-syn100k_b5000 main 2 2500 2500 30 5 332 -2465 -48667 0 4 0 7 182 73 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 -1 41 -344
+batch 07-syn100k_b5000 main 3 2500 2500 30 0 -172 1071 -33222 0 -1 0 16 42 1191 0 0 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 -2 -18 -205
+full 07-syn100k_b5000 type1 1 3311441
+batch 07-syn100k_b5000 type1 1 2500 2500 1 2884
+batch 07-syn100k_b5000 type1 2 2500 2500 1 -1453
+batch 07-syn100k_b5000 type1 3 2500 2500 1 -789
+full 07-syn100k_b5000 type2 1 90913
+batch 07-syn100k_b5000 type2 1 2500 2500 1 -1040
+batch 07-syn100k_b5000 type2 2 2500 2500 1 486
+batch 07-syn100k_b5000 type2 3 2500 2500 1 898
+full 07-syn100k_b5000 type3 1 162496
+batch 07-syn100k_b5000 type3 1 2500 2500 1 348
+batch 07-syn100k_b5000 type3 2 2500 2500 1 -300
+batch 07-syn100k_b5000 type3 3 2500 2500 1 -221
+group 12-sampled_inserts_synthetic 1 3000 8 1 2000 0 3 200 200 sample
+full 12-sampled_inserts_synthetic main 30 1 150 8069 89872 0 2 0 85 79 3088 0 0 0 1 0 30 0 0 0 0 0 0 0 0 0 0 0 3 172 4771
+batch 12-sampled_inserts_synthetic main 1 200 200 30 7 149 -315 682 136 -1 5385 -7 -16 -34 0 0 0 -1 0 4 0 0 0 0 0 0 0 0 0 0 0 -2 9 40
+batch 12-sampled_inserts_synthetic main 2 200 200 30 47 153 -202 532 200 0 5672 5 7 178 0 0 0 0 0 -1 0 0 0 0 0 0 0 0 0 0 0 -1 -2 46
+batch 12-sampled_inserts_synthetic main 3 200 200 30 38 188 -21 -915 117 0 5047 9 -3 220 0 0 0 0 0 -3 0 0 0 0 0 0 0 0 0 0 0 0 -2 74
+full 12-sampled_inserts_synthetic type1 1 46314
+batch 12-sampled_inserts_synthetic type1 1 200 200 1 205
+batch 12-sampled_inserts_synthetic type1 2 200 200 1 -80
+batch 12-sampled_inserts_synthetic type1 3 200 200 1 622
+full 12-sampled_inserts_synthetic type2 1 4867
+batch 12-sampled_inserts_synthetic type2 1 200 200 1 52
+batch 12-sampled_inserts_synthetic type2 2 200 200 1 115
+batch 12-sampled_inserts_synthetic type2 3 200 200 1 542
+full 12-sampled_inserts_synthetic type3 1 5028
+batch 12-sampled_inserts_synthetic type3 1 200 200 1 45
+batch 12-sampled_inserts_synthetic type3 2 200 200 1 41
+batch 12-sampled_inserts_synthetic type3 3 200 200 1 78

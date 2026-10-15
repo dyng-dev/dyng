@@ -77,6 +77,13 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # The committed test data stay within their budget (1.25 MB; ADR 0013, decision D5).
+      - id: test-data-budget
+        name: the budget of the committed test data (ci/test_data_budget.py)
+        entry: python3 ci/test_data_budget.py
+        language: system
+        pass_filenames: false
+        always_run: true
       # The files generated from the algorithm manifests (the algorithm tables, the CODEOWNERS
       # block, the registries) are up to date (PLAN Section 8.7).
       - id: regen

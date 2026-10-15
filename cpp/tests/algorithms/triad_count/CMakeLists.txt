@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The hand cases and property tests of triad_count (PLAN Section 4.8, file 12; M9a criteria 5, 6,
-# 9, 10): triad_count_test.cpp on the host backends (dyng_triad_count_tests) and, in CUDA builds,
+# 8, 9, 10): triad_count_test.cpp on the host backends (dyng_triad_count_tests) and, in CUDA builds,
 # on cuda with the device tests of the engine (dyng_triad_count_cuda_tests; the kit's fake partner
 # of the composition case counts with kernels). Its conformance suites are built by
 # cpp/tests/CMakeLists.txt.
@@ -14,6 +14,29 @@ dyng_add_test(
   LIBRARIES dyng::testing
 )
 target_include_directories(dyng_triad_count_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+# ESCHER-GPU's make test on the host backends in hosted CI (M9a step 4, decision D5): the
+# synthetic groups against A's committed counts, the file-input shapes against the oracle.
+dyng_add_test(
+  NAME dyng_triad_count_make_test_tests
+  SOURCES triad_count_make_test_test.cpp
+  LABELS cpu triad_count
+  LIBRARIES dyng::testing
+)
+target_compile_definitions(
+  dyng_triad_count_make_test_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
+)
+# The triangle patterns on the heavy groups (syn100k, skewed, medium): labels parity and slow
+# (ci/check.sh's parity step runs them in the Release parity preset).
+dyng_add_test(
+  NAME dyng_triad_count_make_test_large_tests
+  SOURCES triad_count_make_test_test.cpp
+  LABELS parity triad_count slow
+  LIBRARIES dyng::testing
+)
+target_compile_definitions(
+  dyng_triad_count_make_test_large_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
+                                                 DYNG_TRIAD_MAKE_TEST_LARGE=1
+)
 if(DYNG_ENABLE_CUDA)
   dyng_add_test(
     NAME dyng_triad_count_cuda_tests
