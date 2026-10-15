@@ -171,6 +171,14 @@ Before 0.1.0 anything may change.
   (`parity/export_goldens.py cbst_trace`), `datasets/registry.toml` with the coauth-DBLP pins,
   the cross-check of the two ESCHER cores (`parity/escher_crosscheck.py`) and the timed-region
   map `parity/timed_regions/hypergraph.toml`.
+- M9a (parity harness, not part of the library): the **reference side of `triad_count`** (ADR
+  0048), before any port code: the timed-region map `parity/timed_regions/triad_count.toml`
+  (`update` gated per batch as `update[b1..b3]`, `full_count`, `end_to_end`; `perf_ab.py` and
+  `bench_suite.py` read per-batch rows and refuse unknown region keys); the golden set
+  `triad_count_escher_gpu` of ESCHER-GPU@abcf9b2's triad counts and batches on its `make test`
+  and PLAN 6.4.6's grid, 300 cases exported twice with identical manifests
+  (`parity/triad_goldens.py`, `parity/export_goldens.py triad_count`, `parity/compare.py
+  triad_count --verify`); ESCHER-GPU checked against its own CPU reference (90 runs agree).
 
 ### Changed
 

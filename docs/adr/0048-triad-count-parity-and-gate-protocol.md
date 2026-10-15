@@ -81,7 +81,7 @@ holds; both must agree, D.1 T6).
    device allocations of both whole timed processes (D1, 2026-10-15).
 5. **The loaders.** `parity/perf_ab.py load_regions` refuses an unknown original timer, a region
    without port stages, **an unknown key** (new: a misspelt `per_bach` would otherwise be ignored)
-   and per-batch rows that are not `<name>[b1]`, `<name>[b2]`, ... in order; `region_rows()` and
+   a repeated region name, and per-batch rows that are not `<name>[b1]`, `<name>[b2]`, ... in order; `region_rows()` and
    `batch_of_row()` expand and fold the rows. `parity/bench_suite.py region_map()` lists a per-batch
    region by its rows, so a suite names `update[b1..b3]` as metrics; `parity/certify.py`'s
    `REGION_SUFFIX` already folds `update[bN]` back into `update`. Tests:
@@ -167,6 +167,14 @@ CPU reference after the build and after every batch. Any disagreement stops the 
 a finding against the original, never worked around). The runs' count lines must also equal the
 goldens'. `parity/triad_goldens.py crosscheck` runs and records them
 (`parity/results/M9a.md` section 1).
+
+## Outcome (M9a step 1)
+
+The set was exported twice from two fresh patched copies with byte-identical `MANIFEST.sha256`
+(`2d8e49b5...`; 75 groups, 300 cases, 686 files, 367.7 MB), `verify` passes, all 300 `--check`
+runs agree, the twins of type1-3 record main's batch files, `generators::legacy` reproduces the
+12 synthetic inputs, and A agrees with its CPU reference on all 90 cross-check runs, whose counts
+equal the goldens' (`parity/results/M9a.md` section 1).
 
 ## Consequences
 
