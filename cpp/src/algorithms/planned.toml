@@ -6,15 +6,6 @@
 # algorithms index). An entry moves to cpp/src/algorithms/<name>/manifest.toml when its port
 # starts (scripts/new_algorithm.py); regen.py rejects a name that has both.
 [[planned]]
-name      = "triad_count"
-computes  = "hypergraph h-motif triad counts"
-container = "hypergraph (ESCHER store)"
-family    = "aggregate delta"
-backends  = "sequential, OpenMP, CUDA"
-paper     = "ESCHER / ESCHER+"
-since     = "0.3"
-
-[[planned]]
 name      = "label_propagation"
 computes  = "binary harmonic label propagation under vertex batches"
 container = "graph"

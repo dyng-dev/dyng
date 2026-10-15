@@ -10,6 +10,7 @@ Before 0.1.0 anything may change.
 
 ### Added
 
+- `triad_count` (experimental, aggregate delta): scaffolded with `scripts/new_algorithm.py`; its update recomputes from scratch until it is made incremental.
 - M8b (api-change, tracked until the hypergraph headers are frozen at the end of M8b): **the
   hypergraph container** `dyng::hypergraph<vertex_t, weight_t>` (`dyng/hypergraph/*.hpp`, ADR
   0041) on the ESCHER CBST store, for (int32, unweighted) and (int32, int32) on the sequential,

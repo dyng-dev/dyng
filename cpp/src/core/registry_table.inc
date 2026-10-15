@@ -68,3 +68,16 @@ table.push_back(algorithm_info{
     {},
 });
 #endif
+#if defined(DYNG_ALGORITHM_TRIAD_COUNT)
+table.push_back(algorithm_info{
+    "triad_count",
+    "Dynamic hypergraph triad counts",
+    algorithm_family::aggregate_delta,
+    container_kind::hypergraph,
+    maturity_level::experimental,
+    determinism::exact_value,
+    oracle_kind::compute,
+    {backend::sequential, backend::openmp},
+    {},
+});
+#endif

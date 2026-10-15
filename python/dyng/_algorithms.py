@@ -37,4 +37,10 @@ ALGORITHMS: dict[str, dict[str, str]] = {
         "container": "graph",
         "maturity": "tutorial",
     },
+    "triad_count": {
+        "title": "Dynamic hypergraph triad counts",
+        "since": "0.3",
+        "container": "hypergraph",
+        "maturity": "experimental",
+    },
 }

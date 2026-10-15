@@ -1,0 +1,34 @@
+# SPDX-FileCopyrightText: 2026 The dynG Authors
+# SPDX-License-Identifier: Apache-2.0
+#
+# The triad_count manifest (PLAN Section 4.8) of a hypergraph algorithm. scripts/regen.py
+# reads it (the algorithm tables, the CODEOWNERS block and the registries; `python3
+# scripts/regen.py` after an edit); CMake does not. For a hypergraph algorithm,
+# `graph_requirements` names what it needs of the hypergraph (ADR 0043): line_graph ("required",
+# "any"), store_v2h ("required", "any"), reuse ("any", "erase_first", "insert_first") and storage
+# ("any", "escher").
+# scaffolded by scripts/new_algorithm.py: `--remove` deletes the algorithm only while this line is here
+name        = "triad_count"
+title       = "Dynamic hypergraph triad counts"
+computes    = "hypergraph h-motif triad counts"
+paper       = "-"
+since       = "0.3"
+family      = "aggregate_delta"
+container   = "hypergraph"
+tier        = "framework"
+maturity    = "experimental"
+backends    = ["sequential", "openmp"]
+determinism = "exact_value"
+oracle      = "compute"
+graph_requirements = { line_graph = "any", store_v2h = "any", reuse = "any", storage = "any" }
+cite        = []
+maintainers = ["SMShovan"]
+# planned entry replaced by this scaffold (restored by --remove), index 1:
+# [[planned]]
+# name      = "triad_count"
+# computes  = "hypergraph h-motif triad counts"
+# container = "hypergraph (ESCHER store)"
+# family    = "aggregate delta"
+# backends  = "sequential, OpenMP, CUDA"
+# paper     = "ESCHER / ESCHER+"
+# since     = "0.3"
