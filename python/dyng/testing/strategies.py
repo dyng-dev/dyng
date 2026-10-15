@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 The dynG Authors
 # SPDX-License-Identifier: Apache-2.0
-"""Hypothesis strategies for random graphs and batches (needs the ``hypothesis`` package).
+"""Hypothesis strategies for random graphs, hypergraphs and their batches (needs the
+``hypothesis`` package). Every strategy shrinks: a failing case is reduced to a small graph or
+hypergraph and short batches.
 
 Example:
     >>> from hypothesis import given
@@ -8,6 +10,21 @@ Example:
     >>> @given(dst.graphs())
     ... def test_builds(g):
     ...     assert g.to_graph().num_vertices == g.num_vertices
+
+A hypergraph's batches name its current ids, which depend on the ids earlier batches got, so
+:func:`hyperedge_batches` draws from the state of a :class:`~dyng.testing.oracles.HypergraphModel`
+(use ``st.data()`` and draw one batch per step):
+
+.. code-block:: python
+
+    @given(dst.hypergraphs(), st.data())
+    def test_ids(h, data):
+        hg, model = h.to_hypergraph(), h.model()
+        for _ in range(3):
+            b = data.draw(dst.hyperedge_batches(model))
+            s = hg.apply(b.to_batch())
+            model.apply(b.delete_hyperedges, b.insert_hyperedges, b.insert_weights,
+                        s.inserted_ids)
 """
 
 from __future__ import annotations
@@ -18,9 +35,19 @@ from hypothesis import strategies as st
 
 from ..batch import EdgeBatch
 from ..graph import Graph
-from .oracles import GraphModel
+from ..hypergraph import HyperedgeBatch, Hypergraph
+from .oracles import GraphModel, HypergraphModel
 
-__all__ = ["RandomGraph", "RandomBatch", "graphs", "batches"]
+__all__ = [
+    "RandomGraph",
+    "RandomBatch",
+    "graphs",
+    "batches",
+    "RandomHypergraph",
+    "RandomHyperedgeBatch",
+    "hypergraphs",
+    "hyperedge_batches",
+]
 
 
 @dataclass(frozen=True)
@@ -141,3 +168,126 @@ def batches(
         tuple(p[0] for p in deletions),
         tuple(p[1] for p in deletions),
     )
+
+
+@dataclass(frozen=True)
+class RandomHypergraph:
+    """A drawn hypergraph: member lists (with repeated members unless excluded) and weights."""
+
+    num_vertices: int
+    hyperedges: tuple[tuple[int, ...], ...]
+    weights: tuple[int, ...] | None
+
+    def to_hypergraph(self, **kwargs: object) -> Hypergraph:
+        """The dynG hypergraph (``Hypergraph.from_lists`` with ``kwargs``)."""
+        return Hypergraph.from_lists(
+            [list(h) for h in self.hyperedges],
+            None if self.weights is None else list(self.weights),
+            num_vertices=self.num_vertices,
+            **kwargs,  # type: ignore[arg-type]
+        )
+
+    def model(self, reuse: str = "erase_first") -> HypergraphModel:
+        """The pure-Python model of the hypergraph (under the ``id_reuse`` order ``reuse``)."""
+        return HypergraphModel(self.num_vertices, self.hyperedges, self.weights, reuse)
+
+
+@dataclass(frozen=True)
+class RandomHyperedgeBatch:
+    """A drawn hyperedge batch: deletions (live, dead, repeated or out-of-range ids) and
+    insertions (member lists, with repeated members unless excluded)."""
+
+    delete_hyperedges: tuple[int, ...]
+    insert_hyperedges: tuple[tuple[int, ...], ...]
+    insert_weights: tuple[int, ...] | None
+
+    def to_batch(self) -> HyperedgeBatch:
+        """The dynG batch."""
+        return HyperedgeBatch(
+            delete_hyperedges=list(self.delete_hyperedges),
+            insert_hyperedges=[list(h) for h in self.insert_hyperedges],
+            insert_weights=None if self.insert_weights is None else list(self.insert_weights),
+        )
+
+
+def _member_lists(
+    n: int, max_count: int, max_cardinality: int, repeats: bool
+) -> st.SearchStrategy[list[tuple[int, ...]]]:
+    member = st.integers(0, n - 1)
+    if repeats:
+        hyperedge = st.lists(member, min_size=1, max_size=max_cardinality).map(tuple)
+    else:
+        hyperedge = st.lists(member, min_size=1, max_size=max_cardinality, unique=True).map(
+            lambda m: tuple(sorted(m))
+        )
+    return st.lists(hyperedge, max_size=max_count)
+
+
+@st.composite
+def hypergraphs(
+    draw: st.DrawFn,
+    *,
+    min_vertices: int = 1,
+    max_vertices: int = 12,
+    max_hyperedges: int = 20,
+    max_cardinality: int = 5,
+    weighted: bool = False,
+    max_weight: int = 20,
+    repeated_members: bool = True,
+) -> RandomHypergraph:
+    """Random hypergraphs: up to ``max_hyperedges`` non-empty member lists over ``n`` vertices
+    (parallel hyperedges allowed; repeated members unless ``repeated_members=False``), with
+    integer weights in [1, max_weight] when ``weighted``."""
+    n = draw(st.integers(min_vertices, max_vertices))
+    edges = draw(_member_lists(n, max_hyperedges, max_cardinality, repeated_members))
+    weights = (
+        tuple(draw(st.lists(st.integers(1, max_weight), min_size=len(edges), max_size=len(edges))))
+        if weighted
+        else None
+    )
+    return RandomHypergraph(n, tuple(edges), weights)
+
+
+@st.composite
+def hyperedge_batches(
+    draw: st.DrawFn,
+    model: HypergraphModel,
+    *,
+    max_insertions: int = 6,
+    max_deletions: int = 6,
+    max_cardinality: int = 5,
+    weighted: bool | None = None,
+    max_weight: int = 20,
+    repeated_members: bool = True,
+    skipped_deletions: bool = True,
+) -> RandomHyperedgeBatch:
+    """Random batches for the current state of ``model``: deletions of live ids (and, with
+    ``skipped_deletions``, of dead, repeated and out-of-range ids, which ``apply()`` skips and
+    counts) and insertions of member lists over the model's vertices. ``weighted`` defaults to
+    whether the model has weights."""
+    n = model.num_vertices
+    live = model.live_ids
+    bound = max(live, default=-1) + 1
+    choices: list[st.SearchStrategy[int]] = []
+    if live:
+        choices.append(st.sampled_from(live))
+    if skipped_deletions:
+        choices.append(st.integers(-2, bound + 2))
+    deletions = draw(st.lists(st.one_of(choices), max_size=max_deletions)) if choices else []
+    insertions = (
+        draw(_member_lists(n, max_insertions, max_cardinality, repeated_members)) if n > 0 else []
+    )
+    if weighted is None:
+        weighted = model.weights is not None
+    weights = (
+        tuple(
+            draw(
+                st.lists(
+                    st.integers(1, max_weight), min_size=len(insertions), max_size=len(insertions)
+                )
+            )
+        )
+        if weighted
+        else None
+    )
+    return RandomHyperedgeBatch(tuple(deletions), tuple(insertions), weights)

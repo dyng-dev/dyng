@@ -20,7 +20,10 @@ are committed with it:
                     compacted harness records next to them;
   parity-*.json     the golden replays (parity/compare.py and compare.py cycle_count --json):
                     each golden set's manifest digest, the case x configuration matrix, the
-                    tolerance and the verdict;
+                    tolerance and the verdict; for the CBST trace sets (kind cbst_trace, M8a)
+                    the store's replays under the presets (config device:<preset>/<fields>) and,
+                    from 0.3, the hypergraph container's replays of their batch records (the
+                    hypergraph-id schema, config <backend>:hypergraph_ids/<feature>, M8b);
   checks.json       the other release checks (sanitizer presets, compute-sanitizer, mutation
                     CTests, check scripts), each with its command, commit, result and counts,
                     added one at a time by `certify.py check`;
@@ -216,6 +219,29 @@ REQUIRED_REPLAYS = {
 # they were listed without entering the verdict).
 CBST_ORIGINAL_PRESET = {"ESCHER-GPU": "escher_gpu", "MOSP_ESCHER": "mosp_escher"}
 CBST_REQUIRED_PRESETS = ("<original>", "dyng_default")
+# The container-level replays of the hypergraph (M8b; parity/hypergraph_ids.py, the
+# hypergraph-id schema: config "<backend>[/t<N>]:hypergraph_ids/<feature>"), required from the
+# 0.3 series (the hypergraph container is part of 0.3.0, Appendix F): the batch records of every
+# CBST trace set with hypergraph batches replayed through dyng::hypergraph with the originals'
+# ids and rows on every backend (feature: the id mode, by_id or both), and ESCHER-GPU's sets
+# also with the line graph against A's H2H after every batch on cuda (feature line_graph). The
+# records are written by `compare.py hypergraph_ids --certificate <results>`.
+HYPERGRAPH_ID_REPLAYS = {
+    "cbst_trace_escher_gpu_test": {"ids": ["sequential", "openmp", "cuda"], "line_graph": ["cuda"]},
+    "cbst_trace_escher_gpu_coauth50k": {
+        "ids": ["sequential", "openmp", "cuda"],
+        "line_graph": ["cuda"],
+    },
+    "cbst_trace_escher_gpu_syn1m": {
+        "ids": ["sequential", "openmp", "cuda"],
+        "line_graph": ["cuda"],
+    },
+    "cbst_trace_mosp_escher_test": {"ids": ["sequential", "openmp", "cuda"]},
+    "cbst_trace_mosp_escher_dblp50k_hyperedge": {"ids": ["sequential", "openmp", "cuda"]},
+}
+HYPERGRAPH_ID_SINCE = (0, 3)
+# The features of a hypergraph-id config that count as an id replay.
+HYPERGRAPH_ID_MODES = {"ids": ("by_id", "both"), "line_graph": ("line_graph",)}
 # The performance suites a certificate needs (benchmarks/paper/<suite>.yaml), each from the release
 # series on which its algorithm's gates became part of the release (PLAN 8.6, Appendix F): sssp and
 # cycle_count from 0.1, mosp from 0.2 (stable in 0.2.0, the author's decision of 2026-10-07). A
@@ -575,7 +601,29 @@ def replay_matrix(record: dict) -> tuple[dict, int, int]:
     return matrix, compared, failed
 
 
-def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
+def hypergraph_id_coverage(entry: dict) -> dict[str, set[str]]:
+    """{feature: backends} of the passed hypergraph-id replays of a golden-set entry. Only full
+    replays count (M8b review): with the host-model lockstep, on goldens re-hashed against their
+    manifest, and for the line graph with the rebuild_line_graph oracle (the record's checks)."""
+    out: dict[str, set[str]] = {}
+    for r in entry["replays"]:
+        if not r["passed"]:
+            continue
+        checks = r.get("checks") or {}
+        if not (checks.get("model") and checks.get("verified")):
+            continue
+        for c in r["configs"]:
+            if ":hypergraph_ids/" not in c:
+                continue
+            backend = c.split(":", 1)[0].split("/")[0]
+            feature = c.rsplit("/", 1)[1]
+            for name, modes in HYPERGRAPH_ID_MODES.items():
+                if feature in modes and (name != "line_graph" or checks.get("line_graph_oracle")):
+                    out.setdefault(name, set()).add(backend)
+    return out
+
+
+def golden_suites(results: Path, head: str, problems: list[str], version: str = "") -> list[dict]:
     doc = tomllib.loads((REPO / "parity" / "goldens.toml").read_text())
     replays: dict[str, list[dict]] = {}
     for path in sorted(results.glob("parity-*.json")):
@@ -645,6 +693,7 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
                     "build": record.get("build"),
                     "reference": record.get("reference"),
                     "configs": configs,
+                    "checks": record.get("checks"),
                     "tolerance": record.get("tolerance"),
                     "compared": compared,
                     "failed": failed,
@@ -678,6 +727,23 @@ def golden_suites(results: Path, head: str, problems: list[str]) -> list[dict]:
                     "(compare.py cbst_trace --store device --certificate <results>)"
                 )
                 entry["passed"] = False
+            series = release_series(version)
+            wanted_ids = HYPERGRAPH_ID_REPLAYS.get(name)
+            if wanted_ids and (series is None or series >= HYPERGRAPH_ID_SINCE):
+                # The hypergraph container's replays of the set's batch records (M8b, 0.3).
+                have = hypergraph_id_coverage(entry)
+                entry["required_hypergraph_ids"] = wanted_ids
+                entry["hypergraph_ids"] = {k: sorted(v) for k, v in sorted(have.items())}
+                for feature, backends in wanted_ids.items():
+                    absent = [b for b in backends if b not in have.get(feature, set())]
+                    if absent:
+                        problems.append(
+                            f"golden set {name}: no passed hypergraph-id replay ({feature}) on "
+                            f"{', '.join(absent)} (compare.py hypergraph_ids "
+                            f"{'--line-graph ' if feature == 'line_graph' else ''}"
+                            "--certificate <results>)"
+                        )
+                        entry["passed"] = False
         out.append(entry)
     return out
 
@@ -1729,7 +1795,7 @@ def cmd_write(args: argparse.Namespace) -> int:
     problems: list[str] = []
     if dirty and not args.allow_dirty:
         problems.append("the release tree is dirty (commit first, or --allow-dirty for a draft)")
-    goldens = golden_suites(results, head, problems)
+    goldens = golden_suites(results, head, problems, args.version)
     perf = performance(results, head, problems)
     if not perf:
         problems.append("no performance-suite summary (parity/bench_suite.py run)")

@@ -4,6 +4,7 @@
 """Scaffold a new algorithm from cpp/src/algorithms/_template (PLAN Sections 4.8 and 9.4).
 
     python3 scripts/new_algorithm.py dynamic_kcore --family fixed_point --backends seq,omp
+    python3 scripts/new_algorithm.py my_motifs --container hypergraph --family aggregate_delta
     python3 scripts/new_algorithm.py dynamic_kcore --remove     # undo a scaffold
 
 The new algorithm compiles and passes the conformance kit on the first build ("start green"): its
@@ -21,10 +22,13 @@ CODEOWNERS and the registries). Next:
 scaffold line (the template's "scaffolded by scripts/new_algorithm.py"; `--force` overrides), and
 it puts back the [[planned]] entry of cpp/src/algorithms/planned.toml that the scaffold replaced.
 
-The scaffold covers graphs (--container graph) and the host backends; a CUDA backend is added by
-hand: the tutorial algorithms dynamic_bfs and triangle_delta show the pattern (each pass a DYNG_HD
-functor in engine.hpp, run by the executors of cpp/src/operators; ADR 0033), and the hypergraph
-container arrives later.
+The scaffold covers graphs (--container graph, the template cpp/src/algorithms/_template) and
+hypergraphs (--container hypergraph, cpp/src/algorithms/_template_hypergraph; ADR 0043: the
+algorithm runs on dyng::hypergraph<V, W> through the framework, its traits use the conformance
+kit's hypergraph axis), on the host backends; a CUDA backend is added by hand: the tutorial
+algorithms dynamic_bfs and triangle_delta show the pattern for graphs (each pass a DYNG_HD functor
+in engine.hpp, run by the executors of cpp/src/operators; ADR 0033), and the kit's hypergraph fakes
+(cpp/tests/framework/fake_hyper_problems.hpp) the reading of the hypergraph's device row views.
 """
 
 from __future__ import annotations
@@ -40,6 +44,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 TEMPLATE = "algorithm_template"
+# The template folder of each container (both have the same files, placeholders and markers).
+TEMPLATE_DIRS = {"graph": "_template", "hypergraph": "_template_hypergraph"}
 BACKEND_NAMES = {
     "seq": "sequential",
     "sequential": "sequential",
@@ -318,12 +324,8 @@ def run_regen(root: Path) -> int:
 
 def create(args: argparse.Namespace, root: Path) -> int:
     name = args.name
-    if args.container != "graph":
-        print(
-            "new_algorithm.py: the hypergraph container arrives in 0.3 (M8, PLAN Appendix F); "
-            "scaffold on --container graph",
-            file=sys.stderr,
-        )
+    if args.container not in TEMPLATE_DIRS:
+        print(f"new_algorithm.py: unknown container `{args.container}`", file=sys.stderr)
         return 2
     backends: list[str] = []
     for b in args.backends.split(","):
@@ -331,8 +333,9 @@ def create(args: argparse.Namespace, root: Path) -> int:
         if b == "cuda":
             print(
                 "new_algorithm.py: the scaffold writes the host backends only; add cuda.cu by "
-                "hand after the host backends pass the kit (the pattern of dynamic_bfs and "
-                "triangle_delta; docs/developer/conformance.md)",
+                "hand after the host backends pass the kit (graphs: the pattern of dynamic_bfs "
+                "and triangle_delta; hypergraphs: the device row views as the kit's fakes read "
+                "them; docs/developer/conformance.md)",
                 file=sys.stderr,
             )
             return 2
@@ -344,7 +347,7 @@ def create(args: argparse.Namespace, root: Path) -> int:
     if "sequential" not in backends:
         backends.insert(0, "sequential")  # invariant I8: the sequential reference is mandatory
     backends.sort(key=["sequential", "openmp"].index)
-    template = root / "cpp/src/algorithms/_template"
+    template = root / "cpp/src/algorithms" / TEMPLATE_DIRS[args.container]
     targets = {src: root / dst for src, dst in destinations(name).items()}
     if "openmp" not in backends:
         del targets["openmp.cpp"]
@@ -378,7 +381,9 @@ def create(args: argparse.Namespace, root: Path) -> int:
     status = 0 if args.no_regen else run_regen(root)
     if status != 0:
         return status
-    print(f"new_algorithm.py: created {name} ({args.family}; {', '.join(backends)})")
+    print(
+        f"new_algorithm.py: created {name} ({args.container}, {args.family}; {', '.join(backends)})"
+    )
     if planned:
         print("  removed its entry from cpp/src/algorithms/planned.toml")
     for dst in targets.values():

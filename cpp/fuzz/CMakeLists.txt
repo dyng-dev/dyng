@@ -26,6 +26,8 @@ set(DYNG_FUZZ_TARGETS
     legacy_batch
     batch_text
     result_io
+    hg
+    batch_binary
 )
 # The targets whose reader has a writer (the write -> read round trip).
 set(DYNG_FUZZ_ROUND_TRIP_TARGETS
@@ -34,6 +36,8 @@ set(DYNG_FUZZ_ROUND_TRIP_TARGETS
     legacy_batch
     batch_text
     result_io
+    hg
+    batch_binary
 )
 
 if(DYNG_BUILD_FUZZERS AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -58,6 +62,8 @@ foreach(_name IN LISTS DYNG_FUZZ_TARGETS)
     target_compile_options(fuzz_${_name} PRIVATE -fsanitize=fuzzer,address,undefined
                                                  -fno-sanitize-recover=undefined)
     target_link_options(fuzz_${_name} PRIVATE -fsanitize=fuzzer,address,undefined)
+    # Only the libFuzzer build has LLVMFuzzerMutate (fuzz_batch_binary's custom mutator).
+    target_compile_definitions(fuzz_${_name} PRIVATE DYNG_FUZZ_LIBFUZZER=1)
     # Without a directory of its own, libFuzzer runs each named file once (no new corpus).
     set(_files "")
     foreach(_dir IN LISTS _inputs)

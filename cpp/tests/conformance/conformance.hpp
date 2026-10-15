@@ -3,8 +3,8 @@
 /**
  * @file conformance.hpp
  * @brief The conformance kit (PLAN Section 8.2): checks C0-C12 for every registered algorithm,
- *        every backend of the build and every instantiated graph type, from the algorithm's
- *        test_traits (conformance/test_traits.hpp) and one line
+ *        every backend of the build and every instantiated container type (graph or hypergraph),
+ *        from the algorithm's test_traits (conformance/test_traits.hpp) and one line
  *
  *            DYNG_CONFORMANCE_SUITE(<name>);
  *
@@ -26,6 +26,12 @@
  * | C11 | stale results are detected (a separate g.apply(), a result of another graph) |
  * | C12 | stream ordering on non-default streams (CUDA) |
  *
+ * The checks reach the container through container_traits<container_t> (containers.hpp: the
+ * graph's; hypergraph_generators.hpp: the hypergraph's; ADR 0043): its properties and presets,
+ * its host model and batch mixes, its batch summary, its case names. What differs too much to be
+ * data (C7's invalid batches and skip rules, C9's summary arithmetic) is container_checks<case_t,
+ * container_t> below. A graph algorithm sees the kit of 0.1-0.2 unchanged.
+ *
  * The suite source is compiled twice, like the algorithm suites (support/gtest_helpers.hpp): into
  * the host executable (label cpu: sequential and OpenMP) and with DYNG_TEST_CUDA=1 into the CUDA
  * executable (label gpu: cuda; the cross-backend check compares it with the host backends).
@@ -34,7 +40,9 @@
 #pragma once
 
 #include "conformance/allocation_counter.hpp"
+#include "conformance/containers.hpp"
 #include "conformance/generators.hpp"
+#include "conformance/hypergraph_generators.hpp"
 #include "conformance/registry.hpp"
 #include "conformance/test_traits.hpp"
 #include "conformance/type_list.hpp"
@@ -55,6 +63,10 @@
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/graph.hpp>
 #include <dyng/graph/graph_properties.hpp>
+#include <dyng/hypergraph/hyper_apply_summary.hpp>
+#include <dyng/hypergraph/hyperedge_batch.hpp>
+#include <dyng/hypergraph/hypergraph.hpp>
+#include <dyng/hypergraph/hypergraph_properties.hpp>
 #include <dyng/update.hpp>
 
 #include <gtest/gtest.h>
@@ -79,44 +91,76 @@ namespace dyng::conformance {
 /// The registered algorithms built into this test binary (their test_traits are defined).
 using registered_algorithms = typename filter<manifest_algorithms, has_test_traits>::type;
 
-/// One typed case of the suite: an algorithm on one of its graph types.
+namespace kit_detail {
+
+template <typename traits_t, typename = void>
+struct has_container_types : std::false_type {};
+template <typename traits_t>
+struct has_container_types<traits_t, std::void_t<typename traits_t::container_types>>
+    : std::true_type {};
+
+/// The container types of an algorithm: test_traits::container_types, or graph_types (the name
+/// of 0.1-0.2, which a graph algorithm keeps).
+template <typename traits_t, bool = has_container_types<traits_t>::value>
+struct container_types_of {
+  using type = typename traits_t::graph_types;  ///< the list
+};
+/// @copydoc container_types_of
+template <typename traits_t>
+struct container_types_of<traits_t, true> {
+  using type = typename traits_t::container_types;  ///< the list
+};
+
+template <typename traits_t, typename = void>
+struct has_test_partners : std::false_type {};
+template <typename traits_t>
+struct has_test_partners<traits_t, std::void_t<typename traits_t::test_partners>> : std::true_type {
+};
+
+/// The partners of C10: the registered algorithms of this binary, and the test-only algorithms
+/// the traits list (test_traits::test_partners; the kit's own hypergraph fakes).
+template <typename traits_t, bool = has_test_partners<traits_t>::value>
+struct partners_of {
+  using type = registered_algorithms;  ///< the list
+};
+/// @copydoc partners_of
+template <typename traits_t>
+struct partners_of<traits_t, true> {
+  using type = typename concat<registered_algorithms, typename traits_t::test_partners>::type;
+};
+
+}  // namespace kit_detail
+
+/// One typed case of the suite: an algorithm on one of its container types.
 template <typename tag_t, typename graph_t>
 struct suite_case {
   using tag = tag_t;                  ///< the algorithm's tag
   using traits = test_traits<tag_t>;  ///< its traits
-  using graph_type = graph_t;         ///< the graph type
+  using graph_type = graph_t;         ///< the container type (a graph or a hypergraph)
 };
 
-/// The cases of an algorithm: one per graph type of its traits.
+/// The cases of an algorithm: one per container type of its traits.
 template <typename tag_t>
 struct cases_of {
   template <typename graph_t>
-  using make = suite_case<tag_t, graph_t>;  ///< the case of one graph type
+  using make = suite_case<tag_t, graph_t>;  ///< the case of one container type
   /// ::testing::Types of the cases
-  using type = typename as_gtest_types<
-      typename transform<typename test_traits<tag_t>::graph_types, make>::type>::type;
+  using type = typename as_gtest_types<typename transform<
+      typename kit_detail::container_types_of<test_traits<tag_t>>::type, make>::type>::type;
 };
 
 /// The name of a type in a case name.
 template <typename type_t>
 std::string type_name() {
-  if constexpr (is_unweighted_v<type_t>) {
-    return "unweighted";
-  } else {
-    return (std::is_signed_v<type_t> ? "i" : "u") + std::to_string(8 * sizeof(type_t));
-  }
+  return container_traits<graph<std::int32_t, std::int32_t, std::int32_t>>::type_name<type_t>();
 }
 
-/// GoogleTest names of the cases: "v<V>_e<E>_w<W>", e.g. v32_e64_unweighted.
+/// GoogleTest names of the cases: container_traits::case_name(), e.g. v32_e64_unweighted for a
+/// graph, hv32_unweighted for a hypergraph.
 struct case_name {
   template <typename case_t>
   static std::string GetName(int /*index*/) {  // NOLINT(readability-identifier-naming): gtest API
-    using graph_t = typename case_t::graph_type;
-    return "v" + type_name<typename graph_t::vertex_type>().substr(1) + "_e" +
-           type_name<typename graph_t::edge_type>().substr(1) + "_w" +
-           (is_unweighted_v<typename graph_t::weight_type>
-                ? std::string("unweighted")
-                : type_name<typename graph_t::weight_type>().substr(1));
+    return container_traits<typename case_t::graph_type>::case_name();
   }
 };
 
@@ -141,8 +185,7 @@ template <typename traits_t, typename graph_t>
 struct has_update<traits_t, graph_t,
                   std::void_t<decltype(traits_t::template update<graph_t>(
                       std::declval<const resources&>(), std::declval<graph_t&>(),
-                      std::declval<const edge_batch_view<typename graph_t::vertex_type,
-                                                         typename graph_t::weight_type>&>(),
+                      std::declval<const typename container_traits<graph_t>::batch_view_type&>(),
                       std::declval<typename traits_t::template result<graph_t>&>()))>>
     : std::true_type {};
 
@@ -170,27 +213,6 @@ struct has_near_reference<traits_t, graph_t,
                               std::declval<const resources&>(), std::declval<const graph_t&>(),
                               std::declval<const typename traits_t::snapshot&>()))>>
     : std::true_type {};
-
-template <typename traits_t, typename = void>
-struct has_extra_properties : std::false_type {};
-template <typename traits_t>
-struct has_extra_properties<traits_t, std::void_t<decltype(traits_t::extra_properties())>>
-    : std::true_type {};
-
-template <typename traits_t, typename = void>
-struct has_num_weights : std::false_type {};
-template <typename traits_t>
-struct has_num_weights<traits_t, std::void_t<decltype(traits_t::num_weights)>> : std::true_type {};
-
-/// The weight columns of the kit's weighted graphs: test_traits::num_weights, default 1.
-template <typename traits_t>
-constexpr int weight_columns() {
-  if constexpr (has_num_weights<traits_t>::value) {
-    return traits_t::num_weights;
-  } else {
-    return 1;
-  }
-}
 
 template <typename traits_t, typename = void>
 struct has_run_budget : std::false_type {};
@@ -225,11 +247,27 @@ template <typename traits_t>
 struct has_level<traits_t, std::void_t<decltype(traits_t::level)>>
     : std::is_same<std::decay_t<decltype(traits_t::level)>, determinism> {};
 
-template <typename stats_t, typename = void>
+/// Whether stats_t has `batch` of the container's summary type (apply_summary for graphs,
+/// hyper_apply_summary for hypergraphs).
+template <typename stats_t, typename summary_t, typename = void>
 struct has_batch : std::false_type {};
-template <typename stats_t>
-struct has_batch<stats_t, std::void_t<decltype(std::declval<stats_t&>().batch)>>
-    : std::is_same<std::decay_t<decltype(std::declval<stats_t&>().batch)>, apply_summary> {};
+template <typename stats_t, typename summary_t>
+struct has_batch<stats_t, summary_t, std::void_t<decltype(std::declval<stats_t&>().batch)>>
+    : std::is_same<std::decay_t<decltype(std::declval<stats_t&>().batch)>, summary_t> {};
+
+/// The first type of a list.
+template <typename list_t>
+struct first_type;
+/// @copydoc first_type
+template <typename first_t, typename... rest_t>
+struct first_type<type_list<first_t, rest_t...>> {
+  using type = first_t;  ///< the type
+};
+/// @copydoc first_type
+template <>
+struct first_type<type_list<>> {
+  using type = graph<std::int32_t, std::int32_t, std::int32_t>;  ///< none: the graph's summary
+};
 
 }  // namespace kit_detail
 
@@ -247,7 +285,8 @@ constexpr bool registration_check_graph() {
                 "every graph type of graph_types");
   static_assert(kit_detail::has_update<traits_t, graph_t>::value,
                 "dyng conformance kit: test_traits::update<graph_t>(res, g, batch, result) must "
-                "exist for every graph type of graph_types");
+                "exist for every graph type of graph_types (container type of container_types; "
+                "the batch is the container's batch view)");
   static_assert(!kit_detail::has_oracle_kind<traits_t>::value ||
                     traits_t::oracle != oracle_kind::reference ||
                     kit_detail::has_near_reference<traits_t, graph_t>::value,
@@ -275,7 +314,10 @@ constexpr bool registration_check() {
                 "dyng conformance kit: the algorithm has no test_traits specialisation; write "
                 "cpp/tests/algorithms/<name>/<name>_traits.hpp (docs/developer/conformance.md)");
   using traits_t = test_traits<tag_t>;
-  static_assert(traits_t::graph_types::size > 0,
+  using containers_t = typename kit_detail::container_types_of<traits_t>::type;
+  using summary_t =
+      typename container_traits<typename kit_detail::first_type<containers_t>::type>::summary_type;
+  static_assert(containers_t::size > 0,
                 "dyng conformance kit: test_traits::graph_types lists no graph type");
   static_assert(kit_detail::has_oracle_kind<traits_t>::value,
                 "dyng conformance kit: test_traits must declare its oracle kind, `static constexpr "
@@ -283,15 +325,16 @@ constexpr bool registration_check() {
   static_assert(kit_detail::has_level<traits_t>::value,
                 "dyng conformance kit: test_traits must declare its determinism level, `static "
                 "constexpr determinism level = ...;`");
-  static_assert(kit_detail::has_batch<typename traits_t::stats>::value,
+  static_assert(kit_detail::has_batch<typename traits_t::stats, summary_t>::value,
                 "dyng conformance kit: the algorithm's stats must derive from update_stats and "
-                "contain `apply_summary batch` (ADR 0006)");
+                "contain `apply_summary batch` (`hyper_apply_summary batch` for a hypergraph "
+                "algorithm; ADR 0006)");
   static_assert(!kit_detail::has_level<traits_t>::value ||
                     traits_t::level != determinism::tolerance ||
                     kit_detail::has_compare<traits_t>::value,
                 "dyng conformance kit: an algorithm with determinism::tolerance must provide "
                 "test_traits::compare(expected, actual) with its tolerance");
-  return registration_check_graphs<traits_t>(typename traits_t::graph_types{});
+  return registration_check_graphs<traits_t>(containers_t{});
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -300,12 +343,29 @@ constexpr bool registration_check() {
 
 namespace kit_detail {
 
+template <typename traits_t, typename = void>
+struct has_registry_entry : std::false_type {};
+template <typename traits_t>
+struct has_registry_entry<traits_t, std::void_t<decltype(traits_t::registry_entry())>>
+    : std::true_type {};
+
+/// The algorithm's registry entry: dyng::find_algorithm(name), or, for a test-only algorithm that
+/// the library does not contain (the kit's own fakes), test_traits::registry_entry().
+template <typename traits_t>
+const algorithm_info* info_of() {
+  if constexpr (has_registry_entry<traits_t>::value) {
+    return traits_t::registry_entry();
+  } else {
+    return find_algorithm(traits_t::name);
+  }
+}
+
 /// The backends of the algorithm that this test binary runs (suite_backends() of the binary,
 /// restricted to the manifest's backends).
 template <typename traits_t>
 std::vector<backend> backends() {
   std::vector<backend> out;
-  const algorithm_info* info = find_algorithm(traits_t::name);
+  const algorithm_info* info = info_of<traits_t>();
   if (info == nullptr) {
     return out;
   }
@@ -321,7 +381,7 @@ std::vector<backend> backends() {
 template <typename traits_t>
 std::vector<backend> comparison_backends() {
   std::vector<backend> out;
-  const algorithm_info* info = find_algorithm(traits_t::name);
+  const algorithm_info* info = info_of<traits_t>();
   if (info == nullptr) {
     return out;
   }
@@ -353,70 +413,41 @@ template <typename traits_t>
   }
 }
 
-/// A property preset of the checks.
-struct preset {
-  std::string label;       ///< for traces
-  graph_properties props;  ///< the graph's properties (the algorithm's requirements applied)
-};
+/// The container axis of a case (containers.hpp).
+template <typename case_t>
+using axis = container_traits<typename case_t::graph_type>;
 
-/// The presets: the defaults, the defaults with the insertions applied before the deletions,
-/// set() semantics, and the traits' extras; each with require().
-template <typename traits_t>
-std::vector<preset> presets() {
-  std::vector<preset> out;
-  graph_properties plain;
-  traits_t::require(plain);
-  out.push_back({"upsert_last_wins()", plain});
-  // applied_batch::delta lists the requested changes: with the insertions first, an edge a batch
-  // inserts and deletes is listed but gone (batch_mix::cancel), which an algorithm must not trust.
-  graph_properties inserts_first;
-  inserts_first.semantics.deletions_first = false;
-  traits_t::require(inserts_first);
-  if (!inserts_first.semantics.as_sets && inserts_first.semantics.deletions_first == false) {
-    out.push_back({"upsert_last_wins(), insertions first", inserts_first});
-  }
-  graph_properties sets = plain;
-  sets.semantics = batch_semantics::set();
-  out.push_back({"set()", sets});
-  if constexpr (has_extra_properties<traits_t>::value) {
-    int i = 0;
-    for (graph_properties p : traits_t::extra_properties()) {
-      traits_t::require(p);
-      out.push_back({"extra properties " + std::to_string(i++), p});
-    }
-  }
-  return out;
+/// A property preset of the checks, for the container of `case_t`.
+template <typename case_t>
+using preset_of = kit_preset<typename axis<case_t>::properties_type>;
+
+/// The presets of a case (container_traits::presets: for graphs the defaults, the defaults with
+/// the insertions first, set() semantics and the traits' extras; each with require()).
+template <typename case_t>
+std::vector<preset_of<case_t>> presets() {
+  return axis<case_t>::template presets<typename case_t::traits>();
 }
 
-/// Whether a mix applies to a graph type and preset (reweight: weighted graphs, upsert only).
-template <typename graph_t>
-bool mix_applies(batch_mix mix, const graph_properties& props) {
-  if (mix == batch_mix::reweight) {
-    return !is_unweighted_v<typename graph_t::weight_type> && !props.semantics.as_sets &&
-           props.semantics.on_existing_insert == batch_semantics::existing_insert::upsert;
-  }
-  return true;
-}
-
-/// One algorithm result kept up to date on one graph (the unit of every check).
+/// One algorithm result kept up to date on one container (the unit of every check).
 template <typename case_t>
 struct chain {
   using traits = typename case_t::traits;                            ///< the traits
-  using graph_type = typename case_t::graph_type;                    ///< the graph type
+  using graph_type = typename case_t::graph_type;                    ///< the container type
   using result_type = typename traits::template result<graph_type>;  ///< the result type
   using stats_type = typename traits::stats;                         ///< the stats type
-  using batch_type = edge_batch<typename graph_type::vertex_type,
-                                typename graph_type::weight_type>;  ///< the batch type
+  using batch_type = typename axis<case_t>::batch_type;              ///< the batch type
+  using model_type = typename axis<case_t>::model_type;              ///< the model type
+  using properties_type = typename axis<case_t>::properties_type;    ///< the properties
 
   resources res;                 ///< the backend
-  std::optional<graph_type> g;   ///< the graph
+  std::optional<graph_type> g;   ///< the container
   std::optional<result_type> r;  ///< the result
 
-  /// compute() on the model's graph.
-  chain(resources on, const graph_model<graph_type>& model, const graph_properties& props,
+  /// compute() on the model's container.
+  chain(resources on, const model_type& model, const properties_type& props,
         engine e = engine::automatic)
       : res(std::move(on)) {
-    g.emplace(model.build(res, props));
+    g.emplace(axis<case_t>::build(model, res, props));
     r.emplace(traits::template compute<graph_type>(res, *g, e));
   }
 
@@ -458,33 +489,20 @@ void expect_oracle(const chain<case_t>& c) {
   }
 }
 
-/// The deterministic counters of a stats object, with the batch summary's.
-template <typename traits_t>
+/// The deterministic counters of a stats object, with the batch summary's (on container_t).
+template <typename traits_t, typename container_t>
 std::vector<std::int64_t> counters(const typename traits_t::stats& s) {
   std::vector<std::int64_t> out = traits_t::deterministic(s);
-  const apply_summary& b = s.batch;
-  out.insert(out.end(), {s.affected, b.inserted_edges, b.updated_edges, b.deleted_edges,
-                         b.ignored_deletions, b.dropped_self_loops, b.cancelled_pairs,
-                         b.inserted_vertices, b.num_vertices_after, b.ignored_insertions});
+  out.push_back(s.affected);
+  const std::vector<std::int64_t> b = container_traits<container_t>::summary_counters(s.batch);
+  out.insert(out.end(), b.begin(), b.end());
   return out;
-}
-
-/// Whether the algorithm's graphs are directed (its requirements may ask for an undirected
-/// graph, graph_properties::directed = false; the kit's models follow).
-template <typename traits_t>
-bool directed_graphs() {
-  graph_properties props;
-  traits_t::require(props);
-  return props.directed;
 }
 
 /// A random model of a size class.
 template <typename case_t>
-graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_64& rng) {
-  graph_model<typename case_t::graph_type> m = random_model<typename case_t::graph_type>(
-      case_t::traits::shape(size), rng, directed_graphs<typename case_t::traits>());
-  m.num_weights = weight_columns<typename case_t::traits>();
-  return m;
+typename axis<case_t>::model_type model_of(size_class size, std::mt19937_64& rng) {
+  return axis<case_t>::template random_model<typename case_t::traits>(size, rng);
 }
 
 /**
@@ -499,22 +517,22 @@ graph_model<typename case_t::graph_type> model_of(size_class size, std::mt19937_
 template <typename case_t>
 bool engines_agree(const std::vector<backend>& backends) {
   using traits = typename case_t::traits;
-  using graph_t = typename case_t::graph_type;
+  using ct = axis<case_t>;
   bool compared = false;
   for (const backend b : backends) {
     SCOPED_TRACE(std::string(to_string(b)));
-    for (const preset& p : presets<traits>()) {
+    for (const auto& p : presets<case_t>()) {
       SCOPED_TRACE(p.label);
       for (const size_class size : {size_class::small, size_class::medium}) {
-        for (const batch_mix mix : all_mixes()) {
-          if (!mix_applies<graph_t>(mix, p.props)) {
+        for (const auto mix : ct::mixes(kit_check::c4)) {
+          if (!ct::mix_applies(mix, p.props)) {
             continue;
           }
           SCOPED_TRACE("size " + std::to_string(static_cast<int>(size)) + ", mix " +
                        std::string(to_string(mix)));
           std::mt19937_64 rng(4000 + static_cast<std::uint64_t>(size) * 17 +
                               static_cast<std::uint64_t>(mix));
-          graph_model<graph_t> model = model_of<case_t>(size, rng);
+          typename ct::model_type model = model_of<case_t>(size, rng);
           std::optional<chain<case_t>> fused;
           std::optional<chain<case_t>> operators;
           try {
@@ -529,12 +547,13 @@ bool engines_agree(const std::vector<backend>& backends) {
           }
           for (int step = 0; step < 3; ++step) {
             SCOPED_TRACE("batch " + std::to_string(step));
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
+            const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
             typename traits::stats sf;
             typename traits::stats so;
             try {
-              sf = fused->step(gen.batch);
-              so = operators->step(gen.batch);
+              sf = fused->step(ct::batch_of(gen));
+              ct::observe(model, gen, sf.batch);
+              so = operators->step(ct::batch_of(gen));
             } catch (const not_supported_error&) {
               break;
             }
@@ -559,6 +578,347 @@ bool engines_agree(const std::vector<backend>& backends) {
 }  // namespace kit_detail
 
 // ------------------------------------------------------------------------------------------------
+// The checks that differ per container: C7's invalid input and skip rules, C9's summary arithmetic
+// ------------------------------------------------------------------------------------------------
+
+/// The container-specific parts of C7 and C9; specialised per container.
+template <typename case_t, typename container_t = typename case_t::graph_type>
+struct container_checks;
+
+/// The graph's: the kit of 0.1-0.2, unchanged.
+template <typename case_t, typename vertex_t_, typename edge_t_, typename weight_t_>
+struct container_checks<case_t, graph<vertex_t_, edge_t_, weight_t_>> {
+  /// C7 under one preset on one backend: invalid input is rejected with the documented exception
+  /// (and changes nothing), or counted as skipped per the batch semantics.
+  static void invalid_input(backend be, const kit_preset<graph_properties>& p) {
+    using traits = typename case_t::traits;
+    using graph_t = typename case_t::graph_type;
+    using vertex_t = typename graph_t::vertex_type;
+    using weight_t = typename graph_t::weight_type;
+    using batch_t = edge_batch<vertex_t, weight_t>;
+    constexpr bool weighted = !is_unweighted_v<weight_t>;
+    // Batches with the kit graph's weight columns (test_traits::num_weights), all weights 1.
+    constexpr int columns = kit_detail::weight_columns<traits>();
+    const auto make_batch = []() { return weighted ? batch_t(columns) : batch_t(); };
+    const auto insert = [](batch_t& b, vertex_t u, vertex_t v) {
+      if constexpr (weighted) {
+        const std::vector<weight_t> w(static_cast<std::size_t>(columns), weight_t{1});
+        b.insert_edge(u, v, host_view(w));
+      } else {
+        b.insert_edge(u, v);
+      }
+    };
+    std::mt19937_64 rng(7000);
+    graph_model<graph_t> model = kit_detail::model_of<case_t>(size_class::small, rng);
+    kit_detail::chain<case_t> c(kit_detail::resources_for(be), model, p.props);
+    const auto before = c.take();
+    // Rejected: nothing changes, and the result stays current and usable.
+    const auto expect_rejected = [&](const batch_t& b, const char* what) {
+      SCOPED_TRACE(what);
+      const std::uint64_t version = c.g->version();
+      EXPECT_THROW((void)c.step(b), invalid_argument_error);
+      EXPECT_EQ(c.g->version(), version);
+      EXPECT_EQ(c.r->graph_version(), c.g->version());
+      EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+    };
+    {
+      batch_t b = make_batch();
+      insert(b, vertex_t{-1}, vertex_t{0});
+      expect_rejected(b, "an insertion with a negative id");
+    }
+    {
+      batch_t b = make_batch();
+      b.delete_edge(vertex_t{0}, vertex_t{-2});
+      expect_rejected(b, "a deletion with a negative id");
+    }
+    if constexpr (weighted) {
+      // One weight column more than the graph has (K + 1 for a K-column graph).
+      batch_t b(columns + 1);
+      const std::vector<weight_t> w(static_cast<std::size_t>(columns) + 1, weight_t{1});
+      b.insert_edge(vertex_t{0}, vertex_t{1}, host_view(w));
+      expect_rejected(b, "a batch with one weight column more than the graph has");
+    }
+    // Bad options: each must throw invalid_argument_error.
+    for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
+      EXPECT_THROW(bad(), invalid_argument_error) << "an invalid option was accepted";
+    }
+    // The result still updates.
+    EXPECT_NO_THROW((void)c.step(batch_t{}));
+    // Counted as skipped: a deletion of a missing edge, and (set semantics) an insertion of an
+    // existing edge and a self-loop.
+    vertex_t u = 0;
+    vertex_t v = 0;
+    for (vertex_t x = 0; x < model.num_vertices && u == v; ++x) {
+      for (vertex_t y = 0; y < model.num_vertices; ++y) {
+        if (x != y && !model.has(x, y)) {
+          u = x;
+          v = y;
+          break;
+        }
+      }
+    }
+    ASSERT_NE(u, v) << "the generated graph is complete";
+    {
+      batch_t b = make_batch();
+      b.delete_edge(u, v);
+      const auto s = c.step(b);
+      EXPECT_EQ(s.batch.ignored_deletions, model.directions())
+          << "a deletion of a missing edge is counted (once per stored direction)";
+      EXPECT_EQ(s.affected, 0);
+      EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+    }
+    if (p.props.semantics.as_sets && !model.weights.empty()) {
+      const auto existing = model.weights.begin()->first;
+      batch_t b = make_batch();
+      insert(b, existing.first, existing.second);
+      insert(b, vertex_t{0}, vertex_t{0});
+      const auto s = c.step(b);
+      EXPECT_EQ(s.batch.ignored_insertions, model.directions())
+          << "an insertion of an existing edge is counted (once per stored direction)";
+      EXPECT_EQ(s.batch.dropped_self_loops, 1) << "a self-loop is dropped and counted";
+      EXPECT_EQ(s.affected, 0);
+      EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+    }
+    // Duplicates in one batch: the result still equals compute().
+    {
+      batch_t b = make_batch();
+      insert(b, u, v);
+      insert(b, u, v);
+      (void)c.step(b);
+      kit_detail::expect_oracle(c);
+    }
+    // A deletion of a missing edge under missing_delete::error is rejected.
+    {
+      graph_properties strict = p.props;
+      strict.semantics.on_missing_delete = batch_semantics::missing_delete::error;
+      kit_detail::chain<case_t> s(kit_detail::resources_for(be), model, strict);
+      const auto strict_before = s.take();
+      batch_t b = make_batch();
+      b.delete_edge(u, v);
+      const std::uint64_t version = s.g->version();
+      EXPECT_THROW((void)s.step(b), invalid_argument_error);
+      EXPECT_EQ(s.g->version(), version);
+      EXPECT_TRUE(kit_detail::same<traits>(strict_before, s.take()));
+    }
+  }
+
+  /// C9 after one batch: stats sanity.
+  template <typename stats_t, typename generated_t, typename model_t>
+  static void stats_sane(const resources& /*res*/, const stats_t& s, const generated_t& gen,
+                         const model_t& model, const graph<vertex_t_, edge_t_, weight_t_>& g) {
+    const apply_summary& a = s.batch;
+    EXPECT_GE(s.affected, 0);
+    EXPECT_LE(s.affected, std::max<std::int64_t>(a.num_vertices_after, 1));
+    EXPECT_EQ(a.num_vertices_after, static_cast<std::int64_t>(g.num_vertices()));
+    const auto requested =
+        static_cast<std::int64_t>(gen.batch.num_insertions() + gen.batch.num_deletions()) *
+        model.directions();  // an undirected graph counts each direction
+    EXPECT_EQ(a.inserted_edges + a.updated_edges + a.ignored_insertions + a.deleted_edges +
+                  a.ignored_deletions + a.dropped_self_loops,
+              requested)
+        << "applied + skipped != requested";
+  }
+};
+
+/// The hypergraph's (ADR 0043).
+template <typename case_t, typename vertex_t_, typename weight_t_>
+struct container_checks<case_t, hypergraph<vertex_t_, weight_t_>> {
+  using traits = typename case_t::traits;                        ///< the traits
+  using hypergraph_t = hypergraph<vertex_t_, weight_t_>;         ///< the container
+  using ct = container_traits<hypergraph_t>;                     ///< its axis
+  using batch_t = hyperedge_batch<vertex_t_, weight_t_>;         ///< the owning batch
+  static constexpr bool weighted = !is_unweighted_v<weight_t_>;  ///< has weights
+
+  /// A batch view whose arrays point into `offsets`, `members`, `weights`, `deletions` and the
+  /// incidence arrays (raw: the builder of hyperedge_batch does not make malformed batches).
+  struct raw_batch {
+    std::vector<std::int64_t> deletions;            ///< delete_hyperedges
+    std::vector<std::int64_t> offsets;              ///< insert_offsets
+    std::vector<vertex_t_> members;                 ///< insert_members
+    std::vector<weight_t_> weights;                 ///< insert_weights
+    std::vector<std::int64_t> incidence_hyperedge;  ///< insert_incidence_hyperedge
+    std::vector<vertex_t_> incidence_vertex;        ///< insert_incidence_vertex
+
+    /// The view.
+    [[nodiscard]] hyperedge_batch_view<vertex_t_, weight_t_> view() const {
+      hyperedge_batch_view<vertex_t_, weight_t_> v;
+      v.delete_hyperedges = host_view(deletions);
+      v.insert_offsets = host_view(offsets);
+      v.insert_members = host_view(members);
+      v.insert_weights = host_view(weights);
+      v.insert_incidence_hyperedge = host_view(incidence_hyperedge);
+      v.insert_incidence_vertex = host_view(incidence_vertex);
+      return v;
+    }
+  };
+
+  /// C7 under one preset on one backend: invalid batches are rejected before anything changes
+  /// (invalid_argument_error; incidence edits not_supported_error, planned for 0.4); skipped
+  /// deletions and dropped members are counted; duplicates still give compute().
+  static void invalid_input(backend be, const kit_preset<hypergraph_properties>& p) {
+    std::mt19937_64 rng(7000);
+    typename ct::model_type model = kit_detail::model_of<case_t>(size_class::small, rng);
+    kit_detail::chain<case_t> c(kit_detail::resources_for(be), model, p.props);
+    const auto before = c.take();
+    const vertex_t_ n = c.g->num_vertices();
+    ASSERT_GT(n, 1) << "the small shape needs two vertices";
+    // Rejected: nothing changes (version, state, contents), and the result stays current.
+    const auto expect_rejected = [&](const hyperedge_batch_view<vertex_t_, weight_t_>& b,
+                                     const char* what, bool not_supported) {
+      SCOPED_TRACE(what);
+      const std::uint64_t version = c.g->version();
+      const std::int64_t live = c.g->num_hyperedges();
+      const std::int64_t bound = c.g->hyperedge_id_bound();
+      if (not_supported) {
+        EXPECT_THROW((void)traits::template update<hypergraph_t>(c.res, *c.g, b, *c.r),
+                     not_supported_error);
+      } else {
+        EXPECT_THROW((void)traits::template update<hypergraph_t>(c.res, *c.g, b, *c.r),
+                     invalid_argument_error);
+      }
+      EXPECT_EQ(c.g->version(), version);
+      EXPECT_EQ(c.g->num_hyperedges(), live);
+      EXPECT_EQ(c.g->hyperedge_id_bound(), bound);
+      EXPECT_EQ(c.r->graph_version(), c.g->version());
+      EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+    };
+    const auto one = [&](std::vector<vertex_t_> members, std::int64_t weight) {
+      raw_batch b;
+      b.offsets = {0, static_cast<std::int64_t>(members.size())};
+      b.members = std::move(members);
+      if constexpr (weighted) b.weights = {static_cast<weight_t_>(weight)};
+      return b;
+    };
+    {
+      const raw_batch b = one({0, -1}, 1);
+      expect_rejected(b.view(), "a member with a negative id", false);
+    }
+    {
+      const raw_batch b = one({0, n}, 1);
+      expect_rejected(b.view(), "a member at num_vertices", false);
+    }
+    {
+      raw_batch b = one({}, 1);
+      expect_rejected(b.view(), "an empty hyperedge", false);
+    }
+    {
+      raw_batch b = one({0, 1}, 1);
+      b.offsets = {0, 3};  // three members announced, two given
+      expect_rejected(b.view(), "malformed offsets", false);
+    }
+    {
+      raw_batch b = one({0, 1}, 1);
+      b.deletions = {0};  // the deletion must not happen either
+      if constexpr (weighted) {
+        b.weights = {weight_t_{0}};
+        expect_rejected(b.view(), "a weight of 0", false);
+      } else {
+        b.weights.resize(1);
+        expect_rejected(b.view(), "weights on an unweighted batch", false);
+      }
+    }
+    {
+      raw_batch b = one({0, 1}, 1);
+      b.incidence_hyperedge = {0};
+      b.incidence_vertex = {1};
+      expect_rejected(b.view(), "an incidence edit (planned for 0.4)", true);
+    }
+    // Bad options: each must throw invalid_argument_error.
+    for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
+      EXPECT_THROW(bad(), invalid_argument_error) << "an invalid option was accepted";
+    }
+    // The result still updates.
+    EXPECT_NO_THROW((void)c.step(batch_t{}));
+    // Counted as skipped: dead, out-of-range and negative ids; nothing else changes.
+    std::int64_t dead = -1;
+    for (std::int64_t id = 0; id < c.g->hyperedge_id_bound() && dead < 0; ++id) {
+      if (model.live.count(id) == 0) dead = id;
+    }
+    {
+      batch_t b;
+      b.delete_hyperedge(c.g->hyperedge_id_bound());
+      b.delete_hyperedge(-7);
+      b.delete_hyperedge(std::numeric_limits<std::int64_t>::max());
+      if (dead >= 0) b.delete_hyperedge(dead);
+      const auto s = c.step(b);
+      EXPECT_EQ(s.batch.ignored_deletions, dead >= 0 ? 4 : 3)
+          << "deletions of dead, out-of-range and negative ids are counted";
+      EXPECT_EQ(s.batch.deleted_hyperedges, 0);
+      EXPECT_EQ(s.batch.skipped_ops, s.batch.ignored_deletions + s.batch.dropped_members);
+      EXPECT_EQ(s.affected, 0);
+      EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+    }
+    // A repeated deletion: the first deletes, the second is counted.
+    if (!model.live.empty()) {
+      const std::int64_t id = model.live.begin()->first;
+      batch_t b;
+      b.delete_hyperedge(id);
+      b.delete_hyperedge(id);
+      const auto s = c.step(b);
+      EXPECT_EQ(s.batch.deleted_hyperedges, 1);
+      EXPECT_EQ(s.batch.ignored_deletions, 1) << "a repeated deletion is counted";
+      model.live.erase(id);
+      kit_detail::expect_oracle(c);
+    }
+    // Repeated members: dropped and counted; the result still equals compute().
+    {
+      batch_t b;
+      const std::vector<vertex_t_> members = {1, 0, 1, 0, 1};
+      if constexpr (weighted) {
+        b.insert_hyperedge(host_view(members), weight_t_{3});
+      } else {
+        b.insert_hyperedge(host_view(members));
+      }
+      const auto s = c.step(b);
+      EXPECT_EQ(s.batch.dropped_members, 3) << "repeated members are dropped and counted";
+      EXPECT_EQ(s.batch.inserted_hyperedges, 1);
+      kit_detail::expect_oracle(c);
+    }
+  }
+
+  /// C9 after one batch: stats sanity (the summary's arithmetic, the inserted ids, the counts the
+  /// generator expects).
+  template <typename stats_t>
+  static void stats_sane(const resources& res, const stats_t& s,
+                         const typename ct::generated_type& gen,
+                         const typename ct::model_type& /*model*/, const hypergraph_t& h) {
+    const hyper_apply_summary& a = s.batch;
+    EXPECT_GE(s.affected, 0);
+    EXPECT_LE(s.affected,
+              std::max<std::int64_t>({static_cast<std::int64_t>(h.num_vertices()), a.id_bound_after,
+                                      a.inserted_hyperedges + a.deleted_hyperedges, 1}));
+    const auto requested = static_cast<std::int64_t>(gen.batch.view().num_insertions() +
+                                                     gen.batch.view().num_deletions());
+    EXPECT_EQ(a.inserted_hyperedges + a.deleted_hyperedges + a.ignored_deletions, requested)
+        << "applied + skipped != requested";
+    EXPECT_EQ(a.ignored_deletions, gen.expected_ignored);
+    EXPECT_EQ(a.dropped_members, gen.expected_dropped);
+    EXPECT_EQ(a.skipped_ops, a.ignored_deletions + a.dropped_members);
+    EXPECT_EQ(a.deleted_hyperedges, static_cast<std::int64_t>(gen.deleted.size()));
+    EXPECT_EQ(a.inserted_incidences, 0);
+    EXPECT_EQ(a.deleted_incidences, 0);
+    EXPECT_EQ(a.num_hyperedges_after, h.num_hyperedges());
+    EXPECT_EQ(a.id_bound_after, h.hyperedge_id_bound());
+    ASSERT_EQ(static_cast<std::int64_t>(a.inserted_ids.size()), a.inserted_hyperedges);
+    // The inserted ids are distinct, live, below the bound and hold the inserted hyperedges.
+    std::vector<std::int64_t> sorted = a.inserted_ids;
+    std::sort(sorted.begin(), sorted.end());
+    EXPECT_TRUE(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end())
+        << "an id was given twice";
+    const auto view = h.h2v();
+    const std::vector<std::int64_t> ptr = to_vector(res, view.row_ptr);
+    const std::vector<vertex_t_> cols = to_vector(res, view.col_ind);
+    for (std::size_t i = 0; i < a.inserted_ids.size(); ++i) {
+      const std::int64_t id = a.inserted_ids[i];
+      ASSERT_TRUE(id >= 0 && id < a.id_bound_after) << "inserted id " << id << " is out of range";
+      const std::vector<vertex_t_> row(cols.begin() + ptr[static_cast<std::size_t>(id)],
+                                       cols.begin() + ptr[static_cast<std::size_t>(id) + 1]);
+      EXPECT_EQ(row, gen.inserted[i].members) << "inserted hyperedge " << i << " (id " << id << ")";
+    }
+  }
+};
+
+// ------------------------------------------------------------------------------------------------
 // The suite
 // ------------------------------------------------------------------------------------------------
 
@@ -571,7 +931,8 @@ TYPED_TEST_SUITE_P(conformance);
 // C0: the traits agree with the registry (the manifest), which lists a sequential backend first.
 TYPED_TEST_P(conformance, C0_TheTraitsAgreeWithTheRegistry) {
   using traits = typename TypeParam::traits;
-  const algorithm_info* info = find_algorithm(traits::name);
+  using ct = kit_detail::axis<TypeParam>;
+  const algorithm_info* info = kit_detail::info_of<traits>();
   ASSERT_NE(info, nullptr) << traits::name << " is not in dyng::algorithms() (its manifest, "
                            << "scripts/regen.py, or DYNG_ALGORITHMS)";
   EXPECT_EQ(info->oracle, traits::oracle) << "the manifest's oracle differs from the traits'";
@@ -579,7 +940,8 @@ TYPED_TEST_P(conformance, C0_TheTraitsAgreeWithTheRegistry) {
   ASSERT_FALSE(info->backends.empty());
   EXPECT_EQ(info->backends.front(), backend::sequential)
       << "invariant I8: every algorithm has the sequential reference backend";
-  EXPECT_EQ(info->container, container_kind::graph);
+  EXPECT_EQ(info->container, ct::kind)
+      << "the manifest's container differs from the traits' container types";
   // The kit runs the manifest's backends only: a backend the library runs but the manifest omits
   // would lose its conformance coverage silently (and the registry would misreport it).
   using graph_t = typename TypeParam::graph_type;
@@ -590,8 +952,8 @@ TYPED_TEST_P(conformance, C0_TheTraitsAgreeWithTheRegistry) {
     SCOPED_TRACE(std::string(to_string(b)) + " (not in the manifest)");
     std::mt19937_64 rng(10);
     const resources res = kit_detail::resources_for(b);
-    const graph_t g = kit_detail::model_of<TypeParam>(size_class::tiny, rng)
-                          .build(res, kit_detail::presets<traits>().front().props);
+    const graph_t g = ct::build(kit_detail::model_of<TypeParam>(size_class::tiny, rng), res,
+                                kit_detail::presets<TypeParam>().front().props);
     EXPECT_THROW((void)traits::template compute<graph_t>(res, g, engine::automatic),
                  not_supported_error)
         << traits::name << " runs on " << to_string(b)
@@ -606,9 +968,10 @@ TYPED_TEST_P(conformance, C0_TheTraitsAgreeWithTheRegistry) {
 TYPED_TEST_P(conformance, C1_AnEmptyBatchChangesNothing) {
   using traits = typename TypeParam::traits;
   using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
       for (const size_class size : {size_class::tiny, size_class::small}) {
         std::mt19937_64 rng(11);
@@ -620,7 +983,7 @@ TYPED_TEST_P(conformance, C1_AnEmptyBatchChangesNothing) {
         const auto s = c.step(empty);
         EXPECT_EQ(s.affected, 0);
         EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
-        EXPECT_EQ(s.batch.inserted_edges + s.batch.deleted_edges + s.batch.updated_edges, 0);
+        EXPECT_EQ(ct::changed(s.batch), 0);
         EXPECT_EQ(c.r->graph_version(), c.g->version());
         EXPECT_GE(c.g->version(), version);
         (void)sizeof(graph_t);
@@ -632,33 +995,30 @@ TYPED_TEST_P(conformance, C1_AnEmptyBatchChangesNothing) {
 // C2: the oracle over random graphs x sizes x batch mixes x three consecutive batches.
 TYPED_TEST_P(conformance, C2_UpdateChainsEqualTheOracle) {
   using traits = typename TypeParam::traits;
-  using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
       for (const std::uint64_t seed : test::test_seeds(2000, 2)) {
         SCOPED_TRACE(test::seed_trace(seed));
         for (const size_class size : {size_class::tiny, size_class::small, size_class::medium}) {
-          for (const batch_mix mix : all_mixes()) {
-            if (!kit_detail::mix_applies<graph_t>(mix, p.props)) {
+          for (const auto mix : ct::mixes(kit_check::c2)) {
+            if (!ct::mix_applies(mix, p.props)) {
               continue;
             }
             SCOPED_TRACE("size " + std::to_string(static_cast<int>(size)) + ", mix " +
                          std::string(to_string(mix)));
             std::mt19937_64 rng(seed * 131 + static_cast<std::uint64_t>(size) * 17 +
                                 static_cast<std::uint64_t>(mix));
-            graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size, rng);
+            typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);
             kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
             kit_detail::expect_oracle(c);
             for (int step = 0; step < 3; ++step) {
               SCOPED_TRACE("batch " + std::to_string(step));
-              const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
-              (void)c.step(gen.batch);
-              ASSERT_EQ(static_cast<std::int64_t>(c.g->num_vertices()),
-                        static_cast<std::int64_t>(model.num_vertices));
-              ASSERT_EQ(static_cast<std::int64_t>(c.g->num_edges()),
-                        static_cast<std::int64_t>(model.weights.size()) * model.directions());
+              const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
+              ct::observe(model, gen, c.step(ct::batch_of(gen)).batch);
+              ASSERT_TRUE(ct::matches(*c.g, model));
               kit_detail::expect_oracle(c);
               if (::testing::Test::HasFailure()) {
                 return;  // the first failing chain is enough (its seed is in the trace)
@@ -675,22 +1035,22 @@ TYPED_TEST_P(conformance, C2_UpdateChainsEqualTheOracle) {
 TYPED_TEST_P(conformance, C3_BackendsAgree) {
   using traits = typename TypeParam::traits;
   using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   const std::vector<backend> backends = kit_detail::comparison_backends<traits>();
   if (backends.size() < 2) {
     GTEST_SKIP() << "only one backend of " << traits::name << " in this build";
   }
-  for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+  for (const auto& p : kit_detail::presets<TypeParam>()) {
     SCOPED_TRACE(p.label);
     for (const std::uint64_t seed : test::test_seeds(3000, 2)) {
       SCOPED_TRACE(test::seed_trace(seed));
-      for (const batch_mix mix : {batch_mix::mixed, batch_mix::heavy, batch_mix::reweight,
-                                  batch_mix::grow, batch_mix::cancel}) {
-        if (!kit_detail::mix_applies<graph_t>(mix, p.props)) {
+      for (const auto mix : ct::mixes(kit_check::c3)) {
+        if (!ct::mix_applies(mix, p.props)) {
           continue;
         }
         SCOPED_TRACE("mix " + std::string(to_string(mix)));
         std::mt19937_64 rng(seed * 7 + static_cast<std::uint64_t>(mix));
-        graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
+        typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
         std::vector<kit_detail::chain<TypeParam>> chains;
         chains.reserve(backends.size());
         for (const backend b : backends) {
@@ -702,12 +1062,15 @@ TYPED_TEST_P(conformance, C3_BackendsAgree) {
         }
         for (int step = 0; step < 3; ++step) {
           SCOPED_TRACE("batch " + std::to_string(step));
-          const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
-          const auto reference = kit_detail::counters<traits>(chains[0].step(gen.batch));
+          const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
+          const auto first = chains[0].step(ct::batch_of(gen));
+          ct::observe(model, gen, first.batch);
+          const auto reference = kit_detail::counters<traits, graph_t>(first);
           const auto expected = chains[0].take();
           for (std::size_t i = 1; i < chains.size(); ++i) {
             SCOPED_TRACE(std::string(to_string(backends[i])));
-            EXPECT_EQ(kit_detail::counters<traits>(chains[i].step(gen.batch)), reference);
+            EXPECT_EQ((kit_detail::counters<traits, graph_t>(chains[i].step(ct::batch_of(gen)))),
+                      reference);
             EXPECT_TRUE(kit_detail::same<traits>(expected, chains[i].take()));
           }
         }
@@ -732,28 +1095,33 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
   if (!traits::history_independent) {
     GTEST_SKIP() << traits::name << " is not history-independent";
   }
+  using ct = kit_detail::axis<TypeParam>;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
       for (const std::uint64_t seed : test::test_seeds(5000, 2)) {
         SCOPED_TRACE(test::seed_trace(seed));
-        for (const batch_mix mix :
-             {batch_mix::insert_only, batch_mix::delete_only, batch_mix::mixed, batch_mix::local,
-              batch_mix::heavy, batch_mix::reweight}) {
-          if (!kit_detail::mix_applies<graph_t>(mix, p.props)) {
+        for (const auto mix : ct::mixes(kit_check::c5)) {
+          if (!ct::mix_applies(mix, p.props)) {
             continue;
           }
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
           std::mt19937_64 rng(seed * 3 + static_cast<std::uint64_t>(mix));
-          graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
+          typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
           kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
           const auto before = c.take();
-          const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
-          ASSERT_TRUE(gen.invertible);
-          (void)c.step(gen.batch);
-          (void)c.step(gen.inverse);
+          const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
+          ASSERT_TRUE(ct::invertible(gen));
+          const auto forward = c.step(ct::batch_of(gen));
+          ct::observe(model, gen, forward.batch);
+          // Graphs: the inverse the generator recorded (with the old weights); hypergraphs: built
+          // from the forward batch's hyper_apply_summary (its inserted ids) and the deleted
+          // member sets.
+          const typename ct::generated_type inverse = ct::inverse(model, gen, forward.batch);
+          ct::observe(model, inverse, c.step(ct::batch_of(inverse)).batch);
           EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
+          (void)sizeof(graph_t);
         }
       }
     }
@@ -764,22 +1132,25 @@ TYPED_TEST_P(conformance, C5_ABatchAndItsInverseCancel) {
 TYPED_TEST_P(conformance, C6_RunsAreDeterministic) {
   using traits = typename TypeParam::traits;
   using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
       for (const size_class size : {size_class::small, size_class::medium}) {
-        for (const batch_mix mix : {batch_mix::mixed, batch_mix::heavy, batch_mix::grow}) {
+        for (const auto mix : ct::mixes(kit_check::c6)) {
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
           std::mt19937_64 rng(6000 + static_cast<std::uint64_t>(mix));
-          graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size, rng);
+          typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);
           kit_detail::chain<TypeParam> first(kit_detail::resources_for(b), model, p.props);
           kit_detail::chain<TypeParam> second(kit_detail::resources_for(b), model, p.props);
           EXPECT_TRUE(kit_detail::same<traits>(first.take(), second.take()));
           for (int step = 0; step < 3; ++step) {
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
-            EXPECT_EQ(kit_detail::counters<traits>(first.step(gen.batch)),
-                      kit_detail::counters<traits>(second.step(gen.batch)));
+            const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
+            const auto s1 = first.step(ct::batch_of(gen));
+            ct::observe(model, gen, s1.batch);
+            EXPECT_EQ((kit_detail::counters<traits, graph_t>(s1)),
+                      (kit_detail::counters<traits, graph_t>(second.step(ct::batch_of(gen)))));
             EXPECT_TRUE(kit_detail::same<traits>(first.take(), second.take()));
           }
         }
@@ -789,120 +1160,16 @@ TYPED_TEST_P(conformance, C6_RunsAreDeterministic) {
 }
 
 // C7: invalid input is rejected with the documented exception (and changes nothing), or counted
-// as skipped per the batch semantics.
+// as skipped per the batch semantics (container_checks::invalid_input).
 TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
   using traits = typename TypeParam::traits;
-  using graph_t = typename TypeParam::graph_type;
-  using vertex_t = typename graph_t::vertex_type;
-  using weight_t = typename graph_t::weight_type;
-  using batch_t = edge_batch<vertex_t, weight_t>;
-  constexpr bool weighted = !is_unweighted_v<weight_t>;
-  // Batches with the kit graph's weight columns (test_traits::num_weights), all weights 1.
-  constexpr int columns = kit_detail::weight_columns<traits>();
-  const auto make_batch = []() { return weighted ? batch_t(columns) : batch_t(); };
-  const auto insert = [](batch_t& b, vertex_t u, vertex_t v) {
-    if constexpr (weighted) {
-      const std::vector<weight_t> w(static_cast<std::size_t>(columns), weight_t{1});
-      b.insert_edge(u, v, host_view(w));
-    } else {
-      b.insert_edge(u, v);
-    }
-  };
   for (const backend be : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(be)));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
-      std::mt19937_64 rng(7000);
-      graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
-      kit_detail::chain<TypeParam> c(kit_detail::resources_for(be), model, p.props);
-      const auto before = c.take();
-      // Rejected: nothing changes, and the result stays current and usable.
-      const auto expect_rejected = [&](const batch_t& b, const char* what) {
-        SCOPED_TRACE(what);
-        const std::uint64_t version = c.g->version();
-        EXPECT_THROW((void)c.step(b), invalid_argument_error);
-        EXPECT_EQ(c.g->version(), version);
-        EXPECT_EQ(c.r->graph_version(), c.g->version());
-        EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
-      };
-      {
-        batch_t b = make_batch();
-        insert(b, vertex_t{-1}, vertex_t{0});
-        expect_rejected(b, "an insertion with a negative id");
-      }
-      {
-        batch_t b = make_batch();
-        b.delete_edge(vertex_t{0}, vertex_t{-2});
-        expect_rejected(b, "a deletion with a negative id");
-      }
-      if constexpr (weighted) {
-        // One weight column more than the graph has (K + 1 for a K-column graph).
-        batch_t b(columns + 1);
-        const std::vector<weight_t> w(static_cast<std::size_t>(columns) + 1, weight_t{1});
-        b.insert_edge(vertex_t{0}, vertex_t{1}, host_view(w));
-        expect_rejected(b, "a batch with one weight column more than the graph has");
-      }
-      // Bad options: each must throw invalid_argument_error.
-      for (const std::function<void()>& bad : traits::invalid_options(c.res, *c.g)) {
-        EXPECT_THROW(bad(), invalid_argument_error) << "an invalid option was accepted";
-      }
-      // The result still updates.
-      EXPECT_NO_THROW((void)c.step(batch_t{}));
-      // Counted as skipped: a deletion of a missing edge, and (set semantics) an insertion of an
-      // existing edge and a self-loop.
-      vertex_t u = 0;
-      vertex_t v = 0;
-      for (vertex_t x = 0; x < model.num_vertices && u == v; ++x) {
-        for (vertex_t y = 0; y < model.num_vertices; ++y) {
-          if (x != y && !model.has(x, y)) {
-            u = x;
-            v = y;
-            break;
-          }
-        }
-      }
-      ASSERT_NE(u, v) << "the generated graph is complete";
-      {
-        batch_t b = make_batch();
-        b.delete_edge(u, v);
-        const auto s = c.step(b);
-        EXPECT_EQ(s.batch.ignored_deletions, model.directions())
-            << "a deletion of a missing edge is counted (once per stored direction)";
-        EXPECT_EQ(s.affected, 0);
-        EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
-      }
-      if (p.props.semantics.as_sets && !model.weights.empty()) {
-        const auto existing = model.weights.begin()->first;
-        batch_t b = make_batch();
-        insert(b, existing.first, existing.second);
-        insert(b, vertex_t{0}, vertex_t{0});
-        const auto s = c.step(b);
-        EXPECT_EQ(s.batch.ignored_insertions, model.directions())
-            << "an insertion of an existing edge is counted (once per stored direction)";
-        EXPECT_EQ(s.batch.dropped_self_loops, 1) << "a self-loop is dropped and counted";
-        EXPECT_EQ(s.affected, 0);
-        EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
-      }
-      // Duplicates in one batch: the result still equals compute().
-      {
-        batch_t b = make_batch();
-        insert(b, u, v);
-        insert(b, u, v);
-        (void)c.step(b);
-        kit_detail::expect_oracle(c);
-      }
-      // A deletion of a missing edge under missing_delete::error is rejected.
-      {
-        graph_properties strict = p.props;
-        strict.semantics.on_missing_delete = batch_semantics::missing_delete::error;
-        kit_detail::chain<TypeParam> s(kit_detail::resources_for(be), model, strict);
-        const auto strict_before = s.take();
-        batch_t b = make_batch();
-        b.delete_edge(u, v);
-        const std::uint64_t version = s.g->version();
-        EXPECT_THROW((void)s.step(b), invalid_argument_error);
-        EXPECT_EQ(s.g->version(), version);
-        EXPECT_TRUE(kit_detail::same<traits>(strict_before, s.take()));
+      container_checks<TypeParam>::invalid_input(be, p);
+      if (::testing::Test::HasFatalFailure()) {
+        return;
       }
     }
   }
@@ -913,7 +1180,7 @@ TYPED_TEST_P(conformance, C7_InvalidInputIsRejectedOrCounted) {
 // without cooperative launch runs that engine under engine::automatic: M7).
 TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
   using traits = typename TypeParam::traits;
-  using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   if (!detail::budgets_enabled()) {
     GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build (the dev presets are)";
   }
@@ -923,11 +1190,11 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
   const fw::strict_budgets_scope strict;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
       for (const size_class size : {size_class::small, size_class::medium}) {
-        for (const batch_mix mix : {batch_mix::mixed, batch_mix::local, batch_mix::reweight}) {
-          if (!kit_detail::mix_applies<graph_t>(mix, p.props)) {
+        for (const auto mix : ct::mixes(kit_check::c8)) {
+          if (!ct::mix_applies(mix, p.props)) {
             continue;
           }
           SCOPED_TRACE("mix " + std::string(to_string(mix)));
@@ -938,9 +1205,9 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
               break;  // engine::automatic already measured the operators engine
             }
             std::mt19937_64 rng(8000 + static_cast<std::uint64_t>(mix));
-            graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size, rng);
-            const graph_model<graph_t> base = model;
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
+            typename ct::model_type model = kit_detail::model_of<TypeParam>(size, rng);
+            const typename ct::model_type base = model;
+            const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
             const resources res = kit_detail::resources_for(b);
             // The steady state ("once reserved"): a twin result on the same graph takes the same
             // batch first, so the handle's pooled workspaces have the batch's shapes; the measured
@@ -960,12 +1227,12 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
                 single_engine = true;  // the backend does not run this engine
                 break;
               }
-              (void)warm->step(gen.batch);
+              (void)warm->step(ct::batch_of(gen));
               measured.emplace(res, base, p.props, e);
               host_allocation_counter armed;
               counted = armed.counting();
               try {
-                stats = measured->step(gen.batch);
+                stats = measured->step(ct::batch_of(gen));
               } catch (const internal_error& err) {
                 ADD_FAILURE() << "the budget check failed: " << err.what();
                 break;
@@ -1019,33 +1286,24 @@ TYPED_TEST_P(conformance, C8_TheAlgorithmPhaseStaysWithinItsBudget) {
 // C9: stats sanity.
 TYPED_TEST_P(conformance, C9_StatsAreSane) {
   using traits = typename TypeParam::traits;
-  using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
-      for (const batch_mix mix : all_mixes()) {
-        if (!kit_detail::mix_applies<graph_t>(mix, p.props)) {
+      for (const auto mix : ct::mixes(kit_check::c9)) {
+        if (!ct::mix_applies(mix, p.props)) {
           continue;
         }
         SCOPED_TRACE("mix " + std::string(to_string(mix)));
         std::mt19937_64 rng(9000 + static_cast<std::uint64_t>(mix));
-        graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
+        typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
         kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
         for (int step = 0; step < 3; ++step) {
-          const generated_batch<graph_t> gen = random_batch(model, mix, rng, p.props.semantics);
-          const auto s = c.step(gen.batch);
-          const apply_summary& a = s.batch;
-          EXPECT_GE(s.affected, 0);
-          EXPECT_LE(s.affected, std::max<std::int64_t>(a.num_vertices_after, 1));
-          EXPECT_EQ(a.num_vertices_after, static_cast<std::int64_t>(c.g->num_vertices()));
-          const auto requested =
-              static_cast<std::int64_t>(gen.batch.num_insertions() + gen.batch.num_deletions()) *
-              model.directions();  // an undirected graph counts each direction
-          EXPECT_EQ(a.inserted_edges + a.updated_edges + a.ignored_insertions + a.deleted_edges +
-                        a.ignored_deletions + a.dropped_self_loops,
-                    requested)
-              << "applied + skipped != requested";
+          const typename ct::generated_type gen = ct::random_batch(model, mix, rng, p.props);
+          const auto s = c.step(ct::batch_of(gen));
+          ct::observe(model, gen, s.batch);
+          container_checks<TypeParam>::stats_sane(c.res, s, gen, model, *c.g);
           EXPECT_NE(s.engine_used, engine::automatic) << "the stats name the engine that ran";
           EXPECT_TRUE(s.converged);
         }
@@ -1059,12 +1317,13 @@ TYPED_TEST_P(conformance, C9_StatsAreSane) {
 TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
   using traits = typename TypeParam::traits;
   using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   int partners = 0;
-  for_each_type(registered_algorithms{}, [&](auto* partner_tag) {
+  for_each_type(typename kit_detail::partners_of<traits>::type{}, [&](auto* partner_tag) {
     using partner_tag_t = std::remove_pointer_t<decltype(partner_tag)>;
     using partner = test_traits<partner_tag_t>;
     if constexpr (!std::is_same_v<partner_tag_t, typename TypeParam::tag> &&
-                  contains_v<typename partner::graph_types, graph_t>) {
+                  contains_v<typename kit_detail::container_types_of<partner>::type, graph_t>) {
       using partner_case = suite_case<partner_tag_t, graph_t>;
       for (const backend b : kit_detail::backends<traits>()) {
         const std::vector<backend> theirs = kit_detail::backends<partner>();
@@ -1074,28 +1333,15 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
         ++partners;
         SCOPED_TRACE(std::string(traits::name) + " with " + std::string(partner::name) + " on " +
                      std::string(to_string(b)));
-        // 0: upsert_last_wins(), 1: set(), 2: upsert_last_wins() with the insertions first.
-        for (const int variant : {0, 1, 2}) {
-          const bool as_sets = variant == 1;
-          SCOPED_TRACE(variant == 0   ? "upsert_last_wins()"
-                       : variant == 1 ? "set()"
-                                      : "upsert_last_wins(), insertions first");
-          // A graph meeting both algorithms' requirements.
-          graph_properties props;
-          props.semantics.deletions_first = variant != 2;
-          traits::require(props);
-          partner::require(props);
-          if (as_sets) {
-            props.semantics = batch_semantics::set();
-          }
-          graph_shape shape = traits::shape(size_class::small);
-          const graph_shape theirs_shape = partner::shape(size_class::small);
-          shape.vertices = std::min(shape.vertices, theirs_shape.vertices);
-          shape.edges = std::min(shape.edges, theirs_shape.edges);
+        // A container meeting both algorithms' requirements, under each composition preset (graphs:
+        // upsert_last_wins(), set(), upsert_last_wins() with the insertions first).
+        const auto composition = ct::template composition_presets<traits, partner>();
+        for (std::size_t variant = 0; variant < composition.size(); ++variant) {
+          SCOPED_TRACE(composition[variant].label);
+          const auto& props = composition[variant].props;
           std::mt19937_64 rng(10000 + static_cast<std::uint64_t>(variant));
-          graph_model<graph_t> model = random_model<graph_t>(shape, rng, props.directed);
-          model.num_weights =
-              std::max(kit_detail::weight_columns<traits>(), kit_detail::weight_columns<partner>());
+          typename ct::model_type model =
+              ct::template composition_model<traits, partner>(props, rng);
           const resources res = kit_detail::resources_for(b);
           // Both results on one graph (plus one left out of the updates), and each alone on a
           // graph of its own.
@@ -1109,27 +1355,28 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
           kit_detail::chain<partner_case> alone_partner(res, model, props);
           for (int step = 0; step < 3; ++step) {
             SCOPED_TRACE("batch " + std::to_string(step));
-            const batch_mix mix = step == 2   ? batch_mix::grow
-                                  : step == 1 ? batch_mix::cancel
-                                              : batch_mix::mixed;
-            const generated_batch<graph_t> gen = random_batch(model, mix, rng, props.semantics);
+            const auto mix = ct::composition_mix(step);
+            const typename ct::generated_type gen = ct::random_batch(model, mix, rng, props);
+            const auto& batch = ct::batch_of(gen);
             typename traits::stats s_mine;
             typename partner::stats s_partner;
             if (step % 2 == 0) {
               std::tie(s_mine, s_partner) =
-                  dyng::update(res, *joint.g, gen.batch.view(), *joint.r, *joint_partner);
+                  dyng::update(res, *joint.g, batch.view(), *joint.r, *joint_partner);
             } else {
               std::tie(s_partner, s_mine) =
-                  dyng::update(res, *joint.g, gen.batch.view(), *joint_partner, *joint.r);
+                  dyng::update(res, *joint.g, batch.view(), *joint_partner, *joint.r);
             }
-            const auto a_mine = alone.step(gen.batch);
-            const auto a_partner = alone_partner.step(gen.batch);
+            ct::observe(model, gen, s_mine.batch);
+            const auto a_mine = alone.step(batch);
+            const auto a_partner = alone_partner.step(batch);
             EXPECT_TRUE(kit_detail::same<traits>(alone.take(), joint.take()));
             EXPECT_TRUE(kit_detail::same<partner>(
                 alone_partner.take(), partner::template take<graph_t>(res, *joint_partner)));
-            EXPECT_EQ(kit_detail::counters<traits>(s_mine), kit_detail::counters<traits>(a_mine));
-            EXPECT_EQ(kit_detail::counters<partner>(s_partner),
-                      kit_detail::counters<partner>(a_partner));
+            EXPECT_EQ((kit_detail::counters<traits, graph_t>(s_mine)),
+                      (kit_detail::counters<traits, graph_t>(a_mine)));
+            EXPECT_EQ((kit_detail::counters<partner, graph_t>(s_partner)),
+                      (kit_detail::counters<partner, graph_t>(a_partner)));
             EXPECT_EQ(joint.r->graph_version(), joint.g->version());
             EXPECT_EQ(joint_partner->graph_version(), joint.g->version());
           }
@@ -1154,20 +1401,22 @@ TYPED_TEST_P(conformance, C10_OneUpdateOfSeveralResultsEqualsSeparateUpdates) {
 TYPED_TEST_P(conformance, C11_StaleResultsAreDetected) {
   using traits = typename TypeParam::traits;
   using graph_t = typename TypeParam::graph_type;
+  using ct = kit_detail::axis<TypeParam>;
   for (const backend b : kit_detail::backends<traits>()) {
     SCOPED_TRACE(std::string(to_string(b)));
     std::mt19937_64 rng(11000);
-    graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::small, rng);
-    const kit_detail::preset p = kit_detail::presets<traits>().front();
+    typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::small, rng);
+    const kit_detail::preset_of<TypeParam> p = kit_detail::presets<TypeParam>().front();
     kit_detail::chain<TypeParam> c(kit_detail::resources_for(b), model, p.props);
     const auto before = c.take();
     // A separate g.apply(): the result is stale, and update() changes nothing.
-    const generated_batch<graph_t> gen = random_batch(model, batch_mix::mixed, rng);
-    (void)c.g->apply(c.res, gen.batch.view());
+    const typename ct::generated_type gen = ct::random_batch(model, ct::stale_mix(), rng);
+    ct::observe(model, gen, c.g->apply(c.res, ct::batch_of(gen).view()));
     const std::uint64_t version = c.g->version();
     using batch_t = typename kit_detail::chain<TypeParam>::batch_type;
     EXPECT_THROW((void)c.step(batch_t{}), stale_result_error);
-    EXPECT_THROW((void)dyng::update(c.res, *c.g, gen.batch.view(), *c.r), stale_result_error);
+    EXPECT_THROW((void)dyng::update(c.res, *c.g, ct::batch_of(gen).view(), *c.r),
+                 stale_result_error);
     EXPECT_EQ(c.g->version(), version);
     EXPECT_TRUE(kit_detail::same<traits>(before, c.take()));
     // A result of another graph (built from the same edges, at the same version) is stale for
@@ -1203,20 +1452,21 @@ TYPED_TEST_P(conformance, C12_NonDefaultStreamsOrderTheWork) {
   {
     const resources on_a = resources::cuda(0, stream_ref(a));
     const resources on_s = resources::cuda(0, stream_ref(s));
-    for (const kit_detail::preset& p : kit_detail::presets<traits>()) {
+    using ct = kit_detail::axis<TypeParam>;
+    for (const auto& p : kit_detail::presets<TypeParam>()) {
       SCOPED_TRACE(p.label);
       std::mt19937_64 rng(12000);
-      graph_model<graph_t> model = kit_detail::model_of<TypeParam>(size_class::medium, rng);
+      typename ct::model_type model = kit_detail::model_of<TypeParam>(size_class::medium, rng);
       kit_detail::chain<TypeParam> host(resources::sequential(), model, p.props);
       kit_detail::chain<TypeParam> device(on_a, model, p.props);
       for (int step = 0; step < 4; ++step) {
         SCOPED_TRACE("batch " + std::to_string(step));
-        const generated_batch<graph_t> gen =
-            random_batch(model, step == 3 ? batch_mix::grow : batch_mix::heavy, rng);
-        (void)host.step(gen.batch);
+        const typename ct::generated_type gen = ct::random_batch(model, ct::stream_mix(step), rng);
+        ct::observe(model, gen, host.step(ct::batch_of(gen)).batch);
         // Alternate the streams: each call orders its work on its own stream.
         device.res = step % 2 == 0 ? on_s : on_a;
-        (void)device.step(gen.batch);
+        (void)device.step(ct::batch_of(gen));
+        (void)sizeof(graph_t);
         EXPECT_TRUE(kit_detail::same<traits>(host.take(), device.take()));
       }
     }

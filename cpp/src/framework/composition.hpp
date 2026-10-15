@@ -19,6 +19,15 @@
  *   - `dyng::update(res, g, batch, r1, r2, ...)` builds one participant per result with
  *     make_participant<problem_t>(...) (each algorithm's update_traits) and runs them together:
  *     every Step 0 and 1a on G_t, one commit, every Step 1b and 2 on G_{t+1}.
+ *
+ * The same adapter serves both containers (ADR 0043): composition_detail::graph_types<container>
+ * names, per container, the participant interface, the batch view, what the hooks see before
+ * (requested) and after (applied) the commit, Step 0's normalized batch, the summary of the
+ * commit (the type of stats::batch) and the record the participant receives with it. For
+ * hypergraph<V,W> these are hyper_update_participant, hyperedge_batch_view, hyper_requested_batch,
+ * hyper_applied_batch, hyper_staged_batch (the transaction's Step 0), hyper_apply_summary and
+ * hyper_applied (the applied record), and run_update() is the hypergraph's
+ * (cpp/src/hypergraph/hyper_update.cpp).
  */
 #pragma once
 
@@ -27,6 +36,7 @@
 #include "framework/views.hpp"
 #include "graph/graph_impl.hpp"
 #include "graph/normalized_batch.hpp"
+#include "hypergraph/hypergraph_impl.hpp"
 
 #include <dyng/core/error.hpp>
 #include <dyng/core/profiler.hpp>
@@ -34,6 +44,9 @@
 #include <dyng/graph/apply_summary.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/graph.hpp>
+#include <dyng/hypergraph/hyper_apply_summary.hpp>
+#include <dyng/hypergraph/hyperedge_batch.hpp>
+#include <dyng/hypergraph/hypergraph.hpp>
 #include <dyng/update.hpp>
 
 #include <cstdint>
@@ -74,14 +87,43 @@ struct applied_batch {
   const normalized_batch<vertex_t>* normalized;
 };
 
+/**
+ * @brief A hypergraph batch as the hooks before the commit see it (normalize, prepare,
+ *        before_apply, count(-)).
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename weight_t>
+struct hyper_requested_batch {
+  const hyperedge_batch_view<vertex_t, weight_t>& hyperedges;  ///< the requested batch (host)
+  /// Step 0, computed once by run_update() for every participant and the commit (the
+  /// transaction's staged batch: the live deletions of G_t, the inserted rows normalized).
+  const hyper_staged_batch<weight_t>* normalized;
+};
+
+/**
+ * @brief What the commit of a hypergraph batch did, as the hooks after it see it (resume,
+ *        identify_affected, count(+), enact_fused).
+ * @tparam vertex_t Vertex id type.
+ * @tparam weight_t Weight type.
+ */
+template <typename vertex_t, typename weight_t>
+struct hyper_applied_batch {
+  const hyper_apply_summary& summary;  ///< the counters and the inserted ids of the commit
+  /// The applied record: inserted ids on the host and (CUDA) the device, deleted ids with their
+  /// members, touched hyperedges and vertices, the skipped counts.
+  const hyper_applied& record;
+  const hyper_staged_batch<weight_t>* normalized;  ///< Step 0 (as in hyper_requested_batch)
+};
+
 /// Detection of the optional parts of a problem for the adapter.
 namespace composition_detail {
 
-template <typename stats_t, typename = void>
+template <typename stats_t, typename summary_t, typename = void>
 struct has_batch_summary : std::false_type {};
-template <typename stats_t>
-struct has_batch_summary<stats_t, std::void_t<decltype(std::declval<stats_t&>().batch)>>
-    : std::is_same<std::decay_t<decltype(std::declval<stats_t&>().batch)>, apply_summary> {};
+template <typename stats_t, typename summary_t>
+struct has_batch_summary<stats_t, summary_t, std::void_t<decltype(std::declval<stats_t&>().batch)>>
+    : std::is_same<std::decay_t<decltype(std::declval<stats_t&>().batch)>, summary_t> {};
 
 template <typename container_t>
 struct graph_types;
@@ -92,6 +134,22 @@ struct graph_types<graph<vertex_t, edge_t, weight_t>> {
   using requested = requested_batch<vertex_t, weight_t>;
   using applied = applied_batch<vertex_t>;
   using normalized = normalized_batch<vertex_t>;
+  using summary = apply_summary;         ///< stats::batch
+  using record = apply_delta<vertex_t>;  ///< what after_apply() receives with the summary
+  /// reads_prepared_graph() of a problem that does not say: the in-edges / device copy.
+  static constexpr bool reads_prepared_default = true;
+};
+template <typename vertex_t, typename weight_t>
+struct graph_types<hypergraph<vertex_t, weight_t>> {
+  using participant = hyper_update_participant<vertex_t, weight_t>;
+  using batch = hyperedge_batch_view<vertex_t, weight_t>;
+  using requested = hyper_requested_batch<vertex_t, weight_t>;
+  using applied = hyper_applied_batch<vertex_t, weight_t>;
+  using normalized = hyper_staged_batch<weight_t>;
+  using summary = hyper_apply_summary;  ///< stats::batch
+  using record = hyper_applied;         ///< what after_apply() receives with the summary
+  /// reads_prepared_graph() of a problem that does not say: the line graph is not required.
+  static constexpr bool reads_prepared_default = false;
 };
 
 }  // namespace composition_detail
@@ -103,8 +161,9 @@ struct graph_types<graph<vertex_t, edge_t, weight_t>> {
  * The adapter owns the problem (constructed from the arguments after `out`, typically the
  * result), its context and its enactor for the length of one update. Its stats are written to
  * `out` only when the update succeeds (the out-parameter of a failed update keeps its value).
- * @tparam problem_t The problem; its container_type is graph<V,E,W>, and it provides
- *                   `const void* target() const` (the result it updates, to reject duplicates).
+ * @tparam problem_t The problem; its container_type is graph<V,E,W> or hypergraph<V,W>, and it
+ *                   provides `const void* target() const` (the result it updates, to reject
+ *                   duplicates).
  */
 template <typename problem_t>
 class problem_participant final
@@ -140,14 +199,16 @@ class problem_participant final
   }
 
   /**
-   * @brief Whether the commit prepares the in-edges / device copy for this problem.
-   * @return problem.reads_prepared_graph(), true if the problem does not say.
+   * @brief Whether the commit prepares the in-edges / device copy (graphs), or the update keeps
+   *        the line graph (hypergraphs), for this problem.
+   * @return problem.reads_prepared_graph(); if the problem does not say, true for graphs and
+   *         false for hypergraphs.
    */
   [[nodiscard]] bool reads_prepared_graph() const noexcept override {
     if constexpr (is_provided_v<decltype(problem_.reads_prepared_graph())>) {
       return problem_.reads_prepared_graph();
     } else {
-      return true;
+      return types::reads_prepared_default;
     }
   }
 
@@ -178,15 +239,18 @@ class problem_participant final
    * @param[in] res     Execution resources (the same as in before_apply()).
    * @param[in] g       G_{t+1}.
    * @param[in] summary What the commit did.
-   * @param[in] delta   The changes the commit applied as requested (apply_delta).
+   * @param[in] record  Graphs: the changes the commit applied as requested (apply_delta);
+   *                    hypergraphs: the applied record (hyper_applied).
    */
-  void after_apply(const resources& res, const graph_type& g, const apply_summary& summary,
-                   const apply_delta<typename graph_type::vertex_type>& delta) override {
+  void after_apply(const resources& res, const graph_type& g,
+                   const typename types::summary& summary,
+                   const typename types::record& record) override {
     (void)res;
     const new_view<graph_type> view(g);
-    const typename types::applied applied{summary, delta, normalized_};
+    const typename types::applied applied{summary, record, normalized_};
     stats_type stats;
-    if constexpr (composition_detail::has_batch_summary<stats_type>::value) {
+    if constexpr (composition_detail::has_batch_summary<stats_type,
+                                                        typename types::summary>::value) {
       stats.batch = summary;
     }
     enactor_.after_commit(*ctx_, view, applied, stats);
@@ -265,9 +329,40 @@ typename problem_t::stats_type update_one(
 }
 
 /**
+ * @brief The state identity of a container (ADR 0006, "Graph identity").
+ * @param[in] g The graph.
+ * @return Its state identifier.
+ */
+template <typename vertex_t, typename edge_t, typename weight_t>
+std::uint64_t state_identity(const graph<vertex_t, edge_t, weight_t>& g) {
+  return graph_access::impl(g).state_id;
+}
+
+/**
+ * @brief The state identity of a hypergraph.
+ * @param[in] h The hypergraph.
+ * @return Its state identifier.
+ */
+template <typename vertex_t, typename weight_t>
+std::uint64_t state_identity(const hypergraph<vertex_t, weight_t>& h) {
+  return hypergraph_access::state_id(h);
+}
+
+/// The container's name in the stale-result messages.
+template <typename vertex_t, typename edge_t, typename weight_t>
+constexpr const char* container_noun(const graph<vertex_t, edge_t, weight_t>& /*g*/) {
+  return "graph";
+}
+/// @copydoc container_noun
+template <typename vertex_t, typename weight_t>
+constexpr const char* container_noun(const hypergraph<vertex_t, weight_t>& /*h*/) {
+  return "hypergraph";
+}
+
+/**
  * @brief The stale-result checks every update() makes before Step 0 (ADR 0006, "Graph
- *        identity"): the result must match the graph's version and its state identifier.
- * @tparam graph_t The graph type.
+ *        identity"): the result must match the container's version and its state identifier.
+ * @tparam graph_t The container type (graph or hypergraph).
  * @param[in] function    The call, for the message (e.g. "sssp::update").
  * @param[in] version     The graph version the result matches.
  * @param[in] graph_state The graph state identifier the result matches.
@@ -277,25 +372,26 @@ typename problem_t::stats_type update_one(
 template <typename graph_t>
 void expect_current_result(std::string_view function, std::uint64_t version,
                            std::uint64_t graph_state, const graph_t& g) {
+  const char* noun = container_noun(g);
   if (version != g.version()) {
     throw stale_result_error(concat_message(
-        "dyng: ", function, ": the result matches graph version ", version,
-        " but the graph is at version ", g.version(),
-        " (the graph was changed without updating this result; recompute it, or update all "
-        "results together with dyng::update(res, g, batch, results...))"));
+        "dyng: ", function, ": the result matches ", noun, " version ", version, " but the ", noun,
+        " is at version ", g.version(), " (the ", noun,
+        " was changed without updating this result; recompute it, or update all results "
+        "together with dyng::update(res, g, batch, results...))"));
   }
-  if (graph_state != graph_access::impl(g).state_id) {
-    throw stale_result_error(concat_message(
-        "dyng: ", function,
-        ": the result was computed on another graph (or on an earlier state of a graph variable "
-        "that was reassigned since), although both are at version ",
-        g.version(), "; recompute it on this graph"));
+  if (graph_state != state_identity(g)) {
+    throw stale_result_error(
+        concat_message("dyng: ", function, ": the result was computed on another ", noun,
+                       " (or on an earlier state of a ", noun,
+                       " variable that was reassigned since), although both are at version ",
+                       g.version(), "; recompute it on this ", noun));
   }
 }
 
 /**
- * @brief Record the graph state a result matches after compute() or a successful update().
- * @tparam graph_t The graph type.
+ * @brief Record the container state a result matches after compute() or a successful update().
+ * @tparam graph_t The container type (graph or hypergraph).
  * @param[out] version     Receives g.version().
  * @param[out] graph_state Receives the graph's state identifier.
  * @param[in]  g           The graph.
@@ -303,7 +399,7 @@ void expect_current_result(std::string_view function, std::uint64_t version,
 template <typename graph_t>
 void stamp_result(std::uint64_t& version, std::uint64_t& graph_state, const graph_t& g) {
   version = g.version();
-  graph_state = graph_access::impl(g).state_id;
+  graph_state = state_identity(g);
 }
 
 }  // namespace dyng::detail::framework

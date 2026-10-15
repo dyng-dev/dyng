@@ -1,0 +1,635 @@
+{
+ "schema": 2,
+ "what": "mutation checks of the golden parity (PLAN 8.4): cbst, hypergraph, kit",
+ "date": "2026-10-14T11:18:10Z",
+ "commit": "1f05995e718008b3ebdd5d0a580753b0caa98e76",
+ "goldens": {
+  "sssp": "sssp (MOSP-OpenMP@c352151; the mosp outputs included), parity/goldens.toml",
+  "cycle_count": "cycle_count and cycle_count_cuda (CycleEnumeration-GPU@0a976ad), parity/goldens.toml",
+  "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the lockstep and graph-on-CBST tests (no golden corpus)",
+  "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/{cbst_trace,hypergraph_batches}) and the container's lockstep tests"
+ },
+ "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst test executables, from git archive HEAD",
+ "results": [
+  {
+   "name": "control",
+   "plan": "no mutation",
+   "suite": "cbst,hypergraph,kit",
+   "config": "cuda,sequential",
+   "build": "ok",
+   "replays": [
+    {
+     "suite": "cbst",
+     "config": "cuda",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "cuda": 0
+     },
+     "tests": {
+      "dyng_cbst_device_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_cbst_policy_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_cbst_graph_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    },
+    {
+     "suite": "hypergraph",
+     "config": "sequential",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "sequential": 0
+     },
+     "tests": {
+      "dyng_hypergraph_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_ids_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_ids_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    },
+    {
+     "suite": "kit",
+     "config": "sequential",
+     "rc": 0,
+     "passed": true,
+     "failed_cases": {
+      "sequential": 0
+     },
+     "tests": {
+      "dyng_hypergraph_kit_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      },
+      "dyng_hypergraph_kit_cuda_tests": {
+       "rc": 0,
+       "complete": true,
+       "failed": []
+      }
+     }
+    }
+   ],
+   "detected": null,
+   "verdict": "passed"
+  },
+  {
+   "name": "cbst_unfill_drops_last",
+   "suite": "cbst",
+   "plan": "M8a 17: remove_values ignores the last value of each removal list (MOSP_ESCHER #4, the triad mutation)",
+   "defines": [
+    "DYNG_MUTATION_CBST_UNFILL_DROPS_LAST"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 13
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstDeviceReplay.EscherGpuTracesMatchExactly",
+      "CbstDeviceReplay.MospEscherTracesDivergeWhereTheModelDoes",
+      "CbstDeviceReplay.MospEscherTracesMatchUnderMospEscher"
+     ]
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/mosp_escher"
+     ]
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstGraphTrace.MospEschersRoundtripTraceReplays",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/dyng_default",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/escher_gpu",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/mosp_escher",
+      "Presets/CbstGraph.TheRoundtripGraph/dyng_default",
+      "Presets/CbstGraph.TheRoundtripGraph/escher_gpu",
+      "Presets/CbstGraph.TheRoundtripGraph/mosp_escher"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_graph_own_ids",
+   "suite": "cbst",
+   "plan": "M8a 17: graph-on-CBST keeps its own edge ids (MOSP_ESCHER #5)",
+   "defines": [
+    "DYNG_MUTATION_CBST_GRAPH_OWN_IDS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 6
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/dyng_default",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/escher_gpu",
+      "Presets/CbstGraph.RandomRoundsAgreeWithGraphApply/mosp_escher",
+      "Presets/CbstGraph.TheRoundtripGraph/dyng_default",
+      "Presets/CbstGraph.TheRoundtripGraph/escher_gpu",
+      "Presets/CbstGraph.TheRoundtripGraph/mosp_escher"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_reversed_ties",
+   "suite": "cbst",
+   "plan": "M8a 17: reversed best-fit tie order",
+   "defines": [
+    "DYNG_MUTATION_CBST_REVERSED_TIES"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 13
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstDeviceReplay.EscherGpuTracesMatchExactly",
+      "CbstDeviceReplay.MospEscherTracesDivergeWhereTheModelDoes",
+      "CbstDeviceReplay.MospEscherTracesMatchUnderMospEscher"
+     ]
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/mosp_escher",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/mosp_escher",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/dyng_default",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/escher_gpu",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/mosp_escher"
+     ]
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstGraphTrace.MospEschersRoundtripTraceReplays"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_surplus_rule1",
+   "suite": "cbst",
+   "plan": "M8a 17: surplus rows padded with rule 1 instead of rule 2",
+   "defines": [
+    "DYNG_MUTATION_CBST_SURPLUS_RULE1"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 12
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstDeviceReplay.EscherGpuTracesMatchExactly",
+      "CbstDeviceReplay.MospEscherTracesDivergeWhereTheModelDoes",
+      "CbstDeviceReplay.MospEscherTracesMatchUnderMospEscher"
+     ]
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/mosp_escher",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/mosp_escher",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/dyng_default",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/escher_gpu",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/mosp_escher"
+     ]
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_keep_dead_slots",
+   "suite": "cbst",
+   "plan": "M8a 17: a surplus rebuild that keeps unmatched dead slots",
+   "defines": [
+    "DYNG_MUTATION_CBST_KEEP_DEAD_SLOTS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 9
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstDeviceReplay.EscherGpuTracesMatchExactly",
+      "CbstDeviceReplay.MospEscherTracesDivergeWhereTheModelDoes",
+      "CbstDeviceReplay.MospEscherTracesMatchUnderMospEscher"
+     ]
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/mosp_escher",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/mosp_escher"
+     ]
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_compaction_padding",
+   "suite": "cbst",
+   "plan": "M8a 17: compaction padding changed",
+   "defines": [
+    "DYNG_MUTATION_CBST_COMPACTION_PADDING"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 4
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstDeviceReplay.MospEscherTracesMatchUnderMospEscher"
+     ]
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/mosp_escher"
+     ]
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "cbst_requested_keys",
+   "suite": "cbst",
+   "plan": "M8a 17: requested keys honoured",
+   "defines": [
+    "DYNG_MUTATION_CBST_REQUESTED_KEYS"
+   ],
+   "config": "cuda",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "cuda": 12
+   },
+   "tests": {
+    "dyng_cbst_device_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "CbstDeviceReplay.EscherGpuTracesMatchExactly",
+      "CbstDeviceReplay.MospEscherTracesDivergeWhereTheModelDoes",
+      "CbstDeviceReplay.MospEscherTracesMatchUnderMospEscher"
+     ]
+    },
+    "dyng_cbst_policy_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.ManyTiesMatchTheHostModel/mosp_escher",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/dyng_default",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/escher_gpu",
+      "Presets/CbstPresetLockstep.RandomSequencesAgreeWithTheHostModel/mosp_escher",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/dyng_default",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/escher_gpu",
+      "Presets/CbstPresetLockstep.RequestedKeysDoNotChangeTheMapping/mosp_escher"
+     ]
+    },
+    "dyng_cbst_graph_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hypergraph_h2v_not_deduplicated",
+   "suite": "hypergraph",
+   "plan": "M8b 20: the h2v insert payload is not deduplicated (MOSP_ESCHER #6)",
+   "defines": [
+    "DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 10
+   },
+   "tests": {
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphBackends.SkippedOpsCountDeadOutOfRangeRepeatedAndDuplicates/openmp",
+      "Backends/HypergraphBackends.SkippedOpsCountDeadOutOfRangeRepeatedAndDuplicates/sequential",
+      "HypergraphRandom.OpenmpThreadCountsAgree",
+      "HypergraphRandom.UnweightedStreamsMatchTheModelOnEveryBackend",
+      "HypergraphRandom.WeightedStreamsMatchTheModelOnEveryBackend"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphBackends.SkippedOpsCountDeadOutOfRangeRepeatedAndDuplicates/cuda",
+      "HypergraphCuda.RepeatedRunsGiveIdenticalIds",
+      "HypergraphRandom.OpenmpThreadCountsAgree",
+      "HypergraphRandom.UnweightedStreamsMatchTheModelOnEveryBackend",
+      "HypergraphRandom.WeightedStreamsMatchTheModelOnEveryBackend"
+     ]
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hypergraph_allocator_ties_reversed",
+   "suite": "hypergraph",
+   "plan": "M8b 20: the host id allocator's best-fit tie rule reversed",
+   "defines": [
+    "DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 7
+   },
+   "tests": {
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphRandom.UnweightedStreamsMatchTheModelOnEveryBackend",
+      "HypergraphRandom.WeightedStreamsMatchTheModelOnEveryBackend",
+      "IdAllocator.MatchesTheHostModelUnderEveryPreset"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphIds.CommittedTracesGiveTheOriginalsIds"
+     ]
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "HypergraphCuda.RepeatedRunsGiveIdenticalIds",
+      "HypergraphRandom.UnweightedStreamsMatchTheModelOnEveryBackend",
+      "HypergraphRandom.WeightedStreamsMatchTheModelOnEveryBackend"
+     ]
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "hypergraph_mirror_additions_dropped",
+   "suite": "hypergraph",
+   "plan": "M8b 20: the line graph's mirrored additions dropped (the sorted merge, host and device)",
+   "defines": [
+    "DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 24
+   },
+   "tests": {
+    "dyng_hypergraph_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphLineGraph.CloneAndToBackendKeepTheLineGraph/openmp",
+      "Backends/HypergraphLineGraph.CloneAndToBackendKeepTheLineGraph/sequential",
+      "Backends/HypergraphLineGraph.EqualsTheOracleAfterEveryBatch/openmp",
+      "Backends/HypergraphLineGraph.EqualsTheOracleAfterEveryBatch/sequential",
+      "Backends/HypergraphLineGraph.Policies/openmp",
+      "Backends/HypergraphLineGraph.Policies/sequential",
+      "Backends/HypergraphLineGraph.SpecialBatches/openmp",
+      "Backends/HypergraphLineGraph.SpecialBatches/sequential",
+      "Backends/HypergraphUpdate.TheFakesStayEqualToComputeThroughDyngUpdate/openmp",
+      "Backends/HypergraphUpdate.TheFakesStayEqualToComputeThroughDyngUpdate/sequential",
+      "Backends/HypergraphUpdate.WeightedHypergraphsTakePartToo/openmp",
+      "Backends/HypergraphUpdate.WeightedHypergraphsTakePartToo/sequential",
+      "HypergraphRandom.UnweightedStreamsMatchTheModelOnEveryBackend",
+      "HypergraphRandom.WeightedStreamsMatchTheModelOnEveryBackend"
+     ]
+    },
+    "dyng_hypergraph_ids_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    },
+    "dyng_hypergraph_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "Backends/HypergraphLineGraph.CloneAndToBackendKeepTheLineGraph/cuda",
+      "Backends/HypergraphLineGraph.EqualsTheOracleAfterEveryBatch/cuda",
+      "Backends/HypergraphLineGraph.Policies/cuda",
+      "Backends/HypergraphLineGraph.SpecialBatches/cuda",
+      "Backends/HypergraphUpdate.TheFakesStayEqualToComputeThroughDyngUpdate/cuda",
+      "Backends/HypergraphUpdate.WeightedHypergraphsTakePartToo/cuda",
+      "HypergraphCuda.RepeatedRunsGiveIdenticalIds",
+      "HypergraphCuda.TwoContainersOnTwoNonBlockingStreams",
+      "HypergraphRandom.UnweightedStreamsMatchTheModelOnEveryBackend",
+      "HypergraphRandom.WeightedStreamsMatchTheModelOnEveryBackend"
+     ]
+    },
+    "dyng_hypergraph_ids_cuda_tests": {
+     "rc": 0,
+     "complete": true,
+     "failed": []
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  },
+  {
+   "name": "kit_frontier_requested_ids",
+   "suite": "kit",
+   "plan": "M8b 11: the kit's planted bug: frontier = requested ids instead of inserted_ids",
+   "defines": [
+    "DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS"
+   ],
+   "config": "sequential",
+   "build": "ok",
+   "rc": 1,
+   "passed": false,
+   "failed_cases": {
+    "sequential": 12
+   },
+   "tests": {
+    "dyng_hypergraph_kit_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "test_hyper_pairs/conformance/hv32_unweighted.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_unweighted.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_unweighted.C7_InvalidInputIsRejectedOrCounted",
+      "test_hyper_pairs/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    },
+    "dyng_hypergraph_kit_cuda_tests": {
+     "rc": 1,
+     "complete": true,
+     "failed": [
+      "test_hyper_pairs/conformance/hv32_unweighted.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_unweighted.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_unweighted.C7_InvalidInputIsRejectedOrCounted",
+      "test_hyper_pairs/conformance/hv32_w32.C2_UpdateChainsEqualTheOracle",
+      "test_hyper_pairs/conformance/hv32_w32.C5_ABatchAndItsInverseCancel",
+      "test_hyper_pairs/conformance/hv32_w32.C7_InvalidInputIsRejectedOrCounted"
+     ]
+    }
+   },
+   "detected": true,
+   "verdict": "detected"
+  }
+ ],
+ "passed": true
+}

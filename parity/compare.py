@@ -5,7 +5,9 @@
 
 `parity/compare.py cycle_count ...` replays the cycle_count corpus instead
 (parity/cycle_count_goldens.py); `parity/compare.py mosp_scale ...` the paper-scale mosp goldens
-(parity/mosp_scale_goldens.py, M7).
+(parity/mosp_scale_goldens.py, M7); `parity/compare.py cbst_trace ...` the CBST traces through a
+store (parity/cbst_trace_goldens.py, M8a); `parity/compare.py hypergraph_ids ...` their batch
+records through the hypergraph container (parity/hypergraph_ids.py, M8b).
 
     parity/compare.py --exe build/parity/tools/compat/dyng-compat-mosp [options]
     parity/compare.py --driver original --ref <scratch copy of an original> [options]
@@ -359,6 +361,11 @@ def git_head() -> str:
 
 
 def main() -> int:
+    if sys.argv[1:2] == ["hypergraph_ids"]:  # container-level id parity of the hypergraph (M8b)
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import hypergraph_ids
+
+        return hypergraph_ids.compare_main(sys.argv[2:])
     if sys.argv[1:2] == ["cbst_trace"]:  # the CBST traces of ESCHER-GPU and MOSP_ESCHER (M8a)
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import cbst_trace_goldens

@@ -1,0 +1,8 @@
+# The batch extracts of the CBST trace goldens (M8b, ADR 0041, section 11): the batch records of a
+# case, its tree records, and the sizes of its constructs and inserts, written by
+#   parity/escher_trace.py extract-batches $DYNG_SCRATCH/goldens/cbst_trace/<set>/<case>/trace.cbt.zst <file> [--sessions N]
+# and read by the container-level replay (dyng_hypergraph_ids_tests) on the CPU backends in hosted
+# CI. They are format-1 traces without state digests (not for the CBST replay of M8a).
+# <sha256>  <file>  <set>/<case>  <command of the original>  # what it covers
+5bd5286e9b1509c5e50f4c0534ce351a04c99665397dcc3ab519931da01fa5ff  escher_gpu_016-main.cbt  cbst_trace_escher_gpu_test/016-main  build/main --input <abs>/small.hg --batches 3 --batch-size 20 --check --reference --seed 3  # A: 3 batches of 20 on small.hg (erase_first)
+89f1b2f5ad284a2e9590e9350085fb8582757d898bb965d87995fb8130650c5a  mosp_escher_014-test_h2h_delta.cbt  cbst_trace_mosp_escher_test/014-test_h2h_delta (--sessions 9)  <abs>/test_h2h_delta  # B: the first 9 sessions, 10 hyperedge-kind batches (insert_first) and 8 vertex-kind ones that stop their sessions

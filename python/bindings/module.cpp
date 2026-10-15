@@ -71,6 +71,7 @@ NB_MODULE(_core, m) {
   bind_resources(m);
   bind_profiler(m);
   bind_graph(m);
+  bind_hypergraph(m);
   bind_batch(m);
   bind_sssp(m);
   bind_cycle_count(m);

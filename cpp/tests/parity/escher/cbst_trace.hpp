@@ -125,6 +125,31 @@ class reader {
   std::unique_ptr<impl> impl_;
 };
 
+/**
+ * @brief A trace opened for reading: a `.cbt` file (with its `<name>.blob` side file) or a
+ *        `.cbt.zst` file (read through `zstd -dc --long=31`; its `trace.blob.zst` side file is
+ *        decompressed into a temporary file under `tmp_dir`, removed by the destructor).
+ */
+class trace_source {
+ public:
+  /// Opens `path`; throws trace_error when it cannot.
+  trace_source(const std::string& path, const std::string& tmp_dir);
+  ~trace_source();
+  trace_source(const trace_source&) = delete;
+  trace_source& operator=(const trace_source&) = delete;
+  /// The reader.
+  cbst_trace::reader& reader() {
+    return *reader_;
+  }
+
+ private:
+  struct pipe;
+  std::unique_ptr<pipe> pipe_;
+  std::unique_ptr<std::istream> stream_;
+  std::unique_ptr<cbst_trace::reader> reader_;
+  std::string blob_tmp_;
+};
+
 /// FNV-1a 64 of `n` bytes, continuing from `h` (the hash of the trace format).
 std::uint64_t fnv1a64(const void* data, std::size_t n, std::uint64_t h = 0xcbf29ce484222325ULL);
 

@@ -9,9 +9,9 @@ Background and design: why the library is shaped the way it is. These pages expl
 update_model
 backends_and_resources
 results_and_versions
+hypergraphs
 ```
 
-Planned: containers (graph, hypergraph, the ESCHER store, row layouts,
-line-graph policies), batches and their semantics in depth (today: ADR 0010), determinism
+Planned: containers in depth (graph row layouts, the ESCHER store's trees), batches and their semantics in depth (today: ADR 0010), determinism
 levels, errors, ids and sentinels, frontiers and operators (with the Gunrock / cuGraph /
 GraphBLAS name map), tiers and fused engines.

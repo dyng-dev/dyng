@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -242,6 +243,13 @@ struct cbst_store {
   void remove_values(const std::vector<int>& keys_to_unfill,
                      const std::vector<int>& values_to_remove,
                      const std::vector<int>& remove_prefix_sizes);
+  // Moves the bump pointer of a constructed tree to `used` (dynG addition, M8b, ADR 0041): at
+  // least the payload the tree uses now, at most the capacity; the slots between stay unused (they
+  // are zero after a construct). A hypergraph restored from another backend's state (to_backend)
+  // keeps its payload accounting, so later batches compact and grow, and give the same ids, as on
+  // the backend it came from. Throws invalid_argument_error for a poisoned or unconstructed store
+  // or a value out of range; nothing changes then.
+  void set_used_payload(long long used);
   // Compacts the payload (MOSP_ESCHER's compact(); M8a step 4): live rows become single segments
   // of (count + 4) / 4 * 4 slots, deleted rows keep their first segment of `length` slots, emptied,
   // and drop their chains; keys, node positions and avail do not change, the bump pointer moves to
@@ -270,6 +278,12 @@ struct cbst_store {
   // the container's update. An error poisons the store, and a poisoned store throws
   // invalid_argument_error here (its state is undefined). One host synchronization.
   void check_errors();
+  // check_errors() of several stores on one stream (null entries skipped) with one host
+  // synchronization: every store's control block is queued, the stream is waited for once, and
+  // each store throws (and is poisoned) as check_errors() would, in the order given (dynG
+  // addition, M8b review: the container reads its three trees' words once per apply). Stores on
+  // different streams or devices are checked one by one.
+  static void check_errors(std::initializer_list<cbst_store*> stores);
   // The heap position of the node of every key (-1: absent). Throws invalid_argument_error for a
   // poisoned store.
   std::vector<int> find(const std::vector<int>& ids) const;

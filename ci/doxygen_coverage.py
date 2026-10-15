@@ -23,7 +23,12 @@ missing @param / @return. This script reads its XML output and additionally requ
     one @throws, or `noexcept`; destructors are exempt from the latter): every function that
     takes a `resources`, a `stream_ref` or a `memory_resource_ref`, and the members that do
     stream-ordered work with the stream they were built with (STREAM_ORDERED_MEMBERS, the move
-    assignment of `buffer`). The copy and move operations of `resources` itself are exempt.
+    assignment of `buffer`). The copy and move operations of `resources` itself are exempt;
+  * the frozen hypergraph headers (dyng/hypergraph/, M8b; ADR 0047) are held to the freeze's
+    rules: every entity they declare is in the group `hypergraph`; every function they declare
+    (free or member, deleted special members and destructors exempt) documents its exceptions
+    (at least one @throws) or is `noexcept`; and every one that documents a cuda_error (device
+    work, also without a `resources` argument: the views) carries @sync or @async.
 
 Usage: ci/doxygen_coverage.py <doxygen-xml-dir>
 """
@@ -46,6 +51,9 @@ GUARANTEE_CLASSES = {
     "dyng::graph",
     "dyng::edge_batch",
     "dyng::edge_list",
+    "dyng::hypergraph",
+    "dyng::hyperedge_batch",
+    "dyng::hyperedge_list",
     "dyng::sssp::result",
     "dyng::cycle_count::result",
 }
@@ -139,6 +147,69 @@ def is_move_assignment(member: ET.Element) -> bool:
         and len(params) == 1
         and text_of(params[0].find("type")).replace(" ", "").endswith("&&")
     )
+
+
+# The frozen hypergraph headers (M8b, ADR 0047) and the group their entities belong to.
+FROZEN_GROUP_HEADERS = {"dyng/hypergraph/": "hypergraph"}
+
+
+def frozen_group_rules(compounds: dict[str, ET.Element], problems: list[str]) -> None:
+    """The freeze's rules for FROZEN_GROUP_HEADERS (see the module docstring)."""
+
+    def header_of(node: ET.Element) -> tuple[str, str] | None:
+        loc = node.find("location")
+        file = loc.get("file", "") if loc is not None else ""
+        for prefix, group in FROZEN_GROUP_HEADERS.items():
+            if prefix in file:
+                return group, f"{file}:{loc.get('line') if loc is not None else '?'}"
+        return None
+
+    group_of: dict[str, str] = {}
+    for c in compounds.values():
+        if c.get("kind") == "group":
+            g = text_of(c.find("compoundname"))
+            for inner in c.findall("innerclass"):
+                group_of[inner.get("refid", "")] = g
+            for m in c.iter("memberdef"):
+                group_of[m.get("id", "")] = g
+    class_names = {
+        text_of(c.find("compoundname"))
+        for c in compounds.values()
+        if c.get("kind") in ("class", "struct", "union")
+    }
+    for refid, c in compounds.items():
+        kind = c.get("kind")
+        if kind in ("class", "struct", "union"):
+            where = header_of(c)
+            name = text_of(c.find("compoundname"))
+            if where and name.rsplit("::", 1)[0] not in class_names:
+                if group_of.get(refid) != where[0]:
+                    problems.append(f"{where[1]}: {kind} {name} is not in the group {where[0]}")
+        for m in c.iter("memberdef"):
+            where = header_of(m)
+            if where is None or m.get("prot") not in (None, "public"):
+                continue
+            mname = text_of(m.find("qualifiedname")) or text_of(m.find("name"))
+            if kind in ("group", "namespace") and group_of.get(m.get("id", "")) != where[0]:
+                problems.append(f"{where[1]}: {mname} is not in the group {where[0]}")
+            if m.get("kind") != "function":
+                continue
+            args = text_of(m.find("argsstring"))
+            if args.replace(" ", "").endswith("=delete") or text_of(m.find("name")).startswith("~"):
+                continue
+            throws = [
+                text_of(n)
+                for pl in m.iter("parameterlist")
+                if pl.get("kind") == "exception"
+                for n in pl.iter("parametername")
+            ]
+            if not throws and "noexcept" not in args:
+                problems.append(f"{where[1]}: {mname} documents no @throws (and is not noexcept)")
+            titles = {text_of(t) for t in m.iter("title")}
+            if any("cuda_error" in t for t in throws) and "Synchronization:" not in titles:
+                problems.append(
+                    f"{where[1]}: {mname} may run device work but has no @sync / @async"
+                )
 
 
 def main(argv: list[str]) -> int:
@@ -263,6 +334,8 @@ def main(argv: list[str]) -> int:
                     titles = {text_of(t) for t in member.iter("title")}
                     if "Exception safety:" not in titles:
                         problems.append(f"{at}: {qualified} has no @guarantee")
+
+    frozen_group_rules(compounds, problems)
 
     for problem in sorted(set(problems)):
         print(f"doxygen-coverage: {problem}")

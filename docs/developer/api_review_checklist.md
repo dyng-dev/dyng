@@ -111,7 +111,9 @@ The public declarations are frozen in a committed listing,
 `docs` job of CI and the local gate (`ci/check.sh`, step `docs`) fail on any change of a public
 signature, default value, enumerator, field or entity that the baseline does not contain. The
 listing ignores comments and line numbers, so documentation edits never need it. Headers are
-marked `frozen` (the reviewed 0.1 core API, and the header of every algorithm whose manifest says
+marked `frozen` (the reviewed 0.1 core API, the hypergraph container's headers `hypergraph/*`
+from M8b, {doc}`../adr/0047-hypergraph-api-review-and-freeze-0-3`, and the header of every
+algorithm whose manifest says
 maturity `stable`: `sssp` and `cycle_count` since 0.1, `mosp` since 0.2,
 {doc}`../adr/0035-mosp-api-review-and-freeze-0-2`) or `tracked` (`io/*`, `generators/*`,
 `testing/*` and the algorithms at another maturity, such as the tutorial algorithms: checked the

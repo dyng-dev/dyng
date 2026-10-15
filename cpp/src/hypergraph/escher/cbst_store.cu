@@ -1367,6 +1367,49 @@ void cbst_store::check_errors() {
   }
 }
 
+void cbst_store::check_errors(std::initializer_list<cbst_store*> stores) {
+  cbst_store* first = nullptr;
+  bool one_stream = true;
+  for (cbst_store* s : stores) {
+    if (s == nullptr) continue;
+    s->check_not_poisoned("check_errors");
+    if (!s->constructed_) continue;
+    if (first == nullptr) {
+      first = s;
+    } else if (stream_of(s->ctx_) != stream_of(first->ctx_) ||
+               s->ctx_.res.device() != first->ctx_.res.device()) {
+      one_stream = false;
+    }
+  }
+  if (first == nullptr) return;
+  if (!one_stream) {
+    for (cbst_store* s : stores)
+      if (s != nullptr) s->check_errors();
+    return;
+  }
+  const scoped_device guard(first->ctx_.res.device());
+  try {
+    for (cbst_store* s : stores)
+      if (s != nullptr && s->constructed_) enqueue_control_readback(s->ctx_);
+    DYNG_CUDA_TRY(cudaStreamSynchronize(stream_of(first->ctx_)));
+  } catch (...) {
+    for (cbst_store* s : stores)
+      if (s != nullptr && s->constructed_) s->poisoned_ = true;
+    throw;
+  }
+  note_host_sync();
+  ++first->ctx_.host_syncs;
+  for (cbst_store* s : stores) {
+    if (s == nullptr || !s->constructed_) continue;
+    try {
+      throw_if_control_raised(s->ctx_, "a device error");
+    } catch (...) {
+      s->poisoned_ = true;
+      throw;
+    }
+  }
+}
+
 // A device array on the host (part of download()).
 template <typename value_t>
 static std::vector<value_t> download_array(const cbst_context& ctx, const value_t* device,
@@ -1537,6 +1580,16 @@ size_t cbst_store::device_bytes() const {
          static_cast<size_t>(ctx_.fixed_size) * sizeof(int) +
          static_cast<size_t>(ctx_.scratch_item_capacity) * 5 * sizeof(int) +
          static_cast<size_t>(ctx_.scratch_payload_capacity) * sizeof(int);
+}
+
+void cbst_store::set_used_payload(long long used) {
+  check_not_poisoned("set_used_payload");
+  DYNG_EXPECTS(constructed_, "CBST ", ctx_.dataset_name,
+               ": set_used_payload on a tree that is not constructed");
+  DYNG_EXPECTS(used >= ctx_.initial_payload_size && used <= ctx_.fixed_size, "CBST ",
+               ctx_.dataset_name, ": set_used_payload(", used, ") is outside [",
+               ctx_.initial_payload_size, ", ", ctx_.fixed_size, "]");
+  ctx_.initial_payload_size = static_cast<int>(used);
 }
 
 int compact_cbst(cbst_context& ctx) {

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 /**
  * @file batch.cpp
- * @brief The batch of edge changes over Python arrays (one class per (vertex, weight) type).
+ * @brief The batches over Python arrays: edge changes (one class per (vertex, weight) type) and
+ *        hypergraph changes (one class per hypergraph type).
  */
 #include "types.hpp"
 
@@ -48,12 +49,59 @@ void bind_batch_type(nb::module_& m) {
       .def_prop_ro("num_weights", [](const batch_t& b) { return b.num_weights; });
 }
 
+template <typename vertex_t, typename weight_t>
+void bind_hyper_batch_type(nb::module_& m) {
+  using batch_t = hyper_batch_arrays<vertex_t, weight_t>;
+  using weights_arg = std::optional<in_array<weight_scalar_t<weight_t>>>;
+  constexpr bool weighted = !is_unweighted_v<weight_t>;
+  const std::string batch_name =
+      suffixed("HyperedgeBatch", {type_code<vertex_t>::upper, type_code<weight_t>::upper}, "");
+  nb::class_<batch_t>(m, batch_name.c_str(), "A batch of hypergraph changes over arrays (private).")
+      .def(
+          "__init__",
+          [](batch_t* self, const in_array<std::int64_t>& delete_hyperedges,
+             const in_array<std::int64_t>& insert_offsets, const in_array<vertex_t>& insert_members,
+             const weights_arg& insert_weights,
+             const std::optional<in_array<std::int64_t>>& delete_incidence_hyperedge,
+             const std::optional<in_array<vertex_t>>& delete_incidence_vertex,
+             const std::optional<in_array<std::int64_t>>& insert_incidence_hyperedge,
+             const std::optional<in_array<vertex_t>>& insert_incidence_vertex) {
+            if constexpr (!weighted) {
+              DYNG_EXPECTS(!insert_weights,
+                           "a batch of an unweighted hypergraph carries no weights");
+            }
+            new (self) batch_t{delete_hyperedges,
+                               insert_offsets,
+                               insert_members,
+                               insert_weights,
+                               delete_incidence_hyperedge,
+                               delete_incidence_vertex,
+                               insert_incidence_hyperedge,
+                               insert_incidence_vertex};
+          },
+          nb::arg("delete_hyperedges").noconvert(), nb::arg("insert_offsets").noconvert(),
+          nb::arg("insert_members").noconvert(), nb::arg("insert_weights").noconvert().none(),
+          nb::arg("delete_incidence_hyperedge").noconvert().none(),
+          nb::arg("delete_incidence_vertex").noconvert().none(),
+          nb::arg("insert_incidence_hyperedge").noconvert().none(),
+          nb::arg("insert_incidence_vertex").noconvert().none())
+      .def_prop_ro(
+          "num_insertions",
+          [](const batch_t& b) { return static_cast<std::int64_t>(b.view().num_insertions()); })
+      .def_prop_ro("num_deletions", [](const batch_t& b) {
+        return static_cast<std::int64_t>(b.view().num_deletions());
+      });
+}
+
 }  // namespace
 
 void bind_batch(nb::module_& m) {
 #define DYNG_PY_BIND_BATCH(V, W) bind_batch_type<V, W>(m);
   DYNG_PY_FOR_EACH_BATCH_TYPE(DYNG_PY_BIND_BATCH)
 #undef DYNG_PY_BIND_BATCH
+#define DYNG_PY_BIND_HYPER_BATCH(V, W) bind_hyper_batch_type<V, W>(m);
+  DYNG_PY_FOR_EACH_HYPERGRAPH_TYPE(DYNG_PY_BIND_HYPER_BATCH)
+#undef DYNG_PY_BIND_HYPER_BATCH
 }
 
 }  // namespace dyng::python

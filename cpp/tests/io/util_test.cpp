@@ -14,6 +14,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <random>
 #include <string>
@@ -134,6 +135,32 @@ TEST(TextScanner, NumbersMatchTheGeneralPath) {
     EXPECT_EQ(fast_lines.next_number_in_line(b, parsed), dyng::detail::scanned::end);
   }
   EXPECT_FALSE(fast_lines.next_line());
+}
+
+// M8b review: read_file (every text reader) checks what the path names before it trusts a size:
+// a directory or a device is an io_error with the path, not an out_of_memory_error of a size
+// read from ftell() or an endless read.
+TEST(ReadFile, DirectoriesAndDevicesAreIoErrors) {
+  dyng::test::temp_dir tmp;
+  const std::string dir = tmp.path("a_directory");
+  std::filesystem::create_directory(dir);
+  for (const std::string& path : {dir, std::string("/dev/zero"), std::string("/dev/null")}) {
+    if (!std::filesystem::exists(path)) continue;
+    try {
+      (void)dyng::detail::read_file(path);
+      ADD_FAILURE() << path << " was read";
+    } catch (const dyng::io_error& e) {
+      EXPECT_EQ(e.path(), path);
+      EXPECT_NE(std::string(e.what()).find(path == dir ? "directory" : "not a regular file"),
+                std::string::npos)
+          << e.what();
+    }
+  }
+  const std::string file = tmp.path("f.txt");
+  dyng::test::write_text(file, "1 2\n");
+  EXPECT_EQ(dyng::detail::read_file(file), "1 2\n");
+  dyng::test::write_text(file, "");
+  EXPECT_EQ(dyng::detail::read_file(file), "");
 }
 
 TEST(TextWriter, WritesAndReportsErrors) {

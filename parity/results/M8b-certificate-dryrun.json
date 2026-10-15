@@ -1,0 +1,4104 @@
+{
+ "schema": 1,
+ "what": "M8b review: a dry run of `parity/certify.py write --version 0.3.0.dev0` over the replay records of `compare.py hypergraph_ids --certificate` (every set: the ids on sequential, openmp 1 and 8 threads and cuda; the line graph with the rebuild_line_graph oracle of both originals' sets on cuda, sequential and openmp 8 threads; each record stating its checks: model, verified goldens, oracle) and `compare.py cbst_trace --store device --certificate` (the small CBST sets under each original's preset and dyng_default, as ci/gpu_local.sh), written at the review's code; the golden-set section of the CBST trace sets and the certificate's problems about them. Replaces step 5's dry run. The other parts of a certificate (performance suites, release checks, the large sets' CBST store replays) were not run: a dry run, not a release certificate.",
+ "commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+ "version": "0.3.0.dev0",
+ "golden_suites_cbst_trace": [
+  {
+   "set": "cbst_trace_escher_gpu_test",
+   "kind": "cbst_trace",
+   "reference": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 75,
+   "files": 276,
+   "manifest_sha256": "3b978a38514b6e2586894b15dd2a711b5baf4faaa1c61198f802649eaa22bc42",
+   "case_sha256": {
+    "001-main": "0324578f3561a3c57a62dab4af6c3cc19d1d611500f13404bc650aef4283a759",
+    "002-type1": "952c47202f231dec2e8e0898e46d5a0a72706a630e99bcc3110a6f75069b0620",
+    "003-type2": "e22193f2aebfcdbf4d0f3c3ec79cdd5a657da947cae56a14d0c4cbdf71a592e2",
+    "004-type3": "126d713bc5aedfda8fa9324a66356145a632a047d7298e0bcaf0a3ceca9e5e61",
+    "005-coarseTriangle": "94853423aede098077f0972d8a0be08333691c87345575fe824ae440ae34044e",
+    "006-main": "9b2b9bdafd97fbfd20ff80bded99578854e04972f83dd70d26ccaa7820645056",
+    "007-main": "ce9186ac861213382c5a9571bdc543dd68a8fa6de7664b84763b222573673cf4",
+    "008-type1": "95124b7faa3664fca4292bfb47cfea4e569db7e877a4cbb6a1d1ed4ae91c6dd5",
+    "009-type1": "1db580d659befd0d1e9eafc38e88f7f89f9d21dbbd5b93b5f686171908f893c0",
+    "010-type2": "95e68467c984372590e361989e18a0af08fb22f95013dd255454d15e5ea04c5a",
+    "011-type2": "64d80eb722c547cd80f3dc74258f6e1a251165c8099910f84374b42238cdf0f8",
+    "012-type3": "095db5841ec04585bf5c8ed8e2b148ebbfd429bb2d25d4f210855b759f567567",
+    "013-type3": "e5a15fc8d0b7ba54bfc9bddf95584fe12ff99416107ce08c68a1d7f3d6e37908",
+    "014-coarseTriangle": "8ba5e5a3bc1b80757c89acb3347e318a09a6f0faac7757c46f20184cd11751ce",
+    "015-coarseTriangle": "1a2bf9fb0f562433328964b2fb568320e99ed50b4f833d63364252d2b405d823",
+    "016-main": "481ceb0dfbbe8574d2b963abb3a6558a22a58e54b93bfbb74670c201c70ca6ae",
+    "017-main": "e2a819dee551520eb5032338a2f83b10599c522607dab503d2dbb9d08766973d",
+    "018-main": "0a5bb72c8986f5d4dd1375a470d4c99df7911e4353374b6e7bd966a048df28be",
+    "019-main": "11d838f1d168c5fc95dd47cd1b7d391d53c7a0e59ebfefe8c9a0ab0d232d9070",
+    "020-type1": "f79e132a2e5ceb184ceb45a5f2e3309c1cdc0ab3590d1b1dd8254310698a3b03",
+    "021-type1": "a9d281676c02ebfe67dcde1bd84a64a80cbf58c767ec32591593eea030341b37",
+    "022-type1": "7a64cd4a0427aabb8fd1af6f7ffc72a42850cf48e0192551a087bca196bbd083",
+    "023-type1": "34511735e72b669df0022e2e76a66f573aa1eb090a6d7cc1de235d354886f7ee",
+    "024-type2": "c63f1f5acbfef03335177c7db75755b9c1d59a1cbfae03341ce3624cb89491a8",
+    "025-type2": "e98e4fc6bcf22ce7bcd59e42c6535a5de4db906c0e9eff58ed72462ce4cced43",
+    "026-type2": "04576280481f1f457c4deac8fd46b9b8946e60ae14df5702fcb82191e110ef89",
+    "027-type2": "de799fa24ef1f50a95d2e9e7ebcd7974197839e826885a0a1c90f5d009fbfb68",
+    "028-type3": "dfdeed36a8fc8a1e3c4c2c2b715ce776efc87f082b8f23030b5d1f7bc31f5f0e",
+    "029-type3": "1b96edc1fc9f45629f1522515d5287e5fbf6900b66501ba0bfc8e0666f78998e",
+    "030-type3": "7798843fe3b5642cb1aa903a94e0d69470e0f2fa849e638cfdf468af3f4d8f3b",
+    "031-type3": "8cabc922a946ba3dfcf7e685b93c3a6177565e11328ed5342d2fa48caa222a31",
+    "032-coarseTriangle": "7073cf3359d9cbedaaa6bd882348fc2778ce9d29986745e5026897777fd900be",
+    "033-coarseTriangle": "a9025140e91ab4359c59bdc728965183fb13ab45eb73d1b8686e0fccb474384d",
+    "034-coarseTriangle": "f07a84c69d47d6a8a8bbe7d318ba583c5dbf739e7ad9aea62390a1dc23b1b8dd",
+    "035-coarseTriangle": "a6e286b88710caf280cb20e0d6b089767690a9400fac4475e96fa408c6c9cb84",
+    "036-main": "b437715f5a2ec903ed9ae6eb414853ee0f5593c9d5ff472018ed5e40312e8a8f",
+    "037-main": "7cc2699da2428cf75695e2291bc34ff80aa87fa3733b79b4f739c1977c923db8",
+    "038-main": "43a1a3a974eeecc10f37c4a15fde43c4b35160451c3aa97dbfeae311a0800919",
+    "039-main": "17fbf0d0c5177449fe531f4bd58ce997d426deaee0f2cc9dc05cbf67b431d156",
+    "040-main": "7f3d52c78ad32e910cb5aef1aed62c44f329da9cae02e23cab5c35da52b334a9",
+    "041-main": "18e4e41a613c866b7eeab10f09588465b09afd71913b8dbc2f207ec6a255ee9b",
+    "042-main": "72d7b7955ee1e3736718c5ffc8a346d852bfd7f0b35fe01d92fb295be8225c6b",
+    "043-main": "3578bb12d76b000c894deda0b9d768ae8edec0050173e77624165984d092ba5a",
+    "044-type1": "ab4c4f80f4da8b9567d42dc4ff35e5c04fe8be05d851fc38d1022b6a4a6b3bae",
+    "045-type1": "f2d0e24a5c3e8917737a2d6ac086d59c75d7e1a63ddee91c6edac94e57b47b53",
+    "046-type1": "3756aeb38263422f785a3854e7a2fa9a92ddbb12108e2bc522397d51b9852dd8",
+    "047-type1": "0807d56291f4a3bbc9ee1653bb8c32e6cd2ea683b5996eff1b1049ac9d46ac4d",
+    "048-type1": "3c4fb90993689bf741ab4b2bfc30610198f8fc11b0cd9957c5cdb370c525bebf",
+    "049-type1": "41f3fb86c277733f15710c4db4484e537843cccad6f4632713443556a56a8ce7",
+    "050-type1": "b0876e5be7ff4a916ce1d41f8f61160f63993993f3eecc4f4f0ee23e5e3bf16b",
+    "051-type1": "8499799791a71bc1d84b4991f7f8bbc9d390170054bff4f37e3c339f26937d1d",
+    "052-type2": "cc276558e86bee3ef25d993eb8bc0d2f2530237b48fad8d06f892c5a9cc09a75",
+    "053-type2": "a125f4dad289f4c3c3967bf0e094f0471362b77b6568425cbd344244bf6fb655",
+    "054-type2": "096e3cf6b06417515d23d9fc1400704a5dd0b35a99555787fecaeb9f382a30be",
+    "055-type2": "74aef5e01e9729e97ef06ca78f7945ccf10f090705a0d427f7604093ed1df9b7",
+    "056-type2": "13761e2c8db0ef5385d7251ad1c9a1658c380f7865511e6ef54564f92ac7e463",
+    "057-type2": "ccf57001dfd0b4802717720723f39729d1c693a329101328dee06eb5307b06e6",
+    "058-type2": "c3211a54d7124e9b02d3bc2c66fdcbb94378898645d7ed7ce61a2a1f295dceed",
+    "059-type2": "b57f78dc970ffdf90c05a1d166624cba392cd55108c1929c588c55b596d60c74",
+    "060-type3": "e0330bb1ae4bea84d8c663bbf912c5fe3f78d011876db582cdb541bc7d5b6df2",
+    "061-type3": "8b72b5817346f0d472aa28251ccce2cf1be31be78880445915e66f584d940d3e",
+    "062-type3": "33423b6d69dd771a008fb82bb8cef93c46c0e71eae68630d37802c2512f0d23d",
+    "063-type3": "7fa61b045d41d918c39f4cf62482e00fc2c7e2e8a37071d685fc54f8b5019a34",
+    "064-type3": "dab18933c155f0d3f469d7de679deb8fadcb637adfe0ac6b76f64ef8a88b95bd",
+    "065-type3": "186e37305fcfbc3209db7232ac3ee3d2786f826eedfb848d20de2b13a1a50799",
+    "066-type3": "43e46838863d7f450c07d140eaa6a3b291f53658d2c996693041c22b86752ff8",
+    "067-type3": "09b6e6d98d0f76c01e362b6ded993e2f83aa449358b6945d5ae0b021f84a5836",
+    "068-coarseTriangle": "c48d8ff70f3df40167a4edc250abde6d9ffca6a285474adb641ffff400a86cc1",
+    "069-coarseTriangle": "43c42445177fd05044f9c279d94cd960b031b10ef0a65b2a831dfbf83b129157",
+    "070-coarseTriangle": "84b54aee5be7006ca23a19bcce4848f11db780523b05fbf10952da1a7e2b38c7",
+    "071-coarseTriangle": "d899ff3bcfc8ffdf3ccea4811ad74cf410eaf4ef29b03d47a1c435752f1bc24c",
+    "072-coarseTriangle": "6438f021d1e30d6b24d4df38e63f604fe0d6496851e5e057d9cf0f18eefcce72",
+    "073-coarseTriangle": "3a697896d0fb56f172237fed398d94364ccd7dcf2a5c16004c2d264a22681c10",
+    "074-coarseTriangle": "8f91aa56bedcd9d7100c4c82dfe66bf04862cf3d1f6c52da5467f6b49a237430",
+    "075-coarseTriangle": "2454bac1b75ecacfb0348f064ac0aeca5b616c7488d8e881da4cb83381619d05"
+   },
+   "replays": [
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-device-dyng_default.json",
+     "date": "2026-10-14T23:41:33+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "device:dyng_default/policy"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "002-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "003-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "004-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "005-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "006-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "007-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "008-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "009-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "010-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "011-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "012-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "013-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "014-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "015-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "016-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "017-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "018-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "019-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "020-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "021-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "022-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "023-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "024-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "025-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "026-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "027-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "028-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "029-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "030-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "031-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "032-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "033-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "034-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "035-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "036-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "037-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "038-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "039-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "040-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "041-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "042-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "043-main": {
+       "device:dyng_default/policy": "equal"
+      },
+      "044-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "045-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "046-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "047-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "048-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "049-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "050-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "051-type1": {
+       "device:dyng_default/policy": "equal"
+      },
+      "052-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "053-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "054-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "055-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "056-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "057-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "058-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "059-type2": {
+       "device:dyng_default/policy": "equal"
+      },
+      "060-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "061-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "062-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "063-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "064-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "065-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "066-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "067-type3": {
+       "device:dyng_default/policy": "equal"
+      },
+      "068-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "069-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "070-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "071-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "072-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "073-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "074-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      },
+      "075-coarseTriangle": {
+       "device:dyng_default/policy": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-device-escher_gpu.json",
+     "date": "2026-10-14T23:40:48+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "device:escher_gpu/exact"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "002-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "003-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "004-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "005-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "006-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "007-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "008-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "009-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "010-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "011-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "012-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "013-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "014-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "015-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "016-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "017-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "018-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "019-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "020-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "021-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "022-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "023-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "024-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "025-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "026-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "027-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "028-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "029-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "030-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "031-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "032-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "033-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "034-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "035-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "036-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "037-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "038-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "039-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "040-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "041-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "042-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "043-main": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "044-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "045-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "046-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "047-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "048-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "049-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "050-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "051-type1": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "052-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "053-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "054-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "055-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "056-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "057-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "058-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "059-type2": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "060-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "061-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "062-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "063-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "064-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "065-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "066-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "067-type3": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "068-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "069-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "070-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "071-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "072-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "073-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "074-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "075-coarseTriangle": {
+       "device:escher_gpu/exact": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-hypergraph_ids-cuda-both.json",
+     "date": "2026-10-14T23:17:56+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "cuda:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "002-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "003-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "004-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "005-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "006-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "007-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "008-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "009-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "010-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "011-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "012-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "013-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "014-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "015-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "016-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "017-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "018-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "019-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "020-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "021-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "022-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "023-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "024-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "025-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "026-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "027-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "028-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "029-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "030-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "031-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "032-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "033-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "034-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "035-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "036-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "037-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "038-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "039-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "040-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "041-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "042-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "043-main": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "044-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "045-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "046-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "047-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "048-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "049-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "050-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "051-type1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "052-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "053-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "054-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "055-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "056-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "057-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "058-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "059-type2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "060-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "061-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "062-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "063-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "064-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "065-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "066-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "067-type3": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "068-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "069-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "070-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "071-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "072-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "073-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "074-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "075-coarseTriangle": {
+       "cuda:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-hypergraph_ids-cuda-line_graph.json",
+     "date": "2026-10-14T23:20:44+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "cuda:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "002-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "003-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "004-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "005-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "006-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "007-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "008-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "009-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "010-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "011-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "012-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "013-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "014-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "015-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "016-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "017-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "018-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "019-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "020-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "021-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "022-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "023-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "024-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "025-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "026-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "027-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "028-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "029-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "030-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "031-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "032-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "033-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "034-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "035-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "036-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "037-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "038-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "039-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "040-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "041-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "042-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "043-main": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "044-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "045-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "046-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "047-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "048-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "049-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "050-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "051-type1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "052-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "053-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "054-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "055-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "056-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "057-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "058-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "059-type2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "060-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "061-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "062-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "063-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "064-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "065-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "066-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "067-type3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "068-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "069-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "070-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "071-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "072-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "073-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "074-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "075-coarseTriangle": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-hypergraph_ids-openmp-t1-both.json",
+     "date": "2026-10-14T23:13:27+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t1:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "002-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "003-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "004-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "005-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "006-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "007-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "008-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "009-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "010-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "011-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "012-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "013-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "014-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "015-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "016-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "017-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "018-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "019-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "020-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "021-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "022-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "023-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "024-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "025-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "026-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "027-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "028-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "029-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "030-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "031-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "032-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "033-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "034-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "035-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "036-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "037-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "038-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "039-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "040-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "041-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "042-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "043-main": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "044-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "045-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "046-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "047-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "048-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "049-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "050-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "051-type1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "052-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "053-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "054-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "055-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "056-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "057-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "058-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "059-type2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "060-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "061-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "062-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "063-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "064-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "065-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "066-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "067-type3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "068-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "069-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "070-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "071-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "072-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "073-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "074-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "075-coarseTriangle": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-hypergraph_ids-openmp-t8-both.json",
+     "date": "2026-10-14T23:15:37+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t8:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "002-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "003-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "004-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "005-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "006-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "007-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "008-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "009-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "010-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "011-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "012-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "013-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "014-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "015-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "016-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "017-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "018-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "019-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "020-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "021-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "022-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "023-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "024-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "025-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "026-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "027-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "028-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "029-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "030-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "031-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "032-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "033-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "034-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "035-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "036-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "037-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "038-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "039-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "040-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "041-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "042-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "043-main": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "044-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "045-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "046-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "047-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "048-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "049-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "050-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "051-type1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "052-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "053-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "054-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "055-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "056-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "057-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "058-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "059-type2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "060-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "061-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "062-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "063-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "064-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "065-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "066-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "067-type3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "068-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "069-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "070-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "071-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "072-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "073-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "074-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "075-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-hypergraph_ids-openmp-t8-line_graph.json",
+     "date": "2026-10-14T23:33:04+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t8:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "002-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "003-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "004-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "005-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "006-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "007-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "008-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "009-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "010-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "011-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "012-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "013-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "014-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "015-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "016-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "017-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "018-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "019-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "020-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "021-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "022-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "023-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "024-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "025-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "026-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "027-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "028-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "029-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "030-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "031-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "032-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "033-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "034-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "035-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "036-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "037-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "038-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "039-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "040-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "041-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "042-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "043-main": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "044-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "045-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "046-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "047-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "048-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "049-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "050-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "051-type1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "052-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "053-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "054-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "055-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "056-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "057-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "058-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "059-type2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "060-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "061-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "062-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "063-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "064-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "065-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "066-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "067-type3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "068-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "069-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "070-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "071-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "072-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "073-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "074-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "075-coarseTriangle": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-hypergraph_ids-sequential-both.json",
+     "date": "2026-10-14T23:11:18+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "sequential:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "002-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "003-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "004-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "005-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "006-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "007-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "008-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "009-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "010-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "011-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "012-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "013-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "014-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "015-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "016-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "017-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "018-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "019-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "020-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "021-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "022-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "023-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "024-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "025-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "026-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "027-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "028-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "029-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "030-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "031-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "032-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "033-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "034-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "035-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "036-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "037-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "038-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "039-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "040-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "041-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "042-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "043-main": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "044-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "045-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "046-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "047-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "048-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "049-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "050-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "051-type1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "052-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "053-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "054-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "055-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "056-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "057-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "058-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "059-type2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "060-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "061-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "062-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "063-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "064-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "065-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "066-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "067-type3": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "068-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "069-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "070-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "071-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "072-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "073-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "074-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "075-coarseTriangle": {
+       "sequential:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_test-hypergraph_ids-sequential-line_graph.json",
+     "date": "2026-10-14T23:26:46+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "sequential:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 75,
+     "failed": 0,
+     "matrix": {
+      "001-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "002-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "003-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "004-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "005-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "006-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "007-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "008-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "009-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "010-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "011-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "012-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "013-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "014-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "015-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "016-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "017-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "018-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "019-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "020-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "021-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "022-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "023-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "024-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "025-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "026-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "027-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "028-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "029-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "030-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "031-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "032-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "033-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "034-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "035-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "036-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "037-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "038-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "039-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "040-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "041-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "042-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "043-main": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "044-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "045-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "046-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "047-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "048-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "049-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "050-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "051-type1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "052-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "053-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "054-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "055-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "056-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "057-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "058-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "059-type2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "060-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "061-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "062-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "063-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "064-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "065-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "066-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "067-type3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "068-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "069-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "070-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "071-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "072-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "073-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "074-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "075-coarseTriangle": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": true,
+   "required_presets": [
+    "escher_gpu",
+    "dyng_default"
+   ],
+   "required_hypergraph_ids": {
+    "ids": [
+     "sequential",
+     "openmp",
+     "cuda"
+    ],
+    "line_graph": [
+     "cuda"
+    ]
+   },
+   "hypergraph_ids": {
+    "ids": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ],
+    "line_graph": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ]
+   }
+  },
+  {
+   "set": "cbst_trace_escher_gpu_targeted",
+   "kind": "cbst_trace",
+   "reference": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 2,
+   "files": 5,
+   "manifest_sha256": "6f4c9428ac5e93b9182a11c6934937832cacf1b590eb5fd2e98363f071a9c260",
+   "case_sha256": {
+    "targeted_large": "eae6041e761749309bd682bba590a7823262c14ec37e13bd994d762bd6b0730e",
+    "targeted_small": "b3fa919f62c3d08bcec7b1821d9eb04c130a7d96a2769b02e164f0f4e04f5361"
+   },
+   "replays": [
+    {
+     "record": "parity-cbst_trace_escher_gpu_targeted-device-dyng_default.json",
+     "date": "2026-10-14T23:41:33+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "device:dyng_default/policy"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 2,
+     "failed": 0,
+     "matrix": {
+      "targeted_large": {
+       "device:dyng_default/policy": "equal"
+      },
+      "targeted_small": {
+       "device:dyng_default/policy": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_targeted-device-escher_gpu.json",
+     "date": "2026-10-14T23:40:49+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "device:escher_gpu/exact"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 2,
+     "failed": 0,
+     "matrix": {
+      "targeted_large": {
+       "device:escher_gpu/exact": "equal"
+      },
+      "targeted_small": {
+       "device:escher_gpu/exact": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": true,
+   "required_presets": [
+    "escher_gpu",
+    "dyng_default"
+   ]
+  },
+  {
+   "set": "cbst_trace_mosp_escher_targeted",
+   "kind": "cbst_trace",
+   "reference": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 2,
+   "files": 5,
+   "manifest_sha256": "280d185aaa4f4321c96810cb41bf336e67a5a82fff0c340565b222a80072e353",
+   "case_sha256": {
+    "targeted_large": "d4ec8a228f721f7145301c963071c1ae9ef13319fbaa1ca64b2de6f22ecf47e6",
+    "targeted_small": "401103965faa0ba140055b651331fd487367e4b1732279abae7f7c9b052bd0c0"
+   },
+   "replays": [
+    {
+     "record": "parity-cbst_trace_mosp_escher_targeted-device-dyng_default.json",
+     "date": "2026-10-14T23:41:57+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "device:dyng_default/policy"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 2,
+     "failed": 0,
+     "matrix": {
+      "targeted_large": {
+       "device:dyng_default/policy": "equal"
+      },
+      "targeted_small": {
+       "device:dyng_default/policy": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_targeted-device-mosp_escher.json",
+     "date": "2026-10-14T23:41:14+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "device:mosp_escher/exact"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 2,
+     "failed": 0,
+     "matrix": {
+      "targeted_large": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "targeted_small": {
+       "device:mosp_escher/exact": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": true,
+   "required_presets": [
+    "mosp_escher",
+    "dyng_default"
+   ]
+  },
+  {
+   "set": "cbst_trace_escher_gpu_coauth50k",
+   "kind": "cbst_trace",
+   "reference": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 1,
+   "files": 4,
+   "manifest_sha256": "7ddec4438292cdf25cbbcd028e26f87e04bd518ee50b6ef856c3e5ea8635ae57",
+   "case_sha256": {
+    "coauth_b50k_s1": "9422dcee3a5b427165517a701ede12e8cdc5400805718df105c03409bd67d201"
+   },
+   "replays": [
+    {
+     "record": "parity-cbst_trace_escher_gpu_coauth50k-hypergraph_ids-cuda-both.json",
+     "date": "2026-10-14T23:18:55+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "cuda:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1": {
+       "cuda:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_coauth50k-hypergraph_ids-cuda-line_graph.json",
+     "date": "2026-10-14T23:23:05+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "cuda:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_coauth50k-hypergraph_ids-openmp-t1-both.json",
+     "date": "2026-10-14T23:14:14+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t1:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_coauth50k-hypergraph_ids-openmp-t8-both.json",
+     "date": "2026-10-14T23:16:24+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t8:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_coauth50k-hypergraph_ids-openmp-t8-line_graph.json",
+     "date": "2026-10-14T23:35:06+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t8:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_coauth50k-hypergraph_ids-sequential-both.json",
+     "date": "2026-10-14T23:12:04+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "sequential:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1": {
+       "sequential:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_coauth50k-hypergraph_ids-sequential-line_graph.json",
+     "date": "2026-10-14T23:29:14+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "sequential:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "coauth_b50k_s1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": false,
+   "required_presets": [
+    "escher_gpu",
+    "dyng_default"
+   ],
+   "required_hypergraph_ids": {
+    "ids": [
+     "sequential",
+     "openmp",
+     "cuda"
+    ],
+    "line_graph": [
+     "cuda"
+    ]
+   },
+   "hypergraph_ids": {
+    "ids": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ],
+    "line_graph": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ]
+   }
+  },
+  {
+   "set": "cbst_trace_mosp_escher_dblp50k_hyperedge",
+   "kind": "cbst_trace",
+   "reference": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 1,
+   "files": 4,
+   "manifest_sha256": "3b26a7697d1875373b1577ca3731e8ccbbbd888b29c31b4787f5fd5224f13e80",
+   "case_sha256": {
+    "dblp_hyperedge_50000": "8624b2f230372bd3147480fbe0059500d6469974a13429d67ab508d29cb5b1c3"
+   },
+   "replays": [
+    {
+     "record": "parity-cbst_trace_mosp_escher_dblp50k_hyperedge-hypergraph_ids-cuda-both.json",
+     "date": "2026-10-14T23:20:20+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "dblp_hyperedge_50000": {
+       "cuda:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_dblp50k_hyperedge-hypergraph_ids-cuda-line_graph.json",
+     "date": "2026-10-14T23:26:33+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "dblp_hyperedge_50000": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_dblp50k_hyperedge-hypergraph_ids-openmp-t1-both.json",
+     "date": "2026-10-14T23:15:27+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "openmp/t1:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "dblp_hyperedge_50000": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_dblp50k_hyperedge-hypergraph_ids-openmp-t8-both.json",
+     "date": "2026-10-14T23:17:37+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "openmp/t8:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "dblp_hyperedge_50000": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_dblp50k_hyperedge-hypergraph_ids-openmp-t8-line_graph.json",
+     "date": "2026-10-14T23:38:07+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "openmp/t8:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "dblp_hyperedge_50000": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_dblp50k_hyperedge-hypergraph_ids-sequential-both.json",
+     "date": "2026-10-14T23:13:17+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "sequential:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "dblp_hyperedge_50000": {
+       "sequential:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_dblp50k_hyperedge-hypergraph_ids-sequential-line_graph.json",
+     "date": "2026-10-14T23:32:51+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "sequential:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 1,
+     "failed": 0,
+     "matrix": {
+      "dblp_hyperedge_50000": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": false,
+   "required_presets": [
+    "mosp_escher",
+    "dyng_default"
+   ],
+   "required_hypergraph_ids": {
+    "ids": [
+     "sequential",
+     "openmp",
+     "cuda"
+    ]
+   },
+   "hypergraph_ids": {
+    "ids": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ],
+    "line_graph": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ]
+   }
+  },
+  {
+   "set": "cbst_trace_mosp_escher_dblp50k_vertex",
+   "kind": "cbst_trace",
+   "reference": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 1,
+   "files": 4,
+   "manifest_sha256": "1068e319acbc9f9199e712f9e39a09221554e6e1af616d9d03a915f028cf0cd4",
+   "case_sha256": {
+    "dblp_vertex_50000": "095602fd40b51d03ce7c6370128b131835ffdfb65be67b2296771a704f5b72c2"
+   },
+   "replays": [],
+   "required_backends": [],
+   "passed": false,
+   "required_presets": [
+    "mosp_escher",
+    "dyng_default"
+   ]
+  },
+  {
+   "set": "cbst_trace_escher_gpu_syn1m",
+   "kind": "cbst_trace",
+   "reference": "ESCHER-GPU",
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 3,
+   "files": 10,
+   "manifest_sha256": "d73a368586dd3145cc93d60484032d76f171d8612310c6bc3ec8aef7ffd659d8",
+   "case_sha256": {
+    "syn1m_b50k_s1": "4e440726997a583d2cd984e01d0750266aa0f6e5c9355fc16807e0490459a6a2",
+    "syn1m_b50k_s2": "cc2b27cd350c92652f4adc0191111260eabf6aa0fa2bd298e9af7088ddf1e157",
+    "syn1m_b50k_s3": "cf58a29a5629df37b6975d43443fb0aa9e6accc26e987015b41f93ee061e2467"
+   },
+   "replays": [
+    {
+     "record": "parity-cbst_trace_escher_gpu_syn1m-hypergraph_ids-cuda-both.json",
+     "date": "2026-10-14T23:19:20+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "cuda:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 3,
+     "failed": 0,
+     "matrix": {
+      "syn1m_b50k_s1": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s2": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s3": {
+       "cuda:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_syn1m-hypergraph_ids-cuda-line_graph.json",
+     "date": "2026-10-14T23:23:59+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "cuda:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 3,
+     "failed": 0,
+     "matrix": {
+      "syn1m_b50k_s1": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "syn1m_b50k_s2": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "syn1m_b50k_s3": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_syn1m-hypergraph_ids-openmp-t1-both.json",
+     "date": "2026-10-14T23:14:35+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t1:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 3,
+     "failed": 0,
+     "matrix": {
+      "syn1m_b50k_s1": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s2": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s3": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_syn1m-hypergraph_ids-openmp-t8-both.json",
+     "date": "2026-10-14T23:16:45+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t8:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 3,
+     "failed": 0,
+     "matrix": {
+      "syn1m_b50k_s1": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s2": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s3": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_syn1m-hypergraph_ids-openmp-t8-line_graph.json",
+     "date": "2026-10-14T23:35:56+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "openmp/t8:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 3,
+     "failed": 0,
+     "matrix": {
+      "syn1m_b50k_s1": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "syn1m_b50k_s2": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "syn1m_b50k_s3": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_syn1m-hypergraph_ids-sequential-both.json",
+     "date": "2026-10-14T23:12:25+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "sequential:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 3,
+     "failed": 0,
+     "matrix": {
+      "syn1m_b50k_s1": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s2": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "syn1m_b50k_s3": {
+       "sequential:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_escher_gpu_syn1m-hypergraph_ids-sequential-line_graph.json",
+     "date": "2026-10-14T23:30:15+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "ESCHER-GPU",
+     "configs": [
+      "sequential:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 3,
+     "failed": 0,
+     "matrix": {
+      "syn1m_b50k_s1": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "syn1m_b50k_s2": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "syn1m_b50k_s3": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": false,
+   "required_presets": [
+    "escher_gpu",
+    "dyng_default"
+   ],
+   "required_hypergraph_ids": {
+    "ids": [
+     "sequential",
+     "openmp",
+     "cuda"
+    ],
+    "line_graph": [
+     "cuda"
+    ]
+   },
+   "hypergraph_ids": {
+    "ids": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ],
+    "line_graph": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ]
+   }
+  },
+  {
+   "set": "cbst_trace_mosp_escher_test",
+   "kind": "cbst_trace",
+   "reference": "MOSP_ESCHER",
+   "commit": "4b86159ec0b3bfe6e18c718ff4bef1494d7276a5",
+   "generated_by": "parity/export_goldens.py cbst_trace (parity/cbst_trace_goldens.py)",
+   "cases": 24,
+   "files": 58,
+   "manifest_sha256": "ed6400698e3d2ea9430139706d96f4e464966785e5d2aee2557434859a78ff60",
+   "case_sha256": {
+    "001-test_cbst_smoke": "7838ff4c3b4066d37c635a40ba0f6eeb0ee8c12ea17ef0831f68b61b0cea80f9",
+    "002-test_cbst_ops": "f2e0d0eb42bc174e7c1b71e671a2984f80d424a140b250a89a7d54e66fd84e01",
+    "003-test_cbst_ops": "8a10d359f7660558e1ad100b27d674559b66a0c29d59705dfe095d5e77eb88d9",
+    "004-test_cbst_ops": "ca2cbe18e1fb8de71d045de486bf1fc288325f65f360486163728ac34afbac6c",
+    "005-test_cbst_ops": "457f0985274adf936d0abd1ecc1c21a5db18530eabf5aed955bdd41721835175",
+    "006-test_cbst_ops": "5d8644e6bd56c8bf1706a9b721d591740615eb435929d53b92bf7919f0fa749b",
+    "007-test_cbst_ops": "c55148046efa4ce5aca75babb1a587b492e9574291f5f338a1a075fe6e9c73b0",
+    "008-test_cbst_ops": "451c117c0a8335ab3534f00b0b93bcdd815160be314f2cfa653c36cfadc8e897",
+    "009-test_cbst_ops": "54c9842cf12c264ce08022d8e7e593e23d7263a24c158eb97c38369e0a269efa",
+    "010-test_cbst_ops": "fe81b7b95b90a26940d561fac1861ff71a8bdeba9294190edd3d2d6ec77a63a7",
+    "011-test_dynamicgraph_roundtrip": "c2415eff846266759470706bcef25f9555cfb41748e1c883eb4443f76d998be0",
+    "012-test_snapshot_matches_updateCSR": "7ebdc50293a1aec36c96846c74137b34b3000b5aa3c11e586a16295dfb35e2da",
+    "013-test_h2h_construction": "1295ad65917c2a7be7c167a998fa631933db130dfa8755d521d7a000092d523f",
+    "014-test_h2h_delta": "ff705495dda27bde4a2d025501f52ef88892d286c177bfb7aa3ae32aae3eba2e",
+    "015-test_hsosp_matches_dijkstra": "e2b5442d4bf4e2be0251639d7e941177a7fd6860fe9da5766543750edfe3c85b",
+    "016-test_hsosp_scale": "f617ac5ea5276dfa4cce7e810f6237a687c1818b811beb7e5f2751eda157fbb3",
+    "017-hsospStress": "4d638cd673bce58a4666743bbed71d981f6423a745f217107a8533803599733f",
+    "018-hsospStress": "6bc118e792ef183e6582c4241a5a33b6cccd84bc8a533e1d644be80456c1432f",
+    "019-hsospBench": "31843aa7b7079743a0a56fe1c74e50a5ee72d46c19f42f6ab90f16c822b2313d",
+    "020-hsospBench": "b0e2f6785235afb273561f9bc67b30b8ecb2a7e4a5f06689844a9084c2bb0ac1",
+    "021-hsospBench": "fce66948d1d7184f9bf4fd5369f75b391dfd88c952f8f1826a704ed5a6bf09f0",
+    "023-stressTest": "a536e10e8b84571551ecff74acf14443aa12fdf17c4fcbee8418e80b33a68134",
+    "024-parallelStressTest": "c6025085f9722abcc2e9c9afd026ca00b5a3d09b02c9f5b960d46cd91263a4b6",
+    "025-parallelStressTest": "5f3f293f0f3008b2c37c48abe1d3ebadf014c076f0e8363ca588840b034d6997"
+   },
+   "replays": [
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-device-dyng_default.json",
+     "date": "2026-10-14T23:41:57+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "device:dyng_default/policy"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "device:dyng_default/policy": "equal"
+      },
+      "002-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "003-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "004-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "005-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "006-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "007-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "008-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "009-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "010-test_cbst_ops": {
+       "device:dyng_default/policy": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "device:dyng_default/policy": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "device:dyng_default/policy": "equal"
+      },
+      "013-test_h2h_construction": {
+       "device:dyng_default/policy": "equal"
+      },
+      "014-test_h2h_delta": {
+       "device:dyng_default/policy": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "device:dyng_default/policy": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "device:dyng_default/policy": "equal"
+      },
+      "017-hsospStress": {
+       "device:dyng_default/policy": "equal"
+      },
+      "018-hsospStress": {
+       "device:dyng_default/policy": "equal"
+      },
+      "019-hsospBench": {
+       "device:dyng_default/policy": "equal"
+      },
+      "020-hsospBench": {
+       "device:dyng_default/policy": "equal"
+      },
+      "021-hsospBench": {
+       "device:dyng_default/policy": "equal"
+      },
+      "023-stressTest": {
+       "device:dyng_default/policy": "equal"
+      },
+      "024-parallelStressTest": {
+       "device:dyng_default/policy": "equal"
+      },
+      "025-parallelStressTest": {
+       "device:dyng_default/policy": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-device-mosp_escher.json",
+     "date": "2026-10-14T23:41:13+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_cbst_replay",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "device:mosp_escher/exact"
+     ],
+     "checks": null,
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "002-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "003-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "004-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "005-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "006-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "007-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "008-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "009-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "010-test_cbst_ops": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "013-test_h2h_construction": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "014-test_h2h_delta": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "017-hsospStress": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "018-hsospStress": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "019-hsospBench": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "020-hsospBench": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "021-hsospBench": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "023-stressTest": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "024-parallelStressTest": {
+       "device:mosp_escher/exact": "equal"
+      },
+      "025-parallelStressTest": {
+       "device:mosp_escher/exact": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-hypergraph_ids-cuda-both.json",
+     "date": "2026-10-14T23:19:27+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "002-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "003-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "004-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "005-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "006-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "007-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "008-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "009-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "010-test_cbst_ops": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "013-test_h2h_construction": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "014-test_h2h_delta": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "017-hsospStress": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "018-hsospStress": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "019-hsospBench": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "020-hsospBench": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "021-hsospBench": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "023-stressTest": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "024-parallelStressTest": {
+       "cuda:hypergraph_ids/both": "equal"
+      },
+      "025-parallelStressTest": {
+       "cuda:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-hypergraph_ids-cuda-line_graph.json",
+     "date": "2026-10-14T23:24:14+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "cuda:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "002-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "003-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "004-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "005-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "006-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "007-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "008-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "009-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "010-test_cbst_ops": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "013-test_h2h_construction": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "014-test_h2h_delta": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "017-hsospStress": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "018-hsospStress": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "019-hsospBench": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "020-hsospBench": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "021-hsospBench": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "023-stressTest": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "024-parallelStressTest": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      },
+      "025-parallelStressTest": {
+       "cuda:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-hypergraph_ids-openmp-t1-both.json",
+     "date": "2026-10-14T23:14:41+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "openmp/t1:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "002-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "003-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "004-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "005-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "006-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "007-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "008-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "009-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "010-test_cbst_ops": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "013-test_h2h_construction": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "014-test_h2h_delta": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "017-hsospStress": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "018-hsospStress": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "019-hsospBench": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "020-hsospBench": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "021-hsospBench": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "023-stressTest": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "024-parallelStressTest": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      },
+      "025-parallelStressTest": {
+       "openmp/t1:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-hypergraph_ids-openmp-t8-both.json",
+     "date": "2026-10-14T23:16:51+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "openmp/t8:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "002-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "003-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "004-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "005-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "006-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "007-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "008-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "009-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "010-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "013-test_h2h_construction": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "014-test_h2h_delta": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "017-hsospStress": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "018-hsospStress": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "019-hsospBench": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "020-hsospBench": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "021-hsospBench": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "023-stressTest": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "024-parallelStressTest": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      },
+      "025-parallelStressTest": {
+       "openmp/t8:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-hypergraph_ids-openmp-t8-line_graph.json",
+     "date": "2026-10-14T23:36:03+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "openmp/t8:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "002-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "003-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "004-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "005-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "006-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "007-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "008-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "009-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "010-test_cbst_ops": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "013-test_h2h_construction": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "014-test_h2h_delta": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "017-hsospStress": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "018-hsospStress": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "019-hsospBench": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "020-hsospBench": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "021-hsospBench": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "023-stressTest": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "024-parallelStressTest": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      },
+      "025-parallelStressTest": {
+       "openmp/t8:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-hypergraph_ids-sequential-both.json",
+     "date": "2026-10-14T23:12:32+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "sequential:hypergraph_ids/both"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "002-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "003-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "004-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "005-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "006-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "007-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "008-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "009-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "010-test_cbst_ops": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "013-test_h2h_construction": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "014-test_h2h_delta": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "017-hsospStress": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "018-hsospStress": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "019-hsospBench": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "020-hsospBench": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "021-hsospBench": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "023-stressTest": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "024-parallelStressTest": {
+       "sequential:hypergraph_ids/both": "equal"
+      },
+      "025-parallelStressTest": {
+       "sequential:hypergraph_ids/both": "equal"
+      }
+     },
+     "passed": true
+    },
+    {
+     "record": "parity-cbst_trace_mosp_escher_test-hypergraph_ids-sequential-line_graph.json",
+     "date": "2026-10-14T23:30:23+00:00",
+     "port_commit": "5ef3f4fba5c190f259366a20eb05218222c674c5",
+     "executable": "build/parity-cuda/cpp/tests/dyng_hypergraph_ids",
+     "build": null,
+     "reference": "MOSP_ESCHER",
+     "configs": [
+      "sequential:hypergraph_ids/line_graph"
+     ],
+     "checks": {
+      "model": true,
+      "verified": true,
+      "line_graph_oracle": true
+     },
+     "tolerance": null,
+     "compared": 24,
+     "failed": 0,
+     "matrix": {
+      "001-test_cbst_smoke": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "002-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "003-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "004-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "005-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "006-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "007-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "008-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "009-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "010-test_cbst_ops": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "011-test_dynamicgraph_roundtrip": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "012-test_snapshot_matches_updateCSR": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "013-test_h2h_construction": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "014-test_h2h_delta": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "015-test_hsosp_matches_dijkstra": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "016-test_hsosp_scale": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "017-hsospStress": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "018-hsospStress": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "019-hsospBench": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "020-hsospBench": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "021-hsospBench": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "023-stressTest": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "024-parallelStressTest": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      },
+      "025-parallelStressTest": {
+       "sequential:hypergraph_ids/line_graph": "equal"
+      }
+     },
+     "passed": true
+    }
+   ],
+   "required_backends": [],
+   "passed": true,
+   "required_presets": [
+    "mosp_escher",
+    "dyng_default"
+   ],
+   "required_hypergraph_ids": {
+    "ids": [
+     "sequential",
+     "openmp",
+     "cuda"
+    ]
+   },
+   "hypergraph_ids": {
+    "ids": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ],
+    "line_graph": [
+     "cuda",
+     "openmp",
+     "sequential"
+    ]
+   }
+  }
+ ],
+ "problems_cbst_trace": [
+  "golden set cbst_trace_escher_gpu_coauth50k: no replay of the CBST store under escher_gpu, dyng_default (compare.py cbst_trace --store device --certificate <results>)",
+  "golden set cbst_trace_mosp_escher_dblp50k_hyperedge: no replay of the CBST store under mosp_escher, dyng_default (compare.py cbst_trace --store device --certificate <results>)",
+  "golden set cbst_trace_mosp_escher_dblp50k_vertex: no replay of the CBST store under mosp_escher, dyng_default (compare.py cbst_trace --store device --certificate <results>)",
+  "golden set cbst_trace_escher_gpu_syn1m: no replay of the CBST store under escher_gpu, dyng_default (compare.py cbst_trace --store device --certificate <results>)",
+  "fixture set cbst_trace: no release check ran and passed a test CbstTrace.*"
+ ],
+ "verdict": "the hypergraph-id requirement of 0.3 holds for all 5 sets (ids on sequential, openmp, cuda; the line graph on cuda, and on sequential and openmp too, every record with the model, verified goldens and the oracle); the 4 large sets fail only the M8a requirement of the store's replays under both presets, not run in this dry run (release step 1)"
+}

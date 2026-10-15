@@ -260,6 +260,39 @@ struct unrelated { using type = int; };
     assert api_snapshot.detail_contract(changed) != lines
 
 
+def test_the_hypergraph_detail_contract_is_read_from_the_source() -> None:
+    # M8b review: ADR 0047 freezes the hypergraph's detail contract; its trait, variable,
+    # participant interface and run_update() are listed (a changed virtual signature changes the
+    # listing).
+    source = (api_snapshot.INCLUDE_DIR / "dyng/hypergraph/hypergraph.hpp").read_text()
+    lines = api_snapshot.detail_contract(source)
+    text = "\n".join(lines)
+    assert "struct is_hypergraph : std::false_type {}" in text
+    assert "struct is_hypergraph<hypergraph<vertex_t, weight_t>> : std::true_type {}" in text
+    assert "inline constexpr bool is_hypergraph_v = is_hypergraph<type_t>::value;" in text
+    participant = next(line for line in lines if "class hyper_update_participant" in line)
+    assert (
+        "virtual void after_apply(const resources& res, const graph_type& h, "
+        "const hyper_apply_summary& summary, const hyper_applied& applied) = 0;" in participant
+    )
+    assert "[[nodiscard]] virtual bool reads_prepared_graph() const noexcept;" in participant
+    assert any(
+        line.startswith(
+            "template <typename vertex_t, typename weight_t> hyper_apply_summary run_update("
+        )
+        for line in lines
+    )
+    changed = source.replace(
+        "const hyper_apply_summary& summary, const hyper_applied& applied) = 0;",
+        "const hyper_applied& applied) = 0;",
+    )
+    assert changed != source
+    assert api_snapshot.detail_contract(changed) != lines
+    # The graph's update_participant (update.hpp, internal-stable) is not listed.
+    update = (api_snapshot.INCLUDE_DIR / "dyng/update.hpp").read_text()
+    assert not any("update_participant {" in line for line in api_snapshot.detail_contract(update))
+
+
 def test_the_umbrella_includes_are_listed() -> None:
     source = "#pragma once\n#include <dyng/a.hpp>\n#include <dyng/b.hpp>\n"
     assert api_snapshot.umbrella_includes(source) == [
@@ -292,6 +325,34 @@ def test_a_changed_mosp_declaration_is_a_breaking_change() -> None:
     breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, changed)
     assert breaking and all(b.startswith("[dyng/mosp.hpp]") for b in breaking)
     assert any("compute_path_costs = false" in b for b in breaking)
+
+
+def test_the_hypergraph_headers_are_frozen_and_a_change_is_breaking() -> None:
+    # The M8b freeze (ADR 0047): every header of dyng/hypergraph/ is frozen, io/hypergraph_io,
+    # generators/hypergraphs and testing/* stay tracked; a changed default of a frozen
+    # hypergraph declaration is a breaking change.
+    secs = api_snapshot.sections(BASELINE_TEXT)
+    hyper = [h for h in secs if h.startswith("dyng/hypergraph/")]
+    assert len(hyper) == 6 and all(secs[h][0] == "frozen" for h in hyper)
+    for tracked in (
+        "dyng/io/hypergraph_io.hpp",
+        "dyng/io/batch_io.hpp",
+        "dyng/generators/hypergraphs.hpp",
+        "dyng/testing/line_graph_oracle.hpp",
+        "dyng/testing/cbst_host_model.hpp",
+    ):
+        assert secs[tracked][0] == "tracked", tracked
+    assert api_snapshot.status("dyng/hypergraph/hypergraph.hpp") == "frozen"
+    changed = _edit(
+        BASELINE_TEXT,
+        "id_reuse reuse = id_reuse::erase_first",
+        "id_reuse reuse = id_reuse::insert_first",
+    )
+    breaking, _ = api_snapshot.frozen_changes(BASELINE_TEXT, changed)
+    assert breaking[0] == (
+        "[dyng/hypergraph/hypergraph_properties.hpp] - id_reuse reuse = id_reuse::erase_first"
+    )
+    assert all(b.startswith("[dyng/hypergraph/hypergraph_properties.hpp]") for b in breaking)
 
 
 def test_appended_lines_and_tracked_sections_are_not_breaking() -> None:

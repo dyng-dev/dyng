@@ -94,6 +94,7 @@ nanobind_add_module(
   bindings/errors.cpp
   bindings/resources.cpp
   bindings/graph.cpp
+  bindings/hypergraph.cpp
   bindings/batch.cpp
   bindings/sssp.cpp
   bindings/cycle_count.cpp

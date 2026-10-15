@@ -4,8 +4,8 @@
  * @file allocation_failure_test.cpp
  * @brief Host allocation failures in header-inline code: they leave the library as
  *        out_of_memory_error (never std::bad_alloc or std::length_error), and the builders keep
- *        their strong guarantee (a failed edge_batch::insert_edge / delete_edge or
- *        edge_list::add_edge leaves the arrays as they were).
+ *        their strong guarantee (a failed edge_batch::insert_edge / delete_edge,
+ *        edge_list::add_edge or hyperedge_list::add_hyperedge leaves the arrays as they were).
  *
  * This executable replaces the global operator new with one that can be told to fail the n-th
  * allocation on the calling thread (not compiled under the sanitizers, which replace operator new
@@ -19,6 +19,7 @@
 #include <dyng/core/resources.hpp>
 #include <dyng/graph/edge_batch.hpp>
 #include <dyng/graph/edge_list.hpp>
+#include <dyng/hypergraph/hyperedge_list.hpp>
 
 #include <gtest/gtest.h>
 
@@ -26,6 +27,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <new>
+#include <vector>
 
 namespace {
 
@@ -129,6 +131,32 @@ TEST(AllocationFailure, AddEdgeIsStrong) {
     EXPECT_EQ(list.src.size(), 0U);
     EXPECT_EQ(list.dst.size(), 0U);
     EXPECT_EQ(list.weights.size(), 0U);
+  }
+}
+
+// M8b review: hyperedge_list::add_hyperedge pushed the first offset of an emptied list outside
+// its try block, so that allocation failure left as std::bad_alloc; it is out_of_memory_error,
+// and the list (empty offsets included) is unchanged.
+TEST(AllocationFailure, AddHyperedgeIsStrongWithEmptiedOffsets) {
+  if (DYNG_TEST_SANITIZED) {
+    GTEST_SKIP() << "operator new is the sanitizer's";
+  }
+  for (int n : {1, 2, 3, 4}) {
+    dyng::hyperedge_list<std::int32_t, std::int32_t> list;
+    list.offsets.clear();
+    list.offsets.shrink_to_fit();
+    {
+      const failing_allocation fail(n);
+      try {
+        list.add_hyperedge({1, 2, 3}, 7);
+      } catch (const dyng::out_of_memory_error&) {
+        EXPECT_TRUE(list.offsets.empty()) << n;
+        EXPECT_TRUE(list.members.empty()) << n;
+        EXPECT_TRUE(list.weights.empty()) << n;
+        continue;
+      }
+    }
+    EXPECT_EQ(list.offsets, (std::vector<std::int64_t>{0, 3})) << n;  // nothing failed
   }
 }
 

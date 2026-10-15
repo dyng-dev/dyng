@@ -29,6 +29,15 @@ The suites (each a golden corpus of parity/goldens.toml and its replay):
                dyng-compat-cycle-enum (`compare.py cycle_count`): histograms and generated
                batches; the `cuda` configuration replays the set `cycle_count_cuda` (the
                original's CUDA backend)
+  hypergraph   the hypergraph container (M8b, criterion 20): the GoogleTest suites of the
+               container on every backend (lockstep with the CBST host model, random streams,
+               the host id allocator against the model, the container-level id parity of the
+               committed traces); also the CTests `hypergraph.mutation.<name>` of every build
+  kit          the conformance kit's hypergraph axis (M8b, criterion 11; ADR 0043): the kit C0-C12
+               over the test-only aggregate-delta fake test_hyper_pairs on every backend
+               (dyng_hypergraph_kit_tests, dyng_hypergraph_kit_cuda_tests); its planted bug (the
+               fake's count(+) reads the requested ids instead of inserted_ids) must make the kit
+               fail; also the CTest `conformance.mutation.frontier_requested_ids` of every build
   cbst         the ESCHER CBST store (M8a, acceptance criterion 17): the GoogleTest suites
                dyng_cbst_device_tests (the committed traces of ESCHER-GPU@abcf9b2 and
                MOSP_ESCHER@4b86159 replayed in the exact field set), dyng_cbst_policy_tests (random
@@ -70,6 +79,26 @@ SUITES = {
     # GoogleTest suites (run directly, not through compare.py; M8a).
     "cbst": {
         "targets": ["dyng_cbst_device_tests", "dyng_cbst_policy_tests", "dyng_cbst_graph_tests"],
+        "runner": "gtest",
+        "compare": [],
+    },
+    # The hypergraph container (M8b, criterion 20): its suites on every backend (the lockstep with
+    # the CBST host model, the random streams, the allocator against the model, the container-level
+    # id parity on the committed traces and batch extracts).
+    "hypergraph": {
+        "targets": [
+            "dyng_hypergraph_tests",
+            "dyng_hypergraph_ids_tests",
+            "dyng_hypergraph_cuda_tests",
+            "dyng_hypergraph_ids_cuda_tests",
+        ],
+        "runner": "gtest",
+        "compare": [],
+    },
+    # The conformance kit's hypergraph axis (M8b, criterion 11): the kit over the test-only fake on
+    # every backend.
+    "kit": {
+        "targets": ["dyng_hypergraph_kit_tests", "dyng_hypergraph_kit_cuda_tests"],
         "runner": "gtest",
         "compare": [],
     },
@@ -240,6 +269,39 @@ MUTATIONS = [
         "plan": "M8a 17: requested keys honoured",
         "defines": ["DYNG_MUTATION_CBST_REQUESTED_KEYS"],
         "config": "cuda",
+    },
+    # hypergraph (M8b, criterion 20): the hooks DYNG_MUTATION_HYPERGRAPH_* in cpp/src/hypergraph.
+    {
+        "name": "hypergraph_h2v_not_deduplicated",
+        "suite": "hypergraph",
+        "plan": "M8b 20: the h2v insert payload is not deduplicated (MOSP_ESCHER #6)",
+        "defines": ["DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED"],
+        "config": "sequential",  # a label: the suite runs on every backend
+    },
+    {
+        "name": "hypergraph_allocator_ties_reversed",
+        "suite": "hypergraph",
+        "plan": "M8b 20: the host id allocator's best-fit tie rule reversed",
+        "defines": ["DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES"],
+        "config": "sequential",  # the host backends' allocator
+    },
+    {
+        "name": "hypergraph_mirror_additions_dropped",
+        "suite": "hypergraph",
+        "plan": "M8b 20: the line graph's mirrored additions dropped (the sorted merge, host and "
+        "device)",
+        "defines": ["DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED"],
+        "config": "sequential",  # a label: the suite runs on every backend
+    },
+    # kit (M8b, criterion 11): the planted bug of the kit's hypergraph axis, in the test-only fake
+    # (cpp/tests/framework/fake_hyper_problems.hpp): the frontier of count(+) is the ids the request
+    # would get without reuse (id_bound(G_t) + i) instead of hyper_apply_summary::inserted_ids.
+    {
+        "name": "kit_frontier_requested_ids",
+        "suite": "kit",
+        "plan": "M8b 11: the kit's planted bug: frontier = requested ids instead of inserted_ids",
+        "defines": ["DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS"],
+        "config": "sequential",  # a label: the suite runs on every backend
     },
 ]
 
@@ -464,6 +526,8 @@ def run(args: argparse.Namespace) -> int:
             "parity/goldens.toml",
             "cbst": "the committed CBST traces (cpp/tests/data/goldens/cbst_trace) and the "
             "lockstep and graph-on-CBST tests (no golden corpus)",
+            "hypergraph": "the committed traces and batch extracts (cpp/tests/data/goldens/"
+            "{cbst_trace,hypergraph_batches}) and the container's lockstep tests",
         },
         "build": "parity-cuda preset, targets dyng-compat-mosp / dyng-compat-cycle-enum / the cbst "
         "test executables, from git archive HEAD",

@@ -11,6 +11,7 @@ every tree after every operation from the state digests.
     parity/escher_trace.py summary <trace.cbt[.zst]>... [--json OUT]
     parity/escher_trace.py dump <trace.cbt[.zst]> [--records N] [--arrays]
     parity/escher_trace.py verify <trace.cbt[.zst]>...
+    parity/escher_trace.py extract-batches <trace.cbt[.zst]> <out.cbt> [--sessions N]
 
 summary reports per trace: the operations per tree and type; inserts with best-fit reuse, with
 surplus items and with a surplus rebuild (a new key list), K = 0 and D = 0; fills with overflow
@@ -23,6 +24,10 @@ chain; the original's integrity verdicts; unrecorded changes between operations.
 verify rebuilds every digest (delta digests from the previous state of the tree) and checks
 every recorded hash (rows, keys, per-key records, the whole state): the reader and the recorder
 agree on the state after every operation.
+
+extract-batches writes the batch records of a trace (and the sizes of its constructs and inserts)
+as a small format-1 trace without digests: the input of the container-level replay of M8b
+(dyng_hypergraph_ids) that hosted CI runs from the committed subset.
 """
 
 from __future__ import annotations
@@ -569,6 +574,100 @@ def cmd_verify(args) -> int:
     return 1 if bad else 0
 
 
+# --- Batch extracts (M8b) -------------------------------------------------------------------------
+
+# The scalar fields of an op record that an extract keeps (the container-level replay reads the
+# construct sizes and capacities, and the size of an insert's payload).
+EXTRACT_OP_FIELDS = (
+    "seq",
+    "tree",
+    "op",
+    "status",
+    "in.num_records",
+    "in.flat_payload_size",
+    "in.capacity",
+    "in.alignment",
+)
+
+
+def _encode_fields(fields: dict, trace: Trace) -> bytes:
+    out = bytearray(struct.pack("<I", len(fields)))
+    for name, value in fields.items():
+        raw = name.encode()
+        if isinstance(value, bool) or isinstance(value, int):
+            out += struct.pack("<BH", 1, len(raw)) + raw + struct.pack("<q", int(value))
+        elif isinstance(value, str):
+            data = value.encode()
+            out += struct.pack("<BH", 2, len(raw)) + raw + struct.pack("<I", len(data)) + data
+        elif isinstance(value, list):
+            out += struct.pack("<BH", 4, len(raw)) + raw + struct.pack("<I", len(value))
+            for item in value:
+                data = item.encode()
+                out += struct.pack("<I", len(data)) + data
+        elif isinstance(value, Array):
+            out += struct.pack("<BH", 3, len(raw)) + raw
+            if value.kind in ("inline", "blob"):
+                values = value.values(trace)
+                data = array("i" if value.elem == 4 else "q", values)
+                if sys.byteorder != "little":
+                    data.byteswap()
+                out += struct.pack("<BBQ", 0, value.elem, value.count) + data.tobytes()
+            elif value.kind == "hash":
+                out += struct.pack("<BBQQ", 2, value.elem, value.count, value.hash or 0)
+            else:
+                out += struct.pack("<BBQ", 3, value.elem, value.count)
+        else:
+            raise TraceError(f"cannot encode the field {name}")
+    return bytes(out)
+
+
+def extract_batches(src: Path, dst: Path, sessions: int = 0) -> dict:
+    """Writes the batch extract of a trace: the header, tree, batch and end records as they are
+    (side-file arrays inline), and of the op records only the construct and insert ops with their
+    scalar fields and the size of an insert's payload (a hash-only array). The extract is a valid
+    format-1 trace without state digests, enough for the container-level replay
+    (dyng_hypergraph_ids; M8b) and a few hundred KB for the small sets."""
+    trace = Trace(src)
+    out = bytearray(MAGIC + struct.pack("<II", FORMAT_VERSION, 0))
+    tag_of = {v: k for k, v in TAGS.items()}
+    kept = loads = 0
+    for kind, rec in trace.records():
+        if kind in ("event", "note"):
+            continue
+        if (
+            kind == "batch"
+            and rec.get("phase") == "enter"
+            and rec.get("hook")
+            in (
+                "mosp_escher.bulk_load",
+                "escher_gpu.build",
+            )
+        ):
+            loads += 1
+            if sessions and loads > sessions:
+                break  # the first `sessions` sessions only (the committed size budget)
+        if kind == "op":
+            if rec.get("op") not in ("construct", "insert"):
+                continue
+            fields = {k: rec[k] for k in EXTRACT_OP_FIELDS if k in rec}
+            if rec.get("op") == "insert" and isinstance(rec.get("in.payload"), Array):
+                p = rec["in.payload"]
+                fields["in.payload"] = Array("hash", p.elem, p.count, hash=p.hash or 0)
+            rec = fields
+        payload = _encode_fields(rec, trace)
+        out += struct.pack("<IQ", tag_of[kind], len(payload)) + payload
+        kept += 1
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_bytes(bytes(out))
+    return {"records": kept, "bytes": len(out)}
+
+
+def cmd_extract_batches(args) -> int:
+    info = extract_batches(Path(args.trace), Path(args.out), args.sessions)
+    print(f"{args.out}: {info['records']} records, {info['bytes']} bytes")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -584,6 +683,11 @@ def main(argv: list[str] | None = None) -> int:
     a = sub.add_parser("verify", help="rebuild every state and check every recorded hash")
     a.add_argument("traces", nargs="+")
     a.set_defaults(func=cmd_verify)
+    a = sub.add_parser("extract-batches", help="write the batch extract of a trace (M8b)")
+    a.add_argument("trace")
+    a.add_argument("out")
+    a.add_argument("--sessions", type=int, default=0, help="keep the first N sessions (0: all)")
+    a.set_defaults(func=cmd_extract_batches)
     args = p.parse_args(argv)
     return args.func(args)
 

@@ -64,6 +64,34 @@
 #              lockstep with the host model over the small sets (dyng_cbst_compact_large_tests:
 #              compact() after every op, and every preset's layout without compactions).
 #              The CBST mutation tests cbst.mutation.* run in the ctest -L gpu step.
+#   hypergraph the hypergraph container (M8b, ADRs 0041-0042): compute-sanitizer racecheck,
+#              synccheck and initcheck on its GPU test executables (dyng_hypergraph_cuda_tests:
+#              the container's suites on cuda, the line graph, two containers on two
+#              non-blocking streams;
+#              dyng_hypergraph_ids_cuda_tests: the committed batch records and A's skewed and
+#              medium traces; dyng_io_cuda_tests, M8b step 4: the .dgb batch_reader staging
+#              through pinned buffers to the device) at their reduced sizes (DYNG_CBST_REDUCED=1;
+#              memcheck covers them in
+#              the memcheck step), without the long random streams (HypergraphRandom.*,
+#              HypergraphCuda.RepeatedRunsGiveIdenticalIds: under racecheck they take hours, and
+#              their kernels are the ones of the other tests and of the cbst step); racecheck also
+#              leaves out HypergraphCuda.TwoContainersOnTwoNonBlockingStreams (C12 with two host
+#              threads: under racecheck its run time is not bounded, 59 s to more than 70 min;
+#              its kernels are the single-stream tests' kernels, and synccheck and memcheck run
+#              it), the kit's
+#              hypergraph axis (dyng_hypergraph_kit_cuda_tests, M8b step 3: the fakes' device counts
+#              over the row views; C1, C11 and C12 under the sanitizers, every check under
+#              memcheck), and the container-level replays of the small golden sets on
+#              cuda (parity/compare.py hypergraph_ids: escher_gpu_test and mosp_escher_test, the ids
+#              and rows; escher_gpu_test and mosp_escher_test again with --line-graph, A's H2H
+#              and testing::rebuild_line_graph after every batch (B's sessions: the oracle), and
+#              with --legacy-generator, A's batches drawn again by generators::legacy from the
+#              CUDA container; skipped without the goldens), their records in $DYNG_GPU_RESULTS (default
+#              build/<preset>/hypergraph-records), the id and line-graph replays also as the
+#              release certificate's hypergraph-id records (parity-<set>-hypergraph_ids-*.json,
+#              M8b step 5; the large sets and the CPU backends are replayed by the release's
+#              parity runs, docs/developer/release.md); and the compile-only fitness skeletons of
+#              the frozen hypergraph API (dyng_api_fitness, ADR 0047) are built by the build step
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -87,7 +115,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     -h | --help)
-      sed -n '5,69p' "${BASH_SOURCE[0]}"
+      sed -n '5,100p' "${BASH_SOURCE[0]}"
       exit 0
       ;;
     *)
@@ -358,6 +386,75 @@ if ! skipped cbst; then
   fi
 fi
 
+if ! skipped hypergraph; then
+  step "the hypergraph container: sanitizers and the replays (GPU ${gpu})"
+  hg_ok=1
+  hg_exes=()
+  for t in dyng_hypergraph_cuda_tests dyng_hypergraph_ids_cuda_tests dyng_io_cuda_tests; do
+    if [ -x "${build_dir}/cpp/tests/${t}" ]; then
+      hg_exes+=("${build_dir}/cpp/tests/${t}")
+    else
+      echo "${build_dir}/cpp/tests/${t} missing"
+      hg_ok=0
+    fi
+  done
+  if [ -z "${sanitizer}" ]; then
+    echo "compute-sanitizer missing"
+    hg_ok=0
+  else
+    for tool in racecheck synccheck initcheck; do
+      extra=()
+      hg_filter='-HypergraphRandom.*:HypergraphCuda.RepeatedRunsGiveIdenticalIds'
+      if [ "${tool}" = racecheck ]; then
+        extra=(--racecheck-report all)
+        # The two host threads of C12 under racecheck: 59 s in some runs, more than 400 s (and
+        # once more than 70 min) in others; synccheck and memcheck keep the test (M8b step 5).
+        hg_filter="${hg_filter}:HypergraphCuda.TwoContainersOnTwoNonBlockingStreams"
+      fi
+      for exe in "${hg_exes[@]}"; do
+        if ! DYNG_CBST_REDUCED=1 heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" \
+          --error-exitcode 1 "${exe}" --gtest_brief=1 --gtest_filter="${hg_filter}"; then
+          echo "compute-sanitizer --tool ${tool} ${exe}: FAILED"
+          hg_ok=0
+        fi
+      done
+      kit="${build_dir}/cpp/tests/dyng_hypergraph_kit_cuda_tests"
+      if [ ! -x "${kit}" ]; then
+        echo "${kit} missing"
+        hg_ok=0
+      elif ! heavy "${sanitizer}" --tool "${tool}" "${extra[@]}" --error-exitcode 1 "${kit}" \
+        --gtest_brief=1 --gtest_filter='*.C1_*:*.C11_*:*.C12_*'; then
+        echo "compute-sanitizer --tool ${tool} ${kit}: FAILED"
+        hg_ok=0
+      fi
+    done
+  fi
+  if [ "${hg_ok}" = 1 ]; then
+    record "hypergraph sanitizers (racecheck, synccheck, initcheck)" passed
+  else
+    record "hypergraph sanitizers (racecheck, synccheck, initcheck)" FAILED
+  fi
+  hg_tool="${build_dir}/cpp/tests/dyng_hypergraph_ids"
+  hg_records="${DYNG_GPU_RESULTS:-${build_dir}/hypergraph-records}"
+  if [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/escher_gpu_test/MANIFEST.sha256" ] ||
+    [ ! -f "${DYNG_SCRATCH}/goldens/cbst_trace/mosp_escher_test/MANIFEST.sha256" ]; then
+    echo "the CBST trace goldens are missing (parity/export_goldens.py cbst_trace); skipped"
+    record "hypergraph replays (cuda, small sets)" skipped
+  elif heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
+    --exe "${hg_tool}" --record "${hg_records}" --certificate "${hg_records}" \
+    --set cbst_trace_escher_gpu_test --set cbst_trace_mosp_escher_test &&
+    heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
+      --exe "${hg_tool}" --record "${hg_records}" --certificate "${hg_records}" --line-graph \
+      --mode by_id --set cbst_trace_escher_gpu_test --set cbst_trace_mosp_escher_test &&
+    heavy python3 parity/compare.py hypergraph_ids --backend cuda --gpu "${gpu}" --jobs 8 \
+      --exe "${hg_tool}" --record "${hg_records}" --legacy-generator --mode by_id \
+      --set cbst_trace_escher_gpu_test; then
+    record "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)" passed
+  else
+    record "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)" FAILED
+  fi
+fi
+
 if ! skipped plugin; then
   step "the CUDA plugin wheel from Python (GPU ${gpu})"
   scratch="${DYNG_SCRATCH:-${HOME}/Projects/dyng-work}"
@@ -391,8 +488,10 @@ if ! skipped tidy; then
     record clang-tidy skipped
   else
     gcc_include="$("${CXX:-g++}" -print-file-name=include)"
-    # cpp/src/algorithms/_template is not compiled (scripts/new_algorithm.py instantiates it).
-    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' |
+    # The templates cpp/src/algorithms/_template and _template_hypergraph are not compiled
+    # (scripts/new_algorithm.py instantiates them), as in ci/check.sh's tidy step.
+    if git ls-files 'cpp/src/*.cpp' ':!:cpp/src/algorithms/_template/*' \
+      ':!:cpp/src/algorithms/_template_hypergraph/*' |
       heavy xargs -r -n 1 -P "$(nproc)" clang-tidy \
       -p "${build_dir}" --quiet --checks='-*,readability-identifier-naming' \
       --warnings-as-errors='*' "--extra-arg=-isystem${gcc_include}" \

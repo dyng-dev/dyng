@@ -58,10 +58,14 @@ container on it, its I/O and Python, the header freeze) and M9 (`triad_count`). 
 every recorded field under their presets `escher_gpu()` and `mosp_escher()`, except two
 documented divergences (`construct_below_payload` and, for MOSP_ESCHER's constructs without row
 counts, `construct_without_row_counts`) and 57 operations whose inputs the traces hold as hashes
-only or not at all, and dynG's default compacts first and then grows.
+only or not at all, and dynG's default compacts first and then grows. M8b is done too (pending the hosted CI and
+the author's merge): `dyng::hypergraph` with ESCHER-GPU's and MOSP_ESCHER's ids on every backend,
+the line graph equal to ESCHER-GPU's after every batch at the same device memory, `.hg` and
+`.dgb` files, the generators, Python (`dyng.Hypergraph`), and the hypergraph headers frozen.
 
 - The dynamic **hypergraph** with the ESCHER storage, the `sorted_merge` line graph and row
-  views, hypergraph generators, and binary batch files (`.dgb`).
+  views, hypergraph generators, and binary batch files (`.dgb`), from C++ and Python (done in
+  M8b).
 - `triad_count` (hypergraph h-motif triads, ESCHER / ESCHER+).
 - Experimental: counting your own local hypergraph patterns (`count_local_patterns`).
 

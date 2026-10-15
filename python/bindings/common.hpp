@@ -519,6 +519,7 @@ decltype(auto) read_result(const result_holder<value_t>& h, function_t&& f) {
 void bind_errors(nb::module_& m);          ///< errors.cpp
 void bind_resources(nb::module_& m);       ///< resources.cpp
 void bind_graph(nb::module_& m);           ///< graph.cpp
+void bind_hypergraph(nb::module_& m);      ///< hypergraph.cpp
 void bind_batch(nb::module_& m);           ///< batch.cpp
 void bind_sssp(nb::module_& m);            ///< sssp.cpp
 void bind_cycle_count(nb::module_& m);     ///< cycle_count.cpp

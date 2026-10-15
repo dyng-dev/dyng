@@ -39,7 +39,7 @@ batch. `translate` is on the card but has no hook yet: no algorithm uses it (mos
 | `framework/frontier.hpp` | `internal_frontier`, the `has_empty` trait |
 | `framework/budgets.hpp` | `budget`, `budget_scope`, `check_budget`, `last_budget_report` (invariant I9) |
 | `framework/conformance.hpp` | the compile-time checks (`static_assert`s with plain-English messages) |
-| `framework/composition.hpp` | `requested_batch`, `applied_batch`, `problem_participant<problem_t>`, `make_participant`, `update_one`, `expect_current_result`, `stamp_result` |
+| `framework/composition.hpp` | `requested_batch`, `applied_batch` (and the hypergraph's `hyper_requested_batch`, `hyper_applied_batch`), `problem_participant<problem_t>`, `make_participant`, `update_one`, `expect_current_result`, `stamp_result` |
 | `framework/composition.cpp` | `run_update()`: Step 0 of set semantics once, every before-commit half, one commit, every after-commit half |
 | `framework/workspace.hpp`, `scratch_buffer.hpp` | the workspace pool of a `resources` handle (ADR 0015) |
 | `core/budget_counters.hpp` | the per-thread allocation and host-synchronization counters behind I9 |
@@ -261,6 +261,31 @@ engine choice is public: `dyng::engine`.
 Algorithm-level composition is plain C++. `mosp` holds K `sssp` problems and a static `sssp` over
 the combined graph; `hyper_sssp` holds one `sssp` problem over a line-graph view.
 
+### Hypergraphs (0.3, ADR 0043)
+
+A problem whose `container_type` is `hypergraph<V, W>` runs through the same adapter, enactors
+and hooks. `composition_detail::graph_types<container>` names what differs per container:
+
+| | graph | hypergraph |
+|---|---|---|
+| participant interface | `update_participant<V, E, W>` (`update.hpp`) | `hyper_update_participant<V, W>` (`hypergraph.hpp`) |
+| `requested` (before the commit) | `requested_batch {edges, normalized}` | `hyper_requested_batch {hyperedges, normalized}`: `normalized` is Step 0, the transaction's `hyper_staged_batch` (the inserted rows sorted and deduplicated, the live deletions of G_t, the skipped counts) |
+| `applied` (after the commit) | `applied_batch {summary, delta, normalized}` | `hyper_applied_batch {summary, record, normalized}`: `summary.inserted_ids` and the applied record (inserted ids on the host and, on CUDA, the device; deleted ids with their member sets; touched hyperedges and vertices) |
+| `stats::batch` | `apply_summary` | `hyper_apply_summary` |
+| `reads_prepared_graph()` | the commit prepares the in-edges / device copy (default true) | the update keeps the line graph (default false; `automatic` builds it on G_t) |
+
+The hypergraph's `run_update()` (`cpp/src/hypergraph/hyper_update.cpp`) opens the hypergraph's
+transaction (`cpp/src/hypergraph/transaction.hpp`): **begin** (placement, Step 0 once, stage
+`<algo>.normalize`), every **before_apply** on G_t (its old views valid until the commit; in Debug
+builds an `old_view` used after the commit throws), one **commit** (`<algo>.commit` around
+`hypergraph.apply`), every **after_apply** on G_{t+1}. Read inserted ids from
+`applied.summary.inserted_ids` (or the record's device copy), never predict them: the store's
+best-fit reuse decides them. The internal row views (`detail::hypergraph_access::views()`, A's
+key-indexed rows) are rebuilt by every commit; the public views are built on request, at most once
+per version, as the container's own work. An aggregate-delta problem subtracts in `count(-)` on
+the old views with the deleted ids as its frontier and adds in `count(+)` on the new views with
+the inserted ids; `cpp/tests/framework/fake_hyper_problems.hpp` is the worked example.
+
 ## Invariants I1-I9
 
 | # | Invariant | Mechanism in the framework |
@@ -449,8 +474,15 @@ a simpler `dynamic_bfs` from the scaffold.
 `cpp/tests/compile_fail/framework_conformance.cpp` checks the `static_assert` messages of
 `conformance.hpp` (CTest `framework.conformance.*`).
 
+`cpp/tests/framework/fake_hyper_problems.hpp` has two aggregate-delta problems on the
+hypergraph (overlapping pairs of hyperedges, and the sum of |e|^2); `hypergraph_update_test.cpp`
+checks the transaction, `dyng::update()` over hypergraphs (one Step 0 and one commit, the order,
+duplicates, the strong guarantee before the commit, poisoning after it, stale results, the line
+graph prepared for its readers) and the Debug check of I1 on the hypergraph, and the kit runs the
+fakes through C0-C12 on every backend (`dyng_hypergraph_kit_tests`).
+
 The algorithms themselves are checked by the conformance kit (C0-C12,
-{doc}`conformance`), for every registered algorithm, backend and graph type.
+{doc}`conformance`), for every registered algorithm, backend and container type.
 
 ## Differences from PLAN 4.5
 

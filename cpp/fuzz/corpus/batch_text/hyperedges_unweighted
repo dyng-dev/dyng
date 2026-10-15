@@ -1,0 +1,9 @@
+004
+%dgt 1 hypergraph
+%batch 0
+-h 4
++h 0 2 1
++h 3 3
+%batch 5
+-h 0
+-h 0

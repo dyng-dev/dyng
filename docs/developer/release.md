@@ -65,6 +65,16 @@ with `parity/compare.py cbst_trace --store device [--policy dyng_default] --set 
 --certificate benchmarks/results/<version>` (each checks its documented divergences against
 `parity/cbst_documented.toml`).
 
+**The hypergraph container's replays (from 0.3.0, M8b).** For the CBST trace sets with
+hypergraph batches (`HYPERGRAPH_ID_REPLAYS` of `parity/certify.py`: ESCHER-GPU's `test`,
+`coauth50k` and `syn1m`, MOSP_ESCHER's `test` and `dblp50k_hyperedge`) a 0.3 certificate also
+needs the replay of their batch records through `dyng::hypergraph` with the originals' ids and
+rows on sequential, openmp and cuda, and, for ESCHER-GPU's sets, the line graph against A's H2H
+on cuda. `ci/gpu_local.sh` (the `hypergraph` step) writes the CUDA records of the small sets;
+the rest are `parity/compare.py hypergraph_ids --backend <backend> [--threads 8] [--line-graph
+--mode by_id] --set <set> --certificate benchmarks/results/<version>` (a few minutes per set and
+backend).
+
 ## The release workflow
 
 `release.yml` runs on a tag `v*` (the `release tags` ruleset lets only repository administrators

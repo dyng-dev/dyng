@@ -257,30 +257,9 @@ using store_factory = std::function<std::unique_ptr<store_adapter>(const std::st
 replay_report replay(cbst_trace::reader& in, const store_factory& make_store, const options& opt,
                      const std::string& name);
 
-/**
- * @brief A trace opened for reading: a `.cbt` file (with its `<name>.blob` side file) or a
- *        `.cbt.zst` file (read through `zstd -dc --long=31`; its `trace.blob.zst` side file is
- *        decompressed into a temporary file under `tmp_dir`, removed by the destructor).
- */
-class trace_source {
- public:
-  /// Opens `path`; throws cbst_trace::trace_error when it cannot.
-  trace_source(const std::string& path, const std::string& tmp_dir);
-  ~trace_source();
-  trace_source(const trace_source&) = delete;
-  trace_source& operator=(const trace_source&) = delete;
-  /// The reader.
-  cbst_trace::reader& reader() {
-    return *reader_;
-  }
-
- private:
-  struct pipe;
-  std::unique_ptr<pipe> pipe_;
-  std::unique_ptr<std::istream> stream_;
-  std::unique_ptr<cbst_trace::reader> reader_;
-  std::string blob_tmp_;
-};
+/// A trace opened for reading (cbst_trace::trace_source; it moved there in M8b so that the
+/// dynG-free tools can open traces).
+using trace_source = cbst_trace::trace_source;
 
 /// The host model under `policy`, or under the preset of the trace's original when `policy` is
 /// empty (an unknown original then throws cbst_trace::trace_error).

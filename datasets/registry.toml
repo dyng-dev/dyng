@@ -16,6 +16,8 @@
 #   source       where the archive comes from (kind = "archive"), or the entry it is derived from
 #   reference    the original whose converter produces it (references.toml), and `converter`
 #                its script in the original's tree, run as `python3 <converter> <args>`
+#   dyng_converter  dynG's own converter that writes the same bytes (run from the repository as
+#                `python3 <dyng_converter> <args>`; M8b, ADR 0045)
 #   cite         the reference to cite when the data is used
 #   + the counts the original reports for the file
 schema = 1
@@ -40,6 +42,7 @@ source = "coauth-DBLP-full"
 reference = "ESCHER-GPU"
 converter = "bench/datasets/convert_coauth.py"
 arguments = "coauth-DBLP-full/coauth-DBLP-full <out>.hg"
+dyng_converter = "datasets/preprocess/benson_to_hg.py --variant escher"
 hyperedges = 2467389
 vertices = 1930378
 pins = 7748737
@@ -60,6 +63,7 @@ source = "coauth-DBLP-full"
 reference = "MOSP_ESCHER"
 converter = "scripts/benson_to_hg.py"
 arguments = "coauth-DBLP-full/coauth-DBLP-full <out>.hg"
+dyng_converter = "datasets/preprocess/benson_to_hg.py --variant hsosp"
 lines = 2467389
 vertices = 1930378
 loaded_hyperedges = 2466792

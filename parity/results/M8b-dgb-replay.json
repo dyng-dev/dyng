@@ -1,0 +1,55 @@
+{
+ "step": "M8b step 4 (io-generators), criterion 14",
+ "commit": "b7b6a38",
+ "tool": "build/parity-cuda/tools/compat/dyng-compat-escher (Release)",
+ "cases": [
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_coauth50k/coauth_b50k_s1/trace.cbt.zst",
+   "hyperedges": 2467389,
+   "vertices": 1930378,
+   "batches": 3,
+   "files": {
+    "hg_bytes": 53443709,
+    "hg_sha256": "65fc83b22dfb3ecd14b15436f4aaee54631657f2f4afec8260150679387b7cb6",
+    "hg_equals_registry_coauth": true,
+    "dgb_bytes": 4283144
+   },
+   "replays": {
+    "openmp_16": {
+     "ids_as_expected": 75000,
+     "ambiguous_by_content": 824,
+     "differences": 0
+    },
+    "cuda_gpu1": {
+     "ids_as_expected": 75000,
+     "ambiguous_by_content": 824,
+     "differences": 0
+    }
+   }
+  },
+  {
+   "trace": "$DYNG_SCRATCH/goldens/cbst_trace/escher_gpu_syn1m/syn1m_b50k_s1/trace.cbt.zst",
+   "hyperedges": 1000000,
+   "vertices": 333333,
+   "batches": 3,
+   "files": {
+    "hg_bytes": 36614265,
+    "dgb_bytes": 5698904
+   },
+   "replays": {
+    "openmp_16": {
+     "ids_as_expected": 75000,
+     "ambiguous_by_content": 1048,
+     "differences": 0
+    },
+    "cuda_gpu1": {
+     "ids_as_expected": 75000,
+     "ambiguous_by_content": 1048,
+     "differences": 0
+    }
+   }
+  }
+ ],
+ "what": "to-dgb writes A's loaded hypergraph (.hg, A's ids), A's batches (.dgb with deleted_members and expected_ids) and A's run (.txt); replay builds under {erase_first, escher_gpu(capacity)}, streams the .dgb with io::batch_reader (pinned staging to the device on cuda), deletes by id (inserted_ids == expected ids) and by content (by_content_resolver; the live member sets equal the by-id container's after every batch).",
+ "passed": true
+}

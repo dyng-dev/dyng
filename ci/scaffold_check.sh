@@ -6,9 +6,11 @@
 # algorithm that builds and passes the conformance kit on the first build.
 #
 # In a throwaway copy of the working tree (the tracked and the untracked, not ignored files) it
-# generates one algorithm of each family (scaffold_probe_fp: fixed_point on sequential and OpenMP;
-# scaffold_probe_ad: aggregate_delta on sequential), checks that scripts/regen.py --check passes
-# on the result, and follows the tutorial "Your first dynamic algorithm"
+# generates one graph algorithm of each family (scaffold_probe_fp: fixed_point on sequential and
+# OpenMP; scaffold_probe_ad: aggregate_delta on sequential) and one hypergraph algorithm of each
+# family (--container hypergraph, ADR 0043: scaffold_probe_hg_ad, aggregate_delta on sequential and
+# OpenMP; scaffold_probe_hg_fp, fixed_point on sequential), checks that scripts/regen.py --check
+# passes on the result, and follows the tutorial "Your first dynamic algorithm"
 # (docs/tutorials/your_first_dynamic_algorithm.md): it scaffolds my_bfs with the tutorial's command
 # and makes the tutorial's edits in the scaffold's files, each where the prose puts it
 # (ci/tutorial_edits.py, which pastes the ranges of the reference solution
@@ -57,6 +59,13 @@ python3 "${src}/scripts/new_algorithm.py" scaffold_probe_fp --family fixed_point
   --title "Scaffold probe (fixed point)" --computes "a scaffold check" --root "${src}"
 python3 "${src}/scripts/new_algorithm.py" scaffold_probe_ad --family aggregate_delta --backends seq \
   --title "Scaffold probe (aggregate delta)" --computes "a scaffold check" --root "${src}"
+echo "==> scripts/new_algorithm.py --container hypergraph: one hypergraph algorithm of each family"
+python3 "${src}/scripts/new_algorithm.py" scaffold_probe_hg_ad --container hypergraph \
+  --family aggregate_delta --backends seq,omp --title "Scaffold probe (hypergraph, aggregate delta)" \
+  --computes "a scaffold check" --root "${src}"
+python3 "${src}/scripts/new_algorithm.py" scaffold_probe_hg_fp --container hypergraph \
+  --family fixed_point --backends seq --title "Scaffold probe (hypergraph, fixed point)" \
+  --computes "a scaffold check" --root "${src}"
 echo "==> the tutorial: my_bfs, scaffolded, then the reader's edits made (ci/tutorial_edits.py)"
 python3 "${src}/scripts/new_algorithm.py" my_bfs --family fixed_point --backends seq,omp \
   --title "My first dynamic BFS" --computes "BFS levels from a source" --root "${src}"
@@ -78,7 +87,8 @@ fi
 echo "==> configure and build (Debug, warnings as errors, budgets on; the probes and my_bfs, sssp added)"
 cmake -S "${src}" -B "${work}/build" -G Ninja -DCMAKE_BUILD_TYPE=Debug -DDYNG_BUILD_TESTS=ON \
   -DDYNG_WARNINGS_AS_ERRORS=ON -DDYNG_DEBUG_BUDGETS=ON -DDYNG_ENABLE_CUDA=OFF \
-  "-DDYNG_ALGORITHMS=scaffold_probe_fp;scaffold_probe_ad;my_bfs" -DDYNG_MUTATION_TESTS=OFF \
+  "-DDYNG_ALGORITHMS=scaffold_probe_fp;scaffold_probe_ad;scaffold_probe_hg_ad;scaffold_probe_hg_fp;my_bfs" \
+  -DDYNG_MUTATION_TESTS=OFF \
   -DDYNG_BUILD_EXAMPLES=OFF -DDYNG_BUILD_COMPAT_TOOLS=OFF >"${work}/configure.log" ||
   { cat "${work}/configure.log"; exit 1; }
 grep -q "dynG: sssp added to DYNG_ALGORITHMS" "${work}/configure.log" ||
@@ -94,6 +104,15 @@ ctest --test-dir "${work}/build" --output-on-failure -R '^Registry\.'
 count="$(ctest --test-dir "${work}/build" -N -L 'scaffold_probe_fp|scaffold_probe_ad' | sed -n 's/^Total Tests: //p')"
 if [ "${count:-0}" -lt 20 ]; then
   echo "scaffold_check: only ${count:-0} tests of the probes were found" >&2
+  exit 1
+fi
+echo "==> the hypergraph probes' tests: the kit's hypergraph axis and the hand cases"
+ctest --test-dir "${work}/build" --output-on-failure -j "$(nproc)" \
+  -L 'scaffold_probe_hg_ad|scaffold_probe_hg_fp' -R 'scaffold_probe_hg|ScaffoldProbeHg'
+hg_count="$(ctest --test-dir "${work}/build" -N -L 'scaffold_probe_hg_ad|scaffold_probe_hg_fp' | sed -n 's/^Total Tests: //p')"
+# 13 checks x 2 hypergraph types x 2 probes, and the hand cases.
+if [ "${hg_count:-0}" -lt 50 ]; then
+  echo "scaffold_check: only ${hg_count:-0} tests of the hypergraph probes were found" >&2
   exit 1
 fi
 echo "==> the tutorial's my_bfs: its conformance kit and hand cases (the tutorial's last step)"
@@ -143,6 +162,8 @@ fi
 echo "==> scripts/new_algorithm.py --remove"
 python3 "${src}/scripts/new_algorithm.py" scaffold_probe_fp --remove --root "${src}"
 python3 "${src}/scripts/new_algorithm.py" scaffold_probe_ad --remove --root "${src}"
+python3 "${src}/scripts/new_algorithm.py" scaffold_probe_hg_ad --remove --root "${src}"
+python3 "${src}/scripts/new_algorithm.py" scaffold_probe_hg_fp --remove --root "${src}"
 python3 "${src}/scripts/new_algorithm.py" my_bfs --remove --root "${src}"
 python3 "${src}/scripts/regen.py" --check --root "${src}"
 (cd "${repo_root}" && git ls-files -z --cached | while IFS= read -r -d '' f; do
@@ -151,4 +172,4 @@ python3 "${src}/scripts/regen.py" --check --root "${src}"
     exit 1
   fi
 done)
-echo "scaffold_check: OK (${count} tests of the probes and ${tutorial_count} of the tutorial's my_bfs passed)"
+echo "scaffold_check: OK (${count} tests of the graph probes, ${hg_count} of the hypergraph probes and ${tutorial_count} of the tutorial's my_bfs passed)"

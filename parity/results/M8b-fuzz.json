@@ -1,0 +1,28 @@
+{
+ "step": "M8b step 4 (io-generators), criterion 15",
+ "date": "2026-10-14",
+ "build": "build/fuzz (preset fuzz: Clang 18.1.8 of the dyng-clang environment, -fsanitize=fuzzer,address,undefined, libdyng instrumented, Debug -O1) from the working tree committed as 055fb18 (later commits changed formatting and comments of these sources only)",
+ "flags": "-max_total_time=1860 -rss_limit_mb=2048 -malloc_limit_mb=2048 -timeout=10 -max_len=4096 (ci/fuzz.sh's), seeded with cpp/fuzz/corpus/<target> and cpp/fuzz/regressions/<target>",
+ "targets": {
+  "hg": {
+   "seconds": 1861,
+   "executions": 5898695,
+   "peak_rss_mb": 126,
+   "findings": 0
+  },
+  "batch_binary": {
+   "seconds": 1861,
+   "executions": 15550704,
+   "peak_rss_mb": 450,
+   "findings": 0
+  },
+  "batch_text": {
+   "seconds": 1861,
+   "executions": 11210126,
+   "peak_rss_mb": 124,
+   "findings": 0
+  }
+ },
+ "replays": "ctest --preset fuzz (fuzz.corpus.*, 8 targets) and ctest -L fuzz in the dev tree (fuzz.replay.* and fuzz.selftest.*, 18 tests): passed",
+ "passed": true
+}

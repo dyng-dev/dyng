@@ -152,6 +152,7 @@ endif()
 dyng_add_module(
   NAME util
   SOURCES
+    src/util/crc32.cpp
     src/util/device_error_flags.cpp
     src/util/kernel_registry.cpp
     src/util/parser.cpp
@@ -166,12 +167,25 @@ dyng_add_module(
   CUDA_SOURCES src/graph/device_graph.cu src/graph/apply_set_device.cu
 )
 
-# The hypergraph module (M8a): the ESCHER CBST store (internal; cpp/src/hypergraph/escher,
-# ADR 0038). The device store is CUDA-only; the host flatten is always built.
+# The hypergraph module: the ESCHER CBST store (M8a; internal, cpp/src/hypergraph/escher, ADR
+# 0038) and the hypergraph container on it (M8b, ADR 0041): the host store and its id allocator on
+# every build, the device store with CUDA.
 dyng_add_module(
   NAME hypergraph
-  SOURCES src/hypergraph/escher/flatten.cpp src/hypergraph/escher/store_policy.cpp
+  SOURCES
+    src/hypergraph/capacity.cpp
+    src/hypergraph/escher/flatten.cpp
+    src/hypergraph/escher/store_policy.cpp
+    src/hypergraph/hyper_update.cpp
+    src/hypergraph/hypergraph.cpp
+    src/hypergraph/id_allocator.cpp
+    src/hypergraph/incidence_model.cpp
+    src/hypergraph/line_graph/flat_adjacency.cpp
+    src/hypergraph/line_graph/sorted_merge_host.cpp
+    src/hypergraph/names.cpp
+    src/hypergraph/store.cpp
   CUDA_SOURCES
+    src/hypergraph/escher_store.cu
     src/hypergraph/escher/build_tree.cu
     src/hypergraph/escher/cbst_store.cu
     src/hypergraph/escher/compact.cu
@@ -182,15 +196,18 @@ dyng_add_module(
     src/hypergraph/escher/locator.cu
     src/hypergraph/escher/payload.cu
     src/hypergraph/escher/unfill.cu
+    src/hypergraph/line_graph/sorted_merge.cu
 )
 
 dyng_add_module(
   NAME io
   SOURCES
+    src/io/batch_binary.cpp
     src/io/batch_io.cpp
     src/io/batch_text.cpp
     src/io/csr_triplet.cpp
     src/io/edge_list_io.cpp
+    src/io/hypergraph_io.cpp
     src/io/matrix_market.cpp
     src/io/result_io.cpp
 )
@@ -202,6 +219,7 @@ dyng_add_module(
 
 dyng_add_module(
   NAME generators SOURCES src/generators/legacy.cpp src/generators/legacy_cycle_enum.cpp
+                          src/generators/legacy_escher.cpp src/generators/hypergraphs.cpp
 )
 
 # Algorithms: one folder per algorithm under src/algorithms (PLAN Section 4.8).
@@ -243,9 +261,22 @@ target_compile_features(dyng_testing_cbst_model PRIVATE cxx_std_17)
 set_target_properties(dyng_testing_cbst_model PROPERTIES POSITION_INDEPENDENT_CODE ON)
 dyng_set_warnings(dyng_testing_cbst_model)
 dyng_enable_sanitizers(dyng_testing_cbst_model)
+# The line-graph oracle (M8b, ADR 0042) likewise: MOSP_ESCHER's HypergraphOracle algorithm in the
+# standard library only, checked to share nothing with the container (line_graph_oracle_isolation).
+add_library(dyng_testing_line_graph_oracle OBJECT src/testing/line_graph_oracle.cpp)
+target_include_directories(dyng_testing_line_graph_oracle PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include")
+target_compile_features(dyng_testing_line_graph_oracle PRIVATE cxx_std_17)
+set_target_properties(dyng_testing_line_graph_oracle PROPERTIES POSITION_INDEPENDENT_CODE ON)
+dyng_set_warnings(dyng_testing_line_graph_oracle)
+dyng_enable_sanitizers(dyng_testing_line_graph_oracle)
 add_library(
-  dyng_testing src/testing/dijkstra.cpp src/testing/check_sssp.cpp src/testing/cycle_oracle.cpp
-               src/testing/mosp_oracle.cpp $<TARGET_OBJECTS:dyng_testing_cbst_model>
+  dyng_testing
+  src/testing/dijkstra.cpp
+  src/testing/check_sssp.cpp
+  src/testing/cycle_oracle.cpp
+  src/testing/mosp_oracle.cpp
+  $<TARGET_OBJECTS:dyng_testing_cbst_model>
+  $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
 )
 add_library(dyng::testing ALIAS dyng_testing)
 set_target_properties(

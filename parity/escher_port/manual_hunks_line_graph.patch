@@ -1,0 +1,54 @@
+diff -ru a/cpp/src/hypergraph/line_graph/sorted_merge.cu b/cpp/src/hypergraph/line_graph/sorted_merge.cu
+--- a/cpp/src/hypergraph/line_graph/sorted_merge.cu
++++ b/cpp/src/hypergraph/line_graph/sorted_merge.cu
+@@ -14,11 +14,13 @@
+ // Kernels of the GPU maintenance of the derived adjacency trees (H2H line
+ // graph, V2V vertex graph); see structure/graph_maintenance.cu.
+ //
+-// pair_list are packed as (row key << 32) | value, so a sorted pair array groups
++// Pairs are packed as (row key << 32) | value, so a sorted pair array groups
+ // the entries of each row in ascending value order.
+ #include "hypergraph/line_graph/device_frontier.cuh"
+ #include "hypergraph/line_graph/sorted_merge.cuh"
+ 
++#include <dyng/core/buffer.hpp>
++
+ #include <thrust/device_ptr.h>
+ #include <thrust/functional.h>
+ #include <thrust/scan.h>
+@@ -30,6 +32,7 @@
+ #include <climits>
+ #include <cstdlib>
+ #include <iostream>
++#include <utility>
+ 
+ namespace dyng::detail::escher {
+ 
+@@ -338,15 +341,22 @@
+               << " payload entries exceed the int32 offsets of the CBST" << std::endl;
+     std::exit(2);
+   }
+-  device_array<int> flat(total);
++  // dynG (transplant hunk): the merged payload and the row offsets are the store's buffers (the
++  // tree takes them over in rebuild_from_device), allocated from the tree's resources.
++  buffer<int> flat(tree.context().res, static_cast<size_t>(std::max(1LL, total)));
+   int grid =
+       static_cast<int>(std::min<long long>((num_keys * 32LL + block_size - 1) / block_size, 65535));
++  check(cudaDeviceSynchronize());  // dynG (transplant hunk): the buffers' stream-ordered allocation
+   write_merged_rows_kernel<<<grid, block_size>>>(old, delta, num_keys, start.get(), len.get(),
+-                                                 flat.get());
+-  device_array<int> starts(num_keys);
+-  narrow_starts_kernel<<<blocks_for(num_keys), block_size>>>(start.get(), num_keys, starts.get());
++                                                 flat.data());
++  buffer<int> starts(tree.context().res, static_cast<size_t>(std::max(1, num_keys)));
++  check(cudaDeviceSynchronize());
++  narrow_starts_kernel<<<blocks_for(num_keys), block_size>>>(start.get(), num_keys, starts.data());
+   check(cudaGetLastError());
+-  tree.rebuild_from_device(starts.release(), num_keys, flat.release(), static_cast<int>(total),
++  // dynG (transplant hunk): the kernels above run on the legacy default stream, the tree on its
++  // resources' stream.
++  check(cudaDeviceSynchronize());
++  tree.rebuild_from_device(std::move(starts), num_keys, std::move(flat), static_cast<int>(total),
+                            static_cast<int>(total));
+ }
+ 

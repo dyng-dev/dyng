@@ -1,7 +1,8 @@
 # Sketch: `hypergraph` and `hyperedge_batch` (0.3)
 
-**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); frozen in M8 with the
-ESCHER store. **Origin:** ESCHER-GPU's CBST store (`structure/*`, `kernel/*`) and MOSP_ESCHER's
+**Status:** reviewed sketch (M3, against the frozen 0.1 contract, ADR 0023); implemented in M8b
+and frozen at its end (ADRs 0041-0047): the frozen API is {doc}`../../api/cpp/hypergraph`, and
+ADR 0041 reconciles this sketch with it item by item. **Origin:** ESCHER-GPU's CBST store (`structure/*`, `kernel/*`) and MOSP_ESCHER's
 copy of it, merged in stages (PLAN Section 6.4.5); MOSP_ESCHER's `HostHypergraph`, `HgBatch` and
 `IncidenceBatch` for the batch model; H-SOSP's `DeviceIncidence` / `DeviceH2H` for the slack
 storage of 0.4.

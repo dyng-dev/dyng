@@ -6,12 +6,18 @@
  */
 #include "parity/escher/cbst_trace.hpp"
 
+#include <unistd.h>
+
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <istream>
 #include <set>
 #include <sstream>
+#include <streambuf>
 
 namespace dyng::test::cbst_trace {
 namespace {
@@ -396,6 +402,77 @@ std::vector<std::string> state_tracker::apply(const record& r, reader& source) {
   }
   if (h != static_cast<std::uint64_t>(r.integer("state.hash"))) problems.emplace_back("state hash");
   return problems;
+}
+
+namespace {
+
+std::string quote_for_shell(const std::string& s) {
+  std::string out = "'";
+  for (char c : s) {
+    if (c == '\'')
+      out += "'\\''";
+    else
+      out += c;
+  }
+  return out + "'";
+}
+
+}  // namespace
+
+/// An input stream buffer over a pipe (popen).
+struct trace_source::pipe : std::streambuf {
+  explicit pipe(FILE* f) : file(f) {}
+  ~pipe() override {
+    if (file) pclose(file);
+  }
+  pipe(const pipe&) = delete;
+  pipe& operator=(const pipe&) = delete;
+  int_type underflow() override {
+    if (gptr() < egptr()) return traits_type::to_int_type(*gptr());
+    if (file == nullptr) return traits_type::eof();
+    const std::size_t n = std::fread(buf, 1, sizeof buf, file);
+    if (n == 0) return traits_type::eof();
+    setg(buf, buf, buf + n);
+    return traits_type::to_int_type(*gptr());
+  }
+  FILE* file;
+  char buf[1 << 16];
+};
+
+trace_source::trace_source(const std::string& path, const std::string& tmp_dir) {
+  namespace fs = std::filesystem;
+  if (path.size() < 4 || path.compare(path.size() - 4, 4, ".zst") != 0) {
+    reader_ = reader::open(path);
+    return;
+  }
+  if (!fs::is_regular_file(path)) throw trace_error("CBST trace: cannot open " + path);
+  FILE* f = popen(("zstd -q -dc --long=31 " + quote_for_shell(path)).c_str(), "r");
+  if (f == nullptr) throw trace_error("CBST trace: cannot run zstd for " + path);
+  pipe_ = std::make_unique<pipe>(f);
+  stream_ = std::make_unique<std::istream>(pipe_.get());
+  reader_ = std::make_unique<cbst_trace::reader>(*stream_);
+  const fs::path blob = fs::path(path).parent_path() / "trace.blob.zst";
+  if (fs::exists(blob)) {
+    static int counter = 0;
+    blob_tmp_ = (fs::path(tmp_dir) / ("cbst_replay_" + std::to_string(getpid()) + "_" +
+                                      std::to_string(++counter) + ".blob"))
+                    .string();
+    const std::string cmd = "zstd -q -d --long=31 -f " + quote_for_shell(blob.string()) + " -o " +
+                            quote_for_shell(blob_tmp_);
+    if (std::system(cmd.c_str()) != 0)
+      throw trace_error("CBST trace: cannot decompress " + blob.string());
+    reader_->set_side_file(blob_tmp_);
+  }
+}
+
+trace_source::~trace_source() {
+  reader_.reset();
+  stream_.reset();
+  pipe_.reset();
+  if (!blob_tmp_.empty()) {
+    std::error_code ec;
+    std::filesystem::remove(blob_tmp_, ec);
+  }
 }
 
 }  // namespace dyng::test::cbst_trace

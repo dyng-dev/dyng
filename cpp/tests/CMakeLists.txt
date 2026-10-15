@@ -48,8 +48,21 @@ dyng_add_test(
   LABELS cpu graph
 )
 dyng_add_test(
-  NAME dyng_io_tests SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp LABELS cpu io
+  NAME dyng_io_tests
+  SOURCES io/io_test.cpp io/util_test.cpp io/edge_list_io_test.cpp io/hypergraph_io_test.cpp
+          io/batch_binary_test.cpp
+  LABELS cpu io
 )
+if(DYNG_ENABLE_CUDA)
+  # batch_reader with CUDA resources: the pinned staging and the device views (M8b).
+  dyng_add_test(
+    NAME dyng_io_cuda_tests
+    SOURCES io/batch_binary_cuda_test.cpp
+    LABELS gpu io
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_io_cuda_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+endif()
 # The reader fuzzers' findings (its own executable: it replaces operator new to bound the
 # allocations; cpp/fuzz/README.md).
 dyng_add_test(
@@ -69,6 +82,7 @@ endif()
 dyng_add_test(
   NAME dyng_generators_tests
   SOURCES generators/legacy_test.cpp generators/cycle_enum_batch_test.cpp
+          generators/hypergraph_generators_test.cpp
   LABELS cpu generators
 )
 # Parity with CycleEnumeration-GPU@0a976ad on the TUDataset graphs (outside the repository; the
@@ -87,14 +101,14 @@ endif()
 # The CBST traces of ESCHER-GPU@abcf9b2 and MOSP_ESCHER@4b86159 (M8a, ADR 0036): the host-only
 # trace reader and state tracker that the store replays build on, and its test on the committed
 # traces (cpp/tests/data/goldens/cbst_trace).
-add_library(dyng_cbst_trace STATIC parity/escher/cbst_trace.cpp)
+add_library(dyng_cbst_trace STATIC parity/escher/cbst_trace.cpp parity/escher/escher_dump.cpp)
 target_include_directories(dyng_cbst_trace PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_features(dyng_cbst_trace PUBLIC cxx_std_17)
 dyng_set_warnings(dyng_cbst_trace)
 dyng_enable_sanitizers(dyng_cbst_trace)
 dyng_add_test(
   NAME dyng_cbst_trace_tests
-  SOURCES parity/escher/cbst_trace_test.cpp
+  SOURCES parity/escher/cbst_trace_test.cpp parity/escher/escher_dump_test.cpp
   LABELS cpu parity cbst
   LIBRARIES dyng_cbst_trace
 )
@@ -271,6 +285,78 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
   set_tests_properties(cbst_model_isolation PROPERTIES LABELS "cpu;parity;cbst")
+  # The line-graph oracle (M8b, ADR 0042): MOSP_ESCHER's algorithm, sharing no code with the
+  # container's line graph (criterion 6).
+  add_test(
+    NAME line_graph_oracle_isolation
+    COMMAND
+      "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
+      -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/line_graph_oracle.cpp
+      -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/line_graph_oracle.hpp
+      "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_line_graph_oracle>" -P
+      "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
+  )
+  set_tests_properties(line_graph_oracle_isolation PROPERTIES LABELS "cpu;hypergraph")
+endif()
+# The hypergraph container (M8b, ADR 0041): construction, apply semantics, guarantees,
+# placement, the host id allocator against the CBST host model, random streams in lockstep with
+# the model on every backend. The shared suites run on the host backends here and on cuda in
+# dyng_hypergraph_cuda_tests.
+dyng_add_test(
+  NAME dyng_hypergraph_tests
+  SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
+          hypergraph/hypergraph_store_test.cpp hypergraph/hypergraph_line_graph_test.cpp
+          hypergraph/hypergraph_update_test.cpp
+  LABELS cpu hypergraph
+  LIBRARIES dyng_cbst_compare
+)
+list(APPEND _dyng_private_tests dyng_hypergraph_tests)
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_hypergraph_cuda_tests
+    SOURCES hypergraph/hypergraph_test.cpp hypergraph/hypergraph_random_test.cpp
+            hypergraph/hypergraph_line_graph_test.cpp hypergraph/hypergraph_cuda_test.cpp
+            hypergraph/hypergraph_update_test.cpp framework/fake_hyper_kernels.cu
+            hypergraph/stream_probe_kernels.cu
+    LABELS gpu hypergraph
+    LIBRARIES dyng_cbst_compare
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_hypergraph_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  dyng_set_cuda_options(dyng_hypergraph_cuda_tests)  # the non-blocking streams of the C12 test
+  list(APPEND _dyng_private_tests dyng_hypergraph_cuda_tests)
+endif()
+# Container-level id parity against both originals' batch records (M8b, criterion 4; ADR 0041):
+# the replay library, the tool parity/compare.py hypergraph_ids drives over the golden sets, and
+# its test on the committed traces (hosted CI: the CPU backends).
+add_library(dyng_hypergraph_ids STATIC parity/escher/hypergraph_ids.cpp)
+target_link_libraries(dyng_hypergraph_ids PUBLIC dyng_cbst_compare dyng::dyng)
+target_include_directories(dyng_hypergraph_ids PUBLIC "${PROJECT_SOURCE_DIR}/cpp/src")
+target_compile_features(dyng_hypergraph_ids PUBLIC cxx_std_17)
+dyng_set_warnings(dyng_hypergraph_ids)
+dyng_enable_sanitizers(dyng_hypergraph_ids)
+add_executable(dyng_hypergraph_ids_tool parity/escher/hypergraph_ids_main.cpp)
+set_target_properties(dyng_hypergraph_ids_tool PROPERTIES OUTPUT_NAME dyng_hypergraph_ids)
+target_link_libraries(dyng_hypergraph_ids_tool PRIVATE dyng_hypergraph_ids)
+dyng_set_warnings(dyng_hypergraph_ids_tool)
+dyng_enable_sanitizers(dyng_hypergraph_ids_tool)
+dyng_add_test(
+  NAME dyng_hypergraph_ids_tests
+  SOURCES parity/escher/hypergraph_ids_test.cpp
+  LABELS cpu parity hypergraph
+  LIBRARIES dyng_hypergraph_ids
+)
+list(APPEND _dyng_private_tests dyng_hypergraph_ids_tests)
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_hypergraph_ids_cuda_tests
+    SOURCES parity/escher/hypergraph_ids_test.cpp
+    LABELS gpu parity hypergraph
+    LIBRARIES dyng_hypergraph_ids
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_hypergraph_ids_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  list(APPEND _dyng_private_tests dyng_hypergraph_ids_cuda_tests)
 endif()
 foreach(_dyng_test IN LISTS _dyng_private_tests)
   target_include_directories(${_dyng_test} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
@@ -411,6 +497,39 @@ foreach(
     set_tests_properties(
       update.static_assert.${_name} PROPERTIES LABELS "cpu;core" PASS_REGULAR_EXPRESSION
                                                "${_message}"
+    )
+  endif()
+endforeach()
+
+# Compile-failure tests of dyng::update() over hypergraphs (ADR 0043): the owning batch, a batch
+# view of the other container, a hypergraph algorithm's result with a graph (the plain-English
+# static_assert of its update_traits, detail::is_hypergraph_v) and a graph algorithm's result with
+# a hypergraph (sssp's update_traits needs the graph's edge type). The control case must compile.
+foreach(
+  _case
+  "control||"
+  "owning_batch|-DDYNG_CF_HYPER_OWNING_BATCH|the batch must be the container's batch view"
+  "edge_batch_with_hypergraph|-DDYNG_CF_HYPER_EDGE_BATCH|the batch must be the container's batch view"
+  "hyperedge_batch_with_graph|-DDYNG_CF_GRAPH_HYPER_BATCH|the batch must be the container's batch view"
+  "hypergraph_result_with_graph|-DDYNG_CF_HYPER_RESULT_ON_GRAPH|a hypergraph algorithm.*takes a dyng::hypergraph"
+  "graph_result_with_hypergraph|-DDYNG_CF_GRAPH_RESULT_ON_HYPER|edge_type"
+)
+  string(REPLACE "|" ";" _parts "${_case}")
+  list(GET _parts 0 _name)
+  list(GET _parts 1 _define)
+  list(GET _parts 2 _message)
+  add_test(NAME hypergraph.update.static_assert.${_name}
+           COMMAND ${CMAKE_CXX_COMPILER} -std=c++17 -fsyntax-only ${_define}
+                   -I${PROJECT_SOURCE_DIR}/cpp/include -I${DYNG_GENERATED_INCLUDE_DIR}
+                   ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/hypergraph_update_arguments.cpp
+  )
+  if(_message STREQUAL "")
+    set_tests_properties(hypergraph.update.static_assert.${_name} PROPERTIES LABELS
+                                                                     "cpu;hypergraph")
+  else()
+    set_tests_properties(
+      hypergraph.update.static_assert.${_name} PROPERTIES LABELS "cpu;hypergraph"
+                                                          PASS_REGULAR_EXPRESSION "${_message}"
     )
   endif()
 endforeach()
@@ -578,6 +697,21 @@ if(DYNG_MUTATION_TESTS AND TARGET dyng_cycle_count)
   endforeach()
 endif()
 
+# The mutants' copies of the hypergraph module are compiled for one architecture (the build's
+# first, real and virtual, so the PTX also runs on newer GPUs; `native` stays native): 12 copies
+# for the 7 release architectures took 49.5 of the 174 CPU-minutes of the compile-only ci-cuda12
+# preset (M8b review), and a mutant only needs to run on the machine that runs its CTest.
+function(dyng_mutant_cuda_architectures target)
+  if(NOT DYNG_ENABLE_CUDA OR NOT CMAKE_CUDA_ARCHITECTURES)
+    return()
+  endif()
+  list(GET CMAKE_CUDA_ARCHITECTURES 0 _first)
+  string(REGEX MATCH "^[0-9]+" _number "${_first}")
+  if(_number)
+    set_target_properties(${target} PROPERTIES CUDA_ARCHITECTURES "${_number}")
+  endif()
+endfunction()
+
 # CBST mutation tests (PLAN Section 8.4; M8a acceptance criterion 17): the 7 recorded mutations of
 # the ESCHER CBST store (MOSP_ESCHER@4b86159's #4 and #5 and the five rules of the store's
 # README) must make the store's suites fail. As for cycle_count, each mutant is a copy of libdyng
@@ -629,6 +763,7 @@ if(DYNG_CBST_MUTATION_TESTS AND DYNG_ENABLE_CUDA AND TARGET dyng_hypergraph)
       parity/escher/cbst_policy_test.cpp
       parity/escher/cbst_graph_test.cpp
       parity/escher/cbst_trace.cpp
+      parity/escher/escher_dump.cpp
       parity/escher/cbst_compare.cpp
       parity/escher/cbst_device_adapter.cpp
       $<TARGET_OBJECTS:dyng_testing_cbst_model>
@@ -650,6 +785,7 @@ if(DYNG_CBST_MUTATION_TESTS AND DYNG_ENABLE_CUDA AND TARGET dyng_hypergraph)
       dyng_set_cuda_options(${_target})
     endforeach()
     set_target_properties(${_lib}_hypergraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_hypergraph)
     target_link_libraries(${_lib} INTERFACE Threads::Threads ${DYNG_CUDART_TARGET})
     if(DYNG_ENABLE_OPENMP)
       target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
@@ -664,6 +800,105 @@ if(DYNG_CBST_MUTATION_TESTS AND DYNG_ENABLE_CUDA AND TARGET dyng_hypergraph)
     set_tests_properties(
       cbst.mutation.${_name} PROPERTIES LABELS "gpu;mutation;cbst" ENVIRONMENT
                                         "${DYNG_TEST_ENVIRONMENT}"
+    )
+  endforeach()
+endif()
+
+# The hypergraph container's mutations (M8b criterion 20; PLAN 8.4): a copy of libdyng whose
+# hypergraph module is rebuilt with DYNG_MUTATION_HYPERGRAPH_<NAME> (MOSP_ESCHER's mutation #6,
+# the h2v insert payload not deduplicated; the host allocator's best-fit tie rule reversed; the
+# line graph's mirrored additions dropped, M8b step 2),
+# linked with the container's suites on the host backends (the lockstep with the CBST host model,
+# the random streams, the allocator against the model, the replays of the committed batch
+# extracts); the CTest hypergraph.mutation.<name> passes when that suite fails, the control
+# copy must pass. Labels cpu;mutation;hypergraph (every build: the host backends only).
+option(DYNG_HYPERGRAPH_MUTATION_TESTS "Build the mutation tests of the hypergraph container"
+       ${DYNG_MUTATION_TESTS}
+)
+if(DYNG_HYPERGRAPH_MUTATION_TESTS AND TARGET dyng_hypergraph)
+  get_property(_dyng_modules GLOBAL PROPERTY DYNG_MODULE_TARGETS)
+  get_property(_dyng_hg_relative GLOBAL PROPERTY DYNG_MODULE_SOURCES_dyng_hypergraph)
+  set(_dyng_hg_sources)
+  foreach(_source IN LISTS _dyng_hg_relative)
+    if(NOT IS_ABSOLUTE "${_source}")
+      set(_source "${PROJECT_SOURCE_DIR}/cpp/${_source}")
+    endif()
+    list(APPEND _dyng_hg_sources "${_source}")
+  endforeach()
+  set(_dyng_hg_other_objects)
+  foreach(_module IN LISTS _dyng_modules)
+    if(NOT _module STREQUAL "dyng_hypergraph")
+      list(APPEND _dyng_hg_other_objects $<TARGET_OBJECTS:${_module}>)
+    endif()
+  endforeach()
+  # name|define|expected verdict
+  set(_dyng_hypergraph_mutants
+      "control||pass"
+      "h2v_not_deduplicated|DYNG_MUTATION_HYPERGRAPH_H2V_NOT_DEDUPLICATED|fail"
+      "allocator_ties_reversed|DYNG_MUTATION_HYPERGRAPH_ALLOCATOR_TIES|fail"
+      "mirror_additions_dropped|DYNG_MUTATION_HYPERGRAPH_MIRROR_ADDITIONS_DROPPED|fail"
+  )
+  foreach(_entry IN LISTS _dyng_hypergraph_mutants)
+    string(REPLACE "|" ";" _mutant "${_entry}")
+    list(GET _mutant 0 _name)
+    list(GET _mutant 1 _define)
+    list(GET _mutant 2 _expect)
+    set(_lib dyng_hypergraph_mutant_${_name})
+    add_library(${_lib}_hypergraph OBJECT ${_dyng_hg_sources})
+    add_library(${_lib} STATIC ${_dyng_hg_other_objects} $<TARGET_OBJECTS:${_lib}_hypergraph>)
+    set(_exe dyng_hypergraph_mutant_${_name}_tests)
+    add_executable(
+      ${_exe}
+      hypergraph/hypergraph_test.cpp
+      hypergraph/hypergraph_random_test.cpp
+      hypergraph/hypergraph_store_test.cpp
+      hypergraph/hypergraph_line_graph_test.cpp
+      parity/escher/hypergraph_ids_test.cpp
+      parity/escher/hypergraph_ids.cpp
+      parity/escher/cbst_trace.cpp
+      parity/escher/escher_dump.cpp
+      parity/escher/cbst_compare.cpp
+      $<TARGET_OBJECTS:dyng_testing_cbst_model>
+      $<TARGET_OBJECTS:dyng_testing_line_graph_oracle>
+    )
+    foreach(_target ${_lib}_hypergraph ${_lib} ${_exe})
+      target_compile_features(${_target} PRIVATE cxx_std_17)
+      target_include_directories(
+        ${_target} PRIVATE "${PROJECT_SOURCE_DIR}/cpp/include" "${DYNG_GENERATED_INCLUDE_DIR}"
+                           "${PROJECT_SOURCE_DIR}/cpp/src"
+      )
+      if(_define)
+        target_compile_definitions(${_target} PRIVATE ${_define}=1)
+      endif()
+      if(DYNG_ENABLE_OPENMP)
+        target_link_libraries(${_target} PRIVATE OpenMP::OpenMP_CXX)
+      endif()
+      dyng_set_warnings(${_target})
+      dyng_enable_sanitizers(${_target})
+      dyng_set_cuda_options(${_target})
+    endforeach()
+    set_target_properties(${_lib}_hypergraph PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    dyng_mutant_cuda_architectures(${_lib}_hypergraph)
+    target_link_libraries(${_lib} INTERFACE Threads::Threads)
+    if(DYNG_ENABLE_CUDA)
+      target_link_libraries(${_lib} INTERFACE ${DYNG_CUDART_TARGET})
+    endif()
+    if(DYNG_ENABLE_OPENMP)
+      target_link_libraries(${_lib} INTERFACE OpenMP::OpenMP_CXX)
+    endif()
+    target_include_directories(${_exe} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_compile_definitions(${_exe} PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}")
+    target_link_libraries(
+      ${_exe} PRIVATE ${_lib} dyng_test_support GTest::gtest GTest::gmock GTest::gtest_main
+    )
+    add_test(NAME hypergraph.mutation.${_name}
+             COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
+                     -DNAME=hypergraph.${_name} -P
+                     "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+    )
+    set_tests_properties(
+      hypergraph.mutation.${_name} PROPERTIES LABELS "cpu;mutation;hypergraph" ENVIRONMENT
+                                              "${DYNG_TEST_ENVIRONMENT}"
     )
   endforeach()
 endif()
@@ -792,6 +1027,62 @@ dyng_add_test(
 )
 target_compile_definitions(dyng_conformance_registry_tests PRIVATE ${_dyng_algorithm_defines})
 target_include_directories(dyng_conformance_registry_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+
+# The kit's hypergraph axis (ADR 0043; M8b criterion 11): the kit C0-C12 over the test-only
+# aggregate-delta fake test_hyper_pairs (cpp/tests/framework/fake_hyper_problems.hpp; its partner
+# of C10 is test_hyper_squares) on the host backends (labels cpu, conformance, hypergraph) and, in
+# CUDA builds, on cuda (gpu, ...; the fakes count on the device: fake_hyper_kernels.cu).
+dyng_add_test(
+  NAME dyng_hypergraph_kit_tests
+  SOURCES conformance/hypergraph_kit_test.cpp conformance/allocation_counter.cpp
+  LABELS cpu conformance hypergraph
+  LIBRARIES dyng::testing
+)
+target_include_directories(dyng_hypergraph_kit_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_hypergraph_kit_cuda_tests
+    SOURCES conformance/hypergraph_kit_test.cpp conformance/allocation_counter.cpp
+            framework/fake_hyper_kernels.cu
+    LABELS gpu conformance hypergraph
+    LIBRARIES dyng::testing
+    TEST_PREFIX "cuda."
+  )
+  target_compile_definitions(dyng_hypergraph_kit_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
+  target_include_directories(dyng_hypergraph_kit_cuda_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src")
+  dyng_set_cuda_options(dyng_hypergraph_kit_cuda_tests)  # the streams of C12
+endif()
+# The planted bug of the kit (M8b criterion 11; parity/mutate.py, suite `kit`): the fake's count(+)
+# reads the ids the request would get without reuse instead of inserted_ids; the kit must fail
+# (conformance.mutation.frontier_requested_ids passes when the suite fails; the control is
+# dyng_hypergraph_kit_tests). Labels cpu;mutation;conformance;hypergraph.
+if(DYNG_MUTATION_TESTS)
+  add_executable(dyng_hypergraph_kit_mutant_tests conformance/hypergraph_kit_test.cpp
+                                                  conformance/allocation_counter.cpp)
+  target_link_libraries(
+    dyng_hypergraph_kit_mutant_tests PRIVATE dyng::dyng dyng::testing dyng_test_support GTest::gtest
+                                             GTest::gmock GTest::gtest_main
+  )
+  target_compile_features(dyng_hypergraph_kit_mutant_tests PRIVATE cxx_std_17)
+  target_compile_definitions(
+    dyng_hypergraph_kit_mutant_tests PRIVATE DYNG_MUTATION_KIT_FRONTIER_REQUESTED_IDS=1
+  )
+  target_include_directories(
+    dyng_hypergraph_kit_mutant_tests PRIVATE "${PROJECT_SOURCE_DIR}/cpp/src"
+                                             "${CMAKE_CURRENT_SOURCE_DIR}"
+  )
+  dyng_set_warnings(dyng_hypergraph_kit_mutant_tests)
+  dyng_enable_sanitizers(dyng_hypergraph_kit_mutant_tests)
+  add_test(NAME conformance.mutation.frontier_requested_ids
+           COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:dyng_hypergraph_kit_mutant_tests>
+                   -DEXPECT=fail -DNAME=kit.frontier_requested_ids -P
+                   "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
+  )
+  set_tests_properties(
+    conformance.mutation.frontier_requested_ids
+    PROPERTIES LABELS "cpu;mutation;conformance;hypergraph" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
+  )
+endif()
 
 # The scaffold check (PLAN Section 4.8): scripts/new_algorithm.py generates a throwaway algorithm of
 # each family in a copy of the source tree, which is configured, built and must pass its

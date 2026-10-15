@@ -4,7 +4,8 @@
  * @file update_dispatch_test.cpp
  * @brief dyng::update() and update_each() reach a container through the customization point
  *        detail::participant_of<container_t> (its participant interface, batch view and run()),
- *        so a container declared after <dyng/update.hpp> (the hypergraph of 0.2) takes part
+ *        so a container declared after <dyng/update.hpp> (the hypergraph of 0.3,
+ *        hypergraph_update_test.cpp) takes part
  *        without a change to the frozen header. The fake container below is declared after the
  *        include on purpose.
  */

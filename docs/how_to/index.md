@@ -9,6 +9,7 @@ Short recipes for one task each. They assume you have built dynG
 choose_a_backend
 profile_an_update
 read_and_write_files
+use_hypergraphs_from_python
 run_parity
 build_the_docs
 add_an_algorithm
