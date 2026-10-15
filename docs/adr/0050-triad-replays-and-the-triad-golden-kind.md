@@ -86,8 +86,12 @@ and cuda containers, and on `coauth_b50k_s1/type1`. Any miss stops the milestone
 
 ## Outcome (M9a step 2)
 
-Recorded in `parity/results/M9a.md` section 2.2 and `parity/results/M9a-gonogo-*.json`: see
-there for the per-backend counts of cases and their run times.
+**GO.** The oracle reproduces A exactly on all 423 case replays of the go/no-go (make-test and
+the syn100k grid: 120 cases, the syn1m seed-1 grid: 20, coauth_b50k_s1/type1: 1; on each of
+sequential, openmp with 8 threads and cuda), by key and by content: every full count, delta and
+count after; the expected ids by key in every batch; no unresolved deletion by content;
+integrity after every batch. Each planted defect fails the replay with its own finding.
+Recorded in `parity/results/M9a.md` section 2.2 and `parity/results/M9a-gonogo-escher_gpu.json`.
 
 ## Consequences
 

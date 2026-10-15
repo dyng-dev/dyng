@@ -1,0 +1,556 @@
+{
+ "schema": 1,
+ "what": "M9a criterion 4: one single-triad .hg per h-motif class through ESCHER-GPU's UNPATCHED build/main (--input F --batches 0) and through dyng::testing::triad_reference (dyng_triad_replay --patterns h_motif)",
+ "reference": "ESCHER-GPU@abcf9b2 (the persistent unpatched copy)",
+ "date": "2026-10-15T13:34:14Z",
+ "classes": [
+  {
+   "class": 1,
+   "bin": 0,
+   "venn_id": 64,
+   "reachable": true,
+   "hg": [
+    "7",
+    "7",
+    "7"
+   ],
+   "hg_sha256": "1e74477de3d0600fa17d558d72961f665cceda1f2eae1d9e96098dadb88ea03d",
+   "escher_gpu_bins_nonzero": {
+    "0": 1
+   },
+   "oracle_bins_nonzero": {
+    "0": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 2,
+   "bin": 1,
+   "venn_id": 65,
+   "reachable": true,
+   "hg": [
+    "1 7",
+    "7",
+    "7"
+   ],
+   "hg_sha256": "dbf4ee947807cfb88880f9b4864afd23d436b59696cba57e2fbd7094fb38f292",
+   "escher_gpu_bins_nonzero": {
+    "1": 1
+   },
+   "oracle_bins_nonzero": {
+    "1": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 3,
+   "bin": 2,
+   "venn_id": 67,
+   "reachable": true,
+   "hg": [
+    "1 7",
+    "2 7",
+    "7"
+   ],
+   "hg_sha256": "f7270be7754cf0d0f1c4531aac3287e4a0e2c983affe7942c165a8688743e48a",
+   "escher_gpu_bins_nonzero": {
+    "2": 1
+   },
+   "oracle_bins_nonzero": {
+    "2": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 4,
+   "bin": 3,
+   "venn_id": 71,
+   "reachable": true,
+   "hg": [
+    "1 7",
+    "2 7",
+    "3 7"
+   ],
+   "hg_sha256": "efd1ae924aef818c53c08806541db93cebc1851c0b4e66f99111d16a29effa5b",
+   "escher_gpu_bins_nonzero": {
+    "3": 1
+   },
+   "oracle_bins_nonzero": {
+    "3": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 5,
+   "bin": 4,
+   "venn_id": 72,
+   "reachable": true,
+   "hg": [
+    "4 7",
+    "4 7",
+    "7"
+   ],
+   "hg_sha256": "275f17b02861a0315e26a6b24b6913f88909a693e4497c21789bf34d32fc853c",
+   "escher_gpu_bins_nonzero": {
+    "4": 1
+   },
+   "oracle_bins_nonzero": {
+    "4": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 6,
+   "bin": 5,
+   "venn_id": 73,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "4 7",
+    "7"
+   ],
+   "hg_sha256": "0d70f5ecefb71f355dfa8783dc57630eeac6351ba7ea3a57a9679887ae22d9bd",
+   "escher_gpu_bins_nonzero": {
+    "5": 1
+   },
+   "oracle_bins_nonzero": {
+    "5": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 7,
+   "bin": 6,
+   "venn_id": 76,
+   "reachable": true,
+   "hg": [
+    "4 7",
+    "4 7",
+    "3 7"
+   ],
+   "hg_sha256": "44a8d66c522e82e6f88a98cd49d54f0c659ba0ca5d141dcbd58d7f2be12b58e1",
+   "escher_gpu_bins_nonzero": {
+    "6": 1
+   },
+   "oracle_bins_nonzero": {
+    "6": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 8,
+   "bin": 7,
+   "venn_id": 75,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "2 4 7",
+    "7"
+   ],
+   "hg_sha256": "87477be3347e8c56e39144a22bcc8cc312d768531bb6d0270633859eb4f67661",
+   "escher_gpu_bins_nonzero": {
+    "7": 1
+   },
+   "oracle_bins_nonzero": {
+    "7": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 9,
+   "bin": 8,
+   "venn_id": 77,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "4 7",
+    "3 7"
+   ],
+   "hg_sha256": "4458f1a6b1ea4ddebc4951b751c8b269e4c5ef8ddd897f91010ecf191cfc9dbe",
+   "escher_gpu_bins_nonzero": {
+    "8": 1
+   },
+   "oracle_bins_nonzero": {
+    "8": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 10,
+   "bin": 9,
+   "venn_id": 79,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "2 4 7",
+    "3 7"
+   ],
+   "hg_sha256": "08f4040752f7fb8637828c2d4a725e85499dcca6c9708865fd81c1a8438047c7",
+   "escher_gpu_bins_nonzero": {
+    "9": 1
+   },
+   "oracle_bins_nonzero": {
+    "9": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 11,
+   "bin": 10,
+   "venn_id": 88,
+   "reachable": true,
+   "hg": [
+    "4 7",
+    "4 5 7",
+    "5 7"
+   ],
+   "hg_sha256": "7f7e5d1d14c2c2cc6a3252abaceccc93fcf185e2b8f97ed33da42f41bef94f0a",
+   "escher_gpu_bins_nonzero": {
+    "10": 1
+   },
+   "oracle_bins_nonzero": {
+    "10": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 12,
+   "bin": 11,
+   "venn_id": 90,
+   "reachable": true,
+   "hg": [
+    "4 7",
+    "2 4 5 7",
+    "5 7"
+   ],
+   "hg_sha256": "e9e736006eb219d677ffaf3a16579f49d4abf75d124039bc33b9608d4c14fc42",
+   "escher_gpu_bins_nonzero": {
+    "11": 1
+   },
+   "oracle_bins_nonzero": {
+    "11": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 13,
+   "bin": 12,
+   "venn_id": 89,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "4 5 7",
+    "5 7"
+   ],
+   "hg_sha256": "ae1e4eee3efaaf5e2507cc3463488235725d7a4429e06e1c999ef3a509566173",
+   "escher_gpu_bins_nonzero": {
+    "12": 1
+   },
+   "oracle_bins_nonzero": {
+    "12": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 14,
+   "bin": 13,
+   "venn_id": 91,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "2 4 5 7",
+    "5 7"
+   ],
+   "hg_sha256": "8e89eb96c8e88dd5e8702b9703d4da1897bc042ccfb124fb4c9edac8d3c617ad",
+   "escher_gpu_bins_nonzero": {
+    "13": 1
+   },
+   "oracle_bins_nonzero": {
+    "13": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 15,
+   "bin": 14,
+   "venn_id": 93,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "4 5 7",
+    "3 5 7"
+   ],
+   "hg_sha256": "1768d45cf58dd870941ac09c451b24f2b181978dfcbfee83c0c1f694dc698c44",
+   "escher_gpu_bins_nonzero": {
+    "14": 1
+   },
+   "oracle_bins_nonzero": {
+    "14": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 16,
+   "bin": 15,
+   "venn_id": 95,
+   "reachable": true,
+   "hg": [
+    "1 4 7",
+    "2 4 5 7",
+    "3 5 7"
+   ],
+   "hg_sha256": "f32a66a41708228c62ff70d7bad4034623bf3969eb591379afccad1576f2790e",
+   "escher_gpu_bins_nonzero": {
+    "15": 1
+   },
+   "oracle_bins_nonzero": {
+    "15": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 17,
+   "bin": 16,
+   "venn_id": 120,
+   "reachable": true,
+   "hg": [
+    "4 6 7",
+    "4 5 7",
+    "5 6 7"
+   ],
+   "hg_sha256": "848a54bdda00c9342e64153e2800fdc92847cb87af7f94f4eb0b99c2f682ec38",
+   "escher_gpu_bins_nonzero": {
+    "16": 1
+   },
+   "oracle_bins_nonzero": {
+    "16": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 18,
+   "bin": 17,
+   "venn_id": 121,
+   "reachable": true,
+   "hg": [
+    "1 4 6 7",
+    "4 5 7",
+    "5 6 7"
+   ],
+   "hg_sha256": "937563bb845ec445f63e6378a190d6813fdf8a164a960af4ac0d00bb31e30097",
+   "escher_gpu_bins_nonzero": {
+    "17": 1
+   },
+   "oracle_bins_nonzero": {
+    "17": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 19,
+   "bin": 18,
+   "venn_id": 123,
+   "reachable": true,
+   "hg": [
+    "1 4 6 7",
+    "2 4 5 7",
+    "5 6 7"
+   ],
+   "hg_sha256": "8d08f82ccbef96651ac5182b707a76570594f26c92f2439c5b3e7a59d7c98e77",
+   "escher_gpu_bins_nonzero": {
+    "18": 1
+   },
+   "oracle_bins_nonzero": {
+    "18": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 20,
+   "bin": 19,
+   "venn_id": 127,
+   "reachable": true,
+   "hg": [
+    "1 4 6 7",
+    "2 4 5 7",
+    "3 5 6 7"
+   ],
+   "hg_sha256": "a4b96064add57ca298aadb6d620ce6a153b40f424383c1d847c4ce93e0ae5195",
+   "escher_gpu_bins_nonzero": {
+    "19": 1
+   },
+   "oracle_bins_nonzero": {
+    "19": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 21,
+   "bin": 20,
+   "venn_id": 24,
+   "reachable": false,
+   "hg": [
+    "4",
+    "4 5",
+    "5"
+   ],
+   "hg_sha256": "b5ad6d3ff8d8bb284c2055c6bcb26627a31ac560469cabd5ed0bdfb2bc56a39d",
+   "escher_gpu_bins_nonzero": {},
+   "oracle_bins_nonzero": {},
+   "agree": true
+  },
+  {
+   "class": 22,
+   "bin": 21,
+   "venn_id": 26,
+   "reachable": false,
+   "hg": [
+    "4",
+    "2 4 5",
+    "5"
+   ],
+   "hg_sha256": "b737390fe2019bc8577d8a5febdc397faad09d2a2e2a92030c2bcf04dcd96fcb",
+   "escher_gpu_bins_nonzero": {},
+   "oracle_bins_nonzero": {},
+   "agree": true
+  },
+  {
+   "class": 23,
+   "bin": 22,
+   "venn_id": 25,
+   "reachable": false,
+   "hg": [
+    "1 4",
+    "4 5",
+    "5"
+   ],
+   "hg_sha256": "d9fdfd05f457eb6e93b55cf0b053cbcde7e0b38dd318a99d1c5bbfe318d6d763",
+   "escher_gpu_bins_nonzero": {},
+   "oracle_bins_nonzero": {},
+   "agree": true
+  },
+  {
+   "class": 24,
+   "bin": 23,
+   "venn_id": 27,
+   "reachable": false,
+   "hg": [
+    "1 4",
+    "2 4 5",
+    "5"
+   ],
+   "hg_sha256": "8d2dc776e3a75131ba54cecb5c5af463d4b471234684b7d9c437b824b024cbd0",
+   "escher_gpu_bins_nonzero": {},
+   "oracle_bins_nonzero": {},
+   "agree": true
+  },
+  {
+   "class": 25,
+   "bin": 24,
+   "venn_id": 29,
+   "reachable": false,
+   "hg": [
+    "1 4",
+    "4 5",
+    "3 5"
+   ],
+   "hg_sha256": "567d54e7d920303d7ad8564a9559b25d34cafa15fba1449d2a0b09fba1bedc26",
+   "escher_gpu_bins_nonzero": {},
+   "oracle_bins_nonzero": {},
+   "agree": true
+  },
+  {
+   "class": 26,
+   "bin": 25,
+   "venn_id": 31,
+   "reachable": false,
+   "hg": [
+    "1 4",
+    "2 4 5",
+    "3 5"
+   ],
+   "hg_sha256": "f32ef62975a45b74fc7a91141ab9e471e8f3840b623a5b35695f1438a43f562d",
+   "escher_gpu_bins_nonzero": {},
+   "oracle_bins_nonzero": {},
+   "agree": true
+  },
+  {
+   "class": 27,
+   "bin": 26,
+   "venn_id": 56,
+   "reachable": true,
+   "hg": [
+    "4 6",
+    "4 5",
+    "5 6"
+   ],
+   "hg_sha256": "db2e65f48045d5465fe7e3de7659388f5a85578a44073bf4730c74e7c79e78dd",
+   "escher_gpu_bins_nonzero": {
+    "26": 1
+   },
+   "oracle_bins_nonzero": {
+    "26": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 28,
+   "bin": 27,
+   "venn_id": 57,
+   "reachable": true,
+   "hg": [
+    "1 4 6",
+    "4 5",
+    "5 6"
+   ],
+   "hg_sha256": "09147280a0f5b54450c28373d789c28cfe6cf53bd9131ed0800aa27e11a227fe",
+   "escher_gpu_bins_nonzero": {
+    "27": 1
+   },
+   "oracle_bins_nonzero": {
+    "27": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 29,
+   "bin": 28,
+   "venn_id": 59,
+   "reachable": true,
+   "hg": [
+    "1 4 6",
+    "2 4 5",
+    "5 6"
+   ],
+   "hg_sha256": "2226d6b41d0608adcc44dbc584cbbfc7f456bb28f902ac84e6627175a284cd75",
+   "escher_gpu_bins_nonzero": {
+    "28": 1
+   },
+   "oracle_bins_nonzero": {
+    "28": 1
+   },
+   "agree": true
+  },
+  {
+   "class": 30,
+   "bin": 29,
+   "venn_id": 63,
+   "reachable": true,
+   "hg": [
+    "1 4 6",
+    "2 4 5",
+    "3 5 6"
+   ],
+   "hg_sha256": "126ace9cffec8a6c0f828d4f344a804ec369fee07f534a28f41e4d076adbdb10",
+   "escher_gpu_bins_nonzero": {
+    "29": 1
+   },
+   "oracle_bins_nonzero": {
+    "29": 1
+   },
+   "agree": true
+  }
+ ],
+ "reachable_bins_agree": 24,
+ "passed": true
+}

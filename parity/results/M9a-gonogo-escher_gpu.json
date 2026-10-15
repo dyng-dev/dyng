@@ -1,0 +1,918 @@
+{
+ "schema": 1,
+ "what": "M9a step 2's go/no-go (ADR 0050): ESCHER-GPU@abcf9b2's golden batches replayed through dyng::hypergraph by key and by content with testing::triad_reference as the counter after the build and every batch (parity/compare.py triad_count --counter oracle --mode both), on make-test, the syn100k grid and the syn1m seed-1 grid (all four executables) and coauth_b50k_s1/type1, on the sequential, openmp (8 threads) and cuda containers",
+ "runs": [
+  {
+   "backend": "cuda",
+   "threads": null,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": true,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:40:30Z",
+   "gpu": "1",
+   "num_cases": 1,
+   "num_passed": 1,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 51.4,
+   "groups": {
+    "coauth_b50k_s1": {
+     "type1": "pass",
+     "by_content_ambiguous": 1451
+    }
+   }
+  },
+  {
+   "backend": "cuda",
+   "threads": null,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": true,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:35:35Z",
+   "gpu": "1",
+   "num_cases": 120,
+   "num_passed": 120,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 240.3,
+   "groups": {
+    "syn100k_b100k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 4011,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b100k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 3951,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b100k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 4016,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 7882,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 7821,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 7971,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 2,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 2004,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 2016,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 2009,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 217,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 197,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 185,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/01-smoke": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/02-reference_small": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/03-reference_syn100k": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/04-small_b20": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/05-small_b200": {
+     "main": "pass",
+     "by_content_ambiguous": 19,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/06-small_b1000": {
+     "main": "pass",
+     "by_content_ambiguous": 387,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/07-syn100k_b5000": {
+     "main": "pass",
+     "by_content_ambiguous": 195,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/08-deletions_only": {
+     "main": "pass",
+     "by_content_ambiguous": 19,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/09-insertions_only": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/10-more_deletions": {
+     "main": "pass",
+     "by_content_ambiguous": 123,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/11-random_inserts_file": {
+     "main": "pass",
+     "by_content_ambiguous": 11,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/12-sampled_inserts_synthetic": {
+     "main": "pass",
+     "by_content_ambiguous": 82,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/13-batch_larger_than_graph": {
+     "main": "pass",
+     "by_content_ambiguous": 3692,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/14-skewed": {
+     "main": "pass",
+     "by_content_ambiguous": 2286,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/15-medium": {
+     "main": "pass",
+     "by_content_ambiguous": 460,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    }
+   }
+  },
+  {
+   "backend": "cuda",
+   "threads": null,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": true,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:39:38Z",
+   "gpu": "1",
+   "num_cases": 20,
+   "num_passed": 20,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 434.6,
+   "groups": {
+    "syn1m_b100k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 3817,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b200k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 7720,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b20_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b50k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 1861,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b5k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 185,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    }
+   }
+  },
+  {
+   "backend": "openmp",
+   "threads": 8,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": true,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:54:27Z",
+   "gpu": null,
+   "num_cases": 1,
+   "num_passed": 1,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 29.8,
+   "groups": {
+    "coauth_b50k_s1": {
+     "type1": "pass",
+     "by_content_ambiguous": 1451
+    }
+   }
+  },
+  {
+   "backend": "openmp",
+   "threads": 8,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": true,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:44:10Z",
+   "gpu": null,
+   "num_cases": 120,
+   "num_passed": 120,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 302.7,
+   "groups": {
+    "syn100k_b100k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 4011,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b100k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 3951,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b100k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 4016,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 7882,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 7821,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 7971,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 2,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 2004,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 2016,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 2009,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 217,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 197,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 185,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/01-smoke": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/02-reference_small": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/03-reference_syn100k": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/04-small_b20": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/05-small_b200": {
+     "main": "pass",
+     "by_content_ambiguous": 19,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/06-small_b1000": {
+     "main": "pass",
+     "by_content_ambiguous": 387,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/07-syn100k_b5000": {
+     "main": "pass",
+     "by_content_ambiguous": 195,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/08-deletions_only": {
+     "main": "pass",
+     "by_content_ambiguous": 19,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/09-insertions_only": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/10-more_deletions": {
+     "main": "pass",
+     "by_content_ambiguous": 123,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/11-random_inserts_file": {
+     "main": "pass",
+     "by_content_ambiguous": 11,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/12-sampled_inserts_synthetic": {
+     "main": "pass",
+     "by_content_ambiguous": 82,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/13-batch_larger_than_graph": {
+     "main": "pass",
+     "by_content_ambiguous": 3692,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/14-skewed": {
+     "main": "pass",
+     "by_content_ambiguous": 2286,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/15-medium": {
+     "main": "pass",
+     "by_content_ambiguous": 460,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    }
+   }
+  },
+  {
+   "backend": "openmp",
+   "threads": 8,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": true,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:52:40Z",
+   "gpu": null,
+   "num_cases": 20,
+   "num_passed": 20,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 403.6,
+   "groups": {
+    "syn1m_b100k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 3817,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b200k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 7720,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b20_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b50k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 1861,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b5k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 185,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    }
+   }
+  },
+  {
+   "backend": "sequential",
+   "threads": null,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": false,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:53:57Z",
+   "gpu": null,
+   "num_cases": 1,
+   "num_passed": 1,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 76.6,
+   "groups": {
+    "coauth_b50k_s1": {
+     "type1": "pass",
+     "by_content_ambiguous": 1451
+    }
+   }
+  },
+  {
+   "backend": "sequential",
+   "threads": null,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": true,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:42:50Z",
+   "gpu": null,
+   "num_cases": 120,
+   "num_passed": 120,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 366.6,
+   "groups": {
+    "syn100k_b100k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 4011,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b100k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 3951,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b100k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 4016,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 7882,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 7821,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b200k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 7971,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 2,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b20_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 2004,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 2016,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b50k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 2009,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 217,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s2": {
+     "main": "pass",
+     "by_content_ambiguous": 197,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn100k_b5k_s3": {
+     "main": "pass",
+     "by_content_ambiguous": 185,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/01-smoke": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/02-reference_small": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/03-reference_syn100k": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/04-small_b20": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/05-small_b200": {
+     "main": "pass",
+     "by_content_ambiguous": 19,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/06-small_b1000": {
+     "main": "pass",
+     "by_content_ambiguous": 387,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/07-syn100k_b5000": {
+     "main": "pass",
+     "by_content_ambiguous": 195,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/08-deletions_only": {
+     "main": "pass",
+     "by_content_ambiguous": 19,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/09-insertions_only": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/10-more_deletions": {
+     "main": "pass",
+     "by_content_ambiguous": 123,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/11-random_inserts_file": {
+     "main": "pass",
+     "by_content_ambiguous": 11,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/12-sampled_inserts_synthetic": {
+     "main": "pass",
+     "by_content_ambiguous": 82,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/13-batch_larger_than_graph": {
+     "main": "pass",
+     "by_content_ambiguous": 3692,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/14-skewed": {
+     "main": "pass",
+     "by_content_ambiguous": 2286,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "test/15-medium": {
+     "main": "pass",
+     "by_content_ambiguous": 460,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    }
+   }
+  },
+  {
+   "backend": "sequential",
+   "threads": null,
+   "mode": "both",
+   "counter": "oracle",
+   "coverage": false,
+   "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+   "date": "2026-10-15T13:49:01Z",
+   "gpu": null,
+   "num_cases": 20,
+   "num_passed": 20,
+   "passed": true,
+   "manifest_sha256": "2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1",
+   "tool": "dyng_triad_replay",
+   "seconds": 522.8,
+   "groups": {
+    "syn1m_b100k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 3817,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b200k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 7720,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b20_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 0,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b50k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 1861,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    },
+    "syn1m_b5k_s1": {
+     "main": "pass",
+     "by_content_ambiguous": 185,
+     "type1": "pass",
+     "type2": "pass",
+     "type3": "pass"
+    }
+   }
+  }
+ ],
+ "num_case_replays": 423,
+ "num_passed": 423,
+ "passed": true
+}

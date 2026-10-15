@@ -129,3 +129,98 @@ equal the goldens' (`parity/results/M9a.md` section 1). Nothing was found agains
   the hosted-CI exact-parity test of D5 may commit at most about 16 KB of these counts (tracked
   `cpp/tests/data` is 998,934 bytes; the 1.25 MB budget and its check in `ci/check.sh` are not in
   place yet).
+
+## Step 2: the oracle, the replays, the driver, the pre-reads (oracle-harness-driver-prereads)
+
+**GO for step 3.** The oracle reproduces ESCHER-GPU (A) exactly on all 423 go/no-go case replays,
+by key and by content, on the sequential, openmp and cuda containers; the driver draws A's batches
+byte for byte; both pre-read targets are met (end to end and memory); the boost lock does not
+hold on the synthetic cases, so their gates run at base (`parity/results/M9a.md` section 2).
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `bcf3f59` | `dyng::testing::triad_reference` (tracked header, its own object library, OpenMP), the class map derived from the Venn-region orbits, `dyng_triad_reference_tests` with the test-only fixture of A's table, `triad_reference_isolation`, the planted mutation (CTest `testing.mutation.triad_reference_class_map`, `parity/mutate.py` suite `triad_reference`), ADR 0049, the API baseline |
+| `062b330` | `generators::legacy::escher_host_model` and `escher_batch_generator::next(model)` (one shared draw with `next(res, hypergraph)`), their tests, the API baseline |
+| `282f3c7` | `dyng_triad_replay` (`triad_replay.{hpp,cpp}`, `triad_replay_main.cpp`, `dyng_triad_replay_tests`), `parity/triad_replay.py` (`compare.py triad_count` replays, `--plant`, `singles`, `draws`), `parity/tests/test_triad_replay.py`, ADR 0050 |
+| `1e6e933` | `dyng-compat-escher run` (`tools/compat/escher/escher_run.cpp`), `parity/triad_perf.py` (`perf_ab.py triad_count run`, `memory`, `--probe`), the footprint figures of `hypergraph_perf.memory_by_range`, `bench_suite` knows the tool, ADR 0051 |
+| `729bb79` | two template parameter names for clang-tidy's naming rules; the mutation-point test reads the oracle's hook |
+| (records) | `parity/results/M9a.md` section 2 and its JSON records, this section, ADRs 0049-0051 in GOVERNANCE.md and the ADR index, plan.md, CHANGELOG |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **The oracle's API is wider than one function.** Besides `triad_reference(...)` it has
+   `triad_reference_all` (the requested patterns from one line graph, so a replay counts all four
+   with one rebuild), the class-map functions (so the tests can show the map is the permutation
+   orbits) and its own `triad_pattern` enumeration (it may not include `dyng/triad_count.hpp`). Its
+   errors are `std::invalid_argument` / `std::bad_alloc`, like `rebuild_line_graph`'s.
+2. **The class representatives are the canonical (smallest) ids of the orbits**, so a test can
+   prove that the list is a list of orbit representatives; "classes with fewer than two
+   intersecting pairs" counts a pair as intersecting when its pairwise-only region or the triple
+   region is non-empty (A's table agrees on all 128 ids).
+3. **The single-triad `.hg` files are not committed.** The C++ test builds the 30 triples itself;
+   the record `M9a-oracle-singles-escher_gpu.json` keeps their lines and SHA-256 (the test-data
+   budget of D5 is left to the make-test counts of a later step).
+4. **The tool reports, the script judges.** `dyng_triad_replay` writes the counts, ids, integrity
+   and resolution facts as JSON; the comparison with the goldens, the coverage table, the records
+   and the planted defects are in `parity/triad_replay.py` (as `dyng_hypergraph_ids` /
+   `hypergraph_ids.py` do). The planted defects are a `--plant` option of the harness, each tested
+   to fail; the comparison also checks every batch file's SHA-256 against the golden's.
+5. **The go/no-go runs the syn1m seed-1 grid on sequential and coauth_b50k_s1/type1 on sequential
+   with `--no-coverage`**: the step asks for them, the coverage table (D6) does not list them.
+6. **The oracle evaluation is reused between the two modes** when their live lists are equal (the
+   oracle is a function of the list); a differing state is evaluated again.
+7. **The driver's own additions**: `--dump-batches FILE` (the batch-hash proof; never in a timed
+   run), `apply_ms` as the per-batch timer of `--no-count` (the region map's `update_ms` is the
+   counted update of step 3), `driver.total` beside `total_ms`, the stage `driver.batch.generate`
+   from a `scoped_stage`, and the stage `io.read_hypergraph` for a file input (a synthetic input's
+   load is `load_ms` only). `--reference` and an alignment other than A's default 4 are refused.
+8. **`perf_ab.py triad_count run --probe`**: the gate harness repeats a contaminated round and gives
+   up after 2 x rounds rejections without a record; the clock probe needs the record of every
+   round (whether the lock held per side), so `--probe` keeps the rounds.
+9. **`hypergraph_perf.memory_by_range` gained the footprint figures** (additive keys: the held
+   bytes at their peak and at the live peak, and their ranges); M8b's records are unchanged.
+10. **The oracle mutation is shown detected by its CTest** (the mutant copy of the tests fails 4 of
+    8); `parity/mutate.py` lists it in the suite `triad_reference`, whose run builds a whole
+    `parity-cuda` copy and belongs to the mutation campaign of step 5 (criterion 11).
+11. **`bench_suite.TOOLS` knows `triad_count`** (`perf_ab.triad_count`, executable
+    `dyng-compat-escher`), step 1's deviation 12 resolved; the suites are step 5's.
+12. **The records were re-run from the committed code**: the oracle, the replays, the draws and the
+    memory pre-read from `1e6e933`, the timed pre-reads from `729bb79` (a later commit renamed two
+    template parameters only); an earlier set of the same runs from the working tree gave the
+    same verdicts and is not kept. A record's commit `+dirty` means only the records and docs were
+    uncommitted.
+
+### Machine time
+
+| What | Time |
+|---|---|
+| go/no-go oracle replays (423 case replays in 9 runs; GPU 1 and the CPUs, shared lock) | about 20 min wall per full set (sum of group times: cuda 726 s, openmp 736 s, sequential 966 s); run twice (working tree, then the committed code) |
+| `singles` (30 runs of A's unpatched main and of the oracle) | under 1 min |
+| `draws` (22 groups, cuda, 2 at a time) | under 1 min |
+| memory pre-read (3 cases x 2 processes under nsys, plus the plain runs) | about 5 min, twice |
+| end-to-end pre-read (5 rounds x 2 cases, base lock, exclusive, plus 4 API traces) | about 3 min, twice |
+| boost probe (3 rounds x 2 cases) | about 2 min, twice (the first attempt gave up before `--probe` existed) |
+| `ci/check.sh` (all steps, then tidy / harness / format again after the fix) and the portability pre-checks (Clang 18 syntax over 366 files, the fortified cpu-only build) | about 35 min |
+
+### Notes for step 3 (the CUDA port)
+
+- **Budgets** (internal margin targets from 2.4, not tolerances): end to end, the counting may
+  cost at most A's `init.full_count + sum(update.subtract + update.add)` plus 892 ms on
+  coauth_b50k_s1 and **109 ms on syn1m_b50k_s1**; memory, the triad bytes live during
+  `hypergraph.apply` at most 120.6 MiB (coauth_b50k_s1), **45.1 MiB (syn1m_b50k_s1)** and 88.4 MiB
+  (syn2m_b50k_s1).
+- **The syn gates run at base** (the boost probe does not hold; ADR 0021's rule).
+- `--counter algorithm` is the stub in `cpp/tests/parity/escher/triad_replay.cpp`
+  (`make_counter`): a counter class with `build()` (compute), `apply()` (`dyng::update` with the
+  triad results; it must return the summary), `counts()` (baseline + deltas; also compare with a
+  fresh `compute()`), and `launches()` (the launch counters per mode and shape, criterion 9).
+- The driver's counting path: `run()` in `tools/compat/escher/escher_run.cpp` exits 2 without
+  `--no-count`; step 3 adds compute (`full_count_ms`), the update (`update_ms`, between device
+  synchronizations, the batch a host batch), A's count lines, and the port's NVTX batch range
+  `triad_count.update` (`triad_perf.PORT_BATCH_RANGE`). The memory reading's batch range follows.
+- The host syncs of the port's apply alone are 16-19 per batch (`cudaStreamSynchronize`), A's
+  update with counting 90-96: the budget for the triad stages is the difference.
+- The footprint between batches is the pool's reserve (1.63-1.69 x A's held bytes; reported,
+  flagged above 1.05, not gated).

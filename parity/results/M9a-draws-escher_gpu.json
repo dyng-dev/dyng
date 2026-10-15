@@ -1,0 +1,220 @@
+{
+ "schema": 1,
+ "what": "M9a step 2: dyng-compat-escher run --no-count draws its batches with generators::legacy::escher_batch_generator::next(escher_host_model) from one std::mt19937_64(seed); every batch file (--dump-batches, split one record per file as the exporter does) must have the SHA-256 of the golden's",
+ "backend": "cuda",
+ "driver": "build/parity-cuda/tools/compat/dyng-compat-escher",
+ "commit": "1e6e933a00aa38a528b4ff65bb9da37cacbc5b0e",
+ "date": "2026-10-15T13:34:26Z",
+ "groups": {
+  "coauth_b50k_s1": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "801ab799dce4f2b9a5d1ded0aa6c14ebac577f217e4482f6430431c7d706ed34",
+    "59613896fa70334294addd50ec428d0548b4d56314286293528cfb7fec0e92ea",
+    "3d0a5043c2e321b6f3bc798c02100e3e3953592423d7c305c2303962b00763c1"
+   ]
+  },
+  "coauth_b50k_s2": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "5d1c5115002edb7770c0acb1822de5dea40d7c303ca26191f8eb30db0e8e9a8e",
+    "a2f4e471585071d286e40333028e4db535029ad212bd5a86608364ce745c05ad",
+    "0fec240446a5d5970225eda91062e79d293c963f3cdaa1b07e698c32807017fe"
+   ]
+  },
+  "coauth_b50k_s3": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "bd371d7e510da8c0f9e81941a0a0e76c55518a709a407fc4172d16b8e56c948a",
+    "4f92a9a1668eac35af0e57b24800773063d967aa74435c1840d4b67b3a600621",
+    "7f56ecf1e19d46efb55c6e6260961e5bd2fd15213a570e670c205f5d350bb101"
+   ]
+  },
+  "syn1m_b50k_s1": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "62f3437c3d1e40f6e1e18b1d78f7f411cffc6e8cc923b0e585a1633f312c5128",
+    "5ed09f415785f40d506b10399d1547a7b27da4c9e91bd7a001cbbff4e36438bc",
+    "7fd7a1ec0547642388d68661a14821e92fb45f6c6b09c29a9fd407cc79688051"
+   ]
+  },
+  "syn1m_b50k_s2": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "4843a7439bde4bf2264d30101b87f5c95c3551fdca64f28223919b19ae746d18",
+    "ca2432400c408a0bcdc6e9d4af6e3ed91d42371e5dd49891c1046322604664f3",
+    "0bc8e888a89aa52f92f6e8b95c787d5dfd912caf8a67fe1a8cb3612e446b95f8"
+   ]
+  },
+  "syn1m_b50k_s3": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "4d269dd360cc894942fb0b6f4875d5f60f9a09509cd1ad4e60e78055adbe9851",
+    "6bf8bed513bf88a19eece7767bba5bb875c8fa2964e8da46eb469709150022cf",
+    "c588268be21afbe1cef810aabd64de08aed6cc4b92d3a70b15af828b148668da"
+   ]
+  },
+  "syn2m_b50k_s1": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "695eb88f34c944d2c2189eb183bb014e528aa993e286db130477a358857a53b3",
+    "85851b756ee3a4c7c9fb09bf1c8bdd8cd9372159ded5773e7aaec45deb7dc28f",
+    "0ddaec2d511237f3295e6470e3d1e4bcfae5fe8aafbf048314987364b38fc3de"
+   ]
+  },
+  "test/01-smoke": {
+   "passed": true,
+   "problems": [],
+   "batches": 1,
+   "batch_sha256": [
+    "44975e706368d0c0e02220f32c3e19219ce5ca09f634035a06b2a06294fbaee0"
+   ]
+  },
+  "test/02-reference_small": {
+   "passed": true,
+   "problems": [],
+   "batches": 0,
+   "batch_sha256": []
+  },
+  "test/03-reference_syn100k": {
+   "passed": true,
+   "problems": [],
+   "batches": 0,
+   "batch_sha256": []
+  },
+  "test/04-small_b20": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "532b4fac5fcae273046f3a4de8447729ef90a763155403c954b320fd6ffbea65",
+    "810b3a22e31903134865d2385220a41736d6cee282d569d37ee0457fe123d79d",
+    "44ec8a314fa35dde71ed7671caba3f2dd19faea853ea6dee21cc6712d5d89f80"
+   ]
+  },
+  "test/05-small_b200": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "24292e634824b97489ed1463e943aa92be003fb9cdb7241195f26fed4b4f0136",
+    "5984d03bb0e6543659c9772e783965ca114995b20c7e3e89b1e7be086bb2b9b3",
+    "2a4414b2ba37c9776173050e5fa897897e5c458c80302fccc4b6d983938bbdd2"
+   ]
+  },
+  "test/06-small_b1000": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "feb8fef7b98da2f23aa0e967a66dc11ffed0fbbdd2bf9b30aed73f6839dae44e",
+    "f57c1fd75f6f1fd0edcf92dabe46ff2cac279e3968c39a576fd1f7ecbd1e4628",
+    "992e2e36a8ad274571da823c9d13c21670de4c074690662caeb705faec5389a0"
+   ]
+  },
+  "test/07-syn100k_b5000": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "dce24ff3ac2ce7a8a17862bcbe1e28d5d09b84d2295bc42e7708481cdfd95312",
+    "48150424fa584404dc48d11f25e420a5e9ec330bee516c045fb210fe29eb798e",
+    "7674a48838f3933419dbe76364871b43a111b7ea132e844e40f15f5df4f62826"
+   ]
+  },
+  "test/08-deletions_only": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "c07617f56ec51461cfaf4d46ad72dc5c7f0a0fa4cef32d0ca09b84cbf9f95739",
+    "f877d9a0fa5410636f02c9160a5a171c34b287c240fdf2c3056cdac48de16c77",
+    "35c1cc7f0b75571a0e200d03158a2b8d85d579fb1dffc549371529c850196cb8"
+   ]
+  },
+  "test/09-insertions_only": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "d1e80a0973197f515461566c9e399969f04829d82c6b67278d0c76c7602ee536",
+    "519195b1ca3d12e1ee3b2bf2153ea9184ac712db2c56aff86642d8d4221b289c",
+    "05779311c61715871c8efb8a611f5d7b2f67a8bbcf56a1dcca14e2326562ec73"
+   ]
+  },
+  "test/10-more_deletions": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "a570b83614f5e7ce318d0705fc7923ec3ce9193f1aa0473eb033f62680f1e927",
+    "cf9ab23329d6b6be1eaad4f7f3a430406e3fb4c33ab873918dc46fa53446474b",
+    "b310233ff56016589a0dccb28d5a4c3d0db0eb013e88363c22ec33375d127b60"
+   ]
+  },
+  "test/11-random_inserts_file": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "586d731ac63831f5466ab53a6b44b8fa30508c174446472c2d77d3c7241d648e",
+    "7340c21d2442421aaa3e029396b43fbaedbe7185e7d757345fee03313647e50e",
+    "6a2f37743327697c2d26b223962d9b10f5baa8d55f541220a5e946e5afaea1d6"
+   ]
+  },
+  "test/12-sampled_inserts_synthetic": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "7720ae8b05fe84ac5b2963f1bd8179f099a3875af1b224be7e787d7a760a414b",
+    "6ce270ad70329745c4401a66c5103e04a4517aa6106b1b4aa8950fa70909e87a",
+    "dd45ad337051b2d86fb56c11512e5f84c2cc790f5c50d9faf07db1a52aa2f9e9"
+   ]
+  },
+  "test/13-batch_larger_than_graph": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "1283a362574b04adf2d54c12db8007129e6a53c2188a0f1fe5c939fd8793c70a",
+    "0e870581a129170e64c027aa837af91ca5da32e380c464ceddd7b8d30bb5c21c",
+    "280426e9395662a0e32cb84065e7f0ba2b47b678de0cf82f840b1edba6525eaf"
+   ]
+  },
+  "test/14-skewed": {
+   "passed": true,
+   "problems": [],
+   "batches": 2,
+   "batch_sha256": [
+    "5adac88b0d8db89991ffdddd4ea23e885aecf5725f474cb2f340e312f32c4eb1",
+    "db8df1983a4175e3020205331c650ec49bac799bbc245d29516b2e25ec5752c0"
+   ]
+  },
+  "test/15-medium": {
+   "passed": true,
+   "problems": [],
+   "batches": 3,
+   "batch_sha256": [
+    "220d0d842d06cc64424b6c2e36849a110d1727d0880dc56aa0fa689d97884253",
+    "29acce7bfa5de6546e45907227560554c5eef3ffdcf8730b85adf088361c8092",
+    "339638b70e6dc4ff9133023e080bc5810a58eae29e90c2986175955bc516f0ff"
+   ]
+  }
+ },
+ "passed": true
+}

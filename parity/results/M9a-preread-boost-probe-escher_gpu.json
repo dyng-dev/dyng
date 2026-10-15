@@ -1,0 +1,1684 @@
+{
+ "schema": 1,
+ "what": "triad_count against ESCHER-GPU@abcf9b2: A/B rounds (parity/timed_regions/triad_count.toml); the port with --no-count (M9a step 2's end-to-end pre-read)",
+ "date": "2026-10-15T13:59:49Z",
+ "pattern": "main",
+ "protocol": {
+  "rounds": 3,
+  "order": "A/B alternation (A first in every round)",
+  "gpu": 0,
+  "clocks": {
+   "control": "boost",
+   "tool": "Version 2025.4.1.0 (build 37053803) (public-release)",
+   "how": "ncu --clock-control boost on parity/clock_lock/clock_holder.cu (idle, one kernel) for the whole A/B; the timed programs are not profiled",
+   "before": {
+    "pstate": "P0",
+    "sm_mhz": 1920,
+    "memory_mhz": 8001
+   },
+   "locked": {
+    "pstate": "P2",
+    "sm_mhz": 1695,
+    "memory_mhz": 7601
+   },
+   "check": "every busy GPU sample of every accepted round at the locked clocks",
+   "after_reset": {
+    "pstate": "P3",
+    "sm_mhz": 1695,
+    "memory_mhz": 8001
+   }
+  },
+  "lock": "perf.lock: held exclusively by this process",
+  "layout": "one (--timing <work>/timing-ab.json on both sides)",
+  "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+  "original": "the UNPATCHED copy's build/main (its Makefile)",
+  "port": "dyng-compat-escher run --backend cuda --sync-stages --no-count"
+ },
+ "port": {
+  "commit": "729bb796d185defabad88df4035822478006ceb4+dirty",
+  "binary": "build/parity-cuda/tools/compat/dyng-compat-escher"
+ },
+ "driver": {
+  "nvidia": "590.48.01",
+  "cuda_driver_api": "13.1"
+ },
+ "results": {
+  "syn1m_b50k_s1": {
+   "rounds": 3,
+   "regions": [
+    {
+     "row": "end_to_end",
+     "gate": "end_to_end",
+     "original_ms": 2199.499,
+     "port_ms": 1496.027,
+     "ratio": 0.6801671653408345,
+     "original_runs": [
+      2199.499,
+      2222.921,
+      2193.511
+     ],
+     "port_runs": [
+      1496.027,
+      1510.059,
+      1483.649
+     ]
+    },
+    {
+     "row": "build",
+     "gate": "none",
+     "original_ms": 668.233,
+     "port_ms": 415.79600000000005,
+     "ratio": 0.6222320657614935,
+     "original_runs": [
+      661.379,
+      688.3539999999999,
+      668.233
+     ],
+     "port_runs": [
+      415.79600000000005,
+      422.094,
+      408.711
+     ]
+    },
+    {
+     "row": "upload",
+     "gate": "none",
+     "original_ms": 66.28800000000001,
+     "port_ms": 176.837,
+     "ratio": 2.6677075790489977,
+     "original_runs": [
+      66.28800000000001,
+      64.971,
+      66.57000000000001
+     ],
+     "port_runs": [
+      176.837,
+      177.21,
+      172.243
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original_ms": 360.265,
+     "port_ms": 428.235,
+     "ratio": 1.1886666759191151,
+     "original_runs": [
+      363.232,
+      360.265,
+      360.123
+     ],
+     "port_runs": [
+      427.699,
+      429.362,
+      428.235
+     ]
+    },
+    {
+     "row": "batch.generate[b1]",
+     "gate": "none",
+     "original_ms": 16.167,
+     "port_ms": 16.345,
+     "ratio": 1.0110100822663448,
+     "original_runs": [
+      16.316,
+      16.167,
+      16.103
+     ],
+     "port_runs": [
+      16.629,
+      16.283,
+      16.345
+     ]
+    },
+    {
+     "row": "batch.generate[b2]",
+     "gate": "none",
+     "original_ms": 15.149,
+     "port_ms": 15.76,
+     "ratio": 1.040332695227408,
+     "original_runs": [
+      16.209,
+      15.149,
+      14.832
+     ],
+     "port_runs": [
+      16.195,
+      15.679,
+      15.76
+     ]
+    },
+    {
+     "row": "batch.generate[b3]",
+     "gate": "none",
+     "original_ms": 15.216,
+     "port_ms": 15.99,
+     "ratio": 1.0508675078864353,
+     "original_runs": [
+      16.15,
+      15.216,
+      15.161
+     ],
+     "port_runs": [
+      16.173,
+      15.99,
+      15.818
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 2.30764102935791,
+       "program_cpu_s": 11.304747999999998,
+       "foreign_cpu_cores": 0.8660138109917533,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 5
+       },
+       "gpu": {
+        "samples": 46,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1590.0,
+         "min": 1590,
+         "max": 1590
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)"
+       ]
+      },
+      "port": {
+       "wall_s": 1.6531870365142822,
+       "program_cpu_s": 8.397746000000003,
+       "foreign_cpu_cores": 0.8782617855335068,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 33,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1590,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)"
+       ]
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.3305118083953857,
+       "program_cpu_s": 11.72449,
+       "foreign_cpu_cores": 0.7296942214267705,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 46,
+        "busy_samples": 26,
+        "pstates_busy": {
+         "P2": 26
+        },
+        "sm_mhz": {
+         "median": 1665.0,
+         "min": 1575,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1575, 7601), (1665, 7601)], not at the locked (1695, 7601)"
+       ]
+      },
+      "port": {
+       "wall_s": 1.663320541381836,
+       "program_cpu_s": 8.285009999999996,
+       "foreign_cpu_cores": 1.0585596448098717,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 4
+       },
+       "gpu": {
+        "samples": 33,
+        "busy_samples": 13,
+        "pstates_busy": {
+         "P2": 13
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     },
+     {
+      "original": {
+       "wall_s": 2.302896022796631,
+       "program_cpu_s": 11.335487,
+       "foreign_cpu_cores": 1.0226071762658544,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 41
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 8
+       },
+       "gpu": {
+        "samples": 46,
+        "busy_samples": 36,
+        "pstates_busy": {
+         "P2": 36
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1590,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)"
+       ]
+      },
+      "port": {
+       "wall_s": 1.636854887008667,
+       "program_cpu_s": 8.333561000000003,
+       "foreign_cpu_cores": 1.175027190207307,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 16
+       },
+       "gpu": {
+        "samples": 32,
+        "busy_samples": 12,
+        "pstates_busy": {
+         "P2": 12
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.175027190207307,
+    "original_pstates_busy": {
+     "P2": 80
+    },
+    "original_sm_mhz_busy_median": 1665.0,
+    "port_pstates_busy": {
+     "P2": 38
+    },
+    "port_sm_mhz_busy_median": 1695,
+    "clocks_locked_in_every_round": false
+   },
+   "loads": [
+    {
+     "before_a": 3.58349609375,
+     "blocked_before_a": 0,
+     "after_a": 3.53662109375,
+     "blocked_after_a": 0,
+     "after_b": 3.53662109375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 3.53662109375,
+     "blocked_before_a": 0,
+     "after_a": 3.4130859375,
+     "blocked_after_a": 0,
+     "after_b": 3.4130859375,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 3.4130859375,
+     "blocked_before_a": 0,
+     "after_a": 3.2998046875,
+     "blocked_after_a": 0,
+     "after_b": 3.2998046875,
+     "blocked_after_b": 0
+    }
+   ],
+   "original_rounds": [
+    {
+     "init.load@0": 363.232,
+     "init.v2h_build@0": 228.272,
+     "init.h2h_build@0": 309.943,
+     "init.flatten@0": 123.164,
+     "init.construct@0": 64.888,
+     "init.row_views@0": 1.4,
+     "init.full_count@0": 470.709,
+     "batch.generate@1": 16.316,
+     "update.subtract@1": 36.895,
+     "maintain.prepare@1": 8.741,
+     "maintain.h2v_delete@1": 2.828,
+     "maintain.v2h_unfill@1": 1.898,
+     "maintain.h2v_insert@1": 6.378,
+     "maintain.v2h_fill@1": 9.708,
+     "maintain.h2h_merge@1": 18.306,
+     "maintain.row_views@1": 5.7,
+     "update.maintain@1": 61.85,
+     "update.add@1": 36.878,
+     "update@1": 135.631,
+     "batch.generate@2": 16.209,
+     "update.subtract@2": 36.887,
+     "maintain.prepare@2": 8.791,
+     "maintain.h2v_delete@2": 0.264,
+     "maintain.v2h_unfill@2": 1.882,
+     "maintain.h2v_insert@2": 1.725,
+     "maintain.v2h_fill@2": 9.147,
+     "maintain.h2h_merge@2": 18.089,
+     "maintain.row_views@2": 1.109,
+     "update.maintain@2": 43.219,
+     "update.add@2": 39.499,
+     "update@2": 119.609,
+     "batch.generate@3": 16.15,
+     "update.subtract@3": 36.603,
+     "maintain.prepare@3": 8.715,
+     "maintain.h2v_delete@3": 0.289,
+     "maintain.v2h_unfill@3": 1.882,
+     "maintain.h2v_insert@3": 5.508,
+     "maintain.v2h_fill@3": 9.295,
+     "maintain.h2h_merge@3": 17.96,
+     "maintain.row_views@3": 5.752,
+     "update.maintain@3": 51.932,
+     "update.add@3": 36.942,
+     "update@3": 125.482,
+     "total@0": 2199.499
+    },
+    {
+     "init.load@0": 360.265,
+     "init.v2h_build@0": 240.237,
+     "init.h2h_build@0": 324.77,
+     "init.flatten@0": 123.347,
+     "init.construct@0": 63.59,
+     "init.row_views@0": 1.381,
+     "init.full_count@0": 468.969,
+     "batch.generate@1": 16.167,
+     "update.subtract@1": 36.344,
+     "maintain.prepare@1": 8.75,
+     "maintain.h2v_delete@1": 2.818,
+     "maintain.v2h_unfill@1": 1.872,
+     "maintain.h2v_insert@1": 6.004,
+     "maintain.v2h_fill@1": 9.171,
+     "maintain.h2h_merge@1": 18.128,
+     "maintain.row_views@1": 5.76,
+     "update.maintain@1": 59.963,
+     "update.add@1": 36.621,
+     "update@1": 132.938,
+     "batch.generate@2": 15.149,
+     "update.subtract@2": 37.158,
+     "maintain.prepare@2": 8.721,
+     "maintain.h2v_delete@2": 0.263,
+     "maintain.v2h_unfill@2": 1.877,
+     "maintain.h2v_insert@2": 1.729,
+     "maintain.v2h_fill@2": 9.112,
+     "maintain.h2h_merge@2": 18.052,
+     "maintain.row_views@2": 1.103,
+     "update.maintain@2": 42.382,
+     "update.add@2": 39.367,
+     "update@2": 118.911,
+     "batch.generate@3": 15.216,
+     "update.subtract@3": 36.438,
+     "maintain.prepare@3": 9.021,
+     "maintain.h2v_delete@3": 0.264,
+     "maintain.v2h_unfill@3": 1.883,
+     "maintain.h2v_insert@3": 5.465,
+     "maintain.v2h_fill@3": 9.434,
+     "maintain.h2h_merge@3": 22.927,
+     "maintain.row_views@3": 5.73,
+     "update.maintain@3": 56.537,
+     "update.add@3": 36.834,
+     "update@3": 129.815,
+     "total@0": 2222.921
+    },
+    {
+     "init.load@0": 360.123,
+     "init.v2h_build@0": 231.223,
+     "init.h2h_build@0": 317.277,
+     "init.flatten@0": 119.733,
+     "init.construct@0": 65.17,
+     "init.row_views@0": 1.4,
+     "init.full_count@0": 469.965,
+     "batch.generate@1": 16.103,
+     "update.subtract@1": 36.64,
+     "maintain.prepare@1": 8.762,
+     "maintain.h2v_delete@1": 2.774,
+     "maintain.v2h_unfill@1": 1.856,
+     "maintain.h2v_insert@1": 5.995,
+     "maintain.v2h_fill@1": 9.41,
+     "maintain.h2h_merge@1": 18.173,
+     "maintain.row_views@1": 5.767,
+     "update.maintain@1": 60.448,
+     "update.add@1": 37.091,
+     "update@1": 134.19,
+     "batch.generate@2": 14.832,
+     "update.subtract@2": 36.891,
+     "maintain.prepare@2": 8.806,
+     "maintain.h2v_delete@2": 0.266,
+     "maintain.v2h_unfill@2": 1.887,
+     "maintain.h2v_insert@2": 1.724,
+     "maintain.v2h_fill@2": 9.181,
+     "maintain.h2h_merge@2": 17.905,
+     "maintain.row_views@2": 1.103,
+     "update.maintain@2": 42.373,
+     "update.add@2": 39.283,
+     "update@2": 118.551,
+     "batch.generate@3": 15.161,
+     "update.subtract@3": 36.382,
+     "maintain.prepare@3": 8.952,
+     "maintain.h2v_delete@3": 0.265,
+     "maintain.v2h_unfill@3": 1.891,
+     "maintain.h2v_insert@3": 5.527,
+     "maintain.v2h_fill@3": 9.341,
+     "maintain.h2h_merge@3": 18.002,
+     "maintain.row_views@3": 5.72,
+     "update.maintain@3": 51.28,
+     "update.add@3": 36.963,
+     "update@3": 124.631,
+     "total@0": 2193.511
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 427.699,
+     "hypergraph.build@0": 415.79600000000005,
+     "hypergraph.cbst.construct@0": 75.18299999999999,
+     "hypergraph.upload@0": 176.837,
+     "generate_ms@1": 16.629,
+     "apply_ms@1": 45.506,
+     "driver.batch.generate@1": 16.626,
+     "hypergraph.cbst.erase@1": 0.118,
+     "hypergraph.cbst.remove_values@1": 1.034,
+     "hypergraph.apply.delete@1": 9.68,
+     "hypergraph.cbst.insert@1": 2.331,
+     "hypergraph.cbst.append@1": 0.779,
+     "hypergraph.apply.insert@1": 13.659,
+     "hypergraph.cbst.rebuild@1": 4.701,
+     "hypergraph.apply.line_graph@1": 13.953,
+     "hypergraph.apply.views@1": 1.074,
+     "hypergraph.apply@1": 45.501,
+     "generate_ms@2": 16.195,
+     "apply_ms@2": 47.964,
+     "driver.batch.generate@2": 16.186,
+     "hypergraph.cbst.erase@2": 0.495,
+     "hypergraph.cbst.remove_values@2": 1.037,
+     "hypergraph.apply.delete@2": 10.689,
+     "hypergraph.cbst.insert@2": 0.702,
+     "hypergraph.cbst.append@2": 0.795,
+     "hypergraph.apply.insert@2": 11.456,
+     "hypergraph.cbst.rebuild@2": 4.85,
+     "hypergraph.apply.line_graph@2": 15.219,
+     "hypergraph.apply.views@2": 1.062,
+     "hypergraph.apply@2": 47.961,
+     "generate_ms@3": 16.173,
+     "apply_ms@3": 49.17,
+     "driver.batch.generate@3": 16.169,
+     "hypergraph.cbst.erase@3": 0.527,
+     "hypergraph.cbst.remove_values@3": 1.021,
+     "hypergraph.apply.delete@3": 10.472,
+     "hypergraph.cbst.insert@3": 2.054,
+     "hypergraph.cbst.append@3": 0.79,
+     "hypergraph.apply.insert@3": 13.008,
+     "hypergraph.cbst.rebuild@3": 4.77,
+     "hypergraph.apply.line_graph@3": 15.264,
+     "hypergraph.apply.views@3": 1.076,
+     "hypergraph.apply@3": 49.168,
+     "total_ms@0": 1496.027,
+     "driver.total@0": 1496.027
+    },
+    {
+     "load_ms@0": 429.362,
+     "hypergraph.build@0": 422.094,
+     "hypergraph.cbst.construct@0": 75.454,
+     "hypergraph.upload@0": 177.21,
+     "generate_ms@1": 16.283,
+     "apply_ms@1": 45.206,
+     "driver.batch.generate@1": 16.279,
+     "hypergraph.cbst.erase@1": 0.113,
+     "hypergraph.cbst.remove_values@1": 1.032,
+     "hypergraph.apply.delete@1": 9.636,
+     "hypergraph.cbst.insert@1": 2.326,
+     "hypergraph.cbst.append@1": 0.754,
+     "hypergraph.apply.insert@1": 13.353,
+     "hypergraph.cbst.rebuild@1": 4.736,
+     "hypergraph.apply.line_graph@1": 14.0,
+     "hypergraph.apply.views@1": 1.067,
+     "hypergraph.apply@1": 45.2,
+     "generate_ms@2": 15.679,
+     "apply_ms@2": 48.756,
+     "driver.batch.generate@2": 15.668,
+     "hypergraph.cbst.erase@2": 0.549,
+     "hypergraph.cbst.remove_values@2": 1.074,
+     "hypergraph.apply.delete@2": 10.972,
+     "hypergraph.cbst.insert@2": 0.706,
+     "hypergraph.cbst.append@2": 0.809,
+     "hypergraph.apply.insert@2": 11.669,
+     "hypergraph.cbst.rebuild@2": 4.81,
+     "hypergraph.apply.line_graph@2": 15.385,
+     "hypergraph.apply.views@2": 1.079,
+     "hypergraph.apply@2": 48.753,
+     "generate_ms@3": 15.99,
+     "apply_ms@3": 48.791,
+     "driver.batch.generate@3": 15.986,
+     "hypergraph.cbst.erase@3": 0.501,
+     "hypergraph.cbst.remove_values@3": 1.005,
+     "hypergraph.apply.delete@3": 10.301,
+     "hypergraph.cbst.insert@3": 2.069,
+     "hypergraph.cbst.append@3": 0.823,
+     "hypergraph.apply.insert@3": 12.926,
+     "hypergraph.cbst.rebuild@3": 4.786,
+     "hypergraph.apply.line_graph@3": 15.207,
+     "hypergraph.apply.views@3": 1.074,
+     "hypergraph.apply@3": 48.789,
+     "total_ms@0": 1510.059,
+     "driver.total@0": 1510.059
+    },
+    {
+     "load_ms@0": 428.235,
+     "hypergraph.build@0": 408.711,
+     "hypergraph.cbst.construct@0": 73.642,
+     "hypergraph.upload@0": 172.243,
+     "generate_ms@1": 16.345,
+     "apply_ms@1": 45.591,
+     "driver.batch.generate@1": 16.341,
+     "hypergraph.cbst.erase@1": 0.112,
+     "hypergraph.cbst.remove_values@1": 1.039,
+     "hypergraph.apply.delete@1": 9.615,
+     "hypergraph.cbst.insert@1": 2.321,
+     "hypergraph.cbst.append@1": 0.793,
+     "hypergraph.apply.insert@1": 13.642,
+     "hypergraph.cbst.rebuild@1": 4.752,
+     "hypergraph.apply.line_graph@1": 14.08,
+     "hypergraph.apply.views@1": 1.103,
+     "hypergraph.apply@1": 45.585,
+     "generate_ms@2": 15.76,
+     "apply_ms@2": 48.019,
+     "driver.batch.generate@2": 15.749,
+     "hypergraph.cbst.erase@2": 0.498,
+     "hypergraph.cbst.remove_values@2": 1.048,
+     "hypergraph.apply.delete@2": 10.661,
+     "hypergraph.cbst.insert@2": 0.68,
+     "hypergraph.cbst.append@2": 0.801,
+     "hypergraph.apply.insert@2": 11.807,
+     "hypergraph.cbst.rebuild@2": 4.714,
+     "hypergraph.apply.line_graph@2": 15.192,
+     "hypergraph.apply.views@2": 1.059,
+     "hypergraph.apply@2": 48.016,
+     "generate_ms@3": 15.818,
+     "apply_ms@3": 48.596,
+     "driver.batch.generate@3": 15.813,
+     "hypergraph.cbst.erase@3": 0.479,
+     "hypergraph.cbst.remove_values@3": 1.023,
+     "hypergraph.apply.delete@3": 10.322,
+     "hypergraph.cbst.insert@3": 2.057,
+     "hypergraph.cbst.append@3": 0.798,
+     "hypergraph.apply.insert@3": 12.958,
+     "hypergraph.cbst.rebuild@3": 4.835,
+     "hypergraph.apply.line_graph@3": 15.176,
+     "hypergraph.apply.views@3": 1.074,
+     "hypergraph.apply@3": 48.594,
+     "total_ms@0": 1483.649,
+     "driver.total@0": 1483.649
+    }
+   ],
+   "probe": {
+    "rounds": [
+     {
+      "round": 1,
+      "original": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1590.0,
+        "min": 1590,
+        "max": 1590
+       },
+       "pstates_busy": {
+        "P2": 18
+       }
+      },
+      "port": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1695,
+        "min": 1590,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 13
+       }
+      },
+      "reasons": [
+       "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)",
+       "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)"
+      ]
+     },
+     {
+      "round": 2,
+      "original": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1665.0,
+        "min": 1575,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 26
+       }
+      },
+      "port": {
+       "clocks_locked": true,
+       "sm_mhz": {
+        "median": 1695,
+        "min": 1695,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 13
+       }
+      },
+      "reasons": [
+       "GPU 0 busy at (SM, memory) MHz [(1575, 7601), (1665, 7601)], not at the locked (1695, 7601)"
+      ]
+     },
+     {
+      "round": 3,
+      "original": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1695.0,
+        "min": 1590,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 36
+       }
+      },
+      "port": {
+       "clocks_locked": true,
+       "sm_mhz": {
+        "median": 1695.0,
+        "min": 1695,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 12
+       }
+      },
+      "reasons": [
+       "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)"
+      ]
+     }
+    ],
+    "holds": false,
+    "rule": "the lock holds when every busy GPU sample of both sides in every round ran at the locked clocks and no round was contaminated"
+   },
+   "noncount": {
+    "a_total": 2199.499,
+    "a_full_count": 469.965,
+    "a_subtract_add": 223.25,
+    "a_noncount": 1505.0859999999998,
+    "port_total": 1496.027,
+    "port_untimed_rest": 284.3309999999998,
+    "a_untimed_rest": 208.49399999999963,
+    "a_init": {
+     "init.load": 360.265,
+     "init.v2h_build": 231.223,
+     "init.h2h_build": 317.277,
+     "init.v2v_build": 0,
+     "init.flatten": 123.164,
+     "init.construct": 64.888,
+     "init.row_views": 1.4
+    },
+    "port_init": {
+     "load_ms": 428.235,
+     "hypergraph.build": 415.79600000000005,
+     "hypergraph.upload": 176.837
+    },
+    "a_maintain": [
+     60.448,
+     42.382,
+     51.932
+    ],
+    "port_apply": [
+     45.506,
+     48.019,
+     48.791
+    ],
+    "a_generate": [
+     16.167,
+     15.149,
+     15.216
+    ],
+    "port_generate": [
+     16.345,
+     15.76,
+     15.99
+    ],
+    "target": 1593.0659599999997,
+    "met": true,
+    "port_over_a_noncount_ms": -9.058999999999742
+   }
+  },
+  "syn2m_b50k_s1": {
+   "rounds": 3,
+   "regions": [
+    {
+     "row": "end_to_end",
+     "gate": "end_to_end",
+     "original_ms": 4017.049,
+     "port_ms": 2703.64,
+     "ratio": 0.6730413295929425,
+     "original_runs": [
+      4023.102,
+      4017.049,
+      3953.299
+     ],
+     "port_runs": [
+      2703.64,
+      2722.366,
+      2649.188
+     ]
+    },
+    {
+     "row": "build",
+     "gate": "none",
+     "original_ms": 1405.995,
+     "port_ms": 801.251,
+     "ratio": 0.5698818274602684,
+     "original_runs": [
+      1419.682,
+      1405.995,
+      1351.6219999999998
+     ],
+     "port_runs": [
+      799.072,
+      801.251,
+      810.041
+     ]
+    },
+    {
+     "row": "upload",
+     "gate": "none",
+     "original_ms": 129.698,
+     "port_ms": 375.965,
+     "ratio": 2.8987725331153906,
+     "original_runs": [
+      129.698,
+      130.801,
+      129.189
+     ],
+     "port_runs": [
+      375.965,
+      417.981,
+      339.656
+     ]
+    },
+    {
+     "row": "load",
+     "gate": "none",
+     "original_ms": 721.244,
+     "port_ms": 855.594,
+     "ratio": 1.186275379760525,
+     "original_runs": [
+      721.969,
+      721.244,
+      719.8
+     ],
+     "port_runs": [
+      858.974,
+      855.594,
+      854.383
+     ]
+    },
+    {
+     "row": "batch.generate[b1]",
+     "gate": "none",
+     "original_ms": 18.749,
+     "port_ms": 17.595,
+     "ratio": 0.938450050669369,
+     "original_runs": [
+      18.947,
+      18.749,
+      18.658
+     ],
+     "port_runs": [
+      17.629,
+      17.595,
+      17.565
+     ]
+    },
+    {
+     "row": "batch.generate[b2]",
+     "gate": "none",
+     "original_ms": 18.037,
+     "port_ms": 18.711,
+     "ratio": 1.0373676331984254,
+     "original_runs": [
+      17.839,
+      18.037,
+      19.197
+     ],
+     "port_runs": [
+      18.711,
+      18.879,
+      18.479
+     ]
+    },
+    {
+     "row": "batch.generate[b3]",
+     "gate": "none",
+     "original_ms": 18.178,
+     "port_ms": 18.868,
+     "ratio": 1.0379579711739464,
+     "original_runs": [
+      18.178,
+      18.258,
+      18.03
+     ],
+     "port_runs": [
+      18.868,
+      18.855,
+      19.396
+     ]
+    }
+   ],
+   "monitor": {
+    "rule": "a round is repeated if, during either side, the CPUs were busy outside the harness for more than 2.0 cores on average or a foreign compute process was on the timed GPU",
+    "max_foreign_cpu_cores": 2.0,
+    "rounds": [
+     {
+      "original": {
+       "wall_s": 4.159016132354736,
+       "program_cpu_s": 18.270801000000006,
+       "foreign_cpu_cores": 1.1447531943774008,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 83,
+        "busy_samples": 33,
+        "pstates_busy": {
+         "P2": 33
+        },
+        "sm_mhz": {
+         "median": 1590,
+         "min": 1470,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1470, 7601), (1590, 7601)], not at the locked (1695, 7601)"
+       ]
+      },
+      "port": {
+       "wall_s": 2.903231382369995,
+       "program_cpu_s": 14.180374999999998,
+       "foreign_cpu_cores": 1.1138943384388735,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 6
+       },
+       "gpu": {
+        "samples": 58,
+        "busy_samples": 18,
+        "pstates_busy": {
+         "P2": 18
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1590,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)"
+       ]
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.1473658084869385,
+       "program_cpu_s": 18.218066000000007,
+       "foreign_cpu_cores": 1.036417619807242,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 1
+       },
+       "gpu": {
+        "samples": 82,
+        "busy_samples": 42,
+        "pstates_busy": {
+         "P2": 42
+        },
+        "sm_mhz": {
+         "median": 1590.0,
+         "min": 1560,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1560, 7601), (1575, 7601), (1590, 7601)], not at the locked (1695, 7601)"
+       ]
+      },
+      "port": {
+       "wall_s": 2.921344757080078,
+       "program_cpu_s": 14.209909999999994,
+       "foreign_cpu_cores": 1.1070466747438688,
+       "procs_running": {
+        "median": 3,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1,
+        "min": 1,
+        "max": 11
+       },
+       "gpu": {
+        "samples": 59,
+        "busy_samples": 9,
+        "pstates_busy": {
+         "P2": 9
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1560,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1560, 7601)], not at the locked (1695, 7601)"
+       ]
+      }
+     },
+     {
+      "original": {
+       "wall_s": 4.083712816238403,
+       "program_cpu_s": 17.899122000000006,
+       "foreign_cpu_cores": 1.0616250935562719,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 41
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 0,
+        "max": 2
+       },
+       "gpu": {
+        "samples": 81,
+        "busy_samples": 42,
+        "pstates_busy": {
+         "P2": 42
+        },
+        "sm_mhz": {
+         "median": 1695.0,
+         "min": 1560,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601.0,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": false
+       },
+       "contaminated": true,
+       "reasons": [
+        "GPU 0 busy at (SM, memory) MHz [(1560, 7601), (1575, 7601)], not at the locked (1695, 7601)"
+       ]
+      },
+      "port": {
+       "wall_s": 2.8542144298553467,
+       "program_cpu_s": 14.143313999999975,
+       "foreign_cpu_cores": 1.0936645014608604,
+       "procs_running": {
+        "median": 3.0,
+        "min": 3,
+        "max": 58
+       },
+       "foreign_runnable": {
+        "median": 1.0,
+        "min": 1,
+        "max": 20
+       },
+       "gpu": {
+        "samples": 57,
+        "busy_samples": 27,
+        "pstates_busy": {
+         "P2": 27
+        },
+        "sm_mhz": {
+         "median": 1695,
+         "min": 1695,
+         "max": 1695
+        },
+        "memory_mhz": {
+         "median": 7601,
+         "min": 7601,
+         "max": 7601
+        },
+        "foreign_processes": [],
+        "clocks_locked": true
+       },
+       "contaminated": false,
+       "reasons": []
+      }
+     }
+    ],
+    "rejected": [],
+    "foreign_cpu_cores_max": 1.1447531943774008,
+    "original_pstates_busy": {
+     "P2": 117
+    },
+    "original_sm_mhz_busy_median": 1590.0,
+    "port_pstates_busy": {
+     "P2": 54
+    },
+    "port_sm_mhz_busy_median": 1695,
+    "clocks_locked_in_every_round": false
+   },
+   "loads": [
+    {
+     "before_a": 3.2998046875,
+     "blocked_before_a": 0,
+     "after_a": 3.1953125,
+     "blocked_after_a": 0,
+     "after_b": 3.1953125,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 3.1953125,
+     "blocked_before_a": 0,
+     "after_a": 3.09912109375,
+     "blocked_after_a": 0,
+     "after_b": 3.0107421875,
+     "blocked_after_b": 0
+    },
+    {
+     "before_a": 3.0107421875,
+     "blocked_before_a": 0,
+     "after_a": 2.9296875,
+     "blocked_after_a": 0,
+     "after_b": 2.9296875,
+     "blocked_after_b": 0
+    }
+   ],
+   "original_rounds": [
+    {
+     "init.load@0": 721.969,
+     "init.v2h_build@0": 586.453,
+     "init.h2h_build@0": 573.65,
+     "init.flatten@0": 259.579,
+     "init.construct@0": 127.144,
+     "init.row_views@0": 2.554,
+     "init.full_count@0": 965.846,
+     "batch.generate@1": 18.947,
+     "update.subtract@1": 39.578,
+     "maintain.prepare@1": 8.68,
+     "maintain.h2v_delete@1": 2.768,
+     "maintain.v2h_unfill@1": 2.06,
+     "maintain.h2v_insert@1": 8.583,
+     "maintain.v2h_fill@1": 9.167,
+     "maintain.h2h_merge@1": 24.848,
+     "maintain.row_views@1": 7.629,
+     "update.maintain@1": 76.413,
+     "update.add@1": 42.515,
+     "update@1": 158.516,
+     "batch.generate@2": 17.839,
+     "update.subtract@2": 39.381,
+     "maintain.prepare@2": 8.721,
+     "maintain.h2v_delete@2": 0.283,
+     "maintain.v2h_unfill@2": 2.031,
+     "maintain.h2v_insert@2": 1.751,
+     "maintain.v2h_fill@2": 9.235,
+     "maintain.h2h_merge@2": 24.389,
+     "maintain.row_views@2": 2.235,
+     "update.maintain@2": 50.593,
+     "update.add@2": 41.577,
+     "update@2": 131.554,
+     "batch.generate@3": 18.178,
+     "update.subtract@3": 38.505,
+     "maintain.prepare@3": 8.676,
+     "maintain.h2v_delete@3": 0.287,
+     "maintain.v2h_unfill@3": 2.044,
+     "maintain.h2v_insert@3": 8.8,
+     "maintain.v2h_fill@3": 9.4,
+     "maintain.h2h_merge@3": 24.505,
+     "maintain.row_views@3": 7.551,
+     "update.maintain@3": 63.135,
+     "update.add@3": 43.09,
+     "update@3": 144.735,
+     "total@0": 4023.102
+    },
+    {
+     "init.load@0": 721.244,
+     "init.v2h_build@0": 577.418,
+     "init.h2h_build@0": 570.328,
+     "init.flatten@0": 258.249,
+     "init.construct@0": 128.232,
+     "init.row_views@0": 2.569,
+     "init.full_count@0": 967.151,
+     "batch.generate@1": 18.749,
+     "update.subtract@1": 40.099,
+     "maintain.prepare@1": 8.884,
+     "maintain.h2v_delete@1": 2.826,
+     "maintain.v2h_unfill@1": 2.027,
+     "maintain.h2v_insert@1": 8.593,
+     "maintain.v2h_fill@1": 9.384,
+     "maintain.h2h_merge@1": 25.04,
+     "maintain.row_views@1": 7.576,
+     "update.maintain@1": 77.338,
+     "update.add@1": 42.231,
+     "update@1": 159.68,
+     "batch.generate@2": 18.037,
+     "update.subtract@2": 39.527,
+     "maintain.prepare@2": 8.91,
+     "maintain.h2v_delete@2": 0.284,
+     "maintain.v2h_unfill@2": 2.033,
+     "maintain.h2v_insert@2": 1.73,
+     "maintain.v2h_fill@2": 9.171,
+     "maintain.h2h_merge@2": 24.411,
+     "maintain.row_views@2": 2.247,
+     "update.maintain@2": 50.779,
+     "update.add@2": 41.226,
+     "update@2": 131.536,
+     "batch.generate@3": 18.258,
+     "update.subtract@3": 38.839,
+     "maintain.prepare@3": 8.68,
+     "maintain.h2v_delete@3": 0.284,
+     "maintain.v2h_unfill@3": 2.027,
+     "maintain.h2v_insert@3": 8.857,
+     "maintain.v2h_fill@3": 9.244,
+     "maintain.h2h_merge@3": 24.559,
+     "maintain.row_views@3": 7.509,
+     "update.maintain@3": 62.94,
+     "update.add@3": 42.895,
+     "update@3": 144.68,
+     "total@0": 4017.049
+    },
+    {
+     "init.load@0": 719.8,
+     "init.v2h_build@0": 571.31,
+     "init.h2h_build@0": 552.049,
+     "init.flatten@0": 228.263,
+     "init.construct@0": 126.595,
+     "init.row_views@0": 2.594,
+     "init.full_count@0": 970.383,
+     "batch.generate@1": 18.658,
+     "update.subtract@1": 39.446,
+     "maintain.prepare@1": 8.678,
+     "maintain.h2v_delete@1": 2.719,
+     "maintain.v2h_unfill@1": 2.078,
+     "maintain.h2v_insert@1": 9.128,
+     "maintain.v2h_fill@1": 9.418,
+     "maintain.h2h_merge@1": 24.955,
+     "maintain.row_views@1": 7.638,
+     "update.maintain@1": 77.291,
+     "update.add@1": 41.954,
+     "update@1": 158.706,
+     "batch.generate@2": 19.197,
+     "update.subtract@2": 39.255,
+     "maintain.prepare@2": 8.8,
+     "maintain.h2v_delete@2": 0.287,
+     "maintain.v2h_unfill@2": 2.06,
+     "maintain.h2v_insert@2": 1.733,
+     "maintain.v2h_fill@2": 9.149,
+     "maintain.h2h_merge@2": 24.323,
+     "maintain.row_views@2": 2.228,
+     "update.maintain@2": 50.53,
+     "update.add@2": 41.985,
+     "update@2": 131.774,
+     "batch.generate@3": 18.03,
+     "update.subtract@3": 39.101,
+     "maintain.prepare@3": 8.693,
+     "maintain.h2v_delete@3": 0.28,
+     "maintain.v2h_unfill@3": 2.052,
+     "maintain.h2v_insert@3": 8.613,
+     "maintain.v2h_fill@3": 9.117,
+     "maintain.h2h_merge@3": 24.372,
+     "maintain.row_views@3": 7.635,
+     "update.maintain@3": 62.564,
+     "update.add@3": 42.307,
+     "update@3": 143.977,
+     "total@0": 3953.299
+    }
+   ],
+   "port_rounds": [
+    {
+     "load_ms@0": 858.974,
+     "hypergraph.build@0": 799.072,
+     "hypergraph.cbst.construct@0": 171.678,
+     "hypergraph.upload@0": 375.965,
+     "generate_ms@1": 17.629,
+     "apply_ms@1": 57.528,
+     "driver.batch.generate@1": 17.624,
+     "hypergraph.cbst.erase@1": 0.136,
+     "hypergraph.cbst.remove_values@1": 1.23,
+     "hypergraph.apply.delete@1": 10.006,
+     "hypergraph.cbst.insert@1": 3.78,
+     "hypergraph.cbst.append@1": 0.848,
+     "hypergraph.apply.insert@1": 15.715,
+     "hypergraph.cbst.rebuild@1": 9.162,
+     "hypergraph.apply.line_graph@1": 21.289,
+     "hypergraph.apply.views@1": 2.085,
+     "hypergraph.apply@1": 57.521,
+     "generate_ms@2": 18.711,
+     "apply_ms@2": 58.64,
+     "driver.batch.generate@2": 18.696,
+     "hypergraph.cbst.erase@2": 0.564,
+     "hypergraph.cbst.remove_values@2": 1.216,
+     "hypergraph.apply.delete@2": 10.777,
+     "hypergraph.cbst.insert@2": 0.704,
+     "hypergraph.cbst.append@2": 0.844,
+     "hypergraph.apply.insert@2": 12.466,
+     "hypergraph.cbst.rebuild@2": 9.237,
+     "hypergraph.apply.line_graph@2": 21.934,
+     "hypergraph.apply.views@2": 2.063,
+     "hypergraph.apply@2": 58.636,
+     "generate_ms@3": 18.868,
+     "apply_ms@3": 60.385,
+     "driver.batch.generate@3": 18.864,
+     "hypergraph.cbst.erase@3": 0.583,
+     "hypergraph.cbst.remove_values@3": 1.213,
+     "hypergraph.apply.delete@3": 10.681,
+     "hypergraph.cbst.insert@3": 3.388,
+     "hypergraph.cbst.append@3": 0.869,
+     "hypergraph.apply.insert@3": 15.285,
+     "hypergraph.cbst.rebuild@3": 8.965,
+     "hypergraph.apply.line_graph@3": 21.463,
+     "hypergraph.apply.views@3": 2.157,
+     "hypergraph.apply@3": 60.383,
+     "total_ms@0": 2703.64,
+     "driver.total@0": 2703.64
+    },
+    {
+     "load_ms@0": 855.594,
+     "hypergraph.build@0": 801.251,
+     "hypergraph.cbst.construct@0": 156.203,
+     "hypergraph.upload@0": 417.981,
+     "generate_ms@1": 17.595,
+     "apply_ms@1": 57.68,
+     "driver.batch.generate@1": 17.592,
+     "hypergraph.cbst.erase@1": 0.132,
+     "hypergraph.cbst.remove_values@1": 1.227,
+     "hypergraph.apply.delete@1": 10.147,
+     "hypergraph.cbst.insert@1": 3.784,
+     "hypergraph.cbst.append@1": 0.899,
+     "hypergraph.apply.insert@1": 15.869,
+     "hypergraph.cbst.rebuild@1": 8.892,
+     "hypergraph.apply.line_graph@1": 21.165,
+     "hypergraph.apply.views@1": 2.089,
+     "hypergraph.apply@1": 57.673,
+     "generate_ms@2": 18.879,
+     "apply_ms@2": 59.02,
+     "driver.batch.generate@2": 18.847,
+     "hypergraph.cbst.erase@2": 0.593,
+     "hypergraph.cbst.remove_values@2": 1.194,
+     "hypergraph.apply.delete@2": 10.701,
+     "hypergraph.cbst.insert@2": 0.736,
+     "hypergraph.cbst.append@2": 0.858,
+     "hypergraph.apply.insert@2": 12.674,
+     "hypergraph.cbst.rebuild@2": 9.2,
+     "hypergraph.apply.line_graph@2": 22.003,
+     "hypergraph.apply.views@2": 2.129,
+     "hypergraph.apply@2": 59.017,
+     "generate_ms@3": 18.855,
+     "apply_ms@3": 60.56,
+     "driver.batch.generate@3": 18.851,
+     "hypergraph.cbst.erase@3": 0.582,
+     "hypergraph.cbst.remove_values@3": 1.245,
+     "hypergraph.apply.delete@3": 10.647,
+     "hypergraph.cbst.insert@3": 3.423,
+     "hypergraph.cbst.append@3": 0.841,
+     "hypergraph.apply.insert@3": 15.305,
+     "hypergraph.cbst.rebuild@3": 8.976,
+     "hypergraph.apply.line_graph@3": 21.626,
+     "hypergraph.apply.views@3": 2.089,
+     "hypergraph.apply@3": 60.557,
+     "total_ms@0": 2722.366,
+     "driver.total@0": 2722.366
+    },
+    {
+     "load_ms@0": 854.383,
+     "hypergraph.build@0": 810.041,
+     "hypergraph.cbst.construct@0": 143.557,
+     "hypergraph.upload@0": 339.656,
+     "generate_ms@1": 17.565,
+     "apply_ms@1": 58.439,
+     "driver.batch.generate@1": 17.56,
+     "hypergraph.cbst.erase@1": 0.133,
+     "hypergraph.cbst.remove_values@1": 1.237,
+     "hypergraph.apply.delete@1": 10.225,
+     "hypergraph.cbst.insert@1": 3.823,
+     "hypergraph.cbst.append@1": 0.878,
+     "hypergraph.apply.insert@1": 16.239,
+     "hypergraph.cbst.rebuild@1": 8.954,
+     "hypergraph.apply.line_graph@1": 21.498,
+     "hypergraph.apply.views@1": 2.079,
+     "hypergraph.apply@1": 58.432,
+     "generate_ms@2": 18.479,
+     "apply_ms@2": 59.269,
+     "driver.batch.generate@2": 18.463,
+     "hypergraph.cbst.erase@2": 0.565,
+     "hypergraph.cbst.remove_values@2": 1.203,
+     "hypergraph.apply.delete@2": 10.906,
+     "hypergraph.cbst.insert@2": 0.737,
+     "hypergraph.cbst.append@2": 0.874,
+     "hypergraph.apply.insert@2": 12.928,
+     "hypergraph.cbst.rebuild@2": 9.206,
+     "hypergraph.apply.line_graph@2": 22.036,
+     "hypergraph.apply.views@2": 2.128,
+     "hypergraph.apply@2": 59.266,
+     "generate_ms@3": 19.396,
+     "apply_ms@3": 60.759,
+     "driver.batch.generate@3": 19.392,
+     "hypergraph.cbst.erase@3": 0.556,
+     "hypergraph.cbst.remove_values@3": 1.229,
+     "hypergraph.apply.delete@3": 10.729,
+     "hypergraph.cbst.insert@3": 3.387,
+     "hypergraph.cbst.append@3": 0.884,
+     "hypergraph.apply.insert@3": 15.416,
+     "hypergraph.cbst.rebuild@3": 8.934,
+     "hypergraph.apply.line_graph@3": 21.621,
+     "hypergraph.apply.views@3": 2.153,
+     "hypergraph.apply@3": 60.757,
+     "total_ms@0": 2649.188,
+     "driver.total@0": 2649.188
+    }
+   ],
+   "probe": {
+    "rounds": [
+     {
+      "round": 1,
+      "original": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1590,
+        "min": 1470,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 33
+       }
+      },
+      "port": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1695.0,
+        "min": 1590,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 18
+       }
+      },
+      "reasons": [
+       "GPU 0 busy at (SM, memory) MHz [(1470, 7601), (1590, 7601)], not at the locked (1695, 7601)",
+       "GPU 0 busy at (SM, memory) MHz [(1590, 7601)], not at the locked (1695, 7601)"
+      ]
+     },
+     {
+      "round": 2,
+      "original": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1590.0,
+        "min": 1560,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 42
+       }
+      },
+      "port": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1695,
+        "min": 1560,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 9
+       }
+      },
+      "reasons": [
+       "GPU 0 busy at (SM, memory) MHz [(1560, 7601), (1575, 7601), (1590, 7601)], not at the locked (1695, 7601)",
+       "GPU 0 busy at (SM, memory) MHz [(1560, 7601)], not at the locked (1695, 7601)"
+      ]
+     },
+     {
+      "round": 3,
+      "original": {
+       "clocks_locked": false,
+       "sm_mhz": {
+        "median": 1695.0,
+        "min": 1560,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 42
+       }
+      },
+      "port": {
+       "clocks_locked": true,
+       "sm_mhz": {
+        "median": 1695,
+        "min": 1695,
+        "max": 1695
+       },
+       "pstates_busy": {
+        "P2": 27
+       }
+      },
+      "reasons": [
+       "GPU 0 busy at (SM, memory) MHz [(1560, 7601), (1575, 7601)], not at the locked (1695, 7601)"
+      ]
+     }
+    ],
+    "holds": false,
+    "rule": "the lock holds when every busy GPU sample of both sides in every round ran at the locked clocks and no round was contaminated"
+   },
+   "noncount": {
+    "a_total": 4017.049,
+    "a_full_count": 967.151,
+    "a_subtract_add": 244.64600000000002,
+    "a_noncount": 2805.081,
+    "port_total": 2703.64,
+    "port_untimed_rest": 414.95099999999996,
+    "a_untimed_rest": 296.1379999999997,
+    "a_init": {
+     "init.load": 721.244,
+     "init.v2h_build": 577.418,
+     "init.h2h_build": 570.328,
+     "init.v2v_build": 0,
+     "init.flatten": 258.249,
+     "init.construct": 127.144,
+     "init.row_views": 2.569
+    },
+    "port_init": {
+     "load_ms": 855.594,
+     "hypergraph.build": 801.251,
+     "hypergraph.upload": 375.965
+    },
+    "a_maintain": [
+     77.291,
+     50.593,
+     62.94
+    ],
+    "port_apply": [
+     57.68,
+     59.02,
+     60.56
+    ],
+    "a_generate": [
+     18.749,
+     18.037,
+     18.178
+    ],
+    "port_generate": [
+     17.595,
+     18.711,
+     18.868
+    ],
+    "target": 2965.76296,
+    "met": true,
+    "port_over_a_noncount_ms": -101.44100000000026
+   }
+  }
+ }
+}

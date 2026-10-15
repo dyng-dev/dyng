@@ -104,7 +104,16 @@ process and of the `--no-count` driver on coauth_b50k_s1, syn1m_b50k_s1 and syn2
 target port <= 1.03 x A; the triad budget for step 3 = 1.05 x A_peak - port_peak - 1% of A_peak.
 (c) The boost probe (3 rounds at boost on syn1m_b50k_s1 and syn2m_b50k_s1) decides the syn gate
 lock; coauth stays at base (ADR 0021). The thresholds are internal margin targets, never
-tolerances. Outcome: `parity/results/M9a.md` section 2.4.
+tolerances.
+
+## Outcome (M9a step 2)
+
+The driver draws A's batch files byte for byte on all 22 proof groups. (a) End to end, met:
+coauth_b50k_s1 port 2,204.9 ms against A_noncount 2,720.7 ms (target 3,097.4), syn1m_b50k_s1
+1,539.1 against 1,548.9 (target 1,648.2). (b) Memory, met: port / A = 1.0001 (coauth), 1.0002
+(syn1m), 1.0000 (syn2m), both peaks in the H2H merge; the triad budgets for step 3 are 120.6,
+45.1 and 88.4 MiB. (c) The boost lock does not hold on syn1m / syn2m (A's process in every
+round), so their gates run at base. `parity/results/M9a.md` section 2.4.
 
 ## Consequences
 

@@ -179,6 +179,26 @@ Before 0.1.0 anything may change.
   and PLAN 6.4.6's grid, 300 cases exported twice with identical manifests
   (`parity/triad_goldens.py`, `parity/export_goldens.py triad_count`, `parity/compare.py
   triad_count --verify`); ESCHER-GPU checked against its own CPU reference (90 runs agree).
+- M9a (tracked): **`dyng::testing::triad_reference`** (`dyng/testing/triad_reference.hpp`, ADR
+  0049): brute-force triad counts of a hypergraph, the 30-bin h-motif counts and StatHyper's
+  types 1-3, following ESCHER-GPU@abcf9b2's CPU reference (64-bit, sequential or OpenMP), with
+  the h-motif classes derived from the permutations of the Venn regions (equal to ESCHER-GPU's
+  table on all 128 ids), `removed()` / `added()` per bin, and a test that it shares no code with
+  `triad_count` or the container.
+- M9a (tracked): **`generators::legacy::escher_host_model`** and
+  `escher_batch_generator::next(model)` (ADR 0051): ESCHER-GPU's batches drawn from host rows the
+  caller keeps in step with the hypergraph (`apply(batch, summary)`), the same draws as
+  `next(res, hypergraph)` without reading the hypergraph's views.
+- M9a (parity harness, not part of the library): the **triad replays** (ADR 0050): the tool
+  `dyng_triad_replay` and `parity/compare.py triad_count --backend B --mode by_key|by_content|both
+  --counter oracle|algorithm` (each golden case's batches replayed through the hypergraph, the
+  counter after the build and every batch, integrity after every batch, the expected ids by key,
+  every deleted row resolved by content; planted defects must fail it); the port driver
+  `dyng-compat-escher run` (ESCHER-GPU's argv, the batches drawn from the host model; counting
+  arrives with `triad_count`); `parity/perf_ab.py triad_count run|memory` (`parity/triad_perf.py`:
+  A/B rounds under the clock lock and the contamination monitor, the Nsight Systems peaks of both
+  whole processes, the store accounting); `parity/triad_replay.py singles` and `draws` (the oracle
+  against ESCHER-GPU on one triad per bin; the driver's batches against the goldens).
 
 ### Changed
 
