@@ -104,7 +104,10 @@ enum class pattern : std::uint8_t {
  */
 [[nodiscard]] std::string_view to_string(pattern p) noexcept;
 
-/// The number of bins of pattern::h_motif, the size of stats::delta.
+/**
+ * @brief The number of bins of pattern::h_motif, the size of stats::delta.
+ * @ingroup triad_count
+ */
 inline constexpr int max_bins = 30;
 
 /**
@@ -116,6 +119,7 @@ inline constexpr int max_bins = 30;
  */
 struct options {
   pattern kind = pattern::h_motif;  ///< what the result counts; fixed at compute()
+
   /// The CUDA engine: automatic and fused select the wedge engine (ESCHER-GPU's kernels, the Tier
   /// B engine of docs/developer/framework.md); operators throws not_supported_error (triad_count
   /// has no operators engine). Ignored on the host backends. A tunable (result::set_options()).

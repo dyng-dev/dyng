@@ -92,6 +92,15 @@
 #              M8b step 5; the large sets and the CPU backends are replayed by the release's
 #              parity runs, docs/developer/release.md); and the compile-only fitness skeletons of
 #              the frozen hypergraph API (dyng_api_fitness, ADR 0047) are built by the build step
+#   triad      triad_count (M9a, ADRs 0052-0053): compute-sanitizer synccheck and initcheck on its
+#              CUDA tests (dyng_triad_count_cuda_tests; memcheck covers them in the memcheck step);
+#              memcheck, synccheck and initcheck on one coauth_b50k_s1 batch (dyng-compat-escher
+#              run --input coauth-DBLP --batches 1 --batch-size 50000 --seed 1, h_motif: the full
+#              count and one update; skipped without $DYNG_SCRATCH/datasets/hyper/coauth.hg);
+#              racecheck on the kit's C1, C11 and C12 (dyng_triad_count_conformance_cuda_tests)
+#              and on the replays of make-test, all four patterns, by key and by content
+#              (parity/compare.py triad_count --counter algorithm through a racecheck wrapper of
+#              dyng_triad_replay; skipped without the triad goldens)
 #   tidy       clang-tidy naming rules (as ci/check.sh) on the library sources with this build's
 #              compile_commands.json, which covers the `#if DYNG_HAS_CUDA` branches that the CPU
 #              gate does not compile (skipped if clang-tidy is missing)
@@ -452,6 +461,65 @@ if ! skipped hypergraph; then
     record "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)" passed
   else
     record "hypergraph replays (cuda, small sets; ids, rows, line graph, legacy generator)" FAILED
+  fi
+fi
+
+if ! skipped triad; then
+  step "triad_count: sanitizers and the small replays (GPU ${gpu})"
+  tc_ok=1
+  tc_tests="${build_dir}/cpp/tests/algorithms/triad_count/dyng_triad_count_cuda_tests"
+  tc_kit="${build_dir}/cpp/tests/dyng_triad_count_conformance_cuda_tests"
+  tc_replay="${build_dir}/cpp/tests/dyng_triad_replay"
+  tc_driver="${build_dir}/tools/compat/dyng-compat-escher"
+  coauth="${DYNG_SCRATCH}/datasets/hyper/coauth.hg"
+  if [ -z "${sanitizer}" ] || [ ! -x "${tc_tests}" ] || [ ! -x "${tc_kit}" ]; then
+    echo "compute-sanitizer, ${tc_tests} or ${tc_kit} missing"
+    tc_ok=0
+  else
+    for tool in synccheck initcheck; do
+      if ! heavy "${sanitizer}" --tool "${tool}" --error-exitcode 1 \
+        "${tc_tests}" --gtest_brief=1; then
+        echo "compute-sanitizer --tool ${tool} ${tc_tests}: FAILED"
+        tc_ok=0
+      fi
+    done
+    if [ -f "${coauth}" ] && [ -x "${tc_driver}" ]; then
+      for tool in memcheck synccheck initcheck; do
+        if ! heavy "${sanitizer}" --tool "${tool}" --error-exitcode 1 \
+          "${tc_driver}" run --input "${coauth}" --batches 1 --batch-size 50000 --seed 1 \
+          --pattern h_motif >/dev/null; then
+          echo "compute-sanitizer --tool ${tool} (one coauth_b50k_s1 batch): FAILED"
+          tc_ok=0
+        fi
+      done
+    else
+      echo "${coauth} or ${tc_driver} missing: the coauth_b50k_s1 batch is skipped"
+    fi
+    if ! heavy "${sanitizer}" --tool racecheck --racecheck-report all \
+      --error-exitcode 1 "${tc_kit}" --gtest_brief=1 --gtest_filter='*.C1_*:*.C11_*:*.C12_*'; then
+      echo "compute-sanitizer --tool racecheck ${tc_kit}: FAILED"
+      tc_ok=0
+    fi
+    if [ -f "${DYNG_SCRATCH}/goldens/triad_count/escher_gpu/MANIFEST.sha256" ] &&
+      [ -x "${tc_replay}" ]; then
+      wrapper="$(mktemp "${DYNG_SCRATCH}/runs/triad-racecheck.XXXXXX")"
+      printf '#!/bin/sh\nexec "%s" --tool racecheck --racecheck-report all --error-exitcode 1 "%s" "$@"\n' \
+        "${sanitizer}" "$(realpath "${tc_replay}")" >"${wrapper}"
+      chmod +x "${wrapper}"
+      if ! DYNG_TRIAD_REPLAY="${wrapper}" heavy python3 parity/compare.py triad_count \
+        --backend cuda --mode both --counter algorithm --cases make-test --gpu "${gpu}" --jobs 4; then
+        echo "racecheck of the make-test replays: FAILED"
+        tc_ok=0
+      fi
+      rm -f "${wrapper}"
+    else
+      echo "the triad goldens or ${tc_replay} missing: the racecheck of the replays is skipped"
+    fi
+  fi
+  if [ "${tc_ok}" = 1 ]; then
+    record "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)" passed
+  else
+    record "triad_count sanitizers (synccheck, initcheck; a coauth batch; racecheck)" FAILED
   fi
 fi
 

@@ -21,7 +21,8 @@
  *     CUDA_MODULE_LOADING=EAGER, the modules; A's first CUDA call does the same inside its total);
  *  2. load (`load_ms`): io::read_hypergraph(F, hypergraph_read_options::escher_gpu()) or
  *     generators::legacy::escher_hypergraph(std::mt19937_64(seed), {N, maxCard, minCard - 1,
- *     V - 1}); A's line "Hypergraph: E hyperedges, max vertex id V, P pins";
+ *     V - 1}) after A's lines "Generating hypergraph with: ..." (printHypergraphParams); A's line
+ *     "Hypergraph: E hyperedges, max vertex id V, P pins";
  *  3. the hypergraph under {id_reuse::erase_first, capacity_policy::escher_gpu(capacity),
  *     line_graph_policy::sorted_merge}: the line graph and the row views exist after the build
  *     (hypergraph.build, hypergraph.upload), and generators::legacy::escher_host_model, the host
@@ -353,6 +354,13 @@ int run(const run_options& o, clock_type::time_point start) {
       list = io::read_hypergraph<std::int32_t, unweighted>(
           o.input, io::hypergraph_read_options::escher_gpu());
     } else {
+      // A's printHypergraphParams (utils/utils.cpp), inside its load stage.
+      std::cout << "Generating hypergraph with:" << std::endl;
+      std::cout << "  - " << o.num_hyperedges << " hyperedges" << std::endl;
+      std::cout << "  - Up to " << o.max_card << " vertices per hyperedge" << std::endl;
+      std::cout << "  - Vertex IDs in range [" << o.min_vertex << ", " << o.max_vertex << "]"
+                << std::endl;
+      std::cout << std::endl;
       graph.num_hyperedges = o.num_hyperedges;
       graph.max_cardinality = o.max_card;
       graph.min_vertex = o.min_vertex - 1;

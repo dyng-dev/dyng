@@ -10,6 +10,7 @@ ADR 0050).
                                   [--record FILE] [--build DIR] [--keep] [--plant DEFECT]
     parity/triad_replay.py singles [--record FILE]     (the oracle against A, one triad per bin)
     parity/triad_replay.py draws [--backend B] [--groups LIST] [--record FILE]
+    parity/triad_replay.py stdout [--backend B] [--groups LIST] [--record FILE]
 
 `compare.py triad_count` (parity/triad_goldens.py compare_main) replays the cases of the set
 `triad_count_escher_gpu` ($DYNG_SCRATCH/goldens/triad_count/escher_gpu) that the backend covers
@@ -44,6 +45,12 @@ reachable classes (1-20, 27-30) and nothing for the open triads (21-26).
 --dump-batches` with A's arguments of make-test, syn1m_b50k_s1-s3, syn2m_b50k_s1 and
 coauth_b50k_s1-s3 draws its batches from escher_host_model; each batch file must have the
 golden's SHA-256, its batch lines (and for make-test its Hypergraph line) must be A's.
+
+`stdout` (M9a step 3, the driver counts): `dyng-compat-escher run --pattern P` with A's arguments
+of every executable of the selected groups (default: make-test and the gate cases coauth_b50k_s1,
+syn1m_b50k_s1, syn2m_b50k_s1): for make-test its whole stdout must be A's unpatched stdout byte for
+byte; for a grid case its count and batch lines must be the lines A printed (rebuilt from the
+golden case: the full count, the batch lines, the deltas).
 
 Heavy runs take the shared perf lock: flock -s $DYNG_SCRATCH/perf.lock nice -n 10 ...; CUDA runs
 use GPU --gpu (default 1, the development GPU).
@@ -616,7 +623,7 @@ def find_driver(backend: str, build: Path | None = None) -> Path:
     for b in [build] if build else [REPO / "build" / p for p in presets]:
         exe = b / "tools" / "compat" / "dyng-compat-escher"
         if exe.is_file():
-            return exe
+            return exe.resolve()  # the runs' working directory is a scratch directory
     raise ReplayError(
         "dyng-compat-escher not built (cmake --build build/parity-cuda --target dyng-compat-escher)"
     )
@@ -747,7 +754,144 @@ def draws_main(argv: list[str]) -> int:
     return 0 if ok else 1
 
 
+STDOUT_GROUPS = ["make-test", "coauth_b50k_s1", "syn1m_b50k_s1", "syn2m_b50k_s1"]
+
+
+def expected_count_lines(case: dict, exe: str) -> list[str]:
+    """A's count and batch lines of a golden case (src/main.cu and src/type1-3.cu, print())."""
+
+    def values(v: list[int]) -> str:
+        return " ".join(str(x) for x in v)
+
+    def full(v: list[int]) -> str:
+        if exe == "main":
+            return f"Motif counts (30 bins): {values(v)}"
+        if exe == "type1":
+            return f"[GPU] Type1 baseline motif count (sum_e C(|e|, 3)): {v[0]}"
+        return f"[GPU] Type{exe[-1]} baseline motif count: {v[0]}"
+
+    def delta(v: list[int]) -> str:
+        if exe == "main":
+            return f"Motif delta counts (30 bins): {values(v)}"
+        return f"[GPU] Type{exe[-1]} motif delta count: {v[0]}"
+
+    out = [full(case["full_count"])]
+    for b in case["batches"]:
+        if b["batch_line_printed"]:
+            out.append(
+                f"Batch {b['index']} ({b['deletions']} deletions, {b['insertions']} insertions)"
+            )
+        out.append(delta(b["delta"]))
+    return out
+
+
+def stdout_group(
+    driver: Path, out: Path, scratch: Path, group: tg.Group, backend: str, work: Path, gpu: str
+) -> dict:
+    gdir = out / "cases" / group.name
+    gwork = work / group.name.replace("/", "__")
+    gwork.mkdir(parents=True, exist_ok=True)
+    name = group.input_file
+    if name == "coauth":
+        (gwork / "coauth.hg").unlink(missing_ok=True)
+        os.symlink(scratch / tg.COAUTH, gwork / "coauth.hg")
+    elif name:
+        (gwork / f"{name}.hg").write_bytes(tg.zstd_read(out / "inputs" / f"{name}.source.hg.zst"))
+    env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu), CUDA_MODULE_LOADING="EAGER")
+    results = {}
+    for exe in tg.EXES:
+        cmd = [str(driver), "run", *group.argv(exe)[1:], "--pattern", exe, "--backend", backend]
+        p = subprocess.run(cmd, cwd=gwork, env=env, capture_output=True, text=True)
+        problems = []
+        if p.returncode != 0:
+            problems.append(f"exit {p.returncode}: {p.stderr[-600:]}")
+        elif (gdir / f"{exe}.stdout").is_file():
+            want = (gdir / f"{exe}.stdout").read_text()
+            if p.stdout != want:
+                diff = [
+                    x
+                    for x in zip(p.stdout.splitlines(), want.splitlines(), strict=False)
+                    if x[0] != x[1]
+                ]
+                problems.append(f"stdout differs from A's ({diff[:2]})")
+        else:
+            case = json.loads((gdir / f"{exe}.json").read_text())
+            got = tg.count_lines(p.stdout)
+            want_lines = expected_count_lines(case, exe)
+            if got != want_lines:
+                problems.append(f"count lines differ from A's ({len(got)} / {len(want_lines)})")
+        results[f"{group.name}/{exe}"] = {
+            "passed": not problems,
+            "problems": problems,
+            "compared": "stdout" if (gdir / f"{exe}.stdout").is_file() else "count lines",
+        }
+    shutil.rmtree(gwork, ignore_errors=True)
+    return results
+
+
+def stdout_main(argv: list[str]) -> int:
+    p = argparse.ArgumentParser(prog="triad_replay.py stdout")
+    p.add_argument("--backend", default="cuda", choices=["sequential", "openmp", "cuda"])
+    p.add_argument("--groups", type=lambda x: x.split(","), default=STDOUT_GROUPS)
+    p.add_argument("--jobs", type=int, default=2)
+    p.add_argument("--gpu", default=os.environ.get("DYNG_TEST_GPU", "1"))
+    p.add_argument("--build", type=Path)
+    p.add_argument("--record", type=Path)
+    p.add_argument("--scratch", type=Path, default=tg.scratch_default())
+    args = p.parse_args(argv)
+    out = tg.set_dir(args.scratch)
+    driver = find_driver(args.backend, args.build)
+    selected = []
+    for g in tg.all_groups():
+        if any(t == g.name or (t == "make-test" and g.kind == "test") for t in args.groups):
+            selected.append(g)
+    (args.scratch / "runs").mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix="triad-stdout-", dir=args.scratch / "runs"))
+    results: dict = {}
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            futures = {
+                pool.submit(
+                    stdout_group, driver, out, args.scratch, g, args.backend, work, args.gpu
+                ): g.name
+                for g in selected
+            }
+            for f in concurrent.futures.as_completed(futures):
+                res = f.result()
+                results.update(res)
+                bad = [c for c, r in res.items() if not r["passed"]]
+                print(f"  {futures[f]}: {'DIFFERENT ' + str(bad) if bad else 'ok'}", flush=True)
+                for c in bad:
+                    print(f"    {c}: {res[c]['problems'][:1]}", flush=True)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    ok = all(r["passed"] for r in results.values())
+    print(
+        f"stdout ({args.backend}): {sum(r['passed'] for r in results.values())}/{len(results)} "
+        "cases print A's lines"
+    )
+    if args.record:
+        doc = {
+            "schema": 1,
+            "what": "M9a step 3: dyng-compat-escher run --pattern P with A's arguments prints A's "
+            "stdout byte for byte (make-test: the whole stdout of A's unpatched run; grid cases: "
+            "the count and batch lines rebuilt from the golden case)",
+            "backend": args.backend,
+            "driver": str(driver.relative_to(REPO)) if driver.is_relative_to(REPO) else driver.name,
+            "commit": subprocess.run(
+                ["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True
+            ).stdout.strip(),
+            "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "cases": dict(sorted(results.items())),
+            "passed": ok,
+        }
+        args.record.write_text(json.dumps(doc, indent=1) + "\n")
+    return 0 if ok else 1
+
+
 def main() -> int:
+    if sys.argv[1:2] == ["stdout"]:
+        return stdout_main(sys.argv[2:])
     if sys.argv[1:2] == ["draws"]:
         return draws_main(sys.argv[2:])
     if sys.argv[1:2] == ["singles"]:

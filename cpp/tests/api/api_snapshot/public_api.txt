@@ -403,6 +403,7 @@
   #include <dyng/io/result_io.hpp>
   #include <dyng/mosp.hpp>
   #include <dyng/sssp.hpp>
+  #include <dyng/triad_count.hpp>
   #include <dyng/triangle_delta.hpp>
   #include <dyng/update.hpp>
   #include <dyng/version.hpp>
@@ -1194,6 +1195,43 @@
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, triad_pattern pattern, const triad_reference_options &options={})
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_removed(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
   [[nodiscard]] std::vector< std::uint64_t > dyng::testing::triad_reference_added(const std::vector< std::int64_t > &offsets, const std::vector< std::int32_t > &members, std::int32_t num_vertices, const std::vector< std::int64_t > &ids, triad_pattern pattern, const triad_reference_options &options={})
+
+[dyng/triad_count.hpp] tracked
+  enum class dyng::triad_count::pattern : std::uint8_t { h_motif, stathyper_type1, stathyper_type2, stathyper_type3 }
+  [[nodiscard]] std::string_view dyng::triad_count::to_string(pattern p) noexcept
+  constexpr int dyng::triad_count::max_bins = 30
+  struct dyng::triad_count::options
+      pattern kind = pattern::h_motif
+      engine cuda_engine = engine::automatic
+  struct dyng::triad_count::stats : public dyng::update_stats
+      hyper_apply_summary batch
+      std::int64_t deleted_frontier = 0
+      std::int64_t inserted_frontier = 0
+      std::uint64_t triads_removed = 0
+      std::uint64_t triads_added = 0
+      std::array< std::int64_t, max_bins > delta {}
+  #define DYNG_TRIAD_COUNT_TYPES_MESSAGE
+  #define DYNG_TRIAD_COUNT_CONTAINER_MESSAGE
+  class dyng::triad_count::result
+      result(result &&other) noexcept
+      result & operator=(result &&other) noexcept
+      result(const result &)=delete
+      result & operator=(const result &)=delete
+      ~result()
+      [[nodiscard]] pattern kind() const
+      [[nodiscard]] int num_bins() const
+      [[nodiscard]] array_view< const std::uint64_t > counts() const
+      [[nodiscard]] std::uint64_t count(int bin) const
+      [[nodiscard]] std::uint64_t total() const
+      [[nodiscard]] const options & get_options() const
+      void set_options(const options &opt)
+      [[nodiscard]] std::uint64_t graph_version() const noexcept
+      [[nodiscard]] memory_space space() const noexcept
+      [[nodiscard]] result clone(const resources &res) const
+  template <typename vertex_t, typename weight_t> [[nodiscard]] result dyng::triad_count::compute(const resources &res, const hypergraph< vertex_t, weight_t > &h, const options &opt={})
+  template <typename vertex_t, typename weight_t> stats dyng::triad_count::update(const resources &res, hypergraph< vertex_t, weight_t > &h, const hyperedge_batch_view< vertex_t, weight_t > &batch, result &r)
+  detail: template <typename vertex_t, typename weight_t> inline constexpr bool triad_count_supported_v = std::is_same_v<vertex_t, std::int32_t> && (std::is_same_v<weight_t, unweighted> || std::is_same_v<weight_t, std::int32_t>);
+  detail: template <> struct update_traits<triad_count::result> { using stats_type = triad_count::stats; }
 
 [dyng/triangle_delta.hpp] tracked
   struct dyng::triangle_delta::options
