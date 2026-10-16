@@ -130,8 +130,10 @@ TRIAD_PATTERNS = ("main", "type1", "type2", "type3")
 MEMORY_METRICS = {"triad_count": ("device_memory", "store_memory")}
 COMPACTED = (
     "the per-round machine-monitor windows (results.*.monitor.rounds, and the windows of the "
-    "rejected rounds) were dropped to keep the repository small; the verdicts, samples, rejected "
-    "rounds with their reasons, clock check and GPU summary are unchanged; the full record: {full}"
+    "rejected rounds) and triad_count's per-round stage timers (results.*.original_rounds and "
+    "port_rounds; every row's samples stay in its region) were dropped to keep the repository "
+    "small; the verdicts, samples, rejected rounds with their reasons, clock check and GPU "
+    "summary are unchanged; the full record: {full}"
 )
 
 
@@ -992,6 +994,9 @@ def run_jobs(jobs: list[dict], *, skip_existing: bool, log, force: bool = False)
 def compact(record: dict, full: str) -> dict:
     out = copy.deepcopy(record)
     for result in out.get("results", {}).values():
+        if isinstance(result, dict):
+            result.pop("original_rounds", None)
+            result.pop("port_rounds", None)
         monitor = result.get("monitor") if isinstance(result, dict) else None
         if not isinstance(monitor, dict):
             continue
@@ -1203,11 +1208,11 @@ def read_record(
                 regions.append(row)
     else:  # memory
         for case, result in record.get("results", {}).items():
-            original = result.get("original", {}).get("peak_live_mib")
+            original = peak_mib(result.get("original"))
             sides = {k: v for k, v in result.items() if k.startswith("port")}
             for side, value in sides.items():
                 ratio = value.get("ratio", result.get("ratio")) if isinstance(value, dict) else None
-                port_mib = value.get("peak_live_mib") if isinstance(value, dict) else None
+                port_mib = peak_mib(value)
                 if ratio is None and original and port_mib is not None:
                     ratio = port_mib / original
                 label = case if job.get("dataset") is None else f"{job['dataset']}/{case}"
@@ -1273,6 +1278,16 @@ def read_record(
         "regions": regions,
         "_raw": record,
     }
+
+
+def peak_mib(side) -> float | None:
+    """A side's peak of live allocations in MiB: exact from its bytes when the record has them
+    (triad_count's records), else the MiB it gives (rounded to 0.1 by the older harnesses)."""
+    if not isinstance(side, dict):
+        return None
+    if isinstance(side.get("peak_live_bytes"), int):
+        return side["peak_live_bytes"] / 2**20
+    return side.get("peak_live_mib")
 
 
 def check_triad_record(suite: dict, job: dict, record: dict, where: str, problems: list) -> None:

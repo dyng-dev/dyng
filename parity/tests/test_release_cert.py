@@ -2421,3 +2421,17 @@ def test_the_triad_mutations_reach_the_golden_mutation_record(cert, certified) -
     path.write_text(json.dumps(doc))
     assert write() == 1 and "mutation triad_skip_frontier_filter_k is missing" in problems()
     path.write_text(full)
+
+
+def test_memory_rows_use_the_peaks_bytes(cert, bench) -> None:
+    """A record with the peaks' bytes (triad_count) gives its MiB exactly, so the summary's ratio
+    is the record's and recheck_gates recomputes it (the MiB rounded to 0.1 would not)."""
+    side_a = {"peak_live_mib": 3018.9, "peak_live_bytes": 3165530112}
+    side_b = {"peak_live_mib": 3021.9, "peak_live_bytes": 3168724992}
+    assert bench.peak_mib(side_a) == 3165530112 / 2**20
+    assert bench.peak_mib({"peak_live_mib": 18.0}) == 18.0 and bench.peak_mib(None) is None
+    record = {"results": {"c/main": {"original": side_a, "port": side_b}}}
+    got = cert.record_region(
+        record, {"case": "c/main", "region": "device_memory", "gate_kind": "memory"}
+    )
+    assert got["port"] / got["original"] == pytest.approx(3168724992 / 3165530112, rel=1e-12)

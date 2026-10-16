@@ -1099,8 +1099,11 @@ def record_region(record: dict | None, region: dict) -> dict | None:
         return None
     if region.get("gate_kind") == "memory":
         side = "port" + region["region"][len("device_memory") :]
-        original = (result.get("original") or {}).get("peak_live_mib")
-        port = (result.get(side) or {}).get("peak_live_mib")
+        sys.path.insert(0, str(REPO / "parity"))
+        import bench_suite
+
+        original = bench_suite.peak_mib(result.get("original"))
+        port = bench_suite.peak_mib(result.get(side))
         return None if original is None or port is None else {"original": original, "port": port}
     for reg in result.get("regions", []) or []:
         if reg.get("region") == region["region"]:
