@@ -2,7 +2,7 @@
 # input generators::legacy regenerates; read by dyng_triad_count_make_test_tests (hosted
 # CI, sequential and openmp: exact parity, baseline + deltas == compute(), integrity).
 # Written by: parity/triad_goldens.py fixture (golden set triad_count_escher_gpu,
-# MANIFEST.sha256 2d8e49b515a65b1141eeb1dec3a401cc7fad73cc399157a97121752ad08bb9d1).
+# MANIFEST.sha256 4fb7dbcf63286cfe549ed1c5fa1ea5c195e420f17d904233d64ccbac3a4ea28f).
 # group <name> <seed> <n> <max_card> <r1> <r2> <payload_capacity> <batches> <deletions> <insertions> <insert_mode>   (-1 -1: A's default batch)
 # full <group> <exe> <bins> <count...>
 # batch <group> <exe> <index> <deletions> <insertions> <bins> <delta...>
