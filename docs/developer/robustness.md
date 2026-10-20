@@ -9,7 +9,7 @@ met it.
 
 | Check | What | Where | When |
 |---|---|---|---|
-| Host sanitizers | the CPU tests (`ctest -L cpu`) under ASan + UBSan, under TSan with OpenMP off, and under TSan with the OpenMP backends (Clang, Archer) | presets `asan`, `tsan`, `tsan-openmp`; `ci/sanitizers.sh`; `.github/workflows/sanitizers.yml` | every pull request and push to `main` |
+| Host sanitizers | the CPU tests (`ctest -L cpu -LE slow`) under ASan + UBSan, under TSan with OpenMP off, and under TSan with the OpenMP backends (Clang, Archer) | presets `asan`, `tsan`, `tsan-openmp`; `ci/sanitizers.sh`; `.github/workflows/sanitizers.yml` | every pull request and push to `main` |
 | Reader fuzzers | libFuzzer on every file reader, with ASan and UBSan | `cpp/fuzz`, `ci/fuzz.sh`, `.github/workflows/fuzz.yml` | pull requests that touch a reader (60 s per target), weekly (10 minutes per target), on demand |
 | Corpus replay | the seed corpus and every fixed finding, once | CTest `fuzz.replay.<target>` (label `fuzz`), `cpp/tests/io/fuzz_regression_test.cpp` | every test build, so every pull request |
 | Golden mutation checks | each recorded bug, put back, must make its golden suite fail | `parity/mutate.py` | before each minor release, and when a mutation point changes (local: needs the golden corpus and a GPU) |
@@ -20,8 +20,14 @@ racecheck), which needs a GPU and runs in `ci/gpu_local.sh`.
 
 ## Host sanitizers
 
-`ci/sanitizers.sh` configures, builds and runs `ctest -L cpu` for each preset it is given (all
-three without arguments); `sanitizers.yml` runs one preset per job on GitHub-hosted runners.
+`ci/sanitizers.sh` configures, builds and runs `ctest -L cpu -LE slow` for each preset it is
+given (all three without arguments); `sanitizers.yml` runs one preset per job on GitHub-hosted
+runners. The tests that also carry the label `slow` are left out there: today triad_count's
+conformance kit, whose C2 cases (four patterns, both instantiations, the brute-force oracle after
+every state, `openmp(8)`) took longer than a 4-vCPU job's 60 minutes (M9a review). They run in
+the hosted `cpu` jobs (Debug and Release, without sanitizers) and in `ci/check.sh`, and each
+milestone that changes triad_count runs them under ASan + UBSan and TSan-OpenMP on the
+development machine (`ctest --preset asan -L triad_count`; the milestone's records say so).
 
 | Preset (job) | Instrumentation | What it covers |
 |---|---|---|

@@ -1286,10 +1286,19 @@ foreach(_dyng_algorithm IN LISTS _dyng_algorithms)
   foreach(_variant IN LISTS _variants)
     if(_variant STREQUAL "host")
       set(_target dyng_${_dyng_algorithm}_conformance_tests)
+      # triad_count's kit (four patterns x both instantiations, the oracle after every state,
+      # openmp(8)) also carries the label slow: the hosted sanitizer jobs (ci/sanitizers.sh,
+      # `-L cpu -LE slow`) leave it out, the cpu jobs and ci/check.sh run it, and each milestone
+      # runs it under ASan and TSan-OpenMP locally (M9a review: on a 4-vCPU runner its C2 cases
+      # alone took more than the jobs' budget).
+      set(_heavy)
+      if(_dyng_algorithm STREQUAL "triad_count")
+        set(_heavy slow)
+      endif()
       dyng_add_test(
         NAME ${_target}
         SOURCES ${_suite} conformance/allocation_counter.cpp
-        LABELS cpu conformance ${_dyng_algorithm}
+        LABELS cpu conformance ${_dyng_algorithm} ${_heavy}
         LIBRARIES dyng::testing
       )
     else()

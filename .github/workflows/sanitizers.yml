@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The host sanitizers on GitHub-hosted runners (PLAN Sections 7.3 and 8.8;
-# docs/developer/robustness.md): ci/sanitizers.sh configures, builds and runs `ctest -L cpu` for
-# one preset per job:
+# docs/developer/robustness.md): ci/sanitizers.sh configures, builds and runs `ctest -L cpu -LE
+# slow` (the tests also labeled slow, triad_count's conformance kit, run in cpu.yml and locally
+# under the sanitizers at each milestone) for one preset per job:
 #   asan / gcc-13          AddressSanitizer + UndefinedBehaviorSanitizer (leak checks on), the
 #                          OpenMP backends included
 #   tsan / gcc-13          ThreadSanitizer with OpenMP off: the std::thread code (the parallel
