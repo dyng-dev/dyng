@@ -459,11 +459,12 @@ void triad_count_problem<vertex_t, weight_t>::count(framework::context& ctx, old
   const auto inserted = static_cast<int>(inserted_);
   // The frontier of the larger phase, and flags for every key the line graph can have after the
   // batch (its keys never shrink and grow by at most the insertions).
+  // (With headroom, as on cuda: the flags follow a key bound that grows with most batches.)
   e.max_keys = std::max(deleted, inserted);
-  ws.keys.reserve(res, static_cast<std::size_t>(std::max(e.max_keys, 1)));
+  ws.keys.reserve_with_headroom(res, static_cast<std::size_t>(std::max(e.max_keys, 1)));
   if (triad_reads_line_graph(e.kind)) {
     e.max_flags = static_cast<std::int64_t>(views.h2h.max_key) + inserted_ + 1;
-    ws.flags.reserve(res, static_cast<std::size_t>(e.max_flags));
+    ws.flags.reserve_with_headroom(res, static_cast<std::size_t>(e.max_flags));
   }
   host_frontier(views, normalized_->deletions.data(), deleted);
   note_launch(e.launches, e.kind, 1,

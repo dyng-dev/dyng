@@ -49,6 +49,26 @@ class scratch_buffer {
   }
 
   /**
+   * @brief reserve() with headroom: when the buffer grows it takes max(count + count / 2,
+   *        2 * capacity()) elements, so a need that creeps up from call to call (the frontier
+   *        flags of a growing id bound) reallocates O(log) times instead of on every call.
+   * @param[in] res   The resources of the run (memory resource, stream, device).
+   * @param[in] count Required number of elements.
+   * @return Pointer to the first element (nullptr if `count` and the capacity are 0).
+   * @throws out_of_memory_error if the allocation fails.
+   * @async On the CUDA backend the allocation is ordered on the stream of `res`.
+   */
+  value_t* reserve_with_headroom(const resources& res, std::size_t count) {
+    if (count > storage_.size() || storage_.memory_resource() != res.memory()) {
+      const std::size_t grown = count + count / 2;
+      const std::size_t doubled =
+          storage_.memory_resource() == res.memory() ? 2 * storage_.size() : 0;
+      return reserve(res, grown > doubled ? grown : doubled);
+    }
+    return storage_.data();
+  }
+
+  /**
    * @brief Return the memory (the next reserve() allocates again).
    * @async On the CUDA backend the memory returns to its pool in stream order.
    */

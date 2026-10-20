@@ -903,6 +903,43 @@ TEST_P(TriadCount, KernelPathsAndEarlyOuts) {
   }
 }
 
+TEST_P(TriadCount, EqualShapeBatchesUnderAGrowingIdBoundReserveRarely) {
+  if (!dyng::detail::budgets_enabled()) {
+    GTEST_SKIP() << "not a DYNG_DEBUG_BUDGETS build";
+  }
+  // 50 batches of 10 deletions and 20 insertions: the id bound, and with it the line graph's keys
+  // and the frontier flags, grows by about 10 per batch. With headroom (scratch_buffer::
+  // reserve_with_headroom) the scratch grows a few times, not in every update (M9a review: the
+  // exact reservation freed and reallocated the flags in nearly every batch).
+  const resources rs = res();  // one handle: its workspace pool and memory resource
+  for (const tc::pattern p : all_patterns) {
+    SCOPED_TRACE(std::string(tc::to_string(p)));
+    std::mt19937_64 rng(5);
+    std::uniform_int_distribution<std::int32_t> vertex(0, 299);
+    rows initial;
+    for (int i = 0; i < 400; ++i) {
+      std::vector<std::int32_t> r = {vertex(rng), vertex(rng), vertex(rng)};
+      std::sort(r.begin(), r.end());
+      r.erase(std::unique(r.begin(), r.end()), r.end());
+      initial.push_back(r);
+    }
+    hgraph h = make(rs, 300, initial);
+    tc::result r = tc::compute(rs, h, kind_of(p));
+    int reserving = 0;
+    std::int64_t next_deleted = 0;
+    for (int b = 0; b < 50; ++b) {
+      batch_t batch;
+      for (int i = 0; i < 10; ++i) batch.delete_hyperedge(next_deleted++);
+      for (int i = 0; i < 20; ++i) batch.insert_hyperedge({vertex(rng), 300 - 1 - i});
+      const dyng::detail::framework::budget_scope scope;
+      (void)tc::update(rs, h, batch.view(), r);
+      reserving += scope.used().reservations > 0 ? 1 : 0;
+    }
+    EXPECT_LE(reserving, 5) << "updates that grew the triad scratch";
+    EXPECT_EQ(counts_of(r), counts_of(tc::compute(rs, h, kind_of(p))));
+  }
+}
+
 #if defined(DYNG_TEST_CUDA) && DYNG_TEST_CUDA
 
 TEST_P(TriadCount, AnUpdateSynchronizesAtTheEnginesReadPointsOnly) {

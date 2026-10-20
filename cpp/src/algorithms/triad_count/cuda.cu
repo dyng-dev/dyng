@@ -131,8 +131,15 @@ void reserve_wedges(const resources& res, triad_cuda_engine& e, int sources, boo
   triad_cuda_workspace& ws = e.ws->get();
   if (!triad_reads_line_graph(e.kind)) return;  // type 1 launches no wedges
   e.scan_bytes = std::max<std::size_t>(triad::wedge::scan_temp_bytes(sources + 1), 1);
-  (full ? ws.full_offsets : ws.offsets).reserve(res, static_cast<std::size_t>(sources) + 1);
-  (full ? ws.full_scan_temp : ws.scan_temp).reserve(res, e.scan_bytes);
+  if (full) {
+    // compute(): released when it returns.
+    ws.full_offsets.reserve(res, static_cast<std::size_t>(sources) + 1);
+    ws.full_scan_temp.reserve(res, e.scan_bytes);
+  } else {
+    // The updates' scratch keeps headroom, so batches of a similar size reserve nothing.
+    ws.offsets.reserve_with_headroom(res, static_cast<std::size_t>(sources) + 1);
+    ws.scan_temp.reserve_with_headroom(res, e.scan_bytes);
+  }
 }
 
 /// The frontier of a phase from device ids (keys and, for the line-graph patterns, the flags).
@@ -215,15 +222,18 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
   // Everything both phases need, before the commit (I9): the frontier of the larger phase, and
   // flags for every key the line graph can have after the batch (its keys never shrink and grow
   // by at most the insertions).
+  // The scratch keeps headroom (scratch_buffer::reserve_with_headroom): the flags follow the line
+  // graph's key bound, which grows a little with most batches, and an exact reservation freed
+  // and reallocated them in nearly every update (M9a review).
   const int sources = std::max(deleted, inserted);
-  ws.ids.reserve(res, static_cast<std::size_t>(std::max(deleted, 1)));
-  ws.keys.reserve(res, static_cast<std::size_t>(std::max(sources, 1)));
+  ws.ids.reserve_with_headroom(res, static_cast<std::size_t>(std::max(deleted, 1)));
+  ws.keys.reserve_with_headroom(res, static_cast<std::size_t>(std::max(sources, 1)));
   e.max_keys = sources;
   e.minus_sign = s;
   reserve_wedges(res, e, sources);
   if (triad_reads_line_graph(e.kind)) {
     e.max_flags = static_cast<std::int64_t>(views.h2h.max_key) + insertions + 1;
-    ws.flags.reserve(res, static_cast<std::size_t>(e.max_flags));
+    ws.flags.reserve_with_headroom(res, static_cast<std::size_t>(e.max_flags));
   }
   DYNG_CUDA_TRY(cudaMemsetAsync(ws.bins.data(), 0, sizeof(unsigned long long) * triad::bin_slots,
                                 native(res)));

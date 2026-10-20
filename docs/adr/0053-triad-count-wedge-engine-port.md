@@ -8,7 +8,7 @@
   (`hypergraph/*`, `update.hpp`, `core/*`, `graph/*`) are not edited.
 - **Amended by:** ADR 0057 (2026-10-20): the device bins hold unsigned magnitudes with a carry test
   (the capacity bit of the error word), the kernels take no sign, the operations' products are
-  exact or flagged.
+  exact or flagged; and by the amendment at the end (the updates' scratch keeps headroom).
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step cuda-port-api-early-gate)
 - **Builds on:** ADR 0038 (the transplant method of the CBST store), ADR 0042 (the line-graph port
@@ -141,3 +141,24 @@ c1-c6 (the records and the commit table: `parity/results/M9a.md` section 3).
 - The mutations of step 5 act on code both engines share: the exactly-once predicates
   (`ownership.hpp`), the operations, the bins' sign and the key bound of type 1.
 - `triad_sass.py` keeps the SASS and resource readings comparable across commits and against A.
+
+## Amendment (2026-10-20, the M9a review): the updates' scratch keeps headroom
+
+Section 4 reserved every array of an update exactly. The frontier flags follow the line graph's
+key bound (`views.h2h.max_key + insertions + 1`), which grows a little with most batches, so the
+exact reservation freed and reallocated them in nearly every update: on coauth_b50k_s1 an Nsight
+Systems trace showed a `cudaFreeAsync` and a `cudaMallocFromPoolAsync` inside
+`triad_count.count_minus` of batches 2 and 3 (inside the gated `update[b2]` / `update[b3]`), and
+50 equal-shape batches under a growing id bound made 36 allocations after the warm-up. Every
+allocation was still before the commit (C8's strict reading held), but the plan's "no
+cudaMalloc/cudaFree per call" (M9a criterion 7) did not hold in the gated workload.
+
+The update's scratch (on cuda the deleted ids, the frontier's keys and flags, the wedge offsets
+and CUB's storage; on the host backends the keys and flags) is now reserved with
+`scratch_buffer::reserve_with_headroom`: when it grows it takes max(1.5 x the need, 2 x the
+capacity), so a creeping need reallocates O(log) times. compute()'s full-count offsets stay exact
+and are released when it returns. The headroom is small beside the store (on coauth-DBLP the
+flags are about 1 MB of a 1.9 GB store, the offsets 0.4 MB); the memory gates are read again at
+HEAD (`parity/results/M9a.md` section 6). Test: `TriadCount.EqualShapeBatchesUnderAGrowingIdBoundReserveRarely`
+(budgets builds: 50 batches of 10 deletions and 20 insertions reserve in at most 5 updates; 50 with
+the exact reservation) and `ScratchBuffer.GrowthWithHeadroomReallocatesLogarithmicallyOften`.
