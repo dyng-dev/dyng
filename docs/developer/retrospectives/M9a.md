@@ -1,6 +1,6 @@
 # Retrospective: M9a (triad_count against ESCHER-GPU)
 
-Status: **in progress** on the branch `m9a-triad-count`. M9a is the first half of PLAN 11.3's
+Status: **done** on the branch `m9a-triad-count` (all five steps; ready for the pull request). M9a is the first half of PLAN 11.3's
 M9 row: `triad_count` exact against ESCHER-GPU@abcf9b2 on the sequential, OpenMP and CUDA
 backends, the independent oracle, the conformance kit and the mutations, and the paper gates
 (the Nsight Systems peak included); M9b follows with `experimental::count_local_patterns`,
@@ -440,3 +440,197 @@ and the five triad mutations plus cbst_unfill_drops_last are detected on both en
   evidence; `ctest -L mutation` covers the same mutations in every build.
 - Nothing changed in `cpp/src/hypergraph` or the CUDA kernels' machine code: the step-3 gate
   readings stand; no ADR 0024 bar is due.
+
+## Step 5: the gates, the ESCHER suites and the 0.3 certificate (gates-suites-certificate)
+
+**M9a is complete; nothing stops at a gate.** Every gated row is within its bar against
+ESCHER-GPU@abcf9b2 re-measured in the same session: the timing gates 45 / 45 (update per batch
+0.858-1.028, full count 0.999-1.002, end to end 0.941-0.987; coauth-DBLP 11 rounds and syn1M /
+syn2M 21 rounds, all at the base lock), the memory gates 11 / 11 (store accounting 1.0000 at every
+gated point, the Nsight Systems peak 1.0010-1.0015). The final replays are exact on the coverage
+table, the two ESCHER suites validate and pass, and the dry 0.3 certificate of `triad_count`
+passes `recheck_gates` (`parity/results/M9a.md` section 5). **No C++ changed in this step.**
+
+### What was built
+
+| Commit | What |
+|---|---|
+| `33dcca4` | `perf_ab.py triad_count` records a suite can read (schema 2): every gated row with its gate and verdict, results by `<case>/<pattern>`, the reference and the port's build, the input digest at run start, the per-round guard, the kept contaminated rounds and the contamination audit; the memory reading's `device_memory` and `store_memory` (the gated points), the triad bytes during the apply (a non-counting third run), the footprint; `kernels` (ncu at the base clocks, the update's launches selected by name, skip and count); `parity/tests/test_triad_perf.py` |
+| `faaf4e9` | `compare.py triad_count --certificate` and `triad_replay.py certificate --from` (the replays in the certificate's format) |
+| `5ef6674` | `benchmarks/paper/ipdps26_escher.yaml`, `tkde26_escher_plus.yaml`; `bench_suite.py` for triad_count (case names, plan, dataset pins against the golden set, record checks); `benchmarks/README.md`, `docs/developer/release.md` |
+| `4036351` | `certify.py`: both suites from (0, 3), the store rows rechecked point by point, a per-batch metric read by its row, the triad replays of every backend of the coverage table by key and by content from (0, 3), `write --dry-run <algorithm>`; `fixtures.toml` lists the committed make-test triad counts; the tests |
+| `7f65284` | the memory rows from the peaks' bytes (found by the dry run), the compacted records drop the per-round stage timers |
+| (the records commit) | ADR 0056 and its GOVERNANCE line, `parity/results/M9a.md` section 5 and `parity/results/M9a-gates/` (the summaries, the compacted records, the replays, the dry certificate), the kernel, maintain and SASS records, plan.md, CHANGELOG, this section |
+
+### Deviations from the plan and the step's text (each with the same intent)
+
+1. **The gates ran from `4036351`, the final parity replays from the build of `7a2393f` /
+   `4036351`**: the same library (`git diff 7a2393f 4036351 -- cpp tools cmake CMakeLists.txt
+   CMakePresets.json` is empty); the commits after `4036351` change only Python, YAML and records.
+   The certificate's rule (the library scope) is what makes them the release's readings.
+2. **The suites' split is ours** (ADR 0056 section 2): ESCHER-GPU's repository does not tell
+   ESCHER's readings from ESCHER+'s. The tkde suite's "batch sizes" reading is a memory reading
+   (coauth 100K and 200K), so that the timing reading of the same batch sizes, in the ipdps
+   suite, is not run twice.
+3. **The ungated sub-stages are suite metrics row by row** (`update.subtract[b1]` ...), because a
+   per-batch region's rows are its metric names (ADR 0048 section 1.5); `tkde26_escher_plus`
+   lists only the memory metrics: a suite gates timing only where it has a gated run reading
+   (`bench_suite.validate`).
+4. **A contamination audit was added** (ADR 0056 section 4: load average above 16 or
+   procs_blocked above 4 at a side's start or end, or a foreign GPU process, flags a gated
+   reading, which the summary refuses). No reading was flagged; the monitor repeated two rounds.
+5. **The triad bytes during `hypergraph.apply` are measured, not estimated**: the difference of
+   the peaks inside `hypergraph.apply` of the counting port and of a third, non-counting run of
+   the same process (2.8 / 1.4 / 2.4 MiB).
+6. **The store gate on the synthetic inputs reads A's two print points**, the values the golden
+   recording and A's own `[memory]` print agree on; the middle points are recorded (equal).
+7. **`write --dry-run <algorithm>`** is how the dry certificate marks the other suites, golden
+   sets, checks and fixtures as outside it; it refuses a results directory inside
+   `benchmarks/results/`.
+8. **The dry run found a harness bug and it was fixed before the records were summarized again**:
+   the summary had put the record's byte ratio next to MiB rounded to 0.1, so `recheck_gates`
+   could not recompute the `device_memory` rows. No reading was repeated (the records hold the
+   bytes).
+9. **The committed fixture of A's make-test counts is listed in `fixtures.toml`** (step 4 had
+   committed it without the entry), so a certificate reports it with its hosted test.
+10. **The compacted records drop the per-round stage timers** of triad_count (every row keeps its
+    samples), to keep the committed records small (about 0.8 MB with the dry certificate).
+11. **The kernel reading is per batch and phase** (12 launches of each process after the full
+    count's 2), recorded, not gated; the step's "11 rounds" are kept.
+12. **The mutation campaign ran the suites triad_count, cbst, hypergraph and kit** as the step
+    asks; `triad_reference` (step 2's oracle mutation) is shown by its CTest in every build.
+13. **The ADR index (`docs/adr/README.md`) gains the rows of ADRs 0054 and 0055**, which step 4
+    left out, beside 0056's.
+14. **The step was resumed after a pause** (the orchestrator stopped it at about 03:10 UTC on
+    2026-10-16, at its end): the gate readings, committed code and records were kept (they were
+    measured on the step's final library code); `ci/gpu_local.sh`, started at `7f65284` before the
+    pause, ran to completion and is used as it is (nothing but docs and records changed after
+    `7f65284`); the records were committed after the resume, with section 5.7-5.8 of
+    `parity/results/M9a.md` (the checks and the acceptance criteria one by one).
+
+### Measurements and checks
+
+| Check | Tree | Result |
+|---|---|---|
+| the timing gates (`ipdps26_escher`, 9 cases, 45 rows) | `4036351` | **45 / 45 within**, 0.858-1.028 (results 5.1); no audit flag (5.2) |
+| the memory gates (`tkde26_escher_plus`, 3 cases, 11 rows) | `4036351` | **11 / 11 within**: store 1.0000, nsys peak 1.0010-1.0015 (5.4) |
+| recorded readings: default clocks, 100K / 200K batches, types 1-3, the kernels (ncu), SASS, the M8b maintain reading | `4036351` | 5.3 (kernels 1.001-1.006; SASS as step 4; maintain 0.814 / 0.851) |
+| the final replays (`compare.py triad_count --counter algorithm --mode both`) | `7a2393f` / `4036351` (one library) | cuda 300/300, sequential 120/120, openmp 142/142 at 8 and at 1 thread (identical) (5.5) |
+| the dry 0.3 certificate (`certify.py write --dry-run triad_count`) | `7f65284` | **PASSED** (after the fix of deviation 8); fails with a gate row or a replay removed (5.6) |
+| `parity/mutate.py run --suites triad_count,cbst,hypergraph,kit` (one parity-cuda copy per mutation, sm_86) | `7f65284` | **control passed, 17 / 17 detected** (the five triad mutations and cbst_unfill_drops_last on the triad suite, 7 CBST, 3 hypergraph, the kit's planted bug); `M9a-mutate-step5.json`; 41 min |
+| `ci/check.sh` (all steps) | `7f65284` + the uncommitted records | **all checks passed**: cpu-only 1,244 / 1,244, dev 1,277 / 1,277, consumer, tidy, reuse, provenance, testdata (1,002,671 of 1,250,000 bytes), regen, harness, python, api, scaffold (80 + 3 + 54 + 41), docs, pre-commit |
+| sanitizers, `ctest --preset <p> -L 'triad_count\|operators\|triangle_delta' -LE gpu` | `7f65284` | asan (ASan + UBSan) **247 / 247**; tsan-openmp (Clang 18 + Archer) **247 / 247** (the `parity`/`slow` make-test tests included) |
+| a fresh clone of `7f65284` | clone | cpu-only with `-D_FORTIFY_SOURCE=3` and no nvcc on PATH: built without warnings, `ctest -L cpu` **1,244 / 1,244**; parity-cuda: built, `ctest -L triad_count` **297 / 297** (GPU 1); the clone was removed |
+| Clang 18 `-fsyntax-only` (`clang_syntax.py`, the dev database) | `7f65284` | 401 files, **0 failures** |
+| `ci/gpu_local.sh` (dev-cuda, GPU 1) | `7f65284` | **all 20 steps passed** (`dyng-work/runs/m9a-step5/gpu_local.log`): `ctest -L gpu` 812 / 812, `ctest -L cpu` 1,277 / 1,277, the cuda golden corpora, compute-sanitizer memcheck / synccheck / initcheck 0 errors (the triad CUDA tests and one coauth_b50k_s1 batch included), racecheck 0 hazards (the triad kit's C1, C11 and C12, and the make-test replays: 15 groups x 4 patterns, both modes), the CBST and hypergraph replays, the plugin wheel (`pytest -m gpu` 61 passed), clang-tidy |
+| frozen headers: `git diff 65a62c9 -- cpp/include/dyng/{hypergraph,update.hpp,core,graph}`, and against `main` (`9cde147`) | HEAD | **empty** (both) |
+| `cpp/src/hypergraph` against M8b (`git diff 65a62c9 -- cpp/src/hypergraph`) | HEAD | empty: no ADR 0024 bar due |
+| ESCHER-GPU's working tree (`git -C ESCHER-GPU status --porcelain`) | | empty |
+
+### Machine time
+
+| What | Time |
+|---|---|
+| the final replays: cuda (3 jobs), sequential (6), openmp 8 threads (3), openmp 1 thread (10) | 36, 11, 9 and 26 min wall (GPU 1 and the host, shared lock, concurrent) |
+| the gate readings (both suites, the kernels, the maintain reading; exclusive lock on GPU 0, memory on GPU 1) | 22:57-00:15 UTC (78 min, after waiting 32 min for the replays' shared locks) |
+| `parity/mutate.py` (18 parity-cuda copies) | 41 min (19:15-19:56 CDT) |
+| `ci/check.sh`, the sanitizers, the fresh clone (concurrent with `ci/gpu_local.sh`) | about 70 min, 60 min and 25 min |
+| `ci/gpu_local.sh` | 3 h 50 min (19:18-23:08 CDT; started one minute after `7f65284`, which changed only Python) |
+
+### Deviations of M9a from PLAN 6.4.6, 4.6 and 11.3 (the milestone)
+
+- **PLAN 6.4.6**: the parity runs by content **and** by key on every backend from the start (the
+  M8 id parity held); the coverage per backend is the plan's default (D6, pending the author);
+  the gates are read against A re-measured in the same session, never against the README's
+  figures (which are recorded as `paper_reference`); the paper's coauth gate is read per batch
+  (`update[b1..b3]`) rather than as one figure; the device memory is read twice, as store
+  accounting (2026-10-07) and as the Nsight Systems peak (D1). The open bins 21-26 stay 0
+  (verified on every golden). The `experimental::count_local_patterns` exposure and its tutorial
+  are M9b's (D2).
+- **PLAN 4.6**: the host backends are incremental host engines, not recount-based references (D3,
+  ADR 0054); the independent oracle is `testing::triad_reference`.
+- **PLAN 11.3**: M9 runs as M9a and M9b (D2); `triad_count` stays experimental and not frozen
+  until M9b (D4); the 0.3 certificate's plumbing (both suites, the triad replays from 0.3) is in
+  M9a, the release's certificate itself at 0.3.0.
+
+### Effort
+
+M9a's five steps ran on 2026-10-15 (CDT), from the region map (step 1, early morning) to this
+step's records (evening): one day of wall-clock time for the milestone, against the plan's
+re-baselined "M9 in 3-5 days plus the review and fix steps" (M8b's retrospective). Machine time
+dominated the later steps: the golden export (62 min), the replays (about 1.5 h per full set of
+backends), the mutation campaigns (about 1 h in step 4, 41 min here), `ci/gpu_local.sh`
+(about 3.5 h in step 3, 3 h 50 min here) and the gate readings (78 min).
+
+### The author's pending decisions (collected for the 0.3.0 release)
+
+| # | Decision | State |
+|---|---|---|
+| D1 | the gated Nsight Systems peak (live allocations, whole process) | the author's (2026-10-15); read in 5.4: 1.0010-1.0015 |
+| D2 | M9 as M9a and M9b | the author's (2026-10-15) |
+| D3 | incremental host engines, the oracle independent | the author's (2026-10-15); ADR 0054 |
+| D4 | `triad_count` frozen and stable at 0.3.0 at the end of M9b; `count_local_patterns` experimental | **pending**: taken on the plan's default |
+| D5 | the 1.25 MB test-data budget | the author's (2026-10-15); 1,002,671 bytes used |
+| D6 | the parity coverage per backend (cuda every case; sequential make-test + syn100k; openmp + syn1m s1 + coauth_b50k_s1 types 1-2) | **pending**: the plan's default; the 0.3 certificate requires exactly this table |
+| D7 | the gate rows, cases and rounds (ADR 0048 section 1.4) | **pending**: the plan's default; read as such in 5.1 |
+| D8 | the suites `ipdps26_escher` and `tkde26_escher_plus` and their split | **pending**: the plan's default; the split is ours (ADR 0056) |
+| D9 | the new public names of `triad_count` (ADR 0052) | **pending**: naming is not delegated |
+| D10 | the "paper vs fixed code" wording | **pending**: the plan's default (M9b's docs) |
+| D11 | the footprint between batches (the stream-ordered pool's reserve, 1.63-1.78x A's held bytes on every reading; reported and flagged above 1.05 under D1, not gated) | **new, for the author**: whether a later release trims the pool between updates (a library change outside M9a's scope) or the footprint stays reported only |
+
+Also for the author from earlier steps: the manifest key `python = false` (step 3, deviation 14)
+and the test trait `kit_openmp_threads` (step 4) were taken under delegation as technical items;
+merging the M9a pull request (a merge commit, D2) is the author's.
+
+### Ready-to-paste pull request summary
+
+```markdown
+## M9a: triad_count exact against ESCHER-GPU, with its gates (0.3)
+
+`triad_count` (experimental; `<dyng/triad_count.hpp>`): ESCHER-GPU@abcf9b2's 30-bin h-motif
+counts and StatHyper's triad types 1-3, kept exact under hyperedge batches on the sequential,
+OpenMP and CUDA backends (PLAN 6.4.6; the author's decisions D1-D3 and D5 of 2026-10-15).
+
+**Parity (exact).** The golden set `triad_count_escher_gpu` (PLAN 6.4.6's grid of 240 cases plus
+ESCHER-GPU's `make test`, 300 cases, exported twice with identical manifests; ESCHER-GPU agrees
+with its own CPU reference on 90 runs) replays exactly by key and by content: cuda 300/300,
+sequential 120/120, OpenMP 142/142 at 1 and 8 threads (identical). An independent oracle
+(`dyng::testing::triad_reference`, its own class map) reproduces ESCHER-GPU everywhere and checks
+every backend's stats. Kit (C1-C12 but C4) on every backend; the five triad mutations of PLAN 8.4
+and cbst_unfill_drops_last detected on both engines.
+
+**The CUDA port** is a reproducible transplant of ESCHER-GPU's wedge engine in six mechanical
+commits; the counting kernels' machine code equals ESCHER-GPU's (one +16-instruction error word).
+**The host engines** are incremental (D3), through `operators::count_delta` (ADR 0055).
+
+**Gates** (against ESCHER-GPU re-measured in the same session, base clock lock, GPU 0, exclusive
+lock; `benchmarks/paper/ipdps26_escher.yaml`, `tkde26_escher_plus.yaml`):
+
+| | coauth-DBLP 50K s1-s3 (11 rounds) | syn1M / syn2M 50K s1-s3 (21 rounds) | bar |
+|---|---|---|---|
+| update, each of 3 batches | 0.950-0.981 | 0.858-1.028 | 1.05 |
+| full count | 0.999 | 1.002 | 1.05 |
+| end to end | 0.941-0.944 | 0.959-0.987 | 1.10 |
+| store accounting (every gated point) | 1.0000 | 1.0000 | 1.05 |
+| Nsight Systems peak of live allocations (D1) | 1.0010 | 1.0015 / 1.0011 | 1.05 |
+
+Host synchronizations per batch 19-22 against ESCHER-GPU's 90-96. The footprint between batches
+(the stream-ordered pool's reserve, 1.63-1.69x) is reported, not gated (D1).
+
+**Certificate.** From 0.3 `parity/certify.py` requires both ESCHER suites (the store rows
+rechecked point by point) and the triad replays of every backend of the coverage table by key and
+by content; the dry 0.3 certificate of `triad_count` passes (`parity/results/M9a-gates/`).
+
+**Checks.** `ci/check.sh` all passed; `ci/gpu_local.sh` all 20 steps passed on GPU 1 (812 GPU tests; memcheck, synccheck and initcheck on the triad CUDA tests and a coauth batch; racecheck on C1, C11, C12 and the make-test replays); ASan/UBSan and
+TSan-OpenMP on the triad tests; a fresh clone (CPU-only fortified, CUDA); Clang 18 syntax;
+frozen headers unchanged (`git diff 65a62c9 -- cpp/include/dyng/{hypergraph,update.hpp,core,graph}`
+empty). No C++ changed in the last step.
+
+**For the author**: D4 and D6-D10 are taken on the plan's defaults pending the 0.3.0 release
+(GOVERNANCE.md); the new public names (D9, ADR 0052); D11, whether a later release trims the
+pool between updates. ADRs 0048-0056. Records: `parity/results/M9a.md`,
+`docs/developer/retrospectives/M9a.md`. M9b (count_local_patterns, Python, the CLI, the freeze)
+follows on a stacked branch. Merge with a merge commit.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+```

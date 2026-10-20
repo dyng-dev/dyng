@@ -1,0 +1,982 @@
+{
+ "schema": 1,
+ "suite": "tkde26_escher_plus",
+ "algorithm": "triad_count",
+ "title": "ESCHER+: device memory of the dynamic hypergraph and its triad counts; StatHyper types (dynG triad_count)",
+ "suite_file": "benchmarks/paper/tkde26_escher_plus.yaml",
+ "suite_sha256": "9084e95934ba2a8c11f98003275d2672e13e8ef2bc5d8673d1a37fd0c4c23f3c",
+ "version": "m9a",
+ "date": "2026-10-16T00:17:51Z",
+ "port_commits": [
+  "403635155c64109ef09157a7acd311fd8dfd1b73"
+ ],
+ "baselines": {
+  "ESCHER-GPU": {
+   "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+   "variant": "unpatched",
+   "backend": "cuda"
+  }
+ },
+ "tolerance": {
+  "compute": 1.05,
+  "compute_short": 1.1,
+  "short_region_ms": 10.0,
+  "end_to_end": 1.1,
+  "memory": 1.05
+ },
+ "partial": null,
+ "execution_started": "2026-10-16T00:02:27Z",
+ "inputs": {
+  "verified": true,
+  "run_check": "not run by this summary (bench_suite.py run checks every input first)",
+  "by_record": {
+   "tkde26_escher_plus-cuda-memory.json": {
+    "datasets": [
+     "coauth",
+     "syn1m",
+     "syn2m"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters, the per-round guard requiring the golden's counts)"
+   },
+   "tkde26_escher_plus-cuda-memory-batch-sizes.json": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters, the per-round guard requiring the golden's counts)"
+   },
+   "tkde26_escher_plus-cuda-types.json": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters, the per-round guard requiring the golden's counts)"
+   }
+  }
+ },
+ "drivers": [
+  {
+   "cuda_driver_api": "13.1",
+   "nvidia": "590.48.01"
+  }
+ ],
+ "readings": [
+  {
+   "reading": "cuda-memory",
+   "dataset": null,
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": true,
+   "record": "tkde26_escher_plus-cuda-memory.json",
+   "date": "2026-10-16T00:02:27Z",
+   "port_commit": "403635155c64109ef09157a7acd311fd8dfd1b73",
+   "reference": {
+    "name": "ESCHER-GPU",
+    "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "lock": "shared (flock -s by the caller); no foreign process on the GPU (checked before and after each case)"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "coauth",
+     "syn1m",
+     "syn2m"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters, the per-round guard requiring the golden's counts)"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 3018.865454673767,
+     "port_mib": 3021.9117908477783,
+     "ratio": 1.0010090996832253,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[build]",
+     "gate_kind": "memory",
+     "original_bytes": 1922784204,
+     "port_bytes": 1922784204,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[b1]",
+     "gate_kind": "memory",
+     "original_bytes": 1923300764,
+     "port_bytes": 1923300764,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[b2]",
+     "gate_kind": "memory",
+     "original_bytes": 1923713052,
+     "port_bytes": 1923713052,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/main",
+     "region": "store_memory[b3]",
+     "gate_kind": "memory",
+     "original_bytes": 1924170844,
+     "port_bytes": 1924170844,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 1131.3669290542603,
+     "port_mib": 1133.013949394226,
+     "ratio": 1.001455779109031,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "store_memory[build]",
+     "gate_kind": "memory",
+     "original_bytes": 703051032,
+     "port_bytes": 703051032,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn1m_b50k_s1/main",
+     "region": "store_memory[b3]",
+     "gate_kind": "memory",
+     "original_bytes": 703185928,
+     "port_bytes": 703185928,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 2211.7417669296265,
+     "port_mib": 2214.17661857605,
+     "ratio": 1.001100875193854,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "store_memory[build]",
+     "gate_kind": "memory",
+     "original_bytes": 1406745268,
+     "port_bytes": 1406745268,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "syn2m_b50k_s1/main",
+     "region": "store_memory[b3]",
+     "gate_kind": "memory",
+     "original_bytes": 1406784388,
+     "port_bytes": 1406784388,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-memory-batch-sizes",
+   "dataset": null,
+   "kind": "memory",
+   "backend": "cuda",
+   "clocks": null,
+   "gated": false,
+   "record": "tkde26_escher_plus-cuda-memory-batch-sizes.json",
+   "date": "2026-10-16T00:04:09Z",
+   "port_commit": "403635155c64109ef09157a7acd311fd8dfd1b73",
+   "reference": {
+    "name": "ESCHER-GPU",
+    "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "lock": "shared (flock -s by the caller); no foreign process on the GPU (checked before and after each case)"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters, the per-round guard requiring the golden's counts)"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 3079.6748332977295,
+     "port_mib": 3083.413151741028,
+     "ratio": 1.0012138679067282,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[build]",
+     "gate_kind": "memory",
+     "original_bytes": 1922784204,
+     "port_bytes": 1922784204,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[b1]",
+     "gate_kind": "memory",
+     "original_bytes": 1923581020,
+     "port_bytes": 1923581020,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[b2]",
+     "gate_kind": "memory",
+     "original_bytes": 1924052588,
+     "port_bytes": 1924052588,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b100k_s1/main",
+     "region": "store_memory[b3]",
+     "gate_kind": "memory",
+     "original_bytes": 1925031324,
+     "port_bytes": 1925031324,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "device_memory",
+     "gate_kind": "memory",
+     "original_mib": 3203.8855600357056,
+     "port_mib": 3209.0078201293945,
+     "ratio": 1.0015987649988447,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[build]",
+     "gate_kind": "memory",
+     "original_bytes": 1922784204,
+     "port_bytes": 1922784204,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[b1]",
+     "gate_kind": "memory",
+     "original_bytes": 1923804124,
+     "port_bytes": 1923804124,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[b2]",
+     "gate_kind": "memory",
+     "original_bytes": 1926066572,
+     "port_bytes": 1926066572,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b200k_s1/main",
+     "region": "store_memory[b3]",
+     "gate_kind": "memory",
+     "original_bytes": 1925885148,
+     "port_bytes": 1925885148,
+     "ratio": 1.0,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    }
+   ]
+  },
+  {
+   "reading": "cuda-types",
+   "dataset": null,
+   "kind": "run",
+   "backend": "cuda",
+   "clocks": "base",
+   "gated": false,
+   "record": "tkde26_escher_plus-cuda-types.json",
+   "date": "2026-10-16T00:06:13Z",
+   "port_commit": "403635155c64109ef09157a7acd311fd8dfd1b73",
+   "reference": {
+    "name": "ESCHER-GPU",
+    "commit": "abcf9b2bd42f896ec3103a6835edf713ed5e416c",
+    "variant": "unpatched"
+   },
+   "protocol": {
+    "order": "A/B alternation (A first in every round)",
+    "lock": "perf.lock: held exclusively by this process",
+    "env": "CUDA_MODULE_LOADING=EAGER, no OMP_* variables",
+    "statistic": "median"
+   },
+   "host": null,
+   "driver": {
+    "nvidia": "590.48.01",
+    "cuda_driver_api": "13.1"
+   },
+   "inputs": {
+    "datasets": [
+     "coauth"
+    ],
+    "verified": true,
+    "how": "hashed by the measuring process (coauth-DBLP's file; a synthetic input's rows as the golden set stores them, which both sides generate from the suite's parameters, the per-round guard requiring the golden's counts)"
+   },
+   "complete": true,
+   "contaminated_runs": {},
+   "regions": [
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 75.269,
+     "port_ms": 55.816,
+     "ratio": 0.7415536276554757,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 78.236,
+     "port_ms": 60.655,
+     "ratio": 0.7752824786543279,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 79.975,
+     "port_ms": 61.267,
+     "ratio": 0.7660768990309472,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 3.824,
+     "port_ms": 0.513,
+     "ratio": 0.13415271966527198,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": true,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 2514.543,
+     "port_ms": 2181.723,
+     "ratio": 0.8676419532296723,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 0.901,
+     "port_ms": 1.3820000000000001,
+     "ratio": 1.5338512763596006
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 3.791,
+     "port_ms": 1.367,
+     "ratio": 0.36059087312054866
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 3.485,
+     "port_ms": 1.375,
+     "ratio": 0.39454806312769014
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 70.636,
+     "port_ms": 54.328,
+     "ratio": 0.7691262245880288
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 70.741,
+     "port_ms": 59.139,
+     "ratio": 0.8359932712288489
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 72.731,
+     "port_ms": 59.78,
+     "ratio": 0.8219328759401081
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 3.702,
+     "port_ms": 0.047,
+     "ratio": 0.012695840086439763
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 3.7,
+     "port_ms": 0.044,
+     "ratio": 0.01189189189189189
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 3.698,
+     "port_ms": 0.045,
+     "ratio": 0.01216873985938345
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1376.5230000000001,
+     "port_ms": 753.0649999999999,
+     "ratio": 0.5470776732390231
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 177.952,
+     "port_ms": 478.086,
+     "ratio": 2.6866008811364863
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 348.515,
+     "port_ms": 356.313,
+     "ratio": 1.0223749336470453
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 161.401,
+     "port_ms": 15.353,
+     "ratio": 0.09512332637344253
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 15.956,
+     "port_ms": 14.101,
+     "ratio": 0.8837427926798698
+    },
+    {
+     "case": "coauth_b50k_s1/type1",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 15.894,
+     "port_ms": 16.607,
+     "ratio": 1.044859695482572
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 78.216,
+     "port_ms": 58.742,
+     "ratio": 0.7510228086325049,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 78.97,
+     "port_ms": 63.524,
+     "ratio": 0.8044067367354691,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 81.316,
+     "port_ms": 64.266,
+     "ratio": 0.7903241674455213,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 35.354,
+     "port_ms": 29.179,
+     "ratio": 0.8253380098432992,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 2545.477,
+     "port_ms": 2236.11,
+     "ratio": 0.878464036406536,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 2.268,
+     "port_ms": 2.742,
+     "ratio": 1.208994708994709
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 4.567,
+     "port_ms": 2.8289999999999997,
+     "ratio": 0.6194438362163345
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 4.59,
+     "port_ms": 2.8609999999999998,
+     "ratio": 0.6233115468409586
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 70.611,
+     "port_ms": 54.352,
+     "ratio": 0.7697384260242738
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 68.329,
+     "port_ms": 58.944,
+     "ratio": 0.8626498265743683
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 71.094,
+     "port_ms": 59.678,
+     "ratio": 0.8394238613666414
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 5.344,
+     "port_ms": 1.5719999999999998,
+     "ratio": 0.29416167664670656
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 5.354,
+     "port_ms": 1.61,
+     "ratio": 0.30070974971983566
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 5.392,
+     "port_ms": 1.668,
+     "ratio": 0.309347181008902
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1366.702,
+     "port_ms": 755.408,
+     "ratio": 0.5527232710568947
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 178.791,
+     "port_ms": 481.711,
+     "ratio": 2.694268727173068
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 347.321,
+     "port_ms": 358.303,
+     "ratio": 1.0316191649799464
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 163.837,
+     "port_ms": 15.245,
+     "ratio": 0.09304979949584039
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 15.978,
+     "port_ms": 14.08,
+     "ratio": 0.8812116660408061
+    },
+    {
+     "case": "coauth_b50k_s1/type2",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 15.621,
+     "port_ms": 14.779,
+     "ratio": 0.9460982011394917
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update[b1]",
+     "gate_kind": "compute",
+     "original_ms": 514.041,
+     "port_ms": 488.648,
+     "ratio": 0.9506012166344707,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update[b2]",
+     "gate_kind": "compute",
+     "original_ms": 555.725,
+     "port_ms": 532.951,
+     "ratio": 0.9590192991137703,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update[b3]",
+     "gate_kind": "compute",
+     "original_ms": 552.292,
+     "port_ms": 545.635,
+     "ratio": 0.9879465934686723,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "full_count",
+     "gate_kind": "compute",
+     "original_ms": 5027.366,
+     "port_ms": 4986.954,
+     "ratio": 0.9919615957939008,
+     "gate": 1.05,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "end_to_end",
+     "gate_kind": "end_to_end",
+     "original_ms": 8961.257,
+     "port_ms": 8561.38,
+     "ratio": 0.9553771306860187,
+     "gate": 1.1,
+     "within_gate": true,
+     "provisional": false,
+     "noisy": false
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.subtract[b1]",
+     "gate_kind": "none",
+     "original_ms": 207.136,
+     "port_ms": 207.251,
+     "ratio": 1.0005551907925228
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.subtract[b2]",
+     "gate_kind": "none",
+     "original_ms": 236.968,
+     "port_ms": 233.534,
+     "ratio": 0.9855085918773843
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.subtract[b3]",
+     "gate_kind": "none",
+     "original_ms": 234.294,
+     "port_ms": 238.983,
+     "ratio": 1.0200133166022176
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.maintain[b1]",
+     "gate_kind": "none",
+     "original_ms": 70.603,
+     "port_ms": 54.306,
+     "ratio": 0.7691741144144016
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.maintain[b2]",
+     "gate_kind": "none",
+     "original_ms": 68.245,
+     "port_ms": 59.758,
+     "ratio": 0.8756392409700344
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.maintain[b3]",
+     "gate_kind": "none",
+     "original_ms": 69.075,
+     "port_ms": 60.652,
+     "ratio": 0.8780600796235976
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.add[b1]",
+     "gate_kind": "none",
+     "original_ms": 236.509,
+     "port_ms": 227.18699999999998,
+     "ratio": 0.9605850094499575
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.add[b2]",
+     "gate_kind": "none",
+     "original_ms": 248.469,
+     "port_ms": 240.249,
+     "ratio": 0.9669174021708946
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "update.add[b3]",
+     "gate_kind": "none",
+     "original_ms": 248.684,
+     "port_ms": 245.93200000000002,
+     "ratio": 0.9889337472455004
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "build",
+     "gate_kind": "none",
+     "original_ms": 1408.7559999999999,
+     "port_ms": 756.5500000000001,
+     "ratio": 0.5370340924901119
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "upload",
+     "gate_kind": "none",
+     "original_ms": 180.389,
+     "port_ms": 474.995,
+     "ratio": 2.6331705370061367
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "load",
+     "gate_kind": "none",
+     "original_ms": 349.512,
+     "port_ms": 357.476,
+     "ratio": 1.0227860559866329
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "batch.generate[b1]",
+     "gate_kind": "none",
+     "original_ms": 176.469,
+     "port_ms": 16.167,
+     "ratio": 0.09161382452442073
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "batch.generate[b2]",
+     "gate_kind": "none",
+     "original_ms": 16.091,
+     "port_ms": 13.954,
+     "ratio": 0.867192840718414
+    },
+    {
+     "case": "coauth_b50k_s1/type3",
+     "region": "batch.generate[b3]",
+     "gate_kind": "none",
+     "original_ms": 16.007,
+     "port_ms": 14.88,
+     "ratio": 0.9295933029299681
+    }
+   ]
+  }
+ ],
+ "verdict": {
+  "gated_regions": 11,
+  "within_gate": 11,
+  "ratio_range": [
+   1.0,
+   1.001455779109031
+  ],
+  "exceeded": [],
+  "provisional": [],
+  "contaminated": [],
+  "missing_or_incomplete": [],
+  "problems": [],
+  "passed": true
+ }
+}
