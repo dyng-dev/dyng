@@ -26,6 +26,9 @@ concurrency:
 env:
   CPM_SOURCE_CACHE: ${{ github.workspace }}/.cache/cpm
   CMAKE_BUILD_PARALLEL_LEVEL: 4
+  # The tests on the runner's 4 vCPUs, as sanitizers.yml does (M9a review: triad_count's tests
+  # made a serial `ctest -L cpu` of the Debug preset the job's longest step).
+  CTEST_PARALLEL_LEVEL: 4
 
 jobs:
   build-and-test:

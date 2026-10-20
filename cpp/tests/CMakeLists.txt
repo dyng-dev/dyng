@@ -1046,6 +1046,12 @@ if(DYNG_TRIAD_MUTATION_TESTS AND TARGET dyng_triad_count AND TARGET dyng_hypergr
          "cbst_unfill_drops_last|DYNG_MUTATION_CBST_UNFILL_DROPS_LAST|dyng_hypergraph|fail|cuda"
     )
   endif()
+  string(CONCAT _dyng_triad_mutant_filter
+         "Backends/TriadCount.UpdatesMatchTheOracleAndTheirStats/*:"
+         "Backends/TriadCount.TheIdBoundGoingDownKeepsTheCountsExact/*:"
+         "Backends/TriadCount.SpecialBatches/*:"
+         "Backends/TriadCount.ReusedIdsAndAnInsertedIdEqualToADeletedId/*"
+  )
   foreach(_entry IN LISTS _dyng_triad_mutants)
     string(REPLACE "|" ";" _mutant "${_entry}")
     list(GET _mutant 0 _name)
@@ -1128,9 +1134,13 @@ if(DYNG_TRIAD_MUTATION_TESTS AND TARGET dyng_triad_count AND TARGET dyng_hypergr
           PROPERTIES LABELS "gpu;mutation;triad_count" ENVIRONMENT "${DYNG_TEST_ENVIRONMENT}"
         )
       else()
+        # The host mutants run on the cases that kill each of them (measured on the full suite in
+        # the M9a review: every mutant fails UpdatesMatchTheOracleAndTheirStats or
+        # TheIdBoundGoingDownKeepsTheCountsExact, most of them several more); the control runs the
+        # same subset. The full host suite runs unmutated as dyng_triad_count_tests.
         add_test(NAME triad_count.mutation.${_name}
                  COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:${_exe}> -DEXPECT=${_expect}
-                         -DNAME=triad_count.${_name} -P
+                         -DNAME=triad_count.${_name} "-DFILTER=${_dyng_triad_mutant_filter}" -P
                          "${CMAKE_CURRENT_SOURCE_DIR}/mutation/run_mutant.cmake"
         )
         set_tests_properties(

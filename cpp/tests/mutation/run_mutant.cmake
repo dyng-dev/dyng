@@ -11,8 +11,14 @@
 # control copy is built the same way without a mutation and must pass: it shows that a failure of
 # a mutant comes from the mutation, not from the way the copies are built.
 
+# FILTER (optional): a GoogleTest filter, the cases that kill every recorded mutant of the suite
+# (the triad host mutants run on it: the full suite is the control's and the hosted CI's time).
+set(_filter_args)
+if(DEFINED FILTER AND NOT "${FILTER}" STREQUAL "")
+  set(_filter_args "--gtest_filter=${FILTER}")
+endif()
 execute_process(
-  COMMAND "${EXE}" --gtest_brief=1
+  COMMAND "${EXE}" --gtest_brief=1 ${_filter_args}
   RESULT_VARIABLE rc
   OUTPUT_VARIABLE out
   ERROR_VARIABLE err
