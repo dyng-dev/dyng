@@ -12,6 +12,7 @@ import json
 import math
 import shutil
 import struct
+import subprocess
 import sys
 import zlib
 from pathlib import Path
@@ -386,3 +387,33 @@ def test_verify_set_checks_the_manifest_and_the_case_digests(tiny_set, tmp_path,
     assert any("case test/99-tiny/main differs" in p for p in problems)
     (tiny_set / "stray.txt").write_text("x")
     assert any("not in the manifest" in p for p in tg.verify_set(tiny_set, tmp_path, spec))
+
+
+@needs_zstd
+def test_run_parameters_are_not_hashed(tiny_set, tmp_path, monkeypatch):
+    """The GPU, the raw trace's digest and the zstd version are provenance (PROVENANCE.json,
+    recording.json): a re-export on another GPU or with another zstd reproduces the manifest and
+    every case digest (M9a review)."""
+    monkeypatch.setattr(tg, "case_names", lambda: [f"test/99-tiny/{e}" for e in tg.EXES])
+    gdir = tiny_set / "cases" / "test/99-tiny"
+    (tiny_set / tg.PROVENANCE).write_text('{"gpu": "1", "zstd": "v1.5.5"}\n')
+    (gdir / tg.RECORDING).write_text('{"gpu": "1", "trace_sha256": "aa", "trace_bytes": 1}\n')
+    sha, _, _ = tg.write_manifest(tiny_set)
+    digests = {c: tg.case_digest(tiny_set, c) for c in tg.case_names()}
+    assert tg.PROVENANCE not in (tiny_set / "MANIFEST.sha256").read_text()
+    assert tg.RECORDING not in (tiny_set / "MANIFEST.sha256").read_text()
+    # Another GPU and another trace: the same manifest and case digests, and verify passes.
+    (tiny_set / tg.PROVENANCE).write_text('{"gpu": "GPU-e145f857", "zstd": "v1.5.6"}\n')
+    (gdir / tg.RECORDING).write_text('{"gpu": "0", "trace_sha256": "bb", "trace_bytes": 2}\n')
+    assert tg.write_manifest(tiny_set)[0] == sha
+    assert {c: tg.case_digest(tiny_set, c) for c in tg.case_names()} == digests
+    spec = {"manifest_sha256": sha, "cases": {c: {"sha256": d} for c, d in digests.items()}}
+    assert tg.verify_set(tiny_set, tmp_path, spec) == []
+    # A .zst file is hashed by its content: recompressed at another level, the same digests.
+    batch = sorted(gdir.glob("batch*.dgb.zst"))[0]
+    raw = tmp_path / "raw.dgb"
+    raw.write_bytes(tg.zstd_read(batch))
+    subprocess.run(["zstd", "-q", "-1", "-f", str(raw), "-o", str(batch)], check=True)
+    assert tg.content_sha256(batch) == tg.sha256_bytes(raw.read_bytes())
+    assert tg.write_manifest(tiny_set)[0] == sha
+    assert tg.verify_set(tiny_set, tmp_path, spec) == []

@@ -24,9 +24,11 @@ named <dataset>_b<size>_s<seed>/<executable>):
                              delta, counts_after (derived), the batch file's SHA-256}, and the
                              verdict of the --check run
   cases/<group>/<exe>.stdout A's unpatched stdout (make-test groups only; M9b's CLI uses it)
-  cases/<group>/group.json   the recording run behind the batches: its trace's SHA-256 and recipe,
-                             A's vertex count, H2V payload capacity, numHyperedgeKeys and
-                             deviceBytes() after the build and after every batch
+  cases/<group>/group.json   the recording run behind the batches: its recipe, A's vertex count,
+                             H2V payload capacity, numHyperedgeKeys and deviceBytes() after the
+                             build and after every batch
+  cases/<group>/recording.json  unhashed provenance of the recording run: the GPU, the raw
+                             trace's SHA-256 and size (the trace names the device)
   cases/<group>/batch<N>.dgb.zst   batch N as a .dgb file of one record (flags deleted_members and
                              expected_ids; ids = A's keys - 1), dyng-compat-escher to-dgb's
                              output split per batch
@@ -35,7 +37,9 @@ named <dataset>_b<size>_s<seed>/<executable>):
                              is named by its SHA-256 only (its loaded rows are the dataset file);
                              synthetic inputs also carry their legacy-generator parameters, and
                              generators::legacy (dyng.generators.legacy) must write the same file
-  info.json, MANIFEST.sha256
+  info.json, MANIFEST.sha256  (the manifest and the case digests hash content: a .zst file by
+                             its decompressed bytes, so the zstd version does not enter them)
+  PROVENANCE.json            unhashed: the export's GPU, the zstd version, the date
 
 Counts come from A's UNPATCHED executables (the Makefile-built executables the export patch keeps
 as parity_export/orig/<exe> in the patched copy, ADR 0036), run without --check / --reference
@@ -43,9 +47,11 @@ and parsed from stdout; every case runs again with --check (exit 0, no FAILED, b
 count lines). Batches come from one run of the patched recording twin of build/main per group in
 the recorder's batches mode, converted by `dyng-compat-escher to-dgb`; the four executables draw
 the same batches (their batch lines must agree on every case, and the twins of type1-3 record
-byte-identical batch files on one group per dataset). Nothing that varies between runs is in
-the set (no timings, no [memory] lines, no paths): --twice exports from two FRESH patched copies
-and requires byte-identical MANIFEST.sha256 files.
+byte-identical batch files on one group per dataset). Nothing that varies between runs is
+hashed (no timings, no [memory] lines, no paths, no GPU, no tool version: those are in the
+unhashed PROVENANCE.json and recording.json): --twice exports from two FRESH patched copies
+(the second on --second-gpu, default the first's) and requires byte-identical MANIFEST.sha256
+files.
 
 verify: the manifest and every case digest against parity/goldens.toml; bins 20-25 (A's open
 triads 21-26) zero in every count and delta; the coauth-DBLP h_motif full count sums to
@@ -239,6 +245,33 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def content_sha256(path: Path) -> str:
+    """The SHA-256 the set hashes a file by: of its content, a .zst file decompressed (the
+    compressed bytes depend on the zstd version, M9a review)."""
+    if path.suffix == ".zst":
+        h = hashlib.sha256()
+        with subprocess.Popen(["zstd", "-q", "-dc", str(path)], stdout=subprocess.PIPE) as z:
+            assert z.stdout is not None
+            for chunk in iter(lambda: z.stdout.read(1 << 20), b""):
+                h.update(chunk)
+        if z.returncode != 0:
+            raise GoldenError(f"{path}: zstd -d failed")
+        return h.hexdigest()
+    return sha256_file(path)
+
+
+# The run's provenance, kept beside the set and hashed by nothing (the GPU, the raw trace's
+# digest, which records the device, the tools' versions): a re-export elsewhere reproduces the
+# manifest and every case digest (M9a review).
+PROVENANCE = "PROVENANCE.json"
+RECORDING = "recording.json"
+
+
+def unhashed(rel: str) -> bool:
+    """Whether a file of the set is provenance, outside the manifest and the case digests."""
+    return rel == PROVENANCE or rel.endswith("/" + RECORDING) or rel == "MANIFEST.sha256"
 
 
 def write_json(path: Path, obj) -> None:
@@ -744,12 +777,22 @@ def _legacy_hash(params: tuple[int, int, int, int], seed: int, tmp: Path) -> tup
 
 
 def tool_versions() -> dict:
+    """The tools of the recipe (hashed in info.json: they decide the content)."""
     return {
+        "zstd_flags": " ".join(ZSTD[1:]),
+        "converter": "dyng-compat-escher to-dgb (tools/compat/escher), split one record per file",
+        "hashing": "the manifest and the case digests hash content: a .zst file decompressed",
+    }
+
+
+def run_provenance(gpu: str) -> dict:
+    """The export run's provenance (PROVENANCE.json, unhashed): what varies between runs."""
+    return {
+        "gpu": gpu,
         "zstd": subprocess.run(
             ["zstd", "--version"], capture_output=True, text=True
         ).stdout.strip(),
-        "zstd_flags": " ".join(ZSTD[1:]),
-        "converter": "dyng-compat-escher to-dgb (tools/compat/escher), split one record per file",
+        "date": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
 
 
@@ -821,13 +864,9 @@ def export_group(
         "suite_argv": group.args if group.kind == "test" else None,
         "recording": {
             "recipe": "the patched copy's recording twin build/main (ADR 0036), "
-            "DYNG_CBST_TRACE_MODE=batches, CUDA_VISIBLE_DEVICES=" + gpu + ", run in a directory "
-            "holding the input as <name>.hg; then dyng-compat-escher to-dgb and one .dgb per "
-            "record (the raw trace is not kept)",
-            "trace_sha256": rec["trace_sha256"],
-            "trace_bytes": rec["trace_bytes"],
-            "blob_sha256": rec["blob_sha256"],
-            "blob_bytes": rec["blob_bytes"],
+            "DYNG_CBST_TRACE_MODE=batches, run in a directory holding the input as <name>.hg; "
+            "then dyng-compat-escher to-dgb and one .dgb per record (the raw trace is not kept; "
+            f"its digest and the GPU are in the unhashed {RECORDING})",
             "trace_argv": rec["argv"],
         },
         "vertices": vertices,
@@ -841,6 +880,18 @@ def export_group(
         "loaded_rows_sha256": sha256_file(rec["hg"]),
     }
     write_json(gdir / "group.json", group_doc)
+    # The recording run's provenance (unhashed): the GPU, and the raw trace's digest and size,
+    # which depend on the device it names.
+    write_json(
+        gdir / RECORDING,
+        {
+            "gpu": gpu,
+            "trace_sha256": rec["trace_sha256"],
+            "trace_bytes": rec["trace_bytes"],
+            "blob_sha256": rec["blob_sha256"],
+            "blob_bytes": rec["blob_bytes"],
+        },
+    )
     for exe in EXES:
         r = runs[exe]
         parsed = r["parsed"]
@@ -1044,6 +1095,7 @@ def export_set(
             "inputs": sorted(inputs),
         }
         write_json(out / "info.json", info)
+        write_json(out / PROVENANCE, run_provenance(gpu))
     finally:
         logf.close()
         shutil.rmtree(raw, ignore_errors=True)
@@ -1060,8 +1112,8 @@ def export_set(
 def write_manifest(out: Path) -> tuple[str, int, int]:
     lines, size = [], 0
     for p in sorted(out.rglob("*")):
-        if p.is_file() and p.name != "MANIFEST.sha256":
-            lines.append(f"{sha256_file(p)}  {p.relative_to(out).as_posix()}\n")
+        if p.is_file() and not unhashed(p.relative_to(out).as_posix()):
+            lines.append(f"{content_sha256(p)}  {p.relative_to(out).as_posix()}\n")
             size += p.stat().st_size
     text = "".join(lines)
     (out / "MANIFEST.sha256").write_text(text)
@@ -1078,7 +1130,9 @@ def case_files(out: Path, case: str) -> list[Path]:
 
 
 def case_digest(out: Path, case: str) -> str:
-    lines = [f"{sha256_file(p)}  {p.relative_to(out).as_posix()}\n" for p in case_files(out, case)]
+    lines = [
+        f"{content_sha256(p)}  {p.relative_to(out).as_posix()}\n" for p in case_files(out, case)
+    ]
     return sha256_bytes("".join(sorted(lines)).encode())
 
 
@@ -1171,6 +1225,12 @@ def export_main(argv: list[str]) -> int:
     p.add_argument("--copy", type=Path, help="export once from this patched copy (development)")
     p.add_argument("--out", type=Path, help="output directory (default: the set's location)")
     p.add_argument("--gpu", default=os.environ.get("CUDA_VISIBLE_DEVICES", "1").split(",")[0])
+    p.add_argument(
+        "--second-gpu",
+        default=None,
+        help="--twice: the GPU of the second export (default --gpu), to show that the manifest "
+        "does not depend on the device",
+    )
     p.add_argument("--jobs", type=int, default=3, help="groups recorded at once per export")
     p.add_argument("--groups", default="", help="only these groups or datasets (comma list)")
     p.add_argument("--no-toml", action="store_true")
@@ -1205,12 +1265,20 @@ def export_main(argv: list[str]) -> int:
                         d,
                         o,
                         args.scratch,
-                        args.gpu,
+                        g,
                         args.jobs,
                         only,
                         log_dir / f"export-{stamp}-{k}.jsonl",
                     )
-                    for k, (d, o) in enumerate(zip(dirs, (first, second), strict=True), start=1)
+                    for k, (d, o, g) in enumerate(
+                        zip(
+                            dirs,
+                            (first, second),
+                            (args.gpu, args.second_gpu or args.gpu),
+                            strict=True,
+                        ),
+                        start=1,
+                    )
                 ]
                 results = [f.result() for f in futs]
             m1 = (first / "MANIFEST.sha256").read_bytes()
@@ -1279,10 +1347,14 @@ def verify_set(out: Path, scratch: Path, spec: dict | None = None) -> list[str]:
     for line in manifest.decode().splitlines():
         digest, rel = line.split("  ", 1)
         listed.add(rel)
-        if not (out / rel).is_file() or sha256_file(out / rel) != digest:
+        if not (out / rel).is_file() or content_sha256(out / rel) != digest:
             problems.append(f"{rel} differs from MANIFEST.sha256")
-    on_disk = {p.relative_to(out).as_posix() for p in out.rglob("*") if p.is_file()}
-    if on_disk - listed - {"MANIFEST.sha256"}:
+    on_disk = {
+        p.relative_to(out).as_posix()
+        for p in out.rglob("*")
+        if p.is_file() and not unhashed(p.relative_to(out).as_posix())
+    }
+    if on_disk - listed:
         problems.append(f"files not in the manifest: {sorted(on_disk - listed)[:5]}")
     cases = spec.get("cases", {})
     if sorted(cases) != sorted(case_names()):
