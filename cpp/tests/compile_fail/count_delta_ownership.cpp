@@ -47,7 +47,7 @@ struct work {
   return ops::count_delta<1>(exec, fw::sign::plus, 1, 10, work{}, scratch, out);
 #elif defined(DYNG_CF_TRIAD_NO_OWNERSHIP)
   dyng::detail::hyper::row_views views;
-  dyng::detail::triad_signed_bins bins{};
+  dyng::detail::triad_phase_bins bins;
   (void)dyng::detail::triad_host::count_phase(exec, dyng::triad_count::pattern::h_motif, views,
                                               nullptr, 0, nullptr, fw::sign::plus, scratch, bins);
   return 0;

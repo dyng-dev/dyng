@@ -79,6 +79,11 @@
  * sources: the same full count and the same frontier phases, with the same results on every
  * thread count). The counts are host arrays on every backend.
  *
+ * Limits: every count is exact up to 2^64 - 1 on every backend (C(|e|, 3), C(a, 2) * b * c and
+ * x * y * z are computed without an intermediate overflow; ESCHER-GPU's signed 64-bit arithmetic
+ * goes wrong from |e| = 2,097,152 for type 1); a count past 2^64 - 1 throws capacity_error, as
+ * does an update that changes one bin by 2^63 or more (stats::delta is signed 64-bit).
+ *
  * Types: int32_t vertex ids, unweighted or int32_t weights (other hypergraph types fail to compile
  * with a static_assert naming these).
  */
@@ -379,7 +384,7 @@ namespace dyng::triad_count {
  *         poisoned by a failed apply().
  * @throws not_supported_error    if the backend of `res` is not available for triad_count, or
  *         options::cuda_engine is engine::operators on cuda.
- * @throws capacity_error         if a count exceeds 2^64 - 1.
+ * @throws capacity_error         if a count exceeds 2^64 - 1 (on every backend).
  * @throws internal_error         if the device engine meets a triad it cannot classify (a library
  *         bug).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
@@ -430,8 +435,10 @@ template <typename vertex_t, typename weight_t>
  * @throws internal_error         if a bin would become negative, or the device engine meets a
  *         triad it cannot classify (a library bug; then the hypergraph was updated and `r` is left
  *         unusable).
- * @throws capacity_error         if a count exceeds 2^64 - 1 (after the batch was applied: `r` is
- *         left unusable), or the hypergraph's storage cannot hold the batch (as hypergraph::apply).
+ * @throws capacity_error         if a count exceeds 2^64 - 1 or the change of a bin is outside the
+ *         signed 64-bit range of stats::delta (2^63 or more triads added or removed on balance;
+ *         both after the batch was applied: `r` is left unusable), or the hypergraph's storage
+ *         cannot hold the batch (as hypergraph::apply).
  * @throws out_of_memory_error    if host or device memory cannot be allocated.
  * @throws cuda_error             if the CUDA runtime reports an error.
  * @sync The hypergraph and the counts are updated on return.

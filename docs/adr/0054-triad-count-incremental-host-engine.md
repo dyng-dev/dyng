@@ -8,6 +8,8 @@
   criteria 6, 8 (host), 10 and 11). It changes no rule the author approved: the parity is exact
   (PLAN 8.3), the gates and their protocol are untouched, no frozen header (`hypergraph/*`,
   `update.hpp`, `core/*`, `graph/*`) is edited, the CUDA engine's machine code is unchanged.
+- **Amended by:** ADR 0057 (2026-10-20): the phases run `count_owned` as unsigned magnitudes with
+  their signs beside them (the signed bins of `count_delta` refused a phase of 2^63 or more).
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step host-engine-kit-mutations);
   the scope change against PLAN 4.6 is the author's (D3)

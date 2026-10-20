@@ -4,6 +4,10 @@
   ADRs"), technical scope only: an internal-stable addition (PLAN 5.9: `cpp/src/operators/` changes
   need an ADR and must keep every in-tree algorithm green). M9a step 4 (PLAN 4.5.3, the rule of
   two; 4.5.5 I2 and I7; 8.5's micro-benchmark list names `count_delta`).
+- **Amended by:** ADR 0057 (2026-10-20): triad_count's phases use `count_owned` (unsigned, the
+  sign kept beside it) instead of `count_delta`, whose signed 64-bit bins cannot hold a phase of
+  2^63 or more triads; the operator's two users are triangle_delta (`count_delta`) and
+  triad_count (`count_owned`, full count and phases). The host bins handle gains `overflow()`.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step host-engine-kit-mutations)
 - **Builds on:** ADR 0033 (the executors and the tutorial algorithms), ADR 0054 (triad_count's

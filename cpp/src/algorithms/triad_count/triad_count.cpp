@@ -35,6 +35,7 @@
 #include <dyng/update.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -236,7 +237,7 @@ void triad_cuda_count_plus(const resources& /*res*/, triad_cuda_engine& /*e*/,
   no_cuda();
 }
 void triad_cuda_finalize(const resources& /*res*/, triad_cuda_engine& /*e*/,
-                         triad_signed_bins& /*minus*/, triad_signed_bins& /*plus*/) {
+                         triad_phase_bins& /*minus*/, triad_phase_bins& /*plus*/) {
   no_cuda();
 }
 void triad_cuda_take_launches(const triad_cuda_engine& /*e*/,
@@ -380,7 +381,7 @@ triad::wedge::launch host_phase(const resources& res, triad_count::pattern kind,
                                 const hyper::row_views& views, const int* keys, int n,
                                 const unsigned char* flags, framework::sign s,
                                 framework::ownership::min_member rule, std::uint64_t* scratch,
-                                triad_signed_bins& out) {
+                                triad_phase_bins& out) {
   if (res.get_backend() == backend::openmp) {
     return triad_openmp_phase(res, kind, views, keys, n, flags, s, rule, scratch, out);
   }
@@ -515,7 +516,7 @@ void triad_count_problem<vertex_t, weight_t>::finalize(framework::context& /*ctx
     framework::stamp_result(state_->version, state_->graph_state, *graph_);
     return;
   }
-  // As on cuda: the subtract and add phases' signed bins, applied once.
+  // As on cuda: the subtract and add phases (magnitudes and signs), applied once.
   add_launches(host_->launches, state_->launches);
   apply_delta(host_->minus, host_->plus, stats);
 }
@@ -529,37 +530,57 @@ void triad_count_problem<vertex_t, weight_t>::fill_counts(stats_type& stats) con
 }
 
 template <typename vertex_t, typename weight_t>
-void triad_count_problem<vertex_t, weight_t>::apply_delta(const triad_signed_bins& minus,
-                                                          const triad_signed_bins& plus,
+void triad_count_problem<vertex_t, weight_t>::apply_delta(const triad_phase_bins& minus,
+                                                          const triad_phase_bins& plus,
                                                           stats_type& stats) {
   constexpr const char* what = "triad_count::update";
+  constexpr auto largest = static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
   const int n = state_->num_bins;
-  triad_bins removed{};
-  triad_bins added{};
+  // ADR 0057: each phase holds unsigned magnitudes (exact up to 2^64 - 1 per bin) and the sign
+  // it counted with; the subtract phase must have counted with minus, the add phase with plus.
   // Check every bin first, so a failure writes nothing.
+  std::array<std::int64_t, triad_count::max_bins> delta{};
+  triad_bins after{};
   for (int k = 0; k < triad_count::max_bins; ++k) {
     const auto i = static_cast<std::size_t>(k);
-    if (minus[i] > 0 || plus[i] < 0 || (k >= n && (minus[i] != 0 || plus[i] != 0))) {
-      DYNG_FAIL(what, ": bin ", k, " of the device engine holds ", minus[i], " (subtract) and ",
-                plus[i], " (add), outside the pattern's signs or bins");
+    const std::uint64_t removed = minus.counts[i];
+    const std::uint64_t added = plus.counts[i];
+    if ((removed != 0 && minus.sign != framework::sign::minus) ||
+        (added != 0 && plus.sign != framework::sign::plus) ||
+        (k >= n && (removed != 0 || added != 0))) {
+      DYNG_FAIL(what, ": bin ", k, " of the engine holds ", removed,
+                " triads of the subtract phase (",
+                minus.sign == framework::sign::minus ? "subtracted" : "added", ") and ", added,
+                " of the add phase (", plus.sign == framework::sign::plus ? "added" : "subtracted",
+                "), outside the pattern's signs or bins");
     }
-    removed[i] = std::uint64_t{0} - static_cast<std::uint64_t>(minus[i]);  // -minus (<= 2^63)
-    added[i] = static_cast<std::uint64_t>(plus[i]);
-    const std::uint64_t grown = checked_add(state_->counts[i], added[i], what);
-    if (grown < removed[i]) {
+    // The count after, count + added - removed, without an intermediate past 2^64 - 1 (a batch
+    // may remove and add 2^63 or more triads of a bin).
+    const std::uint64_t before = state_->counts[i];
+    if (removed > before && added < removed - before) {
       DYNG_FAIL(what, " would make the count of bin ", k,
-                " negative (the result does not match the hypergraph: ", state_->counts[i], " + ",
-                added[i], " - ", removed[i], ")");
+                " negative (the result does not match the hypergraph: ", before, " + ", added,
+                " - ", removed, ")");
     }
+    after[i] =
+        removed <= before ? checked_add(before - removed, added, what) : added - (removed - before);
+    // stats::delta is signed 64-bit (PLAN I7): a net change of 2^63 or more cannot be reported.
+    if (added >= removed ? added - removed > largest : removed - added > largest + 1) {
+      throw capacity_error(concat_message(
+          "dyng: ", what, ": the change of bin ", k, " (", added, " triads added, ", removed,
+          " removed) is outside the signed 64-bit range of triad_count::stats::delta"));
+    }
+    delta[i] = added >= removed ? static_cast<std::int64_t>(added - removed)
+                                : static_cast<std::int64_t>(std::uint64_t{0} - (removed - added));
   }
-  stats.triads_removed = checked_total(removed, n, what);
-  stats.triads_added = checked_total(added, n, what);
+  stats.triads_removed = checked_total(minus.counts, n, what);
+  stats.triads_added = checked_total(plus.counts, n, what);
   std::int64_t affected = 0;
   for (int k = 0; k < n; ++k) {
     const auto i = static_cast<std::size_t>(k);
-    state_->counts[i] = state_->counts[i] + added[i] - removed[i];
-    stats.delta[i] = plus[i] + minus[i];
-    affected += plus[i] + minus[i] != 0 ? 1 : 0;
+    state_->counts[i] = after[i];
+    stats.delta[i] = delta[i];
+    affected += delta[i] != 0 ? 1 : 0;
   }
   stats.affected = affected;
   fill_counts(stats);
@@ -585,8 +606,8 @@ void triad_count_problem<vertex_t, weight_t>::enact_fused(framework::context& ct
                           ownership_type{});
   }
   scoped_stage stage(res, names.finalize);
-  triad_signed_bins minus{};
-  triad_signed_bins plus{};
+  triad_phase_bins minus;
+  triad_phase_bins plus;
   triad_cuda_finalize(res, *cuda_, minus, plus);
   triad_cuda_take_launches(*cuda_, state_->launches);
   apply_delta(minus, plus, stats);

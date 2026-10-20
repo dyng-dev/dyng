@@ -5,8 +5,10 @@
  * @brief Device tests of triad_count's wedge engine (M9a criterion 9): the class of every one of
  *        the 128 Venn-region patterns through MotifOp and the engine's bins handle on the device,
  *        where a pattern of no class raises the device error word and never writes bins[-1]; the
- *        same patterns through the host copy of the class map.
+ *        same patterns through the host copy of the class map; the exact arithmetic of the
+ *        operations and the capacity bit of the device bins (ADR 0057).
  */
+#include "algorithms/triad_count/engine/exact.hpp"
 #include "algorithms/triad_count/engine/motif_ops.hpp"
 #include "algorithms/triad_count/engine/wedge.cuh"
 #include "util/device_error_flags.hpp"
@@ -19,6 +21,8 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
+#include <tuple>
 #include <vector>
 
 namespace {
@@ -48,7 +52,7 @@ __global__ void classify_kernel(unsigned long long* out_bins, unsigned long long
   __syncthreads();
   if (threadIdx.x == 0) {
     const regions r = regions_of(id);
-    triad::wedge::block_bins<30> bins{shared + 1, out_error + id};
+    triad::wedge::block_bins<30, false> bins{shared + 1, out_error + id};
     bins.add(triad::compute_motif_index(r.deg_a, r.deg_b, r.deg_c, r.c_ab, r.c_bc, r.c_ca, r.g),
              1ULL);
   }
@@ -109,6 +113,121 @@ TEST(TriadCountKernels, EveryVennPatternGetsItsClassOrRaisesTheErrorWord) {
     }
   }
   EXPECT_EQ(classified, 96);  // 96 ids in the 30 classes, 32 in none
+}
+
+/// The exact arithmetic of the operations (engine/exact.hpp, ADR 0057) on the device: C(n, 3)
+/// and the checked products and sums, against the host's.
+__global__ void exact_kernel(const int* n, int count, unsigned long long* values, int* overflows) {
+  const int i = static_cast<int>(blockIdx.x * blockDim.x + threadIdx.x);
+  if (i >= count) return;
+  overflows[i] = triad::choose3_overflows(n[i], values[i]) ? 1 : 0;
+}
+
+__global__ void checked_kernel(unsigned long long a, unsigned long long b, int* overflows) {
+  unsigned long long out = 0;
+  overflows[0] = triad::mul_overflows(a, b, out) ? 1 : 0;
+  overflows[1] = triad::add_overflows(a, b, out) ? 1 : 0;
+}
+
+/// An operation of one bin without a sum of its own (for flush_bins()).
+struct one_bin_op {
+  static constexpr int num_bins = 1;
+  __device__ void flush(triad::wedge::block_bins<1, true>& /*bins*/) {}
+};
+
+/// The checked bins handle: two adds whose sum carries past 2^64 - 1 set the capacity bit, as
+/// does overflow(); the flush into the call's bins carries too.
+__global__ void carry_kernel(unsigned long long* out, unsigned long long* error, int which) {
+  __shared__ unsigned long long shared[1];
+  if (threadIdx.x == 0) shared[0] = 0;
+  __syncthreads();
+  triad::wedge::block_bins<1, true> bins{shared, error};
+  one_bin_op op;
+  if (threadIdx.x == 0) {
+    if (which == 0) {
+      bins.add(0, 1ULL << 63);
+      bins.add(0, 1ULL << 63);  // carries
+    } else if (which == 1) {
+      bins.overflow();
+    } else {
+      bins.add(0, 1ULL << 63);  // out already holds 2^63: the flush carries
+    }
+  }
+  triad::wedge::flush_bins(op, bins, out);
+}
+
+TEST(TriadCountKernels, ExactArithmeticAndTheCapacityBitOnTheDevice) {
+  int devices = 0;
+  if (cudaGetDeviceCount(&devices) != cudaSuccess || devices == 0) {
+    GTEST_SKIP() << "no CUDA device";
+  }
+  const std::vector<int> n = {
+      0,         2,         3,         4,         1000,      2'097'151,    2'097'152,
+      2'100'000, 2'642'246, 3'000'000, 4'801'280, 4'801'281, 2'147'483'647};
+  int* d_n = nullptr;
+  unsigned long long* d_values = nullptr;
+  int* d_over = nullptr;
+  ASSERT_EQ(cudaMalloc(&d_n, sizeof(int) * n.size()), cudaSuccess);
+  ASSERT_EQ(cudaMalloc(&d_values, sizeof(unsigned long long) * n.size()), cudaSuccess);
+  ASSERT_EQ(cudaMalloc(&d_over, sizeof(int) * n.size()), cudaSuccess);
+  ASSERT_EQ(cudaMemcpy(d_n, n.data(), sizeof(int) * n.size(), cudaMemcpyHostToDevice), cudaSuccess);
+  exact_kernel<<<1, 32>>>(d_n, static_cast<int>(n.size()), d_values, d_over);
+  ASSERT_EQ(cudaGetLastError(), cudaSuccess);
+  std::vector<unsigned long long> values(n.size());
+  std::vector<int> over(n.size());
+  ASSERT_EQ(cudaMemcpy(values.data(), d_values, sizeof(unsigned long long) * n.size(),
+                       cudaMemcpyDeviceToHost),
+            cudaSuccess);
+  ASSERT_EQ(cudaMemcpy(over.data(), d_over, sizeof(int) * n.size(), cudaMemcpyDeviceToHost),
+            cudaSuccess);
+  for (std::size_t i = 0; i < n.size(); ++i) {
+    SCOPED_TRACE("n = " + std::to_string(n[i]));
+    unsigned long long host = 0;
+    const bool host_over = triad::choose3_overflows(n[i], host);
+    EXPECT_EQ(over[i] != 0, host_over);
+    if (!host_over) EXPECT_EQ(values[i], host);
+  }
+  EXPECT_EQ(values[7], 1543497795000700000ULL);    // C(2,100,000, 3): above 2^63 - 1 as n^3 / 6
+  EXPECT_EQ(values[9], 4499995500001000000ULL);    // C(3,000,000, 3)
+  EXPECT_EQ(values[10], 18446738006366306560ULL);  // C(4,801,280, 3): the largest that fits
+  EXPECT_EQ(over[11], 1);                          // C(4,801,281, 3) > 2^64 - 1
+  EXPECT_EQ(over[12], 1);
+
+  for (const auto& [a, b, mul, add] :
+       {std::tuple<unsigned long long, unsigned long long, int, int>{1ULL << 32, 1ULL << 31, 0, 0},
+        {1ULL << 32, 1ULL << 32, 1, 0},
+        {~0ULL, 1, 0, 1},
+        {1ULL << 63, 2, 1, 0}}) {
+    checked_kernel<<<1, 1>>>(a, b, d_over);
+    ASSERT_EQ(cudaGetLastError(), cudaSuccess);
+    std::array<int, 2> got{};
+    ASSERT_EQ(cudaMemcpy(got.data(), d_over, sizeof(int) * 2, cudaMemcpyDeviceToHost), cudaSuccess);
+    EXPECT_EQ(got[0], mul) << a << " * " << b;
+    EXPECT_EQ(got[1], add) << a << " + " << b;
+  }
+
+  const auto capacity =
+      static_cast<unsigned long long>(dyng::detail::bits_of(dyng::detail::device_error::capacity));
+  unsigned long long* d_out = nullptr;
+  unsigned long long* d_error = nullptr;
+  ASSERT_EQ(cudaMalloc(&d_out, sizeof(unsigned long long)), cudaSuccess);
+  ASSERT_EQ(cudaMalloc(&d_error, sizeof(unsigned long long)), cudaSuccess);
+  for (int which = 0; which < 3; ++which) {
+    SCOPED_TRACE("case " + std::to_string(which));
+    const unsigned long long start = which == 2 ? 1ULL << 63 : 0;
+    ASSERT_EQ(cudaMemcpy(d_out, &start, sizeof start, cudaMemcpyHostToDevice), cudaSuccess);
+    ASSERT_EQ(cudaMemset(d_error, 0, sizeof(unsigned long long)), cudaSuccess);
+    carry_kernel<<<1, 32>>>(d_out, d_error, which);
+    ASSERT_EQ(cudaGetLastError(), cudaSuccess);
+    unsigned long long error = 0;
+    ASSERT_EQ(cudaMemcpy(&error, d_error, sizeof error, cudaMemcpyDeviceToHost), cudaSuccess);
+    EXPECT_EQ(error, capacity);
+  }
+  cudaFree(d_out);
+  cudaFree(d_error);
+  cudaFree(d_n);
+  cudaFree(d_values);
+  cudaFree(d_over);
 }
 
 }  // namespace

@@ -57,6 +57,9 @@ static inline DYNG_TRIAD_HD int compute_motif_index(int deg_a, int deg_b, int de
 // come from a single merge over the three H2V rows.
 struct motif_op {
   static constexpr int num_bins = 30;
+  // dynG (ADR 0057): every add is 1, so a block's bins cannot pass 2^64 - 1 and the device's
+  // shared bins are added to unchecked on this hot path (wedge.cuh); the global bins are checked.
+  static constexpr bool unit_counts = true;
   const int* row_a;
   const int* row_b;
   int da, db, cab;

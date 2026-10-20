@@ -19,9 +19,10 @@
  * owned their bins (DeviceBins, the delta accumulator) and allocated a DeviceFrontier per phase;
  * here the bins, the frontier and the wedge scratch are the caller's workspace, so a counter is its
  * pattern's choice of shape and operation: count_full() is the classes' count(), count_phase()
- * their phase() (subtract() with the deleted keys and sign -1, add() with the inserted keys and
- * sign +1). The bins of one call: 30 of the subtract phase, 30 of the add phase (kept apart), and
- * the device error word of motif_op.
+ * their phase() (subtract() with the deleted keys, add() with the inserted keys; dynG, ADR 0057:
+ * both as unsigned magnitudes, the signs applied on the host). The bins of one call: 30 of the
+ * subtract phase, 30 of the add phase (kept apart), and the device error word (motif_op's pattern
+ * of no class; a count past 2^64 - 1).
  */
 #pragma once
 
@@ -50,13 +51,13 @@ wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& view
                          const wedge::scratch& s);
 
 // One frontier phase of a pattern (ESCHER-GPU's runFrontierPhase and the counters' phase()):
-// sign x the triads (pairs, keys) through the frontier keys d_keys[0..num_keys), each counted at
-// its smallest frontier member (the rule `rule`, ownership.hpp; flags d_flags over the line
-// graph's keys), added to d_bins.
+// the triads (pairs, keys) through the frontier keys d_keys[0..num_keys), each counted at its
+// smallest frontier member (the rule `rule`, ownership.hpp; flags d_flags over the line graph's
+// keys), added to d_bins as unsigned magnitudes (dynG, ADR 0057: the caller keeps the phase's
+// sign; a count past 2^64 - 1 sets the capacity bit of d_error).
 wedge::launch count_phase(triad_count::pattern kind, const hyper::row_views& views,
                           const int* d_keys, int num_keys, const unsigned char* d_flags,
-                          framework::ownership::min_member rule, long long sign,
-                          unsigned long long* d_bins, unsigned long long* d_error,
-                          const wedge::scratch& s);
+                          framework::ownership::min_member rule, unsigned long long* d_bins,
+                          unsigned long long* d_error, const wedge::scratch& s);
 
 }  // namespace dyng::detail::triad

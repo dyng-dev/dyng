@@ -24,12 +24,12 @@
  *     (triad_count.identify_affected: the frontier of the ASSIGNED inserted ids, from the applied
  *     record's device copy), count_plus (triad_count.count_plus: the add phase on G_{t+1}'s
  *     internal row views) and finalize (triad_count.finalize: one read of both phases' bins, the
- *     signed delta applied, a negative bin an internal_error);
+ *     two phases applied, a negative bin an internal_error);
  *   - host backends, Tier A (the incremental host engine, host_engine.hpp; ADR 0054): count(-)
  *     on G_t (triad_count.count_minus: the frontier of Step 0's deletions, the subtract phase),
  *     identify_affected (triad_count.identify_affected: the frontier of the ASSIGNED inserted
  *     ids), count(+) (triad_count.count_plus: the add phase on G_{t+1}) and finalize
- *     (triad_count.finalize: the signed delta applied as on cuda, a negative bin an
+ *     (triad_count.finalize: the two phases applied as on cuda, a negative bin an
  *     internal_error);
  *   - end_update (no stage): record the hypergraph state the result matches, return the scratch.
  * compute() is the static enactor: reset (triad_count.reset) -> count (triad_count.count, the
@@ -76,13 +76,21 @@ namespace dyng::detail {
 
 /// The counts of one result (num_bins() of them are used).
 using triad_bins = std::array<std::uint64_t, triad_count::max_bins>;
-/// The signed bins of one phase of an update (two's complement on the device).
-using triad_signed_bins = std::array<std::int64_t, triad_count::max_bins>;
+/**
+ * @brief One phase of an update: the sign it counts with and its triads per bin as unsigned
+ *        magnitudes (ADR 0057: a phase of 2^63 or more triads in a bin is exact; signed 64-bit
+ *        phase bins refused it). The subtract and the add phase are kept apart; apply_delta()
+ *        checks the signs and applies both once.
+ */
+struct triad_phase_bins {
+  framework::sign sign = framework::sign::plus;  ///< the sign the phase counted with
+  triad_bins counts{};                           ///< the phase's triads per bin
+};
 
 /**
  * @brief The launch counters of the engines (M9a criterion 9), per mode (0: the full count, 1: a
  *        frontier phase) and shape (0: triangles, 1: pairs, 2: keys): the counting passes (kernels
- *        on cuda, count_delta passes on the host backends) and the calls that ended at one of the
+ *        on cuda, count_owned passes on the host backends) and the calls that ended at one of the
  *        two early outs (no sources: an empty frontier; no wedges: sources without a wedge). Kept
  *        by the result across its calls.
  */
@@ -143,7 +151,7 @@ struct triad_count_access {
 struct triad_host_workspace final : pooled_workspace {
   scratch_buffer<int> keys;             ///< the frontier's keys (id + 1)
   scratch_buffer<unsigned char> flags;  ///< a flag per line-graph key (the frontier)
-  scratch_buffer<std::uint64_t> bins;   ///< count_delta's bins, one set per thread
+  scratch_buffer<std::uint64_t> bins;   ///< count_owned's bins, one set per thread
 
   /// The memory held.
   [[nodiscard]] std::size_t bytes() const noexcept override {
@@ -159,8 +167,8 @@ struct triad_host_engine {
   int num_keys = 0;                ///< the keys of the current phase's frontier
   int max_keys = 0;                ///< the frontier keys reserved
   std::int64_t max_flags = 0;      ///< the flags reserved
-  triad_signed_bins minus{};       ///< the subtract phase's bins (<= 0)
-  triad_signed_bins plus{};        ///< the add phase's bins (>= 0)
+  triad_phase_bins minus;          ///< the subtract phase (sign minus)
+  triad_phase_bins plus;           ///< the add phase (sign plus)
   triad_launch_counters launches;  ///< this call's passes
 };
 
@@ -193,15 +201,15 @@ triad::wedge::launch triad_sequential_full(const resources& res, triad_count::pa
  * @param[in]     s       The phase's sign.
  * @param[in]     rule    The exactly-once rule (invariant I2).
  * @param[out]    scratch triad_host_scratch_words(res) words.
- * @param[in,out] out     The phase's signed bins.
+ * @param[out]    out     The phase: its sign and its triads per bin.
  * @return The outcome.
- * @throws internal_error for a triad of no class; capacity_error past the 64-bit range.
+ * @throws internal_error for a triad of no class; capacity_error if a count exceeds 2^64 - 1.
  */
 triad::wedge::launch triad_sequential_phase(const resources& res, triad_count::pattern kind,
                                             const hyper::row_views& views, const int* keys, int n,
                                             const unsigned char* flags, framework::sign s,
                                             framework::ownership::min_member rule,
-                                            std::uint64_t* scratch, triad_signed_bins& out);
+                                            std::uint64_t* scratch, triad_phase_bins& out);
 
 /**
  * @brief The full count on the OpenMP backend (as triad_sequential_full(), on
@@ -232,15 +240,15 @@ triad::wedge::launch triad_openmp_full(const resources& res, triad_count::patter
  * @param[in]     s       The phase's sign.
  * @param[in]     rule    The exactly-once rule.
  * @param[out]    scratch triad_host_scratch_words(res) words.
- * @param[in,out] out     The phase's signed bins.
+ * @param[out]    out     The phase: its sign and its triads per bin.
  * @return The outcome.
- * @throws internal_error for a triad of no class; capacity_error past the 64-bit range.
+ * @throws internal_error for a triad of no class; capacity_error if a count exceeds 2^64 - 1.
  */
 triad::wedge::launch triad_openmp_phase(const resources& res, triad_count::pattern kind,
                                         const hyper::row_views& views, const int* keys, int n,
                                         const unsigned char* flags, framework::sign s,
                                         framework::ownership::min_member rule,
-                                        std::uint64_t* scratch, triad_signed_bins& out);
+                                        std::uint64_t* scratch, triad_phase_bins& out);
 
 /**
  * @brief The scratch words of the host engine's counts on the backend of `res` (sequential.cpp,
@@ -310,10 +318,12 @@ struct triad_cuda_engine {
   triad_count::pattern kind = triad_count::pattern::h_motif;      ///< the pattern
   std::optional<workspace_pool::lease<triad_cuda_workspace>> ws;  ///< the device memory
   std::size_t scan_bytes = 0;                                     ///< the reserved CUB storage
-  int num_keys = 0;                ///< the keys of the current phase's frontier
-  int max_keys = 0;                ///< the frontier keys (and wedge sources) reserved
-  std::int64_t max_flags = 0;      ///< the flags reserved
-  triad_launch_counters launches;  ///< this call's launches
+  int num_keys = 0;            ///< the keys of the current phase's frontier
+  int max_keys = 0;            ///< the frontier keys (and wedge sources) reserved
+  std::int64_t max_flags = 0;  ///< the flags reserved
+  framework::sign minus_sign = framework::sign::minus;  ///< the subtract phase's sign
+  framework::sign plus_sign = framework::sign::plus;    ///< the add phase's sign
+  triad_launch_counters launches;                       ///< this call's launches
 };
 
 /**
@@ -380,12 +390,13 @@ void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
  * @brief update() on cuda, finalize: the bins of both phases on the host.
  * @param[in]     res   Resources of the CUDA backend.
  * @param[in,out] e     The engine.
- * @param[out]    minus The subtract phase's bins (<= 0: minus the triads removed).
- * @param[out]    plus  The add phase's bins (>= 0: the triads added).
- * @throws internal_error if the device engine raised its error word (an unclassifiable triad).
+ * @param[out]    minus The subtract phase (its sign and the triads removed per bin).
+ * @param[out]    plus  The add phase (its sign and the triads added per bin).
+ * @throws internal_error if the device engine raised its error word for an unclassifiable triad;
+ *         capacity_error if it raised it for a count past 2^64 - 1.
  */
-void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_signed_bins& minus,
-                         triad_signed_bins& plus);
+void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_phase_bins& minus,
+                         triad_phase_bins& plus);
 
 /**
  * @brief Add the engine's launch counters of this call to `into`.
@@ -508,9 +519,8 @@ class triad_count_problem final
   void compute_fused(framework::context& ctx, new_graph g, stats_type& stats);
 
  private:
-  /// The signed delta of both phases applied to the counts, and the stats.
-  void apply_delta(const triad_signed_bins& minus, const triad_signed_bins& plus,
-                   stats_type& stats);
+  /// Both phases applied to the counts (their signs checked), and the stats.
+  void apply_delta(const triad_phase_bins& minus, const triad_phase_bins& plus, stats_type& stats);
   /// The counters of the update in the stats (all but the bins).
   void fill_counts(stats_type& stats) const;
   /// Host backends: lease the host engine's workspace for the call and size its scratch.

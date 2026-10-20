@@ -8,7 +8,8 @@
  *        wedge engine transliterated to loops over the internal row views in host memory, with the
  *        CUDA engine's operations (engine/count_ops.hpp, motif_ops.hpp, stathyper_ops.hpp), its
  *        exactly-once rule (engine/ownership.hpp) and its shared pieces (engine/phases.hpp), run by
- *        operators::count_delta on an executor (M9a step 4, ADR 0054).
+ *        operators::count_owned (count_delta.hpp) on an executor (M9a step 4, ADR 0054; the
+ *        phases as unsigned magnitudes, ADR 0057).
  *
  * One count is a pattern's shape over a set of source keys, the work of one source being what
  * the device engine's threads do for that source's wedges (engine/wedge.cuh):
@@ -29,10 +30,12 @@
  * count's type-1 sources are 1..views.h2v.max_key; the frontiers hold live ids); the flags cover
  * the line graph's keys 0..views.h2h.max_key.
  *
- * count_delta gives every thread private bins and adds them up in thread order after the pass,
- * so 1, 8 or 56 OpenMP threads give the same counts (a static partition of the sources). A
- * pattern of no class (motif_op's bin -1) and a count past the 64-bit range are reported by
- * count_delta and raised here: internal_error and capacity_error.
+ * count_owned gives every thread private bins and adds them up in thread order after the pass,
+ * so 1, 8 or 56 OpenMP threads give the same counts (a static partition of the sources). A phase
+ * is counted as unsigned magnitudes with its sign beside them (triad_phase_bins; ADR 0057: a
+ * phase of 2^63 or more triads in a bin is exact), as on cuda. A pattern of no class (motif_op's
+ * bin -1) and a count past 2^64 - 1 (an operation's product or sum, a thread's bin, a total) are
+ * reported by count_owned and raised here: internal_error and capacity_error.
  */
 #pragma once
 
@@ -103,7 +106,7 @@ struct triangle_item {
   const int* keys;                   ///< the frontier's keys (nullptr: the full count)
   const unsigned char* in_frontier;  ///< the frontier's flags (nullptr: the full count)
 
-  /// Source s (operators::count_delta's element), its counts added to `bins`.
+  /// Source s (operators::count_owned's element), its counts added to `bins`.
   template <class bins_t>
   void operator()(std::int64_t s, framework::ownership::min_member /*rule*/, bins_t& bins) const {
     const bool all_neighbours = keys != nullptr;
@@ -188,7 +191,7 @@ struct key_item {
   }
 };
 
-/// Raise count_delta's error bits (after the pass: the result is poisoned by the caller).
+/// Raise count_owned's error bits (after the pass: the result is poisoned by the caller).
 inline void raise_status(std::uint32_t status, const char* what) {
   if ((status & operators::count_invalid_bin) != 0) {
     DYNG_FAIL(what, ": a triangle of the line graph has a Venn pattern of no h-motif class");
@@ -207,7 +210,7 @@ inline void raise_status(std::uint32_t status, const char* what) {
  * @param[in] n     The sources.
  * @param[in] flags The frontier's flags (nullptr: the full count).
  * @param[in] run   Called once with the source work of the pattern's shape (a triangle_item,
- *                  pair_item or key_item): the pass (count_owned or count_delta with the op's
+ *                  pair_item or key_item): the pass (count_owned with the op's
  *                  bins, bins_of).
  * @return The outcome.
  */
@@ -303,8 +306,9 @@ triad::wedge::launch count_full(const exec_t& exec, triad_count::pattern kind,
 }
 
 /**
- * @brief One frontier phase of update(): `s` x the triads (pairs, keys) through the frontier's
- *        keys, each counted once at its smallest frontier member (`rule`), added to `out`.
+ * @brief One frontier phase of update(): the triads (pairs, keys) through the frontier's keys,
+ *        each counted once at its smallest frontier member (`rule`), as unsigned magnitudes with
+ *        the phase's sign beside them (ADR 0057; count_owned, the sign applied by apply_delta()).
  * @tparam exec_t The executor.
  * @param[in]     exec    The executor.
  * @param[in]     kind    The pattern.
@@ -316,20 +320,22 @@ triad::wedge::launch count_full(const exec_t& exec, triad_count::pattern kind,
  *                        ASSIGNED inserted ids).
  * @param[in]     rule    The exactly-once rule (invariant I2), passed explicitly.
  * @param[out]    scratch scratch_words(exec) words.
- * @param[in,out] out     The phase's signed bins.
+ * @param[out]    out     The phase: `s` and its triads per bin.
  * @return The outcome.
- * @throws internal_error for a triad of no class; capacity_error past the 64-bit range.
+ * @throws internal_error for a triad of no class; capacity_error if a count exceeds 2^64 - 1.
  */
 template <typename exec_t>
 triad::wedge::launch count_phase(const exec_t& exec, triad_count::pattern kind,
                                  const hyper::row_views& views, const int* keys, int n,
                                  const unsigned char* flags, framework::sign s,
                                  framework::ownership::min_member rule, std::uint64_t* scratch,
-                                 triad_signed_bins& out) {
+                                 triad_phase_bins& out) {
   std::uint32_t status = 0;
+  out.sign = s;
+  out.counts.fill(0);
   const triad::wedge::launch outcome = dispatch(kind, views, keys, n, flags, [&](const auto& item) {
     constexpr int bins = bins_of<std::decay_t<decltype(item)>>::value;
-    status = operators::count_delta<bins>(exec, s, rule, n, item, scratch, out.data());
+    status = operators::count_owned<bins>(exec, rule, n, item, scratch, out.counts.data());
   });
   raise_status(status, "triad_count::update");
   return outcome;

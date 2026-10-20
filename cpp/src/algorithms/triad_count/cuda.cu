@@ -61,11 +61,6 @@ cudaStream_t native(const resources& res) noexcept {
   return static_cast<cudaStream_t>(res.stream().get());
 }
 
-/// The engine's sign of a phase (-1: subtract, +1: add).
-long long sign_of(framework::sign s) noexcept {
-  return s == framework::sign::minus ? -1 : 1;
-}
-
 /// The pinned slot of the wedge count, after the bins.
 constexpr int wedge_slot = triad::bin_slots;
 
@@ -107,6 +102,17 @@ triad::wedge::scratch scratch_of(const resources& res, triad_cuda_engine& e, boo
   s.stream = native(res);
   s.host_wedges = reinterpret_cast<long long*>(e.ws->get().host.data() + wedge_slot);
   return s;
+}
+
+/// Raise the call's device error word (read with the bins): internal_error for a triad of no
+/// class, capacity_error for a count past 2^64 - 1 (ADR 0057).
+void raise_device_errors(const unsigned long long* values, const char* what) {
+  const auto word = static_cast<std::uint32_t>(values[triad::error_slot]);
+  if (word == 0) return;
+  throw_device_errors(word, what,
+                      (word & bits_of(device_error::internal)) != 0
+                          ? "a triangle of the line graph has a Venn pattern of no h-motif class"
+                          : "a count exceeds 2^64 - 1");
 }
 
 /// Read the bins of the call into the pinned buffer (the host synchronization of its end).
@@ -191,11 +197,7 @@ void triad_cuda_compute(const resources& res, triad_cuda_engine& e, const hyper:
   // The offsets of a full count (one per key: 20 MB on coauth-DBLP) are not kept for the updates.
   ws.full_offsets.release();
   ws.full_scan_temp.release();
-  const auto word = static_cast<std::uint32_t>(values[triad::error_slot]);
-  if (word != 0) {
-    throw_device_errors(word, "triad_count::compute",
-                        "a triangle of the line graph has a Venn pattern of no h-motif class");
-  }
+  raise_device_errors(values, "triad_count::compute");
   counts.fill(0);
   for (int k = 0; k < triad_num_bins(e.kind); ++k) {
     counts[static_cast<std::size_t>(k)] = values[static_cast<std::size_t>(k)];
@@ -217,6 +219,7 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
   ws.ids.reserve(res, static_cast<std::size_t>(std::max(deleted, 1)));
   ws.keys.reserve(res, static_cast<std::size_t>(std::max(sources, 1)));
   e.max_keys = sources;
+  e.minus_sign = s;
   reserve_wedges(res, e, sources);
   if (triad_reads_line_graph(e.kind)) {
     e.max_flags = static_cast<std::int64_t>(views.h2h.max_key) + insertions + 1;
@@ -235,7 +238,7 @@ void triad_cuda_count_minus(const resources& res, triad_cuda_engine& e,
   build_frontier(res, e, ws.ids.data(), deleted, views);
   record(
       e, 1,
-      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), rule, sign_of(s),
+      triad::count_phase(e.kind, views, ws.keys.data(), deleted, ws.flags.data(), rule,
                          ws.bins.data(), ws.bins.data() + triad::error_slot, scratch_of(res, e)));
 }
 
@@ -261,25 +264,24 @@ void triad_cuda_count_plus(const resources& res, triad_cuda_engine& e,
                            framework::ownership::min_member rule) {
   const scoped_device guard(res.device());
   triad_cuda_workspace& ws = e.ws->get();
+  e.plus_sign = s;
   record(e, 1,
          triad::count_phase(e.kind, views, ws.keys.data(), e.num_keys, ws.flags.data(), rule,
-                            sign_of(s), ws.bins.data() + triad::phase_bins,
-                            ws.bins.data() + triad::error_slot, scratch_of(res, e)));
+                            ws.bins.data() + triad::phase_bins, ws.bins.data() + triad::error_slot,
+                            scratch_of(res, e)));
 }
 
-void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_signed_bins& minus,
-                         triad_signed_bins& plus) {
+void triad_cuda_finalize(const resources& res, triad_cuda_engine& e, triad_phase_bins& minus,
+                         triad_phase_bins& plus) {
   const scoped_device guard(res.device());
   const unsigned long long* values = read_bins(res, e);
-  const auto word = static_cast<std::uint32_t>(values[triad::error_slot]);
-  if (word != 0) {
-    throw_device_errors(word, "triad_count::update",
-                        "a triangle of the line graph has a Venn pattern of no h-motif class");
-  }
-  // Two's complement: the subtract phase's bins hold -(the triads removed).
-  for (std::size_t k = 0; k < minus.size(); ++k) {
-    minus[k] = static_cast<std::int64_t>(values[k]);
-    plus[k] = static_cast<std::int64_t>(values[triad::phase_bins + k]);
+  raise_device_errors(values, "triad_count::update");
+  // ADR 0057: both phases' bins hold unsigned magnitudes; their signs are the phases'.
+  minus.sign = e.minus_sign;
+  plus.sign = e.plus_sign;
+  for (std::size_t k = 0; k < minus.counts.size(); ++k) {
+    minus.counts[k] = values[k];
+    plus.counts[k] = values[triad::phase_bins + k];
   }
 }
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 # The hand cases and property tests of triad_count (PLAN Section 4.8, file 12; M9a criteria 5, 6,
-# 8, 9, 10): triad_count_test.cpp on the host backends (dyng_triad_count_tests) and, in CUDA builds,
+# 8, 9, 10; the 64-bit limits of ADR 0057): triad_count_test.cpp on the host backends (dyng_triad_count_tests) and, in CUDA builds,
 # on cuda with the device tests of the engine (dyng_triad_count_cuda_tests; the kit's fake partner
 # of the composition case counts with kernels). Its conformance suites are built by
 # cpp/tests/CMakeLists.txt.
@@ -37,7 +37,23 @@ target_compile_definitions(
   dyng_triad_count_make_test_large_tests PRIVATE DYNG_TEST_DATA_DIR="${DYNG_TEST_DATA_DIR}"
                                                  DYNG_TRIAD_MAKE_TEST_LARGE=1
 )
+# The 64-bit limits (ADR 0057): hyperedges of millions of members, so parity and slow on the host
+# (ci/check.sh's parity step, a Release build) and gpu on cuda.
+dyng_add_test(
+  NAME dyng_triad_count_limits_tests
+  SOURCES triad_count_limits_test.cpp
+  LABELS parity triad_count slow
+  LIBRARIES dyng::testing
+)
 if(DYNG_ENABLE_CUDA)
+  dyng_add_test(
+    NAME dyng_triad_count_limits_cuda_tests
+    SOURCES triad_count_limits_test.cpp
+    LABELS gpu triad_count
+    LIBRARIES dyng::testing
+    TEST_PREFIX cuda.
+  )
+  target_compile_definitions(dyng_triad_count_limits_cuda_tests PRIVATE DYNG_TEST_CUDA=1)
   dyng_add_test(
     NAME dyng_triad_count_cuda_tests
     SOURCES triad_count_test.cpp triad_count_kernels_test.cu ../../framework/fake_hyper_kernels.cu

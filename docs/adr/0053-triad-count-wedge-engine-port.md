@@ -6,6 +6,9 @@
   8 (cuda) and 9). It changes no rule the author approved: the parity is exact (PLAN 8.3), the
   gates and their protocol (PLAN 8.6, ADR 0048, D1) are untouched, the frozen headers
   (`hypergraph/*`, `update.hpp`, `core/*`, `graph/*`) are not edited.
+- **Amended by:** ADR 0057 (2026-10-20): the device bins hold unsigned magnitudes with a carry test
+  (the capacity bit of the error word), the kernels take no sign, the operations' products are
+  exact or flagged.
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step cuda-port-api-early-gate)
 - **Builds on:** ADR 0038 (the transplant method of the CBST store), ADR 0042 (the line-graph port

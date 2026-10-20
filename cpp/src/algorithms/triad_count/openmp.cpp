@@ -30,7 +30,7 @@ triad::wedge::launch triad_openmp_phase(const resources& res, triad_count::patte
                                         const hyper::row_views& views, const int* keys, int n,
                                         const unsigned char* flags, framework::sign s,
                                         framework::ownership::min_member rule,
-                                        std::uint64_t* scratch, triad_signed_bins& out) {
+                                        std::uint64_t* scratch, triad_phase_bins& out) {
   return triad_host::count_phase(operators::openmp_exec(res), kind, views, keys, n, flags, s, rule,
                                  scratch, out);
 }

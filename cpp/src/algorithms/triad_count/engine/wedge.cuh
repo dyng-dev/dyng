@@ -4,7 +4,7 @@
 /**
  * @file wedge.cuh
  * @brief The wedge-parallel counting kernels: one thread per oriented wedge, the frontier filters
- *        of the exactly-once rule, the block bins and their signed flush, and the set primitives on
+ *        of the exactly-once rule, the block bins and their flush, and the set primitives on
  *        sorted rows (ESCHER-GPU's kernel/wedge.cuh).
  *
  * Ported from ESCHER-GPU@abcf9b2 with the renames of parity/escher_port/rename_map_triad.toml (M9a,
@@ -25,8 +25,9 @@
 // Mapping one thread per wedge instead of one thread per hyperedge balances
 // the work of hub rows across many threads; rows are read through the
 // key-indexed escher::row_view (no BST walks in the inner loops). Each block
-// accumulates into private 64-bit bins that are flushed once with a sign
-// (+1 add, -1 subtract; signed values in two's complement).
+// accumulates into private 64-bit bins that are flushed once (dynG, ADR 0057: as unsigned
+// magnitudes with a carry test; ESCHER-GPU flushed them with a sign, +1 add, -1 subtract, in
+// two's complement).
 //
 // An op_t provides:
 //   static constexpr int num_bins;
@@ -127,10 +128,17 @@ __device__ __forceinline__ void for_each_wedge(const escher::row_view& adj, cons
 // name a bin at or above their num_bins (their classes and bin 0), so that bound is not tested on
 // the hot path (the test costs an instruction per triangle; M9b's operations of users may take a
 // handle that tests it).
-template <int count>
+// dynG (ADR 0057): every bin holds an unsigned magnitude (the phase's sign is applied on the host)
+// and a count past 2^64 - 1 sets the capacity bit of the error word (capacity_error) instead of
+// wrapping: overflow() for an operation's own sum, a carry test in add() for the operations that
+// add more than 1 (`checked`; motif_op adds 1 per triangle, which cannot carry a block's bin: at
+// most 2^63 triangles per block, a thread's wedges times fewer than 2^31 closings each).
+template <int count, bool checked>
 struct block_bins {
   static constexpr unsigned long long invalid_bin =
       static_cast<unsigned long long>(bits_of(device_error::internal));
+  static constexpr unsigned long long too_large =
+      static_cast<unsigned long long>(bits_of(device_error::capacity));
   unsigned long long* shared;
   unsigned long long* error;
   __device__ __forceinline__ void add(int bin, unsigned long long value) const {
@@ -138,19 +146,36 @@ struct block_bins {
       atomicOr(error, invalid_bin);
       return;
     }
-    atomicAdd(&shared[bin], value);
+    if constexpr (checked) {
+      const unsigned long long old = atomicAdd(&shared[bin], value);
+      if (old + value < old) atomicOr(error, too_large);
+    } else {
+      atomicAdd(&shared[bin], value);
+    }
+  }
+  /// An operation's own sum passed 2^64 - 1.
+  __device__ __forceinline__ void overflow() const {
+    atomicOr(error, too_large);
   }
 };
 
+/// The bins handle of operation op_t's kernels.
+template <class op_t>
+using bins_for = block_bins<op_t::num_bins, !op_t::unit_counts>;
+
+// dynG (ADR 0057): the block's magnitudes into the call's bins with a carry test (once per block
+// and bin); ESCHER-GPU added sign * bin in two's complement.
 template <class op_t, class bins_t>
-__device__ __forceinline__ void flush_bins(op_t& op, bins_t& bins, long long sign,
-                                           unsigned long long* out) {
+__device__ __forceinline__ void flush_bins(op_t& op, bins_t& bins, unsigned long long* out) {
   op.flush(bins);
   __syncthreads();
-  for (int i = threadIdx.x; i < op_t::num_bins; i += blockDim.x)
-    if (bins.shared[i] != 0)
-      atomicAdd(&out[i],
-                static_cast<unsigned long long>(sign * static_cast<long long>(bins.shared[i])));
+  for (int i = threadIdx.x; i < op_t::num_bins; i += blockDim.x) {
+    const unsigned long long value = bins.shared[i];
+    if (value != 0) {
+      const unsigned long long old = atomicAdd(&out[i], value);
+      if (old + value < old) atomicOr(bins.error, bins_t::too_large);
+    }
+  }
 }
 
 template <class op_t, class bins_t>
@@ -193,44 +218,43 @@ template <class op_t>
 __global__ void triangle_kernel(escher::row_view adj, hyperedge_rows rows, const int* sources,
                                 int num_sources, const long long* offsets, long long num_wedges,
                                 bool all_neighbours, const unsigned char* in_frontier, op_t op,
-                                long long sign, unsigned long long* out,
-                                unsigned long long* error) {
+                                unsigned long long* out, unsigned long long* error) {
   __shared__ unsigned long long shared[op_t::num_bins];
   for (int i = threadIdx.x; i < op_t::num_bins; i += blockDim.x) shared[i] = 0;
   __syncthreads();
   op_t local = op;
-  block_bins<op_t::num_bins> bins{shared, error};
-  triangle_body<op_t, block_bins<op_t::num_bins>> body{adj, rows, in_frontier, local, bins};
+  bins_for<op_t> bins{shared, error};
+  triangle_body<op_t, bins_for<op_t>> body{adj, rows, in_frontier, local, bins};
   for_each_wedge(adj, sources, num_sources, offsets, num_wedges, all_neighbours, in_frontier, body);
-  flush_bins(local, bins, sign, out);
+  flush_bins(local, bins, out);
 }
 
 template <class op_t>
 __global__ void pair_kernel(escher::row_view adj, hyperedge_rows rows, const int* sources,
                             int num_sources, const long long* offsets, long long num_wedges,
                             bool all_neighbours, const unsigned char* in_frontier, op_t op,
-                            long long sign, unsigned long long* out, unsigned long long* error) {
+                            unsigned long long* out, unsigned long long* error) {
   __shared__ unsigned long long shared[op_t::num_bins];
   for (int i = threadIdx.x; i < op_t::num_bins; i += blockDim.x) shared[i] = 0;
   __syncthreads();
   op_t local = op;
-  block_bins<op_t::num_bins> bins{shared, error};
-  pair_body<op_t, block_bins<op_t::num_bins>> body{rows, local, bins};
+  bins_for<op_t> bins{shared, error};
+  pair_body<op_t, bins_for<op_t>> body{rows, local, bins};
   for_each_wedge(adj, sources, num_sources, offsets, num_wedges, all_neighbours, in_frontier, body);
-  flush_bins(local, bins, sign, out);
+  flush_bins(local, bins, out);
 }
 
 template <class op_t>
 __global__ void key_kernel(hyperedge_rows rows, const int* sources, int num_sources, op_t op,
-                           long long sign, unsigned long long* out, unsigned long long* error) {
+                           unsigned long long* out, unsigned long long* error) {
   __shared__ unsigned long long shared[op_t::num_bins];
   for (int i = threadIdx.x; i < op_t::num_bins; i += blockDim.x) shared[i] = 0;
   __syncthreads();
   op_t local = op;
-  block_bins<op_t::num_bins> bins{shared, error};
+  bins_for<op_t> bins{shared, error};
   for (int s = blockIdx.x * blockDim.x + threadIdx.x; s < num_sources; s += gridDim.x * blockDim.x)
     local.key(rows, source_key(sources, s) - 1, bins);
-  flush_bins(local, bins, sign, out);
+  flush_bins(local, bins, out);
 }
 
 enum class wedge_shape { triangles, pairs };
@@ -264,12 +288,13 @@ inline std::size_t scan_temp_bytes(int n) {
 // Counts over the wedges of `num_sources` sources: the keys in d_sources
 // (frontier mode: all neighbours, frontier filter d_in_frontier) or, when
 // d_sources is null, keys 1..num_sources (full count: out-neighbours only).
-// Adds sign * (bins of op_t) to d_out[0..num_bins).
+// Adds the bins of op_t to d_out[0..num_bins) (dynG, ADR 0057: unsigned magnitudes; the phase's
+// sign is applied on the host).
 template <wedge_shape shape, class op_t>
 launch count_wedge_shape(const escher::row_view& adj, const hyperedge_rows& rows,
                          const int* d_sources, int num_sources, const unsigned char* d_in_frontier,
-                         const op_t& op, long long sign, unsigned long long* d_out,
-                         unsigned long long* d_error, const scratch& s) {
+                         const op_t& op, unsigned long long* d_out, unsigned long long* d_error,
+                         const scratch& s) {
   if (num_sources <= 0) return launch::no_sources;
   const bool all_neighbours = d_sources != nullptr;
   long long* d_offsets = s.offsets;  // dynG: the workspace's
@@ -297,11 +322,11 @@ launch count_wedge_shape(const escher::row_view& adj, const hyperedge_rows& rows
     if constexpr (shape == wedge_shape::triangles)
       triangle_kernel<op_t><<<grid, block_size, 0, s.stream>>>(
           adj, rows, d_sources, num_sources, d_offsets, num_wedges, all_neighbours, d_in_frontier,
-          op, sign, d_out, d_error);
+          op, d_out, d_error);
     else
       pair_kernel<op_t><<<grid, block_size, 0, s.stream>>>(adj, rows, d_sources, num_sources,
                                                            d_offsets, num_wedges, all_neighbours,
-                                                           d_in_frontier, op, sign, d_out, d_error);
+                                                           d_in_frontier, op, d_out, d_error);
     DYNG_CHECK_KERNEL(s.stream);
   }
   return launch::kernel;
@@ -310,30 +335,28 @@ launch count_wedge_shape(const escher::row_view& adj, const hyperedge_rows& rows
 template <class op_t>
 launch count_triangles(const escher::row_view& adj, const hyperedge_rows& rows,
                        const int* d_sources, int num_sources, const unsigned char* d_in_frontier,
-                       const op_t& op, long long sign, unsigned long long* d_out,
-                       unsigned long long* d_error, const scratch& s) {
+                       const op_t& op, unsigned long long* d_out, unsigned long long* d_error,
+                       const scratch& s) {
   return count_wedge_shape<wedge_shape::triangles>(adj, rows, d_sources, num_sources, d_in_frontier,
-                                                   op, sign, d_out, d_error, s);
+                                                   op, d_out, d_error, s);
 }
 
 template <class op_t>
 launch count_pairs(const escher::row_view& adj, const hyperedge_rows& rows, const int* d_sources,
                    int num_sources, const unsigned char* d_in_frontier, const op_t& op,
-                   long long sign, unsigned long long* d_out, unsigned long long* d_error,
-                   const scratch& s) {
+                   unsigned long long* d_out, unsigned long long* d_error, const scratch& s) {
   return count_wedge_shape<wedge_shape::pairs>(adj, rows, d_sources, num_sources, d_in_frontier, op,
-                                               sign, d_out, d_error, s);
+                                               d_out, d_error, s);
 }
 
 // Per-key counts over the keys in d_sources (or keys 1..num_sources).
 template <class op_t>
 launch count_keys(const hyperedge_rows& rows, const int* d_sources, int num_sources, const op_t& op,
-                  long long sign, unsigned long long* d_out, unsigned long long* d_error,
-                  const scratch& s) {
+                  unsigned long long* d_out, unsigned long long* d_error, const scratch& s) {
   if (num_sources <= 0) return launch::no_sources;
   int grid = (num_sources + block_size - 1) / block_size;
   key_kernel<op_t>
-      <<<grid, block_size, 0, s.stream>>>(rows, d_sources, num_sources, op, sign, d_out, d_error);
+      <<<grid, block_size, 0, s.stream>>>(rows, d_sources, num_sources, op, d_out, d_error);
   DYNG_CHECK_KERNEL(s.stream);
   return launch::kernel;
 }

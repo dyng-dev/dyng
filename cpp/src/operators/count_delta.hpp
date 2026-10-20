@@ -41,7 +41,8 @@
  *   them (one host synchronization). An empty phase does no work and reads nothing.
  * - Errors are returned, not thrown, so the caller names them: count_invalid_bin when the work
  *   named a bin outside [0, num_bins) (nothing is written there), count_overflow when a total
- *   passes 2^64 - 1 (count_owned) or a signed bin leaves the 64-bit range (count_delta; the host
+ *   passes 2^64 - 1 (count_owned), a signed bin leaves the 64-bit range (count_delta), or the work
+ *   reported a count of its own past 2^64 - 1 (the host bins handle's overflow(); the host
  *   executors only: device bins wrap).
  *
  * The rule of two (PLAN Section 4.5.3): triangle_delta (a tutorial algorithm, on every executor)
@@ -110,6 +111,14 @@ struct host_count_bins {
       *status |= count_overflow;
     }
 #endif
+  }
+
+  /**
+   * @brief Report a count past 2^64 - 1 that the work found itself (a sum of its own, a product):
+   *        sets count_overflow.
+   */
+  DYNG_HD void overflow() const {
+    *status |= count_overflow;
   }
 };
 

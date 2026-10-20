@@ -50,15 +50,15 @@ wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& view
   const int keys = full_count_keys(kind, views);
   switch (kind) {
     case triad_count::pattern::h_motif:  // computeMotifCounts
-      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, motif_op{}, 1, d_bins,
+      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, motif_op{}, d_bins,
                                     d_error, s);
     case triad_count::pattern::stathyper_type1:  // Type1Counter::count
-      return wedge::count_keys(rows, nullptr, keys, choose3_op{}, 1, d_bins, d_error, s);
+      return wedge::count_keys(rows, nullptr, keys, choose3_op{}, d_bins, d_error, s);
     case triad_count::pattern::stathyper_type2:  // Type2Counter::count
-      return wedge::count_pairs(views.h2h, rows, nullptr, keys, nullptr, type2_op{}, 1, d_bins,
+      return wedge::count_pairs(views.h2h, rows, nullptr, keys, nullptr, type2_op{}, d_bins,
                                 d_error, s);
     case triad_count::pattern::stathyper_type3:  // Type3Counter::count
-      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, type3_op{}, 1, d_bins,
+      return wedge::count_triangles(views.h2h, rows, nullptr, keys, nullptr, type3_op{}, d_bins,
                                     d_error, s);
   }
   return wedge::launch::no_sources;
@@ -68,26 +68,26 @@ wedge::launch count_full(triad_count::pattern kind, const hyper::row_views& view
 // frontier hyperedge, each counted once at its smallest frontier member
 // (include/frontier.hpp). Subtract runs on the old snapshot with the
 // deleted hyperedges, add on the new snapshot with the inserted ones; one
-// thread per frontier wedge (f, j) (kernel/wedge.cuh).
+// thread per frontier wedge (f, j) (kernel/wedge.cuh). dynG (ADR 0057): both phases add unsigned
+// magnitudes; the caller keeps the phase's sign.
 wedge::launch count_phase(triad_count::pattern kind, const hyper::row_views& views,
                           const int* d_keys, int num_keys, const unsigned char* d_flags,
-                          framework::ownership::min_member /*rule*/, long long sign,
-                          unsigned long long* d_bins, unsigned long long* d_error,
-                          const wedge::scratch& s) {
+                          framework::ownership::min_member /*rule*/, unsigned long long* d_bins,
+                          unsigned long long* d_error, const wedge::scratch& s) {
   if (num_keys == 0) return wedge::launch::no_sources;
   const hyperedge_rows rows = rows_of(views);
   switch (kind) {
     case triad_count::pattern::h_motif:  // runFrontierPhase
-      return wedge::count_triangles(views.h2h, rows, d_keys, num_keys, d_flags, motif_op{}, sign,
-                                    d_bins, d_error, s);
+      return wedge::count_triangles(views.h2h, rows, d_keys, num_keys, d_flags, motif_op{}, d_bins,
+                                    d_error, s);
     case triad_count::pattern::stathyper_type1:  // Type1Counter::phase
-      return wedge::count_keys(rows, d_keys, num_keys, choose3_op{}, sign, d_bins, d_error, s);
+      return wedge::count_keys(rows, d_keys, num_keys, choose3_op{}, d_bins, d_error, s);
     case triad_count::pattern::stathyper_type2:  // Type2Counter::phase
-      return wedge::count_pairs(views.h2h, rows, d_keys, num_keys, d_flags, type2_op{}, sign,
-                                d_bins, d_error, s);
+      return wedge::count_pairs(views.h2h, rows, d_keys, num_keys, d_flags, type2_op{}, d_bins,
+                                d_error, s);
     case triad_count::pattern::stathyper_type3:  // Type3Counter::phase
-      return wedge::count_triangles(views.h2h, rows, d_keys, num_keys, d_flags, type3_op{}, sign,
-                                    d_bins, d_error, s);
+      return wedge::count_triangles(views.h2h, rows, d_keys, num_keys, d_flags, type3_op{}, d_bins,
+                                    d_error, s);
   }
   return wedge::launch::no_sources;
 }

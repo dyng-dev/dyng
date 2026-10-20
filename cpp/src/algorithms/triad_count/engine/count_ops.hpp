@@ -10,30 +10,39 @@
  * ADR 0053; the row views' encoding is described in cpp/src/hypergraph/row_views.hpp).
  *
  * dynG (the Op form, c6): a host-and-device struct that reads the row sizes through the rows
- * handle and adds to the bins handle.
+ * handle and adds to the bins handle. dynG (ADR 0057): exact C(|e|, 3) and a checked sum.
  */
 #pragma once
 
 // Small per-thread counting operations for the kernels in wedge.cuh. Each
 // keeps a register partial sum that flush() adds to the block bins.
 
+#include "algorithms/triad_count/engine/exact.hpp"
 #include "algorithms/triad_count/engine/sets.hpp"
 
 namespace dyng::detail::triad {
 
 // sum over keys of C(|row|, 3) (StatHyper type 1 / coarse inner triangles).
+// dynG (ADR 0057): C(|row|, 3) exact (exact.hpp; ESCHER-GPU's signed n * (n - 1) * (n - 2)
+// overflows from 2,097,152 members), the sum checked; flush() reports a count past 2^64 - 1.
 struct choose3_op {
   static constexpr int num_bins = 1;
+  static constexpr bool unit_counts = false;  // dynG: adds C(|row|, 3), not 1 (wedge.cuh)
   unsigned long long sum;
+  bool over;  // dynG: a C(|row|, 3) or the sum passed 2^64 - 1
 
   template <class rows_t, class bins_t>
   DYNG_TRIAD_HD void key(const rows_t& rows, int a, bins_t&) {
-    long long n = rows.size(a);
-    if (n >= 3) sum += static_cast<unsigned long long>(n * (n - 1) * (n - 2) / 6);
+    unsigned long long c;
+    if (choose3_overflows(rows.size(a), c) || add_overflows(sum, c, sum)) over = true;
   }
   template <class bins_t>
   DYNG_TRIAD_HD void flush(bins_t& bins) {
-    if (sum) bins.add(0, sum);
+    if (over) {
+      bins.overflow();
+    } else if (sum) {
+      bins.add(0, sum);
+    }
   }
 };
 
