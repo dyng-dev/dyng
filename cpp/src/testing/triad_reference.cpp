@@ -4,7 +4,8 @@
 // referenceMotifCounts, referenceType1/2/3)
 /**
  * @file triad_reference.cpp
- * @brief dyng::testing::triad_reference (ESCHER-GPU's CPU reference algorithm, 64-bit). Standard
+ * @brief dyng::testing::triad_reference (ESCHER-GPU's CPU reference algorithm; exact counts, a
+ *        count past 2^64 - 1 refused where the original wraps or overflows). Standard
  *        library (and OpenMP) only: it shares no code with triad_count or the hypergraph container
  *        (triad_reference_isolation). The h-motif classes are derived from the six permutations
  *        of the Venn regions and the documented representatives, not copied from the original's
@@ -76,6 +77,41 @@ int threads_of(const triad_reference_options& options) {
 #endif
 }
 
+// Exact arithmetic: the products and the sums in unsigned 128-bit integers (a row has fewer than
+// 2^31 members, so every product is below 2^124), a count past 2^64 - 1 refused instead of
+// wrapped. The oracle checks the engines at the 64-bit limit too (M9a review), so it shares none
+// of their overflow tests. (__extension__: the GCC and Clang type is outside ISO C++.)
+__extension__ typedef unsigned __int128 wide_t;
+
+constexpr wide_t count_limit = static_cast<wide_t>(UINT64_MAX);
+
+// A sum of counts: exact while it stays at or below 2^64 - 1, then marked over (and not grown).
+struct exact_sum {
+  wide_t value = 0;
+  bool over = false;
+
+  void add(wide_t v) {
+    if (over) return;
+    value += v;  // value <= 2^64 - 1 and v < 2^124: no wrap
+    if (value > count_limit) over = true;
+  }
+  void add(const exact_sum& other) {
+    if (other.over) {
+      over = true;
+    } else {
+      add(other.value);
+    }
+  }
+};
+
+// The 64-bit value of a sum, or std::overflow_error naming the pattern.
+std::uint64_t narrow(const exact_sum& s, const char* pattern) {
+  if (s.over)
+    throw std::overflow_error(std::string("triad_reference: the ") + pattern +
+                              " count exceeds 2^64 - 1");
+  return static_cast<std::uint64_t>(s.value);
+}
+
 // The rows by id, each sorted and without repeats, after checking the layout.
 rows_t read_rows(const std::vector<std::int64_t>& offsets, const std::vector<std::int32_t>& members,
                  std::int32_t num_vertices) {
@@ -142,8 +178,10 @@ std::int64_t intersect3(const row_t& a, const row_t& b, const row_t& c) {
   return n;
 }
 
-std::uint64_t choose3(std::uint64_t n) {
-  return n >= 3 ? n * (n - 1) * (n - 2) / 6 : 0;
+// C(n, 3), exact (n < 2^31: n^3 < 2^93).
+wide_t choose3(std::size_t n) {
+  const auto w = static_cast<wide_t>(n);
+  return n >= 3 ? w * (w - 1) * (w - 2) / 6 : 0;
 }
 
 // The line graph (referenceLineGraph): row i = the sorted ids of the other live hyperedges that
@@ -207,8 +245,8 @@ rows_t line_graph(const rows_t& rows, int threads) {
 
 // The per-thread accumulator of the triangle patterns.
 struct triangle_acc {
-  std::array<std::uint64_t, triad_num_classes> bins{};
-  std::uint64_t type3 = 0;
+  std::array<std::uint64_t, triad_num_classes> bins{};  // unit counts (cannot reach 2^64)
+  exact_sum type3;
   bool invalid = false;
 };
 
@@ -276,7 +314,9 @@ triad_reference_counts count_rows(const rows_t& rows, const std::vector<triad_pa
                                   int threads) {
   triad_reference_counts out;
   if (wants(patterns, triad_pattern::stathyper_type1)) {
-    for (const row_t& r : rows) out.type1 += choose3(r.size());
+    exact_sum type1;
+    for (const row_t& r : rows) type1.add(choose3(r.size()));
+    out.type1 = narrow(type1, "stathyper_type1");
   }
   const bool motif = wants(patterns, triad_pattern::h_motif);
   const bool type2 = wants(patterns, triad_pattern::stathyper_type2);
@@ -284,25 +324,34 @@ triad_reference_counts count_rows(const rows_t& rows, const std::vector<triad_pa
   if (!motif && !type2 && !type3) return out;
   const rows_t adj = line_graph(rows, threads);
   if (type2) {
-    std::uint64_t total = 0;
+    exact_sum total;
     const auto n = static_cast<std::int64_t>(adj.size());
 #ifdef _OPENMP
-#pragma omp parallel for schedule(dynamic, 64) reduction(+ : total) \
-    num_threads(threads) if (threads > 1)
+#pragma omp parallel num_threads(threads) if (threads > 1)
 #endif
-    for (std::int64_t x = 0; x < n; ++x) {
-      const auto i = static_cast<std::int32_t>(x);
-      const row_t& e = rows[static_cast<std::size_t>(x)];
-      for (const std::int32_t j : adj[static_cast<std::size_t>(x)]) {
-        if (j <= i) continue;
-        const row_t& f = rows[static_cast<std::size_t>(j)];
-        const auto a = static_cast<std::uint64_t>(intersect2(e, f));
-        const std::uint64_t b = e.size() - a;
-        const std::uint64_t c = f.size() - a;
-        if (a >= 2 && b > 0 && c > 0) total += a * (a - 1) / 2 * b * c;
+    {
+      exact_sum local;
+#ifdef _OPENMP
+#pragma omp for schedule(dynamic, 64)
+#endif
+      for (std::int64_t x = 0; x < n; ++x) {
+        const auto i = static_cast<std::int32_t>(x);
+        const row_t& e = rows[static_cast<std::size_t>(x)];
+        for (const std::int32_t j : adj[static_cast<std::size_t>(x)]) {
+          if (j <= i) continue;
+          const row_t& f = rows[static_cast<std::size_t>(j)];
+          const auto a = static_cast<wide_t>(intersect2(e, f));
+          const wide_t b = static_cast<wide_t>(e.size()) - a;
+          const wide_t c = static_cast<wide_t>(f.size()) - a;
+          if (a >= 2 && b > 0 && c > 0) local.add(a * (a - 1) / 2 * b * c);  // < 2^123
+        }
       }
+#ifdef _OPENMP
+#pragma omp critical(dyng_triad_reference_type2)
+#endif
+      total.add(local);
     }
-    out.type2 = total;
+    out.type2 = narrow(total, "stathyper_type2");
   }
   if (motif || type3) {
     const std::array<std::int8_t, triad_num_venn_ids> map = triad_motif_class_map();
@@ -325,20 +374,26 @@ triad_reference_counts count_rows(const rows_t& rows, const std::vector<triad_pa
             const std::int64_t y = intersect2(b, c) - g;
             const std::int64_t z = intersect2(a, c) - g;
             if (x > 0 && y > 0 && z > 0)
-              acc.type3 += static_cast<std::uint64_t>(x) * static_cast<std::uint64_t>(y) *
-                           static_cast<std::uint64_t>(z);
+              acc.type3.add(static_cast<wide_t>(x) * static_cast<wide_t>(y) *
+                            static_cast<wide_t>(z));  // < 2^93
           }
         });
+    std::array<exact_sum, triad_num_classes> bins{};
+    exact_sum type3_total;
     for (const triangle_acc& p : parts) {
       if (p.invalid)
         throw std::logic_error(
             "triad_reference: a triangle of the line graph has no h-motif class");
       for (int t = 0; t < triad_num_classes; ++t)
-        out.h_motif[static_cast<std::size_t>(t)] += p.bins[static_cast<std::size_t>(t)];
-      out.type3 += p.type3;
+        bins[static_cast<std::size_t>(t)].add(p.bins[static_cast<std::size_t>(t)]);
+      type3_total.add(p.type3);
     }
-    if (!type3) out.type3 = 0;
-    if (!motif) out.h_motif.fill(0);
+    if (motif) {
+      for (int t = 0; t < triad_num_classes; ++t)
+        out.h_motif[static_cast<std::size_t>(t)] =
+            narrow(bins[static_cast<std::size_t>(t)], "h_motif");
+    }
+    if (type3) out.type3 = narrow(type3_total, "stathyper_type3");
   }
   return out;
 }

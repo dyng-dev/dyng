@@ -5,6 +5,9 @@
   acceptance criterion 4). No approved rule changes: PLAN 5.8 names `triad_reference` among the
   public oracles of `dyng::testing`, and the author's decision D3 (2026-10-15) makes it the
   independent oracle of the incremental host engines.
+- **Amended by:** ADR 0057 (2026-10-20): the oracle computes its products and sums in unsigned
+  128-bit integers and throws `std::overflow_error` past 2^64 - 1 (its 64-bit arithmetic wrapped
+  with the engines at the limit).
 - **Date:** 2026-10-15
 - **Deciders:** the AI assistant, on the author's behalf (M9a, step
   oracle-harness-driver-prereads)

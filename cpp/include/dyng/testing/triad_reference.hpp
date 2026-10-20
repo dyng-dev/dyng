@@ -9,8 +9,9 @@
  *
  * The counts follow ESCHER-GPU\@abcf9b2's CPU reference (utils/reference.cpp, the oracle behind
  * its `--reference` flag): the line graph is rebuilt from the hyperedges (hyperedges i and j are
- * adjacent when they share a vertex), every triangle i < j < k of it is enumerated, and 64-bit
- * accumulators add up
+ * adjacent when they share a vertex), every triangle i < j < k of it is enumerated, and exact
+ * accumulators add up (products and sums in 128-bit integers; a count past 2^64 - 1 throws
+ * std::overflow_error, where the original's 64-bit arithmetic wraps or overflows)
  *
  * - **h_motif** (30 bins): each triangle in the bin of its h-motif class, decided by which of
  *   the seven regions of the Venn diagram of its three hyperedges A, B, C are non-empty;
@@ -209,6 +210,7 @@ struct triad_reference_counts {
  * @return The counts.
  * @throws std::invalid_argument for malformed offsets, a member out of range, more than 2^31 - 1
  *         ids or a negative vertex count.
+ * @throws std::overflow_error   if a requested count (a bin, or a type's sum) exceeds 2^64 - 1.
  * @throws std::bad_alloc        if host memory cannot be allocated.
  * @ingroup testing
  */
@@ -226,6 +228,7 @@ struct triad_reference_counts {
  * @param[in] options      Threads.
  * @return 30 values for h_motif, else 1.
  * @throws std::invalid_argument as triad_reference_all().
+ * @throws std::overflow_error   as triad_reference_all().
  * @throws std::bad_alloc        if host memory cannot be allocated.
  * @ingroup testing
  */
@@ -244,6 +247,7 @@ struct triad_reference_counts {
  * @param[in] options      Threads.
  * @return 30 values for h_motif, else 1.
  * @throws std::invalid_argument as triad_reference_all().
+ * @throws std::overflow_error   as triad_reference_all().
  * @throws std::bad_alloc        if host memory cannot be allocated.
  * @ingroup testing
  */
@@ -263,6 +267,7 @@ struct triad_reference_counts {
  * @param[in] options      Threads.
  * @return 30 values for h_motif, else 1.
  * @throws std::invalid_argument as triad_reference_all().
+ * @throws std::overflow_error   as triad_reference_all().
  * @throws std::bad_alloc        if host memory cannot be allocated.
  * @ingroup testing
  */
