@@ -306,13 +306,23 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_NM)
   )
   set_tests_properties(line_graph_oracle_isolation PROPERTIES LABELS "cpu;hypergraph")
   # The triad oracle (M9a criterion 4, ADR 0049): ESCHER-GPU's CPU reference algorithm with its own
-  # class map, sharing no code with triad_count, its engines or the container.
+  # class map, sharing no code with triad_count, its engines or the container. The preprocessor
+  # runs with the flags the build compiles it with (OpenMP, the target's definitions).
+  set(_triad_reference_flags "")
+  if(DYNG_ENABLE_OPENMP)
+    separate_arguments(_triad_reference_flags UNIX_COMMAND "${OpenMP_CXX_FLAGS}")
+  endif()
+  list(JOIN _triad_reference_flags "|" _triad_reference_flags)
+  set(_triad_reference_defs
+      "$<TARGET_PROPERTY:dyng_testing_triad_reference,COMPILE_DEFINITIONS>"
+  )
   add_test(
     NAME triad_reference_isolation
     COMMAND
       "${CMAKE_COMMAND}" -DCXX=${CMAKE_CXX_COMPILER} -DNM=${CMAKE_NM} -DREPO=${PROJECT_SOURCE_DIR}
       -DSOURCE=${PROJECT_SOURCE_DIR}/cpp/src/testing/triad_reference.cpp
       -DHEADER=${PROJECT_SOURCE_DIR}/cpp/include/dyng/testing/triad_reference.hpp
+      "-DFLAGS=${_triad_reference_flags}|-D$<JOIN:${_triad_reference_defs},|-D>"
       "-DOBJECT=$<TARGET_OBJECTS:dyng_testing_triad_reference>" -P
       "${CMAKE_CURRENT_SOURCE_DIR}/parity/escher/check_model_isolation.cmake"
   )
@@ -515,7 +525,7 @@ foreach(
   "count_delta_without_ownership|-DDYNG_CF_DELTA_NO_OWNERSHIP|count_delta needs an ownership rule"
   "count_owned_without_ownership|-DDYNG_CF_OWNED_NO_OWNERSHIP|count_delta needs an ownership rule"
   "not_an_ownership_rule|-DDYNG_CF_NOT_AN_OWNERSHIP|must be an ownership rule"
-  "triad_phase_without_ownership|-DDYNG_CF_TRIAD_NO_OWNERSHIP|count_phase"
+  "triad_phase_without_ownership|-DDYNG_CF_TRIAD_NO_OWNERSHIP|count_phase needs an ownership rule"
 )
   string(REPLACE "|" ";" _parts "${_case}")
   list(GET _parts 0 _name)

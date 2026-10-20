@@ -6,9 +6,13 @@
 # ADR 0042). Run by CTest (cbst_model_isolation, line_graph_oracle_isolation):
 #
 #   cmake -DCXX=<compiler> -DNM=<nm> -DREPO=<source dir> -DSOURCE=<cbst_host_model.cpp>
-#         -DOBJECT=<its object file> [-DHEADER=<its public header>] -P check_model_isolation.cmake
+#         -DOBJECT=<its object file> [-DHEADER=<its public header>] [-DFLAGS=<f1|f2|...>]
+#         -P check_model_isolation.cmake
 #
-# HEADER defaults to cpp/include/dyng/testing/cbst_host_model.hpp.
+# HEADER defaults to cpp/include/dyng/testing/cbst_host_model.hpp. FLAGS are the compile flags
+# and definitions the build compiles the source with ("|"-separated: the OpenMP flag, -D...), so
+# the preprocessor sees the code the build compiles (an include under #ifdef _OPENMP counts; M9a
+# review).
 # 1. The preprocessor's dependency list of the model's source (-MM) names no project file but
 #    the model's own header, so nothing of cpp/src (cpp/src/hypergraph in particular) or of any
 #    other dynG header is included.
@@ -20,8 +24,13 @@ foreach(_var CXX NM REPO SOURCE OBJECT)
   endif()
 endforeach()
 
+set(_flags "")
+if(DEFINED FLAGS AND NOT "${FLAGS}" STREQUAL "")
+  string(REPLACE "|" ";" _flags "${FLAGS}")
+  list(REMOVE_ITEM _flags "" "-D")
+endif()
 execute_process(
-  COMMAND "${CXX}" -std=c++17 -I "${REPO}/cpp/include" -MM "${SOURCE}"
+  COMMAND "${CXX}" -std=c++17 ${_flags} -I "${REPO}/cpp/include" -MM "${SOURCE}"
   OUTPUT_VARIABLE _deps
   ERROR_VARIABLE _err
   RESULT_VARIABLE _rc
@@ -74,5 +83,5 @@ if(_bad)
                       "${_bad}")
 endif()
 list(LENGTH _deps _num_deps)
-message(STATUS "${_name}: ${_num_deps} dependencies, no project file but its header; "
-               "no undefined dyng symbol")
+message(STATUS "${_name}: ${_num_deps} dependencies (flags: ${_flags}), no project file but its "
+               "header; no undefined dyng symbol")
