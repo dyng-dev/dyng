@@ -302,6 +302,14 @@ def compare_case(golden: dict, prep: dict, report: dict, pattern: str, modes: li
                     f"{mode} batch {k}: {b['deletions']} deletions, {b['insertions']} insertions"
                     f" (golden {want['deletions']}, {want['insertions']})"
                 )
+            # What the container did, not only what the file asked: A's batches delete live
+            # hyperedges only, so every deletion is applied and none ignored (M9a review; the
+            # algorithm counter checks its stats' frontier sizes against this summary).
+            if b.get("deleted") != want["deletions"] or b.get("ignored") != 0:
+                problems.append(
+                    f"{mode} batch {k}: the container deleted {b.get('deleted')} hyperedges and"
+                    f" ignored {b.get('ignored')} deletions (golden {want['deletions']} deleted)"
+                )
             if b["delta"].get(pattern) != want["delta"]:
                 problems.append(
                     f"{mode} batch {k}: delta {b['delta'].get(pattern)} != {want['delta']}"

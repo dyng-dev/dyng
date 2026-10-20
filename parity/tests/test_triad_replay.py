@@ -111,6 +111,8 @@ def _report(full, deltas, mode_names=("by_key", "by_content")):
                         "index": k + 1,
                         "deletions": 2,
                         "insertions": 3,
+                        "deleted": 2,
+                        "ignored": 0,
                         "delta": {"stathyper_type1": d},
                         "counts_after": {"stathyper_type1": a},
                         "integrity_ok": True,
@@ -155,6 +157,9 @@ def test_compare_case_finds_each_difference(tmp_path: Path):
         "unresolved": lambda r: r["modes"][1]["batches"][0].update(unresolved=1),
         "drop": lambda r: r["modes"][0]["batches"].pop(),
         "composition": lambda r: r["modes"][1]["batches"][0].update(insertions=4),
+        # A deletion the container ignored (counts and ids unchanged): the summary is compared.
+        "ignored": lambda r: r["modes"][1]["batches"][1].update(deleted=1, ignored=1),
+        "deleted": lambda r: r["modes"][0]["batches"][1].update(deleted=1),
     }
     for name, plant in cases.items():
         r = copy.deepcopy(good)
