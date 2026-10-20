@@ -161,17 +161,20 @@ def run(cmd: list[str], env: dict) -> str:
 BATCH_RANGES = {"original": "update", "port": "hypergraph.apply"}
 
 
-def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -> dict:
+def memory_by_range(
+    cmd: list[str], env: dict, report: Path, batch_range: str, capture: bool = False
+) -> dict:
     """One process under `nsys profile -t cuda,nvtx --cuda-memory-usage=true`: the peak of its
     live device allocations, the NVTX ranges containing the peak (outermost first), the peak
     inside every named range, and at the start and end of every range named `batch_range` (one
     per batch) the live bytes, the size of the stream-ordered pool (it keeps what it reached,
     ADR 0016), its slack (reserved minus allocated from it) and what the process holds (its
-    cudaMalloc allocations plus the pool)."""
+    cudaMalloc allocations plus the pool). With `capture` the process's standard output (through
+    nsys) is returned as "stdout", for a caller's guard on what it printed."""
     import sqlite3
 
     nsys = os.environ.get("NSYS", "/usr/local/cuda-13.1/bin/nsys")
-    subprocess.run(
+    profiled = subprocess.run(
         [
             nsys,
             "profile",
@@ -186,8 +189,9 @@ def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -
             *map(str, cmd),
         ],
         env=env,
-        stdout=subprocess.DEVNULL,
+        stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
+        text=True,
         check=True,
     )
     database = Path(str(report) + ".sqlite")
@@ -278,7 +282,7 @@ def memory_by_range(cmd: list[str], env: dict, report: Path, batch_range: str) -
         "range_peaks_mib": dict(sorted(range_peaks.items())),
         "batch_range": batch_range,
         "batches": batches,
-    }
+    } | ({"stdout": profiled.stdout} if capture else {})
 
 
 def memory(args: argparse.Namespace) -> int:

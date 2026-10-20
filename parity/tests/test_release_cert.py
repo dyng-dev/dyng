@@ -281,12 +281,18 @@ def _triad_case_result(bench, suite: dict, key: str, kind: str, runs: int, ratio
                     "gated": every or k in (0, 3),
                 }
             )
+        peak = 100 * 2**20
         return out | {
-            "original": {"peak_live_mib": 100.0},
-            "port": {"peak_live_mib": 100.0 * ratio, "ratio": ratio},
-            "ratio": ratio,
+            "original": {"peak_live_mib": 100.0, "peak_live_bytes": peak},
+            "port": {
+                "peak_live_mib": 100.0 * ratio,
+                "peak_live_bytes": round(peak * ratio),
+                "ratio": round(peak * ratio) / peak,
+            },
+            "ratio": round(peak * ratio) / peak,
             "store_accounting": points,
             "foreign_gpu_processes": {"before": [], "after": []},
+            "guard": {"runs_checked": 4, "passed": True},
         }
     rows = [("update[b1]", "compute"), ("update[b2]", "compute"), ("update[b3]", "compute")]
     rows += [("full_count", "compute"), ("end_to_end", "end_to_end")]
@@ -297,7 +303,11 @@ def _triad_case_result(bench, suite: dict, key: str, kind: str, runs: int, ratio
         "contaminated_rounds_kept": 0,
         "audit": {"flagged": False, "flagged_rounds": []},
         "monitor": {"rounds": [{"original": {"reasons": []}, "port": {"reasons": []}}] * runs},
-        "regions": [_region(n, 500.0, 500.0 * ratio, kind) for n, kind in rows]
+        "regions": [
+            _region(n, 500.0, 500.0 * ratio, kind)
+            | {"original_runs": [500.0] * runs, "port_runs": [500.0 * ratio] * runs}
+            for n, kind in rows
+        ]
         + [
             {
                 "region": "update.subtract[b1]",
@@ -305,8 +315,31 @@ def _triad_case_result(bench, suite: dict, key: str, kind: str, runs: int, ratio
                 "original_ms": 2.0,
                 "port_ms": 2.0,
                 "ratio": 1.0,
+                "original_runs": [2.0] * runs,
+                "port_runs": [2.0] * runs,
             }
         ],  # fmt: skip
+    }
+
+
+def triad_protocol(bench, suite: dict, job: dict) -> dict:
+    """The protocol fields parity/triad_perf.py writes for a reading (bench_suite checks them)."""
+    if job["kind"] == "run":
+        return {
+            "rounds": job.get("runs"),
+            "gpu": bench.triad_reading_gpu(suite, job),
+            "lock": "perf.lock: held exclusively by this process",
+            "layout": "one (--timing <work>/timing-ab.json on both sides)",
+            "env": bench.TRIAD_ENV,
+            "original": "the UNPATCHED copy's build/<pattern> (its Makefile)",
+            "port": "dyng-compat-escher run --backend cuda --sync-stages",
+        }
+    return {
+        "nsys": bench.TRIAD_NSYS + " (CUDA 13.1), memKind Device (cudaMalloc + cudaMallocAsync)",
+        "gpu": bench.triad_reading_gpu(suite, job),
+        "lock": "shared (flock -s by the caller); no foreign process on the GPU",
+        "original": "the UNPATCHED build/<pattern>, no --check",
+        "port": "dyng-compat-escher run --backend cuda --nvtx",
     }
 
 
@@ -327,7 +360,7 @@ def _write_triad_records(bench, suite, records: Path, commit: str, ratio: float 
             },
             "port": {"commit": commit, "build": {"parity_preset": True}},
             "driver": DRIVER,
-            "protocol": {"rounds": job.get("runs")},
+            "protocol": triad_protocol(bench, suite, job),
             "results": {
                 f"{c}/{p}": _triad_case_result(
                     bench, suite, f"{c}/{p}", job["kind"], job.get("runs") or 0, ratio
@@ -686,6 +719,9 @@ def _hypergraph_id_record(
 def fixed_driver(cert, monkeypatch: pytest.MonkeyPatch):
     """The driver seen "now" is the records' (the certificate compares the two)."""
     real = cert.environment
+    # The certificates of these tests are written for several series on one tree; the rule that
+    # a label follows its tree's series is tested on its own (test_the_label_follows_the_tree).
+    monkeypatch.setattr(cert, "tree_version", lambda: "")
 
     def environment() -> dict:
         env = real()
@@ -2190,6 +2226,51 @@ def test_summary_of_the_escher_suites(bench, tmp_path: Path) -> None:
     refused(
         timing, jobs, "cuda", lambda r: r["results"].pop("syn2m_b50k_s3/main"), "the reading's are"
     )
+
+    # The medians and the round counts are recomputed from the samples (M9a review).
+    def scaled(r):
+        reg = result(r)["regions"][0]
+        reg["port_runs"] = [x * 1.3 for x in reg["port_runs"]]
+
+    refused(timing, jobs, "cuda-coauth", scaled, "is not its samples'")
+    refused(
+        timing,
+        jobs,
+        "cuda-coauth",
+        lambda r: result(r)["regions"][1].update(original_runs=[500.0] * 3, port_runs=[450.0] * 3),
+        "samples for 11 rounds",
+    )
+    # The protocol fields of a timed record (the author's protocol).
+    for field, value, text in [
+        ("layout", "randomized", "one heap layout"),
+        ("env", "CUDA_MODULE_LOADING=LAZY, OMP_NUM_THREADS=8", "environment"),
+        ("port", "dyng-compat-escher run --backend cuda", "--sync-stages"),
+        ("gpu", 1, "GPU 1"),
+        ("lock", "none", "exclusive perf lock"),
+        ("original", "the patched copy", "not the unpatched build"),
+    ]:
+        refused(
+            timing, jobs, "cuda-coauth", lambda r, f=field, v=value: r["protocol"].update({f: v}),
+            text,
+        )  # fmt: skip
+    # The protocol fields of a memory record (D1), its count guard and both peaks' bytes.
+    for field, value, text in [
+        ("gpu", 0, "GPU 0"),
+        ("lock", "none", "shared lock"),
+        ("nsys", "nsys profile -t cuda", "D1's command"),
+    ]:
+        refused(
+            memory, mjobs, "cuda-memory", lambda r, f=field, v=value: r["protocol"].update({f: v}),
+            text,
+        )  # fmt: skip
+    refused(memory, mjobs, "cuda-memory", lambda r: result(r).pop("guard"), "no count guard")
+    refused(
+        memory,
+        mjobs,
+        "cuda-memory",
+        lambda r: result(r, "syn2m_b50k_s1/main")["port"].pop("peak_live_bytes"),
+        "no device_memory peak",
+    )
     refused(
         memory,
         mjobs,
@@ -2393,6 +2474,55 @@ def test_the_dry_run_certificate(cert, bench, tmp_path: Path, fixed_driver) -> N
     path.write_text(json.dumps(cut))
     assert write() == 1 and any("full_count" in p for p in doc()["verdict"]["problems"])
     path.write_text(full)
+
+    # One gated row of one case dropped from a summary, its verdict counts adjusted: fails, for
+    # every kind of row (M9a review: each (backend, metric) was read by some case, so it passed).
+    def drop_one(suite: str, case: str, region: str) -> str:
+        path = results / f"{suite}.json"
+        full = path.read_text()
+        cut = json.loads(full)
+        n = 0
+        for r in cut["readings"]:
+            if not r["gated"]:
+                continue
+            keep = [g for g in r["regions"] if not (g["case"] == case and g["region"] == region)]
+            n += len(r["regions"]) - len(keep)
+            r["regions"] = keep
+        assert n == 1, (suite, case, region)
+        cut["verdict"]["gated_regions"] -= 1
+        cut["verdict"]["within_gate"] -= 1
+        path.write_text(json.dumps(cut))
+        return full
+
+    for suite, case, region in [
+        ("tkde26_escher_plus", "coauth_b50k_s1/main", "store_memory[b2]"),
+        ("tkde26_escher_plus", "syn1m_b50k_s1/main", "store_memory[build]"),
+        ("tkde26_escher_plus", "syn2m_b50k_s1/main", "device_memory"),
+        ("ipdps26_escher", "syn1m_b50k_s2/main", "update[b2]"),
+        ("ipdps26_escher", "coauth_b50k_s3/main", "full_count"),
+        ("ipdps26_escher", "syn2m_b50k_s3/main", "end_to_end"),
+    ]:
+        full = drop_one(suite, case, region)
+        assert write() == 1, (case, region)
+        assert any(f"no gated row {region} of {case}" in p for p in doc()["verdict"]["problems"])
+        (results / f"{suite}.json").write_text(full)
+    assert write() == 0, doc()["verdict"]
+
+    # The record's samples are the medians' source: scaled or truncated samples fail.
+    summary = json.loads((results / "ipdps26_escher.json").read_text())
+    rec_name = next(r["record"] for r in summary["readings"] if r["reading"] == "cuda-coauth")
+    rec_path = results / rec_name
+    rec_full = rec_path.read_text()
+    for edit, text in [
+        (lambda reg: reg.update(port_runs=[x * 1.5 for x in reg["port_runs"]]), "samples'"),
+        (lambda reg: reg.update(original_runs=reg["original_runs"][:3]), "samples for"),
+    ]:
+        rec = json.loads(rec_full)
+        edit(rec["results"]["coauth_b50k_s1/main"]["regions"][0])
+        rec_path.write_text(json.dumps(rec))
+        assert write() == 1 and any(text in p for p in doc()["verdict"]["problems"]), text
+        rec_path.write_text(rec_full)
+    assert write() == 0, doc()["verdict"]
     # A replay removed: fails.
     next(results.glob(f"parity-{TRIAD_SET}-cuda-*.json")).unlink()
     assert write() == 1 and any("gives cuda have" in p for p in doc()["verdict"]["problems"])
@@ -2435,3 +2565,20 @@ def test_memory_rows_use_the_peaks_bytes(cert, bench) -> None:
         record, {"case": "c/main", "region": "device_memory", "gate_kind": "memory"}
     )
     assert got["port"] / got["original"] == pytest.approx(3168724992 / 3165530112, rel=1e-12)
+
+
+def test_the_label_follows_the_tree(cert, tmp_path: Path) -> None:
+    """A certificate's --version picks its series' rules, so it must be of the tree's series:
+    '0.2.1' on a 0.3 tree would skip the triad requirements (M9a review)."""
+    assert cert.series_problem("0.2.1", "0.3.0.dev0")
+    assert cert.series_problem("0.1.0", "0.3.0")
+    assert cert.series_problem("0.3.0", "0.3.0.dev0") is None
+    assert cert.series_problem("0.3.0rc1", "0.3.0") is None
+    assert cert.series_problem("t", "0.3.0.dev0") is None  # an unparsable label requires all
+    results = tmp_path / "results"
+    results.mkdir()
+    own = cert.tree_version()
+    series = cert.release_series(own)
+    older = f"{series[0]}.{series[1] - 1}.9" if series and series[1] > 0 else "9.9.9"
+    with pytest.raises(SystemExit, match="follows its tree's release series"):
+        cert.main(["write", "--results", str(results), "--version", older, "--allow-dirty"])

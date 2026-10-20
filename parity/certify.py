@@ -1111,6 +1111,40 @@ def record_region(record: dict | None, region: dict) -> dict | None:
     return None
 
 
+def recheck_triad_readings(
+    doc: dict, name: str, results: Path, suite: dict, problems: list[str]
+) -> None:
+    """triad_count's readings checked against their compacted records with bench_suite's rules
+    (check_triad_record: the cases and patterns, the protocol fields, the medians and round
+    counts recomputed from the samples, the guard, the audit, every required row), and every
+    gated reading's summary holding every row the rule requires for each of its cases (a row
+    missing from the summary is never looked up by the row checks; M9a review)."""
+    sys.path.insert(0, str(REPO / "parity"))
+    import bench_suite
+
+    jobs = {
+        j["reading"]: j
+        for j in bench_suite.plan(suite, records=Path("records"), build_root=Path("build"))
+    }
+    for reading in doc.get("readings", []):
+        job = jobs.get(reading.get("reading"))
+        rec = reading.get("record")
+        if job is None or not rec or not (results / rec).is_file():
+            continue  # suite_coverage reports a reading without its record or plan
+        record = json.loads((results / rec).read_text())
+        where = f"{name}: {reading['reading']} ({rec})"
+        bench_suite.check_triad_record(suite, job, record, where, problems)
+        if not job.get("gated"):
+            continue
+        present = {
+            (g.get("case"), g.get("region")) for g in reading.get("regions", []) if "gate" in g
+        }
+        for key, rows in bench_suite.triad_required_rows(suite, job, record).items():
+            for row in rows:
+                if (key, row) not in present:
+                    problems.append(f"{where}: the summary has no gated row {row} of {key}")
+
+
 def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> dict[int, dict]:
     """Recomputes every gated row of a summary instead of trusting its flags: the medians must be
     those of the compacted record next to it, the ratio port / original, the gate the suite
@@ -1184,6 +1218,8 @@ def recheck_gates(doc: dict, name: str, results: Path, problems: list[str]) -> d
                 gated += 1
                 exceeded += not within
             out[id(region)] = {"ratio": ratio, "gate": gate, "within_gate": within}
+    if doc.get("algorithm") == "triad_count" and rel and (REPO / rel).is_file():
+        recheck_triad_readings(doc, name, results, bench_suite.load_suite(REPO / rel), problems)
     verdict = doc.get("verdict") or {}
     if verdict.get("gated_regions") != gated or verdict.get("within_gate") != gated - exceeded:
         problems.append(
@@ -1924,10 +1960,32 @@ def update_readme(path: Path, block: str) -> None:
 # --- write ---------------------------------------------------------------------------------------
 
 
+def tree_version() -> str:
+    """The version of the tree (VERSION)."""
+    return (REPO / "VERSION").read_text().strip()
+
+
+def series_problem(version: str, tree: str) -> str | None:
+    """Why a certificate labelled `version` cannot be written on a tree of version `tree`: the
+    rules (the required suites, golden sets and checks) follow the release series, and a label of
+    another series than the tree's would pick another series' rules (M9a review: '--version 0.2.1'
+    on a 0.3 tree skipped the triad requirements). None when they agree, or when either does not
+    parse (an unparsable label requires everything)."""
+    label, own = release_series(version), release_series(tree)
+    if label is None or own is None or label == own:
+        return None
+    return (
+        f"--version {version} is of the {label[0]}.{label[1]} series, the tree (VERSION {tree}) "
+        f"of {own[0]}.{own[1]}: a certificate follows its tree's release series"
+    )
+
+
 def cmd_write(args: argparse.Namespace) -> int:
     results = args.results or REPO / "benchmarks" / "results" / args.version
     if not results.is_dir():
         raise SystemExit(f"{results}: no results directory")
+    if (why := series_problem(args.version, tree_version())) is not None:
+        raise SystemExit(f"write: {why}")
     head, dirty = head_commit()
     problems: list[str] = []
     dry = args.dry_run
@@ -1986,7 +2044,7 @@ def cmd_write(args: argparse.Namespace) -> int:
             )
         }
     )
-    version_file = (REPO / "VERSION").read_text().strip()
+    version_file = tree_version()
     equivalences = []
     for commit in measured:
         diff = code_diff(commit, head)

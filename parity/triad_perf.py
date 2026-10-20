@@ -694,6 +694,8 @@ def memory(args: argparse.Namespace) -> int:
                               .read_text())  # fmt: skip
             for pattern in args.patterns:
                 key = case_key(case, pattern)
+                golden = json.loads((tg.set_dir(perf_ab.SCRATCH) / "cases" / case /
+                                     f"{pattern}.json").read_text())  # fmt: skip
                 a_cmd, b_cmd = commands(group, pattern, driver, None, count, nvtx=True, sync=False)
                 before = foreign_gpu_processes(args.gpu)
                 if before:
@@ -705,6 +707,15 @@ def memory(args: argparse.Namespace) -> int:
                     raise SystemExit(
                         f"{key}: a run failed:\n{pa.stderr[-1500:]}\n{pb.stderr[-1500:]}"
                     )
+                # The guard of run(): the counts both measured programs print are the golden's
+                # (M9a review: a port that skipped counting would have a lower peak).
+                runs_guarded = 0
+                bad = guard(pa.stdout, golden, pattern, "original", True) + guard(
+                    pb.stdout, golden, pattern, "port", count
+                )
+                if bad:
+                    raise SystemExit(f"{key}: the plain runs' guard failed: {bad}")
+                runs_guarded += 2
                 store = {int(m.group(1)): int(m.group(2))
                          for x in pb.stderr.splitlines() if (m := STORE_LINE.match(x))}  # fmt: skip
                 init = next((int(m.group(1)) for x in pb.stderr.splitlines()
@@ -722,9 +733,18 @@ def memory(args: argparse.Namespace) -> int:
                     )
                 # The Nsight Systems peaks of both whole processes (and the port without counting:
                 # the triad bytes live during hypergraph.apply).
-                a_nsys = hypergraph_perf.memory_by_range(a_cmd, env, work / "a", A_BATCH_RANGE)
+                a_nsys = hypergraph_perf.memory_by_range(a_cmd, env, work / "a", A_BATCH_RANGE,
+                                                         capture=True)  # fmt: skip
                 b_nsys = hypergraph_perf.memory_by_range(b_cmd, env, work / "b",
-                                                         PORT_BATCH_RANGE[count])  # fmt: skip
+                                                         PORT_BATCH_RANGE[count],
+                                                         capture=True)  # fmt: skip
+                # The same guard on the profiled processes, whose peaks are the gate.
+                bad = guard(a_nsys.pop("stdout"), golden, pattern, "original", True) + guard(
+                    b_nsys.pop("stdout"), golden, pattern, "port", count
+                )
+                if bad:
+                    raise SystemExit(f"{key}: the profiled runs' guard failed: {bad}")
+                runs_guarded += 2
                 triad_apply = None
                 c_nsys = None
                 if count:
@@ -781,6 +801,8 @@ def memory(args: argparse.Namespace) -> int:
                         for pa_, pb_ in zip(a_nsys["batches"], b_nsys["batches"], strict=False)
                     ],
                     "foreign_gpu_processes": {"before": before, "after": after},
+                    # Every measured process printed the golden's counts (and batch lines).
+                    "guard": {"runs_checked": runs_guarded, "passed": True},
                 }
                 footprint = [
                     res["footprint_ratio_at_peak"],
@@ -833,6 +855,9 @@ def memory(args: argparse.Namespace) -> int:
                 "original": "the UNPATCHED build/<pattern>, no --check",
                 "port": "dyng-compat-escher run --backend cuda --nvtx"
                 + ("" if count else " --no-count"),
+                "guard": "every measured process (the two plain runs and the two profiled ones): "
+                "the counts and batch lines it prints equal the golden case's; a failure stops "
+                "the reading",
             },
             "port": {
                 "commit": perf_ab.port_commit(),
